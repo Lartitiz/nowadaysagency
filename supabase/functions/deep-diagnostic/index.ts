@@ -320,22 +320,26 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
 
     await Promise.allSettled(fastSaves);
 
-    // ====== PHASE 2 : Enrichissement branding — fire-and-forget via separate edge function ======
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    fetch(`${supabaseUrl}/functions/v1/diagnostic-enrichment`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${serviceRoleKey}`,
-      },
-      body: JSON.stringify({
-        userId,
-        workspaceId,
-        userPrompt,
-        savedDiagId: savedDiag?.id || null,
-      }),
-    }).catch(e => console.error("Failed to trigger enrichment:", e));
+    // ====== PHASE 2 : Enrichissement branding — fire-and-forget ======
+    try {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      fetch(`${supabaseUrl}/functions/v1/diagnostic-enrichment`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${serviceRoleKey}`,
+        },
+        body: JSON.stringify({
+          userId,
+          workspaceId,
+          userPrompt: userPrompt.slice(0, 8000),
+          savedDiagId: savedDiag?.id || null,
+        }),
+      }).catch(() => {});
+    } catch {
+      // Ignorer
+    }
 
     clearTimeout(timeout);
     return new Response(
