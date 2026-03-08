@@ -1423,6 +1423,7 @@ export default function CreerUnifie() {
   const handleExportPptx = async () => {
     if (!result?.raw?.slides) return;
     try {
+      const { exportCarouselPptx } = await import("@/lib/export-carousel-pptx");
       await exportCarouselPptx(
         result.raw.slides,
         ideaText || "carrousel",
@@ -1439,6 +1440,7 @@ export default function CreerUnifie() {
     if (visualSlides.length === 0) return;
     try {
       toast.info("Export visuels en cours (capture des slides)…");
+      const { exportCarouselVisualPptx } = await import("@/lib/export-carousel-visual-pptx");
       await exportCarouselVisualPptx(visualSlides, ideaText || "carrousel-visuels");
       toast.success("PPTX visuels téléchargé !");
     } catch (e: any) {
@@ -1450,6 +1452,7 @@ export default function CreerUnifie() {
     if (!pinterestPinHtml) return;
     try {
       toast.info("Export PPTX en cours...");
+      const { exportPinterestVisualPptx } = await import("@/lib/export-pinterest-visual-pptx");
       await exportPinterestVisualPptx(pinterestPinHtml, ideaText || "epingle-pinterest");
       toast.success("PPTX téléchargé !");
     } catch (e: any) {
@@ -1461,6 +1464,7 @@ export default function CreerUnifie() {
     if (!pinterestPinHtml) return;
     try {
       toast.info("Export PNG en cours...");
+      const { exportPinterestVisualPng } = await import("@/lib/export-pinterest-visual-pptx");
       await exportPinterestVisualPng(pinterestPinHtml, ideaText || "epingle-pinterest");
       toast.success("PNG téléchargé !");
     } catch (e: any) {
@@ -1472,6 +1476,7 @@ export default function CreerUnifie() {
     if (!photoBriefOverlayHtml) return;
     try {
       toast.info("Export PNG en cours...");
+      const { exportPinterestVisualPng } = await import("@/lib/export-pinterest-visual-pptx");
       await exportPinterestVisualPng(photoBriefOverlayHtml, ideaText || "overlay-pinterest");
       toast.success("PNG téléchargé !");
     } catch (e: any) {
@@ -1487,6 +1492,7 @@ export default function CreerUnifie() {
     }
     try {
       toast.info("Export PPTX éditable en cours...");
+      const { exportPinterestEditablePptx } = await import("@/lib/export-pinterest-editable-pptx");
       await exportPinterestEditablePptx(
         pinData,
         result?.raw?.title || "",
