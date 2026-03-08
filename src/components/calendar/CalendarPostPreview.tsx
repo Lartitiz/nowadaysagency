@@ -175,7 +175,7 @@ export function CalendarPostPreview({
       const pptx = new PptxGenJS();
       pptx.defineLayout({ name: "INSTAGRAM", width: 7.5, height: 9.375 });
       pptx.layout = "INSTAGRAM";
-      pptx.author = "Nowadays Agency";
+      pptx.author = "L'Assistant Com'";
 
       for (let i = 0; i < urls.length; i++) {
         const response = await fetch(urls[i]);

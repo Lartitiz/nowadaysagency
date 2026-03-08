@@ -13,7 +13,7 @@ export async function exportCarouselVisualPptx(
   const pptx = new PptxGenJS();
   pptx.defineLayout({ name: "INSTAGRAM", width: 7.5, height: 9.375 });
   pptx.layout = "INSTAGRAM";
-  pptx.author = "Nowadays Agency";
+  pptx.author = "L'Assistant Com'";
 
   const container = document.createElement("div");
   container.style.cssText =

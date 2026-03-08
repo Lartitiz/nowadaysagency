@@ -464,7 +464,7 @@ export async function exportPinterestEditablePptx(
   const pptx = new PptxGenJS();
   pptx.defineLayout({ name: "PINTEREST", width: W, height: H });
   pptx.layout = "PINTEREST";
-  pptx.author = "Nowadays Agency";
+  pptx.author = "L'Assistant Com'";
 
   const c = {
     primary: hex(charter?.color_primary || "#FB3D80"),

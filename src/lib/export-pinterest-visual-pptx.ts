@@ -8,7 +8,7 @@ export async function exportPinterestVisualPptx(
   const pptx = new PptxGenJS();
   pptx.defineLayout({ name: "PINTEREST", width: 6.94, height: 10.42 });
   pptx.layout = "PINTEREST";
-  pptx.author = "Nowadays Agency";
+  pptx.author = "L'Assistant Com'";
 
   const container = document.createElement("div");
   container.style.cssText =
