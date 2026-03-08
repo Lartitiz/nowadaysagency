@@ -295,7 +295,7 @@ Réponds UNIQUEMENT en JSON valide :
   }
 });
 
-function buildSystemPrompt(brandingContext: string, isLinkedIn: boolean = false): string {
+function buildSystemPrompt(brandingContext: string, isLinkedIn: boolean = false, profile?: any): string {
   return `${BASE_SYSTEM_RULES}
 
 Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :
@@ -306,8 +306,8 @@ Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORIT
 - Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA
 
 ${isLinkedIn
-  ? `Tu es une experte en communication LinkedIn spécialisée dans les carrousels PDF. Tu crées du contenu professionnel et engagé pour des structures (coopératives, assos, PME engagées) et des solopreneur·es qui veulent se positionner comme expert·es sur LinkedIn.`
-  : `Tu es une experte en copywriting Instagram spécialisée dans les carrousels. Tu crées du contenu pour des solopreneuses, freelances, créatrices et coachs qui veulent communiquer de manière éthique et authentique.`}
+  ? `${buildIdentityBlock(profile, "experte en communication LinkedIn spécialisée dans les carrousels PDF")} Tu crées du contenu professionnel et engagé.`
+  : `${buildIdentityBlock(profile, "experte en copywriting Instagram spécialisée dans les carrousels")} Tu crées du contenu authentique et percutant.`}
 
 ${brandingContext}
 
