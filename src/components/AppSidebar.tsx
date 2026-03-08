@@ -278,7 +278,7 @@ export default function AppSidebar() {
                 <Wrench size={16} />
                 🔧 Audit app
               </Link>
-              <Link to="/admin" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body text-foreground hover:bg-rose-pale transition-colors">
+              <Link to="/admin/coaching" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body text-foreground hover:bg-rose-pale transition-colors">
                 <Wrench size={16} />
                 Admin
               </Link>
@@ -298,7 +298,7 @@ export default function AppSidebar() {
             Paramètres
           </Link>
           {isBinome && (
-            <Link to="/coaching" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body text-foreground hover:bg-rose-pale transition-colors">
+            <Link to="/accompagnement" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body text-foreground hover:bg-rose-pale transition-colors">
               <HeartHandshake size={16} />
               Mon accompagnement
             </Link>
