@@ -9,7 +9,7 @@ const NotFound = () => {
 
   useEffect(() => {
     console.error("404 Error: User attempted to access non-existent route:", location.pathname);
-    Sentry.captureMessage(`404: ${location.pathname}`, { level: "warning" });
+    (Sentry as any).captureMessage(`404: ${location.pathname}`, { level: "warning" });
   }, [location.pathname]);
 
   const msg = MESSAGES.errors.not_found;
