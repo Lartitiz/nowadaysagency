@@ -248,9 +248,12 @@ export default function CreerUnifie() {
         visualSlides,
         savedId,
         questions: questions || [],
+        inspirationAnalysis: inspirationAnalysis || undefined,
+        inspirationProposals: inspirationProposals || [],
+        inspirationImagePreview: inspirationImagePreview || null,
       });
     }
-  }, [step, ideaText, objective, selectedFormat, editorialAngle, editContent, result, visualSlides?.length, savedId, questions]);
+  }, [step, ideaText, objective, selectedFormat, editorialAngle, editContent, result, visualSlides?.length, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview]);
 
   // Pre-fill from URL/state & auto-advance (only when URL params are present)
   const initDone = useRef(false);
