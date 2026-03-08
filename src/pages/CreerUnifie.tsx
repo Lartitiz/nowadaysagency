@@ -18,15 +18,11 @@ import PinterestInspirationStep from "@/components/creer/PinterestInspirationSte
 import CreerTransformTab from "@/components/creer/CreerTransformTab";
 import { useContentGenerator } from "@/hooks/use-content-generator";
 import { CONTENT_STRUCTURES, EDITORIAL_ANGLES, LINKEDIN_EDITORIAL_ANGLES, PINTEREST_EDITORIAL_ANGLES, PINTEREST_VISUAL_ANGLES, getStructureForCombo } from "@/lib/content-structures";
-import { exportPinterestVisualPptx, exportPinterestVisualPng } from "@/lib/export-pinterest-visual-pptx";
-import { exportPinterestEditablePptx } from "@/lib/export-pinterest-editable-pptx";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { DEMO_DATA } from "@/lib/demo-data";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useBrandCharter } from "@/hooks/use-branding";
-import { exportCarouselPptx } from "@/lib/export-carousel-pptx";
-import { exportCarouselVisualPptx } from "@/lib/export-carousel-visual-pptx";
 import { supabase } from "@/integrations/supabase/client";
 import { loadFlowState, saveFlowState, clearFlowState } from "@/hooks/use-flow-persistence";
 import { useFormPersist } from "@/hooks/use-form-persist";

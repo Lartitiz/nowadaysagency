@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { trackError } from "@/lib/error-tracker";
 import { supabase } from "@/integrations/supabase/client";
@@ -62,6 +62,44 @@ interface UserPlanState {
   refresh: () => Promise<void>;
 }
 
+/* ── Shared in-memory cache for check-subscription ── */
+let _cachedData: any = null;
+let _cacheTimestamp = 0;
+let _inflightPromise: Promise<any> | null = null;
+const CACHE_TTL = 60_000; // 1 minute
+
+async function fetchSubscription(): Promise<any> {
+  const now = Date.now();
+  if (_cachedData && now - _cacheTimestamp < CACHE_TTL) {
+    return _cachedData;
+  }
+  if (_inflightPromise) return _inflightPromise;
+
+  _inflightPromise = supabase.functions
+    .invoke("check-subscription")
+    .then(({ data, error }) => {
+      _inflightPromise = null;
+      if (!error && data) {
+        _cachedData = data;
+        _cacheTimestamp = Date.now();
+        return data;
+      }
+      return null;
+    })
+    .catch(() => {
+      _inflightPromise = null;
+      return null;
+    });
+
+  return _inflightPromise;
+}
+
+/** Force cache invalidation (called by refresh) */
+function invalidateCache() {
+  _cachedData = null;
+  _cacheTimestamp = 0;
+}
+
 export function useUserPlan(): UserPlanState {
   const { user } = useAuth();
   const { isDemoMode, demoData, demoPlan } = useDemoContext();
@@ -89,8 +127,8 @@ export function useUserPlan(): UserPlanState {
     }
 
     try {
-      const { data, error } = await supabase.functions.invoke("check-subscription");
-      if (!error && data) {
+      const data = await fetchSubscription();
+      if (data) {
         setPlan(normalizePlan(data.plan || "free"));
         setBonusCredits(data.bonus_credits || 0);
         if (data.ai_usage && typeof data.ai_usage === "object") {
@@ -102,6 +140,11 @@ export function useUserPlan(): UserPlanState {
     }
     setLoading(false);
   }, [user, isDemoMode]);
+
+  const refresh = useCallback(async () => {
+    invalidateCache();
+    await load();
+  }, [load]);
 
   useEffect(() => {
     load();
@@ -170,7 +213,7 @@ export function useUserPlan(): UserPlanState {
     remainingTotal,
     isPaid: isAdminUser || (isDemoMode && demoPlanResolved === "binome") || (!isDemoMode && plan !== "free"),
     isBinome: isAdminUser || (isDemoMode && demoPlanResolved === "binome") || (!isDemoMode && plan === "binome"),
-    refresh: load,
+    refresh,
   };
 }
 
