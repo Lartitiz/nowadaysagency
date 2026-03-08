@@ -126,7 +126,7 @@ Réponds en JSON :
       userPrompt = "Formule mes combats et mon manifeste.";
 
     } else if (type === "limits") {
-      systemPrompt = `Tu es expert·e en positionnement de marque pour des solopreneuses créatives et éthiques.
+      systemPrompt = `Tu es expert·e en positionnement de marque.
 
 ${NICHE_WRITING_RULES}
 
