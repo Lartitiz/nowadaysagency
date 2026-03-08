@@ -35,7 +35,7 @@ export default function PinterestInspirationStep({
   return (
     <div className="space-y-6 animate-fade-in">
       {/* 1) Source analysis */}
-      <div className="flex gap-4 items-start">
+      <div className="flex flex-col sm:flex-row gap-4 items-center sm:items-start">
         {preview ? (
           <img
             src={preview}

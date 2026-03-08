@@ -1653,7 +1653,7 @@ export default function CreerUnifie() {
 
             {/* Transform LinkedIn text to carousel */}
             {step === "result" && selectedFormat === "linkedin" && result?.raw && (result.raw.content || result.raw.full_text || result.raw.hook) && !generating && !streaming && !demoGenerating && (
-              <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 flex items-center justify-between gap-4 animate-fade-in">
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-fade-in">
                 <div>
                   <p className="text-sm font-semibold text-foreground">Transformer en carrousel LinkedIn ?</p>
                   <p className="text-xs text-muted-foreground">L'IA structure ton post en slides visuelles téléchargeables en PDF.</p>

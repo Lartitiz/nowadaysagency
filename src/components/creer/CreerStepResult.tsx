@@ -407,7 +407,7 @@ export default function CreerStepResult({
       )}
 
       {/* 4. Actions secondaires */}
-      <div className="flex items-center justify-center gap-3">
+      <div className="flex items-center justify-center gap-2 sm:gap-3 flex-wrap">
         {onSave && (
           <Button variant="ghost" size="sm" onClick={onSave} className="gap-1.5 text-xs text-muted-foreground">
             <Lightbulb className="h-3.5 w-3.5" /> Sauvegarder en idée
