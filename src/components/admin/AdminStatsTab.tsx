@@ -77,6 +77,7 @@ interface StatsData {
   avg_content_score: number;
   drafts_by_canal: Record<string, number>;
   calendar_by_canal: Record<string, number>;
+  content_usage_rate: number;
   // Branding
   score_distribution: Record<string, number>;
   // Demographics
