@@ -178,12 +178,12 @@ export default function CharterColorsSection({
 
         {/* Live preview */}
         <div className="flex items-center gap-2 mt-4 pt-4 border-t border-border">
-          {[data.color_primary, data.color_secondary, data.color_accent, data.color_background, data.color_text, ...data.custom_colors].map((c: string, i: number) =>
+          {[data.color_primary, data.color_secondary, data.color_accent, data.color_background, data.color_text, ...data.custom_colors].filter(Boolean).map((c: string | null, i: number) =>
           <div
             key={i}
             className="w-10 h-10 rounded-full border-2 border-background shadow-sm"
-            style={{ backgroundColor: c }}
-            title={c} />
+            style={{ backgroundColor: c || "#888" }}
+            title={c || "Non défini"} />
 
           )}
         </div>
