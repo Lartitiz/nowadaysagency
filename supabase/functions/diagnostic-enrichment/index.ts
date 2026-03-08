@@ -82,15 +82,15 @@ Structure attendue :
   },
   "charter_prefill": {
     "confidence": "high|medium|low",
-    "color_primary": "code hex ou null — UNIQUEMENT si détecté dans le CSS/HTML, ne pas inventer",
-    "color_secondary": "code hex ou null",
-    "color_accent": "code hex ou null",
-    "color_background": "code hex ou null",
-    "color_text": "code hex ou null",
-    "font_title": "nom de la police détectée dans le CSS/Google Fonts ou null",
-    "font_body": "nom de la police body détectée ou null",
+    "color_primary": "code hex EXACT trouvé dans les données CSS/style_hints fournies, ou null",
+    "color_secondary": "code hex EXACT ou null",
+    "color_accent": "code hex EXACT ou null",
+    "color_background": "code hex EXACT ou null",
+    "color_text": "code hex EXACT ou null",
+    "font_title": "nom EXACT de la police détectée dans les données CSS/Google Fonts fournies, ou null",
+    "font_body": "nom EXACT de la police body détectée, ou null",
     "mood_keywords": ["mot-clé 1", "mot-clé 2", "mot-clé 3"],
-    "photo_style": "description du style visuel global ou null"
+    "photo_style": "description du style visuel global déduit des images et du ton du site, ou null"
   },
   "combat_structured": {
     "combat_cause": "pourquoi elle fait ça ou null",
