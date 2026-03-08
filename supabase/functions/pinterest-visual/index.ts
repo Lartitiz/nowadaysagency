@@ -151,6 +151,16 @@ BORDURES POINTILLÉES :
 - JAMAIS de cercles/ronds comme décoration de fond
 ${ch.visual_donts ? `\n⛔ INTERDITS VISUELS :\n${ch.visual_donts}` : ""}${ch.ai_generated_brief ? `\nBRIEF CRÉATIF :\n${ch.ai_generated_brief}` : ""}${ch.moodboard_description ? `\nAMBIANCE MOODBOARD :\n${ch.moodboard_description}` : ""}${ch.icon_style ? `\nStyle d'icônes : ${ch.icon_style}` : ""}${ch.template_layout_description ? `\n\n═══ LAYOUT DE RÉFÉRENCE ═══\n${ch.template_layout_description}\nInspire-toi de ce layout pour l'ambiance générale.` : ""}
 
+
+═══ IMAGE DE RÉFÉRENCE ═══
+${reqBody.reference_image_base64 ? `Une image d'épingle Pinterest est fournie comme inspiration.
+ANALYSE sa structure (disposition des éléments, hiérarchie, nombre de blocs, densité).
+REPRODUIS cette structure et ce layout, mais avec :
+- Le nouveau contenu (sujet fourni)
+- La charte graphique de l'utilisatrice (couleurs, polices)
+- Le design system Nowadays (badges pilules, cartes blanches, etc.)
+Tu ne copies PAS le contenu ni les couleurs de la référence. Tu copies sa STRUCTURE et son LAYOUT.
+` : ""}
 ═══ TYPES D'ÉPINGLES ═══
 
 Si pin_type = "infographie" :
