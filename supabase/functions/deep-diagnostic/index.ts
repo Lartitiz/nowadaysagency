@@ -228,7 +228,7 @@ Pour les routes, utilise : /storytelling, /persona, /proposition, /calendrier, /
 
     // Context
     userParts.push(`=== CONTEXTE ===
-Cette personne utilise L'Assistant Com', un outil pour solopreneuses créatives et éthiques. Elle vient de terminer son onboarding. Ce diagnostic est la PREMIÈRE chose qu'elle verra. Il doit être personnalisé, honnête, et lui donner envie de continuer.`);
+Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. Ce diagnostic est la PREMIÈRE chose qu'elle verra. Il doit être personnalisé, honnête, et lui donner envie de continuer.`);
 
     // Profile info
     if (profile) {
