@@ -570,46 +570,50 @@ function DemographicsSection({ stats }: { stats: StatsData }) {
     .sort((a, b) => b.count - a.count);
   const maxChannel = Math.max(...channelData.map(c => c.count), 1);
 
+  const LEVEL_COLORS = ["#8B5CF6", "#A78BFA", "#C4B5FD", "#DDD6FE"];
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ChartCard title="Type d'activité">
           {activityData.length === 0 ? (
-            <EmptyChart message="Aucune donnée" />
+            <p className="text-sm text-muted-foreground">Aucune donnée</p>
           ) : (
-            <ResponsiveContainer width="100%" height={240}>
-              <PieChart>
-                <Pie
-                  data={activityData}
-                  dataKey="count"
-                  nameKey="type"
-                  innerRadius={50}
-                  outerRadius={80}
-                  paddingAngle={3}
-                  label={({ type, count }: any) => `${type} (${activityTotal > 0 ? Math.round((count / activityTotal) * 100) : 0}%)`}
-                >
-                  {activityData.map((_, i) => (
-                    <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={tooltipStyle} />
-              </PieChart>
-            </ResponsiveContainer>
+            <div className="flex flex-wrap gap-2">
+              {activityData.map((d, i) => {
+                const pct = activityTotal > 0 ? Math.round((d.count / activityTotal) * 100) : 0;
+                return (
+                  <span
+                    key={d.type}
+                    className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium text-white"
+                    style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }}
+                  >
+                    {d.type} ({d.count}{pct > 5 ? ` · ${pct}%` : ""})
+                  </span>
+                );
+              })}
+            </div>
           )}
         </ChartCard>
 
         <ChartCard title="Niveau déclaré">
           {levelsData.length === 0 ? (
-            <EmptyChart message="Aucune donnée" />
+            <p className="text-sm text-muted-foreground">Aucune donnée</p>
           ) : (
-            <ResponsiveContainer width="100%" height={240}>
-              <BarChart data={levelsData} layout="vertical" barCategoryGap={8}>
-                <XAxis type="number" hide />
-                <YAxis dataKey="level" type="category" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} width={100} />
-                <Tooltip contentStyle={tooltipStyle} />
-                <Bar dataKey="count" radius={[0, 6, 6, 0]} fill="#8B5CF6" name="Utilisatrices" label={{ position: "right", fontSize: 12, fill: "hsl(var(--foreground))" }} />
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="flex flex-wrap gap-2">
+              {levelsData.map((d, i) => (
+                <span
+                  key={d.level}
+                  className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium"
+                  style={{
+                    backgroundColor: LEVEL_COLORS[i % LEVEL_COLORS.length],
+                    color: i < 2 ? "white" : "#1f2937",
+                  }}
+                >
+                  {d.level} ({d.count})
+                </span>
+              ))}
+            </div>
           )}
         </ChartCard>
       </div>
