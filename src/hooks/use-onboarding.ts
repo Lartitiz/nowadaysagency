@@ -317,11 +317,15 @@ export function useOnboarding() {
           continue;
         }
 
-        const safeName = sanitizeFileName(file.name);
+        // Compress large images before upload (target: 1.5 MB max)
+        const { compressImageFile } = await import("@/lib/image-compress");
+        const compressedFile = await compressImageFile(file);
+
+        const safeName = sanitizeFileName(compressedFile.name);
         const filePath = `${user.id}/onboarding/${Date.now()}_${safeName}`;
         const { error: uploadError } = await supabase.storage
           .from("onboarding-uploads")
-          .upload(filePath, file);
+          .upload(filePath, compressedFile);
 
         if (uploadError) {
           console.error("Upload error:", uploadError);
