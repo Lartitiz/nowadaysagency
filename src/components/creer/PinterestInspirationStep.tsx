@@ -2,88 +2,123 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 
 interface Props {
-  analysis: any;
-  proposals: any[];
-  imagePreview?: string | null;
+  analysis: {
+    detected_type: string;
+    structure: string;
+    keywords: string[];
+    why_it_works: string;
+    source_description: string;
+  };
+  proposals: Array<{
+    id: string;
+    subject: string;
+    angle: string;
+    recommended_output: "visual" | "photo";
+    pin_type: string;
+    brief: string;
+  }>;
+  inspirationPreview: string;
   onSelect: (proposal: any) => void;
   onBack: () => void;
 }
 
-export default function PinterestInspirationStep({ analysis, proposals, imagePreview, onSelect, onBack }: Props) {
+export default function PinterestInspirationStep({
+  analysis,
+  proposals,
+  inspirationPreview,
+  onSelect,
+  onBack,
+}: Props) {
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center gap-2">
-        <button
-          onClick={onBack}
-          className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-        >
-          <ArrowLeft className="h-3 w-3" /> Retour
-        </button>
-      </div>
-
-      {/* Analysis summary */}
-      {analysis && (
-        <div className="rounded-xl border border-border bg-card p-4 space-y-2">
-          <p className="text-sm font-semibold text-foreground">🔍 Analyse de l'épingle</p>
-          {analysis.source_description && (
-            <p className="text-xs text-muted-foreground">{analysis.source_description}</p>
+      {/* 1) Source analysis */}
+      <div className="flex gap-4 items-start">
+        {inspirationPreview && (
+          <img
+            src={inspirationPreview}
+            alt="Épingle source"
+            className="w-[120px] rounded-xl shadow-md object-cover flex-shrink-0"
+            style={{ aspectRatio: "2 / 3" }}
+          />
+        )}
+        <div className="space-y-2 min-w-0">
+          {analysis.detected_type && (
+            <span className="inline-block rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground uppercase tracking-wider">
+              📊 {analysis.detected_type}
+            </span>
           )}
-          {analysis.keywords && analysis.keywords.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {analysis.keywords.map((kw: string, i: number) => (
-                <span key={i} className="text-[10px] bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
+          {analysis.source_description && (
+            <p className="text-sm text-foreground leading-relaxed">
+              {analysis.source_description}
+            </p>
+          )}
+          {analysis.why_it_works && (
+            <p className="text-sm text-muted-foreground italic leading-relaxed">
+              {analysis.why_it_works}
+            </p>
+          )}
+          {analysis.keywords?.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {analysis.keywords.map((kw, i) => (
+                <span
+                  key={i}
+                  className="inline-block rounded-full border border-border bg-muted/50 px-2 py-0.5 text-[11px] text-muted-foreground"
+                >
                   {kw}
                 </span>
               ))}
             </div>
           )}
-          {analysis.strengths && (
-            <p className="text-xs text-muted-foreground">✅ {analysis.strengths}</p>
-          )}
         </div>
-      )}
+      </div>
 
-      {/* Image preview */}
-      {imagePreview && (
-        <div className="flex justify-center">
-          <img
-            src={imagePreview}
-            alt="Épingle d'inspiration"
-            className="max-h-48 rounded-lg border border-border object-contain"
-          />
-        </div>
-      )}
+      {/* 2) Separator */}
+      <div className="border-t border-border" />
 
-      {/* Proposals */}
+      {/* 3) Title */}
+      <h3 className="text-base font-semibold text-foreground">
+        3 idées pour adapter à ton projet
+      </h3>
+
+      {/* 4) Proposal cards */}
       <div className="space-y-3">
-        <p className="text-sm font-semibold text-foreground">💡 Propositions adaptées à ton projet</p>
-        {proposals.map((proposal, i) => (
+        {proposals.map((p) => (
           <button
-            key={i}
-            onClick={() => onSelect(proposal)}
-            className="w-full text-left rounded-xl border-2 border-border bg-card hover:border-primary/40 p-4 transition-all space-y-2"
+            key={p.id}
+            type="button"
+            onClick={() => onSelect(p)}
+            className="w-full text-left rounded-xl border border-border bg-card p-4 space-y-2 transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <div className="flex items-start justify-between gap-2">
-              <p className="text-sm font-semibold text-foreground">{proposal.subject || proposal.title}</p>
-              {proposal.recommended_output && (
-                <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full shrink-0">
-                  {proposal.recommended_output === "visual" ? "🎨 Visuel" : "📷 Photo"}
+              <p className="font-semibold text-sm text-foreground leading-snug">
+                {p.subject}
+              </p>
+              {p.recommended_output === "visual" ? (
+                <span className="flex-shrink-0 inline-block rounded-full bg-primary px-2.5 py-0.5 text-[11px] font-semibold text-primary-foreground whitespace-nowrap">
+                  🎨 Visuel
+                </span>
+              ) : (
+                <span className="flex-shrink-0 inline-block rounded-full bg-accent px-2.5 py-0.5 text-[11px] font-semibold text-accent-foreground whitespace-nowrap">
+                  📷 Photo
                 </span>
               )}
             </div>
-            {proposal.angle && (
-              <p className="text-xs text-muted-foreground">📐 {proposal.angle}</p>
-            )}
-            {proposal.brief && (
-              <p className="text-xs text-muted-foreground">{proposal.brief}</p>
-            )}
-            {proposal.pin_type && (
-              <span className="text-[10px] bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
-                {proposal.pin_type}
-              </span>
-            )}
+            <p className="text-sm text-muted-foreground italic leading-relaxed">
+              {p.angle}
+            </p>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {p.brief}
+            </p>
           </button>
         ))}
+      </div>
+
+      {/* 5) Back button */}
+      <div>
+        <Button variant="ghost" size="sm" onClick={onBack} className="gap-1.5">
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Retour
+        </Button>
       </div>
     </div>
   );
