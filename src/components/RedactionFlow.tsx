@@ -151,7 +151,7 @@ export default function RedactionFlow({ idea, profile, canal, objectif, onClose 
           accroche: chosenAccroche,
           profile: profilePayload,
         },
-      });
+      }, 60000);
       if (res.error) throw res.error;
       const content = res.data?.content || "";
       setDraft(content);
