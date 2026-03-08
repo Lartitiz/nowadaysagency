@@ -812,7 +812,7 @@ export default function CreerUnifie() {
         });
         setIdeaText(proposal.subject);
       } catch (e: any) {
-        toast.error(e?.message || "Erreur lors de la génération du brief");
+        if (!handleQuotaError(e)) toast.error(e?.message || "Erreur lors de la génération du brief");
       } finally {
         setPinterestVisualGenerating(false);
       }
