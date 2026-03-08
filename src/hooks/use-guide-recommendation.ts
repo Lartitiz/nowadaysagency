@@ -101,9 +101,9 @@ function buildRecommendation(
     };
   }
 
-  // P2 – Fraîchement onboardé·e : pousser la création de contenu en priorité
+  // P2 – Pas encore de contenu créé : pousser la création en priorité
   // L'enrichissement a pré-rempli assez de branding pour que les générateurs fonctionnent
-  if (sectionsFilled <= 3 && calendarPosts === 0) {
+  if (contentsGenerated === 0 && calendarPosts === 0) {
     const hasContent = contentsGenerated > 0;
     if (!hasContent) {
       return {
