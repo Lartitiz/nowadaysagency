@@ -36,7 +36,7 @@ export default function PinterestInspirationStep({
     <div className="space-y-6 animate-fade-in">
       {/* 1) Source analysis */}
       <div className="flex gap-4 items-start">
-        {inspirationPreview && (
+        {preview && (
           <img
             src={inspirationPreview}
             alt="Épingle source"
