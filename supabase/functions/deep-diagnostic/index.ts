@@ -210,7 +210,8 @@ serve(async (req) => {
 RÈGLES :
 - Le "summary" (3-4 phrases) doit reformuler les mots de la personne. Elle doit se dire "oui c'est moi".
 - Ne jamais inventer : si pas de données sur un canal, score = null.
-- Forces et faiblesses CONCRÈTES avec exemples réels du contenu. Max 3-4 de chaque.
+- RÈGLE ABSOLUE FORCES/FAIBLESSES : tu ne peux commenter QUE les sources qui apparaissent dans les sections "SOURCE:" ci-dessous. Si tu n'as PAS de section "SOURCE: WEBSITE", tu ne peux RIEN dire sur le site (pas de "manque de CTA", pas de "bio incomplète sur le site", etc.). Si tu n'as PAS de screenshot Instagram, tu ne peux RIEN dire sur la bio Instagram, le feed, les abonnés. Chaque force/faiblesse DOIT citer un élément LITTÉRAL trouvé dans les données fournies. Si tu ne peux pas citer un extrait concret → ne génère pas cette force/faiblesse.
+- Max 3-4 forces, 3-4 faiblesses, 3 priorités. Tous basés sur des observations réelles.
 - 3 priorités actionnables dans l'outil, ordonnées par impact.
 - Si branding incomplet, priorité n°1 = compléter le branding.
 - Si scraping site échoué, le dire dans le summary.
