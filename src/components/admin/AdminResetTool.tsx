@@ -230,6 +230,14 @@ export default function AdminResetTool() {
         toast.success(`🔥 Compte ${targetEmail} remis à zéro. ${deleted} tables réinitialisées.`);
       }
 
+      // Clear onboarding localStorage cache
+      localStorage.removeItem("lac_onboarding_step");
+      localStorage.removeItem("lac_onboarding_answers");
+      localStorage.removeItem("lac_onboarding_branding");
+      localStorage.removeItem("lac_onboarding_ts");
+      localStorage.removeItem("lac_prenom");
+      localStorage.removeItem("lac_activite");
+
       // Redirect to onboarding if the reset target is the current user
       const { data: { user } } = await supabase.auth.getUser();
       if (user?.email === targetEmail) {
