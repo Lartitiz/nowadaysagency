@@ -68,13 +68,26 @@ serve(async (req) => {
 
     if (content) {
       // Upsert dans le cache — include style_hints for enrichment
-      await supabaseAdmin.from("scrape_cache").upsert({
+      const { error: upsertError } = await supabaseAdmin.from("scrape_cache").upsert({
         user_id: userId,
         url: websiteUrl,
         source_type: "website",
         content: content.slice(0, 10000),
         style_hints: styleHints ? styleHints.slice(0, 3000) : null,
       }, { onConflict: "user_id,url" });
+
+      if (upsertError) {
+        console.error("scrape_cache upsert failed:", upsertError);
+        // Fallback: try insert instead of upsert
+        const { error: insertError } = await supabaseAdmin.from("scrape_cache").insert({
+          user_id: userId,
+          url: websiteUrl,
+          source_type: "website",
+          content: content.slice(0, 10000),
+          style_hints: styleHints ? styleHints.slice(0, 3000) : null,
+        });
+        if (insertError) console.error("scrape_cache insert fallback also failed:", insertError);
+      }
     }
 
     return new Response(JSON.stringify({ success: true, cached: false, hasContent: !!content }), {
