@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { getUserContext, formatContextForAI } from "../_shared/user-context.ts";
+import { getUserContext, formatContextForAI, buildIdentityBlock } from "../_shared/user-context.ts";
 import { callAnthropic, getModelForAction } from "../_shared/anthropic.ts";
 import { buildSystemPrompt, CONTENT_VOICE_RULES, ANTI_PATTERNS } from "../_shared/base-prompts.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
