@@ -86,6 +86,10 @@ interface StatsData {
   levels: Record<string, number>;
   channel_popularity: Record<string, number>;
   ai_by_action_type: Record<string, number>;
+  // Alerts
+  near_limit_free: { user_id: string; prenom: string; credits_used: number }[];
+  inactive_paid: { user_id: string; prenom: string; plan: string; last_sign_in: string | null }[];
+  zombie_users_count: number;
 }
 
 type Section = "dashboard" | "business" | "engagement_product" | "users";
