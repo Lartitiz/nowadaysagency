@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, forwardRef } from "react";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useAuth } from "@/contexts/AuthContext";
@@ -622,19 +622,21 @@ function FunnelStep({ label, value, max, color }: { label: string; value: number
   );
 }
 
-function ProgressRing({ value }: { value: number }) {
+
+
+const ProgressRing = forwardRef<HTMLDivElement, { value: number }>(({ value }, ref) => {
   const r = 52;
   const c = 2 * Math.PI * r;
   const dash = (Math.min(value, 100) / 100) * c;
   return (
-    <div className="relative w-32 h-32">
+    <div ref={ref} className="relative w-32 h-32">
       <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
         <circle cx="60" cy="60" r={r} fill="none" stroke="hsl(var(--muted))" strokeWidth="8" />
-        <circle cx="60" cy="60" r={r} fill="none" stroke="#fb3d80" strokeWidth="8" strokeLinecap="round" strokeDasharray={`${dash} ${c}`} />
+        <circle cx="60" cy="60" r={r} fill="none" stroke="hsl(var(--primary))" strokeWidth="8" strokeLinecap="round" strokeDasharray={`${dash} ${c}`} />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
         <span className="text-2xl font-bold">{value}%</span>
       </div>
     </div>
   );
-}
+});
