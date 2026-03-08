@@ -384,6 +384,32 @@ export default function CreerUnifie() {
     if (desc) setPhotoDescription(desc);
     if (pm !== undefined) setPhotoMode(pm);
 
+    // Pinterest Inspiration: store image and trigger analysis instead of questions
+    if (format === "pinterest_inspiration" && photos && photos.length > 0) {
+      setInspirationImageBase64(photos[0].base64 || null);
+      setInspirationImagePreview(photos[0].preview || null);
+      // Launch analysis
+      setStep("inspiration_proposals");
+      setInspirationAnalysis(null);
+      setInspirationProposals([]);
+      try {
+        const { data, error: fnError } = await invokeWithTimeout("pinterest-inspiration", {
+          body: {
+            image_base64: photos[0].base64,
+            workspace_id: workspaceId || undefined,
+          },
+        }, 120000);
+        if (fnError) throw fnError;
+        if (data?.error) throw new Error(data.error);
+        setInspirationAnalysis(data?.result?.analysis || null);
+        setInspirationProposals(data?.result?.proposals || []);
+      } catch (e: any) {
+        toast.error(e?.message || "Erreur lors de l'analyse");
+        setStep("format");
+      }
+      return;
+    }
+
     const subjectToUse = overrideSubject || ideaText;
     const enrichedSubject = existingCalendarContent
       ? subjectToUse + "\n\n[Contenu existant à approfondir]\n" + existingCalendarContent
