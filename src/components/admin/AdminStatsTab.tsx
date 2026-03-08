@@ -230,6 +230,7 @@ function OverviewSection({ stats }: { stats: StatsData }) {
           value={stats.active_this_month}
           sub={`${activeRate}% du total`}
           trend={stats.active_this_month - (stats.active_prev_month || 0)}
+          status={activeRate >= 30 ? "good" : activeRate >= 15 ? "warning" : "danger"}
         />
         <KpiCard
           title="MRR"
