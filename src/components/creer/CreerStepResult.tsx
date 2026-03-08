@@ -68,6 +68,19 @@ const PROGRESS_MESSAGES: Record<string, string[]> = {
     "Génération du titre SEO...",
     "Dernières retouches...",
   ],
+  pinterest_photo: [
+    "Analyse de l'inspiration...",
+    "Rédaction du brief photo...",
+    "Création de l'overlay texte...",
+    "Optimisation du titre SEO...",
+    "Dernières retouches...",
+  ],
+  pinterest_inspiration: [
+    "Analyse de l'épingle...",
+    "Étude de la structure visuelle...",
+    "Recherche d'angles d'adaptation...",
+    "Personnalisation à ton projet...",
+  ],
   default: [
     "L'IA rédige ton contenu…",
     "Personnalisation avec ta voix…",
