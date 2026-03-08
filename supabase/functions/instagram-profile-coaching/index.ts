@@ -4,7 +4,7 @@ import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
-import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
+import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildIdentityBlock } from "../_shared/user-context.ts";
 
 const MODULE_QUESTIONS: Record<string, string[]> = {
   bio: [
