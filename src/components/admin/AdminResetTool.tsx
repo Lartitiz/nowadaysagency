@@ -204,7 +204,7 @@ export default function AdminResetTool() {
       if (!userId) return;
 
       // Call the edge function which uses service role key (bypasses RLS)
-      const session = (await supabase.auth.getSession()).data.session;
+      const session = (await supabase.auth.getSession?.() ?? await (supabase.auth as any).session?.())?.data?.session ?? null;
       const { data, error } = await supabase.functions.invoke("reset-onboarding", {
         headers: { Authorization: `Bearer ${session?.access_token}` },
         body: { targetUserId: userId },
