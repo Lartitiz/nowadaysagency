@@ -6205,6 +6205,7 @@ export type Database = {
           created_at: string | null
           id: string
           source_type: string
+          style_hints: string | null
           url: string
           user_id: string
         }
@@ -6213,6 +6214,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           source_type?: string
+          style_hints?: string | null
           url: string
           user_id: string
         }
@@ -6221,6 +6223,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           source_type?: string
+          style_hints?: string | null
           url?: string
           user_id?: string
         }
