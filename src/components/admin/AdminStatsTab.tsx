@@ -181,11 +181,10 @@ export default function AdminStatsTab() {
       </div>
 
       {/* Sections */}
-      {section === "overview" && <OverviewSection stats={stats} />}
+      {section === "dashboard" && <OverviewSection stats={stats} />}
       {section === "business" && <BusinessSection stats={stats} />}
-      {section === "engagement" && <EngagementSection stats={stats} />}
-      {section === "product" && <ProductSection stats={stats} />}
-      {section === "demographics" && <DemographicsSection stats={stats} />}
+      {section === "engagement_product" && <EngagementProductSection stats={stats} />}
+      {section === "users" && <DemographicsSection stats={stats} />}
     </div>
   );
 }
