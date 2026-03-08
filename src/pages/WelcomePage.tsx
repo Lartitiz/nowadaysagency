@@ -141,18 +141,21 @@ export default function WelcomePage() {
         storyRes,
         profileRes,
         recsRes,
+        charterRes,
+        propositionRes,
+        strategyRes,
       ] = await Promise.all([
         (supabase.from("brand_profile") as any)
           .select("positioning, mission, tone_keywords, values, content_pillars, combats, tone_style")
           .eq(column, value)
           .maybeSingle(),
         (supabase.from("persona") as any)
-          .select("description")
+          .select("description, portrait_prenom, step_1_frustrations, step_2_transformation, step_3a_objections, demographics")
           .eq(column, value)
           .eq("is_primary", true)
           .maybeSingle(),
         (supabase.from("offers") as any)
-          .select("name, promise, price_text")
+          .select("name, promise, price_text, target_ideal")
           .eq(column, value)
           .order("sort_order")
           .limit(5),
@@ -170,6 +173,18 @@ export default function WelcomePage() {
           .eq(column, value)
           .order("position", { ascending: true })
           .limit(3),
+        (supabase.from("brand_charter") as any)
+          .select("color_primary, color_secondary, color_accent, font_title, font_body, mood_keywords, photo_style, moodboard_description")
+          .eq(column, value)
+          .maybeSingle(),
+        (supabase.from("brand_proposition") as any)
+          .select("version_final, version_one_liner")
+          .eq(column, value)
+          .maybeSingle(),
+        (supabase.from("brand_strategy") as any)
+          .select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3, creative_concept")
+          .eq(column, value)
+          .maybeSingle(),
       ]);
 
       // Diagnostic summary
@@ -209,8 +224,16 @@ export default function WelcomePage() {
       }
 
       const persona = personaRes.data as any;
-      if (persona?.description) {
-        cards.push({ emoji: "🎭", title: "Persona", content: persona.description, route: "/branding/section?section=persona", dbTable: "persona", dbField: "description" });
+      if (persona) {
+        const personaParts: string[] = [];
+        if (persona.portrait_prenom) personaParts.push(persona.portrait_prenom);
+        if (persona.description) personaParts.push(persona.description);
+        if (persona.step_1_frustrations) personaParts.push(`Frustrations : ${persona.step_1_frustrations.slice(0, 150)}...`);
+        if (persona.step_2_transformation) personaParts.push(`Transformation : ${persona.step_2_transformation.slice(0, 150)}...`);
+        const personaContent = personaParts.filter(Boolean).join(" · ");
+        if (personaContent) {
+          cards.push({ emoji: "🎭", title: "Persona", content: personaContent, route: "/branding/section?section=persona" });
+        }
       }
 
       const offers = offersRes.data as any[];
@@ -224,6 +247,42 @@ export default function WelcomePage() {
       const story = storyRes.data as any;
       if (story?.imported_text) {
         cards.push({ emoji: "📖", title: "Ton histoire", content: story.imported_text, route: "/branding/section?section=story", dbTable: "storytelling", dbField: "imported_text" });
+      }
+
+      // Proposition de valeur
+      const prop = propositionRes.data as any;
+      if (prop?.version_final) {
+        cards.push({ emoji: "💎", title: "Proposition de valeur", content: prop.version_final, route: "/branding/proposition/recap" });
+      } else if (prop?.version_one_liner) {
+        cards.push({ emoji: "💎", title: "One-liner", content: prop.version_one_liner, route: "/branding/proposition/recap" });
+      }
+
+      // Stratégie de contenu
+      const strat = strategyRes.data as any;
+      if (strat?.pillar_major) {
+        const pillars = [strat.pillar_major, strat.pillar_minor_1, strat.pillar_minor_2, strat.pillar_minor_3].filter(Boolean);
+        const stratContent = pillars.join(", ") + (strat.creative_concept ? ` · Concept : ${strat.creative_concept}` : "");
+        cards.push({ emoji: "🧭", title: "Stratégie de contenu", content: stratContent, route: "/branding/section?section=content_strategy" });
+      }
+
+      // Charte graphique
+      const charter = charterRes.data as any;
+      if (charter && (charter.color_primary || charter.font_title || charter.photo_style)) {
+        const charterParts: string[] = [];
+        if (charter.color_primary) {
+          const colors = [charter.color_primary, charter.color_secondary, charter.color_accent].filter(Boolean);
+          charterParts.push(`Couleurs : ${colors.join(", ")}`);
+        }
+        if (charter.font_title) {
+          const fonts = [charter.font_title, charter.font_body].filter(Boolean);
+          charterParts.push(`Typos : ${fonts.join(" + ")}`);
+        }
+        if (charter.photo_style) charterParts.push(`Photo : ${charter.photo_style}`);
+        if (charter.mood_keywords?.length) {
+          const kw = Array.isArray(charter.mood_keywords) ? charter.mood_keywords : [];
+          if (kw.length) charterParts.push(`Ambiance : ${kw.join(", ")}`);
+        }
+        cards.push({ emoji: "🎨", title: "Charte graphique", content: charterParts.join(" · "), route: "/branding/section?section=charter" });
       }
 
       setBrandingCards(cards);
