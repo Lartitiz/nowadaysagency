@@ -503,6 +503,21 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
         </div>
       )}
 
+      {/* Pinterest inspiration upload */}
+      {selectedFormat === "pinterest_inspiration" && (
+        <div className="space-y-3 animate-fade-in">
+          <p className="text-sm font-semibold text-foreground">📸 Uploade une capture d'une épingle qui t'inspire</p>
+          <p className="text-xs text-muted-foreground">
+            Va sur Pinterest, trouve une épingle qui cartonne sur ton mot-clé, fais une capture d'écran et uploade-la ici.
+          </p>
+          <PhotoUploadZone
+            maxPhotos={1}
+            onPhotosChange={setInspirationPhotos}
+            onDescriptionChange={() => {}}
+          />
+        </div>
+      )}
+
       {/* Structure info (hidden for Pinterest formats) */}
       {selectedStructure && selectedAngle && selectedChannel !== "pinterest" && (
         <div className="rounded-lg bg-muted/50 border border-border p-2.5 space-y-1 animate-fade-in">
