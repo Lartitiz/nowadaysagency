@@ -42,12 +42,12 @@ export function CarouselSlider({ slides, mediaUrls }: CarouselSliderProps) {
 
       {/* Arrows */}
       {current > 0 && (
-        <button onClick={prev} className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-white/80 flex items-center justify-center shadow-sm hover:bg-white transition-colors">
+        <button onClick={prev} aria-label="Slide précédente" className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-white/80 flex items-center justify-center shadow-sm hover:bg-white transition-colors">
           <ChevronLeft className="h-4 w-4 text-gray-700" />
         </button>
       )}
       {current < slides.length - 1 && (
-        <button onClick={next} className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-white/80 flex items-center justify-center shadow-sm hover:bg-white transition-colors">
+        <button onClick={next} aria-label="Slide suivante" className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-white/80 flex items-center justify-center shadow-sm hover:bg-white transition-colors">
           <ChevronRight className="h-4 w-4 text-gray-700" />
         </button>
       )}
