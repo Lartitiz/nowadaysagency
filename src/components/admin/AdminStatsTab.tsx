@@ -213,7 +213,12 @@ function OverviewSection({ stats }: { stats: StatsData }) {
     free: "#9CA3AF", outil: "#8B5CF6", binome: "#fb3d80", pro: "#3B82F6",
   };
 
-  const maxFeature = Math.max(...stats.top_features.map(f => f.count), 1);
+  const mrrSub = Object.entries(stats.revenue_by_plan || {})
+    .filter(([, v]) => v > 0)
+    .map(([plan, amount]) => `${PLAN_LABELS[plan] || plan}: ${amount}€`)
+    .join(" · ") || `${stats.paid_users} abonnées`;
+
+  const estimatedCost = Math.round((stats.total_tokens || 0) * 0.000003);
 
   return (
     <div className="space-y-6">
@@ -222,89 +227,92 @@ function OverviewSection({ stats }: { stats: StatsData }) {
         <KpiCard
           title="Inscrites"
           value={stats.total_users}
+          trend={stats.new_this_month - (stats.new_prev_month || 0)}
           sub={stats.new_this_month > 0 ? `+${stats.new_this_month} ce mois` : undefined}
           subColor="text-emerald-600"
         />
         <KpiCard
-          title="Actives (IA)"
+          title="Actives"
           value={stats.active_this_month}
-          sub={`${activeRate}% du total`}
           trend={stats.active_this_month - (stats.active_prev_month || 0)}
+          sub={`${activeRate}% du total`}
           status={activeRate >= 30 ? "good" : activeRate >= 15 ? "warning" : "danger"}
         />
         <KpiCard
           title="MRR"
           value={stats.mrr}
           suffix="€"
-          sub={`${stats.paid_users} abonnées`}
+          sub={mrrSub}
           subColor="text-emerald-600"
         />
-        <KpiCard title="Score identité" value={stats.avg_branding_score} suffix="/100" />
+        <KpiCard
+          title="Onboarding"
+          value={stats.onboarding_rate}
+          suffix="%"
+          sub={`${stats.onboarding_completed} sur ${stats.total_users}`}
+        />
+        <KpiCard
+          title="Coût API estimé"
+          value={estimatedCost}
+          suffix="€"
+          sub="ce mois"
+        />
       </div>
 
       {/* Alerts panel */}
       <AlertsPanel stats={stats} />
 
-      {/* Charts row 1 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ChartCard title="Inscriptions par semaine">
-          <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={signupsData}>
-              <defs>
-                <linearGradient id="signupFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#fb3d80" stopOpacity={0.15} />
-                  <stop offset="100%" stopColor="#fb3d80" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis allowDecimals={false} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={24} />
-              <Tooltip contentStyle={tooltipStyle} />
-              <Area type="monotone" dataKey="count" stroke="#fb3d80" strokeWidth={2} fill="url(#signupFill)" name="Inscriptions" />
-            </AreaChart>
-          </ResponsiveContainer>
-        </ChartCard>
+      {/* Chart: Inscriptions par semaine */}
+      <ChartCard title="Inscriptions par semaine">
+        <ResponsiveContainer width="100%" height={200}>
+          <AreaChart data={signupsData}>
+            <defs>
+              <linearGradient id="signupFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#fb3d80" stopOpacity={0.15} />
+                <stop offset="100%" stopColor="#fb3d80" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+            <YAxis allowDecimals={false} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={24} />
+            <Tooltip contentStyle={tooltipStyle} />
+            <Area type="monotone" dataKey="count" stroke="#fb3d80" strokeWidth={2} fill="url(#signupFill)" name="Inscriptions" />
+          </AreaChart>
+        </ResponsiveContainer>
+      </ChartCard>
 
-        <ChartCard title="Répartition par plan">
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={plansData} layout="vertical" barCategoryGap={8}>
-              <XAxis type="number" hide />
-              <YAxis dataKey="label" type="category" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} width={80} />
-              <Tooltip contentStyle={tooltipStyle} />
-              <Bar dataKey="count" radius={[0, 6, 6, 0]} name="Utilisatrices" label={{ position: "right", fontSize: 12, fill: "hsl(var(--foreground))" }}>
-                {plansData.map((entry) => (
-                  <Cell key={entry.plan} fill={PLAN_COLORS[entry.plan] || "#9CA3AF"} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
+      {/* Plan distribution badges */}
+      <div className="flex flex-wrap gap-2">
+        {plansData.map((p) => (
+          <span
+            key={p.plan}
+            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium text-white"
+            style={{ backgroundColor: PLAN_COLORS[p.plan] || "#9CA3AF" }}
+          >
+            {p.label} {p.count}
+          </span>
+        ))}
       </div>
 
-      {/* Charts row 2 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ChartCard title="Top fonctionnalités IA">
-          <div className="space-y-3">
-            {stats.top_features.slice(0, 7).map(f => (
-              <div key={f.category} className="space-y-1">
-                <div className="flex justify-between text-sm">
-                  <span>{CATEGORY_LABELS[f.category] || f.category}</span>
-                  <span className="text-muted-foreground font-medium">{f.count}</span>
-                </div>
-                <Progress value={(f.count / maxFeature) * 100} className="h-1.5" />
+      {/* Top 5 power users */}
+      <ChartCard title="Top 5 power users du mois">
+        {(!stats.power_users || stats.power_users.length === 0) ? (
+          <EmptyChart message="Pas encore d'activité" />
+        ) : (
+          <div className="space-y-2.5">
+            {stats.power_users.slice(0, 5).map((pu, i) => (
+              <div key={pu.user_id} className="flex items-center gap-3 py-1.5">
+                <span className="text-xs font-mono text-muted-foreground w-5 text-right">{i + 1}.</span>
+                {i < 3 ? <Crown className="w-4 h-4 text-amber-400" /> : <span className="w-4" />}
+                <span className="text-sm font-medium flex-1 truncate">{pu.prenom}</span>
+                <Badge variant="outline" className="text-xs" style={{ borderColor: PLAN_COLORS[pu.plan] || "#9CA3AF" }}>
+                  {PLAN_LABELS[pu.plan] || pu.plan}
+                </Badge>
+                <span className="text-sm text-muted-foreground font-medium tabular-nums">{pu.count} <span className="text-xs">gén.</span></span>
               </div>
             ))}
           </div>
-        </ChartCard>
-
-        <ChartCard title="Onboarding">
-          <div className="flex flex-col items-center justify-center py-2">
-            <ProgressRing value={stats.onboarding_rate} />
-            <p className="text-sm text-muted-foreground text-center mt-3">
-              {stats.onboarding_completed} sur {stats.total_users} ont terminé l'onboarding
-            </p>
-          </div>
-        </ChartCard>
-      </div>
+        )}
+      </ChartCard>
     </div>
   );
 }
