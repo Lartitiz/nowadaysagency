@@ -29,13 +29,6 @@ function getTooltipPosition(rect: DOMRect, position: string): React.CSSPropertie
   }
 }
 
-function AutoSkip({ onSkip }: { onSkip: () => void }) {
-  useEffect(() => {
-    const t = setTimeout(onSkip, 300);
-    return () => clearTimeout(t);
-  }, [onSkip]);
-  return null;
-}
 
 export default function GuidedTour({ steps, onComplete, storageKey }: GuidedTourProps) {
   const [currentStep, setCurrentStep] = useState(0);
@@ -56,19 +49,47 @@ export default function GuidedTour({ steps, onComplete, storageKey }: GuidedTour
     const step = steps[currentStep];
     if (!step) return;
 
+    let retryCount = 0;
+    const maxRetries = 8;
+    let retryInterval: ReturnType<typeof setInterval> | null = null;
+
     const findTarget = () => {
       const el = document.querySelector(`[data-tour="${step.target}"]`);
       if (el) {
         const rect = el.getBoundingClientRect();
         setTargetRect(rect);
+        if (retryInterval) { clearInterval(retryInterval); retryInterval = null; }
       } else {
         setTargetRect(null);
+        retryCount++;
+        if (retryCount >= maxRetries) {
+          if (retryInterval) { clearInterval(retryInterval); retryInterval = null; }
+          if (currentStep === steps.length - 1) {
+            localStorage.setItem(storageKey, "true");
+            setVisible(false);
+            onComplete();
+          } else {
+            setCurrentStep((s) => s + 1);
+          }
+        }
       }
     };
 
     findTarget();
-    window.addEventListener("resize", findTarget);
-    return () => window.removeEventListener("resize", findTarget);
+    if (!targetRect) {
+      retryInterval = setInterval(findTarget, 400);
+    }
+
+    const handleResize = () => findTarget();
+    const handleScroll = () => findTarget();
+    window.addEventListener("resize", handleResize);
+    window.addEventListener("scroll", handleScroll, { passive: true });
+
+    return () => {
+      if (retryInterval) clearInterval(retryInterval);
+      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("scroll", handleScroll);
+    };
   }, [currentStep, visible, steps]);
 
   if (!visible || localStorage.getItem(storageKey)) return null;
@@ -156,17 +177,6 @@ export default function GuidedTour({ steps, onComplete, storageKey }: GuidedTour
         </div>
       )}
 
-      {/* Auto-skip if target not found */}
-      {!targetRect && visible && (
-        <div className="hidden">
-          <AutoSkip
-            onSkip={() => {
-              if (isLast) handleSkip();
-              else setCurrentStep((s) => s + 1);
-            }}
-          />
-        </div>
-      )}
     </div>
   );
 }
