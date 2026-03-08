@@ -160,53 +160,103 @@ Précisions importantes :
         .eq("id", savedDiagId);
     }
 
-    // brand_profile upsert
+    // brand_profile upsert — enriched with value proposition, target, tone details
     const { data: existingProfile } = await supabaseAdmin
       .from("brand_profile")
-      .select("id, positioning, mission, tone_keywords, tone_style, combats, values, content_pillars, combat_cause, combat_fights, combat_alternative, combat_refusals")
+      .select("id, positioning, mission, tone_keywords, tone_style, combats, values, content_pillars, combat_cause, combat_fights, combat_alternative, combat_refusals, value_prop_sentence, value_prop_problem, value_prop_solution, value_prop_difference, value_prop_proof, target_description, target_problem, target_beliefs, voice_description, tone_register, tone_level, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims, channels")
       .eq(filterCol, filterVal)
       .maybeSingle();
 
     const combatData = prefill.combat_structured || enrichmentResult?.combat_structured;
+    const voicePrefill = prefill.voice_prefill || enrichmentResult?.voice_prefill;
+
+    const buildProfileFields = (target: Record<string, unknown>, existing: any) => {
+      const setIfEmpty = (field: string, value: unknown) => {
+        if (value && (!existing || !existing[field])) target[field] = value;
+      };
+      const setArrayIfEmpty = (field: string, value: unknown[]) => {
+        if (value?.length > 0 && (!existing || !existing[field] || (Array.isArray(existing[field]) && existing[field].length === 0))) {
+          target[field] = value;
+        }
+      };
+
+      setIfEmpty("positioning", prefill.positioning);
+      setIfEmpty("mission", prefill.mission);
+      setIfEmpty("target_description", prefill.target_description);
+      setIfEmpty("target_problem", prefill.target_problem);
+      setIfEmpty("target_beliefs", prefill.target_beliefs);
+      setIfEmpty("tone_style", prefill.tone_style);
+      setIfEmpty("value_prop_sentence", prefill.value_prop_sentence);
+      setIfEmpty("value_prop_problem", prefill.value_prop_problem);
+      setIfEmpty("value_prop_solution", prefill.value_prop_solution);
+      setIfEmpty("value_prop_difference", prefill.value_prop_difference);
+      setIfEmpty("value_prop_proof", prefill.value_prop_proof);
+      setArrayIfEmpty("tone_keywords", prefill.tone_keywords);
+      setArrayIfEmpty("values", prefill.values);
+      setArrayIfEmpty("content_pillars", prefill.content_pillars);
+
+      if (prefill.combats?.length > 0 && (!existing || !existing.combats)) {
+        target.combats = Array.isArray(prefill.combats) ? prefill.combats.join("\n") : prefill.combats;
+      }
+
+      if (combatData) {
+        setIfEmpty("combat_cause", combatData.combat_cause);
+        setIfEmpty("combat_fights", combatData.combat_fights);
+        setIfEmpty("combat_alternative", combatData.combat_alternative);
+        setIfEmpty("combat_refusals", combatData.combat_refusals);
+      }
+
+      // Voice/tone enriched fields from voice_prefill → brand_profile
+      if (voicePrefill) {
+        setIfEmpty("voice_description", voicePrefill.voice_description);
+        setIfEmpty("tone_register", voicePrefill.tone_register);
+        setIfEmpty("tone_level", voicePrefill.tone_level);
+        setIfEmpty("tone_humor", voicePrefill.tone_humor);
+        setIfEmpty("tone_engagement", voicePrefill.tone_engagement);
+        setIfEmpty("key_expressions", voicePrefill.key_expressions);
+        setIfEmpty("things_to_avoid", voicePrefill.things_to_avoid);
+        setIfEmpty("target_verbatims", voicePrefill.target_verbatims);
+        if (voicePrefill.channels?.length > 0 && (!existing || !existing.channels || (Array.isArray(existing.channels) && existing.channels.length === 0))) {
+          target.channels = voicePrefill.channels;
+        }
+      }
+    };
+
     if (existingProfile) {
       const updates: Record<string, unknown> = {};
-      if (!existingProfile.positioning && prefill.positioning) updates.positioning = prefill.positioning;
-      if (!existingProfile.mission && prefill.mission) updates.mission = prefill.mission;
-      if ((!existingProfile.tone_keywords || (Array.isArray(existingProfile.tone_keywords) && existingProfile.tone_keywords.length === 0)) && prefill.tone_keywords?.length) updates.tone_keywords = prefill.tone_keywords;
-      if ((!existingProfile.values || (Array.isArray(existingProfile.values) && existingProfile.values.length === 0)) && prefill.values?.length) updates.values = prefill.values;
-      if (!existingProfile.tone_style && prefill.tone_style) updates.tone_style = prefill.tone_style;
-      if (!existingProfile.combats && prefill.combats?.length > 0) updates.combats = Array.isArray(prefill.combats) ? prefill.combats.join("\n") : prefill.combats;
-      if ((!existingProfile.content_pillars || (Array.isArray(existingProfile.content_pillars) && existingProfile.content_pillars.length === 0)) && prefill.content_pillars?.length > 0) updates.content_pillars = prefill.content_pillars;
-      if (!existingProfile.combat_cause && combatData?.combat_cause) updates.combat_cause = combatData.combat_cause;
-      if (!existingProfile.combat_fights && combatData?.combat_fights) updates.combat_fights = combatData.combat_fights;
-      if (!existingProfile.combat_alternative && combatData?.combat_alternative) updates.combat_alternative = combatData.combat_alternative;
-      if (!existingProfile.combat_refusals && combatData?.combat_refusals) updates.combat_refusals = combatData.combat_refusals;
+      buildProfileFields(updates, existingProfile);
       if (Object.keys(updates).length > 0) await supabaseAdmin.from("brand_profile").update(updates).eq("id", existingProfile.id);
     } else {
       const newProfile: Record<string, unknown> = { user_id: userId, workspace_id: workspaceId };
-      if (prefill.positioning) newProfile.positioning = prefill.positioning;
-      if (prefill.mission) newProfile.mission = prefill.mission;
-      if (prefill.tone_keywords?.length) newProfile.tone_keywords = prefill.tone_keywords;
-      if (prefill.tone_style) newProfile.tone_style = prefill.tone_style;
-      if (prefill.combats?.length) newProfile.combats = Array.isArray(prefill.combats) ? prefill.combats.join("\n") : prefill.combats;
-      if (prefill.values?.length) newProfile.values = prefill.values;
-      if (prefill.content_pillars?.length) newProfile.content_pillars = prefill.content_pillars;
-      if (combatData?.combat_cause) newProfile.combat_cause = combatData.combat_cause;
-      if (combatData?.combat_fights) newProfile.combat_fights = combatData.combat_fights;
-      if (combatData?.combat_alternative) newProfile.combat_alternative = combatData.combat_alternative;
-      if (combatData?.combat_refusals) newProfile.combat_refusals = combatData.combat_refusals;
+      buildProfileFields(newProfile, null);
       await supabaseAdmin.from("brand_profile").insert(newProfile);
     }
 
-    // persona
-    if (prefill.target_description) {
+    // persona — enriched with frustrations, beautiful_world
+    const personaPrefill = enrichmentResult?.persona_prefill;
+    const personaDesc = prefill.target_description || personaPrefill?.description;
+    if (personaDesc || personaPrefill) {
       const { data: existingPersona } = await supabaseAdmin
-        .from("persona").select("id, description").eq(filterCol, filterVal)
+        .from("persona").select("id, description, step_1_frustrations, step_2_transformation")
+        .eq(filterCol, filterVal)
         .order("created_at", { ascending: false }).limit(1).maybeSingle();
-      if (existingPersona && !existingPersona.description) {
-        await supabaseAdmin.from("persona").update({ description: prefill.target_description }).eq("id", existingPersona.id);
-      } else if (!existingPersona) {
-        await supabaseAdmin.from("persona").insert({ user_id: userId, workspace_id: workspaceId, description: prefill.target_description, is_primary: true });
+
+      if (existingPersona) {
+        const pUpdates: Record<string, unknown> = {};
+        if (!existingPersona.description && personaDesc) pUpdates.description = personaDesc;
+        if (!existingPersona.step_1_frustrations && personaPrefill?.frustrations?.length) {
+          pUpdates.step_1_frustrations = personaPrefill.frustrations.join("\n");
+        }
+        if (!existingPersona.step_2_transformation && personaPrefill?.beautiful_world) {
+          pUpdates.step_2_transformation = personaPrefill.beautiful_world;
+        }
+        if (Object.keys(pUpdates).length > 0) await supabaseAdmin.from("persona").update(pUpdates).eq("id", existingPersona.id);
+      } else {
+        const newPersona: Record<string, unknown> = { user_id: userId, workspace_id: workspaceId, is_primary: true };
+        if (personaDesc) newPersona.description = personaDesc;
+        if (personaPrefill?.frustrations?.length) newPersona.step_1_frustrations = personaPrefill.frustrations.join("\n");
+        if (personaPrefill?.beautiful_world) newPersona.step_2_transformation = personaPrefill.beautiful_world;
+        await supabaseAdmin.from("persona").insert(newPersona);
       }
     }
 
@@ -241,7 +291,6 @@ Précisions importantes :
     }
 
     // voice_profile
-    const voicePrefill = prefill.voice_prefill || enrichmentResult?.voice_prefill;
     if (voicePrefill && (voicePrefill.voice_summary || voicePrefill.tone_patterns?.length || voicePrefill.signature_expressions?.length)) {
       const { data: existingVoice } = await supabaseAdmin
         .from("voice_profile")
@@ -299,6 +348,46 @@ Précisions importantes :
         if (charterPrefill.mood_keywords?.length) newCharter.mood_keywords = charterPrefill.mood_keywords;
         if (charterPrefill.photo_style) newCharter.photo_style = charterPrefill.photo_style;
         await supabaseAdmin.from("brand_charter").insert(newCharter);
+      }
+    }
+
+    // brand_proposition — save value proposition if detected
+    if (prefill.value_prop_sentence) {
+      const { data: existingProp } = await supabaseAdmin
+        .from("brand_proposition")
+        .select("id, step_1_what, version_final")
+        .eq(filterCol, filterVal)
+        .maybeSingle();
+
+      if (!existingProp) {
+        await supabaseAdmin.from("brand_proposition").insert({
+          user_id: userId,
+          workspace_id: workspaceId,
+          step_1_what: prefill.value_prop_sentence,
+          version_final: prefill.value_prop_sentence,
+        });
+      }
+    }
+
+    // content_strategy → brand_strategy pillars
+    const contentPrefill = enrichmentResult?.content_strategy_prefill;
+    if (contentPrefill?.pillars?.length > 0) {
+      const { data: existingStrategy } = await supabaseAdmin
+        .from("brand_strategy")
+        .select("id, pillar_major, creative_concept")
+        .eq(filterCol, filterVal)
+        .maybeSingle();
+
+      if (!existingStrategy) {
+        const pillars = contentPrefill.pillars;
+        await supabaseAdmin.from("brand_strategy").insert({
+          user_id: userId,
+          workspace_id: workspaceId,
+          pillar_major: pillars[0]?.label || null,
+          pillar_minor_1: pillars[1]?.label || null,
+          pillar_minor_2: pillars[2]?.label || null,
+          creative_concept: contentPrefill.creative_twist || null,
+        });
       }
     }
 
