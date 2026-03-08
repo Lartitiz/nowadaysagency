@@ -115,10 +115,9 @@ function MissionRow({ mission, isNext, onClick }: { mission: OnboardingMission; 
 /* ── Tour steps ── */
 const TOUR_STEPS = [
   { target: "card-next-step", title: "Ta prochaine étape", text: "L'outil analyse où tu en es et te recommande l'action qui aura le plus d'impact. Tu n'as qu'à suivre.", position: "bottom" as const },
-  { target: "nav-branding", title: "Ta marque", text: "Tout ton branding est ici : positionnement, cible, ton, storytelling. C'est le socle de tout ce que l'outil génère pour toi.", position: "bottom" as const },
   { target: "nav-creer", title: "Créer du contenu", text: "Posts Instagram, carrousels, newsletters, posts LinkedIn : l'outil connaît ta marque et te propose des textes avec les bonnes structures.", position: "bottom" as const },
-  { target: "card-assistant", title: "Ton coach com' IA", text: "Tu peux lui poser n'importe quelle question sur ta communication. Il connaît ton branding et te répond de façon personnalisée.", position: "top" as const },
-  { target: "nav-mon-plan", title: "Ton plan de com' personnalisé", text: "C'est ici que tout se rejoint. Un parcours étape par étape, adapté à ton objectif et au temps que tu as.", position: "bottom" as const },
+  { target: "nav-calendrier", title: "Organiser tes contenus", text: "Planifie tes publications dans le calendrier. Tu sauras exactement quoi poster et quand.", position: "bottom" as const },
+  { target: "card-assistant", title: "Ta coach de com' IA", text: "Tu peux lui poser n'importe quelle question sur ta communication. Elle connaît ton branding et te répond de façon personnalisée.", position: "top" as const },
 ];
 
 /* ── Mini-cards data ── */
