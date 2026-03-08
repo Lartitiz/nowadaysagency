@@ -488,24 +488,7 @@ export default function WelcomePage() {
             {hasBranding ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {brandingCards.map((card, i) => (
-                  <div key={i} className="bg-card border border-border rounded-2xl p-5 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">{card.emoji}</span>
-                      <span className="text-sm font-semibold text-foreground">{card.title}</span>
-                    </div>
-                    {card.dbTable && card.dbField ? (
-                      <EditableText
-                        value={card.content}
-                        onSave={(v) => handleCardSave(i, v)}
-                        className="text-sm text-muted-foreground leading-relaxed"
-                        placeholder="Cliquer pour modifier"
-                      />
-                    ) : (
-                      <p className="text-sm text-muted-foreground leading-relaxed">
-                        {card.content}
-                      </p>
-                    )}
-                  </div>
+                  <BrandingCardItem key={i} card={card} index={i} onSave={handleCardSave} />
                 ))}
               </div>
             ) : (
