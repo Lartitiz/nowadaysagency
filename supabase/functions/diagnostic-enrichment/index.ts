@@ -124,6 +124,8 @@ Précisions importantes :
 - Pour la charte graphique, remplis les couleurs UNIQUEMENT si tu détectes des codes HEX, des variables CSS ou des couleurs spécifiques dans les informations visuelles. Ne pas inventer de couleurs.
 - font_title et font_body : les typographies détectées dans le CSS ou Google Fonts.
 - Pour le persona, déduis à partir du positionnement et du contenu : à qui s'adresse cette personne ?
+- Pour la stratégie de contenu : les piliers sont des THÉMATIQUES DE CONTENU, pas des conseils génériques. Chaque pilier = un grand sujet dont la marque parle sur ses réseaux. Exemples : pour une céramiste → "Coulisses de l'atelier", "Rituels du quotidien", "L'artisanat comme acte militant". Pour une coach yoga → "Pratiques et postures", "Philosophie du corps", "Témoignages de transformation". Déduis 3-4 piliers CONCRETS à partir de l'activité, du positionnement et du contenu existant de la marque. Ne JAMAIS proposer des piliers génériques comme "Organisation", "Régularité", "Engagement communautaire" ou "Éducation" sans les lier à l'univers spécifique de la marque.
+- Pour la proposition de valeur : synthétise en une phrase ce que cette marque apporte, à qui, et pourquoi c'est différent. Utilise le vocabulaire de la marque, pas du jargon marketing.
 - Pour la proposition de valeur, synthétise le problème résolu, la solution et le différenciateur.`;
 
     const opusModel = getModelForAction("branding_audit");
