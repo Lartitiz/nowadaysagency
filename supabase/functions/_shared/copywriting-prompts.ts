@@ -262,7 +262,7 @@ CTA ÉTHIQUES (à adapter au contexte)
 ═══════════════════════════════════════════════════
 
 Dialogue : "Qu'est-ce que tu en penses ?", "Et toi, tu fais comment ?", "Ça te parle ? Raconte-moi en DM."
-Save/partage : "Enregistre pour y revenir.", "Envoie ça à la solopreneuse qui a besoin de lire ça."
+Save/partage : "Enregistre pour y revenir.", "Envoie ça à la personne qui a besoin de lire ça."
 Transition vers l'offre : "Si ça te parle, on en discute en DM. Zéro pression.", "Envie d'aller plus loin ? Le lien est en bio.", "C'est exactement ce qu'on travaille dans [offre]."
 Communauté : "On en parle ?", "Tu veux que je développe ce sujet ?", "C'est le genre de contenu que tu veux voir plus souvent ?"
 
