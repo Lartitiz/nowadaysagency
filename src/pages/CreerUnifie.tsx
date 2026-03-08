@@ -60,10 +60,13 @@ export default function CreerUnifie() {
   const paramCanal = searchParams.get("canal");
   const hasUrlParams = !!(paramFormat || paramCanal || paramSujet || paramObjectif || locState.fromCalendar);
 
-  // Only restore persisted state if we have URL params or location state (coming back to an in-progress flow)
-  // Fresh navigation (/creer with nothing) should start clean
+  // Restore persisted state if:
+  // 1. We have URL params / location state (coming back from calendar, etc.)
+  // 2. OR there is a recent session in storage (survives HMR / tab refresh)
   const hasSomeContext = hasUrlParams || !!location.state;
-  const persistedState = useRef(hasSomeContext ? loadFlowState() : null);
+  const existingFlowState = loadFlowState();
+  const shouldRestore = hasSomeContext || (existingFlowState !== null && existingFlowState.step !== "idea");
+  const persistedState = useRef(shouldRestore ? (existingFlowState || null) : null);
 
   // Core state — restore from sessionStorage if available
   const ps = persistedState.current;
@@ -113,7 +116,7 @@ export default function CreerUnifie() {
     "creer-unifie-form",
     { step, ideaText, objective, selectedFormat, editorialAngle, answers },
     (saved) => {
-      if (!hasSomeContext) return; // Fresh navigation — don't restore
+      if (!shouldRestore) return; // Fresh navigation — don't restore
       if (location.state || searchParams.get("format") || searchParams.get("sujet")) return;
       if (saved.step && saved.step !== "idea") setStep(saved.step as Step);
       if (saved.ideaText) setIdeaText(saved.ideaText);
@@ -124,9 +127,10 @@ export default function CreerUnifie() {
     }
   );
 
-  // When arriving at /creer without params (fresh navigation), clear persisted state
+  // When arriving at /creer without params AND no persisted in-progress flow, clear state
+  // This distinguishes "fresh sidebar click" from "page reload mid-flow"
   useEffect(() => {
-    if (!hasSomeContext) {
+    if (!hasSomeContext && !shouldRestore) {
       clearFlowState();
       clearDraft();
       sessionStorage.removeItem("creer_unifie_result");

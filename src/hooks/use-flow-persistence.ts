@@ -24,8 +24,9 @@ export function saveFlowState(state: Partial<FlowState>) {
     const existing = loadFlowState();
     const merged = { ...existing, ...state, ts: Date.now() };
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
-    // Also backup to localStorage for tab-recycling protection (mobile)
-    if (state.step === "result" || state.step === "questions") {
+    // Backup to localStorage for tab-recycling / HMR protection
+    // Save on any step beyond "idea" so in-progress work survives reloads
+    if (state.step && state.step !== "idea") {
       try {
         localStorage.setItem(STORAGE_KEY + "_backup", JSON.stringify(merged));
       } catch {}
