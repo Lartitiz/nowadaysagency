@@ -151,8 +151,7 @@ export default function AdaptiveHome() {
   useEffect(() => {
     const isFirstVisit = location.state?.fromWelcome || !localStorage.getItem("lac_branding_cache_refreshed");
     if (isFirstVisit) {
-      // Attendre que l'enrichissement Opus ait probablement fini (il tourne en fire-and-forget)
-      const timer = setTimeout(() => {
+      const invalidateAll = () => {
         queryClient.invalidateQueries({ queryKey: ["brand-charter"] });
         queryClient.invalidateQueries({ queryKey: ["brand-profile"] });
         queryClient.invalidateQueries({ queryKey: ["persona"] });
@@ -160,9 +159,17 @@ export default function AdaptiveHome() {
         queryClient.invalidateQueries({ queryKey: ["brand-strategy"] });
         queryClient.invalidateQueries({ queryKey: ["voice-profile"] });
         queryClient.invalidateQueries({ queryKey: ["editorial-line"] });
+        queryClient.invalidateQueries({ queryKey: ["profile"] });
+        queryClient.invalidateQueries({ queryKey: ["offers"] });
+      };
+      // Première vague : 8s (couvre les enrichissements rapides)
+      const timer1 = setTimeout(invalidateAll, 8000);
+      // Deuxième vague : 30s (couvre les enrichissements Opus lents)
+      const timer2 = setTimeout(() => {
+        invalidateAll();
         localStorage.setItem("lac_branding_cache_refreshed", "true");
-      }, 8000);
-      return () => clearTimeout(timer);
+      }, 30000);
+      return () => { clearTimeout(timer1); clearTimeout(timer2); };
     }
   }, []);
 
