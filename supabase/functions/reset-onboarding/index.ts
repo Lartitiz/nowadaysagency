@@ -1,7 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
-const ADMIN_EMAIL = "laetitia@nowadaysagency.com";
+const ADMIN_EMAILS = ["laetitia@nowadaysagency.com", "laetitiamattioli@gmail.com"];
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -45,8 +45,8 @@ Deno.serve(async (req) => {
 
     if (body.targetUserId) {
       // Admin mode: reset another user
-      if (callerEmail !== ADMIN_EMAIL) {
-        console.error(`[reset-onboarding] Forbidden: ${callerEmail} !== ${ADMIN_EMAIL}`);
+      if (!ADMIN_EMAILS.includes(callerEmail)) {
+        console.error(`[reset-onboarding] Forbidden: ${callerEmail} not in admin list`);
         return new Response(JSON.stringify({ error: "Forbidden" }), {
           status: 403,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
