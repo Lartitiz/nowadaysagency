@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAnthropic, getDefaultModel } from "../_shared/anthropic.ts";
-import { getUserContext, formatContextForAI } from "../_shared/user-context.ts";
+import { getUserContext, formatContextForAI, buildIdentityBlock } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { validateInput, ValidationError, AssistantChatSchema } from "../_shared/input-validators.ts";
