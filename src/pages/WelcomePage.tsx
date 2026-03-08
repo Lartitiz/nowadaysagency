@@ -96,8 +96,44 @@ interface BrandProfileData {
   combats: string | null;
   tone_style: string | null;
 }
+const CARD_COLLAPSE_LENGTH = 200;
 
-export default function WelcomePage() {
+function BrandingCardItem({ card, index, onSave }: { card: BrandingCard; index: number; onSave: (i: number, v: string) => void }) {
+  const [expanded, setExpanded] = useState(false);
+  const isLong = card.content.length > CARD_COLLAPSE_LENGTH;
+  const displayText = !expanded && isLong ? card.content.slice(0, CARD_COLLAPSE_LENGTH) + "…" : card.content;
+
+  return (
+    <div className="bg-card border border-border rounded-2xl p-5 space-y-3">
+      <div className="flex items-center gap-2">
+        <span className="text-lg">{card.emoji}</span>
+        <span className="text-sm font-semibold text-foreground">{card.title}</span>
+      </div>
+      {card.dbTable && card.dbField ? (
+        <EditableText
+          value={card.content}
+          onSave={(v) => onSave(index, v)}
+          className="text-sm text-muted-foreground leading-relaxed"
+          placeholder="Cliquer pour modifier"
+        />
+      ) : (
+        <div>
+          <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">{displayText}</p>
+          {isLong && (
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="text-xs text-primary hover:underline mt-1"
+            >
+              {expanded ? "Réduire" : "Lire la suite"}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const navigate = useNavigate();
