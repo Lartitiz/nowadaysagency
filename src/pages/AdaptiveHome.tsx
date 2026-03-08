@@ -53,7 +53,7 @@ function CollapsibleMissions({ onNavigate }: { onNavigate: (route: string) => vo
   if (allDone) return null;
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+    <div data-tour="card-missions" className="rounded-2xl border border-border bg-card p-4 shadow-sm">
       <button onClick={toggle} className="w-full flex items-center gap-3">
         <span className="text-base">🚀</span>
         <span className="font-heading text-sm font-bold text-foreground">Tes missions</span>
