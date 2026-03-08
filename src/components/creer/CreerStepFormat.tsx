@@ -29,7 +29,7 @@ type ChannelId = "instagram" | "linkedin" | "pinterest" | "newsletter";
 
 function deduceChannel(format: string): ChannelId {
   if (format === "linkedin") return "linkedin";
-  if (format === "pinterest" || format === "pinterest_visual") return "pinterest";
+  if (format === "pinterest" || format === "pinterest_visual" || format === "pinterest_inspiration") return "pinterest";
   if (format === "newsletter") return "newsletter";
   return "instagram";
 }
