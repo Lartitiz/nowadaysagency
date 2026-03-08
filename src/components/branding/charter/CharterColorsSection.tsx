@@ -9,12 +9,20 @@ import { SECTOR_PALETTES, DEFAULT_SECTOR } from "@/lib/charter-palettes";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
+const NEUTRAL_FALLBACKS: Record<string, string> = {
+  color_primary: "#888888",
+  color_secondary: "#555555",
+  color_accent: "#AAAAAA",
+  color_background: "#FFFFFF",
+  color_text: "#333333",
+};
+
 interface CharterData {
-  color_primary: string;
-  color_secondary: string;
-  color_accent: string;
-  color_background: string;
-  color_text: string;
+  color_primary: string | null;
+  color_secondary: string | null;
+  color_accent: string | null;
+  color_background: string | null;
+  color_text: string | null;
   custom_colors: string[];
   [key: string]: any;
 }
@@ -132,12 +140,12 @@ export default function CharterColorsSection({
           <div key={key} className="flex items-center gap-3">
               <input
               type="color"
-              value={data[key]}
+              value={data[key] || NEUTRAL_FALLBACKS[key] || "#888888"}
               onChange={(e) => onDataChange({ [key]: e.target.value })}
               className="w-10 h-10 rounded-lg border border-border cursor-pointer p-0.5" />
             
               <span className="text-sm text-foreground font-medium w-24">{label}</span>
-              <span className="font-mono text-xs text-muted-foreground uppercase">{data[key]}</span>
+              <span className={`font-mono text-xs uppercase ${data[key] ? "text-muted-foreground" : "text-muted-foreground/50 italic"}`}>{data[key] || "Non défini"}</span>
             </div>
           )}
 
@@ -170,12 +178,12 @@ export default function CharterColorsSection({
 
         {/* Live preview */}
         <div className="flex items-center gap-2 mt-4 pt-4 border-t border-border">
-          {[data.color_primary, data.color_secondary, data.color_accent, data.color_background, data.color_text, ...data.custom_colors].map((c: string, i: number) =>
+          {[data.color_primary, data.color_secondary, data.color_accent, data.color_background, data.color_text, ...data.custom_colors].filter(Boolean).map((c: string | null, i: number) =>
           <div
             key={i}
             className="w-10 h-10 rounded-full border-2 border-background shadow-sm"
-            style={{ backgroundColor: c }}
-            title={c} />
+            style={{ backgroundColor: c || "#888" }}
+            title={c || "Non défini"} />
 
           )}
         </div>
