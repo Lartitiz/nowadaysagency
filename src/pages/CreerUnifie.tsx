@@ -1088,6 +1088,16 @@ export default function CreerUnifie() {
       const fmt = selectedFormat === "story" ? "story_serie" : (selectedFormat || "post");
       const canal = selectedFormat === "linkedin" || isLinkedInCarousel ? "linkedin" : selectedFormat === "pinterest" || selectedFormat === "pinterest_visual" || selectedFormat === "pinterest_photo" ? "pinterest" : selectedFormat === "newsletter" ? "newsletter" : "instagram";
 
+      // Calculate calendar notes for inspiration-based pins
+      let calendarNotes = "";
+      if ((selectedFormat === "pinterest_visual" || selectedFormat === "pinterest_photo") && chosenProposal && inspirationAnalysis) {
+        calendarNotes = `🔍 Inspiré de : ${inspirationAnalysis.source_description || ""}\n📐 Angle : ${chosenProposal.angle || ""}`;
+        if (selectedFormat === "pinterest_photo" && result?.raw?.photo_brief) {
+          const b = result.raw.photo_brief;
+          calendarNotes += `\n\n📷 BRIEF PHOTO :\n• Sujet : ${b.what || ""}\n• Cadrage : ${b.framing || ""}\n• Lumière : ${b.lighting || ""}\n• Accessoires : ${(b.props || []).join(", ")}\n• Ambiance : ${b.mood || ""}`;
+        }
+      }
+
       const { data: insertedPost, error: insertError } = await supabase.from("calendar_posts").insert({
         user_id: session.user.id,
         ...(workspaceId && workspaceId !== session.user.id ? { workspace_id: workspaceId } : {}),
@@ -1100,6 +1110,7 @@ export default function CreerUnifie() {
         angle: editorialAngle || null,
         content_draft: contentDraft,
         accroche,
+        ...(calendarNotes ? { notes: calendarNotes } : {}),
         ...(storyDetail ? { story_sequence_detail: storyDetail } : {}),
         ...(selectedFormat === "story" && r?.stories ? {
           stories_count: r.total_stories || r.stories?.length || null,
