@@ -317,6 +317,8 @@ export default function CreerStepResult({
         return <LinkedInResult result={result} />;
       case "newsletter":
         return <NewsletterResult result={result} />;
+      case "pinterest_photo":
+        return <PinterestPhotoBriefResult result={{ raw: result }} overlayHtml={photoBriefOverlayHtml || result?.overlay_html || null} />;
       case "pinterest_visual":
         return <PinterestVisualResult result={{ raw: result }} pinHtml={pinterestPinHtml || null} />;
       default:
