@@ -376,12 +376,21 @@ Précisions importantes :
     if (contentPrefill?.pillars?.length > 0) {
       const { data: existingStrategy } = await supabaseAdmin
         .from("brand_strategy")
-        .select("id, pillar_major, creative_concept")
+        .select("id, pillar_major, pillar_minor_1, pillar_minor_2, creative_concept")
         .eq(filterCol, filterVal)
         .maybeSingle();
 
-      if (!existingStrategy) {
-        const pillars = contentPrefill.pillars;
+      const pillars = contentPrefill.pillars;
+      if (existingStrategy) {
+        // Mettre à jour : écraser le pillar_major générique de l'onboarding
+        // et remplir les piliers mineurs et le concept créatif s'ils sont vides
+        const sUpdates: Record<string, unknown> = {};
+        if (pillars[0]?.label) sUpdates.pillar_major = pillars[0].label;
+        if (!existingStrategy.pillar_minor_1 && pillars[1]?.label) sUpdates.pillar_minor_1 = pillars[1].label;
+        if (!existingStrategy.pillar_minor_2 && pillars[2]?.label) sUpdates.pillar_minor_2 = pillars[2].label;
+        if (!existingStrategy.creative_concept && contentPrefill.creative_twist) sUpdates.creative_concept = contentPrefill.creative_twist;
+        if (Object.keys(sUpdates).length > 0) await supabaseAdmin.from("brand_strategy").update(sUpdates).eq("id", existingStrategy.id);
+      } else {
         await supabaseAdmin.from("brand_strategy").insert({
           user_id: userId,
           workspace_id: workspaceId,
