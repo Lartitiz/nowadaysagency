@@ -386,8 +386,13 @@ export default function CreerUnifie() {
 
     // Pinterest Inspiration: store image and trigger analysis instead of questions
     if (format === "pinterest_inspiration" && photos && photos.length > 0) {
-      setInspirationImageBase64(photos[0].base64 || null);
-      setInspirationImagePreview(photos[0].preview || null);
+      const imgBase64 = photos[0].base64;
+      if (!imgBase64) {
+        toast.error("Image invalide. Réessaie avec une autre capture d'écran.");
+        return;
+      }
+      setInspirationImageBase64(imgBase64);
+      setInspirationImagePreview(photos[0].preview || photos[0].base64 || null);
       // Launch analysis
       setStep("inspiration_proposals");
       setInspirationAnalysis(null);
@@ -395,7 +400,7 @@ export default function CreerUnifie() {
       try {
         const { data, error: fnError } = await invokeWithTimeout("pinterest-inspiration", {
           body: {
-            image_base64: photos[0].base64,
+            image_base64: imgBase64,
             workspace_id: workspaceId || undefined,
           },
         }, 120000);
