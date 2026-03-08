@@ -233,7 +233,7 @@ RÉPONSES DE L'UTILISATRICE :
 ══════════════════════════════════════
 
 AVANT de proposer la moindre idée, identifie en interne (ne montre PAS) :
-- Son ACTIVITÉ PRÉCISE : qu'est-ce qu'elle fait concrètement ? (pas "solopreneuse", mais "photographe culinaire" ou "coach en reconversion" ou "céramiste")
+- Son ACTIVITÉ PRÉCISE : qu'est-ce qu'elle fait concrètement ? (ex : "photographe culinaire", "coach en reconversion", "céramiste", "consultant RH")
 - Sa CIBLE : à qui elle parle ? Quels sont leurs mots, leurs frustrations, leurs rêves ?
 - Ses OFFRES : qu'est-ce qu'elle vend ? À quel prix ? Quelle transformation ?
 - Ses COMBATS : contre quoi elle se bat dans son secteur ? Quelles sont ses convictions ?
