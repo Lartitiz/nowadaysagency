@@ -85,11 +85,11 @@ serve(async (req) => {
       })());
     }
 
-    // LinkedIn: prefer user-provided summary over scraping
-    const linkedinSummary = freeformAnswers?.linkedin_summary;
-    if (linkedinSummary && linkedinSummary.trim().length > 10) {
-      scrapedContent.linkedin = `Profil LinkedIn (résumé fourni par l'utilisatrice) :\n${linkedinSummary.trim()}`.slice(0, MAX_TEXT_PER_SOURCE);
-      sourcesUsed.push("linkedin");
+    // À propos : texte libre fourni par l'utilisatrice (anciennement "linkedin_summary")
+    const aboutSummary = freeformAnswers?.linkedin_summary;
+    if (aboutSummary && aboutSummary.trim().length > 10) {
+      scrapedContent.about = `À propos (texte fourni par l'utilisatrice sur elle-même et son activité — ce n'est PAS un profil LinkedIn) :\n${aboutSummary.trim()}`.slice(0, MAX_TEXT_PER_SOURCE);
+      sourcesUsed.push("about");
     } else if (linkedinUrl) {
       scrapePromises.push(
         scrapeLinkedin(linkedinUrl, controller.signal)
