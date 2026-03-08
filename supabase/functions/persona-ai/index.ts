@@ -258,7 +258,7 @@ Réponds en texte structuré (pas de JSON), ton chaleureux et direct. Écriture 
         break;
 
       case "actions":
-        systemPrompt = `Tu es expert·e en stratégie de marque pour des solopreneuses créatives et éthiques.
+        systemPrompt = `Tu es expert·e en stratégie de marque.
 
 PERSONA COMPLET :
 - Frustrations : "${d.step_1_frustrations || ""}"
@@ -289,7 +289,7 @@ Réponds en JSON :
         break;
 
       case "pitch":
-        systemPrompt = `Tu es expert·e en personal branding pour des solopreneuses créatives et éthiques.
+        systemPrompt = `Tu es expert·e en personal branding.
 
 FICHE PERSONA :
 - Frustrations : "${d.step_1_frustrations || ""}"

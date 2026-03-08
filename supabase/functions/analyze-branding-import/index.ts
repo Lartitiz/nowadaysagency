@@ -177,7 +177,7 @@ Deno.serve(async (req) => {
       documentText = documentText.slice(0, 15000) + "\n\n[... texte tronqué]";
     }
 
-    const systemPrompt = `Tu es une experte en communication et branding pour solopreneuses et freelances.
+    const systemPrompt = `Tu es une experte en communication et branding.
 L'utilisatrice t'envoie un document stratégique existant (plan de com, brief, notes, ou contenu de son site web).
 
 Analyse le texte et extrais TOUTES les informations que tu peux trouver.

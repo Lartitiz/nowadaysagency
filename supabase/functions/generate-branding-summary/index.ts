@@ -87,7 +87,7 @@ serve(async (req) => {
     }
 
     // Generate with AI
-    const systemPrompt = `Tu es une experte en communication et branding pour solopreneuses créatives.
+    const systemPrompt = `Tu es une experte en communication et branding.
 
 L'utilisatrice a rempli son branding complet. Génère des résumés COURTS et PERCUTANTS pour sa fiche synthèse.
 

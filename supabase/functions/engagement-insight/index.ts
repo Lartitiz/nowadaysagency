@@ -31,7 +31,7 @@ Visites profil : ${currentWeek.profile_visits ?? "?"} (${prevWeek ? vari(current
 Clics lien bio : ${currentWeek.link_clicks ?? "?"} (${prevWeek ? vari(currentWeek.link_clicks, prevWeek.link_clicks) : ""})
     `.trim();
 
-    const prompt = `Tu es experte en stratégie Instagram pour des solopreneuses créatives.
+    const prompt = `Tu es experte en stratégie Instagram.
 
 MÉTRIQUES DE LA SEMAINE :
 ${metricsText}

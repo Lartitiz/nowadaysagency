@@ -71,7 +71,7 @@ export default function DiscoveryCoachingCard({ animationDelay = 0 }: { animatio
             <h3 className="font-heading text-base font-bold text-foreground">Envie d'être accompagnée ?</h3>
           </div>
           <p className="text-sm text-muted-foreground mb-3 leading-relaxed">
-            T'aimerais qu'on travaille ta com' ensemble ? Laetitia accompagne des créatrices comme toi pendant 6 mois.
+            T'aimerais qu'on travaille ta com' ensemble ? Laetitia t'accompagne pendant 6 mois pour structurer ta com'.
           </p>
 
           <div className="space-y-1.5 mb-4">

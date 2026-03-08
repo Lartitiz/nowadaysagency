@@ -260,7 +260,7 @@ serve(async (req) => {
     ].filter(Boolean).join("\n");
 
     // Build AI prompt
-    const systemPrompt = `Tu es une experte en copywriting de pages de vente pour les solopreneuses créatives.
+    const systemPrompt = `Tu es une experte en copywriting de pages de vente.
 
 CONTENU ACTUEL DE LA PAGE :
 ${contentBlock}
