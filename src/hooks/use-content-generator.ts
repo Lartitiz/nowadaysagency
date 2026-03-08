@@ -322,7 +322,12 @@ export function useContentGenerator() {
       }
 
       if (invokeError) throw new Error(invokeError.message || "Erreur edge function");
-      if (data?.error) throw new Error(data.message || data.error);
+      if (data?.error) {
+        if (data.error === "limit_reached" || data.message?.includes("ce mois")) {
+          throw Object.assign(new Error(data.message || data.error), { _isQuota: true, data });
+        }
+        throw new Error(data.message || data.error);
+      }
 
       // Edge functions wrap response in { content: "..." } — unwrap before parsing
       const rawContent = data?.content ?? data;
