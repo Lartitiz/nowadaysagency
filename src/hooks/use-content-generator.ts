@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { handleQuotaError } from "@/lib/quota-error-handler";
 import {
   EDITORIAL_ANGLES,
   CONTENT_STRUCTURES,
@@ -321,7 +322,12 @@ export function useContentGenerator() {
       }
 
       if (invokeError) throw new Error(invokeError.message || "Erreur edge function");
-      if (data?.error) throw new Error(data.message || data.error);
+      if (data?.error) {
+        if (data.error === "limit_reached" || data.message?.includes("ce mois")) {
+          throw Object.assign(new Error(data.message || data.error), { _isQuota: true, data });
+        }
+        throw new Error(data.message || data.error);
+      }
 
       // Edge functions wrap response in { content: "..." } — unwrap before parsing
       const rawContent = data?.content ?? data;
@@ -337,6 +343,10 @@ export function useContentGenerator() {
       setResult(normalized);
       return normalized;
     } catch (e: any) {
+      if (e?._isQuota && handleQuotaError(e)) {
+        setError(null);
+        return null;
+      }
       const msg = e?.message || "Erreur lors de la génération";
       setError(msg);
       return null;

@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { CORE_PRINCIPLES } from "../_shared/copywriting-prompts.ts";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
-import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
+import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
@@ -285,9 +285,7 @@ RÈGLES :
 
     const quotaCheck = await checkQuota(user.id, "content");
     if (!quotaCheck.allowed) {
-      return new Response(JSON.stringify({ error: quotaCheck.message }), {
-        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return quotaDeniedResponse(quotaCheck, corsHeaders);
     }
 
     const content = await callAnthropicSimple(getModelForAction("niche"), systemPrompt, userPrompt);

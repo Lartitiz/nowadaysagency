@@ -76,6 +76,20 @@ export interface QuotaResult {
   usage?: Record<string, { used: number; limit: number }>;
 }
 
+/** Build a standard 429 Response for quota errors */
+export function quotaDeniedResponse(quota: QuotaResult, corsHeaders: Record<string, string>): Response {
+  return new Response(
+    JSON.stringify({
+      error: "limit_reached",
+      message: quota.message,
+      remaining: 0,
+      category: quota.reason,
+      quota,
+    }),
+    { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+}
+
 function getServiceClient() {
   return createClient(
     Deno.env.get("SUPABASE_URL")!,

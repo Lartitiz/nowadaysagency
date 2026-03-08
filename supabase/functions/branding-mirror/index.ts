@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
+import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 
@@ -33,9 +33,7 @@ serve(async (req) => {
     // Check quota (audit category)
     const quota = await checkQuota(user.id, "audit");
     if (!quota.allowed) {
-      return new Response(JSON.stringify({ error: "limit_reached", message: quota.message }), {
-        status: 403, headers: { ...cors, "Content-Type": "application/json" },
-      });
+      return quotaDeniedResponse(quota, cors);
     }
 
     // Fetch brand_profile + last instagram audit + last generated contents in parallel

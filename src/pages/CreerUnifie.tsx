@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import { handleQuotaError } from "@/lib/quota-error-handler";
 import { useSearchParams, useLocation, useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
@@ -425,6 +426,7 @@ export default function CreerUnifie() {
         setInspirationAnalysis(analysis);
         setInspirationProposals(proposals);
       } catch (e: any) {
+        if (handleQuotaError(e)) { setStep("format"); return; }
         const msg = e?.message || "Erreur lors de l'analyse";
         const isTimeout = msg.includes("timeout") || msg.includes("Timeout") || msg.includes("dépassé");
         toast.error(isTimeout
@@ -581,7 +583,7 @@ export default function CreerUnifie() {
           },
         });
       } catch (e: any) {
-        toast.error(e?.message || "Erreur lors de la génération du visuel Pinterest");
+        if (!handleQuotaError(e)) toast.error(e?.message || "Erreur lors de la génération du visuel Pinterest");
       } finally {
         setPinterestVisualGenerating(false);
       }
@@ -620,7 +622,7 @@ export default function CreerUnifie() {
           },
         });
       } catch (e: any) {
-        toast.error(e?.message || "Erreur lors de la génération du brief");
+        if (!handleQuotaError(e)) toast.error(e?.message || "Erreur lors de la génération du brief");
       } finally {
         setPinterestVisualGenerating(false);
       }
@@ -771,7 +773,7 @@ export default function CreerUnifie() {
         });
         setIdeaText(proposal.subject);
       } catch (e: any) {
-        toast.error(e?.message || "Erreur lors de la génération du visuel");
+        if (!handleQuotaError(e)) toast.error(e?.message || "Erreur lors de la génération du visuel");
       } finally {
         setPinterestVisualGenerating(false);
       }
@@ -810,7 +812,7 @@ export default function CreerUnifie() {
         });
         setIdeaText(proposal.subject);
       } catch (e: any) {
-        toast.error(e?.message || "Erreur lors de la génération du brief");
+        if (!handleQuotaError(e)) toast.error(e?.message || "Erreur lors de la génération du brief");
       } finally {
         setPinterestVisualGenerating(false);
       }
