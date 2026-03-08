@@ -386,8 +386,13 @@ export default function CreerUnifie() {
 
     // Pinterest Inspiration: store image and trigger analysis instead of questions
     if (format === "pinterest_inspiration" && photos && photos.length > 0) {
-      setInspirationImageBase64(photos[0].base64 || null);
-      setInspirationImagePreview(photos[0].preview || null);
+      const imgBase64 = photos[0].base64;
+      if (!imgBase64) {
+        toast.error("Image invalide. Réessaie avec une autre capture d'écran.");
+        return;
+      }
+      setInspirationImageBase64(imgBase64);
+      setInspirationImagePreview(photos[0].preview || photos[0].base64 || null);
       // Launch analysis
       setStep("inspiration_proposals");
       setInspirationAnalysis(null);
@@ -395,7 +400,7 @@ export default function CreerUnifie() {
       try {
         const { data, error: fnError } = await invokeWithTimeout("pinterest-inspiration", {
           body: {
-            image_base64: photos[0].base64,
+            image_base64: imgBase64,
             workspace_id: workspaceId || undefined,
           },
         }, 120000);
@@ -712,6 +717,7 @@ export default function CreerUnifie() {
       // CHEMIN B : brief photo + overlay
       setStep("result");
       setPhotoBriefOverlayHtml(null);
+      setPinterestVisualGenerating(true);
       try {
         const { data, error: fnError } = await invokeWithTimeout("pinterest-photo-brief", {
           body: {
@@ -742,6 +748,8 @@ export default function CreerUnifie() {
         setIdeaText(proposal.subject);
       } catch (e: any) {
         toast.error(e?.message || "Erreur lors de la génération du brief");
+      } finally {
+        setPinterestVisualGenerating(false);
       }
     }
   };
@@ -1532,11 +1540,18 @@ export default function CreerUnifie() {
             )}
 
             {step === "inspiration_proposals" && (
-              generating || inspirationProposals.length === 0 ? (
+              generating ? (
                 <div className="py-12 text-center space-y-3 animate-fade-in">
                   <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto" />
                   <p className="text-sm font-medium text-foreground">Analyse de l'épingle en cours...</p>
                   <p className="text-xs text-muted-foreground">L'IA étudie la structure, les mots-clés et le potentiel</p>
+                </div>
+              ) : inspirationProposals.length === 0 ? (
+                <div className="py-12 text-center space-y-4 animate-fade-in">
+                  <p className="text-sm text-muted-foreground">L'analyse n'a pas pu identifier de propositions. Essaie avec une autre épingle.</p>
+                  <Button variant="outline" size="sm" onClick={() => setStep("format")}>
+                    ← Choisir une autre image
+                  </Button>
                 </div>
               ) : (
                 <PinterestInspirationStep
