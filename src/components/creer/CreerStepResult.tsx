@@ -161,6 +161,7 @@ interface Props {
   onExportPinterestPng?: () => void;
   onExportPinterestPptx?: () => void;
   onExportPinterestEditablePptx?: () => void;
+  photoBriefOverlayHtml?: string | null;
 }
 
 export default function CreerStepResult({
@@ -187,6 +188,7 @@ export default function CreerStepResult({
   onExportPinterestPng,
   onExportPinterestPptx,
   onExportPinterestEditablePptx,
+  photoBriefOverlayHtml,
 }: Props) {
   // ── Rotation des messages et tips pendant le loading ──
   const messages = PROGRESS_MESSAGES[format] || PROGRESS_MESSAGES.default;

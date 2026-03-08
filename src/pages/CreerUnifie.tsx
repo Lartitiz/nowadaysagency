@@ -14,6 +14,7 @@ import CreerStepFormat from "@/components/creer/CreerStepFormat";
 import CreerStepQuestions from "@/components/creer/CreerStepQuestions";
 import CreerStepResult from "@/components/creer/CreerStepResult";
 import CreerStepEdit from "@/components/creer/CreerStepEdit";
+import PinterestInspirationStep from "@/components/creer/PinterestInspirationStep";
 import CreerTransformTab from "@/components/creer/CreerTransformTab";
 import { useContentGenerator } from "@/hooks/use-content-generator";
 import { CONTENT_STRUCTURES, EDITORIAL_ANGLES, LINKEDIN_EDITORIAL_ANGLES, PINTEREST_EDITORIAL_ANGLES, PINTEREST_VISUAL_ANGLES, getStructureForCombo } from "@/lib/content-structures";
@@ -32,7 +33,7 @@ import { useFormPersist } from "@/hooks/use-form-persist";
 import { useStreamingInvoke } from "@/hooks/use-streaming-invoke";
 import { useUserPlan } from "@/hooks/use-user-plan";
 
-type Step = "idea" | "format" | "questions" | "result" | "edit";
+type Step = "idea" | "format" | "questions" | "inspiration_proposals" | "result" | "edit";
 type Mode = "create" | "transform";
 
 export default function CreerUnifie() {
@@ -100,6 +101,13 @@ export default function CreerUnifie() {
   const [isLinkedInCarousel, setIsLinkedInCarousel] = useState(false);
   const [pinterestPinHtml, setPinterestPinHtml] = useState<string | null>(null);
   const [pinterestVisualGenerating, setPinterestVisualGenerating] = useState(false);
+  const [inspirationAnalysis, setInspirationAnalysis] = useState<any>(null);
+  const [inspirationProposals, setInspirationProposals] = useState<any[]>([]);
+  const [chosenProposal, setChosenProposal] = useState<any>(null);
+  const [inspirationImageBase64, setInspirationImageBase64] = useState<string | null>(null);
+  const [inspirationImagePreview, setInspirationImagePreview] = useState<string | null>(null);
+  const [photoBriefResult, setPhotoBriefResult] = useState<any>(null);
+  const [photoBriefOverlayHtml, setPhotoBriefOverlayHtml] = useState<string | null>(null);
 
   const { restored: draftRestored, clearDraft } = useFormPersist(
     "creer-unifie-form",
@@ -376,6 +384,32 @@ export default function CreerUnifie() {
     if (desc) setPhotoDescription(desc);
     if (pm !== undefined) setPhotoMode(pm);
 
+    // Pinterest Inspiration: store image and trigger analysis instead of questions
+    if (format === "pinterest_inspiration" && photos && photos.length > 0) {
+      setInspirationImageBase64(photos[0].base64 || null);
+      setInspirationImagePreview(photos[0].preview || null);
+      // Launch analysis
+      setStep("inspiration_proposals");
+      setInspirationAnalysis(null);
+      setInspirationProposals([]);
+      try {
+        const { data, error: fnError } = await invokeWithTimeout("pinterest-inspiration", {
+          body: {
+            image_base64: photos[0].base64,
+            workspace_id: workspaceId || undefined,
+          },
+        }, 120000);
+        if (fnError) throw fnError;
+        if (data?.error) throw new Error(data.error);
+        setInspirationAnalysis(data?.result?.analysis || null);
+        setInspirationProposals(data?.result?.proposals || []);
+      } catch (e: any) {
+        toast.error(e?.message || "Erreur lors de l'analyse");
+        setStep("format");
+      }
+      return;
+    }
+
     const subjectToUse = overrideSubject || ideaText;
     const enrichedSubject = existingCalendarContent
       ? subjectToUse + "\n\n[Contenu existant à approfondir]\n" + existingCalendarContent
@@ -422,6 +456,8 @@ export default function CreerUnifie() {
     setSavedId(null);
     setVisualSlides([]);
     setPinterestPinHtml(null);
+    setPhotoBriefOverlayHtml(null);
+    setPhotoBriefResult(null);
     const enrichedSubject = existingCalendarContent
       ? ideaText + "\n\n[Contenu existant à approfondir]\n" + existingCalendarContent
       : ideaText;
@@ -606,6 +642,9 @@ export default function CreerUnifie() {
     } else if (selectedFormat === "pinterest_visual" && (r?.title || r?.description)) {
       text = `📌 TITRE :\n${r.title || ""}\n\n📝 DESCRIPTION :\n${r.description || ""}`;
 
+    } else if (selectedFormat === "pinterest_photo" && (r?.title || r?.photo_brief)) {
+      text = `📌 TITRE :\n${r.title || ""}\n\n📝 DESCRIPTION :\n${r.description || ""}\n\n📷 BRIEF PHOTO :\n• Sujet : ${r?.photo_brief?.what || ""}\n• Cadrage : ${r?.photo_brief?.framing || ""}\n• Lumière : ${r?.photo_brief?.lighting || ""}\n• Accessoires : ${(r?.photo_brief?.props || []).join(", ")}\n• Couleurs : ${r?.photo_brief?.colors || ""}\n• Ambiance : ${r?.photo_brief?.mood || ""}`;
+
     } else if (r?.content) {
       text = r.content;
     } else if (r?.post) {
@@ -629,6 +668,84 @@ export default function CreerUnifie() {
     setStep("edit");
   };
 
+  const handleSelectInspirationProposal = async (proposal: any) => {
+    setChosenProposal(proposal);
+
+    if (proposal.recommended_output === "visual") {
+      // CHEMIN A : génération visuelle (pinterest-visual avec référence)
+      setStep("result");
+      setPinterestPinHtml(null);
+      setPinterestVisualGenerating(true);
+      try {
+        const { data, error: fnError } = await invokeWithTimeout("pinterest-visual", {
+          body: {
+            subject: proposal.subject,
+            pin_type: proposal.pin_type,
+            reference_image_base64: inspirationImageBase64,
+            pinterest_link: pinterestData?.link,
+            pinterest_board: pinterestData?.boardName,
+            workspace_id: workspaceId || undefined,
+          },
+        }, 120000);
+        if (fnError) throw fnError;
+        if (data?.error) throw new Error(data.error);
+        const r = data?.result;
+        setPinterestPinHtml(r?.pin_html || null);
+        setSelectedFormat("pinterest_visual");
+        setResult({
+          type: "pinterest_visual" as any,
+          raw: {
+            pin_html: r?.pin_html,
+            title: r?.title,
+            description: r?.description,
+            pin_data: r?.pin_data,
+          },
+        });
+        setIdeaText(proposal.subject);
+      } catch (e: any) {
+        toast.error(e?.message || "Erreur lors de la génération du visuel");
+      } finally {
+        setPinterestVisualGenerating(false);
+      }
+
+    } else {
+      // CHEMIN B : brief photo + overlay
+      setStep("result");
+      setPhotoBriefOverlayHtml(null);
+      try {
+        const { data, error: fnError } = await invokeWithTimeout("pinterest-photo-brief", {
+          body: {
+            subject: proposal.subject,
+            reference_image_base64: inspirationImageBase64,
+            pin_type: proposal.pin_type,
+            brief_hint: proposal.brief,
+            pinterest_link: pinterestData?.link,
+            pinterest_board: pinterestData?.boardName,
+            workspace_id: workspaceId || undefined,
+          },
+        }, 120000);
+        if (fnError) throw fnError;
+        if (data?.error) throw new Error(data.error);
+        const r = data?.result;
+        setPhotoBriefOverlayHtml(r?.overlay_html || null);
+        setPhotoBriefResult(r);
+        setSelectedFormat("pinterest_photo");
+        setResult({
+          type: "pinterest_photo" as any,
+          raw: {
+            overlay_html: r?.overlay_html,
+            photo_brief: r?.photo_brief,
+            title: r?.title,
+            description: r?.description,
+          },
+        });
+        setIdeaText(proposal.subject);
+      } catch (e: any) {
+        toast.error(e?.message || "Erreur lors de la génération du brief");
+      }
+    }
+  };
+
   const handleReset = () => {
     resetGenerator();
     streamReset();
@@ -650,6 +767,13 @@ export default function CreerUnifie() {
     setPhotoDescription("");
     setPhotoMode(false);
     setIsLinkedInCarousel(false);
+    setInspirationAnalysis(null);
+    setInspirationProposals([]);
+    setChosenProposal(null);
+    setInspirationImageBase64(null);
+    setInspirationImagePreview(null);
+    setPhotoBriefResult(null);
+    setPhotoBriefOverlayHtml(null);
     clearFlowState();
     clearDraft();
     sessionStorage.removeItem(CREER_RESULT_KEY);
@@ -754,6 +878,18 @@ export default function CreerUnifie() {
     } else if (selectedFormat === "pinterest_visual" && (r?.title || r?.description)) {
       accroche = r.title || "";
       contentDraft = `📌 ${r.title || ""}\n\n${r.description || ""}`;
+    } else if (selectedFormat === "pinterest_photo" && (r?.title || r?.photo_brief)) {
+      accroche = r.title || "";
+      const briefLines = r.photo_brief ? [
+        "📷 BRIEF PHOTO :",
+        `• Sujet : ${r.photo_brief.what || ""}`,
+        `• Cadrage : ${r.photo_brief.framing || ""}`,
+        `• Lumière : ${r.photo_brief.lighting || ""}`,
+        `• Accessoires : ${(r.photo_brief.props || []).join(", ")}`,
+        `• Couleurs : ${r.photo_brief.colors || ""}`,
+        `• Ambiance : ${r.photo_brief.mood || ""}`,
+      ].join("\n") : "";
+      contentDraft = `📌 ${r.title || ""}\n\n${r.description || ""}\n\n${briefLines}`;
     } else {
       contentDraft = r.content || r.post || r.text || "";
       accroche = contentDraft.split("\n")[0] || "";
@@ -1028,7 +1164,17 @@ export default function CreerUnifie() {
       const { contentDraft, accroche, storyDetail } = extractContentForCalendar();
       const r = result?.raw;
       const fmt = selectedFormat === "story" ? "story_serie" : (selectedFormat || "post");
-      const canal = selectedFormat === "linkedin" || isLinkedInCarousel ? "linkedin" : selectedFormat === "pinterest" || selectedFormat === "pinterest_visual" ? "pinterest" : selectedFormat === "newsletter" ? "newsletter" : "instagram";
+      const canal = selectedFormat === "linkedin" || isLinkedInCarousel ? "linkedin" : selectedFormat === "pinterest" || selectedFormat === "pinterest_visual" || selectedFormat === "pinterest_photo" ? "pinterest" : selectedFormat === "newsletter" ? "newsletter" : "instagram";
+
+      // Calculate calendar notes for inspiration-based pins
+      let calendarNotes = "";
+      if ((selectedFormat === "pinterest_visual" || selectedFormat === "pinterest_photo") && chosenProposal && inspirationAnalysis) {
+        calendarNotes = `🔍 Inspiré de : ${inspirationAnalysis.source_description || ""}\n📐 Angle : ${chosenProposal.angle || ""}`;
+        if (selectedFormat === "pinterest_photo" && result?.raw?.photo_brief) {
+          const b = result.raw.photo_brief;
+          calendarNotes += `\n\n📷 BRIEF PHOTO :\n• Sujet : ${b.what || ""}\n• Cadrage : ${b.framing || ""}\n• Lumière : ${b.lighting || ""}\n• Accessoires : ${(b.props || []).join(", ")}\n• Ambiance : ${b.mood || ""}`;
+        }
+      }
 
       const { data: insertedPost, error: insertError } = await supabase.from("calendar_posts").insert({
         user_id: session.user.id,
@@ -1042,6 +1188,7 @@ export default function CreerUnifie() {
         angle: editorialAngle || null,
         content_draft: contentDraft,
         accroche,
+        ...(calendarNotes ? { notes: calendarNotes } : {}),
         ...(storyDetail ? { story_sequence_detail: storyDetail } : {}),
         ...(selectedFormat === "story" && r?.stories ? {
           stories_count: r.total_stories || r.stories?.length || null,
@@ -1093,6 +1240,19 @@ export default function CreerUnifie() {
             }
           } catch (err) {
             console.warn("Pinterest visual upload failed (non-blocking):", err);
+          }
+        }
+
+        // Upload overlay Pinterest photo brief
+        if (selectedFormat === "pinterest_photo" && photoBriefOverlayHtml) {
+          try {
+            toast.info("Upload de l'overlay...");
+            const overlayUrls = await uploadPinterestVisualToStorage(postId, photoBriefOverlayHtml);
+            if (overlayUrls.length > 0) {
+              updates.visual_urls = overlayUrls;
+            }
+          } catch (err) {
+            console.warn("Overlay upload failed (non-blocking):", err);
           }
         }
         
@@ -1276,7 +1436,7 @@ export default function CreerUnifie() {
 
   // ── Progress bar ──
 
-  const stepOrder: Step[] = ["idea", "format", "questions", "result", "edit"];
+  const stepOrder: Step[] = ["idea", "format", "questions", "inspiration_proposals", "result", "edit"];
   const stepIndex = stepOrder.indexOf(step);
 
   // ── Launch mode rendering ──
@@ -1371,6 +1531,24 @@ export default function CreerUnifie() {
               />
             )}
 
+            {step === "inspiration_proposals" && (
+              generating || inspirationProposals.length === 0 ? (
+                <div className="py-12 text-center space-y-3 animate-fade-in">
+                  <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto" />
+                  <p className="text-sm font-medium text-foreground">Analyse de l'épingle en cours...</p>
+                  <p className="text-xs text-muted-foreground">L'IA étudie la structure, les mots-clés et le potentiel</p>
+                </div>
+              ) : (
+                <PinterestInspirationStep
+                  analysis={inspirationAnalysis}
+                  proposals={inspirationProposals}
+                  imagePreview={inspirationImagePreview}
+                  onSelect={handleSelectInspirationProposal}
+                  onBack={() => setStep("format")}
+                />
+              )
+            )}
+
             {step === "result" && !isLaunchMode && !generating && !demoGenerating && !streaming && !pinterestVisualGenerating && !result && (
               <div className="py-12 text-center space-y-4 animate-fade-in">
                 {error ? (
@@ -1432,6 +1610,7 @@ export default function CreerUnifie() {
                     else if (result.raw.slides) result.raw.slides = stories;
                   }
                 } : undefined}
+                photoBriefOverlayHtml={photoBriefOverlayHtml}
               />
             )}
 
