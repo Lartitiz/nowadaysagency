@@ -275,7 +275,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
             </button>
           </div>
           <p className="text-sm font-semibold text-foreground">Quel format d'épingle ?</p>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <button
               onClick={() => { setPinterestSubMode("text"); handleFormatSelect("pinterest"); }}
               className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
@@ -291,6 +291,14 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
               <span className="text-2xl block mb-1">🎨</span>
               <span className="text-xs font-semibold text-foreground">Visuel</span>
               <p className="text-[10px] text-muted-foreground mt-0.5">Infographie, checklist, schéma</p>
+            </button>
+            <button
+              onClick={() => { setPinterestSubMode("inspiration" as any); handleFormatSelect("pinterest_inspiration"); }}
+              className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
+            >
+              <span className="text-2xl block mb-1">🔍</span>
+              <span className="text-xs font-semibold text-foreground">Inspiration</span>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Partir d'une épingle existante</p>
             </button>
           </div>
         </div>
