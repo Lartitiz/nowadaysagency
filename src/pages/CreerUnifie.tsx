@@ -73,7 +73,7 @@ export default function CreerUnifie() {
     if (!ps?.step) return "idea";
     if (ps.step === "result" && ps.result) return "result";
     if (ps.step === "edit" && ps.editContent) return "edit";
-    if (["result", "edit"].includes(ps.step)) return "idea";
+    if (["result", "edit", "inspiration_proposals"].includes(ps.step)) return "idea";
     return ps.step as Step;
   })();
   const [step, setStep] = useState<Step>(safeStep);
@@ -1002,6 +1002,17 @@ export default function CreerUnifie() {
           }
         }
 
+        // Upload overlay Pinterest photo brief
+        if (selectedFormat === "pinterest_photo" && photoBriefOverlayHtml) {
+          try {
+            toast.info("Upload de l'overlay...");
+            const overlayUrls = await uploadPinterestVisualToStorage(calendarPostId, photoBriefOverlayHtml);
+            if (overlayUrls.length > 0) storageUpdates.visual_urls = overlayUrls;
+          } catch (err) {
+            console.warn("Overlay upload failed (non-blocking):", err);
+          }
+        }
+
         if (Object.keys(storageUpdates).length > 0) {
           const currentDetail = storyDetail || {};
           await supabase.from("calendar_posts").update({
@@ -1393,6 +1404,17 @@ export default function CreerUnifie() {
     }
   };
 
+  const handleExportPhotoBriefPng = async () => {
+    if (!photoBriefOverlayHtml) return;
+    try {
+      toast.info("Export PNG en cours...");
+      await exportPinterestVisualPng(photoBriefOverlayHtml, ideaText || "overlay-pinterest");
+      toast.success("PNG téléchargé !");
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur lors de l'export");
+    }
+  };
+
   const handleExportPinterestEditablePptx = async () => {
     const pinData = result?.raw?.pin_data;
     if (!pinData) {
@@ -1608,7 +1630,7 @@ export default function CreerUnifie() {
                 onExportPptx={selectedFormat === "carousel" ? effectiveHandleExportPptx : undefined}
                 onExportVisualPptx={selectedFormat === "carousel" && visualSlides.length > 0 ? effectiveHandleExportVisualPptx : undefined}
                 pinterestPinHtml={pinterestPinHtml}
-                onExportPinterestPng={selectedFormat === "pinterest_visual" ? handleExportPinterestPng : undefined}
+                onExportPinterestPng={selectedFormat === "pinterest_visual" ? handleExportPinterestPng : selectedFormat === "pinterest_photo" ? handleExportPhotoBriefPng : undefined}
                 onExportPinterestPptx={selectedFormat === "pinterest_visual" ? handleExportPinterestPptx : undefined}
                 onExportPinterestEditablePptx={selectedFormat === "pinterest_visual" ? handleExportPinterestEditablePptx : undefined}
                 onSlidesUpdate={selectedFormat === "carousel" ? (slides, caption) => {
