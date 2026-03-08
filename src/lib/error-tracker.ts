@@ -5,7 +5,7 @@ export function trackError(error: unknown, context?: Record<string, any>) {
   console.error(err.message, context);
 
   if (import.meta.env.PROD) {
-    Sentry.captureException(err, {
+    (Sentry as any).captureException(err, {
       extra: context,
     });
   }
