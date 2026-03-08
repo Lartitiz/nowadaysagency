@@ -285,6 +285,19 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
     totalTokens += (a.tokens_used || 0);
     aiCountByUser.set(a.user_id, (aiCountByUser.get(a.user_id) || 0) + 1);
   }
+
+  // Near-limit free users (7+/10 credits)
+  const nearLimitFree = [...aiCountByUser.entries()]
+    .filter(([userId, count]) => {
+      const sub = subsByUser.get(userId);
+      const plan = sub?.plan || "free";
+      return plan === "free" && count >= 7 && userId !== adminUserId;
+    })
+    .map(([userId, count]) => {
+      const prof = profiles.find((p: any) => p.user_id === userId);
+      return { user_id: userId, prenom: prof?.prenom || prof?.email || "Anonyme", credits_used: count };
+    })
+    .sort((a, b) => b.credits_used - a.credits_used);
   const topFeatures = Object.entries(aiByCategory)
     .map(([category, count]) => ({ category, count }))
     .sort((a, b) => b.count - a.count);
@@ -305,6 +318,37 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
     if (d >= now7) activeWeek++;
     if (d >= now30) activeMonth++;
   }
+
+  // Inactive paid users (no sign-in for 14 days)
+  const fourteenDaysAgo = new Date(now);
+  fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+  const inactivePaid = activePaidSubs
+    .filter((s: any) => {
+      const lastSign = authMap.get(s.user_id);
+      return !lastSign || new Date(lastSign) < fourteenDaysAgo;
+    })
+    .map((s: any) => {
+      const prof = profiles.find((p: any) => p.user_id === s.user_id);
+      const lastSign = authMap.get(s.user_id);
+      return {
+        user_id: s.user_id,
+        prenom: prof?.prenom || prof?.email || "Anonyme",
+        plan: s.plan,
+        last_sign_in: lastSign || null,
+      };
+    });
+
+  // Zombie users (signed up 7+ days ago, zero AI usage)
+  const sevenDaysAgo = new Date(now);
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const zombieUsers = clientProfiles
+    .filter((p: any) => {
+      const createdAt = new Date(p.created_at);
+      if (createdAt > sevenDaysAgo) return false;
+      const aiCount = aiCountByUser.get(p.user_id) || 0;
+      return aiCount === 0;
+    })
+    .length;
 
   // AI by day (last 30 days)
   const aiByDay: { date: string; count: number }[] = [];
@@ -451,5 +495,9 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
     levels,
     channel_popularity: channelPopularity,
     ai_by_action_type: aiByActionType,
+    // Alerts
+    near_limit_free: nearLimitFree,
+    inactive_paid: inactivePaid,
+    zombie_users_count: zombieUsers,
   };
 }
