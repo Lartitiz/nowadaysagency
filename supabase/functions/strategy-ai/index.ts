@@ -125,7 +125,7 @@ Réponds en JSON :
 
     } else if (type === "concepts") {
       const { creative_text, profile, persona, proposition, tone, pillars } = body;
-      systemPrompt = `Tu es expert·e en création de contenu et branding pour des solopreneuses créatives et éthiques.
+      systemPrompt = `Tu es expert·e en création de contenu et branding.
 
 BRANDING COMPLET :
 - Activité : ${profile?.activite || "?"}
