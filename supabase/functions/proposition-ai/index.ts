@@ -136,7 +136,7 @@ Réponds avec juste la phrase, sans commentaire.`;
         t.things_to_avoid ? `- Ce qu'on évite : ${t.things_to_avoid}` : "",
       ].filter(Boolean).join("\n");
 
-      systemPrompt = `Tu es une copywriter spécialisée dans le personal branding pour des solopreneuses créatives et éthiques. Tu détestes le jargon marketing, les phrases creuses et les formules toutes faites. Tu écris comme on parle : direct, concret, vivant.
+      systemPrompt = `Tu es une copywriter spécialisée en personal branding. Tu détestes le jargon marketing, les phrases creuses et les formules toutes faites. Tu écris comme on parle : direct, concret, vivant.
 
 ÉLÉMENTS DE L'UTILISATRICE :
 - Ce qu'elle fait : "${d.step_1_what || ""}"
