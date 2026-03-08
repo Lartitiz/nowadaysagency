@@ -53,6 +53,7 @@ serve(async (req) => {
       pinterest_link: z.string().max(500).optional().nullable(),
       pinterest_board: z.string().max(200).optional().nullable(),
       workspace_id: z.string().uuid().optional().nullable(),
+      reference_image_base64: z.string().max(10000000).optional().nullable(),
     }).passthrough());
 
     const { subject, pin_type, pinterest_link, pinterest_board } = reqBody;
