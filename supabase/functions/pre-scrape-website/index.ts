@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { scrapeWebsite } from "../_shared/scraping.ts";
+import { scrapeWebsite, extractVisualInfo } from "../_shared/scraping.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 
 serve(async (req) => {
@@ -41,20 +41,39 @@ serve(async (req) => {
       });
     }
 
-    // Scrape
+    // Scrape content + extract visual hints from raw HTML
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 25000);
 
     const content = await scrapeWebsite(websiteUrl, controller.signal);
+
+    // Also fetch raw HTML for visual style extraction (colors, fonts, CSS vars)
+    let styleHints = "";
+    try {
+      let formattedUrl = websiteUrl.trim();
+      if (!formattedUrl.startsWith("http")) formattedUrl = `https://${formattedUrl}`;
+      const resp = await fetch(formattedUrl, {
+        signal: controller.signal,
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandAnalyzer/1.0)" },
+      });
+      if (resp.ok) {
+        const html = await resp.text();
+        styleHints = extractVisualInfo(html);
+      }
+    } catch {
+      // Visual hints are nice-to-have, don't fail on this
+    }
+
     clearTimeout(timeout);
 
     if (content) {
-      // Upsert dans le cache
+      // Upsert dans le cache — include style_hints for enrichment
       await supabaseAdmin.from("scrape_cache").upsert({
         user_id: userId,
         url: websiteUrl,
         source_type: "website",
         content: content.slice(0, 10000),
+        style_hints: styleHints ? styleHints.slice(0, 3000) : null,
       }, { onConflict: "user_id,url" });
     }
 

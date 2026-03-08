@@ -58,13 +58,14 @@ serve(async (req) => {
 
     const scrapePromises: Promise<void>[] = [];
 
-    // Website : lire le cache du pre-scrape UNIQUEMENT
+    // Website : lire le cache du pre-scrape UNIQUEMENT (content + style_hints)
+    let cachedStyleHints = "";
     if (websiteUrl) {
       scrapePromises.push((async () => {
         try {
           const { data: cached } = await supabaseAdmin
             .from("scrape_cache")
-            .select("content")
+            .select("content, style_hints")
             .eq("user_id", userId)
             .eq("url", websiteUrl)
             .gte("created_at", new Date(Date.now() - 60 * 60 * 1000).toISOString())
@@ -75,7 +76,10 @@ serve(async (req) => {
           if (cached?.content) {
             scrapedContent.website = cached.content.slice(0, MAX_TEXT_PER_SOURCE);
             sourcesUsed.push("website");
-            console.log("Website content loaded from pre-scrape cache");
+            if (cached.style_hints) {
+              cachedStyleHints = cached.style_hints;
+            }
+            console.log("Website content loaded from pre-scrape cache", cached.style_hints ? "(with style hints)" : "(no style hints)");
           } else {
             sourcesFailed.push("website");
           }
