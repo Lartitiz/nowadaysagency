@@ -5,7 +5,7 @@ import { scrapeWebsite, scrapeInstagram, scrapeLinkedin, processDocuments, extra
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 
-const MAX_TEXT_PER_SOURCE = 5000;
+const MAX_TEXT_PER_SOURCE = 8000;
 const GLOBAL_TIMEOUT_MS = 50000;
 
 serve(async (req) => {
