@@ -829,10 +829,11 @@ export async function processScreenshots(
 ): Promise<{ base64: string; mediaType: string }[]> {
   const images: { base64: string; mediaType: string }[] = [];
 
+  const MAX_SCREENSHOT_BYTES = 2 * 1024 * 1024; // 2 MB max per image to avoid OOM
   const { data: docs, error } = await supabase
     .from("user_documents")
     .select("id, file_name, file_url, file_type")
-    .in("id", documentIds.slice(0, 3))
+    .in("id", documentIds.slice(0, 1))
     .eq("user_id", userId);
 
   if (error || !docs || docs.length === 0) {
