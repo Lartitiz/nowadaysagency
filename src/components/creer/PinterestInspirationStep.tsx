@@ -45,7 +45,7 @@ export default function PinterestInspirationStep({
           />
         ) : (
           <div
-            className="w-[120px] rounded-xl bg-muted flex items-center justify-center flex-shrink-0"
+            className="w-[100px] sm:w-[120px] rounded-xl bg-muted flex items-center justify-center flex-shrink-0"
             style={{ aspectRatio: "2 / 3" }}
           >
             <span className="text-2xl">📌</span>
