@@ -240,7 +240,7 @@ export default function BrandingPage() {
 
       setSectionSummaries({
         storytelling: { firstLine: storyText.split(/[.\n]/)[0]?.trim() || "" },
-        persona: { prenom: personaFullRes.data?.portrait_prenom || "", age: "", job: personaFullRes.data?.description?.split(",")[0]?.trim() || "" },
+        persona: { prenom: personaFullRes.data?.portrait_prenom || personaFullRes.data?.description?.split(",")[0]?.trim() || "", age: "", job: personaFullRes.data?.portrait_prenom ? (personaFullRes.data?.description?.split(",")[0]?.trim() || "") : (personaFullRes.data?.pitch_short || "") },
         proposition: { phrase: data.proposition?.version_pitch_naturel || data.proposition?.version_final || "" },
         tone: { keywords: toneKw },
         strategy: { pillars },
