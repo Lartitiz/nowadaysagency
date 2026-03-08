@@ -177,17 +177,6 @@ export default function GuidedTour({ steps, onComplete, storageKey }: GuidedTour
         </div>
       )}
 
-      {/* Auto-skip if target not found */}
-      {!targetRect && visible && (
-        <div className="hidden">
-          <AutoSkip
-            onSkip={() => {
-              if (isLast) handleSkip();
-              else setCurrentStep((s) => s + 1);
-            }}
-          />
-        </div>
-      )}
     </div>
   );
 }
