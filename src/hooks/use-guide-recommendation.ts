@@ -213,7 +213,7 @@ export function useGuideRecommendation(): UseGuideRecommendationResult {
         const lastAudit = twoWeeksAgo.toISOString();
 
         return {
-          recommendation: buildRecommendation(true, bc, 0, lastAudit),
+          recommendation: buildRecommendation(true, bc, 0, lastAudit, 3),
           profileSummary: {
             firstName: demoData.profile.first_name,
             brandingSections: 4,
