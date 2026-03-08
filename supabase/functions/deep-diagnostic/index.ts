@@ -250,7 +250,7 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
           system: systemPrompt,
           messages: [{ role: "user", content: userContentBlocks }],
           temperature: 0.6,
-          max_tokens: 3000,
+          max_tokens: 2000,
         });
       } else {
         // Simple text-only call
