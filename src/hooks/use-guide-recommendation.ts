@@ -82,6 +82,7 @@ function buildRecommendation(
   bc: BrandingCompletion,
   calendarPosts: number,
   lastAuditDate: string | null,
+  contentsGenerated: number = 0,
 ): GuideRecommendation {
   const sectionsFilled = countFilledSections(bc);
 
