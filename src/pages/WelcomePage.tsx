@@ -307,41 +307,28 @@ export default function WelcomePage() {
               Ton branding pré-rempli
             </h2>
             {hasBranding ? (
-              <Carousel opts={{ align: "center", loop: false }} className="w-full">
-                <CarouselContent>
-                  {brandingCards.map((card, i) => (
-                    <CarouselItem key={i}>
-                      <div className="bg-card border border-border rounded-2xl p-5 space-y-3 min-h-[160px]">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="text-lg">{card.emoji}</span>
-                            <span className="text-sm font-semibold text-foreground">{card.title}</span>
-                          </div>
-                          <span className="text-xs text-muted-foreground tabular-nums">
-                            {i + 1}/{brandingCards.length}
-                          </span>
-                        </div>
-                        {card.dbTable && card.dbField ? (
-                          <EditableText
-                            value={card.content}
-                            onSave={(v) => handleCardSave(i, v)}
-                            className="text-sm text-muted-foreground leading-relaxed"
-                            placeholder="Cliquer pour modifier"
-                          />
-                        ) : (
-                          <p className="text-sm text-muted-foreground leading-relaxed">
-                            {card.content}
-                          </p>
-                        )}
-                      </div>
-                    </CarouselItem>
-                  ))}
-                </CarouselContent>
-                <div className="flex items-center justify-center gap-2 mt-4">
-                  <CarouselPrevious />
-                  <CarouselNext />
-                </div>
-              </Carousel>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {brandingCards.map((card, i) => (
+                  <div key={i} className="bg-card border border-border rounded-2xl p-5 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{card.emoji}</span>
+                      <span className="text-sm font-semibold text-foreground">{card.title}</span>
+                    </div>
+                    {card.dbTable && card.dbField ? (
+                      <EditableText
+                        value={card.content}
+                        onSave={(v) => handleCardSave(i, v)}
+                        className="text-sm text-muted-foreground leading-relaxed"
+                        placeholder="Cliquer pour modifier"
+                      />
+                    ) : (
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        {card.content}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
             ) : (
               <div className="rounded-xl bg-card border border-border p-5">
                 <p className="text-sm text-muted-foreground">
