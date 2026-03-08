@@ -35,7 +35,9 @@ function CollapsibleMissions({ onNavigate }: { onNavigate: (route: string) => vo
   const { missions, completedCount, allDone, nextMission, dismissed, dismiss, isLoading } = useOnboardingMissions();
 
   const [collapsed, setCollapsed] = useState(() => {
-    return localStorage.getItem(COLLAPSED_KEY) !== "false";
+    const stored = localStorage.getItem(COLLAPSED_KEY);
+    if (stored === null) return false;
+    return stored === "true";
   });
 
   useEffect(() => {
