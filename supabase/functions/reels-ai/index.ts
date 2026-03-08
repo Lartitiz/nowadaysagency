@@ -162,7 +162,7 @@ serve(async (req) => {
   }
 });
 
-function buildSystemPrompt(brandingContext: string): string {
+function buildSystemPrompt(brandingContext: string, profile?: any): string {
   return `${BASE_SYSTEM_RULES}
 
 Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :
@@ -172,7 +172,7 @@ Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORIT
 - Imite les patterns de ton et de structure
 - Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA
 
-Tu es experte en création de Reels Instagram pour des solopreneuses créatives et engagées.
+${buildIdentityBlock(profile, "experte en création de Reels Instagram")}
 
 ${brandingContext}
 
