@@ -167,7 +167,6 @@ export default function OfferWorkshopPage() {
         }
         throw new Error(res.data.error);
       }
-      }
       setAiResponse(res.data);
 
       // Auto-save step 7 synthesis immediately
