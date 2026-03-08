@@ -58,7 +58,8 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
   const [pinterestBoardId, setPinterestBoardId] = useState("");
   const [pinterestBoards, setPinterestBoards] = useState<{ id: string; name: string }[]>([]);
   const [linkedinSubMode, setLinkedinSubMode] = useState<"text" | "carousel" | null>(null);
-  const [pinterestSubMode, setPinterestSubMode] = useState<"text" | "visual" | null>(null);
+  const [pinterestSubMode, setPinterestSubMode] = useState<"text" | "visual" | "inspiration" | null>(null);
+  const [inspirationPhotos, setInspirationPhotos] = useState<PhotoItem[]>([]);
 
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
