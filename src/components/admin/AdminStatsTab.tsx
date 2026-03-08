@@ -218,7 +218,7 @@ function OverviewSection({ stats }: { stats: StatsData }) {
   return (
     <div className="space-y-6">
       {/* KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         <KpiCard
           title="Inscrites"
           value={stats.total_users}
