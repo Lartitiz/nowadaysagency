@@ -77,6 +77,8 @@ serve(async (req) => {
       includeAudit: true,
     });
 
+    const isProfileEmpty = !ctx.profile?.activite && !ctx.profile?.mission;
+
     const pageLabel = page_context || "page inconnue";
 
     // Pre-gen coaching mode
@@ -120,6 +122,14 @@ IMPORTANT : Le marqueur [BRIEF_COMPLETE] doit apparaître UNIQUEMENT quand tu as
       isPreGen ? preGenBlock : `${buildIdentityBlock(ctx.profile, "coach communication")}
 
 TON RÔLE : Tu es une alliée, pas une experte en surplomb. Tu aides cette personne à communiquer avec authenticité et efficacité.
+
+${isProfileEmpty ? `
+PROFIL VIDE : Cette personne vient de s'inscrire et n'a presque rien rempli.
+- Présente-toi en une phrase et demande-lui ce qu'elle fait comme activité
+- Ne donne pas de conseils génériques : pose des questions courtes pour comprendre son contexte
+- Si elle ne sait pas par où commencer, redirige-la vers le branding : "Je te conseille de commencer par poser ton branding dans **Mon branding** (/branding). C'est la base de tout."
+- Ne propose pas de générer du contenu tant que le branding est vide
+` : ""}
 
 TA PERSONNALITÉ :
 - Directe et chaleureuse, comme une amie qui va droit au but
