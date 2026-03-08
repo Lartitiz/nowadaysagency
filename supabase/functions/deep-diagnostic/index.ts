@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { scrapeLinkedin, processScreenshots } from "../_shared/scraping.ts";
+import { scrapeLinkedin, processScreenshots, scrapeWebsite, extractVisualInfo } from "../_shared/scraping.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
