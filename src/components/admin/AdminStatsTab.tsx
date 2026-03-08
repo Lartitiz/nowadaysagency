@@ -323,8 +323,8 @@ function BusinessSection({ stats }: { stats: StatsData }) {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <KpiCard title="MRR" value={stats.mrr} suffix="€" sub={`ARR : ${(stats.mrr * 12).toLocaleString("fr")}€`} subColor="text-emerald-600" />
         <KpiCard title="Abonnées payantes" value={stats.paid_users} sub={`${stats.conversion_rate}% de conversion${stats.promo_users > 0 ? ` · ${stats.promo_users} promo` : ""}`} />
-        <KpiCard title="Taux de churn" value={stats.churn_rate} suffix="%" sub={`${stats.churned_this_month} départ·s ce mois`} subColor={stats.churn_rate > 10 ? "text-red-500" : undefined} />
-        <KpiCard title="Conversion free→payant" value={stats.conversion_rate} suffix="%" />
+        <KpiCard title="Taux de churn" value={stats.churn_rate} suffix="%" sub={`${stats.churned_this_month} départ·s ce mois`} subColor={stats.churn_rate > 10 ? "text-red-500" : undefined} status={stats.churn_rate <= 5 ? "good" : stats.churn_rate <= 10 ? "warning" : "danger"} />
+        <KpiCard title="Conversion free→payant" value={stats.conversion_rate} suffix="%" status={stats.conversion_rate >= 5 ? "good" : stats.conversion_rate >= 2 ? "warning" : "danger"} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
