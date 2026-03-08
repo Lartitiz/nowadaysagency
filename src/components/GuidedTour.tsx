@@ -29,13 +29,6 @@ function getTooltipPosition(rect: DOMRect, position: string): React.CSSPropertie
   }
 }
 
-function AutoSkip({ onSkip }: { onSkip: () => void }) {
-  useEffect(() => {
-    const t = setTimeout(onSkip, 300);
-    return () => clearTimeout(t);
-  }, [onSkip]);
-  return null;
-}
 
 export default function GuidedTour({ steps, onComplete, storageKey }: GuidedTourProps) {
   const [currentStep, setCurrentStep] = useState(0);
