@@ -1393,6 +1393,17 @@ export default function CreerUnifie() {
     }
   };
 
+  const handleExportPhotoBriefPng = async () => {
+    if (!photoBriefOverlayHtml) return;
+    try {
+      toast.info("Export PNG en cours...");
+      await exportPinterestVisualPng(photoBriefOverlayHtml, ideaText || "overlay-pinterest");
+      toast.success("PNG téléchargé !");
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur lors de l'export");
+    }
+  };
+
   const handleExportPinterestEditablePptx = async () => {
     const pinData = result?.raw?.pin_data;
     if (!pinData) {
