@@ -395,6 +395,12 @@ export default function CreerUnifie() {
         toast.error("Image invalide. Réessaie avec une autre capture d'écran.");
         return;
       }
+      // Validate image size — cap at ~4MB base64 (≈3MB raw) for reliable API processing
+      const base64Size = imgBase64.length;
+      if (base64Size > 5_500_000) {
+        toast.error("Image trop lourde. Essaie avec une capture d'écran plus petite ou recadrée.");
+        return;
+      }
       setInspirationImageBase64(imgBase64);
       setInspirationImagePreview(photos[0].preview || photos[0].base64 || null);
       // Launch analysis
@@ -407,13 +413,23 @@ export default function CreerUnifie() {
             image_base64: imgBase64,
             workspace_id: workspaceId || undefined,
           },
-        }, 120000);
+        }, 180000); // 180s — Claude Opus + vision is slow
         if (fnError) throw fnError;
         if (data?.error) throw new Error(data.error);
-        setInspirationAnalysis(data?.result?.analysis || null);
-        setInspirationProposals(data?.result?.proposals || []);
+        const analysis = data?.result?.analysis || null;
+        const proposals = data?.result?.proposals || [];
+        if (!analysis && proposals.length === 0) {
+          throw new Error("L'IA n'a pas pu analyser cette image. Essaie avec une capture plus nette.");
+        }
+        setInspirationAnalysis(analysis);
+        setInspirationProposals(proposals);
       } catch (e: any) {
-        toast.error(e?.message || "Erreur lors de l'analyse");
+        const msg = e?.message || "Erreur lors de l'analyse";
+        const isTimeout = msg.includes("timeout") || msg.includes("Timeout") || msg.includes("dépassé");
+        toast.error(isTimeout
+          ? "L'analyse a pris trop de temps. Essaie avec une image plus légère ou réessaie."
+          : msg
+        );
         setStep("format");
       }
       return;
