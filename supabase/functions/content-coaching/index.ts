@@ -150,6 +150,23 @@ Deno.serve(async (req) => {
 
     const contextText = formatContextForAI(ctx, CONTEXT_PRESETS.content);
 
+    // Guard: if branding is too sparse, return helpful guidance instead of generic ideas
+    if (!ctx.profile?.activite && !ctx.profile?.mission && !ctx.profile?.cible) {
+      return new Response(JSON.stringify({
+        ideas: [{
+          title: "Complète d'abord ton branding",
+          angle: "Pour te proposer des idées vraiment personnalisées, j'ai besoin de mieux te connaître.",
+          format: "action",
+          objective: "setup",
+          accroche: "Rendez-vous dans ton espace branding pour poser les bases.",
+          cta_route: "/branding"
+        }],
+        message: "Tes idées seront 10× plus pertinentes une fois ton branding rempli. Commence par là, ça prend 10 minutes.",
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const calendarPosts = (recentPostsRes.data || [])
       .map((p: any) => `- "${p.theme}"${p.accroche ? ` → accroche: "${p.accroche}"` : ""} (${p.canal}, ${p.format || "post"}, ${p.date})`)
       .join("\n");
