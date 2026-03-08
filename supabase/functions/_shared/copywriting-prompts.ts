@@ -828,7 +828,7 @@ export const LINKEDIN_TIPS = [
 
 
 export const WEBSITE_PRINCIPLES = `
-Tu es directrice de création spécialisée en pages de vente éthiques pour solopreneuses et freelances engagées.
+Tu es directrice de création spécialisée en pages de vente éthiques.
 
 PRINCIPES :
 - Écriture inclusive avec point médian
