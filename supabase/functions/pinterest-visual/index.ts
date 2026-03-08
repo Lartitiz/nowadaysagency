@@ -53,6 +53,7 @@ serve(async (req) => {
       pinterest_link: z.string().max(500).optional().nullable(),
       pinterest_board: z.string().max(200).optional().nullable(),
       workspace_id: z.string().uuid().optional().nullable(),
+      reference_image_base64: z.string().max(10000000).optional().nullable(),
     }).passthrough());
 
     const { subject, pin_type, pinterest_link, pinterest_board } = reqBody;
@@ -150,6 +151,16 @@ BORDURES POINTILLÉES :
 - JAMAIS de cercles/ronds comme décoration de fond
 ${ch.visual_donts ? `\n⛔ INTERDITS VISUELS :\n${ch.visual_donts}` : ""}${ch.ai_generated_brief ? `\nBRIEF CRÉATIF :\n${ch.ai_generated_brief}` : ""}${ch.moodboard_description ? `\nAMBIANCE MOODBOARD :\n${ch.moodboard_description}` : ""}${ch.icon_style ? `\nStyle d'icônes : ${ch.icon_style}` : ""}${ch.template_layout_description ? `\n\n═══ LAYOUT DE RÉFÉRENCE ═══\n${ch.template_layout_description}\nInspire-toi de ce layout pour l'ambiance générale.` : ""}
 
+
+═══ IMAGE DE RÉFÉRENCE ═══
+${reqBody.reference_image_base64 ? `Une image d'épingle Pinterest est fournie comme inspiration.
+ANALYSE sa structure (disposition des éléments, hiérarchie, nombre de blocs, densité).
+REPRODUIS cette structure et ce layout, mais avec :
+- Le nouveau contenu (sujet fourni)
+- La charte graphique de l'utilisatrice (couleurs, polices)
+- Le design system Nowadays (badges pilules, cartes blanches, etc.)
+Tu ne copies PAS le contenu ni les couleurs de la référence. Tu copies sa STRUCTURE et son LAYOUT.
+` : ""}
 ═══ TYPES D'ÉPINGLES ═══
 
 Si pin_type = "infographie" :
@@ -268,11 +279,32 @@ CHARTE GRAPHIQUE :
 Retourne UNIQUEMENT le JSON, pas de texte avant ou après.`;
 
     const model = "claude-opus-4-6" as any;
+    const hasReference = !!reqBody.reference_image_base64;
+
+    let messages: any[];
+    if (hasReference) {
+      const rawBase64 = reqBody.reference_image_base64.replace(/^data:image\/[a-z]+;base64,/, "");
+      messages = [{
+        role: "user",
+        content: [
+          {
+            type: "image",
+            source: { type: "base64", media_type: "image/jpeg", data: rawBase64 }
+          },
+          {
+            type: "text",
+            text: `Voici l'épingle Pinterest de référence. Inspire-toi de sa structure.\n\n${userPrompt}`
+          }
+        ]
+      }];
+    } else {
+      messages = [{ role: "user", content: userPrompt }];
+    }
 
     const rawResponse = await callAnthropic({
       model,
       system: systemPrompt,
-      messages: [{ role: "user", content: userPrompt }],
+      messages,
       temperature: 0.5,
       max_tokens: 8192,
     });
