@@ -3,7 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
-import { getUserContext, formatContextForAI } from "../_shared/user-context.ts";
+import { getUserContext, formatContextForAI, buildIdentityBlock } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
