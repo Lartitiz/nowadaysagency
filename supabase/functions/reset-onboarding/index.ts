@@ -45,8 +45,8 @@ Deno.serve(async (req) => {
 
     if (body.targetUserId) {
       // Admin mode: reset another user
-      if (callerEmail !== ADMIN_EMAIL) {
-        console.error(`[reset-onboarding] Forbidden: ${callerEmail} !== ${ADMIN_EMAIL}`);
+      if (!ADMIN_EMAILS.includes(callerEmail)) {
+        console.error(`[reset-onboarding] Forbidden: ${callerEmail} not in admin list`);
         return new Response(JSON.stringify({ error: "Forbidden" }), {
           status: 403,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
