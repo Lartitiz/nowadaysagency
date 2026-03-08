@@ -50,7 +50,7 @@ serve(async (req) => {
     }
 
     // Fetch full context server-side
-    const { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallback } = await import("../_shared/user-context.ts");
+    const { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallback, buildIdentityBlock } = await import("../_shared/user-context.ts");
 
     const body = await req.json();
     validateInput(body, z.object({
