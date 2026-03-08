@@ -16,7 +16,7 @@ Deno.serve(async (req) => {
     let userPrompt = "";
 
     if (action === "score") {
-      systemPrompt = `Tu es experte en copywriting éthique pour solopreneuses créatives.
+      systemPrompt = `Tu es experte en copywriting éthique.
 
 Évalue ce contenu sur 10 critères. Note de 1 à 10 pour chacun.
 

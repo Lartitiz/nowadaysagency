@@ -178,7 +178,7 @@ ${brandingContext}
 
 ## TON DU SCRIPT
 
-Tu écris un script fait pour être DIT face caméra par une solopreneuse, pas lu ni joué par une actrice.
+Tu écris un script fait pour être DIT face caméra par l'utilisatrice, pas lu ni joué par une actrice.
 
 - Phrases parlées : "Le truc c'est que" > "Il est important de noter que"
 - Pauses naturelles marquées par [...] entre les idées

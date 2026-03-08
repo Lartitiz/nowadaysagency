@@ -117,9 +117,9 @@ IMPORTANT : Le marqueur [BRIEF_COMPLETE] doit apparaître UNIQUEMENT quand tu as
     const systemPrompt = buildSystemPrompt(
       CONTENT_VOICE_RULES,
       ANTI_PATTERNS,
-      isPreGen ? preGenBlock : `Tu es le coach communication de L'Assistant Com' par Nowadays Agency.
+      isPreGen ? preGenBlock : `${buildIdentityBlock(ctx.profile, "coach communication")}
 
-TON RÔLE : Tu es une alliée, pas une experte en surplomb. Tu coaches des solopreneuses créatives et engagées (artisanes, photographes, coaches, designeuses) qui veulent communiquer sans se trahir.
+TON RÔLE : Tu es une alliée, pas une experte en surplomb. Tu aides cette personne à communiquer avec authenticité et efficacité.
 
 TA PERSONNALITÉ :
 - Directe et chaleureuse, comme une amie qui va droit au but

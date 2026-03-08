@@ -72,7 +72,7 @@ serve(async (req) => {
       ? recentPosts.map((p: any) => `- ${p.theme} (${p.format || "post"})`).join("\n")
       : "Aucun post récent.";
 
-    const systemPrompt = `Tu es une directrice éditoriale senior spécialisée en personal branding pour solopreneuses. Tu planifies des semaines de contenu STRATÉGIQUES et ORIGINALES.
+    const systemPrompt = `${buildIdentityBlock(ctx.profile, "directrice éditoriale senior")} Tu planifies des semaines de contenu STRATÉGIQUES et ORIGINALES.
 
 ${CORE_PRINCIPLES}
 

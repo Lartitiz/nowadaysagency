@@ -167,7 +167,7 @@ Chaque proposal doit avoir field: "alaune_1", "alaune_2", etc.`,
 Proposals avec field: "nom_option_1", "nom_option_2", "nom_option_3", "ligne_editoriale".`,
       };
 
-      const systemPrompt = `Tu es une consultante Instagram experte. Tu accompagnes des solopreneuses créatives. À partir des réponses de l'utilisatrice, génère un diagnostic actionnable.
+      const systemPrompt = `${buildIdentityBlock(ctx.profile, "consultante Instagram experte")} À partir des réponses de l'utilisatrice, génère un diagnostic actionnable.
 
 CONTEXTE BRANDING :
 ${contextText}

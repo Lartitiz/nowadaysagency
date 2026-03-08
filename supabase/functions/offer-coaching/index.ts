@@ -169,7 +169,7 @@ Retourne un JSON :
 }`,
     };
 
-    const systemPrompt = `Tu es un coach en positionnement d'offre. Tu aides des solopreneuses à formuler leurs offres de manière désirable et éthique.
+    const systemPrompt = `${buildIdentityBlock(ctx.profile, "coach en positionnement d'offre")} Tu aides à formuler des offres de manière désirable et éthique.
 
 ${contextStr}
 

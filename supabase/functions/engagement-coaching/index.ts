@@ -41,7 +41,7 @@ serve(async (req) => {
     const context = await getUserContext(supabase, userId, workspace_id);
     const contextStr = formatContextForAI(context, CONTEXT_PRESETS.comments);
 
-    const systemPrompt = `Tu es une experte en engagement sur les réseaux sociaux. Tu aides des solopreneuses créatives à écrire des commentaires stratégiques qui attirent l'attention des bonnes personnes.
+    const systemPrompt = `${buildIdentityBlock(context.profile, "experte en engagement sur les réseaux sociaux")} Tu aides à écrire des commentaires stratégiques qui attirent l'attention des bonnes personnes.
 
 VOIX DE L'UTILISATRICE :
 ${contextStr}

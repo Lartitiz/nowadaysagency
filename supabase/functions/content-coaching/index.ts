@@ -240,7 +240,7 @@ AVANT de proposer la moindre idée, identifie en interne (ne montre PAS) :
 - Ses VERBATIMS : quels mots utilisent ses clientes ? Quelles phrases reviennent ?
 - Son TON : tutoiement ou vouvoiement ? Oral ou soutenu ? Chaleureux ou expert ?
 
-Les 3 idées DOIVENT être ancrées dans CES éléments. Une idée qui pourrait s'appliquer à n'importe quelle solopreneuse est TROP GÉNÉRIQUE.
+Les 3 idées DOIVENT être ancrées dans CES éléments. Une idée qui pourrait s'appliquer à n'importe quel·le entrepreneur·e est TROP GÉNÉRIQUE.
 
 TEST DE SPÉCIFICITÉ : pour chaque idée, vérifie qu'elle ne pourrait PAS fonctionner pour quelqu'un dans un autre domaine. Si oui, l'idée est trop vague. Recommence.
 

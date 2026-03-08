@@ -376,7 +376,7 @@ serve(async (req) => {
     }).join("\n");
 
     // Build AI prompt
-    const systemPrompt = `Tu es une experte en conversion web et UX pour les solopreneuses créatives.
+    const systemPrompt = `${buildIdentityBlock(ctx.profile, "experte en conversion web et UX")}
 
 DONNÉES DU SITE :
 ${pagesDataText}

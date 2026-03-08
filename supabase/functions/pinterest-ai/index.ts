@@ -9,7 +9,7 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 
 const PINTEREST_PRINCIPLES = `
-Tu es expert·e en SEO Pinterest pour des solopreneuses créatives et éthiques.
+Tu es expert·e en SEO Pinterest.
 
 PRINCIPES D'ÉCRITURE PINTEREST :
 - Pinterest est un MOTEUR DE RECHERCHE VISUEL, pas un réseau social classique

@@ -173,7 +173,7 @@ Retourne UNIQUEMENT un JSON :
 - Ajoute une proposal field: "linkedin_hooks" avec les 6 accroches listées.`,
       };
 
-      const systemPrompt = `Tu es une consultante LinkedIn experte. Tu accompagnes des solopreneuses et entrepreneures. À partir des réponses de l'utilisatrice, génère un diagnostic actionnable.
+      const systemPrompt = `${buildIdentityBlock(ctx.profile, "consultante LinkedIn experte")} À partir des réponses de l'utilisatrice, génère un diagnostic actionnable.
 
 CONTEXTE BRANDING :
 ${contextText}

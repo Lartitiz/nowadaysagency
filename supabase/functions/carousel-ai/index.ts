@@ -750,7 +750,7 @@ OBJECTIF : ${OBJ_LABELS[objective] || objective || "non précisé"}
 ${objective ? `\nOriente les questions vers cet objectif. Si "vente" : demande des témoignages clients, des résultats, des transformations. Si "engagement" : demande des anecdotes personnelles, des moments vécus. Si "visibilité" : demande des opinions tranchées, des constats provocants.\n` : ""}${brandingBlock}${angleBlock}
 ${isLinkedIn ? `\nATTENTION : c'est un carrousel LINKEDIN. Les questions doivent orienter vers du contenu expert et professionnel :\n- Demander des données, des résultats concrets, des leçons métier\n- Chercher l'expertise spécifique (pas juste l'émotion)\n- Orienter vers du contenu qui positionne comme référence sur le sujet` : ""}
 
-TON RÔLE : Tu es une coach com' qui aide une solopreneuse/créatrice à extraire son vécu, ses opinions et son expertise PERSONNELLE pour que le contenu ne soit pas générique.
+TON RÔLE : Tu es une coach com' qui aide l'utilisatrice à extraire son vécu, ses opinions et son expertise PERSONNELLE pour que le contenu ne soit pas générique.
 
 RÈGLES pour les questions :
 - Chaque question doit être liée SPÉCIFIQUEMENT au sujet "${subject}" et au format ${formatLabel}

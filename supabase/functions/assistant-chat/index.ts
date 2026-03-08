@@ -406,7 +406,7 @@ Deno.serve(async (req) => {
 
     const aiResponse = await callAnthropic({
       model: getDefaultModel(),
-      system: SYSTEM_PROMPT,
+      system: buildIdentityBlock(userContext.profile, "assistant communication") + "\n\n" + SYSTEM_PROMPT_BODY,
       messages,
       temperature: 0.7,
       max_tokens: 2048,

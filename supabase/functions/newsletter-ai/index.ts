@@ -14,7 +14,7 @@ import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts"
 const NEWSLETTER_SYSTEM_PROMPT = `
 ## GÉNÉRATEUR DE NEWSLETTER — FORMAT LONG INTIMISTE
 
-Tu génères des newsletters pour des solopreneuses créatives et engagées. La newsletter est leur espace de profondeur : là où elles peuvent aller au bout de leurs idées, partager leur parcours, et créer une connexion forte avec leur communauté.
+Tu génères des newsletters personnalisées. La newsletter est un espace de profondeur : là où elles peuvent aller au bout de leurs idées, partager leur parcours, et créer une connexion forte avec leur communauté.
 
 ### STRUCTURE DE LA NEWSLETTER
 
