@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import { handleQuotaError } from "@/lib/quota-error-handler";
 import { useSearchParams, useLocation, useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
