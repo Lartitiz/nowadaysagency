@@ -53,7 +53,7 @@ function CollapsibleMissions({ onNavigate }: { onNavigate: (route: string) => vo
   if (allDone) return null;
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+    <div data-tour="card-missions" className="rounded-2xl border border-border bg-card p-4 shadow-sm">
       <button onClick={toggle} className="w-full flex items-center gap-3">
         <span className="text-base">🚀</span>
         <span className="font-heading text-sm font-bold text-foreground">Tes missions</span>
@@ -114,10 +114,12 @@ function MissionRow({ mission, isNext, onClick }: { mission: OnboardingMission; 
 
 /* ── Tour steps ── */
 const TOUR_STEPS = [
-  { target: "card-next-step", title: "Ta prochaine étape", text: "L'outil analyse où tu en es et te recommande l'action qui aura le plus d'impact. Tu n'as qu'à suivre.", position: "bottom" as const },
-  { target: "nav-creer", title: "Créer du contenu", text: "Posts Instagram, carrousels, newsletters, posts LinkedIn : l'outil connaît ta marque et te propose des textes avec les bonnes structures.", position: "bottom" as const },
-  { target: "nav-calendrier", title: "Organiser tes contenus", text: "Planifie tes publications dans le calendrier. Tu sauras exactement quoi poster et quand.", position: "bottom" as const },
-  { target: "card-assistant", title: "Ta coach de com' IA", text: "Tu peux lui poser n'importe quelle question sur ta communication. Elle connaît ton branding et te répond de façon personnalisée.", position: "top" as const },
+  { target: "card-next-step", title: "Ta prochaine étape", text: "Chaque jour, l'outil te recommande l'action qui aura le plus d'impact. Pas besoin de réfléchir par où commencer : c'est ici.", position: "bottom" as const },
+  { target: "card-mini-actions", title: "Tes raccourcis", text: "Ton branding, tes audits, ta routine d'engagement, ton calendrier : tout est accessible en un clic depuis ces cartes.", position: "bottom" as const },
+  { target: "nav-creer", title: "Créer", text: "C'est ici que tu génères tes contenus : posts, carrousels, newsletters, Reels. L'IA connaît ton branding et écrit avec ta voix.", position: "bottom" as const },
+  { target: "nav-calendrier", title: "Organiser", text: "Ton calendrier éditorial. Tu planifies tes contenus, tu vois ta semaine d'un coup d'œil, et tu sais toujours quoi poster.", position: "bottom" as const },
+  { target: "card-missions", title: "Tes premières missions", text: "5 petites étapes pour bien démarrer. Avance à ton rythme, coche au fur et à mesure. Rien d'obligatoire, tout est utile.", position: "top" as const },
+  { target: "card-assistant", title: "Ta coach de com'", text: "Un doute, une question, besoin d'un coup de pouce ? Elle connaît ton projet et te répond de façon personnalisée.", position: "top" as const },
 ];
 
 /* ── Mini-cards data ── */
@@ -223,7 +225,7 @@ export default function AdaptiveHome() {
         </div>
 
         {/* C. Mini-cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+        <div data-tour="card-mini-actions" className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
           {MINI_CARDS.map((card) => (
             <div
               key={card.route}
