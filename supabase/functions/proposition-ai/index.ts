@@ -281,9 +281,7 @@ RÈGLES :
 
     const quotaCheck = await checkQuota(user.id, "content");
     if (!quotaCheck.allowed) {
-      return new Response(JSON.stringify({ error: quotaCheck.message }), {
-        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return quotaDeniedResponse(quotaCheck, corsHeaders);
     }
 
     const content = await callAnthropicSimple(getModelForAction("proposition"), BASE_SYSTEM_RULES + "\n\n" + systemPrompt + "\n\n" + ANTI_SLOP, userPrompt);

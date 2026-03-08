@@ -323,9 +323,7 @@ Réponds en JSON :
 
     const quotaCheck = await checkQuota(userId, "content");
     if (!quotaCheck.allowed) {
-      return new Response(JSON.stringify({ error: quotaCheck.message }), {
-        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return quotaDeniedResponse(quotaCheck, corsHeaders);
     }
 
     const content = await callAnthropicSimple(getModelForAction("persona"), BASE_SYSTEM_RULES + "\n\n" + systemPrompt + "\n\n" + ANTI_SLOP, userPrompt);
