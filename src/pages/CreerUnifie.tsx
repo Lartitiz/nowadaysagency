@@ -714,7 +714,7 @@ export default function CreerUnifie() {
             pinterest_board: pinterestData?.boardName,
             workspace_id: workspaceId || undefined,
           },
-        }, 120000);
+        }, 180000);
         if (fnError) throw fnError;
         if (data?.error) throw new Error(data.error);
         const r = data?.result;
@@ -752,7 +752,7 @@ export default function CreerUnifie() {
             pinterest_board: pinterestData?.boardName,
             workspace_id: workspaceId || undefined,
           },
-        }, 120000);
+        }, 180000);
         if (fnError) throw fnError;
         if (data?.error) throw new Error(data.error);
         const r = data?.result;
