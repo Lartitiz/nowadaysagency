@@ -96,6 +96,42 @@ interface BrandProfileData {
   combats: string | null;
   tone_style: string | null;
 }
+const CARD_COLLAPSE_LENGTH = 200;
+
+function BrandingCardItem({ card, index, onSave }: { card: BrandingCard; index: number; onSave: (i: number, v: string) => void }) {
+  const [expanded, setExpanded] = useState(false);
+  const isLong = card.content.length > CARD_COLLAPSE_LENGTH;
+  const displayText = !expanded && isLong ? card.content.slice(0, CARD_COLLAPSE_LENGTH) + "…" : card.content;
+
+  return (
+    <div className="bg-card border border-border rounded-2xl p-5 space-y-3">
+      <div className="flex items-center gap-2">
+        <span className="text-lg">{card.emoji}</span>
+        <span className="text-sm font-semibold text-foreground">{card.title}</span>
+      </div>
+      {card.dbTable && card.dbField ? (
+        <EditableText
+          value={card.content}
+          onSave={(v) => onSave(index, v)}
+          className="text-sm text-muted-foreground leading-relaxed"
+          placeholder="Cliquer pour modifier"
+        />
+      ) : (
+        <div>
+          <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">{displayText}</p>
+          {isLong && (
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="text-xs text-primary hover:underline mt-1"
+            >
+              {expanded ? "Réduire" : "Lire la suite"}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function WelcomePage() {
   const { user } = useAuth();
@@ -228,8 +264,8 @@ export default function WelcomePage() {
         const personaParts: string[] = [];
         if (persona.portrait_prenom) personaParts.push(persona.portrait_prenom);
         if (persona.description) personaParts.push(persona.description);
-        if (persona.step_1_frustrations) personaParts.push(`Frustrations : ${persona.step_1_frustrations.slice(0, 150)}...`);
-        if (persona.step_2_transformation) personaParts.push(`Transformation : ${persona.step_2_transformation.slice(0, 150)}...`);
+        if (persona.step_1_frustrations) personaParts.push(`Frustrations : ${persona.step_1_frustrations}`);
+        if (persona.step_2_transformation) personaParts.push(`Transformation : ${persona.step_2_transformation}`);
         const personaContent = personaParts.filter(Boolean).join(" · ");
         if (personaContent) {
           cards.push({ emoji: "🎭", title: "Persona", content: personaContent, route: "/branding/section?section=persona" });
@@ -351,8 +387,8 @@ export default function WelcomePage() {
         const personaParts: string[] = [];
         if (persona.portrait_prenom) personaParts.push(persona.portrait_prenom);
         if (persona.description) personaParts.push(persona.description);
-        if (persona.step_1_frustrations) personaParts.push(`Frustrations : ${persona.step_1_frustrations.slice(0, 150)}...`);
-        if (persona.step_2_transformation) personaParts.push(`Transformation : ${persona.step_2_transformation.slice(0, 150)}...`);
+        if (persona.step_1_frustrations) personaParts.push(`Frustrations : ${persona.step_1_frustrations}`);
+        if (persona.step_2_transformation) personaParts.push(`Transformation : ${persona.step_2_transformation}`);
         const personaContent = personaParts.filter(Boolean).join(" · ");
         if (personaContent) cards.push({ emoji: "🎭", title: "Persona", content: personaContent, route: "/branding/section?section=persona" });
       }
@@ -488,24 +524,7 @@ export default function WelcomePage() {
             {hasBranding ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {brandingCards.map((card, i) => (
-                  <div key={i} className="bg-card border border-border rounded-2xl p-5 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">{card.emoji}</span>
-                      <span className="text-sm font-semibold text-foreground">{card.title}</span>
-                    </div>
-                    {card.dbTable && card.dbField ? (
-                      <EditableText
-                        value={card.content}
-                        onSave={(v) => handleCardSave(i, v)}
-                        className="text-sm text-muted-foreground leading-relaxed"
-                        placeholder="Cliquer pour modifier"
-                      />
-                    ) : (
-                      <p className="text-sm text-muted-foreground leading-relaxed">
-                        {card.content}
-                      </p>
-                    )}
-                  </div>
+                  <BrandingCardItem key={i} card={card} index={i} onSave={handleCardSave} />
                 ))}
               </div>
             ) : (
