@@ -58,7 +58,7 @@ serve(async (req) => {
 
     const scrapePromises: Promise<void>[] = [];
 
-    // Website : lire le cache du pre-scrape UNIQUEMENT (content + style_hints)
+    // Website : lire le cache du pre-scrape, avec fallback scrape direct
     let cachedStyleHints = "";
     if (websiteUrl) {
       scrapePromises.push((async () => {
@@ -81,7 +81,33 @@ serve(async (req) => {
             }
             console.log("Website content loaded from pre-scrape cache", cached.style_hints ? "(with style hints)" : "(no style hints)");
           } else {
-            sourcesFailed.push("website");
+            // Fallback: scrape directly if cache miss
+            console.log("Cache miss for website, attempting direct scrape...");
+            try {
+              const directContent = await scrapeWebsite(websiteUrl, controller.signal);
+              if (directContent && directContent.length > 50) {
+                scrapedContent.website = directContent.slice(0, MAX_TEXT_PER_SOURCE);
+                sourcesUsed.push("website");
+                console.log("Website scraped directly (fallback)");
+                // Try to extract visual info too
+                try {
+                  let formattedUrl = websiteUrl.trim();
+                  if (!formattedUrl.startsWith("http")) formattedUrl = `https://${formattedUrl}`;
+                  const resp = await fetch(formattedUrl, {
+                    signal: controller.signal,
+                    headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandAnalyzer/1.0)" },
+                  });
+                  if (resp.ok) {
+                    const html = await resp.text();
+                    cachedStyleHints = extractVisualInfo(html);
+                  }
+                } catch { /* style hints are nice-to-have */ }
+              } else {
+                sourcesFailed.push("website");
+              }
+            } catch {
+              sourcesFailed.push("website");
+            }
           }
         } catch {
           sourcesFailed.push("website");
