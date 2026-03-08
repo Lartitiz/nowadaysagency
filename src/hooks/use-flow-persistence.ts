@@ -14,6 +14,9 @@ interface FlowState {
   visualSlides: { slide_number: number; html: string }[];
   savedId: string | null;
   questions: { id: string; question: string; placeholder?: string }[];
+  inspirationAnalysis: any;
+  inspirationProposals: any[];
+  inspirationImagePreview: string | null;
   ts: number;
 }
 
