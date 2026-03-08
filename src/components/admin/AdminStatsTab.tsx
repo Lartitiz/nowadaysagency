@@ -380,7 +380,7 @@ function EngagementProductSection({ stats }: { stats: StatsData }) {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <KpiCard title="Rétention" value={stats.retention_rate} suffix="%" sub={`${stats.retained_users} revenues du mois dernier`} subColor={stats.retention_rate >= 50 ? "text-emerald-600" : "text-amber-500"} />
         <KpiCard title="Contenus générés" value={totalContent} sub={`${stats.drafts_this_month} brouillons · ${stats.calendar_posts_this_month} planifiés`} />
-        <KpiCard title="Score branding moyen" value={stats.avg_branding_score} suffix="/100" />
+        <KpiCard title="Contenus → planifiés" value={stats.content_usage_rate || 0} suffix="%" sub={`${stats.calendar_posts_this_month} planifiés sur ${stats.drafts_this_month} générés`} subColor={(stats.content_usage_rate || 0) >= 50 ? "text-emerald-600" : (stats.content_usage_rate || 0) >= 25 ? "text-amber-500" : "text-red-500"} />
         <KpiCard title="Générations IA" value={stats.ai_total_this_month} trend={stats.ai_total_this_month - (stats.ai_total_prev_month || 0)} sub="ce mois" />
       </div>
 
