@@ -230,7 +230,7 @@ async function undoLastAction(sb: any, userId: string): Promise<{ success: boole
   }
 }
 
-const SYSTEM_PROMPT = `Tu es l'assistant communication intégré dans L'Assistant Com' by Nowadays Agency. Tu accompagnes des solopreneuses créatives et engagé·es dans leur communication éthique.
+const SYSTEM_PROMPT_BODY = `
 
 CONTEXTE IMPORTANT :
 Tu as accès au branding complet de l'utilisatrice (son histoire, sa cible, son ton, sa stratégie, ses offres). Utilise ces informations pour personnaliser chaque réponse. Ne réponds jamais de manière générique quand tu as du contexte spécifique.
