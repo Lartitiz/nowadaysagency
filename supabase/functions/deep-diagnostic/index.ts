@@ -254,7 +254,7 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
         });
       } else {
         // Simple text-only call
-        rawText = await callAnthropicSimple(fastModel, systemPrompt, userPrompt, 0.7, 3000);
+        rawText = await callAnthropicSimple(fastModel, systemPrompt, userPrompt, 0.7, 2000);
       }
 
       // Parse JSON
