@@ -241,6 +241,9 @@ function OverviewSection({ stats }: { stats: StatsData }) {
         <KpiCard title="Score identité" value={stats.avg_branding_score} suffix="/100" />
       </div>
 
+      {/* Alerts panel */}
+      <AlertsPanel stats={stats} />
+
       {/* Charts row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ChartCard title="Inscriptions par semaine">
