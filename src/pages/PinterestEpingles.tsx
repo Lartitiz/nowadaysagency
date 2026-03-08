@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import EmptyState from "@/components/EmptyState";
+import { MESSAGES } from "@/lib/messages";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
@@ -138,22 +140,28 @@ export default function PinterestEpingles() {
         {/* Saved pins */}
         <section>
           <h3 className="font-display text-base font-bold mb-3">Mes épingles sauvegardées</h3>
-          <p className="text-sm text-muted-foreground mb-4">Tu as {pins.length} épingle{pins.length !== 1 ? "s" : ""}. On recommande au moins 10 pour lancer ta présence.</p>
-          <div className="space-y-3">
-            {pins.map(p => (
-              <div key={p.id} className="rounded-xl border border-border p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-bold text-foreground">{p.title || p.subject}</span>
-                  <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="sm" onClick={() => copyText(`${p.title}\n\n${p.description}`)}><Copy className="h-3 w-3" /></Button>
-                    <Button variant="ghost" size="sm" onClick={() => p.id && deletePin(p.id)}><Trash2 className="h-3 w-3 text-muted-foreground" /></Button>
+          {pins.length === 0 ? (
+            <EmptyState {...MESSAGES.empty.pinterest_pins} />
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground mb-4">Tu as {pins.length} épingle{pins.length !== 1 ? "s" : ""}. On recommande au moins 10 pour lancer ta présence.</p>
+              <div className="space-y-3">
+                {pins.map(p => (
+                  <div key={p.id} className="rounded-xl border border-border p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-bold text-foreground">{p.title || p.subject}</span>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => copyText(`${p.title}\n\n${p.description}`)}><Copy className="h-3 w-3" /></Button>
+                        <Button variant="ghost" size="sm" onClick={() => p.id && deletePin(p.id)}><Trash2 className="h-3 w-3 text-muted-foreground" /></Button>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground line-clamp-2">{p.description}</p>
+                    {p.link_url && <p className="text-xs text-primary mt-1 truncate">{p.link_url}</p>}
                   </div>
-                </div>
-                <p className="text-xs text-muted-foreground line-clamp-2">{p.description}</p>
-                {p.link_url && <p className="text-xs text-primary mt-1 truncate">{p.link_url}</p>}
+                ))}
               </div>
-            ))}
-          </div>
+            </>
+          )}
         </section>
       </main>
     </div>
