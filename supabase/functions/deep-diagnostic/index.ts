@@ -210,7 +210,8 @@ serve(async (req) => {
 RÈGLES :
 - Le "summary" (3-4 phrases) doit reformuler les mots de la personne. Elle doit se dire "oui c'est moi".
 - Ne jamais inventer : si pas de données sur un canal, score = null.
-- Forces et faiblesses CONCRÈTES avec exemples réels du contenu. Max 3-4 de chaque.
+- RÈGLE ABSOLUE FORCES/FAIBLESSES : tu ne peux commenter QUE les sources qui apparaissent dans les sections "SOURCE:" ci-dessous. Si tu n'as PAS de section "SOURCE: WEBSITE", tu ne peux RIEN dire sur le site (pas de "manque de CTA", pas de "bio incomplète sur le site", etc.). Si tu n'as PAS de screenshot Instagram, tu ne peux RIEN dire sur la bio Instagram, le feed, les abonnés. Chaque force/faiblesse DOIT citer un élément LITTÉRAL trouvé dans les données fournies. Si tu ne peux pas citer un extrait concret → ne génère pas cette force/faiblesse.
+- Max 3-4 forces, 3-4 faiblesses, 3 priorités. Tous basés sur des observations réelles.
 - 3 priorités actionnables dans l'outil, ordonnées par impact.
 - Si branding incomplet, priorité n°1 = compléter le branding.
 - Si scraping site échoué, le dire dans le summary.
@@ -291,7 +292,9 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
     userParts.push(`=== CONSIGNES FINALES ===
 - Le résumé (summary) doit faire 3-4 phrases et reprendre les mots de la personne.
 - Ne mets un score que pour les sources que tu as réellement analysées. Tout le reste : null.
-- Les forces et faiblesses doivent citer des éléments CONCRETS du contenu. Pas de phrases génériques.`);
+- RAPPEL CRITIQUE : chaque force/faiblesse DOIT avoir un "source" qui correspond à une section SOURCE réellement fournie ci-dessus. Si la source n'existe pas dans les données → tu ne génères PAS de force/faiblesse pour cette source. Cite toujours l'élément concret observé entre guillemets dans le "detail".
+- Exemple INTERDIT : dire "Bio Instagram incomplète" sans avoir de screenshot Instagram ni de texte de bio dans les données.
+- Exemple INTERDIT : dire "Pas de CTA sur le site" alors que le site contient un bouton d'action que tu n'as pas lu attentivement.`);
 
     const userPrompt = userParts.join("\n\n");
 
