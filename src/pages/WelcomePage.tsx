@@ -110,6 +110,18 @@ function BrandingCardItem({ card, index, onSave }: { card: BrandingCard; index: 
         <span className="text-lg">{card.emoji}</span>
         <span className="text-sm font-semibold text-foreground">{card.title}</span>
       </div>
+      {card.colors && card.colors.length > 0 && (
+        <div className="flex items-center gap-2 py-1">
+          {card.colors.map((color, ci) => (
+            <div
+              key={ci}
+              className="w-8 h-8 rounded-lg border border-border shadow-sm"
+              style={{ backgroundColor: color }}
+              title={color}
+            />
+          ))}
+        </div>
+      )}
       {card.dbTable && card.dbField ? (
         <EditableText
           value={card.content}
