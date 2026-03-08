@@ -38,6 +38,7 @@ serve(async (req) => {
     const scrapedContent: Record<string, string> = {};
     const sourcesUsed: string[] = [];
     const sourcesFailed: string[] = [];
+    let styleHints = "";
 
     // --- 1. SCRAPE WEBSITE ---
     if (websiteUrl) {
