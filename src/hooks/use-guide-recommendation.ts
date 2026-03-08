@@ -278,7 +278,7 @@ export function useGuideRecommendation(): UseGuideRecommendationResult {
           calendarPosts,
           lastAuditDate,
           onboardingComplete: onboardingDone,
-          contentsGenerated: 0,
+          contentsGenerated: contentsCount,
         },
       };
     },
