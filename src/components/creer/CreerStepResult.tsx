@@ -482,14 +482,10 @@ export default function CreerStepResult({
             </DropdownMenuContent>
           </DropdownMenu>
         )}
-        {format === "pinterest_photo" && result?.overlay_html && (
-          <>
-            {onExportPinterestPng && (
-              <Button variant="ghost" size="sm" onClick={onExportPinterestPng} className="gap-1.5 text-xs text-muted-foreground">
-                <Download className="h-3.5 w-3.5" /> PNG overlay
-              </Button>
-            )}
-          </>
+        {format === "pinterest_photo" && result?.overlay_html && onExportPinterestPng && (
+          <Button variant="ghost" size="sm" onClick={onExportPinterestPng} className="gap-1.5 text-xs text-muted-foreground">
+            <Download className="h-3.5 w-3.5" /> Exporter PNG
+          </Button>
         )}
         <Button variant="ghost" size="sm" onClick={onReset} className="gap-1.5 text-xs text-muted-foreground">
           <RotateCcw className="h-3.5 w-3.5" /> Nouveau contenu
