@@ -394,7 +394,7 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
     // ====== CALL CLAUDE — PHASE 2 : Enrichissement branding (Opus, fire-and-forget) ======
     const enrichmentPromise = (async () => {
       try {
-        const enrichmentSystemPrompt = `Tu es l'assistante com' de Nowadays Agency. Tu reçois le contenu scrappé du site web et les réponses d'onboarding d'une solopreneuse créative.
+        const enrichmentSystemPrompt = `Tu es l'assistante com' de L'Assistant Com'. Tu reçois le contenu scrappé du site web et les réponses d'onboarding.
 
 Ta mission : déduire un maximum d'informations sur son branding à partir de ce contenu.
 

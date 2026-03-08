@@ -229,7 +229,7 @@ Réponds en JSON :
       const td = body.tone_data || {};
       const cc = body.creative_concept || "";
 
-      systemPrompt = `Tu es expert·e en personal branding pour des solopreneuses créatives et éthiques.
+      systemPrompt = `Tu es expert·e en personal branding.
 
 À partir du ton, style et combats de cette marque, génère une synthèse structurée pour une fiche récap visuelle.
 

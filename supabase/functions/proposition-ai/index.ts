@@ -225,7 +225,7 @@ Réponds en JSON :
         t.combat_refusals ? `- Refus : ${t.combat_refusals}` : "",
       ].filter(Boolean).join("\n");
 
-      systemPrompt = `Tu es expert·e en personal branding pour des solopreneuses créatives et éthiques.
+      systemPrompt = `Tu es expert·e en personal branding.
 
 À partir de cette proposition de valeur, génère une synthèse structurée pour une fiche récap visuelle.
 

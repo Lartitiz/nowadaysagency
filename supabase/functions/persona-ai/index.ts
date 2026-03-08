@@ -235,7 +235,7 @@ Réponds en JSON :
         break;
 
       case "visual":
-        systemPrompt = `Tu es expert·e en stratégie de marque pour des solopreneuses créatives et éthiques.
+        systemPrompt = `Tu es expert·e en stratégie de marque.
 
 L'UNIVERS VISUEL DE LA CLIENTE IDÉALE :
 - Ce qu'elle trouve beau : "${d.step_4_beautiful || ""}"

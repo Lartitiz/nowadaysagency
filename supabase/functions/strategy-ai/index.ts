@@ -161,7 +161,7 @@ Réponds en JSON :
     } else if (type === "generate-recap") {
       const { strategy_data, profile, persona, proposition, tone, editorial_line } = body;
 
-      systemPrompt = `Tu es expert·e en stratégie de contenu pour solopreneuses créatives et éthiques.
+      systemPrompt = `Tu es expert·e en stratégie de contenu.
 
 À partir de cette stratégie de contenu, génère une synthèse structurée pour une fiche récap visuelle.
 

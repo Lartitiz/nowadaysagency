@@ -280,7 +280,7 @@ Pour le module editorial, propose piliers de contenu.`;
           ).join("\n\n");
       }
 
-      const systemPrompt = `Tu es une consultante en communication bienveillante et experte. Tu accompagnes des solopreneuses créatives.
+      const systemPrompt = `Tu es une consultante en communication bienveillante et experte.
 
 CONTEXTE DE L'AUDIT :
 ${audit ? `Score global : ${audit.score_global}/100\nSynthèse : ${audit.synthese}` : "Pas d'audit disponible"}

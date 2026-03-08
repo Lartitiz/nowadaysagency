@@ -177,7 +177,7 @@ Réponds en JSON :
 
     } else if (type === "generate-recap") {
       const fullStory = storytelling || "";
-      systemPrompt = `Tu es expert·e en personal branding pour des solopreneuses créatives et éthiques.
+      systemPrompt = `Tu es expert·e en personal branding.
 
 À partir de ce storytelling, génère une synthèse structurée pour une fiche récap visuelle.
 
