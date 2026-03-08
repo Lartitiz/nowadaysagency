@@ -436,10 +436,11 @@ export default function WelcomePage() {
       }
     };
 
+    // Premier refetch à 3s, puis toutes les 4s
     const startTimeout = setTimeout(() => {
       refetchBranding();
-      intervalRef.current = setInterval(refetchBranding, 5000);
-    }, 8000);
+      intervalRef.current = setInterval(refetchBranding, 4000);
+    }, 3000);
 
     return () => {
       clearTimeout(startTimeout);
