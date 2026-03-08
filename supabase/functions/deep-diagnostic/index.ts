@@ -9,6 +9,55 @@ import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 const MAX_TEXT_PER_SOURCE = 8000;
 const GLOBAL_TIMEOUT_MS = 55000;
 
+/**
+ * Robust JSON parser that handles common AI response issues:
+ * - Trailing commas before } or ]
+ * - Markdown code blocks wrapping
+ * - Truncated JSON (attempts to close open brackets)
+ * - Control characters inside strings
+ */
+function robustJsonParse(raw: string): Record<string, unknown> {
+  // 1. Direct parse
+  try { return JSON.parse(raw); } catch {}
+
+  // 2. Strip markdown code blocks
+  let cleaned = raw.replace(/```json\s*/gi, "").replace(/```\s*/gi, "").trim();
+
+  // 3. Extract the outermost JSON object
+  const objMatch = cleaned.match(/\{[\s\S]*\}/);
+  if (objMatch) cleaned = objMatch[0];
+
+  // 4. Remove trailing commas before } or ]
+  cleaned = cleaned.replace(/,\s*([\]}])/g, "$1");
+
+  // 5. Remove control characters (except newline/tab) that break JSON
+  cleaned = cleaned.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, "");
+
+  // 6. Try parsing cleaned version
+  try { return JSON.parse(cleaned); } catch {}
+
+  // 7. Try to fix truncated JSON by closing open brackets
+  let attempt = cleaned;
+  const opens = (attempt.match(/\{/g) || []).length;
+  const closes = (attempt.match(/\}/g) || []).length;
+  const openBrackets = (attempt.match(/\[/g) || []).length;
+  const closeBrackets = (attempt.match(/\]/g) || []).length;
+
+  // Remove trailing incomplete key-value (e.g. `"key": "incomplete...`)
+  attempt = attempt.replace(/,?\s*"[^"]*":\s*"[^"]*$/, "");
+  attempt = attempt.replace(/,?\s*"[^"]*":\s*$/, "");
+
+  for (let i = 0; i < openBrackets - closeBrackets; i++) attempt += "]";
+  for (let i = 0; i < opens - closes; i++) attempt += "}";
+
+  // Clean trailing commas again after surgery
+  attempt = attempt.replace(/,\s*([\]}])/g, "$1");
+
+  try { return JSON.parse(attempt); } catch {}
+
+  throw new Error("Réponse IA invalide : impossible de parser le JSON après nettoyage");
+}
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
@@ -287,17 +336,8 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
         rawText = await callAnthropicSimple(fastModel, systemPrompt, userPrompt, 0.7, 2000);
       }
 
-      // Parse JSON
-      try {
-        analysisResult = JSON.parse(rawText);
-      } catch {
-        const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          analysisResult = JSON.parse(jsonMatch[0]);
-        } else {
-          throw new Error("Réponse IA invalide");
-        }
-      }
+      // Parse JSON with robust cleaning
+      analysisResult = robustJsonParse(rawText);
     } catch (claudeError) {
       console.error("Claude fast diagnostic failed, using fallback:", claudeError);
       analysisResult = buildFallbackDiagnostic(profile, freeformAnswers, sourcesUsed);
