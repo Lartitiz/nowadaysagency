@@ -93,12 +93,13 @@ function TagSelector({ label, tags, value, onChange }: { label: string; tags: st
   );
 }
 
-const DEFAULT_COLORS = {
-  color_primary: "#E91E8C",
-  color_secondary: "#1A1A2E",
-  color_accent: "#FFE561",
+// Neutral display fallbacks — shown in UI when no color is set yet
+const NEUTRAL_FALLBACKS: Record<string, string> = {
+  color_primary: "#888888",
+  color_secondary: "#555555",
+  color_accent: "#AAAAAA",
   color_background: "#FFFFFF",
-  color_text: "#1A1A2E",
+  color_text: "#333333",
 };
 
 interface CharterData {
