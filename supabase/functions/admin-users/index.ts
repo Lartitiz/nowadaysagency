@@ -443,6 +443,7 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
     avg_content_score: avgContentScore,
     drafts_by_canal: draftsByCanalMap,
     calendar_by_canal: calendarByCanalMap,
+    content_usage_rate: contentUsageRate,
     // Branding
     score_distribution: scoreDistribution,
     // Demographics
