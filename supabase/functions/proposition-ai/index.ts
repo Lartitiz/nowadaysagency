@@ -62,7 +62,7 @@ serve(async (req) => {
     let userPrompt = "";
 
     if (type === "differentiation") {
-      systemPrompt = `Tu es expert·e en personal branding pour des solopreneuses créatives et éthiques.
+      systemPrompt = `Tu es expert·e en personal branding.
 
 L'UTILISATRICE A RÉPONDU À 4 QUESTIONS :
 
