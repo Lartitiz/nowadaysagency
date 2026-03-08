@@ -213,9 +213,6 @@ function OverviewSection({ stats }: { stats: StatsData }) {
     .filter(([, v]) => v > 0)
     .map(([plan, count]) => ({ plan, count, label: PLAN_LABELS[plan] || plan }));
 
-  const PLAN_COLORS: Record<string, string> = {
-    free: "#9CA3AF", outil: "#8B5CF6", binome: "#fb3d80", pro: "#3B82F6",
-  };
 
   const mrrSub = Object.entries(stats.revenue_by_plan || {})
     .filter(([, v]) => v > 0)
