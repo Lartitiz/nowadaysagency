@@ -1002,6 +1002,17 @@ export default function CreerUnifie() {
           }
         }
 
+        // Upload overlay Pinterest photo brief
+        if (selectedFormat === "pinterest_photo" && photoBriefOverlayHtml) {
+          try {
+            toast.info("Upload de l'overlay...");
+            const overlayUrls = await uploadPinterestVisualToStorage(calendarPostId, photoBriefOverlayHtml);
+            if (overlayUrls.length > 0) storageUpdates.visual_urls = overlayUrls;
+          } catch (err) {
+            console.warn("Overlay upload failed (non-blocking):", err);
+          }
+        }
+
         if (Object.keys(storageUpdates).length > 0) {
           const currentDetail = storyDetail || {};
           await supabase.from("calendar_posts").update({
