@@ -145,21 +145,23 @@ export default function PinterestEpingles() {
           ) : (
             <>
               <p className="text-sm text-muted-foreground mb-4">Tu as {pins.length} épingle{pins.length !== 1 ? "s" : ""}. On recommande au moins 10 pour lancer ta présence.</p>
-          <div className="space-y-3">
-            {pins.map(p => (
-              <div key={p.id} className="rounded-xl border border-border p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-bold text-foreground">{p.title || p.subject}</span>
-                  <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="sm" onClick={() => copyText(`${p.title}\n\n${p.description}`)}><Copy className="h-3 w-3" /></Button>
-                    <Button variant="ghost" size="sm" onClick={() => p.id && deletePin(p.id)}><Trash2 className="h-3 w-3 text-muted-foreground" /></Button>
+              <div className="space-y-3">
+                {pins.map(p => (
+                  <div key={p.id} className="rounded-xl border border-border p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-bold text-foreground">{p.title || p.subject}</span>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => copyText(`${p.title}\n\n${p.description}`)}><Copy className="h-3 w-3" /></Button>
+                        <Button variant="ghost" size="sm" onClick={() => p.id && deletePin(p.id)}><Trash2 className="h-3 w-3 text-muted-foreground" /></Button>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground line-clamp-2">{p.description}</p>
+                    {p.link_url && <p className="text-xs text-primary mt-1 truncate">{p.link_url}</p>}
                   </div>
-                </div>
-                <p className="text-xs text-muted-foreground line-clamp-2">{p.description}</p>
-                {p.link_url && <p className="text-xs text-primary mt-1 truncate">{p.link_url}</p>}
+                ))}
               </div>
-            ))}
-          </div>
+            </>
+          )}
         </section>
       </main>
     </div>
