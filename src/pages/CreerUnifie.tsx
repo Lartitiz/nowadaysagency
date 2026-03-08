@@ -800,6 +800,18 @@ export default function CreerUnifie() {
     } else if (selectedFormat === "pinterest_visual" && (r?.title || r?.description)) {
       accroche = r.title || "";
       contentDraft = `📌 ${r.title || ""}\n\n${r.description || ""}`;
+    } else if (selectedFormat === "pinterest_photo" && (r?.title || r?.photo_brief)) {
+      accroche = r.title || "";
+      const briefLines = r.photo_brief ? [
+        "📷 BRIEF PHOTO :",
+        `• Sujet : ${r.photo_brief.what || ""}`,
+        `• Cadrage : ${r.photo_brief.framing || ""}`,
+        `• Lumière : ${r.photo_brief.lighting || ""}`,
+        `• Accessoires : ${(r.photo_brief.props || []).join(", ")}`,
+        `• Couleurs : ${r.photo_brief.colors || ""}`,
+        `• Ambiance : ${r.photo_brief.mood || ""}`,
+      ].join("\n") : "";
+      contentDraft = `📌 ${r.title || ""}\n\n${r.description || ""}\n\n${briefLines}`;
     } else {
       contentDraft = r.content || r.post || r.text || "";
       accroche = contentDraft.split("\n")[0] || "";
