@@ -411,6 +411,7 @@ export default function CreerUnifie() {
       setStep("inspiration_proposals");
       setInspirationAnalysis(null);
       setInspirationProposals([]);
+      setInspirationLoading(true);
       try {
         const { data, error: fnError } = await invokeWithTimeout("pinterest-inspiration", {
           body: {
@@ -435,6 +436,8 @@ export default function CreerUnifie() {
           : msg
         );
         setStep("format");
+      } finally {
+        setInspirationLoading(false);
       }
       return;
     }
