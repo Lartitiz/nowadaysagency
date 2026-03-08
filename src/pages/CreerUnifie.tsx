@@ -1634,7 +1634,7 @@ export default function CreerUnifie() {
             )}
 
             {step === "inspiration_proposals" && (
-              generating ? (
+              inspirationLoading ? (
                 <div className="py-12 text-center space-y-3 animate-fade-in">
                   <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto" />
                   <p className="text-sm font-medium text-foreground">Analyse de l'épingle en cours...</p>
