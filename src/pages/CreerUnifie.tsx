@@ -1358,7 +1358,7 @@ export default function CreerUnifie() {
 
   // ── Progress bar ──
 
-  const stepOrder: Step[] = ["idea", "format", "questions", "result", "edit"];
+  const stepOrder: Step[] = ["idea", "format", "questions", "inspiration_proposals", "result", "edit"];
   const stepIndex = stepOrder.indexOf(step);
 
   // ── Launch mode rendering ──
