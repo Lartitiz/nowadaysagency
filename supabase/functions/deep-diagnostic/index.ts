@@ -328,6 +328,13 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
     try {
       const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
       const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      
+      // Build enrichment prompt: include style hints if available
+      let enrichmentPrompt = userPrompt.slice(0, 8000);
+      if (cachedStyleHints) {
+        enrichmentPrompt += `\n\n${cachedStyleHints}`;
+      }
+      
       fetch(`${supabaseUrl}/functions/v1/diagnostic-enrichment`, {
         method: "POST",
         headers: {
@@ -337,7 +344,7 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
         body: JSON.stringify({
           userId,
           workspaceId,
-          userPrompt: userPrompt.slice(0, 8000),
+          userPrompt: enrichmentPrompt,
           savedDiagId: savedDiag?.id || null,
         }),
       }).catch(() => {});
