@@ -38,7 +38,7 @@ export default function PinterestInspirationStep({
       <div className="flex gap-4 items-start">
         {preview && (
           <img
-            src={inspirationPreview}
+            src={preview}
             alt="Épingle source"
             className="w-[120px] rounded-xl shadow-md object-cover flex-shrink-0"
             style={{ aspectRatio: "2 / 3" }}
