@@ -58,7 +58,7 @@ export default function OnboardingPhase2Import({ answers, set, files, uploading,
 
         {/* LinkedIn Summary */}
         <div>
-          <label className="text-xs font-medium text-muted-foreground mb-1 block">💼 Ton résumé LinkedIn</label>
+          <label className="text-xs font-medium text-muted-foreground mb-1 block">💼 Ton à propos ou ton résumé LinkedIn </label>
           <p className="text-xs text-muted-foreground/70 mb-2 italic">Copie-colle le texte de la section "Infos" de ton profil LinkedIn. Le scraping automatique ne fonctionne pas avec LinkedIn, alors c'est plus fiable comme ça.</p>
           <textarea
             value={answers.linkedin_summary}
