@@ -583,7 +583,7 @@ export default function CreerUnifie() {
           },
         });
       } catch (e: any) {
-        toast.error(e?.message || "Erreur lors de la génération du visuel Pinterest");
+        if (!handleQuotaError(e)) toast.error(e?.message || "Erreur lors de la génération du visuel Pinterest");
       } finally {
         setPinterestVisualGenerating(false);
       }
