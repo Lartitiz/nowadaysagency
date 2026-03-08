@@ -318,11 +318,16 @@ function BusinessSection({ stats }: { stats: StatsData }) {
     .filter(([, v]) => v > 0)
     .map(([plan, amount]) => ({ plan, amount, label: PLAN_LABELS[plan] || plan }));
 
+  const paidPlansSub = Object.entries(stats.plans || {})
+    .filter(([plan, count]) => plan !== "free" && count > 0)
+    .map(([plan, count]) => `${count} ${PLAN_LABELS[plan] || plan}`)
+    .join(" · ");
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <KpiCard title="MRR" value={stats.mrr} suffix="€" sub={`ARR : ${(stats.mrr * 12).toLocaleString("fr")}€`} subColor="text-emerald-600" />
-        <KpiCard title="Abonnées payantes" value={stats.paid_users} sub={`${stats.conversion_rate}% de conversion${stats.promo_users > 0 ? ` · ${stats.promo_users} promo` : ""}`} />
+        <KpiCard title="Abonnées payantes" value={stats.paid_users} sub={paidPlansSub || `${stats.conversion_rate}% de conversion`} />
         <KpiCard title="Taux de churn" value={stats.churn_rate} suffix="%" sub={`${stats.churned_this_month} départ·s ce mois`} subColor={stats.churn_rate > 10 ? "text-red-500" : undefined} status={stats.churn_rate <= 5 ? "good" : stats.churn_rate <= 10 ? "warning" : "danger"} />
         <KpiCard title="Conversion free→payant" value={stats.conversion_rate} suffix="%" status={stats.conversion_rate >= 5 ? "good" : stats.conversion_rate >= 2 ? "warning" : "danger"} />
       </div>
@@ -332,18 +337,17 @@ function BusinessSection({ stats }: { stats: StatsData }) {
           {revenueData.length === 0 ? (
             <EmptyChart message="Pas encore de revenus" />
           ) : (
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={revenueData} barCategoryGap={12}>
-                <XAxis dataKey="label" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={40} tickFormatter={(v: number) => `${v}€`} />
-                <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [`${v}€`, "MRR"]} />
-                <Bar dataKey="amount" radius={[6, 6, 0, 0]} name="MRR">
-                  {revenueData.map((entry) => (
-                    <Cell key={entry.plan} fill={PLAN_COLORS[entry.plan] || "#9CA3AF"} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="flex flex-wrap gap-4">
+              {revenueData.map((entry) => (
+                <div key={entry.plan} className="flex items-center gap-3 rounded-lg border bg-background p-4 min-w-[140px]">
+                  <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: PLAN_COLORS[entry.plan] || "#9CA3AF" }} />
+                  <div>
+                    <p className="text-xs text-muted-foreground">{entry.label}</p>
+                    <p className="text-lg font-bold font-display">{entry.amount}<span className="text-xs font-normal text-muted-foreground">€/mois</span></p>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </ChartCard>
 
@@ -352,9 +356,13 @@ function BusinessSection({ stats }: { stats: StatsData }) {
             <FunnelStep label="Inscrites totales" value={stats.total_users} max={stats.total_users} color="#9CA3AF" />
             <FunnelStep label="Onboarding terminé" value={stats.onboarding_completed} max={stats.total_users} color="#8B5CF6" />
             <FunnelStep label="Actives ce mois (IA)" value={stats.active_this_month} max={stats.total_users} color="#F59E0B" />
-            <FunnelStep label="Accès promo (non payant)" value={stats.promo_users || 0} max={stats.total_users} color="#F59E0B" />
             <FunnelStep label="Abonnées payantes" value={stats.paid_users} max={stats.total_users} color="#fb3d80" />
           </div>
+          {(stats.promo_users || 0) > 0 && (
+            <div className="text-xs text-muted-foreground mt-3 pt-3 border-t">
+              Accès promo (hors funnel) : {stats.promo_users}
+            </div>
+          )}
         </ChartCard>
       </div>
     </div>
