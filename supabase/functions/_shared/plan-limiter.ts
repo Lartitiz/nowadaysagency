@@ -137,11 +137,10 @@ export async function checkQuota(
   category: string,
   workspaceId?: string
 ): Promise<QuotaResult> {
-  // Admin bypass — unlimited quota
-  const ADMIN_EMAIL = "laetitia@nowadaysagency.com";
+  // Admin bypass — unlimited quota (check via has_role function)
   const sb = getServiceClient();
-  const { data: authUser } = await sb.auth.admin.getUserById(userId);
-  if (authUser?.user?.email === ADMIN_EMAIL) {
+  const { data: adminCheck } = await sb.rpc("has_role", { _user_id: userId, _role: "admin" });
+  if (adminCheck) {
     return { allowed: true, plan: "admin", remaining: 9999, remaining_total: 9999 };
   }
 
