@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, forwardRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useAuth } from "@/contexts/AuthContext";
@@ -8,19 +8,23 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import {
-  RefreshCw, TrendingUp, TrendingDown, Users, Euro,
-  Activity, BarChart3, Sparkles, Target, Crown,
+  RefreshCw, TrendingUp, TrendingDown, Euro,
+  Activity, BarChart3, Target, Crown,
   AlertTriangle, Zap, UserX,
 } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
-  ResponsiveContainer, Cell, PieChart, Pie,
+  ResponsiveContainer, Cell,
 } from "recharts";
 
 /* ── Constants ── */
 
 const PLAN_LABELS: Record<string, string> = {
   free: "Gratuit", outil: "Assistant Com'", binome: "Binôme", pro: "Pro",
+};
+
+const PLAN_COLORS: Record<string, string> = {
+  free: "#9CA3AF", outil: "#8B5CF6", binome: "#fb3d80", pro: "#3B82F6",
 };
 
 const PIE_COLORS = ["#fb3d80", "#8B5CF6", "#F59E0B", "#3B82F6", "#10B981", "#6366F1", "#EC4899"];
@@ -148,8 +152,8 @@ export default function AdminStatsTab() {
   if (loading || !stats) {
     return (
       <div className="space-y-6">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-24 rounded-xl" />)}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+          {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-24 rounded-xl" />)}
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Skeleton className="h-56 rounded-xl" />
@@ -209,9 +213,6 @@ function OverviewSection({ stats }: { stats: StatsData }) {
     .filter(([, v]) => v > 0)
     .map(([plan, count]) => ({ plan, count, label: PLAN_LABELS[plan] || plan }));
 
-  const PLAN_COLORS: Record<string, string> = {
-    free: "#9CA3AF", outil: "#8B5CF6", binome: "#fb3d80", pro: "#3B82F6",
-  };
 
   const mrrSub = Object.entries(stats.revenue_by_plan || {})
     .filter(([, v]) => v > 0)
@@ -318,9 +319,6 @@ function OverviewSection({ stats }: { stats: StatsData }) {
 }
 
 function BusinessSection({ stats }: { stats: StatsData }) {
-  const PLAN_COLORS: Record<string, string> = {
-    free: "#9CA3AF", outil: "#8B5CF6", binome: "#fb3d80", pro: "#3B82F6",
-  };
 
   const revenueData = Object.entries(stats.revenue_by_plan || {})
     .filter(([, v]) => v > 0)
@@ -378,9 +376,6 @@ function BusinessSection({ stats }: { stats: StatsData }) {
 }
 
 function EngagementProductSection({ stats }: { stats: StatsData }) {
-  const PLAN_COLORS: Record<string, string> = {
-    free: "#9CA3AF", outil: "#8B5CF6", binome: "#fb3d80", pro: "#3B82F6",
-  };
 
   const aiDayData = (stats.ai_by_day || []).map(d => ({
     ...d,
@@ -716,22 +711,3 @@ function FunnelStep({ label, value, max, color }: { label: string; value: number
     </div>
   );
 }
-
-
-
-const ProgressRing = forwardRef<HTMLDivElement, { value: number }>(({ value }, ref) => {
-  const r = 52;
-  const c = 2 * Math.PI * r;
-  const dash = (Math.min(value, 100) / 100) * c;
-  return (
-    <div ref={ref} className="relative w-32 h-32">
-      <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
-        <circle cx="60" cy="60" r={r} fill="none" stroke="hsl(var(--muted))" strokeWidth="8" />
-        <circle cx="60" cy="60" r={r} fill="none" stroke="hsl(var(--primary))" strokeWidth="8" strokeLinecap="round" strokeDasharray={`${dash} ${c}`} />
-      </svg>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-2xl font-bold">{value}%</span>
-      </div>
-    </div>
-  );
-});
