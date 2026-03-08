@@ -50,6 +50,22 @@ serve(async (req) => {
         } else {
           sourcesFailed.push("website");
         }
+
+        // Fetch raw HTML separately for visual extraction (colors, fonts, CSS vars)
+        try {
+          let formattedUrl = websiteUrl.trim();
+          if (!formattedUrl.startsWith("http")) formattedUrl = `https://${formattedUrl}`;
+          const resp = await fetch(formattedUrl, {
+            signal: controller.signal,
+            headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandAnalyzer/1.0)" },
+          });
+          if (resp.ok) {
+            const html = await resp.text();
+            styleHints = extractVisualInfo(html);
+          }
+        } catch {
+          // Visual hints are nice-to-have
+        }
       } catch (e) {
         console.error("Website scrape failed:", e);
         sourcesFailed.push("website");
