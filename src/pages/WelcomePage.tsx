@@ -291,6 +291,126 @@ export default function WelcomePage() {
     load();
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Polling : refetch le branding toutes les 5s pendant 60s pour attendre l'enrichissement Opus
+  useEffect(() => {
+    if (!user || loading) return;
+    let attempts = 0;
+    const maxAttempts = 12; // 12 × 5s = 60s
+    const intervalRef = { current: null as ReturnType<typeof setInterval> | null };
+
+    const refetchBranding = async () => {
+      attempts++;
+      if (attempts > maxAttempts) {
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        return;
+      }
+
+      const [
+        brandProfileRes, personaRes, offersRes, storyRes,
+        charterRes, propositionRes, strategyRes,
+      ] = await Promise.all([
+        (supabase.from("brand_profile") as any)
+          .select("positioning, mission, tone_keywords, values, content_pillars, combats, tone_style")
+          .eq(column, value).maybeSingle(),
+        (supabase.from("persona") as any)
+          .select("description, portrait_prenom, step_1_frustrations, step_2_transformation, step_3a_objections, demographics")
+          .eq(column, value).eq("is_primary", true).maybeSingle(),
+        (supabase.from("offers") as any)
+          .select("name, promise, price_text, target_ideal")
+          .eq(column, value).order("sort_order").limit(5),
+        (supabase.from("storytelling") as any)
+          .select("imported_text")
+          .eq(column, value).eq("is_primary", true).maybeSingle(),
+        (supabase.from("brand_charter") as any)
+          .select("color_primary, color_secondary, color_accent, font_title, font_body, mood_keywords, photo_style, moodboard_description")
+          .eq(column, value).maybeSingle(),
+        (supabase.from("brand_proposition") as any)
+          .select("version_final, version_one_liner")
+          .eq(column, value).maybeSingle(),
+        (supabase.from("brand_strategy") as any)
+          .select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3, creative_concept")
+          .eq(column, value).maybeSingle(),
+      ]);
+
+      const cards: BrandingCard[] = [];
+      const bp = brandProfileRes.data as BrandProfileData | null;
+      if (bp?.positioning) cards.push({ emoji: "🎯", title: "Positionnement", content: bp.positioning, route: "/branding/proposition/recap", dbTable: "brand_profile", dbField: "positioning" });
+      if (bp?.mission) cards.push({ emoji: "🚀", title: "Mission", content: bp.mission, route: "/branding", dbTable: "brand_profile", dbField: "mission" });
+      if (bp?.tone_style || (bp?.tone_keywords && bp.tone_keywords.length > 0)) {
+        const toneContent = bp.tone_style || (bp.tone_keywords || []).join(", ");
+        cards.push({ emoji: "💬", title: "Ton de voix", content: toneContent, route: "/branding/section?section=tone_style", dbTable: bp?.tone_style ? "brand_profile" : undefined, dbField: bp?.tone_style ? "tone_style" : undefined });
+      }
+      if (bp?.combats) cards.push({ emoji: "⚔️", title: "Combats", content: bp.combats, route: "/branding/section?section=tone_style", dbTable: "brand_profile", dbField: "combats" });
+      if (bp?.values && bp.values.length > 0) cards.push({ emoji: "💎", title: "Valeurs", content: (bp.values as any[]).map(v => typeof v === "string" ? v : (v as any).name || v).join(", "), route: "/branding/section?section=tone_style" });
+      if (bp?.content_pillars && bp.content_pillars.length > 0) {
+        const pillarsText = (bp.content_pillars as any[]).map(p => typeof p === "string" ? p : (p as any).name || p).join(", ");
+        cards.push({ emoji: "📝", title: "Piliers de contenu", content: pillarsText, route: "/branding/section?section=content_strategy" });
+      }
+      const persona = personaRes.data as any;
+      if (persona) {
+        const personaParts: string[] = [];
+        if (persona.portrait_prenom) personaParts.push(persona.portrait_prenom);
+        if (persona.description) personaParts.push(persona.description);
+        if (persona.step_1_frustrations) personaParts.push(`Frustrations : ${persona.step_1_frustrations.slice(0, 150)}...`);
+        if (persona.step_2_transformation) personaParts.push(`Transformation : ${persona.step_2_transformation.slice(0, 150)}...`);
+        const personaContent = personaParts.filter(Boolean).join(" · ");
+        if (personaContent) cards.push({ emoji: "🎭", title: "Persona", content: personaContent, route: "/branding/section?section=persona" });
+      }
+      const offers = offersRes.data as any[];
+      if (offers && offers.length > 0) {
+        const offersText = offers.map((o: any) => o.name).filter(Boolean).join(", ");
+        if (offersText) cards.push({ emoji: "🛍️", title: "Offres", content: offersText, route: "/branding/offres" });
+      }
+      const story = storyRes.data as any;
+      if (story?.imported_text) cards.push({ emoji: "📖", title: "Ton histoire", content: story.imported_text, route: "/branding/section?section=story", dbTable: "storytelling", dbField: "imported_text" });
+      const prop = propositionRes.data as any;
+      if (prop?.version_final) cards.push({ emoji: "💎", title: "Proposition de valeur", content: prop.version_final, route: "/branding/proposition/recap" });
+      else if (prop?.version_one_liner) cards.push({ emoji: "💎", title: "One-liner", content: prop.version_one_liner, route: "/branding/proposition/recap" });
+      const strat = strategyRes.data as any;
+      if (strat?.pillar_major) {
+        const pillars = [strat.pillar_major, strat.pillar_minor_1, strat.pillar_minor_2, strat.pillar_minor_3].filter(Boolean);
+        const stratContent = pillars.join(", ") + (strat.creative_concept ? ` · Concept : ${strat.creative_concept}` : "");
+        cards.push({ emoji: "🧭", title: "Stratégie de contenu", content: stratContent, route: "/branding/section?section=content_strategy" });
+      }
+      const charter = charterRes.data as any;
+      if (charter && (charter.color_primary || charter.font_title || charter.photo_style)) {
+        const charterParts: string[] = [];
+        if (charter.color_primary) {
+          const colors = [charter.color_primary, charter.color_secondary, charter.color_accent].filter(Boolean);
+          charterParts.push(`Couleurs : ${colors.join(", ")}`);
+        }
+        if (charter.font_title) {
+          const fonts = [charter.font_title, charter.font_body].filter(Boolean);
+          charterParts.push(`Typos : ${fonts.join(" + ")}`);
+        }
+        if (charter.photo_style) charterParts.push(`Photo : ${charter.photo_style}`);
+        if (charter.mood_keywords?.length) {
+          const kw = Array.isArray(charter.mood_keywords) ? charter.mood_keywords : [];
+          if (kw.length) charterParts.push(`Ambiance : ${kw.join(", ")}`);
+        }
+        cards.push({ emoji: "🎨", title: "Charte graphique", content: charterParts.join(" · "), route: "/branding/section?section=charter" });
+      }
+
+      // Only update if we got MORE cards than currently displayed
+      if (cards.length > brandingCards.length) {
+        setBrandingCards(cards);
+        if (cards.length >= 5 && intervalRef.current) {
+          clearInterval(intervalRef.current);
+        }
+      }
+    };
+
+    const startTimeout = setTimeout(() => {
+      refetchBranding();
+      intervalRef.current = setInterval(refetchBranding, 5000);
+    }, 8000);
+
+    return () => {
+      clearTimeout(startTimeout);
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [user?.id, loading, column, value]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const markSeen = (destination: string) => {
     if (!user) return;
     // Navigate immediately, don't wait for the update
