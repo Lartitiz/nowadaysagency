@@ -232,6 +232,7 @@ export default function AdminResetTool() {
       localStorage.removeItem("lac_dashboard_tour_seen");
       localStorage.removeItem("branding_skip_import");
       localStorage.removeItem("lac_onboarding_reset");
+      localStorage.removeItem("lac_branding_cache_refreshed");
 
       // Redirect to onboarding if the reset target is the current user
       const { data: { user } } = await (supabase.auth as any).getUser();
