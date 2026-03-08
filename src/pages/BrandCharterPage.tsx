@@ -131,14 +131,14 @@ interface CharterData {
 }
 
 const INITIAL: CharterData = {
-  color_primary: "#E91E8C",
-  color_secondary: "#1A1A2E",
-  color_accent: "#FFE561",
-  color_background: "#FFFFFF",
-  color_text: "#1A1A2E",
+  color_primary: null,
+  color_secondary: null,
+  color_accent: null,
+  color_background: null,
+  color_text: null,
   custom_colors: [],
-  font_title: "Inter",
-  font_body: "Inter",
+  font_title: null,
+  font_body: null,
   font_accent: null,
   photo_style: null,
   photo_keywords: [],
@@ -153,6 +153,11 @@ const INITIAL: CharterData = {
   moodboard_images: [],
   moodboard_description: null,
 };
+
+/** Get display color for UI (neutral fallback if null) */
+export function displayColor(data: CharterData, key: string): string {
+  return (data as any)[key] || NEUTRAL_FALLBACKS[key] || "#888888";
+}
 
 function computeCompletion(d: CharterData): number {
   let pct = 0;
