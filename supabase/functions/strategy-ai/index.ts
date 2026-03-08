@@ -82,7 +82,7 @@ Réponds en JSON :
 
     } else if (type === "pillars") {
       const { profile, persona, proposition, tone, facets } = body;
-      systemPrompt = `Tu es expert·e en stratégie de contenu pour des solopreneuses créatives et éthiques.
+      systemPrompt = `Tu es expert·e en stratégie de contenu.
 
 TOUT LE BRANDING :
 - Persona frustrations : ${persona?.step_1_frustrations || "?"}
