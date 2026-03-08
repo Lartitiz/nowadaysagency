@@ -201,7 +201,7 @@ export default function BrandingPage() {
       if (comp.tone > 0) filled.add("tone_style");
       if (comp.strategy > 0) filled.add("content_strategy");
       if (comp.offers > 0) filled.add("offers");
-      if (comp.charter > 0) filled.add("charter");
+      // Charter is never pre-locked — AI-detected colors should be reviewable
       setPreFilledSections(filled);
 
       const enough = !!(data.persona?.step_1_frustrations && data.storytellingList && data.storytellingList.length > 0);
