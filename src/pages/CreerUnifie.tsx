@@ -1529,7 +1529,12 @@ export default function CreerUnifie() {
 
   // ── Progress bar ──
 
-  const stepOrder: Step[] = ["idea", "format", "questions", "inspiration_proposals", "result", "edit"];
+  const stepOrder: Step[] = (() => {
+    if (selectedFormat === "pinterest_inspiration") {
+      return ["idea", "format", "inspiration_proposals", "result", "edit"];
+    }
+    return ["idea", "format", "questions", "result", "edit"];
+  })();
   const stepIndex = stepOrder.indexOf(step);
 
   // ── Launch mode rendering ──
