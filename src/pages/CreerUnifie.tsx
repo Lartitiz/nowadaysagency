@@ -842,6 +842,7 @@ export default function CreerUnifie() {
     setPhotoDescription("");
     setPhotoMode(false);
     setIsLinkedInCarousel(false);
+    setInspirationLoading(false);
     setInspirationAnalysis(null);
     setInspirationProposals([]);
     setChosenProposal(null);
