@@ -1,11 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { scrapeWebsite, scrapeInstagram, scrapeLinkedin, processDocuments } from "../_shared/scraping.ts";
+import { scrapeWebsite, scrapeInstagram, scrapeLinkedin, processDocuments, extractVisualInfo } from "../_shared/scraping.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 
-const MAX_TEXT_PER_SOURCE = 5000;
+const MAX_TEXT_PER_SOURCE = 8000;
 const GLOBAL_TIMEOUT_MS = 50000;
 
 serve(async (req) => {
@@ -38,6 +38,7 @@ serve(async (req) => {
     const scrapedContent: Record<string, string> = {};
     const sourcesUsed: string[] = [];
     const sourcesFailed: string[] = [];
+    let styleHints = "";
 
     // --- 1. SCRAPE WEBSITE ---
     if (websiteUrl) {
@@ -48,6 +49,22 @@ serve(async (req) => {
           sourcesUsed.push("website");
         } else {
           sourcesFailed.push("website");
+        }
+
+        // Fetch raw HTML separately for visual extraction (colors, fonts, CSS vars)
+        try {
+          let formattedUrl = websiteUrl.trim();
+          if (!formattedUrl.startsWith("http")) formattedUrl = `https://${formattedUrl}`;
+          const resp = await fetch(formattedUrl, {
+            signal: controller.signal,
+            headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandAnalyzer/1.0)" },
+          });
+          if (resp.ok) {
+            const html = await resp.text();
+            styleHints = extractVisualInfo(html);
+          }
+        } catch {
+          // Visual hints are nice-to-have
         }
       } catch (e) {
         console.error("Website scrape failed:", e);
@@ -122,7 +139,7 @@ serve(async (req) => {
     }
 
     // --- 5. CALL CLAUDE ---
-    const analysisResult = await callClaude(scrapedContent, sourcesUsed);
+    const analysisResult = await callClaude(scrapedContent, sourcesUsed, styleHints);
 
     // --- 6. SAVE TO DB ---
     const { data: wsData } = await supabaseAdmin
@@ -186,7 +203,8 @@ serve(async (req) => {
 
 async function callClaude(
   content: Record<string, string>,
-  sourcesUsed: string[]
+  sourcesUsed: string[],
+  styleHints: string = ""
 ): Promise<Record<string, unknown>> {
   const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
   if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY non configurée");
@@ -238,9 +256,13 @@ Précisions sur charter :
 - visual_style_description : description courte du style visuel global
 - Si aucune information visuelle n'est présente dans les sources, mets confidence: "low" et laisse les champs vides.`;
 
-  const userPrompt = Object.entries(content)
+  let userPrompt = Object.entries(content)
     .map(([source, text]) => `=== SOURCE: ${source.toUpperCase()} ===\n${text}`)
     .join("\n\n");
+
+  if (styleHints) {
+    userPrompt += `\n\n=== INFORMATIONS VISUELLES DÉTECTÉES DANS LE CSS/HTML ===\n${styleHints}`;
+  }
 
   const makeRequest = async (retry = false): Promise<Record<string, unknown>> => {
     const resp = await fetch("https://api.anthropic.com/v1/messages", {
