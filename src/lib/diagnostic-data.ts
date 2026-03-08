@@ -54,20 +54,29 @@ export function normalizeStrength(s: string | DiagnosticStrength): DiagnosticStr
 }
 
 export function computeDiagnosticData(
-  answers: { canaux: string[]; instagram: string; website: string },
+  answers: { canaux: string[]; instagram: string; website: string; activite?: string; objectif?: string; blocage?: string },
   brandingAnswers: {
     positioning: string; mission: string; target_description: string;
     tone_keywords: string[]; offers: { name: string }[]; values: string[];
   }
 ): DiagnosticData {
+  // Score based on what was actually collected during onboarding
   let filled = 0;
+  const total = 8;
+
+  // Onboarding answers (primary data)
+  if (answers.activite?.trim()) filled++;
+  if (answers.canaux?.length > 0 && !answers.canaux.includes("none")) filled++;
+  if (answers.instagram?.trim()) filled++;
+  if (answers.website?.trim()) filled++;
+  if (answers.objectif?.trim()) filled++;
+  if (answers.blocage?.trim()) filled++;
+
+  // Branding answers (bonus if they exist)
   if (brandingAnswers.positioning?.trim()) filled++;
   if (brandingAnswers.mission?.trim()) filled++;
-  if (brandingAnswers.target_description?.trim()) filled++;
-  if (brandingAnswers.tone_keywords?.length >= 2) filled++;
-  if (brandingAnswers.offers?.some(o => o.name?.trim())) filled++;
-  if (brandingAnswers.values?.filter(v => v?.trim()).length >= 2) filled++;
-  const brandingScore = Math.round((filled / 6) * 100);
+
+  const brandingScore = Math.max(15, Math.round((filled / total) * 100));
 
   const hasIg = answers.canaux.includes("instagram");
   const hasWeb = answers.canaux.includes("website");
@@ -79,10 +88,16 @@ export function computeDiagnosticData(
   const webScore: number | null = null;
   const nlScore: number | null = null;
 
-  // totalScore based only on branding (the only reliable local data)
+  // totalScore based on the new calculation
   const totalScore = brandingScore;
 
   const strengths: string[] = [];
+  // Strengths from onboarding answers
+  if (answers.activite?.trim()) strengths.push("Tu sais ce que tu fais : c'est la base pour communiquer");
+  if (answers.objectif?.trim()) strengths.push("Tu as un objectif clair, c'est ce qui va guider ta stratégie");
+  if (answers.instagram?.trim()) strengths.push("Tu es déjà présente sur Instagram : on a une base pour travailler");
+  if (answers.website?.trim()) strengths.push("Tu as un site web : c'est un atout qu'on va optimiser");
+  // Strengths from branding answers
   if (brandingAnswers.positioning?.trim()) strengths.push("Ton positionnement est clair et défini");
   if (brandingAnswers.mission?.trim()) strengths.push("Ta mission est identifiée — c'est ce qui donne du sens à ta com'");
   if (brandingAnswers.values?.filter(v => v?.trim()).length >= 2) strengths.push("Tes valeurs sont posées, c'est ta boussole");
