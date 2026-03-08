@@ -140,12 +140,12 @@ export default function CharterColorsSection({
           <div key={key} className="flex items-center gap-3">
               <input
               type="color"
-              value={data[key]}
+              value={data[key] || NEUTRAL_FALLBACKS[key] || "#888888"}
               onChange={(e) => onDataChange({ [key]: e.target.value })}
               className="w-10 h-10 rounded-lg border border-border cursor-pointer p-0.5" />
             
               <span className="text-sm text-foreground font-medium w-24">{label}</span>
-              <span className="font-mono text-xs text-muted-foreground uppercase">{data[key]}</span>
+              <span className={`font-mono text-xs uppercase ${data[key] ? "text-muted-foreground" : "text-muted-foreground/50 italic"}`}>{data[key] || "Non défini"}</span>
             </div>
           )}
 
