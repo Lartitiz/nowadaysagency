@@ -142,6 +142,28 @@ export default function AdaptiveHome() {
   const [contentCoachingOpen, setContentCoachingOpen] = useState(false);
   const [coachHovered, setCoachHovered] = useState(false);
 
+  // Après l'enrichissement fire-and-forget, invalider le cache branding
+  // pour que les pages branding affichent les données pré-remplies
+  const queryClient = useQueryClient();
+  const location = useLocation();
+  useEffect(() => {
+    const isFirstVisit = location.state?.fromWelcome || !localStorage.getItem("lac_branding_cache_refreshed");
+    if (isFirstVisit) {
+      // Attendre que l'enrichissement Opus ait probablement fini (il tourne en fire-and-forget)
+      const timer = setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["brand-charter"] });
+        queryClient.invalidateQueries({ queryKey: ["brand-profile"] });
+        queryClient.invalidateQueries({ queryKey: ["persona"] });
+        queryClient.invalidateQueries({ queryKey: ["brand-proposition"] });
+        queryClient.invalidateQueries({ queryKey: ["brand-strategy"] });
+        queryClient.invalidateQueries({ queryKey: ["voice-profile"] });
+        queryClient.invalidateQueries({ queryKey: ["editorial-line"] });
+        localStorage.setItem("lac_branding_cache_refreshed", "true");
+      }, 8000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
   useEffect(() => {
     const check = () => setWelcomeDone(localStorage.getItem("lac_welcome_seen") === "true");
     const interval = setInterval(check, 500);
