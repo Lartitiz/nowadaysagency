@@ -77,7 +77,7 @@ serve(async (req) => {
     let userPrompt = "";
 
     if (type === "combats") {
-      systemPrompt = `Tu es expert·e en branding engagé pour des solopreneuses créatives et éthiques.
+      systemPrompt = `Tu es expert·e en branding engagé.
 
 ${NICHE_WRITING_RULES}
 
