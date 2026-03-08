@@ -230,6 +230,7 @@ function OverviewSection({ stats }: { stats: StatsData }) {
           value={stats.active_this_month}
           sub={`${activeRate}% du total`}
           trend={stats.active_this_month - (stats.active_prev_month || 0)}
+          status={activeRate >= 30 ? "good" : activeRate >= 15 ? "warning" : "danger"}
         />
         <KpiCard
           title="MRR"
@@ -322,8 +323,8 @@ function BusinessSection({ stats }: { stats: StatsData }) {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <KpiCard title="MRR" value={stats.mrr} suffix="€" sub={`ARR : ${(stats.mrr * 12).toLocaleString("fr")}€`} subColor="text-emerald-600" />
         <KpiCard title="Abonnées payantes" value={stats.paid_users} sub={`${stats.conversion_rate}% de conversion${stats.promo_users > 0 ? ` · ${stats.promo_users} promo` : ""}`} />
-        <KpiCard title="Taux de churn" value={stats.churn_rate} suffix="%" sub={`${stats.churned_this_month} départ·s ce mois`} subColor={stats.churn_rate > 10 ? "text-red-500" : undefined} />
-        <KpiCard title="Conversion free→payant" value={stats.conversion_rate} suffix="%" />
+        <KpiCard title="Taux de churn" value={stats.churn_rate} suffix="%" sub={`${stats.churned_this_month} départ·s ce mois`} subColor={stats.churn_rate > 10 ? "text-red-500" : undefined} status={stats.churn_rate <= 5 ? "good" : stats.churn_rate <= 10 ? "warning" : "danger"} />
+        <KpiCard title="Conversion free→payant" value={stats.conversion_rate} suffix="%" status={stats.conversion_rate >= 5 ? "good" : stats.conversion_rate >= 2 ? "warning" : "danger"} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -386,7 +387,7 @@ function EngagementProductSection({ stats }: { stats: StatsData }) {
     <div className="space-y-6">
       {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <KpiCard title="Rétention" value={stats.retention_rate} suffix="%" sub={`${stats.retained_users} revenues du mois dernier`} subColor={stats.retention_rate >= 50 ? "text-emerald-600" : "text-amber-500"} />
+        <KpiCard title="Rétention" value={stats.retention_rate} suffix="%" sub={`${stats.retained_users} revenues du mois dernier`} subColor={stats.retention_rate >= 50 ? "text-emerald-600" : "text-amber-500"} status={stats.retention_rate >= 50 ? "good" : stats.retention_rate >= 30 ? "warning" : "danger"} />
         <KpiCard title="Contenus générés" value={totalContent} sub={`${stats.drafts_this_month} brouillons · ${stats.calendar_posts_this_month} planifiés`} />
         <KpiCard title="Contenus → planifiés" value={stats.content_usage_rate || 0} suffix="%" sub={`${stats.calendar_posts_this_month} planifiés sur ${stats.drafts_this_month} générés`} subColor={(stats.content_usage_rate || 0) >= 50 ? "text-emerald-600" : (stats.content_usage_rate || 0) >= 25 ? "text-amber-500" : "text-red-500"} />
         <KpiCard title="Générations IA" value={stats.ai_total_this_month} trend={stats.ai_total_this_month - (stats.ai_total_prev_month || 0)} sub="ce mois" />
@@ -641,16 +642,18 @@ function DemographicsSection({ stats }: { stats: StatsData }) {
 
 /* ── Shared utility components ── */
 
-function KpiCard({ title, value, suffix, sub, subColor, trend }: {
+function KpiCard({ title, value, suffix, sub, subColor, trend, status }: {
   title: string;
   value: number;
   suffix?: string;
   sub?: string;
   subColor?: string;
   trend?: number;
+  status?: "good" | "warning" | "danger";
 }) {
+  const statusBorder = status === "good" ? "border-l-4 border-l-emerald-500" : status === "warning" ? "border-l-4 border-l-amber-500" : status === "danger" ? "border-l-4 border-l-red-500" : "";
   return (
-    <div className="rounded-xl border bg-card p-5 flex flex-col gap-1">
+    <div className={`rounded-xl border bg-card p-5 flex flex-col gap-1 ${statusBorder}`}>
       <p className="text-xs text-muted-foreground">{title}</p>
       <div className="flex items-baseline gap-1.5">
         <p className="text-2xl font-bold font-display">{value.toLocaleString("fr")}{suffix && <span className="text-sm font-normal text-muted-foreground">{suffix}</span>}</p>
