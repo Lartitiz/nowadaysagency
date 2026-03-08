@@ -33,9 +33,7 @@ serve(async (req) => {
     // Check quota (audit category)
     const quota = await checkQuota(user.id, "audit");
     if (!quota.allowed) {
-      return new Response(JSON.stringify({ error: "limit_reached", message: quota.message }), {
-        status: 403, headers: { ...cors, "Content-Type": "application/json" },
-      });
+      return quotaDeniedResponse(quota, cors);
     }
 
     // Fetch brand_profile + last instagram audit + last generated contents in parallel
