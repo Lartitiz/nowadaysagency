@@ -86,14 +86,13 @@ interface StatsData {
   ai_by_action_type: Record<string, number>;
 }
 
-type Section = "overview" | "business" | "engagement" | "product" | "demographics";
+type Section = "dashboard" | "business" | "engagement_product" | "users";
 
 const sections: { key: Section; label: string; icon: React.ComponentType<any> }[] = [
-  { key: "overview", label: "Vue globale", icon: BarChart3 },
+  { key: "dashboard", label: "Tableau de bord", icon: BarChart3 },
   { key: "business", label: "Business", icon: Euro },
-  { key: "engagement", label: "Engagement", icon: Activity },
-  { key: "product", label: "Produit", icon: Sparkles },
-  { key: "demographics", label: "Profil utilisatrices", icon: Target },
+  { key: "engagement_product", label: "Engagement & Produit", icon: Activity },
+  { key: "users", label: "Utilisatrices", icon: Target },
 ];
 
 /* ── Main component ── */
