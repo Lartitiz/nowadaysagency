@@ -142,7 +142,9 @@ export default function AdaptiveHome() {
   useEffect(() => {
     const check = () => setWelcomeDone(localStorage.getItem("lac_welcome_seen") === "true");
     const interval = setInterval(check, 500);
-    return () => clearInterval(interval);
+    // Fallback : si l'overlay ne s'affiche pas après 2s, lancer le tour quand même
+    const fallback = setTimeout(() => setWelcomeDone(true), 2000);
+    return () => { clearInterval(interval); clearTimeout(fallback); };
   }, []);
 
   const handleNavigate = (route: string) => {
