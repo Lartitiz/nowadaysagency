@@ -31,7 +31,9 @@ import { CalendarListView } from "@/components/calendar/CalendarListView";
 import { CalendarIdeasSidebar, type SavedIdea } from "@/components/calendar/CalendarIdeasSidebar";
 import { IdeaDetailSheet } from "@/components/calendar/IdeaDetailSheet";
 import { WeekDashboard } from "@/components/calendar/WeekDashboard";
-import { DndContext, DragOverlay, closestCenter, PointerSensor, useSensor, useSensors, type DragStartEvent, type DragEndEvent } from "@dnd-kit/core";
+import { lazy, Suspense } from "react";
+import type { DragStartEvent, DragEndEvent } from "@dnd-kit/core";
+const CalendarDndWrapper = lazy(() => import("@/components/calendar/CalendarDndWrapper"));
 
 /** Map a calendar post format to the correct generator route */
 function getGeneratorRoute(post: CalendarPost): string | null {
