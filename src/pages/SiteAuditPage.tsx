@@ -236,13 +236,13 @@ const SiteAuditPage = () => {
         setStep("input");
         return;
       }
-      if (data?.error) {
+      if (data?.error || data?.quota) {
+        const { handleQuotaError } = await import("@/lib/quota-error-handler");
+        if (handleQuotaError({ data, message: data.message || data.error })) {
+          setStep("input");
+          return;
+        }
         toast.error(data.message || data.error, { duration: 8000 });
-        setStep("input");
-        return;
-      }
-      if (data?.quota) {
-        toast.error(data.message || "Quota atteint");
         setStep("input");
         return;
       }

@@ -343,6 +343,10 @@ export function useContentGenerator() {
       setResult(normalized);
       return normalized;
     } catch (e: any) {
+      if (e?._isQuota && handleQuotaError(e)) {
+        setError(null);
+        return null;
+      }
       const msg = e?.message || "Erreur lors de la génération";
       setError(msg);
       return null;

@@ -160,7 +160,13 @@ export default function OfferWorkshopPage() {
         throw new Error(msg);
       }
       if (res.data?.error) {
-        throw new Error(res.data.error === "limit_reached" ? (res.data.message || "Quota IA atteint") : res.data.error);
+        if (res.data.error === "limit_reached") {
+          const { handleQuotaError } = await import("@/lib/quota-error-handler");
+          handleQuotaError({ data: res.data, message: res.data.message });
+          return;
+        }
+        throw new Error(res.data.error);
+      }
       }
       setAiResponse(res.data);
 
