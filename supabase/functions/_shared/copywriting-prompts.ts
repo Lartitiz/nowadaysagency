@@ -635,7 +635,7 @@ HASHTAGS :
 - Humour discret, bienveillant, jamais cynique
 - Aller au bout des idées, ne pas raccourcir artificiellement
 - Style France Culture : réflexions profondes, regard philosophique quand le sujet s'y prête
-- Si solopreneuses : "tu" / Si structures : "vous" chaleureux
+- Tutoiement par défaut sauf si le profil de voix indique le vouvoiement
 
 ══ GARDE-FOUS ══
 
