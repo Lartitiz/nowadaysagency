@@ -622,7 +622,7 @@ function FunnelStep({ label, value, max, color }: { label: string; value: number
   );
 }
 
-import { forwardRef } from "react";
+
 
 const ProgressRing = forwardRef<HTMLDivElement, { value: number }>(({ value }, ref) => {
   const r = 52;
