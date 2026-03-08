@@ -85,6 +85,7 @@ interface BrandingCard {
   route: string;
   dbTable?: string;
   dbField?: string;
+  colors?: string[];
 }
 
 interface BrandProfileData {
