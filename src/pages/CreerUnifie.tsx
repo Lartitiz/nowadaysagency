@@ -33,7 +33,7 @@ import { useFormPersist } from "@/hooks/use-form-persist";
 import { useStreamingInvoke } from "@/hooks/use-streaming-invoke";
 import { useUserPlan } from "@/hooks/use-user-plan";
 
-type Step = "idea" | "format" | "questions" | "result" | "edit";
+type Step = "idea" | "format" | "questions" | "inspiration_proposals" | "result" | "edit";
 type Mode = "create" | "transform";
 
 export default function CreerUnifie() {
