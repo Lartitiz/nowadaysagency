@@ -60,10 +60,13 @@ export default function CreerUnifie() {
   const paramCanal = searchParams.get("canal");
   const hasUrlParams = !!(paramFormat || paramCanal || paramSujet || paramObjectif || locState.fromCalendar);
 
-  // Only restore persisted state if we have URL params or location state (coming back to an in-progress flow)
-  // Fresh navigation (/creer with nothing) should start clean
+  // Restore persisted state if:
+  // 1. We have URL params / location state (coming back from calendar, etc.)
+  // 2. OR there is a recent session in storage (survives HMR / tab refresh)
   const hasSomeContext = hasUrlParams || !!location.state;
-  const persistedState = useRef(hasSomeContext ? loadFlowState() : null);
+  const existingFlowState = loadFlowState();
+  const shouldRestore = hasSomeContext || (existingFlowState !== null && existingFlowState.step !== "idea");
+  const persistedState = useRef(shouldRestore ? (existingFlowState || null) : null);
 
   // Core state — restore from sessionStorage if available
   const ps = persistedState.current;
