@@ -414,6 +414,12 @@ export default function CreerStepResult({
           </Button>
         )}
         <Button variant="ghost" size="sm" onClick={() => {
+          if (format === "pinterest_photo" && result?.title) {
+            const b = result.photo_brief;
+            const briefText = b ? `\n\n📷 BRIEF PHOTO :\n• Sujet : ${b.what}\n• Cadrage : ${b.framing}\n• Lumière : ${b.lighting}\n• Accessoires : ${(b.props || []).join(", ")}\n• Ambiance : ${b.mood}` : "";
+            onCopy(`📌 ${result.title}\n\n${result.description || ""}${briefText}`);
+            return;
+          }
           if (format === "pinterest_visual" && result?.title) {
             onCopy(`${result.title}\n\n${result.description || ""}`);
           } else {
