@@ -279,6 +279,12 @@ export default function LandingPage() {
   const { user, loading } = useAuth();
   const [mobileNav, setMobileNav] = useState(false);
 
+  usePageSEO({
+    title: "L'Assistant Com' — Communication éthique pour créatrices",
+    description: "L'assistant de communication pour solopreneuses et créatrices éthiques. Branding, contenus IA, stratégie Instagram & LinkedIn. Gratuit, sans carte bancaire.",
+    canonical: "/",
+  });
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">

@@ -1,8 +1,15 @@
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
+import { usePageSEO } from "@/hooks/use-page-seo";
 
 export default function ConfidentialitePage() {
   const navigate = useNavigate();
+
+  usePageSEO({
+    title: "Politique de confidentialité",
+    description: "Politique de confidentialité et de protection des données personnelles de l'Assistant Com'.",
+    canonical: "/confidentialite",
+  });
 
   return (
     <div className="min-h-screen bg-background">

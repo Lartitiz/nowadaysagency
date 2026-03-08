@@ -25,6 +25,13 @@ export default function LoginPage() {
   const [forgotMode, setForgotMode] = useState(false);
   const [forgotSent, setForgotSent] = useState(false);
 
+  usePageSEO({
+    title: "Connexion",
+    description: "Connecte-toi à ton espace Assistant Com' pour gérer ta communication.",
+    canonical: "/login",
+    noindex: true,
+  });
+
   if (authLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
