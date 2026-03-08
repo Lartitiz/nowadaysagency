@@ -8,8 +8,8 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import {
-  RefreshCw, TrendingUp, TrendingDown, Users, Euro,
-  Activity, BarChart3, Sparkles, Target, Crown,
+  RefreshCw, TrendingUp, TrendingDown, Euro,
+  Activity, BarChart3, Target, Crown,
   AlertTriangle, Zap, UserX,
 } from "lucide-react";
 import {
