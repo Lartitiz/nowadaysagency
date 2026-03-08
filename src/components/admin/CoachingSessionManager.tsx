@@ -473,7 +473,7 @@ function AdminDeliverableRow({ deliverable, sessions, onUpdate, onDelete, onUplo
   return (
     <div className={`rounded-lg border p-2.5 flex items-center gap-2 ${isDelivered ? "border-green-300/50" : "border-border"}`}>
       <span className="text-sm">{isDelivered ? "✅" : "🔒"}</span>
-      <input className="text-sm font-medium text-foreground flex-1 bg-transparent border-none focus:outline-none min-w-0" value={editTitle} onChange={e => setEditTitle(e.target.value)} onBlur={() => { if (editTitle !== deliverable.title) onUpdate(deliverable.id, { title: editTitle }); }} />
+      <input aria-label="Titre du livrable" className="text-sm font-medium text-foreground flex-1 bg-transparent border-none focus:outline-none focus-visible:ring-2 focus-visible:ring-ring min-w-0" value={editTitle} onChange={e => setEditTitle(e.target.value)} onBlur={() => { if (editTitle !== deliverable.title) onUpdate(deliverable.id, { title: editTitle }); }} />
       {assignedSession && <span className="text-[10px] text-muted-foreground shrink-0">S{assignedSession.session_number}</span>}
       <Select value={deliverable.assigned_session_id || "none"} onValueChange={v => onUpdate(deliverable.id, { assigned_session_id: v === "none" ? null : v })}>
         <SelectTrigger className="h-6 text-[10px] w-20 shrink-0"><SelectValue placeholder="Session" /></SelectTrigger>

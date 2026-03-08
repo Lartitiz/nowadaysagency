@@ -20,7 +20,7 @@ export function InlineField({ label, value, type = "text", suffix, onSave, saved
   return (
     <div className="flex items-center gap-2">
       <span className="text-muted-foreground text-sm w-20 shrink-0">{label}</span>
-      <input type={type} className="flex-1 bg-transparent text-foreground text-sm border-none focus:outline-none focus:bg-muted/30 rounded px-1 py-0.5 transition-colors min-w-0" value={draft} onChange={e => setDraft(e.target.value)} onBlur={() => { if (draft !== value) onSave(draft); }} />
+      <input type={type} aria-label={label} className="flex-1 bg-transparent text-foreground text-sm border-none focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:bg-muted/30 rounded px-1 py-0.5 transition-colors min-w-0" value={draft} onChange={e => setDraft(e.target.value)} onBlur={() => { if (draft !== value) onSave(draft); }} />
       {suffix && <span className="text-xs text-muted-foreground shrink-0">{suffix}</span>}
       {saved && <span className="text-[11px] text-primary animate-fade-in shrink-0">💾</span>}
     </div>

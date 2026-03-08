@@ -178,6 +178,7 @@ function AnimatedRoutes() {
 
   return (
     <>
+      <a href="#main-content" className="skip-to-content">Aller au contenu principal</a>
       {showAppWidgets && <Suspense fallback={null}><DemoBanner /></Suspense>}
       <Suspense fallback={null}><SessionOverlay /></Suspense>
       <Suspense fallback={null}><AiDebugShortcut /></Suspense>
@@ -186,7 +187,7 @@ function AnimatedRoutes() {
       {/* BETA_MODE: replace CoachChat with BetaFeedbackWidget during beta */}
       {showCoach && <Suspense fallback={null}><BetaFeedbackWidget /></Suspense>}
       {/* {showCoach && <Suspense fallback={null}><CoachChat /></Suspense>} */}
-      <div key={location.pathname} className="animate-page-fade">
+      <div id="main-content" key={location.pathname} className="animate-page-fade">
           <Suspense fallback={<SuspenseFallback />}>
             <Routes location={location}>
               <Route path="/" element={<LandingPage />} />

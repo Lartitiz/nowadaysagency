@@ -42,19 +42,19 @@ export function CarouselSlider({ slides, mediaUrls }: CarouselSliderProps) {
 
       {/* Arrows */}
       {current > 0 && (
-        <button onClick={prev} className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-white/80 flex items-center justify-center shadow-sm hover:bg-white transition-colors">
+        <button onClick={prev} aria-label="Slide précédente" className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-white/80 flex items-center justify-center shadow-sm hover:bg-white transition-colors">
           <ChevronLeft className="h-4 w-4 text-gray-700" />
         </button>
       )}
       {current < slides.length - 1 && (
-        <button onClick={next} className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-white/80 flex items-center justify-center shadow-sm hover:bg-white transition-colors">
+        <button onClick={next} aria-label="Slide suivante" className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-white/80 flex items-center justify-center shadow-sm hover:bg-white transition-colors">
           <ChevronRight className="h-4 w-4 text-gray-700" />
         </button>
       )}
 
       {/* Content */}
       {mediaUrls && mediaUrls[current] ? (
-        <img src={mediaUrls[current]} alt="" className="w-full h-full object-cover" />
+        <img src={mediaUrls[current]} alt={`Slide ${current + 1}`} className="w-full h-full object-cover" />
       ) : (
         <div className="w-full h-full flex flex-col items-center justify-center px-8" style={{ background: "linear-gradient(135deg, hsl(340 60% 96%), hsl(30 60% 97%))" }}>
           <p className="text-xl font-bold text-gray-900 text-center leading-tight mb-2" style={{ fontFamily: "'Libre Baskerville', serif" }}>

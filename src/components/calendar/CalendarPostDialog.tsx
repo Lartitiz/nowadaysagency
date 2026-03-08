@@ -304,8 +304,8 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
                     <div className="flex flex-wrap gap-2">
                       {mediaUrls.map((url, i) => (
                         <div key={i} className="relative group w-14 h-14 rounded-lg overflow-hidden border border-border">
-                          <img src={url} alt="" className="w-full h-full object-cover" />
-                          <button onClick={() => setMediaUrls(prev => prev.filter((_, idx) => idx !== i))} className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs">x</button>
+                          <img src={url} alt={`Visuel ${i + 1}`} className="w-full h-full object-cover" />
+                          <button onClick={() => setMediaUrls(prev => prev.filter((_, idx) => idx !== i))} aria-label={`Supprimer le visuel ${i + 1}`} className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs">x</button>
                         </div>
                       ))}
                     </div>

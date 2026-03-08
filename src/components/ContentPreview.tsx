@@ -85,7 +85,7 @@ function EditableText({ value, onSave, className = "", placeholder = "" }: { val
           onBlur={handleSave}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          className={`w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground resize-none focus:outline-none focus:border-primary transition-colors ${className}`}
+          className={`w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground resize-none focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring transition-colors ${className}`}
         />
         <button
           onMouseDown={(e) => { e.preventDefault(); handleSave(); }}
