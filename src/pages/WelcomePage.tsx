@@ -305,11 +305,8 @@ export default function WelcomePage() {
       // Charte graphique
       const charter = charterRes.data as any;
       if (charter && (charter.color_primary || charter.font_title || charter.photo_style)) {
+        const charterColors = [charter.color_primary, charter.color_secondary, charter.color_accent, charter.color_background, charter.color_text].filter(Boolean);
         const charterParts: string[] = [];
-        if (charter.color_primary) {
-          const colors = [charter.color_primary, charter.color_secondary, charter.color_accent].filter(Boolean);
-          charterParts.push(`Couleurs : ${colors.join(", ")}`);
-        }
         if (charter.font_title) {
           const fonts = [charter.font_title, charter.font_body].filter(Boolean);
           charterParts.push(`Typos : ${fonts.join(" + ")}`);
@@ -319,7 +316,8 @@ export default function WelcomePage() {
           const kw = Array.isArray(charter.mood_keywords) ? charter.mood_keywords : [];
           if (kw.length) charterParts.push(`Ambiance : ${kw.join(", ")}`);
         }
-        cards.push({ emoji: "🎨", title: "Charte graphique", content: charterParts.join(" · "), route: "/branding/section?section=charter" });
+        const charterContent = charterParts.join(" · ");
+        cards.push({ emoji: "🎨", title: "Charte graphique", content: charterContent, route: "/branding/section?section=charter", colors: charterColors });
       }
 
       setBrandingCards(cards);
