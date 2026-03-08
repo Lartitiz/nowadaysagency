@@ -141,7 +141,7 @@ serve(async (req) => {
     await Promise.allSettled(scrapePromises);
 
     // ====== BUILD PROMPT ======
-    const systemPrompt = `Tu es l'assistante com' de Nowadays Agency. Tu reçois le contenu du site web et les réponses d'une solopreneuse créative. Ta mission : faire un diagnostic de communication honnête, concret et personnalisé.
+    const systemPrompt = `Tu es l'assistante com' de L'Assistant Com'. Tu reçois le contenu du site web et les réponses d'onboarding. Ta mission : faire un diagnostic de communication honnête, concret et personnalisé.
 
 Si une capture d'écran du profil Instagram est fournie, analyse : la bio (clarté, mots-clés, appel à l'action), le nombre d'abonnés/abonnements (ratio), la cohérence visuelle du feed (couleurs, style), le nom affiché (optimisé ou non), le lien dans la bio. Donne un score Instagram basé sur ces éléments visibles. Si aucune capture n'est fournie, ne fais AUCUNE recommandation spécifique à Instagram.
 
@@ -228,7 +228,7 @@ Pour les routes, utilise : /storytelling, /persona, /proposition, /calendrier, /
 
     // Context
     userParts.push(`=== CONTEXTE ===
-Cette personne utilise L'Assistant Com', un outil pour solopreneuses créatives et éthiques. Elle vient de terminer son onboarding. Ce diagnostic est la PREMIÈRE chose qu'elle verra. Il doit être personnalisé, honnête, et lui donner envie de continuer.`);
+Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. Ce diagnostic est la PREMIÈRE chose qu'elle verra. Il doit être personnalisé, honnête, et lui donner envie de continuer.`);
 
     // Profile info
     if (profile) {
@@ -394,7 +394,7 @@ Cette personne utilise L'Assistant Com', un outil pour solopreneuses créatives 
     // ====== CALL CLAUDE — PHASE 2 : Enrichissement branding (Opus, fire-and-forget) ======
     const enrichmentPromise = (async () => {
       try {
-        const enrichmentSystemPrompt = `Tu es l'assistante com' de Nowadays Agency. Tu reçois le contenu scrappé du site web et les réponses d'onboarding d'une solopreneuse créative.
+        const enrichmentSystemPrompt = `Tu es l'assistante com' de L'Assistant Com'. Tu reçois le contenu scrappé du site web et les réponses d'onboarding.
 
 Ta mission : déduire un maximum d'informations sur son branding à partir de ce contenu.
 

@@ -68,7 +68,7 @@ serve(async (req) => {
 
     if (type === "improve") {
       // Improve a single step's text
-      systemPrompt = `Tu es coach en storytelling pour des solopreneuses créatives et éthiques.
+      systemPrompt = `Tu es coach en storytelling.
 
 CONTEXTE DE L'ÉTAPE : ${step_context || ""}
 
@@ -98,7 +98,7 @@ Réponds UNIQUEMENT avec le texte amélioré, sans commentaire ni explication.`;
     } else if (type === "generate-story") {
       // Generate full storytelling from steps 1-5
       const s = steps || {};
-      systemPrompt = `Tu es expert·e en storytelling pour des solopreneuses créatives et éthiques.
+      systemPrompt = `Tu es expert·e en storytelling.
 
 Tu vas écrire un storytelling captivant à partir des éléments fournis par l'utilisatrice.
 
@@ -139,7 +139,7 @@ Réponds UNIQUEMENT avec le storytelling, sans commentaire.`;
       userPrompt = "Génère mon storytelling complet.";
 
     } else if (type === "generate-pitch") {
-      systemPrompt = `Tu es expert·e en personal branding pour des solopreneuses créatives et éthiques.
+      systemPrompt = `Tu es expert·e en personal branding.
 
 STORYTELLING DE L'UTILISATRICE :
 "${storytelling || ""}"
@@ -177,7 +177,7 @@ Réponds en JSON :
 
     } else if (type === "generate-recap") {
       const fullStory = storytelling || "";
-      systemPrompt = `Tu es expert·e en personal branding pour des solopreneuses créatives et éthiques.
+      systemPrompt = `Tu es expert·e en personal branding.
 
 À partir de ce storytelling, génère une synthèse structurée pour une fiche récap visuelle.
 

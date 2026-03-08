@@ -119,7 +119,7 @@ Deno.serve(async (req) => {
       // PHASE 1: Generate personalized questions
       const baseQuestions = MODULE_QUESTIONS[module] || MODULE_QUESTIONS.persona;
       
-      const systemPrompt = `Tu es une consultante en communication bienveillante et experte. Tu accompagnes des solopreneuses créatives.
+      const systemPrompt = `Tu es une consultante en communication bienveillante et experte.
 
 CONTEXTE :
 - Module : ${module}
@@ -175,7 +175,7 @@ Retourne UNIQUEMENT un JSON :
 
       const updateMap = MODULE_UPDATE_MAP[module] || MODULE_UPDATE_MAP.persona;
 
-      const systemPrompt = `Tu es une consultante en communication bienveillante et experte. Tu accompagnes des solopreneuses créatives.
+      const systemPrompt = `Tu es une consultante en communication bienveillante et experte.
 
 CONTEXTE DE L'AUDIT :
 ${audit ? `Score global : ${audit.score_global}/100\nSynthèse : ${audit.synthese}\nPoints faibles : ${JSON.stringify(audit.points_faibles || [])}` : "Pas d'audit disponible"}
@@ -280,7 +280,7 @@ Pour le module editorial, propose piliers de contenu.`;
           ).join("\n\n");
       }
 
-      const systemPrompt = `Tu es une consultante en communication bienveillante et experte. Tu accompagnes des solopreneuses créatives.
+      const systemPrompt = `Tu es une consultante en communication bienveillante et experte.
 
 CONTEXTE DE L'AUDIT :
 ${audit ? `Score global : ${audit.score_global}/100\nSynthèse : ${audit.synthese}` : "Pas d'audit disponible"}

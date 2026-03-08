@@ -77,7 +77,7 @@ serve(async (req) => {
     let userPrompt = "";
 
     if (type === "combats") {
-      systemPrompt = `Tu es expert·e en branding engagé pour des solopreneuses créatives et éthiques.
+      systemPrompt = `Tu es expert·e en branding engagé.
 
 ${NICHE_WRITING_RULES}
 
@@ -126,7 +126,7 @@ Réponds en JSON :
       userPrompt = "Formule mes combats et mon manifeste.";
 
     } else if (type === "limits") {
-      systemPrompt = `Tu es expert·e en positionnement de marque pour des solopreneuses créatives et éthiques.
+      systemPrompt = `Tu es expert·e en positionnement de marque.
 
 ${NICHE_WRITING_RULES}
 
@@ -172,7 +172,7 @@ Réponds en JSON :
         t.things_to_avoid ? `- Ce qu'on évite : ${t.things_to_avoid}` : "",
       ].filter(Boolean).join("\n");
 
-      systemPrompt = `Tu es expert·e en positionnement de marque pour des solopreneuses créatives et éthiques.
+      systemPrompt = `Tu es expert·e en positionnement de marque.
 
 ${NICHE_WRITING_RULES}
 
@@ -229,7 +229,7 @@ Réponds en JSON :
       const td = body.tone_data || {};
       const cc = body.creative_concept || "";
 
-      systemPrompt = `Tu es expert·e en personal branding pour des solopreneuses créatives et éthiques.
+      systemPrompt = `Tu es expert·e en personal branding.
 
 À partir du ton, style et combats de cette marque, génère une synthèse structurée pour une fiche récap visuelle.
 

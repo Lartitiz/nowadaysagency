@@ -24,7 +24,7 @@ function buildProfileBlock(p: any) {
 
 function buildPortraitPrompt(d: any, p: any): string {
   const profileBlock = buildProfileBlock(p);
-  return `Tu es experte en marketing persona pour des solopreneuses créatives et éthiques.
+  return `Tu es experte en marketing persona.
 
 DONNÉES DU PERSONA :
 - Frustrations (étape 1) : "${d.step_1_frustrations || ""}"
@@ -146,7 +146,7 @@ serve(async (req) => {
         break;
 
       case "frustrations":
-        systemPrompt = `Tu es expert·e en stratégie de marque pour des solopreneuses créatives et éthiques.
+        systemPrompt = `Tu es expert·e en stratégie de marque.
 
 TEXTE DE L'UTILISATRICE SUR LES FRUSTRATIONS DE SA CIBLE :
 "${d.step_1_frustrations || ""}"
@@ -173,7 +173,7 @@ Réponds en JSON :
         break;
 
       case "benefits":
-        systemPrompt = `Tu es expert·e en stratégie de marque pour des solopreneuses créatives et éthiques.
+        systemPrompt = `Tu es expert·e en stratégie de marque.
 
 TEXTE DE L'UTILISATRICE SUR LA TRANSFORMATION RÊVÉE :
 "${d.step_2_transformation || ""}"
@@ -200,7 +200,7 @@ Réponds en JSON :
         break;
 
       case "barriers":
-        systemPrompt = `Tu es expert·e en stratégie de marque pour des solopreneuses créatives et éthiques.
+        systemPrompt = `Tu es expert·e en stratégie de marque.
 
 TEXTE SUR LES OBJECTIONS :
 "${d.step_3a_objections || ""}"
@@ -235,7 +235,7 @@ Réponds en JSON :
         break;
 
       case "visual":
-        systemPrompt = `Tu es expert·e en stratégie de marque pour des solopreneuses créatives et éthiques.
+        systemPrompt = `Tu es expert·e en stratégie de marque.
 
 L'UNIVERS VISUEL DE LA CLIENTE IDÉALE :
 - Ce qu'elle trouve beau : "${d.step_4_beautiful || ""}"

@@ -48,7 +48,7 @@ serve(async (req) => {
 
     if (type === "facets") {
       const { text, facets, profile, persona, tone } = body;
-      systemPrompt = `Tu es expert·e en personal branding pour des solopreneuses créatives et éthiques.
+      systemPrompt = `Tu es expert·e en personal branding.
 
 CE QUE L'UTILISATRICE A PARTAGÉ :
 "${text || ""}"
@@ -82,7 +82,7 @@ Réponds en JSON :
 
     } else if (type === "pillars") {
       const { profile, persona, proposition, tone, facets } = body;
-      systemPrompt = `Tu es expert·e en stratégie de contenu pour des solopreneuses créatives et éthiques.
+      systemPrompt = `Tu es expert·e en stratégie de contenu.
 
 TOUT LE BRANDING :
 - Persona frustrations : ${persona?.step_1_frustrations || "?"}
@@ -125,7 +125,7 @@ Réponds en JSON :
 
     } else if (type === "concepts") {
       const { creative_text, profile, persona, proposition, tone, pillars } = body;
-      systemPrompt = `Tu es expert·e en création de contenu et branding pour des solopreneuses créatives et éthiques.
+      systemPrompt = `Tu es expert·e en création de contenu et branding.
 
 BRANDING COMPLET :
 - Activité : ${profile?.activite || "?"}
@@ -161,7 +161,7 @@ Réponds en JSON :
     } else if (type === "generate-recap") {
       const { strategy_data, profile, persona, proposition, tone, editorial_line } = body;
 
-      systemPrompt = `Tu es expert·e en stratégie de contenu pour solopreneuses créatives et éthiques.
+      systemPrompt = `Tu es expert·e en stratégie de contenu.
 
 À partir de cette stratégie de contenu, génère une synthèse structurée pour une fiche récap visuelle.
 
