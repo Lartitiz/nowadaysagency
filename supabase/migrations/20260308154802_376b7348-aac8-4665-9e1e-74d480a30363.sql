@@ -1,0 +1,1 @@
+ALTER TABLE public.scrape_cache ADD COLUMN IF NOT EXISTS style_hints text;

@@ -34,64 +34,100 @@ serve(async (req) => {
       serviceRoleKey
     );
 
-    const enrichmentSystemPrompt = `Tu es l'assistante com' de L'Assistant Com'. Tu reçois le contenu scrappé du site web et les réponses d'onboarding.
+    const enrichmentSystemPrompt = `Tu es un·e expert·e en communication et branding. On te donne le contenu en ligne d'une entreprise ou d'un·e solopreneur·e ainsi que ses réponses d'onboarding. Ta mission : analyser tout ça et pré-remplir 7 sections de branding.
 
-Ta mission : déduire un maximum d'informations sur son branding à partir de ce contenu.
+Pour chaque section, donne une réponse structurée en JSON. Sois concret·e, précis·e, et utilise les mots que la personne utilise elle-même sur ses supports. Ne sois pas générique.
 
-- Utilise l'écriture inclusive avec le point médian.
-- Tutoie.
-- Pour le branding_prefill, déduis un maximum depuis le contenu scrappé. Si tu trouves des offres sur le site, liste-les. Si tu peux deviner l'histoire, résume-la. Si tu identifies des combats ou convictions, note-les. Mieux vaut proposer quelque chose que la personne modifiera plutôt que laisser vide.
-- Pour les offres, cherche : pages services, tarifs, accompagnements, formations, produits.
-- Pour le story_draft, utilise la page à propos, les réponses libres (uniqueness, positioning).
-- Pour les combats, identifie les causes défendues, les refus assumés, les convictions fortes.
-- Pour les content_pillars, identifie les 3 grands thèmes récurrents.
+Si tu n'as pas assez d'infos pour remplir une section, mets "confidence": "low" et explique ce qui manque. Si tu es confiant·e, mets "confidence": "high".
 
-- Pour le voice_prefill, analyse le style d'écriture du contenu scrappé (site, LinkedIn). Identifie : le niveau de langue (soutenu, courant, familier), le rythme (phrases courtes/longues, alternance), les expressions récurrentes, les mots ou tournures à éviter car absents du vocabulaire de la personne.
-- Pour le charter_prefill, identifie les couleurs dominantes visibles dans le contenu HTML du site (couleurs de fond, couleurs de texte, couleurs d'accent des boutons/liens). Identifie les polices si visible dans le CSS inline ou les font-family. Décris l'ambiance visuelle en 3 mots-clés. Si le site n'a pas été scrappé, mets tout à null.
-- Pour le combat_structured, décompose les combats en 4 dimensions : la cause (pourquoi elle fait ça), les combats (contre quoi elle lutte), l'alternative (ce qu'elle propose à la place), les refus (ce qu'elle refuse de faire). Si une dimension n'est pas identifiable, mets null.
+Réponds UNIQUEMENT avec un objet JSON valide, sans markdown, sans backticks.
 
-RÉPONDRE EN JSON (pas de markdown, pas de backticks) :
+Structure attendue :
 
 {
   "branding_prefill": {
     "positioning": "phrase de positionnement déduite ou null",
     "mission": "mission déduite ou null",
     "target_description": "description de la cible idéale déduite ou null",
+    "target_problem": "problème principal de la cible ou null",
+    "target_beliefs": "croyances limitantes de la cible ou null",
     "tone_keywords": ["mot-clé 1", "mot-clé 2", "mot-clé 3"],
     "tone_style": "description du style de communication ou null",
     "combats": ["conviction 1", "conviction 2"],
     "values": ["valeur 1", "valeur 2", "valeur 3"],
     "content_pillars": ["pilier 1", "pilier 2", "pilier 3"],
     "story_draft": "2-4 phrases résumant le parcours ou null",
-    "offers": [{ "name": "nom", "description": "description courte", "price": "prix ou null" }]
+    "offers": [{ "name": "nom", "description": "description courte", "price": "prix ou null" }],
+    "value_prop_sentence": "phrase de proposition de valeur ou null",
+    "value_prop_problem": "problème résolu ou null",
+    "value_prop_solution": "solution apportée ou null",
+    "value_prop_difference": "différenciateur ou null",
+    "value_prop_proof": "preuve ou null"
   },
   "voice_prefill": {
     "voice_summary": "description en 2-3 phrases de comment cette personne écrit ou null",
+    "voice_description": "description du ton global (ex: 'Direct et chaleureux, comme une amie experte') ou null",
+    "tone_register": "tutoiement ou vouvoiement",
+    "tone_level": "accessible, expert, technique ou vulgarisateur",
+    "tone_style_chip": "direct, poétique, storytelling, factuel ou autre",
+    "tone_humor": "auto-dérision, absurde, pince-sans-rire, pas d'humour ou autre",
+    "tone_engagement": "militant, discret ou modéré",
     "tone_patterns": ["pattern 1", "pattern 2"],
     "signature_expressions": ["expression 1", "expression 2"],
-    "banned_expressions": ["expression à éviter 1", "expression à éviter 2"]
+    "banned_expressions": ["expression à éviter 1", "expression à éviter 2"],
+    "key_expressions": "expressions ou mots récurrents sur le site (séparés par des virgules) ou null",
+    "things_to_avoid": "mots ou formulations que cette marque évite visiblement ou null",
+    "target_verbatims": "phrases que la cible pourrait dire (déduit du positionnement) ou null",
+    "channels": ["canaux de communication détectés"]
   },
   "charter_prefill": {
-    "color_primary": "code hex ou null",
+    "confidence": "high|medium|low",
+    "color_primary": "code hex ou null — UNIQUEMENT si détecté dans le CSS/HTML, ne pas inventer",
     "color_secondary": "code hex ou null",
     "color_accent": "code hex ou null",
     "color_background": "code hex ou null",
     "color_text": "code hex ou null",
-    "font_title": "nom de la police ou null",
-    "font_body": "nom de la police ou null",
+    "font_title": "nom de la police détectée dans le CSS/Google Fonts ou null",
+    "font_body": "nom de la police body détectée ou null",
     "mood_keywords": ["mot-clé 1", "mot-clé 2", "mot-clé 3"],
-    "photo_style": "description ou null"
+    "photo_style": "description du style visuel global ou null"
   },
   "combat_structured": {
-    "combat_cause": "cause ou null",
-    "combat_fights": "combats ou null",
-    "combat_alternative": "alternative ou null",
-    "combat_refusals": "refus ou null"
+    "combat_cause": "pourquoi elle fait ça ou null",
+    "combat_fights": "contre quoi elle lutte ou null",
+    "combat_alternative": "ce qu'elle propose à la place ou null",
+    "combat_refusals": "ce qu'elle refuse de faire ou null"
+  },
+  "persona_prefill": {
+    "confidence": "high|medium|low",
+    "description": "description courte du persona en une phrase ou null",
+    "goals": ["objectif 1", "objectif 2"],
+    "frustrations": ["frustration 1", "frustration 2"],
+    "desires": ["désir 1", "désir 2"],
+    "beautiful_world": "dans un monde idéal, à quoi ressemblerait la situation de cette personne ou null",
+    "first_actions": "premières actions concrètes en travaillant avec cette marque ou null"
+  },
+  "content_strategy_prefill": {
+    "confidence": "high|medium|low",
+    "pillars": [{"label": "nom", "description": "description"}],
+    "creative_twist": "angle créatif unique ou null",
+    "formats": ["format 1", "format 2"],
+    "rhythm": "rythme de publication détecté ou null",
+    "editorial_line": "ligne éditoriale déduite ou null"
   }
-}`;
+}
+
+Précisions importantes :
+- Pour les offres, cherche : pages services, tarifs, accompagnements, formations, produits. Liste TOUTES les offres détectées.
+- Pour le story_draft, utilise la page à propos, les réponses libres (uniqueness, positioning).
+- Pour les combats, identifie les causes défendues, les refus assumés, les convictions fortes.
+- Pour la charte graphique, remplis les couleurs UNIQUEMENT si tu détectes des codes HEX, des variables CSS ou des couleurs spécifiques dans les informations visuelles. Ne pas inventer de couleurs.
+- font_title et font_body : les typographies détectées dans le CSS ou Google Fonts.
+- Pour le persona, déduis à partir du positionnement et du contenu : à qui s'adresse cette personne ?
+- Pour la proposition de valeur, synthétise le problème résolu, la solution et le différenciateur.`;
 
     const opusModel = getModelForAction("branding_audit");
-    const enrichmentRaw = await callAnthropicSimple(opusModel, enrichmentSystemPrompt, userPrompt, 0.7, 6144);
+    const enrichmentRaw = await callAnthropicSimple(opusModel, enrichmentSystemPrompt, userPrompt, 0.7, 8192);
 
     let enrichmentResult: any;
     try {
@@ -124,53 +160,103 @@ RÉPONDRE EN JSON (pas de markdown, pas de backticks) :
         .eq("id", savedDiagId);
     }
 
-    // brand_profile upsert
+    // brand_profile upsert — enriched with value proposition, target, tone details
     const { data: existingProfile } = await supabaseAdmin
       .from("brand_profile")
-      .select("id, positioning, mission, tone_keywords, tone_style, combats, values, content_pillars, combat_cause, combat_fights, combat_alternative, combat_refusals")
+      .select("id, positioning, mission, tone_keywords, tone_style, combats, values, content_pillars, combat_cause, combat_fights, combat_alternative, combat_refusals, value_prop_sentence, value_prop_problem, value_prop_solution, value_prop_difference, value_prop_proof, target_description, target_problem, target_beliefs, voice_description, tone_register, tone_level, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims, channels")
       .eq(filterCol, filterVal)
       .maybeSingle();
 
     const combatData = prefill.combat_structured || enrichmentResult?.combat_structured;
+    const voicePrefill = prefill.voice_prefill || enrichmentResult?.voice_prefill;
+
+    const buildProfileFields = (target: Record<string, unknown>, existing: any) => {
+      const setIfEmpty = (field: string, value: unknown) => {
+        if (value && (!existing || !existing[field])) target[field] = value;
+      };
+      const setArrayIfEmpty = (field: string, value: unknown[]) => {
+        if (value?.length > 0 && (!existing || !existing[field] || (Array.isArray(existing[field]) && existing[field].length === 0))) {
+          target[field] = value;
+        }
+      };
+
+      setIfEmpty("positioning", prefill.positioning);
+      setIfEmpty("mission", prefill.mission);
+      setIfEmpty("target_description", prefill.target_description);
+      setIfEmpty("target_problem", prefill.target_problem);
+      setIfEmpty("target_beliefs", prefill.target_beliefs);
+      setIfEmpty("tone_style", prefill.tone_style);
+      setIfEmpty("value_prop_sentence", prefill.value_prop_sentence);
+      setIfEmpty("value_prop_problem", prefill.value_prop_problem);
+      setIfEmpty("value_prop_solution", prefill.value_prop_solution);
+      setIfEmpty("value_prop_difference", prefill.value_prop_difference);
+      setIfEmpty("value_prop_proof", prefill.value_prop_proof);
+      setArrayIfEmpty("tone_keywords", prefill.tone_keywords);
+      setArrayIfEmpty("values", prefill.values);
+      setArrayIfEmpty("content_pillars", prefill.content_pillars);
+
+      if (prefill.combats?.length > 0 && (!existing || !existing.combats)) {
+        target.combats = Array.isArray(prefill.combats) ? prefill.combats.join("\n") : prefill.combats;
+      }
+
+      if (combatData) {
+        setIfEmpty("combat_cause", combatData.combat_cause);
+        setIfEmpty("combat_fights", combatData.combat_fights);
+        setIfEmpty("combat_alternative", combatData.combat_alternative);
+        setIfEmpty("combat_refusals", combatData.combat_refusals);
+      }
+
+      // Voice/tone enriched fields from voice_prefill → brand_profile
+      if (voicePrefill) {
+        setIfEmpty("voice_description", voicePrefill.voice_description);
+        setIfEmpty("tone_register", voicePrefill.tone_register);
+        setIfEmpty("tone_level", voicePrefill.tone_level);
+        setIfEmpty("tone_humor", voicePrefill.tone_humor);
+        setIfEmpty("tone_engagement", voicePrefill.tone_engagement);
+        setIfEmpty("key_expressions", voicePrefill.key_expressions);
+        setIfEmpty("things_to_avoid", voicePrefill.things_to_avoid);
+        setIfEmpty("target_verbatims", voicePrefill.target_verbatims);
+        if (voicePrefill.channels?.length > 0 && (!existing || !existing.channels || (Array.isArray(existing.channels) && existing.channels.length === 0))) {
+          target.channels = voicePrefill.channels;
+        }
+      }
+    };
+
     if (existingProfile) {
       const updates: Record<string, unknown> = {};
-      if (!existingProfile.positioning && prefill.positioning) updates.positioning = prefill.positioning;
-      if (!existingProfile.mission && prefill.mission) updates.mission = prefill.mission;
-      if ((!existingProfile.tone_keywords || (Array.isArray(existingProfile.tone_keywords) && existingProfile.tone_keywords.length === 0)) && prefill.tone_keywords?.length) updates.tone_keywords = prefill.tone_keywords;
-      if ((!existingProfile.values || (Array.isArray(existingProfile.values) && existingProfile.values.length === 0)) && prefill.values?.length) updates.values = prefill.values;
-      if (!existingProfile.tone_style && prefill.tone_style) updates.tone_style = prefill.tone_style;
-      if (!existingProfile.combats && prefill.combats?.length > 0) updates.combats = Array.isArray(prefill.combats) ? prefill.combats.join("\n") : prefill.combats;
-      if ((!existingProfile.content_pillars || (Array.isArray(existingProfile.content_pillars) && existingProfile.content_pillars.length === 0)) && prefill.content_pillars?.length > 0) updates.content_pillars = prefill.content_pillars;
-      if (!existingProfile.combat_cause && combatData?.combat_cause) updates.combat_cause = combatData.combat_cause;
-      if (!existingProfile.combat_fights && combatData?.combat_fights) updates.combat_fights = combatData.combat_fights;
-      if (!existingProfile.combat_alternative && combatData?.combat_alternative) updates.combat_alternative = combatData.combat_alternative;
-      if (!existingProfile.combat_refusals && combatData?.combat_refusals) updates.combat_refusals = combatData.combat_refusals;
+      buildProfileFields(updates, existingProfile);
       if (Object.keys(updates).length > 0) await supabaseAdmin.from("brand_profile").update(updates).eq("id", existingProfile.id);
     } else {
       const newProfile: Record<string, unknown> = { user_id: userId, workspace_id: workspaceId };
-      if (prefill.positioning) newProfile.positioning = prefill.positioning;
-      if (prefill.mission) newProfile.mission = prefill.mission;
-      if (prefill.tone_keywords?.length) newProfile.tone_keywords = prefill.tone_keywords;
-      if (prefill.tone_style) newProfile.tone_style = prefill.tone_style;
-      if (prefill.combats?.length) newProfile.combats = Array.isArray(prefill.combats) ? prefill.combats.join("\n") : prefill.combats;
-      if (prefill.values?.length) newProfile.values = prefill.values;
-      if (prefill.content_pillars?.length) newProfile.content_pillars = prefill.content_pillars;
-      if (combatData?.combat_cause) newProfile.combat_cause = combatData.combat_cause;
-      if (combatData?.combat_fights) newProfile.combat_fights = combatData.combat_fights;
-      if (combatData?.combat_alternative) newProfile.combat_alternative = combatData.combat_alternative;
-      if (combatData?.combat_refusals) newProfile.combat_refusals = combatData.combat_refusals;
+      buildProfileFields(newProfile, null);
       await supabaseAdmin.from("brand_profile").insert(newProfile);
     }
 
-    // persona
-    if (prefill.target_description) {
+    // persona — enriched with frustrations, beautiful_world
+    const personaPrefill = enrichmentResult?.persona_prefill;
+    const personaDesc = prefill.target_description || personaPrefill?.description;
+    if (personaDesc || personaPrefill) {
       const { data: existingPersona } = await supabaseAdmin
-        .from("persona").select("id, description").eq(filterCol, filterVal)
+        .from("persona").select("id, description, step_1_frustrations, step_2_transformation")
+        .eq(filterCol, filterVal)
         .order("created_at", { ascending: false }).limit(1).maybeSingle();
-      if (existingPersona && !existingPersona.description) {
-        await supabaseAdmin.from("persona").update({ description: prefill.target_description }).eq("id", existingPersona.id);
-      } else if (!existingPersona) {
-        await supabaseAdmin.from("persona").insert({ user_id: userId, workspace_id: workspaceId, description: prefill.target_description, is_primary: true });
+
+      if (existingPersona) {
+        const pUpdates: Record<string, unknown> = {};
+        if (!existingPersona.description && personaDesc) pUpdates.description = personaDesc;
+        if (!existingPersona.step_1_frustrations && personaPrefill?.frustrations?.length) {
+          pUpdates.step_1_frustrations = personaPrefill.frustrations.join("\n");
+        }
+        if (!existingPersona.step_2_transformation && personaPrefill?.beautiful_world) {
+          pUpdates.step_2_transformation = personaPrefill.beautiful_world;
+        }
+        if (Object.keys(pUpdates).length > 0) await supabaseAdmin.from("persona").update(pUpdates).eq("id", existingPersona.id);
+      } else {
+        const newPersona: Record<string, unknown> = { user_id: userId, workspace_id: workspaceId, is_primary: true };
+        if (personaDesc) newPersona.description = personaDesc;
+        if (personaPrefill?.frustrations?.length) newPersona.step_1_frustrations = personaPrefill.frustrations.join("\n");
+        if (personaPrefill?.beautiful_world) newPersona.step_2_transformation = personaPrefill.beautiful_world;
+        await supabaseAdmin.from("persona").insert(newPersona);
       }
     }
 
@@ -205,7 +291,6 @@ RÉPONDRE EN JSON (pas de markdown, pas de backticks) :
     }
 
     // voice_profile
-    const voicePrefill = prefill.voice_prefill || enrichmentResult?.voice_prefill;
     if (voicePrefill && (voicePrefill.voice_summary || voicePrefill.tone_patterns?.length || voicePrefill.signature_expressions?.length)) {
       const { data: existingVoice } = await supabaseAdmin
         .from("voice_profile")
@@ -263,6 +348,46 @@ RÉPONDRE EN JSON (pas de markdown, pas de backticks) :
         if (charterPrefill.mood_keywords?.length) newCharter.mood_keywords = charterPrefill.mood_keywords;
         if (charterPrefill.photo_style) newCharter.photo_style = charterPrefill.photo_style;
         await supabaseAdmin.from("brand_charter").insert(newCharter);
+      }
+    }
+
+    // brand_proposition — save value proposition if detected
+    if (prefill.value_prop_sentence) {
+      const { data: existingProp } = await supabaseAdmin
+        .from("brand_proposition")
+        .select("id, step_1_what, version_final")
+        .eq(filterCol, filterVal)
+        .maybeSingle();
+
+      if (!existingProp) {
+        await supabaseAdmin.from("brand_proposition").insert({
+          user_id: userId,
+          workspace_id: workspaceId,
+          step_1_what: prefill.value_prop_sentence,
+          version_final: prefill.value_prop_sentence,
+        });
+      }
+    }
+
+    // content_strategy → brand_strategy pillars
+    const contentPrefill = enrichmentResult?.content_strategy_prefill;
+    if (contentPrefill?.pillars?.length > 0) {
+      const { data: existingStrategy } = await supabaseAdmin
+        .from("brand_strategy")
+        .select("id, pillar_major, creative_concept")
+        .eq(filterCol, filterVal)
+        .maybeSingle();
+
+      if (!existingStrategy) {
+        const pillars = contentPrefill.pillars;
+        await supabaseAdmin.from("brand_strategy").insert({
+          user_id: userId,
+          workspace_id: workspaceId,
+          pillar_major: pillars[0]?.label || null,
+          pillar_minor_1: pillars[1]?.label || null,
+          pillar_minor_2: pillars[2]?.label || null,
+          creative_concept: contentPrefill.creative_twist || null,
+        });
       }
     }
 
