@@ -38,7 +38,6 @@ export default function OnboardingPhase1Profile({ prenom, activite, onPrenomChan
         <div>
           <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Tu fais quoi ?</label>
           <VoiceInput
-            id="onboarding-activite"
             value={activite}
             onChange={onActiviteChange}
             placeholder="Photographe portrait pour entrepreneures"
