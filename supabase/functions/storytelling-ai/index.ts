@@ -139,7 +139,7 @@ Réponds UNIQUEMENT avec le storytelling, sans commentaire.`;
       userPrompt = "Génère mon storytelling complet.";
 
     } else if (type === "generate-pitch") {
-      systemPrompt = `Tu es expert·e en personal branding pour des solopreneuses créatives et éthiques.
+      systemPrompt = `Tu es expert·e en personal branding.
 
 STORYTELLING DE L'UTILISATRICE :
 "${storytelling || ""}"
