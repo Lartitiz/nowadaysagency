@@ -139,7 +139,7 @@ serve(async (req) => {
     }
 
     // --- 5. CALL CLAUDE ---
-    const analysisResult = await callClaude(scrapedContent, sourcesUsed);
+    const analysisResult = await callClaude(scrapedContent, sourcesUsed, styleHints);
 
     // --- 6. SAVE TO DB ---
     const { data: wsData } = await supabaseAdmin
