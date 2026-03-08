@@ -351,7 +351,7 @@ function BusinessSection({ stats }: { stats: StatsData }) {
   );
 }
 
-function EngagementSection({ stats }: { stats: StatsData }) {
+function EngagementProductSection({ stats }: { stats: StatsData }) {
   const PLAN_COLORS: Record<string, string> = {
     free: "#9CA3AF", outil: "#8B5CF6", binome: "#fb3d80", pro: "#3B82F6",
   };
@@ -361,15 +361,29 @@ function EngagementSection({ stats }: { stats: StatsData }) {
     label: format(parseISO(d.date), "d MMM", { locale: fr }),
   }));
 
+  const draftsData = Object.entries(stats.drafts_by_canal || {})
+    .filter(([, v]) => v > 0)
+    .map(([canal, count]) => ({ canal, count, label: CANAL_LABELS[canal] || canal }))
+    .sort((a, b) => b.count - a.count);
+
+  const scoreDistData = Object.entries(stats.score_distribution || {})
+    .map(([range, count], i) => ({ range, count, fill: PIE_COLORS[i % PIE_COLORS.length] }));
+
+  const maxFeature = Math.max(...stats.top_features.map(f => f.count), 1);
+
+  const totalContent = (stats.drafts_this_month || 0) + (stats.calendar_posts_this_month || 0);
+
   return (
     <div className="space-y-6">
+      {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <KpiCard title="Actives 7j" value={stats.active_week} sub={`sur ${stats.total_users}`} />
-        <KpiCard title="Actives 30j" value={stats.active_month} sub="connexions" />
         <KpiCard title="Rétention" value={stats.retention_rate} suffix="%" sub={`${stats.retained_users} revenues du mois dernier`} subColor={stats.retention_rate >= 50 ? "text-emerald-600" : "text-amber-500"} />
-        <KpiCard title="Tokens IA" value={Math.round((stats.total_tokens || 0) / 1000)} suffix="k" sub="ce mois" />
+        <KpiCard title="Contenus générés" value={totalContent} sub={`${stats.drafts_this_month} brouillons · ${stats.calendar_posts_this_month} planifiés`} />
+        <KpiCard title="Score branding moyen" value={stats.avg_branding_score} suffix="/100" />
+        <KpiCard title="Générations IA" value={stats.ai_total_this_month} trend={stats.ai_total_this_month - (stats.ai_total_prev_month || 0)} sub="ce mois" />
       </div>
 
+      {/* Activité IA quotidienne */}
       <ChartCard title="Activité IA quotidienne (30 jours)">
         <ResponsiveContainer width="100%" height={220}>
           <AreaChart data={aiDayData}>
@@ -387,6 +401,7 @@ function EngagementSection({ stats }: { stats: StatsData }) {
         </ResponsiveContainer>
       </ChartCard>
 
+      {/* Power users */}
       <ChartCard title="Power users ce mois">
         {(!stats.power_users || stats.power_users.length === 0) ? (
           <EmptyChart message="Pas encore d'activité ce mois" />
@@ -406,30 +421,8 @@ function EngagementSection({ stats }: { stats: StatsData }) {
           </div>
         )}
       </ChartCard>
-    </div>
-  );
-}
 
-function ProductSection({ stats }: { stats: StatsData }) {
-  const draftsData = Object.entries(stats.drafts_by_canal || {})
-    .filter(([, v]) => v > 0)
-    .map(([canal, count]) => ({ canal, count, label: CANAL_LABELS[canal] || canal }))
-    .sort((a, b) => b.count - a.count);
-
-  const scoreDistData = Object.entries(stats.score_distribution || {})
-    .map(([range, count], i) => ({ range, count, fill: PIE_COLORS[i % PIE_COLORS.length] }));
-
-  const maxFeature = Math.max(...stats.top_features.map(f => f.count), 1);
-
-  return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <KpiCard title="Brouillons créés" value={stats.drafts_this_month} sub="ce mois" />
-        <KpiCard title="Posts planifiés" value={stats.calendar_posts_this_month} sub="ce mois" />
-        <KpiCard title="Score contenu moyen" value={stats.avg_content_score} suffix="/100" />
-        <KpiCard title="Générations IA" value={stats.ai_total_this_month} trend={stats.ai_total_this_month - (stats.ai_total_prev_month || 0)} sub="ce mois" />
-      </div>
-
+      {/* Brouillons par canal + Distribution scores branding */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ChartCard title="Brouillons par canal">
           {draftsData.length === 0 ? (
@@ -453,7 +446,7 @@ function ProductSection({ stats }: { stats: StatsData }) {
               <YAxis allowDecimals={false} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={24} />
               <Tooltip contentStyle={tooltipStyle} />
               <Bar dataKey="count" radius={[6, 6, 0, 0]} name="Utilisatrices">
-                {scoreDistData.map((entry, i) => (
+                {scoreDistData.map((entry) => (
                   <Cell key={entry.range} fill={entry.fill} />
                 ))}
               </Bar>
@@ -462,6 +455,7 @@ function ProductSection({ stats }: { stats: StatsData }) {
         </ChartCard>
       </div>
 
+      {/* Détail fonctionnalités IA (toutes) */}
       <ChartCard title="Détail fonctionnalités IA (toutes)">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
           {stats.top_features.map(f => (
