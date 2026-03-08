@@ -880,9 +880,18 @@ export async function processScreenshots(
         binary += String.fromCharCode(bytes[i]);
       }
       const base64 = btoa(binary);
-      const mediaType = ext === "png" ? "image/png" 
-        : ext === "webp" ? "image/webp" 
-        : "image/jpeg";
+      // Detect actual image format from magic bytes instead of relying on extension
+      let mediaType: string;
+      if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) {
+        mediaType = "image/png";
+      } else if (bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF) {
+        mediaType = "image/jpeg";
+      } else if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46) {
+        mediaType = "image/webp";
+      } else {
+        // Fallback to extension-based detection
+        mediaType = ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg";
+      }
 
       images.push({ base64, mediaType });
     } catch (e) {
