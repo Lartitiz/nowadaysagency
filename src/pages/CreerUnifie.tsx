@@ -1164,6 +1164,19 @@ export default function CreerUnifie() {
             console.warn("Pinterest visual upload failed (non-blocking):", err);
           }
         }
+
+        // Upload overlay Pinterest photo brief
+        if (selectedFormat === "pinterest_photo" && photoBriefOverlayHtml) {
+          try {
+            toast.info("Upload de l'overlay...");
+            const overlayUrls = await uploadPinterestVisualToStorage(postId, photoBriefOverlayHtml);
+            if (overlayUrls.length > 0) {
+              updates.visual_urls = overlayUrls;
+            }
+          } catch (err) {
+            console.warn("Overlay upload failed (non-blocking):", err);
+          }
+        }
         
         if (Object.keys(updates).length > 0) {
           const currentDetail = storyDetail || {};
