@@ -34,64 +34,100 @@ serve(async (req) => {
       serviceRoleKey
     );
 
-    const enrichmentSystemPrompt = `Tu es l'assistante com' de L'Assistant Com'. Tu reçois le contenu scrappé du site web et les réponses d'onboarding.
+    const enrichmentSystemPrompt = `Tu es un·e expert·e en communication et branding. On te donne le contenu en ligne d'une entreprise ou d'un·e solopreneur·e ainsi que ses réponses d'onboarding. Ta mission : analyser tout ça et pré-remplir 7 sections de branding.
 
-Ta mission : déduire un maximum d'informations sur son branding à partir de ce contenu.
+Pour chaque section, donne une réponse structurée en JSON. Sois concret·e, précis·e, et utilise les mots que la personne utilise elle-même sur ses supports. Ne sois pas générique.
 
-- Utilise l'écriture inclusive avec le point médian.
-- Tutoie.
-- Pour le branding_prefill, déduis un maximum depuis le contenu scrappé. Si tu trouves des offres sur le site, liste-les. Si tu peux deviner l'histoire, résume-la. Si tu identifies des combats ou convictions, note-les. Mieux vaut proposer quelque chose que la personne modifiera plutôt que laisser vide.
-- Pour les offres, cherche : pages services, tarifs, accompagnements, formations, produits.
-- Pour le story_draft, utilise la page à propos, les réponses libres (uniqueness, positioning).
-- Pour les combats, identifie les causes défendues, les refus assumés, les convictions fortes.
-- Pour les content_pillars, identifie les 3 grands thèmes récurrents.
+Si tu n'as pas assez d'infos pour remplir une section, mets "confidence": "low" et explique ce qui manque. Si tu es confiant·e, mets "confidence": "high".
 
-- Pour le voice_prefill, analyse le style d'écriture du contenu scrappé (site, LinkedIn). Identifie : le niveau de langue (soutenu, courant, familier), le rythme (phrases courtes/longues, alternance), les expressions récurrentes, les mots ou tournures à éviter car absents du vocabulaire de la personne.
-- Pour le charter_prefill, identifie les couleurs dominantes visibles dans le contenu HTML du site (couleurs de fond, couleurs de texte, couleurs d'accent des boutons/liens). Identifie les polices si visible dans le CSS inline ou les font-family. Décris l'ambiance visuelle en 3 mots-clés. Si le site n'a pas été scrappé, mets tout à null.
-- Pour le combat_structured, décompose les combats en 4 dimensions : la cause (pourquoi elle fait ça), les combats (contre quoi elle lutte), l'alternative (ce qu'elle propose à la place), les refus (ce qu'elle refuse de faire). Si une dimension n'est pas identifiable, mets null.
+Réponds UNIQUEMENT avec un objet JSON valide, sans markdown, sans backticks.
 
-RÉPONDRE EN JSON (pas de markdown, pas de backticks) :
+Structure attendue :
 
 {
   "branding_prefill": {
     "positioning": "phrase de positionnement déduite ou null",
     "mission": "mission déduite ou null",
     "target_description": "description de la cible idéale déduite ou null",
+    "target_problem": "problème principal de la cible ou null",
+    "target_beliefs": "croyances limitantes de la cible ou null",
     "tone_keywords": ["mot-clé 1", "mot-clé 2", "mot-clé 3"],
     "tone_style": "description du style de communication ou null",
     "combats": ["conviction 1", "conviction 2"],
     "values": ["valeur 1", "valeur 2", "valeur 3"],
     "content_pillars": ["pilier 1", "pilier 2", "pilier 3"],
     "story_draft": "2-4 phrases résumant le parcours ou null",
-    "offers": [{ "name": "nom", "description": "description courte", "price": "prix ou null" }]
+    "offers": [{ "name": "nom", "description": "description courte", "price": "prix ou null" }],
+    "value_prop_sentence": "phrase de proposition de valeur ou null",
+    "value_prop_problem": "problème résolu ou null",
+    "value_prop_solution": "solution apportée ou null",
+    "value_prop_difference": "différenciateur ou null",
+    "value_prop_proof": "preuve ou null"
   },
   "voice_prefill": {
     "voice_summary": "description en 2-3 phrases de comment cette personne écrit ou null",
+    "voice_description": "description du ton global (ex: 'Direct et chaleureux, comme une amie experte') ou null",
+    "tone_register": "tutoiement ou vouvoiement",
+    "tone_level": "accessible, expert, technique ou vulgarisateur",
+    "tone_style_chip": "direct, poétique, storytelling, factuel ou autre",
+    "tone_humor": "auto-dérision, absurde, pince-sans-rire, pas d'humour ou autre",
+    "tone_engagement": "militant, discret ou modéré",
     "tone_patterns": ["pattern 1", "pattern 2"],
     "signature_expressions": ["expression 1", "expression 2"],
-    "banned_expressions": ["expression à éviter 1", "expression à éviter 2"]
+    "banned_expressions": ["expression à éviter 1", "expression à éviter 2"],
+    "key_expressions": "expressions ou mots récurrents sur le site (séparés par des virgules) ou null",
+    "things_to_avoid": "mots ou formulations que cette marque évite visiblement ou null",
+    "target_verbatims": "phrases que la cible pourrait dire (déduit du positionnement) ou null",
+    "channels": ["canaux de communication détectés"]
   },
   "charter_prefill": {
-    "color_primary": "code hex ou null",
+    "confidence": "high|medium|low",
+    "color_primary": "code hex ou null — UNIQUEMENT si détecté dans le CSS/HTML, ne pas inventer",
     "color_secondary": "code hex ou null",
     "color_accent": "code hex ou null",
     "color_background": "code hex ou null",
     "color_text": "code hex ou null",
-    "font_title": "nom de la police ou null",
-    "font_body": "nom de la police ou null",
+    "font_title": "nom de la police détectée dans le CSS/Google Fonts ou null",
+    "font_body": "nom de la police body détectée ou null",
     "mood_keywords": ["mot-clé 1", "mot-clé 2", "mot-clé 3"],
-    "photo_style": "description ou null"
+    "photo_style": "description du style visuel global ou null"
   },
   "combat_structured": {
-    "combat_cause": "cause ou null",
-    "combat_fights": "combats ou null",
-    "combat_alternative": "alternative ou null",
-    "combat_refusals": "refus ou null"
+    "combat_cause": "pourquoi elle fait ça ou null",
+    "combat_fights": "contre quoi elle lutte ou null",
+    "combat_alternative": "ce qu'elle propose à la place ou null",
+    "combat_refusals": "ce qu'elle refuse de faire ou null"
+  },
+  "persona_prefill": {
+    "confidence": "high|medium|low",
+    "description": "description courte du persona en une phrase ou null",
+    "goals": ["objectif 1", "objectif 2"],
+    "frustrations": ["frustration 1", "frustration 2"],
+    "desires": ["désir 1", "désir 2"],
+    "beautiful_world": "dans un monde idéal, à quoi ressemblerait la situation de cette personne ou null",
+    "first_actions": "premières actions concrètes en travaillant avec cette marque ou null"
+  },
+  "content_strategy_prefill": {
+    "confidence": "high|medium|low",
+    "pillars": [{"label": "nom", "description": "description"}],
+    "creative_twist": "angle créatif unique ou null",
+    "formats": ["format 1", "format 2"],
+    "rhythm": "rythme de publication détecté ou null",
+    "editorial_line": "ligne éditoriale déduite ou null"
   }
-}`;
+}
+
+Précisions importantes :
+- Pour les offres, cherche : pages services, tarifs, accompagnements, formations, produits. Liste TOUTES les offres détectées.
+- Pour le story_draft, utilise la page à propos, les réponses libres (uniqueness, positioning).
+- Pour les combats, identifie les causes défendues, les refus assumés, les convictions fortes.
+- Pour la charte graphique, remplis les couleurs UNIQUEMENT si tu détectes des codes HEX, des variables CSS ou des couleurs spécifiques dans les informations visuelles. Ne pas inventer de couleurs.
+- font_title et font_body : les typographies détectées dans le CSS ou Google Fonts.
+- Pour le persona, déduis à partir du positionnement et du contenu : à qui s'adresse cette personne ?
+- Pour la proposition de valeur, synthétise le problème résolu, la solution et le différenciateur.`;
 
     const opusModel = getModelForAction("branding_audit");
-    const enrichmentRaw = await callAnthropicSimple(opusModel, enrichmentSystemPrompt, userPrompt, 0.7, 6144);
+    const enrichmentRaw = await callAnthropicSimple(opusModel, enrichmentSystemPrompt, userPrompt, 0.7, 8192);
 
     let enrichmentResult: any;
     try {
