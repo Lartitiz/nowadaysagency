@@ -319,6 +319,37 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
     if (d >= now30) activeMonth++;
   }
 
+  // Inactive paid users (no sign-in for 14 days)
+  const fourteenDaysAgo = new Date(now);
+  fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+  const inactivePaid = activePaidSubs
+    .filter((s: any) => {
+      const lastSign = authMap.get(s.user_id);
+      return !lastSign || new Date(lastSign) < fourteenDaysAgo;
+    })
+    .map((s: any) => {
+      const prof = profiles.find((p: any) => p.user_id === s.user_id);
+      const lastSign = authMap.get(s.user_id);
+      return {
+        user_id: s.user_id,
+        prenom: prof?.prenom || prof?.email || "Anonyme",
+        plan: s.plan,
+        last_sign_in: lastSign || null,
+      };
+    });
+
+  // Zombie users (signed up 7+ days ago, zero AI usage)
+  const sevenDaysAgo = new Date(now);
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const zombieUsers = clientProfiles
+    .filter((p: any) => {
+      const createdAt = new Date(p.created_at);
+      if (createdAt > sevenDaysAgo) return false;
+      const aiCount = aiCountByUser.get(p.user_id) || 0;
+      return aiCount === 0;
+    })
+    .length;
+
   // AI by day (last 30 days)
   const aiByDay: { date: string; count: number }[] = [];
   for (let i = 29; i >= 0; i--) {
