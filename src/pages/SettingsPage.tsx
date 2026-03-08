@@ -454,6 +454,7 @@ export default function SettingsPage() {
                       localStorage.removeItem("lac_missions_collapsed");
                       localStorage.removeItem("lac_missions_first_seen");
                       localStorage.removeItem("lac_missions_dismissed");
+                      localStorage.removeItem("lac_branding_cache_refreshed");
                       localStorage.removeItem("lac_plan_welcomed");
                       localStorage.removeItem("lac_plan_tour_seen");
 
