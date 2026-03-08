@@ -475,6 +475,15 @@ export default function CreerStepResult({
             )}
           </>
         )}
+        {format === "pinterest_photo" && result?.overlay_html && (
+          <>
+            {onExportPinterestPng && (
+              <Button variant="ghost" size="sm" onClick={onExportPinterestPng} className="gap-1.5 text-xs text-muted-foreground">
+                <Download className="h-3.5 w-3.5" /> PNG overlay
+              </Button>
+            )}
+          </>
+        )}
         <Button variant="ghost" size="sm" onClick={onReset} className="gap-1.5 text-xs text-muted-foreground">
           <RotateCcw className="h-3.5 w-3.5" /> Nouveau contenu
         </Button>
