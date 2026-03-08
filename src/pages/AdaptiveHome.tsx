@@ -225,7 +225,7 @@ export default function AdaptiveHome() {
         </div>
 
         {/* C. Mini-cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+        <div data-tour="card-mini-actions" className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
           {MINI_CARDS.map((card) => (
             <div
               key={card.route}
