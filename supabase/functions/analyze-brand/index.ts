@@ -203,7 +203,8 @@ serve(async (req) => {
 
 async function callClaude(
   content: Record<string, string>,
-  sourcesUsed: string[]
+  sourcesUsed: string[],
+  styleHints: string = ""
 ): Promise<Record<string, unknown>> {
   const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
   if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY non configurée");
