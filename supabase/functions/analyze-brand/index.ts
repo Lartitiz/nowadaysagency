@@ -256,9 +256,13 @@ Précisions sur charter :
 - visual_style_description : description courte du style visuel global
 - Si aucune information visuelle n'est présente dans les sources, mets confidence: "low" et laisse les champs vides.`;
 
-  const userPrompt = Object.entries(content)
+  let userPrompt = Object.entries(content)
     .map(([source, text]) => `=== SOURCE: ${source.toUpperCase()} ===\n${text}`)
     .join("\n\n");
+
+  if (styleHints) {
+    userPrompt += `\n\n=== INFORMATIONS VISUELLES DÉTECTÉES DANS LE CSS/HTML ===\n${styleHints}`;
+  }
 
   const makeRequest = async (retry = false): Promise<Record<string, unknown>> => {
     const resp = await fetch("https://api.anthropic.com/v1/messages", {
