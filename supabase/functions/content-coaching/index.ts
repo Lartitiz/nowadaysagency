@@ -3,7 +3,7 @@ import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts"
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
-import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
+import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildIdentityBlock } from "../_shared/user-context.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req); const cors = corsHeaders;
@@ -233,14 +233,14 @@ RÉPONSES DE L'UTILISATRICE :
 ══════════════════════════════════════
 
 AVANT de proposer la moindre idée, identifie en interne (ne montre PAS) :
-- Son ACTIVITÉ PRÉCISE : qu'est-ce qu'elle fait concrètement ? (pas "solopreneuse", mais "photographe culinaire" ou "coach en reconversion" ou "céramiste")
+- Son ACTIVITÉ PRÉCISE : qu'est-ce qu'elle fait concrètement ? (ex : "photographe culinaire", "coach en reconversion", "céramiste", "consultant RH")
 - Sa CIBLE : à qui elle parle ? Quels sont leurs mots, leurs frustrations, leurs rêves ?
 - Ses OFFRES : qu'est-ce qu'elle vend ? À quel prix ? Quelle transformation ?
 - Ses COMBATS : contre quoi elle se bat dans son secteur ? Quelles sont ses convictions ?
 - Ses VERBATIMS : quels mots utilisent ses clientes ? Quelles phrases reviennent ?
 - Son TON : tutoiement ou vouvoiement ? Oral ou soutenu ? Chaleureux ou expert ?
 
-Les 3 idées DOIVENT être ancrées dans CES éléments. Une idée qui pourrait s'appliquer à n'importe quelle solopreneuse est TROP GÉNÉRIQUE.
+Les 3 idées DOIVENT être ancrées dans CES éléments. Une idée qui pourrait s'appliquer à n'importe quel·le entrepreneur·e est TROP GÉNÉRIQUE.
 
 TEST DE SPÉCIFICITÉ : pour chaque idée, vérifie qu'elle ne pourrait PAS fonctionner pour quelqu'un dans un autre domaine. Si oui, l'idée est trop vague. Recommence.
 

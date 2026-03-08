@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { getUserContext, formatContextForAI } from "../_shared/user-context.ts";
+import { getUserContext, formatContextForAI, buildIdentityBlock } from "../_shared/user-context.ts";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { ANTI_SLOP, CORE_PRINCIPLES } from "../_shared/copywriting-prompts.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
@@ -72,7 +72,7 @@ serve(async (req) => {
       ? recentPosts.map((p: any) => `- ${p.theme} (${p.format || "post"})`).join("\n")
       : "Aucun post récent.";
 
-    const systemPrompt = `Tu es une directrice éditoriale senior spécialisée en personal branding pour solopreneuses. Tu planifies des semaines de contenu STRATÉGIQUES et ORIGINALES.
+    const systemPrompt = `${buildIdentityBlock(ctx.profile, "directrice éditoriale senior")} Tu planifies des semaines de contenu STRATÉGIQUES et ORIGINALES.
 
 ${CORE_PRINCIPLES}
 

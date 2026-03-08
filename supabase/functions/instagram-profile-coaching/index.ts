@@ -4,7 +4,7 @@ import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
-import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
+import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildIdentityBlock } from "../_shared/user-context.ts";
 
 const MODULE_QUESTIONS: Record<string, string[]> = {
   bio: [
@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
     if (phase === "questions") {
       const baseQuestions = MODULE_QUESTIONS[module] || MODULE_QUESTIONS.bio;
 
-      const systemPrompt = `Tu es une consultante Instagram experte. Tu accompagnes des solopreneuses créatives.
+      const systemPrompt = `${buildIdentityBlock(ctx.profile, "consultante Instagram experte")}
 
 CONTEXTE BRANDING :
 ${contextText}
@@ -167,7 +167,7 @@ Chaque proposal doit avoir field: "alaune_1", "alaune_2", etc.`,
 Proposals avec field: "nom_option_1", "nom_option_2", "nom_option_3", "ligne_editoriale".`,
       };
 
-      const systemPrompt = `Tu es une consultante Instagram experte. Tu accompagnes des solopreneuses créatives. À partir des réponses de l'utilisatrice, génère un diagnostic actionnable.
+      const systemPrompt = `${buildIdentityBlock(ctx.profile, "consultante Instagram experte")} À partir des réponses de l'utilisatrice, génère un diagnostic actionnable.
 
 CONTEXTE BRANDING :
 ${contextText}

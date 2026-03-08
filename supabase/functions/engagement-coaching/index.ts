@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
+import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildIdentityBlock } from "../_shared/user-context.ts";
 import { callAnthropic, getModelForAction } from "../_shared/anthropic.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { validateRequiredFields } from "../_shared/ai-validators.ts";
@@ -41,7 +41,7 @@ serve(async (req) => {
     const context = await getUserContext(supabase, userId, workspace_id);
     const contextStr = formatContextForAI(context, CONTEXT_PRESETS.comments);
 
-    const systemPrompt = `Tu es une experte en engagement sur les réseaux sociaux. Tu aides des solopreneuses créatives à écrire des commentaires stratégiques qui attirent l'attention des bonnes personnes.
+    const systemPrompt = `${buildIdentityBlock(context.profile, "experte en engagement sur les réseaux sociaux")} Tu aides à écrire des commentaires stratégiques qui attirent l'attention des bonnes personnes.
 
 VOIX DE L'UTILISATRICE :
 ${contextStr}

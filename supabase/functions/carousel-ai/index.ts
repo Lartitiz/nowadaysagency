@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallback } from "../_shared/user-context.ts";
+import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallback, buildIdentityBlock } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropic, getModelForAction, getModelForRichContent } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
@@ -78,7 +78,7 @@ serve(async (req) => {
       }
     }
 
-    let systemPrompt = buildSystemPrompt(brandingContext, isLinkedIn);
+    let systemPrompt = buildSystemPrompt(brandingContext, isLinkedIn, ctx.profile);
 
     // Inject launch context if present
     if (launch_context && (type === "express_full" || type === "hooks" || type === "slides")) {
@@ -295,7 +295,7 @@ Réponds UNIQUEMENT en JSON valide :
   }
 });
 
-function buildSystemPrompt(brandingContext: string, isLinkedIn: boolean = false): string {
+function buildSystemPrompt(brandingContext: string, isLinkedIn: boolean = false, profile?: any): string {
   return `${BASE_SYSTEM_RULES}
 
 Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :
@@ -306,8 +306,8 @@ Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORIT
 - Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA
 
 ${isLinkedIn
-  ? `Tu es une experte en communication LinkedIn spécialisée dans les carrousels PDF. Tu crées du contenu professionnel et engagé pour des structures (coopératives, assos, PME engagées) et des solopreneur·es qui veulent se positionner comme expert·es sur LinkedIn.`
-  : `Tu es une experte en copywriting Instagram spécialisée dans les carrousels. Tu crées du contenu pour des solopreneuses, freelances, créatrices et coachs qui veulent communiquer de manière éthique et authentique.`}
+  ? `${buildIdentityBlock(profile, "experte en communication LinkedIn spécialisée dans les carrousels PDF")} Tu crées du contenu professionnel et engagé.`
+  : `${buildIdentityBlock(profile, "experte en copywriting Instagram spécialisée dans les carrousels")} Tu crées du contenu authentique et percutant.`}
 
 ${brandingContext}
 
@@ -750,7 +750,7 @@ OBJECTIF : ${OBJ_LABELS[objective] || objective || "non précisé"}
 ${objective ? `\nOriente les questions vers cet objectif. Si "vente" : demande des témoignages clients, des résultats, des transformations. Si "engagement" : demande des anecdotes personnelles, des moments vécus. Si "visibilité" : demande des opinions tranchées, des constats provocants.\n` : ""}${brandingBlock}${angleBlock}
 ${isLinkedIn ? `\nATTENTION : c'est un carrousel LINKEDIN. Les questions doivent orienter vers du contenu expert et professionnel :\n- Demander des données, des résultats concrets, des leçons métier\n- Chercher l'expertise spécifique (pas juste l'émotion)\n- Orienter vers du contenu qui positionne comme référence sur le sujet` : ""}
 
-TON RÔLE : Tu es une coach com' qui aide une solopreneuse/créatrice à extraire son vécu, ses opinions et son expertise PERSONNELLE pour que le contenu ne soit pas générique.
+TON RÔLE : Tu es une coach com' qui aide l'utilisatrice à extraire son vécu, ses opinions et son expertise PERSONNELLE pour que le contenu ne soit pas générique.
 
 RÈGLES pour les questions :
 - Chaque question doit être liée SPÉCIFIQUEMENT au sujet "${subject}" et au format ${formatLabel}

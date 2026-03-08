@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallback } from "../_shared/user-context.ts";
+import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallback, buildIdentityBlock } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropic, AnthropicError, getModelForAction, getModelForRichContent } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
@@ -84,7 +84,7 @@ serve(async (req) => {
       }
     }
 
-    let systemPrompt = buildSystemPrompt(brandingContext);
+    let systemPrompt = buildSystemPrompt(brandingContext, ctx.profile);
 
     // Inject launch context if present
     if (launch_context && (type === "hooks" || type === "script")) {
@@ -162,7 +162,7 @@ serve(async (req) => {
   }
 });
 
-function buildSystemPrompt(brandingContext: string): string {
+function buildSystemPrompt(brandingContext: string, profile?: any): string {
   return `${BASE_SYSTEM_RULES}
 
 Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :
@@ -172,13 +172,13 @@ Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORIT
 - Imite les patterns de ton et de structure
 - Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA
 
-Tu es experte en création de Reels Instagram pour des solopreneuses créatives et engagées.
+${buildIdentityBlock(profile, "experte en création de Reels Instagram")}
 
 ${brandingContext}
 
 ## TON DU SCRIPT
 
-Tu écris un script fait pour être DIT face caméra par une solopreneuse, pas lu ni joué par une actrice.
+Tu écris un script fait pour être DIT face caméra par l'utilisatrice, pas lu ni joué par une actrice.
 
 - Phrases parlées : "Le truc c'est que" > "Il est important de noter que"
 - Pauses naturelles marquées par [...] entre les idées

@@ -1,6 +1,7 @@
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
+import { buildIdentityBlock } from "../_shared/user-context.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -15,7 +16,7 @@ Deno.serve(async (req) => {
     let userPrompt = "";
 
     if (action === "score") {
-      systemPrompt = `Tu es experte en copywriting éthique pour solopreneuses créatives.
+      systemPrompt = `Tu es experte en copywriting éthique.
 
 Évalue ce contenu sur 10 critères. Note de 1 à 10 pour chacun.
 

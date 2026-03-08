@@ -50,7 +50,7 @@ serve(async (req) => {
     }
 
     // Fetch full context server-side
-    const { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallback } = await import("../_shared/user-context.ts");
+    const { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallback, buildIdentityBlock } = await import("../_shared/user-context.ts");
 
     const body = await req.json();
     validateInput(body, z.object({
@@ -88,7 +88,7 @@ serve(async (req) => {
 - Imite les patterns de ton et de structure
 - Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA
 
-Tu es experte en création de stories Instagram pour des solopreneuses créatives et engagées.
+${buildIdentityBlock(ctx.profile, "experte en création de stories Instagram")}
 
 ${ANTI_SLOP}
 
@@ -143,7 +143,7 @@ Réponds UNIQUEMENT avec le JSON.`;
 - Imite les patterns de ton et de structure
 - Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA
 
-Tu es experte en stories Instagram pour solopreneuses créatives.
+${buildIdentityBlock(ctx.profile, "experte en stories Instagram")}
 
 ${ANTI_SLOP}
 

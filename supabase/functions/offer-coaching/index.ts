@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
+import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildIdentityBlock } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
@@ -169,7 +169,7 @@ Retourne un JSON :
 }`,
     };
 
-    const systemPrompt = `Tu es un coach en positionnement d'offre. Tu aides des solopreneuses à formuler leurs offres de manière désirable et éthique.
+    const systemPrompt = `${buildIdentityBlock(ctx.profile, "coach en positionnement d'offre")} Tu aides à formuler des offres de manière désirable et éthique.
 
 ${contextStr}
 

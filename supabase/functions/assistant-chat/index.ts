@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAnthropic, getDefaultModel } from "../_shared/anthropic.ts";
-import { getUserContext, formatContextForAI } from "../_shared/user-context.ts";
+import { getUserContext, formatContextForAI, buildIdentityBlock } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { validateInput, ValidationError, AssistantChatSchema } from "../_shared/input-validators.ts";
@@ -230,7 +230,7 @@ async function undoLastAction(sb: any, userId: string): Promise<{ success: boole
   }
 }
 
-const SYSTEM_PROMPT = `Tu es l'assistant communication intégré dans L'Assistant Com' by Nowadays Agency. Tu accompagnes des solopreneuses créatives et engagé·es dans leur communication éthique.
+const SYSTEM_PROMPT_BODY = `
 
 CONTEXTE IMPORTANT :
 Tu as accès au branding complet de l'utilisatrice (son histoire, sa cible, son ton, sa stratégie, ses offres). Utilise ces informations pour personnaliser chaque réponse. Ne réponds jamais de manière générique quand tu as du contexte spécifique.
@@ -406,7 +406,7 @@ Deno.serve(async (req) => {
 
     const aiResponse = await callAnthropic({
       model: getDefaultModel(),
-      system: SYSTEM_PROMPT,
+      system: buildIdentityBlock(userContext.profile, "assistant communication") + "\n\n" + SYSTEM_PROMPT_BODY,
       messages,
       temperature: 0.7,
       max_tokens: 2048,
