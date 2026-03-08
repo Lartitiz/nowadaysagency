@@ -203,40 +203,33 @@ export default function AdminResetTool() {
       const userId = await resolveUserId();
       if (!userId) return;
 
-      // Reset ALL tables (no filter)
-      const { deleted, errors } = await resetTables(userId);
+      // Call the edge function which uses service role key (bypasses RLS)
+      const { data, error } = await supabase.functions.invoke("reset-onboarding", {
+        body: { targetUserId: userId },
+      });
 
-      // Reset profile onboarding fields
-      await (supabase.from("profiles") as any).update({
-        onboarding_completed: false,
-        onboarding_completed_at: null,
-        onboarding_step: null,
-        canaux: null,
-        main_blocker: null,
-        main_goal: null,
-        weekly_time: null,
-        diagnostic_data: null,
-      }).eq("user_id", userId);
-
-      // Reset user_plan_config onboarding
-      await (supabase.from("user_plan_config") as any).update({
-        onboarding_completed: false,
-        onboarding_completed_at: null,
-      }).eq("user_id", userId);
-
-      if (errors.length > 0) {
-        toast.warning(`🔥 ${deleted} tables reset, ${errors.length} erreurs`, { description: errors.join(" | "), duration: 10000 });
-      } else {
-        toast.success(`🔥 Compte ${targetEmail} remis à zéro. ${deleted} tables réinitialisées.`);
+      if (error) {
+        toast.error("Erreur lors du reset", { description: error.message });
+        return;
       }
 
-      // Clear onboarding localStorage cache
+      if (data?.errors?.length > 0) {
+        toast.warning(`🔥 ${data.tables_cleaned} tables reset, ${data.errors.length} erreurs`, { description: data.errors.join(" | "), duration: 10000 });
+      } else {
+        toast.success(`🔥 Compte ${targetEmail} remis à zéro. ${data?.tables_cleaned || 0} tables réinitialisées.`);
+      }
+
+      // Clear ALL onboarding & dashboard localStorage cache
       localStorage.removeItem("lac_onboarding_step");
       localStorage.removeItem("lac_onboarding_answers");
       localStorage.removeItem("lac_onboarding_branding");
       localStorage.removeItem("lac_onboarding_ts");
       localStorage.removeItem("lac_prenom");
       localStorage.removeItem("lac_activite");
+      localStorage.removeItem("lac_welcome_seen");
+      localStorage.removeItem("lac_dashboard_tour_seen");
+      localStorage.removeItem("branding_skip_import");
+      localStorage.removeItem("lac_onboarding_reset");
 
       // Redirect to onboarding if the reset target is the current user
       const { data: { user } } = await supabase.auth.getUser();
