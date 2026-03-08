@@ -554,7 +554,7 @@ HASHTAGS :
 - Émotionnel sans pathos : vulnérabilité comme enseignement, pas comme plainte
 - Humour discret, bienveillant, jamais cynique
 - Aller au bout des idées, ne pas raccourcir artificiellement
-- Si solopreneuses : "tu" / Si structures : "vous" chaleureux
+- Tutoiement par défaut sauf si le profil de voix indique le vouvoiement
 
 ══ GARDE-FOUS ══
 
