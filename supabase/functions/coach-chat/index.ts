@@ -77,6 +77,8 @@ serve(async (req) => {
       includeAudit: true,
     });
 
+    const isProfileEmpty = !ctx.profile?.activite && !ctx.profile?.mission;
+
     const pageLabel = page_context || "page inconnue";
 
     // Pre-gen coaching mode
