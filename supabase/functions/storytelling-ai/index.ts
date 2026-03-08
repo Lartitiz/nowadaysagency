@@ -68,7 +68,7 @@ serve(async (req) => {
 
     if (type === "improve") {
       // Improve a single step's text
-      systemPrompt = `Tu es coach en storytelling pour des solopreneuses créatives et éthiques.
+      systemPrompt = `Tu es coach en storytelling.
 
 CONTEXTE DE L'ÉTAPE : ${step_context || ""}
 
