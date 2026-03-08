@@ -336,6 +336,7 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
   const calendarByCanalMap: Record<string, number> = {};
   for (const c of calPosts) { const cn = c.canal || "autre"; calendarByCanalMap[cn] = (calendarByCanalMap[cn] || 0) + 1; }
   const avgContentScore = scores.length > 0 ? Math.round(scores.reduce((s: number, r: any) => s + (r.global_score || 0), 0) / scores.length) : 0;
+  const contentUsageRate = drafts.length > 0 ? Math.round((calPosts.length / drafts.length) * 100) : 0;
 
   // Branding scores
   const indexByUser = (arr: any[]) => {
