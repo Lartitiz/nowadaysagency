@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
     if (phase === "questions") {
       const baseQuestions = MODULE_QUESTIONS[module] || MODULE_QUESTIONS.bio;
 
-      const systemPrompt = `Tu es une consultante Instagram experte. Tu accompagnes des solopreneuses créatives.
+      const systemPrompt = `${buildIdentityBlock(ctx.profile, "consultante Instagram experte")}
 
 CONTEXTE BRANDING :
 ${contextText}
