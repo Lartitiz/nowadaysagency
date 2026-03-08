@@ -104,11 +104,11 @@ export default function CreerUnifie() {
   const [isLinkedInCarousel, setIsLinkedInCarousel] = useState(false);
   const [pinterestPinHtml, setPinterestPinHtml] = useState<string | null>(null);
   const [pinterestVisualGenerating, setPinterestVisualGenerating] = useState(false);
-  const [inspirationAnalysis, setInspirationAnalysis] = useState<any>(null);
-  const [inspirationProposals, setInspirationProposals] = useState<any[]>([]);
+  const [inspirationAnalysis, setInspirationAnalysis] = useState<any>(ps?.inspirationAnalysis || null);
+  const [inspirationProposals, setInspirationProposals] = useState<any[]>(ps?.inspirationProposals || []);
   const [chosenProposal, setChosenProposal] = useState<any>(null);
   const [inspirationImageBase64, setInspirationImageBase64] = useState<string | null>(null);
-  const [inspirationImagePreview, setInspirationImagePreview] = useState<string | null>(null);
+  const [inspirationImagePreview, setInspirationImagePreview] = useState<string | null>(ps?.inspirationImagePreview || null);
   const [photoBriefResult, setPhotoBriefResult] = useState<any>(null);
   const [photoBriefOverlayHtml, setPhotoBriefOverlayHtml] = useState<string | null>(null);
 
@@ -248,9 +248,12 @@ export default function CreerUnifie() {
         visualSlides,
         savedId,
         questions: questions || [],
+        inspirationAnalysis: inspirationAnalysis || undefined,
+        inspirationProposals: inspirationProposals || [],
+        inspirationImagePreview: inspirationImagePreview || null,
       });
     }
-  }, [step, ideaText, objective, selectedFormat, editorialAngle, editContent, result, visualSlides?.length, savedId, questions]);
+  }, [step, ideaText, objective, selectedFormat, editorialAngle, editContent, result, visualSlides?.length, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview]);
 
   // Pre-fill from URL/state & auto-advance (only when URL params are present)
   const initDone = useRef(false);
