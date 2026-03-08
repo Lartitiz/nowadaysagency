@@ -121,7 +121,13 @@ Précisions importantes :
 - Pour les offres, cherche : pages services, tarifs, accompagnements, formations, produits. Liste TOUTES les offres détectées.
 - Pour le story_draft, utilise la page à propos, les réponses libres (uniqueness, positioning).
 - Pour les combats, identifie les causes défendues, les refus assumés, les convictions fortes.
-- CHARTE GRAPHIQUE — RÈGLE ABSOLUE : les champs color_* et font_* doivent contenir UNIQUEMENT des valeurs que tu trouves LITTÉRALEMENT dans les données fournies (sections "Couleurs détectées dans le CSS", "CSS variable", "Typographies détectées", "Google Fonts"). Si ces sections sont absentes ou vides, TOUS les champs color_* et font_* doivent être null. Ne JAMAIS inventer, deviner, ou déduire des couleurs à partir du contenu textuel ou de l'ambiance du site. Seul mood_keywords et photo_style peuvent être déduits du contenu. Si tu n'as pas de données CSS → confidence: "low" et tous les champs color/font à null.
+- CHARTE GRAPHIQUE — DEUX CAS :
+
+  1. Si des données CSS sont présentes (sections "Couleurs détectées dans le CSS", "CSS variable", "Typographies détectées", "Google Fonts") → utilise les valeurs EXACTES détectées. confidence: "high".
+
+  2. Si AUCUNE donnée CSS n'est présente (cas fréquent avec Squarespace, Wix, Webflow) → propose une palette d'ambiance cohérente avec le positionnement, l'univers et le ton de la marque. Choisis des couleurs qui reflètent l'identité visuelle perçue du site (tons sombres pour un univers luxe/intime, tons chauds pour l'artisanat, pastels pour le bien-être, etc.). confidence: "low". Pour les typos sans données CSS, propose une paire titre/corps cohérente avec l'ambiance (serif élégante pour le luxe, sans-serif ronde pour le friendly, etc.).
+
+  Dans les DEUX cas : mood_keywords et photo_style sont toujours déduits du contenu.
 - Pour le persona, déduis à partir du positionnement et du contenu : à qui s'adresse cette personne ?
 - Pour la stratégie de contenu : les piliers sont des THÉMATIQUES DE CONTENU, pas des conseils génériques. Chaque pilier = un grand sujet dont la marque parle sur ses réseaux. Exemples : pour une céramiste → "Coulisses de l'atelier", "Rituels du quotidien", "L'artisanat comme acte militant". Pour une coach yoga → "Pratiques et postures", "Philosophie du corps", "Témoignages de transformation". Déduis 3-4 piliers CONCRETS à partir de l'activité, du positionnement et du contenu existant de la marque. Ne JAMAIS proposer des piliers génériques comme "Organisation", "Régularité", "Engagement communautaire" ou "Éducation" sans les lier à l'univers spécifique de la marque.
 - Pour la proposition de valeur : synthétise en une phrase ce que cette marque apporte, à qui, et pourquoi c'est différent. Utilise le vocabulaire de la marque, pas du jargon marketing.
