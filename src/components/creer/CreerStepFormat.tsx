@@ -541,7 +541,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
         </Button>
         <Button
           size="sm"
-          disabled={!selectedFormat}
+          disabled={!selectedFormat || (selectedFormat === "pinterest_inspiration" && inspirationPhotos.length === 0)}
           onClick={handleNext}
           className="gap-1"
         >
