@@ -15,7 +15,7 @@ export function trackWarning(message: string, context?: Record<string, any>) {
   console.warn(message, context);
 
   if (import.meta.env.PROD) {
-    Sentry.captureMessage(message, {
+    (Sentry as any).captureMessage(message, {
       level: "warning",
       extra: context,
     });
