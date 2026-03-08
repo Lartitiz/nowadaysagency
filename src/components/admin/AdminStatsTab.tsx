@@ -102,7 +102,7 @@ export default function AdminStatsTab() {
   const [stats, setStats] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [section, setSection] = useState<Section>("overview");
+  const [section, setSection] = useState<Section>("dashboard");
 
   const fetchStats = useCallback(async () => {
     if (!session?.access_token) return;
