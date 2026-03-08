@@ -495,5 +495,9 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
     levels,
     channel_popularity: channelPopularity,
     ai_by_action_type: aiByActionType,
+    // Alerts
+    near_limit_free: nearLimitFree,
+    inactive_paid: inactivePaid,
+    zombie_users_count: zombieUsers,
   };
 }
