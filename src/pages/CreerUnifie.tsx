@@ -1610,6 +1610,7 @@ export default function CreerUnifie() {
                     else if (result.raw.slides) result.raw.slides = stories;
                   }
                 } : undefined}
+                photoBriefOverlayHtml={photoBriefOverlayHtml}
               />
             )}
 
