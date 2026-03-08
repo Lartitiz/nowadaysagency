@@ -175,7 +175,7 @@ Retourne UNIQUEMENT un JSON :
 
       const updateMap = MODULE_UPDATE_MAP[module] || MODULE_UPDATE_MAP.persona;
 
-      const systemPrompt = `Tu es une consultante en communication bienveillante et experte. Tu accompagnes des solopreneuses créatives.
+      const systemPrompt = `Tu es une consultante en communication bienveillante et experte.
 
 CONTEXTE DE L'AUDIT :
 ${audit ? `Score global : ${audit.score_global}/100\nSynthèse : ${audit.synthese}\nPoints faibles : ${JSON.stringify(audit.points_faibles || [])}` : "Pas d'audit disponible"}
