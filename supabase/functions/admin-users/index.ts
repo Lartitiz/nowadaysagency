@@ -285,6 +285,19 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
     totalTokens += (a.tokens_used || 0);
     aiCountByUser.set(a.user_id, (aiCountByUser.get(a.user_id) || 0) + 1);
   }
+
+  // Near-limit free users (7+/10 credits)
+  const nearLimitFree = [...aiCountByUser.entries()]
+    .filter(([userId, count]) => {
+      const sub = subsByUser.get(userId);
+      const plan = sub?.plan || "free";
+      return plan === "free" && count >= 7 && userId !== adminUserId;
+    })
+    .map(([userId, count]) => {
+      const prof = profiles.find((p: any) => p.user_id === userId);
+      return { user_id: userId, prenom: prof?.prenom || prof?.email || "Anonyme", credits_used: count };
+    })
+    .sort((a, b) => b.credits_used - a.credits_used);
   const topFeatures = Object.entries(aiByCategory)
     .map(([category, count]) => ({ category, count }))
     .sort((a, b) => b.count - a.count);
