@@ -556,13 +556,14 @@ export default function CreerUnifie() {
       setPinterestPinHtml(null);
       setPinterestVisualGenerating(true);
       try {
-        const pinType = editorialAngle || "infographie";
+        const pinType = chosenProposal?.pin_type || editorialAngle || "infographie";
         const { data, error: fnError } = await invokeWithTimeout("pinterest-visual", {
           body: {
             subject: enrichedSubject,
             pin_type: pinType,
             pinterest_link: pinterestData?.link,
             pinterest_board: pinterestData?.boardName,
+            ...(inspirationImageBase64 ? { reference_image_base64: inspirationImageBase64 } : {}),
             workspace_id: workspaceId || undefined,
           },
         }, 120000);
