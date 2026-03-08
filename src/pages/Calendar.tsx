@@ -806,44 +806,43 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
         {isMobile ? (
           mobileTab === "calendar" ? calendarContent : <CalendarIdeasSidebar onIdeaPlanned={fetchPosts} onIdeaClick={handleIdeaClick} isMobile />
         ) : (
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-            <div className="flex gap-6">
-              <div className="flex-1 min-w-0">{calendarContent}</div>
-              <div className={`shrink-0 transition-all duration-300 ${ideasCollapsed ? "w-10" : "w-[280px]"}`}>
-                <div className="sticky top-24">
-                  {ideasCollapsed ? (
-                    <button
-                      onClick={() => setIdeasCollapsed(false)}
-                      className="w-10 h-10 rounded-xl border border-border bg-card flex items-center justify-center hover:bg-muted transition-colors"
-                      title="Afficher les idées"
-                    >
-                      💡
-                    </button>
-                  ) : (
-                    <div className="relative">
-                      <button
-                        onClick={() => setIdeasCollapsed(true)}
-                        className="absolute -top-2 -right-2 z-10 w-7 h-7 rounded-full bg-destructive border border-destructive shadow-md flex items-center justify-center text-destructive-foreground hover:opacity-90 transition-colors"
-                        title="Replier le panneau idées"
-                      >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                      </button>
-                      <div className="border border-border rounded-2xl bg-card p-4 max-h-[calc(100vh-120px)] overflow-hidden flex flex-col">
-                        <CalendarIdeasSidebar onIdeaPlanned={fetchPosts} onIdeaClick={handleIdeaClick} />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-            <DragOverlay>
-              {activeDragItem ? (
+          <Suspense fallback={<div className="flex gap-6"><div className="flex-1 min-w-0">{calendarContent}</div></div>}>
+            <CalendarDndWrapper onDragStart={handleDragStart} onDragEnd={handleDragEnd} overlayContent={activeDragItem ? (
                 <div className="bg-card border border-primary/40 rounded-lg px-3 py-2 shadow-lg text-xs font-medium max-w-[180px]">
                   <span className="truncate block">{activeDragItem.type === "idea" ? `💡 ${activeDragItem.idea.titre}` : `${activeDragItem.post?.content_type_emoji || ""} ${activeDragItem.post?.theme}`}</span>
                 </div>
-              ) : null}
-            </DragOverlay>
-          </DndContext>
+              ) : null}>
+              <div className="flex gap-6">
+                <div className="flex-1 min-w-0">{calendarContent}</div>
+                <div className={`shrink-0 transition-all duration-300 ${ideasCollapsed ? "w-10" : "w-[280px]"}`}>
+                  <div className="sticky top-24">
+                    {ideasCollapsed ? (
+                      <button
+                        onClick={() => setIdeasCollapsed(false)}
+                        className="w-10 h-10 rounded-xl border border-border bg-card flex items-center justify-center hover:bg-muted transition-colors"
+                        title="Afficher les idées"
+                      >
+                        💡
+                      </button>
+                    ) : (
+                      <div className="relative">
+                        <button
+                          onClick={() => setIdeasCollapsed(true)}
+                          className="absolute -top-2 -right-2 z-10 w-7 h-7 rounded-full bg-destructive border border-destructive shadow-md flex items-center justify-center text-destructive-foreground hover:opacity-90 transition-colors"
+                          title="Replier le panneau idées"
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
+                        <div className="border border-border rounded-2xl bg-card p-4 max-h-[calc(100vh-120px)] overflow-hidden flex flex-col">
+                          <CalendarIdeasSidebar onIdeaPlanned={fetchPosts} onIdeaClick={handleIdeaClick} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </CalendarDndWrapper>
+          </Suspense>
         )}
         <LocalErrorBoundary fallbackMessage="Erreur dans le dialogue de post.">
           <CalendarPostDialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setPrefillData(null); }} editingPost={editingPost} selectedDate={selectedDate} defaultCanal={canalFilter} onSave={handleSave} onDelete={handleDelete} onUnplan={editingPost ? handleUnplan : undefined} onDateChange={(postId, newDate) => { handleMovePost(postId, newDate); setSelectedDate(newDate); if (editingPost) setEditingPost({ ...editingPost, date: newDate }); }} prefillData={prefillData} />
