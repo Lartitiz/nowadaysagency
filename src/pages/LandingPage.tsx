@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { usePageSEO } from "@/hooks/use-page-seo";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate, Link } from "react-router-dom";
 import {
@@ -277,6 +278,12 @@ function FeatureVisual({ type }: { type: string }) {
 export default function LandingPage() {
   const { user, loading } = useAuth();
   const [mobileNav, setMobileNav] = useState(false);
+
+  usePageSEO({
+    title: "L'Assistant Com' — Communication éthique pour créatrices",
+    description: "L'assistant de communication pour solopreneuses et créatrices éthiques. Branding, contenus IA, stratégie Instagram & LinkedIn. Gratuit, sans carte bancaire.",
+    canonical: "/",
+  });
 
   if (loading) {
     return (

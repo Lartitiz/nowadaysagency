@@ -1,8 +1,15 @@
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
+import { usePageSEO } from "@/hooks/use-page-seo";
 
 export default function MentionsLegalesPage() {
   const navigate = useNavigate();
+
+  usePageSEO({
+    title: "Mentions légales",
+    description: "Mentions légales de l'Assistant Com' by Nowadays Agency.",
+    canonical: "/mentions-legales",
+  });
 
   return (
     <div className="min-h-screen bg-background">

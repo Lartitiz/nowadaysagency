@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { usePageSEO } from "@/hooks/use-page-seo";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -117,6 +118,12 @@ export default function PricingPage() {
   const { plan, loading: planLoading } = useUserPlan();
   const { toast } = useToast();
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+
+  usePageSEO({
+    title: "Tarifs — Gratuit, Premium ou Binôme",
+    description: "Découvre les formules de l'Assistant Com'. Gratuit pour démarrer, Premium à 39€/mois pour l'IA illimitée, Binôme à 250€/mois avec coaching humain.",
+    canonical: "/pricing",
+  });
   
 
   const handleCheckout = async () => {

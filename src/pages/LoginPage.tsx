@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { usePageSEO } from "@/hooks/use-page-seo";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate, Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,6 +24,13 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [forgotMode, setForgotMode] = useState(false);
   const [forgotSent, setForgotSent] = useState(false);
+
+  usePageSEO({
+    title: "Connexion",
+    description: "Connecte-toi à ton espace Assistant Com' pour gérer ta communication.",
+    canonical: "/login",
+    noindex: true,
+  });
 
   if (authLoading) {
     return (

@@ -1,8 +1,15 @@
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
+import { usePageSEO } from "@/hooks/use-page-seo";
 
 export default function CguCgvPage() {
   const navigate = useNavigate();
+
+  usePageSEO({
+    title: "CGU & CGV",
+    description: "Conditions générales d'utilisation et de vente de l'Assistant Com' by Nowadays.",
+    canonical: "/cgu-cgv",
+  });
 
   return (
     <div className="min-h-screen bg-background">

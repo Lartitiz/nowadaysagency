@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { usePageSEO } from "@/hooks/use-page-seo";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
@@ -53,6 +54,12 @@ export default function ServicesPage() {
     }
     setLoadingKey(null);
   };
+
+  usePageSEO({
+    title: "Services à la carte",
+    description: "Coaching individuel, audit de communication et stratégie sur-mesure. Services à la carte pour solopreneuses et créatrices.",
+    canonical: "/services",
+  });
 
   return (
     <div className="min-h-screen bg-background">
