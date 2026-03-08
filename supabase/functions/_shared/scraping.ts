@@ -870,6 +870,10 @@ export async function processScreenshots(
       }
 
       const buffer = await fileData.arrayBuffer();
+      if (buffer.byteLength > MAX_SCREENSHOT_BYTES) {
+        console.warn(`processScreenshots: ${doc.file_name} too large (${(buffer.byteLength / 1024 / 1024).toFixed(1)}MB), skipping`);
+        continue;
+      }
       const bytes = new Uint8Array(buffer);
       let binary = "";
       for (let i = 0; i < bytes.length; i++) {
