@@ -456,24 +456,31 @@ export default function CreerStepResult({
             <RefreshCw className="h-3.5 w-3.5" /> Regénérer visuels
           </Button>
         )}
-        {format === "pinterest_visual" && (result?.pin_html || result?.title) && (
-          <>
-            {onExportPinterestPng && (
-              <Button variant="ghost" size="sm" onClick={onExportPinterestPng} className="gap-1.5 text-xs text-muted-foreground">
-                <Download className="h-3.5 w-3.5" /> PNG
+        {format === "pinterest_visual" && (result?.pin_html || result?.title) && (onExportPinterestPng || onExportPinterestEditablePptx || onExportPinterestPptx) && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground">
+                <Download className="h-3.5 w-3.5" /> Exporter <ChevronDown className="h-3 w-3 ml-0.5" />
               </Button>
-            )}
-            {onExportPinterestEditablePptx && (
-              <Button variant="ghost" size="sm" onClick={onExportPinterestEditablePptx} className="gap-1.5 text-xs text-muted-foreground">
-                <Download className="h-3.5 w-3.5" /> PPTX éditable
-              </Button>
-            )}
-            {onExportPinterestPptx && (
-              <Button variant="ghost" size="sm" onClick={onExportPinterestPptx} className="gap-1.5 text-xs text-muted-foreground">
-                <Download className="h-3.5 w-3.5" /> PPTX image
-              </Button>
-            )}
-          </>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {onExportPinterestEditablePptx && (
+                <DropdownMenuItem onClick={onExportPinterestEditablePptx}>
+                  Éditable (PowerPoint)
+                </DropdownMenuItem>
+              )}
+              {onExportPinterestPptx && (
+                <DropdownMenuItem onClick={onExportPinterestPptx}>
+                  Image fidèle (PPTX)
+                </DropdownMenuItem>
+              )}
+              {onExportPinterestPng && (
+                <DropdownMenuItem onClick={onExportPinterestPng}>
+                  Image PNG
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
         {format === "pinterest_photo" && result?.overlay_html && (
           <>
