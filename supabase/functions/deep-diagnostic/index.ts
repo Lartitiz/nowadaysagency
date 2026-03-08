@@ -6,7 +6,7 @@ import { callAnthropic, callAnthropicSimple, getModelForAction } from "../_share
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 
-const MAX_TEXT_PER_SOURCE = 5000;
+const MAX_TEXT_PER_SOURCE = 8000;
 const GLOBAL_TIMEOUT_MS = 55000;
 
 serve(async (req) => {
