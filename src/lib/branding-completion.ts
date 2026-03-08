@@ -144,9 +144,9 @@ export function calculateBrandingCompletion(data: BrandingRawData): BrandingComp
     const filledColors = (["color_primary", "color_secondary", "color_accent"] as const)
       .filter(k => filled(ch[k])).length;
     charterScore += Math.min(filledColors * 8, 25);
-    // Progressive: 10pts per changed font (max 20)
-    if (ch.font_title && ch.font_title !== "Inter") charterScore += 10;
-    if (ch.font_body && ch.font_body !== "Inter") charterScore += 10;
+    // Progressive: 10pts per filled font (max 20)
+    if (filled(ch.font_title)) charterScore += 10;
+    if (filled(ch.font_body)) charterScore += 10;
     if (Array.isArray(ch.mood_keywords) && ch.mood_keywords.length >= 1) {
       charterScore += Math.min(ch.mood_keywords.length * 7, 20);
     }
