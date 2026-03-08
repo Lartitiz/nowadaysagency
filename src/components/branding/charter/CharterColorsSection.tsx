@@ -9,12 +9,20 @@ import { SECTOR_PALETTES, DEFAULT_SECTOR } from "@/lib/charter-palettes";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
+const NEUTRAL_FALLBACKS: Record<string, string> = {
+  color_primary: "#888888",
+  color_secondary: "#555555",
+  color_accent: "#AAAAAA",
+  color_background: "#FFFFFF",
+  color_text: "#333333",
+};
+
 interface CharterData {
-  color_primary: string;
-  color_secondary: string;
-  color_accent: string;
-  color_background: string;
-  color_text: string;
+  color_primary: string | null;
+  color_secondary: string | null;
+  color_accent: string | null;
+  color_background: string | null;
+  color_text: string | null;
   custom_colors: string[];
   [key: string]: any;
 }
