@@ -72,7 +72,7 @@ serve(async (req) => {
         user_id: userId,
         url: websiteUrl,
         source_type: "website",
-        content: content.slice(0, 10000),
+        content: content.slice(0, 20000),
         style_hints: styleHints ? styleHints.slice(0, 3000) : null,
       }, { onConflict: "user_id,url" });
 
@@ -83,7 +83,7 @@ serve(async (req) => {
           user_id: userId,
           url: websiteUrl,
           source_type: "website",
-          content: content.slice(0, 10000),
+          content: content.slice(0, 20000),
           style_hints: styleHints ? styleHints.slice(0, 3000) : null,
         });
         if (insertError) console.error("scrape_cache insert fallback also failed:", insertError);
