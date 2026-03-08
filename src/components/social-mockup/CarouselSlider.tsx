@@ -54,7 +54,7 @@ export function CarouselSlider({ slides, mediaUrls }: CarouselSliderProps) {
 
       {/* Content */}
       {mediaUrls && mediaUrls[current] ? (
-        <img src={mediaUrls[current]} alt="" className="w-full h-full object-cover" />
+        <img src={mediaUrls[current]} alt={`Slide ${current + 1}`} className="w-full h-full object-cover" />
       ) : (
         <div className="w-full h-full flex flex-col items-center justify-center px-8" style={{ background: "linear-gradient(135deg, hsl(340 60% 96%), hsl(30 60% 97%))" }}>
           <p className="text-xl font-bold text-gray-900 text-center leading-tight mb-2" style={{ fontFamily: "'Libre Baskerville', serif" }}>

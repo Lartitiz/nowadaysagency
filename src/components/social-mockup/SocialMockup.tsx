@@ -92,7 +92,7 @@ function InstagramMockup({
           <CarouselSlider slides={slides} mediaUrls={mediaUrls} />
         )
       ) : mediaUrls && mediaUrls.length > 0 ? (
-        <img src={mediaUrls[0]} alt="" className={`w-full object-cover ${format === "reel" ? "aspect-[4/5]" : "aspect-square"}`} />
+        <img src={mediaUrls[0]} alt="Visuel du post" className={`w-full object-cover ${format === "reel" ? "aspect-[4/5]" : "aspect-square"}`} />
       ) : (
         <div
           className={`w-full flex items-center justify-center ${format === "reel" ? "aspect-[4/5]" : "aspect-square"}`}
