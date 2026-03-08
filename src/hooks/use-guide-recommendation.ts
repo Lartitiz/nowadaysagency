@@ -101,39 +101,36 @@ function buildRecommendation(
     };
   }
 
-  // P2 – Zero branding sections
-  if (sectionsFilled === 0) {
-    return FALLBACK;
-  }
-
-  // P3 – Storytelling done but no persona
-  if (bc.storytelling >= 50 && bc.persona < 50) {
-    return {
-      title: "Clarifie qui est ton·ta client·e idéal·e",
-      explanation:
-        "Ton histoire est posée, bravo ! Mais là il faut qu'on parle de l'essentiel : à qui tu t'adresses. Parce que parler à tout le monde, c'est parler à personne. *(Oui, je sais, on te l'a déjà dit. Mais cette fois, on le fait pour de vrai.)*",
-      ctaLabel: "C'est parti !",
-      ctaRoute: bc.persona > 0 ? "/branding/section?section=persona&tab=synthese" : "/branding/section?section=persona",
-      icon: "Users",
-      alternatives: [
-        { title: "Créer ton premier post", route: "/creer", icon: "PenLine" },
-        { title: "Continuer ton branding", route: "/branding", icon: "Palette" },
-      ],
-    };
-  }
-
-  // P4 – Branding < 3 sections
-  if (sectionsFilled < 3) {
+  // P2 – Fraîchement onboardé·e : pousser la création de contenu en priorité
+  // L'enrichissement a pré-rempli assez de branding pour que les générateurs fonctionnent
+  if (sectionsFilled <= 3 && calendarPosts === 0) {
+    const hasContent = contentsGenerated > 0;
+    if (!hasContent) {
+      return {
+        title: "Crée ton premier contenu",
+        explanation:
+          "Ton branding est posé, l'outil connaît ton projet. Le meilleur moyen de tester la puissance de l'outil, c'est de créer un contenu tout de suite. L'IA utilise tout ce que tu as renseigné pour écrire avec ta voix.",
+        ctaLabel: "Créer un contenu →",
+        ctaRoute: "/creer",
+        icon: "Sparkles",
+        alternatives: [
+          { title: "Affiner mon branding", route: "/branding", icon: "Palette" },
+          { title: "Faire un audit Instagram", route: "/instagram/audit", icon: "Search" },
+        ],
+      };
+    }
+    // A déjà créé du contenu mais branding incomplet → suggestion douce
     const next = getNextEmptySection(bc);
     const remaining = 7 - sectionsFilled;
     return {
-      title: "Continue à structurer ta com'",
-      explanation: `Tu avances bien, il te reste ${remaining} section${remaining > 1 ? "s" : ""}. Le truc c'est que chaque section nourrit les autres : ton persona influence ton ton, ton ton influence tes contenus... On continue ?`,
-      ctaLabel: "C'est parti !",
+      title: "Affine ton branding pour des contenus encore meilleurs",
+      explanation: `Tes premiers contenus sont lancés, bravo ! Pour que l'IA soit encore plus précise, il te reste ${remaining} section${remaining > 1 ? "s" : ""} de branding à compléter. Chaque info en plus rend tes contenus plus personnalisés.`,
+      ctaLabel: "Compléter →",
       ctaRoute: next.activeRoute,
-      icon: "Layers",
+      icon: "Palette",
       alternatives: [
-        { title: "Créer un contenu", route: "/creer", icon: "PenLine" },
+        { title: "Créer un autre contenu", route: "/creer", icon: "PenLine" },
+        { title: "Planifier mes contenus", route: "/calendrier", icon: "CalendarPlus" },
       ],
     };
   }
