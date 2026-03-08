@@ -24,7 +24,7 @@ function buildProfileBlock(p: any) {
 
 function buildPortraitPrompt(d: any, p: any): string {
   const profileBlock = buildProfileBlock(p);
-  return `Tu es experte en marketing persona pour des solopreneuses créatives et éthiques.
+  return `Tu es experte en marketing persona.
 
 DONNÉES DU PERSONA :
 - Frustrations (étape 1) : "${d.step_1_frustrations || ""}"
