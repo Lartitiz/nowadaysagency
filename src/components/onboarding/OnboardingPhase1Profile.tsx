@@ -31,7 +31,7 @@ export default function OnboardingPhase1Profile({ prenom, activite, onPrenomChan
             placeholder="Léa"
             autoFocus
             aria-label="Ton prénom"
-            onKeyDown={e => { if (e.key === "Enter" && prenom.trim().length >= 2) { e.preventDefault(); const activiteInput = document.getElementById("onboarding-activite"); activiteInput?.focus(); } }}
+            onKeyDown={e => { if (e.key === "Enter" && prenom.trim().length >= 2) { e.preventDefault(); } }}
             className="w-full text-xl p-4 border-b-2 border-border focus:border-primary outline-none bg-transparent transition-colors text-foreground placeholder:text-muted-foreground/50"
           />
         </div>
