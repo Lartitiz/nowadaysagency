@@ -172,7 +172,7 @@ Réponds en JSON :
         t.things_to_avoid ? `- Ce qu'on évite : ${t.things_to_avoid}` : "",
       ].filter(Boolean).join("\n");
 
-      systemPrompt = `Tu es expert·e en positionnement de marque pour des solopreneuses créatives et éthiques.
+      systemPrompt = `Tu es expert·e en positionnement de marque.
 
 ${NICHE_WRITING_RULES}
 
