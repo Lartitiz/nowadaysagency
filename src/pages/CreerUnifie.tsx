@@ -104,6 +104,7 @@ export default function CreerUnifie() {
   const [isLinkedInCarousel, setIsLinkedInCarousel] = useState(false);
   const [pinterestPinHtml, setPinterestPinHtml] = useState<string | null>(null);
   const [pinterestVisualGenerating, setPinterestVisualGenerating] = useState(false);
+  const [inspirationLoading, setInspirationLoading] = useState(false);
   const [inspirationAnalysis, setInspirationAnalysis] = useState<any>(ps?.inspirationAnalysis || null);
   const [inspirationProposals, setInspirationProposals] = useState<any[]>(ps?.inspirationProposals || []);
   const [chosenProposal, setChosenProposal] = useState<any>(null);
