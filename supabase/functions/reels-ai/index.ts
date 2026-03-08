@@ -84,7 +84,7 @@ serve(async (req) => {
       }
     }
 
-    let systemPrompt = buildSystemPrompt(brandingContext);
+    let systemPrompt = buildSystemPrompt(brandingContext, ctx.profile);
 
     // Inject launch context if present
     if (launch_context && (type === "hooks" || type === "script")) {
