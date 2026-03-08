@@ -51,24 +51,23 @@ serve(async (req) => {
       }
     }
 
-    // ====== SCRAPING ======
+    // ====== RÉCUPÉRATION DES DONNÉES (cache only, pas de scraping) ======
     const scrapedContent: Record<string, string> = {};
     const sourcesUsed: string[] = [];
     const sourcesFailed: string[] = [];
 
-    // Scrape in parallel
     const scrapePromises: Promise<void>[] = [];
 
+    // Website : lire le cache du pre-scrape UNIQUEMENT
     if (websiteUrl) {
       scrapePromises.push((async () => {
-        // 1. Check pre-scrape cache first
         try {
           const { data: cached } = await supabaseAdmin
             .from("scrape_cache")
             .select("content")
             .eq("user_id", userId)
             .eq("url", websiteUrl)
-            .gte("created_at", new Date(Date.now() - 30 * 60 * 1000).toISOString())
+            .gte("created_at", new Date(Date.now() - 60 * 60 * 1000).toISOString())
             .order("created_at", { ascending: false })
             .limit(1)
             .maybeSingle();
@@ -77,18 +76,6 @@ serve(async (req) => {
             scrapedContent.website = cached.content.slice(0, MAX_TEXT_PER_SOURCE);
             sourcesUsed.push("website");
             console.log("Website content loaded from pre-scrape cache");
-            return;
-          }
-        } catch (e) {
-          console.warn("Cache lookup failed, falling back to live scrape:", e);
-        }
-
-        // 2. Fallback : scrape en direct
-        try {
-          const text = await scrapeWebsite(websiteUrl, controller.signal);
-          if (text) {
-            scrapedContent.website = text.slice(0, MAX_TEXT_PER_SOURCE);
-            sourcesUsed.push("website");
           } else {
             sourcesFailed.push("website");
           }
@@ -97,9 +84,6 @@ serve(async (req) => {
         }
       })());
     }
-
-    // Instagram scraping disabled — handle is kept for audit tool, not used in diagnostic
-    // if (instagramHandle) { ... }
 
     // LinkedIn: prefer user-provided summary over scraping
     const linkedinSummary = freeformAnswers?.linkedin_summary;
@@ -121,14 +105,15 @@ serve(async (req) => {
       );
     }
 
-    // Process Instagram screenshots from uploads
+    // Process Instagram screenshots from uploads — max 1, size limit
     let instagramScreenshots: { base64: string; mediaType: string }[] = [];
     if (documentIds && documentIds.length > 0) {
       scrapePromises.push(
-        processScreenshots(supabaseAdmin, documentIds, userId)
+        processScreenshots(supabaseAdmin, documentIds.slice(0, 1), userId)
           .then((screenshots) => {
-            instagramScreenshots = screenshots;
-            if (screenshots.length > 0) {
+            // Filter out screenshots larger than 500KB base64 (~375KB image)
+            instagramScreenshots = screenshots.filter(s => s.base64.length < 500000).slice(0, 1);
+            if (instagramScreenshots.length > 0) {
               sourcesUsed.push("instagram_screenshot");
             } else {
               sourcesFailed.push("instagram_screenshot");
