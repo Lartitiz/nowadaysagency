@@ -17,6 +17,14 @@ export interface OnboardingMission {
 
 const MISSIONS_META = [
   {
+    id: "create",
+    title: "Crée ton premier contenu",
+    emoji: "✨",
+    time: "10 min",
+    route: "/creer",
+    description: "Génère un post avec l'IA qui connaît ta marque. Tu vas voir, c'est bluffant.",
+  },
+  {
     id: "storytelling",
     title: "Raconte ton histoire",
     emoji: "📖",
@@ -39,14 +47,6 @@ const MISSIONS_META = [
     time: "5 min",
     route: "/instagram/audit",
     description: "Un scan rapide de ton profil. Tu vois ce qui marche et ce qui coince.",
-  },
-  {
-    id: "create",
-    title: "Crée ton premier contenu",
-    emoji: "✨",
-    time: "10 min",
-    route: "/creer",
-    description: "Génère un post avec l'IA qui connaît ta marque. Tu vas voir, c'est bluffant.",
   },
   {
     id: "calendar",
