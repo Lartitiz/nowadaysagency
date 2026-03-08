@@ -64,7 +64,6 @@
     "jszip": "^3.10.1",
     "lucide-react": "^0.462.0",
     "mammoth": "^1.8.0",
-    "motion-utils": "12.6.3",
     "next-themes": "^0.3.0",
     "pdfjs-dist": "^4.8.69",
     "posthog-js": "^1.353.0",
