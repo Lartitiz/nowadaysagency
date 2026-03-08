@@ -1,6 +1,7 @@
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
+import { buildIdentityBlock } from "../_shared/user-context.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
