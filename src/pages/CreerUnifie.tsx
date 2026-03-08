@@ -773,7 +773,7 @@ export default function CreerUnifie() {
         });
         setIdeaText(proposal.subject);
       } catch (e: any) {
-        toast.error(e?.message || "Erreur lors de la génération du visuel");
+        if (!handleQuotaError(e)) toast.error(e?.message || "Erreur lors de la génération du visuel");
       } finally {
         setPinterestVisualGenerating(false);
       }
