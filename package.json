@@ -64,7 +64,6 @@
     "jszip": "^3.10.1",
     "lucide-react": "^0.462.0",
     "mammoth": "^1.8.0",
-    "motion-utils": "12.6.3",
     "next-themes": "^0.3.0",
     "pdfjs-dist": "^4.8.69",
     "posthog-js": "^1.353.0",
@@ -105,5 +104,10 @@
     "typescript-eslint": "^8.38.0",
     "vite": "^5.4.19",
     "vitest": "^3.2.4"
+  },
+  "overrides": {
+    "framer-motion": "12.6.3",
+    "motion-dom": "12.6.3",
+    "motion-utils": "12.6.3"
   }
 }
