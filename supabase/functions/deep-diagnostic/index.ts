@@ -292,7 +292,9 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
     userParts.push(`=== CONSIGNES FINALES ===
 - Le résumé (summary) doit faire 3-4 phrases et reprendre les mots de la personne.
 - Ne mets un score que pour les sources que tu as réellement analysées. Tout le reste : null.
-- Les forces et faiblesses doivent citer des éléments CONCRETS du contenu. Pas de phrases génériques.`);
+- RAPPEL CRITIQUE : chaque force/faiblesse DOIT avoir un "source" qui correspond à une section SOURCE réellement fournie ci-dessus. Si la source n'existe pas dans les données → tu ne génères PAS de force/faiblesse pour cette source. Cite toujours l'élément concret observé entre guillemets dans le "detail".
+- Exemple INTERDIT : dire "Bio Instagram incomplète" sans avoir de screenshot Instagram ni de texte de bio dans les données.
+- Exemple INTERDIT : dire "Pas de CTA sur le site" alors que le site contient un bouton d'action que tu n'as pas lu attentivement.`);
 
     const userPrompt = userParts.join("\n\n");
 
