@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   RefreshCw, TrendingUp, TrendingDown, Users, Euro,
   Activity, BarChart3, Sparkles, Target, Crown,
+  AlertTriangle, Zap, UserX,
 } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
