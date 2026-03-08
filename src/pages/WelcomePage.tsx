@@ -351,8 +351,8 @@ export default function WelcomePage() {
         const personaParts: string[] = [];
         if (persona.portrait_prenom) personaParts.push(persona.portrait_prenom);
         if (persona.description) personaParts.push(persona.description);
-        if (persona.step_1_frustrations) personaParts.push(`Frustrations : ${persona.step_1_frustrations.slice(0, 150)}...`);
-        if (persona.step_2_transformation) personaParts.push(`Transformation : ${persona.step_2_transformation.slice(0, 150)}...`);
+        if (persona.step_1_frustrations) personaParts.push(`Frustrations : ${persona.step_1_frustrations}`);
+        if (persona.step_2_transformation) personaParts.push(`Transformation : ${persona.step_2_transformation}`);
         const personaContent = personaParts.filter(Boolean).join(" · ");
         if (personaContent) cards.push({ emoji: "🎭", title: "Persona", content: personaContent, route: "/branding/section?section=persona" });
       }
