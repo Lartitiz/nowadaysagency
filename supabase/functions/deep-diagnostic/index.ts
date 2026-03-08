@@ -141,7 +141,7 @@ serve(async (req) => {
     await Promise.allSettled(scrapePromises);
 
     // ====== BUILD PROMPT ======
-    const systemPrompt = `Tu es l'assistante com' de Nowadays Agency. Tu reçois le contenu du site web et les réponses d'une solopreneuse créative. Ta mission : faire un diagnostic de communication honnête, concret et personnalisé.
+    const systemPrompt = `Tu es l'assistante com' de L'Assistant Com'. Tu reçois le contenu du site web et les réponses d'onboarding. Ta mission : faire un diagnostic de communication honnête, concret et personnalisé.
 
 Si une capture d'écran du profil Instagram est fournie, analyse : la bio (clarté, mots-clés, appel à l'action), le nombre d'abonnés/abonnements (ratio), la cohérence visuelle du feed (couleurs, style), le nom affiché (optimisé ou non), le lien dans la bio. Donne un score Instagram basé sur ces éléments visibles. Si aucune capture n'est fournie, ne fais AUCUNE recommandation spécifique à Instagram.
 
