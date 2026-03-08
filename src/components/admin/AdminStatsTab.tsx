@@ -641,16 +641,18 @@ function DemographicsSection({ stats }: { stats: StatsData }) {
 
 /* ── Shared utility components ── */
 
-function KpiCard({ title, value, suffix, sub, subColor, trend }: {
+function KpiCard({ title, value, suffix, sub, subColor, trend, status }: {
   title: string;
   value: number;
   suffix?: string;
   sub?: string;
   subColor?: string;
   trend?: number;
+  status?: "good" | "warning" | "danger";
 }) {
+  const statusBorder = status === "good" ? "border-l-4 border-l-emerald-500" : status === "warning" ? "border-l-4 border-l-amber-500" : status === "danger" ? "border-l-4 border-l-red-500" : "";
   return (
-    <div className="rounded-xl border bg-card p-5 flex flex-col gap-1">
+    <div className={`rounded-xl border bg-card p-5 flex flex-col gap-1 ${statusBorder}`}>
       <p className="text-xs text-muted-foreground">{title}</p>
       <div className="flex items-baseline gap-1.5">
         <p className="text-2xl font-bold font-display">{value.toLocaleString("fr")}{suffix && <span className="text-sm font-normal text-muted-foreground">{suffix}</span>}</p>
