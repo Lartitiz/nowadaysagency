@@ -6,7 +6,7 @@ import { callAnthropic, callAnthropicSimple, getModelForAction } from "../_share
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 
-const MAX_TEXT_PER_SOURCE = 5000;
+const MAX_TEXT_PER_SOURCE = 8000;
 const GLOBAL_TIMEOUT_MS = 55000;
 
 serve(async (req) => {
@@ -355,9 +355,35 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
       const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
       const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       
-      // Build enrichment prompt: include style hints if available
-      let enrichmentPrompt = userPrompt.slice(0, 8000);
-      if (cachedStyleHints) {
+      // Build enrichment prompt: include style hints + full cached website content
+      let enrichmentPrompt = userPrompt.slice(0, 16000);
+
+      // Add full cached content if available (the userPrompt already has a truncated version)
+      if (websiteUrl) {
+        try {
+          const { data: fullCache } = await supabaseAdmin
+            .from("scrape_cache")
+            .select("content, style_hints")
+            .eq("user_id", userId)
+            .eq("url", websiteUrl)
+            .gte("created_at", new Date(Date.now() - 60 * 60 * 1000).toISOString())
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (fullCache?.content && fullCache.content.length > MAX_TEXT_PER_SOURCE) {
+            enrichmentPrompt += `\n\n=== CONTENU COMPLET DU SITE (pour enrichissement approfondi) ===\n${fullCache.content}`;
+          }
+          if (fullCache?.style_hints) {
+            enrichmentPrompt += `\n\n${fullCache.style_hints}`;
+          }
+        } catch {
+          // Fallback: use cached style hints already extracted
+          if (cachedStyleHints) {
+            enrichmentPrompt += `\n\n${cachedStyleHints}`;
+          }
+        }
+      } else if (cachedStyleHints) {
         enrichmentPrompt += `\n\n${cachedStyleHints}`;
       }
       
