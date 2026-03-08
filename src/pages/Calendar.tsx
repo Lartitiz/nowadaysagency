@@ -210,9 +210,6 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   const { data: profileData } = useProfile();
   const ownerName = (profileData as any)?.prenom || "";
   const igUsername = (profileData as any)?.instagram_username || "";
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
-  );
 
   useEffect(() => {
     const urlCanal = searchParams.get("canal");
