@@ -124,7 +124,7 @@ export function computeDiagnosticData(
 }
 
 export function getScoreMessage(score: number): string {
-  if (score < 30) return "On part de loin, mais franchement c'est normal. La plupart des créatrices en sont là au début.";
+  if (score < 30) return "On part de loin, mais franchement c'est normal. La plupart des entrepreneur·es en sont là au début.";
   if (score < 50) return "T'as déjà posé des choses. Il manque de la structure et quelques optimisations clés.";
   if (score < 70) return "T'as de bonnes bases. Avec quelques ajustements ciblés, on peut aller beaucoup plus loin.";
   if (score < 85) return "Franchement, c'est solide. On va peaufiner les détails qui font la différence.";

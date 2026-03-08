@@ -55,7 +55,7 @@ serve(async (req) => {
 - Imite les patterns de ton et de structure
 - Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA
 
-Tu es experte en stratégie de lancement Instagram pour des solopreneuses créatives et éthiques.
+Tu es experte en stratégie de lancement Instagram.
 
 ${contextStr}
 

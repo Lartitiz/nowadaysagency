@@ -289,7 +289,7 @@ Réponds en JSON :
         break;
 
       case "pitch":
-        systemPrompt = `Tu es expert·e en personal branding pour des solopreneuses créatives et éthiques.
+        systemPrompt = `Tu es expert·e en personal branding.
 
 FICHE PERSONA :
 - Frustrations : "${d.step_1_frustrations || ""}"

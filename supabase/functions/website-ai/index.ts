@@ -318,7 +318,7 @@ serve(async (req) => {
         auditSection = `\nRÉSULTATS DE L'AUDIT SITE (si pertinent) :\n- Scores : ${JSON.stringify(scores)}\n- Diagnostic : ${typeof auditData.diagnostic === "string" ? auditData.diagnostic.slice(0, 500) : JSON.stringify(auditData.diagnostic).slice(0, 500)}\n`;
       }
 
-      systemPrompt = `Tu es une experte en storytelling et pages À propos pour solopreneuses créatives.
+      systemPrompt = `Tu es une experte en storytelling et pages À propos.
 
 TEXTE ACTUEL DE LA PAGE À PROPOS :
 ${pageContent.slice(0, 8000)}

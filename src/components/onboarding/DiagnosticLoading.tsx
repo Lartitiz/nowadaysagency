@@ -112,7 +112,7 @@ const LOADING_TIPS: Record<string, string[]> = {
     "Les témoignages transformations sont tes meilleurs arguments de vente.",
   ],
   _default: [
-    "80% des solopreneuses sous-estiment la puissance de leur histoire personnelle.",
+    "80% des entrepreneur·es sous-estiment la puissance de leur histoire personnelle.",
     "La régularité bat la perfection. 2 posts par semaine > 1 post parfait par mois.",
     "Ta bio est lue en moyenne 3 secondes. Chaque mot compte.",
   ],

@@ -67,7 +67,7 @@ serve(async (req) => {
 
 ${LINKEDIN_PRINCIPLES}
 
-Tu es experte en optimisation de profils LinkedIn pour des solopreneuses créatives et engagées (mode, artisanat, bien-être, design, coaching).
+Tu es experte en optimisation de profils LinkedIn.
 
 DONNÉES DE RÉFÉRENCE LINKEDIN 2025-2026 :
 
