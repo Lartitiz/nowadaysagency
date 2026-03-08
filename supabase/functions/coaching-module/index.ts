@@ -119,7 +119,7 @@ Deno.serve(async (req) => {
       // PHASE 1: Generate personalized questions
       const baseQuestions = MODULE_QUESTIONS[module] || MODULE_QUESTIONS.persona;
       
-      const systemPrompt = `Tu es une consultante en communication bienveillante et experte. Tu accompagnes des solopreneuses créatives.
+      const systemPrompt = `Tu es une consultante en communication bienveillante et experte.
 
 CONTEXTE :
 - Module : ${module}
