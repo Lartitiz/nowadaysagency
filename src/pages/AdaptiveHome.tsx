@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, ChevronDown, Clock } from "lucide-react";
 
 import { useGuideRecommendation } from "@/hooks/use-guide-recommendation";
