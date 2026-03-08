@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   RefreshCw, TrendingUp, TrendingDown, Users, Euro,
   Activity, BarChart3, Sparkles, Target, Crown,
+  AlertTriangle, Zap, UserX,
 } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
@@ -85,6 +86,10 @@ interface StatsData {
   levels: Record<string, number>;
   channel_popularity: Record<string, number>;
   ai_by_action_type: Record<string, number>;
+  // Alerts
+  near_limit_free: { user_id: string; prenom: string; credits_used: number }[];
+  inactive_paid: { user_id: string; prenom: string; plan: string; last_sign_in: string | null }[];
+  zombie_users_count: number;
 }
 
 type Section = "dashboard" | "business" | "engagement_product" | "users";
@@ -235,6 +240,9 @@ function OverviewSection({ stats }: { stats: StatsData }) {
         />
         <KpiCard title="Score identité" value={stats.avg_branding_score} suffix="/100" />
       </div>
+
+      {/* Alerts panel */}
+      <AlertsPanel stats={stats} />
 
       {/* Charts row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -472,6 +480,77 @@ function EngagementProductSection({ stats }: { stats: StatsData }) {
       </ChartCard>
     </div>
   );
+}
+
+function AlertsPanel({ stats }: { stats: StatsData }) {
+  const now = new Date();
+  const dayOfMonth = now.getDate();
+
+  const alerts: React.ReactNode[] = [];
+
+  // a) Inactive paid users
+  if (stats.inactive_paid && stats.inactive_paid.length > 0) {
+    alerts.push(
+      <div key="inactive-paid" className="flex gap-3 rounded-lg border-l-4 border-l-red-500 bg-red-500/5 p-4">
+        <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-medium">{stats.inactive_paid.length} abonnée(s) payante(s) inactive(s) depuis 14j</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {stats.inactive_paid.map(u => `${u.prenom} (${PLAN_LABELS[u.plan] || u.plan})`).join(", ")}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // b) Free users near limit
+  if (stats.near_limit_free && stats.near_limit_free.length > 0) {
+    alerts.push(
+      <div key="near-limit" className="flex gap-3 rounded-lg border-l-4 border-l-amber-500 bg-amber-500/5 p-4">
+        <Zap className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-medium">{stats.near_limit_free.length} utilisatrice(s) free proche(s) de la limite (7+/10 crédits)</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {stats.near_limit_free.map(u => `${u.prenom} (${u.credits_used} crédits)`).join(", ")}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // c) Zombie users
+  if (stats.zombie_users_count > 0) {
+    alerts.push(
+      <div key="zombie" className="flex gap-3 rounded-lg border-l-4 border-l-gray-400 bg-gray-500/5 p-4">
+        <UserX className="w-5 h-5 text-gray-400 shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-medium">{stats.zombie_users_count} inscrite(s) sans activité après 7 jours</p>
+        </div>
+      </div>
+    );
+  }
+
+  // d) No signups this month after the 7th
+  if (stats.new_this_month === 0 && dayOfMonth > 7) {
+    alerts.push(
+      <div key="no-signups" className="flex gap-3 rounded-lg border-l-4 border-l-amber-500 bg-amber-500/5 p-4">
+        <TrendingDown className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-medium">Aucune nouvelle inscription ce mois</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (alerts.length === 0) {
+    return (
+      <div className="rounded-lg border border-emerald-200 bg-emerald-500/5 p-3 text-center">
+        <p className="text-sm text-emerald-600">✓ Tout va bien — aucune alerte</p>
+      </div>
+    );
+  }
+
+  return <div className="space-y-3">{alerts}</div>;
 }
 
 function DemographicsSection({ stats }: { stats: StatsData }) {
