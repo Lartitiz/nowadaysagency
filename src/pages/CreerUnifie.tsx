@@ -101,6 +101,13 @@ export default function CreerUnifie() {
   const [isLinkedInCarousel, setIsLinkedInCarousel] = useState(false);
   const [pinterestPinHtml, setPinterestPinHtml] = useState<string | null>(null);
   const [pinterestVisualGenerating, setPinterestVisualGenerating] = useState(false);
+  const [inspirationAnalysis, setInspirationAnalysis] = useState<any>(null);
+  const [inspirationProposals, setInspirationProposals] = useState<any[]>([]);
+  const [chosenProposal, setChosenProposal] = useState<any>(null);
+  const [inspirationImageBase64, setInspirationImageBase64] = useState<string | null>(null);
+  const [inspirationImagePreview, setInspirationImagePreview] = useState<string | null>(null);
+  const [photoBriefResult, setPhotoBriefResult] = useState<any>(null);
+  const [photoBriefOverlayHtml, setPhotoBriefOverlayHtml] = useState<string | null>(null);
 
   const { restored: draftRestored, clearDraft } = useFormPersist(
     "creer-unifie-form",
