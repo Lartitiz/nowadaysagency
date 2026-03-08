@@ -23,6 +23,10 @@ const PLAN_LABELS: Record<string, string> = {
   free: "Gratuit", outil: "Assistant Com'", binome: "Binôme", pro: "Pro",
 };
 
+const PLAN_COLORS: Record<string, string> = {
+  free: "#9CA3AF", outil: "#8B5CF6", binome: "#fb3d80", pro: "#3B82F6",
+};
+
 const PIE_COLORS = ["#fb3d80", "#8B5CF6", "#F59E0B", "#3B82F6", "#10B981", "#6366F1", "#EC4899"];
 
 const CANAL_LABELS: Record<string, string> = {
