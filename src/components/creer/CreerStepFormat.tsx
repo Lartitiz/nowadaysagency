@@ -29,7 +29,7 @@ type ChannelId = "instagram" | "linkedin" | "pinterest" | "newsletter";
 
 function deduceChannel(format: string): ChannelId {
   if (format === "linkedin") return "linkedin";
-  if (format === "pinterest" || format === "pinterest_visual") return "pinterest";
+  if (format === "pinterest" || format === "pinterest_visual" || format === "pinterest_inspiration") return "pinterest";
   if (format === "newsletter") return "newsletter";
   return "instagram";
 }
@@ -58,7 +58,8 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
   const [pinterestBoardId, setPinterestBoardId] = useState("");
   const [pinterestBoards, setPinterestBoards] = useState<{ id: string; name: string }[]>([]);
   const [linkedinSubMode, setLinkedinSubMode] = useState<"text" | "carousel" | null>(null);
-  const [pinterestSubMode, setPinterestSubMode] = useState<"text" | "visual" | null>(null);
+  const [pinterestSubMode, setPinterestSubMode] = useState<"text" | "visual" | "inspiration" | null>(null);
+  const [inspirationPhotos, setInspirationPhotos] = useState<PhotoItem[]>([]);
 
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
@@ -134,6 +135,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
     setPinterestBoardId("");
     setLinkedinSubMode(null);
     setPinterestSubMode(null);
+    setInspirationPhotos([]);
   };
 
   const renderAngleCard = (angle: EditorialAngle, isRecommended: boolean) => {
@@ -188,6 +190,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
     const isCarouselMix = selectedFormat === "carousel" && carouselSubMode === "mix";
     const isPostPhoto = selectedFormat === "post" && photoMode;
     const isLinkedInCarousel = selectedChannel === "linkedin" && selectedFormat === "carousel";
+    const isInspirationPin = selectedFormat === "pinterest_inspiration";
     const pinterestData = (selectedFormat === "pinterest" || selectedFormat === "pinterest_visual") ? {
       link: pinterestLink || undefined,
       boardId: pinterestBoardId || undefined,
@@ -197,7 +200,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
       selectedFormat,
       selectedAngle,
       selectedFormat === "carousel" ? (carouselSubMode || "text") : undefined,
-      isCarouselPhoto || isCarouselMix ? uploadedPhotos : isPostPhoto ? postPhoto : undefined,
+      isCarouselPhoto || isCarouselMix ? uploadedPhotos : isPostPhoto ? postPhoto : isInspirationPin ? inspirationPhotos : undefined,
       isCarouselPhoto || isCarouselMix ? photoDescription : isPostPhoto ? postPhotoDescription : undefined,
       selectedFormat === "post" ? photoMode : undefined,
       pinterestData,
@@ -272,7 +275,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
             </button>
           </div>
           <p className="text-sm font-semibold text-foreground">Quel format d'épingle ?</p>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <button
               onClick={() => { setPinterestSubMode("text"); handleFormatSelect("pinterest"); }}
               className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
@@ -288,6 +291,14 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
               <span className="text-2xl block mb-1">🎨</span>
               <span className="text-xs font-semibold text-foreground">Visuel</span>
               <p className="text-[10px] text-muted-foreground mt-0.5">Infographie, checklist, schéma</p>
+            </button>
+            <button
+              onClick={() => { setPinterestSubMode("inspiration" as any); handleFormatSelect("pinterest_inspiration"); }}
+              className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
+            >
+              <span className="text-2xl block mb-1">🔍</span>
+              <span className="text-xs font-semibold text-foreground">Inspiration</span>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Partir d'une épingle existante</p>
             </button>
           </div>
         </div>
@@ -492,6 +503,21 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
         </div>
       )}
 
+      {/* Pinterest inspiration upload */}
+      {selectedFormat === "pinterest_inspiration" && (
+        <div className="space-y-3 animate-fade-in">
+          <p className="text-sm font-semibold text-foreground">📸 Uploade une capture d'une épingle qui t'inspire</p>
+          <p className="text-xs text-muted-foreground">
+            Va sur Pinterest, trouve une épingle qui cartonne sur ton mot-clé, fais une capture d'écran et uploade-la ici.
+          </p>
+          <PhotoUploadZone
+            maxPhotos={1}
+            onPhotosChange={setInspirationPhotos}
+            onDescriptionChange={() => {}}
+          />
+        </div>
+      )}
+
       {/* Structure info (hidden for Pinterest formats) */}
       {selectedStructure && selectedAngle && selectedChannel !== "pinterest" && (
         <div className="rounded-lg bg-muted/50 border border-border p-2.5 space-y-1 animate-fade-in">
@@ -515,7 +541,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
         </Button>
         <Button
           size="sm"
-          disabled={!selectedFormat}
+          disabled={!selectedFormat || (selectedFormat === "pinterest_inspiration" && inspirationPhotos.length === 0)}
           onClick={handleNext}
           className="gap-1"
         >
