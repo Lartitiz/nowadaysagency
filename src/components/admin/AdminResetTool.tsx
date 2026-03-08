@@ -234,7 +234,7 @@ export default function AdminResetTool() {
       localStorage.removeItem("lac_onboarding_reset");
 
       // Redirect to onboarding if the reset target is the current user
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await (supabase.auth as any).getUser();
       if (user?.email === targetEmail) {
         window.location.href = "/onboarding";
       }
