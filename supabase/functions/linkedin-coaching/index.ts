@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
     if (phase === "questions") {
       const baseQuestions = MODULE_QUESTIONS[module] || MODULE_QUESTIONS.profil;
 
-      const systemPrompt = `Tu es une consultante LinkedIn experte. Tu accompagnes des solopreneuses et entrepreneures.
+      const systemPrompt = `${buildIdentityBlock(ctx.profile, "consultante LinkedIn experte")}
 
 CONTEXTE BRANDING :
 ${contextText}
