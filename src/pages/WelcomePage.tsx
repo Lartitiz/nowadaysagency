@@ -133,7 +133,7 @@ function BrandingCardItem({ card, index, onSave }: { card: BrandingCard; index: 
   );
 }
 
-
+export default function WelcomePage() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const navigate = useNavigate();
