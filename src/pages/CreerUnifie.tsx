@@ -73,7 +73,7 @@ export default function CreerUnifie() {
     if (!ps?.step) return "idea";
     if (ps.step === "result" && ps.result) return "result";
     if (ps.step === "edit" && ps.editContent) return "edit";
-    if (["result", "edit"].includes(ps.step)) return "idea";
+    if (["result", "edit", "inspiration_proposals"].includes(ps.step)) return "idea";
     return ps.step as Step;
   })();
   const [step, setStep] = useState<Step>(safeStep);
