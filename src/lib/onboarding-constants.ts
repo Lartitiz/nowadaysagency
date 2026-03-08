@@ -7,6 +7,7 @@ export const ACTIVITY_SECTIONS = [
       { key: "art_design", emoji: "🎨", label: "Art & design", desc: "artiste visuelle, illustratrice, designer, DA" },
       { key: "deco_interieur", emoji: "🏡", label: "Déco & design d'intérieur", desc: "mobilier, upcycling, scénographie" },
       { key: "beaute_cosmetiques", emoji: "🌿", label: "Beauté & cosmétiques naturels", desc: "soins, coiffure, esthétique bio" },
+      { key: "boutique", emoji: "🛍️", label: "Boutique", desc: "e-shop, concept store, vente en ligne ou physique" },
     ],
   },
   {
