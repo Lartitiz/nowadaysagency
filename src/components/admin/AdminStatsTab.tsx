@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
-  ResponsiveContainer, Cell, PieChart, Pie,
+  ResponsiveContainer, Cell,
 } from "recharts";
 
 /* ── Constants ── */
