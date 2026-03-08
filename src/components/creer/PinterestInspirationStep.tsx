@@ -27,9 +27,11 @@ export default function PinterestInspirationStep({
   analysis,
   proposals,
   inspirationPreview,
+  imagePreview,
   onSelect,
   onBack,
 }: Props) {
+  const preview = inspirationPreview || imagePreview || "";
   return (
     <div className="space-y-6 animate-fade-in">
       {/* 1) Source analysis */}
