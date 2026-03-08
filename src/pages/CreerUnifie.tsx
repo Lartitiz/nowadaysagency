@@ -689,6 +689,13 @@ export default function CreerUnifie() {
     setPhotoDescription("");
     setPhotoMode(false);
     setIsLinkedInCarousel(false);
+    setInspirationAnalysis(null);
+    setInspirationProposals([]);
+    setChosenProposal(null);
+    setInspirationImageBase64(null);
+    setInspirationImagePreview(null);
+    setPhotoBriefResult(null);
+    setPhotoBriefOverlayHtml(null);
     clearFlowState();
     clearDraft();
     sessionStorage.removeItem(CREER_RESULT_KEY);
