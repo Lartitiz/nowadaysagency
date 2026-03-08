@@ -109,7 +109,7 @@ Structure attendue :
   },
   "content_strategy_prefill": {
     "confidence": "high|medium|low",
-    "pillars": [{"label": "nom", "description": "description"}],
+    "pillars": [{"label": "nom du pilier thématique", "description": "de quoi on parle concrètement dans ce pilier"}],
     "creative_twist": "angle créatif unique ou null",
     "formats": ["format 1", "format 2"],
     "rhythm": "rythme de publication détecté ou null",
