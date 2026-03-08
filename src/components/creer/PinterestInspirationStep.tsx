@@ -35,17 +35,17 @@ export default function PinterestInspirationStep({
   return (
     <div className="space-y-6 animate-fade-in">
       {/* 1) Source analysis */}
-      <div className="flex gap-4 items-start">
+      <div className="flex flex-col sm:flex-row gap-4 items-center sm:items-start">
         {preview ? (
           <img
             src={preview}
             alt="Épingle source"
-            className="w-[120px] rounded-xl shadow-md object-cover flex-shrink-0"
+            className="w-[100px] sm:w-[120px] rounded-xl shadow-md object-cover flex-shrink-0"
             style={{ aspectRatio: "2 / 3" }}
           />
         ) : (
           <div
-            className="w-[120px] rounded-xl bg-muted flex items-center justify-center flex-shrink-0"
+            className="w-[100px] sm:w-[120px] rounded-xl bg-muted flex items-center justify-center flex-shrink-0"
             style={{ aspectRatio: "2 / 3" }}
           >
             <span className="text-2xl">📌</span>

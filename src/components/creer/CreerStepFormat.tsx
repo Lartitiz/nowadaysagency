@@ -275,7 +275,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
             </button>
           </div>
           <p className="text-sm font-semibold text-foreground">Quel format d'épingle ?</p>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             <button
               onClick={() => { setPinterestSubMode("text"); handleFormatSelect("pinterest"); }}
               className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
@@ -385,7 +385,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
       {selectedFormat === "carousel" && selectedChannel === "instagram" && (
         <div className="space-y-3 animate-fade-in">
           <p className="text-sm font-semibold text-foreground">Quel type de carrousel ?</p>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             <button
               onClick={() => { setCarouselSubMode("text"); setUploadedPhotos([]); setPhotoDescription(""); }}
               className={`rounded-xl border-2 p-3 text-center transition-all ${
