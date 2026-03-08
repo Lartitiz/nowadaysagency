@@ -231,7 +231,7 @@ export function useGuideRecommendation(): UseGuideRecommendationResult {
       const filter = { column, value };
 
       // Parallel fetches
-      const [brandingData, profileRes, planConfigRes, calendarCountRes, auditRes] =
+      const [brandingData, profileRes, planConfigRes, calendarCountRes, auditRes, contentsCountRes] =
         await Promise.all([
           fetchBrandingData(filter),
     (supabase.from("profiles") as any)
@@ -251,6 +251,9 @@ export function useGuideRecommendation(): UseGuideRecommendationResult {
             .order("created_at", { ascending: false })
             .limit(1)
             .maybeSingle(),
+          (supabase.from("content_drafts") as any)
+            .select("id", { count: "exact", head: true })
+            .eq(filter.column, filter.value),
         ]);
 
       const bc = calculateBrandingCompletion(brandingData);
@@ -262,8 +265,9 @@ export function useGuideRecommendation(): UseGuideRecommendationResult {
       const onboardingDone = profileOnboarded || configOnboarded;
       const calendarPosts = calendarCountRes.count ?? 0;
       const lastAuditDate: string | null = (auditRes.data as any)?.created_at ?? null;
+      const contentsCount = contentsCountRes.count ?? 0;
 
-      const recommendation = buildRecommendation(onboardingDone, bc, calendarPosts, lastAuditDate);
+      const recommendation = buildRecommendation(onboardingDone, bc, calendarPosts, lastAuditDate, contentsCount);
 
       return {
         recommendation,
