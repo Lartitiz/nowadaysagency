@@ -17,7 +17,8 @@ interface Props {
     pin_type: string;
     brief: string;
   }>;
-  inspirationPreview: string;
+  inspirationPreview?: string;
+  imagePreview?: string;
   onSelect: (proposal: any) => void;
   onBack: () => void;
 }
