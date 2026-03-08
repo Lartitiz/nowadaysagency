@@ -829,10 +829,11 @@ export async function processScreenshots(
 ): Promise<{ base64: string; mediaType: string }[]> {
   const images: { base64: string; mediaType: string }[] = [];
 
+  const MAX_SCREENSHOT_BYTES = 2 * 1024 * 1024; // 2 MB max per image to avoid OOM
   const { data: docs, error } = await supabase
     .from("user_documents")
     .select("id, file_name, file_url, file_type")
-    .in("id", documentIds.slice(0, 3))
+    .in("id", documentIds.slice(0, 1))
     .eq("user_id", userId);
 
   if (error || !docs || docs.length === 0) {
@@ -869,6 +870,10 @@ export async function processScreenshots(
       }
 
       const buffer = await fileData.arrayBuffer();
+      if (buffer.byteLength > MAX_SCREENSHOT_BYTES) {
+        console.warn(`processScreenshots: ${doc.file_name} too large (${(buffer.byteLength / 1024 / 1024).toFixed(1)}MB), skipping`);
+        continue;
+      }
       const bytes = new Uint8Array(buffer);
       let binary = "";
       for (let i = 0; i < bytes.length; i++) {
