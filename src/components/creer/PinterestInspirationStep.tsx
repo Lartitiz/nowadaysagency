@@ -40,7 +40,7 @@ export default function PinterestInspirationStep({
           <img
             src={preview}
             alt="Épingle source"
-            className="w-[120px] rounded-xl shadow-md object-cover flex-shrink-0"
+            className="w-[100px] sm:w-[120px] rounded-xl shadow-md object-cover flex-shrink-0"
             style={{ aspectRatio: "2 / 3" }}
           />
         ) : (
