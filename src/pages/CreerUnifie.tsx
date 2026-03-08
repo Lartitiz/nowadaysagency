@@ -556,13 +556,14 @@ export default function CreerUnifie() {
       setPinterestPinHtml(null);
       setPinterestVisualGenerating(true);
       try {
-        const pinType = editorialAngle || "infographie";
+        const pinType = chosenProposal?.pin_type || editorialAngle || "infographie";
         const { data, error: fnError } = await invokeWithTimeout("pinterest-visual", {
           body: {
             subject: enrichedSubject,
             pin_type: pinType,
             pinterest_link: pinterestData?.link,
             pinterest_board: pinterestData?.boardName,
+            ...(inspirationImageBase64 ? { reference_image_base64: inspirationImageBase64 } : {}),
             workspace_id: workspaceId || undefined,
           },
         }, 120000);
@@ -581,6 +582,45 @@ export default function CreerUnifie() {
         });
       } catch (e: any) {
         toast.error(e?.message || "Erreur lors de la génération du visuel Pinterest");
+      } finally {
+        setPinterestVisualGenerating(false);
+      }
+      return;
+    }
+
+    // Brief photo Pinterest : appel direct
+    if (selectedFormat === "pinterest_photo") {
+      setStep("result");
+      setPhotoBriefOverlayHtml(null);
+      setPinterestVisualGenerating(true);
+      try {
+        const { data, error: fnError } = await invokeWithTimeout("pinterest-photo-brief", {
+          body: {
+            subject: enrichedSubject,
+            reference_image_base64: inspirationImageBase64 || "",
+            pin_type: chosenProposal?.pin_type || "photo_lifestyle",
+            brief_hint: chosenProposal?.brief || "",
+            pinterest_link: pinterestData?.link,
+            pinterest_board: pinterestData?.boardName,
+            workspace_id: workspaceId || undefined,
+          },
+        }, 120000);
+        if (fnError) throw fnError;
+        if (data?.error) throw new Error(data.error);
+        const r = data?.result;
+        setPhotoBriefOverlayHtml(r?.overlay_html || null);
+        setPhotoBriefResult(r);
+        setResult({
+          type: "pinterest_photo" as any,
+          raw: {
+            overlay_html: r?.overlay_html,
+            photo_brief: r?.photo_brief,
+            title: r?.title,
+            description: r?.description,
+          },
+        });
+      } catch (e: any) {
+        toast.error(e?.message || "Erreur lors de la génération du brief");
       } finally {
         setPinterestVisualGenerating(false);
       }
