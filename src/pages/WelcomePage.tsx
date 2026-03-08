@@ -6,7 +6,6 @@ import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useProfile } from "@/hooks/use-profile";
 
-import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
 import EditableText from "@/components/EditableText";
 import { toast as sonnerToast } from "sonner";
 
