@@ -287,17 +287,8 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
         rawText = await callAnthropicSimple(fastModel, systemPrompt, userPrompt, 0.7, 2000);
       }
 
-      // Parse JSON
-      try {
-        analysisResult = JSON.parse(rawText);
-      } catch {
-        const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          analysisResult = JSON.parse(jsonMatch[0]);
-        } else {
-          throw new Error("Réponse IA invalide");
-        }
-      }
+      // Parse JSON with robust cleaning
+      analysisResult = robustJsonParse(rawText);
     } catch (claudeError) {
       console.error("Claude fast diagnostic failed, using fallback:", claudeError);
       analysisResult = buildFallbackDiagnostic(profile, freeformAnswers, sourcesUsed);
