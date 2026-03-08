@@ -12,6 +12,7 @@ Deno.serve(async (req) => {
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
+      console.error("[reset-onboarding] No auth header");
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -24,24 +25,28 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const {
-      data: { user: authUser },
-      error: authError,
-    } = await supabaseUser.auth.getUser();
-    if (authError || !authUser) {
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await supabaseUser.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
+      console.error("[reset-onboarding] getClaims failed:", claimsError?.message);
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
+    const callerUserId = claimsData.claims.sub as string;
+    const callerEmail = claimsData.claims.email as string;
+    console.log(`[reset-onboarding] Caller: ${callerEmail} (${callerUserId})`);
+
     // Determine target user
     const body = await req.json().catch(() => ({}));
-    let targetUserId = authUser.id; // Default: self-reset
+    let targetUserId = callerUserId; // Default: self-reset
 
     if (body.targetUserId) {
       // Admin mode: reset another user
-      if (authUser.email !== ADMIN_EMAIL) {
+      if (callerEmail !== ADMIN_EMAIL) {
+        console.error(`[reset-onboarding] Forbidden: ${callerEmail} !== ${ADMIN_EMAIL}`);
         return new Response(JSON.stringify({ error: "Forbidden" }), {
           status: 403,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -49,10 +54,10 @@ Deno.serve(async (req) => {
       }
       targetUserId = body.targetUserId;
       console.log(
-        `[reset-onboarding] ADMIN reset of user ${targetUserId} by ${authUser.email}`
+        `[reset-onboarding] ADMIN reset of user ${targetUserId} by ${callerEmail}`
       );
     } else {
-      console.log(`[reset-onboarding] Self-reset by ${authUser.email}`);
+      console.log(`[reset-onboarding] Self-reset by ${callerEmail}`);
     }
 
     // Service role client (bypasses RLS)
