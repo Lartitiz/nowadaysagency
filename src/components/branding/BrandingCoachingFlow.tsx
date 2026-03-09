@@ -812,9 +812,16 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
         if (insights.content_twist || insights.creative_concept) {
           strategyData.creative_concept = insights.content_twist || insights.creative_concept;
         }
-        if (insights.content_formats) strategyData.step_1_hidden_facets = typeof insights.content_formats === "string" ? insights.content_formats : JSON.stringify(insights.content_formats);
+        // Combine formats + editorial line in step_1_hidden_facets (no data loss)
+        const hiddenParts: string[] = [];
+        if (insights.content_formats) {
+          hiddenParts.push("Formats : " + (typeof insights.content_formats === "string" ? insights.content_formats : JSON.stringify(insights.content_formats)));
+        }
         if (insights.content_editorial_line) {
-          if (!strategyData.step_1_hidden_facets) strategyData.step_1_hidden_facets = insights.content_editorial_line;
+          hiddenParts.push("Ligne éditoriale : " + insights.content_editorial_line);
+        }
+        if (hiddenParts.length > 0) {
+          strategyData.step_1_hidden_facets = hiddenParts.join("\n\n");
         }
 
         if (Object.keys(strategyData).length > 0) {
