@@ -406,12 +406,25 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
 
   const updateCoveredTopics = useCallback((response: AIResponse) => {
     if (response.covered_topic) {
+      const topic = response.covered_topic;
       setCoveredTopics(prev => {
-        if (prev.includes(response.covered_topic!)) return prev;
-        return [...prev, response.covered_topic!];
+        // Exact match
+        if (checklist.includes(topic)) {
+          return prev.includes(topic) ? prev : [...prev, topic];
+        }
+        // Fuzzy: find closest match in checklist
+        const match = checklist.find(c =>
+          topic.toLowerCase().includes(c.toLowerCase()) ||
+          c.toLowerCase().includes(topic.toLowerCase())
+        );
+        if (match) {
+          return prev.includes(match) ? prev : [...prev, match];
+        }
+        // No match found — still add raw topic to avoid re-asking
+        return prev.includes(topic) ? prev : [...prev, topic];
       });
     }
-  }, []);
+  }, [checklist]);
 
   const saveDemoAnswer = useCallback((q: DemoCoachingQuestion) => {
     setCompletionPct(q.completion_percentage);
