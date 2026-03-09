@@ -32,7 +32,7 @@ const SECTIONS = [
   {
     title: "Création de contenu",
     rows: [
-      { label: "Crédits IA", free: "60/mois", outil: "Illimités", studio: "Illimités" },
+      { label: "Contenus IA par mois", free: "60/mois", outil: "Illimités", studio: "Illimités" },
       { label: "Posts Instagram", free: true, outil: true, studio: true },
       { label: "Reels", free: true, outil: true, studio: true },
       { label: "Stories", free: true, outil: true, studio: true },
@@ -44,26 +44,26 @@ const SECTIONS = [
   {
     title: "Analyse & suivi",
     rows: [
-      { label: "Audits IA", free: "3/mois", outil: "Illimités", studio: "Illimités" },
+      { label: "Audits IA par mois", free: "3/mois", outil: "Illimités", studio: "Illimités" },
       { label: "Audit LinkedIn", free: true, outil: true, studio: true },
-      { label: "Import stats (Excel/CSV)", free: true, outil: true, studio: true },
-      { label: "Dashboard KPI", free: true, outil: true, studio: true },
+      { label: "Suivi de tes statistiques", free: true, outil: true, studio: true },
+      { label: "Tableau de bord performances", free: true, outil: true, studio: true },
     ],
   },
   {
     title: "Engagement & prospection",
     rows: [
-      { label: "Contacts stratégiques", free: true, outil: true, studio: true },
-      { label: "Routine d'engagement", free: true, outil: true, studio: true },
-      { label: "Mini-CRM prospection", free: true, outil: true, studio: true },
+      { label: "Gestion de tes contacts clés", free: true, outil: true, studio: true },
+      { label: "Routine d'engagement quotidienne", free: true, outil: true, studio: true },
+      { label: "Suivi de tes prospects", free: true, outil: true, studio: true },
     ],
   },
   {
     title: "Communauté",
     rows: [
-      { label: "Lire le feed", free: true, outil: true, studio: true },
-      { label: "Poster et commenter", free: false, outil: true, studio: true },
-      { label: "Lives mensuels + replays", free: false, outil: true, studio: true },
+      { label: "Accès à la communauté (lecture)", free: true, outil: true, studio: true },
+      { label: "Participer à la communauté", free: false, outil: true, studio: true },
+      { label: "Lives mensuels avec Laetitia", free: false, outil: true, studio: true },
     ],
   },
   {
@@ -81,7 +81,7 @@ const SECTIONS = [
 const FAQ = [
   {
     q: "Pourquoi tout l'outil est gratuit ?",
-    a: "L'outil est entièrement accessible en gratuit avec 60 crédits IA/mois. Quand tu voudras produire régulièrement et accéder à toutes les fonctionnalités avancées (calendrier, communauté, lives...), le Premium sera là.",
+    a: "L'outil est entièrement accessible en gratuit : tu peux créer jusqu'à 60 contenus IA par mois et lancer 3 audits. Quand tu voudras produire sans limite et rejoindre la communauté, le Premium sera là.",
   },
   {
     q: "Je peux annuler quand je veux ?",
@@ -97,14 +97,13 @@ const FAQ = [
   },
   {
     q: "C'est quoi la différence entre le Premium et l'accompagnement binôme ?",
-    a: "Le Premium, c'est l'IA qui t'aide au quotidien avec 300 crédits/mois. L'accompagnement binôme, c'est le Premium + Laetitia qui te coache, te débloque, et valide chaque étape.",
+    a: "Le Premium, c'est l'IA en illimité pour créer tes contenus en autonomie. L'accompagnement binôme, c'est le Premium + Laetitia qui te coache, construit ta stratégie, te débloque, et valide chaque étape.",
   },
   {
     q: "Mes données sont sécurisées ?",
     a: "Oui, hébergées en Europe, chiffrées, jamais revendues.",
   },
 ];
-
 /* ─── Cell renderer ─── */
 function CellValue({ value }: { value: boolean | string }) {
   if (value === true) return <Check className="h-4 w-4 text-primary mx-auto" />;
@@ -200,16 +199,15 @@ export default function PricingPage() {
               0€
             </p>
             <p className="text-sm text-muted-foreground mt-1 mb-5">
-              Tout l'écosystème Nowadays : branding, calendrier, audits, espaces canaux, CRM, stats. 60 crédits IA/mois pour goûter à la magie.
+              Explore tout l'écosystème Nowadays : branding, calendrier, audits, espaces canaux. 60 contenus IA par mois pour commencer à structurer ta com'.
             </p>
             <ul className="space-y-2 text-sm text-foreground mb-6 flex-1">
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Tout l'outil débloqué</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> 60 crédits IA / mois</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> 3 audits IA / mois</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Calendrier éditorial complet</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Mini-CRM + contacts stratégiques</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Import stats + dashboard KPI</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Communauté en lecture</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Branding guidé complet (6 sections)</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Calendrier éditorial avec vue mensuelle</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Crée jusqu'à 60 contenus IA par mois</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> 3 audits IA par mois (Instagram, site, LinkedIn)</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Espaces par canal (Instagram, LinkedIn, Pinterest…)</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Mini-CRM et contacts stratégiques</li>
             </ul>
             {isCurrentPlan("free") ? (
               <div className="text-center rounded-pill border-2 border-primary py-2.5 font-medium text-primary text-sm">
@@ -232,7 +230,7 @@ export default function PricingPage() {
             </div>
             <span className="text-2xl mb-2">💎</span>
             <h3 className="font-display text-xl font-bold">Premium</h3>
-            <p className="text-xs text-muted-foreground font-medium mt-1">L'IA qui connaît ta voix. Sans limite (ou presque).</p>
+            <p className="text-xs text-muted-foreground font-medium mt-1">Crée sans compter. L'IA qui connaît ta voix.</p>
             <p className="text-3xl font-bold mt-2 text-primary">
               39€
               <span className="text-base font-normal text-muted-foreground">
@@ -240,14 +238,16 @@ export default function PricingPage() {
               </span>
             </p>
             <p className="text-sm text-muted-foreground mt-1 mb-5">
-              300 crédits IA/mois + communauté active. Pour celleux qui veulent produire du contenu régulier en autonomie.
+              Contenus IA illimités, audits illimités, communauté active. Pour celleux qui veulent publier régulièrement sans se poser la question des limites.
+            </p>
+            <p className="text-xs text-muted-foreground mb-2 pb-2 border-b border-border">
+              Tout le plan gratuit, plus :
             </p>
             <ul className="space-y-2 text-sm text-foreground mb-6 flex-1">
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> 300 crédits IA / mois</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Contenus IA illimités (posts, reels, stories, newsletters…)</li>
               <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Audits IA illimités</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Communauté active (poster, commenter)</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Lives mensuels + replays</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Tout le plan gratuit inclus</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Communauté active : poste, commente, échange</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Lives mensuels avec Laetitia + replays</li>
             </ul>
             {isCurrentPlan("outil") ? (
               <div className="text-center rounded-pill border-2 border-primary py-2.5 font-medium text-primary text-sm">
@@ -276,15 +276,17 @@ export default function PricingPage() {
               </span>
             </p>
             <p className="text-sm text-muted-foreground mt-1 mb-5">
-              L'outil Premium inclus + Laetitia à tes côtés. Stratégie sur mesure + sessions visio + support WhatsApp + validation de tes livrables.
+              L'outil Premium + Laetitia à tes côtés pendant 6 mois. Stratégie sur mesure, sessions visio, support WhatsApp, validation de chaque livrable.
+            </p>
+            <p className="text-xs text-muted-foreground mb-2 pb-2 border-b border-border">
+              Tout le plan Premium, plus :
             </p>
             <ul className="space-y-2 text-sm text-foreground mb-6 flex-1">
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Tout le plan Premium inclus</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> 6 sessions visio de 2h avec Laetitia</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Support WhatsApp jours ouvrés</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Plan de com' sur mesure (mois 1-2)</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Validation livrables par Laetitia</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Espace accompagnement dédié</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> 6 sessions visio individuelles de 2h</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Support WhatsApp jours ouvrés (réponse 24-48h)</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Plan de com' sur mesure les 2 premiers mois</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Validation de tes livrables par Laetitia</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Espace accompagnement dédié dans l'outil</li>
             </ul>
             {isCurrentPlan("binome") ? (
               <div className="text-center rounded-pill border-2 border-primary py-2.5 font-medium text-primary text-sm">

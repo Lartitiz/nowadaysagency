@@ -664,13 +664,11 @@ export default function LandingPage() {
                 <p className="text-sm text-muted-foreground mt-1 mb-4">Pour tester et commencer à structurer ta com'</p>
                 <ul className="space-y-2 mb-6 flex-1">
                   {[
-                    "Onboarding conversationnel complet",
-                    "Espace branding (6 sections + coaching IA)",
-                    "Calendrier éditorial + bibliothèque d'idées",
-                    "10 crédits IA / mois",
-                    "1 audit Instagram + 1 audit site",
-                    "Espaces par canal",
-                    "Dashboard + gamification",
+                    "Branding guidé complet (6 sections)",
+                    "Calendrier éditorial avec vue mensuelle",
+                    "Crée jusqu'à 60 contenus IA par mois",
+                    "3 audits IA par mois",
+                    "Espaces par canal (Instagram, LinkedIn…)",
                   ].map((item, idx) => (
                     <li key={idx} className="text-sm text-foreground flex items-start gap-2">
                       <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
@@ -690,15 +688,15 @@ export default function LandingPage() {
                 <span className="text-2xl mb-2">💎</span>
                 <h3 className="font-display text-lg font-bold">Premium</h3>
                 <p className="text-primary font-bold text-xl mt-1">39€<span className="text-sm font-normal text-muted-foreground">/mois</span></p>
-                <p className="text-sm text-muted-foreground mt-1 mb-4">Tout l'outil débloqué, sans limite</p>
+                <p className="text-sm text-muted-foreground mt-1 mb-4">Crée sans compter. L'IA en illimité.</p>
+                <p className="text-xs text-muted-foreground mb-2 pb-2 border-b border-border">
+                  Tout le plan gratuit, plus :
+                </p>
                 <ul className="space-y-2 mb-6 flex-1">
                   {[
-                    "Tout le plan gratuit +",
-                    "300 crédits IA / mois",
-                    "Audits illimités (Instagram, LinkedIn, site)",
-                    "Import stats + Dashboard KPI",
-                    "Mini-CRM prospection + routine d'engagement",
-                    "Communauté + lives mensuels",
+                    "Contenus IA illimités",
+                    "Audits IA illimités",
+                    "Communauté active + lives mensuels",
                   ].map((item, idx) => (
                     <li key={idx} className="text-sm text-foreground flex items-start gap-2">
                       <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
