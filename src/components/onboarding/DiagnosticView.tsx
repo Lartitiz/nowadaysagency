@@ -11,6 +11,7 @@ const SOURCE_BADGES: Record<string, { emoji: string; label: string }> = {
   linkedin: { emoji: "💼", label: "LinkedIn" },
   documents: { emoji: "📄", label: "Documents" },
   profile: { emoji: "✨", label: "Profil" },
+  about: { emoji: "💬", label: "À propos" },
 };
 
 interface Props {
