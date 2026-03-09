@@ -145,7 +145,25 @@ export default function CharterColorsSection({
               className="w-10 h-10 rounded-lg border border-border cursor-pointer p-0.5" />
             
               <span className="text-sm text-foreground font-medium w-24">{label}</span>
-              <span className={`font-mono text-xs uppercase ${data[key] ? "text-muted-foreground" : "text-muted-foreground/50 italic"}`}>{data[key] || "Non défini"}</span>
+              <input
+                type="text"
+                value={data[key] || ""}
+                placeholder="Non défini"
+                onChange={(e) => {
+                  let v = e.target.value;
+                  if (v && !v.startsWith("#")) v = "#" + v;
+                  if (v === "#" || /^#[0-9A-Fa-f]{0,6}$/.test(v)) {
+                    onDataChange({ [key]: v });
+                  }
+                }}
+                onBlur={(e) => {
+                  const v = e.target.value;
+                  if (v && !/^#[0-9A-Fa-f]{6}$/.test(v)) {
+                    onDataChange({ [key]: data[key] });
+                  }
+                }}
+                className="font-mono text-xs uppercase text-muted-foreground bg-transparent border-b border-transparent hover:border-border focus:border-primary focus:outline-none w-20 py-0.5 transition-colors"
+              />
             </div>
           )}
 
@@ -162,7 +180,20 @@ export default function CharterColorsSection({
               className="w-10 h-10 rounded-lg border border-border cursor-pointer p-0.5" />
             
               <span className="text-sm text-foreground font-medium w-24">Custom {idx + 1}</span>
-              <span className="font-mono text-xs text-muted-foreground uppercase">{color}</span>
+              <input
+                type="text"
+                value={color}
+                onChange={(e) => {
+                  let v = e.target.value;
+                  if (v && !v.startsWith("#")) v = "#" + v;
+                  if (v === "#" || /^#[0-9A-Fa-f]{0,6}$/.test(v)) {
+                    const newColors = [...data.custom_colors];
+                    newColors[idx] = v;
+                    onDataChange({ custom_colors: newColors });
+                  }
+                }}
+                className="font-mono text-xs uppercase text-muted-foreground bg-transparent border-b border-transparent hover:border-border focus:border-primary focus:outline-none w-20 py-0.5 transition-colors"
+              />
               <button onClick={() => removeCustomColor(idx)} className="ml-auto text-muted-foreground hover:text-destructive">
                 <X className="h-4 w-4" />
               </button>
