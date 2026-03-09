@@ -224,7 +224,7 @@ export function useContentGenerator() {
         }
 
         case "story": {
-          const res = await supabase.functions.invoke("stories-ai", {
+          const res = await invokeWithTimeout("stories-ai", {
             body: {
               type: "generate",
               subject: effectiveSubject,
@@ -234,7 +234,7 @@ export function useContentGenerator() {
               content_structure: structurePrompt || null,
               workspace_id: workspaceId || null,
             },
-          });
+          }, 120000);
           data = res.data;
           invokeError = res.error;
           break;
