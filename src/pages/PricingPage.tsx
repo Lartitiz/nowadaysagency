@@ -276,15 +276,17 @@ export default function PricingPage() {
               </span>
             </p>
             <p className="text-sm text-muted-foreground mt-1 mb-5">
-              L'outil Premium inclus + Laetitia à tes côtés. Stratégie sur mesure + sessions visio + support WhatsApp + validation de tes livrables.
+              L'outil Premium + Laetitia à tes côtés pendant 6 mois. Stratégie sur mesure, sessions visio, support WhatsApp, validation de chaque livrable.
+            </p>
+            <p className="text-xs text-muted-foreground mb-2 pb-2 border-b border-border">
+              Tout le plan Premium, plus :
             </p>
             <ul className="space-y-2 text-sm text-foreground mb-6 flex-1">
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Tout le plan Premium inclus</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> 6 sessions visio de 2h avec Laetitia</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Support WhatsApp jours ouvrés</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Plan de com' sur mesure (mois 1-2)</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Validation livrables par Laetitia</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Espace accompagnement dédié</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> 6 sessions visio individuelles de 2h</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Support WhatsApp jours ouvrés (réponse 24-48h)</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Plan de com' sur mesure les 2 premiers mois</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Validation de tes livrables par Laetitia</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Espace accompagnement dédié dans l'outil</li>
             </ul>
             {isCurrentPlan("binome") ? (
               <div className="text-center rounded-pill border-2 border-primary py-2.5 font-medium text-primary text-sm">
