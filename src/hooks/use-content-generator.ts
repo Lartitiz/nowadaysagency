@@ -280,7 +280,7 @@ export function useContentGenerator() {
             ? EDITORIAL_ANGLES.find((a) => a.id === editorialAngle)
             : undefined;
           const structure = structureId ? CONTENT_STRUCTURES[structureId] : undefined;
-          const res = await supabase.functions.invoke("creative-flow", {
+          const res = await invokeWithTimeout("creative-flow", {
             body: {
               step: "generate",
               contentType: "post_linkedin",
@@ -292,7 +292,7 @@ export function useContentGenerator() {
               editorialFormat: editorialAngle || null,
               workspace_id: workspaceId || null,
             },
-          });
+          }, 120000);
           data = res.data;
           invokeError = res.error;
           break;
