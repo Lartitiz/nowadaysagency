@@ -246,7 +246,7 @@ export function useContentGenerator() {
             : undefined;
           const structure = structureId ? CONTENT_STRUCTURES[structureId] : undefined;
 
-          const res = await supabase.functions.invoke("creative-flow", {
+          const res = await invokeWithTimeout("creative-flow", {
             body: {
               step: "generate",
               contentType: "instagram_post",
@@ -267,7 +267,7 @@ export function useContentGenerator() {
               photos: params.photoMode && params.photos?.length ? [{ base64: params.photos[0].base64, mimeType: "image/jpeg" }] : undefined,
               photo_description: params.photoMode ? params.photoDescription : undefined,
             },
-          });
+          }, 120000);
           data = res.data;
           invokeError = res.error;
           break;
