@@ -86,6 +86,7 @@ interface BrandingCard {
   dbTable?: string;
   dbField?: string;
   colors?: string[];
+  onColorChange?: (colorIndex: number, newColor: string) => void;
 }
 
 interface BrandProfileData {
@@ -111,14 +112,31 @@ function BrandingCardItem({ card, index, onSave }: { card: BrandingCard; index: 
         <span className="text-sm font-semibold text-foreground">{card.title}</span>
       </div>
       {card.colors && card.colors.length > 0 && (
-        <div className="flex items-center gap-2 py-1">
+        <div className="flex flex-wrap items-center gap-3 py-1">
           {card.colors.map((color, ci) => (
-            <div
-              key={ci}
-              className="w-8 h-8 rounded-lg border border-border shadow-sm"
-              style={{ backgroundColor: color }}
-              title={color}
-            />
+            <div key={ci} className="flex items-center gap-2">
+              <input
+                type="color"
+                value={color || "#888888"}
+                onChange={(e) => {
+                  if (card.onColorChange) card.onColorChange(ci, e.target.value);
+                }}
+                className="w-8 h-8 rounded-lg border border-border cursor-pointer p-0.5"
+              />
+              <input
+                type="text"
+                value={color || ""}
+                placeholder="#000000"
+                onChange={(e) => {
+                  let v = e.target.value;
+                  if (v && !v.startsWith("#")) v = "#" + v;
+                  if (v === "#" || /^#[0-9A-Fa-f]{0,6}$/.test(v)) {
+                    if (card.onColorChange) card.onColorChange(ci, v);
+                  }
+                }}
+                className="font-mono text-xs uppercase text-foreground bg-secondary/50 border border-border rounded-lg px-2 py-1.5 w-24 focus:border-primary focus:outline-none transition-colors"
+              />
+            </div>
           ))}
         </div>
       )}
@@ -318,6 +336,7 @@ export default function WelcomePage() {
       const charter = charterRes.data as any;
       if (charter && (charter.color_primary || charter.font_title || charter.photo_style)) {
         const charterColors = [charter.color_primary, charter.color_secondary, charter.color_accent, charter.color_background, charter.color_text].filter(Boolean);
+        const colorKeys = ["color_primary", "color_secondary", "color_accent", "color_background", "color_text"].filter((_, i) => [charter.color_primary, charter.color_secondary, charter.color_accent, charter.color_background, charter.color_text][i]);
         const charterParts: string[] = [];
         if (charter.font_title) {
           const fonts = [charter.font_title, charter.font_body].filter(Boolean);
@@ -329,7 +348,24 @@ export default function WelcomePage() {
           if (kw.length) charterParts.push(`Ambiance : ${kw.join(", ")}`);
         }
         const charterContent = charterParts.join(" · ");
-        cards.push({ emoji: "🎨", title: "Charte graphique", content: charterContent, route: "/branding/section?section=charter", colors: charterColors });
+        cards.push({
+          emoji: "🎨", title: "Charte graphique", content: charterContent, route: "/branding/section?section=charter", colors: charterColors,
+          onColorChange: async (colorIndex: number, newColor: string) => {
+            const colorKey = colorKeys[colorIndex];
+            if (!colorKey) return;
+            setBrandingCards(prev => prev.map(c => {
+              if (c.title !== "Charte graphique" || !c.colors) return c;
+              const newColors = [...c.colors];
+              newColors[colorIndex] = newColor;
+              return { ...c, colors: newColors };
+            }));
+            if (/^#[0-9A-Fa-f]{6}$/.test(newColor)) {
+              await (supabase.from("brand_charter" as any) as any)
+                .update({ [colorKey]: newColor })
+                .eq(column, value);
+            }
+          },
+        });
       }
 
       setBrandingCards(cards);
@@ -423,6 +459,7 @@ export default function WelcomePage() {
       const charter = charterRes.data as any;
       if (charter && (charter.color_primary || charter.font_title || charter.photo_style)) {
         const charterColors = [charter.color_primary, charter.color_secondary, charter.color_accent, charter.color_background, charter.color_text].filter(Boolean);
+        const colorKeys = ["color_primary", "color_secondary", "color_accent", "color_background", "color_text"].filter((_, i) => [charter.color_primary, charter.color_secondary, charter.color_accent, charter.color_background, charter.color_text][i]);
         const charterParts: string[] = [];
         if (charter.font_title) {
           const fonts = [charter.font_title, charter.font_body].filter(Boolean);
@@ -434,7 +471,24 @@ export default function WelcomePage() {
           if (kw.length) charterParts.push(`Ambiance : ${kw.join(", ")}`);
         }
         const charterContent = charterParts.join(" · ");
-        cards.push({ emoji: "🎨", title: "Charte graphique", content: charterContent, route: "/branding/section?section=charter", colors: charterColors });
+        cards.push({
+          emoji: "🎨", title: "Charte graphique", content: charterContent, route: "/branding/section?section=charter", colors: charterColors,
+          onColorChange: async (colorIndex: number, newColor: string) => {
+            const colorKey = colorKeys[colorIndex];
+            if (!colorKey) return;
+            setBrandingCards(prev => prev.map(c => {
+              if (c.title !== "Charte graphique" || !c.colors) return c;
+              const newColors = [...c.colors];
+              newColors[colorIndex] = newColor;
+              return { ...c, colors: newColors };
+            }));
+            if (/^#[0-9A-Fa-f]{6}$/.test(newColor)) {
+              await (supabase.from("brand_charter" as any) as any)
+                .update({ [colorKey]: newColor })
+                .eq(column, value);
+            }
+          },
+        });
       }
 
       // Only update if we got MORE cards than currently displayed
@@ -518,7 +572,7 @@ export default function WelcomePage() {
             ✨ {prenom ? `${prenom}, voilà` : "Voilà"} ce que j'ai préparé pour toi
           </h1>
           <p className="text-sm text-muted-foreground">
-            J'ai pré-rempli ton branding à partir de ce que j'ai trouvé. Vérifie, ajuste, et c'est parti.
+            J'ai pré-rempli ton branding à partir de ce que j'ai trouvé. <strong className="text-foreground">Clique sur n'importe quel texte pour le modifier.</strong> Quand tout te va, valide en bas.
           </p>
         </div>
 
@@ -548,7 +602,7 @@ export default function WelcomePage() {
                 <p className="text-xs text-muted-foreground">Ça prend quelques secondes, c'est bientôt prêt ✨</p>
               </div>
             ) : hasBranding ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3">
                 {brandingCards.map((card, i) => (
                   <BrandingCardItem key={i} card={card} index={i} onSave={handleCardSave} />
                 ))}
@@ -665,14 +719,17 @@ export default function WelcomePage() {
         </div>
 
         {/* F) CTAs */}
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex flex-col gap-3">
           <Button
             onClick={() => markSeen("/dashboard")}
-            className="flex-1 rounded-pill gap-2"
+            className="w-full rounded-pill gap-2"
             size="lg"
           >
-            ✨ Explorer l'outil →
+            ✅ Tout est bon, c'est parti !
           </Button>
+          <p className="text-xs text-muted-foreground text-center">
+            Tu pourras toujours modifier ton branding depuis l'espace Branding.
+          </p>
         </div>
       </div>
     </div>
