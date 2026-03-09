@@ -243,7 +243,7 @@ export default function WelcomePage() {
           .order("position", { ascending: true })
           .limit(3),
         (supabase.from("brand_charter") as any)
-          .select("color_primary, color_secondary, color_accent, font_title, font_body, mood_keywords, photo_style, moodboard_description")
+          .select("color_primary, color_secondary, color_accent, color_background, color_text, font_title, font_body, mood_keywords, photo_style, moodboard_description")
           .eq(column, value)
           .maybeSingle(),
         (supabase.from("brand_proposition") as any)
