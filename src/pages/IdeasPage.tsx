@@ -335,6 +335,11 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
                     <span className="font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-primary text-primary-foreground">
                       📱 {idea.canal || "Instagram"}
                     </span>
+                    {idea.type === "brief" && (
+                      <span className="font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-accent text-accent-foreground">
+                        📋 Brief créatif
+                      </span>
+                    )}
                   </div>
 
                   {/* Title */}
