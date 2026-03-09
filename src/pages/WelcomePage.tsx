@@ -333,6 +333,7 @@ export default function WelcomePage() {
       }
 
       setBrandingCards(cards);
+      if (cards.length >= 3) setBrandingStillLoading(false);
       setLoading(false);
     };
     load();
