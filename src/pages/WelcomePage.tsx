@@ -342,7 +342,7 @@ export default function WelcomePage() {
   useEffect(() => {
     if (!user || loading) return;
     let attempts = 0;
-    const maxAttempts = 12; // 12 × 5s = 60s
+    const maxAttempts = 24; // 24 × 5s = 120s (2 min pour attendre l'enrichissement Opus)
     const intervalRef = { current: null as ReturnType<typeof setInterval> | null };
 
     const refetchBranding = async () => {

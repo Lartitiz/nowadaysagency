@@ -4715,6 +4715,7 @@ export type Database = {
           promise: string | null
           promise_long: string | null
           sales_line: string | null
+          sort_order: number | null
           target: string | null
           target_ideal: string | null
           target_not_for: string | null
@@ -4752,6 +4753,7 @@ export type Database = {
           promise?: string | null
           promise_long?: string | null
           sales_line?: string | null
+          sort_order?: number | null
           target?: string | null
           target_ideal?: string | null
           target_not_for?: string | null
@@ -4789,6 +4791,7 @@ export type Database = {
           promise?: string | null
           promise_long?: string | null
           sales_line?: string | null
+          sort_order?: number | null
           target?: string | null
           target_ideal?: string | null
           target_not_for?: string | null
