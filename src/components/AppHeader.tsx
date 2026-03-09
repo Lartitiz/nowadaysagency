@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Home, ClipboardList, Sparkles, CalendarDays, Users, User, Palette, CreditCard, Settings, HelpCircle, LogOut, Film, GraduationCap, Handshake, HeartHandshake, Search, ChevronDown, Check, Plus, Compass, MessageCircle, LayoutGrid, Wrench } from "lucide-react";
 
 import { useDemoContext } from "@/contexts/DemoContext";
@@ -33,6 +33,76 @@ const MOBILE_NAV = [
   { to: "/creer", label: "Créer", icon: Sparkles, matchExact: false },
   { to: "/calendrier", label: "Organiser", icon: CalendarDays, matchExact: false },
 ];
+
+const BREADCRUMB_LABELS: Record<string, string> = {
+  "/branding": "Branding",
+  "/branding/audit": "Audit branding",
+  "/branding/offres": "Mes offres",
+  "/branding/coaching": "Coaching branding",
+  "/branding/section": "Section branding",
+  "/creer": "Créer",
+  "/calendrier": "Calendrier",
+  "/instagram": "Instagram",
+  "/linkedin": "LinkedIn",
+  "/pinterest": "Pinterest",
+  "/site": "Site web",
+  "/newsletter": "Newsletter",
+  "/engagement": "Engagement",
+  "/prospection": "Prospection",
+  "/communaute": "Communauté",
+  "/accompagnement": "Accompagnement",
+  "/profil": "Mon profil",
+  "/settings": "Paramètres",
+  "/abonnement": "Abonnement",
+};
+
+const SECTION_LABELS: Record<string, string> = {
+  story: "Mon histoire",
+  persona: "Mon client·e idéal·e",
+  value_proposition: "Ma proposition de valeur",
+  tone_style: "Mon ton et style",
+  content_strategy: "Ma stratégie de contenu",
+};
+
+function Breadcrumb() {
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const path = location.pathname;
+
+  if (path === "/dashboard" || path === "/dashboard/guide" || path === "/welcome") return null;
+
+  const matchedPath = Object.keys(BREADCRUMB_LABELS)
+    .sort((a, b) => b.length - a.length)
+    .find(p => path.startsWith(p));
+
+  if (!matchedPath) return null;
+
+  const label = BREADCRUMB_LABELS[matchedPath];
+  const section = searchParams.get("section");
+  const sectionLabel = section ? SECTION_LABELS[section] : null;
+
+  return (
+    <div className="border-b border-border bg-card/50 px-4 py-2">
+      <nav className="mx-auto max-w-6xl flex items-center gap-1.5 text-xs text-muted-foreground">
+        <Link to="/dashboard" className="hover:text-foreground transition-colors">
+          Mon Assistant
+        </Link>
+        <span className="text-border">›</span>
+        {sectionLabel ? (
+          <>
+            <Link to="/branding" className="hover:text-foreground transition-colors">
+              {label}
+            </Link>
+            <span className="text-border">›</span>
+            <span className="text-foreground font-medium">{sectionLabel}</span>
+          </>
+        ) : (
+          <span className="text-foreground font-medium">{label}</span>
+        )}
+      </nav>
+    </div>
+  );
+}
 
 export default function AppHeader() {
   const { isActive: sessionActive } = useSession();
@@ -236,6 +306,8 @@ function AppHeaderInner() {
           </div>
         </div>
       </header>
+
+      <Breadcrumb />
 
       {/* ─── Mobile bottom tab bar (<md only) ─── */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-card shadow-[0_-2px_10px_rgba(0,0,0,0.05)] md:hidden">
