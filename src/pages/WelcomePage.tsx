@@ -157,7 +157,7 @@ export default function WelcomePage() {
   const [diagnosticSummary, setDiagnosticSummary] = useState("");
   const [brandingCards, setBrandingCards] = useState<BrandingCard[]>([]);
   const [loading, setLoading] = useState(true);
-  
+  const [brandingStillLoading, setBrandingStillLoading] = useState(true);
 
   const prenom = (profileData as any)?.prenom || "";
   const channels: string[] = (profileData as any)?.canaux || [];
@@ -333,6 +333,7 @@ export default function WelcomePage() {
       }
 
       setBrandingCards(cards);
+      if (cards.length >= 3) setBrandingStillLoading(false);
       setLoading(false);
     };
     load();
@@ -439,11 +440,15 @@ export default function WelcomePage() {
       // Only update if we got MORE cards than currently displayed
       if (cards.length > brandingCards.length) {
         setBrandingCards(cards);
+        if (cards.length >= 3) setBrandingStillLoading(false);
         if (cards.length >= 5 && intervalRef.current) {
           clearInterval(intervalRef.current);
         }
       }
     };
+
+    // Timeout de sécurité : après 60s, on arrête d'attendre
+    const safetyTimeout = setTimeout(() => setBrandingStillLoading(false), 60000);
 
     // Premier refetch à 3s, puis toutes les 4s
     const startTimeout = setTimeout(() => {
@@ -453,6 +458,7 @@ export default function WelcomePage() {
 
     return () => {
       clearTimeout(startTimeout);
+      clearTimeout(safetyTimeout);
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [user?.id, loading, column, value]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -531,7 +537,17 @@ export default function WelcomePage() {
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
               Ton branding pré-rempli
             </h2>
-            {hasBranding ? (
+            {brandingStillLoading ? (
+              <div className="rounded-2xl bg-[hsl(var(--rose-pale))]/50 border border-border p-8 flex flex-col items-center justify-center gap-3">
+                <div className="flex gap-1.5">
+                  {[0, 1, 2].map(i => (
+                    <div key={i} className="h-2 w-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: `${i * 0.16}s` }} />
+                  ))}
+                </div>
+                <p className="text-sm text-muted-foreground">Je prépare ton branding personnalisé...</p>
+                <p className="text-xs text-muted-foreground">Ça prend quelques secondes, c'est bientôt prêt ✨</p>
+              </div>
+            ) : hasBranding ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {brandingCards.map((card, i) => (
                   <BrandingCardItem key={i} card={card} index={i} onSave={handleCardSave} />
