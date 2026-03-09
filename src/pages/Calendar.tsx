@@ -31,6 +31,7 @@ import { CalendarListView } from "@/components/calendar/CalendarListView";
 import { CalendarIdeasSidebar, type SavedIdea } from "@/components/calendar/CalendarIdeasSidebar";
 import { IdeaDetailSheet } from "@/components/calendar/IdeaDetailSheet";
 import { WeekDashboard } from "@/components/calendar/WeekDashboard";
+import { QuickBatchAdd } from "@/components/calendar/QuickBatchAdd";
 import { lazy, Suspense } from "react";
 import type { DragStartEvent, DragEndEvent } from "@dnd-kit/core";
 const CalendarDndWrapper = lazy(() => import("@/components/calendar/CalendarDndWrapper"));
