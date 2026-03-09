@@ -80,6 +80,14 @@ export const EDITORIAL_ANGLES: EditorialAngle[] = [
     exampleSubjects: ["Comment Marie a doublé ses leads en 3 mois", "De 0 à 50 clients grâce à LinkedIn"],
   },
   {
+    id: "mise-en-valeur",
+    label: "Mise en valeur produit / création",
+    emoji: "✨",
+    principle: "Tu présentes ton produit, ta création ou ton offre en donnant envie sans survendre",
+    defaultStructure: "conseil_pratique",
+    recommended_objectives: ["vente"],
+  },
+  {
     id: "surf-actu",
     label: "Surf sur l'actu",
     emoji: "🌊",
