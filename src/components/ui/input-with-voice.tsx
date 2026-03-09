@@ -2,6 +2,7 @@ import * as React from "react";
 import { Input } from "@/components/ui/input";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { cn } from "@/lib/utils";
+import MicButton from "@/components/MicButton";
 
 type InputProps = React.ComponentProps<typeof Input>;
 
@@ -42,24 +43,13 @@ const InputWithVoice = React.forwardRef<HTMLInputElement, InputWithVoiceProps>(
     return (
       <div className="relative w-full">
         <Input ref={ref} type={type} value={value} onChange={onChange} className={cn("pr-10", className)} {...props} />
-        <button
-          type="button"
-          onClick={toggle}
-          className={cn(
-            "absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md transition-all",
-            isListening ? "animate-pulse" : "opacity-40 hover:opacity-80"
-          )}
-          aria-label={isListening ? "Arrêter la dictée" : "Dicter"}
-        >
-          <span className="text-base" style={{ filter: isListening ? "none" : "grayscale(1)" }}>🎙️</span>
-        </button>
+        <div className="absolute right-2 top-1/2 -translate-y-1/2">
+          <MicButton isListening={isListening} isSupported={isSupported} onClick={toggle} size="sm" error={error} />
+        </div>
         {isListening && (
           <p className="mt-1 text-xs text-destructive font-medium animate-pulse flex items-center gap-1">
             <span className="inline-block w-2 h-2 rounded-full bg-destructive" /> Écoute en cours...
           </p>
-        )}
-        {error && !isListening && (
-          <p className="mt-1 text-xs text-destructive">{error}</p>
         )}
       </div>
     );
