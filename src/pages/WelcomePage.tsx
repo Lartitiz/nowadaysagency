@@ -86,6 +86,7 @@ interface BrandingCard {
   dbTable?: string;
   dbField?: string;
   colors?: string[];
+  onColorChange?: (colorIndex: number, newColor: string) => void;
 }
 
 interface BrandProfileData {
