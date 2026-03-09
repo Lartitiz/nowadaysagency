@@ -802,7 +802,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     return (
       <div>
         <AuditRecommendationBanner />
-        <ExportSection filteredPosts={filteredPosts} canalFilter={canalFilter} toast={toast} onCoachingOpen={() => setCoachingOpen(true)} />
+        <ExportSection filteredPosts={filteredPosts} canalFilter={canalFilter} toast={toast} onCoachingOpen={() => setCoachingOpen(true)} onQuickBatchOpen={() => setQuickBatchOpen(true)} />
         {isMobile && (
           <div className="flex rounded-full border border-border overflow-hidden mb-4">
             <button onClick={() => setMobileTab("calendar")} className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${mobileTab === "calendar" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>📅 Calendrier</button>
