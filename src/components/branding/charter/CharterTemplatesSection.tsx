@@ -129,19 +129,22 @@ export default function CharterTemplatesSection({
       )}
 
       {data.uploaded_templates.length > 0 && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="mt-3 gap-1.5 text-xs w-full"
-          onClick={onAuditTemplates}
-          disabled={auditing}
-        >
-          {auditing ? (
-            <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Analyse en cours...</>
-          ) : (
-            <><Search className="h-3.5 w-3.5" /> 🔍 Auditer mes templates</>
-          )}
-        </Button>
+        <div className="mt-3 space-y-1.5">
+          <Button
+            variant="default"
+            size="sm"
+            className="gap-1.5 text-xs w-full"
+            onClick={onAuditTemplates}
+            disabled={auditing}
+          >
+            {auditing ? (
+              <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Analyse en cours...</>
+            ) : (
+              <>✨ Analyser et pré-remplir ma charte</>
+            )}
+          </Button>
+          <p className="text-xs text-muted-foreground text-center">L'IA détecte tes couleurs, ton style et te propose une charte cohérente</p>
+        </div>
       )}
     </section>
   );
