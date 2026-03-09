@@ -351,25 +351,20 @@ export default function LandingPage() {
         <div className="mx-auto max-w-6xl grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-12 lg:gap-16 items-center">
           <div className="animate-reveal-up">
             <span className="inline-flex items-center gap-1.5 rounded-pill bg-primary/10 text-primary text-xs font-semibold px-4 py-1.5 mb-6">
-              ✨ Pour solopreneuses créatives et éthiques
+              🚀 Gratuit · Sans carte bancaire · En 30 secondes
             </span>
             <h1 className="font-display text-[28px] sm:text-[40px] lg:text-[52px] font-bold leading-[1.12] text-foreground">
-              L'outil de com' que t'aurais aimé avoir
+              Gère toute ta com' au même endroit.
               <br />
-              <span className="text-primary">depuis le début.</span>
+              <span className="text-primary">Et récupère tes soirées.</span>
             </h1>
             <p className="mt-6 text-base sm:text-lg text-muted-foreground max-w-xl leading-relaxed">
-              Branding, création de contenu, calendrier éditorial, audits Instagram et SEO. Tout au même endroit, guidé pas à pas.
+              Branding, création de contenu, calendrier éditorial, audits Instagram et SEO : l'outil structure ta stratégie et crée tes contenus.
               <br className="hidden sm:block" />
-              <strong className="text-foreground">Conçu pour les projets engagés. Avec une vraie méthode dedans.</strong>
-              <span className="sr-only">Outil de communication tout-en-un pour solopreneuses, artisanes, coachs et freelances créatives.</span>
+              <strong className="text-foreground">Une IA qui connaît ta marque et écrit avec ta voix.</strong>
             </p>
             <div className="mt-8">
-              <a href="#signup-section" onClick={scrollTo("signup-section")}
-                className="inline-flex items-center justify-center gap-2 rounded-pill bg-primary text-primary-foreground px-8 py-3.5 text-base font-medium shadow-cta hover:bg-bordeaux transition-all hover:-translate-y-0.5">
-                <Rocket className="h-4 w-4" /> Accéder gratuitement
-              </a>
-              <p className="mt-3 text-xs text-muted-foreground">Gratuit. Sans carte bancaire. En 30 secondes.</p>
+              <SignupForm />
             </div>
           </div>
 
