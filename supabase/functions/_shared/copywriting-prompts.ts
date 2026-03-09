@@ -919,7 +919,7 @@ export const LANDING_PAGE_RED_FLAGS = [
 export const EDITORIAL_ANGLES_REFERENCE = `
 
 ═══════════════════════════════════════════════════
-LES 13 ANGLES ÉDITORIAUX ET LEURS STRUCTURES PAR TYPE
+LES 14 ANGLES ÉDITORIAUX ET LEURS STRUCTURES PAR TYPE
 ═══════════════════════════════════════════════════
 
 ANGLE 1 : ENQUÊTE / DÉCRYPTAGE
@@ -1052,6 +1052,16 @@ En reel (45-60s) : Hook 0-3s "3 choses que personne ne te dit sur..." → Point 
 En story (5-7 stories) : Hook → Point 1 + sondage → Point 2 → Point 3 → Synthèse → Save CTA
 En post caption : Accroche analyse → Développement structuré → Preuves → Synthèse → CTA
 En LinkedIn : Accroche expertise → Analyse détaillée avec données → Position → CTA
+
+ANGLE 14 : MISE EN VALEUR PRODUIT / CRÉATION
+Principe : Présenter un produit, une création ou une offre en donnant envie, sans tomber dans le discours commercial. Raconter l'histoire derrière l'objet, l'artisanat, le choix des matières, l'intention. L'émotion et le sens plutôt que les features.
+Structure par défaut : conseil pratique
+Objectifs : vente + visibilité | Phase 3-4 | Déclic : projection / désir
+En carrousel (6-8 slides) : Hook visuel ou émotionnel ("Ce collier a une histoire") → L'histoire derrière (matières, processus, inspiration) → Le détail qui fait la différence → Pour qui c'est fait (identification) → Le rendu / mise en situation → Preuve sociale ou anecdote cliente → CTA doux (lien en bio, "pousse la porte")
+En reel (15-30s) : Hook 0-3s (le produit en gros plan ou unboxing) → L'histoire 3-15s (voix off ou texte : d'où ça vient, pourquoi c'est spécial) → Le détail 15-25s (zoom matière, geste artisanal) → CTA 25-30s
+En story (4-5 stories) : Hook visuel du produit → L'histoire/le process → Sondage "tu préfères lequel ?" ou curseur emoji → Détail + prix → CTA "lien en bio"
+En post caption : Accroche sensorielle ou émotionnelle → L'histoire du produit → Ce qui le rend unique → Pour qui → CTA doux (pas d'urgence artificielle)
+En LinkedIn : Accroche process/métier → L'intention derrière le produit → Le savoir-faire → Preuves → CTA pro
 
 ═══════════════════════════════════════════════════
 COMMENT UTILISER CES ANGLES

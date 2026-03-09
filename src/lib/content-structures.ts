@@ -80,6 +80,17 @@ export const EDITORIAL_ANGLES: EditorialAngle[] = [
     exampleSubjects: ["Comment Marie a doublé ses leads en 3 mois", "De 0 à 50 clients grâce à LinkedIn"],
   },
   {
+    id: "mise-en-valeur",
+    label: "Mise en valeur produit / création",
+    emoji: "✨",
+    principle: "Tu présentes ton produit, ta création ou ton offre en donnant envie sans survendre",
+    defaultStructure: "conseil_pratique",
+    objectives: ["vente", "visibilite"],
+    phase: [3, 4],
+    declic: "projection",
+    exampleSubjects: ["Découvre mes nouveaux colliers en velours", "Pourquoi j'ai choisi ces matières"],
+  },
+  {
     id: "surf-actu",
     label: "Surf sur l'actu",
     emoji: "🌊",
@@ -564,7 +575,7 @@ export const OBJECTIVE_RECOMMENDATIONS: Record<string, ObjectiveRecommendation> 
    visibilite: {
     label: "Visibilité",
     emoji: "🔍",
-    angles: ["coup-de-gueule", "mythe", "conseil-contre-intuitif", "identification", "surf-actu", "prise_de_position", "mythe_deconstruire", "conseil_contre_courant", "decryptage_expert", "epingle_conseil", "epingle_inspiration", "epingle_article"],
+    angles: ["coup-de-gueule", "mythe", "conseil-contre-intuitif", "identification", "surf-actu", "mise-en-valeur", "prise_de_position", "mythe_deconstruire", "conseil_contre_courant", "decryptage_expert", "epingle_conseil", "epingle_inspiration", "epingle_article"],
     priorityTypes: ["carousel", "reel", "linkedin", "pinterest"],
     hookTypes: ["choc", "question", "statistique"],
   },
@@ -578,7 +589,7 @@ export const OBJECTIVE_RECOMMENDATIONS: Record<string, ObjectiveRecommendation> 
   vente: {
     label: "Vente",
     emoji: "🛒",
-    angles: ["histoire-cliente", "before-after", "storytelling", "surf-actu", "test", "etude_de_cas", "storytelling_pro", "epingle_produit"],
+    angles: ["histoire-cliente", "before-after", "storytelling", "surf-actu", "test", "mise-en-valeur", "etude_de_cas", "storytelling_pro", "epingle_produit"],
     priorityTypes: ["carousel", "linkedin", "newsletter", "pinterest"],
     hookTypes: ["resultat", "transformation", "preuve"],
   },
