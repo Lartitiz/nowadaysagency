@@ -299,7 +299,7 @@ export function useContentGenerator() {
         }
 
         case "newsletter": {
-          const res = await supabase.functions.invoke("newsletter-ai", {
+          const res = await invokeWithTimeout("newsletter-ai", {
             body: {
               topic: effectiveSubject + (existingContent ? `\n\n${existingContent}` : ""),
               preGenAnswers: answers
@@ -312,7 +312,7 @@ export function useContentGenerator() {
               template: editorialAngle || null,
               workspace_id: workspaceId || null,
             },
-          });
+          }, 120000);
           data = res.data;
           invokeError = res.error;
           break;
