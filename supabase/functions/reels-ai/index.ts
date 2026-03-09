@@ -160,7 +160,8 @@ serve(async (req) => {
       type: "edge_function_error",
       function_name: "reels-ai",
       error: e instanceof Error ? e.message : "Unknown error",
-      user_id: null,
+      stack: e instanceof Error ? e.stack : undefined,
+      user_id: userId,
       timestamp: new Date().toISOString(),
     }));
     return new Response(JSON.stringify({ error: "Erreur interne du serveur" }), {
