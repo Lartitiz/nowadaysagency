@@ -447,6 +447,9 @@ export default function WelcomePage() {
       }
     };
 
+    // Timeout de sécurité : après 60s, on arrête d'attendre
+    const safetyTimeout = setTimeout(() => setBrandingStillLoading(false), 60000);
+
     // Premier refetch à 3s, puis toutes les 4s
     const startTimeout = setTimeout(() => {
       refetchBranding();
