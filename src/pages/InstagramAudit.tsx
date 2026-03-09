@@ -162,24 +162,26 @@ export default function InstagramAudit() {
       } as any).eq(column, value);
       queryClient.invalidateQueries({ queryKey: ["profile"] });
 
-      // 2. Upload screenshots
-      const screenshotUrls: string[] = [];
-      for (const f of form.profileScreenshots) {
-        screenshotUrls.push(await uploadFile(f, "audit-screenshots", "profile"));
-      }
-      if (form.feedScreenshot) screenshotUrls.push(await uploadFile(form.feedScreenshot, "audit-screenshots", "feed"));
-      if (form.highlightsScreenshot) screenshotUrls.push(await uploadFile(form.highlightsScreenshot, "audit-screenshots", "highlights"));
+      // 2. Upload screenshots (non-blocking: audit works with text data if uploads fail)
+      let screenshotUrls: string[] = [];
+      let bestPostUrls: string[] = [];
+      let worstPostUrls: string[] = [];
+      try {
+        for (const f of form.profileScreenshots) {
+          screenshotUrls.push(await uploadFile(f, "audit-screenshots", "profile"));
+        }
+        if (form.feedScreenshot) screenshotUrls.push(await uploadFile(form.feedScreenshot, "audit-screenshots", "feed"));
+        if (form.highlightsScreenshot) screenshotUrls.push(await uploadFile(form.highlightsScreenshot, "audit-screenshots", "highlights"));
 
-      // Note: only the first screenshot will be analyzed by AI vision, others are saved for reference
-
-      // 3. Upload best/worst post files
-      const bestPostUrls: string[] = [];
-      for (const f of form.bestPostFiles) {
-        bestPostUrls.push(await uploadFile(f, "audit-posts", "best"));
-      }
-      const worstPostUrls: string[] = [];
-      for (const f of form.worstPostFiles) {
-        worstPostUrls.push(await uploadFile(f, "audit-posts", "worst"));
+        // 3. Upload best/worst post files
+        for (const f of form.bestPostFiles) {
+          bestPostUrls.push(await uploadFile(f, "audit-posts", "best"));
+        }
+        for (const f of form.worstPostFiles) {
+          worstPostUrls.push(await uploadFile(f, "audit-posts", "worst"));
+        }
+      } catch (uploadErr) {
+        console.warn("[Audit] Screenshot upload failed, continuing with text data:", uploadErr);
       }
 
 
