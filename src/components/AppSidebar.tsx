@@ -176,14 +176,16 @@ export default function AppSidebar() {
         </Tooltip>
       </div>
 
-      {/* Mobile: Hamburger button — visible only below lg */}
-      <button
-        onClick={() => setOpen(true)}
-        className="fixed top-[14px] left-[14px] z-[300] flex lg:hidden items-center justify-center w-9 h-9 rounded-[9px] bg-bordeaux cursor-pointer"
-        aria-label="Ouvrir le menu"
-      >
-        <Menu size={18} className="text-white" />
-      </button>
+      {/* Mobile: Hamburger button — visible only below lg when menu is closed */}
+      {!open && (
+        <button
+          onClick={() => setOpen(true)}
+          className="fixed top-[14px] left-[14px] z-[300] flex lg:hidden items-center justify-center w-9 h-9 rounded-[9px] bg-bordeaux cursor-pointer"
+          aria-label="Ouvrir le menu"
+        >
+          <Menu size={18} className="text-white" />
+        </button>
+      )}
 
       {/* Backdrop */}
       {open && (
@@ -198,7 +200,7 @@ export default function AppSidebar() {
       <div
         ref={panelRef}
         className={`fixed top-0 left-0 h-full w-[260px] z-[301] bg-card border-r border-border flex-col overflow-y-auto ${
-          open ? "flex" : "hidden lg:hidden"
+          open ? "flex" : "hidden lg:flex"
         }`}
         style={{
           transform: open ? "translateX(0)" : "translateX(-100%)",
