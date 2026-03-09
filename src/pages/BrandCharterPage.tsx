@@ -364,7 +364,7 @@ export default function BrandCharterPage() {
       if (brandProfileData.tone_style) words.push(brandProfileData.tone_style.toLowerCase());
       if (brandProfileData.tone_humor) words.push(brandProfileData.tone_humor.toLowerCase());
       if (Array.isArray(brandProfileData.tone_keywords)) {
-        words.push(...brandProfileData.tone_keywords.map((k: string) => k.toLowerCase()));
+        words.push(...brandProfileData.tone_keywords.filter((k: unknown): k is string => typeof k === "string").map(k => k.toLowerCase()));
       }
       setToneKeywords(words);
     }
