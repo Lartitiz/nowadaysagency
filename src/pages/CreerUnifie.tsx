@@ -1370,6 +1370,11 @@ export default function CreerUnifie() {
         }
       }
 
+      // Lier le brief au post calendrier
+      if (currentBriefId && postId) {
+        supabase.from("content_briefs").update({ calendar_post_id: postId } as any).eq("id", currentBriefId).then(() => {}, console.error);
+      }
+
       toast.success("Ajouté au calendrier !");
       setCalendarDialogOpen(false);
       clearFlowState();
