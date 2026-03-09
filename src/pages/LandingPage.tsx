@@ -108,7 +108,7 @@ const FAQ_DATA = [
   },
   {
     q: "Le plan gratuit, c'est vraiment gratuit ? C'est quoi le piège ?",
-    a: "Pas de piège. Le plan gratuit inclut l'onboarding complet, tout l'espace branding, le calendrier éditorial, les espaces par canal, et 10 crédits IA par mois. C'est déjà beaucoup. Le premium à 39€/mois débloque les crédits illimités, les audits, les stats et la communauté. Mais tu peux rester en gratuit aussi longtemps que tu veux."
+    a: "Pas de piège. Le plan gratuit inclut l'onboarding complet, tout l'espace branding, le calendrier éditorial, les espaces par canal, et 60 contenus IA par mois. C'est déjà beaucoup. Le premium à 39€/mois débloque les contenus illimités, les audits, les stats et la communauté. Mais tu peux rester en gratuit aussi longtemps que tu veux."
   },
   {
     q: "Je peux annuler quand je veux ?",
