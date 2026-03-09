@@ -214,7 +214,8 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
       await supabase.from("saved_ideas").update({ status: "planned", planned_date: dateStr, calendar_post_id: calPost.id } as any).eq("id", idea.id);
       setIdeas(prev => prev.map(i => i.id === idea.id ? { ...i, status: "planned", planned_date: dateStr, calendar_post_id: calPost.id } : i));
     } else {
-      setBriefs(prev => prev.map(b => b.id === idea.id ? { ...b, status: "planned" } : b));
+      await supabase.from("content_briefs").update({ calendar_post_id: calPost.id } as any).eq("id", idea.id);
+      setBriefs(prev => prev.map(b => b.id === idea.id ? { ...b, status: "planned", calendar_post_id: calPost.id } : b));
     }
     toast({ title: `Planifiée le ${fnsFormat(date, "d MMM yyyy", { locale: fr })}` });
   };
