@@ -32,7 +32,7 @@ export function VoiceInput({ value, onChange, placeholder, onEnter, autoFocus = 
   multiline?: boolean;
   showVoiceTip?: boolean;
 }) {
-  const { isListening, toggle, error } = useSpeechRecognition(
+  const { isListening, isSupported, toggle, error } = useSpeechRecognition(
     (transcript) => onChange(value ? value + " " + transcript : transcript),
   );
 
