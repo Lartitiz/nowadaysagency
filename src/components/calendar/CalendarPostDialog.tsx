@@ -311,6 +311,34 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
                   onShowContentViewer={() => setShowContentViewer(true)}
                 />
 
+                {/* Brief créatif lié */}
+                {linkedBrief && (
+                  <Collapsible>
+                    <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-foreground w-full py-2">
+                      <span>📋 Brief créatif</span>
+                      <span className="text-xs text-muted-foreground font-normal ml-auto">
+                        {Object.values(linkedBrief.answers).filter(v => v?.trim()).length} réponse(s)
+                      </span>
+                      <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="space-y-3 pt-2">
+                      <p className="text-xs text-muted-foreground">
+                        Les réponses que tu as données pour créer ce contenu :
+                      </p>
+                      {linkedBrief.questions.map((q: any) => {
+                        const answer = linkedBrief.answers[q.id] || linkedBrief.answers[q.question] || "";
+                        if (!answer.trim()) return null;
+                        return (
+                          <div key={q.id} className="rounded-lg bg-muted/30 border border-border p-3">
+                            <p className="text-xs font-medium text-foreground mb-1">{q.question}</p>
+                            <p className="text-xs text-muted-foreground whitespace-pre-wrap">{answer}</p>
+                          </div>
+                        );
+                      })}
+                    </CollapsibleContent>
+                  </Collapsible>
+                )}
+
                 <div>
                   <label className="text-xs font-semibold mb-1.5 block text-foreground">📝 Notes</label>
                   <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Idées, brouillon, remarques..." className="rounded-[10px] min-h-[80px]" />
