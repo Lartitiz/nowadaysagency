@@ -410,6 +410,11 @@ serve(async (req) => {
       }
     }
 
+    // Normalize covered_topic to match checklist keys exactly
+    if (parsed.covered_topic) {
+      parsed.covered_topic = normalizeCoveredTopic(parsed.covered_topic, section);
+    }
+
     await logUsage(userId, "coach", "branding_coaching", undefined, undefined, workspace_id || undefined);
 
     return new Response(JSON.stringify({ response: parsed }), {

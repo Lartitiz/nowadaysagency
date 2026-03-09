@@ -598,6 +598,17 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
     const response = await askAI(newMessages);
     if (!response) return;
 
+    // Circuit-breaker: force completion after too many questions
+    const maxQuestions = checklist.length + 5;
+    if (nextIndex >= maxQuestions && !response.is_complete) {
+      console.warn(`[BrandingCoaching] Circuit-breaker: ${nextIndex} questions reached, forcing completion`);
+      response.is_complete = true;
+      response.completion_percentage = 100;
+      if (!response.final_summary) {
+        response.final_summary = "✅ On a fait le tour ! Ta fiche est remplie avec ce qu'on a couvert ensemble.\n\n💡 Tu peux toujours compléter ou modifier les champs directement dans ta fiche.";
+      }
+    }
+
     // Update covered topics from AI response
     updateCoveredTopics(response);
 
