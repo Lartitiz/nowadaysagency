@@ -50,6 +50,12 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   const [angle, setAngle] = useState<string | null>(null);
   const [status, setStatus] = useState("idea");
   const [notes, setNotes] = useState("");
+  const [linkedBrief, setLinkedBrief] = useState<{
+    subject: string;
+    questions: { id: string; question: string }[];
+    answers: Record<string, string>;
+    created_at: string;
+  } | null>(null);
   const [postCanal, setPostCanal] = useState("instagram");
   const [objectif, setObjectif] = useState<string | null>(null);
   const [format, setFormat] = useState<string | null>(null);
