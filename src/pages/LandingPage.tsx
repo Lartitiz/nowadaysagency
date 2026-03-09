@@ -34,16 +34,16 @@ const FEATURES = [
     visual: "branding",
   },
   {
+    emoji: "📅",
+    title: "Ton calendrier éditorial",
+    desc: "Tu as essayé Notion, Excel, Google Sheets… et tu as passé plus de temps à organiser qu'à créer. Ici, ton calendrier est déjà structuré : vue mensuelle, drag & drop, tes contenus organisés par canal et par objectif. Tu ouvres l'outil, tu sais quoi poster cette semaine. C'est le truc que ChatGPT ne fera jamais.",
+    visual: "calendar",
+  },
+  {
     emoji: "✍️",
     title: "Création de contenu IA",
     desc: "Choisis un format (carrousel, reel, post, story, newsletter…), un angle, et l'IA rédige pour toi. Avec TA voix, parce qu'elle connaît ton branding.",
     visual: "content",
-  },
-  {
-    emoji: "📅",
-    title: "Calendrier éditorial",
-    desc: "Vue mensuelle, drag & drop, tags d'objectif. Tu vois ce qui est prévu, ce qui est publié, ce qui manque. Tu sais quoi poster et quand.",
-    visual: "calendar",
   },
   {
     emoji: "🔍",
