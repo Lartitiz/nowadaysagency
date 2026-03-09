@@ -223,7 +223,7 @@ export default function WelcomePage() {
           .eq("is_primary", true)
           .maybeSingle(),
         (supabase.from("offers") as any)
-          .select("name, promise, price_text, target_ideal")
+          .select("id, name, promise, price_text, target_ideal")
           .eq(column, value)
           .order("sort_order")
           .limit(5),
