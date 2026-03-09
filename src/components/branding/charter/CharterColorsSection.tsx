@@ -192,7 +192,7 @@ export default function CharterColorsSection({
                       onDataChange({ [key]: data[key] });
                     }
                   }}
-                  className="font-mono text-xs uppercase text-muted-foreground bg-transparent border-b border-transparent hover:border-border focus:border-primary focus:outline-none w-20 py-0.5 transition-colors"
+                  className="font-mono text-xs uppercase text-foreground bg-secondary/50 border border-border rounded-lg px-2 py-1.5 hover:border-primary/50 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/20 w-24 transition-colors"
                 />
               </div>
             );
