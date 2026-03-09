@@ -6,7 +6,7 @@ import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Lightbulb, PenLine, CalendarDays, Trash2, Copy, ChevronDown, X, ExternalLink } from "lucide-react";
+import { Lightbulb, PenLine, CalendarDays, Trash2, Copy, ChevronDown, X, ExternalLink, Sparkles } from "lucide-react";
 import { ContentPreview, RevertToOriginalButton } from "@/components/ContentPreview";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -67,6 +67,7 @@ const TYPE_OPTIONS = [
   { id: "idea", label: "💡 Idée" },
   { id: "draft", label: "✏️ Brouillon" },
   { id: "hook", label: "🎣 Accroche" },
+  { id: "brief", label: "📋 Brief créatif" },
 ];
 
 const SORT_OPTIONS = [
@@ -84,6 +85,7 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [ideas, setIdeas] = useState<SavedIdea[]>([]);
+  const [briefs, setBriefs] = useState<SavedIdea[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Filters
@@ -110,11 +112,47 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
       .eq(column, value)
       .order("created_at", { ascending: false });
     if (!error && data) setIdeas(data as unknown as SavedIdea[]);
+
+    // Charger les briefs créatifs
+    const { data: briefsData } = await supabase
+      .from("content_briefs" as any)
+      .select("*")
+      .eq(column, value)
+      .order("created_at", { ascending: false });
+    if (briefsData) {
+      const briefsAsIdeas: SavedIdea[] = (briefsData as any[]).map((b: any) => ({
+        id: b.id,
+        titre: `📋 ${b.subject}`,
+        angle: b.editorial_angle || "libre",
+        format: b.format || "post",
+        canal: b.format === "linkedin" ? "linkedin" : b.format === "newsletter" ? "newsletter" : "instagram",
+        objectif: b.objective || null,
+        type: "brief",
+        status: b.calendar_post_id ? "planned" : "to_explore",
+        content_draft: Object.entries(b.answers || {})
+          .filter(([, v]) => v && (v as string).trim())
+          .map(([k, v]) => `Q: ${k}\nR: ${v}`)
+          .join("\n\n"),
+        content_data: { questions: b.questions, answers: b.answers },
+        source_module: "creer",
+        personal_elements: b.answers,
+        accroche_short: null,
+        accroche_long: null,
+        format_technique: null,
+        notes: null,
+        planned_date: null,
+        calendar_post_id: b.calendar_post_id || null,
+        created_at: b.created_at,
+        updated_at: null,
+      }));
+      setBriefs(briefsAsIdeas);
+    }
+
     setLoading(false);
   };
 
   const filtered = useMemo(() => {
-    let result = [...ideas];
+    let result = [...ideas, ...briefs];
     if (statusFilter !== "all") result = result.filter((i) => (i.status || "to_explore") === statusFilter);
     if (objectifFilter !== "all") result = result.filter((i) => i.objectif === objectifFilter);
     if (canalFilter !== "all") result = result.filter((i) => i.canal === canalFilter);
@@ -127,7 +165,7 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
       default: result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     }
     return result;
-  }, [ideas, statusFilter, objectifFilter, canalFilter, typeFilter, sort]);
+  }, [ideas, briefs, statusFilter, objectifFilter, canalFilter, typeFilter, sort]);
 
   const handleDelete = async (id: string) => {
     await supabase.from("saved_ideas").delete().eq("id", id);
@@ -297,6 +335,11 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
                     <span className="font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-primary text-primary-foreground">
                       📱 {idea.canal || "Instagram"}
                     </span>
+                    {idea.type === "brief" && (
+                      <span className="font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-accent text-accent-foreground">
+                        📋 Brief créatif
+                      </span>
+                    )}
                   </div>
 
                   {/* Title */}
@@ -330,28 +373,41 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
                   </div>
 
                   {/* Actions */}
-                  <div className="flex gap-2 mt-3" onClick={(e) => e.stopPropagation()}>
-                    <Button variant="outline" size="sm" className="rounded-pill text-xs gap-1" onClick={() => handleRediger(idea)}>
-                      <PenLine className="h-3 w-3" /> Rédiger
-                    </Button>
-                    <PlanifierPopover idea={idea} onPlan={handlePlan} />
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="outline" size="sm" className="rounded-pill text-xs gap-1 text-muted-foreground hover:text-destructive">
-                          <Trash2 className="h-3 w-3" /> Supprimer
+                  <div className="flex gap-2 mt-3 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                    {idea.type === "brief" ? (
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="rounded-pill text-xs gap-1.5 w-full"
+                        onClick={() => navigate(`/creer?sujet=${encodeURIComponent(idea.titre.replace("📋 ", ""))}&objectif=${idea.objectif || ""}`)}
+                      >
+                        <Sparkles className="h-3.5 w-3.5" /> Créer à partir de ce brief
+                      </Button>
+                    ) : (
+                      <>
+                        <Button variant="outline" size="sm" className="rounded-pill text-xs gap-1" onClick={() => handleRediger(idea)}>
+                          <PenLine className="h-3 w-3" /> Rédiger
                         </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Supprimer cette idée ?</AlertDialogTitle>
-                          <AlertDialogDescription>Tu veux vraiment supprimer cette idée ? Cette action est irréversible.</AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Annuler</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleDelete(idea.id)}>Supprimer</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                        <PlanifierPopover idea={idea} onPlan={handlePlan} />
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="outline" size="sm" className="rounded-pill text-xs gap-1 text-muted-foreground hover:text-destructive">
+                              <Trash2 className="h-3 w-3" /> Supprimer
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Supprimer cette idée ?</AlertDialogTitle>
+                              <AlertDialogDescription>Tu veux vraiment supprimer cette idée ? Cette action est irréversible.</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Annuler</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDelete(idea.id)}>Supprimer</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </>
+                    )}
                   </div>
                 </div>
               );
