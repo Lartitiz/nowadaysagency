@@ -289,7 +289,6 @@ export default function CharterColorsSection({
     </>
   );
 }
-export default function CharterColorsSection({
   data,
   onDataChange,
   userSector,
