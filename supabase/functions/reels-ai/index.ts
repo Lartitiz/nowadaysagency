@@ -13,6 +13,7 @@ import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  let userId: string | null = null;
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
