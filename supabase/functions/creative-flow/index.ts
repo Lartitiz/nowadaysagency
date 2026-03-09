@@ -574,14 +574,42 @@ Tu DOIS proposer une version SIGNIFICATIVEMENT DIFFÉRENTE :
 Rédige le contenu en suivant les INSTRUCTIONS DE RÉDACTION FINALE ci-dessus.
 Le contenu doit être PRÊT À POSTER (pas un brouillon).
 
-Réponds UNIQUEMENT en JSON :
+${isReel ? `Réponds UNIQUEMENT en JSON valide :
+{
+  "format_type": "le sous-format choisi (face_cam_confession, voix_off_b_roll, hook_loop, talking_head, transition_reveal, etc.)",
+  "duree_cible": "durée cible (ex: 45 sec, 30 sec, 60 sec)",
+  "sections": [
+    {
+      "timing": "0-3s",
+      "label": "Hook",
+      "format_visuel": "description de ce qu'on voit à l'écran (cadrage, décor, geste)",
+      "texte_parle": "le texte exact dit à voix haute",
+      "texte_overlay": "le texte affiché à l'écran (court, percutant, 3-8 mots max)",
+      "cut": "type de transition (cut sec, zoom, swipe, etc.)",
+      "tip": "conseil de tournage pour cette section (optionnel)"
+    }
+  ],
+  "personal_tip": "un conseil personnalisé pour le tournage, lié à l'activité de l'utilisatrice",
+  "pillar": "le pilier de contenu",
+  "objectif": "visibilité | confiance | vente",
+  "accroche": "le hook des 3 premières secondes (pour le calendrier)"
+}
+
+IMPORTANT pour les sections :
+- Minimum 4 sections, maximum 7
+- Chaque section a un timing réaliste qui s'enchaîne
+- texte_parle : le script COMPLET dit à voix haute (phrases complètes, pas des bullet points)
+- texte_overlay : COURT (3-8 mots max), le texte affiché à l'écran
+- format_visuel : description concrète du plan caméra
+- cut : la transition entre cette section et la suivante
+- Le total du texte parlé = 150-300 mots` : `Réponds UNIQUEMENT en JSON :
 {
   "content": "...",
   "accroche": "...",
   "format": "...",
   "pillar": "...",
   "objectif": "..."
-}`;
+}`}`;
       userPrompt = "Rédige mon contenu à partir de mes réponses et de l'angle choisi.";
 
     } else if (step === "adjust") {
