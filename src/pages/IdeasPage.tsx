@@ -152,7 +152,7 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
   };
 
   const filtered = useMemo(() => {
-    let result = [...ideas];
+    let result = [...ideas, ...briefs];
     if (statusFilter !== "all") result = result.filter((i) => (i.status || "to_explore") === statusFilter);
     if (objectifFilter !== "all") result = result.filter((i) => i.objectif === objectifFilter);
     if (canalFilter !== "all") result = result.filter((i) => i.canal === canalFilter);
