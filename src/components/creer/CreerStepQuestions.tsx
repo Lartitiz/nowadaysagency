@@ -11,6 +11,7 @@ interface Props {
   editorialAngle?: string;
   questions: Question[];
   loadingQuestions: boolean;
+  previousBriefsCount?: number;
   onNext: (answers: Record<string, string>) => void;
   onSkip: () => void;
   onBack: () => void;
@@ -22,6 +23,7 @@ export default function CreerStepQuestions({
   editorialAngle,
   questions,
   loadingQuestions,
+  previousBriefsCount,
   onNext,
   onSkip,
   onBack,
@@ -77,6 +79,13 @@ export default function CreerStepQuestions({
 
   return (
     <div className="space-y-5 animate-fade-in">
+      {previousBriefsCount && previousBriefsCount > 0 ? (
+        <div className="rounded-lg bg-primary/5 border border-primary/20 p-3">
+          <p className="text-xs text-primary font-medium">
+            💡 Tes réponses sont sauvegardées et enrichissent tes futures créations.
+          </p>
+        </div>
+      ) : null}
       {/* Progress */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">

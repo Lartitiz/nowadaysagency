@@ -109,6 +109,7 @@ export default function CreerUnifie() {
   const [inspirationImagePreview, setInspirationImagePreview] = useState<string | null>(ps?.inspirationImagePreview || null);
   const [photoBriefResult, setPhotoBriefResult] = useState<any>(null);
   const [currentBriefId, setCurrentBriefId] = useState<string | null>(null);
+  const [briefsCount, setBriefsCount] = useState(0);
   const [photoBriefOverlayHtml, setPhotoBriefOverlayHtml] = useState<string | null>(null);
 
   const { restored: draftRestored, clearDraft } = useFormPersist(
@@ -152,6 +153,15 @@ export default function CreerUnifie() {
       }
     }
   }, [paramCanal]);
+
+  // Charger le nombre de briefs existants quand on arrive sur les questions
+  useEffect(() => {
+    if (step !== "questions" || !session?.user?.id) return;
+    supabase.from("content_briefs")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", session.user.id)
+      .then(({ count }: any) => setBriefsCount(count || 0));
+  }, [step, session?.user?.id]);
 
   const [launchResults, setLaunchResults] = useState<any[]>([]);
   const [launchIndex, setLaunchIndex] = useState(0);
@@ -1663,6 +1673,7 @@ export default function CreerUnifie() {
                 onNext={handleQuestionsNext}
                 onSkip={handleSkipQuestions}
                 onBack={() => setStep("format")}
+                previousBriefsCount={briefsCount}
               />
             )}
 
