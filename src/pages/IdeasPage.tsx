@@ -165,7 +165,7 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
       default: result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     }
     return result;
-  }, [ideas, statusFilter, objectifFilter, canalFilter, typeFilter, sort]);
+  }, [ideas, briefs, statusFilter, objectifFilter, canalFilter, typeFilter, sort]);
 
   const handleDelete = async (id: string) => {
     await supabase.from("saved_ideas").delete().eq("id", id);
