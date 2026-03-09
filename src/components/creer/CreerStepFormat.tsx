@@ -440,27 +440,32 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
       {/* Angle selection */}
       {showAngles && (
         <div className="space-y-3 animate-fade-in">
-          <p className="text-sm font-semibold text-foreground">Précise ton angle</p>
+          <div>
+            <p className="text-sm font-semibold text-foreground">Comment tu veux en parler ?</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Chaque approche donne un ton et une structure différente à ton contenu. Pas sûre ? Laisse l'outil choisir.</p>
+          </div>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full gap-1.5 text-muted-foreground"
+          <button
+            className="w-full rounded-xl border-2 border-primary/30 bg-primary/5 p-3 text-center transition-all hover:border-primary/50 hover:bg-primary/10"
             onClick={handleNext}
           >
-            <Wand2 className="h-3.5 w-3.5" /> L'outil choisit pour moi
-          </Button>
+            <div className="flex items-center justify-center gap-2">
+              <Wand2 className="h-4 w-4 text-primary" />
+              <span className="text-sm font-semibold text-primary">L'outil choisit pour moi</span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">L'IA sélectionne la meilleure approche selon ton idée et ton objectif</p>
+          </button>
 
           {recommended.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs font-medium text-primary">📌 Recommandés</p>
+              <p className="text-xs font-medium text-primary">📌 Recommandées pour ton objectif</p>
               {recommended.map((a) => renderAngleCard(a, true))}
             </div>
           )}
 
           {others.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs font-medium text-muted-foreground">Autres angles</p>
+              <p className="text-xs font-medium text-muted-foreground">Autres approches</p>
               {others.map((a) => renderAngleCard(a, false))}
             </div>
           )}
