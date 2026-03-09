@@ -15,7 +15,7 @@ import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { ChevronLeft, ChevronRight, Sparkles, Download, Link2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Sparkles, Download, Link2, PenLine } from "lucide-react";
 import { CalendarShareDialog } from "@/components/calendar/CalendarShareDialog";
 
 import CalendarCoachingDialog from "@/components/calendar/CalendarCoachingDialog";
@@ -31,6 +31,7 @@ import { CalendarListView } from "@/components/calendar/CalendarListView";
 import { CalendarIdeasSidebar, type SavedIdea } from "@/components/calendar/CalendarIdeasSidebar";
 import { IdeaDetailSheet } from "@/components/calendar/IdeaDetailSheet";
 import { WeekDashboard } from "@/components/calendar/WeekDashboard";
+import { QuickBatchAdd } from "@/components/calendar/QuickBatchAdd";
 import { lazy, Suspense } from "react";
 import type { DragStartEvent, DragEndEvent } from "@dnd-kit/core";
 const CalendarDndWrapper = lazy(() => import("@/components/calendar/CalendarDndWrapper"));
@@ -87,11 +88,12 @@ function ShareButton() {
   );
 }
 
-function ExportSection({ filteredPosts, canalFilter, toast, onCoachingOpen }: {
+function ExportSection({ filteredPosts, canalFilter, toast, onCoachingOpen, onQuickBatchOpen }: {
   filteredPosts: CalendarPost[];
   canalFilter: string;
   toast: ReturnType<typeof useToast>["toast"];
   onCoachingOpen: () => void;
+  onQuickBatchOpen: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -162,6 +164,9 @@ function ExportSection({ filteredPosts, canalFilter, toast, onCoachingOpen }: {
             </div>
           )}
         </div>
+        <Button variant="outline" size="sm" className="rounded-full gap-1.5" onClick={onQuickBatchOpen}>
+          <PenLine className="h-3.5 w-3.5" /> Ajout rapide
+        </Button>
         <Button onClick={onCoachingOpen} className="shrink-0 gap-1.5 rounded-full" size="sm">
           <Sparkles className="h-3.5 w-3.5" /> Planifier ma semaine
         </Button>
@@ -206,6 +211,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   const [ideaDetailOpen, setIdeaDetailOpen] = useState(false);
   const [coachingOpen, setCoachingOpen] = useState(false);
   const [ideasCollapsed, setIdeasCollapsed] = useState(true);
+  const [quickBatchOpen, setQuickBatchOpen] = useState(false);
 
   const { data: profileData } = useProfile();
   const ownerName = (profileData as any)?.prenom || "";
@@ -796,7 +802,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     return (
       <div>
         <AuditRecommendationBanner />
-        <ExportSection filteredPosts={filteredPosts} canalFilter={canalFilter} toast={toast} onCoachingOpen={() => setCoachingOpen(true)} />
+        <ExportSection filteredPosts={filteredPosts} canalFilter={canalFilter} toast={toast} onCoachingOpen={() => setCoachingOpen(true)} onQuickBatchOpen={() => setQuickBatchOpen(true)} />
         {isMobile && (
           <div className="flex rounded-full border border-border overflow-hidden mb-4">
             <button onClick={() => setMobileTab("calendar")} className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${mobileTab === "calendar" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>📅 Calendrier</button>
@@ -861,7 +867,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
           <SubPageHeader parentLabel="Instagram" parentTo="/instagram" currentLabel="Calendrier éditorial" useFromParam />
         )}
         <AuditRecommendationBanner />
-        <ExportSection filteredPosts={filteredPosts} canalFilter={canalFilter} toast={toast} onCoachingOpen={() => setCoachingOpen(true)} />
+        <ExportSection filteredPosts={filteredPosts} canalFilter={canalFilter} toast={toast} onCoachingOpen={() => setCoachingOpen(true)} onQuickBatchOpen={() => setQuickBatchOpen(true)} />
 
 
         {/* Mobile tabs */}
@@ -958,6 +964,14 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
           open={coachingOpen}
           onOpenChange={setCoachingOpen}
           onPostAdded={fetchPosts}
+        />
+
+        <QuickBatchAdd
+          open={quickBatchOpen}
+          onOpenChange={setQuickBatchOpen}
+          weekStartDate={toLocalDateStr(weekStart)}
+          defaultCanal={canalFilter !== "all" ? canalFilter : "instagram"}
+          onPostsAdded={fetchPosts}
         />
       </main>
     </div>
