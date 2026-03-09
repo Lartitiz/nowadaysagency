@@ -548,6 +548,12 @@ export default function LandingPage() {
                 otherDesc: "Tu apprends la théorie. Puis tu te retrouves seule devant ton écran à essayer d'appliquer. Et rien ne sort.",
                 nowDesc: "Ici, tu appliques directement. Tu réponds aux questions, l'outil structure, l'IA rédige. Chaque étape produit un résultat concret.",
               },
+              {
+                other: "Notion / Excel / tableurs",
+                otherEmoji: "📊",
+                otherDesc: "Tu crées un beau template, tu le remplis pendant 2 semaines, et puis… plus rien. Le tableur ne te dit pas quoi poster, ne s'adapte pas à ta stratégie, et ne génère rien.",
+                nowDesc: "Le calendrier est vivant : connecté à tes générateurs, à ta stratégie, à tes canaux. Tu crées un contenu, il tombe dans le calendrier. Tu vois ta semaine, ton mois, tes trous.",
+              },
             ].map((item, i) => (
               <Reveal key={i} delay={i * 0.1}>
                 <div className="rounded-2xl bg-card border border-border overflow-hidden shadow-card">
