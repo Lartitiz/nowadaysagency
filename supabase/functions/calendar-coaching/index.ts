@@ -105,7 +105,7 @@ ${brandingContext}
 
 POSTS DÉJÀ PLANIFIÉS CETTE SEMAINE :
 ${weekPostsStr}
-
+${completeModeBlock}
 10 DERNIERS POSTS PUBLIÉS :
 ${recentPostsStr}
 
