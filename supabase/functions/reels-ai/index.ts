@@ -34,6 +34,7 @@ serve(async (req) => {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    userId = user.id;
 
     // Anthropic API key checked in shared helper
 
