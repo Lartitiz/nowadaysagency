@@ -158,27 +158,20 @@ function QuickActions({ onImport, onShowSynthesis, onRunMirror, lastAuditScore, 
   if (actions.length === 0) return null;
 
   return (
-    <div className={`grid grid-cols-1 ${actions.length >= 4 ? "sm:grid-cols-2" : actions.length === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2"} gap-3`}>
-      {actions.map((a, index) => (
+    <div className="flex flex-wrap gap-2">
+      {actions.map((a) => (
         <button
           key={a.label}
           onClick={a.onClick}
-          className={`group relative rounded-2xl p-6 text-left transition-all hover:shadow-md ${
-            index === 0
-              ? "border-2 border-dashed border-primary/30 bg-primary/5 hover:border-primary/50 hover:bg-primary/10"
-              : "border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10 hover:border-primary/40"
-          }`}
+          className="group flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2.5 text-left transition-all hover:border-primary/30 hover:shadow-sm"
         >
-          <div className="flex items-start gap-4">
-            <span className="text-3xl">{a.emoji}</span>
-            <div>
-              <p className="text-base font-semibold text-foreground group-hover:text-primary transition-colors">{a.label}</p>
-              <p className="text-sm text-muted-foreground mt-1">{a.desc}</p>
-            </div>
+          <span className="text-lg shrink-0">{a.emoji}</span>
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors leading-tight">{a.label}</p>
+            {a.badge && (
+              <span className="text-[10px] font-medium text-primary">{a.badge}</span>
+            )}
           </div>
-          {a.badge && (
-            <span className="absolute top-4 right-4 text-sm font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-full">{a.badge}</span>
-          )}
         </button>
       ))}
     </div>
