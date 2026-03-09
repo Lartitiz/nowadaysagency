@@ -268,106 +268,15 @@ export default function WelcomePage() {
       }
 
       // Build branding cards
-      const cards: BrandingCard[] = [];
-      const bp = brandProfileRes.data as BrandProfileData | null;
-
-      if (bp?.positioning) {
-        cards.push({ emoji: "🎯", title: "Positionnement", content: bp.positioning, route: "/branding/proposition/recap", dbTable: "brand_profile", dbField: "positioning" });
-      }
-      if (bp?.mission) {
-        cards.push({ emoji: "🚀", title: "Mission", content: bp.mission, route: "/branding", dbTable: "brand_profile", dbField: "mission" });
-      }
-      if (bp?.tone_style || (bp?.tone_keywords && bp.tone_keywords.length > 0)) {
-        const toneContent = bp.tone_style || (bp.tone_keywords || []).join(", ");
-        cards.push({ emoji: "💬", title: "Ton de voix", content: toneContent, route: "/branding/section?section=tone_style", dbTable: bp.tone_style ? "brand_profile" : undefined, dbField: bp.tone_style ? "tone_style" : undefined });
-      }
-      if (bp?.combats) {
-        cards.push({ emoji: "⚔️", title: "Combats", content: bp.combats, route: "/branding/section?section=tone_style", dbTable: "brand_profile", dbField: "combats" });
-      }
-      if (bp?.values && bp.values.length > 0) {
-        cards.push({ emoji: "💎", title: "Valeurs", content: (bp.values as any[]).map(v => typeof v === "string" ? v : (v as any).name || v).join(", "), route: "/branding/section?section=tone_style" });
-      }
-      if (bp?.content_pillars && bp.content_pillars.length > 0) {
-        const pillarsText = (bp.content_pillars as any[]).map(p => typeof p === "string" ? p : (p as any).name || p).join(", ");
-        cards.push({ emoji: "📝", title: "Piliers de contenu", content: pillarsText, route: "/branding/section?section=content_strategy" });
-      }
-
-      const persona = personaRes.data as any;
-      if (persona) {
-        const personaParts: string[] = [];
-        if (persona.portrait_prenom) personaParts.push(persona.portrait_prenom);
-        if (persona.description) personaParts.push(persona.description);
-        if (persona.step_1_frustrations) personaParts.push(`Frustrations : ${persona.step_1_frustrations}`);
-        if (persona.step_2_transformation) personaParts.push(`Transformation : ${persona.step_2_transformation}`);
-        const personaContent = personaParts.filter(Boolean).join(" · ");
-        if (personaContent) {
-          cards.push({ emoji: "🎭", title: "Persona", content: personaContent, route: "/branding/section?section=persona" });
-        }
-      }
-
-      const offersData = (offersRes.data as any[]) || [];
-      if (offersData.length > 0) {
-        setOffers(offersData.map((o: any) => ({ id: o.id, name: o.name || "", promise: o.promise || null, price_text: o.price_text || null, target_ideal: o.target_ideal || null })));
-      }
-
-      const story = storyRes.data as any;
-      if (story?.imported_text) {
-        cards.push({ emoji: "📖", title: "Ton histoire", content: story.imported_text, route: "/branding/section?section=story", dbTable: "storytelling", dbField: "imported_text" });
-      }
-
-      // Proposition de valeur
-      const prop = propositionRes.data as any;
-      if (prop?.version_final) {
-        cards.push({ emoji: "💎", title: "Proposition de valeur", content: prop.version_final, route: "/branding/proposition/recap" });
-      } else if (prop?.version_one_liner) {
-        cards.push({ emoji: "💎", title: "One-liner", content: prop.version_one_liner, route: "/branding/proposition/recap" });
-      }
-
-      // Stratégie de contenu
-      const strat = strategyRes.data as any;
-      if (strat?.pillar_major) {
-        const pillars = [strat.pillar_major, strat.pillar_minor_1, strat.pillar_minor_2, strat.pillar_minor_3].filter(Boolean);
-        const stratContent = pillars.join(", ") + (strat.creative_concept ? ` · Concept : ${strat.creative_concept}` : "");
-        cards.push({ emoji: "🧭", title: "Stratégie de contenu", content: stratContent, route: "/branding/section?section=content_strategy" });
-      }
-
-      // Charte graphique
-      const charter = charterRes.data as any;
-      if (charter && (charter.color_primary || charter.font_title || charter.photo_style)) {
-        const charterColors = [charter.color_primary, charter.color_secondary, charter.color_accent, charter.color_background, charter.color_text].filter(Boolean);
-        const colorKeys = ["color_primary", "color_secondary", "color_accent", "color_background", "color_text"].filter((_, i) => [charter.color_primary, charter.color_secondary, charter.color_accent, charter.color_background, charter.color_text][i]);
-        const charterParts: string[] = [];
-        if (charter.font_title) {
-          const fonts = [charter.font_title, charter.font_body].filter(Boolean);
-          charterParts.push(`Typos : ${fonts.join(" + ")}`);
-        }
-        if (charter.photo_style) charterParts.push(`Photo : ${charter.photo_style}`);
-        if (charter.mood_keywords?.length) {
-          const kw = Array.isArray(charter.mood_keywords) ? charter.mood_keywords : [];
-          if (kw.length) charterParts.push(`Ambiance : ${kw.join(", ")}`);
-        }
-        const charterContent = charterParts.join(" · ");
-        cards.push({
-          emoji: "🎨", title: "Charte graphique", content: charterContent, route: "/branding/section?section=charter", colors: charterColors,
-          onColorChange: async (colorIndex: number, newColor: string) => {
-            const colorKey = colorKeys[colorIndex];
-            if (!colorKey) return;
-            setBrandingCards(prev => prev.map(c => {
-              if (c.title !== "Charte graphique" || !c.colors) return c;
-              const newColors = [...c.colors];
-              newColors[colorIndex] = newColor;
-              return { ...c, colors: newColors };
-            }));
-            if (/^#[0-9A-Fa-f]{6}$/.test(newColor)) {
-              await (supabase.from("brand_charter" as any) as any)
-                .update({ [colorKey]: newColor })
-                .eq(column, value);
-            }
-          },
-        });
-      }
+      const cards = buildBrandingCards(
+        brandProfileRes.data as BrandProfileData | null,
+        personaRes.data, offersRes.data, storyRes.data,
+        charterRes.data, propositionRes.data, strategyRes.data,
+        column, value, setBrandingCards, setOffers,
+      );
 
       setBrandingCards(cards);
+      brandingCardsCountRef.current = cards.length;
       if (cards.length >= 3) setBrandingStillLoading(false);
       setLoading(false);
     };
