@@ -16,6 +16,7 @@ import { friendlyError } from "@/lib/error-messages";
 import { Sparkles, Copy, Check, Loader2, RotateCcw, Search, Lightbulb } from "lucide-react";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
+import MicButton from "@/components/MicButton";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
