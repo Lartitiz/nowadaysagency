@@ -144,10 +144,15 @@ function buildBrandingCards(
   const offers = ((offersData as any[]) || []);
   if (offers.length > 0) {
     setOffers(prev => {
-      if (offers.length > prev.length) {
+      if (prev.length === 0) {
         return offers.map((o: any) => ({ id: o.id, name: o.name || "", promise: o.promise || null, price_text: o.price_text || null, target_ideal: o.target_ideal || null }));
       }
-      return prev;
+      const prevIds = new Set(prev.map(p => p.id));
+      const newOffers = offers
+        .filter((o: any) => !prevIds.has(o.id))
+        .map((o: any) => ({ id: o.id, name: o.name || "", promise: o.promise || null, price_text: o.price_text || null, target_ideal: o.target_ideal || null }));
+      if (newOffers.length === 0) return prev;
+      return [...prev, ...newOffers];
     });
   }
 
@@ -278,7 +283,7 @@ export default function WelcomePage() {
   const [diagnosticSummary, setDiagnosticSummary] = useState("");
   const [brandingCards, setBrandingCards] = useState<BrandingCard[]>([]);
   const brandingCardsCountRef = useRef(0);
-  const [offers, setOffers] = useState<{ id: string; name: string; promise: string | null; price_text: string | null; target_ideal: string | null }[]>([]);
+  const [offers, setOffers] = useState<OfferState[]>([]);
   const [loading, setLoading] = useState(true);
   const [brandingStillLoading, setBrandingStillLoading] = useState(true);
 
