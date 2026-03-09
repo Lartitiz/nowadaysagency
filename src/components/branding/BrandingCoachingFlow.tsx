@@ -793,6 +793,45 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
             updated_at: new Date().toISOString(),
           });
         }
+      } else if (sec === "content_strategy") {
+        // Map coaching insights to brand_strategy columns
+        const strategyData: Record<string, any> = {};
+        if (insights.content_pillars) {
+          const pillars = typeof insights.content_pillars === "string" 
+            ? insights.content_pillars.split(/[,;\n]/).map((s: string) => s.trim()).filter(Boolean)
+            : Array.isArray(insights.content_pillars) ? insights.content_pillars : [];
+          if (pillars.length > 0) strategyData.pillar_major = pillars[0];
+          if (pillars.length > 1) strategyData.pillar_minor_1 = pillars[1];
+          if (pillars.length > 2) strategyData.pillar_minor_2 = pillars[2];
+          if (pillars.length > 3) strategyData.pillar_minor_3 = pillars[3];
+        }
+        if (insights.pillar_major) strategyData.pillar_major = insights.pillar_major;
+        if (insights.pillar_minor_1) strategyData.pillar_minor_1 = insights.pillar_minor_1;
+        if (insights.pillar_minor_2) strategyData.pillar_minor_2 = insights.pillar_minor_2;
+        if (insights.pillar_minor_3) strategyData.pillar_minor_3 = insights.pillar_minor_3;
+        if (insights.content_twist || insights.creative_concept) {
+          strategyData.creative_concept = insights.content_twist || insights.creative_concept;
+        }
+        if (insights.content_formats) strategyData.step_1_hidden_facets = typeof insights.content_formats === "string" ? insights.content_formats : JSON.stringify(insights.content_formats);
+        if (insights.content_editorial_line) {
+          if (!strategyData.step_1_hidden_facets) strategyData.step_1_hidden_facets = insights.content_editorial_line;
+        }
+
+        if (Object.keys(strategyData).length > 0) {
+          strategyData.updated_at = new Date().toISOString();
+          const { data: existingStrat } = await (supabase.from("brand_strategy") as any)
+            .select("id").eq(column, value).maybeSingle();
+          if (existingStrat?.id) {
+            await (supabase.from("brand_strategy") as any).update(strategyData).eq("id", existingStrat.id);
+          } else {
+            await (supabase.from("brand_strategy") as any).insert({
+              user_id: profileUserId,
+              workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
+              ...strategyData,
+            });
+          }
+          queryClient.invalidateQueries({ queryKey: ["brand-strategy"] });
+        }
       } else {
         const { data: existingBP } = await (supabase.from("brand_profile") as any)
           .select("id").eq(column, value).maybeSingle();
@@ -807,6 +846,7 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
           });
         }
         queryClient.invalidateQueries({ queryKey: ["brand-profile"] });
+        queryClient.invalidateQueries({ queryKey: ["brand-strategy"] });
         queryClient.invalidateQueries({ queryKey: ["profile"] });
         queryClient.invalidateQueries({ queryKey: ["storytelling-primary"] });
         queryClient.invalidateQueries({ queryKey: ["storytelling-list"] });
