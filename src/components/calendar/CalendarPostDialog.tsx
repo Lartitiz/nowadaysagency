@@ -50,6 +50,12 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   const [angle, setAngle] = useState<string | null>(null);
   const [status, setStatus] = useState("idea");
   const [notes, setNotes] = useState("");
+  const [linkedBrief, setLinkedBrief] = useState<{
+    subject: string;
+    questions: { id: string; question: string }[];
+    answers: Record<string, string>;
+    created_at: string;
+  } | null>(null);
   const [postCanal, setPostCanal] = useState("instagram");
   const [objectif, setObjectif] = useState<string | null>(null);
   const [format, setFormat] = useState<string | null>(null);
@@ -97,6 +103,19 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     setDialogTab("edit");
     setShowAdvanced(false);
   }, [editingPost, open, defaultCanal, prefillData]);
+
+  useEffect(() => {
+    if (!editingPost?.id) { setLinkedBrief(null); return; }
+    const loadBrief = async () => {
+      const { data } = await supabase
+        .from("content_briefs")
+        .select("subject, questions, answers, created_at")
+        .eq("calendar_post_id", editingPost.id)
+        .maybeSingle() as any;
+      setLinkedBrief(data || null);
+    };
+    loadBrief();
+  }, [editingPost?.id]);
 
   const guide = angle ? getGuide(angle) : null;
 
@@ -291,6 +310,34 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
                   onSaveAndClose={() => { handleSave(); onOpenChange(false); }}
                   onShowContentViewer={() => setShowContentViewer(true)}
                 />
+
+                {/* Brief créatif lié */}
+                {linkedBrief && (
+                  <Collapsible>
+                    <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-foreground w-full py-2">
+                      <span>📋 Brief créatif</span>
+                      <span className="text-xs text-muted-foreground font-normal ml-auto">
+                        {Object.values(linkedBrief.answers).filter(v => v?.trim()).length} réponse(s)
+                      </span>
+                      <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="space-y-3 pt-2">
+                      <p className="text-xs text-muted-foreground">
+                        Les réponses que tu as données pour créer ce contenu :
+                      </p>
+                      {linkedBrief.questions.map((q: any) => {
+                        const answer = linkedBrief.answers[q.id] || linkedBrief.answers[q.question] || "";
+                        if (!answer.trim()) return null;
+                        return (
+                          <div key={q.id} className="rounded-lg bg-muted/30 border border-border p-3">
+                            <p className="text-xs font-medium text-foreground mb-1">{q.question}</p>
+                            <p className="text-xs text-muted-foreground whitespace-pre-wrap">{answer}</p>
+                          </div>
+                        );
+                      })}
+                    </CollapsibleContent>
+                  </Collapsible>
+                )}
 
                 <div>
                   <label className="text-xs font-semibold mb-1.5 block text-foreground">📝 Notes</label>
