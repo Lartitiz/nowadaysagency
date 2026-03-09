@@ -495,8 +495,10 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
                           const updatePayload = isJson
                             ? { content_data: updatedData, updated_at: new Date().toISOString() }
                             : { content_draft: updatedData, updated_at: new Date().toISOString() };
-                          await supabase.from("saved_ideas").update(updatePayload as any).eq("id", selectedIdea.id);
-                          setIdeas((prev) => prev.map((i) => i.id === selectedIdea.id ? { ...i, ...(isJson ? { content_data: updatedData } : { content_draft: updatedData }) } : i));
+                          if (selectedIdea.type !== "brief") {
+                            await supabase.from("saved_ideas").update(updatePayload as any).eq("id", selectedIdea.id);
+                            setIdeas((prev) => prev.map((i) => i.id === selectedIdea.id ? { ...i, ...(isJson ? { content_data: updatedData } : { content_draft: updatedData }) } : i));
+                          }
                           setSelectedIdea((prev) => prev ? { ...prev, ...(isJson ? { content_data: updatedData } : { content_draft: updatedData }) } : null);
                         }}
                       />
