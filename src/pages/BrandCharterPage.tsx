@@ -697,8 +697,11 @@ export default function BrandCharterPage() {
               })}
             </div>
 
+            <div className="mb-1">
+              <p className="text-xs text-muted-foreground">Comment sont prises / sélectionnées tes photos ?</p>
+            </div>
             <TagSelector
-              label="Style photo"
+              label="Mon style de photos"
               tags={PHOTO_STYLE_TAGS}
               value={data.photo_style || ""}
               onChange={(v) => update("photo_style", v)}
