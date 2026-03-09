@@ -109,6 +109,7 @@ export default function CreerUnifie() {
   const [inspirationImagePreview, setInspirationImagePreview] = useState<string | null>(ps?.inspirationImagePreview || null);
   const [photoBriefResult, setPhotoBriefResult] = useState<any>(null);
   const [currentBriefId, setCurrentBriefId] = useState<string | null>(null);
+  const [briefsCount, setBriefsCount] = useState(0);
   const [photoBriefOverlayHtml, setPhotoBriefOverlayHtml] = useState<string | null>(null);
 
   const { restored: draftRestored, clearDraft } = useFormPersist(
