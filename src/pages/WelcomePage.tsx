@@ -438,10 +438,9 @@ export default function WelcomePage() {
         const personaContent = personaParts.filter(Boolean).join(" · ");
         if (personaContent) cards.push({ emoji: "🎭", title: "Persona", content: personaContent, route: "/branding/section?section=persona" });
       }
-      const offers = offersRes.data as any[];
-      if (offers && offers.length > 0) {
-        const offersText = offers.map((o: any) => o.name).filter(Boolean).join(", ");
-        if (offersText) cards.push({ emoji: "🛍️", title: "Offres", content: offersText, route: "/branding/offres" });
+      const offersData = (offersRes.data as any[]) || [];
+      if (offersData.length > 0 && offersData.length > offers.length) {
+        setOffers(offersData.map((o: any) => ({ id: o.id, name: o.name || "", promise: o.promise || null, price_text: o.price_text || null, target_ideal: o.target_ideal || null })));
       }
       const story = storyRes.data as any;
       if (story?.imported_text) cards.push({ emoji: "📖", title: "Ton histoire", content: story.imported_text, route: "/branding/section?section=story", dbTable: "storytelling", dbField: "imported_text" });
