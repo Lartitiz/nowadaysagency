@@ -499,11 +499,11 @@ Temps tournage : ${time_available}
 En lancement : ${is_launch ? "oui" : "non"}
 ${inspirationContext ? `\nINSPIRATION ANALYSÉE :\n${inspirationContext}\nINSPIRE-TOI du style identifié. NE COPIE PAS le contenu.\n` : ""}
 HOOK CHOISI :
-- Type : ${hookType} (${hookTypeLabel})
-- Texte : "${hookText}"
-- Texte overlay : "${hookTextOverlay}"
-- Format recommandé : ${hookFormatLabel}
-- Durée cible : ${hookDureeCible}
+- Type : ${selectedHook.type} (${selectedHook.type_label})
+- Texte : "${selectedHook.text}"
+- Texte overlay : "${selectedHook.text_overlay}"
+- Format recommandé : ${selectedHook.format_label}
+- Durée cible : ${selectedHook.duree_cible}
 
 ${preGenBlock}
 
