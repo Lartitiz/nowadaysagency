@@ -115,7 +115,7 @@ export default function CharterTemplatesSection({
         <label className="flex flex-col items-center gap-2 cursor-pointer rounded-xl border-2 border-dashed border-border hover:border-primary/40 transition-colors p-6">
           <Upload className="h-6 w-6 text-muted-foreground" />
           <span className="text-xs text-muted-foreground">
-            {templatesUploading ? "Upload en cours..." : "Uploader des templates (PNG, JPG, PDF)"}
+            {templatesUploading ? "Upload en cours..." : "Ajouter des visuels à analyser (PNG, JPG, PDF)"}
           </span>
           <input
             type="file"
