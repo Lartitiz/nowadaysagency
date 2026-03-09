@@ -1105,6 +1105,11 @@ export default function CreerUnifie() {
         }
       }
 
+      // Lier le brief au post calendrier
+      if (currentBriefId && calendarPostId) {
+        supabase.from("content_briefs").update({ calendar_post_id: calendarPostId } as any).eq("id", currentBriefId).then(() => {}, console.error);
+      }
+
       toast.success("Contenu sauvegardé dans ton calendrier !");
       clearFlowState();
       navigate(`/calendrier?date=${calendarPostDate || ""}&post=${calendarPostId}`);
