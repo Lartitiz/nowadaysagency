@@ -49,7 +49,12 @@ serve(async (req) => {
       );
     }
 
-    const rawBody = await req.json();
+    let rawBody: any;
+    try {
+      rawBody = await req.json();
+    } catch {
+      rawBody = null;
+    }
     if (!rawBody || typeof rawBody !== "object") {
       return new Response(JSON.stringify({ error: "Corps de requête invalide" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },

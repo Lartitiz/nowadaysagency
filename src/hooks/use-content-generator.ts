@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { handleQuotaError } from "@/lib/quota-error-handler";
 import {
   EDITORIAL_ANGLES,
@@ -179,7 +180,7 @@ export function useContentGenerator() {
             effectiveCarouselType = null;
           }
 
-          const res = await supabase.functions.invoke("carousel-ai", {
+          const res = await invokeWithTimeout("carousel-ai", {
             body: {
               type: "express_full",
               channel: params.channel || "instagram",
@@ -195,14 +196,14 @@ export function useContentGenerator() {
               photos: (params.carouselType === "photo" || params.carouselType === "mix") ? params.photos : undefined,
               photo_description: (params.carouselType === "photo" || params.carouselType === "mix") ? params.photoDescription : undefined,
             },
-          });
+          }, 120000);
           data = res.data;
           invokeError = res.error;
           break;
         }
 
         case "reel": {
-          const res = await supabase.functions.invoke("reels-ai", {
+          const res = await invokeWithTimeout("reels-ai", {
             body: {
               type: "script",
               subject: effectiveSubject,
@@ -216,14 +217,14 @@ export function useContentGenerator() {
               content_structure: structurePrompt || null,
               workspace_id: workspaceId || null,
             },
-          });
+          }, 120000);
           data = res.data;
           invokeError = res.error;
           break;
         }
 
         case "story": {
-          const res = await supabase.functions.invoke("stories-ai", {
+          const res = await invokeWithTimeout("stories-ai", {
             body: {
               type: "generate",
               subject: effectiveSubject,
@@ -233,7 +234,7 @@ export function useContentGenerator() {
               content_structure: structurePrompt || null,
               workspace_id: workspaceId || null,
             },
-          });
+          }, 120000);
           data = res.data;
           invokeError = res.error;
           break;
@@ -245,7 +246,7 @@ export function useContentGenerator() {
             : undefined;
           const structure = structureId ? CONTENT_STRUCTURES[structureId] : undefined;
 
-          const res = await supabase.functions.invoke("creative-flow", {
+          const res = await invokeWithTimeout("creative-flow", {
             body: {
               step: "generate",
               contentType: "instagram_post",
@@ -266,7 +267,7 @@ export function useContentGenerator() {
               photos: params.photoMode && params.photos?.length ? [{ base64: params.photos[0].base64, mimeType: "image/jpeg" }] : undefined,
               photo_description: params.photoMode ? params.photoDescription : undefined,
             },
-          });
+          }, 120000);
           data = res.data;
           invokeError = res.error;
           break;
@@ -279,7 +280,7 @@ export function useContentGenerator() {
             ? EDITORIAL_ANGLES.find((a) => a.id === editorialAngle)
             : undefined;
           const structure = structureId ? CONTENT_STRUCTURES[structureId] : undefined;
-          const res = await supabase.functions.invoke("creative-flow", {
+          const res = await invokeWithTimeout("creative-flow", {
             body: {
               step: "generate",
               contentType: "post_linkedin",
@@ -291,14 +292,14 @@ export function useContentGenerator() {
               editorialFormat: editorialAngle || null,
               workspace_id: workspaceId || null,
             },
-          });
+          }, 120000);
           data = res.data;
           invokeError = res.error;
           break;
         }
 
         case "newsletter": {
-          const res = await supabase.functions.invoke("newsletter-ai", {
+          const res = await invokeWithTimeout("newsletter-ai", {
             body: {
               topic: effectiveSubject + (existingContent ? `\n\n${existingContent}` : ""),
               preGenAnswers: answers
@@ -311,7 +312,7 @@ export function useContentGenerator() {
               template: editorialAngle || null,
               workspace_id: workspaceId || null,
             },
-          });
+          }, 120000);
           data = res.data;
           invokeError = res.error;
           break;
