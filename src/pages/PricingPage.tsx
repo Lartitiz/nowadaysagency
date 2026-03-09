@@ -199,16 +199,15 @@ export default function PricingPage() {
               0€
             </p>
             <p className="text-sm text-muted-foreground mt-1 mb-5">
-              Tout l'écosystème Nowadays : branding, calendrier, audits, espaces canaux, CRM, stats. 60 crédits IA/mois pour goûter à la magie.
+              Explore tout l'écosystème Nowadays : branding, calendrier, audits, espaces canaux. 60 contenus IA par mois pour commencer à structurer ta com'.
             </p>
             <ul className="space-y-2 text-sm text-foreground mb-6 flex-1">
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Tout l'outil débloqué</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> 60 crédits IA / mois</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> 3 audits IA / mois</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Calendrier éditorial complet</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Mini-CRM + contacts stratégiques</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Import stats + dashboard KPI</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Communauté en lecture</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Branding guidé complet (6 sections)</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Calendrier éditorial avec vue mensuelle</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Crée jusqu'à 60 contenus IA par mois</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> 3 audits IA par mois (Instagram, site, LinkedIn)</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Espaces par canal (Instagram, LinkedIn, Pinterest…)</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Mini-CRM et contacts stratégiques</li>
             </ul>
             {isCurrentPlan("free") ? (
               <div className="text-center rounded-pill border-2 border-primary py-2.5 font-medium text-primary text-sm">
