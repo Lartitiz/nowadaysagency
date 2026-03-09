@@ -239,7 +239,7 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
             answer,
             charterData: charterDataRef.current || {},
           },
-        }, 90000);
+        }, 120000);
 
         if (fnError) {
           const err = fnError as InvokeError;
