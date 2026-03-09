@@ -687,7 +687,7 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
     }
 
     setCurrentQuestion(response);
-  }, [answer, selectedOptions, currentQuestion, isDemoMode, demoQuestions, askAI, section, user?.id, completionPct, saveDemoAnswer, updateCoveredTopics, checklist]);
+  }, [answer, selectedOptions, currentQuestion, isDemoMode, demoQuestions, askAI, section, user?.id, completionPct, saveDemoAnswer, updateCoveredTopics, checklist, loading]);
 
   const saveInsights = async (sec: string, insights: Record<string, any>) => {
     if (!user) return;
