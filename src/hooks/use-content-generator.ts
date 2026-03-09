@@ -180,7 +180,7 @@ export function useContentGenerator() {
             effectiveCarouselType = null;
           }
 
-          const res = await supabase.functions.invoke("carousel-ai", {
+          const res = await invokeWithTimeout("carousel-ai", {
             body: {
               type: "express_full",
               channel: params.channel || "instagram",
@@ -196,7 +196,7 @@ export function useContentGenerator() {
               photos: (params.carouselType === "photo" || params.carouselType === "mix") ? params.photos : undefined,
               photo_description: (params.carouselType === "photo" || params.carouselType === "mix") ? params.photoDescription : undefined,
             },
-          });
+          }, 120000);
           data = res.data;
           invokeError = res.error;
           break;
