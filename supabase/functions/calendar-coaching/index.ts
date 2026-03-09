@@ -68,6 +68,30 @@ serve(async (req) => {
       ? weekPosts.map((p: any) => `- ${p.date} : ${p.theme} (${p.format || "post"})`).join("\n")
       : "Aucun post planifié cette semaine.";
 
+    let completeModeBlock = "";
+    if (mode === "complete" && existing_posts?.length > 0) {
+      const existingStr = existing_posts.map((p: any) =>
+        `- ${p.date} : "${p.theme}" (${p.format || "post"}, ${p.canal}, objectif: ${p.objectif || "non défini"})`
+      ).join("\n");
+      completeModeBlock = `
+═══════════════════════════════════════
+MODE COMPLÉMENT — POSTS DÉJÀ PRÉVUS PAR L'UTILISATRICE
+═══════════════════════════════════════
+${existingStr}
+
+CONSIGNES SPÉCIFIQUES AU MODE COMPLÉMENT :
+- NE PAS reproposer les sujets déjà prévus ci-dessus
+- ANALYSER les objectifs déjà couverts et COMPLÉTER les manques
+  (si tout est "visibilité", propose du "confiance" ou "vente")
+- ANALYSER les formats déjà prévus et VARIER
+  (si tout est des posts, propose un carrousel ou un reel)
+- ANALYSER les canaux et proposer des compléments sur les canaux peu représentés
+- Les suggestions doivent S'ARTICULER avec les posts existants :
+  créer une cohérence narrative sur la semaine
+- Tu ne proposes QUE ${posts_per_week} posts supplémentaires, pas plus
+`;
+    }
+
     const recentPostsStr = recentPosts.length > 0
       ? recentPosts.map((p: any) => `- ${p.theme} (${p.format || "post"})`).join("\n")
       : "Aucun post récent.";
