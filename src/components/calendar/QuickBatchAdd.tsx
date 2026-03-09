@@ -101,7 +101,7 @@ export function QuickBatchAdd({ open, onOpenChange, weekStartDate, defaultCanal,
     const today = toLocalDateStr(new Date());
     const inserts = filledRows.map(r => ({
       user_id: user.id,
-      workspace_id: workspaceId || null,
+      ...(workspaceId && workspaceId !== user.id ? { workspace_id: workspaceId } : {}),
       theme: r.theme.trim(),
       date: r.dayIndex !== null ? weekDates[r.dayIndex] : today,
       canal: r.canal,
