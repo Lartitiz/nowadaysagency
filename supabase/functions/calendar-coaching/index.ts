@@ -20,7 +20,7 @@ serve(async (req) => {
     const { data: { user }, error: authErr } = await supabase.auth.getUser();
     if (authErr || !user) throw new Error("Non authentifié·e");
 
-    const { posts_per_week, context_week, mix_or_focus } = await req.json();
+    const { posts_per_week, context_week, mix_or_focus, mode, existing_posts } = await req.json();
 
     // Get workspace
     const { data: wsMember } = await supabase
