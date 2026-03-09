@@ -67,6 +67,7 @@ const TYPE_OPTIONS = [
   { id: "idea", label: "💡 Idée" },
   { id: "draft", label: "✏️ Brouillon" },
   { id: "hook", label: "🎣 Accroche" },
+  { id: "brief", label: "📋 Brief créatif" },
 ];
 
 const SORT_OPTIONS = [
