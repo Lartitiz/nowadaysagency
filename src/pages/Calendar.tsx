@@ -965,6 +965,14 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
           onOpenChange={setCoachingOpen}
           onPostAdded={fetchPosts}
         />
+
+        <QuickBatchAdd
+          open={quickBatchOpen}
+          onOpenChange={setQuickBatchOpen}
+          weekStartDate={toLocalDateStr(weekStart)}
+          defaultCanal={canalFilter !== "all" ? canalFilter : "instagram"}
+          onPostsAdded={fetchPosts}
+        />
       </main>
     </div>
   );
