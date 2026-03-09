@@ -316,7 +316,7 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
           autofill_data: autofillData || undefined,
           autofill_confidence: autofillConfidence || undefined,
         },
-      }, 90000);
+      }, 120000);
 
       if (fnError) {
         const err = fnError as InvokeError;
