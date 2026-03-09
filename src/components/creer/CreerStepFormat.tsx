@@ -442,6 +442,15 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
         <div className="space-y-3 animate-fade-in">
           <p className="text-sm font-semibold text-foreground">Précise ton angle</p>
 
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full gap-1.5 text-muted-foreground"
+            onClick={handleNext}
+          >
+            <Wand2 className="h-3.5 w-3.5" /> L'outil choisit pour moi
+          </Button>
+
           {recommended.length > 0 && (
             <div className="space-y-2">
               <p className="text-xs font-medium text-primary">📌 Recommandés</p>
@@ -455,15 +464,6 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
               {others.map((a) => renderAngleCard(a, false))}
             </div>
           )}
-
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full gap-1.5 text-muted-foreground"
-            onClick={() => setSelectedAngle(undefined)}
-          >
-            <Wand2 className="h-3.5 w-3.5" /> L'outil choisit pour moi
-          </Button>
         </div>
       )}
 
