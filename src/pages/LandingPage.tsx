@@ -34,16 +34,16 @@ const FEATURES = [
     visual: "branding",
   },
   {
+    emoji: "📅",
+    title: "Ton calendrier éditorial",
+    desc: "Tu as essayé Notion, Excel, Google Sheets… et tu as passé plus de temps à organiser qu'à créer. Ici, ton calendrier est déjà structuré : vue mensuelle, drag & drop, tes contenus organisés par canal et par objectif. Tu ouvres l'outil, tu sais quoi poster cette semaine. C'est le truc que ChatGPT ne fera jamais.",
+    visual: "calendar",
+  },
+  {
     emoji: "✍️",
     title: "Création de contenu IA",
     desc: "Choisis un format (carrousel, reel, post, story, newsletter…), un angle, et l'IA rédige pour toi. Avec TA voix, parce qu'elle connaît ton branding.",
     visual: "content",
-  },
-  {
-    emoji: "📅",
-    title: "Calendrier éditorial",
-    desc: "Vue mensuelle, drag & drop, tags d'objectif. Tu vois ce qui est prévu, ce qui est publié, ce qui manque. Tu sais quoi poster et quand.",
-    visual: "calendar",
   },
   {
     emoji: "🔍",
@@ -62,8 +62,8 @@ const FEATURES = [
 const PAIN_POINTS = [
   {
     emoji: "📱",
-    pain: "Tu ouvres Instagram, tu fixes l'écran, et tu refermes. Tu sais pas quoi poster, ni quand, ni comment.",
-    flip: "L'outil te propose des idées adaptées à TON activité, et les place dans un calendrier. Tu sais quoi faire chaque semaine.",
+    pain: "Tu ouvres Instagram, tu fixes l'écran, et tu refermes. T'as essayé de tenir un planning sur Notion, sur Excel, dans un carnet. Mais à chaque fois, tu passes plus de temps à organiser qu'à créer.",
+    flip: "L'outil structure ton calendrier pour toi. Vue mensuelle, contenus par canal, drag & drop. Tu ouvres, tu sais quoi poster cette semaine. Sans prise de tête.",
     flipEmoji: "📅",
   },
   {
@@ -97,6 +97,10 @@ const FAQ_DATA = [
   {
     q: "Est-ce que ça marche pour mon secteur ?",
     a: "Si tu es dans un univers créatif, lifestyle ou engagé : oui. Mode, bijoux, artisanat, céramique, photo, coaching, yoga, bien-être, design, food, culture, sport… L'outil s'adapte à ton activité dès l'onboarding. Tu décris ce que tu fais, et tout se personnalise autour de ton projet."
+  },
+  {
+    q: "En quoi le calendrier est différent d'un tableur ou de Notion ?",
+    a: "Un tableur, c'est un espace vide que tu dois remplir toi-même. Le calendrier de L'Assistant Com' est connecté à tout le reste : tes générateurs de contenu, ta stratégie, tes canaux. Quand tu crées un contenu, il se place automatiquement dans le calendrier. Tu as une vue mensuelle avec tes posts par canal, leur statut (brouillon, planifié, publié), et tu peux réorganiser par drag & drop. Le but : que tu ouvres l'outil et que tu saches quoi poster cette semaine, sans passer 2h à organiser."
   },
   {
     q: "Je suis débutante en com', c'est pour moi ?",
@@ -547,6 +551,12 @@ export default function LandingPage() {
                 otherEmoji: "📺",
                 otherDesc: "Tu apprends la théorie. Puis tu te retrouves seule devant ton écran à essayer d'appliquer. Et rien ne sort.",
                 nowDesc: "Ici, tu appliques directement. Tu réponds aux questions, l'outil structure, l'IA rédige. Chaque étape produit un résultat concret.",
+              },
+              {
+                other: "Notion / Excel / tableurs",
+                otherEmoji: "📊",
+                otherDesc: "Tu crées un beau template, tu le remplis pendant 2 semaines, et puis… plus rien. Le tableur ne te dit pas quoi poster, ne s'adapte pas à ta stratégie, et ne génère rien.",
+                nowDesc: "Le calendrier est vivant : connecté à tes générateurs, à ta stratégie, à tes canaux. Tu crées un contenu, il tombe dans le calendrier. Tu vois ta semaine, ton mois, tes trous.",
               },
             ].map((item, i) => (
               <Reveal key={i} delay={i * 0.1}>
