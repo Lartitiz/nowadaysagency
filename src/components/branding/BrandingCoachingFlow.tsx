@@ -525,6 +525,7 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
   }, [isDemoMode, demoQuestions, hasExistingSession, askAI, updateCoveredTopics, section, completionPct]);
 
   const handleNext = useCallback(async () => {
+    if (loading) return;
     const userAnswer = currentQuestion?.question_type === "select" || currentQuestion?.question_type === "multi_select"
       ? selectedOptions.join(", ")
       : answer;
