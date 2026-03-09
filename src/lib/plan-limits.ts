@@ -17,7 +17,7 @@ export type Category = (typeof CATEGORIES)[number];
 
 export const PLAN_LIMITS: Record<string, Record<string, number>> = {
   free: {
-    total: 100,
+    total: 120,
     content: 25,
     audit: 3,
     dm_comment: 5,
