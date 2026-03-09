@@ -6,7 +6,7 @@ import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Lightbulb, PenLine, CalendarDays, Trash2, Copy, ChevronDown, X, ExternalLink } from "lucide-react";
+import { Lightbulb, PenLine, CalendarDays, Trash2, Copy, ChevronDown, X, ExternalLink, Sparkles } from "lucide-react";
 import { ContentPreview, RevertToOriginalButton } from "@/components/ContentPreview";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
