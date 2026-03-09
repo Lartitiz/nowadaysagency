@@ -359,7 +359,15 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
   }, [user?.id, section, fetchContext]);
 
   const lastCallMsgsRef = useRef<Message[]>([]);
+  const lastRetryRef = useRef(0);
   const handleRetry = useCallback(async () => {
+    const now = Date.now();
+    if (now - lastRetryRef.current < 3000) {
+      toast.error("Attends quelques secondes avant de réessayer.");
+      return;
+    }
+    lastRetryRef.current = now;
+
     setError(null);
     const response = await askAI(lastCallMsgsRef.current);
     if (!response) return;
