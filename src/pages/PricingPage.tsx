@@ -32,7 +32,7 @@ const SECTIONS = [
   {
     title: "Création de contenu",
     rows: [
-      { label: "Crédits IA", free: "60/mois", outil: "Illimités", studio: "Illimités" },
+      { label: "Contenus IA par mois", free: "60/mois", outil: "Illimités", studio: "Illimités" },
       { label: "Posts Instagram", free: true, outil: true, studio: true },
       { label: "Reels", free: true, outil: true, studio: true },
       { label: "Stories", free: true, outil: true, studio: true },
@@ -44,26 +44,26 @@ const SECTIONS = [
   {
     title: "Analyse & suivi",
     rows: [
-      { label: "Audits IA", free: "3/mois", outil: "Illimités", studio: "Illimités" },
+      { label: "Audits IA par mois", free: "3/mois", outil: "Illimités", studio: "Illimités" },
       { label: "Audit LinkedIn", free: true, outil: true, studio: true },
-      { label: "Import stats (Excel/CSV)", free: true, outil: true, studio: true },
-      { label: "Dashboard KPI", free: true, outil: true, studio: true },
+      { label: "Suivi de tes statistiques", free: true, outil: true, studio: true },
+      { label: "Tableau de bord performances", free: true, outil: true, studio: true },
     ],
   },
   {
     title: "Engagement & prospection",
     rows: [
-      { label: "Contacts stratégiques", free: true, outil: true, studio: true },
-      { label: "Routine d'engagement", free: true, outil: true, studio: true },
-      { label: "Mini-CRM prospection", free: true, outil: true, studio: true },
+      { label: "Gestion de tes contacts clés", free: true, outil: true, studio: true },
+      { label: "Routine d'engagement quotidienne", free: true, outil: true, studio: true },
+      { label: "Suivi de tes prospects", free: true, outil: true, studio: true },
     ],
   },
   {
     title: "Communauté",
     rows: [
-      { label: "Lire le feed", free: true, outil: true, studio: true },
-      { label: "Poster et commenter", free: false, outil: true, studio: true },
-      { label: "Lives mensuels + replays", free: false, outil: true, studio: true },
+      { label: "Accès à la communauté (lecture)", free: true, outil: true, studio: true },
+      { label: "Participer à la communauté", free: false, outil: true, studio: true },
+      { label: "Lives mensuels avec Laetitia", free: false, outil: true, studio: true },
     ],
   },
   {
@@ -81,7 +81,7 @@ const SECTIONS = [
 const FAQ = [
   {
     q: "Pourquoi tout l'outil est gratuit ?",
-    a: "L'outil est entièrement accessible en gratuit avec 60 crédits IA/mois. Quand tu voudras produire régulièrement et accéder à toutes les fonctionnalités avancées (calendrier, communauté, lives...), le Premium sera là.",
+    a: "L'outil est entièrement accessible en gratuit : tu peux créer jusqu'à 60 contenus IA par mois et lancer 3 audits. Quand tu voudras produire sans limite et rejoindre la communauté, le Premium sera là.",
   },
   {
     q: "Je peux annuler quand je veux ?",
@@ -97,14 +97,13 @@ const FAQ = [
   },
   {
     q: "C'est quoi la différence entre le Premium et l'accompagnement binôme ?",
-    a: "Le Premium, c'est l'IA qui t'aide au quotidien avec 300 crédits/mois. L'accompagnement binôme, c'est le Premium + Laetitia qui te coache, te débloque, et valide chaque étape.",
+    a: "Le Premium, c'est l'IA en illimité pour créer tes contenus en autonomie. L'accompagnement binôme, c'est le Premium + Laetitia qui te coache, construit ta stratégie, te débloque, et valide chaque étape.",
   },
   {
     q: "Mes données sont sécurisées ?",
     a: "Oui, hébergées en Europe, chiffrées, jamais revendues.",
   },
 ];
-
 /* ─── Cell renderer ─── */
 function CellValue({ value }: { value: boolean | string }) {
   if (value === true) return <Check className="h-4 w-4 text-primary mx-auto" />;
