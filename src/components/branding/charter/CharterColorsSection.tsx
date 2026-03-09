@@ -178,7 +178,7 @@ export default function CharterColorsSection({
                 <input
                   type="text"
                   value={data[key] || ""}
-                  placeholder="Non défini"
+                  placeholder="#000000"
                   onChange={(e) => {
                     let v = e.target.value;
                     if (v && !v.startsWith("#")) v = "#" + v;
@@ -192,7 +192,7 @@ export default function CharterColorsSection({
                       onDataChange({ [key]: data[key] });
                     }
                   }}
-                  className="font-mono text-xs uppercase text-muted-foreground bg-transparent border-b border-transparent hover:border-border focus:border-primary focus:outline-none w-20 py-0.5 transition-colors"
+                  className="font-mono text-xs uppercase text-foreground bg-secondary/50 border border-border rounded-lg px-2 py-1.5 hover:border-primary/50 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/20 w-24 transition-colors"
                 />
               </div>
             );
@@ -223,7 +223,7 @@ export default function CharterColorsSection({
                     onDataChange({ custom_colors: newColors });
                   }
                 }}
-                className="font-mono text-xs uppercase text-muted-foreground bg-transparent border-b border-transparent hover:border-border focus:border-primary focus:outline-none w-20 py-0.5 transition-colors"
+                className="font-mono text-xs uppercase text-foreground bg-secondary/50 border border-border rounded-lg px-2 py-1.5 hover:border-primary/50 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/20 w-24 transition-colors"
               />
               <button onClick={() => removeCustomColor(idx)} className="ml-auto text-muted-foreground hover:text-destructive">
                 <X className="h-4 w-4" />
