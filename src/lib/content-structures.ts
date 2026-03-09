@@ -586,7 +586,7 @@ export const OBJECTIVE_RECOMMENDATIONS: Record<string, ObjectiveRecommendation> 
   vente: {
     label: "Vente",
     emoji: "🛒",
-    angles: ["histoire-cliente", "before-after", "storytelling", "surf-actu", "test", "etude_de_cas", "storytelling_pro", "epingle_produit"],
+    angles: ["histoire-cliente", "before-after", "storytelling", "surf-actu", "test", "mise-en-valeur", "etude_de_cas", "storytelling_pro", "epingle_produit"],
     priorityTypes: ["carousel", "linkedin", "newsletter", "pinterest"],
     hookTypes: ["resultat", "transformation", "preuve"],
   },
