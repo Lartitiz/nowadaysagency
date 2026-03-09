@@ -94,7 +94,7 @@ export default function RedactionFlow({ idea, profile, canal, objectif, onClose 
           angle: idea.angle,
           profile: profilePayload,
         },
-      }, 60000);
+      }, 120000);
       if (res.error) throw res.error;
       setStructure(res.data?.content || "");
     } catch (e: any) {
