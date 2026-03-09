@@ -207,9 +207,7 @@ serve(async (req) => {
 
     const quota = await checkQuota(userId, "coach", workspace_id || undefined);
     if (!quota.allowed) {
-      return new Response(JSON.stringify({ error: quota.message, quota }), {
-        status: 429, headers: { ...cors, "Content-Type": "application/json" },
-      });
+      return quotaDeniedResponse(quota, cors);
     }
 
     if (!section) {
