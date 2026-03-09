@@ -112,14 +112,31 @@ function BrandingCardItem({ card, index, onSave }: { card: BrandingCard; index: 
         <span className="text-sm font-semibold text-foreground">{card.title}</span>
       </div>
       {card.colors && card.colors.length > 0 && (
-        <div className="flex items-center gap-2 py-1">
+        <div className="flex flex-wrap items-center gap-3 py-1">
           {card.colors.map((color, ci) => (
-            <div
-              key={ci}
-              className="w-8 h-8 rounded-lg border border-border shadow-sm"
-              style={{ backgroundColor: color }}
-              title={color}
-            />
+            <div key={ci} className="flex items-center gap-2">
+              <input
+                type="color"
+                value={color || "#888888"}
+                onChange={(e) => {
+                  if (card.onColorChange) card.onColorChange(ci, e.target.value);
+                }}
+                className="w-8 h-8 rounded-lg border border-border cursor-pointer p-0.5"
+              />
+              <input
+                type="text"
+                value={color || ""}
+                placeholder="#000000"
+                onChange={(e) => {
+                  let v = e.target.value;
+                  if (v && !v.startsWith("#")) v = "#" + v;
+                  if (v === "#" || /^#[0-9A-Fa-f]{0,6}$/.test(v)) {
+                    if (card.onColorChange) card.onColorChange(ci, v);
+                  }
+                }}
+                className="font-mono text-xs uppercase text-foreground bg-secondary/50 border border-border rounded-lg px-2 py-1.5 w-24 focus:border-primary focus:outline-none transition-colors"
+              />
+            </div>
           ))}
         </div>
       )}
