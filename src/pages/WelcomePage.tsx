@@ -304,12 +304,9 @@ export default function WelcomePage() {
         }
       }
 
-      const offers = offersRes.data as any[];
-      if (offers && offers.length > 0) {
-        const offersText = offers.map((o: any) => o.name).filter(Boolean).join(", ");
-        if (offersText) {
-          cards.push({ emoji: "🛍️", title: "Offres", content: offersText, route: "/branding/offres" });
-        }
+      const offersData = (offersRes.data as any[]) || [];
+      if (offersData.length > 0) {
+        setOffers(offersData.map((o: any) => ({ id: o.id, name: o.name || "", promise: o.promise || null, price_text: o.price_text || null, target_ideal: o.target_ideal || null })));
       }
 
       const story = storyRes.data as any;
