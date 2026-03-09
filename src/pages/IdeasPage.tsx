@@ -227,8 +227,13 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
   };
 
   const handleSaveNotes = async (id: string, notes: string) => {
-    await supabase.from("saved_ideas").update({ notes } as any).eq("id", id);
-    setIdeas((prev) => prev.map((i) => (i.id === id ? { ...i, notes } : i)));
+    const isBrief = briefs.some(b => b.id === id);
+    if (isBrief) {
+      setBriefs(prev => prev.map(b => b.id === id ? { ...b, notes } : b));
+    } else {
+      await supabase.from("saved_ideas").update({ notes } as any).eq("id", id);
+      setIdeas(prev => prev.map(i => i.id === id ? { ...i, notes } : i));
+    }
     toast({ title: "Notes sauvegardées" });
   };
 
