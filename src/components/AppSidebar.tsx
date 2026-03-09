@@ -176,14 +176,16 @@ export default function AppSidebar() {
         </Tooltip>
       </div>
 
-      {/* Mobile: Hamburger button — visible only below lg */}
-      <button
-        onClick={() => setOpen(true)}
-        className="fixed top-[14px] left-[14px] z-[300] flex lg:hidden items-center justify-center w-9 h-9 rounded-[9px] bg-bordeaux cursor-pointer"
-        aria-label="Ouvrir le menu"
-      >
-        <Menu size={18} className="text-white" />
-      </button>
+      {/* Mobile: Hamburger button — visible only below lg when menu is closed */}
+      {!open && (
+        <button
+          onClick={() => setOpen(true)}
+          className="fixed top-[14px] left-[14px] z-[300] flex lg:hidden items-center justify-center w-9 h-9 rounded-[9px] bg-bordeaux cursor-pointer"
+          aria-label="Ouvrir le menu"
+        >
+          <Menu size={18} className="text-white" />
+        </button>
+      )}
 
       {/* Backdrop */}
       {open && (
