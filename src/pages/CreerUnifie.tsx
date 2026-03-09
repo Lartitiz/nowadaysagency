@@ -469,7 +469,7 @@ export default function CreerUnifie() {
         editorial_angle: editorialAngle || null,
         questions: questions.map(q => ({ id: q.id, question: q.question })),
         answers: ans,
-      } as any).then(() => {}).catch(console.error);
+      } as any).then(() => {}, console.error);
     }
 
     setStep("result");
