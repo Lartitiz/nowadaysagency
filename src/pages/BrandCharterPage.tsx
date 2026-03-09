@@ -676,8 +676,8 @@ export default function BrandCharterPage() {
           />
 
           <section className="rounded-2xl border border-border bg-card p-5">
-            <h2 className="font-display text-base font-bold text-foreground mb-4">✨ Mon style visuel</h2>
-            <p className="text-xs text-muted-foreground mb-3">Choisis 3 à 5 mots-clés qui définissent ton univers visuel :</p>
+            <h2 className="font-display text-base font-bold text-foreground mb-1">✨ Mon ambiance visuelle</h2>
+            <p className="text-xs text-muted-foreground mb-3">Choisis 3 à 5 mots-clés qui décrivent l'ambiance de tes visuels. L'IA les utilise pour rester cohérente quand elle crée du contenu pour toi.</p>
             <div className="flex flex-wrap gap-2 mb-5">
               {MOOD_OPTIONS.map(keyword => {
                 const selected = data.mood_keywords.includes(keyword);
