@@ -15,7 +15,7 @@ import {
   ArrowRight,
   Menu,
   X,
-  Rocket,
+  
 } from "lucide-react";
 
 import Reveal from "@/components/landing/Reveal";

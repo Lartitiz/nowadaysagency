@@ -943,9 +943,10 @@ export default function CreerUnifie() {
     } else if (selectedFormat === "linkedin" && (r?.hook || r?.full_text)) {
       accroche = (r.hook || r.full_text?.split(/[.\n]/)[0] || "").trim().slice(0, 200);
       contentDraft = r.full_text || [r.hook, r.body, r.cta].filter(Boolean).join("\n\n");
-    } else if (selectedFormat === "reel" && r?.script) {
-      accroche = r.script?.[0]?.texte_parle || "";
-      contentDraft = r.script?.map((s: any) => `[${s.timing || ""}] ${(s.section || "").toUpperCase()}\n${s.texte_parle || ""}${s.texte_overlay ? `\n📝 ${s.texte_overlay}` : ""}`).join("\n\n");
+    } else if (selectedFormat === "reel" && (r?.sections || r?.script)) {
+      const reelSections = r.sections || r.script || [];
+      accroche = reelSections[0]?.texte_parle || r.accroche || "";
+      contentDraft = reelSections.map((s: any) => `[${s.timing || ""}] ${(s.label || s.section || "").toUpperCase()}\n${s.texte_parle || ""}${s.texte_overlay ? `\n📝 ${s.texte_overlay}` : ""}${s.format_visuel ? `\n📹 ${s.format_visuel}` : ""}`).join("\n\n");
     } else if (selectedFormat === "story" && r?.stories) {
       accroche = r.stories?.[0]?.text || "";
       contentDraft = r.stories?.map((s: any) => `STORY ${s.number || ""} (${s.timing || ""})\n${s.format_label || s.format || ""}\n${s.text || ""}${s.sticker ? `\n🎯 ${s.sticker.label || s.sticker.type || ""}` : ""}`).join("\n\n───\n\n");
@@ -978,13 +979,13 @@ export default function CreerUnifie() {
         caption: r.caption,
         quality_check: r.quality_check,
       };
-    } else if (selectedFormat === "reel" && r?.script) {
+    } else if (selectedFormat === "reel" && (r?.sections || r?.script)) {
       storyDetail = {
         type: "reel",
         format_type: r.format_type,
         format_label: r.format_label,
         duree_cible: r.duree_cible,
-        script: r.script,
+        script: r.sections || r.script,
         caption: r.caption,
         hashtags: r.hashtags,
         cover_text: r.cover_text,
