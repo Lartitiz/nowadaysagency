@@ -99,6 +99,10 @@ const FAQ_DATA = [
     a: "Si tu es dans un univers créatif, lifestyle ou engagé : oui. Mode, bijoux, artisanat, céramique, photo, coaching, yoga, bien-être, design, food, culture, sport… L'outil s'adapte à ton activité dès l'onboarding. Tu décris ce que tu fais, et tout se personnalise autour de ton projet."
   },
   {
+    q: "En quoi le calendrier est différent d'un tableur ou de Notion ?",
+    a: "Un tableur, c'est un espace vide que tu dois remplir toi-même. Le calendrier de L'Assistant Com' est connecté à tout le reste : tes générateurs de contenu, ta stratégie, tes canaux. Quand tu crées un contenu, il se place automatiquement dans le calendrier. Tu as une vue mensuelle avec tes posts par canal, leur statut (brouillon, planifié, publié), et tu peux réorganiser par drag & drop. Le but : que tu ouvres l'outil et que tu saches quoi poster cette semaine, sans passer 2h à organiser."
+  },
+  {
     q: "Je suis débutante en com', c'est pour moi ?",
     a: "Surtout pour toi, en vrai. L'outil est pensé pour celles qui ne savent pas par où commencer. Chaque étape est guidée : tu réponds à des questions, l'outil structure pour toi. Pas besoin de connaître les termes techniques. On t'explique tout au fur et à mesure."
   },
