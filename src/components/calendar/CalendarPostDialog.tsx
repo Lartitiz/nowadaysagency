@@ -104,6 +104,19 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     setShowAdvanced(false);
   }, [editingPost, open, defaultCanal, prefillData]);
 
+  useEffect(() => {
+    if (!editingPost?.id) { setLinkedBrief(null); return; }
+    const loadBrief = async () => {
+      const { data } = await supabase
+        .from("content_briefs")
+        .select("subject, questions, answers, created_at")
+        .eq("calendar_post_id", editingPost.id)
+        .maybeSingle() as any;
+      setLinkedBrief(data || null);
+    };
+    loadBrief();
+  }, [editingPost?.id]);
+
   const guide = angle ? getGuide(angle) : null;
 
   // ── Handlers ──
