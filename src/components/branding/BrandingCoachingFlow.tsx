@@ -631,7 +631,7 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
       if (section === "story") {
         try {
           const ctx = await fetchContext();
-          const { data: storyGenData } = await supabase.functions.invoke("branding-coaching", {
+          const { data: storyGenData } = await invokeWithTimeout("branding-coaching", {
             body: {
               user_id: profileUserId,
               workspace_id: workspaceId,
@@ -643,7 +643,7 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
               context: ctx,
               covered_topics: checklist,
             },
-          });
+          }, 120000);
           const generatedStory = storyGenData?.response?.question || (typeof storyGenData?.response === "string" ? storyGenData.response : "");
           if (typeof generatedStory === "string" && generatedStory.length > 50) {
             const { data: existing } = await (supabase.from("storytelling") as any)
