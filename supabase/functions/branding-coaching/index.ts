@@ -63,6 +63,60 @@ const TOPIC_LABELS: Record<string, string> = {
   offer_includes: "Ce qui est inclus",
 };
 
+const TOPIC_ALIASES: Record<string, string> = {
+  // story
+  "origin": "story_origin", "origine": "story_origin", "parcours": "story_origin", "debut": "story_origin",
+  "turning_point": "story_turning_point", "declic": "story_turning_point", "déclic": "story_turning_point",
+  "struggles": "story_struggles", "galeres": "story_struggles", "galères": "story_struggles", "difficultes": "story_struggles",
+  "unique": "story_unique", "difference": "story_unique", "différence": "story_unique",
+  "vision": "story_vision", "futur": "story_vision", "avenir": "story_vision",
+  // persona
+  "portrait": "description", "profil": "description",
+  "age": "demographics", "démographie": "demographics", "situation": "demographics",
+  "blocages": "frustrations", "problemes": "frustrations", "problèmes": "frustrations",
+  "envies": "desires", "aspirations": "desires", "besoins": "desires",
+  "freins": "objections", "hesitations": "objections", "hésitations": "objections",
+  "declencheurs": "buying_triggers", "déclencheurs": "buying_triggers", "triggers": "buying_triggers",
+  "canaux": "channels", "reseaux": "channels", "réseaux": "channels", "plateformes": "channels",
+  "journee": "daily_life", "journée": "daily_life", "quotidien": "daily_life",
+  // tone_style
+  "ton": "tone_description", "voix": "tone_description", "style_communication": "tone_description",
+  "do": "tone_do", "je_fais": "tone_do",
+  "dont": "tone_dont", "je_ne_fais_pas": "tone_dont", "limites": "tone_dont",
+  "combat": "combats", "engagements": "combats", "valeurs_combat": "combats",
+  "style_visuel": "visual_style", "esthetique": "visual_style", "esthétique": "visual_style",
+  // content_strategy
+  "piliers": "content_pillars", "pillars": "content_pillars", "themes": "content_pillars", "thèmes": "content_pillars",
+  "twist": "content_twist", "twist_creatif": "content_twist", "concept": "content_twist", "angle": "content_twist",
+  "formats": "content_formats", "types_contenu": "content_formats",
+  "frequence": "content_frequency", "fréquence": "content_frequency", "rythme": "content_frequency", "frequency": "content_frequency",
+  "editorial_line": "content_editorial_line", "ligne_editoriale": "content_editorial_line", "ligne": "content_editorial_line", "edito": "content_editorial_line",
+  // offers
+  "nom": "offer_name", "name": "offer_name", "nom_offre": "offer_name",
+  "prix": "offer_price", "price": "offer_price", "tarif": "offer_price",
+  "cible": "offer_target", "target": "offer_target", "pour_qui": "offer_target",
+  "promesse": "offer_promise", "promise": "offer_promise", "transformation": "offer_promise",
+  "inclus": "offer_includes", "includes": "offer_includes", "contenu_offre": "offer_includes",
+};
+
+function normalizeCoveredTopic(topic: string | null | undefined, section: string): string | null {
+  if (!topic) return null;
+  const checklist = SECTION_CHECKLISTS[section] || [];
+  // Exact match
+  if (checklist.includes(topic)) return topic;
+  // Alias match
+  const aliased = TOPIC_ALIASES[topic.toLowerCase().trim()];
+  if (aliased && checklist.includes(aliased)) return aliased;
+  // Fuzzy: checklist key contains topic or topic contains checklist key
+  const fuzzy = checklist.find(c =>
+    topic.toLowerCase().includes(c.toLowerCase()) ||
+    c.toLowerCase().includes(topic.toLowerCase())
+  );
+  if (fuzzy) return fuzzy;
+  console.warn(`[BrandingCoaching] Unrecognized covered_topic: "${topic}" for section "${section}"`);
+  return null;
+}
+
 function buildSystemPrompt(section: string, context: any, coveredTopics: string[], autofillData?: any, autofillConfidence?: string): string {
   const prenom = context.profile?.prenom || context.profile?.first_name || "toi";
   const sectionName = SECTION_NAMES[section] || section;
