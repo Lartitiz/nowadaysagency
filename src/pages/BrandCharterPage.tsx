@@ -310,7 +310,7 @@ function MoodboardSection({ images, description, onImagesChange, onDescriptionCh
         <Textarea
           value={description || ""}
           onChange={(e) => onDescriptionChange(e.target.value || null)}
-          placeholder="Ex : ambiance chaleureuse, couleurs terre, lumière dorée, textures naturelles…"
+          placeholder="Ex : j'aime le côté chaleureux, les couleurs douces, la lumière naturelle, le mélange de textures…"
           rows={2}
           className="text-sm"
         />
