@@ -536,7 +536,7 @@ export default function WelcomePage() {
             ✨ {prenom ? `${prenom}, voilà` : "Voilà"} ce que j'ai préparé pour toi
           </h1>
           <p className="text-sm text-muted-foreground">
-            J'ai pré-rempli ton branding à partir de ce que j'ai trouvé. Vérifie, ajuste, et c'est parti.
+            J'ai pré-rempli ton branding à partir de ce que j'ai trouvé. <strong className="text-foreground">Clique sur n'importe quel texte pour le modifier.</strong> Quand tout te va, valide en bas.
           </p>
         </div>
 
