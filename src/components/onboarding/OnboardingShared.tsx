@@ -57,17 +57,9 @@ export function VoiceInput({ value, onChange, placeholder, onEnter, autoFocus = 
             rows={4}
             className="w-full text-base p-4 pr-12 border-2 border-border rounded-xl focus:border-primary outline-none bg-card transition-colors text-foreground placeholder:text-muted-foreground/50 resize-none"
           />
-          <button
-            type="button"
-            onClick={toggle}
-            className={`absolute right-3 bottom-3 p-2 rounded-full transition-all ${
-              isListening
-                ? "bg-destructive text-destructive-foreground animate-pulse"
-                : "bg-muted text-muted-foreground hover:bg-secondary"
-            }`}
-          >
-            🎤
-          </button>
+          <div className="absolute right-3 bottom-3">
+            <MicButton isListening={isListening} isSupported={isSupported} onClick={toggle} size="sm" error={error} />
+          </div>
         </div>
         {error && !isListening && (
           <p className="mt-1 text-xs text-destructive">{error}</p>
