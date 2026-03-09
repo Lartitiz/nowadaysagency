@@ -7,7 +7,7 @@ import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
-import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
+import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 
 const SECTION_CHECKLISTS: Record<string, string[]> = {
   story: ["story_origin", "story_turning_point", "story_struggles", "story_unique", "story_vision"],
@@ -207,9 +207,7 @@ serve(async (req) => {
 
     const quota = await checkQuota(userId, "coach", workspace_id || undefined);
     if (!quota.allowed) {
-      return new Response(JSON.stringify({ error: quota.message, quota }), {
-        status: 429, headers: { ...cors, "Content-Type": "application/json" },
-      });
+      return quotaDeniedResponse(quota, cors);
     }
 
     if (!section) {

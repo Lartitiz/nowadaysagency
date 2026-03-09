@@ -17,13 +17,13 @@ export type Category = (typeof CATEGORIES)[number];
 
 export const PLAN_LIMITS: Record<string, Record<string, number>> = {
   free: {
-    total: 60,
+    total: 100,
     content: 25,
     audit: 3,
     dm_comment: 5,
     bio_profile: 5,
     suggestion: 5,
-    coach: 15,
+    coach: 50,
     import: 2,
     adaptation: 3,
     deep_research: 5,
