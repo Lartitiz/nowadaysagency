@@ -537,7 +537,17 @@ export default function WelcomePage() {
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
               Ton branding pré-rempli
             </h2>
-            {hasBranding ? (
+            {brandingStillLoading ? (
+              <div className="rounded-2xl bg-[hsl(var(--rose-pale))]/50 border border-border p-8 flex flex-col items-center justify-center gap-3">
+                <div className="flex gap-1.5">
+                  {[0, 1, 2].map(i => (
+                    <div key={i} className="h-2 w-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: `${i * 0.16}s` }} />
+                  ))}
+                </div>
+                <p className="text-sm text-muted-foreground">Je prépare ton branding personnalisé...</p>
+                <p className="text-xs text-muted-foreground">Ça prend quelques secondes, c'est bientôt prêt ✨</p>
+              </div>
+            ) : hasBranding ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {brandingCards.map((card, i) => (
                   <BrandingCardItem key={i} card={card} index={i} onSave={handleCardSave} />
