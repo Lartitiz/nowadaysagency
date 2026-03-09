@@ -11,6 +11,7 @@ interface Props {
   editorialAngle?: string;
   questions: Question[];
   loadingQuestions: boolean;
+  previousBriefsCount?: number;
   onNext: (answers: Record<string, string>) => void;
   onSkip: () => void;
   onBack: () => void;
