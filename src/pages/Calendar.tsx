@@ -88,11 +88,12 @@ function ShareButton() {
   );
 }
 
-function ExportSection({ filteredPosts, canalFilter, toast, onCoachingOpen }: {
+function ExportSection({ filteredPosts, canalFilter, toast, onCoachingOpen, onQuickBatchOpen }: {
   filteredPosts: CalendarPost[];
   canalFilter: string;
   toast: ReturnType<typeof useToast>["toast"];
   onCoachingOpen: () => void;
+  onQuickBatchOpen: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
