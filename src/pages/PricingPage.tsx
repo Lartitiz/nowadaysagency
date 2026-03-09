@@ -230,7 +230,7 @@ export default function PricingPage() {
             </div>
             <span className="text-2xl mb-2">💎</span>
             <h3 className="font-display text-xl font-bold">Premium</h3>
-            <p className="text-xs text-muted-foreground font-medium mt-1">L'IA qui connaît ta voix. Sans limite (ou presque).</p>
+            <p className="text-xs text-muted-foreground font-medium mt-1">Crée sans compter. L'IA qui connaît ta voix.</p>
             <p className="text-3xl font-bold mt-2 text-primary">
               39€
               <span className="text-base font-normal text-muted-foreground">
@@ -238,14 +238,16 @@ export default function PricingPage() {
               </span>
             </p>
             <p className="text-sm text-muted-foreground mt-1 mb-5">
-              300 crédits IA/mois + communauté active. Pour celleux qui veulent produire du contenu régulier en autonomie.
+              Contenus IA illimités, audits illimités, communauté active. Pour celleux qui veulent publier régulièrement sans se poser la question des limites.
+            </p>
+            <p className="text-xs text-muted-foreground mb-2 pb-2 border-b border-border">
+              Tout le plan gratuit, plus :
             </p>
             <ul className="space-y-2 text-sm text-foreground mb-6 flex-1">
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> 300 crédits IA / mois</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Contenus IA illimités (posts, reels, stories, newsletters…)</li>
               <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Audits IA illimités</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Communauté active (poster, commenter)</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Lives mensuels + replays</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Tout le plan gratuit inclus</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Communauté active : poste, commente, échange</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Lives mensuels avec Laetitia + replays</li>
             </ul>
             {isCurrentPlan("outil") ? (
               <div className="text-center rounded-pill border-2 border-primary py-2.5 font-medium text-primary text-sm">
