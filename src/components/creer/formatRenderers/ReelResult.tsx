@@ -11,7 +11,7 @@ interface Props {
 export default function ReelResult({ result }: Props) {
   const formatType = result?.format_type || result?.format;
   const dureeCible = result?.duree_cible || result?.duration;
-  const sections = result?.sections || result?.script?.sections || [];
+  const sections = result?.sections || (Array.isArray(result?.script) ? result.script : result?.script?.sections) || [];
   const personalTip = result?.personal_tip || result?.conseil_personnalise;
 
   const fullText = sections

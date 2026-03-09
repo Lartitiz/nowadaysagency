@@ -477,14 +477,18 @@ Génère le script normalement mais AJOUTE un champ "personal_tip" dans le JSON 
 `;
   }
 
-  // Safe hook access — selectedHook can be null when user skips hook selection
-  const hook = selectedHook || {};
-  const hookType = hook.type || "question";
-  const hookTypeLabel = hook.type_label || hookType;
-  const hookText = hook.text || subject || "(généré automatiquement)";
-  const hookTextOverlay = hook.text_overlay || "";
-  const hookFormatLabel = hook.format_label || "Face cam";
-  const hookDureeCible = hook.duree_cible || "30-60 sec";
+  // Fallback si pas de hook sélectionné (flux unifié CreerUnifie)
+  if (!selectedHook) {
+    selectedHook = {
+      type: "auto",
+      type_label: "Auto-généré",
+      text: "(génère un hook percutant de 5-12 mots adapté au sujet)",
+      text_overlay: "(génère un text overlay de 3-6 mots en MAJUSCULES)",
+      format_label: "Auto",
+      format_recommande: "auto",
+      duree_cible: "30-45 sec",
+    };
+  }
 
   return `DEMANDE : Générer un script Reel complet.
 
@@ -495,11 +499,11 @@ Temps tournage : ${time_available}
 En lancement : ${is_launch ? "oui" : "non"}
 ${inspirationContext ? `\nINSPIRATION ANALYSÉE :\n${inspirationContext}\nINSPIRE-TOI du style identifié. NE COPIE PAS le contenu.\n` : ""}
 HOOK CHOISI :
-- Type : ${hookType} (${hookTypeLabel})
-- Texte : "${hookText}"
-- Texte overlay : "${hookTextOverlay}"
-- Format recommandé : ${hookFormatLabel}
-- Durée cible : ${hookDureeCible}
+- Type : ${selectedHook.type} (${selectedHook.type_label})
+- Texte : "${selectedHook.text}"
+- Texte overlay : "${selectedHook.text_overlay}"
+- Format recommandé : ${selectedHook.format_label}
+- Durée cible : ${selectedHook.duree_cible}
 
 ${preGenBlock}
 
@@ -538,8 +542,8 @@ Retourne ce JSON exact :
       "section": "hook",
       "timing": "0-3 sec",
       "format_visuel": "Face cam, regarde la caméra, ton direct",
-      "texte_parle": "${hookText}",
-      "texte_overlay": "${hookTextOverlay}",
+      "texte_parle": "${selectedHook.text}",
+      "texte_overlay": "${selectedHook.text_overlay}",
       "cut": null,
       "tip": "1,7 sec pour décider de rester ou scroller."
     },

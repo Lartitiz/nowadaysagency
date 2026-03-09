@@ -203,6 +203,17 @@ export function useContentGenerator() {
         }
 
         case "reel": {
+          // Mapper les answers des questions vers le format pre_gen_answers attendu par reels-ai
+          let effectivePreGenAnswers = preGenAnswers || null;
+          if (!effectivePreGenAnswers && answers && Object.keys(answers).length > 0) {
+            const vals = Object.values(answers);
+            effectivePreGenAnswers = {
+              anecdote: vals[0] || undefined,
+              emotion: vals[1] || undefined,
+              conviction: vals[2] || undefined,
+            };
+          }
+
           const res = await invokeWithTimeout("reels-ai", {
             body: {
               type: "script",
@@ -211,7 +222,7 @@ export function useContentGenerator() {
               objective: objective || null,
               face_cam: faceCam || "oui",
               time_available: timeAvailable || "flexible",
-              pre_gen_answers: preGenAnswers || null,
+              pre_gen_answers: effectivePreGenAnswers,
               selected_hook: selectedHook || null,
               editorial_angle: editorialAngle || null,
               content_structure: structurePrompt || null,
