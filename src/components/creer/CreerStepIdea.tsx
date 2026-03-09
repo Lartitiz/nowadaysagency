@@ -26,10 +26,10 @@ export default function CreerStepIdea({ onNext, onCoachingSelect }: Props) {
     <div className="space-y-6 animate-fade-in">
       <div>
         <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-primary" /> Créer un contenu
+          <Sparkles className="h-5 w-5 text-primary" /> Qu'est-ce que tu veux partager ?
         </h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Décris ton idée, l'IA s'occupe du reste.
+          Raconte ton idée en quelques mots, même vague. L'IA va t'aider à la transformer en contenu.
         </p>
       </div>
 
@@ -38,17 +38,18 @@ export default function CreerStepIdea({ onNext, onCoachingSelect }: Props) {
         <Textarea
           value={idea}
           onChange={(e) => setIdea(e.target.value)}
-          placeholder="De quoi tu veux parler ? Décris ton idée, ton sujet, ce qui te trotte dans la tête..."
+          placeholder="Ex : je veux montrer les nouveaux colliers en velours que j'ai reçus / je voudrais parler de pourquoi je fais ce métier / j'ai envie de réagir à une actu..."
           rows={4}
           className="resize-none"
         />
+        <p className="text-xs text-muted-foreground">Pas besoin d'être précise : un mot-clé, une phrase, une envie. L'outil te guide ensuite.</p>
         <Button
           variant="ghost"
           size="sm"
           className="gap-1.5 text-muted-foreground"
           onClick={() => setCoachOpen(true)}
         >
-          <HelpCircle className="h-3.5 w-3.5" /> Je sais pas quoi poster
+          <HelpCircle className="h-3.5 w-3.5" /> Aide-moi à trouver une idée
         </Button>
       </div>
 
