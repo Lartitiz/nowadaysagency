@@ -104,6 +104,7 @@ function Breadcrumb() {
   );
 }
 
+export default function AppHeader() {
   const { isActive: sessionActive } = useSession();
   if (sessionActive) return null;
   return <AppHeaderInner />;
