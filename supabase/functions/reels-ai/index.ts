@@ -13,6 +13,7 @@ import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  let userId: string | null = null;
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
@@ -33,6 +34,7 @@ serve(async (req) => {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    userId = user.id;
 
     // Anthropic API key checked in shared helper
 
@@ -158,7 +160,8 @@ serve(async (req) => {
       type: "edge_function_error",
       function_name: "reels-ai",
       error: e instanceof Error ? e.message : "Unknown error",
-      user_id: null,
+      stack: e instanceof Error ? e.stack : undefined,
+      user_id: userId,
       timestamp: new Date().toISOString(),
     }));
     return new Response(JSON.stringify({ error: "Erreur interne du serveur" }), {
