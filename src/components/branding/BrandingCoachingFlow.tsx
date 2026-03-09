@@ -406,12 +406,25 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
 
   const updateCoveredTopics = useCallback((response: AIResponse) => {
     if (response.covered_topic) {
+      const topic = response.covered_topic;
       setCoveredTopics(prev => {
-        if (prev.includes(response.covered_topic!)) return prev;
-        return [...prev, response.covered_topic!];
+        // Exact match
+        if (checklist.includes(topic)) {
+          return prev.includes(topic) ? prev : [...prev, topic];
+        }
+        // Fuzzy: find closest match in checklist
+        const match = checklist.find(c =>
+          topic.toLowerCase().includes(c.toLowerCase()) ||
+          c.toLowerCase().includes(topic.toLowerCase())
+        );
+        if (match) {
+          return prev.includes(match) ? prev : [...prev, match];
+        }
+        // No match found — still add raw topic to avoid re-asking
+        return prev.includes(topic) ? prev : [...prev, topic];
       });
     }
-  }, []);
+  }, [checklist]);
 
   const saveDemoAnswer = useCallback((q: DemoCoachingQuestion) => {
     setCompletionPct(q.completion_percentage);
@@ -584,6 +597,17 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
 
     const response = await askAI(newMessages);
     if (!response) return;
+
+    // Circuit-breaker: force completion after too many questions
+    const maxQuestions = checklist.length + 5;
+    if (nextIndex >= maxQuestions && !response.is_complete) {
+      console.warn(`[BrandingCoaching] Circuit-breaker: ${nextIndex} questions reached, forcing completion`);
+      response.is_complete = true;
+      response.completion_percentage = 100;
+      if (!response.final_summary) {
+        response.final_summary = "✅ On a fait le tour ! Ta fiche est remplie avec ce qu'on a couvert ensemble.\n\n💡 Tu peux toujours compléter ou modifier les champs directement dans ta fiche.";
+      }
+    }
 
     // Update covered topics from AI response
     updateCoveredTopics(response);
