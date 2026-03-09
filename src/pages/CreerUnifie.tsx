@@ -154,6 +154,15 @@ export default function CreerUnifie() {
     }
   }, [paramCanal]);
 
+  // Charger le nombre de briefs existants quand on arrive sur les questions
+  useEffect(() => {
+    if (step !== "questions" || !session?.user?.id) return;
+    supabase.from("content_briefs")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", session.user.id)
+      .then(({ count }: any) => setBriefsCount(count || 0));
+  }, [step, session?.user?.id]);
+
   const [launchResults, setLaunchResults] = useState<any[]>([]);
   const [launchIndex, setLaunchIndex] = useState(0);
   const [launchGenerating, setLaunchGenerating] = useState(false);
