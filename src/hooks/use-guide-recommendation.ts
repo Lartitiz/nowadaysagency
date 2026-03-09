@@ -135,33 +135,33 @@ function buildRecommendation(
     };
   }
 
-  // P5 – Branding ≥ 3 but empty calendar
+  // P5 – Branding ≥ 3 but empty calendar → pousser création
   if (sectionsFilled >= 3 && calendarPosts === 0) {
     return {
-      title: "Planifie ta première semaine de contenus",
+      title: "Crée ton prochain contenu",
       explanation:
-        "Ton branding prend forme et c'est top. Sauf que la plus belle stratégie du monde ne sert à rien si elle reste dans un tiroir. On planifie tes premiers contenus ? *(Spoiler : c'est plus simple que tu crois.)*",
-      ctaLabel: "C'est parti !",
-      ctaRoute: "/calendrier",
-      icon: "CalendarPlus",
+        "Ton branding prend forme et c'est top. Le meilleur moyen d'avancer, c'est de créer un contenu maintenant. L'IA utilise tout ce que tu as renseigné pour écrire avec ta voix.",
+      ctaLabel: "Créer un contenu →",
+      ctaRoute: "/creer",
+      icon: "Sparkles",
       alternatives: [
-        { title: "Générer des idées de contenus", route: "/creer", icon: "Lightbulb" },
+        { title: "Planifier mes contenus", route: "/calendrier", icon: "CalendarPlus" },
         { title: "Faire un audit Instagram", route: "/instagram/audit", icon: "Search" },
       ],
     };
   }
 
-  // P6 – Has posts but no audit
+  // P6 – Has posts but no audit → pousser création
   if (calendarPosts > 0 && !lastAuditDate) {
     return {
-      title: "Fais le point sur ton Instagram",
+      title: "Continue sur ta lancée",
       explanation:
-        "Tu publies, c'est déjà énorme. Maintenant la question : est-ce que ça marche ? Un petit check-up de ton Instagram va te donner des pistes concrètes pour t'améliorer.",
-      ctaLabel: "C'est parti !",
-      ctaRoute: "/instagram/audit",
-      icon: "BarChart3",
+        "Tu publies, c'est déjà énorme. Le secret c'est la régularité. On crée ton prochain contenu ?",
+      ctaLabel: "Créer un contenu →",
+      ctaRoute: "/creer",
+      icon: "Sparkles",
       alternatives: [
-        { title: "Générer un nouveau contenu", route: "/creer", icon: "PenLine" },
+        { title: "Faire un audit Instagram", route: "/instagram/audit", icon: "Search" },
         { title: "Enrichir ton branding", route: "/branding", icon: "Palette" },
       ],
     };
