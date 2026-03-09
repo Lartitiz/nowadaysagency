@@ -49,7 +49,7 @@ export default function CreerStepIdea({ onNext, onCoachingSelect }: Props) {
           className="gap-1.5 text-muted-foreground"
           onClick={() => setCoachOpen(true)}
         >
-          <HelpCircle className="h-3.5 w-3.5" /> Je sais pas quoi poster
+          <HelpCircle className="h-3.5 w-3.5" /> Aide-moi à trouver une idée
         </Button>
       </div>
 
