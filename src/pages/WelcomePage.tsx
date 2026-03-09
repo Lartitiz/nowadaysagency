@@ -174,6 +174,7 @@ export default function WelcomePage() {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [diagnosticSummary, setDiagnosticSummary] = useState("");
   const [brandingCards, setBrandingCards] = useState<BrandingCard[]>([]);
+  const [offers, setOffers] = useState<{ id: string; name: string; promise: string | null; price_text: string | null; target_ideal: string | null }[]>([]);
   const [loading, setLoading] = useState(true);
   const [brandingStillLoading, setBrandingStillLoading] = useState(true);
 
