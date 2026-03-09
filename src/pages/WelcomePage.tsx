@@ -157,7 +157,7 @@ export default function WelcomePage() {
   const [diagnosticSummary, setDiagnosticSummary] = useState("");
   const [brandingCards, setBrandingCards] = useState<BrandingCard[]>([]);
   const [loading, setLoading] = useState(true);
-  
+  const [brandingStillLoading, setBrandingStillLoading] = useState(true);
 
   const prenom = (profileData as any)?.prenom || "";
   const channels: string[] = (profileData as any)?.canaux || [];
