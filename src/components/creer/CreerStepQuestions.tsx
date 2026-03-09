@@ -23,6 +23,7 @@ export default function CreerStepQuestions({
   editorialAngle,
   questions,
   loadingQuestions,
+  previousBriefsCount,
   onNext,
   onSkip,
   onBack,
