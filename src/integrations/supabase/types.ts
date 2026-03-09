@@ -2013,6 +2013,7 @@ export type Database = {
       content_briefs: {
         Row: {
           answers: Json | null
+          calendar_post_id: string | null
           created_at: string | null
           editorial_angle: string | null
           format: string | null
@@ -2026,6 +2027,7 @@ export type Database = {
         }
         Insert: {
           answers?: Json | null
+          calendar_post_id?: string | null
           created_at?: string | null
           editorial_angle?: string | null
           format?: string | null
@@ -2039,6 +2041,7 @@ export type Database = {
         }
         Update: {
           answers?: Json | null
+          calendar_post_id?: string | null
           created_at?: string | null
           editorial_angle?: string | null
           format?: string | null

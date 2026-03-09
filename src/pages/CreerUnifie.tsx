@@ -108,6 +108,7 @@ export default function CreerUnifie() {
   const [inspirationImageBase64, setInspirationImageBase64] = useState<string | null>(null);
   const [inspirationImagePreview, setInspirationImagePreview] = useState<string | null>(ps?.inspirationImagePreview || null);
   const [photoBriefResult, setPhotoBriefResult] = useState<any>(null);
+  const [currentBriefId, setCurrentBriefId] = useState<string | null>(null);
   const [photoBriefOverlayHtml, setPhotoBriefOverlayHtml] = useState<string | null>(null);
 
   const { restored: draftRestored, clearDraft } = useFormPersist(
@@ -469,7 +470,8 @@ export default function CreerUnifie() {
         editorial_angle: editorialAngle || null,
         questions: questions.map(q => ({ id: q.id, question: q.question })),
         answers: ans,
-      } as any).then(() => {}, console.error);
+      } as any).select("id").maybeSingle()
+        .then(({ data }: any) => { if (data?.id) setCurrentBriefId(data.id); }, console.error);
     }
 
     setStep("result");
@@ -1103,6 +1105,11 @@ export default function CreerUnifie() {
         }
       }
 
+      // Lier le brief au post calendrier
+      if (currentBriefId && calendarPostId) {
+        supabase.from("content_briefs").update({ calendar_post_id: calendarPostId } as any).eq("id", currentBriefId).then(() => {}, console.error);
+      }
+
       toast.success("Contenu sauvegardé dans ton calendrier !");
       clearFlowState();
       navigate(`/calendrier?date=${calendarPostDate || ""}&post=${calendarPostId}`);
@@ -1366,6 +1373,11 @@ export default function CreerUnifie() {
             },
           }).eq("id", postId);
         }
+      }
+
+      // Lier le brief au post calendrier
+      if (currentBriefId && postId) {
+        supabase.from("content_briefs").update({ calendar_post_id: postId } as any).eq("id", currentBriefId).then(() => {}, console.error);
       }
 
       toast.success("Ajouté au calendrier !");
