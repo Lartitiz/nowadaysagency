@@ -459,6 +459,7 @@ export default function WelcomePage() {
       const charter = charterRes.data as any;
       if (charter && (charter.color_primary || charter.font_title || charter.photo_style)) {
         const charterColors = [charter.color_primary, charter.color_secondary, charter.color_accent, charter.color_background, charter.color_text].filter(Boolean);
+        const colorKeys = ["color_primary", "color_secondary", "color_accent", "color_background", "color_text"].filter((_, i) => [charter.color_primary, charter.color_secondary, charter.color_accent, charter.color_background, charter.color_text][i]);
         const charterParts: string[] = [];
         if (charter.font_title) {
           const fonts = [charter.font_title, charter.font_body].filter(Boolean);
@@ -470,7 +471,24 @@ export default function WelcomePage() {
           if (kw.length) charterParts.push(`Ambiance : ${kw.join(", ")}`);
         }
         const charterContent = charterParts.join(" · ");
-        cards.push({ emoji: "🎨", title: "Charte graphique", content: charterContent, route: "/branding/section?section=charter", colors: charterColors });
+        cards.push({
+          emoji: "🎨", title: "Charte graphique", content: charterContent, route: "/branding/section?section=charter", colors: charterColors,
+          onColorChange: async (colorIndex: number, newColor: string) => {
+            const colorKey = colorKeys[colorIndex];
+            if (!colorKey) return;
+            setBrandingCards(prev => prev.map(c => {
+              if (c.title !== "Charte graphique" || !c.colors) return c;
+              const newColors = [...c.colors];
+              newColors[colorIndex] = newColor;
+              return { ...c, colors: newColors };
+            }));
+            if (/^#[0-9A-Fa-f]{6}$/.test(newColor)) {
+              await (supabase.from("brand_charter" as any) as any)
+                .update({ [colorKey]: newColor })
+                .eq(column, value);
+            }
+          },
+        });
       }
 
       // Only update if we got MORE cards than currently displayed
