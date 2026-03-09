@@ -47,6 +47,7 @@ serve(async (req) => {
 
     // Check plan limits
     const usageCheck = await checkQuota(user.id, "content");
+    console.log("reels-ai: quota check done", usageCheck.allowed);
     if (!usageCheck.allowed) {
       return new Response(
         JSON.stringify({ error: "limit_reached", message: usageCheck.error, remaining: 0 }),
@@ -60,6 +61,7 @@ serve(async (req) => {
     } catch {
       rawBody = null;
     }
+    console.log("reels-ai: rawBody type =", typeof rawBody, "keys =", rawBody ? Object.keys(rawBody) : "null");
     if (!rawBody || typeof rawBody !== "object") {
       return new Response(JSON.stringify({ error: "Corps de requête invalide" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -76,6 +78,7 @@ serve(async (req) => {
       editorial_angle: z.string().max(100).optional().nullable(),
       content_structure: z.string().max(5000).optional().nullable(),
     }).passthrough());
+    console.log("reels-ai: body validated, type =", (body as any).type);
     let { type, objective, face_cam, subject, time_available, is_launch, selected_hook, pre_gen_answers, image_urls, inspiration_context, workspace_id, editorial_angle, content_structure, launch_context } = body as any;
 
     // Fetch full context server-side
