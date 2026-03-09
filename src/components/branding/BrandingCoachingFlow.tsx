@@ -319,21 +319,22 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
       }, 90000);
 
       if (fnError) {
-        console.error("[BrandingCoaching] Edge function error:", fnError);
+        const err = fnError as InvokeError;
+        console.error("[BrandingCoaching] Edge function error:", err);
 
-        if ((fnError as any).isRateLimit) {
+        if (err.isRateLimit) {
           setError("Tu envoies trop de requêtes. Attends quelques secondes avant de réessayer 😊");
-        } else if ((fnError as any).isTimeout) {
+        } else if (err.isTimeout) {
           setError("La génération prend plus de temps que prévu. Réessaie dans quelques instants.");
-        } else if ((fnError as any).isAuth) {
+        } else if (err.isAuth) {
           setError("Ta session a expiré. Rafraîchis la page pour te reconnecter.");
-        } else if ((fnError as any).isNetwork) {
+        } else if (err.isNetwork) {
           setError("Connexion perdue. Vérifie ta connexion internet et réessaie.");
         } else {
           setError("L'IA a eu un blanc. Ça arrive 😅");
         }
 
-        toast.error((fnError as any).message || "L'IA a eu un blanc. Réessaie.");
+        toast.error(err.message || "L'IA a eu un blanc. Réessaie.");
         return null;
       }
 
