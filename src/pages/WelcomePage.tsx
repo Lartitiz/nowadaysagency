@@ -314,7 +314,7 @@ export default function WelcomePage() {
           .select("imported_text")
           .eq(column, value).eq("is_primary", true).maybeSingle(),
         (supabase.from("brand_charter") as any)
-          .select("color_primary, color_secondary, color_accent, font_title, font_body, mood_keywords, photo_style, moodboard_description")
+          .select("color_primary, color_secondary, color_accent, color_background, color_text, font_title, font_body, mood_keywords, photo_style, moodboard_description")
           .eq(column, value).maybeSingle(),
         (supabase.from("brand_proposition") as any)
           .select("version_final, version_one_liner")
