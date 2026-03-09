@@ -26,10 +26,10 @@ export default function CreerStepIdea({ onNext, onCoachingSelect }: Props) {
     <div className="space-y-6 animate-fade-in">
       <div>
         <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-primary" /> Créer un contenu
+          <Sparkles className="h-5 w-5 text-primary" /> Qu'est-ce que tu veux partager ?
         </h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Décris ton idée, l'IA s'occupe du reste.
+          Raconte ton idée en quelques mots, même vague. L'IA va t'aider à la transformer en contenu.
         </p>
       </div>
 
