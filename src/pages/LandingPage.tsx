@@ -62,8 +62,8 @@ const FEATURES = [
 const PAIN_POINTS = [
   {
     emoji: "📱",
-    pain: "Tu ouvres Instagram, tu fixes l'écran, et tu refermes. Tu sais pas quoi poster, ni quand, ni comment.",
-    flip: "L'outil te propose des idées adaptées à TON activité, et les place dans un calendrier. Tu sais quoi faire chaque semaine.",
+    pain: "Tu ouvres Instagram, tu fixes l'écran, et tu refermes. T'as essayé de tenir un planning sur Notion, sur Excel, dans un carnet. Mais à chaque fois, tu passes plus de temps à organiser qu'à créer.",
+    flip: "L'outil structure ton calendrier pour toi. Vue mensuelle, contenus par canal, drag & drop. Tu ouvres, tu sais quoi poster cette semaine. Sans prise de tête.",
     flipEmoji: "📅",
   },
   {
