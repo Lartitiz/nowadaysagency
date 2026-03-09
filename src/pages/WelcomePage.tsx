@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useProfile } from "@/hooks/use-profile";
 
@@ -100,6 +100,109 @@ interface BrandProfileData {
 }
 const CARD_COLLAPSE_LENGTH = 200;
 
+type OfferState = { id: string; name: string; promise: string | null; price_text: string | null; target_ideal: string | null };
+
+function buildBrandingCards(
+  bp: BrandProfileData | null,
+  personaData: any,
+  offersData: any,
+  storyData: any,
+  charterData: any,
+  propositionData: any,
+  strategyData: any,
+  filterColumn: string,
+  filterValue: string,
+  setBrandingCards: React.Dispatch<React.SetStateAction<BrandingCard[]>>,
+  setOffers: React.Dispatch<React.SetStateAction<OfferState[]>>,
+): BrandingCard[] {
+  const cards: BrandingCard[] = [];
+
+  if (bp?.positioning) cards.push({ emoji: "🎯", title: "Positionnement", content: bp.positioning, route: "/branding/proposition/recap", dbTable: "brand_profile", dbField: "positioning" });
+  if (bp?.mission) cards.push({ emoji: "🚀", title: "Mission", content: bp.mission, route: "/branding", dbTable: "brand_profile", dbField: "mission" });
+  if (bp?.tone_style || (bp?.tone_keywords && bp.tone_keywords.length > 0)) {
+    const toneContent = bp!.tone_style || (bp!.tone_keywords || []).join(", ");
+    cards.push({ emoji: "💬", title: "Ton de voix", content: toneContent, route: "/branding/section?section=tone_style", dbTable: bp!.tone_style ? "brand_profile" : undefined, dbField: bp!.tone_style ? "tone_style" : undefined });
+  }
+  if (bp?.combats) cards.push({ emoji: "⚔️", title: "Combats", content: bp.combats, route: "/branding/section?section=tone_style", dbTable: "brand_profile", dbField: "combats" });
+  if (bp?.values && bp.values.length > 0) cards.push({ emoji: "💎", title: "Valeurs", content: (bp.values as any[]).map(v => typeof v === "string" ? v : (v as any).name || v).join(", "), route: "/branding/section?section=tone_style" });
+  if (bp?.content_pillars && bp.content_pillars.length > 0) {
+    const pillarsText = (bp.content_pillars as any[]).map(p => typeof p === "string" ? p : (p as any).name || p).join(", ");
+    cards.push({ emoji: "📝", title: "Piliers de contenu", content: pillarsText, route: "/branding/section?section=content_strategy" });
+  }
+
+  const persona = personaData as any;
+  if (persona) {
+    const personaParts: string[] = [];
+    if (persona.portrait_prenom) personaParts.push(persona.portrait_prenom);
+    if (persona.description) personaParts.push(persona.description);
+    if (persona.step_1_frustrations) personaParts.push(`Frustrations : ${persona.step_1_frustrations}`);
+    if (persona.step_2_transformation) personaParts.push(`Transformation : ${persona.step_2_transformation}`);
+    const personaContent = personaParts.filter(Boolean).join(" · ");
+    if (personaContent) cards.push({ emoji: "🎭", title: "Persona", content: personaContent, route: "/branding/section?section=persona" });
+  }
+
+  const offers = ((offersData as any[]) || []);
+  if (offers.length > 0) {
+    setOffers(prev => {
+      if (offers.length > prev.length) {
+        return offers.map((o: any) => ({ id: o.id, name: o.name || "", promise: o.promise || null, price_text: o.price_text || null, target_ideal: o.target_ideal || null }));
+      }
+      return prev;
+    });
+  }
+
+  const story = storyData as any;
+  if (story?.imported_text) cards.push({ emoji: "📖", title: "Ton histoire", content: story.imported_text, route: "/branding/section?section=story", dbTable: "storytelling", dbField: "imported_text" });
+
+  const prop = propositionData as any;
+  if (prop?.version_final) cards.push({ emoji: "💎", title: "Proposition de valeur", content: prop.version_final, route: "/branding/proposition/recap" });
+  else if (prop?.version_one_liner) cards.push({ emoji: "💎", title: "One-liner", content: prop.version_one_liner, route: "/branding/proposition/recap" });
+
+  const strat = strategyData as any;
+  if (strat?.pillar_major) {
+    const pillars = [strat.pillar_major, strat.pillar_minor_1, strat.pillar_minor_2, strat.pillar_minor_3].filter(Boolean);
+    const stratContent = pillars.join(", ") + (strat.creative_concept ? ` · Concept : ${strat.creative_concept}` : "");
+    cards.push({ emoji: "🧭", title: "Stratégie de contenu", content: stratContent, route: "/branding/section?section=content_strategy" });
+  }
+
+  const charter = charterData as any;
+  if (charter && (charter.color_primary || charter.font_title || charter.photo_style)) {
+    const charterColors = [charter.color_primary, charter.color_secondary, charter.color_accent, charter.color_background, charter.color_text].filter(Boolean);
+    const colorKeys = ["color_primary", "color_secondary", "color_accent", "color_background", "color_text"].filter((_, i) => [charter.color_primary, charter.color_secondary, charter.color_accent, charter.color_background, charter.color_text][i]);
+    const charterParts: string[] = [];
+    if (charter.font_title) {
+      const fonts = [charter.font_title, charter.font_body].filter(Boolean);
+      charterParts.push(`Typos : ${fonts.join(" + ")}`);
+    }
+    if (charter.photo_style) charterParts.push(`Photo : ${charter.photo_style}`);
+    if (charter.mood_keywords?.length) {
+      const kw = Array.isArray(charter.mood_keywords) ? charter.mood_keywords : [];
+      if (kw.length) charterParts.push(`Ambiance : ${kw.join(", ")}`);
+    }
+    const charterContent = charterParts.join(" · ");
+    cards.push({
+      emoji: "🎨", title: "Charte graphique", content: charterContent, route: "/branding/section?section=charter", colors: charterColors,
+      onColorChange: async (colorIndex: number, newColor: string) => {
+        const colorKey = colorKeys[colorIndex];
+        if (!colorKey) return;
+        setBrandingCards(prev => prev.map(c => {
+          if (c.title !== "Charte graphique" || !c.colors) return c;
+          const newColors = [...c.colors];
+          newColors[colorIndex] = newColor;
+          return { ...c, colors: newColors };
+        }));
+        if (/^#[0-9A-Fa-f]{6}$/.test(newColor)) {
+          await (supabase.from("brand_charter" as any) as any)
+            .update({ [colorKey]: newColor })
+            .eq(filterColumn, filterValue);
+        }
+      },
+    });
+  }
+
+  return cards;
+}
+
 function BrandingCardItem({ card, index, onSave }: { card: BrandingCard; index: number; onSave: (i: number, v: string) => void }) {
   const [expanded, setExpanded] = useState(false);
   const isLong = card.content.length > CARD_COLLAPSE_LENGTH;
@@ -174,6 +277,7 @@ export default function WelcomePage() {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [diagnosticSummary, setDiagnosticSummary] = useState("");
   const [brandingCards, setBrandingCards] = useState<BrandingCard[]>([]);
+  const brandingCardsCountRef = useRef(0);
   const [offers, setOffers] = useState<{ id: string; name: string; promise: string | null; price_text: string | null; target_ideal: string | null }[]>([]);
   const [loading, setLoading] = useState(true);
   const [brandingStillLoading, setBrandingStillLoading] = useState(true);
@@ -242,7 +346,7 @@ export default function WelcomePage() {
           .order("position", { ascending: true })
           .limit(3),
         (supabase.from("brand_charter") as any)
-          .select("color_primary, color_secondary, color_accent, font_title, font_body, mood_keywords, photo_style, moodboard_description")
+          .select("color_primary, color_secondary, color_accent, color_background, color_text, font_title, font_body, mood_keywords, photo_style, moodboard_description")
           .eq(column, value)
           .maybeSingle(),
         (supabase.from("brand_proposition") as any)
@@ -267,106 +371,15 @@ export default function WelcomePage() {
       }
 
       // Build branding cards
-      const cards: BrandingCard[] = [];
-      const bp = brandProfileRes.data as BrandProfileData | null;
-
-      if (bp?.positioning) {
-        cards.push({ emoji: "🎯", title: "Positionnement", content: bp.positioning, route: "/branding/proposition/recap", dbTable: "brand_profile", dbField: "positioning" });
-      }
-      if (bp?.mission) {
-        cards.push({ emoji: "🚀", title: "Mission", content: bp.mission, route: "/branding", dbTable: "brand_profile", dbField: "mission" });
-      }
-      if (bp?.tone_style || (bp?.tone_keywords && bp.tone_keywords.length > 0)) {
-        const toneContent = bp.tone_style || (bp.tone_keywords || []).join(", ");
-        cards.push({ emoji: "💬", title: "Ton de voix", content: toneContent, route: "/branding/section?section=tone_style", dbTable: bp.tone_style ? "brand_profile" : undefined, dbField: bp.tone_style ? "tone_style" : undefined });
-      }
-      if (bp?.combats) {
-        cards.push({ emoji: "⚔️", title: "Combats", content: bp.combats, route: "/branding/section?section=tone_style", dbTable: "brand_profile", dbField: "combats" });
-      }
-      if (bp?.values && bp.values.length > 0) {
-        cards.push({ emoji: "💎", title: "Valeurs", content: (bp.values as any[]).map(v => typeof v === "string" ? v : (v as any).name || v).join(", "), route: "/branding/section?section=tone_style" });
-      }
-      if (bp?.content_pillars && bp.content_pillars.length > 0) {
-        const pillarsText = (bp.content_pillars as any[]).map(p => typeof p === "string" ? p : (p as any).name || p).join(", ");
-        cards.push({ emoji: "📝", title: "Piliers de contenu", content: pillarsText, route: "/branding/section?section=content_strategy" });
-      }
-
-      const persona = personaRes.data as any;
-      if (persona) {
-        const personaParts: string[] = [];
-        if (persona.portrait_prenom) personaParts.push(persona.portrait_prenom);
-        if (persona.description) personaParts.push(persona.description);
-        if (persona.step_1_frustrations) personaParts.push(`Frustrations : ${persona.step_1_frustrations}`);
-        if (persona.step_2_transformation) personaParts.push(`Transformation : ${persona.step_2_transformation}`);
-        const personaContent = personaParts.filter(Boolean).join(" · ");
-        if (personaContent) {
-          cards.push({ emoji: "🎭", title: "Persona", content: personaContent, route: "/branding/section?section=persona" });
-        }
-      }
-
-      const offersData = (offersRes.data as any[]) || [];
-      if (offersData.length > 0) {
-        setOffers(offersData.map((o: any) => ({ id: o.id, name: o.name || "", promise: o.promise || null, price_text: o.price_text || null, target_ideal: o.target_ideal || null })));
-      }
-
-      const story = storyRes.data as any;
-      if (story?.imported_text) {
-        cards.push({ emoji: "📖", title: "Ton histoire", content: story.imported_text, route: "/branding/section?section=story", dbTable: "storytelling", dbField: "imported_text" });
-      }
-
-      // Proposition de valeur
-      const prop = propositionRes.data as any;
-      if (prop?.version_final) {
-        cards.push({ emoji: "💎", title: "Proposition de valeur", content: prop.version_final, route: "/branding/proposition/recap" });
-      } else if (prop?.version_one_liner) {
-        cards.push({ emoji: "💎", title: "One-liner", content: prop.version_one_liner, route: "/branding/proposition/recap" });
-      }
-
-      // Stratégie de contenu
-      const strat = strategyRes.data as any;
-      if (strat?.pillar_major) {
-        const pillars = [strat.pillar_major, strat.pillar_minor_1, strat.pillar_minor_2, strat.pillar_minor_3].filter(Boolean);
-        const stratContent = pillars.join(", ") + (strat.creative_concept ? ` · Concept : ${strat.creative_concept}` : "");
-        cards.push({ emoji: "🧭", title: "Stratégie de contenu", content: stratContent, route: "/branding/section?section=content_strategy" });
-      }
-
-      // Charte graphique
-      const charter = charterRes.data as any;
-      if (charter && (charter.color_primary || charter.font_title || charter.photo_style)) {
-        const charterColors = [charter.color_primary, charter.color_secondary, charter.color_accent, charter.color_background, charter.color_text].filter(Boolean);
-        const colorKeys = ["color_primary", "color_secondary", "color_accent", "color_background", "color_text"].filter((_, i) => [charter.color_primary, charter.color_secondary, charter.color_accent, charter.color_background, charter.color_text][i]);
-        const charterParts: string[] = [];
-        if (charter.font_title) {
-          const fonts = [charter.font_title, charter.font_body].filter(Boolean);
-          charterParts.push(`Typos : ${fonts.join(" + ")}`);
-        }
-        if (charter.photo_style) charterParts.push(`Photo : ${charter.photo_style}`);
-        if (charter.mood_keywords?.length) {
-          const kw = Array.isArray(charter.mood_keywords) ? charter.mood_keywords : [];
-          if (kw.length) charterParts.push(`Ambiance : ${kw.join(", ")}`);
-        }
-        const charterContent = charterParts.join(" · ");
-        cards.push({
-          emoji: "🎨", title: "Charte graphique", content: charterContent, route: "/branding/section?section=charter", colors: charterColors,
-          onColorChange: async (colorIndex: number, newColor: string) => {
-            const colorKey = colorKeys[colorIndex];
-            if (!colorKey) return;
-            setBrandingCards(prev => prev.map(c => {
-              if (c.title !== "Charte graphique" || !c.colors) return c;
-              const newColors = [...c.colors];
-              newColors[colorIndex] = newColor;
-              return { ...c, colors: newColors };
-            }));
-            if (/^#[0-9A-Fa-f]{6}$/.test(newColor)) {
-              await (supabase.from("brand_charter" as any) as any)
-                .update({ [colorKey]: newColor })
-                .eq(column, value);
-            }
-          },
-        });
-      }
+      const cards = buildBrandingCards(
+        brandProfileRes.data as BrandProfileData | null,
+        personaRes.data, offersRes.data, storyRes.data,
+        charterRes.data, propositionRes.data, strategyRes.data,
+        column, value, setBrandingCards, setOffers,
+      );
 
       setBrandingCards(cards);
+      brandingCardsCountRef.current = cards.length;
       if (cards.length >= 3) setBrandingStillLoading(false);
       setLoading(false);
     };
@@ -404,7 +417,7 @@ export default function WelcomePage() {
           .select("imported_text")
           .eq(column, value).eq("is_primary", true).maybeSingle(),
         (supabase.from("brand_charter") as any)
-          .select("color_primary, color_secondary, color_accent, font_title, font_body, mood_keywords, photo_style, moodboard_description")
+          .select("color_primary, color_secondary, color_accent, color_background, color_text, font_title, font_body, mood_keywords, photo_style, moodboard_description")
           .eq(column, value).maybeSingle(),
         (supabase.from("brand_proposition") as any)
           .select("version_final, version_one_liner")
@@ -414,83 +427,17 @@ export default function WelcomePage() {
           .eq(column, value).maybeSingle(),
       ]);
 
-      const cards: BrandingCard[] = [];
-      const bp = brandProfileRes.data as BrandProfileData | null;
-      if (bp?.positioning) cards.push({ emoji: "🎯", title: "Positionnement", content: bp.positioning, route: "/branding/proposition/recap", dbTable: "brand_profile", dbField: "positioning" });
-      if (bp?.mission) cards.push({ emoji: "🚀", title: "Mission", content: bp.mission, route: "/branding", dbTable: "brand_profile", dbField: "mission" });
-      if (bp?.tone_style || (bp?.tone_keywords && bp.tone_keywords.length > 0)) {
-        const toneContent = bp.tone_style || (bp.tone_keywords || []).join(", ");
-        cards.push({ emoji: "💬", title: "Ton de voix", content: toneContent, route: "/branding/section?section=tone_style", dbTable: bp?.tone_style ? "brand_profile" : undefined, dbField: bp?.tone_style ? "tone_style" : undefined });
-      }
-      if (bp?.combats) cards.push({ emoji: "⚔️", title: "Combats", content: bp.combats, route: "/branding/section?section=tone_style", dbTable: "brand_profile", dbField: "combats" });
-      if (bp?.values && bp.values.length > 0) cards.push({ emoji: "💎", title: "Valeurs", content: (bp.values as any[]).map(v => typeof v === "string" ? v : (v as any).name || v).join(", "), route: "/branding/section?section=tone_style" });
-      if (bp?.content_pillars && bp.content_pillars.length > 0) {
-        const pillarsText = (bp.content_pillars as any[]).map(p => typeof p === "string" ? p : (p as any).name || p).join(", ");
-        cards.push({ emoji: "📝", title: "Piliers de contenu", content: pillarsText, route: "/branding/section?section=content_strategy" });
-      }
-      const persona = personaRes.data as any;
-      if (persona) {
-        const personaParts: string[] = [];
-        if (persona.portrait_prenom) personaParts.push(persona.portrait_prenom);
-        if (persona.description) personaParts.push(persona.description);
-        if (persona.step_1_frustrations) personaParts.push(`Frustrations : ${persona.step_1_frustrations}`);
-        if (persona.step_2_transformation) personaParts.push(`Transformation : ${persona.step_2_transformation}`);
-        const personaContent = personaParts.filter(Boolean).join(" · ");
-        if (personaContent) cards.push({ emoji: "🎭", title: "Persona", content: personaContent, route: "/branding/section?section=persona" });
-      }
-      const offersData = (offersRes.data as any[]) || [];
-      if (offersData.length > 0 && offersData.length > offers.length) {
-        setOffers(offersData.map((o: any) => ({ id: o.id, name: o.name || "", promise: o.promise || null, price_text: o.price_text || null, target_ideal: o.target_ideal || null })));
-      }
-      const story = storyRes.data as any;
-      if (story?.imported_text) cards.push({ emoji: "📖", title: "Ton histoire", content: story.imported_text, route: "/branding/section?section=story", dbTable: "storytelling", dbField: "imported_text" });
-      const prop = propositionRes.data as any;
-      if (prop?.version_final) cards.push({ emoji: "💎", title: "Proposition de valeur", content: prop.version_final, route: "/branding/proposition/recap" });
-      else if (prop?.version_one_liner) cards.push({ emoji: "💎", title: "One-liner", content: prop.version_one_liner, route: "/branding/proposition/recap" });
-      const strat = strategyRes.data as any;
-      if (strat?.pillar_major) {
-        const pillars = [strat.pillar_major, strat.pillar_minor_1, strat.pillar_minor_2, strat.pillar_minor_3].filter(Boolean);
-        const stratContent = pillars.join(", ") + (strat.creative_concept ? ` · Concept : ${strat.creative_concept}` : "");
-        cards.push({ emoji: "🧭", title: "Stratégie de contenu", content: stratContent, route: "/branding/section?section=content_strategy" });
-      }
-      const charter = charterRes.data as any;
-      if (charter && (charter.color_primary || charter.font_title || charter.photo_style)) {
-        const charterColors = [charter.color_primary, charter.color_secondary, charter.color_accent, charter.color_background, charter.color_text].filter(Boolean);
-        const colorKeys = ["color_primary", "color_secondary", "color_accent", "color_background", "color_text"].filter((_, i) => [charter.color_primary, charter.color_secondary, charter.color_accent, charter.color_background, charter.color_text][i]);
-        const charterParts: string[] = [];
-        if (charter.font_title) {
-          const fonts = [charter.font_title, charter.font_body].filter(Boolean);
-          charterParts.push(`Typos : ${fonts.join(" + ")}`);
-        }
-        if (charter.photo_style) charterParts.push(`Photo : ${charter.photo_style}`);
-        if (charter.mood_keywords?.length) {
-          const kw = Array.isArray(charter.mood_keywords) ? charter.mood_keywords : [];
-          if (kw.length) charterParts.push(`Ambiance : ${kw.join(", ")}`);
-        }
-        const charterContent = charterParts.join(" · ");
-        cards.push({
-          emoji: "🎨", title: "Charte graphique", content: charterContent, route: "/branding/section?section=charter", colors: charterColors,
-          onColorChange: async (colorIndex: number, newColor: string) => {
-            const colorKey = colorKeys[colorIndex];
-            if (!colorKey) return;
-            setBrandingCards(prev => prev.map(c => {
-              if (c.title !== "Charte graphique" || !c.colors) return c;
-              const newColors = [...c.colors];
-              newColors[colorIndex] = newColor;
-              return { ...c, colors: newColors };
-            }));
-            if (/^#[0-9A-Fa-f]{6}$/.test(newColor)) {
-              await (supabase.from("brand_charter" as any) as any)
-                .update({ [colorKey]: newColor })
-                .eq(column, value);
-            }
-          },
-        });
-      }
+      const cards = buildBrandingCards(
+        brandProfileRes.data as BrandProfileData | null,
+        personaRes.data, offersRes.data, storyRes.data,
+        charterRes.data, propositionRes.data, strategyRes.data,
+        column, value, setBrandingCards, setOffers,
+      );
 
       // Only update if we got MORE cards than currently displayed
-      if (cards.length > brandingCards.length) {
+      if (cards.length > brandingCardsCountRef.current) {
         setBrandingCards(cards);
+        brandingCardsCountRef.current = cards.length;
         if (cards.length >= 3) setBrandingStillLoading(false);
         if (cards.length >= 5 && intervalRef.current) {
           clearInterval(intervalRef.current);
@@ -531,8 +478,7 @@ export default function WelcomePage() {
     const card = brandingCards[cardIndex];
     if (!card.dbTable || !card.dbField || !user) return;
 
-    const filterCol = card.dbTable === "persona" || card.dbTable === "storytelling"
-      ? column : column;
+    const filterCol = column;
     const extraFilter = card.dbTable === "persona"
       ? { is_primary: true }
       : card.dbTable === "storytelling"
