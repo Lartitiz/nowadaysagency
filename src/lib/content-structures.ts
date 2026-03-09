@@ -572,7 +572,7 @@ export const OBJECTIVE_RECOMMENDATIONS: Record<string, ObjectiveRecommendation> 
    visibilite: {
     label: "Visibilité",
     emoji: "🔍",
-    angles: ["coup-de-gueule", "mythe", "conseil-contre-intuitif", "identification", "surf-actu", "prise_de_position", "mythe_deconstruire", "conseil_contre_courant", "decryptage_expert", "epingle_conseil", "epingle_inspiration", "epingle_article"],
+    angles: ["coup-de-gueule", "mythe", "conseil-contre-intuitif", "identification", "surf-actu", "mise-en-valeur", "prise_de_position", "mythe_deconstruire", "conseil_contre_courant", "decryptage_expert", "epingle_conseil", "epingle_inspiration", "epingle_article"],
     priorityTypes: ["carousel", "reel", "linkedin", "pinterest"],
     hookTypes: ["choc", "question", "statistique"],
   },
