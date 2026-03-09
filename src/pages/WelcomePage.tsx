@@ -174,6 +174,7 @@ export default function WelcomePage() {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [diagnosticSummary, setDiagnosticSummary] = useState("");
   const [brandingCards, setBrandingCards] = useState<BrandingCard[]>([]);
+  const [offers, setOffers] = useState<{ id: string; name: string; promise: string | null; price_text: string | null; target_ideal: string | null }[]>([]);
   const [loading, setLoading] = useState(true);
   const [brandingStillLoading, setBrandingStillLoading] = useState(true);
 
@@ -222,7 +223,7 @@ export default function WelcomePage() {
           .eq("is_primary", true)
           .maybeSingle(),
         (supabase.from("offers") as any)
-          .select("name, promise, price_text, target_ideal")
+          .select("id, name, promise, price_text, target_ideal")
           .eq(column, value)
           .order("sort_order")
           .limit(5),
@@ -303,12 +304,9 @@ export default function WelcomePage() {
         }
       }
 
-      const offers = offersRes.data as any[];
-      if (offers && offers.length > 0) {
-        const offersText = offers.map((o: any) => o.name).filter(Boolean).join(", ");
-        if (offersText) {
-          cards.push({ emoji: "🛍️", title: "Offres", content: offersText, route: "/branding/offres" });
-        }
+      const offersData = (offersRes.data as any[]) || [];
+      if (offersData.length > 0) {
+        setOffers(offersData.map((o: any) => ({ id: o.id, name: o.name || "", promise: o.promise || null, price_text: o.price_text || null, target_ideal: o.target_ideal || null })));
       }
 
       const story = storyRes.data as any;
@@ -400,7 +398,7 @@ export default function WelcomePage() {
           .select("description, portrait_prenom, step_1_frustrations, step_2_transformation, step_3a_objections, demographics")
           .eq(column, value).eq("is_primary", true).maybeSingle(),
         (supabase.from("offers") as any)
-          .select("name, promise, price_text, target_ideal")
+          .select("id, name, promise, price_text, target_ideal")
           .eq(column, value).order("sort_order").limit(5),
         (supabase.from("storytelling") as any)
           .select("imported_text")
@@ -440,10 +438,9 @@ export default function WelcomePage() {
         const personaContent = personaParts.filter(Boolean).join(" · ");
         if (personaContent) cards.push({ emoji: "🎭", title: "Persona", content: personaContent, route: "/branding/section?section=persona" });
       }
-      const offers = offersRes.data as any[];
-      if (offers && offers.length > 0) {
-        const offersText = offers.map((o: any) => o.name).filter(Boolean).join(", ");
-        if (offersText) cards.push({ emoji: "🛍️", title: "Offres", content: offersText, route: "/branding/offres" });
+      const offersData = (offersRes.data as any[]) || [];
+      if (offersData.length > 0 && offersData.length > offers.length) {
+        setOffers(offersData.map((o: any) => ({ id: o.id, name: o.name || "", promise: o.promise || null, price_text: o.price_text || null, target_ideal: o.target_ideal || null })));
       }
       const story = storyRes.data as any;
       if (story?.imported_text) cards.push({ emoji: "📖", title: "Ton histoire", content: story.imported_text, route: "/branding/section?section=story", dbTable: "storytelling", dbField: "imported_text" });
@@ -560,6 +557,17 @@ export default function WelcomePage() {
     setBrandingCards(prev => prev.map((c, i) => i === cardIndex ? { ...c, content: newValue } : c));
   }, [brandingCards, user, column, value]);
 
+  const handleOfferFieldSave = useCallback(async (offerId: string, field: string, newValue: string) => {
+    setOffers(prev => prev.map(o => o.id === offerId ? { ...o, [field]: newValue } : o));
+    const { error } = await (supabase.from("offers") as any)
+      .update({ [field]: newValue })
+      .eq("id", offerId);
+    if (error) {
+      console.error("Offer save error:", error);
+      sonnerToast.error("Erreur de sauvegarde");
+    }
+  }, []);
+
   const hasRecs = recommendations.length > 0;
   const hasBranding = brandingCards.length > 0;
 
@@ -617,6 +625,55 @@ export default function WelcomePage() {
           </div>
         )}
 
+        {/* C-bis) Offres éditables */}
+        {!loading && offers.length > 0 && (
+          <div className="space-y-4">
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              Tes offres
+            </h2>
+            <div className="grid grid-cols-1 gap-3">
+              {offers.map((offer) => (
+                <div key={offer.id} className="bg-card border border-border rounded-2xl p-5 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">🛍️</span>
+                    <EditableText
+                      value={offer.name}
+                      onSave={(v) => handleOfferFieldSave(offer.id, "name", v)}
+                      type="input"
+                      placeholder="Nom de l'offre"
+                      className="text-sm font-semibold text-foreground"
+                    />
+                    {offer.price_text && (
+                      <span className="ml-auto text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-pill">
+                        {offer.price_text}
+                      </span>
+                    )}
+                  </div>
+                  {offer.promise ? (
+                    <EditableText
+                      value={offer.promise}
+                      onSave={(v) => handleOfferFieldSave(offer.id, "promise", v)}
+                      placeholder="Promesse de l'offre"
+                      className="text-sm text-muted-foreground leading-relaxed"
+                    />
+                  ) : (
+                    <EditableText
+                      value=""
+                      onSave={(v) => handleOfferFieldSave(offer.id, "promise", v)}
+                      placeholder="Ajoute une promesse (ex: Ce que ta cliente obtient)"
+                      className="text-sm text-muted-foreground leading-relaxed italic"
+                    />
+                  )}
+                  {offer.target_ideal && (
+                    <p className="text-xs text-muted-foreground">
+                      🎯 {offer.target_ideal}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         {/* D) Priorities / Steps */}
         <div className="rounded-2xl bg-card border border-border p-6 space-y-5">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
