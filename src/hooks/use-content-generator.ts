@@ -203,7 +203,7 @@ export function useContentGenerator() {
         }
 
         case "reel": {
-          const res = await supabase.functions.invoke("reels-ai", {
+          const res = await invokeWithTimeout("reels-ai", {
             body: {
               type: "script",
               subject: effectiveSubject,
@@ -217,7 +217,7 @@ export function useContentGenerator() {
               content_structure: structurePrompt || null,
               workspace_id: workspaceId || null,
             },
-          });
+          }, 120000);
           data = res.data;
           invokeError = res.error;
           break;
