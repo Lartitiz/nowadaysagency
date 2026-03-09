@@ -306,7 +306,7 @@ function MoodboardSection({ images, description, onImagesChange, onDescriptionCh
 
       {/* Description */}
       <div className="mt-4">
-        <label className="text-sm font-medium text-foreground mb-1.5 block">Décris l'ambiance de ton moodboard (optionnel)</label>
+        <label className="text-sm font-medium text-foreground mb-1.5 block">En quelques mots, qu'est-ce qui te plaît dans ces images ? (optionnel)</label>
         <Textarea
           value={description || ""}
           onChange={(e) => onDescriptionChange(e.target.value || null)}
