@@ -964,6 +964,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
           open={coachingOpen}
           onOpenChange={setCoachingOpen}
           onPostAdded={fetchPosts}
+          existingPosts={weekPosts.map(p => ({ date: p.date, theme: p.theme, format: p.format || "post", canal: p.canal, objectif: p.objectif || null }))}
         />
 
         <QuickBatchAdd

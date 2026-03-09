@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import CoachingShell from "@/components/coaching/CoachingShell";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,7 @@ interface CalendarCoachingDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onPostAdded?: () => void;
+  existingPosts?: { date: string; theme: string; format: string; canal: string; objectif: string | null }[];
 }
 
 const FORMAT_ICONS: Record<string, string> = {
@@ -71,11 +72,13 @@ function getNextDayDate(dayName: string): string {
   return toLocalDateStr(date);
 }
 
-export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded }: CalendarCoachingDialogProps) {
+export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded, existingPosts }: CalendarCoachingDialogProps) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const workspaceId = useWorkspaceId();
-  const [step, setStep] = useState(1);
+  const hasExisting = existingPosts && existingPosts.length > 0;
+  const [step, setStep] = useState(hasExisting ? 0 : 1);
+  const [mode, setMode] = useState<"complete" | "full">(hasExisting ? "complete" : "full");
   const [postsPerWeek, setPostsPerWeek] = useState<number | null>(null);
   const [contextWeek, setContextWeek] = useState("");
   const [mixOrFocus, setMixOrFocus] = useState<"mix" | "focus" | null>(null);
@@ -83,8 +86,25 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
   const [result, setResult] = useState<CoachingResult | null>(null);
   const [addedItems, setAddedItems] = useState<Set<number>>(new Set());
 
+  // Reset when opening
+  useEffect(() => {
+    if (open) {
+      const has = existingPosts && existingPosts.length > 0;
+      setStep(has ? 0 : 1);
+      setMode(has ? "complete" : "full");
+      setPostsPerWeek(null);
+      setContextWeek("");
+      setMixOrFocus(null);
+      setLoading(false);
+      setResult(null);
+      setAddedItems(new Set());
+    }
+  }, [open, existingPosts]);
+
   const reset = () => {
-    setStep(1);
+    const has = existingPosts && existingPosts.length > 0;
+    setStep(has ? 0 : 1);
+    setMode(has ? "complete" : "full");
     setPostsPerWeek(null);
     setContextWeek("");
     setMixOrFocus(null);
@@ -98,7 +118,13 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
     setLoading(true);
     try {
       const { data, error } = await invokeWithTimeout("calendar-coaching", {
-        body: { posts_per_week: postsPerWeek, context_week: contextWeek, mix_or_focus: mixOrFocus },
+        body: {
+          posts_per_week: postsPerWeek,
+          context_week: contextWeek,
+          mix_or_focus: mixOrFocus,
+          mode,
+          existing_posts: mode === "complete" ? existingPosts : undefined,
+        },
       }, 120000);
       if (error) throw error;
       if (data?.error) throw new Error(data.message || data.error);
@@ -150,10 +176,51 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
       description="Coaching pour planifier ta semaine de contenu"
       emoji="📅"
     >
+        {/* Step 0: Mode selection */}
+        {!loading && !result && step === 0 && (
+          <div className="space-y-4 animate-fade-in">
+            <p className="text-sm font-medium text-foreground">Qu'est-ce que tu veux faire ?</p>
+            <div className="space-y-2">
+              <button
+                onClick={() => { setMode("complete"); setStep(1); }}
+                className="w-full text-left rounded-xl border-2 border-border bg-card hover:border-primary/40 p-4 transition-all"
+              >
+                <p className="text-sm font-semibold text-foreground">✨ Complète ma semaine</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  J'ai déjà {existingPosts?.length || 0} post(s) de prévu.
+                  Suggère-moi des compléments qui s'articulent avec.
+                </p>
+              </button>
+              <button
+                onClick={() => { setMode("full"); setStep(1); }}
+                className="w-full text-left rounded-xl border-2 border-border bg-card hover:border-primary/40 p-4 transition-all"
+              >
+                <p className="text-sm font-semibold text-foreground">📅 Planifie toute ma semaine</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  L'IA propose un planning complet de zéro.
+                </p>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Step 1: Posts per week */}
         {!loading && !result && step === 1 && (
           <div className="space-y-4 animate-fade-in">
-            <p className="text-sm font-medium text-foreground">Combien de posts tu veux publier cette semaine ?</p>
+            <p className="text-sm font-medium text-foreground">
+              {mode === "complete"
+                ? "Combien de posts tu veux AJOUTER cette semaine ?"
+                : "Combien de posts tu veux publier cette semaine ?"}
+            </p>
+            {mode === "complete" && hasExisting && (
+              <div className="rounded-lg bg-muted/40 border border-border p-3 text-xs text-muted-foreground space-y-1">
+                <p className="font-medium text-foreground">Tu as déjà {existingPosts!.length} post(s) de prévu :</p>
+                {existingPosts!.slice(0, 5).map((p, i) => (
+                  <p key={i}>• {p.date} — {p.theme.slice(0, 50)}{p.theme.length > 50 ? "…" : ""}</p>
+                ))}
+                {existingPosts!.length > 5 && <p>… et {existingPosts!.length - 5} autre(s)</p>}
+              </div>
+            )}
             <div className="flex gap-2">
               {[1, 2, 3, 4, 5].map(n => (
                 <button
@@ -220,7 +287,7 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
             </div>
             {mixOrFocus && (
               <Button onClick={handleGenerate} disabled={loading} className="w-full gap-2">
-                <Sparkles className="h-4 w-4" /> Planifier ma semaine
+                <Sparkles className="h-4 w-4" /> {mode === "complete" ? "Compléter ma semaine" : "Planifier ma semaine"}
               </Button>
             )}
           </div>
