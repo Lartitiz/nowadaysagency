@@ -168,20 +168,32 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
   }, [ideas, briefs, statusFilter, objectifFilter, canalFilter, typeFilter, sort]);
 
   const handleDelete = async (id: string) => {
-    await supabase.from("saved_ideas").delete().eq("id", id);
-    setIdeas((prev) => prev.filter((i) => i.id !== id));
+    const isBrief = briefs.some(b => b.id === id);
+    if (isBrief) {
+      await supabase.from("content_briefs").delete().eq("id", id);
+      setBriefs(prev => prev.filter(b => b.id !== id));
+    } else {
+      await supabase.from("saved_ideas").delete().eq("id", id);
+      setIdeas(prev => prev.filter(i => i.id !== id));
+    }
     if (selectedIdea?.id === id) setSelectedIdea(null);
-    toast({ title: "Idée supprimée" });
+    toast({ title: isBrief ? "Brief supprimé" : "Idée supprimée" });
   };
 
   const handleStatusChange = async (id: string, newStatus: string) => {
-    await supabase.from("saved_ideas").update({ status: newStatus } as any).eq("id", id);
-    setIdeas((prev) => prev.map((i) => (i.id === id ? { ...i, status: newStatus } : i)));
-    if (selectedIdea?.id === id) setSelectedIdea((prev) => prev ? { ...prev, status: newStatus } : null);
+    const isBrief = briefs.some(b => b.id === id);
+    if (isBrief) {
+      setBriefs(prev => prev.map(b => b.id === id ? { ...b, status: newStatus } : b));
+    } else {
+      await supabase.from("saved_ideas").update({ status: newStatus } as any).eq("id", id);
+      setIdeas(prev => prev.map(i => i.id === id ? { ...i, status: newStatus } : i));
+    }
+    if (selectedIdea?.id === id) setSelectedIdea(prev => prev ? { ...prev, status: newStatus } : null);
   };
 
   const handlePlan = async (idea: SavedIdea, date: Date) => {
     if (!user) return;
+    const isBrief = briefs.some(b => b.id === idea.id);
     const dateStr = fnsFormat(date, "yyyy-MM-dd");
     const { data: calPost, error } = await supabase
       .from("calendar_posts")
@@ -198,8 +210,12 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
       .select("id")
       .single();
     if (error) { toast({ title: "Erreur", description: error.message, variant: "destructive" }); return; }
-    await supabase.from("saved_ideas").update({ status: "planned", planned_date: dateStr, calendar_post_id: calPost.id } as any).eq("id", idea.id);
-    setIdeas((prev) => prev.map((i) => (i.id === idea.id ? { ...i, status: "planned", planned_date: dateStr, calendar_post_id: calPost.id } : i)));
+    if (!isBrief) {
+      await supabase.from("saved_ideas").update({ status: "planned", planned_date: dateStr, calendar_post_id: calPost.id } as any).eq("id", idea.id);
+      setIdeas(prev => prev.map(i => i.id === idea.id ? { ...i, status: "planned", planned_date: dateStr, calendar_post_id: calPost.id } : i));
+    } else {
+      setBriefs(prev => prev.map(b => b.id === idea.id ? { ...b, status: "planned" } : b));
+    }
     toast({ title: `Planifiée le ${fnsFormat(date, "d MMM yyyy", { locale: fr })}` });
   };
 
