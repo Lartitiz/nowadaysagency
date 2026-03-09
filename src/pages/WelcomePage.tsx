@@ -440,6 +440,7 @@ export default function WelcomePage() {
       // Only update if we got MORE cards than currently displayed
       if (cards.length > brandingCards.length) {
         setBrandingCards(cards);
+        if (cards.length >= 3) setBrandingStillLoading(false);
         if (cards.length >= 5 && intervalRef.current) {
           clearInterval(intervalRef.current);
         }
