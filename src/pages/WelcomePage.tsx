@@ -557,6 +557,17 @@ export default function WelcomePage() {
     setBrandingCards(prev => prev.map((c, i) => i === cardIndex ? { ...c, content: newValue } : c));
   }, [brandingCards, user, column, value]);
 
+  const handleOfferFieldSave = useCallback(async (offerId: string, field: string, newValue: string) => {
+    setOffers(prev => prev.map(o => o.id === offerId ? { ...o, [field]: newValue } : o));
+    const { error } = await (supabase.from("offers") as any)
+      .update({ [field]: newValue })
+      .eq("id", offerId);
+    if (error) {
+      console.error("Offer save error:", error);
+      sonnerToast.error("Erreur de sauvegarde");
+    }
+  }, []);
+
   const hasRecs = recommendations.length > 0;
   const hasBranding = brandingCards.length > 0;
 
