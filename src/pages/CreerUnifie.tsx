@@ -470,7 +470,8 @@ export default function CreerUnifie() {
         editorial_angle: editorialAngle || null,
         questions: questions.map(q => ({ id: q.id, question: q.question })),
         answers: ans,
-      } as any).then(() => {}, console.error);
+      } as any).select("id").maybeSingle()
+        .then(({ data }: any) => { if (data?.id) setCurrentBriefId(data.id); }, console.error);
     }
 
     setStep("result");
