@@ -2010,6 +2010,48 @@ export type Database = {
           },
         ]
       }
+      content_briefs: {
+        Row: {
+          answers: Json | null
+          created_at: string | null
+          editorial_angle: string | null
+          format: string | null
+          id: string
+          objective: string | null
+          questions: Json | null
+          subject: string
+          used_count: number | null
+          user_id: string
+          workspace_id: string | null
+        }
+        Insert: {
+          answers?: Json | null
+          created_at?: string | null
+          editorial_angle?: string | null
+          format?: string | null
+          id?: string
+          objective?: string | null
+          questions?: Json | null
+          subject: string
+          used_count?: number | null
+          user_id: string
+          workspace_id?: string | null
+        }
+        Update: {
+          answers?: Json | null
+          created_at?: string | null
+          editorial_angle?: string | null
+          format?: string | null
+          id?: string
+          objective?: string | null
+          questions?: Json | null
+          subject?: string
+          used_count?: number | null
+          user_id?: string
+          workspace_id?: string | null
+        }
+        Relationships: []
+      }
       content_drafts: {
         Row: {
           accroche: string | null

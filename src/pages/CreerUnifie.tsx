@@ -457,6 +457,21 @@ export default function CreerUnifie() {
 
   const handleQuestionsNext = async (ans: Record<string, string>) => {
     setAnswers(ans);
+
+    // Sauvegarder le brief en base pour les futures créations
+    if (session?.user?.id && Object.keys(ans).length > 0) {
+      supabase.from("content_briefs").insert({
+        user_id: session.user.id,
+        workspace_id: workspaceId && workspaceId !== session.user.id ? workspaceId : null,
+        subject: ideaText,
+        objective: objective || null,
+        format: selectedFormat || null,
+        editorial_angle: editorialAngle || null,
+        questions: questions.map(q => ({ id: q.id, question: q.question })),
+        answers: ans,
+      } as any).then(() => {}, console.error);
+    }
+
     setStep("result");
     await doGenerate(ans);
   };
