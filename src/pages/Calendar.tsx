@@ -164,6 +164,9 @@ function ExportSection({ filteredPosts, canalFilter, toast, onCoachingOpen, onQu
             </div>
           )}
         </div>
+        <Button variant="outline" size="sm" className="rounded-full gap-1.5" onClick={onQuickBatchOpen}>
+          <PenLine className="h-3.5 w-3.5" /> Ajout rapide
+        </Button>
         <Button onClick={onCoachingOpen} className="shrink-0 gap-1.5 rounded-full" size="sm">
           <Sparkles className="h-3.5 w-3.5" /> Planifier ma semaine
         </Button>
