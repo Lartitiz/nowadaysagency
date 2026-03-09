@@ -16,6 +16,7 @@ import { friendlyError } from "@/lib/error-messages";
 import { Sparkles, Copy, Check, Loader2, RotateCcw, Search, Lightbulb } from "lucide-react";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
+import MicButton from "@/components/MicButton";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -527,7 +528,9 @@ function FieldWithMic({ label, value, onChange, mic, placeholder }: {
       <label className="text-sm font-semibold text-foreground mb-1 block">{label}</label>
       <div className="relative">
         <Textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="min-h-[100px] pr-10" />
-        <button onClick={mic.toggle} className={`absolute top-2 right-2 text-lg ${mic.isListening ? "animate-pulse text-primary" : ""}`}>🎙️</button>
+        <div className="absolute top-2 right-2">
+          <MicButton isListening={mic.isListening} isSupported={true} onClick={mic.toggle} size="sm" />
+        </div>
       </div>
     </div>
   );
