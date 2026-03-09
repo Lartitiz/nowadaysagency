@@ -38,10 +38,11 @@ export default function CreerStepIdea({ onNext, onCoachingSelect }: Props) {
         <Textarea
           value={idea}
           onChange={(e) => setIdea(e.target.value)}
-          placeholder="De quoi tu veux parler ? Décris ton idée, ton sujet, ce qui te trotte dans la tête..."
+          placeholder="Ex : je veux montrer les nouveaux colliers en velours que j'ai reçus / je voudrais parler de pourquoi je fais ce métier / j'ai envie de réagir à une actu..."
           rows={4}
           className="resize-none"
         />
+        <p className="text-xs text-muted-foreground">Pas besoin d'être précise : un mot-clé, une phrase, une envie. L'outil te guide ensuite.</p>
         <Button
           variant="ghost"
           size="sm"
