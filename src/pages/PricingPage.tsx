@@ -169,7 +169,7 @@ export default function PricingPage() {
       {/* Bandeau béta */}
       <div className="bg-primary/10 border-b border-primary/20 px-4 py-3 text-center">
         <p className="text-sm text-foreground">
-          🧪 <strong>Béta en cours</strong> : tu testes l'outil gratuitement avec 60 crédits IA/mois.
+          🧪 <strong>Béta en cours</strong> : tu testes l'outil gratuitement avec 60 contenus IA par mois.
           Les abonnements premium ouvriront après la béta.
         </p>
       </div>
