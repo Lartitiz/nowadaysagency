@@ -683,14 +683,17 @@ export default function WelcomePage() {
         </div>
 
         {/* F) CTAs */}
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex flex-col gap-3">
           <Button
             onClick={() => markSeen("/dashboard")}
-            className="flex-1 rounded-pill gap-2"
+            className="w-full rounded-pill gap-2"
             size="lg"
           >
-            ✨ Explorer l'outil →
+            ✅ Tout est bon, c'est parti !
           </Button>
+          <p className="text-xs text-muted-foreground text-center">
+            Tu pourras toujours modifier ton branding depuis l'espace Branding.
+          </p>
         </div>
       </div>
     </div>
