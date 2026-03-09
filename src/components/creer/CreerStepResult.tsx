@@ -420,6 +420,13 @@ export default function CreerStepResult({
             onCopy(`📌 ${result.title}\n\n${result.description || ""}${briefText}`);
             return;
           }
+          if (format === "reel" && (result?.sections || result?.script)) {
+            const reelSections = result.sections || result.script || [];
+            const scriptText = reelSections.map((s: any) => `[${s.timing || ""}] ${(s.label || "").toUpperCase()}\n${s.texte_parle || ""}${s.texte_overlay ? `\n📝 ${s.texte_overlay}` : ""}`).join("\n\n");
+            const tip = result.personal_tip ? `\n\n🎯 ${result.personal_tip}` : "";
+            onCopy(`🎬 Script Reel (${result.duree_cible || ""})\n\n${scriptText}${tip}`);
+            return;
+          }
           if (format === "pinterest_visual" && result?.title) {
             onCopy(`${result.title}\n\n${result.description || ""}`);
           } else {

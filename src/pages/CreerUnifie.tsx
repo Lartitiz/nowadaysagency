@@ -979,13 +979,13 @@ export default function CreerUnifie() {
         caption: r.caption,
         quality_check: r.quality_check,
       };
-    } else if (selectedFormat === "reel" && r?.script) {
+    } else if (selectedFormat === "reel" && (r?.sections || r?.script)) {
       storyDetail = {
         type: "reel",
         format_type: r.format_type,
         format_label: r.format_label,
         duree_cible: r.duree_cible,
-        script: r.script,
+        script: r.sections || r.script,
         caption: r.caption,
         hashtags: r.hashtags,
         cover_text: r.cover_text,
