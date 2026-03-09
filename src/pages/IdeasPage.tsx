@@ -112,6 +112,42 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
       .eq(column, value)
       .order("created_at", { ascending: false });
     if (!error && data) setIdeas(data as unknown as SavedIdea[]);
+
+    // Charger les briefs créatifs
+    const { data: briefsData } = await supabase
+      .from("content_briefs" as any)
+      .select("*")
+      .eq(column, value)
+      .order("created_at", { ascending: false });
+    if (briefsData) {
+      const briefsAsIdeas: SavedIdea[] = (briefsData as any[]).map((b: any) => ({
+        id: b.id,
+        titre: `📋 ${b.subject}`,
+        angle: b.editorial_angle || "libre",
+        format: b.format || "post",
+        canal: b.format === "linkedin" ? "linkedin" : b.format === "newsletter" ? "newsletter" : "instagram",
+        objectif: b.objective || null,
+        type: "brief",
+        status: b.calendar_post_id ? "planned" : "to_explore",
+        content_draft: Object.entries(b.answers || {})
+          .filter(([, v]) => v && (v as string).trim())
+          .map(([k, v]) => `Q: ${k}\nR: ${v}`)
+          .join("\n\n"),
+        content_data: { questions: b.questions, answers: b.answers },
+        source_module: "creer",
+        personal_elements: b.answers,
+        accroche_short: null,
+        accroche_long: null,
+        format_technique: null,
+        notes: null,
+        planned_date: null,
+        calendar_post_id: b.calendar_post_id || null,
+        created_at: b.created_at,
+        updated_at: null,
+      }));
+      setBriefs(briefsAsIdeas);
+    }
+
     setLoading(false);
   };
 
