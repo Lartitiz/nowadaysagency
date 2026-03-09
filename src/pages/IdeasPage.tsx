@@ -368,28 +368,41 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
                   </div>
 
                   {/* Actions */}
-                  <div className="flex gap-2 mt-3" onClick={(e) => e.stopPropagation()}>
-                    <Button variant="outline" size="sm" className="rounded-pill text-xs gap-1" onClick={() => handleRediger(idea)}>
-                      <PenLine className="h-3 w-3" /> Rédiger
-                    </Button>
-                    <PlanifierPopover idea={idea} onPlan={handlePlan} />
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="outline" size="sm" className="rounded-pill text-xs gap-1 text-muted-foreground hover:text-destructive">
-                          <Trash2 className="h-3 w-3" /> Supprimer
+                  <div className="flex gap-2 mt-3 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                    {idea.type === "brief" ? (
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="rounded-pill text-xs gap-1.5 w-full"
+                        onClick={() => navigate(`/creer?sujet=${encodeURIComponent(idea.titre.replace("📋 ", ""))}&objectif=${idea.objectif || ""}`)}
+                      >
+                        <Sparkles className="h-3.5 w-3.5" /> Créer à partir de ce brief
+                      </Button>
+                    ) : (
+                      <>
+                        <Button variant="outline" size="sm" className="rounded-pill text-xs gap-1" onClick={() => handleRediger(idea)}>
+                          <PenLine className="h-3 w-3" /> Rédiger
                         </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Supprimer cette idée ?</AlertDialogTitle>
-                          <AlertDialogDescription>Tu veux vraiment supprimer cette idée ? Cette action est irréversible.</AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Annuler</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleDelete(idea.id)}>Supprimer</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                        <PlanifierPopover idea={idea} onPlan={handlePlan} />
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="outline" size="sm" className="rounded-pill text-xs gap-1 text-muted-foreground hover:text-destructive">
+                              <Trash2 className="h-3 w-3" /> Supprimer
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Supprimer cette idée ?</AlertDialogTitle>
+                              <AlertDialogDescription>Tu veux vraiment supprimer cette idée ? Cette action est irréversible.</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Annuler</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDelete(idea.id)}>Supprimer</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </>
+                    )}
                   </div>
                 </div>
               );
