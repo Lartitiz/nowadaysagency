@@ -15,7 +15,7 @@ import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { ChevronLeft, ChevronRight, Sparkles, Download, Link2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Sparkles, Download, Link2, PenLine } from "lucide-react";
 import { CalendarShareDialog } from "@/components/calendar/CalendarShareDialog";
 
 import CalendarCoachingDialog from "@/components/calendar/CalendarCoachingDialog";
