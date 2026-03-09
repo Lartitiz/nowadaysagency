@@ -601,7 +601,7 @@ function buildFallbackDiagnostic(
       title: "Présence en ligne limitée",
       detail: "Je n'ai pas pu analyser de site web ni de réseaux sociaux. Sans présence en ligne visible, tes client·es potentiel·les ont du mal à te trouver.",
       source: "profile",
-      fix_hint: insights?.tips[0] || "Commence par optimiser ta bio Instagram ou créer une page simple.",
+      fix_hint: insights?.tips[0] || "Ajoute ton site web ou tes réseaux dans ton profil pour un diagnostic plus complet.",
     });
   }
 
