@@ -1,9 +1,10 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ChevronRight, Home, PenLine, CalendarDays, MessageCircle, Palette, ClipboardList, Instagram, Briefcase, Globe, Search, Pin, Users, BarChart3, Brain, Settings, Film, GraduationCap, Wrench, CreditCard, HeartHandshake, LogOut } from "lucide-react";
+import { ChevronRight, Home, PenLine, CalendarDays, MessageCircle, Palette, ClipboardList, Instagram, Briefcase, Globe, Search, Pin, Users, BarChart3, Brain, Settings, Film, GraduationCap, Wrench, CreditCard, HeartHandshake, LogOut, Menu, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserPlan } from "@/hooks/use-user-plan";
 import { useDemoContext } from "@/contexts/DemoContext";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface NavItem {
   label: string;
@@ -146,21 +147,43 @@ export default function AppSidebar() {
 
   return (
     <>
-      {/* Hover trigger zone — invisible 48px strip on left */}
+      {/* Desktop: Hover trigger zone — invisible 48px strip on left */}
       <div
         className="fixed top-0 left-0 h-full w-12 z-[300] hidden lg:flex lg:flex-col lg:items-center"
         onMouseEnter={handleMouseEnterTrigger}
         onMouseLeave={handleMouseLeaveTrigger}
         style={{ pointerEvents: open ? "none" : "auto" }}
       >
-        {/* Logo "N" button — always visible */}
-        <div
-          className="absolute top-[14px] left-[14px] w-8 h-8 rounded-[9px] bg-bordeaux flex items-center justify-center cursor-pointer select-none shadow-none"
-          style={{ pointerEvents: "auto" }}
-        >
-          <span className="text-white font-bold text-sm leading-none">N</span>
-        </div>
+        {/* Logo "N" button with menu hint — always visible on desktop */}
+        <Tooltip delayDuration={800}>
+          <TooltipTrigger asChild>
+            <div
+              className="absolute top-[14px] left-[14px] flex items-center gap-1 cursor-pointer select-none group"
+              style={{ pointerEvents: "auto" }}
+            >
+              <div className="w-8 h-8 rounded-[9px] bg-bordeaux flex items-center justify-center shadow-none transition-transform duration-200 group-hover:scale-105">
+                <span className="text-white font-bold text-sm leading-none">N</span>
+              </div>
+              <ChevronRight
+                size={12}
+                className="text-muted-foreground opacity-40 group-hover:opacity-80 transition-all duration-200"
+              />
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right" className="text-xs">
+            Menu
+          </TooltipContent>
+        </Tooltip>
       </div>
+
+      {/* Mobile: Hamburger button — visible only below lg */}
+      <button
+        onClick={() => setOpen(true)}
+        className="fixed top-[14px] left-[14px] z-[300] flex lg:hidden items-center justify-center w-9 h-9 rounded-[9px] bg-bordeaux cursor-pointer"
+        aria-label="Ouvrir le menu"
+      >
+        <Menu size={18} className="text-white" />
+      </button>
 
       {/* Backdrop */}
       {open && (
@@ -174,7 +197,9 @@ export default function AppSidebar() {
       {/* Sidebar panel */}
       <div
         ref={panelRef}
-        className="fixed top-0 left-0 h-full w-[260px] z-[301] bg-card border-r border-border hidden lg:flex flex-col overflow-y-auto"
+        className={`fixed top-0 left-0 h-full w-[260px] z-[301] bg-card border-r border-border flex-col overflow-y-auto ${
+          open ? "flex" : "hidden lg:hidden"
+        }`}
         style={{
           transform: open ? "translateX(0)" : "translateX(-100%)",
           transition: "transform 0.35s cubic-bezier(0.16, 1, 0.3, 1)",
@@ -183,11 +208,21 @@ export default function AppSidebar() {
         onMouseLeave={handleMouseLeavePanel}
       >
         {/* Header */}
-        <div className="flex items-center gap-2.5 px-4 py-3.5 border-b border-border">
-          <div className="w-8 h-8 rounded-[9px] bg-bordeaux flex items-center justify-center shrink-0 shadow-none">
-            <span className="text-white font-bold text-sm leading-none">N</span>
+        <div className="flex items-center justify-between px-4 py-3.5 border-b border-border">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-[9px] bg-bordeaux flex items-center justify-center shrink-0 shadow-none">
+              <span className="text-white font-bold text-sm leading-none">N</span>
+            </div>
+            <span className="font-display text-[15px] text-bordeaux">Nowadays</span>
           </div>
-          <span className="font-display text-[15px] text-bordeaux">Nowadays</span>
+          {/* Close button — visible on mobile */}
+          <button
+            onClick={() => setOpen(false)}
+            className="flex lg:hidden items-center justify-center w-7 h-7 rounded-md hover:bg-rose-pale transition-colors"
+            aria-label="Fermer le menu"
+          >
+            <X size={16} className="text-muted-foreground" />
+          </button>
         </div>
 
         {/* Nav */}
@@ -195,6 +230,7 @@ export default function AppSidebar() {
           {/* Accueil */}
           <Link
             to="/dashboard"
+            onClick={() => setOpen(false)}
             className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body transition-colors ${
               isActive("/dashboard") ? "bg-rose-pale text-primary font-semibold" : "text-foreground hover:bg-rose-pale"
             }`}
@@ -232,6 +268,7 @@ export default function AppSidebar() {
                             <Link
                               key={child.path}
                               to={child.path}
+                              onClick={() => setOpen(false)}
                               className={`block px-2.5 py-1.5 rounded-md text-[12.5px] transition-colors ${
                                 isActive(child.path) ? "text-primary font-semibold" : "text-muted-foreground hover:text-foreground"
                               }`}
@@ -245,6 +282,7 @@ export default function AppSidebar() {
                   ) : (
                     <Link
                       to={item.path}
+                      onClick={() => setOpen(false)}
                       className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body transition-colors ${
                         isActive(item.path) ? "bg-rose-pale text-primary font-semibold" : "text-foreground hover:bg-rose-pale"
                       }`}
@@ -270,15 +308,15 @@ export default function AppSidebar() {
                 <Film size={16} />
                 🎬 Mode démo
               </button>
-              <Link to="/admin/coaching" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body text-foreground hover:bg-rose-pale transition-colors">
+              <Link to="/admin/coaching" onClick={() => setOpen(false)} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body text-foreground hover:bg-rose-pale transition-colors">
                 <GraduationCap size={16} />
                 🎓 Mes client·es
               </Link>
-              <Link to="/admin/audit" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body text-foreground hover:bg-rose-pale transition-colors">
+              <Link to="/admin/audit" onClick={() => setOpen(false)} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body text-foreground hover:bg-rose-pale transition-colors">
                 <Wrench size={16} />
                 🔧 Audit app
               </Link>
-              <Link to="/admin/coaching" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body text-foreground hover:bg-rose-pale transition-colors">
+              <Link to="/admin/coaching" onClick={() => setOpen(false)} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body text-foreground hover:bg-rose-pale transition-colors">
                 <Wrench size={16} />
                 Admin
               </Link>
@@ -290,6 +328,7 @@ export default function AppSidebar() {
         <div className="border-t border-border px-2 py-2 space-y-0.5">
           <Link
             to="/parametres"
+            onClick={() => setOpen(false)}
             className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body transition-colors ${
               isActive("/parametres") ? "bg-rose-pale text-primary font-semibold" : "text-foreground hover:bg-rose-pale"
             }`}
@@ -298,12 +337,12 @@ export default function AppSidebar() {
             Paramètres
           </Link>
           {isBinome && (
-            <Link to="/accompagnement" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body text-foreground hover:bg-rose-pale transition-colors">
+            <Link to="/accompagnement" onClick={() => setOpen(false)} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body text-foreground hover:bg-rose-pale transition-colors">
               <HeartHandshake size={16} />
               Mon accompagnement
             </Link>
           )}
-          <Link to="/abonnement" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body text-foreground hover:bg-rose-pale transition-colors">
+          <Link to="/abonnement" onClick={() => setOpen(false)} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body text-foreground hover:bg-rose-pale transition-colors">
             <CreditCard size={16} />
             Mon abonnement
           </Link>
