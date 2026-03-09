@@ -77,7 +77,8 @@ export default function CharterTemplatesSection({
 
   return (
     <section className="rounded-2xl border border-border bg-card p-5">
-      <h2 className="font-display text-base font-bold text-foreground mb-4">📐 Mes templates existants</h2>
+      <h2 className="font-display text-base font-bold text-foreground mb-1">📐 Analyse tes visuels existants</h2>
+      <p className="text-sm text-muted-foreground mb-4">Uploade tes visuels actuels (posts Instagram, stories, flyers, cartes de visite…) et on analyse automatiquement ta charte : couleurs, style, typographies. Ça pré-remplit tout pour toi.</p>
 
       {data.uploaded_templates.length > 0 && (
         <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 mb-4">
@@ -114,7 +115,7 @@ export default function CharterTemplatesSection({
         <label className="flex flex-col items-center gap-2 cursor-pointer rounded-xl border-2 border-dashed border-border hover:border-primary/40 transition-colors p-6">
           <Upload className="h-6 w-6 text-muted-foreground" />
           <span className="text-xs text-muted-foreground">
-            {templatesUploading ? "Upload en cours..." : "Uploader des templates (PNG, JPG, PDF)"}
+            {templatesUploading ? "Upload en cours..." : "Ajouter des visuels à analyser (PNG, JPG, PDF)"}
           </span>
           <input
             type="file"
@@ -128,19 +129,22 @@ export default function CharterTemplatesSection({
       )}
 
       {data.uploaded_templates.length > 0 && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="mt-3 gap-1.5 text-xs w-full"
-          onClick={onAuditTemplates}
-          disabled={auditing}
-        >
-          {auditing ? (
-            <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Analyse en cours...</>
-          ) : (
-            <><Search className="h-3.5 w-3.5" /> 🔍 Auditer mes templates</>
-          )}
-        </Button>
+        <div className="mt-3 space-y-1.5">
+          <Button
+            variant="default"
+            size="sm"
+            className="gap-1.5 text-xs w-full"
+            onClick={onAuditTemplates}
+            disabled={auditing}
+          >
+            {auditing ? (
+              <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Analyse en cours...</>
+            ) : (
+              <>✨ Analyser et pré-remplir ma charte</>
+            )}
+          </Button>
+          <p className="text-xs text-muted-foreground text-center">L'IA détecte tes couleurs, ton style et te propose une charte cohérente</p>
+        </div>
       )}
     </section>
   );
