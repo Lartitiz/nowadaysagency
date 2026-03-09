@@ -1673,6 +1673,7 @@ export default function CreerUnifie() {
                 onNext={handleQuestionsNext}
                 onSkip={handleSkipQuestions}
                 onBack={() => setStep("format")}
+                previousBriefsCount={briefsCount}
               />
             )}
 
