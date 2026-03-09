@@ -538,8 +538,8 @@ Retourne ce JSON exact :
       "section": "hook",
       "timing": "0-3 sec",
       "format_visuel": "Face cam, regarde la caméra, ton direct",
-      "texte_parle": "${selectedHook.text}",
-      "texte_overlay": "${selectedHook.text_overlay}",
+      "texte_parle": "${hookText}",
+      "texte_overlay": "${hookTextOverlay}",
       "cut": null,
       "tip": "1,7 sec pour décider de rester ou scroller."
     },
