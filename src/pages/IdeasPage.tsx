@@ -85,6 +85,7 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [ideas, setIdeas] = useState<SavedIdea[]>([]);
+  const [briefs, setBriefs] = useState<SavedIdea[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Filters
