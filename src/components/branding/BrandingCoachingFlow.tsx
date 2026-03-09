@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import { invokeWithTimeout, type InvokeError } from "@/lib/invoke-with-timeout";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
@@ -233,18 +233,31 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
         const lastUserMsg = [...msgs].reverse().find(m => m.role === "user");
         const answer = lastUserMsg?.content || "Commence la session.";
 
-        const { data, error: fnError } = await supabase.functions.invoke("charter-coaching", {
+        const { data, error: fnError } = await invokeWithTimeout("charter-coaching", {
           body: {
             step: stepNum,
             answer,
             charterData: charterDataRef.current || {},
           },
-        });
+        }, 90000);
 
         if (fnError) {
-          console.error("[CharterCoaching] Edge function error:", fnError);
-          setError("L'IA a eu un blanc. Ça arrive 😅");
-          toast.error("L'IA a eu un blanc. Réessaie.");
+          const err = fnError as InvokeError;
+          console.error("[CharterCoaching] Edge function error:", err);
+
+          if (err.isRateLimit) {
+            setError("Tu envoies trop de requêtes. Attends quelques secondes avant de réessayer 😊");
+          } else if (err.isTimeout) {
+            setError("La génération prend plus de temps que prévu. Réessaie dans quelques instants.");
+          } else if (err.isAuth) {
+            setError("Ta session a expiré. Rafraîchis la page pour te reconnecter.");
+          } else if (err.isNetwork) {
+            setError("Connexion perdue. Vérifie ta connexion internet et réessaie.");
+          } else {
+            setError("L'IA a eu un blanc. Ça arrive 😅");
+          }
+
+          toast.error(err.message || "L'IA a eu un blanc. Réessaie.");
           return null;
         }
 
@@ -306,21 +319,22 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
       }, 90000);
 
       if (fnError) {
-        console.error("[BrandingCoaching] Edge function error:", fnError);
+        const err = fnError as InvokeError;
+        console.error("[BrandingCoaching] Edge function error:", err);
 
-        if ((fnError as any).isRateLimit) {
+        if (err.isRateLimit) {
           setError("Tu envoies trop de requêtes. Attends quelques secondes avant de réessayer 😊");
-        } else if ((fnError as any).isTimeout) {
+        } else if (err.isTimeout) {
           setError("La génération prend plus de temps que prévu. Réessaie dans quelques instants.");
-        } else if ((fnError as any).isAuth) {
+        } else if (err.isAuth) {
           setError("Ta session a expiré. Rafraîchis la page pour te reconnecter.");
-        } else if ((fnError as any).isNetwork) {
+        } else if (err.isNetwork) {
           setError("Connexion perdue. Vérifie ta connexion internet et réessaie.");
         } else {
           setError("L'IA a eu un blanc. Ça arrive 😅");
         }
 
-        toast.error((fnError as any).message || "L'IA a eu un blanc. Réessaie.");
+        toast.error(err.message || "L'IA a eu un blanc. Réessaie.");
         return null;
       }
 
@@ -511,6 +525,7 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
   }, [isDemoMode, demoQuestions, hasExistingSession, askAI, updateCoveredTopics, section, completionPct]);
 
   const handleNext = useCallback(async () => {
+    if (loading) return;
     const userAnswer = currentQuestion?.question_type === "select" || currentQuestion?.question_type === "multi_select"
       ? selectedOptions.join(", ")
       : answer;
@@ -672,7 +687,7 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
     }
 
     setCurrentQuestion(response);
-  }, [answer, selectedOptions, currentQuestion, isDemoMode, demoQuestions, askAI, section, user?.id, completionPct, saveDemoAnswer, updateCoveredTopics, checklist]);
+  }, [answer, selectedOptions, currentQuestion, isDemoMode, demoQuestions, askAI, section, user?.id, completionPct, saveDemoAnswer, updateCoveredTopics, checklist, loading]);
 
   const saveInsights = async (sec: string, insights: Record<string, any>) => {
     if (!user) return;
