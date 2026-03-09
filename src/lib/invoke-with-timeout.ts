@@ -26,7 +26,7 @@ export interface InvokeError {
 export async function invokeWithTimeout(
   functionName: string,
   options: { body?: any } = {},
-  timeoutMs = 30000
+  timeoutMs = 90000
 ): Promise<{ data: any; error: InvokeError | null }> {
   return new Promise(async (resolve) => {
     const timer = setTimeout(() => {
