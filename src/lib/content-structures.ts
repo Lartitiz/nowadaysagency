@@ -85,7 +85,10 @@ export const EDITORIAL_ANGLES: EditorialAngle[] = [
     emoji: "✨",
     principle: "Tu présentes ton produit, ta création ou ton offre en donnant envie sans survendre",
     defaultStructure: "conseil_pratique",
-    recommended_objectives: ["vente"],
+    objectives: ["vente", "visibilite"],
+    phase: [3, 4],
+    declic: "projection",
+    exampleSubjects: ["Découvre mes nouveaux colliers en velours", "Pourquoi j'ai choisi ces matières"],
   },
   {
     id: "surf-actu",
