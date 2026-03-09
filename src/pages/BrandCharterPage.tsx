@@ -250,7 +250,7 @@ function MoodboardSection({ images, description, onImagesChange, onDescriptionCh
   return (
     <section className="rounded-2xl border border-border bg-card p-5">
       <h2 className="font-display text-base font-bold text-foreground mb-4">🎭 Mon moodboard</h2>
-      <p className="text-xs text-muted-foreground mb-4">Ajoute 4 à 9 images qui représentent l'univers visuel de ta marque. Glisse pour réordonner.</p>
+      <p className="text-xs text-muted-foreground mb-4">Ajoute 4 à 9 images qui représentent l'univers visuel que tu vises (pas forcément tes propres visuels : des photos d'ambiance, des palettes, des visuels d'autres marques qui t'inspirent…). L'IA s'en sert pour comprendre ton esthétique quand elle génère tes contenus.</p>
 
       {/* Grid */}
       {images.length > 0 && (
