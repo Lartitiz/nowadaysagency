@@ -106,12 +106,17 @@ export function computeDiagnosticData(
 
   const weaknesses: DiagnosticWeakness[] = [];
   if (hasIg && answers.instagram) {
-    strengths.push("Tu as un compte Instagram actif — on pourra l'auditer en détail dans l'outil");
+    strengths.push("Tu as un compte Instagram actif — lance ton audit Instagram dans l'outil pour un diagnostic détaillé");
   }
-  if (!hasNl) weaknesses.push({ title: "Tu n'as pas de newsletter", why: "Ta liste email, c'est le seul endroit qu'Instagram ne peut pas te reprendre." });
-  if (hasWeb && !answers.website) weaknesses.push({ title: "Ton site web n'est pas renseigné", why: "Sans site, tu dépends à 100% des réseaux sociaux." });
-  if (!brandingAnswers.target_description?.trim()) weaknesses.push({ title: "Ta cible n'est pas assez définie", why: "Sans cible claire, tes contenus parlent à tout le monde (donc à personne)." });
-  if (weaknesses.length < 2) weaknesses.push({ title: "Ta stratégie de contenu manque de structure", why: "Publier sans plan, c'est comme naviguer sans GPS." });
+  if (!hasNl) weaknesses.push({ title: "Pas encore de newsletter", why: "Ta liste email, c'est le seul canal que les algorithmes ne contrôlent pas. C'est ton filet de sécurité.", fix_hint: "Commence par un formulaire simple sur ton site ou en lien bio." });
+  if (hasWeb && answers.website) {
+    weaknesses.push({ title: "Ton site mérite un audit approfondi", why: "Tu as un site, c'est un vrai atout. L'audit site dans l'outil va identifier les optimisations concrètes à faire.", fix_hint: "Lance l'audit site web depuis ton tableau de bord." });
+  } else if (hasWeb && !answers.website) {
+    weaknesses.push({ title: "Tu n'as pas renseigné ton site web", why: "Si tu as un site, ajoute-le pour qu'on puisse l'analyser et te donner des recommandations concrètes.", fix_hint: "Ajoute ton URL dans les paramètres de ton profil." });
+  }
+  if (weaknesses.length === 0) {
+    weaknesses.push({ title: "On manque de données pour un diagnostic précis", why: "Plus tu renseignes d'infos (site web, réseaux), plus le diagnostic sera pertinent et actionnable.", fix_hint: "Complète ton profil et lance les audits disponibles dans l'outil." });
+  }
 
   const priorities: DiagnosticData["priorities"] = [];
   if (hasIg) priorities.push({ title: "Optimise ton profil Instagram", channel: "instagram", impact: "high", time: "20 min", route: "/instagram/profil" });

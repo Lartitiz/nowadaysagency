@@ -320,11 +320,12 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
 
     // Final instructions
     userParts.push(`=== CONSIGNES FINALES ===
-- Le résumé (summary) doit faire 3-4 phrases et reprendre les mots de la personne.
-- Ne mets un score que pour les sources que tu as réellement analysées. Tout le reste : null.
-- RAPPEL CRITIQUE : chaque force/faiblesse DOIT avoir un "source" qui correspond à une section SOURCE réellement fournie ci-dessus. Si la source n'existe pas dans les données → tu ne génères PAS de force/faiblesse pour cette source. Cite toujours l'élément concret observé entre guillemets dans le "detail".
-- Exemple INTERDIT : dire "Bio Instagram incomplète" sans avoir de screenshot Instagram ni de texte de bio dans les données.
-- Exemple INTERDIT : dire "Pas de CTA sur le site" alors que le site contient un bouton d'action que tu n'as pas lu attentivement.`);
+- Le résumé (summary) : 3-4 phrases, reprends les mots exacts de la personne entre guillemets.
+- Scores : uniquement pour les sources réellement analysées. Instagram = TOUJOURS null.
+- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
+- RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
+- RAPPEL : pas de recommandation Instagram sauf "Fais ton audit Instagram" avec route /audit-instagram.
+- Chaque force/faiblesse cite un extrait concret entre guillemets dans le "detail".`);
 
     const userPrompt = userParts.join("\n\n");
 
