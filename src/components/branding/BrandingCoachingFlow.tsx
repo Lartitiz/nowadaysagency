@@ -233,18 +233,31 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
         const lastUserMsg = [...msgs].reverse().find(m => m.role === "user");
         const answer = lastUserMsg?.content || "Commence la session.";
 
-        const { data, error: fnError } = await supabase.functions.invoke("charter-coaching", {
+        const { data, error: fnError } = await invokeWithTimeout("charter-coaching", {
           body: {
             step: stepNum,
             answer,
             charterData: charterDataRef.current || {},
           },
-        });
+        }, 90000);
 
         if (fnError) {
-          console.error("[CharterCoaching] Edge function error:", fnError);
-          setError("L'IA a eu un blanc. Ça arrive 😅");
-          toast.error("L'IA a eu un blanc. Réessaie.");
+          const err = fnError as InvokeError;
+          console.error("[CharterCoaching] Edge function error:", err);
+
+          if (err.isRateLimit) {
+            setError("Tu envoies trop de requêtes. Attends quelques secondes avant de réessayer 😊");
+          } else if (err.isTimeout) {
+            setError("La génération prend plus de temps que prévu. Réessaie dans quelques instants.");
+          } else if (err.isAuth) {
+            setError("Ta session a expiré. Rafraîchis la page pour te reconnecter.");
+          } else if (err.isNetwork) {
+            setError("Connexion perdue. Vérifie ta connexion internet et réessaie.");
+          } else {
+            setError("L'IA a eu un blanc. Ça arrive 😅");
+          }
+
+          toast.error(err.message || "L'IA a eu un blanc. Réessaie.");
           return null;
         }
 
