@@ -812,9 +812,16 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
         if (insights.content_twist || insights.creative_concept) {
           strategyData.creative_concept = insights.content_twist || insights.creative_concept;
         }
-        if (insights.content_formats) strategyData.step_1_hidden_facets = typeof insights.content_formats === "string" ? insights.content_formats : JSON.stringify(insights.content_formats);
+        // Combine formats + editorial line in step_1_hidden_facets (no data loss)
+        const hiddenParts: string[] = [];
+        if (insights.content_formats) {
+          hiddenParts.push("Formats : " + (typeof insights.content_formats === "string" ? insights.content_formats : JSON.stringify(insights.content_formats)));
+        }
         if (insights.content_editorial_line) {
-          if (!strategyData.step_1_hidden_facets) strategyData.step_1_hidden_facets = insights.content_editorial_line;
+          hiddenParts.push("Ligne éditoriale : " + insights.content_editorial_line);
+        }
+        if (hiddenParts.length > 0) {
+          strategyData.step_1_hidden_facets = hiddenParts.join("\n\n");
         }
 
         if (Object.keys(strategyData).length > 0) {
@@ -831,6 +838,33 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
             });
           }
           queryClient.invalidateQueries({ queryKey: ["brand-strategy"] });
+        }
+
+        // Save frequency and formats to editorial line if available
+        if (insights.content_frequency || insights.content_formats || insights.content_editorial_line) {
+          const editoData: Record<string, any> = { updated_at: new Date().toISOString(), source: "coaching" };
+          if (insights.content_frequency) editoData.recommended_rhythm = insights.content_frequency;
+          if (insights.content_formats) {
+            const fmts = typeof insights.content_formats === "string"
+              ? insights.content_formats.split(/[,;]/).map((s: string) => s.trim()).filter(Boolean)
+              : Array.isArray(insights.content_formats) ? insights.content_formats : [];
+            if (fmts.length > 0) editoData.preferred_formats = fmts;
+          }
+          if (insights.content_editorial_line) {
+            editoData.free_notes = insights.content_editorial_line;
+          }
+          const { data: existingEdito } = await (supabase.from("instagram_editorial_line") as any)
+            .select("id").eq(column, value).maybeSingle();
+          if (existingEdito?.id) {
+            await (supabase.from("instagram_editorial_line") as any).update(editoData).eq("id", existingEdito.id);
+          } else {
+            await (supabase.from("instagram_editorial_line") as any).insert({
+              user_id: profileUserId,
+              workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
+              ...editoData,
+            });
+          }
+          queryClient.invalidateQueries({ queryKey: ["editorial-line"] });
         }
       } else {
         const { data: existingBP } = await (supabase.from("brand_profile") as any)

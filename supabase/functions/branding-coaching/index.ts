@@ -203,6 +203,40 @@ ${remainingTopics.length > 0 ? remainingTopics.map(t => `- ${TOPIC_LABELS[t] || 
 - Le covered_topic que tu renvoies DOIT être EXACTEMENT l'une de ces clés : ${checklist.join(", ")}. Aucun synonyme, aucune variante. Copie-colle la clé exacte.
 - Chaque réponse de l'utilisatrice DOIT couvrir au moins un sujet. Ne renvoie JAMAIS covered_topic: null après la première question.
 
+══ CLÉS OBLIGATOIRES POUR extracted_insights ══
+Quand tu extrais des informations de la réponse, utilise EXACTEMENT ces clés dans extracted_insights (pas de variantes, pas de synonymes) :
+${section === "content_strategy" ? `- "content_pillars": tableau de strings ["pilier majeur", "pilier mineur 1", "pilier mineur 2", "pilier mineur 3"] — le premier est toujours le pilier majeur
+- "content_twist": string, le concept créatif / twist unique
+- "content_formats": string, les formats de contenu préférés séparés par des virgules
+- "content_frequency": string, le rythme choisi (ex: "2x/semaine posts, stories 3-4x/semaine")
+- "content_editorial_line": string, résumé de la ligne éditoriale` :
+section === "story" ? `- "story_origin": string, comment tout a commencé
+- "story_turning_point": string, le déclic
+- "story_struggles": string, les galères traversées
+- "story_unique": string, ce qui rend unique
+- "story_vision": string, la vision pour l'avenir` :
+section === "persona" ? `- "description": string, portrait général de la cliente idéale
+- "demographics": string, âge, situation, localisation
+- "step_1_frustrations": string, ce qui la bloque / ses frustrations
+- "step_2_transformation": string, ce qu'elle veut vraiment / sa transformation rêvée
+- "step_3a_objections": string, ses objections principales
+- "buying_triggers": tableau JSON, les déclencheurs d'achat
+- "channels": tableau de strings, où elle traîne en ligne
+- "daily_life": string, sa journée type` :
+section === "tone_style" ? `- "voice_description": string, comment tu parles / ta voix
+- "tone_register": string, le registre (familier, soutenu, etc.)
+- "tone_do": string, ce que tu fais toujours en com
+- "tone_dont": string, ce que tu ne fais jamais
+- "combat_cause": string, ta cause principale / ton combat
+- "combat_fights": string, tes combats secondaires
+- "visual_style": string, ton style visuel` :
+section === "offers" ? `- "offer_name": string, nom de l'offre
+- "offer_price": string, prix et format de paiement
+- "offer_target": string, pour qui c'est fait
+- "offer_promise": string, la promesse / transformation
+- "offer_includes": string, ce qui est inclus` : ""}
+N'inclus dans extracted_insights QUE les clés ci-dessus. Inclus uniquement celles qui sont pertinentes pour la réponse qui vient d'être donnée (pas toutes à chaque fois).
+
 ══ FORMAT DE RÉPONSE ══
 Retourne TOUJOURS un JSON valide, rien d'autre :
 {
