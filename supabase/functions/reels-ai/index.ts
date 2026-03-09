@@ -15,12 +15,14 @@ serve(async (req) => {
 
   let userId: string | null = null;
   try {
+    console.log("reels-ai: start handler");
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Authentification requise" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    console.log("reels-ai: auth header present");
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -35,6 +37,7 @@ serve(async (req) => {
       });
     }
     userId = user.id;
+    console.log("reels-ai: auth OK, userId =", userId);
 
     // Anthropic API key checked in shared helper
 
