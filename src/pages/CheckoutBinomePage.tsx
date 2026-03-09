@@ -39,24 +39,8 @@ export default function CheckoutBinomePage() {
   const navigate = useNavigate();
   const [checkoutLoading, setCheckoutLoading] = useState(false);
 
-  const handleCheckout = async () => {
-    if (!user) {
-      navigate("/login?redirect=/checkout/binome");
-      return;
-    }
-    setCheckoutLoading(true);
-    try {
-      const { data } = await supabase.functions.invoke("create-checkout", {
-        body: {
-          priceId: STRIPE_PLANS.binome_monthly.priceId,
-          mode: "subscription",
-        },
-      });
-      if (data?.url) window.location.href = data.url;
-    } catch {
-      // silent
-    }
-    setCheckoutLoading(false);
+  const handleCheckout = () => {
+    window.location.href = "https://buy.stripe.com/4gMfZidRHgQo7Ve0IF67S00";
   };
 
   if (authLoading) {
