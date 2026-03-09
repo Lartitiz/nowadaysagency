@@ -566,7 +566,7 @@ export default function WelcomePage() {
                 <p className="text-xs text-muted-foreground">Ça prend quelques secondes, c'est bientôt prêt ✨</p>
               </div>
             ) : hasBranding ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3">
                 {brandingCards.map((card, i) => (
                   <BrandingCardItem key={i} card={card} index={i} onSave={handleCardSave} />
                 ))}
