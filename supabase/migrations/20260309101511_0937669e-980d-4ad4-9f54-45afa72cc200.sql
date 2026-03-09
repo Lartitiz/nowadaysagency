@@ -1,0 +1,1 @@
+ALTER TABLE public.offers ADD COLUMN sort_order integer DEFAULT 0;
