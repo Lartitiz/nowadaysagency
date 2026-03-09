@@ -178,7 +178,7 @@ export default function CharterColorsSection({
                 <input
                   type="text"
                   value={data[key] || ""}
-                  placeholder="Non défini"
+                  placeholder="#000000"
                   onChange={(e) => {
                     let v = e.target.value;
                     if (v && !v.startsWith("#")) v = "#" + v;
