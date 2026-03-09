@@ -664,13 +664,11 @@ export default function LandingPage() {
                 <p className="text-sm text-muted-foreground mt-1 mb-4">Pour tester et commencer à structurer ta com'</p>
                 <ul className="space-y-2 mb-6 flex-1">
                   {[
-                    "Onboarding conversationnel complet",
-                    "Espace branding (6 sections + coaching IA)",
-                    "Calendrier éditorial + bibliothèque d'idées",
-                    "10 crédits IA / mois",
-                    "1 audit Instagram + 1 audit site",
-                    "Espaces par canal",
-                    "Dashboard + gamification",
+                    "Branding guidé complet (6 sections)",
+                    "Calendrier éditorial avec vue mensuelle",
+                    "Crée jusqu'à 60 contenus IA par mois",
+                    "3 audits IA par mois",
+                    "Espaces par canal (Instagram, LinkedIn…)",
                   ].map((item, idx) => (
                     <li key={idx} className="text-sm text-foreground flex items-start gap-2">
                       <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
