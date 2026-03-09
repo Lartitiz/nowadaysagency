@@ -919,7 +919,7 @@ export const LANDING_PAGE_RED_FLAGS = [
 export const EDITORIAL_ANGLES_REFERENCE = `
 
 ═══════════════════════════════════════════════════
-LES 13 ANGLES ÉDITORIAUX ET LEURS STRUCTURES PAR TYPE
+LES 14 ANGLES ÉDITORIAUX ET LEURS STRUCTURES PAR TYPE
 ═══════════════════════════════════════════════════
 
 ANGLE 1 : ENQUÊTE / DÉCRYPTAGE
