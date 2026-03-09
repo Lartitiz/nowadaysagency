@@ -625,6 +625,55 @@ export default function WelcomePage() {
           </div>
         )}
 
+        {/* C-bis) Offres éditables */}
+        {!loading && offers.length > 0 && (
+          <div className="space-y-4">
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              Tes offres
+            </h2>
+            <div className="grid grid-cols-1 gap-3">
+              {offers.map((offer) => (
+                <div key={offer.id} className="bg-card border border-border rounded-2xl p-5 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">🛍️</span>
+                    <EditableText
+                      value={offer.name}
+                      onSave={(v) => handleOfferFieldSave(offer.id, "name", v)}
+                      type="input"
+                      placeholder="Nom de l'offre"
+                      className="text-sm font-semibold text-foreground"
+                    />
+                    {offer.price_text && (
+                      <span className="ml-auto text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-pill">
+                        {offer.price_text}
+                      </span>
+                    )}
+                  </div>
+                  {offer.promise ? (
+                    <EditableText
+                      value={offer.promise}
+                      onSave={(v) => handleOfferFieldSave(offer.id, "promise", v)}
+                      placeholder="Promesse de l'offre"
+                      className="text-sm text-muted-foreground leading-relaxed"
+                    />
+                  ) : (
+                    <EditableText
+                      value=""
+                      onSave={(v) => handleOfferFieldSave(offer.id, "promise", v)}
+                      placeholder="Ajoute une promesse (ex: Ce que ta cliente obtient)"
+                      className="text-sm text-muted-foreground leading-relaxed italic"
+                    />
+                  )}
+                  {offer.target_ideal && (
+                    <p className="text-xs text-muted-foreground">
+                      🎯 {offer.target_ideal}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         {/* D) Priorities / Steps */}
         <div className="rounded-2xl bg-card border border-border p-6 space-y-5">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
