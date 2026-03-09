@@ -458,6 +458,7 @@ export default function WelcomePage() {
 
     return () => {
       clearTimeout(startTimeout);
+      clearTimeout(safetyTimeout);
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [user?.id, loading, column, value]); // eslint-disable-line react-hooks/exhaustive-deps
