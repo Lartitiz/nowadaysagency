@@ -478,8 +478,7 @@ export default function WelcomePage() {
     const card = brandingCards[cardIndex];
     if (!card.dbTable || !card.dbField || !user) return;
 
-    const filterCol = card.dbTable === "persona" || card.dbTable === "storytelling"
-      ? column : column;
+    const filterCol = column;
     const extraFilter = card.dbTable === "persona"
       ? { is_primary: true }
       : card.dbTable === "storytelling"
