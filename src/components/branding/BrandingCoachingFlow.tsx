@@ -839,6 +839,33 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
           }
           queryClient.invalidateQueries({ queryKey: ["brand-strategy"] });
         }
+
+        // Save frequency and formats to editorial line if available
+        if (insights.content_frequency || insights.content_formats || insights.content_editorial_line) {
+          const editoData: Record<string, any> = { updated_at: new Date().toISOString(), source: "coaching" };
+          if (insights.content_frequency) editoData.recommended_rhythm = insights.content_frequency;
+          if (insights.content_formats) {
+            const fmts = typeof insights.content_formats === "string"
+              ? insights.content_formats.split(/[,;]/).map((s: string) => s.trim()).filter(Boolean)
+              : Array.isArray(insights.content_formats) ? insights.content_formats : [];
+            if (fmts.length > 0) editoData.preferred_formats = fmts;
+          }
+          if (insights.content_editorial_line) {
+            editoData.free_notes = insights.content_editorial_line;
+          }
+          const { data: existingEdito } = await (supabase.from("instagram_editorial_line") as any)
+            .select("id").eq(column, value).maybeSingle();
+          if (existingEdito?.id) {
+            await (supabase.from("instagram_editorial_line") as any).update(editoData).eq("id", existingEdito.id);
+          } else {
+            await (supabase.from("instagram_editorial_line") as any).insert({
+              user_id: profileUserId,
+              workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
+              ...editoData,
+            });
+          }
+          queryClient.invalidateQueries({ queryKey: ["editorial-line"] });
+        }
       } else {
         const { data: existingBP } = await (supabase.from("brand_profile") as any)
           .select("id").eq(column, value).maybeSingle();
