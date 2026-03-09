@@ -1,4 +1,5 @@
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
+import MicButton from "@/components/MicButton";
 
 /* ── ChoiceCard ── */
 export function ChoiceCard({ emoji, label, selected, onClick }: {
