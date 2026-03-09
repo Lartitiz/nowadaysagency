@@ -398,7 +398,7 @@ export default function WelcomePage() {
           .select("description, portrait_prenom, step_1_frustrations, step_2_transformation, step_3a_objections, demographics")
           .eq(column, value).eq("is_primary", true).maybeSingle(),
         (supabase.from("offers") as any)
-          .select("name, promise, price_text, target_ideal")
+          .select("id, name, promise, price_text, target_ideal")
           .eq(column, value).order("sort_order").limit(5),
         (supabase.from("storytelling") as any)
           .select("imported_text")
