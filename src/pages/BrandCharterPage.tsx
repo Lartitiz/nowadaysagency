@@ -426,6 +426,7 @@ export default function BrandCharterPage() {
       logo_variants: d.logo_variants || [],
       moodboard_images: d.moodboard_images,
       moodboard_description: d.moodboard_description,
+      template_layout_description: d.template_layout_description,
     };
 
     if (d.id) {
