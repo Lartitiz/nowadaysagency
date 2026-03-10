@@ -152,6 +152,7 @@ const INITIAL: CharterData = {
   ai_generated_brief: null,
   moodboard_images: [],
   moodboard_description: null,
+  template_layout_description: null,
 };
 
 /** Get display color for UI (neutral fallback if null) */
