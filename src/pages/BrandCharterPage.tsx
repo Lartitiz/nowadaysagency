@@ -517,18 +517,38 @@ export default function BrandCharterPage() {
     if (!auditResult?.extracted_charter) return;
     const ec = auditResult.extracted_charter;
     const updates: Partial<CharterData> = {};
+    
+    // Couleurs
     if (ec.color_primary) updates.color_primary = ec.color_primary;
     if (ec.color_secondary) updates.color_secondary = ec.color_secondary;
     if (ec.color_accent) updates.color_accent = ec.color_accent;
+    if (ec.color_background) updates.color_background = ec.color_background;
+    if (ec.color_text) updates.color_text = ec.color_text;
+    
+    // Typos
+    if (ec.suggested_font_title) updates.font_title = ec.suggested_font_title;
+    if (ec.suggested_font_body) updates.font_body = ec.suggested_font_body;
+    
+    // Ambiance
     if (ec.mood_keywords?.length) updates.mood_keywords = ec.mood_keywords;
-    // Sauvegarder la description de layout des templates
-    if (auditResult.template_layout_description) {
-      (updates as any).template_layout_description = auditResult.template_layout_description;
+    
+    // Photo style
+    if (auditResult.detected_mood?.length && !data.photo_style) {
+      updates.photo_style = auditResult.detected_mood.join(", ");
     }
+    
+    // Visual donts
+    if (ec.visual_donts) updates.visual_donts = ec.visual_donts;
+    
+    // Layout description
+    if (auditResult.template_layout_description) {
+      updates.template_layout_description = auditResult.template_layout_description;
+    }
+    
     setData(prev => ({ ...prev, ...updates }));
     triggerSave();
     setAuditDialogOpen(false);
-    toast.success("Charte détectée appliquée !");
+    toast.success("Charte détectée appliquée ! Vérifie et ajuste ci-dessous si besoin.");
   };
 
   const completionPct = computeCompletion(data);
