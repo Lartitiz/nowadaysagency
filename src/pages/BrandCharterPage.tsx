@@ -737,16 +737,7 @@ export default function BrandCharterPage() {
             />
           </section>
 
-          {/* SECTION 5: Templates */}
-          <CharterTemplatesSection
-            data={data}
-            onDataChange={(updates) => { setData(prev => ({ ...prev, ...updates })); triggerSave(); }}
-            userId={user?.id || ""}
-            templatesUploading={templatesUploading}
-            setTemplatesUploading={setTemplatesUploading}
-            onAuditTemplates={handleAuditTemplates}
-            auditing={auditing}
-          />
+          {/* Templates section moved to top */}
         </div>
 
         {data.updated_at && (
