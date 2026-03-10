@@ -622,6 +622,7 @@ export default function BrandCharterPage() {
                       uploaded_templates: row.uploaded_templates || [],
                       moodboard_images: row.moodboard_images || [],
                       moodboard_description: row.moodboard_description || null,
+                      template_layout_description: row.template_layout_description || null,
                     });
                   }
                 };
