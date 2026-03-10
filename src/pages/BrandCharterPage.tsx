@@ -106,6 +106,7 @@ interface CharterData {
   id?: string;
   logo_url?: string | null;
   logo_variants?: any[];
+  template_layout_description: string | null;
   color_primary: string | null;
   color_secondary: string | null;
   color_accent: string | null;
