@@ -77,8 +77,8 @@ export default function CharterTemplatesSection({
 
   return (
     <section className="rounded-2xl border border-border bg-card p-5">
-      <h2 className="font-display text-base font-bold text-foreground mb-1">📐 Analyse tes visuels existants</h2>
-      <p className="text-sm text-muted-foreground mb-4">Uploade tes visuels actuels (posts Instagram, stories, flyers, cartes de visite…) et on analyse automatiquement ta charte : couleurs, style, typographies. Ça pré-remplit tout pour toi.</p>
+      <h2 className="font-display text-base font-bold text-foreground mb-1">🎨 Montre-nous tes visuels, on fait le reste</h2>
+      <p className="text-sm text-muted-foreground mb-4">Uploade 3 à 5 visuels qui représentent ta marque (posts Instagram, visuels Canva, flyers, cartes de visite…). L'IA analyse tes couleurs, ton style et tes typographies, et pré-remplit toute ta charte graphique. Tu n'auras plus qu'à ajuster.</p>
 
       {data.uploaded_templates.length > 0 && (
         <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 mb-4">
