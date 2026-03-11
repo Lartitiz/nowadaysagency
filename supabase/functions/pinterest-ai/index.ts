@@ -69,7 +69,7 @@ serve(async (req) => {
       action: z.enum(["name", "bio", "board-description", "pin", "keywords"]),
       workspace_id: z.string().uuid().optional().nullable(),
       board_name: z.string().max(200).optional().nullable(),
-      subject: z.string().max(500).optional().nullable(),
+      subject: z.string().max(5000).optional().nullable(),
     }).passthrough());
     const { action, workspace_id, ...params } = reqBody;
 

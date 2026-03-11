@@ -42,7 +42,7 @@ serve(async (req) => {
     validateInput(reqBody, z.object({
       action: z.string().max(50).min(1),
       workspace_id: z.string().uuid().optional().nullable(),
-      sujet: z.string().max(500).optional().nullable(),
+      sujet: z.string().max(5000).optional().nullable(),
       postContent: z.string().max(10000).optional().nullable(),
       sourceContent: z.string().max(10000).optional().nullable(),
       existing_resume: z.string().max(5000).optional().nullable(),

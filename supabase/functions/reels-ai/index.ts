@@ -71,7 +71,7 @@ serve(async (req) => {
       type: z.enum(["analyze_inspiration", "hooks", "script"]),
       objective: z.string().max(100).optional().nullable(),
       face_cam: z.string().max(50).optional().nullable(),
-      subject: z.string().max(500).optional().nullable(),
+      subject: z.string().max(5000).optional().nullable(),
       time_available: z.string().max(50).optional().nullable(),
       image_urls: z.array(z.string().url().max(2048)).max(10).optional(),
       workspace_id: z.string().uuid().optional().nullable(),
