@@ -56,7 +56,7 @@ serve(async (req) => {
     validateInput(body, z.object({
       type: z.string().max(50).optional(),
       objective: z.string().max(100).optional().nullable(),
-      subject: z.string().max(500).optional().nullable(),
+      subject: z.string().max(5000).optional().nullable(),
       subject_details: z.string().max(5000).optional().nullable(),
       raw_idea: z.string().max(5000).optional().nullable(),
       clarify_context: z.string().max(5000).optional().nullable(),
