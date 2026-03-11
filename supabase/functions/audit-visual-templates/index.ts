@@ -136,6 +136,18 @@ Pour chaque image analysée, identifie :
 - La mise en page (centré, asymétrique, grille, etc.)
 - Comment les PHOTOS sont intégrées dans le design (plein écran, en vignette, en demi-slide, dans une carte, absentes)
 
+Pour les typographies, ne te contente PAS de dire "serif" ou "sans-serif". Identifie le STYLE EXACT et suggère la Google Font la plus proche parmi cette liste de référence :
+
+SERIF ÉLÉGANT → Playfair Display, Cormorant Garamond, Libre Baskerville, DM Serif Display
+SERIF CLASSIQUE → Lora, Merriweather, Source Serif 4, Noto Serif
+SANS-SERIF MODERNE → Inter, Space Grotesk, DM Sans, Outfit
+SANS-SERIF ARRONDI → Nunito, Quicksand, Poppins, Comfortaa
+SANS-SERIF GÉOMÉTRIQUE → Montserrat, Raleway, Josefin Sans, Work Sans
+MONOSPACE → IBM Plex Mono, JetBrains Mono, Space Mono, Fira Code
+SCRIPT/MANUSCRIT → Caveat, Dancing Script, Pacifico (à éviter pour le corps de texte)
+
+Choisis la font la plus proche visuellement de ce que tu vois dans les templates.
+
 Puis fais une SYNTHÈSE GLOBALE en JSON (et UNIQUEMENT du JSON, sans texte avant ni après) :
 {
   "detected_colors": ["#xxx", "#yyy", "#zzz"],
@@ -150,9 +162,14 @@ Puis fais une SYNTHÈSE GLOBALE en JSON (et UNIQUEMENT du JSON, sans texte avant
     "color_primary": "#xxx",
     "color_secondary": "#xxx",
     "color_accent": "#xxx",
+    "color_background": "#xxx (couleur de fond dominante détectée)",
+    "color_text": "#xxx (couleur de texte principale détectée)",
     "font_style_title": "serif / sans-serif / script",
     "font_style_body": "serif / sans-serif / script",
-    "mood_keywords": ["3 mots"]
+    "suggested_font_title": "Nom exact de la Google Font la plus proche pour les titres (ex: Playfair Display, Montserrat, etc.)",
+    "suggested_font_body": "Nom exact de la Google Font la plus proche pour le corps de texte",
+    "mood_keywords": ["3 à 5 mots d'ambiance"],
+    "visual_donts": "Ce qui semble ABSENT ou ÉVITÉ dans les templates (ex: pas de texte en majuscules, pas de couleurs vives, pas de bordures épaisses…). Null si rien de notable."
   },
   "template_layout_description": "Description TRÈS DÉTAILLÉE et TECHNIQUE du layout des templates pour qu'un autre modèle IA puisse le reproduire sans voir l'image. Inclure : la disposition des éléments (grille, colonnes, sections), la taille relative des blocs (en pourcentages), le placement des photos (plein écran en fond / en haut 60% / à gauche 40% / en vignette ronde / dans une carte / absentes), les marges et paddings approximatifs, le style des éléments décoratifs (badges, barres latérales, bordures), l'alternance entre les slides si visible, le ratio texte/image. Être AUSSI PRÉCIS que possible, c'est la seule info que l'IA de génération aura.",
   "photo_integration_styles": ["liste des styles d'intégration de photos détectés, ex: full_background, top_photo_60, left_photo_40, vignette_round, card_with_photo, text_only"]
