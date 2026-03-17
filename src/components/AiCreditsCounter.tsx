@@ -11,11 +11,6 @@ interface AiCreditsCounterProps {
   usage: Record<string, CategoryUsage>;
 }
 
-const DISPLAY_CATEGORIES: { key: string; label: string }[] = [
-  { key: "content", label: "Contenus" },
-  { key: "audit", label: "Audits" },
-  { key: "dm_comment", label: "DM / Commentaires" },
-];
 
 export default function AiCreditsCounter({ plan, usage }: AiCreditsCounterProps) {
   const total = usage.total;
