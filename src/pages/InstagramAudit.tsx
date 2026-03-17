@@ -11,7 +11,7 @@ import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { friendlyError } from "@/lib/error-messages";
-import { Loader2, Sparkles, BarChart3, RotateCcw } from "lucide-react";
+import { Loader2, Sparkles, BarChart3, RotateCcw, AlertTriangle } from "lucide-react";
 import AiLoadingIndicator from "@/components/AiLoadingIndicator";
 import { useDiagnosticCache } from "@/hooks/use-diagnostic-cache";
 import DiagnosticCacheBanner from "@/components/audit/DiagnosticCacheBanner";
@@ -23,6 +23,7 @@ import AuditInputForm, { type AuditFormData } from "@/components/audit/AuditInpu
 import ContentAnalysisResults from "@/components/audit/ContentAnalysisResults";
 import { calculateAuditScore, type ProfileForScore } from "@/lib/audit-score";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
+import { useUserPlan } from "@/hooks/use-user-plan";
 
 const AUDIT_LOADING_MESSAGES = [
   { time: 0, text: "📱 Lecture de ton profil..." },
@@ -42,6 +43,7 @@ export default function InstagramAudit() {
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const { diagnosticData: diagCache, isRecent: diagIsRecent } = useDiagnosticCache();
+  const { canAudit, remainingAudits, plan, isPaid } = useUserPlan();
 
   const [analyzing, setAnalyzing] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState("");
@@ -135,6 +137,19 @@ export default function InstagramAudit() {
 
   const handleSubmit = async (form: AuditFormData) => {
     if (!user) return;
+
+    // Pre-check: block if no audit credits left
+    if (!canAudit()) {
+      toast({
+        title: "Tu as utilisé tes audits ce mois-ci 🌸",
+        description: plan === "free"
+          ? "Ton plan gratuit inclut 3 audits par mois. Passe au plan Outil pour des audits illimités !"
+          : "Tes crédits d'audit se renouvellent le 1er du mois prochain.",
+        variant: "default",
+      });
+      return;
+    }
+
     setLastSubmitData(form);
     setLastError(null);
     setAnalyzing(true);
@@ -685,6 +700,31 @@ export default function InstagramAudit() {
             ? "Mets à jour tes infos et relance l'analyse."
             : "Remplis les infos de ton profil. On analyse tout et on te donne un score avec des recommandations concrètes."}
         </p>
+        {!canAudit() && (
+          <div className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 mb-6">
+            <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-amber-800">
+                Tu as utilisé tes {remainingAudits() === 0 ? "3" : ""} audits ce mois-ci
+              </p>
+              <p className="text-sm text-amber-700 mt-0.5">
+                {plan === "free"
+                  ? "Ton plan gratuit inclut 3 audits/mois. Passe au plan Outil pour des audits illimités !"
+                  : "Tes crédits se renouvellent le 1er du mois prochain."}
+              </p>
+              {plan === "free" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-2 rounded-full text-amber-800 border-amber-300 hover:bg-amber-100"
+                  onClick={() => navigate("/pricing")}
+                >
+                  Voir les plans →
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
         {showDiagBanner && (
           <div className="mb-6">
             <DiagnosticCacheBanner diagnosticData={diagCache} domain="instagram" onRelaunch={() => {}} />
