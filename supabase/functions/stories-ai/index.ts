@@ -293,6 +293,7 @@ Réponds en JSON strict :
 {
   "structure_type": "quotidien",
   "structure_label": "5 stories du quotidien",
+  "narrative_angle": "journal_bord",
   "total_stories": 5,
   "estimated_time": "10 min",
   "stickers_used": ["..."],
