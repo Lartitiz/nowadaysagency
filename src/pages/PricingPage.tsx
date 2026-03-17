@@ -32,7 +32,7 @@ const SECTIONS = [
   {
     title: "Création de contenu",
     rows: [
-      { label: "Contenus IA par mois", free: "60/mois", outil: "Illimités", studio: "Illimités" },
+      { label: "Contenus IA par mois", free: "30/mois", outil: "Illimités", studio: "Illimités" },
       { label: "Posts Instagram", free: true, outil: true, studio: true },
       { label: "Reels", free: true, outil: true, studio: true },
       { label: "Stories", free: true, outil: true, studio: true },
