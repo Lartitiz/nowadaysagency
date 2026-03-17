@@ -116,10 +116,7 @@ serve(async (req) => {
     // Check quota
     const quotaCheck = await checkQuota(user.id, "audit", workspace_id);
     if (!quotaCheck.allowed) {
-      return new Response(
-        JSON.stringify({ error: "limit_reached", message: quotaCheck.message, remaining: 0 }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return quotaDeniedResponse(quotaCheck, corsHeaders);
     }
 
     // Server-side: convert screenshot URLs to base64 if no base64 images provided
