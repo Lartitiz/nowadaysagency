@@ -277,7 +277,7 @@ function buildDailyPrompt(prefix: string): string {
 Génère 5 stories du quotidien personnalisées. Aujourd'hui on est ${new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}.
 
 Les 5 stories suivent cette structure :
-1. 🌅 L'ouverture : ce qu'elle fait / sa journée (connexion)
+1. 🌅 L'ouverture : ce que la personne fait / sa journée (connexion)
 2. ☀️ L'observation : un truc lié à son expertise (éducation)
 3. ☀️ La question : demander l'avis (engagement + sticker)
 4. 🌙 Le conseil : un tip actionnable en 1 story (valeur)
