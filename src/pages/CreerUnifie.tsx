@@ -1058,6 +1058,7 @@ export default function CreerUnifie() {
         stories: r.stories || r.sequences,
         structure_type: r.structure_type,
         structure_label: r.structure_label,
+        narrative_angle: r.narrative_angle || null,
         stickers_used: r.stickers_used,
         garde_fou_alerte: r.garde_fou_alerte,
         personal_tip: r.personal_tip,
