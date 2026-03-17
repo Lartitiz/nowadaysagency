@@ -106,6 +106,8 @@ export async function callAnthropicWithMeta(options: AnthropicOptions): Promise<
     body.temperature = options.temperature;
   }
 
+  let lastError: Error | null = null;
+
   console.log(JSON.stringify({
     type: "ai_call_debug_meta",
     model: options.model,
@@ -113,27 +115,95 @@ export async function callAnthropicWithMeta(options: AnthropicOptions): Promise<
     timestamp: new Date().toISOString(),
   }));
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-      "anthropic-beta": "prompt-caching-2024-07-31",
-    },
-    body: JSON.stringify(body),
-  });
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    if (attempt > 0) {
+      const delay = RETRY_DELAYS[attempt - 1] || 6000;
+      console.log(`AnthropicWithMeta retry ${attempt}/${MAX_RETRIES} after ${delay}ms...`);
+      await new Promise((r) => setTimeout(r, delay));
+    }
 
-  if (!response.ok) {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-beta": "prompt-caching-2024-07-31",
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      return {
+        text: data.content?.[0]?.text || "",
+        stop_reason: data.stop_reason || null,
+      };
+    }
+
     const errorText = await response.text();
-    throw new AnthropicError(`Erreur API Anthropic: ${response.status} — ${errorText}`, response.status);
+    console.error(JSON.stringify({
+      type: "ai_error_meta",
+      model: options.model,
+      error: `Anthropic API error: ${response.status}`,
+      status: response.status,
+      attempt: attempt + 1,
+      timestamp: new Date().toISOString(),
+    }));
+
+    // Retryable: 429, 500, 529
+    if ((response.status === 429 || response.status === 500 || response.status === 529) && attempt < MAX_RETRIES) {
+      lastError = new AnthropicError(
+        response.status === 429
+          ? "Trop de requêtes, réessai en cours..."
+          : response.status === 500
+          ? "Erreur serveur IA, réessai en cours..."
+          : "L'IA est surchargée, réessai en cours...",
+        response.status
+      );
+      continue;
+    }
+
+    // Fallback Opus → Sonnet
+    if ((response.status === 529 || response.status === 500) && options.model === "claude-opus-4-6") {
+      console.log("Opus overloaded after retries (meta) — falling back to Sonnet...");
+      const fallbackBody = { ...body, model: "claude-sonnet-4-5-20250929" };
+      const fallbackRes = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+          "anthropic-beta": "prompt-caching-2024-07-31",
+        },
+        body: JSON.stringify(fallbackBody),
+      });
+      if (fallbackRes.ok) {
+        const data = await fallbackRes.json();
+        return {
+          text: data.content?.[0]?.text || "",
+          stop_reason: data.stop_reason || null,
+        };
+      }
+      await fallbackRes.text();
+    }
+
+    // Non-retryable or last attempt
+    if (response.status === 429) {
+      throw new AnthropicError("Trop de requêtes. Réessaie dans un moment.", 429);
+    }
+    if (response.status === 529 || response.status === 500) {
+      throw new AnthropicError("L'IA est temporairement indisponible. Réessaie dans quelques minutes.", response.status);
+    }
+    if (response.status === 402 || response.status === 400) {
+      let msg = errorText;
+      try { msg = JSON.parse(errorText).error?.message || errorText; } catch {}
+      throw new AnthropicError(`Erreur API: ${msg}`, response.status);
+    }
+    throw new AnthropicError(`Erreur API Anthropic: ${response.status}`, response.status);
   }
 
-  const data = await response.json();
-  return {
-    text: data.content?.[0]?.text || "",
-    stop_reason: data.stop_reason || null,
-  };
+  throw lastError || new Error("Erreur inattendue lors de l'appel à l'IA");
 }
 
 export async function callAnthropic(options: AnthropicOptions): Promise<string> {
