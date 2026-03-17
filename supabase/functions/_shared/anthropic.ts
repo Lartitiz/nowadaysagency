@@ -77,6 +77,65 @@ export function getModelForRichContent(
 const MAX_RETRIES = 2;
 const RETRY_DELAYS = [3000, 6000]; // ms
 
+export interface AnthropicResult {
+  text: string;
+  stop_reason: string | null;
+}
+
+export async function callAnthropicWithMeta(options: AnthropicOptions): Promise<AnthropicResult> {
+  const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
+  if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not configured");
+
+  const body: any = {
+    model: options.model,
+    messages: options.messages,
+    max_tokens: options.max_tokens || 4096,
+  };
+
+  if (options.system) {
+    body.system = [
+      {
+        type: "text",
+        text: options.system,
+        cache_control: { type: "ephemeral" }
+      }
+    ];
+  }
+
+  if (options.temperature !== undefined) {
+    body.temperature = options.temperature;
+  }
+
+  console.log(JSON.stringify({
+    type: "ai_call_debug_meta",
+    model: options.model,
+    max_tokens: body.max_tokens,
+    timestamp: new Date().toISOString(),
+  }));
+
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "anthropic-beta": "prompt-caching-2024-07-31",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new AnthropicError(`Erreur API Anthropic: ${response.status} — ${errorText}`, response.status);
+  }
+
+  const data = await response.json();
+  return {
+    text: data.content?.[0]?.text || "",
+    stop_reason: data.stop_reason || null,
+  };
+}
+
 export async function callAnthropic(options: AnthropicOptions): Promise<string> {
   const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not configured");

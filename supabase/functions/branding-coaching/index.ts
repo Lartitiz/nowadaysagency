@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { callAnthropic, getDefaultModel } from "../_shared/anthropic.ts";
+import { callAnthropic, callAnthropicWithMeta, getDefaultModel } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
@@ -399,13 +399,35 @@ serve(async (req) => {
       });
     }
 
-    const rawResponse = await callAnthropic({
+    // Appel IA avec détection de troncation
+    let rawResponse: string;
+    let wasTruncated = false;
+
+    const aiResult = await callAnthropicWithMeta({
       model: getDefaultModel(),
       system: systemPrompt,
       messages: mergedMessages,
       temperature: 0.7,
       max_tokens: 4096,
     });
+    rawResponse = aiResult.text;
+    wasTruncated = aiResult.stop_reason === "max_tokens";
+
+    if (wasTruncated) {
+      console.warn("[BrandingCoaching] Response truncated (max_tokens reached). Retrying with higher limit...");
+      const retryResult = await callAnthropicWithMeta({
+        model: getDefaultModel(),
+        system: systemPrompt + "\n\nATTENTION : ta réponse précédente a été tronquée car trop longue. Sois CONCIS. La question doit faire 1-2 phrases max. Les extracted_insights doivent être courts. Pas de remaining_topics si la liste est longue.",
+        messages: mergedMessages,
+        temperature: 0.7,
+        max_tokens: 6000,
+      });
+      rawResponse = retryResult.text;
+      wasTruncated = retryResult.stop_reason === "max_tokens";
+      if (wasTruncated) {
+        console.error("[BrandingCoaching] Response STILL truncated after retry.");
+      }
+    }
 
     let parsed;
     const cleaned = rawResponse.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
@@ -419,9 +441,9 @@ serve(async (req) => {
         try {
           parsed = JSON.parse(cleaned.slice(start, end + 1));
         } catch {
-          console.error("JSON parse failed. Raw response:", rawResponse);
+          console.error("JSON parse failed after truncation handling. Raw:", rawResponse);
           parsed = {
-            question: cleaned.length > 0 ? cleaned : "Peux-tu reformuler ta réponse ?",
+            question: cleaned.length > 20 ? cleaned.slice(0, 200) + "..." : "Peux-tu reformuler ta réponse ?",
             question_type: "textarea",
             placeholder: "Ta réponse...",
             is_complete: false,
@@ -433,7 +455,7 @@ serve(async (req) => {
       } else {
         console.error("No JSON found in response:", rawResponse);
         parsed = {
-          question: cleaned.length > 0 ? cleaned : "Peux-tu reformuler ta réponse ?",
+          question: cleaned.length > 20 ? cleaned.slice(0, 200) + "..." : "Peux-tu reformuler ta réponse ?",
           question_type: "textarea",
           placeholder: "Ta réponse...",
           is_complete: false,
