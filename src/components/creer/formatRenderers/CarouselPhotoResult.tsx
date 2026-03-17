@@ -158,6 +158,20 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
   const [slides, setSlides] = useState<any[]>(r?.slides || []);
   const [caption, setCaption] = useState<any>(r?.caption || {});
   const [hashtagInput, setHashtagInput] = useState((r?.caption?.hashtags || []).join(" "));
+
+  const prevSignature = useRef(JSON.stringify((r?.slides || []).map((s: any) => s.slide_number)));
+
+  useEffect(() => {
+    const currentSlides = r?.slides || [];
+    const newSig = JSON.stringify(currentSlides.map((s: any) => s.slide_number));
+    if (newSig !== prevSignature.current) {
+      setSlides(currentSlides);
+      setCaption(r?.caption || {});
+      setHashtagInput((r?.caption?.hashtags || []).join(" "));
+      prevSignature.current = newSig;
+    }
+  }, [result]);
+
   const qualityCheck = r?.quality_check;
 
   const notify = useCallback(

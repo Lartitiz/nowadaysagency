@@ -13,6 +13,16 @@ export default function StoryResult({ result, onStoriesUpdate }: Props) {
   const rawStories: any[] = result?.stories || result?.sequences || result?.slides || [];
   const [stories, setStories] = useState(rawStories);
 
+  const prevSignature = useRef(JSON.stringify(rawStories.map((_: any, i: number) => i)));
+
+  useEffect(() => {
+    const newSig = JSON.stringify(rawStories.map((_: any, i: number) => i));
+    if (newSig !== prevSignature.current) {
+      setStories(rawStories);
+      prevSignature.current = newSig;
+    }
+  }, [result]);
+
   const fullText = stories
     .map((s: any) => s.text || s.texte || s.content || "")
     .filter(Boolean)
