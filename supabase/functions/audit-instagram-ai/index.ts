@@ -183,6 +183,12 @@ serve(async (req) => {
       if (atd.postsPerMonth) lines.push(`- Posts publiés ce mois : ${atd.postsPerMonth}`);
       if (atd.frequency) lines.push(`- Fréquence de publication : ${atd.frequency}`);
       if (atd.pillars?.length) lines.push(`- Piliers de contenu : ${atd.pillars.join(", ")}`);
+      // Best/worst posts comments from the user
+      if (atd.bestPostsComment) lines.push(`- Ce qui marche le mieux selon l'utilisateur·ice : "${atd.bestPostsComment}"`);
+      if (atd.worstPostsComment) lines.push(`- Ce qui marche le moins selon l'utilisateur·ice : "${atd.worstPostsComment}"`);
+      // Best/worst post URLs (for reference in text-only mode)
+      if (atd.bestPostUrls?.length) lines.push(`- URLs des posts qui marchent : ${atd.bestPostUrls.join(", ")}`);
+      if (atd.worstPostUrls?.length) lines.push(`- URLs des posts qui ne marchent pas : ${atd.worstPostUrls.join(", ")}`);
       profileTextBlock = "\nPROFIL INSTAGRAM (saisi par l'utilisatrice) :\n" + lines.join("\n");
     }
 
