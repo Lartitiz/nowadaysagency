@@ -11,7 +11,7 @@ import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { friendlyError } from "@/lib/error-messages";
-import { Loader2, Sparkles, BarChart3, RotateCcw, AlertTriangle } from "lucide-react";
+import { Loader2, Sparkles, BarChart3, RotateCcw } from "lucide-react";
 import AiLoadingIndicator from "@/components/AiLoadingIndicator";
 import { useDiagnosticCache } from "@/hooks/use-diagnostic-cache";
 import DiagnosticCacheBanner from "@/components/audit/DiagnosticCacheBanner";
@@ -24,6 +24,7 @@ import ContentAnalysisResults from "@/components/audit/ContentAnalysisResults";
 import { calculateAuditScore, type ProfileForScore } from "@/lib/audit-score";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import { useUserPlan } from "@/hooks/use-user-plan";
+import QuotaExhaustedCard from "@/components/QuotaExhaustedCard";
 
 const AUDIT_LOADING_MESSAGES = [
   { time: 0, text: "📱 Lecture de ton profil..." },
@@ -59,6 +60,7 @@ export default function InstagramAudit() {
   const [hasExistingAudit, setHasExistingAudit] = useState(false);
   const [lastSubmitData, setLastSubmitData] = useState<AuditFormData | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
+  const [quotaExhausted, setQuotaExhausted] = useState<{ message?: string } | null>(null);
 
   // Progressive loading messages during audit
   useEffect(() => {
@@ -140,18 +142,13 @@ export default function InstagramAudit() {
 
     // Pre-check: block if no audit credits left
     if (!canAudit()) {
-      toast({
-        title: "Tu as utilisé tes audits ce mois-ci 🌸",
-        description: plan === "free"
-          ? "Ton plan gratuit inclut 3 audits par mois. Passe au plan Outil pour des audits illimités !"
-          : "Tes crédits d'audit se renouvellent le 1er du mois prochain.",
-        variant: "default",
-      });
+      setQuotaExhausted({ message: "" });
       return;
     }
 
     setLastSubmitData(form);
     setLastError(null);
+    setQuotaExhausted(null);
     setAnalyzing(true);
 
     try {
@@ -231,7 +228,7 @@ export default function InstagramAudit() {
       if (res.error) {
         const errorMsg = res.error.message || "";
         if (errorMsg.includes("limit_reached") || (res.error as any).context?.body?.error === "limit_reached") {
-          toast({ title: "Tu as utilisé tes audits ce mois-ci 🌸", description: "Ils se renouvellent le 1er du mois, ou tu peux passer au Premium pour plus d'audits.", variant: "default" });
+          setQuotaExhausted({ message: (res.error as any).context?.body?.message || errorMsg });
           setAnalyzing(false);
           return;
         }
@@ -240,7 +237,7 @@ export default function InstagramAudit() {
 
       // Fallback check in case data contains error
       if (res.data?.error === "limit_reached") {
-        toast({ title: "Tu as utilisé tes audits ce mois-ci 🌸", description: res.data.message || "Ils se renouvellent le 1er du mois, ou tu peux passer au Premium pour plus d'audits.", variant: "default" });
+        setQuotaExhausted({ message: res.data.message || "" });
         setAnalyzing(false);
         return;
       }
@@ -360,6 +357,12 @@ export default function InstagramAudit() {
       toast({ title: "Audit terminé !" });
     } catch (e: any) {
       console.error("Erreur technique:", e);
+      const errStr = e?.message || String(e);
+      if (/quota|crédit|limit_reached|limit/i.test(errStr)) {
+        setQuotaExhausted({ message: "" });
+        setAnalyzing(false);
+        return;
+      }
       const msg = friendlyError(e);
       setLastError(msg);
       toast({ title: "Erreur", description: msg, variant: "destructive" });
@@ -700,30 +703,12 @@ export default function InstagramAudit() {
             ? "Mets à jour tes infos et relance l'analyse."
             : "Remplis les infos de ton profil. On analyse tout et on te donne un score avec des recommandations concrètes."}
         </p>
-        {!canAudit() && (
-          <div className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 mb-6">
-            <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
-            <div>
-              <p className="text-sm font-medium text-amber-800">
-                Tu as utilisé tes {remainingAudits() === 0 ? "3" : ""} audits ce mois-ci
-              </p>
-              <p className="text-sm text-amber-700 mt-0.5">
-                {plan === "free"
-                  ? "Ton plan gratuit inclut 3 audits/mois. Passe au plan Outil pour des audits illimités !"
-                  : "Tes crédits se renouvellent le 1er du mois prochain."}
-              </p>
-              {plan === "free" && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-2 rounded-full text-amber-800 border-amber-300 hover:bg-amber-100"
-                  onClick={() => navigate("/pricing")}
-                >
-                  Voir les plans →
-                </Button>
-              )}
-            </div>
-          </div>
+        {(quotaExhausted || !canAudit()) && !analyzing && (
+          <QuotaExhaustedCard
+            category="audits"
+            renewalMessage={quotaExhausted?.message || undefined}
+            plan={plan}
+          />
         )}
         {showDiagBanner && (
           <div className="mb-6">
