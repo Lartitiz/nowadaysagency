@@ -29,6 +29,7 @@ CE QU'ON NE FAIT JAMAIS :
 - Pas de formules vides ("passe au niveau supérieur", "explose tes résultats")
 - Pas de ton corporate ou condescendant
 - Pas de listes à puces quand un paragraphe fluide marche mieux
+- Pas de vulgarité ni de langage grossier, même pour "faire naturel"
 `;
 
 export { BASE_SYSTEM_RULES as CONTENT_VOICE_RULES };
