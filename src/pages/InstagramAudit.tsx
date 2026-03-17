@@ -137,6 +137,19 @@ export default function InstagramAudit() {
 
   const handleSubmit = async (form: AuditFormData) => {
     if (!user) return;
+
+    // Pre-check: block if no audit credits left
+    if (!canAudit()) {
+      toast({
+        title: "Tu as utilisé tes audits ce mois-ci 🌸",
+        description: plan === "free"
+          ? "Ton plan gratuit inclut 3 audits par mois. Passe au plan Outil pour des audits illimités !"
+          : "Tes crédits d'audit se renouvellent le 1er du mois prochain.",
+        variant: "default",
+      });
+      return;
+    }
+
     setLastSubmitData(form);
     setLastError(null);
     setAnalyzing(true);
