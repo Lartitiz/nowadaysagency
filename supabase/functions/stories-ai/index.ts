@@ -214,7 +214,7 @@ Réponds UNIQUEMENT avec le JSON.`;
     // Build enriched subject from SubjectPicker
     let enrichedSubject = subject || "";
     if (subject_details) {
-      enrichedSubject += `\n\nCE QU'ELLE VEUT DIRE (utilise SES mots, SES expressions, SES analogies) :\n"${subject_details}"`;
+      enrichedSubject += `\n\nCE QUE LA PERSONNE VEUT DIRE (utilise ses mots, ses expressions, ses analogies) :\n"${subject_details}"`;
     }
     if (raw_idea && clarify_context) {
       enrichedSubject = raw_idea;
