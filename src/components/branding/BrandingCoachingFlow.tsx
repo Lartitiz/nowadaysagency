@@ -361,6 +361,31 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
         return null;
       }
 
+      // Validation supplémentaire : détecter les réponses tronquées
+      if (parsed.question && !parsed.is_complete) {
+        const q = parsed.question.trim();
+        const seemsTruncated = q.endsWith("...") && q.length > 150;
+        if (seemsTruncated) {
+          console.warn("[BrandingCoaching] Question may be truncated, cleaning up:", q.slice(-50));
+          const lastCleanEnd = Math.max(q.lastIndexOf("?"), q.lastIndexOf("."), q.lastIndexOf("!"));
+          if (lastCleanEnd > q.length * 0.5) {
+            parsed.question = q.slice(0, lastCleanEnd + 1);
+          }
+        }
+      }
+
+      // S'assurer que question_type a une valeur valide
+      if (!["text", "textarea", "select", "multi_select"].includes(parsed.question_type)) {
+        parsed.question_type = "textarea";
+      }
+
+      // S'assurer que completion_percentage est un nombre valide entre 0 et 100
+      if (typeof parsed.completion_percentage !== "number" || parsed.completion_percentage < 0) {
+        parsed.completion_percentage = 0;
+      } else if (parsed.completion_percentage > 100) {
+        parsed.completion_percentage = 100;
+      }
+
       return parsed;
     } catch (err) {
       console.error("[BrandingCoaching] Unexpected error:", err);
