@@ -71,7 +71,18 @@ export default function CharterTemplatesSection({
     }
   };
 
-  const removeTemplate = (idx: number) => {
+  const removeTemplate = async (idx: number) => {
+    const template = data.uploaded_templates[idx];
+    if (template?.url) {
+      const match = template.url.match(/\/brand-assets\/(.+)$/);
+      if (match) {
+        const extractedPath = decodeURIComponent(match[1]);
+        const { error } = await supabase.storage.from("brand-assets").remove([extractedPath]);
+        if (error) {
+          console.error("Storage delete error:", error.message);
+        }
+      }
+    }
     onDataChange({ uploaded_templates: data.uploaded_templates.filter((_: any, i: number) => i !== idx) });
   };
 
