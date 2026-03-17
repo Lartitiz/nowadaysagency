@@ -34,7 +34,7 @@ export default function CharterTemplatesSection({
     // Always use the authenticated user's ID for storage path (matches RLS policy)
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      toast.error("Vous devez être connectée pour uploader des fichiers");
+      toast.error("Tu dois être connecté·e pour uploader des fichiers");
       return;
     }
     const authUserId = user.id;
