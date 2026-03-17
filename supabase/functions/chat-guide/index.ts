@@ -213,18 +213,40 @@ async function buildContext(sb: any, userId: string, workspaceId?: string): Prom
   return lines.join("\n").slice(0, 2500);
 }
 
-/** Generate fallback suggestions */
+/** Generate fallback suggestions — variées selon le contexte */
 function generateFallbackSuggestions(contextBlock: string, profile: any, strat: any): string[] {
   const suggestions: string[] = [];
-  if (contextBlock.includes("Histoire : ❌")) suggestions.push("Raconter mon histoire de marque");
-  if (contextBlock.includes("Persona : ❌")) suggestions.push("Définir ma cliente idéale");
-  if (contextBlock.includes("Proposition de valeur : ❌")) suggestions.push("Formuler ma proposition de valeur");
-  if (contextBlock.includes("calendrier vide")) {
-    const activity = profile?.activite || profile?.type_activite;
-    suggestions.push(activity ? `Planifier un post sur ${activity}` : "Planifier mes posts de la semaine");
+  const activity = profile?.activite || profile?.type_activite || "";
+
+  // Priorité 1 : sections branding vides
+  if (contextBlock.includes("Histoire : ❌")) suggestions.push("Travailler mon storytelling");
+  if (contextBlock.includes("Persona : ❌") && suggestions.length < 3) suggestions.push("Définir mon client·e idéal·e");
+  if (contextBlock.includes("Proposition de valeur : ❌") && suggestions.length < 3) suggestions.push("Clarifier ma proposition de valeur");
+  if (contextBlock.includes("Ton et style : ❌") && suggestions.length < 3) suggestions.push("Trouver mon ton de communication");
+  if (contextBlock.includes("Stratégie : ❌") && suggestions.length < 3) suggestions.push("Définir ma stratégie de contenu");
+
+  // Priorité 2 : branding OK mais pas de contenu
+  if (suggestions.length === 0 && contextBlock.includes("calendrier vide")) {
+    suggestions.push(activity ? `Planifier mes posts de la semaine pour ${activity}` : "Planifier mes posts de la semaine");
   }
-  if (suggestions.length < 3 && profile?.activite) suggestions.push(`Créer un post sur mon métier de ${profile.activite}`);
-  if (suggestions.length < 3) suggestions.push("J'ai une question sur ma com'");
+
+  // Priorité 3 : suggestions variées selon l'activité
+  const varied = [
+    activity ? `Trouver 3 idées de contenu pour ${activity}` : "Trouver 3 idées de contenu",
+    "Faire le point sur ma com' ce mois-ci",
+    "Améliorer ma bio Instagram",
+    activity ? `Créer un post qui parle de mon métier` : "Créer mon premier post",
+    "Préparer ma routine d'engagement",
+    "Analyser ce qui fonctionne dans ma com'",
+  ];
+
+  // Ajouter des suggestions variées aléatoirement pour ne pas toujours avoir les mêmes
+  const shuffled = varied.sort(() => Math.random() - 0.5);
+  for (const s of shuffled) {
+    if (suggestions.length >= 3) break;
+    if (!suggestions.includes(s)) suggestions.push(s);
+  }
+
   return suggestions.slice(0, 3);
 }
 
