@@ -823,7 +823,7 @@ export default function ChatGuidePage() {
                       className={cn(
                         "px-4 py-3 whitespace-pre-wrap",
                         msg.role === "user"
-                          ? "text-primary-foreground rounded-2xl rounded-tr-lg bg-primary"
+                          ? "text-foreground rounded-2xl rounded-tr-lg bg-[#FFD6E8]"
                           : "bg-background rounded-2xl rounded-tl-lg shadow-[0_1px_4px_rgba(0,0,0,0.06)]"
                       )}
                       style={{
