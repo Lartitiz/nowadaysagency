@@ -371,6 +371,13 @@ function AppHeaderInner() {
         </div>
       )}
 
+      <QuotaWallModal
+        open={quotaWallData.open}
+        onClose={() => setQuotaWallData(prev => ({ ...prev, open: false }))}
+        plan={quotaWallData.plan}
+        usage={quotaWallData.usage}
+        serverMessage={quotaWallData.message}
+      />
     </>
   );
 }
