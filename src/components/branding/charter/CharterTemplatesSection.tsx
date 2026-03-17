@@ -11,7 +11,7 @@ interface CharterData {
 interface CharterTemplatesSectionProps {
   data: CharterData;
   onDataChange: (updates: Partial<CharterData>) => void;
-  userId: string;
+  
   templatesUploading: boolean;
   setTemplatesUploading: React.Dispatch<React.SetStateAction<boolean>>;
   onAuditTemplates: () => void;
