@@ -458,7 +458,8 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo }: A
 
       {/* ── Screenshots ── */}
       <section className="space-y-3">
-        <h3 className="text-sm font-bold text-foreground">📸 SCREENSHOTS {rapidMode ? "(recommandé)" : "(optionnel, pour enrichir l'audit)"}</h3>
+        <h3 className="text-sm font-bold text-foreground">📸 SCREENSHOTS {rapidMode ? "(fortement recommandé pour un audit précis)" : "(recommandé pour enrichir l'audit)"}</h3>
+        <p className="text-xs text-muted-foreground -mt-1">Sans capture d'écran de ton feed, l'audit se base uniquement sur le texte que tu renseignes. Avec des screenshots, l'IA analyse aussi ton identité visuelle, ta cohérence graphique et l'ambiance de ton profil.</p>
         <div
           onClick={() => profileRef.current?.click()}
           onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.currentTarget.classList.add("border-primary", "bg-primary/5"); }}
