@@ -126,7 +126,7 @@ export function computeDiagnosticData(
   if (hasLi) priorities.push({ title: "Optimise ton profil LinkedIn", channel: "linkedin", impact: "medium", time: "25 min", route: "/linkedin/profil" });
 
   const channelScores: DiagnosticData["channelScores"] = [
-    { emoji: "🎨", label: "Branding", score: brandingScore },
+    { emoji: "🎨", label: "Identité", score: brandingScore },
   ];
   if (hasIg) channelScores.push({ emoji: "📱", label: "Instagram", score: igScore });
   if (hasWeb) channelScores.push({ emoji: "🌐", label: "Site web", score: webScore });
