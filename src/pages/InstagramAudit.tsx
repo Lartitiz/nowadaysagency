@@ -220,7 +220,7 @@ export default function InstagramAudit() {
             bestPostsComment: form.bestPostsComment || null,
             worstPostsComment: form.worstPostsComment || null,
           },
-          workspace_id: workspaceId,
+          workspace_id: workspaceId !== user.id ? workspaceId : undefined,
         },
       }, 180000);
 
