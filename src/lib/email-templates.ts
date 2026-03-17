@@ -117,9 +117,9 @@ export function creditsExhaustedEmail(vars?: TemplateVars): string {
   const prenom = vars?.prenom || "{{prenom}}";
   const app_url = vars?.app_url || "{{app_url}}";
 
-  return wrap("Tes 10 crédits IA sont utilisés !", `
+  return wrap("Tes 30 crédits IA sont utilisés !", `
 ${greeting(prenom)}
-${p(`Tes 10 crédits gratuits sont épuisés — et franchement, bravo. Ça veut dire que tu as testé, exploré, et commencé à poser les bases de ta com'. C'est déjà beaucoup. 💪`)}
+${p(`Tes 30 crédits gratuits sont épuisés — et franchement, bravo. Ça veut dire que tu as testé, exploré, et commencé à poser les bases de ta com'. C'est déjà beaucoup. 💪`)}
 ${p(`Si tu veux continuer à utiliser l'IA pour tes audits, tes contenus et ta stratégie, tu peux passer au plan <strong>Assistant Com'</strong> :`)}
 <ul style="margin:0 0 16px;padding-left:20px;font-size:15px;color:#1A1A1A;line-height:1.8;">
 <li>📊 <strong>300 crédits IA / mois</strong> — audits, génération, coaching</li>
