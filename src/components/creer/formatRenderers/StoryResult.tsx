@@ -2,7 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 
 interface Props {
   result: any;
