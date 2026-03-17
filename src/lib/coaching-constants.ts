@@ -8,7 +8,7 @@ export const FOCUS_TOPICS = [
   { value: "pinterest", label: "Pinterest", icon: "📌" },
   { value: "linkedin", label: "LinkedIn", icon: "💼" },
   { value: "launch", label: "Lancement d'offre / campagne", icon: "🚀" },
-  { value: "branding", label: "Branding / identité visuelle", icon: "🎨" },
+  { value: "branding", label: "Identité de marque", icon: "🎨" },
   { value: "automation", label: "Automatisation (ManyChat, emails)", icon: "🤖" },
   { value: "custom", label: "Autre (personnalisé)", icon: "✏️" },
 ] as const;
@@ -55,7 +55,7 @@ export const FIXED_SESSIONS = [
 
 export const DEFAULT_DELIVERABLES = [
   { title: "Audit de communication", type: "audit", route: "/branding/audit" },
-  { title: "Branding complet", type: "branding", route: "/branding" },
+  { title: "Identité complète", type: "branding", route: "/branding" },
   { title: "Portrait cible", type: "persona", route: "/branding/section?section=persona" },
   { title: "Offres reformulées", type: "offers", route: "/branding/offres" },
   { title: "Ligne éditoriale", type: "editorial", route: "/branding/section?section=content_strategy" },
