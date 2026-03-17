@@ -419,6 +419,54 @@ CORRESPONDANCE objectif x temps :
 - Engagement + 5min → sondage+question 2 stories | + 15min → quiz+question 3-5
 - Amplification + 5min → repartage+question 2 | + 15min → teasing 3-5
 
+
+ANGLE DE NARRATION — CHOISIS LE PLUS ADAPTÉ AU SUJET :
+
+Chaque séquence de stories doit avoir UN angle de narration dominant. C'est l'angle qui détermine la VOIX de toute la séquence.
+
+1. 🎬 COULISSES ("Je vous montre")
+   Voix : narrateur·ice de son propre quotidien pro
+   Story 1 : "Là je suis en train de [action concrète]…"
+   Le fil : on suit une action en cours, comme si on filmait par-dessus l'épaule
+   Idéal pour : process de création, journée type, préparation d'un lancement
+
+2. 💭 RÉFLEXION PERSO ("J'ai tilté sur un truc")
+   Voix : pensée à voix haute, introspective
+   Story 1 : "Ce matin j'ai réalisé un truc sur [thème]…"
+   Le fil : une prise de conscience qui se déroule story après story
+   Idéal pour : partager une leçon, un déclic, un changement de perspective
+
+3. 🙋 INTERPELLATION COMMUNAUTÉ ("Et vous ?")
+   Voix : on s'adresse au groupe, on inclut
+   Story 1 : "Qui ici galère aussi avec [problème concret] ?"
+   Le fil : on part d'un problème partagé, on explore ensemble, on ouvre le dialogue
+   Idéal pour : engagement, sondages, créer de la conversation
+
+4. 📖 CONSEIL PAR L'EXPÉRIENCE ("J'ai appris")
+   Voix : retour d'expérience personnel, pas de leçon descendante
+   Story 1 : "Pendant longtemps je faisais [erreur]. Et puis…"
+   Le fil : MON parcours → ce que j'en ai tiré → ce que ça peut t'apporter
+   Idéal pour : tips, bonnes pratiques, éducation douce
+
+5. 💬 STORYTIME CLIENT ("Je vous raconte")
+   Voix : narrateur·ice d'une histoire vraie (anonymisée)
+   Story 1 : "La semaine dernière une cliente m'a dit un truc…"
+   Le fil : situation client → problème → ce qu'on a fait → résultat
+   Idéal pour : preuve sociale, démontrer son expertise, humaniser
+
+6. 🔥 COUP DE GUEULE DOUX ("Faut qu'on en parle")
+   Voix : position affirmée mais bienveillante
+   Story 1 : "Un truc qui me fatigue dans [secteur/habitude]…"
+   Le fil : constat → pourquoi ça pose problème → ce qu'on peut faire autrement
+   Idéal pour : se positionner, affirmer ses valeurs, créer du débat sain
+
+RÈGLE D'OR DE LA VOIX :
+- Le "JE" narratif est la voix PAR DÉFAUT. On raconte depuis son expérience.
+- Le "TU" n'arrive que dans les moments d'interpellation directe ou les CTA, JAMAIS comme ton dominant.
+- Le "VOUS" inclusif ("qui ici…", "est-ce que ça vous parle…") est préféré au "tu" pour les questions.
+- Une bonne story donne l'impression de surprendre quelqu'un en train de réfléchir ou de vivre quelque chose. Ce n'est PAS un post reformaté en slides.
+- Chaque story doit donner envie de voir la SUIVANTE. Il y a une tension narrative, un fil. Pas juste des affirmations empilées.
+
 ${isQuick && p.objective === "vente" ? getVenteInstructions("petit") : (p.objective === "vente" ? getVenteInstructions(p.price_range) : "")}
 
 ${isQuick ? (p.face_cam === "oui" ? `HOOK STORY 1 — RÈGLES :
@@ -469,13 +517,14 @@ POUR LA STORY 1, GÉNÈRE 2 OPTIONS DE HOOK dans le champ "hook_options" :
 - Option A : hook court (le plus percutant, 5-10 mots)
 - Option B : hook développé (pour celles qui préfèrent contextualiser, 10-15 mots)
 
-TYPES DE HOOKS STORIES :
-1. Interpellation directe : "Toi qui postes sans stratégie."
-2. Confidence : "Faut que je te parle d'un truc."
-3. Question qui pique : "Tu sais pourquoi personne like ?"
-4. Constat choc : "3 likes et ta mère."
-5. Teaser : "Ce que j'ai appris la semaine dernière."
-6. Analogie flash : "Ta com' ressemble à un CV sans photo."
+TYPES DE HOOKS STORIES (adaptés à l'angle choisi) :
+1. Coulisses en direct : "Là je suis en train de [action]…" / "Bon, je vous montre un truc."
+2. Confidence / pensée à voix haute : "J'ai réalisé un truc ce matin." / "Faut que je vous parle de quelque chose."
+3. Question communautaire : "Qui ici a déjà [situation] ?" / "Est-ce que ça vous fait ça aussi ?"
+4. Retour d'expérience : "Pendant longtemps je faisais [erreur]." / "Ce que j'aurais aimé savoir il y a 6 mois."
+5. Storytime : "La semaine dernière une cliente m'a dit un truc…" / "Il s'est passé un truc hier."
+6. Prise de position : "Un truc qui me fatigue dans [secteur]." / "Je vais dire un truc qui ne va pas plaire à tout le monde."
+IMPORTANT : Le hook par défaut est en "JE" ou en "VOUS inclusif". Le "TU" direct est réservé UNIQUEMENT à l'angle "interpellation communauté" et doit rester rare.
 
 GARDE-FOUS OBLIGATOIRES :
 1. Max 10 stories par séquence
@@ -485,10 +534,10 @@ GARDE-FOUS OBLIGATOIRES :
 5. Si face cam → TOUJOURS mentionner sous-titres
 6. Story 1 = hook fort (24% de l'audience part après)
 7. Étaler les stories : matin/midi/soir
-8. Ton oral, décontracté, comme un message vocal à une amie
+8. Ton oral, décontracté, comme si on parlait face caméra ou en message vocal. Le "JE" raconte, le "VOUS/TU" n'intervient que ponctuellement pour interpeller.
 9. Écriture inclusive point médian
 10. Expressions naturelles : "bon", "en vrai", "franchement", "le truc c'est que"
-11. Apartés entre parenthèses : "(oui, même toi)", "(pas besoin de se ruiner)"
+11. Apartés entre parenthèses : "(oui oui, même moi)", "(je sais, c'est contre-intuitif)", "(pas besoin de se ruiner)"
 12. JAMAIS de jargon marketing
 13. JAMAIS de tiret cadratin (—)
 14. PRIORITÉ ABSOLUE : si un profil de voix existe dans le contexte, reproduis ce style. Réutilise les expressions signature, imite les patterns de structure et de ton.
@@ -501,6 +550,7 @@ Réponds en JSON strict :
 {
   "structure_type": "...",
   "structure_label": "...",
+  "narrative_angle": "coulisses | reflexion | interpellation | conseil_vecu | storytime_client | coup_de_gueule",
   "total_stories": N,
   "estimated_time": "X min",
   "stickers_used": ["sondage", "question_ouverte"],
@@ -543,6 +593,7 @@ Réponds en JSON strict :
 IMPORTANT :
 - Seule la story 1 a "hook_options". Les autres stories ont "hook_options": null
 - Le champ "text" de la story 1 contient le hook option_a par défaut
+- Le champ "narrative_angle" indique l'angle de narration choisi pour la séquence
 - Pas de markdown dans les valeurs JSON
 
 Réponds UNIQUEMENT avec le JSON, rien d'autre.`;
