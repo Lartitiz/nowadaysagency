@@ -379,6 +379,15 @@ const SiteAuditPage = () => {
       <main className="container max-w-3xl mx-auto px-4 py-8 space-y-6">
         <SubPageHeader parentLabel="Mon Site Web" parentTo="/site" currentLabel="Audit de conversion" />
 
+        {/* Quota exhausted card */}
+        {quotaExhausted && step === "input" && (
+          <QuotaExhaustedCard
+            category="audits"
+            renewalMessage={quotaExhausted.message || undefined}
+            plan={plan}
+          />
+        )}
+
         {/* ── STEP: Input (URL) ── */}
         {step === "input" && (
           <>

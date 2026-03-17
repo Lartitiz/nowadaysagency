@@ -283,7 +283,12 @@ export default function LinkedInAudit() {
       setStep(5); // results
       toast({ title: "Audit terminé ! 🎉" });
     } catch (e: any) {
-      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      const errStr = e?.message || String(e);
+      if (/quota|crédit|limit_reached|limit/i.test(errStr)) {
+        setQuotaExhausted({ message: "" });
+      } else {
+        toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      }
     } finally {
       setAnalyzing(false);
     }
