@@ -161,7 +161,7 @@ RÈGLES CRITIQUES :
 - Le sujet doit être une phrase accrocheuse, pas un titre académique
 - Varie les angles : coulisses perso, conseil actionnable, prise de position, témoignage client, behind-the-scenes
 
-EXEMPLES DE BONS SUJETS (si l'utilisatrice est coach en nutrition) :
+EXEMPLES DE BONS SUJETS (ex : si la personne est coach en nutrition) :
 ✅ "Ce que j'ai répondu à ma cliente qui voulait supprimer les glucides"
 ✅ "Mon organisation meal prep du dimanche en 3 stories"
 ✅ "Pourquoi je refuse de parler de calories avec mes clientes"
