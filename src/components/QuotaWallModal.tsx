@@ -53,7 +53,7 @@ export default function QuotaWallModal({ open, onClose, plan, usage }: QuotaWall
   const hasDetailedStats = contentUsed > 0 || auditUsed > 0 || coachUsed > 0;
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
       <DialogContent className="max-w-lg p-0 overflow-hidden border-0 gap-0">
         {/* Header gradient */}
         <div className="bg-gradient-to-b from-[#FFF4F8] to-white px-6 pt-8 pb-6 text-center">
