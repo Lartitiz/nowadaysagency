@@ -33,6 +33,11 @@ import { useUserPlan } from "@/hooks/use-user-plan";
 
 function LowCreditsBanner({ remaining, plan }: { remaining: number; plan: string }) {
   if (plan !== "free" || remaining >= 5 || remaining <= 0) return null;
+
+  useEffect(() => {
+    posthog.capture("low_credits_banner_shown", { remaining, plan });
+  }, []);
+
   const nextMonth = new Date();
   nextMonth.setMonth(nextMonth.getMonth() + 1, 1);
   return (
@@ -46,6 +51,7 @@ function LowCreditsBanner({ remaining, plan }: { remaining: number; plan: string
       </div>
       <a
         href="/mon-plan"
+        onClick={() => posthog.capture("low_credits_banner_cta_clicked", { remaining, plan })}
         className="shrink-0 text-xs font-medium text-orange-600 hover:text-orange-800 underline underline-offset-2 transition-colors"
       >
         Découvrir le Premium
