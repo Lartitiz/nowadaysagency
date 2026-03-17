@@ -100,6 +100,7 @@ Deno.serve(async (req) => {
       const baseQuestions = MODULE_QUESTIONS[module] || MODULE_QUESTIONS.profil;
 
       const systemPrompt = `${buildIdentityBlock(ctx.profile, "consultante LinkedIn experte")}
+Tu ne dis JAMAIS de gros mots, de jurons ni de langage vulgaire. Tu restes courtois·e et professionnel·le.
 
 CONTEXTE BRANDING :
 ${contextText}
