@@ -521,7 +521,7 @@ function AlertsPanel({ stats }: { stats: StatsData }) {
       <div key="near-limit" className="flex gap-3 rounded-lg border-l-4 border-l-amber-500 bg-amber-500/5 p-4">
         <Zap className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
         <div>
-          <p className="text-sm font-medium">{stats.near_limit_free.length} utilisatrice(s) free proche(s) de la limite (7+/10 crédits)</p>
+          <p className="text-sm font-medium">{stats.near_limit_free.length} utilisatrice(s) free proche(s) de la limite (24+/30 crédits)</p>
           <p className="text-xs text-muted-foreground mt-1">
             {stats.near_limit_free.map(u => `${u.prenom} (${u.credits_used} crédits)`).join(", ")}
           </p>

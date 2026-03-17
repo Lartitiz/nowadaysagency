@@ -83,7 +83,7 @@ ${p(`Ton espace est prêt. Voici ce que tu peux faire dès maintenant :`)}
 <li>✍️ <strong>Définir ta proposition de valeur</strong> — ce qui te différencie</li>
 <li>📝 <strong>Générer ton premier contenu</strong> avec l'IA</li>
 </ul>
-${p(`Tu as <strong>10 crédits IA gratuits</strong> pour explorer. Pas de piège, pas d'engagement.`)}
+${p(`Tu as <strong>30 crédits IA gratuits</strong> pour explorer. Pas de piège, pas d'engagement.`)}
 ${cta("Découvrir mon espace", `${app_url}/dashboard`)}
 ${p(`À très vite,<br><span style="color:#91014b;font-family:Georgia,'Libre Baskerville',serif;">Laetitia</span>`)}
   `);
@@ -117,9 +117,9 @@ export function creditsExhaustedEmail(vars?: TemplateVars): string {
   const prenom = vars?.prenom || "{{prenom}}";
   const app_url = vars?.app_url || "{{app_url}}";
 
-  return wrap("Tes 10 crédits IA sont utilisés !", `
+  return wrap("Tes 30 crédits IA sont utilisés !", `
 ${greeting(prenom)}
-${p(`Tes 10 crédits gratuits sont épuisés — et franchement, bravo. Ça veut dire que tu as testé, exploré, et commencé à poser les bases de ta com'. C'est déjà beaucoup. 💪`)}
+${p(`Tes 30 crédits gratuits sont épuisés — et franchement, bravo. Ça veut dire que tu as testé, exploré, et commencé à poser les bases de ta com'. C'est déjà beaucoup. 💪`)}
 ${p(`Si tu veux continuer à utiliser l'IA pour tes audits, tes contenus et ta stratégie, tu peux passer au plan <strong>Assistant Com'</strong> :`)}
 <ul style="margin:0 0 16px;padding-left:20px;font-size:15px;color:#1A1A1A;line-height:1.8;">
 <li>📊 <strong>300 crédits IA / mois</strong> — audits, génération, coaching</li>
@@ -192,7 +192,7 @@ ${p(`À très vite,<br><span style="color:#91014b;font-family:Georgia,'Libre Bas
 export const EMAIL_TEMPLATES = {
   welcome: { fn: welcomeEmail, subject: "Bienvenue dans L'Assistant Com' !" },
   tips_day3: { fn: tipsDay3Email, subject: "Le secret des comptes qui percent (indice : c'est pas l'algorithme)" },
-  credits_exhausted: { fn: creditsExhaustedEmail, subject: "Tes 10 crédits IA sont utilisés !" },
+  credits_exhausted: { fn: creditsExhaustedEmail, subject: "Tes 30 crédits IA sont utilisés !" },
   inactive_7d: { fn: inactive7dEmail, subject: "Ta com' t'attend (et elle est pas rancunière)" },
   teaser_premium: { fn: teaserPremiumEmail, subject: "Et si ta com' devenait un jeu ?" },
 } as const;

@@ -222,14 +222,14 @@ export function useUserPlan(): UserPlanState {
 function getDemoUsage(demoPlan: string, demoData: any): Record<string, CategoryUsage> {
   if (normalizePlan(demoPlan) === "free") {
     return {
-      content: { used: 18, limit: 25 },
-      audit: { used: 2, limit: 3 },
-      dm_comment: { used: 3, limit: 5 },
-      bio_profile: { used: 1, limit: 3 },
-      suggestion: { used: 1, limit: 2 },
-      import: { used: 0, limit: 1 },
-      adaptation: { used: 1, limit: 2 },
-      total: { used: 23, limit: 25 },
+      content: { used: 22, limit: 30 },
+      audit: { used: 2, limit: 30 },
+      dm_comment: { used: 0, limit: 30 },
+      bio_profile: { used: 0, limit: 30 },
+      suggestion: { used: 0, limit: 30 },
+      import: { used: 0, limit: 30 },
+      adaptation: { used: 0, limit: 30 },
+      total: { used: 26, limit: 30 },
     };
   }
   return {

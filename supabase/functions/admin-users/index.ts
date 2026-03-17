@@ -286,12 +286,12 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
     aiCountByUser.set(a.user_id, (aiCountByUser.get(a.user_id) || 0) + 1);
   }
 
-  // Near-limit free users (7+/10 credits)
+  // Near-limit free users (24+/30 credits)
   const nearLimitFree = [...aiCountByUser.entries()]
     .filter(([userId, count]) => {
       const sub = subsByUser.get(userId);
       const plan = sub?.plan || "free";
-      return plan === "free" && count >= 7 && userId !== adminUserId;
+      return plan === "free" && count >= 24 && userId !== adminUserId;
     })
     .map(([userId, count]) => {
       const prof = profiles.find((p: any) => p.user_id === userId);
