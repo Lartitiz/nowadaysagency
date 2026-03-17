@@ -534,7 +534,7 @@ GARDE-FOUS OBLIGATOIRES :
 5. Si face cam → TOUJOURS mentionner sous-titres
 6. Story 1 = hook fort (24% de l'audience part après)
 7. Étaler les stories : matin/midi/soir
-8. Ton oral, décontracté, comme un message vocal à une amie
+8. Ton oral, décontracté, comme si on parlait face caméra ou en message vocal. Le "JE" raconte, le "VOUS/TU" n'intervient que ponctuellement pour interpeller.
 9. Écriture inclusive point médian
 10. Expressions naturelles : "bon", "en vrai", "franchement", "le truc c'est que"
 11. Apartés entre parenthèses : "(oui, même toi)", "(pas besoin de se ruiner)"
