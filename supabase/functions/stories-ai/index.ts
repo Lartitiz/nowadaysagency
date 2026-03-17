@@ -143,7 +143,7 @@ Réponds UNIQUEMENT avec le JSON.`;
 - Imite les patterns de ton et de structure
 - Le contenu doit sonner comme s'il avait été écrit par l'utilisateur·ice, pas par une IA
 
-${buildIdentityBlock(ctx.profile, "experte en stories Instagram")}
+${buildIdentityBlock(ctx.profile, "expert·e en stories Instagram")}
 
 ${ANTI_SLOP}
 
