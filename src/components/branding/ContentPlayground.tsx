@@ -61,7 +61,7 @@ export default function ContentPlayground({ section }: Props) {
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Non connectée");
+      if (!session) throw new Error("Non connecté·e");
 
       const { data: profileData } = await (supabase
         .from("profiles") as any)
