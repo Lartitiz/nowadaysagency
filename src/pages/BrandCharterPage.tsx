@@ -643,6 +643,7 @@ export default function BrandCharterPage() {
           <SaveIndicator saved={saved} saving={saving} />
         </div>
 
+        <div className="mb-6">
         <CharterTemplatesSection
           data={data}
           onDataChange={(updates) => { setData(prev => ({ ...prev, ...updates })); triggerSave(); }}
