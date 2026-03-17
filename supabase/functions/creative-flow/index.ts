@@ -356,8 +356,7 @@ PROFONDEUR :
           ? (LINKEDIN_TEMPLATES as any)[editorialFormat]
           : "";
 
-        depthMandate = `ANTI-BROETRY :
-Pas de phrases seules sur une ligne pour faire dramatique. Des paragraphes de 2-3 phrases qui développent une idée. Le rythme vient du contraste entre paragraphes et phrases courtes qui ponctuent, pas des sauts de ligne systématiques.
+        depthMandate = `${ANTI_BROETRY_LINKEDIN}
 
 FORMAT : POST LINKEDIN (1300-2000 caractères)
 
