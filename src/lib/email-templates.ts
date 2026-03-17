@@ -83,7 +83,7 @@ ${p(`Ton espace est prêt. Voici ce que tu peux faire dès maintenant :`)}
 <li>✍️ <strong>Définir ta proposition de valeur</strong> — ce qui te différencie</li>
 <li>📝 <strong>Générer ton premier contenu</strong> avec l'IA</li>
 </ul>
-${p(`Tu as <strong>10 crédits IA gratuits</strong> pour explorer. Pas de piège, pas d'engagement.`)}
+${p(`Tu as <strong>30 crédits IA gratuits</strong> pour explorer. Pas de piège, pas d'engagement.`)}
 ${cta("Découvrir mon espace", `${app_url}/dashboard`)}
 ${p(`À très vite,<br><span style="color:#91014b;font-family:Georgia,'Libre Baskerville',serif;">Laetitia</span>`)}
   `);
