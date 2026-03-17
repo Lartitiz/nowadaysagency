@@ -177,6 +177,7 @@ export default function BrandingAuditPage() {
     if (!hasSource) return;
     setLoading(true);
     setResult(null);
+    setQuotaExhausted(null);
 
     try {
       let documentText: string | undefined;
