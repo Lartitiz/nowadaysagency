@@ -284,9 +284,17 @@ const SiteAuditPage = () => {
       setStep("auto-results");
     } catch (e: any) {
       console.error("[audit-site-auto] Error:", e);
-      if (e?.isTimeout) toast.error("L'audit prend plus de temps que prévu. Réessaie.", { duration: 8000 });
-      else toast.error(friendlyError(e), { duration: 8000 });
-      setStep("input");
+      const errStr = e?.message || String(e);
+      if (/quota|crédit|limit_reached|limit/i.test(errStr)) {
+        setQuotaExhausted({ message: "" });
+        setStep("input");
+      } else if (e?.isTimeout) {
+        toast.error("L'audit prend plus de temps que prévu. Réessaie.", { duration: 8000 });
+        setStep("input");
+      } else {
+        toast.error(friendlyError(e), { duration: 8000 });
+        setStep("input");
+      }
     } finally {
       setAnalyzing(false);
     }
