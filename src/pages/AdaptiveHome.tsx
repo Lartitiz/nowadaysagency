@@ -127,7 +127,7 @@ const TOUR_STEPS = [
 
 /* ── Mini-cards data ── */
 const MINI_CARDS = [
-  { emoji: "🎨", title: "Mon branding", subtitle: "Affiner mon identité", bg: "bg-accent/10", route: "/branding" },
+  { emoji: "🎨", title: "Mon identité", subtitle: "Affiner mon identité", bg: "bg-accent/10", route: "/branding" },
   { emoji: "🔍", title: "Lancer un audit", subtitle: "Instagram ou site web", bg: "bg-[hsl(var(--bento-blue))]", route: "/instagram/audit" },
   { emoji: "💬", title: "Ma routine", subtitle: "15 min d'engagement", bg: "bg-rose-pale", route: "/instagram/routine" },
   { emoji: "📅", title: "Mon calendrier", subtitle: "Planifier mes contenus", bg: "bg-accent/10", route: "/calendrier" },

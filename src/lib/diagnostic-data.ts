@@ -175,7 +175,7 @@ export const DEMO_DIAGNOSTIC: DiagnosticData = {
     { emoji: "📱", label: "Instagram", score: 58 },
     { emoji: "🌐", label: "Site web", score: 71 },
     { emoji: "✉️", label: "Newsletter", score: 12 },
-    { emoji: "🎨", label: "Branding", score: 85 },
+    { emoji: "🎨", label: "Identité", score: 85 },
   ],
   scores: { total: 62, branding: 85, instagram: 58, website: 71, linkedin: null },
 };
