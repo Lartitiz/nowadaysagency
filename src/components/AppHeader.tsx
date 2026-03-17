@@ -124,6 +124,22 @@ function AppHeaderInner() {
   const [coachingMonth, setCoachingMonth] = useState<number | null>(null);
   const [coachingPhase, setCoachingPhase] = useState<string | null>(null);
 
+  // État pour le modal quota wall
+  const [quotaWallData, setQuotaWallData] = useState<{
+    open: boolean;
+    plan: string;
+    usage: Record<string, { used: number; limit: number }>;
+    message: string;
+  }>({ open: false, plan: "free", usage: {}, message: "" });
+
+  // Enregistrer le callback au montage
+  useEffect(() => {
+    registerQuotaWallCallback((data) => {
+      setQuotaWallData({ open: true, ...data });
+    });
+    return () => unregisterQuotaWallCallback();
+  }, []);
+
   // Check if user has an active coaching program
   useEffect(() => {
     if (!user) return;
