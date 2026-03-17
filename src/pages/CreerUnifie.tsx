@@ -1611,6 +1611,8 @@ export default function CreerUnifie() {
           />
         )}
 
+        <BrandingStatusBanner />
+
         {/* Tabs */}
         <Tabs value={mode} onValueChange={(v) => setMode(v as Mode)} className="mb-6">
           <TabsList className="w-full">
