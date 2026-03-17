@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, CalendarDays, Palette } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
+import BrandingStatusBanner from "@/components/content/BrandingStatusBanner";
 import CreerStepIdea from "@/components/creer/CreerStepIdea";
 import CreerStepFormat from "@/components/creer/CreerStepFormat";
 import CreerStepQuestions from "@/components/creer/CreerStepQuestions";
