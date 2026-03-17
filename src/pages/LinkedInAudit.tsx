@@ -14,6 +14,8 @@ import AiLoadingIndicator from "@/components/AiLoadingIndicator";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import { Link, useNavigate } from "react-router-dom";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
+import QuotaExhaustedCard from "@/components/QuotaExhaustedCard";
+import { useUserPlan } from "@/hooks/use-user-plan";
 
 // ── Types ──
 type ScreenshotType = "profile" | "about" | "feed" | "experience" | "other";
