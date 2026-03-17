@@ -142,18 +142,13 @@ export default function InstagramAudit() {
 
     // Pre-check: block if no audit credits left
     if (!canAudit()) {
-      toast({
-        title: "Tu as utilisé tes audits ce mois-ci 🌸",
-        description: plan === "free"
-          ? "Ton plan gratuit inclut 3 audits par mois. Passe au plan Outil pour des audits illimités !"
-          : "Tes crédits d'audit se renouvellent le 1er du mois prochain.",
-        variant: "default",
-      });
+      setQuotaExhausted({ message: "" });
       return;
     }
 
     setLastSubmitData(form);
     setLastError(null);
+    setQuotaExhausted(null);
     setAnalyzing(true);
 
     try {
