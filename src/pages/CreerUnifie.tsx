@@ -33,14 +33,16 @@ import { useStreamingInvoke } from "@/hooks/use-streaming-invoke";
 import { useUserPlan } from "@/hooks/use-user-plan";
 
 function LowCreditsBanner({ remaining, plan }: { remaining: number; plan: string }) {
-  if (plan !== "free" || remaining >= 5 || remaining <= 0) return null;
+  const shouldShow = plan === "free" && remaining < 5 && remaining > 0;
 
   useEffect(() => {
-    posthog.capture("low_credits_banner_shown", { remaining, plan });
-  }, []);
+    if (shouldShow) {
+      posthog.capture("low_credits_banner_shown", { remaining, plan });
+    }
+  }, [shouldShow]);
 
-  const nextMonth = new Date();
-  nextMonth.setMonth(nextMonth.getMonth() + 1, 1);
+  if (!shouldShow) return null;
+
   return (
     <div className="mb-4 rounded-xl border border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50 px-4 py-3 flex items-center justify-between gap-3">
       <div className="flex items-center gap-2 min-w-0">
