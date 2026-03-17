@@ -419,6 +419,54 @@ CORRESPONDANCE objectif x temps :
 - Engagement + 5min → sondage+question 2 stories | + 15min → quiz+question 3-5
 - Amplification + 5min → repartage+question 2 | + 15min → teasing 3-5
 
+
+ANGLE DE NARRATION — CHOISIS LE PLUS ADAPTÉ AU SUJET :
+
+Chaque séquence de stories doit avoir UN angle de narration dominant. C'est l'angle qui détermine la VOIX de toute la séquence.
+
+1. 🎬 COULISSES ("Je vous montre")
+   Voix : narrateur·ice de son propre quotidien pro
+   Story 1 : "Là je suis en train de [action concrète]…"
+   Le fil : on suit une action en cours, comme si on filmait par-dessus l'épaule
+   Idéal pour : process de création, journée type, préparation d'un lancement
+
+2. 💭 RÉFLEXION PERSO ("J'ai tilté sur un truc")
+   Voix : pensée à voix haute, introspective
+   Story 1 : "Ce matin j'ai réalisé un truc sur [thème]…"
+   Le fil : une prise de conscience qui se déroule story après story
+   Idéal pour : partager une leçon, un déclic, un changement de perspective
+
+3. 🙋 INTERPELLATION COMMUNAUTÉ ("Et vous ?")
+   Voix : on s'adresse au groupe, on inclut
+   Story 1 : "Qui ici galère aussi avec [problème concret] ?"
+   Le fil : on part d'un problème partagé, on explore ensemble, on ouvre le dialogue
+   Idéal pour : engagement, sondages, créer de la conversation
+
+4. 📖 CONSEIL PAR L'EXPÉRIENCE ("J'ai appris")
+   Voix : retour d'expérience personnel, pas de leçon descendante
+   Story 1 : "Pendant longtemps je faisais [erreur]. Et puis…"
+   Le fil : MON parcours → ce que j'en ai tiré → ce que ça peut t'apporter
+   Idéal pour : tips, bonnes pratiques, éducation douce
+
+5. 💬 STORYTIME CLIENT ("Je vous raconte")
+   Voix : narrateur·ice d'une histoire vraie (anonymisée)
+   Story 1 : "La semaine dernière une cliente m'a dit un truc…"
+   Le fil : situation client → problème → ce qu'on a fait → résultat
+   Idéal pour : preuve sociale, démontrer son expertise, humaniser
+
+6. 🔥 COUP DE GUEULE DOUX ("Faut qu'on en parle")
+   Voix : position affirmée mais bienveillante
+   Story 1 : "Un truc qui me fatigue dans [secteur/habitude]…"
+   Le fil : constat → pourquoi ça pose problème → ce qu'on peut faire autrement
+   Idéal pour : se positionner, affirmer ses valeurs, créer du débat sain
+
+RÈGLE D'OR DE LA VOIX :
+- Le "JE" narratif est la voix PAR DÉFAUT. On raconte depuis son expérience.
+- Le "TU" n'arrive que dans les moments d'interpellation directe ou les CTA, JAMAIS comme ton dominant.
+- Le "VOUS" inclusif ("qui ici…", "est-ce que ça vous parle…") est préféré au "tu" pour les questions.
+- Une bonne story donne l'impression de surprendre quelqu'un en train de réfléchir ou de vivre quelque chose. Ce n'est PAS un post reformaté en slides.
+- Chaque story doit donner envie de voir la SUIVANTE. Il y a une tension narrative, un fil. Pas juste des affirmations empilées.
+
 ${isQuick && p.objective === "vente" ? getVenteInstructions("petit") : (p.objective === "vente" ? getVenteInstructions(p.price_range) : "")}
 
 ${isQuick ? (p.face_cam === "oui" ? `HOOK STORY 1 — RÈGLES :
