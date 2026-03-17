@@ -111,6 +111,8 @@ export default function LinkedInAudit() {
   const navigate = useNavigate();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
+  const { plan } = useUserPlan();
+  const [quotaExhausted, setQuotaExhausted] = useState<{ message?: string } | null>(null);
 
   const [step, setStep] = useState(0);
   const [analyzing, setAnalyzing] = useState(false);
