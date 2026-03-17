@@ -574,60 +574,7 @@ export default function InstagramAudit() {
             </div>
           )}
 
-          {/* Posts analysis section */}
-          {auditResult.posts_analysis && (
-            <div className="mt-8 space-y-4">
-              <h2 className="font-display text-lg font-bold text-foreground">📊 Analyse de tes posts</h2>
 
-              {auditResult.posts_analysis.best_posts_analysis && (
-                <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
-                  <h3 className="text-sm font-bold text-foreground">🟢 Ce qui marche</h3>
-                  {(auditResult.posts_analysis.best_posts_analysis as any[]).map((p: any, i: number) => (
-                    <div key={i} className="flex gap-3 items-start">
-                      {p.image_url && <img src={p.image_url} alt="Aperçu du post Instagram" className="w-16 h-16 rounded-lg object-cover flex-shrink-0" />}
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{p.title || `Post ${i + 1}`}</p>
-                        {p.metrics && <p className="text-xs text-muted-foreground">{p.metrics}</p>}
-                        <p className="text-sm text-foreground/80 mt-1">✅ {p.analysis}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {auditResult.posts_analysis.worst_posts_analysis && (
-                <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
-                  <h3 className="text-sm font-bold text-foreground">🔴 Ce qui marche moins</h3>
-                  {(auditResult.posts_analysis.worst_posts_analysis as any[]).map((p: any, i: number) => (
-                    <div key={i} className="flex gap-3 items-start">
-                      {p.image_url && <img src={p.image_url} alt="Aperçu du post Instagram" className="w-16 h-16 rounded-lg object-cover flex-shrink-0" />}
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{p.title || `Post ${i + 1}`}</p>
-                        {p.metrics && <p className="text-xs text-muted-foreground">{p.metrics}</p>}
-                        <p className="text-sm text-foreground/80 mt-1">⚠️ {p.analysis}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {auditResult.posts_analysis.patterns && (
-                <div className="rounded-2xl border border-border bg-card p-5 space-y-2">
-                  <h3 className="text-sm font-bold text-foreground">🎯 Patterns identifiés</h3>
-                  {(auditResult.posts_analysis.patterns as string[]).map((p: string, i: number) => (
-                    <p key={i} className="text-sm text-foreground">{i + 1}. {p}</p>
-                  ))}
-                </div>
-              )}
-
-              {auditResult.posts_analysis.recommendation && (
-                <div className="rounded-2xl border border-primary/30 bg-rose-pale p-5 space-y-2">
-                  <h3 className="text-sm font-bold text-foreground">💡 Recommandation contenu</h3>
-                  <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">{auditResult.posts_analysis.recommendation}</p>
-                </div>
-              )}
-            </div>
-          )}
 
           {(auditResult.content_analysis || auditResult.content_dna) && (
             <div className="mt-8">
