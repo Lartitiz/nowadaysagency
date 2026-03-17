@@ -43,6 +43,7 @@ export default function InstagramAudit() {
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const { diagnosticData: diagCache, isRecent: diagIsRecent } = useDiagnosticCache();
+  const { canAudit, remainingAudits, plan, isPaid } = useUserPlan();
 
   const [analyzing, setAnalyzing] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState("");
