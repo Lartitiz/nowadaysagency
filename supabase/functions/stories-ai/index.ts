@@ -593,6 +593,7 @@ Réponds en JSON strict :
 IMPORTANT :
 - Seule la story 1 a "hook_options". Les autres stories ont "hook_options": null
 - Le champ "text" de la story 1 contient le hook option_a par défaut
+- Le champ "narrative_angle" indique l'angle de narration choisi pour la séquence
 - Pas de markdown dans les valeurs JSON
 
 Réponds UNIQUEMENT avec le JSON, rien d'autre.`;
