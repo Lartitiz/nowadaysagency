@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
+import BrandingStatusBanner from "@/components/content/BrandingStatusBanner";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { useToast } from "@/hooks/use-toast";
@@ -153,6 +154,8 @@ export default function LinkedInPostGenerator() {
 
         <h1 className="font-display text-[22px] font-bold text-foreground mb-1">🔍 Analyser un post LinkedIn</h1>
         <p className="text-sm text-muted-foreground italic mb-6">Colle un post existant pour l'analyser et obtenir une version améliorée.</p>
+
+        <BrandingStatusBanner />
 
         {/* CTA vers /creer */}
         <div className="rounded-xl border border-primary/20 bg-[hsl(var(--rose-pale))] p-4 mb-6 flex items-center justify-between">
