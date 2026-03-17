@@ -21,7 +21,7 @@ interface CharterTemplatesSectionProps {
 export default function CharterTemplatesSection({
   data,
   onDataChange,
-  userId,
+  
   templatesUploading,
   setTemplatesUploading,
   onAuditTemplates,

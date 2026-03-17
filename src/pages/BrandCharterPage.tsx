@@ -647,7 +647,6 @@ export default function BrandCharterPage() {
         <CharterTemplatesSection
           data={data}
           onDataChange={(updates) => { setData(prev => ({ ...prev, ...updates })); triggerSave(); }}
-          userId={user?.id || ""}
           templatesUploading={templatesUploading}
           setTemplatesUploading={setTemplatesUploading}
           onAuditTemplates={handleAuditTemplates}
