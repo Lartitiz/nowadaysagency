@@ -124,7 +124,7 @@ serve(async (req) => {
       throw new Error("Aucune image n'a pu être téléchargée");
     }
 
-    const systemPrompt = `Tu es une directrice artistique experte en identité visuelle. Analyse ces visuels/templates et extrais-en l'identité graphique.
+    const systemPrompt = `Tu es un·e expert·e en direction artistique et identité visuelle. Analyse ces visuels/templates et extrais-en l'identité graphique.
 
 CHARTE GRAPHIQUE DÉCLARÉE PAR L'UTILISATRICE :
 ${charterContext}
