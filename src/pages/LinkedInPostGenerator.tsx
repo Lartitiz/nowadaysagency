@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
+import BrandingStatusBanner from "@/components/content/BrandingStatusBanner";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { useToast } from "@/hooks/use-toast";
