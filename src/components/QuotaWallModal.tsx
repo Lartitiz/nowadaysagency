@@ -1,6 +1,8 @@
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Sparkles, Calendar, ArrowRight } from "lucide-react";
+import { posthog } from "@/lib/posthog";
 import type { CategoryUsage } from "@/hooks/use-user-plan";
 
 interface QuotaWallModalProps {
@@ -13,6 +15,29 @@ interface QuotaWallModalProps {
 
 export default function QuotaWallModal({ open, onClose, plan, usage }: QuotaWallModalProps) {
   const navigate = useNavigate();
+
+  // Track modal open
+  useEffect(() => {
+    if (open) {
+      posthog.capture("quota_wall_shown", {
+        plan,
+        total_used: usage?.total?.used,
+        content_used: usage?.content?.used,
+        audit_used: usage?.audit?.used,
+      });
+    }
+  }, [open]);
+
+  const handleClose = () => {
+    posthog.capture("quota_wall_dismissed", { plan });
+    onClose();
+  };
+
+  const handleCtaClick = () => {
+    posthog.capture("quota_wall_cta_clicked", { plan });
+    onClose();
+    navigate("/mon-plan");
+  };
 
   const nextMonth = new Date();
   nextMonth.setMonth(nextMonth.getMonth() + 1, 1);
@@ -28,7 +53,7 @@ export default function QuotaWallModal({ open, onClose, plan, usage }: QuotaWall
   const hasDetailedStats = contentUsed > 0 || auditUsed > 0 || coachUsed > 0;
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
       <DialogContent className="max-w-lg p-0 overflow-hidden border-0 gap-0">
         {/* Header gradient */}
         <div className="bg-gradient-to-b from-[#FFF4F8] to-white px-6 pt-8 pb-6 text-center">
@@ -97,7 +122,7 @@ export default function QuotaWallModal({ open, onClose, plan, usage }: QuotaWall
           {/* CTA Premium */}
           {plan === "free" && (
             <button
-              onClick={() => { onClose(); navigate("/mon-plan"); }}
+              onClick={handleCtaClick}
               className="w-full flex items-center justify-center gap-2 rounded-full bg-[#FB3D80] px-6 py-3 text-sm font-medium text-white hover:bg-[#e0326f] transition-colors shadow-md hover:shadow-lg"
             >
               <Sparkles className="h-4 w-4" />

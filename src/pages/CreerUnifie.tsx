@@ -4,6 +4,7 @@ import { handleQuotaError } from "@/lib/quota-error-handler";
 import { useSearchParams, useLocation, useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { posthog } from "@/lib/posthog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -32,9 +33,16 @@ import { useStreamingInvoke } from "@/hooks/use-streaming-invoke";
 import { useUserPlan } from "@/hooks/use-user-plan";
 
 function LowCreditsBanner({ remaining, plan }: { remaining: number; plan: string }) {
-  if (plan !== "free" || remaining >= 5 || remaining <= 0) return null;
-  const nextMonth = new Date();
-  nextMonth.setMonth(nextMonth.getMonth() + 1, 1);
+  const shouldShow = plan === "free" && remaining < 5 && remaining > 0;
+
+  useEffect(() => {
+    if (shouldShow) {
+      posthog.capture("low_credits_banner_shown", { remaining, plan });
+    }
+  }, [shouldShow]);
+
+  if (!shouldShow) return null;
+
   return (
     <div className="mb-4 rounded-xl border border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50 px-4 py-3 flex items-center justify-between gap-3">
       <div className="flex items-center gap-2 min-w-0">
@@ -46,6 +54,7 @@ function LowCreditsBanner({ remaining, plan }: { remaining: number; plan: string
       </div>
       <a
         href="/mon-plan"
+        onClick={() => posthog.capture("low_credits_banner_cta_clicked", { remaining, plan })}
         className="shrink-0 text-xs font-medium text-orange-600 hover:text-orange-800 underline underline-offset-2 transition-colors"
       >
         Découvrir le Premium

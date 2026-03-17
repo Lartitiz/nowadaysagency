@@ -1,7 +1,9 @@
+import { useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Sparkles } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Progress } from "@/components/ui/progress";
+import { posthog } from "@/lib/posthog";
 import type { CategoryUsage } from "@/hooks/use-user-plan";
 
 interface AiCreditsCounterProps {
@@ -19,6 +21,22 @@ export default function AiCreditsCounter({ plan, usage }: AiCreditsCounterProps)
   const total = usage.total;
   const isUnlimited = !total || total.limit <= 0 || total.limit >= 9999;
 
+  // PostHog tracking — once per tier per session (hooks before early return)
+  const remaining = isUnlimited ? 0 : Math.max(0, total.limit - total.used);
+  const pctVal = isUnlimited ? 1 : remaining / total.limit;
+  const trackedTiers = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (isUnlimited) return;
+    if (pctVal <= 0.5 && pctVal > 0.2 && !trackedTiers.current.has("attention")) {
+      trackedTiers.current.add("attention");
+      posthog.capture("quota_warning_shown", { plan, remaining, total: total.limit, tier: "attention" });
+    }
+    if (pctVal < 0.2 && pctVal > 0 && !trackedTiers.current.has("urgence")) {
+      trackedTiers.current.add("urgence");
+      posthog.capture("quota_warning_shown", { plan, remaining, total: total.limit, tier: "urgence" });
+    }
+  }, [isUnlimited, pctVal, plan, remaining, total?.limit]);
+
   if (isUnlimited) {
     return (
       <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold bg-green-50 text-green-600">
@@ -28,8 +46,7 @@ export default function AiCreditsCounter({ plan, usage }: AiCreditsCounterProps)
     );
   }
 
-  const remaining = Math.max(0, total.limit - total.used);
-  const pct = remaining / total.limit;
+  const pct = pctVal;
   const usedPct = Math.min(1, total.used / total.limit);
 
   // Ring SVG constants
@@ -41,7 +58,6 @@ export default function AiCreditsCounter({ plan, usage }: AiCreditsCounterProps)
   const isExhausted = remaining === 0;
   const isUrgent = !isExhausted && pct < 0.2;
   const isWarning = !isExhausted && !isUrgent && pct <= 0.5;
-  // const isComfort = pct > 0.5;
 
   const ringStroke = isExhausted
     ? "stroke-red-500"
