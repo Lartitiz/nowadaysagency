@@ -35,7 +35,7 @@ const STEPS = [
     num: "1️⃣",
     title: "Pose tes fondations",
     emoji: "🎨",
-    module: "Branding",
+    module: "Identité de marque",
     time: "30 min",
     desc: "Définis ton positionnement, ta cible, ton ton de communication. C'est la base de tout.",
     cta: "👉 C'est ta première étape.",

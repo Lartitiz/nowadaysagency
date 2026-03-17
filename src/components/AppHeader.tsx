@@ -35,11 +35,11 @@ const MOBILE_NAV = [
 ];
 
 const BREADCRUMB_LABELS: Record<string, string> = {
-  "/branding": "Branding",
-  "/branding/audit": "Audit branding",
+  "/branding": "Mon identité de marque",
+  "/branding/audit": "Audit de marque",
   "/branding/offres": "Mes offres",
-  "/branding/coaching": "Coaching branding",
-  "/branding/section": "Section branding",
+  "/branding/coaching": "Coaching identité",
+  "/branding/section": "Mon identité",
   "/creer": "Créer",
   "/calendrier": "Calendrier",
   "/instagram": "Instagram",
