@@ -1,7 +1,9 @@
+import { useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Sparkles } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Progress } from "@/components/ui/progress";
+import { posthog } from "@/lib/posthog";
 import type { CategoryUsage } from "@/hooks/use-user-plan";
 
 interface AiCreditsCounterProps {
