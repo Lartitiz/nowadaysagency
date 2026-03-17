@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { CORE_PRINCIPLES } from "../_shared/copywriting-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
-import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
+import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { isDemoUser } from "../_shared/guard-demo.ts";
@@ -116,10 +116,7 @@ serve(async (req) => {
     // Check quota
     const quotaCheck = await checkQuota(user.id, "audit", workspace_id);
     if (!quotaCheck.allowed) {
-      return new Response(
-        JSON.stringify({ error: "limit_reached", message: quotaCheck.message, remaining: 0 }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return quotaDeniedResponse(quotaCheck, corsHeaders);
     }
 
     // Server-side: convert screenshot URLs to base64 if no base64 images provided
