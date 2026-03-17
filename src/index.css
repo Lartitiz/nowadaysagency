@@ -209,6 +209,21 @@
   100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
 }
 
+@keyframes breathing-glow {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(251, 61, 128, 0.3);
+  }
+  50% {
+    transform: scale(1.08);
+    box-shadow: 0 0 20px 8px rgba(251, 61, 128, 0.15);
+  }
+}
+
+.animate-breathing-glow {
+  animation: breathing-glow 2s ease-in-out infinite;
+}
+
 .animate-fade-in {
   animation: fade-in 0.4s ease-out forwards;
 }

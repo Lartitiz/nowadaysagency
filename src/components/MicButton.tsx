@@ -27,7 +27,7 @@ export default function MicButton({ isListening, isSupported, onClick, size = "l
             onClick={onClick}
             className={`${padding} rounded-lg border transition-all duration-200 cursor-pointer ${
               isListening
-                ? "bg-primary border-primary text-white animate-pulse ring-2 ring-primary/30 ring-offset-2"
+                ? "bg-primary border-primary text-white animate-breathing-glow ring-2 ring-primary/30 ring-offset-2"
                 : hasError
                   ? "bg-rose-pale border-destructive/50 text-destructive hover:bg-destructive/10"
                   : "bg-rose-pale border-border text-primary hover:bg-primary/10 hover:border-primary/30"
