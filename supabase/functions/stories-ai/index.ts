@@ -517,13 +517,14 @@ POUR LA STORY 1, GÉNÈRE 2 OPTIONS DE HOOK dans le champ "hook_options" :
 - Option A : hook court (le plus percutant, 5-10 mots)
 - Option B : hook développé (pour celles qui préfèrent contextualiser, 10-15 mots)
 
-TYPES DE HOOKS STORIES :
-1. Interpellation directe : "Toi qui postes sans stratégie."
-2. Confidence : "Faut que je te parle d'un truc."
-3. Question qui pique : "Tu sais pourquoi personne like ?"
-4. Constat choc : "3 likes et ta mère."
-5. Teaser : "Ce que j'ai appris la semaine dernière."
-6. Analogie flash : "Ta com' ressemble à un CV sans photo."
+TYPES DE HOOKS STORIES (adaptés à l'angle choisi) :
+1. Coulisses en direct : "Là je suis en train de [action]…" / "Bon, je vous montre un truc."
+2. Confidence / pensée à voix haute : "J'ai réalisé un truc ce matin." / "Faut que je vous parle de quelque chose."
+3. Question communautaire : "Qui ici a déjà [situation] ?" / "Est-ce que ça vous fait ça aussi ?"
+4. Retour d'expérience : "Pendant longtemps je faisais [erreur]." / "Ce que j'aurais aimé savoir il y a 6 mois."
+5. Storytime : "La semaine dernière une cliente m'a dit un truc…" / "Il s'est passé un truc hier."
+6. Prise de position : "Un truc qui me fatigue dans [secteur]." / "Je vais dire un truc qui ne va pas plaire à tout le monde."
+IMPORTANT : Le hook par défaut est en "JE" ou en "VOUS inclusif". Le "TU" direct est réservé UNIQUEMENT à l'angle "interpellation communauté" et doit rester rare.
 
 GARDE-FOUS OBLIGATOIRES :
 1. Max 10 stories par séquence
