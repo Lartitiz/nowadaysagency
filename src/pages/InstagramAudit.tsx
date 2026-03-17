@@ -357,6 +357,12 @@ export default function InstagramAudit() {
       toast({ title: "Audit terminé !" });
     } catch (e: any) {
       console.error("Erreur technique:", e);
+      const errStr = e?.message || String(e);
+      if (/quota|crédit|limit_reached|limit/i.test(errStr)) {
+        setQuotaExhausted({ message: "" });
+        setAnalyzing(false);
+        return;
+      }
       const msg = friendlyError(e);
       setLastError(msg);
       toast({ title: "Erreur", description: msg, variant: "destructive" });
