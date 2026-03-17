@@ -2,8 +2,9 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { motion, AnimatePresence } from "framer-motion";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
-import { fetchBrandingData, calculateBrandingCompletion, type BrandingCompletion } from "@/lib/branding-completion";
+import { fetchBrandingData, calculateBrandingCompletion } from "@/lib/branding-completion";
 
 const SECTION_LABELS: Record<string, string> = {
   storytelling: "ton histoire",
@@ -38,7 +39,7 @@ export default function BrandingStatusBanner() {
   if (total >= 80) {
     return (
       <Banner onDismiss={() => setDismissed(true)}>
-        ✨ Ton identité de marque est bien remplie : l'IA va personnaliser ce contenu avec ton ton, ta cible et tes valeurs.
+        ✨ Ton identité de marque est bien remplie : l'IA personnalise ce contenu avec ton ton, ta cible et tes valeurs.
       </Banner>
     );
   }
@@ -56,7 +57,7 @@ export default function BrandingStatusBanner() {
   }
 
   return (
-    <Banner onDismiss={() => setDismissed(true)}>
+    <Banner onDismiss={() => setDismissed(true)} borderClass="border-[#FB3D80]/20">
       🎯 Pour que l'IA génère du contenu qui te ressemble, commence par remplir ton identité de marque.{" "}
       <Link to="/branding" className="text-[#FB3D80] hover:underline font-medium">
         Commencer →
@@ -65,13 +66,25 @@ export default function BrandingStatusBanner() {
   );
 }
 
-function Banner({ children, onDismiss }: { children: React.ReactNode; onDismiss: () => void }) {
+function Banner({
+  children,
+  onDismiss,
+  borderClass = "border-[#FFD6E8]",
+}: {
+  children: React.ReactNode;
+  onDismiss: () => void;
+  borderClass?: string;
+}) {
   return (
-    <div className="bg-[#FFF4F8] border border-[#FFD6E8] rounded-2xl px-4 py-3 flex items-start gap-3 font-sans text-sm text-foreground">
+    <motion.div
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`bg-[#FFF4F8] border ${borderClass} rounded-2xl px-4 py-3 flex items-start gap-3 font-sans text-sm text-foreground`}
+    >
       <div className="flex-1">{children}</div>
       <button onClick={onDismiss} className="text-muted-foreground hover:text-foreground flex-shrink-0 mt-0.5">
         <X size={14} />
       </button>
-    </div>
+    </motion.div>
   );
 }
