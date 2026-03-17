@@ -442,7 +442,7 @@ Règles pour les suggestions :
     // Detect if the user is asking for content creation to allow longer output
     const lowerMsg = message.toLowerCase();
     const isContentRequest = /r[eé]dig|[eé]cri[st]|post prévu|g[eé]n[eè]re|propose.*(post|texte|l[eé]gende|accroche)|fais.*(post|carrousel|texte)/i.test(lowerMsg);
-    const maxTokens = isContentRequest ? 1200 : 600;
+    const maxTokens = isContentRequest ? 2000 : 1000;
 
     const anthropicStream = await streamAnthropicSSE(
       apiKey, model, systemPrompt, aiMessages, 0.7, maxTokens,
