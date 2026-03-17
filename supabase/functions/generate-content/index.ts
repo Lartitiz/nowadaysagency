@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOURCES, ANTI_SLOP, CHAIN_OF_THOUGHT } from "../_shared/copywriting-prompts.ts";
+import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOURCES, ANTI_SLOP, CHAIN_OF_THOUGHT, ANTI_BROETRY_LINKEDIN, LINKEDIN_PRINCIPLES_COMPACT } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildProfileBlock } from "../_shared/user-context.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
@@ -479,6 +479,8 @@ Réponds en JSON :
           live: "Live (plan de session structuré)",
         };
         const formatInstruction = calFormat ? `FORMAT : ${formatMap[calFormat] || calFormat}` : "FORMAT : Carrousel par défaut";
+        const isLinkedinCalendar = calFormat === "post_linkedin" || (body.canal === "linkedin");
+        const calendarPrinciples = isLinkedinCalendar ? `${LINKEDIN_PRINCIPLES_COMPACT}\n\n${ANTI_BROETRY_LINKEDIN}` : `${CORE_PRINCIPLES}\n\n${FORMAT_STRUCTURES}`;
 
         let launchBlock = "";
         if (launchContext) {
@@ -486,7 +488,7 @@ Réponds en JSON :
           launchBlock = `\nCONTEXTE LANCEMENT :\n- Phase : ${lc.phase || "?"}\n- Chapitre : ${lc.chapter_label || "?"}\n- Phase mentale audience : ${lc.audience_phase || "?"}\n- Objectif du slot : ${lc.objective || "?"}\n- Angle suggéré : ${lc.angle_suggestion || "?"}\n- Offre : "${lc.offer || "?"}"\n- Promesse : "${lc.promise || "?"}"\n- Objections : "${lc.objections || "?"}"\n`;
         }
 
-        systemPrompt = `${CORE_PRINCIPLES}\n\n${FORMAT_STRUCTURES}\n\n${WRITING_RESOURCES}\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\nCONTEXTE DU POST :\n- Thème/sujet : "${theme || "?"}"\n- Objectif : ${calObj || "non précisé"}\n- Angle : ${calAngle || "non précisé"}\n- ${formatInstruction}\n- Notes : "${calNotes || "aucune"}"\n${launchBlock}\nRÈGLES :\n- Écriture inclusive avec point médian\n- JAMAIS de tiret cadratin (—). Utilise : ou ;\n- Le ton correspond au branding de l'utilisatrice\n- Utiliser ses expressions, son vocabulaire\n- PRIORITÉ ABSOLUE : si un profil de voix existe dans le contexte, le contenu DOIT reproduire ce style. Réutilise les expressions signature. Reproduis les patterns de structure. Imite le rythme des exemples.\n- Ne JAMAIS utiliser les expressions listées comme interdites dans le profil de voix\n- Le contenu doit pouvoir être publié tel quel par l'utilisatrice sans qu'on sente que c'est écrit par une IA\n- Oral assumé mais pas surjoué\n- Phrases fluides et complètes\n- Le contenu a de la valeur même pour celles qui n'achètent pas\n- CTA conversationnel, jamais agressif\n\nGARDE-FOUS ÉTHIQUES :\n- Pas de fausse urgence\n- Pas de shaming\n- Pas de promesses de résultats garantis\n- Pas de FOMO artificiel\n\n${ANTI_SLOP}\n\n${CHAIN_OF_THOUGHT}\n\nGénère le contenu complet, prêt à copier-coller. Réponds avec le texte uniquement.`;
+        systemPrompt = `${calendarPrinciples}\n\n${WRITING_RESOURCES}\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\nCONTEXTE DU POST :\n- Thème/sujet : "${theme || "?"}"\n- Objectif : ${calObj || "non précisé"}\n- Angle : ${calAngle || "non précisé"}\n- ${formatInstruction}\n- Notes : "${calNotes || "aucune"}"\n${launchBlock}\nRÈGLES :\n- Écriture inclusive avec point médian\n- JAMAIS de tiret cadratin (—). Utilise : ou ;\n- Le ton correspond au branding de l'utilisatrice\n- Utiliser ses expressions, son vocabulaire\n- PRIORITÉ ABSOLUE : si un profil de voix existe dans le contexte, le contenu DOIT reproduire ce style. Réutilise les expressions signature. Reproduis les patterns de structure. Imite le rythme des exemples.\n- Ne JAMAIS utiliser les expressions listées comme interdites dans le profil de voix\n- Le contenu doit pouvoir être publié tel quel par l'utilisatrice sans qu'on sente que c'est écrit par une IA\n- Oral assumé mais pas surjoué\n- Phrases fluides et complètes\n- Le contenu a de la valeur même pour celles qui n'achètent pas\n- CTA conversationnel, jamais agressif\n\nGARDE-FOUS ÉTHIQUES :\n- Pas de fausse urgence\n- Pas de shaming\n- Pas de promesses de résultats garantis\n- Pas de FOMO artificiel\n\n${ANTI_SLOP}\n\n${CHAIN_OF_THOUGHT}\n\nGénère le contenu complet, prêt à copier-coller. Réponds avec le texte uniquement.`;
         userPrompt = `Rédige le contenu complet pour ce post sur "${theme || "?"}".`;
 
       } else if (type === "express-draft") {
@@ -506,8 +508,10 @@ Réponds en JSON :
           linkedin: "Post LinkedIn (texte complet)",
         };
         const formatInstruction = expressFormat ? `FORMAT : ${formatMap[expressFormat] || expressFormat}` : "FORMAT : Post Instagram par défaut";
+        const isLinkedinFormat = expressFormat === "linkedin";
+        const channelPrinciples = isLinkedinFormat ? `${LINKEDIN_PRINCIPLES_COMPACT}\n\n${ANTI_BROETRY_LINKEDIN}` : `${CORE_PRINCIPLES}\n\n${FORMAT_STRUCTURES}`;
 
-        systemPrompt = `${CORE_PRINCIPLES}\n\n${FORMAT_STRUCTURES}\n\n${WRITING_RESOURCES}\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\nCONTEXTE :\n- Sujet : "${expressSujet || "?"}"\n- Objectif : ${expressObj || "non précisé"}\n- ${formatInstruction}\n\nRÈGLES :\n- Écriture inclusive avec point médian\n- JAMAIS de tiret cadratin (—). Utilise : ou ;\n- Le ton correspond au branding de l'utilisatrice\n- Utiliser ses expressions, son vocabulaire\n- PRIORITÉ ABSOLUE : si un profil de voix existe dans le contexte, le contenu DOIT reproduire ce style\n- Ne JAMAIS utiliser les expressions listées comme interdites dans le profil de voix\n- Le contenu doit pouvoir être publié tel quel\n- Oral assumé mais pas surjoué\n- CTA conversationnel, jamais agressif\n\nGARDE-FOUS ÉTHIQUES :\n- Pas de fausse urgence ni de shaming\n- Pas de promesses de résultats garantis\n\n${ANTI_SLOP}\n\n${CHAIN_OF_THOUGHT}\n\nRéponds en JSON avec ce format exact :\n{"accroche": "L'accroche du post (première ligne percutante)", "content": "Le contenu complet prêt à copier-coller (inclus l'accroche au début)", "hashtags": ["3 à 5 hashtags pertinents"]}`;
+        systemPrompt = `${channelPrinciples}\n\n${WRITING_RESOURCES}\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\nCONTEXTE :\n- Sujet : "${expressSujet || "?"}"\n- Objectif : ${expressObj || "non précisé"}\n- ${formatInstruction}\n\nRÈGLES :\n- Écriture inclusive avec point médian\n- JAMAIS de tiret cadratin (—). Utilise : ou ;\n- Le ton correspond au branding de l'utilisatrice\n- Utiliser ses expressions, son vocabulaire\n- PRIORITÉ ABSOLUE : si un profil de voix existe dans le contexte, le contenu DOIT reproduire ce style\n- Ne JAMAIS utiliser les expressions listées comme interdites dans le profil de voix\n- Le contenu doit pouvoir être publié tel quel\n- Oral assumé mais pas surjoué\n- CTA conversationnel, jamais agressif\n\nGARDE-FOUS ÉTHIQUES :\n- Pas de fausse urgence ni de shaming\n- Pas de promesses de résultats garantis\n\n${ANTI_SLOP}\n\n${CHAIN_OF_THOUGHT}\n\nRéponds en JSON avec ce format exact :\n{"accroche": "L'accroche du post (première ligne percutante)", "content": "Le contenu complet prêt à copier-coller (inclus l'accroche au début)", "hashtags": ["3 à 5 hashtags pertinents"]}`;
         userPrompt = `Rédige un contenu complet, engageant et prêt à publier sur : "${expressSujet || "?"}"`;
 
       } else if (type === "caption") {
