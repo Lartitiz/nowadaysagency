@@ -596,7 +596,7 @@ Avant de retourner le post, relis-le et vérifie :
 Si tu coches 1+ case, RÉÉCRIS AVANT DE RETOURNER.
 `;
 
-export const ANTI_BROETRY_LINKEDIN = \`
+export const ANTI_BROETRY_LINKEDIN = `
 ANTI-BROETRY LINKEDIN (PRIORITÉ HAUTE) :
 
 La broetry LinkedIn = des phrases courtes empilées ligne par ligne pour créer un faux rythme dramatique. C'est le signal IA le plus reconnaissable sur LinkedIn.
@@ -615,7 +615,7 @@ REMPLACER PAR :
 - La fin apporte une idée NOUVELLE, pas un résumé emphatique
 
 Si ton output contient de la broetry, RÉÉCRIS les passages concernés avant de retourner.
-\`;
+`;
 
 
 export const LINKEDIN_PRINCIPLES = `
