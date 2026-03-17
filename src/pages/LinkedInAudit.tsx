@@ -708,6 +708,15 @@ export default function LinkedInAudit() {
           </div>
         )}
 
+        {/* Quota exhausted */}
+        {quotaExhausted && !analyzing && (
+          <QuotaExhaustedCard
+            category="audits"
+            renewalMessage={quotaExhausted.message || undefined}
+            plan={plan}
+          />
+        )}
+
         {/* Step content */}
         {step === 0 && renderStep0()}
         {step === 1 && renderStep1()}
