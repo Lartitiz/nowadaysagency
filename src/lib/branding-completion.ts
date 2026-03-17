@@ -33,7 +33,7 @@ export async function fetchBrandingData(
       (supabase.from("brand_profile") as any).select("voice_description, combat_cause, combat_fights, combat_alternative, combat_refusals, tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims, channels").eq(f.column, f.value).maybeSingle(),
       (supabase.from("brand_strategy") as any).select("step_1_hidden_facets, facet_1, pillar_major, creative_concept").eq(f.column, f.value).maybeSingle(),
       (supabase.from("offers") as any).select("id, name, promise, target_ideal, price_text, completed").eq(f.column, f.value),
-      (supabase.from("brand_charter") as any).select("logo_url, color_primary, color_secondary, color_accent, font_title, font_body, mood_keywords, photo_style").eq(f.column, f.value).maybeSingle(),
+      (supabase.from("brand_charter") as any).select("logo_url, color_primary, color_secondary, color_accent, font_title, font_body, mood_keywords, photo_style, uploaded_templates").eq(f.column, f.value).maybeSingle(),
     ]);
     return {
       storytellingList: stRes.data,
