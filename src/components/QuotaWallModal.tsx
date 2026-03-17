@@ -122,7 +122,7 @@ export default function QuotaWallModal({ open, onClose, plan, usage }: QuotaWall
           {/* CTA Premium */}
           {plan === "free" && (
             <button
-              onClick={() => { onClose(); navigate("/mon-plan"); }}
+              onClick={handleCtaClick}
               className="w-full flex items-center justify-center gap-2 rounded-full bg-[#FB3D80] px-6 py-3 text-sm font-medium text-white hover:bg-[#e0326f] transition-colors shadow-md hover:shadow-lg"
             >
               <Sparkles className="h-4 w-4" />
