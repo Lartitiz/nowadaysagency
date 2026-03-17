@@ -498,6 +498,17 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect }: 
 
                 return (
                   <>
+                    <button
+                      className="w-full rounded-xl border-2 border-primary/30 bg-primary/5 p-3 text-center transition-all hover:border-primary/50 hover:bg-primary/10"
+                      onClick={() => { setContentType(""); setStep(6); }}
+                    >
+                      <div className="flex items-center justify-center gap-2">
+                        <Wand2 className="h-4 w-4 text-primary" />
+                        <span className="text-sm font-semibold text-primary">L'outil choisit pour moi</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">L'IA sélectionne la meilleure approche selon ton idée et ton objectif</p>
+                    </button>
+
                     {recommended.length > 0 && (
                       <div className="space-y-1.5">
                         <p className="text-[11px] font-semibold text-primary uppercase tracking-wider">📌 Recommandés pour toi</p>
@@ -537,13 +548,6 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect }: 
                         </div>
                       </details>
                     )}
-
-                    <button
-                      onClick={() => { setContentType(""); setStep(6); }}
-                      className="w-full text-xs text-muted-foreground hover:text-primary transition-colors py-1"
-                    >
-                      L'IA choisit pour moi →
-                    </button>
                   </>
                 );
               })()}
