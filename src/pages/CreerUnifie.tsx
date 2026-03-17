@@ -217,7 +217,7 @@ export default function CreerUnifie() {
 
   useEffect(() => {
     if (resultRestoredRef.current) return;
-    if (location.state || searchParams.get("format") || searchParams.get("sujet")) return;
+    if (searchParams.get("format") || searchParams.get("sujet")) return;
     resultRestoredRef.current = true;
     try {
       const raw = sessionStorage.getItem(CREER_RESULT_KEY);
