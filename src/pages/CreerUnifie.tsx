@@ -150,7 +150,7 @@ export default function CreerUnifie() {
     { step, ideaText, objective, selectedFormat, editorialAngle, answers },
     (saved) => {
       if (!shouldRestore) return; // Fresh navigation — don't restore
-      if (location.state || searchParams.get("format") || searchParams.get("sujet")) return;
+      if (searchParams.get("format") || searchParams.get("sujet")) return;
       if (saved.step && saved.step !== "idea") setStep(saved.step as Step);
       if (saved.ideaText) setIdeaText(saved.ideaText);
       if (saved.objective) setObjective(saved.objective);
@@ -217,7 +217,7 @@ export default function CreerUnifie() {
 
   useEffect(() => {
     if (resultRestoredRef.current) return;
-    if (location.state || searchParams.get("format") || searchParams.get("sujet")) return;
+    if (searchParams.get("format") || searchParams.get("sujet")) return;
     resultRestoredRef.current = true;
     try {
       const raw = sessionStorage.getItem(CREER_RESULT_KEY);
@@ -355,6 +355,10 @@ export default function CreerUnifie() {
       setStep("format");
     } else if (!ps) {
       setStep("idea");
+    }
+    // Clean up location.state after reading it to prevent re-init on tab switch
+    if (location.state) {
+      window.history.replaceState({}, '', window.location.href);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search]);
