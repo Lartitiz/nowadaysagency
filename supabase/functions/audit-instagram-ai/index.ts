@@ -228,7 +228,7 @@ ANALYSE DE PERFORMANCE DES CONTENUS :
 - Identifie minimum 2-3 patterns positifs et 1-2 patterns négatifs
 - Le "combo gagnant" est LA combinaison format x angle qui performe le mieux
 
-Score global = moyenne pondérée (photo 10, nom 10, bio 25, feed 15, highlights 15, posts epingles 10, CTA 10, lien 5).
+Score global = moyenne pondérée (photo 10, nom 10, bio 25, feed 15, highlights 15, posts épinglés 10, CTA 10, lien 5).
 
 Sois directe mais bienveillante. Compare TOUJOURS avec le branding.
 
@@ -239,17 +239,17 @@ RÉPONSE : Tu dois retourner UNIQUEMENT un objet JSON valide. C'est une contrain
 - Le premier caractère de ta réponse doit être { et le dernier doit être }
 - Si tu ajoutes du texte autour du JSON, le système plantera. C'est critique.
 
-REGLES STRICTES :
+RÈGLES STRICTES :
 - NE JAMAIS utiliser de markdown dans le JSON : pas de **gras**, pas de *italique*, pas de backticks. Texte brut UNIQUEMENT.
 - Pour la bio, analyse LIGNE PAR LIGNE avec un status par ligne.
-- Pour chaque element "improve" ou "critical", donne TOUJOURS un conseil concret et actionnable.
-- Pour la bio et le nom, donne TOUJOURS une proposition complete prete a copier.
-- Identifie la priorite n1 : l'element qui aura le plus d'impact si ameliore.
+- Pour chaque élément "improve" ou "critical", donne TOUJOURS un conseil concret et actionnable.
+- Pour la bio et le nom, donne TOUJOURS une proposition complète prête à copier.
+- Identifie la priorité n°1 : l'élément qui aura le plus d'impact si amélioré.
 
-Reponds en JSON :
+Réponds en JSON :
 {
   "score_global": 71,
-  "resume": "phrase resume de l'audit",
+  "resume": "phrase résumé de l'audit",
   "visual_audit": {
     "elements": [
       {
@@ -257,7 +257,7 @@ Reponds en JSON :
         "label": "Photo de profil",
         "status": "ok",
         "current": "Description de ce que tu vois",
-        "verdict": "Ton visage est visible, souriant, fond coherent.",
+        "verdict": "Ton visage est visible, souriant, fond cohérent.",
         "conseil": null,
         "proposition": null
       },
@@ -266,49 +266,49 @@ Reponds en JSON :
         "label": "Nom d'affichage",
         "status": "improve",
         "current": "Le nom actuel",
-        "verdict": "Pas optimise pour la recherche Instagram.",
-        "conseil": "Ajouter un mot-cle metier dans le nom.",
-        "proposition": "Prenom | Activite mot-cle"
+        "verdict": "Pas optimisé pour la recherche Instagram.",
+        "conseil": "Ajouter un mot-clé métier dans le nom.",
+        "proposition": "Prénom | Activité mot-clé"
       },
       {
         "element": "bio",
         "label": "Bio",
         "status": "improve",
-        "current": "La bio complete",
+        "current": "La bio complète",
         "verdict": "Positionnement OK mais promesse floue et pas de CTA.",
         "lignes": [
-          {"texte": "Premiere ligne de la bio", "status": "ok", "commentaire": "Positionnement clair."},
-          {"texte": "Deuxieme ligne", "status": "improve", "commentaire": "Remplace par ta promesse concrete."},
+          {"texte": "Première ligne de la bio", "status": "ok", "commentaire": "Positionnement clair."},
+          {"texte": "Deuxième ligne", "status": "improve", "commentaire": "Remplace par ta promesse concrète."},
           {"texte": "(absent)", "status": "critical", "commentaire": "Il manque un CTA avec emoji pointant vers le lien."}
         ],
-        "conseil": "Ajouter une ligne avec benefice client et CTA.",
+        "conseil": "Ajouter une ligne avec bénéfice client et CTA.",
         "proposition": "Ligne 1\nLigne 2\nLigne 3\nLigne 4 CTA"
       },
       {
         "element": "feed",
-        "label": "Coherence visuelle du feed",
+        "label": "Cohérence visuelle du feed",
         "status": "ok",
         "current": "Description du feed",
-        "verdict": "Identite visuelle forte et reconnaissable.",
+        "verdict": "Identité visuelle forte et reconnaissable.",
         "conseil": "Alterner avec plus de photos de toi (visages = +38% likes).",
         "proposition": null
       },
       {
         "element": "highlights",
-        "label": "Stories a la une",
+        "label": "Stories à la une",
         "status": "critical",
         "current": "Liste des highlights actuels",
-        "verdict": "Il manque des highlights strategiques.",
-        "conseil": "Ajouter : Qui je suis, Temoignages, Mes offres, Coulisses, Tips.",
+        "verdict": "Il manque des highlights stratégiques.",
+        "conseil": "Ajouter : Qui je suis, Témoignages, Mes offres, Coulisses, Tips.",
         "proposition": null
       },
       {
         "element": "posts_epingles",
-        "label": "Posts epingles",
+        "label": "Posts épinglés",
         "status": "improve",
         "current": "Description",
         "verdict": "Tu rates ta vitrine.",
-        "conseil": "3 posts : expertise + resultat + storytelling perso.",
+        "conseil": "3 posts : expertise + résultat + storytelling perso.",
         "proposition": null
       },
       {
@@ -317,7 +317,7 @@ Reponds en JSON :
         "status": "improve",
         "current": "Description du CTA actuel",
         "verdict": "Le lien existe mais rien ne donne envie de cliquer.",
-        "conseil": "Ajouter une ligne avec emoji et benefice.",
+        "conseil": "Ajouter une ligne avec emoji et bénéfice.",
         "proposition": null
       },
       {
@@ -325,14 +325,14 @@ Reponds en JSON :
         "label": "Lien en bio",
         "status": "ok",
         "current": "Le lien actuel",
-        "verdict": "Le lien est present et fonctionnel.",
+        "verdict": "Le lien est présent et fonctionnel.",
         "conseil": null,
         "proposition": null
       }
     ],
     "priorite_1": {
       "element": "highlights",
-      "message": "Tes stories a la une sont le plus gros levier d'amelioration."
+      "message": "Tes stories à la une sont le plus gros levier d'amélioration."
     },
     "resume": {
       "ok_count": 3,
@@ -371,7 +371,6 @@ Reponds en JSON :
     "general_advice": "..."
   }
 }`;
-
     const finalSystemPrompt = BASE_SYSTEM_RULES + "\n\n" + systemPrompt;
 
     // Build user message (multimodal if screenshots available)
