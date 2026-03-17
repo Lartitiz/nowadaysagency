@@ -100,7 +100,7 @@ ${CHAIN_OF_THOUGHT}
 ${branding_context || ""}`;
     // Clarify subject (fuzzy path)
     if (type === "clarify_subject") {
-      const systemPrompt = STORIES_PREFIX + `\n\nL'utilisatrice a une idée floue pour ses stories. Aide-la à préciser.
+      const systemPrompt = STORIES_PREFIX + `\n\nL'utilisateur·ice a une idée floue pour ses stories. Aide à préciser.
 
 L'utilisatrice a partagé une idée brute :
 "${body.raw_idea}"
