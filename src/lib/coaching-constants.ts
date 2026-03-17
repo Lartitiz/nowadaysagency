@@ -8,7 +8,7 @@ export const FOCUS_TOPICS = [
   { value: "pinterest", label: "Pinterest", icon: "📌" },
   { value: "linkedin", label: "LinkedIn", icon: "💼" },
   { value: "launch", label: "Lancement d'offre / campagne", icon: "🚀" },
-  { value: "branding", label: "Branding / identité visuelle", icon: "🎨" },
+  { value: "branding", label: "Identité de marque", icon: "🎨" },
   { value: "automation", label: "Automatisation (ManyChat, emails)", icon: "🤖" },
   { value: "custom", label: "Autre (personnalisé)", icon: "✏️" },
 ] as const;
