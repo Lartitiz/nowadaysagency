@@ -215,7 +215,7 @@ function StepTwo({ onNext }: { onNext: () => void }) {
   const features = [
     {
       emoji: "🎨",
-      title: "Ton branding, centralisé",
+      title: "Ton identité de marque, centralisée",
       desc: "Ton positionnement, ta mission, ton ton, ta cible : tout est au même endroit. Tu peux compléter, modifier, faire auditer.",
     },
     {

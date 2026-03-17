@@ -25,7 +25,7 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
   {
     label: "MA MARQUE",
     items: [
-      { label: "Branding", path: "/branding", icon: <Palette size={16} /> },
+      { label: "Mon identité", path: "/branding", icon: <Palette size={16} /> },
       { label: "Mes offres", path: "/branding/offres", icon: <ClipboardList size={16} /> },
     ],
   },
