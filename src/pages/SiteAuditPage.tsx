@@ -22,6 +22,8 @@ import { friendlyError } from "@/lib/error-messages";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import { useDiagnosticCache } from "@/hooks/use-diagnostic-cache";
 import DiagnosticCacheBanner from "@/components/audit/DiagnosticCacheBanner";
+import QuotaExhaustedCard from "@/components/QuotaExhaustedCard";
+import { useUserPlan } from "@/hooks/use-user-plan";
 
 // ── Loading messages ──
 const LOADING_MESSAGES = [
@@ -119,6 +121,8 @@ const SiteAuditPage = () => {
   const workspaceId = useWorkspaceId();
   const [searchParams] = useSearchParams();
   const { diagnosticData: diagCache, isRecent: diagIsRecent } = useDiagnosticCache();
+  const { plan } = useUserPlan();
+  const [quotaExhausted, setQuotaExhausted] = useState<{ message?: string } | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [existing, setExisting] = useState<AuditData | null>(null);
@@ -213,8 +217,8 @@ const SiteAuditPage = () => {
     if (!user) return;
 
     setAnalyzing(true);
+    setQuotaExhausted(null);
     setStep("loading");
-    setLoadingProgress(0);
 
     try {
       const pages_to_audit: string[] = [...extraPages];
@@ -239,6 +243,7 @@ const SiteAuditPage = () => {
       if (data?.error || data?.quota) {
         const { handleQuotaError } = await import("@/lib/quota-error-handler");
         if (handleQuotaError({ data, message: data.message || data.error })) {
+          setQuotaExhausted({ message: data.message || "" });
           setStep("input");
           return;
         }
@@ -279,9 +284,17 @@ const SiteAuditPage = () => {
       setStep("auto-results");
     } catch (e: any) {
       console.error("[audit-site-auto] Error:", e);
-      if (e?.isTimeout) toast.error("L'audit prend plus de temps que prévu. Réessaie.", { duration: 8000 });
-      else toast.error(friendlyError(e), { duration: 8000 });
-      setStep("input");
+      const errStr = e?.message || String(e);
+      if (/quota|crédit|limit_reached|limit/i.test(errStr)) {
+        setQuotaExhausted({ message: "" });
+        setStep("input");
+      } else if (e?.isTimeout) {
+        toast.error("L'audit prend plus de temps que prévu. Réessaie.", { duration: 8000 });
+        setStep("input");
+      } else {
+        toast.error(friendlyError(e), { duration: 8000 });
+        setStep("input");
+      }
     } finally {
       setAnalyzing(false);
     }
@@ -365,6 +378,15 @@ const SiteAuditPage = () => {
       <AppHeader />
       <main className="container max-w-3xl mx-auto px-4 py-8 space-y-6">
         <SubPageHeader parentLabel="Mon Site Web" parentTo="/site" currentLabel="Audit de conversion" />
+
+        {/* Quota exhausted card */}
+        {quotaExhausted && step === "input" && (
+          <QuotaExhaustedCard
+            category="audits"
+            renewalMessage={quotaExhausted.message || undefined}
+            plan={plan}
+          />
+        )}
 
         {/* ── STEP: Input (URL) ── */}
         {step === "input" && (

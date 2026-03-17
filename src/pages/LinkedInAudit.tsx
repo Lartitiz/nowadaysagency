@@ -14,6 +14,8 @@ import AiLoadingIndicator from "@/components/AiLoadingIndicator";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import { Link, useNavigate } from "react-router-dom";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
+import QuotaExhaustedCard from "@/components/QuotaExhaustedCard";
+import { useUserPlan } from "@/hooks/use-user-plan";
 
 // ── Types ──
 type ScreenshotType = "profile" | "about" | "feed" | "experience" | "other";
@@ -109,6 +111,8 @@ export default function LinkedInAudit() {
   const navigate = useNavigate();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
+  const { plan } = useUserPlan();
+  const [quotaExhausted, setQuotaExhausted] = useState<{ message?: string } | null>(null);
 
   const [step, setStep] = useState(0);
   const [analyzing, setAnalyzing] = useState(false);
@@ -208,6 +212,7 @@ export default function LinkedInAudit() {
   const handleAnalyze = async () => {
     if (!user) return;
     setAnalyzing(true);
+    setQuotaExhausted(null);
     try {
       const uploadedScreenshots = screenshots.length > 0 ? await uploadAllScreenshots() : [];
 
@@ -233,7 +238,14 @@ export default function LinkedInAudit() {
         },
       });
 
-      if (res.error) throw new Error(res.error.message);
+      if (res.error) {
+        const errorMsg = res.error.message || "";
+        if (/limit_reached|quota|limit/i.test(errorMsg)) {
+          setQuotaExhausted({ message: errorMsg });
+          return;
+        }
+        throw new Error(errorMsg);
+      }
 
       let parsed: AuditResult;
       const content = res.data?.content || "";
@@ -278,7 +290,12 @@ export default function LinkedInAudit() {
       setStep(5); // results
       toast({ title: "Audit terminé ! 🎉" });
     } catch (e: any) {
-      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      const errStr = e?.message || String(e);
+      if (/quota|crédit|limit_reached|limit/i.test(errStr)) {
+        setQuotaExhausted({ message: "" });
+      } else {
+        toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      }
     } finally {
       setAnalyzing(false);
     }
@@ -689,6 +706,15 @@ export default function LinkedInAudit() {
               </div>
             ))}
           </div>
+        )}
+
+        {/* Quota exhausted */}
+        {quotaExhausted && !analyzing && (
+          <QuotaExhaustedCard
+            category="audits"
+            renewalMessage={quotaExhausted.message || undefined}
+            plan={plan}
+          />
         )}
 
         {/* Step content */}

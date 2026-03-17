@@ -18,6 +18,8 @@ import AiLoadingIndicator from "@/components/AiLoadingIndicator";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import { useDiagnosticCache } from "@/hooks/use-diagnostic-cache";
 import DiagnosticCacheBanner from "@/components/audit/DiagnosticCacheBanner";
+import QuotaExhaustedCard from "@/components/QuotaExhaustedCard";
+import { useUserPlan } from "@/hooks/use-user-plan";
 
 /* ─── Types ─── */
 interface PillarDetail {
@@ -74,6 +76,8 @@ export default function BrandingAuditPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { diagnosticData: diagCache, isRecent: diagIsRecent } = useDiagnosticCache();
+  const { plan } = useUserPlan();
+  const [quotaExhausted, setQuotaExhausted] = useState<{ message?: string } | null>(null);
 
   /* ─── Source toggles ─── */
   const [useSite, setUseSite] = useState(false);
@@ -173,6 +177,7 @@ export default function BrandingAuditPage() {
     if (!hasSource) return;
     setLoading(true);
     setResult(null);
+    setQuotaExhausted(null);
 
     try {
       let documentText: string | undefined;
@@ -208,7 +213,12 @@ export default function BrandingAuditPage() {
       // Scroll to top to see results
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (e: any) {
-      toast.error(e.message || "Erreur lors de l'audit. Réessaie.");
+      const errStr = e?.message || String(e);
+      if (/quota|crédit|limit_reached|limit/i.test(errStr)) {
+        setQuotaExhausted({ message: "" });
+      } else {
+        toast.error(e.message || "Erreur lors de l'audit. Réessaie.");
+      }
     } finally {
       setLoading(false);
     }
@@ -352,6 +362,15 @@ export default function BrandingAuditPage() {
       <AppHeader />
       <main className="container max-w-2xl mx-auto px-4 py-6 pb-24">
         <SubPageHeader currentLabel="🔍 Audit de ta communication" parentLabel="Mon identité" parentTo="/branding" />
+
+        {/* Quota exhausted */}
+        {quotaExhausted && !loading && (
+          <QuotaExhaustedCard
+            category="audits"
+            renewalMessage={quotaExhausted.message || undefined}
+            plan={plan}
+          />
+        )}
 
         {/* ─── Results section (shown first if audit exists) ─── */}
         {result && (
