@@ -121,6 +121,8 @@ const SiteAuditPage = () => {
   const workspaceId = useWorkspaceId();
   const [searchParams] = useSearchParams();
   const { diagnosticData: diagCache, isRecent: diagIsRecent } = useDiagnosticCache();
+  const { plan } = useUserPlan();
+  const [quotaExhausted, setQuotaExhausted] = useState<{ message?: string } | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [existing, setExisting] = useState<AuditData | null>(null);
