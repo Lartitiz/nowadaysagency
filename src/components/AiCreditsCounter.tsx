@@ -21,6 +21,22 @@ export default function AiCreditsCounter({ plan, usage }: AiCreditsCounterProps)
   const total = usage.total;
   const isUnlimited = !total || total.limit <= 0 || total.limit >= 9999;
 
+  // PostHog tracking — once per tier per session (hooks before early return)
+  const remaining = isUnlimited ? 0 : Math.max(0, total.limit - total.used);
+  const pctVal = isUnlimited ? 1 : remaining / total.limit;
+  const trackedTiers = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (isUnlimited) return;
+    if (pctVal <= 0.5 && pctVal > 0.2 && !trackedTiers.current.has("attention")) {
+      trackedTiers.current.add("attention");
+      posthog.capture("quota_warning_shown", { plan, remaining, total: total.limit, tier: "attention" });
+    }
+    if (pctVal < 0.2 && pctVal > 0 && !trackedTiers.current.has("urgence")) {
+      trackedTiers.current.add("urgence");
+      posthog.capture("quota_warning_shown", { plan, remaining, total: total.limit, tier: "urgence" });
+    }
+  }, [isUnlimited, pctVal, plan, remaining, total?.limit]);
+
   if (isUnlimited) {
     return (
       <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold bg-green-50 text-green-600">
