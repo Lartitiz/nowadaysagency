@@ -126,7 +126,7 @@ serve(async (req) => {
 
     const systemPrompt = `Tu es un·e expert·e en direction artistique et identité visuelle. Analyse ces visuels/templates et extrais-en l'identité graphique.
 
-CHARTE GRAPHIQUE DÉCLARÉE PAR L'UTILISATRICE :
+CHARTE GRAPHIQUE DÉCLARÉE PAR L'UTILISATEUR·ICE :
 ${charterContext}
 
 Pour chaque image analysée, identifie :
