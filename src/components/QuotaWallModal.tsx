@@ -1,6 +1,8 @@
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Sparkles, Calendar, ArrowRight } from "lucide-react";
+import { posthog } from "@/lib/posthog";
 import type { CategoryUsage } from "@/hooks/use-user-plan";
 
 interface QuotaWallModalProps {
