@@ -18,6 +18,8 @@ import AiLoadingIndicator from "@/components/AiLoadingIndicator";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import { useDiagnosticCache } from "@/hooks/use-diagnostic-cache";
 import DiagnosticCacheBanner from "@/components/audit/DiagnosticCacheBanner";
+import QuotaExhaustedCard from "@/components/QuotaExhaustedCard";
+import { useUserPlan } from "@/hooks/use-user-plan";
 
 /* ─── Types ─── */
 interface PillarDetail {
