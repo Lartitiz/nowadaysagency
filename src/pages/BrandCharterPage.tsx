@@ -643,6 +643,16 @@ export default function BrandCharterPage() {
           <SaveIndicator saved={saved} saving={saving} />
         </div>
 
+        <CharterTemplatesSection
+          data={data}
+          onDataChange={(updates) => { setData(prev => ({ ...prev, ...updates })); triggerSave(); }}
+          userId={user?.id || ""}
+          templatesUploading={templatesUploading}
+          setTemplatesUploading={setTemplatesUploading}
+          onAuditTemplates={handleAuditTemplates}
+          auditing={auditing}
+        />
+
         <div className="space-y-6">
           {/* SECTION 1: Logo */}
           <section className="rounded-2xl border border-border bg-card p-5">
