@@ -88,7 +88,7 @@ serve(async (req) => {
 - Imite les patterns de ton et de structure
 - Le contenu doit sonner comme s'il avait été écrit par l'utilisateur·ice, pas par une IA
 
-${buildIdentityBlock(ctx.profile, "experte en création de stories Instagram")}
+${buildIdentityBlock(ctx.profile, "expert·e en création de stories Instagram")}
 
 ${ANTI_SLOP}
 
@@ -143,7 +143,7 @@ Réponds UNIQUEMENT avec le JSON.`;
 - Imite les patterns de ton et de structure
 - Le contenu doit sonner comme s'il avait été écrit par l'utilisateur·ice, pas par une IA
 
-${buildIdentityBlock(ctx.profile, "experte en stories Instagram")}
+${buildIdentityBlock(ctx.profile, "expert·e en stories Instagram")}
 
 ${ANTI_SLOP}
 
@@ -517,7 +517,7 @@ Si format = visuel/photo :
 
 POUR LA STORY 1, GÉNÈRE 2 OPTIONS DE HOOK dans le champ "hook_options" :
 - Option A : hook court (le plus percutant, 5-10 mots)
-- Option B : hook développé (pour celles qui préfèrent contextualiser, 10-15 mots)
+- Option B : hook développé (pour ceux·celles qui préfèrent contextualiser, 10-15 mots)
 
 TYPES DE HOOKS STORIES (adaptés à l'angle choisi) :
 1. Coulisses en direct : "Là je suis en train de [action]…" / "Bon, je vous montre un truc."
