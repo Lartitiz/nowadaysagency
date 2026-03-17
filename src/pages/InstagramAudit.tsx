@@ -24,6 +24,7 @@ import ContentAnalysisResults from "@/components/audit/ContentAnalysisResults";
 import { calculateAuditScore, type ProfileForScore } from "@/lib/audit-score";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import { useUserPlan } from "@/hooks/use-user-plan";
+import QuotaExhaustedCard from "@/components/QuotaExhaustedCard";
 
 const AUDIT_LOADING_MESSAGES = [
   { time: 0, text: "📱 Lecture de ton profil..." },
