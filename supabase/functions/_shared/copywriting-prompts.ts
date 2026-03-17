@@ -659,7 +659,7 @@ LONGUEUR :
 FORMATAGE (72% mobile) :
 - Paragraphes courts : 1-3 lignes max
 - Sauts de ligne entre chaque bloc
-- Bucket brigades : "Sauf que.", "Et là, surprise.", "Le truc, c'est que..."
+- Transitions naturelles : "Sauf que.", "Le truc, c'est que...", "En vrai,"
 - Gras avec parcimonie pour mots-clés essentiels
 - Emojis : 0 à 2 max, comme puces visuelles
 - Écriture inclusive avec point médian
