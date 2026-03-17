@@ -11,7 +11,7 @@ import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { friendlyError } from "@/lib/error-messages";
-import { Loader2, Sparkles, BarChart3, RotateCcw } from "lucide-react";
+import { Loader2, Sparkles, BarChart3, RotateCcw, AlertTriangle } from "lucide-react";
 import AiLoadingIndicator from "@/components/AiLoadingIndicator";
 import { useDiagnosticCache } from "@/hooks/use-diagnostic-cache";
 import DiagnosticCacheBanner from "@/components/audit/DiagnosticCacheBanner";
@@ -23,6 +23,7 @@ import AuditInputForm, { type AuditFormData } from "@/components/audit/AuditInpu
 import ContentAnalysisResults from "@/components/audit/ContentAnalysisResults";
 import { calculateAuditScore, type ProfileForScore } from "@/lib/audit-score";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
+import { useUserPlan } from "@/hooks/use-user-plan";
 
 const AUDIT_LOADING_MESSAGES = [
   { time: 0, text: "📱 Lecture de ton profil..." },
