@@ -363,6 +363,15 @@ export default function BrandingAuditPage() {
       <main className="container max-w-2xl mx-auto px-4 py-6 pb-24">
         <SubPageHeader currentLabel="🔍 Audit de ta communication" parentLabel="Mon identité" parentTo="/branding" />
 
+        {/* Quota exhausted */}
+        {quotaExhausted && !loading && (
+          <QuotaExhaustedCard
+            category="audits"
+            renewalMessage={quotaExhausted.message || undefined}
+            plan={plan}
+          />
+        )}
+
         {/* ─── Results section (shown first if audit exists) ─── */}
         {result && (
           <div id="resultats">
