@@ -318,7 +318,8 @@ Réponds en JSON strict :
 }
 
 RÈGLES :
-- Ton oral, décontracté, comme un message vocal à une amie
+- Ton oral, décontracté, comme si on parlait face caméra ou en message vocal. Le "JE" raconte, le "VOUS/TU" n'intervient que ponctuellement pour interpeller.
+- La story 1 doit commencer par du "JE" narratif : "Ce matin…", "Là je suis en train de…", "Un truc que j'ai remarqué…"
 - Écriture inclusive point médian
 - Au moins 1 sticker interactif (sondage ou question)
 - Hook fort sur la story 1
