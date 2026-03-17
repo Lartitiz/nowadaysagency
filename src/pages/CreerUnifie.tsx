@@ -150,7 +150,7 @@ export default function CreerUnifie() {
     { step, ideaText, objective, selectedFormat, editorialAngle, answers },
     (saved) => {
       if (!shouldRestore) return; // Fresh navigation — don't restore
-      if (location.state || searchParams.get("format") || searchParams.get("sujet")) return;
+      if (searchParams.get("format") || searchParams.get("sujet")) return;
       if (saved.step && saved.step !== "idea") setStep(saved.step as Step);
       if (saved.ideaText) setIdeaText(saved.ideaText);
       if (saved.objective) setObjective(saved.objective);
