@@ -124,9 +124,9 @@ serve(async (req) => {
       throw new Error("Aucune image n'a pu être téléchargée");
     }
 
-    const systemPrompt = `Tu es une directrice artistique experte en identité visuelle. Analyse ces visuels/templates et extrais-en l'identité graphique.
+    const systemPrompt = `Tu es un·e expert·e en direction artistique et identité visuelle. Analyse ces visuels/templates et extrais-en l'identité graphique.
 
-CHARTE GRAPHIQUE DÉCLARÉE PAR L'UTILISATRICE :
+CHARTE GRAPHIQUE DÉCLARÉE PAR L'UTILISATEUR·ICE :
 ${charterContext}
 
 Pour chaque image analysée, identifie :
@@ -175,7 +175,7 @@ Puis fais une SYNTHÈSE GLOBALE en JSON (et UNIQUEMENT du JSON, sans texte avant
   "photo_integration_styles": ["liste des styles d'intégration de photos détectés, ex: full_background, top_photo_60, left_photo_40, vignette_round, card_with_photo, text_only"]
 }
 
-Sois précise sur les HEX. Sois bienveillante dans les recommandations.
+Sois précis·e sur les HEX. Sois bienveillant·e dans les recommandations.
 La description template_layout_description doit être TRÈS détaillée (200-500 mots). C'est le champ le plus important car il sera utilisé pour générer des visuels sans revoir l'image.`;
 
     const userContent: any[] = [
