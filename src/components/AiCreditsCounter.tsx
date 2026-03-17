@@ -45,6 +45,19 @@ export default function AiCreditsCounter({ plan, usage }: AiCreditsCounterProps)
   const isWarning = !isExhausted && !isUrgent && pct <= 0.5;
   // const isComfort = pct > 0.5;
 
+  // PostHog tracking — once per tier per session
+  const trackedTiers = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (isWarning && !trackedTiers.current.has("attention")) {
+      trackedTiers.current.add("attention");
+      posthog.capture("quota_warning_shown", { plan, remaining, total: total.limit, tier: "attention" });
+    }
+    if (isUrgent && !trackedTiers.current.has("urgence")) {
+      trackedTiers.current.add("urgence");
+      posthog.capture("quota_warning_shown", { plan, remaining, total: total.limit, tier: "urgence" });
+    }
+  }, [isWarning, isUrgent, plan, remaining, total.limit]);
+
   const ringStroke = isExhausted
     ? "stroke-red-500"
     : isUrgent

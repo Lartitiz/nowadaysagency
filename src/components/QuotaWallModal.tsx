@@ -16,6 +16,29 @@ interface QuotaWallModalProps {
 export default function QuotaWallModal({ open, onClose, plan, usage }: QuotaWallModalProps) {
   const navigate = useNavigate();
 
+  // Track modal open
+  useEffect(() => {
+    if (open) {
+      posthog.capture("quota_wall_shown", {
+        plan,
+        total_used: usage?.total?.used,
+        content_used: usage?.content?.used,
+        audit_used: usage?.audit?.used,
+      });
+    }
+  }, [open]);
+
+  const handleClose = () => {
+    posthog.capture("quota_wall_dismissed", { plan });
+    onClose();
+  };
+
+  const handleCtaClick = () => {
+    posthog.capture("quota_wall_cta_clicked", { plan });
+    onClose();
+    navigate("/mon-plan");
+  };
+
   const nextMonth = new Date();
   nextMonth.setMonth(nextMonth.getMonth() + 1, 1);
   const renewDate = nextMonth.toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
