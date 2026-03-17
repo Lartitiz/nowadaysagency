@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Upload, X, Search, Loader2 } from "lucide-react";
+import { Upload, X, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
