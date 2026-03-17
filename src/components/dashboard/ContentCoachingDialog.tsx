@@ -4,7 +4,7 @@ import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import CoachingShell from "@/components/coaching/CoachingShell";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
-import { Loader2, ArrowLeft, ArrowRight, Rocket, RefreshCw } from "lucide-react";
+import { Loader2, ArrowLeft, ArrowRight, Rocket, RefreshCw, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 
 type Step = 1 | 2 | 3 | 4 | 5 | 6 | "loading" | "result";
