@@ -108,7 +108,7 @@ Idée brute partagée :
 Pose-lui 1 question de précision adaptée à son idée.
 La question doit l'aider à trouver :
 - Le déclencheur concret (vécu perso, situation client, observation)
-- OU l'angle spécifique (qu'est-ce qu'elle veut que les gens comprennent/ressentent)
+- OU l'angle spécifique (qu'est-ce que la personne veut que les gens comprennent/ressentent)
 
 RÈGLES :
 - 1 question, pas 5. On ne veut pas un interrogatoire.
