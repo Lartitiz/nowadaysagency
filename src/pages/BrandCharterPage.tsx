@@ -739,7 +739,7 @@ export default function BrandCharterPage() {
             />
           </section>
 
-          {/* Templates section moved to top */}
+          
         </div>
 
         {data.updated_at && (
