@@ -653,6 +653,7 @@ export default function BrandCharterPage() {
           onAuditTemplates={handleAuditTemplates}
           auditing={auditing}
         />
+        </div>
 
         <div className="space-y-6">
           {/* SECTION 1: Logo */}
