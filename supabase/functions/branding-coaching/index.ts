@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { callAnthropic, getDefaultModel } from "../_shared/anthropic.ts";
+import { callAnthropic, callAnthropicWithMeta, getDefaultModel } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
