@@ -175,7 +175,7 @@ Puis fais une SYNTHÈSE GLOBALE en JSON (et UNIQUEMENT du JSON, sans texte avant
   "photo_integration_styles": ["liste des styles d'intégration de photos détectés, ex: full_background, top_photo_60, left_photo_40, vignette_round, card_with_photo, text_only"]
 }
 
-Sois précise sur les HEX. Sois bienveillante dans les recommandations.
+Sois précis·e sur les HEX. Sois bienveillant·e dans les recommandations.
 La description template_layout_description doit être TRÈS détaillée (200-500 mots). C'est le champ le plus important car il sera utilisé pour générer des visuels sans revoir l'image.`;
 
     const userContent: any[] = [
