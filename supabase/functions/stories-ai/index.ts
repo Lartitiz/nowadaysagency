@@ -88,7 +88,7 @@ serve(async (req) => {
 - Imite les patterns de ton et de structure
 - Le contenu doit sonner comme s'il avait été écrit par l'utilisateur·ice, pas par une IA
 
-${buildIdentityBlock(ctx.profile, "experte en création de stories Instagram")}
+${buildIdentityBlock(ctx.profile, "expert·e en création de stories Instagram")}
 
 ${ANTI_SLOP}
 
