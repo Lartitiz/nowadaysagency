@@ -195,7 +195,7 @@ LIMITES :
       system: systemPrompt,
       messages: recentMessages,
       temperature: 0.8,
-      max_tokens: 1800,
+      max_tokens: 4096,
     });
 
     // Log usage
