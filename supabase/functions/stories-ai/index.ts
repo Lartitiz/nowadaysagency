@@ -102,7 +102,7 @@ ${branding_context || ""}`;
     if (type === "clarify_subject") {
       const systemPrompt = STORIES_PREFIX + `\n\nL'utilisateur·ice a une idée floue pour ses stories. Aide à préciser.
 
-L'utilisatrice a partagé une idée brute :
+Idée brute partagée :
 "${body.raw_idea}"
 
 Pose-lui 1 question de précision adaptée à son idée.
