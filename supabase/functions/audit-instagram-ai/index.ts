@@ -128,7 +128,19 @@ serve(async (req) => {
       visionImages = fetched.filter(Boolean) as { data: string; media_type: string }[];
     }
 
-    // Get branding context
+    // Also fetch best/worst post images for vision analysis (limit to 3 total to avoid memory issues)
+    const postImageUrls: string[] = [
+      ...(atd?.bestPostUrls || []).slice(0, 2),
+      ...(atd?.worstPostUrls || []).slice(0, 2),
+    ].slice(0, 3);
+    if (postImageUrls.length > 0) {
+      const postImages = await Promise.all(
+        postImageUrls.map((url: string) => fetchImageAsBase64(url))
+      );
+      const validPostImages = postImages.filter(Boolean) as { data: string; media_type: string }[];
+      visionImages = [...visionImages, ...validPostImages];
+    }
+
     const ctx = await getUserContext(supabase, user.id, workspace_id);
     const fullContext = formatContextForAI(ctx, CONTEXT_PRESETS.content);
 
