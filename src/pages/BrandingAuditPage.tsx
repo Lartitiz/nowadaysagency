@@ -76,6 +76,8 @@ export default function BrandingAuditPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { diagnosticData: diagCache, isRecent: diagIsRecent } = useDiagnosticCache();
+  const { plan } = useUserPlan();
+  const [quotaExhausted, setQuotaExhausted] = useState<{ message?: string } | null>(null);
 
   /* ─── Source toggles ─── */
   const [useSite, setUseSite] = useState(false);
