@@ -213,7 +213,12 @@ export default function BrandingAuditPage() {
       // Scroll to top to see results
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (e: any) {
-      toast.error(e.message || "Erreur lors de l'audit. Réessaie.");
+      const errStr = e?.message || String(e);
+      if (/quota|crédit|limit_reached|limit/i.test(errStr)) {
+        setQuotaExhausted({ message: "" });
+      } else {
+        toast.error(e.message || "Erreur lors de l'audit. Réessaie.");
+      }
     } finally {
       setLoading(false);
     }
