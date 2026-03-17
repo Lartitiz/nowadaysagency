@@ -1665,6 +1665,7 @@ export default function CreerUnifie() {
             {/* Steps */}
             {step === "idea" && (
               <>
+                <LowCreditsBanner remaining={remainingTotal()} plan={plan} />
                 {!planLoading && remainingTotal() < 9000 && (
                   <p className="text-xs text-muted-foreground text-right mb-2">
                     ✨ {remainingTotal()} générations restantes ce mois
