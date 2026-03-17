@@ -1,7 +1,28 @@
 import { toast } from "sonner";
 
+// Callback global pour ouvrir le modal quand quota total épuisé
+let _quotaWallCallback: ((data: {
+  plan: string;
+  usage: Record<string, { used: number; limit: number }>;
+  message: string;
+}) => void) | null = null;
+
 /**
- * Detects if an error is a quota/limit error and shows a friendly toast.
+ * Enregistre le callback qui ouvre QuotaWallModal.
+ * Appelé une seule fois depuis un composant parent (ex: App ou layout).
+ */
+export function registerQuotaWallCallback(
+  cb: (data: { plan: string; usage: Record<string, { used: number; limit: number }>; message: string }) => void
+) {
+  _quotaWallCallback = cb;
+}
+
+export function unregisterQuotaWallCallback() {
+  _quotaWallCallback = null;
+}
+
+/**
+ * Detects if an error is a quota/limit error and shows a friendly toast or opens the wall modal.
  * Returns true if it was a quota error (caller should stop processing).
  */
 export function handleQuotaError(error: any): boolean {
@@ -19,11 +40,21 @@ export function handleQuotaError(error: any): boolean {
 
   if (!isQuota) return false;
 
-  // Extract the server message if available
-  const serverMessage =
-    error?.data?.message || error?.message || msg;
+  const serverMessage = error?.data?.message || error?.message || msg;
+  const quota = error?.data?.quota || error?.quota;
+  const reason = quota?.reason || error?.data?.category;
 
-  // Friendly message with renewal info
+  // Si quota total épuisé ET callback enregistré → ouvrir le modal
+  if (_quotaWallCallback && (reason === "total" || serverMessage.includes("générations IA ce mois"))) {
+    _quotaWallCallback({
+      plan: quota?.plan || "free",
+      usage: quota?.usage || {},
+      message: serverMessage,
+    });
+    return true;
+  }
+
+  // Sinon → toast classique (catégorie spécifique ou fonctionnalité premium)
   const friendlyTitle = serverMessage.includes("disponible à partir")
     ? "Fonctionnalité premium ✨"
     : "Plus de crédits ce mois-ci 🌸";
