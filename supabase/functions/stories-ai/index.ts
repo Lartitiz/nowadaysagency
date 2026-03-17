@@ -86,7 +86,7 @@ serve(async (req) => {
 - Réutilise les expressions signature naturellement dans le texte
 - RESPECTE les expressions interdites : ne les utilise JAMAIS
 - Imite les patterns de ton et de structure
-- Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA
+- Le contenu doit sonner comme s'il avait été écrit par l'utilisateur·ice, pas par une IA
 
 ${buildIdentityBlock(ctx.profile, "experte en création de stories Instagram")}
 
@@ -100,15 +100,15 @@ ${CHAIN_OF_THOUGHT}
 ${branding_context || ""}`;
     // Clarify subject (fuzzy path)
     if (type === "clarify_subject") {
-      const systemPrompt = STORIES_PREFIX + `\n\nL'utilisatrice a une idée floue pour ses stories. Aide-la à préciser.
+      const systemPrompt = STORIES_PREFIX + `\n\nL'utilisateur·ice a une idée floue pour ses stories. Aide à préciser.
 
-L'utilisatrice a partagé une idée brute :
+Idée brute partagée :
 "${body.raw_idea}"
 
 Pose-lui 1 question de précision adaptée à son idée.
 La question doit l'aider à trouver :
 - Le déclencheur concret (vécu perso, situation client, observation)
-- OU l'angle spécifique (qu'est-ce qu'elle veut que les gens comprennent/ressentent)
+- OU l'angle spécifique (qu'est-ce que la personne veut que les gens comprennent/ressentent)
 
 RÈGLES :
 - 1 question, pas 5. On ne veut pas un interrogatoire.
@@ -141,7 +141,7 @@ Réponds UNIQUEMENT avec le JSON.`;
 - Réutilise les expressions signature naturellement dans le texte
 - RESPECTE les expressions interdites : ne les utilise JAMAIS
 - Imite les patterns de ton et de structure
-- Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA
+- Le contenu doit sonner comme s'il avait été écrit par l'utilisateur·ice, pas par une IA
 
 ${buildIdentityBlock(ctx.profile, "experte en stories Instagram")}
 
@@ -149,19 +149,19 @@ ${ANTI_SLOP}
 
 ${CHAIN_OF_THOUGHT}
 
-CONTEXTE DE MARQUE DE L'UTILISATRICE :
+CONTEXTE DE MARQUE :
 ${branding_context || "(aucun contexte fourni)"}
 
-Propose 5 sujets de séquences stories ULTRA SPÉCIFIQUES pour cette utilisatrice.
+Propose 5 sujets de séquences stories ULTRA SPÉCIFIQUES pour cette personne.
 
 RÈGLES CRITIQUES :
-- Chaque sujet doit mentionner un élément concret de SON activité, SA cible ou SES combats
+- Chaque sujet doit mentionner un élément concret de son activité, sa cible ou ses combats
 - PAS de sujets génériques applicables à n'importe qui ("comment se démarquer", "les erreurs à éviter")
 - Formule chaque sujet comme un TEASER qui donne envie de regarder la story
 - Le sujet doit être une phrase accrocheuse, pas un titre académique
 - Varie les angles : coulisses perso, conseil actionnable, prise de position, témoignage client, behind-the-scenes
 
-EXEMPLES DE BONS SUJETS (si l'utilisatrice est coach en nutrition) :
+EXEMPLES DE BONS SUJETS (ex : si la personne est coach en nutrition) :
 ✅ "Ce que j'ai répondu à ma cliente qui voulait supprimer les glucides"
 ✅ "Mon organisation meal prep du dimanche en 3 stories"
 ✅ "Pourquoi je refuse de parler de calories avec mes clientes"
@@ -214,7 +214,7 @@ Réponds UNIQUEMENT avec le JSON.`;
     // Build enriched subject from SubjectPicker
     let enrichedSubject = subject || "";
     if (subject_details) {
-      enrichedSubject += `\n\nCE QU'ELLE VEUT DIRE (utilise SES mots, SES expressions, SES analogies) :\n"${subject_details}"`;
+      enrichedSubject += `\n\nCE QUE LA PERSONNE VEUT DIRE (utilise ses mots, ses expressions, ses analogies) :\n"${subject_details}"`;
     }
     if (raw_idea && clarify_context) {
       enrichedSubject = raw_idea;
@@ -277,7 +277,7 @@ function buildDailyPrompt(prefix: string): string {
 Génère 5 stories du quotidien personnalisées. Aujourd'hui on est ${new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}.
 
 Les 5 stories suivent cette structure :
-1. 🌅 L'ouverture : ce qu'elle fait / sa journée (connexion)
+1. 🌅 L'ouverture : ce que la personne fait / sa journée (connexion)
 2. ☀️ L'observation : un truc lié à son expertise (éducation)
 3. ☀️ La question : demander l'avis (engagement + sticker)
 4. 🌙 Le conseil : un tip actionnable en 1 story (valeur)
@@ -348,7 +348,7 @@ function buildMainPrompt(p: MainPromptParams, prefix: string): string {
     preGenBlock = `
 
 ═══════════════════════════════════════════════════
-ÉLÉMENTS PERSONNELS DE L'UTILISATRICE (PRIORITÉ HAUTE)
+ÉLÉMENTS PERSONNELS DE L'UTILISATEUR·ICE (PRIORITÉ HAUTE)
 ═══════════════════════════════════════════════════
 
 ${p.pre_gen_answers.vecu ? `VÉCU RÉCENT : "${p.pre_gen_answers.vecu}"
@@ -369,12 +369,12 @@ ${p.pre_gen_answers.message_cle ? `MESSAGE CLÉ : "${p.pre_gen_answers.message_c
 → NE CHANGE PAS le sens de ses mots. Tu peux ajuster la structure mais les mots restent les siens.
 → C'est la phrase que les gens doivent retenir.` : ""}
 
-RÈGLE D'OR : Si l'utilisatrice a fourni ces éléments, ils sont plus importants que n'importe quel template. La séquence doit sonner comme ELLE, pas comme un framework appliqué mécaniquement.
+RÈGLE D'OR : Si la personne a fourni ces éléments, ils sont plus importants que n'importe quel template. La séquence doit sonner authentique, pas comme un framework appliqué mécaniquement.
 `;
   } else {
     preGenBlock = `
 
-L'utilisatrice n'a pas fourni d'éléments personnels.
+La personne n'a pas fourni d'éléments personnels.
 Génère normalement. Ajoute un champ "personal_tip" dans le JSON :
 "Tes stories seront 10x plus engageantes avec un truc vécu. Ajoute un moment perso dans la story 1 ou 2 avant de publier."
 `;
@@ -544,7 +544,7 @@ GARDE-FOUS OBLIGATOIRES :
 13. JAMAIS de tiret cadratin (—)
 14. PRIORITÉ ABSOLUE : si un profil de voix existe dans le contexte, reproduis ce style. Réutilise les expressions signature, imite les patterns de structure et de ton.
 15. Ne JAMAIS utiliser les expressions interdites du profil de voix.
-16. Le résultat doit sonner comme si l'utilisatrice l'avait écrit elle-même.
+16. Le résultat doit sonner comme si l'utilisateur·ice l'avait écrit.
 17. Si le temps dispo est "5min", MAXIMUM 3 stories. Ne génère JAMAIS 5+ stories pour quelqu'un qui a 5 minutes.
 18. La longueur du texte de chaque story doit être RÉALISTE : une story texte = 2-3 phrases max. Une story face cam = 15-30 secondes de parole (50-80 mots). Ne génère pas des pavés pour des stories.
 
