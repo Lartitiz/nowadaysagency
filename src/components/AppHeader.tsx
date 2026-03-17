@@ -17,6 +17,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { registerQuotaWallCallback, unregisterQuotaWallCallback } from "@/lib/quota-error-handler";
+import QuotaWallModal from "@/components/QuotaWallModal";
 
 /* ─── Unified nav items ─── */
 
