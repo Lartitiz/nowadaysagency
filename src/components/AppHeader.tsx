@@ -17,6 +17,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { registerQuotaWallCallback, unregisterQuotaWallCallback } from "@/lib/quota-error-handler";
+import QuotaWallModal from "@/components/QuotaWallModal";
 
 /* ─── Unified nav items ─── */
 
@@ -121,6 +123,22 @@ function AppHeaderInner() {
   const [hasCoaching, setHasCoaching] = useState(false);
   const [coachingMonth, setCoachingMonth] = useState<number | null>(null);
   const [coachingPhase, setCoachingPhase] = useState<string | null>(null);
+
+  // État pour le modal quota wall
+  const [quotaWallData, setQuotaWallData] = useState<{
+    open: boolean;
+    plan: string;
+    usage: Record<string, { used: number; limit: number }>;
+    message: string;
+  }>({ open: false, plan: "free", usage: {}, message: "" });
+
+  // Enregistrer le callback au montage
+  useEffect(() => {
+    registerQuotaWallCallback((data) => {
+      setQuotaWallData({ open: true, ...data });
+    });
+    return () => unregisterQuotaWallCallback();
+  }, []);
 
   // Check if user has an active coaching program
   useEffect(() => {
@@ -353,6 +371,13 @@ function AppHeaderInner() {
         </div>
       )}
 
+      <QuotaWallModal
+        open={quotaWallData.open}
+        onClose={() => setQuotaWallData(prev => ({ ...prev, open: false }))}
+        plan={quotaWallData.plan}
+        usage={quotaWallData.usage}
+        serverMessage={quotaWallData.message}
+      />
     </>
   );
 }
