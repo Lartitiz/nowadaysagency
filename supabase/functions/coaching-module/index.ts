@@ -194,6 +194,7 @@ RÉPONSES DE L'UTILISATRICE :
 ${answers.map((a: any, i: number) => `Q${i + 1}: ${a.question}\nR${i + 1}: ${a.answer}`).join("\n\n")}
 
 TON STYLE :
+- Tu ne dis JAMAIS de gros mots, de jurons ni de langage vulgaire. Tu restes courtois·e et professionnel·le.
 - Direct et chaleureux, tutoiement
 - Tu expliques le POURQUOI de tes recommandations
 - Tu donnes des exemples concrets
@@ -309,6 +310,7 @@ L'utilisatrice veut que tu AJUSTES ta proposition en tenant compte de son feedba
 - Explique brièvement ce que tu as ajusté et pourquoi
 
 TON STYLE :
+- Tu ne dis JAMAIS de gros mots, de jurons ni de langage vulgaire. Tu restes courtois·e et professionnel·le.
 - Direct et chaleureux, tutoiement
 - Tu expliques ce que tu as changé par rapport à avant
 - Pas de jargon marketing

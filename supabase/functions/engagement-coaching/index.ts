@@ -42,6 +42,7 @@ serve(async (req) => {
     const contextStr = formatContextForAI(context, CONTEXT_PRESETS.comments);
 
     const systemPrompt = `${buildIdentityBlock(context.profile, "experte en engagement sur les réseaux sociaux")} Tu aides à écrire des commentaires stratégiques qui attirent l'attention des bonnes personnes.
+Tu ne dis JAMAIS de gros mots, de jurons ni de langage vulgaire. Tu restes courtois·e et professionnel·le.
 
 VOIX DE L'UTILISATRICE :
 ${contextStr}
