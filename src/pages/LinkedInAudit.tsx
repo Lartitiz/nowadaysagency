@@ -212,6 +212,7 @@ export default function LinkedInAudit() {
   const handleAnalyze = async () => {
     if (!user) return;
     setAnalyzing(true);
+    setQuotaExhausted(null);
     try {
       const uploadedScreenshots = screenshots.length > 0 ? await uploadAllScreenshots() : [];
 
