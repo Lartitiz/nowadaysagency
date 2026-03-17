@@ -369,7 +369,7 @@ ${p.pre_gen_answers.message_cle ? `MESSAGE CLÉ : "${p.pre_gen_answers.message_c
 → NE CHANGE PAS le sens de ses mots. Tu peux ajuster la structure mais les mots restent les siens.
 → C'est la phrase que les gens doivent retenir.` : ""}
 
-RÈGLE D'OR : Si l'utilisatrice a fourni ces éléments, ils sont plus importants que n'importe quel template. La séquence doit sonner comme ELLE, pas comme un framework appliqué mécaniquement.
+RÈGLE D'OR : Si la personne a fourni ces éléments, ils sont plus importants que n'importe quel template. La séquence doit sonner authentique, pas comme un framework appliqué mécaniquement.
 `;
   } else {
     preGenBlock = `
