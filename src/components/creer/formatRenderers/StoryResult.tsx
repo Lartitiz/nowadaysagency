@@ -2,7 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 
 interface Props {
   result: any;
@@ -12,6 +12,16 @@ interface Props {
 export default function StoryResult({ result, onStoriesUpdate }: Props) {
   const rawStories: any[] = result?.stories || result?.sequences || result?.slides || [];
   const [stories, setStories] = useState(rawStories);
+
+  const prevSignature = useRef(JSON.stringify(rawStories.map((_: any, i: number) => i)));
+
+  useEffect(() => {
+    const newSig = JSON.stringify(rawStories.map((_: any, i: number) => i));
+    if (newSig !== prevSignature.current) {
+      setStories(rawStories);
+      prevSignature.current = newSig;
+    }
+  }, [result]);
 
   const fullText = stories
     .map((s: any) => s.text || s.texte || s.content || "")

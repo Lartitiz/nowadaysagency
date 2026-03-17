@@ -150,10 +150,16 @@ export default function CarouselResult({ result, visualSlides, onSlidesUpdate }:
   const [slides, setSlides] = useState<SlideData[]>(rawSlides);
   const [caption, setCaption] = useState<CaptionData>(rawCaption);
 
-  // Sync when result changes (new generation)
+  const prevSlidesSignature = useRef(JSON.stringify(rawSlides.map(s => s.slide_number)));
+
+  // Sync only when slides are structurally different (new generation)
   useEffect(() => {
-    setSlides(rawSlides);
-    setCaption(rawCaption);
+    const newSignature = JSON.stringify(rawSlides.map(s => s.slide_number));
+    if (newSignature !== prevSlidesSignature.current) {
+      setSlides(rawSlides);
+      setCaption(rawCaption);
+      prevSlidesSignature.current = newSignature;
+    }
   }, [result]);
 
   const updateSlide = useCallback((index: number, field: "title" | "body", value: string) => {
