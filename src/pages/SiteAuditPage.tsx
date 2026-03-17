@@ -243,6 +243,7 @@ const SiteAuditPage = () => {
       if (data?.error || data?.quota) {
         const { handleQuotaError } = await import("@/lib/quota-error-handler");
         if (handleQuotaError({ data, message: data.message || data.error })) {
+          setQuotaExhausted({ message: data.message || "" });
           setStep("input");
           return;
         }
