@@ -97,6 +97,7 @@ CONSIGNES SPÉCIFIQUES AU MODE COMPLÉMENT :
       : "Aucun post récent.";
 
     const systemPrompt = `${buildIdentityBlock(ctx.profile, "directrice éditoriale senior")} Tu planifies des semaines de contenu STRATÉGIQUES et ORIGINALES.
+Tu ne dis JAMAIS de gros mots, de jurons ni de langage vulgaire. Tu restes courtois·e et professionnel·le.
 
 ${CORE_PRINCIPLES}
 

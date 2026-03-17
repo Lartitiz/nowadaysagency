@@ -175,6 +175,7 @@ Retourne UNIQUEMENT un JSON :
       };
 
       const systemPrompt = `${buildIdentityBlock(ctx.profile, "consultante LinkedIn experte")} À partir des réponses de l'utilisatrice, génère un diagnostic actionnable.
+Tu ne dis JAMAIS de gros mots, de jurons ni de langage vulgaire. Tu restes courtois·e et professionnel·le.
 
 CONTEXTE BRANDING :
 ${contextText}
