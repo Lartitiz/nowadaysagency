@@ -192,7 +192,7 @@ ${p(`À très vite,<br><span style="color:#91014b;font-family:Georgia,'Libre Bas
 export const EMAIL_TEMPLATES = {
   welcome: { fn: welcomeEmail, subject: "Bienvenue dans L'Assistant Com' !" },
   tips_day3: { fn: tipsDay3Email, subject: "Le secret des comptes qui percent (indice : c'est pas l'algorithme)" },
-  credits_exhausted: { fn: creditsExhaustedEmail, subject: "Tes 10 crédits IA sont utilisés !" },
+  credits_exhausted: { fn: creditsExhaustedEmail, subject: "Tes 30 crédits IA sont utilisés !" },
   inactive_7d: { fn: inactive7dEmail, subject: "Ta com' t'attend (et elle est pas rancunière)" },
   teaser_premium: { fn: teaserPremiumEmail, subject: "Et si ta com' devenait un jeu ?" },
 } as const;

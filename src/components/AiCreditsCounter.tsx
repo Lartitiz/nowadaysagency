@@ -142,25 +142,9 @@ export default function AiCreditsCounter({ plan, usage }: AiCreditsCounterProps)
               <Progress value={Math.round(usedPct * 100)} className="h-1.5" />
             </div>
 
-            {/* Per category */}
-            <div className="space-y-2.5">
-              {DISPLAY_CATEGORIES.map(({ key, label }) => {
-                const cat = usage[key];
-                if (!cat || cat.limit <= 0) return null;
-                const catPct = Math.round((cat.used / cat.limit) * 100);
-                return (
-                  <div key={key}>
-                    <div className="flex items-center justify-between text-xs text-muted-foreground mb-0.5">
-                      <span>{label}</span>
-                      <span className="font-mono-ui">
-                        {cat.used}/{cat.limit}
-                      </span>
-                    </div>
-                    <Progress value={catPct} className="h-1" />
-                  </div>
-                );
-              })}
-            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Tu as utilisé tes crédits pour : {total.used > 0 ? "contenus, audits, coaching…" : "rien encore ce mois-ci."}
+            </p>
 
             {/* Palier messages */}
             {isWarning && (

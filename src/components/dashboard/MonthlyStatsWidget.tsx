@@ -110,7 +110,7 @@ export default function MonthlyStatsWidget({ animationDelay = 0 }: Props) {
 
   const pubPercent = objectives.posts > 0 ? Math.min(100, Math.round((monthPublished / objectives.posts) * 100)) : 0;
   const routinePercent = objectives.routineDays > 0 ? Math.min(100, Math.round((monthRoutineDays / objectives.routineDays) * 100)) : 0;
-  const aiMax = 300;
+  const aiMax = 30;
   const aiPercent = Math.min(100, Math.round((monthAiUsage / aiMax) * 100));
 
   const message = getMonthMessage(pubPercent, routinePercent);
