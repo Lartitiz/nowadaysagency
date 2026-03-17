@@ -404,7 +404,7 @@ serve(async (req) => {
       system: systemPrompt,
       messages: mergedMessages,
       temperature: 0.7,
-      max_tokens: 1500,
+      max_tokens: 4096,
     });
 
     let parsed;
