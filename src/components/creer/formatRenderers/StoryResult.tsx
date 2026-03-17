@@ -30,6 +30,10 @@ export default function StoryResult({ result, onStoriesUpdate }: Props) {
 
   const [checkedText, setCheckedText] = useState(fullText);
 
+  useEffect(() => {
+    setCheckedText(fullText);
+  }, [fullText]);
+
   const ANGLE_LABELS: Record<string, { emoji: string; label: string }> = {
     coulisses: { emoji: "🎬", label: "Coulisses" },
     reflexion: { emoji: "💭", label: "Réflexion perso" },
