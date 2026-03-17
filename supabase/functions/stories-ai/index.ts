@@ -374,7 +374,7 @@ RÈGLE D'OR : Si la personne a fourni ces éléments, ils sont plus importants q
   } else {
     preGenBlock = `
 
-L'utilisatrice n'a pas fourni d'éléments personnels.
+La personne n'a pas fourni d'éléments personnels.
 Génère normalement. Ajoute un champ "personal_tip" dans le JSON :
 "Tes stories seront 10x plus engageantes avec un truc vécu. Ajoute un moment perso dans la story 1 ou 2 avant de publier."
 `;
