@@ -152,7 +152,7 @@ ${CHAIN_OF_THOUGHT}
 CONTEXTE DE MARQUE :
 ${branding_context || "(aucun contexte fourni)"}
 
-Propose 5 sujets de séquences stories ULTRA SPÉCIFIQUES pour cette utilisatrice.
+Propose 5 sujets de séquences stories ULTRA SPÉCIFIQUES pour cette personne.
 
 RÈGLES CRITIQUES :
 - Chaque sujet doit mentionner un élément concret de SON activité, SA cible ou SES combats
