@@ -356,6 +356,10 @@ export default function CreerUnifie() {
     } else if (!ps) {
       setStep("idea");
     }
+    // Clean up location.state after reading it to prevent re-init on tab switch
+    if (location.state) {
+      window.history.replaceState({}, '', window.location.href);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search]);
 
