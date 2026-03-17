@@ -163,14 +163,14 @@ export function displayColor(data: CharterData, key: string): string {
 
 function computeCompletion(d: CharterData): number {
   let pct = 0;
-  if (d.logo_url) pct += 20;
-  // Count actually filled (non-null) colors
+  if (d.logo_url) pct += 15;
   const filledColors = (["color_primary", "color_secondary", "color_accent", "color_background", "color_text"] as const)
     .filter(k => d[k] != null).length;
   if (filledColors >= 3) pct += 25;
   if (d.font_title && d.font_body) pct += 20;
-  if (d.mood_keywords.length >= 3) pct += 20;
+  if (d.mood_keywords.length >= 3) pct += 15;
   if (d.photo_style && d.photo_style.trim().length > 0) pct += 15;
+  if (d.uploaded_templates && d.uploaded_templates.length > 0) pct += 10;
   return pct;
 }
 

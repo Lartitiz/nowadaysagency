@@ -139,18 +139,18 @@ export function calculateBrandingCompletion(data: BrandingRawData): BrandingComp
   const ch = data.charter;
   let charterScore = 0;
   if (ch) {
-    if (filled(ch.logo_url)) charterScore += 20;
-    // Count filled colors (any non-null value counts — don't penalize default picks)
+    if (filled(ch.logo_url)) charterScore += 15;
     const filledColors = (["color_primary", "color_secondary", "color_accent"] as const)
       .filter(k => filled(ch[k])).length;
     charterScore += Math.min(filledColors * 8, 25);
-    // Progressive: 10pts per filled font (max 20)
     if (filled(ch.font_title)) charterScore += 10;
     if (filled(ch.font_body)) charterScore += 10;
     if (Array.isArray(ch.mood_keywords) && ch.mood_keywords.length >= 1) {
-      charterScore += Math.min(ch.mood_keywords.length * 7, 20);
+      charterScore += Math.min(ch.mood_keywords.length * 7, 15);
     }
     if (filled(ch.photo_style)) charterScore += 15;
+    const templates = Array.isArray(ch.uploaded_templates) ? ch.uploaded_templates : [];
+    if (templates.length > 0) charterScore += 10;
   }
   const charter = Math.min(charterScore, 100);
 
