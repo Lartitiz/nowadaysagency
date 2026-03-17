@@ -348,7 +348,7 @@ function buildMainPrompt(p: MainPromptParams, prefix: string): string {
     preGenBlock = `
 
 ═══════════════════════════════════════════════════
-ÉLÉMENTS PERSONNELS DE L'UTILISATRICE (PRIORITÉ HAUTE)
+ÉLÉMENTS PERSONNELS DE L'UTILISATEUR·ICE (PRIORITÉ HAUTE)
 ═══════════════════════════════════════════════════
 
 ${p.pre_gen_answers.vecu ? `VÉCU RÉCENT : "${p.pre_gen_answers.vecu}"
