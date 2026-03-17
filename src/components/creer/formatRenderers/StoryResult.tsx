@@ -30,6 +30,19 @@ export default function StoryResult({ result, onStoriesUpdate }: Props) {
 
   const [checkedText, setCheckedText] = useState(fullText);
 
+  const ANGLE_LABELS: Record<string, { emoji: string; label: string }> = {
+    coulisses: { emoji: "🎬", label: "Coulisses" },
+    reflexion: { emoji: "💭", label: "Réflexion perso" },
+    interpellation: { emoji: "🙋", label: "Interpellation communauté" },
+    conseil_vecu: { emoji: "📖", label: "Conseil par l'expérience" },
+    storytime_client: { emoji: "💬", label: "Storytime client" },
+    coup_de_gueule: { emoji: "🔥", label: "Coup de gueule doux" },
+    journal_bord: { emoji: "📓", label: "Journal de bord" },
+  };
+
+  const narrativeAngle = result?.narrative_angle;
+  const angleInfo = narrativeAngle ? ANGLE_LABELS[narrativeAngle] : null;
+
   const getTextField = (story: any): "text" | "texte" | "content" => {
     if ("text" in story) return "text";
     if ("texte" in story) return "texte";
@@ -48,6 +61,16 @@ export default function StoryResult({ result, onStoriesUpdate }: Props) {
 
   return (
     <div className="space-y-4 animate-fade-in">
+      {angleInfo && (
+        <div className="flex items-center gap-2 px-1">
+          <Badge variant="outline" className="text-xs font-medium bg-primary/5 border-primary/20 text-primary">
+            {angleInfo.emoji} {angleInfo.label}
+          </Badge>
+          {result?.structure_label && (
+            <span className="text-xs text-muted-foreground">{result.structure_label}</span>
+          )}
+        </div>
+      )}
       <div className="space-y-2" data-selection-enabled="true">
         {stories.map((story: any, i: number) => (
           <Card key={i} className="border-border">
