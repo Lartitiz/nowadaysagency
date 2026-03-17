@@ -550,6 +550,7 @@ Réponds en JSON strict :
 {
   "structure_type": "...",
   "structure_label": "...",
+  "narrative_angle": "coulisses | reflexion | interpellation | conseil_vecu | storytime_client | coup_de_gueule",
   "total_stories": N,
   "estimated_time": "X min",
   "stickers_used": ["sondage", "question_ouverte"],
