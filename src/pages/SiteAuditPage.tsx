@@ -217,8 +217,8 @@ const SiteAuditPage = () => {
     if (!user) return;
 
     setAnalyzing(true);
+    setQuotaExhausted(null);
     setStep("loading");
-    setLoadingProgress(0);
 
     try {
       const pages_to_audit: string[] = [...extraPages];
