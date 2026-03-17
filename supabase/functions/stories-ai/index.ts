@@ -517,7 +517,7 @@ Si format = visuel/photo :
 
 POUR LA STORY 1, GÉNÈRE 2 OPTIONS DE HOOK dans le champ "hook_options" :
 - Option A : hook court (le plus percutant, 5-10 mots)
-- Option B : hook développé (pour celles qui préfèrent contextualiser, 10-15 mots)
+- Option B : hook développé (pour ceux·celles qui préfèrent contextualiser, 10-15 mots)
 
 TYPES DE HOOKS STORIES (adaptés à l'angle choisi) :
 1. Coulisses en direct : "Là je suis en train de [action]…" / "Bon, je vous montre un truc."
