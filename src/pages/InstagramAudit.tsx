@@ -703,30 +703,12 @@ export default function InstagramAudit() {
             ? "Mets à jour tes infos et relance l'analyse."
             : "Remplis les infos de ton profil. On analyse tout et on te donne un score avec des recommandations concrètes."}
         </p>
-        {!canAudit() && (
-          <div className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 mb-6">
-            <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
-            <div>
-              <p className="text-sm font-medium text-amber-800">
-                Tu as utilisé tes {remainingAudits() === 0 ? "3" : ""} audits ce mois-ci
-              </p>
-              <p className="text-sm text-amber-700 mt-0.5">
-                {plan === "free"
-                  ? "Ton plan gratuit inclut 3 audits/mois. Passe au plan Outil pour des audits illimités !"
-                  : "Tes crédits se renouvellent le 1er du mois prochain."}
-              </p>
-              {plan === "free" && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-2 rounded-full text-amber-800 border-amber-300 hover:bg-amber-100"
-                  onClick={() => navigate("/pricing")}
-                >
-                  Voir les plans →
-                </Button>
-              )}
-            </div>
-          </div>
+        {(quotaExhausted || !canAudit()) && !analyzing && (
+          <QuotaExhaustedCard
+            category="audits"
+            renewalMessage={quotaExhausted?.message || undefined}
+            plan={plan}
+          />
         )}
         {showDiagBanner && (
           <div className="mb-6">
