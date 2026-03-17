@@ -31,6 +31,29 @@ import { useFormPersist } from "@/hooks/use-form-persist";
 import { useStreamingInvoke } from "@/hooks/use-streaming-invoke";
 import { useUserPlan } from "@/hooks/use-user-plan";
 
+function LowCreditsBanner({ remaining, plan }: { remaining: number; plan: string }) {
+  if (plan !== "free" || remaining >= 5 || remaining <= 0) return null;
+  const nextMonth = new Date();
+  nextMonth.setMonth(nextMonth.getMonth() + 1, 1);
+  return (
+    <div className="mb-4 rounded-xl border border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50 px-4 py-3 flex items-center justify-between gap-3">
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="text-lg shrink-0">✨</span>
+        <p className="text-sm text-orange-800">
+          <span className="font-medium">Plus que {remaining} crédit{remaining > 1 ? "s" : ""}</span> ce mois-ci.
+          {" "}Utilise-les pour ce qui compte le plus pour toi.
+        </p>
+      </div>
+      <a
+        href="/mon-plan"
+        className="shrink-0 text-xs font-medium text-orange-600 hover:text-orange-800 underline underline-offset-2 transition-colors"
+      >
+        Découvrir le Premium
+      </a>
+    </div>
+  );
+}
+
 type Step = "idea" | "format" | "questions" | "inspiration_proposals" | "result" | "edit";
 type Mode = "create" | "transform";
 
@@ -42,7 +65,7 @@ export default function CreerUnifie() {
   const { isDemoMode, demoData } = useDemoContext();
   const workspaceId = useWorkspaceId();
   const { data: charterData } = useBrandCharter();
-  const { remainingTotal, loading: planLoading } = useUserPlan();
+  const { remainingTotal, loading: planLoading, plan, usage } = useUserPlan();
 
   // URL params
   const paramFormat = searchParams.get("format");
@@ -1642,6 +1665,7 @@ export default function CreerUnifie() {
             {/* Steps */}
             {step === "idea" && (
               <>
+                <LowCreditsBanner remaining={remainingTotal()} plan={plan} />
                 {!planLoading && remainingTotal() < 9000 && (
                   <p className="text-xs text-muted-foreground text-right mb-2">
                     ✨ {remainingTotal()} générations restantes ce mois
