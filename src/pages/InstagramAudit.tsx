@@ -228,7 +228,7 @@ export default function InstagramAudit() {
       if (res.error) {
         const errorMsg = res.error.message || "";
         if (errorMsg.includes("limit_reached") || (res.error as any).context?.body?.error === "limit_reached") {
-          toast({ title: "Tu as utilisé tes audits ce mois-ci 🌸", description: "Ils se renouvellent le 1er du mois, ou tu peux passer au Premium pour plus d'audits.", variant: "default" });
+          setQuotaExhausted({ message: (res.error as any).context?.body?.message || errorMsg });
           setAnalyzing(false);
           return;
         }
