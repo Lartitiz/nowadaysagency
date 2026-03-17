@@ -149,7 +149,7 @@ ${ANTI_SLOP}
 
 ${CHAIN_OF_THOUGHT}
 
-CONTEXTE DE MARQUE DE L'UTILISATRICE :
+CONTEXTE DE MARQUE :
 ${branding_context || "(aucun contexte fourni)"}
 
 Propose 5 sujets de séquences stories ULTRA SPÉCIFIQUES pour cette utilisatrice.
