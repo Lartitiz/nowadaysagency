@@ -238,7 +238,14 @@ export default function LinkedInAudit() {
         },
       });
 
-      if (res.error) throw new Error(res.error.message);
+      if (res.error) {
+        const errorMsg = res.error.message || "";
+        if (/limit_reached|quota|limit/i.test(errorMsg)) {
+          setQuotaExhausted({ message: errorMsg });
+          return;
+        }
+        throw new Error(errorMsg);
+      }
 
       let parsed: AuditResult;
       const content = res.data?.content || "";
