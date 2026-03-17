@@ -155,7 +155,7 @@ ${branding_context || "(aucun contexte fourni)"}
 Propose 5 sujets de séquences stories ULTRA SPÉCIFIQUES pour cette personne.
 
 RÈGLES CRITIQUES :
-- Chaque sujet doit mentionner un élément concret de SON activité, SA cible ou SES combats
+- Chaque sujet doit mentionner un élément concret de son activité, sa cible ou ses combats
 - PAS de sujets génériques applicables à n'importe qui ("comment se démarquer", "les erreurs à éviter")
 - Formule chaque sujet comme un TEASER qui donne envie de regarder la story
 - Le sujet doit être une phrase accrocheuse, pas un titre académique
