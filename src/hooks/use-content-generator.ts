@@ -31,6 +31,12 @@ export interface GenerateParams {
   photos?: { base64: string }[];
   photoDescription?: string;
   photoMode?: boolean;
+  slideStructure?: Array<{
+    slide_number: number;
+    type: "photo_full" | "photo_integrated" | "text_only";
+    photo_index?: number;
+    photo_layout?: string;
+  }>;
 }
 
 export interface GenerateQuestionsParams {
