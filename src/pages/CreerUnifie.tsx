@@ -148,6 +148,7 @@ export default function CreerUnifie() {
   const [photoBriefOverlayHtml, setPhotoBriefOverlayHtml] = useState<string | null>(null);
   const [structureProposal, setStructureProposal] = useState<StructureProposal | null>(null);
   const [structureLoading, setStructureLoading] = useState(false);
+  const [lastConfirmedStructure, setLastConfirmedStructure] = useState<SlideProposal[] | null>(null);
 
   const { restored: draftRestored, clearDraft } = useFormPersist(
     "creer-unifie-form",
