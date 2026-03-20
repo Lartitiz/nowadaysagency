@@ -1133,11 +1133,30 @@ Pour chaque slide, tu choisis UN de ces types :
    - Champs : photo_layout, title, body, photo_index
 
 3. "text_only" — Slide texte pure (design system)
-   - Pas de photo, design classique avec fond coloré/blanc, typos, badges
-   - Idéal pour : développement narratif, tips détaillés, prise de position, contexte, CTA. Ce ne sont PAS des séparateurs : chaque slide texte porte du contenu de fond.
-   - Champs : title, body, visual_schema (optionnel)
+    - Pas de photo, design classique avec fond coloré/blanc, typos, badges
+    - Idéal pour : développement narratif, tips détaillés, prise de position, contexte, CTA. Ce ne sont PAS des séparateurs : chaque slide texte porte du contenu de fond.
+    - Champs : title, body, visual_schema (optionnel)
 
-═══ RÈGLES DE COMPOSITION ═══
+${(() => {
+    let structureConstraint = "";
+    if (slide_structure && slide_structure.length > 0) {
+      const lines = slide_structure.map((s: any) => {
+        let line = `- Slide ${s.slide_number} : type="${s.type}"`;
+        if (s.photo_index) line += `, photo_index=${s.photo_index}`;
+        if (s.photo_layout) line += `, photo_layout="${s.photo_layout}"`;
+        return line;
+      }).join("\n");
+      structureConstraint = `═══ STRUCTURE IMPOSÉE PAR L'UTILISATEUR·ICE (OBLIGATOIRE) ═══
+L'utilisateur·ice a défini manuellement la répartition des slides. Tu DOIS respecter exactement cette structure. Ne change ni le type ni le photo_index d'aucune slide.
+${lines}
+
+Nombre total de slides : ${slide_structure.length}
+RÈGLE ABSOLUE : le JSON retourné doit avoir EXACTEMENT ${slide_structure.length} slides dans le même ordre, avec les types et photo_index ci-dessus.
+
+`;
+    }
+    return structureConstraint;
+  })()}═══ RÈGLES DE COMPOSITION ═══
 
 - Un carrousel de ${body.photos?.length || "N"} photos devrait avoir ${body.photos?.length || "N"} à ${(body.photos?.length || 6) + 3} slides au total
 - Commence TOUJOURS par une slide "photo_full" (hook visuel)
