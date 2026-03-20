@@ -102,7 +102,7 @@ Réponds UNIQUEMENT avec le JSON, sans commentaire ni balise markdown.`;
     await logUsage(userId, "content", "voice_guide", undefined, model);
 
     return new Response(JSON.stringify({ guide, remaining: quota.remaining }), {
-      headers: { ...cors, "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e: any) {
     console.error("generate-voice-guide error:", e);
