@@ -218,24 +218,6 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
       ? "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400"
       : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
 
-  // Show planner for mix mode before visual generation
-  if (showPlanner) {
-    return (
-      <div className="space-y-4 animate-fade-in">
-        {r?.chosen_angle && (
-          <Badge className="bg-primary/10 text-primary border-primary/20">
-            {r.chosen_angle.title}
-          </Badge>
-        )}
-        <SlideStructurePlanner
-          photos={photos}
-          slideCount={slides.length || 8}
-          onStructureConfirmed={handleStructureConfirmed}
-        />
-        <AiGeneratedMention />
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-4 animate-fade-in">
