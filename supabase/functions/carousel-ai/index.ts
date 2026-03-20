@@ -40,7 +40,7 @@ serve(async (req) => {
 
     const body = await req.json();
     validateInput(body, z.object({
-      type: z.enum(["hooks", "slides", "suggest_topics", "suggest_angles", "deepening_questions", "express_full"]),
+      type: z.enum(["hooks", "slides", "suggest_topics", "suggest_angles", "deepening_questions", "express_full", "structure_proposal"]),
       carousel_type: z.string().max(100).optional().nullable(),
       subject: z.string().max(15000).optional().nullable(),
       objective: z.string().max(100).optional().nullable(),
