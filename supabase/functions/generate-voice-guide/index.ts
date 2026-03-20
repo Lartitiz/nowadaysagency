@@ -55,7 +55,9 @@ Deno.serve(async (req) => {
       includeAudit: false,
     });
 
-    const systemPrompt = `Tu es une directrice de communication experte en personal branding. À partir du profil de marque de cette utilisatrice, génère un GUIDE DE VOIX professionnel et actionnable. Ce guide sera partagé avec des prestataires (graphiste, CM freelance, assistante).
+    const systemPrompt = `${BASE_SYSTEM_RULES}
+
+Tu es un·e expert·e en communication et personal branding. À partir du profil de marque de cette personne, génère un GUIDE DE VOIX professionnel et actionnable. Ce guide sera partagé avec des prestataires (graphiste, CM freelance, assistant·e).
 
 Réponds en JSON strict avec cette structure :
 
