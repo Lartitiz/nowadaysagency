@@ -149,6 +149,17 @@ export async function exportCarouselPptx(
     const category = classifyRole(s.role, i, slides.length);
     const slide = pptx.addSlide();
 
+    // ═══ Slides photo (carrousel mix/photo) ═══
+    if (s.slide_type === "photo_full" && photos?.length) {
+      buildPhotoFullSlide(slide, s, c, f, W, H, photos);
+      continue;
+    }
+    if (s.slide_type === "photo_integrated" && photos?.length) {
+      buildPhotoIntegratedSlide(slide, s, c, f, W, H, PAD_X, PAD_Y, CONTENT_W, photos);
+      if (category === "tip") tipIndex++;
+      continue;
+    }
+
     // If visual_schema is present and supported, use schema builder instead
     const supportedSchemaTypes = ["checklist", "before_after", "comparison", "stats", "timeline", "equation", "matrix_2x2", "pyramid", "flowchart", "scale"];
     if (s.visual_schema && s.visual_schema.type && supportedSchemaTypes.includes(s.visual_schema.type)) {
