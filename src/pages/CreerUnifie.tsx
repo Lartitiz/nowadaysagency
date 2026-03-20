@@ -1800,6 +1800,21 @@ export default function CreerUnifie() {
               />
             )}
 
+            {step === "structure_review" && structureProposal && (
+              <StructureReviewStep
+                structureProposal={structureProposal}
+                onConfirm={handleConfirmStructure}
+                onSkip={handleSkipStructure}
+                onBack={() => {
+                  setStructureProposal(null);
+                  setStep("questions");
+                }}
+                isLoading={generating || structureLoading}
+                photos={(carouselSubMode === "photo" || carouselSubMode === "mix") ? uploadedPhotos : undefined}
+                carouselSubMode={carouselSubMode || "text"}
+              />
+            )}
+
             {step === "inspiration_proposals" && (
               inspirationLoading ? (
                 <div className="py-12 text-center space-y-3 animate-fade-in">
