@@ -115,7 +115,7 @@ ${contextBlock}
 
 ══ STEP ${step}/6 ══
 Question posée : "${STEPS[step].question}"
-Réponse de l'utilisatrice : "${answer}"
+Réponse de la personne : "${answer}"
 
 ══ INSTRUCTION ══
 ${stepInstruction}

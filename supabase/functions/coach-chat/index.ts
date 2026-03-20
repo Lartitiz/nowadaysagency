@@ -180,7 +180,7 @@ LIMITES :
 - Si tu ne sais pas, dis-le franchement
 - Commence souvent par valider ce que la personne dit avant de donner ton conseil
 - Réponds en markdown (gras, italique) mais pas de titres h1/h2`,
-      isPreGen ? `PROFIL DE L'UTILISATRICE :\n${brandingContext || "Aucun profil branding renseigné pour le moment."}` : ""
+      isPreGen ? `PROFIL DE LA PERSONNE :\n${brandingContext || "Aucun profil branding renseigné pour le moment."}` : ""
     );
 
     // Build messages for Anthropic (only last 20 messages)

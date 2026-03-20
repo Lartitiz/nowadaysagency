@@ -394,7 +394,7 @@ Deno.serve(async (req) => {
     const dayOfWeek = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"][new Date().getDay()];
 
     const fullUserPrompt =
-      `${contextText}${calendarContext}${offersWithIds}\n\nDATE DU JOUR : ${today} (${dayOfWeek})\n\nMessage de l'utilisatrice : ${message}`;
+      `${contextText}${calendarContext}${offersWithIds}\n\nDATE DU JOUR : ${today} (${dayOfWeek})\n\nMessage : ${message}`;
 
     // Build messages from conversation history
     const messages: any[] = [];

@@ -101,7 +101,7 @@ Réponds UNIQUEMENT avec le texte amélioré, sans commentaire ni explication.`;
 
 Tu vas écrire un storytelling captivant à partir des éléments fournis par la personne.
 
-ÉLÉMENTS DE L'UTILISATRICE :
+ÉLÉMENTS DE LA PERSONNE :
 - Histoire brute (étape 1) : "${s.step_1_raw || ""}"
 - Lieu et action (étape 2) : "${s.step_2_location || ""}"
 - Scène d'action (étape 3) : "${s.step_3_action || ""}"
