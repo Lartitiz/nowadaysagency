@@ -137,6 +137,8 @@ Précisions importantes :
     const opusModel = getModelForAction("branding_audit");
     const enrichmentRaw = await callAnthropicSimple(opusModel, enrichmentSystemPrompt, userPrompt, 0.7, 8192);
 
+    await logUsage(userId, "audit", "diagnostic_enrichment", undefined, "claude-sonnet", workspaceId);
+
     let enrichmentResult: any;
     try {
       enrichmentResult = JSON.parse(enrichmentRaw);
