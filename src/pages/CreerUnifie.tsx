@@ -1508,6 +1508,7 @@ export default function CreerUnifie() {
         ideaText || "carrousel",
         visualSlides.length > 0 ? visualSlides : undefined,
         charterData,
+        uploadedPhotos.length > 0 ? uploadedPhotos : undefined,
       );
       toast.success("PPTX éditable téléchargé !");
     } catch (e: any) {

@@ -9,6 +9,13 @@ interface SlideData {
   body: string;
   visual_suggestion?: string;
   visual_schema?: any;
+  // ═══ CHAMPS PHOTO ═══
+  slide_type?: "photo_full" | "photo_integrated" | "text_only";
+  photo_index?: number | null;
+  photo_layout?: "top_photo" | "left_photo" | "right_photo" | "card_photo";
+  overlay_text?: string | null;
+  overlay_position?: "bottom_left" | "bottom_center" | "top_left" | "top_center" | "center";
+  overlay_style?: "sensoriel" | "narratif" | "minimal" | "technique";
 }
 
 interface VisualSlide {
@@ -109,7 +116,8 @@ export async function exportCarouselPptx(
   slides: SlideData[],
   fileName = "carrousel",
   _visualSlides?: VisualSlide[],
-  charter?: CharterColors | null
+  charter?: CharterColors | null,
+  photos?: { base64: string }[]
 ) {
   const pptx = new PptxGenJS();
   pptx.defineLayout({ name: "INSTAGRAM", width: 7.5, height: 9.375 });
@@ -140,6 +148,17 @@ export async function exportCarouselPptx(
     const s = slides[i];
     const category = classifyRole(s.role, i, slides.length);
     const slide = pptx.addSlide();
+
+    // ═══ Slides photo (carrousel mix/photo) ═══
+    if (s.slide_type === "photo_full" && photos?.length) {
+      buildPhotoFullSlide(slide, s, c, f, W, H, photos);
+      continue;
+    }
+    if (s.slide_type === "photo_integrated" && photos?.length) {
+      buildPhotoIntegratedSlide(slide, s, c, f, W, H, PAD_X, PAD_Y, CONTENT_W, photos);
+      if (category === "tip") tipIndex++;
+      continue;
+    }
 
     // If visual_schema is present and supported, use schema builder instead
     const supportedSchemaTypes = ["checklist", "before_after", "comparison", "stats", "timeline", "equation", "matrix_2x2", "pyramid", "flowchart", "scale"];
@@ -185,6 +204,284 @@ export async function exportCarouselPptx(
 
 type Colors = { primary: string; secondary: string; accent: string; bg: string; text: string };
 type Fonts = { title: string; body: string };
+
+// ═══ PHOTO BUILDERS ═══
+
+/**
+ * PHOTO FULL — Photo plein écran via addImage + texte overlay éditable par-dessus
+ */
+function buildPhotoFullSlide(
+  slide: any, s: SlideData, c: Colors, f: Fonts,
+  W: number, H: number, photos: { base64: string }[]
+) {
+  slide.background = { color: "000000" };
+
+  const photoIdx = (s.photo_index || 1) - 1;
+  const photo = photos[photoIdx] || photos[0];
+  if (photo) {
+    const raw = photo.base64;
+    const data = raw.startsWith("data:") ? raw : `data:image/jpeg;base64,${raw}`;
+    slide.addImage({
+      data,
+      x: 0, y: 0, w: W, h: H,
+      sizing: { type: "cover", w: W, h: H },
+    });
+  }
+
+  const overlayText = s.overlay_text || s.title || "";
+  if (!overlayText) return;
+
+  const style = s.overlay_style || "sensoriel";
+  const position = s.overlay_position || "bottom_center";
+
+  let textY: number, textH: number, align: "left" | "center" | "right";
+  let valign: "top" | "middle" | "bottom";
+
+  switch (position) {
+    case "top_left":
+      textY = 0.4; textH = 3.0; align = "left"; valign = "top"; break;
+    case "top_center":
+      textY = 0.4; textH = 3.0; align = "center"; valign = "top"; break;
+    case "center":
+      textY = (H - 3.0) / 2; textH = 3.0; align = "center"; valign = "middle"; break;
+    case "bottom_left":
+      textY = H - 3.5; textH = 3.0; align = "left"; valign = "bottom"; break;
+    case "bottom_center":
+    default:
+      textY = H - 3.5; textH = 3.0; align = "center"; valign = "bottom"; break;
+  }
+
+  const isBottom = position === "bottom_left" || position === "bottom_center" || !position;
+  const isTop = position === "top_left" || position === "top_center";
+
+  if (isBottom) {
+    slide.addShape("rect", {
+      x: 0, y: H - 4.0, w: W, h: 4.0,
+      fill: { color: "000000", transparency: 40 },
+    });
+  } else if (isTop) {
+    slide.addShape("rect", {
+      x: 0, y: 0, w: W, h: 3.5,
+      fill: { color: "000000", transparency: 40 },
+    });
+  } else {
+    slide.addShape("roundRect", {
+      x: 0.5, y: textY - 0.3, w: W - 1.0, h: textH + 0.6,
+      fill: { color: "000000", transparency: 50 },
+      rectRadius: 0.15,
+    });
+  }
+
+  let fontSize: number, fontFace: string, bold: boolean, italic: boolean;
+  switch (style) {
+    case "sensoriel":
+      fontSize = 28; fontFace = f.title; bold = false; italic = true; break;
+    case "narratif":
+      fontSize = 22; fontFace = f.body; bold = false; italic = false; break;
+    case "minimal":
+      fontSize = 32; fontFace = f.body; bold = true; italic = false; break;
+    case "technique":
+      fontSize = 18; fontFace = f.body; bold = false; italic = false; break;
+    default:
+      fontSize = 24; fontFace = f.title; bold = false; italic = true;
+  }
+
+  slide.addText(overlayText, {
+    x: 0.6, y: textY, w: W - 1.2, h: textH,
+    fontSize, fontFace, bold, italic, color: "FFFFFF",
+    align, valign, wrap: true, lineSpacingMultiple: 1.3,
+  });
+}
+
+/**
+ * PHOTO INTEGRATED — Photo positionnée selon photo_layout + texte éditable
+ */
+function buildPhotoIntegratedSlide(
+  slide: any, s: SlideData, c: Colors, f: Fonts,
+  W: number, H: number, PAD_X: number, _PAD_Y: number, CONTENT_W: number,
+  photos: { base64: string }[]
+) {
+  slide.background = { color: "FFFFFF" };
+
+  const photoIdx = (s.photo_index || 1) - 1;
+  const photo = photos[photoIdx] || photos[0];
+  const layout = s.photo_layout || "top_photo";
+
+  let photoData = "";
+  if (photo) {
+    const raw = photo.base64;
+    photoData = raw.startsWith("data:") ? raw : `data:image/jpeg;base64,${raw}`;
+  }
+
+  const roleLabel = s.role || "CONTENU";
+  const [badgeText, badgeOpts] = makeBadge(roleLabel, PAD_X, 0.5, c.primary, f);
+
+  switch (layout) {
+    case "top_photo": {
+      const photoH = H * 0.55;
+      const textAreaY = photoH + 0.2;
+      const textAreaH = H - photoH - 0.4;
+
+      if (photoData) {
+        slide.addImage({
+          data: photoData,
+          x: 0, y: 0, w: W, h: photoH,
+          sizing: { type: "cover", w: W, h: photoH },
+        });
+      }
+      slide.addText(badgeText, { ...badgeOpts, y: photoH - 0.6 });
+
+      if (s.title) {
+        slide.addText(s.title, {
+          x: PAD_X, y: textAreaY + 0.1, w: CONTENT_W, h: 1.2,
+          fontSize: 22, fontFace: f.title, color: c.secondary,
+          align: "left", valign: "top", wrap: true, lineSpacingMultiple: 1.2,
+        });
+      }
+      if (s.body) {
+        slide.addText(s.body, {
+          x: PAD_X, y: textAreaY + 1.4, w: CONTENT_W, h: textAreaH - 1.6,
+          fontSize: 15, fontFace: f.body, color: c.text,
+          align: "left", valign: "top", wrap: true, lineSpacingMultiple: 1.5,
+        });
+      }
+      break;
+    }
+
+    case "left_photo": {
+      const photoW = W * 0.45;
+      const textX = photoW + 0.3;
+      const textW = W - photoW - 0.3 - PAD_X;
+
+      if (photoData) {
+        slide.addImage({
+          data: photoData,
+          x: 0, y: 0, w: photoW, h: H,
+          sizing: { type: "cover", w: photoW, h: H },
+        });
+      }
+      slide.addText(badgeText, { ...badgeOpts, x: textX });
+
+      if (s.title) {
+        slide.addText(s.title, {
+          x: textX, y: 1.3, w: textW, h: 2.0,
+          fontSize: 22, fontFace: f.title, color: c.secondary,
+          align: "left", valign: "top", wrap: true, lineSpacingMultiple: 1.2,
+        });
+      }
+      if (s.body) {
+        slide.addText(s.body, {
+          x: textX, y: 3.5, w: textW, h: H - 4.5,
+          fontSize: 15, fontFace: f.body, color: c.text,
+          align: "left", valign: "top", wrap: true, lineSpacingMultiple: 1.5,
+        });
+      }
+      break;
+    }
+
+    case "right_photo": {
+      const photoW = W * 0.45;
+      const textW = W - photoW - 0.3 - PAD_X;
+
+      if (photoData) {
+        slide.addImage({
+          data: photoData,
+          x: W - photoW, y: 0, w: photoW, h: H,
+          sizing: { type: "cover", w: photoW, h: H },
+        });
+      }
+      slide.addText(badgeText, badgeOpts);
+
+      if (s.title) {
+        slide.addText(s.title, {
+          x: PAD_X, y: 1.3, w: textW, h: 2.0,
+          fontSize: 22, fontFace: f.title, color: c.secondary,
+          align: "left", valign: "top", wrap: true, lineSpacingMultiple: 1.2,
+        });
+      }
+      if (s.body) {
+        slide.addText(s.body, {
+          x: PAD_X, y: 3.5, w: textW, h: H - 4.5,
+          fontSize: 15, fontFace: f.body, color: c.text,
+          align: "left", valign: "top", wrap: true, lineSpacingMultiple: 1.5,
+        });
+      }
+      break;
+    }
+
+    case "card_photo": {
+      slide.background = { color: c.bg };
+
+      if (photoData) {
+        slide.addImage({
+          data: photoData,
+          x: 0, y: 0, w: W, h: H,
+          sizing: { type: "cover", w: W, h: H },
+        });
+        slide.addShape("rect", {
+          x: 0, y: 0, w: W, h: H,
+          fill: { color: "FFFFFF", transparency: 30 },
+        });
+      }
+
+      const cardW = CONTENT_W * 0.85;
+      const cardH = 5.5;
+      const cardX = (W - cardW) / 2;
+      const cardY = (H - cardH) / 2;
+
+      slide.addShape("roundRect", {
+        x: cardX, y: cardY, w: cardW, h: cardH,
+        fill: { color: "FFFFFF" },
+        rectRadius: 0.15,
+        shadow: makeShadow(),
+      });
+
+      const bW = badgeOpts.w as number;
+      slide.addText(badgeText, { ...badgeOpts, x: (W - bW) / 2, y: cardY + 0.4 });
+
+      if (s.title) {
+        slide.addText(s.title, {
+          x: cardX + 0.4, y: cardY + 1.1, w: cardW - 0.8, h: 1.8,
+          fontSize: 22, fontFace: f.title, color: c.secondary,
+          align: "center", valign: "middle", wrap: true, lineSpacingMultiple: 1.2,
+        });
+      }
+      if (s.body) {
+        slide.addText(s.body, {
+          x: cardX + 0.4, y: cardY + 3.0, w: cardW - 0.8, h: cardH - 3.4,
+          fontSize: 15, fontFace: f.body, color: c.text,
+          align: "center", valign: "top", wrap: true, lineSpacingMultiple: 1.5,
+        });
+      }
+      break;
+    }
+
+    default: {
+      const photoH = H * 0.55;
+      if (photoData) {
+        slide.addImage({
+          data: photoData,
+          x: 0, y: 0, w: W, h: photoH,
+          sizing: { type: "cover", w: W, h: photoH },
+        });
+      }
+      if (s.title) {
+        slide.addText(s.title, {
+          x: PAD_X, y: photoH + 0.3, w: CONTENT_W, h: 1.2,
+          fontSize: 22, fontFace: f.title, color: c.secondary,
+          align: "left", valign: "top", wrap: true,
+        });
+      }
+      if (s.body) {
+        slide.addText(s.body, {
+          x: PAD_X, y: photoH + 1.6, w: CONTENT_W, h: H - photoH - 2.0,
+          fontSize: 15, fontFace: f.body, color: c.text,
+          align: "left", valign: "top", wrap: true, lineSpacingMultiple: 1.5,
+        });
+      }
+    }
+  }
+}
 
 /**
  * HOOK (slide 1) — Fond pâle, grande carte blanche centrée, badge pilule, titre fort
