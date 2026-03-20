@@ -1092,7 +1092,7 @@ RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
 }
 
 function buildMixCarouselPrompt(body: any): string {
-  const { editorial_angle, content_structure, deepening_answers } = body;
+  const { editorial_angle, content_structure, deepening_answers, slide_structure } = body;
 
   let deepeningCtx = "";
   if (deepening_answers) {
