@@ -154,6 +154,16 @@ export async function exportCarouselPptx(
   pptx.layout = "INSTAGRAM";
   pptx.author = "L'Assistant Com'";
 
+  // ═══ Pré-compression des photos pour réduire la taille du PPTX ═══
+  let compressedPhotos: { base64: string }[] | undefined;
+  if (photos && photos.length > 0) {
+    compressedPhotos = await Promise.all(
+      photos.map(async (p) => ({
+        base64: await compressPhotoForPptx(p.base64),
+      }))
+    );
+  }
+
   const c = {
     primary: hex(charter?.color_primary || "#FB3D80"),
     secondary: hex(charter?.color_secondary || "#91014b"),
