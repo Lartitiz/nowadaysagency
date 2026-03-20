@@ -50,6 +50,12 @@ serve(async (req) => {
       content_structure: z.string().max(5000).optional().nullable(),
       photos: z.array(z.object({ base64: z.string() })).max(10).optional(),
       photo_description: z.string().max(2000).optional().nullable(),
+      slide_structure: z.array(z.object({
+        slide_number: z.number(),
+        type: z.enum(["photo_full", "photo_integrated", "text_only"]),
+        photo_index: z.number().optional(),
+        photo_layout: z.string().optional(),
+      })).optional().nullable(),
     }).passthrough());
     const { type, workspace_id, launch_context } = body;
     const isLinkedIn = body.channel === "linkedin";
@@ -104,7 +110,7 @@ serve(async (req) => {
           // 1. Brief créatif EN PREMIER (avant les photos)
           messageContent.push({
             type: "text",
-            text: `BRIEF CRÉATIF : "${body.subject || "non précisé"}". Ce concept doit structurer TOUT le carrousel.\n\nObjectif : ${body.objective || "engagement"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : "L'IA choisit le meilleur angle."}\n${body.photo_description ? `Description complémentaire : "${body.photo_description}"` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}\n\nVoici ${body.photos.length} photo(s) à intégrer dans le carrousel :`,
+            text: `BRIEF CRÉATIF : "${body.subject || "non précisé"}". Ce concept doit structurer TOUT le carrousel.\n\nObjectif : ${body.objective || "engagement"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : "L'IA choisit le meilleur angle."}\n${body.photo_description ? `Description complémentaire : "${body.photo_description}"` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${body.slide_structure ? `\nStructure imposée : ${body.slide_structure.length} slides définies par l'utilisateur·ice.` : ""}\n\nVoici ${body.photos.length} photo(s) à intégrer dans le carrousel :`,
           });
 
           // 2. Photos
@@ -131,7 +137,7 @@ serve(async (req) => {
             max_tokens: 8192,
           });
         } else {
-          const textPrompt = mixPrompt + `\n\nBRIEF CRÉATIF : "${body.subject || "non précisé"}". Ce concept doit structurer tout le carrousel.\n\nDescription des photos : "${body.photo_description || "non fournie"}"\nNombre de slides estimé : ${body.slide_count || 8}\nObjectif : ${body.objective || "engagement"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}`;
+          const textPrompt = mixPrompt + `\n\nBRIEF CRÉATIF : "${body.subject || "non précisé"}". Ce concept doit structurer tout le carrousel.\n\nDescription des photos : "${body.photo_description || "non fournie"}"\nNombre de slides estimé : ${body.slide_count || 8}\nObjectif : ${body.objective || "engagement"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${body.slide_structure ? `\nStructure imposée : ${body.slide_structure.length} slides définies par l'utilisateur·ice.` : ""}`;
 
           content = await callAnthropic({
             model: getModelForRichContent("carousel", !!(body.deepening_answers && Object.values(body.deepening_answers).some(v => v && (v as string).trim().length > 50))),
@@ -1086,7 +1092,7 @@ RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
 }
 
 function buildMixCarouselPrompt(body: any): string {
-  const { editorial_angle, content_structure, deepening_answers } = body;
+  const { editorial_angle, content_structure, deepening_answers, slide_structure } = body;
 
   let deepeningCtx = "";
   if (deepening_answers) {
@@ -1127,11 +1133,30 @@ Pour chaque slide, tu choisis UN de ces types :
    - Champs : photo_layout, title, body, photo_index
 
 3. "text_only" — Slide texte pure (design system)
-   - Pas de photo, design classique avec fond coloré/blanc, typos, badges
-   - Idéal pour : développement narratif, tips détaillés, prise de position, contexte, CTA. Ce ne sont PAS des séparateurs : chaque slide texte porte du contenu de fond.
-   - Champs : title, body, visual_schema (optionnel)
+    - Pas de photo, design classique avec fond coloré/blanc, typos, badges
+    - Idéal pour : développement narratif, tips détaillés, prise de position, contexte, CTA. Ce ne sont PAS des séparateurs : chaque slide texte porte du contenu de fond.
+    - Champs : title, body, visual_schema (optionnel)
 
-═══ RÈGLES DE COMPOSITION ═══
+${(() => {
+    let structureConstraint = "";
+    if (slide_structure && slide_structure.length > 0) {
+      const lines = slide_structure.map((s: any) => {
+        let line = `- Slide ${s.slide_number} : type="${s.type}"`;
+        if (s.photo_index) line += `, photo_index=${s.photo_index}`;
+        if (s.photo_layout) line += `, photo_layout="${s.photo_layout}"`;
+        return line;
+      }).join("\n");
+      structureConstraint = `═══ STRUCTURE IMPOSÉE PAR L'UTILISATEUR·ICE (OBLIGATOIRE) ═══
+L'utilisateur·ice a défini manuellement la répartition des slides. Tu DOIS respecter exactement cette structure. Ne change ni le type ni le photo_index d'aucune slide.
+${lines}
+
+Nombre total de slides : ${slide_structure.length}
+RÈGLE ABSOLUE : le JSON retourné doit avoir EXACTEMENT ${slide_structure.length} slides dans le même ordre, avec les types et photo_index ci-dessus.
+
+`;
+    }
+    return structureConstraint;
+  })()}═══ RÈGLES DE COMPOSITION ═══
 
 - Un carrousel de ${body.photos?.length || "N"} photos devrait avoir ${body.photos?.length || "N"} à ${(body.photos?.length || 6) + 3} slides au total
 - Commence TOUJOURS par une slide "photo_full" (hook visuel)
