@@ -767,6 +767,30 @@ export default function CreerUnifie() {
     await doGenerate(answers);
   };
 
+  const handleConfirmStructure = async (confirmedSlides: SlideProposal[]) => {
+    const enrichedSubject = existingCalendarContent
+      ? ideaText + "\n\n[Contenu existant à approfondir]\n" + existingCalendarContent
+      : ideaText;
+    setStructureProposal(null);
+    setStep("result");
+    await generate({
+      format: "carousel",
+      subject: enrichedSubject,
+      objective: objective || undefined,
+      editorialAngle: editorialAngle || undefined,
+      answers: Object.keys(answers).length > 0 ? answers : undefined,
+      channel: isLinkedInCarousel ? "linkedin" : undefined,
+      confirmedStructure: confirmedSlides,
+      ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64 })), photoDescription } : {}),
+      ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64 })), photoDescription } : {}),
+      ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? [{ base64: uploadedPhotos[0]?.base64 }] : undefined, photoDescription } : {}),
+    });
+  };
+
+  const handleSkipStructure = async (slides: SlideProposal[]) => {
+    await handleConfirmStructure(slides);
+  };
+
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text);
     toast.success("Copié !");
