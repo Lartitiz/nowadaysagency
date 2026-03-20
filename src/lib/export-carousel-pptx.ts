@@ -110,7 +110,37 @@ function safeBadgeColor(accent: string, primary: string): string {
   return luminance > 0.65 ? primary : accent;
 }
 
-// ═══ MAIN EXPORT ═══
+/**
+ * Compress a base64 photo for PPTX export.
+ * Resizes to max 1920px wide and re-encodes as JPEG quality 0.75.
+ */
+function compressPhotoForPptx(base64: string, maxWidth = 1920, quality = 0.75): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      let w = img.width;
+      let h = img.height;
+      if (w > maxWidth) {
+        h = Math.round(h * (maxWidth / w));
+        w = maxWidth;
+      }
+      if (w === img.width && img.width <= maxWidth) {
+        resolve(base64.startsWith("data:") ? base64 : `data:image/jpeg;base64,${base64}`);
+        return;
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { resolve(base64); return; }
+      ctx.drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = () => resolve(base64.startsWith("data:") ? base64 : `data:image/jpeg;base64,${base64}`);
+    img.src = base64.startsWith("data:") ? base64 : `data:image/jpeg;base64,${base64}`;
+  });
+}
+
 
 export async function exportCarouselPptx(
   slides: SlideData[],
@@ -123,6 +153,16 @@ export async function exportCarouselPptx(
   pptx.defineLayout({ name: "INSTAGRAM", width: 7.5, height: 9.375 });
   pptx.layout = "INSTAGRAM";
   pptx.author = "L'Assistant Com'";
+
+  // ═══ Pré-compression des photos pour réduire la taille du PPTX ═══
+  let compressedPhotos: { base64: string }[] | undefined;
+  if (photos && photos.length > 0) {
+    compressedPhotos = await Promise.all(
+      photos.map(async (p) => ({
+        base64: await compressPhotoForPptx(p.base64),
+      }))
+    );
+  }
 
   const c = {
     primary: hex(charter?.color_primary || "#FB3D80"),
@@ -150,12 +190,12 @@ export async function exportCarouselPptx(
     const slide = pptx.addSlide();
 
     // ═══ Slides photo (carrousel mix/photo) ═══
-    if (s.slide_type === "photo_full" && photos?.length) {
-      buildPhotoFullSlide(slide, s, c, f, W, H, photos);
+    if (s.slide_type === "photo_full" && compressedPhotos?.length) {
+      buildPhotoFullSlide(slide, s, c, f, W, H, compressedPhotos);
       continue;
     }
-    if (s.slide_type === "photo_integrated" && photos?.length) {
-      buildPhotoIntegratedSlide(slide, s, c, f, W, H, PAD_X, PAD_Y, CONTENT_W, photos);
+    if (s.slide_type === "photo_integrated" && compressedPhotos?.length) {
+      buildPhotoIntegratedSlide(slide, s, c, f, W, H, PAD_X, PAD_Y, CONTENT_W, compressedPhotos);
       if (category === "tip") tipIndex++;
       continue;
     }
