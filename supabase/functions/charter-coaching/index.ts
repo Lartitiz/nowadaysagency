@@ -163,16 +163,14 @@ serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(
-      authHeader.replace("Bearer ", "")
-    );
-    if (claimsError || !claimsData?.claims) {
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
       return new Response(JSON.stringify({ error: "Non autorisé" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const userId = claimsData.claims.sub as string;
+    const userId = user.id;
 
     // Quota check
     const quota = await checkQuota(userId, "coaching");
