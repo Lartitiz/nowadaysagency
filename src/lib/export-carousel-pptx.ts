@@ -190,12 +190,12 @@ export async function exportCarouselPptx(
     const slide = pptx.addSlide();
 
     // ═══ Slides photo (carrousel mix/photo) ═══
-    if (s.slide_type === "photo_full" && photos?.length) {
-      buildPhotoFullSlide(slide, s, c, f, W, H, photos);
+    if (s.slide_type === "photo_full" && compressedPhotos?.length) {
+      buildPhotoFullSlide(slide, s, c, f, W, H, compressedPhotos);
       continue;
     }
-    if (s.slide_type === "photo_integrated" && photos?.length) {
-      buildPhotoIntegratedSlide(slide, s, c, f, W, H, PAD_X, PAD_Y, CONTENT_W, photos);
+    if (s.slide_type === "photo_integrated" && compressedPhotos?.length) {
+      buildPhotoIntegratedSlide(slide, s, c, f, W, H, PAD_X, PAD_Y, CONTENT_W, compressedPhotos);
       if (category === "tip") tipIndex++;
       continue;
     }
