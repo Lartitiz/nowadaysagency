@@ -146,6 +146,8 @@ export default function CreerUnifie() {
   const [currentBriefId, setCurrentBriefId] = useState<string | null>(null);
   const [briefsCount, setBriefsCount] = useState(0);
   const [photoBriefOverlayHtml, setPhotoBriefOverlayHtml] = useState<string | null>(null);
+  const [structureProposal, setStructureProposal] = useState<StructureProposal | null>(null);
+  const [structureLoading, setStructureLoading] = useState(false);
 
   const { restored: draftRestored, clearDraft } = useFormPersist(
     "creer-unifie-form",
