@@ -4,305 +4,14 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { X, Plus, ImageIcon, Type } from "lucide-react";
-import AiGeneratedMention from "@/components/AiGeneratedMention";
 
-type SlideStructure = {
-  slide_number: number;
-  type: "photo_full" | "photo_integrated" | "text_only";
-  photo_index?: number;
-  photo_layout?: "top_photo" | "left_photo" | "right_photo" | "card_photo";
-};
+import AiGeneratedMention from "@/components/AiGeneratedMention";
 
 interface CarouselPhotoResultProps {
   result: any;
   photos?: { preview: string }[];
   onSlidesUpdate?: (slides: any[], caption: any) => void;
   visualSlides?: { slide_number: number; html: string }[];
-  onSlideStructureReady?: (structure: SlideStructure[]) => void;
-}
-
-// ─── Layout helpers ───
-
-const LAYOUT_OPTIONS: { value: SlideStructure["photo_layout"]; label: string }[] = [
-  { value: undefined, label: "Pleine page" },
-  { value: "top_photo", label: "Photo en haut" },
-  { value: "left_photo", label: "Photo à gauche" },
-  { value: "right_photo", label: "Photo à droite" },
-  { value: "card_photo", label: "Carte photo" },
-];
-
-// ─── SlideStructurePlanner ───
-
-function SlideStructurePlanner({
-  photos,
-  slideCount = 8,
-  onStructureConfirmed,
-}: {
-  photos: { preview: string }[];
-  slideCount?: number;
-  onStructureConfirmed: (structure: SlideStructure[]) => void;
-}) {
-  const [assignments, setAssignments] = useState<
-    Record<number, { photoIndex: number; layout?: SlideStructure["photo_layout"] }>
-  >({});
-  const [selectedPhoto, setSelectedPhoto] = useState<number | null>(null);
-  const [openSlotPicker, setOpenSlotPicker] = useState<number | null>(null);
-
-  const assignedPhotoIndices = new Set(Object.values(assignments).map((a) => a.photoIndex));
-  const hasAnyAssignment = Object.keys(assignments).length > 0;
-
-  const handlePhotoClick = (photoIdx: number) => {
-    setSelectedPhoto((prev) => (prev === photoIdx ? null : photoIdx));
-    setOpenSlotPicker(null);
-  };
-
-  const handleSlotClick = (slotIdx: number) => {
-    if (assignments[slotIdx]) return; // already assigned, use ✕ to remove
-
-    if (selectedPhoto !== null) {
-      // Direct assign selected photo as photo_full
-      setAssignments((prev) => ({
-        ...prev,
-        [slotIdx]: { photoIndex: selectedPhoto, layout: undefined },
-      }));
-      setSelectedPhoto(null);
-      setOpenSlotPicker(null);
-    } else {
-      setOpenSlotPicker((prev) => (prev === slotIdx ? null : slotIdx));
-    }
-  };
-
-  const assignFromPicker = (slotIdx: number, photoIdx: number) => {
-    setAssignments((prev) => ({
-      ...prev,
-      [slotIdx]: { photoIndex: photoIdx, layout: undefined },
-    }));
-    setOpenSlotPicker(null);
-  };
-
-  const updateLayout = (slotIdx: number, layout: SlideStructure["photo_layout"]) => {
-    setAssignments((prev) => ({
-      ...prev,
-      [slotIdx]: { ...prev[slotIdx], layout },
-    }));
-  };
-
-  const removeAssignment = (slotIdx: number) => {
-    setAssignments((prev) => {
-      const next = { ...prev };
-      delete next[slotIdx];
-      return next;
-    });
-  };
-
-  const handleConfirm = () => {
-    const structure: SlideStructure[] = Array.from({ length: slideCount }, (_, i) => {
-      const slot = i;
-      const assignment = assignments[slot];
-      if (assignment) {
-        const type = assignment.layout ? "photo_integrated" : "photo_full";
-        return {
-          slide_number: i + 1,
-          type,
-          photo_index: assignment.photoIndex + 1, // 1-based
-          ...(assignment.layout ? { photo_layout: assignment.layout } : {}),
-        } as SlideStructure;
-      }
-      return { slide_number: i + 1, type: "text_only" as const };
-    });
-    onStructureConfirmed(structure);
-  };
-
-  return (
-    <div className="space-y-5 animate-fade-in">
-      {/* Header */}
-      <div>
-        <h3 className="text-base font-semibold text-foreground">
-          Comment veux-tu répartir tes photos ?
-        </h3>
-        <p className="text-xs text-muted-foreground mt-1">
-          Clique sur une photo puis sur un slot, ou utilise le "+" pour choisir.
-        </p>
-      </div>
-
-      <div className="flex gap-4 flex-col sm:flex-row">
-        {/* Left: photo thumbnails */}
-        <div className="space-y-2 shrink-0">
-          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-            Tes photos
-          </p>
-          <div className="flex sm:flex-col flex-row flex-wrap gap-2">
-            {photos.map((photo, idx) => {
-              const isAssigned = assignedPhotoIndices.has(idx);
-              const isSelected = selectedPhoto === idx;
-              return (
-                <button
-                  key={idx}
-                  onClick={() => !isAssigned && handlePhotoClick(idx)}
-                  disabled={isAssigned}
-                  className={`relative w-20 h-20 rounded-lg overflow-hidden border-2 transition-all duration-200 ${
-                    isSelected
-                      ? "border-primary ring-2 ring-primary/30 scale-105"
-                      : isAssigned
-                        ? "border-muted opacity-40 cursor-not-allowed"
-                        : "border-border hover:border-primary/50 cursor-pointer"
-                  }`}
-                >
-                  <img
-                    src={photo.preview}
-                    alt={`Photo ${idx + 1}`}
-                    className="w-full h-full object-cover"
-                  />
-                  <Badge
-                    className="absolute top-1 left-1 bg-primary text-primary-foreground text-[9px] px-1.5 py-0"
-                  >
-                    {idx + 1}
-                  </Badge>
-                  {isAssigned && (
-                    <div className="absolute inset-0 bg-background/50 flex items-center justify-center">
-                      <span className="text-[10px] font-semibold text-muted-foreground">Assignée</span>
-                    </div>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Right: slide slots */}
-        <div className="flex-1 space-y-2">
-          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-            Slides ({slideCount})
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            {Array.from({ length: slideCount }, (_, slotIdx) => {
-              const assignment = assignments[slotIdx];
-
-              return (
-                <Card
-                  key={slotIdx}
-                  className={`border transition-all duration-200 ${
-                    selectedPhoto !== null && !assignment
-                      ? "border-primary/40 bg-primary/5 cursor-pointer hover:border-primary"
-                      : "border-border"
-                  }`}
-                >
-                  <CardContent className="p-2.5 space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-mono font-semibold text-muted-foreground">
-                        Slide {slotIdx + 1}
-                      </span>
-                      {assignment && (
-                        <button
-                          onClick={() => removeAssignment(slotIdx)}
-                          className="text-muted-foreground hover:text-destructive transition-colors"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </div>
-
-                    {assignment ? (
-                      <div className="space-y-1.5">
-                        <div className="flex items-center gap-2">
-                          <img
-                            src={photos[assignment.photoIndex].preview}
-                            alt={`Photo ${assignment.photoIndex + 1}`}
-                            className="w-10 h-10 rounded object-cover"
-                          />
-                          <Badge className="bg-primary/10 text-primary border-primary/20 text-[9px]">
-                            <ImageIcon className="w-2.5 h-2.5 mr-0.5" />
-                            Photo {assignment.photoIndex + 1}
-                          </Badge>
-                        </div>
-                        {/* Layout picker */}
-                        <div className="flex flex-wrap gap-1">
-                          {LAYOUT_OPTIONS.map((opt) => (
-                            <button
-                              key={opt.label}
-                              onClick={() => updateLayout(slotIdx, opt.value)}
-                              className={`text-[9px] px-1.5 py-0.5 rounded-md border transition-colors ${
-                                assignment.layout === opt.value ||
-                                (!assignment.layout && !opt.value)
-                                  ? "bg-primary text-primary-foreground border-primary"
-                                  : "border-border text-muted-foreground hover:border-primary/50"
-                              }`}
-                            >
-                              {opt.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="relative">
-                        <button
-                          onClick={() => handleSlotClick(slotIdx)}
-                          className="w-full flex items-center justify-center gap-1.5 py-3 rounded-lg border border-dashed border-muted-foreground/20 text-muted-foreground/50 hover:border-primary/40 hover:text-primary/60 transition-colors"
-                        >
-                          {selectedPhoto !== null ? (
-                            <>
-                              <ImageIcon className="w-3.5 h-3.5" />
-                              <span className="text-[10px]">Placer ici</span>
-                            </>
-                          ) : (
-                            <>
-                              <Type className="w-3.5 h-3.5" />
-                              <span className="text-[10px]">Slide texte</span>
-                              <Plus className="w-3 h-3 ml-1" />
-                            </>
-                          )}
-                        </button>
-
-                        {/* Inline picker */}
-                        {openSlotPicker === slotIdx && (
-                          <div className="mt-1.5 p-2 bg-card border border-border rounded-lg shadow-md space-y-1.5">
-                            <p className="text-[10px] font-semibold text-muted-foreground">
-                              Choisir une photo :
-                            </p>
-                            <div className="flex flex-wrap gap-1.5">
-                              {photos.map((photo, pIdx) => {
-                                if (assignedPhotoIndices.has(pIdx)) return null;
-                                return (
-                                  <button
-                                    key={pIdx}
-                                    onClick={() => assignFromPicker(slotIdx, pIdx)}
-                                    className="relative w-10 h-10 rounded overflow-hidden border border-border hover:border-primary transition-colors"
-                                  >
-                                    <img
-                                      src={photo.preview}
-                                      alt={`Photo ${pIdx + 1}`}
-                                      className="w-full h-full object-cover"
-                                    />
-                                    <span className="absolute bottom-0 right-0 bg-primary text-primary-foreground text-[8px] px-1">
-                                      {pIdx + 1}
-                                    </span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* Confirm button */}
-      <Button
-        onClick={handleConfirm}
-        disabled={!hasAnyAssignment}
-        className="w-full"
-      >
-        Confirmer cette structure
-      </Button>
-    </div>
-  );
 }
 
 // ─── VisualSlidesCarousel (unchanged) ───
@@ -449,12 +158,12 @@ const OVERLAY_STYLE_CLASS: Record<string, string> = {
   technique: "text-sm font-mono",
 };
 
-export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, visualSlides, onSlideStructureReady }: CarouselPhotoResultProps) {
+export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, visualSlides }: CarouselPhotoResultProps) {
   const r = result?.raw || result;
   const [slides, setSlides] = useState<any[]>(r?.slides || []);
   const [caption, setCaption] = useState<any>(r?.caption || {});
   const [hashtagInput, setHashtagInput] = useState((r?.caption?.hashtags || []).join(" "));
-  const [confirmedStructure, setConfirmedStructure] = useState<SlideStructure[] | null>(null);
+  
 
   const prevSignature = useRef(JSON.stringify((r?.slides || []).map((s: any) => s.slide_number)));
 
@@ -470,8 +179,6 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
   }, [result]);
 
   const qualityCheck = r?.quality_check;
-  const isMixMode = r?.carousel_type === "mix";
-  const showPlanner = isMixMode && photos && photos.length > 0 && !visualSlides?.length && !confirmedStructure;
 
   const notify = useCallback(
     (s: any[], c: any) => {
@@ -480,13 +187,6 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
     [onSlidesUpdate],
   );
 
-  const handleStructureConfirmed = useCallback(
-    (structure: SlideStructure[]) => {
-      setConfirmedStructure(structure);
-      onSlideStructureReady?.(structure);
-    },
-    [onSlideStructureReady],
-  );
 
   const updateSlideText = (idx: number, text: string) => {
     const next = slides.map((s, i) => (i === idx ? { ...s, overlay_text: text } : s));
@@ -518,24 +218,6 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
       ? "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400"
       : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
 
-  // Show planner for mix mode before visual generation
-  if (showPlanner) {
-    return (
-      <div className="space-y-4 animate-fade-in">
-        {r?.chosen_angle && (
-          <Badge className="bg-primary/10 text-primary border-primary/20">
-            {r.chosen_angle.title}
-          </Badge>
-        )}
-        <SlideStructurePlanner
-          photos={photos}
-          slideCount={slides.length || 8}
-          onStructureConfirmed={handleStructureConfirmed}
-        />
-        <AiGeneratedMention />
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-4 animate-fade-in">

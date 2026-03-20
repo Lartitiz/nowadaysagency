@@ -214,7 +214,7 @@ export default function CreerUnifie() {
   // Visual states (carousel only)
   const [visualSlides, setVisualSlides] = useState<{ slide_number: number; html: string }[]>(ps?.visualSlides || []);
   const [visualLoading, setVisualLoading] = useState(false);
-  const [slideStructure, setSlideStructure] = useState<any[] | undefined>(undefined);
+  
 
   // ── Persist generated result to sessionStorage ──
   const CREER_RESULT_KEY = "creer_unifie_result";
@@ -740,7 +740,7 @@ export default function CreerUnifie() {
             answers: Object.keys(ans).length > 0 ? ans : undefined,
             channel: isLinkedInCarousel ? "linkedin" : undefined,
             ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64 })), photoDescription } : {}),
-            ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64 })), photoDescription, slideStructure } : {}),
+            ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64 })), photoDescription } : {}),
             ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? [{ base64: uploadedPhotos[0]?.base64 }] : undefined, photoDescription } : {}),
           });
         }
@@ -758,7 +758,7 @@ export default function CreerUnifie() {
       answers: Object.keys(ans).length > 0 ? ans : undefined,
       channel: isLinkedInCarousel ? "linkedin" : undefined,
       ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64 })), photoDescription } : {}),
-      ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64 })), photoDescription, slideStructure } : {}),
+      ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64 })), photoDescription } : {}),
       ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? [{ base64: uploadedPhotos[0]?.base64 }] : undefined, photoDescription } : {}),
     });
   };
@@ -1902,7 +1902,7 @@ export default function CreerUnifie() {
                   }
                 } : undefined}
                 photoBriefOverlayHtml={photoBriefOverlayHtml}
-                onSlideStructureReady={selectedFormat === "carousel" && carouselSubMode === "mix" ? (structure) => setSlideStructure(structure) : undefined}
+                
               />
             )}
 
