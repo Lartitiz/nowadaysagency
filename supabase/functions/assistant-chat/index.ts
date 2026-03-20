@@ -303,7 +303,7 @@ FORMAT DE RÉPONSE (JSON strict) :
 Retourne UNIQUEMENT du JSON valide, sans texte avant ou après.`;
 
 Deno.serve(async (req) => {
-  const corsHeaders = getCorsHeaders(req);
+  const corsHeaders = getCorsHeaders(req); const cors = corsHeaders;
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
