@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
     // Check quota
     const quota = await checkQuota(userId, "content");
     if (!quota.allowed) {
-      return new Response(JSON.stringify({ error: quota.message, quota }), { status: 429, headers: { ...cors, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: quota.message, quota }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // Get user context
