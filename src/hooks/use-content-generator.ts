@@ -37,6 +37,14 @@ export interface GenerateParams {
     photo_index?: number;
     photo_layout?: string;
   }>;
+  confirmedStructure?: Array<{
+    slide_number: number;
+    role: string;
+    title_suggestion: string;
+    strategic_note: string;
+    photo_index?: number;
+    slide_type?: "photo_full" | "photo_integrated" | "text_only";
+  }>;
 }
 
 export interface GenerateQuestionsParams {
@@ -202,6 +210,7 @@ export function useContentGenerator() {
               photos: (params.carouselType === "photo" || params.carouselType === "mix") ? params.photos : undefined,
               photo_description: (params.carouselType === "photo" || params.carouselType === "mix") ? params.photoDescription : undefined,
               slide_structure: params.slideStructure || null,
+              confirmed_structure: params.confirmedStructure || null,
             },
           }, 120000);
           data = res.data;
