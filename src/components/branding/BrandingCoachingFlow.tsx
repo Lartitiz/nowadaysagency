@@ -325,13 +325,15 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
         console.error("[BrandingCoaching] Edge function error:", err);
 
         if (err.isRateLimit) {
-          setError("Tu envoies trop de requêtes. Attends quelques secondes avant de réessayer 😊");
+          setError("L'IA a besoin d'un petit instant. Attends quelques secondes avant de réessayer 😊");
         } else if (err.isTimeout) {
           setError("La génération prend plus de temps que prévu. Réessaie dans quelques instants.");
         } else if (err.isAuth) {
           setError("Ta session a expiré. Rafraîchis la page pour te reconnecter.");
         } else if (err.isNetwork) {
           setError("Connexion perdue. Vérifie ta connexion internet et réessaie.");
+        } else if (err.message?.includes("invalide") || err.message?.includes("Données")) {
+          setError("Un souci technique est survenu. Réessaie en reformulant ta réponse 😊");
         } else {
           setError("L'IA a eu un blanc. Ça arrive 😅");
         }
