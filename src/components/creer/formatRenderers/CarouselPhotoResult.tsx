@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { X, Plus, ImageIcon, Type } from "lucide-react";
+
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 
 interface CarouselPhotoResultProps {
