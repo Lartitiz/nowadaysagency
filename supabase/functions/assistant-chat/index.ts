@@ -263,7 +263,7 @@ Tu PEUX donner des angles, des accroches, des conseils sur le format. Mais pas l
 
 COMMENT PERSONNALISER TES RÉPONSES :
 - Si la cible est définie, parle d'elle par son prénom quand c'est pertinent
-- Si le ton est défini, adapte tes suggestions au style de l'utilisatrice
+- Si le ton est défini, adapte tes suggestions au style de la personne
 - Si les offres existent, lie tes conseils à ce qu'elle vend concrètement
 - Si le storytelling est rempli, fais des références à son parcours
 
