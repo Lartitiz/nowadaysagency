@@ -337,7 +337,7 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
           setError("L'IA a eu un blanc. Ça arrive 😅");
         }
 
-        toast.error(err.message || "L'IA a eu un blanc. Réessaie.");
+        
         return null;
       }
 
