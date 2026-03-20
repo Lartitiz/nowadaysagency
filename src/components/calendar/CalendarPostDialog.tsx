@@ -285,6 +285,8 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
               visualUrls={(editingPost?.story_sequence_detail as any)?.visual_urls || null}
               onNavigateToGenerator={() => handleNavigateToGenerator("generate")}
               hasAngle={!!angle} hasTheme={!!theme.trim()}
+              slidesData={(editingPost?.story_sequence_detail as any)?.slides || null}
+              photoUrls={(editingPost?.story_sequence_detail as any)?.photo_urls || null}
             />
           ) : (
           <>
