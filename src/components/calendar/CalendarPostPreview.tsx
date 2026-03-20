@@ -20,11 +20,14 @@ interface Props {
   onNavigateToGenerator: () => void;
   hasAngle: boolean;
   hasTheme: boolean;
+  slidesData?: any[] | null;
+  photoUrls?: string[] | null;
 }
 
 export function CalendarPostPreview({
   canal, format, caption, theme, username, displayName,
   mediaUrls, visualHtml, visualUrls, onNavigateToGenerator, hasAngle, hasTheme,
+  slidesData, photoUrls,
 }: Props) {
   const [downloading, setDownloading] = useState(false);
   const [downloadingPptx, setDownloadingPptx] = useState(false);
