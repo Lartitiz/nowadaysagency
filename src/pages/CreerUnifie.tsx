@@ -701,7 +701,7 @@ export default function CreerUnifie() {
 
     // Formats structurés : appel classique (pas de streaming)
     // Carrousels : proposer la structure d'abord (sauf si déjà validée via structureProposal)
-    if (selectedFormat === "carousel" && !structureProposal) {
+    if (selectedFormat === "carousel" && !structureProposal && !lastConfirmedStructure) {
       setStructureLoading(true);
       try {
         const structureBody: any = {
