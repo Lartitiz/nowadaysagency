@@ -1265,7 +1265,34 @@ RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
 }
 
 function buildMixCarouselPrompt(body: any): string {
-  const { editorial_angle, content_structure, deepening_answers, slide_structure } = body;
+  const { editorial_angle, content_structure, deepening_answers, slide_structure, confirmed_structure } = body;
+
+  // ── STRUCTURE IMPOSÉE (si confirmée par l'utilisateur·ice) ──
+  let confirmedStructureBlock = "";
+  if (confirmed_structure && Array.isArray(confirmed_structure) && confirmed_structure.length > 0) {
+    const structureList = confirmed_structure
+      .map((s: any) => {
+        let line = `  Slide ${s.slide_number} — Rôle : ${s.role} — Titre : "${s.title_suggestion}"`;
+        if (s.photo_index) line += ` — Photo n°${s.photo_index}${s.slide_type ? ` (${s.slide_type})` : ""}`;
+        line += ` — ${s.strategic_note}`;
+        return line;
+      })
+      .join("\n");
+    confirmedStructureBlock = `══════════════════════════════════════
+STRUCTURE IMPOSÉE PAR L'UTILISATEUR·ICE — OBLIGATOIRE
+══════════════════════════════════════
+Tu DOIS générer le contenu pour EXACTEMENT ces slides dans cet ordre :
+${structureList}
+
+RÈGLES ABSOLUES :
+- Ne change NI l'ordre NI les rôles NI le nombre de slides
+- Utilise les titres proposés comme base (tu peux les affiner légèrement)
+- Génère uniquement le contenu (body, visual_schema, caption) pour chaque slide
+- Le JSON retourné doit contenir exactement ${confirmed_structure.length} slides
+- Si une slide a un photo_index, le champ photo_index doit être présent dans le JSON de sortie
+
+`;
+  }
 
   let deepeningCtx = "";
   if (deepening_answers) {
