@@ -992,6 +992,7 @@ export default function CreerUnifie() {
     setInspirationImagePreview(null);
     setPhotoBriefResult(null);
     setPhotoBriefOverlayHtml(null);
+    setStructureProposal(null);
     clearFlowState();
     clearDraft();
     sessionStorage.removeItem(CREER_RESULT_KEY);
