@@ -1308,7 +1308,7 @@ RÈGLES ABSOLUES :
     angleBlock = `\nANGLE ÉDITORIAL CHOISI : ${editorial_angle}\nSTRUCTURE IMPOSÉE :\n${content_structure}\n\n${EDITORIAL_ANGLES_REFERENCE}`;
   }
 
-  return `Tu es une DIRECTRICE ARTISTIQUE ÉDITORIALE spécialisée dans les carrousels Instagram.
+  return `${confirmedStructureBlock}Tu es une DIRECTRICE ARTISTIQUE ÉDITORIALE spécialisée dans les carrousels Instagram.
 
 Tu crées des carrousels MIXTES : un mélange de slides avec photos et de slides texte pur. C'est le format le plus courant et le plus engageant sur Instagram.
 
