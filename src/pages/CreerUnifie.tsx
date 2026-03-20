@@ -1902,7 +1902,7 @@ export default function CreerUnifie() {
                   }
                 } : undefined}
                 photoBriefOverlayHtml={photoBriefOverlayHtml}
-                onSlideStructureReady={selectedFormat === "carousel" && carouselSubMode === "mix" ? (structure) => setSlideStructure(structure) : undefined}
+                
               />
             )}
 

@@ -302,7 +302,7 @@ export default function CreerStepResult({
     const r = result?.raw || result;
     if (format === "carousel" && (r?.carousel_type === "photo" || r?.carousel_type === "mix")) {
       return (
-        <CarouselPhotoResult result={result} photos={photos} onSlidesUpdate={onSlidesUpdate} visualSlides={visualSlides} onSlideStructureReady={onSlideStructureReady} />
+        <CarouselPhotoResult result={result} photos={photos} onSlidesUpdate={onSlidesUpdate} visualSlides={visualSlides} />
       );
     }
 
