@@ -187,13 +187,6 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
     [onSlidesUpdate],
   );
 
-  const handleStructureConfirmed = useCallback(
-    (structure: SlideStructure[]) => {
-      setConfirmedStructure(structure);
-      onSlideStructureReady?.(structure);
-    },
-    [onSlideStructureReady],
-  );
 
   const updateSlideText = (idx: number, text: string) => {
     const next = slides.map((s, i) => (i === idx ? { ...s, overlay_text: text } : s));
