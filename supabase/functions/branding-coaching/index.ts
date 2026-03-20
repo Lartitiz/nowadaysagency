@@ -400,7 +400,27 @@ serve(async (req) => {
       });
     }
 
-    // Appel IA avec détection de troncation
+    // ── Garde-fou : limiter la taille du payload ──
+    const MAX_MESSAGES = 20;
+    const MAX_CHARS_PER_MESSAGE = 3000;
+    for (const msg of mergedMessages) {
+      if (msg.content.length > MAX_CHARS_PER_MESSAGE) {
+        msg.content = msg.content.slice(0, MAX_CHARS_PER_MESSAGE) + "\n[...réponse tronquée pour la suite de la session]";
+      }
+    }
+    if (mergedMessages.length > MAX_MESSAGES) {
+      const originalLen = mergedMessages.length;
+      const first = mergedMessages[0];
+      const recent = mergedMessages.slice(-(MAX_MESSAGES - 1));
+      if (first.role === recent[0].role) {
+        mergedMessages.splice(0, mergedMessages.length, ...recent);
+      } else {
+        mergedMessages.splice(0, mergedMessages.length, first, ...recent);
+      }
+      console.log(`[BrandingCoaching] Pruned messages from ${originalLen} to ${mergedMessages.length}`);
+    }
+
+
     let rawResponse: string;
     let wasTruncated = false;
 
