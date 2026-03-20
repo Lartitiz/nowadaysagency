@@ -176,7 +176,7 @@ interface Props {
   onExportPinterestPptx?: () => void;
   onExportPinterestEditablePptx?: () => void;
   photoBriefOverlayHtml?: string | null;
-  onSlideStructureReady?: (structure: any[]) => void;
+  
 }
 
 export default function CreerStepResult({
