@@ -286,11 +286,22 @@ function buildPhotoFullSlide(
       fontSize = 24; fontFace = f.title; bold = false; italic = true;
   }
 
-  slide.addText(overlayText, {
-    x: 0.6, y: textY, w: W - 1.2, h: textH,
-    fontSize, fontFace, bold, italic, color: "FFFFFF",
-    align, valign, wrap: true, lineSpacingMultiple: 1.3,
-  });
+  // Highlight du dernier mot significatif pour narratif et minimal
+  if (style === "narratif" || style === "minimal") {
+    const accentColor = c.accent || c.primary;
+    const parts = highlightLastSignificantWord(overlayText, accentColor, "FFFFFF");
+    slide.addText(parts, {
+      x: 0.6, y: textY, w: W - 1.2, h: textH,
+      fontSize, fontFace, bold, italic,
+      align, valign, wrap: true, lineSpacingMultiple: 1.3,
+    });
+  } else {
+    slide.addText(overlayText, {
+      x: 0.6, y: textY, w: W - 1.2, h: textH,
+      fontSize, fontFace, bold, italic, color: "FFFFFF",
+      align, valign, wrap: true, lineSpacingMultiple: 1.3,
+    });
+  }
 }
 
 /**
