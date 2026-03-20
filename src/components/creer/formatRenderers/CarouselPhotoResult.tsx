@@ -19,6 +19,7 @@ interface CarouselPhotoResultProps {
   photos?: { preview: string }[];
   onSlidesUpdate?: (slides: any[], caption: any) => void;
   visualSlides?: { slide_number: number; html: string }[];
+  onSlideStructureReady?: (structure: SlideStructure[]) => void;
 }
 
 // ─── Layout helpers ───
