@@ -21,9 +21,9 @@ async function getUserId(req: Request): Promise<string | null> {
     Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBLISHABLE_KEY")!,
     { global: { headers: { Authorization: authHeader } } }
   );
-  const { data, error } = await supabase.auth.getClaims(authHeader.replace("Bearer ", ""));
-  if (error || !data?.claims?.sub) return null;
-  return data.claims.sub as string;
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) return null;
+  return user.id;
 }
 
 // Save undo log before destructive action
