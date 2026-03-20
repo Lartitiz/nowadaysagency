@@ -9,6 +9,8 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useUserPlan } from "@/hooks/use-user-plan";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import { handleQuotaError } from "@/lib/quota-error-handler";
 import { cn } from "@/lib/utils";
 
 interface ChatMessage {
