@@ -483,9 +483,9 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
   const handleStructureConfirmed = useCallback(
     (structure: SlideStructure[]) => {
       setConfirmedStructure(structure);
-      onSlidesUpdate?.(slides, { ...caption, _structureReady: true, _structure: structure });
+      onSlideStructureReady?.(structure);
     },
-    [slides, caption, onSlidesUpdate],
+    [onSlideStructureReady],
   );
 
   const updateSlideText = (idx: number, text: string) => {

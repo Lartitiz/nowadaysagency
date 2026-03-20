@@ -201,6 +201,7 @@ export function useContentGenerator() {
               workspace_id: workspaceId || null,
               photos: (params.carouselType === "photo" || params.carouselType === "mix") ? params.photos : undefined,
               photo_description: (params.carouselType === "photo" || params.carouselType === "mix") ? params.photoDescription : undefined,
+              slide_structure: params.slideStructure || null,
             },
           }, 120000);
           data = res.data;
