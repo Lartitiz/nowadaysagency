@@ -751,6 +751,24 @@ export default function CreerUnifie() {
       return;
     }
 
+    // Régénération carrousel : réutiliser la dernière structure confirmée
+    if (selectedFormat === "carousel" && lastConfirmedStructure) {
+      setStep("result");
+      await generate({
+        format: "carousel",
+        subject: enrichedSubject,
+        objective: objective || undefined,
+        editorialAngle: editorialAngle || undefined,
+        answers: Object.keys(ans).length > 0 ? ans : undefined,
+        channel: isLinkedInCarousel ? "linkedin" : undefined,
+        confirmedStructure: lastConfirmedStructure,
+        ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64 })), photoDescription } : {}),
+        ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64 })), photoDescription } : {}),
+        ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? [{ base64: uploadedPhotos[0]?.base64 }] : undefined, photoDescription } : {}),
+      });
+      return;
+    }
+
     await generate({
       format: selectedFormat as any,
       subject: enrichedSubject,
