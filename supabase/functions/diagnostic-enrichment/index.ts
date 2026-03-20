@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
+import { logUsage } from "../_shared/plan-limiter.ts";
 
 /**
  * Phase 2 enrichment for deep-diagnostic.
@@ -135,6 +136,8 @@ Précisions importantes :
 
     const opusModel = getModelForAction("branding_audit");
     const enrichmentRaw = await callAnthropicSimple(opusModel, enrichmentSystemPrompt, userPrompt, 0.7, 8192);
+
+    await logUsage(userId, "audit", "diagnostic_enrichment", undefined, "claude-sonnet", workspaceId);
 
     let enrichmentResult: any;
     try {
