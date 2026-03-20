@@ -37,6 +37,14 @@ export interface GenerateParams {
     photo_index?: number;
     photo_layout?: string;
   }>;
+  confirmedStructure?: Array<{
+    slide_number: number;
+    role: string;
+    title_suggestion: string;
+    strategic_note: string;
+    photo_index?: number;
+    slide_type?: "photo_full" | "photo_integrated" | "text_only";
+  }>;
 }
 
 export interface GenerateQuestionsParams {
