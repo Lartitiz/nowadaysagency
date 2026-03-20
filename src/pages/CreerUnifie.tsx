@@ -790,6 +790,7 @@ export default function CreerUnifie() {
     const enrichedSubject = existingCalendarContent
       ? ideaText + "\n\n[Contenu existant à approfondir]\n" + existingCalendarContent
       : ideaText;
+    setLastConfirmedStructure(confirmedSlides);
     setStructureProposal(null);
     setStep("result");
     await generate({
