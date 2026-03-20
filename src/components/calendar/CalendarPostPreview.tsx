@@ -341,6 +341,12 @@ export function CalendarPostPreview({
                 <FileDown className="h-4 w-4 mr-2" />
                 Présentation (PPTX)
               </DropdownMenuItem>
+              {slidesData && slidesData.length > 0 && (
+                <DropdownMenuItem onClick={handleDownloadEditablePptx} disabled={downloadingEditable}>
+                  {downloadingEditable ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileDown className="h-4 w-4 mr-2" />}
+                  PPTX éditable
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
