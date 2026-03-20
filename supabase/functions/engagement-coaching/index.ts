@@ -21,12 +21,11 @@ serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claims, error: claimsErr } = await supabase.auth.getClaims(token);
-    if (claimsErr || !claims?.claims) {
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
       return new Response(JSON.stringify({ error: "Non autorisé" }), { status: 401, headers: cors });
     }
-    const userId = claims.claims.sub as string;
+    const userId = user.id;
 
     const { post_text, objectif, ton_envie, platform, workspace_id } = await req.json();
 
