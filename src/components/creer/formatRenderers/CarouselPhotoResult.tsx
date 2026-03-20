@@ -19,6 +19,7 @@ interface CarouselPhotoResultProps {
   photos?: { preview: string }[];
   onSlidesUpdate?: (slides: any[], caption: any) => void;
   visualSlides?: { slide_number: number; html: string }[];
+  onSlideStructureReady?: (structure: SlideStructure[]) => void;
 }
 
 // ─── Layout helpers ───
@@ -448,7 +449,7 @@ const OVERLAY_STYLE_CLASS: Record<string, string> = {
   technique: "text-sm font-mono",
 };
 
-export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, visualSlides }: CarouselPhotoResultProps) {
+export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, visualSlides, onSlideStructureReady }: CarouselPhotoResultProps) {
   const r = result?.raw || result;
   const [slides, setSlides] = useState<any[]>(r?.slides || []);
   const [caption, setCaption] = useState<any>(r?.caption || {});
@@ -482,9 +483,9 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
   const handleStructureConfirmed = useCallback(
     (structure: SlideStructure[]) => {
       setConfirmedStructure(structure);
-      onSlidesUpdate?.(slides, { ...caption, _structureReady: true, _structure: structure });
+      onSlideStructureReady?.(structure);
     },
-    [slides, caption, onSlidesUpdate],
+    [onSlideStructureReady],
   );
 
   const updateSlideText = (idx: number, text: string) => {
