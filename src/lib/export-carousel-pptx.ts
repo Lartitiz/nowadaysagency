@@ -9,6 +9,13 @@ interface SlideData {
   body: string;
   visual_suggestion?: string;
   visual_schema?: any;
+  // ═══ CHAMPS PHOTO ═══
+  slide_type?: "photo_full" | "photo_integrated" | "text_only";
+  photo_index?: number | null;
+  photo_layout?: "top_photo" | "left_photo" | "right_photo" | "card_photo";
+  overlay_text?: string | null;
+  overlay_position?: "bottom_left" | "bottom_center" | "top_left" | "top_center" | "center";
+  overlay_style?: "sensoriel" | "narratif" | "minimal" | "technique";
 }
 
 interface VisualSlide {
