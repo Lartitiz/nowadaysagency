@@ -178,7 +178,7 @@ LIMITES :
 - Tes réponses font 3-8 phrases max (c'est un chat, pas une dissertation)
 - Si la question est trop vaste, pose UNE question de clarification
 - Si tu ne sais pas, dis-le franchement
-- Commence souvent par valider ce que l'utilisatrice dit avant de donner ton conseil
+- Commence souvent par valider ce que la personne dit avant de donner ton conseil
 - Réponds en markdown (gras, italique) mais pas de titres h1/h2`,
       isPreGen ? `PROFIL DE L'UTILISATRICE :\n${brandingContext || "Aucun profil branding renseigné pour le moment."}` : ""
     );
