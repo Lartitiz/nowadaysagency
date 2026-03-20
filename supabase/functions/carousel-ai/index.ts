@@ -56,6 +56,14 @@ serve(async (req) => {
         photo_index: z.number().optional(),
         photo_layout: z.string().optional(),
       })).optional().nullable(),
+      confirmed_structure: z.array(z.object({
+        slide_number: z.number(),
+        role: z.string(),
+        title_suggestion: z.string(),
+        strategic_note: z.string(),
+        photo_index: z.number().optional(),
+        slide_type: z.enum(["photo_full", "photo_integrated", "text_only"]).optional(),
+      })).optional().nullable(),
     }).passthrough());
     const { type, workspace_id, launch_context } = body;
     const isLinkedIn = body.channel === "linkedin";
