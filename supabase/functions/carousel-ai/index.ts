@@ -1011,7 +1011,7 @@ Tu écris pour LinkedIn, pas Instagram. Ce qui change fondamentalement :
 
   // ── ASSEMBLAGE DU PROMPT ──
 
-  return `DEMANDE : Génère un carrousel ${isLinkedIn ? "LinkedIn PDF" : "Instagram"} COMPLET.
+  return `${confirmedStructureBlock}DEMANDE : Génère un carrousel ${isLinkedIn ? "LinkedIn PDF" : "Instagram"} COMPLET.
 
 ${subjectBlock}
 ${deepeningBlock}
