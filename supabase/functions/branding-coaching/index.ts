@@ -420,6 +420,22 @@ serve(async (req) => {
       console.log(`[BrandingCoaching] Pruned messages from ${originalLen} to ${mergedMessages.length}`);
       }
 
+      // ── Garde-fou story_generate : limiter la taille du payload ──
+      for (const msg of merged) {
+        if (msg.content.length > 3000) {
+          msg.content = msg.content.slice(0, 3000) + "\n[...tronqué]";
+        }
+      }
+      if (merged.length > 20) {
+        const first = merged[0];
+        const recent = merged.slice(-19);
+        if (first.role === recent[0].role) {
+          merged.splice(0, merged.length, ...recent);
+        } else {
+          merged.splice(0, merged.length, first, ...recent);
+        }
+      }
+
 
     let rawResponse: string;
     let wasTruncated = false;
