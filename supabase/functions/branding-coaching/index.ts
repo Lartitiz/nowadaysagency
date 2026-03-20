@@ -295,6 +295,7 @@ serve(async (req) => {
     if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, cors);
 
     const { section, messages, context, covered_topics, workspace_id, autofill_data, autofill_confidence } = body;
+    console.log(`[BrandingCoaching] section=${section}, messages=${(messages || []).length}, totalChars=${(messages || []).reduce((sum: number, m: any) => sum + (m.content?.length || 0), 0)}`);
 
     const quota = await checkQuota(userId, "coach", workspace_id || undefined);
     if (!quota.allowed) {
