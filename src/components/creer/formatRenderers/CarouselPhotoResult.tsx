@@ -158,7 +158,7 @@ const OVERLAY_STYLE_CLASS: Record<string, string> = {
   technique: "text-sm font-mono",
 };
 
-export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, visualSlides, onSlideStructureReady }: CarouselPhotoResultProps) {
+export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, visualSlides }: CarouselPhotoResultProps) {
   const r = result?.raw || result;
   const [slides, setSlides] = useState<any[]>(r?.slides || []);
   const [caption, setCaption] = useState<any>(r?.caption || {});
