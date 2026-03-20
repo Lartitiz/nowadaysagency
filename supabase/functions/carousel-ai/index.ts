@@ -40,7 +40,7 @@ serve(async (req) => {
 
     const body = await req.json();
     validateInput(body, z.object({
-      type: z.enum(["hooks", "slides", "suggest_topics", "suggest_angles", "deepening_questions", "express_full"]),
+      type: z.enum(["hooks", "slides", "suggest_topics", "suggest_angles", "deepening_questions", "express_full", "structure_proposal"]),
       carousel_type: z.string().max(100).optional().nullable(),
       subject: z.string().max(15000).optional().nullable(),
       objective: z.string().max(100).optional().nullable(),
@@ -56,11 +56,19 @@ serve(async (req) => {
         photo_index: z.number().optional(),
         photo_layout: z.string().optional(),
       })).optional().nullable(),
+      confirmed_structure: z.array(z.object({
+        slide_number: z.number(),
+        role: z.string(),
+        title_suggestion: z.string(),
+        strategic_note: z.string(),
+        photo_index: z.number().optional(),
+        slide_type: z.enum(["photo_full", "photo_integrated", "text_only"]).optional(),
+      })).optional().nullable(),
     }).passthrough());
     const { type, workspace_id, launch_context } = body;
     const isLinkedIn = body.channel === "linkedin";
 
-    const category = (type === "suggest_topics" || type === "suggest_angles" || type === "deepening_questions") ? "suggestion" : "content";
+    const category = (type === "suggest_topics" || type === "suggest_angles" || type === "deepening_questions" || type === "structure_proposal") ? "suggestion" : "content";
     const quotaCheck = await checkQuota(user.id, category, workspace_id);
     if (!quotaCheck.allowed) {
       return new Response(
@@ -202,6 +210,117 @@ serve(async (req) => {
 
       // ── Standard text carousel ──
       userPrompt = buildExpressFullPrompt(body, isLinkedIn);
+    } else if (type === "structure_proposal") {
+      const { subject, carousel_type, objective, slide_count, editorial_angle, deepening_answers, photos, photo_description } = body;
+      const hasPhotos = photos && Array.isArray(photos) && photos.length > 0;
+      const isPhotoMode = carousel_type === "photo";
+      const isMixMode = carousel_type === "mix";
+
+      let photoInstruction = "";
+      if (hasPhotos && (isPhotoMode || isMixMode)) {
+        if (isPhotoMode) {
+          photoInstruction = `\nMODE PHOTO — ${photos.length} photo(s) fournies.\nAnalyse chaque photo et propose une structure où CHAQUE slide utilise une photo.\nPour chaque slide, indique "photo_index" (1-based, correspondant à l'ordre des photos fournies) et "slide_type": "photo_full".\nAssigne les photos aux slides en fonction de leur contenu visuel et du rôle narratif de la slide.\n${photo_description ? `Description complémentaire des photos : "${photo_description}"` : ""}`;
+        } else {
+          photoInstruction = `\nMODE MIXTE — ${photos.length} photo(s) fournies.\nPropose une structure qui MÉLANGE slides photo et slides texte.\nPour les slides avec photo, indique "photo_index" (1-based) et "slide_type": "photo_full" ou "photo_integrated".\nPour les slides sans photo, indique "slide_type": "text_only" et pas de photo_index.\nRépartis les photos intelligemment : la plus impactante en hook ou conclusion, les autres selon leur contenu.\nTu n'es PAS obligé·e d'utiliser toutes les photos.\n${photo_description ? `Description complémentaire des photos : "${photo_description}"` : ""}`;
+        }
+      }
+
+      const structureSystemPrompt = `${BASE_SYSTEM_RULES}
+
+Tu es une stratège éditoriale spécialisée en carrousels Instagram et LinkedIn.
+
+MISSION : Propose une structure narrative optimale pour un carrousel. Tu ne génères PAS le contenu des slides — uniquement leur architecture.
+
+RÈGLES :
+- Chaque slide a un rôle narratif clair (hook, problème, mythe, exemple, solution, transformation, CTA…)
+- Justifie chaque choix de position en 1 phrase max
+- Propose des titres courts (4-7 mots), percutants, en français
+- Sois concise et actionnable, pas théorique
+- Le nombre de slides doit être entre ${slide_count || 7} et ${(slide_count || 7) + 2}
+${photoInstruction}
+
+CONTEXTE BRANDING :
+${brandingContext}
+
+Retourne UNIQUEMENT un objet JSON valide (pas de texte avant ou après, pas de backticks), avec cette structure exacte :
+{
+  "strategic_rationale": "2-3 phrases expliquant la logique narrative globale",
+  "slides": [
+    {
+      "slide_number": 1,
+      "role": "hook",
+      "title_suggestion": "titre court proposé",
+      "strategic_note": "pourquoi cette slide à cette position"${hasPhotos ? `,
+      "photo_index": 1,
+      "slide_type": "photo_full"` : ""}
+    }
+  ],
+  "total_slides": 7,
+  "carousel_type": "${carousel_type || "auto"}"
+}`;
+
+      const structureUserPrompt = `Sujet du carrousel : "${subject || "non précisé"}"
+${carousel_type ? `Type de carrousel : ${carousel_type}` : "Choisis le type le plus pertinent."}
+${objective ? `Objectif : ${objective}` : ""}
+${editorial_angle ? `Angle éditorial souhaité : ${editorial_angle}` : ""}
+${deepening_answers ? `Réponses de personnalisation : ${JSON.stringify(deepening_answers)}` : ""}
+${hasPhotos ? `Nombre de photos : ${photos.length}` : ""}
+Propose la structure optimale.`;
+
+      let content: string;
+      if (hasPhotos) {
+        const messageContent: any[] = [];
+        messageContent.push({
+          type: "text",
+          text: structureUserPrompt + "\n\nVoici les photos à analyser :",
+        });
+        for (const photo of photos.slice(0, 10)) {
+          if (photo.base64) {
+            const raw = photo.base64.replace(/^data:image\/[a-z]+;base64,/, "");
+            messageContent.push({
+              type: "image",
+              source: { type: "base64", media_type: "image/jpeg", data: raw },
+            });
+          }
+        }
+        messageContent.push({
+          type: "text",
+          text: "Analyse ces photos et propose la structure optimale avec l'assignation photo.",
+        });
+        content = await callAnthropic({
+          model: getModelForAction("content"),
+          system: structureSystemPrompt,
+          messages: [{ role: "user", content: messageContent }],
+          max_tokens: 2048,
+        });
+      } else {
+        content = await callAnthropic({
+          model: getModelForAction("content"),
+          system: structureSystemPrompt,
+          messages: [{ role: "user", content: structureUserPrompt }],
+          max_tokens: 2048,
+        });
+      }
+
+      // PAS de logUsage — cet appel est gratuit
+      let structureResult;
+      try {
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        structureResult = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
+      } catch {
+        structureResult = null;
+      }
+
+      if (!structureResult) {
+        return new Response(JSON.stringify({ error: "Impossible de parser la structure proposée" }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(JSON.stringify({ result: structureResult }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+
     } else if (type === "suggest_topics") {
       userPrompt = buildSuggestTopicsPrompt(body);
     } else if (type === "suggest_angles") {
@@ -778,7 +897,34 @@ Réponds UNIQUEMENT en JSON valide, sans texte autour :
 }
 
 function buildExpressFullPrompt(body: any, isLinkedIn: boolean = false): string {
-  const { subject, carousel_type, objective, slide_count, deepening_answers, selected_offer, editorial_angle, content_structure } = body;
+  const { subject, carousel_type, objective, slide_count, deepening_answers, selected_offer, editorial_angle, content_structure, confirmed_structure } = body;
+
+  // ── 0. STRUCTURE IMPOSÉE (si confirmée par l'utilisateur·ice) ──
+  let confirmedStructureBlock = "";
+  if (confirmed_structure && Array.isArray(confirmed_structure) && confirmed_structure.length > 0) {
+    const structureList = confirmed_structure
+      .map((s: any) => {
+        let line = `  Slide ${s.slide_number} — Rôle : ${s.role} — Titre : "${s.title_suggestion}"`;
+        if (s.photo_index) line += ` — Photo n°${s.photo_index}${s.slide_type ? ` (${s.slide_type})` : ""}`;
+        line += ` — ${s.strategic_note}`;
+        return line;
+      })
+      .join("\n");
+    confirmedStructureBlock = `══════════════════════════════════════
+STRUCTURE IMPOSÉE PAR L'UTILISATEUR·ICE — OBLIGATOIRE
+══════════════════════════════════════
+Tu DOIS générer le contenu pour EXACTEMENT ces slides dans cet ordre :
+${structureList}
+
+RÈGLES ABSOLUES :
+- Ne change NI l'ordre NI les rôles NI le nombre de slides
+- Utilise les titres proposés comme base (tu peux les affiner légèrement)
+- Génère uniquement le contenu (body, visual_schema, caption) pour chaque slide
+- Le JSON retourné doit contenir exactement ${confirmed_structure.length} slides
+- Si une slide a un photo_index, le champ photo_index doit être présent dans le JSON de sortie
+
+`;
+  }
 
   // ── 1. BLOC SUJET (priorité absolue, en tête de prompt) ──
 
@@ -865,7 +1011,7 @@ Tu écris pour LinkedIn, pas Instagram. Ce qui change fondamentalement :
 
   // ── ASSEMBLAGE DU PROMPT ──
 
-  return `DEMANDE : Génère un carrousel ${isLinkedIn ? "LinkedIn PDF" : "Instagram"} COMPLET.
+  return `${confirmedStructureBlock}DEMANDE : Génère un carrousel ${isLinkedIn ? "LinkedIn PDF" : "Instagram"} COMPLET.
 
 ${subjectBlock}
 ${deepeningBlock}
@@ -1000,7 +1146,34 @@ Retourne ce JSON exact :
 }
 
 function buildPhotoCarouselPrompt(body: any): string {
-  const { editorial_angle, content_structure, deepening_answers } = body;
+  const { editorial_angle, content_structure, deepening_answers, confirmed_structure } = body;
+
+  // ── STRUCTURE IMPOSÉE (si confirmée par l'utilisateur·ice) ──
+  let confirmedStructureBlock = "";
+  if (confirmed_structure && Array.isArray(confirmed_structure) && confirmed_structure.length > 0) {
+    const structureList = confirmed_structure
+      .map((s: any) => {
+        let line = `  Slide ${s.slide_number} — Rôle : ${s.role} — Titre : "${s.title_suggestion}"`;
+        if (s.photo_index) line += ` — Photo n°${s.photo_index}${s.slide_type ? ` (${s.slide_type})` : ""}`;
+        line += ` — ${s.strategic_note}`;
+        return line;
+      })
+      .join("\n");
+    confirmedStructureBlock = `══════════════════════════════════════
+STRUCTURE IMPOSÉE PAR L'UTILISATEUR·ICE — OBLIGATOIRE
+══════════════════════════════════════
+Tu DOIS générer le contenu pour EXACTEMENT ces slides dans cet ordre :
+${structureList}
+
+RÈGLES ABSOLUES :
+- Ne change NI l'ordre NI les rôles NI le nombre de slides
+- Utilise les titres proposés comme base (tu peux les affiner légèrement)
+- Génère uniquement le contenu (body, visual_schema, caption) pour chaque slide
+- Le JSON retourné doit contenir exactement ${confirmed_structure.length} slides
+- Si une slide a un photo_index, le champ photo_index doit être présent dans le JSON de sortie
+
+`;
+  }
 
   let deepeningCtx = "";
   if (deepening_answers) {
@@ -1016,7 +1189,7 @@ function buildPhotoCarouselPrompt(body: any): string {
     angleBlock = `\nANGLE ÉDITORIAL CHOISI : ${editorial_angle}\nSTRUCTURE IMPOSÉE :\n${content_structure}\n\n${EDITORIAL_ANGLES_REFERENCE}`;
   }
 
-  return `Tu es une DIRECTRICE ARTISTIQUE ÉDITORIALE spécialisée dans les carrousels photo Instagram.
+  return `${confirmedStructureBlock}Tu es une DIRECTRICE ARTISTIQUE ÉDITORIALE spécialisée dans les carrousels photo Instagram.
 
 Ton rôle : transformer des photos en carrousel éditorial qui RACONTE UNE HISTOIRE. Chaque slide participe à une narration.
 
@@ -1092,7 +1265,34 @@ RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
 }
 
 function buildMixCarouselPrompt(body: any): string {
-  const { editorial_angle, content_structure, deepening_answers, slide_structure } = body;
+  const { editorial_angle, content_structure, deepening_answers, slide_structure, confirmed_structure } = body;
+
+  // ── STRUCTURE IMPOSÉE (si confirmée par l'utilisateur·ice) ──
+  let confirmedStructureBlock = "";
+  if (confirmed_structure && Array.isArray(confirmed_structure) && confirmed_structure.length > 0) {
+    const structureList = confirmed_structure
+      .map((s: any) => {
+        let line = `  Slide ${s.slide_number} — Rôle : ${s.role} — Titre : "${s.title_suggestion}"`;
+        if (s.photo_index) line += ` — Photo n°${s.photo_index}${s.slide_type ? ` (${s.slide_type})` : ""}`;
+        line += ` — ${s.strategic_note}`;
+        return line;
+      })
+      .join("\n");
+    confirmedStructureBlock = `══════════════════════════════════════
+STRUCTURE IMPOSÉE PAR L'UTILISATEUR·ICE — OBLIGATOIRE
+══════════════════════════════════════
+Tu DOIS générer le contenu pour EXACTEMENT ces slides dans cet ordre :
+${structureList}
+
+RÈGLES ABSOLUES :
+- Ne change NI l'ordre NI les rôles NI le nombre de slides
+- Utilise les titres proposés comme base (tu peux les affiner légèrement)
+- Génère uniquement le contenu (body, visual_schema, caption) pour chaque slide
+- Le JSON retourné doit contenir exactement ${confirmed_structure.length} slides
+- Si une slide a un photo_index, le champ photo_index doit être présent dans le JSON de sortie
+
+`;
+  }
 
   let deepeningCtx = "";
   if (deepening_answers) {
@@ -1108,7 +1308,7 @@ function buildMixCarouselPrompt(body: any): string {
     angleBlock = `\nANGLE ÉDITORIAL CHOISI : ${editorial_angle}\nSTRUCTURE IMPOSÉE :\n${content_structure}\n\n${EDITORIAL_ANGLES_REFERENCE}`;
   }
 
-  return `Tu es une DIRECTRICE ARTISTIQUE ÉDITORIALE spécialisée dans les carrousels Instagram.
+  return `${confirmedStructureBlock}Tu es une DIRECTRICE ARTISTIQUE ÉDITORIALE spécialisée dans les carrousels Instagram.
 
 Tu crées des carrousels MIXTES : un mélange de slides avec photos et de slides texte pur. C'est le format le plus courant et le plus engageant sur Instagram.
 
