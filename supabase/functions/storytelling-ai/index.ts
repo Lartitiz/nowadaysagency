@@ -81,7 +81,7 @@ CONSIGNE :
 Améliore ce texte pour le rendre plus vivant, plus concret et plus immersif. 
 
 RÈGLES STRICTES :
-- Garde le sens et les idées de l'utilisatrice. Ne change PAS le fond.
+- Garde le sens et les idées de la personne. Ne change PAS le fond.
 - Garde ses mots clés, ses expressions, sa voix. C'est SON histoire.
 - Rends les scènes plus visuelles (lieu, action, détails sensoriels)
 - Ajoute des sensations physiques si pertinent
