@@ -210,6 +210,7 @@ export default function CreerUnifie() {
   // Visual states (carousel only)
   const [visualSlides, setVisualSlides] = useState<{ slide_number: number; html: string }[]>(ps?.visualSlides || []);
   const [visualLoading, setVisualLoading] = useState(false);
+  const [slideStructure, setSlideStructure] = useState<any[] | undefined>(undefined);
 
   // ── Persist generated result to sessionStorage ──
   const CREER_RESULT_KEY = "creer_unifie_result";
