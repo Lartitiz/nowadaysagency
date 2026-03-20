@@ -297,7 +297,7 @@ export default function StructureReviewStep({
       {/* ───── ZONE 4 : FOOTER ───── */}
       <div className="flex flex-col sm:flex-row gap-3 justify-between items-center mt-8">
         <Button variant="outline" onClick={onBack} disabled={isLoading}>
-          ← Modifier mon sujet
+          ← Modifier mes réponses
         </Button>
 
         <div className="flex gap-2">
