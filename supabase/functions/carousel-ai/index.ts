@@ -210,6 +210,117 @@ serve(async (req) => {
 
       // ── Standard text carousel ──
       userPrompt = buildExpressFullPrompt(body, isLinkedIn);
+    } else if (type === "structure_proposal") {
+      const { subject, carousel_type, objective, slide_count, editorial_angle, deepening_answers, photos, photo_description } = body;
+      const hasPhotos = photos && Array.isArray(photos) && photos.length > 0;
+      const isPhotoMode = carousel_type === "photo";
+      const isMixMode = carousel_type === "mix";
+
+      let photoInstruction = "";
+      if (hasPhotos && (isPhotoMode || isMixMode)) {
+        if (isPhotoMode) {
+          photoInstruction = `\nMODE PHOTO — ${photos.length} photo(s) fournies.\nAnalyse chaque photo et propose une structure où CHAQUE slide utilise une photo.\nPour chaque slide, indique "photo_index" (1-based, correspondant à l'ordre des photos fournies) et "slide_type": "photo_full".\nAssigne les photos aux slides en fonction de leur contenu visuel et du rôle narratif de la slide.\n${photo_description ? `Description complémentaire des photos : "${photo_description}"` : ""}`;
+        } else {
+          photoInstruction = `\nMODE MIXTE — ${photos.length} photo(s) fournies.\nPropose une structure qui MÉLANGE slides photo et slides texte.\nPour les slides avec photo, indique "photo_index" (1-based) et "slide_type": "photo_full" ou "photo_integrated".\nPour les slides sans photo, indique "slide_type": "text_only" et pas de photo_index.\nRépartis les photos intelligemment : la plus impactante en hook ou conclusion, les autres selon leur contenu.\nTu n'es PAS obligé·e d'utiliser toutes les photos.\n${photo_description ? `Description complémentaire des photos : "${photo_description}"` : ""}`;
+        }
+      }
+
+      const structureSystemPrompt = `${BASE_SYSTEM_RULES}
+
+Tu es une stratège éditoriale spécialisée en carrousels Instagram et LinkedIn.
+
+MISSION : Propose une structure narrative optimale pour un carrousel. Tu ne génères PAS le contenu des slides — uniquement leur architecture.
+
+RÈGLES :
+- Chaque slide a un rôle narratif clair (hook, problème, mythe, exemple, solution, transformation, CTA…)
+- Justifie chaque choix de position en 1 phrase max
+- Propose des titres courts (4-7 mots), percutants, en français
+- Sois concise et actionnable, pas théorique
+- Le nombre de slides doit être entre ${slide_count || 7} et ${(slide_count || 7) + 2}
+${photoInstruction}
+
+CONTEXTE BRANDING :
+${brandingContext}
+
+Retourne UNIQUEMENT un objet JSON valide (pas de texte avant ou après, pas de backticks), avec cette structure exacte :
+{
+  "strategic_rationale": "2-3 phrases expliquant la logique narrative globale",
+  "slides": [
+    {
+      "slide_number": 1,
+      "role": "hook",
+      "title_suggestion": "titre court proposé",
+      "strategic_note": "pourquoi cette slide à cette position"${hasPhotos ? `,
+      "photo_index": 1,
+      "slide_type": "photo_full"` : ""}
+    }
+  ],
+  "total_slides": 7,
+  "carousel_type": "${carousel_type || "auto"}"
+}`;
+
+      const structureUserPrompt = `Sujet du carrousel : "${subject || "non précisé"}"
+${carousel_type ? `Type de carrousel : ${carousel_type}` : "Choisis le type le plus pertinent."}
+${objective ? `Objectif : ${objective}` : ""}
+${editorial_angle ? `Angle éditorial souhaité : ${editorial_angle}` : ""}
+${deepening_answers ? `Réponses de personnalisation : ${JSON.stringify(deepening_answers)}` : ""}
+${hasPhotos ? `Nombre de photos : ${photos.length}` : ""}
+Propose la structure optimale.`;
+
+      let content: string;
+      if (hasPhotos) {
+        const messageContent: any[] = [];
+        messageContent.push({
+          type: "text",
+          text: structureUserPrompt + "\n\nVoici les photos à analyser :",
+        });
+        for (const photo of photos.slice(0, 10)) {
+          if (photo.base64) {
+            const raw = photo.base64.replace(/^data:image\/[a-z]+;base64,/, "");
+            messageContent.push({
+              type: "image",
+              source: { type: "base64", media_type: "image/jpeg", data: raw },
+            });
+          }
+        }
+        messageContent.push({
+          type: "text",
+          text: "Analyse ces photos et propose la structure optimale avec l'assignation photo.",
+        });
+        content = await callAnthropic({
+          model: getModelForAction("content"),
+          system: structureSystemPrompt,
+          messages: [{ role: "user", content: messageContent }],
+          max_tokens: 2048,
+        });
+      } else {
+        content = await callAnthropic({
+          model: getModelForAction("content"),
+          system: structureSystemPrompt,
+          messages: [{ role: "user", content: structureUserPrompt }],
+          max_tokens: 2048,
+        });
+      }
+
+      // PAS de logUsage — cet appel est gratuit
+      let structureResult;
+      try {
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        structureResult = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
+      } catch {
+        structureResult = null;
+      }
+
+      if (!structureResult) {
+        return new Response(JSON.stringify({ error: "Impossible de parser la structure proposée" }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(JSON.stringify({ result: structureResult }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+
     } else if (type === "suggest_topics") {
       userPrompt = buildSuggestTopicsPrompt(body);
     } else if (type === "suggest_angles") {
