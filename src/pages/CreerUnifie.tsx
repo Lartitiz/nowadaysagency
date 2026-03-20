@@ -719,9 +719,10 @@ export default function CreerUnifie() {
         if ((carouselSubMode === "photo" || carouselSubMode === "mix") && uploadedPhotos.length > 0) {
           structureBody.photos = uploadedPhotos.map(p => ({ base64: p.base64 }));
         }
+        const structureTimeout = (carouselSubMode === "photo" || carouselSubMode === "mix") && uploadedPhotos.length > 0 ? 60000 : 30000;
         const { data, error: fnError } = await invokeWithTimeout("carousel-ai", {
           body: structureBody,
-        }, 60000);
+        }, structureTimeout);
         if (fnError) throw fnError;
         if (data?.error) throw new Error(data.error);
         if (data?.result) {
