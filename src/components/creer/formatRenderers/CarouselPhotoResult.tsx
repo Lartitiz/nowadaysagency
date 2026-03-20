@@ -163,7 +163,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
   const [slides, setSlides] = useState<any[]>(r?.slides || []);
   const [caption, setCaption] = useState<any>(r?.caption || {});
   const [hashtagInput, setHashtagInput] = useState((r?.caption?.hashtags || []).join(" "));
-  const [confirmedStructure, setConfirmedStructure] = useState<SlideStructure[] | null>(null);
+  
 
   const prevSignature = useRef(JSON.stringify((r?.slides || []).map((s: any) => s.slide_number)));
 
