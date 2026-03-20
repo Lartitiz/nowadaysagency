@@ -699,6 +699,57 @@ export default function CreerUnifie() {
     }
 
     // Formats structurés : appel classique (pas de streaming)
+    // Carrousels : proposer la structure d'abord (sauf si déjà validée via structureProposal)
+    if (selectedFormat === "carousel" && !structureProposal) {
+      setStructureLoading(true);
+      try {
+        const structureBody: any = {
+          type: "structure_proposal",
+          subject: enrichedSubject,
+          carousel_type: carouselSubMode || undefined,
+          objective: objective || undefined,
+          slide_count: 7,
+          editorial_angle: editorialAngle || undefined,
+          deepening_answers: Object.keys(ans).length > 0 ? ans : undefined,
+          workspace_id: workspaceId || undefined,
+          photo_description: photoDescription || undefined,
+        };
+        // En mode photo/mix, envoyer les photos pour analyse visuelle
+        if ((carouselSubMode === "photo" || carouselSubMode === "mix") && uploadedPhotos.length > 0) {
+          structureBody.photos = uploadedPhotos.map(p => ({ base64: p.base64 }));
+        }
+        const { data, error: fnError } = await invokeWithTimeout("carousel-ai", {
+          body: structureBody,
+        }, 60000);
+        if (fnError) throw fnError;
+        if (data?.error) throw new Error(data.error);
+        if (data?.result) {
+          setStructureProposal(data.result);
+          setStep("structure_review");
+        } else {
+          throw new Error("Structure non reçue");
+        }
+      } catch (e: any) {
+        if (!handleQuotaError(e)) {
+          toast.error("Erreur lors de la proposition de structure. Génération directe...");
+          await generate({
+            format: selectedFormat as any,
+            subject: enrichedSubject,
+            objective: objective || undefined,
+            editorialAngle: editorialAngle || undefined,
+            answers: Object.keys(ans).length > 0 ? ans : undefined,
+            channel: isLinkedInCarousel ? "linkedin" : undefined,
+            ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64 })), photoDescription } : {}),
+            ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64 })), photoDescription, slideStructure } : {}),
+            ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? [{ base64: uploadedPhotos[0]?.base64 }] : undefined, photoDescription } : {}),
+          });
+        }
+      } finally {
+        setStructureLoading(false);
+      }
+      return;
+    }
+
     await generate({
       format: selectedFormat as any,
       subject: enrichedSubject,
