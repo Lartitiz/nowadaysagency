@@ -52,7 +52,7 @@ RÈGLES :
 - Pas de spam ("je fais la même chose, viens voir mon profil")
 - Un bon commentaire AJOUTE de la valeur : il apporte un point de vue, une expérience, une question
 - Adapte au ton de la plateforme : Instagram = plus casual, LinkedIn = plus pro
-- Utilise la voix de l'utilisatrice (ses expressions, son ton)
+- Utilise la voix de la personne (ses expressions, son ton)
 - ${platform === "linkedin" ? "Sur LinkedIn, vise 15+ mots minimum. Les commentaires courts sont ignorés par l'algorithme." : "Sur Instagram, sois authentique et engageante. Les emojis sont bienvenus mais sans excès."}
 
 Retourne UNIQUEMENT un JSON valide, sans markdown.`;

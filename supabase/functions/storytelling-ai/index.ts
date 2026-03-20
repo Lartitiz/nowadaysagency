@@ -81,7 +81,7 @@ CONSIGNE :
 Améliore ce texte pour le rendre plus vivant, plus concret et plus immersif. 
 
 RÈGLES STRICTES :
-- Garde le sens et les idées de l'utilisatrice. Ne change PAS le fond.
+- Garde le sens et les idées de la personne. Ne change PAS le fond.
 - Garde ses mots clés, ses expressions, sa voix. C'est SON histoire.
 - Rends les scènes plus visuelles (lieu, action, détails sensoriels)
 - Ajoute des sensations physiques si pertinent
@@ -99,9 +99,9 @@ Réponds UNIQUEMENT avec le texte amélioré, sans commentaire ni explication.`;
       const s = steps || {};
       systemPrompt = `Tu es expert·e en storytelling.
 
-Tu vas écrire un storytelling captivant à partir des éléments fournis par l'utilisatrice.
+Tu vas écrire un storytelling captivant à partir des éléments fournis par la personne.
 
-ÉLÉMENTS DE L'UTILISATRICE :
+ÉLÉMENTS DE LA PERSONNE :
 - Histoire brute (étape 1) : "${s.step_1_raw || ""}"
 - Lieu et action (étape 2) : "${s.step_2_location || ""}"
 - Scène d'action (étape 3) : "${s.step_3_action || ""}"
