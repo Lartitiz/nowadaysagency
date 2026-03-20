@@ -179,8 +179,6 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
   }, [result]);
 
   const qualityCheck = r?.quality_check;
-  const isMixMode = r?.carousel_type === "mix";
-  const showPlanner = isMixMode && photos && photos.length > 0 && !visualSlides?.length && !confirmedStructure;
 
   const notify = useCallback(
     (s: any[], c: any) => {
