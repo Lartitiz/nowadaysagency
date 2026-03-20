@@ -210,6 +210,7 @@ export function useContentGenerator() {
               photos: (params.carouselType === "photo" || params.carouselType === "mix") ? params.photos : undefined,
               photo_description: (params.carouselType === "photo" || params.carouselType === "mix") ? params.photoDescription : undefined,
               slide_structure: params.slideStructure || null,
+              confirmed_structure: params.confirmedStructure || null,
             },
           }, 120000);
           data = res.data;
