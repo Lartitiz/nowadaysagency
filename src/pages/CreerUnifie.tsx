@@ -18,6 +18,8 @@ import CreerStepQuestions from "@/components/creer/CreerStepQuestions";
 import CreerStepResult from "@/components/creer/CreerStepResult";
 import CreerStepEdit from "@/components/creer/CreerStepEdit";
 import PinterestInspirationStep from "@/components/creer/PinterestInspirationStep";
+import StructureReviewStep from "@/components/creer/StructureReviewStep";
+import type { SlideProposal, StructureProposal } from "@/components/creer/StructureReviewStep";
 import CreerTransformTab from "@/components/creer/CreerTransformTab";
 import { useContentGenerator } from "@/hooks/use-content-generator";
 import { CONTENT_STRUCTURES, EDITORIAL_ANGLES, LINKEDIN_EDITORIAL_ANGLES, PINTEREST_EDITORIAL_ANGLES, PINTEREST_VISUAL_ANGLES, getStructureForCombo } from "@/lib/content-structures";
@@ -63,7 +65,7 @@ function LowCreditsBanner({ remaining, plan }: { remaining: number; plan: string
   );
 }
 
-type Step = "idea" | "format" | "questions" | "inspiration_proposals" | "result" | "edit";
+type Step = "idea" | "format" | "questions" | "structure_review" | "inspiration_proposals" | "result" | "edit";
 type Mode = "create" | "transform";
 
 export default function CreerUnifie() {
@@ -144,6 +146,8 @@ export default function CreerUnifie() {
   const [currentBriefId, setCurrentBriefId] = useState<string | null>(null);
   const [briefsCount, setBriefsCount] = useState(0);
   const [photoBriefOverlayHtml, setPhotoBriefOverlayHtml] = useState<string | null>(null);
+  const [structureProposal, setStructureProposal] = useState<StructureProposal | null>(null);
+  const [structureLoading, setStructureLoading] = useState(false);
 
   const { restored: draftRestored, clearDraft } = useFormPersist(
     "creer-unifie-form",
@@ -695,6 +699,57 @@ export default function CreerUnifie() {
     }
 
     // Formats structurés : appel classique (pas de streaming)
+    // Carrousels : proposer la structure d'abord (sauf si déjà validée via structureProposal)
+    if (selectedFormat === "carousel" && !structureProposal) {
+      setStructureLoading(true);
+      try {
+        const structureBody: any = {
+          type: "structure_proposal",
+          subject: enrichedSubject,
+          carousel_type: carouselSubMode || undefined,
+          objective: objective || undefined,
+          slide_count: 7,
+          editorial_angle: editorialAngle || undefined,
+          deepening_answers: Object.keys(ans).length > 0 ? ans : undefined,
+          workspace_id: workspaceId || undefined,
+          photo_description: photoDescription || undefined,
+        };
+        // En mode photo/mix, envoyer les photos pour analyse visuelle
+        if ((carouselSubMode === "photo" || carouselSubMode === "mix") && uploadedPhotos.length > 0) {
+          structureBody.photos = uploadedPhotos.map(p => ({ base64: p.base64 }));
+        }
+        const { data, error: fnError } = await invokeWithTimeout("carousel-ai", {
+          body: structureBody,
+        }, 60000);
+        if (fnError) throw fnError;
+        if (data?.error) throw new Error(data.error);
+        if (data?.result) {
+          setStructureProposal(data.result);
+          setStep("structure_review");
+        } else {
+          throw new Error("Structure non reçue");
+        }
+      } catch (e: any) {
+        if (!handleQuotaError(e)) {
+          toast.error("Erreur lors de la proposition de structure. Génération directe...");
+          await generate({
+            format: selectedFormat as any,
+            subject: enrichedSubject,
+            objective: objective || undefined,
+            editorialAngle: editorialAngle || undefined,
+            answers: Object.keys(ans).length > 0 ? ans : undefined,
+            channel: isLinkedInCarousel ? "linkedin" : undefined,
+            ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64 })), photoDescription } : {}),
+            ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64 })), photoDescription, slideStructure } : {}),
+            ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? [{ base64: uploadedPhotos[0]?.base64 }] : undefined, photoDescription } : {}),
+          });
+        }
+      } finally {
+        setStructureLoading(false);
+      }
+      return;
+    }
+
     await generate({
       format: selectedFormat as any,
       subject: enrichedSubject,
@@ -710,6 +765,30 @@ export default function CreerUnifie() {
 
   const handleRegenerate = async () => {
     await doGenerate(answers);
+  };
+
+  const handleConfirmStructure = async (confirmedSlides: SlideProposal[]) => {
+    const enrichedSubject = existingCalendarContent
+      ? ideaText + "\n\n[Contenu existant à approfondir]\n" + existingCalendarContent
+      : ideaText;
+    setStructureProposal(null);
+    setStep("result");
+    await generate({
+      format: "carousel",
+      subject: enrichedSubject,
+      objective: objective || undefined,
+      editorialAngle: editorialAngle || undefined,
+      answers: Object.keys(answers).length > 0 ? answers : undefined,
+      channel: isLinkedInCarousel ? "linkedin" : undefined,
+      confirmedStructure: confirmedSlides,
+      ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64 })), photoDescription } : {}),
+      ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64 })), photoDescription } : {}),
+      ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? [{ base64: uploadedPhotos[0]?.base64 }] : undefined, photoDescription } : {}),
+    });
+  };
+
+  const handleSkipStructure = async (slides: SlideProposal[]) => {
+    await handleConfirmStructure(slides);
   };
 
   const handleCopy = (text: string) => {
@@ -913,6 +992,7 @@ export default function CreerUnifie() {
     setInspirationImagePreview(null);
     setPhotoBriefResult(null);
     setPhotoBriefOverlayHtml(null);
+    setStructureProposal(null);
     clearFlowState();
     clearDraft();
     sessionStorage.removeItem(CREER_RESULT_KEY);
@@ -1717,6 +1797,21 @@ export default function CreerUnifie() {
                 onSkip={handleSkipQuestions}
                 onBack={() => setStep("format")}
                 previousBriefsCount={briefsCount}
+              />
+            )}
+
+            {step === "structure_review" && structureProposal && (
+              <StructureReviewStep
+                structureProposal={structureProposal}
+                onConfirm={handleConfirmStructure}
+                onSkip={handleSkipStructure}
+                onBack={() => {
+                  setStructureProposal(null);
+                  setStep("questions");
+                }}
+                isLoading={generating || structureLoading}
+                photos={(carouselSubMode === "photo" || carouselSubMode === "mix") ? uploadedPhotos : undefined}
+                carouselSubMode={carouselSubMode || "text"}
               />
             )}
 
