@@ -65,7 +65,7 @@ function LowCreditsBanner({ remaining, plan }: { remaining: number; plan: string
   );
 }
 
-type Step = "idea" | "format" | "questions" | "inspiration_proposals" | "result" | "edit";
+type Step = "idea" | "format" | "questions" | "structure_review" | "inspiration_proposals" | "result" | "edit";
 type Mode = "create" | "transform";
 
 export default function CreerUnifie() {
