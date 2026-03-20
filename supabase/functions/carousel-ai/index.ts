@@ -68,7 +68,7 @@ serve(async (req) => {
     const { type, workspace_id, launch_context } = body;
     const isLinkedIn = body.channel === "linkedin";
 
-    const category = (type === "suggest_topics" || type === "suggest_angles" || type === "deepening_questions") ? "suggestion" : "content";
+    const category = (type === "suggest_topics" || type === "suggest_angles" || type === "deepening_questions" || type === "structure_proposal") ? "suggestion" : "content";
     const quotaCheck = await checkQuota(user.id, category, workspace_id);
     if (!quotaCheck.allowed) {
       return new Response(
