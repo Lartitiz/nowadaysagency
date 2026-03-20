@@ -568,11 +568,11 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
 
   const handleNext = useCallback(async () => {
     if (loading) return;
-    const userAnswer = currentQuestion?.question_type === "select" || currentQuestion?.question_type === "multi_select"
+    const rawAnswer = currentQuestion?.question_type === "select" || currentQuestion?.question_type === "multi_select"
       ? selectedOptions.join(", ")
       : answer;
-
-    if (!userAnswer.trim()) return;
+    const userAnswer = rawAnswer.trim();
+    if (!userAnswer) return;
 
     const nextIndex = questionIndexRef.current + 1;
     setQuestionIndex(nextIndex);
