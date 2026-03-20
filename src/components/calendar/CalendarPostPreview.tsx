@@ -201,6 +201,40 @@ export function CalendarPostPreview({
     }
   }, [visualUrls, downloadingPptx, theme]);
 
+  // ── Télécharger en PPTX éditable (texte modifiable + photos) ──
+  const [downloadingEditable, setDownloadingEditable] = useState(false);
+
+  const handleDownloadEditablePptx = useCallback(async () => {
+    if (!slidesData || slidesData.length === 0 || downloadingEditable) return;
+    setDownloadingEditable(true);
+    try {
+      const { exportCarouselPptx } = await import("@/lib/export-carousel-pptx");
+
+      let photos: { base64: string }[] | undefined;
+      if (photoUrls && photoUrls.length > 0) {
+        photos = await Promise.all(
+          photoUrls.map(async (url) => {
+            const response = await fetch(url);
+            const blob = await response.blob();
+            const base64 = await new Promise<string>((resolve) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result as string);
+              reader.readAsDataURL(blob);
+            });
+            return { base64 };
+          })
+        );
+      }
+
+      const fileName = `editable-${theme || "carrousel"}`.replace(/[^a-zA-Z0-9àâéèêëïîôùûüç\-_.]/g, "-");
+      await exportCarouselPptx(slidesData as any, fileName, undefined, null, photos);
+    } catch (err) {
+      console.error("Editable PPTX export error:", err);
+    } finally {
+      setDownloadingEditable(false);
+    }
+  }, [slidesData, photoUrls, downloadingEditable, theme]);
+
   if (!caption) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
