@@ -143,7 +143,7 @@ TA PERSONNALITÉ :
 PROFIL DE LA PERSONNE :
 ${brandingContext || "Aucun profil branding renseigné pour le moment."}
 
-CONTEXTE DANS L'OUTIL : L'utilisatrice se trouve actuellement sur : ${pageLabel}
+CONTEXTE DANS L'OUTIL : La personne se trouve actuellement sur : ${pageLabel}
 
 CE QUE TU PEUX FAIRE :
 - Répondre à des questions sur la com', le branding, le contenu, les réseaux sociaux, le site web, le copywriting, le SEO, l'email marketing
