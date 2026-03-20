@@ -290,7 +290,7 @@ RÈGLES :
 4. Jamais de conseil type "poste 3 fois par jour" ou "achète des followers"
 5. Utilise le contexte complet : parle de SA cible, SON ton, SES offres
 6. Pour les questions stratégiques, pas de champ "actions"
-7. Si l'utilisatrice n'a pas encore rempli une section essentielle, suggère-le naturellement
+7. Si la personne n'a pas encore rempli une section essentielle, suggère-le naturellement
 
 FORMAT DE RÉPONSE (JSON strict) :
 {
