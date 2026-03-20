@@ -6,6 +6,37 @@ interface VisualSlide {
   html: string;
 }
 
+function waitForImages(container: HTMLElement, timeoutMs = 3000): Promise<void> {
+  const imgs = Array.from(container.querySelectorAll("img"));
+  if (imgs.length === 0) return Promise.resolve();
+
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, timeoutMs);
+
+    Promise.all(
+      imgs.map(
+        (img) =>
+          new Promise<void>((res) => {
+            if (img.complete && img.naturalWidth > 0) return res();
+            img.addEventListener("load", () => res(), { once: true });
+            img.addEventListener("error", () => res(), { once: true });
+          })
+      )
+    ).then(() => {
+      clearTimeout(timer);
+      resolve();
+    });
+  });
+}
+
+function waitForIframePaint(): Promise<void> {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => resolve());
+    });
+  });
+}
+
 export async function exportCarouselVisualPptx(
   visualSlides: VisualSlide[],
   fileName = "carrousel-visuels"
@@ -24,16 +55,19 @@ export async function exportCarouselVisualPptx(
     for (const vs of visualSlides) {
       container.innerHTML = vs.html;
       await document.fonts.ready;
-      await new Promise((r) => setTimeout(r, 300));
+      await waitForImages(container);
+      await new Promise((r) => setTimeout(r, 800));
+      await waitForIframePaint();
 
       const canvas = await html2canvas(container, {
         width: 1080,
         height: 1350,
-        scale: 1,
+        scale: 2,
         useCORS: true,
         allowTaint: true,
         backgroundColor: null,
         logging: false,
+        imageTimeout: 5000,
       });
 
       const base64 = canvas.toDataURL("image/png");
