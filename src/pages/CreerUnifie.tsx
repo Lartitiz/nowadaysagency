@@ -1013,6 +1013,7 @@ export default function CreerUnifie() {
     setPhotoBriefResult(null);
     setPhotoBriefOverlayHtml(null);
     setStructureProposal(null);
+    setLastConfirmedStructure(null);
     clearFlowState();
     clearDraft();
     sessionStorage.removeItem(CREER_RESULT_KEY);
