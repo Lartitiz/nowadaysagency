@@ -62,7 +62,7 @@ Tu es un·e expert·e en communication et personal branding. À partir du profil
 Réponds en JSON strict avec cette structure :
 
 {
-  "brand_name": "le nom ou prénom de l'utilisatrice",
+  "brand_name": "le nom ou prénom de la personne",
   "voice_summary": "3-4 phrases résumant sa voix de marque",
   "tone_keywords": ["3-5 mots-clés de ton"],
   "do_say": ["5-7 exemples de phrases DANS le ton de la marque"],
