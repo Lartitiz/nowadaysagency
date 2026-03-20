@@ -154,15 +154,50 @@ export default function CoachChat() {
 
     try {
       const pageContext = getPageContext(location.pathname);
-      const { data, error } = await supabase.functions.invoke("coach-chat", {
+      const { data, error } = await invokeWithTimeout("coach-chat", {
         body: {
           messages: updated.map((m) => ({ role: m.role, content: m.content })),
           page_context: pageContext,
           workspace_id: activeWorkspace?.id,
         },
-      });
+      }, 60000);
 
-      if (error) throw error;
+      if (error) {
+        if (error.isRateLimit) {
+          const quotaHandled = handleQuotaError({ message: error.message, data, _isQuota: true });
+          if (!quotaHandled) {
+            const limitMsg: ChatMessage = {
+              role: "assistant",
+              content: "Tu as utilisé tous tes crédits IA ce mois-ci 🌸 Ils se renouvellent le 1er du mois prochain. En attendant, tu peux continuer à travailler ton branding, ton calendrier et ta bibliothèque d'idées !",
+            };
+            const final = [...updated, limitMsg];
+            setMessages(final);
+            saveHistory(final);
+          }
+          return;
+        }
+        if (error.isTimeout) {
+          const timeoutMsg: ChatMessage = {
+            role: "assistant",
+            content: "Je mets un peu plus de temps que prévu à réfléchir... Réessaie dans quelques instants 🙏",
+          };
+          const final = [...updated, timeoutMsg];
+          setMessages(final);
+          saveHistory(final);
+          return;
+        }
+        if (error.isAuth) {
+          const authMsg: ChatMessage = {
+            role: "assistant",
+            content: "Ta session a expiré. Recharge la page pour te reconnecter 🔄",
+          };
+          const final = [...updated, authMsg];
+          setMessages(final);
+          saveHistory(final);
+          return;
+        }
+        throw new Error(error.message);
+      }
 
       const assistantMsg: ChatMessage = {
         role: "assistant",
