@@ -116,7 +116,8 @@ export async function exportCarouselPptx(
   slides: SlideData[],
   fileName = "carrousel",
   _visualSlides?: VisualSlide[],
-  charter?: CharterColors | null
+  charter?: CharterColors | null,
+  photos?: { base64: string }[]
 ) {
   const pptx = new PptxGenJS();
   pptx.defineLayout({ name: "INSTAGRAM", width: 7.5, height: 9.375 });
