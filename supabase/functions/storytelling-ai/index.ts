@@ -99,7 +99,7 @@ Réponds UNIQUEMENT avec le texte amélioré, sans commentaire ni explication.`;
       const s = steps || {};
       systemPrompt = `Tu es expert·e en storytelling.
 
-Tu vas écrire un storytelling captivant à partir des éléments fournis par l'utilisatrice.
+Tu vas écrire un storytelling captivant à partir des éléments fournis par la personne.
 
 ÉLÉMENTS DE L'UTILISATRICE :
 - Histoire brute (étape 1) : "${s.step_1_raw || ""}"
