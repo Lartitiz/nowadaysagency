@@ -148,6 +148,7 @@ export default function CreerUnifie() {
   const [photoBriefOverlayHtml, setPhotoBriefOverlayHtml] = useState<string | null>(null);
   const [structureProposal, setStructureProposal] = useState<StructureProposal | null>(null);
   const [structureLoading, setStructureLoading] = useState(false);
+  const [lastConfirmedStructure, setLastConfirmedStructure] = useState<SlideProposal[] | null>(null);
 
   const { restored: draftRestored, clearDraft } = useFormPersist(
     "creer-unifie-form",
@@ -700,7 +701,7 @@ export default function CreerUnifie() {
 
     // Formats structurés : appel classique (pas de streaming)
     // Carrousels : proposer la structure d'abord (sauf si déjà validée via structureProposal)
-    if (selectedFormat === "carousel" && !structureProposal) {
+    if (selectedFormat === "carousel" && !structureProposal && !lastConfirmedStructure) {
       setStructureLoading(true);
       try {
         const structureBody: any = {
@@ -750,6 +751,24 @@ export default function CreerUnifie() {
       return;
     }
 
+    // Régénération carrousel : réutiliser la dernière structure confirmée
+    if (selectedFormat === "carousel" && lastConfirmedStructure) {
+      setStep("result");
+      await generate({
+        format: "carousel",
+        subject: enrichedSubject,
+        objective: objective || undefined,
+        editorialAngle: editorialAngle || undefined,
+        answers: Object.keys(ans).length > 0 ? ans : undefined,
+        channel: isLinkedInCarousel ? "linkedin" : undefined,
+        confirmedStructure: lastConfirmedStructure,
+        ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64 })), photoDescription } : {}),
+        ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64 })), photoDescription } : {}),
+        ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? [{ base64: uploadedPhotos[0]?.base64 }] : undefined, photoDescription } : {}),
+      });
+      return;
+    }
+
     await generate({
       format: selectedFormat as any,
       subject: enrichedSubject,
@@ -771,6 +790,7 @@ export default function CreerUnifie() {
     const enrichedSubject = existingCalendarContent
       ? ideaText + "\n\n[Contenu existant à approfondir]\n" + existingCalendarContent
       : ideaText;
+    setLastConfirmedStructure(confirmedSlides);
     setStructureProposal(null);
     setStep("result");
     await generate({
@@ -993,6 +1013,7 @@ export default function CreerUnifie() {
     setPhotoBriefResult(null);
     setPhotoBriefOverlayHtml(null);
     setStructureProposal(null);
+    setLastConfirmedStructure(null);
     clearFlowState();
     clearDraft();
     sessionStorage.removeItem(CREER_RESULT_KEY);
