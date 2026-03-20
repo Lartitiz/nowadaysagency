@@ -25,18 +25,17 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await supabaseUser.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
-      console.error("[reset-onboarding] getClaims failed:", claimsError?.message);
+    const { data: { user }, error: authError } = await supabaseUser.auth.getUser();
+    if (authError || !user) {
+      console.error("[reset-onboarding] getUser failed:", authError?.message);
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const callerUserId = claimsData.claims.sub as string;
-    const callerEmail = claimsData.claims.email as string;
+    const callerUserId = user.id;
+    const callerEmail = user.email as string;
     console.log(`[reset-onboarding] Caller: ${callerEmail} (${callerUserId})`);
 
     // Determine target user
