@@ -3,6 +3,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
+import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -54,12 +55,14 @@ Deno.serve(async (req) => {
       includeAudit: false,
     });
 
-    const systemPrompt = `Tu es une directrice de communication experte en personal branding. À partir du profil de marque de cette utilisatrice, génère un GUIDE DE VOIX professionnel et actionnable. Ce guide sera partagé avec des prestataires (graphiste, CM freelance, assistante).
+    const systemPrompt = `${BASE_SYSTEM_RULES}
+
+Tu es un·e expert·e en communication et personal branding. À partir du profil de marque de cette personne, génère un GUIDE DE VOIX professionnel et actionnable. Ce guide sera partagé avec des prestataires (graphiste, CM freelance, assistant·e).
 
 Réponds en JSON strict avec cette structure :
 
 {
-  "brand_name": "le nom ou prénom de l'utilisatrice",
+  "brand_name": "le nom ou prénom de la personne",
   "voice_summary": "3-4 phrases résumant sa voix de marque",
   "tone_keywords": ["3-5 mots-clés de ton"],
   "do_say": ["5-7 exemples de phrases DANS le ton de la marque"],
