@@ -51,6 +51,7 @@ interface IntakeQuestionnaireProps {
 export default function IntakeQuestionnaire({ programId, onComplete, onBack }: IntakeQuestionnaireProps) {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const { isDemoMode } = useDemoContext();
   const navigate = useNavigate();
 
