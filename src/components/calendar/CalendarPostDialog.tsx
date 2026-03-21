@@ -40,6 +40,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   const navigate = useNavigate();
   const { toast } = useToast();
   const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const { data: profileData } = useProfile();
   const [ownerName, setOwnerName] = useState("Moi");
   const [igUsername, setIgUsername] = useState("");
