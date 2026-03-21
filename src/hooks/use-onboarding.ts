@@ -8,7 +8,7 @@ import { friendlyError } from "@/lib/error-messages";
 import { getActivityExamples } from "@/lib/activity-examples";
 import { TOTAL_STEPS } from "@/lib/onboarding-constants";
 import { type DiagnosticData } from "@/lib/diagnostic-data";
-import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
 import { posthog } from "@/lib/posthog";
 
 /* ────────────────────────────────────────────── helpers */
@@ -95,6 +95,7 @@ export function useOnboarding() {
   const { isDemoMode, demoData, skipDemoOnboarding } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
+  const profileUserId = useProfileUserId();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -205,7 +206,7 @@ export function useOnboarding() {
         supabase
           .from("profiles")
           .select("onboarding_completed")
-          .eq("user_id", user.id)
+          .eq("user_id", profileUserId)
           .maybeSingle(),
         (supabase.from("user_plan_config") as any)
           .select("onboarding_completed")
@@ -391,7 +392,7 @@ export function useOnboarding() {
 
       // 1. PROFILES
       const { data: existingProfile } = await supabase
-        .from("profiles").select("id").eq("user_id", user.id).maybeSingle();
+        .from("profiles").select("id").eq("user_id", profileUserId).maybeSingle();
 
       const profileData: Record<string, unknown> = {
         prenom: answers.prenom,
@@ -412,13 +413,13 @@ export function useOnboarding() {
       if (answers.linkedin_summary) profileData.linkedin_summary = answers.linkedin_summary;
 
       if (existingProfile) {
-        const { error: updateErr } = await supabase.from("profiles").update(profileData).eq("user_id", user.id);
+        const { error: updateErr } = await supabase.from("profiles").update(profileData).eq("user_id", profileUserId);
         if (updateErr) {
           console.error("Failed to update profile:", updateErr);
           toast({ title: "Erreur de sauvegarde", description: "Ton profil n'a pas pu être enregistré. Vérifie ta connexion et réessaie.", variant: "destructive" });
         }
       } else {
-        const { error: insertErr } = await supabase.from("profiles").insert({ user_id: user.id, ...profileData });
+        const { error: insertErr } = await supabase.from("profiles").insert({ user_id: profileUserId, ...profileData });
         if (insertErr) {
           console.error("Failed to insert profile:", insertErr);
           toast({ title: "Erreur de sauvegarde", description: "Ton profil n'a pas pu être enregistré. Vérifie ta connexion et réessaie.", variant: "destructive" });
@@ -467,14 +468,14 @@ export function useOnboarding() {
       // 3. BRAND_PROPOSITION — save positioning if available
       if (brandingAnswers.positioning) {
         const { data: existingProp } = await supabase
-          .from("brand_proposition").select("id").eq("user_id", user.id).maybeSingle();
+          .from("brand_proposition").select("id").eq("user_id", profileUserId).maybeSingle();
         const propData = { version_complete: brandingAnswers.positioning };
         if (existingProp) {
-          await supabase.from("brand_proposition").update(propData).eq("user_id", user.id);
+          await supabase.from("brand_proposition").update(propData).eq("user_id", profileUserId);
         } else {
           await supabase.from("brand_proposition").insert({
-            user_id: user.id,
-            workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+            user_id: profileUserId,
+            workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
             ...propData,
           } as any);
         }
@@ -505,13 +506,13 @@ export function useOnboarding() {
       }
       if (Object.keys(strategyData).length > 0) {
         const { data: existingStrategy } = await supabase
-          .from("brand_strategy").select("id").eq("user_id", user.id).maybeSingle();
+          .from("brand_strategy").select("id").eq("user_id", profileUserId).maybeSingle();
         if (existingStrategy) {
-          await supabase.from("brand_strategy").update(strategyData).eq("user_id", user.id);
+          await supabase.from("brand_strategy").update(strategyData).eq("user_id", profileUserId);
         } else {
           await supabase.from("brand_strategy").insert({
-            user_id: user.id,
-            workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+            user_id: profileUserId,
+            workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
             ...strategyData,
           } as any);
         }
@@ -555,13 +556,13 @@ export function useOnboarding() {
           onboarding_completed_at: new Date().toISOString(),
           onboarding_step: TOTAL_STEPS,
         })
-        .eq("user_id", user.id);
+        .eq("user_id", profileUserId);
 
       if (diagnosticData) {
         // Save diagnostic as branding audit
         await supabase.from("branding_audits").insert({
-          user_id: user.id,
-          workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+          user_id: profileUserId,
+          workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
           score_global: diagnosticData.totalScore,
           synthese: `Diagnostic initial : score ${diagnosticData.totalScore}/100`,
           points_forts: diagnosticData.strengths.map((s: string) => ({ titre: s, detail: s, source: "diagnostic" })),
@@ -570,7 +571,7 @@ export function useOnboarding() {
 
         await supabase.from("profiles").update({
           diagnostic_data: diagnosticData as any,
-        }).eq("user_id", user.id);
+        }).eq("user_id", profileUserId);
       }
     } catch (e) {
       console.error("Failed to save diagnostic:", e);
