@@ -37,10 +37,10 @@ serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
-    const workspaceId = wsMember?.workspace_id;
+    const ownerWorkspaceId = wsMember?.workspace_id;
 
     // Check quota
-    const quota = await checkQuota(user.id, "audit", workspaceId);
+    const quota = await checkQuota(user.id, "audit", ownerWorkspaceId);
     if (!quota.allowed) {
       return new Response(JSON.stringify({ error: quota.message, quota }), {
         status: 429,
@@ -52,6 +52,9 @@ serve(async (req) => {
     const { template_urls } = validateInput(reqBody, z.object({
       template_urls: z.array(z.string().url().max(2048)).min(1, "Au moins 1 URL requise").max(10),
     }));
+
+    // Priority: body workspace_id > owner lookup
+    const workspaceId = reqBody.workspace_id || ownerWorkspaceId;
     if (false) {
       throw new Error("Aucun template fourni");
     }

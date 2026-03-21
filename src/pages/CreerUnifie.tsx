@@ -1588,6 +1588,7 @@ export default function CreerUnifie() {
           } : {
             template_style: null,
           }),
+          workspace_id: workspaceId !== session.user.id ? workspaceId : undefined,
         },
       }, 120000);
       if (fnError) throw fnError;

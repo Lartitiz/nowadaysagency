@@ -35,9 +35,9 @@ serve(async (req) => {
       .eq("role", "owner")
       .limit(1)
       .maybeSingle();
-    const workspaceId = wsMember?.workspace_id;
+    const ownerWorkspaceId = wsMember?.workspace_id;
 
-    const quota = await checkQuota(user.id, "content", workspaceId);
+    const quota = await checkQuota(user.id, "content", ownerWorkspaceId);
     if (!quota.allowed) {
       return new Response(JSON.stringify({ error: quota.message, quota }), {
         status: 429,
@@ -54,8 +54,12 @@ serve(async (req) => {
       template_reference_urls: z.array(z.string().url()).max(5).optional().nullable(),
       photos: z.array(z.object({ base64: z.string() })).max(10).optional(),
       carousel_type: z.string().max(50).optional().nullable(),
+      workspace_id: z.string().uuid().optional().nullable(),
     }).passthrough());
     const { slides, template_style, charter: bodyCharter, custom_overrides, template_reference_urls } = reqBody;
+
+    // Priority: body workspace_id > owner lookup
+    const workspaceId = reqBody.workspace_id || ownerWorkspaceId;
 
     // Resolve charter: use body or fetch from DB
     let charter = bodyCharter;

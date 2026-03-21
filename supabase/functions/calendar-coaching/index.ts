@@ -20,7 +20,7 @@ serve(async (req) => {
     const { data: { user }, error: authErr } = await supabase.auth.getUser();
     if (authErr || !user) throw new Error("Non authentifié·e");
 
-    const { posts_per_week, context_week, mix_or_focus, mode, existing_posts } = await req.json();
+    const { posts_per_week, context_week, mix_or_focus, mode, existing_posts, workspace_id: bodyWorkspaceId } = await req.json();
 
     // Get workspace
     const { data: wsMember } = await supabase
@@ -29,7 +29,7 @@ serve(async (req) => {
       .eq("user_id", user.id)
       .eq("role", "owner")
       .maybeSingle();
-    const workspaceId = wsMember?.workspace_id;
+    const workspaceId = bodyWorkspaceId || wsMember?.workspace_id;
 
     const quota = await checkQuota(user.id, "coach", workspaceId || undefined);
     if (!quota.allowed) {
