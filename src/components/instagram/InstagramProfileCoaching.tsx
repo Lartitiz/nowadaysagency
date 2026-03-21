@@ -109,7 +109,7 @@ export default function InstagramProfileCoaching({ open, onOpenChange, initialMo
   const loadQuestions = async (mod: ModuleKey) => {
     try {
       const { data, error } = await supabase.functions.invoke("instagram-profile-coaching", {
-        body: { phase: "questions", module: mod },
+        body: { phase: "questions", module: mod, workspace_id: workspaceId !== user?.id ? workspaceId : undefined },
       });
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
