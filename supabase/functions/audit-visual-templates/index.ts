@@ -37,7 +37,7 @@ serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
-    const workspaceId = wsMember?.workspace_id;
+    const ownerWorkspaceId = wsMember?.workspace_id;
 
     // Check quota
     const quota = await checkQuota(user.id, "audit", workspaceId);
