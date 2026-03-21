@@ -471,7 +471,7 @@ export function useOnboarding() {
           .from("brand_proposition").select("id").eq("user_id", profileUserId).maybeSingle();
         const propData = { version_complete: brandingAnswers.positioning };
         if (existingProp) {
-          await supabase.from("brand_proposition").update(propData).eq("user_id", user.id);
+          await supabase.from("brand_proposition").update(propData).eq("user_id", profileUserId);
         } else {
           await supabase.from("brand_proposition").insert({
             user_id: user.id,
