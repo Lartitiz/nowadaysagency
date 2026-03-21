@@ -197,7 +197,7 @@ export default function SuggestedContents() {
           body: {
             type: "weekly-suggestions",
             canal: "instagram",
-            workspace_id: workspaceId || undefined,
+            workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
           },
         });
 
@@ -317,7 +317,7 @@ export default function SuggestedContents() {
           objectif: idea.objective === "inspirer" ? "visibilite" : idea.objective === "eduquer" ? "credibilite" : idea.objective === "vendre" ? "vente" : idea.objective === "engager" ? "confiance" : "visibilite",
           format: idea.format,
           canal: "instagram",
-          workspace_id: workspaceId || undefined,
+          workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
         },
       });
 

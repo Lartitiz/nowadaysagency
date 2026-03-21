@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { PostCommentsSection } from "@/components/calendar/PostCommentsSection";
 import { friendlyError } from "@/lib/error-messages";
@@ -37,6 +38,7 @@ interface Props {
 }
 
 export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDate, defaultCanal, onSave, onDelete, onUnplan, onDateChange, prefillData }: Props) {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { column, value } = useWorkspaceFilter();
@@ -171,7 +173,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       const validObjectifs = ["visibilite", "confiance", "vente", "credibilite"];
       const safeObjectif = objectif && validObjectifs.includes(objectif) ? objectif : null;
       const res = await invokeWithTimeout("generate-content", {
-        body: { type: "calendar-quick", theme, objectif: safeObjectif, angle, format: format || "post_carrousel", notes, profile: profileData || {}, canal: postCanal, workspace_id: workspaceId || undefined },
+        body: { type: "calendar-quick", theme, objectif: safeObjectif, angle, format: format || "post_carrousel", notes, profile: profileData || {}, canal: postCanal, workspace_id: workspaceId !== user?.id ? workspaceId : undefined },
       }, 120000);
       // Handle quota limit
       if (res.data?.error === "limit_reached") {

@@ -467,7 +467,7 @@ export default function CreerUnifie() {
         const { data, error: fnError } = await invokeWithTimeout("pinterest-inspiration", {
           body: {
             image_base64: imgBase64,
-            workspace_id: workspaceId || undefined,
+            workspace_id: workspaceId !== session.user.id ? workspaceId : undefined,
           },
         }, 180000); // 180s — Claude Opus + vision is slow
         if (fnError) throw fnError;
@@ -597,7 +597,7 @@ export default function CreerUnifie() {
         preGenAnswers: Object.keys(ans).length > 0
           ? { anecdote: ans.anecdote || ans.q_0 || undefined, emotion: ans.emotion || ans.q_1 || undefined, conviction: ans.conviction || ans.q_2 || undefined }
           : undefined,
-        workspace_id: workspaceId || undefined,
+        workspace_id: workspaceId !== session.user.id ? workspaceId : undefined,
         objective: objective || undefined,
         editorialFormat: editorialAngle || undefined,
         editorialFormatLabel: editorialAngle || undefined,
@@ -636,7 +636,7 @@ export default function CreerUnifie() {
             pinterest_link: pinterestData?.link,
             pinterest_board: pinterestData?.boardName,
             ...(inspirationImageBase64 ? { reference_image_base64: inspirationImageBase64 } : {}),
-            workspace_id: workspaceId || undefined,
+            workspace_id: workspaceId !== session.user.id ? workspaceId : undefined,
           },
         }, 120000);
         if (fnError) throw fnError;
@@ -674,7 +674,7 @@ export default function CreerUnifie() {
             brief_hint: chosenProposal?.brief || "",
             pinterest_link: pinterestData?.link,
             pinterest_board: pinterestData?.boardName,
-            workspace_id: workspaceId || undefined,
+            workspace_id: workspaceId !== session.user.id ? workspaceId : undefined,
           },
         }, 120000);
         if (fnError) throw fnError;
@@ -712,7 +712,7 @@ export default function CreerUnifie() {
           slide_count: 7,
           editorial_angle: editorialAngle || undefined,
           deepening_answers: Object.keys(ans).length > 0 ? ans : undefined,
-          workspace_id: workspaceId || undefined,
+          workspace_id: workspaceId !== session.user.id ? workspaceId : undefined,
           photo_description: photoDescription || undefined,
         };
         // En mode photo/mix, envoyer les photos pour analyse visuelle
@@ -919,7 +919,7 @@ export default function CreerUnifie() {
             reference_image_base64: inspirationImageBase64,
             pinterest_link: pinterestData?.link,
             pinterest_board: pinterestData?.boardName,
-            workspace_id: workspaceId || undefined,
+            workspace_id: workspaceId !== session.user.id ? workspaceId : undefined,
           },
         }, 180000);
         if (fnError) throw fnError;
@@ -957,7 +957,7 @@ export default function CreerUnifie() {
             brief_hint: proposal.brief,
             pinterest_link: pinterestData?.link,
             pinterest_board: pinterestData?.boardName,
-            workspace_id: workspaceId || undefined,
+            workspace_id: workspaceId !== session.user.id ? workspaceId : undefined,
           },
         }, 180000);
         if (fnError) throw fnError;

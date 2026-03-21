@@ -273,7 +273,7 @@ export default function DiagnosticLoading({
            useFallback();
          }, 52000);
 
-        const { data, error } = await supabase.functions.invoke("deep-diagnostic", { body: { ...body, isOnboarding: true, workspace_id: workspaceId || undefined } });
+        const { data, error } = await supabase.functions.invoke("deep-diagnostic", { body: { ...body, isOnboarding: true, workspace_id: workspaceId !== user?.id ? workspaceId : undefined } });
 
         clearTimeout(safetyTimeout);
         if (timeoutFired) return;

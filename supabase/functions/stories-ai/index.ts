@@ -190,10 +190,12 @@ Réponds UNIQUEMENT avec le JSON.`;
     let gardeFouAlerte: string | null = null;
     if (objective === "vente") {
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const gardeFouCol = workspace_id ? "workspace_id" : "user_id";
+      const gardeFouVal = workspace_id || userId;
       const { count } = await supabase
         .from("stories_sequences")
         .select("id", { count: "exact", head: true })
-        .eq("user_id", userId)
+        .eq(gardeFouCol, gardeFouVal)
         .eq("objective", "vente")
         .gte("created_at", sevenDaysAgo);
       if ((count ?? 0) >= 3) {

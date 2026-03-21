@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
@@ -124,6 +125,7 @@ function LoadingMessage() {
 }
 
 export default function ContentCoachingDialog({ open, onOpenChange, onSelect }: Props) {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const workspaceId = useWorkspaceId();
   const [step, setStep] = useState<Step>(1);
@@ -220,7 +222,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect }: 
             content_type: contentType || null,
             ton_envie: tonToUse,
           },
-          workspace_id: workspaceId || undefined,
+          workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
         },
       }, 120000);
       if (error) throw error;

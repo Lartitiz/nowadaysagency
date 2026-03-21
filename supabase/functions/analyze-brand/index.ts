@@ -20,7 +20,7 @@ serve(async (req) => {
 
   try {
     const { userId } = await authenticateRequest(req);
-    const { websiteUrl, instagramHandle, linkedinUrl, documentIds, documentText } = await req.json();
+    const { websiteUrl, instagramHandle, linkedinUrl, documentIds, documentText, workspace_id: bodyWorkspaceId } = await req.json();
 
     const quota = await checkQuota(userId, "import");
     if (!quota.allowed) {
@@ -154,7 +154,7 @@ serve(async (req) => {
       .from("branding_autofill")
       .insert({
         user_id: userId,
-        workspace_id: wsData?.workspace_id || null,
+        workspace_id: bodyWorkspaceId || wsData?.workspace_id || null,
         website_url: websiteUrl || null,
         instagram_handle: instagramHandle || null,
         linkedin_url: linkedinUrl || null,
