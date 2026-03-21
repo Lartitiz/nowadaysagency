@@ -508,7 +508,7 @@ export function useOnboarding() {
         const { data: existingStrategy } = await supabase
           .from("brand_strategy").select("id").eq("user_id", profileUserId).maybeSingle();
         if (existingStrategy) {
-          await supabase.from("brand_strategy").update(strategyData).eq("user_id", user.id);
+          await supabase.from("brand_strategy").update(strategyData).eq("user_id", profileUserId);
         } else {
           await supabase.from("brand_strategy").insert({
             user_id: user.id,
