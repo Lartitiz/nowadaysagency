@@ -139,7 +139,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { step, answer, charterData } = await req.json();
+    const { step, answer, charterData, workspace_id } = await req.json();
 
     if (!step || !answer) {
       return new Response(JSON.stringify({ error: "step et answer requis" }), {
