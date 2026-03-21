@@ -37,7 +37,7 @@ serve(async (req) => {
       .maybeSingle();
     const ownerWorkspaceId = wsMember?.workspace_id;
 
-    const quota = await checkQuota(user.id, "content", workspaceId);
+    const quota = await checkQuota(user.id, "content", ownerWorkspaceId);
     if (!quota.allowed) {
       return new Response(JSON.stringify({ error: quota.message, quota }), {
         status: 429,
