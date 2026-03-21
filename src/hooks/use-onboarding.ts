@@ -8,7 +8,7 @@ import { friendlyError } from "@/lib/error-messages";
 import { getActivityExamples } from "@/lib/activity-examples";
 import { TOTAL_STEPS } from "@/lib/onboarding-constants";
 import { type DiagnosticData } from "@/lib/diagnostic-data";
-import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
 import { posthog } from "@/lib/posthog";
 
 /* ────────────────────────────────────────────── helpers */
