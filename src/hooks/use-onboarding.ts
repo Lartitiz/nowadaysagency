@@ -571,7 +571,7 @@ export function useOnboarding() {
 
         await supabase.from("profiles").update({
           diagnostic_data: diagnosticData as any,
-        }).eq("user_id", user.id);
+        }).eq("user_id", profileUserId);
       }
     } catch (e) {
       console.error("Failed to save diagnostic:", e);
