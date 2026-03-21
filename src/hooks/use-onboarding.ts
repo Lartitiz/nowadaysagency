@@ -561,8 +561,8 @@ export function useOnboarding() {
       if (diagnosticData) {
         // Save diagnostic as branding audit
         await supabase.from("branding_audits").insert({
-          user_id: user.id,
-          workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+          user_id: profileUserId,
+          workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
           score_global: diagnosticData.totalScore,
           synthese: `Diagnostic initial : score ${diagnosticData.totalScore}/100`,
           points_forts: diagnosticData.strengths.map((s: string) => ({ titre: s, detail: s, source: "diagnostic" })),
