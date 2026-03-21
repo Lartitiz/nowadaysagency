@@ -172,8 +172,24 @@ serve(async (req) => {
     }
     const userId = user.id;
 
+    // Resolve workspace owner for profile-scoped tables
+    let profileUserId = userId;
+    if (workspace_id) {
+      const sbAdmin = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      );
+      const { data: ownerRow } = await sbAdmin
+        .from("workspace_members")
+        .select("user_id")
+        .eq("workspace_id", workspace_id)
+        .eq("role", "owner")
+        .maybeSingle();
+      if (ownerRow?.user_id) profileUserId = ownerRow.user_id;
+    }
+
     // Quota check
-    const quota = await checkQuota(userId, "coaching");
+    const quota = await checkQuota(userId, "coaching", workspace_id);
     if (!quota.allowed) {
       return new Response(JSON.stringify({ error: quota.message, quota: true }), {
         status: 429,
