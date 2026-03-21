@@ -275,6 +275,7 @@ function BrandingCardItem({ card, index, onSave }: { card: BrandingCard; index: 
 export default function WelcomePage() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
+  const profileUserId = useProfileUserId();
   const navigate = useNavigate();
   const { data: profileData } = useProfile();
   const [goal, setGoal] = useState("");
