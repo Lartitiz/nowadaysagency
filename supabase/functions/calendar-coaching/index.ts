@@ -29,7 +29,7 @@ serve(async (req) => {
       .eq("user_id", user.id)
       .eq("role", "owner")
       .maybeSingle();
-    const workspaceId = wsMember?.workspace_id;
+    const workspaceId = bodyWorkspaceId || wsMember?.workspace_id;
 
     const quota = await checkQuota(user.id, "coach", workspaceId || undefined);
     if (!quota.allowed) {
