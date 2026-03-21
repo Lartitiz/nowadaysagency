@@ -70,7 +70,7 @@ serve(async (req) => {
 
   try {
     const { userId } = await authenticateRequest(req);
-    const { websiteUrl, instagramHandle, linkedinUrl, documentIds, profile, freeformAnswers, isOnboarding } = await req.json();
+    const { websiteUrl, instagramHandle, linkedinUrl, documentIds, profile, freeformAnswers, isOnboarding, workspace_id: bodyWorkspaceId } = await req.json();
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -86,7 +86,19 @@ serve(async (req) => {
       .limit(1)
       .single();
 
-    const workspaceId = wsData?.workspace_id || null;
+    const workspaceId = bodyWorkspaceId || wsData?.workspace_id || null;
+
+    // Resolve workspace owner for user_id-scoped tables (scrape_cache)
+    let profileUserId = userId;
+    if (workspaceId) {
+      const { data: ownerRow } = await supabaseAdmin
+        .from("workspace_members")
+        .select("user_id")
+        .eq("workspace_id", workspaceId)
+        .eq("role", "owner")
+        .maybeSingle();
+      if (ownerRow?.user_id) profileUserId = ownerRow.user_id;
+    }
 
     // Check quota (diagnostic = 3 credits, category: audit) — skip during onboarding
     if (!isOnboarding) {
