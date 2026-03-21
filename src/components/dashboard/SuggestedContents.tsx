@@ -197,7 +197,7 @@ export default function SuggestedContents() {
           body: {
             type: "weekly-suggestions",
             canal: "instagram",
-            workspace_id: workspaceId || undefined,
+            workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
           },
         });
 
