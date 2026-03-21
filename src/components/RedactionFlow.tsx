@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { useToast } from "@/hooks/use-toast";
@@ -43,6 +44,7 @@ const CHECKLIST_ITEMS = [
 
 export default function RedactionFlow({ idea, profile, canal, objectif, onClose }: Props) {
   const { toast } = useToast();
+  const workspaceId = useWorkspaceId();
   const [step, setStep] = useState(1);
 
   // Step 1: Structure
@@ -93,6 +95,7 @@ export default function RedactionFlow({ idea, profile, canal, objectif, onClose 
           objectif,
           angle: idea.angle,
           profile: profilePayload,
+          workspace_id: workspaceId || undefined,
         },
       }, 120000);
       if (res.error) throw res.error;
@@ -116,6 +119,7 @@ export default function RedactionFlow({ idea, profile, canal, objectif, onClose 
           objectif,
           angle: idea.angle,
           profile: profilePayload,
+          workspace_id: workspaceId || undefined,
         },
       }, 120000);
       if (res.error) throw res.error;
@@ -150,6 +154,7 @@ export default function RedactionFlow({ idea, profile, canal, objectif, onClose 
           structure,
           accroche: chosenAccroche,
           profile: profilePayload,
+          workspace_id: workspaceId || undefined,
         },
       }, 120000);
       if (res.error) throw res.error;

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import CoachingShell from "@/components/coaching/CoachingShell";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
@@ -124,6 +125,7 @@ function LoadingMessage() {
 
 export default function ContentCoachingDialog({ open, onOpenChange, onSelect }: Props) {
   const navigate = useNavigate();
+  const workspaceId = useWorkspaceId();
   const [step, setStep] = useState<Step>(1);
   const [objectif, setObjectif] = useState("");
   const [hasSujet, setHasSujet] = useState<boolean | null>(null);
@@ -218,6 +220,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect }: 
             content_type: contentType || null,
             ton_envie: tonToUse,
           },
+          workspace_id: workspaceId || undefined,
         },
       }, 120000);
       if (error) throw error;

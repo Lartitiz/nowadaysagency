@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { PostCommentsSection } from "@/components/calendar/PostCommentsSection";
 import { friendlyError } from "@/lib/error-messages";
-import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useProfile } from "@/hooks/use-profile";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
@@ -40,6 +40,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   const navigate = useNavigate();
   const { toast } = useToast();
   const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const { data: profileData } = useProfile();
   const [ownerName, setOwnerName] = useState("Moi");
   const [igUsername, setIgUsername] = useState("");
@@ -170,7 +171,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       const validObjectifs = ["visibilite", "confiance", "vente", "credibilite"];
       const safeObjectif = objectif && validObjectifs.includes(objectif) ? objectif : null;
       const res = await invokeWithTimeout("generate-content", {
-        body: { type: "calendar-quick", theme, objectif: safeObjectif, angle, format: format || "post_carrousel", notes, profile: profileData || {}, canal: postCanal },
+        body: { type: "calendar-quick", theme, objectif: safeObjectif, angle, format: format || "post_carrousel", notes, profile: profileData || {}, canal: postCanal, workspace_id: workspaceId || undefined },
       }, 120000);
       // Handle quota limit
       if (res.data?.error === "limit_reached") {
