@@ -95,7 +95,7 @@ async function buildContext(sb: any, userId: string, workspaceId?: string): Prom
     offersRes, calendarCountRes, auditRes, usageRes,
     coachingRes, contentDraftsRes, upcomingPostsRes,
   ] = await Promise.all([
-    sb.from("profiles").select("prenom, activite, type_activite, channels, cible, probleme_principal, piliers, tons").eq("user_id", userId).maybeSingle(),
+    sb.from("profiles").select("prenom, activite, type_activite, channels, cible, probleme_principal, piliers, tons").eq("user_id", profileUserId).maybeSingle(),
     sb.from("brand_profile").select("mission, positioning, tone_description, content_pillars, story_origin, combats, content_editorial_line").eq(col, val).maybeSingle(),
     sb.from("storytelling").select("step_7_polished, step_6_full_story, title").eq(col, val).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     sb.from("persona").select("portrait_prenom, portrait, description, frustrations_detail, desires").eq(col, val).order("created_at", { ascending: false }).limit(1).maybeSingle(),
