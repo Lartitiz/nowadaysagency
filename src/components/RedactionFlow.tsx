@@ -156,7 +156,7 @@ export default function RedactionFlow({ idea, profile, canal, objectif, onClose 
           structure,
           accroche: chosenAccroche,
           profile: profilePayload,
-          workspace_id: workspaceId || undefined,
+          workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
         },
       }, 120000);
       if (res.error) throw res.error;
