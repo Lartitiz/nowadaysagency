@@ -108,6 +108,7 @@ export default function IntakeQuestionnaire({ programId, onComplete, onBack }: I
           messages: msgs,
           context: { program_id: programId },
           intake_mode: true,
+          workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
         },
       });
       if (error) throw error;

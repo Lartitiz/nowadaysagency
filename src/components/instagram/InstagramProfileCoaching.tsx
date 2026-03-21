@@ -139,7 +139,7 @@ export default function InstagramProfileCoaching({ open, onOpenChange, initialMo
         answer: answers[i] || "",
       }));
       const { data, error } = await supabase.functions.invoke("instagram-profile-coaching", {
-        body: { phase: "diagnostic", module: activeModule, answers: answersPayload },
+        body: { phase: "diagnostic", module: activeModule, answers: answersPayload, workspace_id: workspaceId !== user?.id ? workspaceId : undefined },
       });
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
