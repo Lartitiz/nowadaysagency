@@ -556,7 +556,7 @@ export function useOnboarding() {
           onboarding_completed_at: new Date().toISOString(),
           onboarding_step: TOTAL_STEPS,
         })
-        .eq("user_id", user.id);
+        .eq("user_id", profileUserId);
 
       if (diagnosticData) {
         // Save diagnostic as branding audit
