@@ -238,6 +238,7 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
             step: stepNum,
             answer,
             charterData: charterDataRef.current || {},
+            workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
           },
         }, 120000);
 

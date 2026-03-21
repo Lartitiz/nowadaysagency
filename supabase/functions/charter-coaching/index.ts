@@ -219,7 +219,7 @@ serve(async (req) => {
     });
 
     // Log usage
-    await logUsage(userId, "coaching", "charter_coaching", undefined, getModelForAction("coaching_light"));
+    await logUsage(userId, "coaching", "charter_coaching", undefined, getModelForAction("coaching_light"), workspace_id);
 
     // Parse response
     let parsed;
