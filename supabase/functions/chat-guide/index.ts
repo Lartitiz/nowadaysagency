@@ -351,12 +351,25 @@ Deno.serve(async (req) => {
     let contextBlock = "";
     let profileData: any = null;
     let stratData: any = null;
+
+    // Resolve workspace owner for profile-scoped tables
+    let profileUserId = userId;
+    if (workspaceId) {
+      const { data: ownerRow } = await sbService
+        .from("workspace_members")
+        .select("user_id")
+        .eq("workspace_id", workspaceId)
+        .eq("role", "owner")
+        .maybeSingle();
+      if (ownerRow?.user_id) profileUserId = ownerRow.user_id;
+    }
+
     try {
       contextBlock = await buildContext(sbService, userId, workspaceId);
       const col = workspaceId ? "workspace_id" : "user_id";
       const val = workspaceId || userId;
       const [pRes, sRes] = await Promise.all([
-        sbService.from("profiles").select("activite, type_activite, piliers").eq("user_id", userId).maybeSingle(),
+        sbService.from("profiles").select("activite, type_activite, piliers").eq("user_id", profileUserId).maybeSingle(),
         sbService.from("brand_strategy").select("pillar_major").eq(col, val).maybeSingle(),
       ]);
       profileData = pRes.data;
