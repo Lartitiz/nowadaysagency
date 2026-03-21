@@ -38,6 +38,7 @@ interface Props {
 }
 
 export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDate, defaultCanal, onSave, onDelete, onUnplan, onDateChange, prefillData }: Props) {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { column, value } = useWorkspaceFilter();

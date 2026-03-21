@@ -125,6 +125,7 @@ function LoadingMessage() {
 }
 
 export default function ContentCoachingDialog({ open, onOpenChange, onSelect }: Props) {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const workspaceId = useWorkspaceId();
   const [step, setStep] = useState<Step>(1);
