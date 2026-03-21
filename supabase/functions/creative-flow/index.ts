@@ -77,16 +77,17 @@ serve(async (req) => {
     const ctx = await getUserContext(supabase, user.id, workspace_id, channelFromType);
     const brandingContext = formatContextForAI(ctx, CONTEXT_PRESETS.content);
     
-    // Fetch voice profile (personal, always user_id)
-    const { data: voiceData } = await supabase.from("voice_profile").select("*").eq("user_id", user.id).maybeSingle();
+    // Voice profile — already fetched by getUserContext() with correct workspace owner resolution.
+    // Do NOT re-fetch with user.id (that would use the coach's voice instead of the client's).
     let voiceBlock = "";
-    if (voiceData) {
+    if (ctx.voice) {
+      const v = ctx.voice;
       const vl: string[] = ["PROFIL DE VOIX DE L'UTILISATRICE :"];
-      if (voiceData.structure_patterns?.length) vl.push(`- Structure : ${(voiceData.structure_patterns as string[]).join(", ")}`);
-      if (voiceData.tone_patterns?.length) vl.push(`- Ton : ${(voiceData.tone_patterns as string[]).join(", ")}`);
-      if (voiceData.signature_expressions?.length) vl.push(`- Expressions signature à utiliser : ${(voiceData.signature_expressions as string[]).join(", ")}`);
-      if (voiceData.banned_expressions?.length) vl.push(`- Expressions interdites (NE JAMAIS UTILISER) : ${(voiceData.banned_expressions as string[]).join(", ")}`);
-      if (voiceData.voice_summary) vl.push(`- Style résumé : ${voiceData.voice_summary}`);
+      if (v.structure_patterns?.length) vl.push(`- Structure : ${(Array.isArray(v.structure_patterns) ? v.structure_patterns : []).join(", ")}`);
+      if (v.tone_patterns?.length) vl.push(`- Ton : ${(Array.isArray(v.tone_patterns) ? v.tone_patterns : []).join(", ")}`);
+      if (v.signature_expressions?.length) vl.push(`- Expressions signature à utiliser : ${(Array.isArray(v.signature_expressions) ? v.signature_expressions : []).join(", ")}`);
+      if (v.banned_expressions?.length) vl.push(`- Expressions interdites (NE JAMAIS UTILISER) : ${(Array.isArray(v.banned_expressions) ? v.banned_expressions : []).join(", ")}`);
+      if (v.voice_summary) vl.push(`- Style résumé : ${v.voice_summary}`);
       vl.push("UTILISE ce profil de voix pour TOUT le contenu généré.");
       vl.push("PRIORITÉ VOIX : reproduis ce style. Réutilise les expressions signature. Respecte les expressions interdites. Le résultat doit sonner comme si l'utilisatrice l'avait écrit elle-même.");
       voiceBlock = "\n" + vl.join("\n") + "\n";
