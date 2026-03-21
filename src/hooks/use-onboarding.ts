@@ -206,7 +206,7 @@ export function useOnboarding() {
         supabase
           .from("profiles")
           .select("onboarding_completed")
-          .eq("user_id", user.id)
+          .eq("user_id", profileUserId)
           .maybeSingle(),
         (supabase.from("user_plan_config") as any)
           .select("onboarding_completed")
