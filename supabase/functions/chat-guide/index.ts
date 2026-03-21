@@ -76,6 +76,20 @@ async function buildContext(sb: any, userId: string, workspaceId?: string): Prom
   const col = workspaceId ? "workspace_id" : "user_id";
   const val = workspaceId || userId;
 
+  // Resolve workspace owner's user_id for tables without workspace_id (profiles)
+  let profileUserId = userId;
+  if (workspaceId) {
+    const { data: ownerRow } = await sb
+      .from("workspace_members")
+      .select("user_id")
+      .eq("workspace_id", workspaceId)
+      .eq("role", "owner")
+      .maybeSingle();
+    if (ownerRow?.user_id) {
+      profileUserId = ownerRow.user_id;
+    }
+  }
+
   const [
     profileRes, brandRes, storyRes, personaRes, propRes, toneRes, stratRes,
     offersRes, calendarCountRes, auditRes, usageRes,
