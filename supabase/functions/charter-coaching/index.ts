@@ -139,7 +139,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { step, answer, charterData } = await req.json();
+    const { step, answer, charterData, workspace_id } = await req.json();
 
     if (!step || !answer) {
       return new Response(JSON.stringify({ error: "step et answer requis" }), {
@@ -172,8 +172,24 @@ serve(async (req) => {
     }
     const userId = user.id;
 
+    // Resolve workspace owner for profile-scoped tables
+    let profileUserId = userId;
+    if (workspace_id) {
+      const sbAdmin = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      );
+      const { data: ownerRow } = await sbAdmin
+        .from("workspace_members")
+        .select("user_id")
+        .eq("workspace_id", workspace_id)
+        .eq("role", "owner")
+        .maybeSingle();
+      if (ownerRow?.user_id) profileUserId = ownerRow.user_id;
+    }
+
     // Quota check
-    const quota = await checkQuota(userId, "coaching");
+    const quota = await checkQuota(userId, "coaching", workspace_id);
     if (!quota.allowed) {
       return new Response(JSON.stringify({ error: quota.message, quota: true }), {
         status: 429,
@@ -188,8 +204,8 @@ serve(async (req) => {
     );
 
     const [profileRes, brandRes] = await Promise.all([
-      sbService.from("profiles").select("prenom, activite, type_activite").eq("user_id", userId).maybeSingle(),
-      sbService.from("brand_profile").select("tone_register, tone_style").eq("user_id", userId).maybeSingle(),
+      sbService.from("profiles").select("prenom, activite, type_activite").eq("user_id", profileUserId).maybeSingle(),
+      sbService.from("brand_profile").select("tone_register, tone_style").eq(workspace_id ? "workspace_id" : "user_id", workspace_id || profileUserId).maybeSingle(),
     ]);
 
     const prompt = buildPrompt(step, answer, charterData || {}, profileRes.data, brandRes.data);
@@ -203,7 +219,7 @@ serve(async (req) => {
     });
 
     // Log usage
-    await logUsage(userId, "coaching", "charter_coaching", undefined, getModelForAction("coaching_light"));
+    await logUsage(userId, "coaching", "charter_coaching", undefined, getModelForAction("coaching_light"), workspace_id);
 
     // Parse response
     let parsed;
