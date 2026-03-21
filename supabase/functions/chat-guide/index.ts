@@ -114,11 +114,11 @@ async function buildContext(sb: any, userId: string, workspaceId?: string): Prom
   let persona = personaRes.data;
   let story = storyRes.data;
   if (!persona && workspaceId) {
-    const fallback = await sb.from("persona").select("portrait_prenom, portrait, description, frustrations_detail, desires").eq("user_id", userId).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    const fallback = await sb.from("persona").select("portrait_prenom, portrait, description, frustrations_detail, desires").eq("user_id", profileUserId).order("created_at", { ascending: false }).limit(1).maybeSingle();
     persona = fallback.data;
   }
   if (!story && workspaceId) {
-    const fallback = await sb.from("storytelling").select("step_7_polished, step_6_full_story, title").eq("user_id", userId).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    const fallback = await sb.from("storytelling").select("step_7_polished, step_6_full_story, title").eq("user_id", profileUserId).order("created_at", { ascending: false }).limit(1).maybeSingle();
     story = fallback.data;
   }
 
