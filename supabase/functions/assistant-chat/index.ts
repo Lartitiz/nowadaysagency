@@ -325,6 +325,18 @@ Deno.serve(async (req) => {
     const { message, conversation_history, confirmed_actions, undo, workspace_id } = validateInput(await req.json(), AssistantChatSchema);
     const sb = getServiceClient();
 
+    // Resolve workspace owner's user_id for profile-scoped tables
+    let profileUserId = userId;
+    if (workspace_id) {
+      const { data: ownerRow } = await sb
+        .from("workspace_members")
+        .select("user_id")
+        .eq("workspace_id", workspace_id)
+        .eq("role", "owner")
+        .maybeSingle();
+      if (ownerRow?.user_id) profileUserId = ownerRow.user_id;
+    }
+
     // Handle undo
     if (undo) {
       const result = await undoLastAction(sb, userId);
@@ -335,7 +347,7 @@ Deno.serve(async (req) => {
 
     // Handle confirmed actions
     if (confirmed_actions?.length) {
-      const results = await executeActions(sb, userId, confirmed_actions, workspace_id);
+      const results = await executeActions(sb, userId, confirmed_actions, workspace_id, profileUserId);
       const allSuccess = results.every((r) => r.success);
       return new Response(
         JSON.stringify({
