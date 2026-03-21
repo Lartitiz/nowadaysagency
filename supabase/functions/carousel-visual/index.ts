@@ -35,7 +35,7 @@ serve(async (req) => {
       .eq("role", "owner")
       .limit(1)
       .maybeSingle();
-    const workspaceId = wsMember?.workspace_id;
+    const ownerWorkspaceId = wsMember?.workspace_id;
 
     const quota = await checkQuota(user.id, "content", workspaceId);
     if (!quota.allowed) {
