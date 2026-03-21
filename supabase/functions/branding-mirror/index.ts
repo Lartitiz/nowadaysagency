@@ -150,7 +150,7 @@ Sois bienveillante et constructive. L'objectif n'est pas de culpabiliser mais de
     const result = JSON.parse(jsonMatch[0]);
 
     // Log usage
-    await logUsage(user.id, "audit", "branding_mirror");
+    await logUsage(user.id, "audit", "branding_mirror", undefined, undefined, workspace_id);
 
     return new Response(JSON.stringify(result), {
       headers: { ...cors, "Content-Type": "application/json" },
