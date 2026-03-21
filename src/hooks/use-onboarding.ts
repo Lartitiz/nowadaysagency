@@ -506,7 +506,7 @@ export function useOnboarding() {
       }
       if (Object.keys(strategyData).length > 0) {
         const { data: existingStrategy } = await supabase
-          .from("brand_strategy").select("id").eq("user_id", user.id).maybeSingle();
+          .from("brand_strategy").select("id").eq("user_id", profileUserId).maybeSingle();
         if (existingStrategy) {
           await supabase.from("brand_strategy").update(strategyData).eq("user_id", user.id);
         } else {
