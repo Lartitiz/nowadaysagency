@@ -95,6 +95,7 @@ export function useOnboarding() {
   const { isDemoMode, demoData, skipDemoOnboarding } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
+  const profileUserId = useProfileUserId();
   const navigate = useNavigate();
   const { toast } = useToast();
 
