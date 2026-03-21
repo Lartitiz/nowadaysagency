@@ -92,11 +92,12 @@ async function executeActions(sb: any, userId: string, actions: any[], workspace
           break;
         }
         case "update_profile": {
-          // profiles always uses user_id (no workspace_id)
-          const { data: before } = await sb.from("profiles").select("*").eq("user_id", userId).maybeSingle();
+          // profiles uses user_id — resolved to workspace owner when in client workspace
+          const targetUserId = profileUserId || userId;
+          const { data: before } = await sb.from("profiles").select("*").eq("user_id", targetUserId).maybeSingle();
           if (before) {
             await saveUndoLog(sb, userId, "update_profile", "profiles", before.id, before);
-            const { error } = await sb.from("profiles").update({ [action.field]: action.value }).eq("user_id", userId);
+            const { error } = await sb.from("profiles").update({ [action.field]: action.value }).eq("user_id", targetUserId);
             results.push({ action: action.type, field: action.field, success: !error, error: error?.message });
           }
           break;
