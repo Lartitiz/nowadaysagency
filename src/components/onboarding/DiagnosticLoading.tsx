@@ -124,6 +124,7 @@ export default function DiagnosticLoading({
   answers, brandingAnswers, uploadedFileIds, activityType, onReady,
 }: Props) {
   const { user } = useAuth();
+  const workspaceId = useWorkspaceId();
   const [messages, setMessages] = useState<LiveMessage[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [checks, setChecks] = useState({ ig: false, web: false, docs: false });
