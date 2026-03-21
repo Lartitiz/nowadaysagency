@@ -392,7 +392,7 @@ export function useOnboarding() {
 
       // 1. PROFILES
       const { data: existingProfile } = await supabase
-        .from("profiles").select("id").eq("user_id", user.id).maybeSingle();
+        .from("profiles").select("id").eq("user_id", profileUserId).maybeSingle();
 
       const profileData: Record<string, unknown> = {
         prenom: answers.prenom,
