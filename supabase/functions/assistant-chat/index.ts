@@ -55,7 +55,7 @@ async function saveUndoLog(
 }
 
 // Execute actions returned by AI
-async function executeActions(sb: any, userId: string, actions: any[], workspaceId?: string): Promise<any[]> {
+async function executeActions(sb: any, userId: string, actions: any[], workspaceId?: string, profileUserId?: string): Promise<any[]> {
   const filterCol = workspaceId ? "workspace_id" : "user_id";
   const filterVal = workspaceId || userId;
   const results: any[] = [];
@@ -92,11 +92,12 @@ async function executeActions(sb: any, userId: string, actions: any[], workspace
           break;
         }
         case "update_profile": {
-          // profiles always uses user_id (no workspace_id)
-          const { data: before } = await sb.from("profiles").select("*").eq("user_id", userId).maybeSingle();
+          // profiles uses user_id — resolved to workspace owner when in client workspace
+          const targetUserId = profileUserId || userId;
+          const { data: before } = await sb.from("profiles").select("*").eq("user_id", targetUserId).maybeSingle();
           if (before) {
             await saveUndoLog(sb, userId, "update_profile", "profiles", before.id, before);
-            const { error } = await sb.from("profiles").update({ [action.field]: action.value }).eq("user_id", userId);
+            const { error } = await sb.from("profiles").update({ [action.field]: action.value }).eq("user_id", targetUserId);
             results.push({ action: action.type, field: action.field, success: !error, error: error?.message });
           }
           break;
@@ -324,6 +325,18 @@ Deno.serve(async (req) => {
     const { message, conversation_history, confirmed_actions, undo, workspace_id } = validateInput(await req.json(), AssistantChatSchema);
     const sb = getServiceClient();
 
+    // Resolve workspace owner's user_id for profile-scoped tables
+    let profileUserId = userId;
+    if (workspace_id) {
+      const { data: ownerRow } = await sb
+        .from("workspace_members")
+        .select("user_id")
+        .eq("workspace_id", workspace_id)
+        .eq("role", "owner")
+        .maybeSingle();
+      if (ownerRow?.user_id) profileUserId = ownerRow.user_id;
+    }
+
     // Handle undo
     if (undo) {
       const result = await undoLastAction(sb, userId);
@@ -334,7 +347,7 @@ Deno.serve(async (req) => {
 
     // Handle confirmed actions
     if (confirmed_actions?.length) {
-      const results = await executeActions(sb, userId, confirmed_actions, workspace_id);
+      const results = await executeActions(sb, userId, confirmed_actions, workspace_id, profileUserId);
       const allSuccess = results.every((r) => r.success);
       return new Response(
         JSON.stringify({
