@@ -419,7 +419,7 @@ export function useOnboarding() {
           toast({ title: "Erreur de sauvegarde", description: "Ton profil n'a pas pu être enregistré. Vérifie ta connexion et réessaie.", variant: "destructive" });
         }
       } else {
-        const { error: insertErr } = await supabase.from("profiles").insert({ user_id: user.id, ...profileData });
+        const { error: insertErr } = await supabase.from("profiles").insert({ user_id: profileUserId, ...profileData });
         if (insertErr) {
           console.error("Failed to insert profile:", insertErr);
           toast({ title: "Erreur de sauvegarde", description: "Ton profil n'a pas pu être enregistré. Vérifie ta connexion et réessaie.", variant: "destructive" });
