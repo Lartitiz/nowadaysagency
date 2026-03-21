@@ -40,7 +40,7 @@ serve(async (req) => {
     const ownerWorkspaceId = wsMember?.workspace_id;
 
     // Check quota
-    const quota = await checkQuota(user.id, "audit", workspaceId);
+    const quota = await checkQuota(user.id, "audit", ownerWorkspaceId);
     if (!quota.allowed) {
       return new Response(JSON.stringify({ error: quota.message, quota }), {
         status: 429,
