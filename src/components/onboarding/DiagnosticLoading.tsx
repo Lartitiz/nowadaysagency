@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { type DiagnosticData, computeDiagnosticData, DEMO_DIAGNOSTIC } from "@/lib/diagnostic-data";
 import { Progress } from "@/components/ui/progress";
 
@@ -123,6 +124,7 @@ export default function DiagnosticLoading({
   answers, brandingAnswers, uploadedFileIds, activityType, onReady,
 }: Props) {
   const { user } = useAuth();
+  const workspaceId = useWorkspaceId();
   const [messages, setMessages] = useState<LiveMessage[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [checks, setChecks] = useState({ ig: false, web: false, docs: false });
@@ -271,7 +273,7 @@ export default function DiagnosticLoading({
            useFallback();
          }, 52000);
 
-        const { data, error } = await supabase.functions.invoke("deep-diagnostic", { body: { ...body, isOnboarding: true } });
+        const { data, error } = await supabase.functions.invoke("deep-diagnostic", { body: { ...body, isOnboarding: true, workspace_id: workspaceId || undefined } });
 
         clearTimeout(safetyTimeout);
         if (timeoutFired) return;
