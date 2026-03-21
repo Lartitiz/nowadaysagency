@@ -196,10 +196,12 @@ serve(async (req) => {
       );
 
       // Try to find the user's latest audit
+      const diagFilterCol = workspace_id ? "workspace_id" : "user_id";
+      const diagFilterVal = workspace_id || user.id;
       const { data: auditRow } = await serviceClient
         .from("website_audit")
         .select("id")
-        .eq("user_id", user.id)
+        .eq(diagFilterCol, diagFilterVal)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
