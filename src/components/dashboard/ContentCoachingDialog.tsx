@@ -125,6 +125,7 @@ function LoadingMessage() {
 
 export default function ContentCoachingDialog({ open, onOpenChange, onSelect }: Props) {
   const navigate = useNavigate();
+  const workspaceId = useWorkspaceId();
   const [step, setStep] = useState<Step>(1);
   const [objectif, setObjectif] = useState("");
   const [hasSujet, setHasSujet] = useState<boolean | null>(null);
