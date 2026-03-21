@@ -413,7 +413,7 @@ export function useOnboarding() {
       if (answers.linkedin_summary) profileData.linkedin_summary = answers.linkedin_summary;
 
       if (existingProfile) {
-        const { error: updateErr } = await supabase.from("profiles").update(profileData).eq("user_id", user.id);
+        const { error: updateErr } = await supabase.from("profiles").update(profileData).eq("user_id", profileUserId);
         if (updateErr) {
           console.error("Failed to update profile:", updateErr);
           toast({ title: "Erreur de sauvegarde", description: "Ton profil n'a pas pu être enregistré. Vérifie ta connexion et réessaie.", variant: "destructive" });
