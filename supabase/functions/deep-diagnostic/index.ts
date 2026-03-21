@@ -127,7 +127,7 @@ serve(async (req) => {
           const { data: cached } = await supabaseAdmin
             .from("scrape_cache")
             .select("content, style_hints")
-            .eq("user_id", userId)
+            .eq("user_id", profileUserId)
             .eq("url", websiteUrl)
             .gte("created_at", new Date(Date.now() - 60 * 60 * 1000).toISOString())
             .order("created_at", { ascending: false })
