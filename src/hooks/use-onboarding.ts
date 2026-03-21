@@ -474,8 +474,8 @@ export function useOnboarding() {
           await supabase.from("brand_proposition").update(propData).eq("user_id", profileUserId);
         } else {
           await supabase.from("brand_proposition").insert({
-            user_id: user.id,
-            workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+            user_id: profileUserId,
+            workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
             ...propData,
           } as any);
         }
