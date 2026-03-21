@@ -344,7 +344,7 @@ export default function WelcomePage() {
           .maybeSingle(),
         supabase.from("profiles")
           .select("diagnostic_data")
-          .eq("user_id", user.id)
+          .eq("user_id", profileUserId)
           .maybeSingle(),
         (supabase.from("audit_recommendations") as any)
           .select("*")
