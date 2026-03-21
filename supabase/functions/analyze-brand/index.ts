@@ -20,7 +20,7 @@ serve(async (req) => {
 
   try {
     const { userId } = await authenticateRequest(req);
-    const { websiteUrl, instagramHandle, linkedinUrl, documentIds, documentText } = await req.json();
+    const { websiteUrl, instagramHandle, linkedinUrl, documentIds, documentText, workspace_id: bodyWorkspaceId } = await req.json();
 
     const quota = await checkQuota(userId, "import");
     if (!quota.allowed) {
