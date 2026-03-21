@@ -61,6 +61,7 @@ export default function InstagramProfileCoaching({ open, onOpenChange, initialMo
   const { user } = useAuth();
   const { data: profileData } = useProfile();
   const profileUserId = useProfileUserId();
+  const workspaceId = useWorkspaceId();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
