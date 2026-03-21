@@ -222,7 +222,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect }: 
             content_type: contentType || null,
             ton_envie: tonToUse,
           },
-          workspace_id: workspaceId || undefined,
+          workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
         },
       }, 120000);
       if (error) throw error;
