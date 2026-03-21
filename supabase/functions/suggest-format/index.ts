@@ -25,8 +25,14 @@ serve(async (req) => {
       if (user) {
         const filterCol = workspace_id ? "workspace_id" : "user_id";
         const filterVal = workspace_id || user.id;
+        // Resolve workspace owner for profile-scoped tables
+        let profileUserId = user.id;
+        if (workspace_id) {
+          const { data: ownerRow } = await sb.from("workspace_members").select("user_id").eq("workspace_id", workspace_id).eq("role", "owner").maybeSingle();
+          if (ownerRow?.user_id) profileUserId = ownerRow.user_id;
+        }
         const [profileRes, brandRes, configRes] = await Promise.all([
-          sb.from("profiles").select("activite, cible").eq("user_id", user.id).maybeSingle(),
+          sb.from("profiles").select("activite, cible").eq("user_id", profileUserId).maybeSingle(),
           sb.from("brand_profile").select("mission, offer, target_description, channels").eq(filterCol, filterVal).maybeSingle(),
           sb.from("user_plan_config").select("channels").eq(filterCol, filterVal).maybeSingle(),
         ]);
