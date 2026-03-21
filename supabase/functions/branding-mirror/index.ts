@@ -30,17 +30,44 @@ serve(async (req) => {
       });
     }
 
+    // Parse body (optional workspace_id)
+    let workspace_id: string | undefined;
+    try {
+      const body = await req.json();
+      workspace_id = body?.workspace_id || undefined;
+    } catch { /* no body = own workspace */ }
+
     // Check quota (audit category)
-    const quota = await checkQuota(user.id, "audit");
+    const quota = await checkQuota(user.id, "audit", workspace_id);
     if (!quota.allowed) {
       return quotaDeniedResponse(quota, cors);
     }
 
+    // Resolve workspace filter
+    const filterCol = workspace_id ? "workspace_id" : "user_id";
+    const filterVal = workspace_id || user.id;
+
+    // Resolve workspace owner for profile-scoped tables
+    let profileUserId = user.id;
+    if (workspace_id) {
+      const sbAdmin = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      );
+      const { data: ownerRow } = await sbAdmin
+        .from("workspace_members")
+        .select("user_id")
+        .eq("workspace_id", workspace_id)
+        .eq("role", "owner")
+        .maybeSingle();
+      if (ownerRow?.user_id) profileUserId = ownerRow.user_id;
+    }
+
     // Fetch brand_profile + last instagram audit + last generated contents in parallel
     const [brandRes, auditRes, contentsRes] = await Promise.all([
-      supabase.from("brand_profile").select("voice_description, tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, combat_cause, combat_fights, combat_refusals, combat_alternative, tone_keywords").eq("user_id", user.id).maybeSingle(),
-      supabase.from("branding_audits").select("score_global, synthese, points_forts, points_faibles").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-      supabase.from("calendar_posts").select("content_draft, theme, format").eq("user_id", user.id).not("content_draft", "is", null).order("created_at", { ascending: false }).limit(5),
+      supabase.from("brand_profile").select("voice_description, tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, combat_cause, combat_fights, combat_refusals, combat_alternative, tone_keywords").eq(filterCol, filterVal).maybeSingle(),
+      supabase.from("branding_audits").select("score_global, synthese, points_forts, points_faibles").eq(filterCol, filterVal).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      supabase.from("calendar_posts").select("content_draft, theme, format").eq(filterCol, filterVal).not("content_draft", "is", null).order("created_at", { ascending: false }).limit(5),
     ]);
 
     const brand = brandRes.data;
