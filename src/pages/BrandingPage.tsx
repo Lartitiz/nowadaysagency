@@ -487,6 +487,7 @@ export default function BrandingPage() {
           linkedinUrl: data.linkedin || null,
           documentIds: [],
           documentText: documentText,
+          workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
         },
       });
 
