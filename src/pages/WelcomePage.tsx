@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useProfileUserId } from "@/hooks/use-workspace-query";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useProfile } from "@/hooks/use-profile";
