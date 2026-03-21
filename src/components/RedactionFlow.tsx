@@ -45,6 +45,7 @@ const CHECKLIST_ITEMS = [
 
 export default function RedactionFlow({ idea, profile, canal, objectif, onClose }: Props) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const workspaceId = useWorkspaceId();
   const [step, setStep] = useState(1);
 
