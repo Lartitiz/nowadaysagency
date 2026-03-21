@@ -511,8 +511,8 @@ export function useOnboarding() {
           await supabase.from("brand_strategy").update(strategyData).eq("user_id", profileUserId);
         } else {
           await supabase.from("brand_strategy").insert({
-            user_id: user.id,
-            workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+            user_id: profileUserId,
+            workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
             ...strategyData,
           } as any);
         }
