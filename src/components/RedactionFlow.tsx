@@ -95,6 +95,7 @@ export default function RedactionFlow({ idea, profile, canal, objectif, onClose 
           objectif,
           angle: idea.angle,
           profile: profilePayload,
+          workspace_id: workspaceId || undefined,
         },
       }, 120000);
       if (res.error) throw res.error;
