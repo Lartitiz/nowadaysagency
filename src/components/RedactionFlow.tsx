@@ -44,6 +44,7 @@ const CHECKLIST_ITEMS = [
 
 export default function RedactionFlow({ idea, profile, canal, objectif, onClose }: Props) {
   const { toast } = useToast();
+  const workspaceId = useWorkspaceId();
   const [step, setStep] = useState(1);
 
   // Step 1: Structure
