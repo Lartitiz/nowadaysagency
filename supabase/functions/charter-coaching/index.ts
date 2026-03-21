@@ -204,8 +204,8 @@ serve(async (req) => {
     );
 
     const [profileRes, brandRes] = await Promise.all([
-      sbService.from("profiles").select("prenom, activite, type_activite").eq("user_id", userId).maybeSingle(),
-      sbService.from("brand_profile").select("tone_register, tone_style").eq("user_id", userId).maybeSingle(),
+      sbService.from("profiles").select("prenom, activite, type_activite").eq("user_id", profileUserId).maybeSingle(),
+      sbService.from("brand_profile").select("tone_register, tone_style").eq(workspace_id ? "workspace_id" : "user_id", workspace_id || profileUserId).maybeSingle(),
     ]);
 
     const prompt = buildPrompt(step, answer, charterData || {}, profileRes.data, brandRes.data);
