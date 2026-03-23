@@ -1809,7 +1809,7 @@ export default function CreerUnifie() {
                     ✨ {remainingTotal()} générations restantes ce mois
                   </p>
                 )}
-                <CreerStepIdea onNext={handleIdeaNext} onCoachingSelect={handleCoachingSelect} />
+                <CreerStepIdea onNext={handleIdeaNext} onCoachingSelect={handleCoachingSelect} onNewsjackingSelect={handleNewsjackingSelect} workspaceId={workspaceId} />
               </>
             )}
 
