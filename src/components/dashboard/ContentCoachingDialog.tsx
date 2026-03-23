@@ -35,6 +35,7 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSelect?: (data: { subject: string; format: string; objective: string; carouselSubMode?: "text" | "photo" | "mix" }) => void;
+  onNewsjackingRedirect?: () => void;
 }
 
 const OBJECTIFS = [
@@ -78,7 +79,7 @@ const EDITORIAL_ANGLES = [
   { id: "mythe", emoji: "💥", label: "Mythe à déconstruire", desc: "Démonter une croyance répandue" },
   { id: "storytelling", emoji: "📖", label: "Storytelling + leçon", desc: "Raconter une galère et en tirer une leçon" },
   { id: "histoire-cliente", emoji: "💬", label: "Histoire cliente", desc: "Illustrer un blocage via un cas réel" },
-  { id: "surf-actu", emoji: "📡", label: "Surf sur l'actu", desc: "Rebondir sur une actualité" },
+  { id: "surf-actu", emoji: "📡", label: "Surf sur l'actu", desc: "L'IA cherche ce qui se passe et te propose des angles" },
   { id: "regard-philo", emoji: "🧠", label: "Regard philo / sociétal", desc: "Prendre de la hauteur, côté France Culture" },
   { id: "conseil-contre-intuitif", emoji: "🔄", label: "Conseil contre-intuitif", desc: "Aller à contre-courant" },
   { id: "before-after", emoji: "✨", label: "Before / After", desc: "Montrer une évolution concrète" },
@@ -124,7 +125,7 @@ function LoadingMessage() {
   );
 }
 
-export default function ContentCoachingDialog({ open, onOpenChange, onSelect }: Props) {
+export default function ContentCoachingDialog({ open, onOpenChange, onSelect, onNewsjackingRedirect }: Props) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const workspaceId = useWorkspaceId();
@@ -194,6 +195,11 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect }: 
   };
 
   const handleContentTypeSelect = (id: string) => {
+    if (id === "surf-actu" && onNewsjackingRedirect) {
+      onNewsjackingRedirect();
+      onOpenChange(false);
+      return;
+    }
     setContentType(id);
     setStep(6);
   };
