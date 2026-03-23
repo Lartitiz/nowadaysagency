@@ -74,7 +74,7 @@ serve(async (req) => {
     }
     const ctx = await getUserContext(supabase, user.id, workspace_id, "linkedin");
     const context = formatContextForAI(ctx, CONTEXT_PRESETS.linkedin);
-    const qualityBlocks = `${ANTI_SLOP}\n\n${ETHICAL_GUARDRAILS}\n\n${ANTI_BIAS}\n\n${CHAIN_OF_THOUGHT}\n\nPRIORITÉ VOIX : si un profil de voix existe dans le contexte, reproduis ce style. Réutilise les expressions signature. Respecte les expressions interdites. Le résultat doit sonner comme si l'utilisatrice l'avait écrit elle-même.`;
+    const qualityBlocks = `${EMBEDDED_EDUCATION}\n\n${ANTI_SLOP}\n\n${ETHICAL_GUARDRAILS}\n\n${ANTI_BIAS}\n\n${CHAIN_OF_THOUGHT}\n\nPRIORITÉ VOIX : si un profil de voix existe dans le contexte, reproduis ce style. Réutilise les expressions signature. Respecte les expressions interdites. Le résultat doit sonner comme si l'utilisatrice l'avait écrit elle-même.`;
     const branding = { storytelling: ctx.storytelling };
 
     const VOICE_PRIORITY = `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :\n- Reproduis fidèlement le style décrit\n- Réutilise les expressions signature naturellement dans le texte\n- RESPECTE les expressions interdites : ne les utilise JAMAIS\n- Imite les patterns de ton et de structure\n- Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA\n\n`;

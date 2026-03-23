@@ -229,6 +229,8 @@ Pour chaque section du script, ajouter entre crochets :
 
 ${PREGEN_INJECTION_RULES}
 
+${EMBEDDED_EDUCATION}
+
 ${ANTI_SLOP}
 
 ANTI-BROETRY (s'applique aux captions de Reels) :

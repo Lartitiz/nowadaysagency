@@ -68,6 +68,8 @@ Réponds UNIQUEMENT en JSON sans backticks :
   "personalization_level": "high | medium | low"
 }
 
+${EMBEDDED_EDUCATION}
+
 ${ANTI_SLOP}
 
 ${CHAIN_OF_THOUGHT}

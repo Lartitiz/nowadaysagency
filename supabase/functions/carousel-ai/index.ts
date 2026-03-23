@@ -455,6 +455,8 @@ ${isLinkedIn
 - Ne JAMAIS utiliser les expressions interdites du profil de voix.
 - Le résultat doit sonner comme si l'utilisatrice l'avait écrit elle-même.
 
+${EMBEDDED_EDUCATION}
+
 ${ANTI_SLOP}
 
 ANTI-BROETRY (s'applique aux captions, pas aux slides) :
