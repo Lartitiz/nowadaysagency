@@ -135,15 +135,14 @@ Retourne entre 3 et 5 actus maximum, classées par pertinence décroissante. Si 
       headers: {
         "Content-Type": "application/json",
         "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
+        "anthropic-version": "2025-01-01",
         "anthropic-beta": "web-search-2025-03-05",
       },
       body: JSON.stringify({
         model,
         max_tokens: 4096,
-        system: systemPrompt,
         tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 8 }],
-        messages: [{ role: "user", content: "Trouve les actualités les plus pertinentes pour moi en ce moment." }],
+        messages: [{ role: "user", content: systemPrompt + "\n\nTrouve les actualités les plus pertinentes pour moi en ce moment." }],
       }),
       signal: controller.signal,
     });
