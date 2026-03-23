@@ -195,6 +195,11 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
   };
 
   const handleContentTypeSelect = (id: string) => {
+    if (id === "surf-actu" && onNewsjackingRedirect) {
+      onNewsjackingRedirect();
+      onOpenChange(false);
+      return;
+    }
     setContentType(id);
     setStep(6);
   };

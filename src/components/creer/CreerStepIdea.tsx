@@ -115,7 +115,7 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
       </Button>
 
       {/* Coaching dialog */}
-      <ContentCoachingDialog open={coachOpen} onOpenChange={setCoachOpen} onSelect={onCoachingSelect} />
+      <ContentCoachingDialog open={coachOpen} onOpenChange={setCoachOpen} onSelect={onCoachingSelect} onNewsjackingRedirect={() => setShowNewsjacking(true)} />
     </div>
   );
 }
