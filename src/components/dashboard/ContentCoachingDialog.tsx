@@ -35,6 +35,7 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSelect?: (data: { subject: string; format: string; objective: string; carouselSubMode?: "text" | "photo" | "mix" }) => void;
+  onNewsjackingRedirect?: () => void;
 }
 
 const OBJECTIFS = [
