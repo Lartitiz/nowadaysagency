@@ -126,7 +126,7 @@ Réponds UNIQUEMENT en JSON (pas de markdown, pas de backticks) :
   ]
 }
 
-Retourne entre 3 et 5 actus maximum, classées par pertinence décroissante. Si aucune actu pertinente n'est trouvée, retourne :
+Retourne exactement 3 actus, classées par pertinence décroissante. Si aucune actu pertinente n'est trouvée, retourne :
 { "actus": [], "message": "Pas d'actu suffisamment pertinente trouvée pour ton secteur cette semaine. Réessaie dans quelques jours !" }`;
 
     const controller = new AbortController();
