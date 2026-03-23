@@ -95,13 +95,15 @@ Pour chaque actu trouvée, évalue si elle a un POTENTIEL DE CONTENU pour cette 
 - Est-ce qu'elle peut apporter un regard unique dessus grâce à son expertise ?
 - Est-ce que ça touche à ses piliers de contenu, ses combats, ou ses valeurs ?
 
-${EMBEDDED_EDUCATION}
-
-IMPORTANT SUR LES ANGLES PROPOSÉS :
-- Chaque angle doit utiliser un des 4 véhicules d'éducation embarquée (récit d'expérience, déclencheur externe, constat décalé, montrer plutôt qu'expliquer)
-- L'actu est le DÉCLENCHEUR, pas le sujet. Le contenu parle de l'expertise de la personne À TRAVERS l'actu.
-- Le ton n'est JAMAIS "voici ce qui se passe + voici mon avis". C'est : "cette actu m'a fait penser à un truc que je vis/vois/observe dans mon métier"
-- Les angles doivent être SPÉCIFIQUES au branding de cette personne, pas génériques
+ANGLES PROPOSÉS — RÈGLES :
+Chaque angle DOIT utiliser un de ces 4 véhicules :
+1. RÉCIT D'EXPÉRIENCE : "Quand j'ai vu cette actu, ça m'a rappelé…"
+2. DÉCLENCHEUR EXTERNE : "Cette actu m'a fait réaliser un truc sur mon métier…"
+3. CONSTAT DÉCALÉ : "Ce que cette actu révèle sur [secteur], c'est que…"
+4. MONTRER PLUTÔT QU'EXPLIQUER : avant/après, process visible, transformation
+L'actu est le DÉCLENCHEUR, pas le sujet. JAMAIS "voici ce qui se passe + mon avis". TOUJOURS "cette actu m'a fait penser à un truc que je vis dans mon métier".
+Les angles doivent être SPÉCIFIQUES au branding de cette personne.
+JAMAIS de format "X conseils" ou "X erreurs".
 
 Réponds UNIQUEMENT en JSON (pas de markdown, pas de backticks) :
 {
