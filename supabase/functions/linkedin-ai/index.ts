@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { LINKEDIN_PRINCIPLES_COMPACT, LINKEDIN_TEMPLATES, ANTI_SLOP, CHAIN_OF_THOUGHT, ETHICAL_GUARDRAILS, ANTI_BIAS, EDITORIAL_ANGLES_REFERENCE, PREGEN_INJECTION_RULES, ANTI_BROETRY_LINKEDIN } from "../_shared/copywriting-prompts.ts";
+import { LINKEDIN_PRINCIPLES_COMPACT, LINKEDIN_TEMPLATES, ANTI_SLOP, CHAIN_OF_THOUGHT, ETHICAL_GUARDRAILS, ANTI_BIAS, EDITORIAL_ANGLES_REFERENCE, PREGEN_INJECTION_RULES, ANTI_BROETRY_LINKEDIN, EMBEDDED_EDUCATION } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallback } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
