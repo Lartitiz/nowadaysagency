@@ -1825,7 +1825,7 @@ export default function CreerUnifie() {
                   else setIsLinkedInCarousel(false);
                   handleFormatNext(fmt, angle, { carouselSubMode: sub || (linkedinCar ? "text" : undefined), photos, photoDescription: desc, photoMode: pm });
                 }}
-                onBack={() => setStep("idea")}
+                onBack={() => { setStep("idea"); setNewsjackingContext(null); }}}
               />
             )}
 
