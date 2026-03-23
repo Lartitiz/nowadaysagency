@@ -135,7 +135,8 @@ Retourne entre 3 et 5 actus maximum, classées par pertinence décroissante. Si 
       headers: {
         "Content-Type": "application/json",
         "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2025-03-01",
+        "anthropic-version": "2023-06-01",
+        "anthropic-beta": "web-search-2025-03-05",
       },
       body: JSON.stringify({
         model,
