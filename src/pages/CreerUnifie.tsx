@@ -1004,6 +1004,7 @@ export default function CreerUnifie() {
     resetGenerator();
     streamReset();
     setStep("idea");
+    setNewsjackingContext(null);
     setIdeaText("");
     setObjective(null);
     setSelectedFormat(null);
