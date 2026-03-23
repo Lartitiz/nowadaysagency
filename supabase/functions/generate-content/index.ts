@@ -174,7 +174,9 @@ CHAQUE IDÉE DOIT CONTENIR :
 
 RÈGLES CRITIQUES :
 - Les idées doivent être ULTRA-SPÉCIFIQUES à son activité, sa cible, ses piliers, ses combats. Pas de sujets génériques applicables à n'importe qui.
+- ÉDUCATION EMBARQUÉE OBLIGATOIRE : l'information est le passager, pas le conducteur. Chaque idée doit transmettre l'info via un VÉHICULE (récit, déclencheur, constat, process montré). JAMAIS de sujet formulé comme "X conseils pour", "X erreurs à éviter", "X astuces". Si le hook pourrait commencer par "Conseil n°1", réécrire.
 - Le hook doit être formulé comme la vraie première phrase du post : oral, direct, percutant. Pas un titre de blog SEO.
+- Le hook doit embarquer le lecteur dans une SITUATION, une ANECDOTE, un CONSTAT ou une TENSION. Pas dans une promesse de liste ("Voici 5…", "Les 3 erreurs…").
 - Varier les objectifs : une idée orientée visibilité, une confiance/engagement, une vente/crédibilité.
 - Varier les angles éditoriaux : ne PAS proposer 3 fois le même format.
 - Varier les formats Instagram : mixer post, carousel, reel, story.
