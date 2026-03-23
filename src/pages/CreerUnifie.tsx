@@ -620,6 +620,7 @@ export default function CreerUnifie() {
         editorialFormat: editorialAngle || undefined,
         editorialFormatLabel: editorialAngle || undefined,
         ...(photoMode ? { photo_mode: true, photo_description: photoDescription } : {}),
+        ...(newsjackingContext ? { deepResearch: true } : {}),
         ...(selectedFormat === "pinterest" && pinterestData ? {
           pinterest_link: pinterestData.link,
           pinterest_board: pinterestData.boardName,
