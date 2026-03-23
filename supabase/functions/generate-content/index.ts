@@ -160,16 +160,16 @@ CHAQUE IDÉE DOIT CONTENIR :
 3. Un FORMAT adapté au sujet
 4. Un OBJECTIF de communication
 5. Un ANGLE ÉDITORIAL parmi ces formats Nowadays :
-   - "coup_de_gueule" : exprimer une injustice de ton secteur
-   - "mythe_a_deconstruire" : démonter une croyance répandue
-   - "storytelling_lecon" : raconter un vécu + en tirer une leçon
-   - "histoire_cliente" : illustrer un blocage commun via un cas réel
-   - "conseil_contre_intuitif" : donner un conseil qui va à l'encontre du consensus
-   - "regard_philosophique" : prendre de la hauteur sur un sujet de société lié à son métier
-   - "before_after" : montrer une évolution (pratique, pensée, résultat)
+   - "recit_experience" : raconter ce qui s'est passé quand… (l'info arrive comme sous-produit de l'histoire)
+   - "declencheur_externe" : rebondir sur un retour client, un chiffre découvert, une conversation, un commentaire reçu
+   - "constat_decale" : remettre en question une évidence du secteur avec un regard lucide (pas une attaque)
+   - "coup_de_gueule" : exprimer une frustration partagée sur un problème systémique du secteur
+   - "mythe_a_deconstruire" : démonter une croyance répandue avec des arguments concrets
+   - "histoire_cliente" : illustrer un blocage commun via un cas réel (social proof incarné)
+   - "before_after" : montrer une transformation concrète (process visible, pas juste un résultat annoncé)
    - "identification" : situation du quotidien dans laquelle la cible se reconnaît
-   - "analyse_decryptage" : décortiquer un sujet en profondeur
-   - "build_in_public" : partager les coulisses de son projet
+   - "build_in_public" : partager les coulisses de son projet en transparence
+   - "regard_philosophique" : prendre de la hauteur sur un sujet de société lié à son métier
    - "surf_actu" : rebondir sur une actualité pertinente
 
 RÈGLES CRITIQUES :
