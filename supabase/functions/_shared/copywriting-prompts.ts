@@ -156,7 +156,7 @@ OBJECTIF CRÉDIBILITÉ (autorité) :
 → Formats : Carrousel éducatif, LinkedIn
 → Accroches : Statistique choc, preuve sociale, pédagogique
 → Exemples d'accroches à adapter :
-  • "En [X] ans, j'ai accompagné [Y] personnes. Voilà les [Z] erreurs que je vois partout."
+  • "En [X] ans, j'ai accompagné [Y] personnes. Voilà le pattern que personne ne voit."
   • "Les données sont claires : [statistique]."
   • "Depuis [X] mois, je vois que [tendance]. Et personne n'en parle."
 
