@@ -156,7 +156,7 @@ OBJECTIF CRÉDIBILITÉ (autorité) :
 → Formats : Carrousel éducatif, LinkedIn
 → Accroches : Statistique choc, preuve sociale, pédagogique
 → Exemples d'accroches à adapter :
-  • "En [X] ans, j'ai accompagné [Y] personnes. Voilà les [Z] erreurs que je vois partout."
+  • "En [X] ans, j'ai accompagné [Y] personnes. Voilà le pattern que personne ne voit."
   • "Les données sont claires : [statistique]."
   • "Depuis [X] mois, je vois que [tendance]. Et personne n'en parle."
 
@@ -186,15 +186,16 @@ export const FORMAT_STRUCTURES = `
 STRUCTURES PAR FORMAT
 ═══════════════════════════════════════════════════
 
-CARROUSEL ÉDUCATIF (8-10 slides) :
-- Slide 1 : Hook (verbe d'action + promesse inattendue. Peu de mots.)
-- Slide 2 : Constat (ce que tout le monde croit → connivence)
-- Slide 3 : Bascule/révélation (concept nouveau)
-- Slide 4 : Développement/preuve (donnée, exemple concret)
-- Slide 5 : Interprétation (dans le langage de l'utilisatrice)
-- Slide 6 : Morale bienveillante (ton humain, complice)
-- Slide 7 : Application concrète (rendre utile)
-- Slide 8 : Punchline finale (phrase courte, parallèle raison/émotion)
+CARROUSEL INSIGHT (8-10 slides) :
+- Slide 1 : Hook (situation concrète ou constat décalé. Peu de mots, beaucoup d'intrigue.)
+- Slide 2 : Contexte vécu (une situation, un moment, un déclencheur : "La semaine dernière...", "Une cliente m'a dit...")
+- Slide 3 : Le problème tel qu'on le vit (identification : le lecteur se reconnaît)
+- Slide 4 : Bascule/révélation (le regard qui change, le mécanisme caché)
+- Slide 5 : Développement (preuve, donnée, exemple concret qui ancre)
+- Slide 6 : Ce que ça change concrètement (dans les mots de l'utilisatrice)
+- Slide 7 : Application ou permission (rendre utile sans faire cours)
+- Slide 8 : Punchline (phrase courte qui reste en tête, ouvre plutôt que ferme)
+Note : ce n'est PAS une liste de conseils numérotés. C'est un arc narratif : situation → tension → compréhension → ouverture.
 
 CARROUSEL STORYTELLING (8-10 slides) :
 - Slide 1 : La claque (phrase choc ou chiffrée)
@@ -206,13 +207,16 @@ CARROUSEL STORYTELLING (8-10 slides) :
 - Slide 7 : Morale partageable (leçon universelle)
 - Slide 8 : Apaisement (note douce, pas moralisatrice)
 
-CARROUSEL TUTO (8 slides) :
-- Slide 1 : Hook concret ("Comment [résultat] sans [souci] ?")
-- Slide 2 : Contexte terrain
-- Slide 3 : Principe clé
-- Slide 4 : Concept/terme-clé
-- Slides 5-7 : Étapes 1, 2, 3 avec exemple à l'étape 3
-- Slide 8 : CTA léger
+CARROUSEL PROCESS (8 slides) :
+- Slide 1 : Hook résultat ou transformation ("Comment je suis passée de [avant] à [après]")
+- Slide 2 : Le contexte de départ (situation réelle, pas théorique)
+- Slide 3 : Le premier déclic ou la première action
+- Slide 4 : Ce qui a coincé (la difficulté, l'erreur, le doute)
+- Slide 5 : L'ajustement (ce qui a fait la différence)
+- Slide 6 : Le résultat concret (chiffres, retours, changement observable)
+- Slide 7 : La leçon transférable (le lecteur peut l'appliquer à SA situation)
+- Slide 8 : CTA léger ou question
+Note : les étapes sont racontées comme un RÉCIT de process, pas comme un mode d'emploi numéroté.
 
 REEL FACE CAM (15-60 sec) :
 - 0-3 sec : Hook textuel à l'écran + regard caméra
@@ -436,6 +440,142 @@ compris, elle est justifiée.
 
 Si aucune analogie naturelle ne vient pour ce sujet, n'en mets pas.
 Un texte direct sans analogie > un texte farci d'images forcées.
+`;
+
+export const EMBEDDED_EDUCATION = `
+
+ÉDUCATION EMBARQUÉE — PRINCIPE FONDAMENTAL (2025-2026)
+
+Le format éducatif classique ("5 erreurs à éviter", "3 conseils pour", "X astuces") est MORT.
+
+Il fonctionnait entre 2019 et 2022 parce qu'il apportait de la valeur dans un feed majoritairement divertissant. Aujourd'hui, quand tout le monde fait "5 erreurs de [sujet]", le cerveau catégorise instantanément : contenu générique → scroll.
+
+L'algorithme a suivi : Instagram et LinkedIn poussent l'engagement actif (commentaires, partages en DM, temps passé) plutôt que les sauvegardes passives. Un carrousel listé se sauvegarde mais ne se commente pas, ne se partage pas en disant "regarde ça".
+
+RÈGLE CENTRALE :
+
+L'information est le PASSAGER, pas le conducteur.
+
+Le lecteur ne doit pas savoir qu'il est en train d'apprendre quelque chose avant d'être déjà engagé dans le contenu.
+
+TEST DE DÉTECTION : si le contenu pourrait commencer par "Conseil n°1", il est daté. Réécrire.
+
+═══════════════════════════════════════════════════
+
+LES 4 VÉHICULES DE L'ÉDUCATION EMBARQUÉE
+
+═══════════════════════════════════════════════════
+
+Chaque contenu qui transmet de l'information DOIT utiliser un de ces 4 véhicules. JAMAIS le format "liste de conseils/erreurs/astuces" comme véhicule principal.
+
+VÉHICULE 1 — RÉCIT D'EXPÉRIENCE
+
+Principe : "Voici ce qui s'est passé quand…" au lieu de "Voici comment faire".
+
+L'information est la même, mais le véhicule change. Les gens partagent des histoires, pas des cours.
+
+Ton : personnel, incarné.
+
+Exemples de transformation :
+
+  ❌ "5 erreurs de pricing" → ✅ "Le jour où j'ai envoyé un devis à 200€ et que la cliente m'a répondu 'c'est tout ?'"
+
+  ❌ "3 conseils pour fidéliser ses clients" → ✅ "J'ai perdu ma meilleure cliente en mars. Voilà ce que j'ai compris 3 mois après."
+
+  ❌ "Comment bien rédiger sa bio Instagram" → ✅ "J'ai changé 4 mots dans ma bio. Les DM ont doublé en 2 semaines."
+
+Signal algorithmique : partages en DM ("ça m'est arrivé aussi"), commentaires d'identification.
+
+VÉHICULE 2 — DÉCLENCHEUR EXTERNE
+
+Principe : L'information arrive par rebond sur quelque chose d'extérieur : un retour client, un chiffre découvert, une conversation, une lecture, un commentaire reçu, une situation observée.
+
+Pas "moi je sais et je t'explique" mais "voilà ce qui m'a fait réaliser un truc".
+
+Ton : curiosité, découverte.
+
+Exemples de transformation :
+
+  ❌ "3 conseils pour ta bio" → ✅ "Une cliente m'a renvoyé ses photos en me disant 'je ne me reconnais pas'. Ça m'a obligée à repenser tout mon process."
+
+  ❌ "Les stats Instagram à connaître" → ✅ "J'ai découvert que 73% des solopreneur·es ne répondent pas à leurs DM. Ça m'a fait réaliser un truc."
+
+  ❌ "Comment choisir ses matières" → ✅ "Un fournisseur m'a dit que ma commande était 'trop petite pour être intéressante'. Voilà ce que ça dit sur l'artisanat aujourd'hui."
+
+Signal algorithmique : curiosité → temps passé, saves, commentaires de partage d'expérience.
+
+VÉHICULE 3 — CONSTAT DÉCALÉ
+
+Principe : Un regard qui remet en question une évidence du secteur. Pas une attaque, pas du "tu fais mal" : un constat lucide qui fait dire "ah, j'avais jamais vu ça comme ça".
+
+Ton : lucide, réflexif, jamais agressif.
+
+Exemples de transformation :
+
+  ❌ "5 conseils pour mieux poster" → ✅ "On répète partout qu'il faut poster tous les jours. Sauf que la régularité sans message clair, c'est juste du bruit."
+
+  ❌ "Les erreurs de communication à éviter" → ✅ "Le problème de la plupart des comptes pro, c'est pas le contenu. C'est que tout ressemble à tout le monde."
+
+  ❌ "Comment améliorer son engagement" → ✅ "Et si le 'manque d'engagement' n'était pas un problème d'algorithme, mais un problème de message ?"
+
+Signal algorithmique : commentaires (débat, réflexion), partages ("regarde, ça dit exactement ce que je pense").
+
+VÉHICULE 4 — MONTRER PLUTÔT QU'EXPLIQUER
+
+Principe : L'éducation par l'image, le processus visible, la transformation montrée. Le spectateur comprend comment ça fonctionne sans qu'on lui explique.
+
+Ton : visuel, immersif.
+
+Exemples de transformation :
+
+  ❌ "Comment organiser son feed" → ✅ Reel accéléré de la construction d'un feed cohérent, sans voix off explicative
+
+  ❌ "Les étapes d'un shooting" → ✅ Reel du process complet en 30 secondes, la transformation parle d'elle-même
+
+  ❌ "Comment aménager son espace de travail" → ✅ Avant/après en split screen, zéro texte explicatif
+
+Signal algorithmique : watch time élevé, saves, partages visuels.
+
+═══════════════════════════════════════════════════
+
+APPLICATION DANS LA GÉNÉRATION
+
+═══════════════════════════════════════════════════
+
+QUAND L'IA GÉNÈRE DU CONTENU QUI TRANSMET UNE INFORMATION :
+
+1. Identifier le véhicule le plus naturel pour ce sujet et cette personne
+
+2. Structurer le contenu autour du VÉHICULE, pas autour de l'information
+
+3. L'information arrive comme un sous-produit de l'histoire, du constat, ou du visuel
+
+4. Le lecteur retient l'info PARCE QU'il était engagé émotionnellement, pas parce qu'elle était "bien structurée"
+
+CE QUI EST INTERDIT COMME VÉHICULE PRINCIPAL :
+
+- Liste numérotée de conseils/erreurs/astuces comme structure du post
+
+- Slides numérotées "Conseil 1", "Conseil 2", "Conseil 3"
+
+- Hook "X erreurs que tu fais" / "X choses à savoir" / "X conseils pour"
+
+- Structure "Introduction → Point 1 → Point 2 → Point 3 → Conclusion"
+
+- Tout format où l'on pourrait remplacer le sujet par n'importe quel autre sujet et garder la même structure
+
+CE QUI RESTE AUTORISÉ :
+
+- Un carrousel peut avoir 8 slides avec une progression, mais c'est une PROGRESSION NARRATIVE, pas une liste
+
+- Un post peut contenir 3 idées, mais elles arrivent dans le FLUX d'un récit ou d'un constat, pas en bullet points
+
+- Un reel peut montrer des étapes, mais c'est un PROCESS MONTRÉ, pas une liste lue à voix haute
+
+- Des conseils peuvent exister DANS un contenu, mais embarqués dans un véhicule (récit, constat, déclencheur), jamais comme structure principale
+
+EXCEPTION : Si l'utilisateur·ice demande EXPLICITEMENT un format listé ("fais-moi une liste de 5 conseils"), respecter sa demande mais proposer en alternative un véhicule embarqué.
+
 `;
 
 // ═══════════════════════════════════════════════════
@@ -1100,7 +1240,7 @@ Principe : Décortiquer un sujet en profondeur avec des points de vue fouillés.
 Structure par défaut : éducationnelle
 Objectifs : crédibilité + visibilité | Phase 1-2 | Déclic : prise de conscience
 En carrousel (8-10 slides) : Hook pédagogique → Constat → Analyse point 1 → Analyse point 2 → Analyse point 3 → Synthèse → Application → Punchline
-En reel (45-60s) : Hook 0-3s "3 choses que personne ne te dit sur..." → Point 1 → Point 2 → Point 3 → Synthèse
+En reel (45-60s) : Hook 0-3s (constat décalé ou question qui intrigue) → Le mécanisme caché 3-20s → L'exemple concret 20-40s → Ce que ça change 40-50s → Ouverture 50-60s
 En story (5-7 stories) : Hook → Point 1 + sondage → Point 2 → Point 3 → Synthèse → Save CTA
 En post caption : Accroche analyse → Développement structuré → Preuves → Synthèse → CTA
 En LinkedIn : Accroche expertise → Analyse détaillée avec données → Position → CTA
