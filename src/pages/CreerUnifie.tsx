@@ -605,7 +605,9 @@ export default function CreerUnifie() {
       const streamBody: any = {
         step: "generate",
         contentType: contentTypeMap[selectedFormat] || "post_instagram",
-        context: enrichedSubject,
+        context: newsjackingContext
+          ? `${enrichedSubject}\n\n--- CONTEXTE ACTUALITÉ ---\n${newsjackingContext}\n--- FIN CONTEXTE ACTUALITÉ ---\n\nIMPORTANT : Ce contenu est un newsjacking. L'actu ci-dessus est le DÉCLENCHEUR, pas le sujet principal. Le contenu doit relier cette actu à l'expertise et au vécu de l'utilisateur·ice. Utilise un véhicule d'éducation embarquée.`
+          : enrichedSubject,
         angle: angleObj,
         answers: Object.keys(ans).length > 0
           ? Object.entries(ans).map(([q, a]) => ({ question: q, answer: a }))
