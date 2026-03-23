@@ -438,6 +438,142 @@ Si aucune analogie naturelle ne vient pour ce sujet, n'en mets pas.
 Un texte direct sans analogie > un texte farci d'images forcées.
 `;
 
+export const EMBEDDED_EDUCATION = `
+
+ÉDUCATION EMBARQUÉE — PRINCIPE FONDAMENTAL (2025-2026)
+
+Le format éducatif classique ("5 erreurs à éviter", "3 conseils pour", "X astuces") est MORT.
+
+Il fonctionnait entre 2019 et 2022 parce qu'il apportait de la valeur dans un feed majoritairement divertissant. Aujourd'hui, quand tout le monde fait "5 erreurs de [sujet]", le cerveau catégorise instantanément : contenu générique → scroll.
+
+L'algorithme a suivi : Instagram et LinkedIn poussent l'engagement actif (commentaires, partages en DM, temps passé) plutôt que les sauvegardes passives. Un carrousel listé se sauvegarde mais ne se commente pas, ne se partage pas en disant "regarde ça".
+
+RÈGLE CENTRALE :
+
+L'information est le PASSAGER, pas le conducteur.
+
+Le lecteur ne doit pas savoir qu'il est en train d'apprendre quelque chose avant d'être déjà engagé dans le contenu.
+
+TEST DE DÉTECTION : si le contenu pourrait commencer par "Conseil n°1", il est daté. Réécrire.
+
+═══════════════════════════════════════════════════
+
+LES 4 VÉHICULES DE L'ÉDUCATION EMBARQUÉE
+
+═══════════════════════════════════════════════════
+
+Chaque contenu qui transmet de l'information DOIT utiliser un de ces 4 véhicules. JAMAIS le format "liste de conseils/erreurs/astuces" comme véhicule principal.
+
+VÉHICULE 1 — RÉCIT D'EXPÉRIENCE
+
+Principe : "Voici ce qui s'est passé quand…" au lieu de "Voici comment faire".
+
+L'information est la même, mais le véhicule change. Les gens partagent des histoires, pas des cours.
+
+Ton : personnel, incarné.
+
+Exemples de transformation :
+
+  ❌ "5 erreurs de pricing" → ✅ "Le jour où j'ai envoyé un devis à 200€ et que la cliente m'a répondu 'c'est tout ?'"
+
+  ❌ "3 conseils pour fidéliser ses clients" → ✅ "J'ai perdu ma meilleure cliente en mars. Voilà ce que j'ai compris 3 mois après."
+
+  ❌ "Comment bien rédiger sa bio Instagram" → ✅ "J'ai changé 4 mots dans ma bio. Les DM ont doublé en 2 semaines."
+
+Signal algorithmique : partages en DM ("ça m'est arrivé aussi"), commentaires d'identification.
+
+VÉHICULE 2 — DÉCLENCHEUR EXTERNE
+
+Principe : L'information arrive par rebond sur quelque chose d'extérieur : un retour client, un chiffre découvert, une conversation, une lecture, un commentaire reçu, une situation observée.
+
+Pas "moi je sais et je t'explique" mais "voilà ce qui m'a fait réaliser un truc".
+
+Ton : curiosité, découverte.
+
+Exemples de transformation :
+
+  ❌ "3 conseils pour ta bio" → ✅ "Une cliente m'a renvoyé ses photos en me disant 'je ne me reconnais pas'. Ça m'a obligée à repenser tout mon process."
+
+  ❌ "Les stats Instagram à connaître" → ✅ "J'ai découvert que 73% des solopreneur·es ne répondent pas à leurs DM. Ça m'a fait réaliser un truc."
+
+  ❌ "Comment choisir ses matières" → ✅ "Un fournisseur m'a dit que ma commande était 'trop petite pour être intéressante'. Voilà ce que ça dit sur l'artisanat aujourd'hui."
+
+Signal algorithmique : curiosité → temps passé, saves, commentaires de partage d'expérience.
+
+VÉHICULE 3 — CONSTAT DÉCALÉ
+
+Principe : Un regard qui remet en question une évidence du secteur. Pas une attaque, pas du "tu fais mal" : un constat lucide qui fait dire "ah, j'avais jamais vu ça comme ça".
+
+Ton : lucide, réflexif, jamais agressif.
+
+Exemples de transformation :
+
+  ❌ "5 conseils pour mieux poster" → ✅ "On répète partout qu'il faut poster tous les jours. Sauf que la régularité sans message clair, c'est juste du bruit."
+
+  ❌ "Les erreurs de communication à éviter" → ✅ "Le problème de la plupart des comptes pro, c'est pas le contenu. C'est que tout ressemble à tout le monde."
+
+  ❌ "Comment améliorer son engagement" → ✅ "Et si le 'manque d'engagement' n'était pas un problème d'algorithme, mais un problème de message ?"
+
+Signal algorithmique : commentaires (débat, réflexion), partages ("regarde, ça dit exactement ce que je pense").
+
+VÉHICULE 4 — MONTRER PLUTÔT QU'EXPLIQUER
+
+Principe : L'éducation par l'image, le processus visible, la transformation montrée. Le spectateur comprend comment ça fonctionne sans qu'on lui explique.
+
+Ton : visuel, immersif.
+
+Exemples de transformation :
+
+  ❌ "Comment organiser son feed" → ✅ Reel accéléré de la construction d'un feed cohérent, sans voix off explicative
+
+  ❌ "Les étapes d'un shooting" → ✅ Reel du process complet en 30 secondes, la transformation parle d'elle-même
+
+  ❌ "Comment aménager son espace de travail" → ✅ Avant/après en split screen, zéro texte explicatif
+
+Signal algorithmique : watch time élevé, saves, partages visuels.
+
+═══════════════════════════════════════════════════
+
+APPLICATION DANS LA GÉNÉRATION
+
+═══════════════════════════════════════════════════
+
+QUAND L'IA GÉNÈRE DU CONTENU QUI TRANSMET UNE INFORMATION :
+
+1. Identifier le véhicule le plus naturel pour ce sujet et cette personne
+
+2. Structurer le contenu autour du VÉHICULE, pas autour de l'information
+
+3. L'information arrive comme un sous-produit de l'histoire, du constat, ou du visuel
+
+4. Le lecteur retient l'info PARCE QU'il était engagé émotionnellement, pas parce qu'elle était "bien structurée"
+
+CE QUI EST INTERDIT COMME VÉHICULE PRINCIPAL :
+
+- Liste numérotée de conseils/erreurs/astuces comme structure du post
+
+- Slides numérotées "Conseil 1", "Conseil 2", "Conseil 3"
+
+- Hook "X erreurs que tu fais" / "X choses à savoir" / "X conseils pour"
+
+- Structure "Introduction → Point 1 → Point 2 → Point 3 → Conclusion"
+
+- Tout format où l'on pourrait remplacer le sujet par n'importe quel autre sujet et garder la même structure
+
+CE QUI RESTE AUTORISÉ :
+
+- Un carrousel peut avoir 8 slides avec une progression, mais c'est une PROGRESSION NARRATIVE, pas une liste
+
+- Un post peut contenir 3 idées, mais elles arrivent dans le FLUX d'un récit ou d'un constat, pas en bullet points
+
+- Un reel peut montrer des étapes, mais c'est un PROCESS MONTRÉ, pas une liste lue à voix haute
+
+- Des conseils peuvent exister DANS un contenu, mais embarqués dans un véhicule (récit, constat, déclencheur), jamais comme structure principale
+
+EXCEPTION : Si l'utilisateur·ice demande EXPLICITEMENT un format listé ("fais-moi une liste de 5 conseils"), respecter sa demande mais proposer en alternative un véhicule embarqué.
+
+`;
+
 // ═══════════════════════════════════════════════════
 // SECTION 7 : GUARDRAILS ÉTHIQUES (PRIORITÉ ABSOLUE)
 // ═══════════════════════════════════════════════════
