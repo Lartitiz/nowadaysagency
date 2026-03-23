@@ -1240,7 +1240,7 @@ Principe : Décortiquer un sujet en profondeur avec des points de vue fouillés.
 Structure par défaut : éducationnelle
 Objectifs : crédibilité + visibilité | Phase 1-2 | Déclic : prise de conscience
 En carrousel (8-10 slides) : Hook pédagogique → Constat → Analyse point 1 → Analyse point 2 → Analyse point 3 → Synthèse → Application → Punchline
-En reel (45-60s) : Hook 0-3s "3 choses que personne ne te dit sur..." → Point 1 → Point 2 → Point 3 → Synthèse
+En reel (45-60s) : Hook 0-3s (constat décalé ou question qui intrigue) → Le mécanisme caché 3-20s → L'exemple concret 20-40s → Ce que ça change 40-50s → Ouverture 50-60s
 En story (5-7 stories) : Hook → Point 1 + sondage → Point 2 → Point 3 → Synthèse → Save CTA
 En post caption : Accroche analyse → Développement structuré → Preuves → Synthèse → CTA
 En LinkedIn : Accroche expertise → Analyse détaillée avec données → Position → CTA
