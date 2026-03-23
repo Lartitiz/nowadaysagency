@@ -130,7 +130,7 @@ Retourne exactement 3 actus, classées par pertinence décroissante. Si aucune a
 { "actus": [], "message": "Pas d'actu suffisamment pertinente trouvée pour ton secteur cette semaine. Réessaie dans quelques jours !" }`;
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 60000);
+    const timeout = setTimeout(() => controller.abort(), 120000);
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
