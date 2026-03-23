@@ -207,13 +207,16 @@ CARROUSEL STORYTELLING (8-10 slides) :
 - Slide 7 : Morale partageable (leçon universelle)
 - Slide 8 : Apaisement (note douce, pas moralisatrice)
 
-CARROUSEL TUTO (8 slides) :
-- Slide 1 : Hook concret ("Comment [résultat] sans [souci] ?")
-- Slide 2 : Contexte terrain
-- Slide 3 : Principe clé
-- Slide 4 : Concept/terme-clé
-- Slides 5-7 : Étapes 1, 2, 3 avec exemple à l'étape 3
-- Slide 8 : CTA léger
+CARROUSEL PROCESS (8 slides) :
+- Slide 1 : Hook résultat ou transformation ("Comment je suis passée de [avant] à [après]")
+- Slide 2 : Le contexte de départ (situation réelle, pas théorique)
+- Slide 3 : Le premier déclic ou la première action
+- Slide 4 : Ce qui a coincé (la difficulté, l'erreur, le doute)
+- Slide 5 : L'ajustement (ce qui a fait la différence)
+- Slide 6 : Le résultat concret (chiffres, retours, changement observable)
+- Slide 7 : La leçon transférable (le lecteur peut l'appliquer à SA situation)
+- Slide 8 : CTA léger ou question
+Note : les étapes sont racontées comme un RÉCIT de process, pas comme un mode d'emploi numéroté.
 
 REEL FACE CAM (15-60 sec) :
 - 0-3 sec : Hook textuel à l'écran + regard caméra
