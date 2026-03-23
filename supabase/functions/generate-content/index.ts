@@ -36,7 +36,7 @@ const ACCROCHE_BANK: Record<string, string[]> = {
   ],
   credibilite: [
     "Accroche décryptage : 'J'ai analysé...' ou 'J'ai remarqué que...'",
-    "Accroche liste : '5 choses que j'ai apprises en...'",
+    "Accroche déclencheur : 'Un chiffre m'a interpellée cette semaine...' ou 'Un retour client m'a fait réaliser que...'",
     "Accroche mythe : '\"Il faut...\" Non.'",
     "Accroche expertise : partage une observation que seul·e un·e expert·e fait",
     "Accroche processus : montre ton framework ou ta méthode",
@@ -123,7 +123,7 @@ serve(async (req) => {
         const objectifInstruction = objectif
           ? `L'objectif choisi est : ${objectif}. Oriente les sujets en conséquence.`
           : "";
-        systemPrompt = `${CORE_PRINCIPLES}\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\n${objectifInstruction}\n\nPropose exactement 5 idées de sujets de posts ${canalLabel}, adaptées à son activité et sa cible. Chaque idée doit être formulée comme un sujet concret et spécifique (pas vague), en une phrase.\n\nVarie les angles : un sujet éducatif, un storytelling, un sujet engagé, un sujet pratique, un sujet inspirant.\n\nRéponds uniquement avec les 5 sujets, un par ligne, sans numérotation, sans tiret, sans explication.`;
+        systemPrompt = `${CORE_PRINCIPLES}\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\n${objectifInstruction}\n\nPropose exactement 5 idées de sujets de posts ${canalLabel}, adaptées à son activité et sa cible. Chaque idée doit être formulée comme un sujet concret et spécifique (pas vague), en une phrase.\n\nVarie les angles : un récit d'expérience (raconter ce qui s'est passé quand…), un constat décalé (remettre en question une évidence du secteur), un déclencheur externe (rebondir sur un retour client, un chiffre, une conversation), un sujet engagé (prise de position sur un enjeu du métier), un sujet qui montre plutôt qu'il explique (process, transformation, avant/après). JAMAIS de sujet formulé comme une liste de conseils ou d'erreurs.\n\nRéponds uniquement avec les 5 sujets, un par ligne, sans numérotation, sans tiret, sans explication.`;
         userPrompt = `Propose-moi 5 sujets de posts ${canalLabel}.`;
 
       } else if (type === "weekly-suggestions") {
@@ -160,21 +160,23 @@ CHAQUE IDÉE DOIT CONTENIR :
 3. Un FORMAT adapté au sujet
 4. Un OBJECTIF de communication
 5. Un ANGLE ÉDITORIAL parmi ces formats Nowadays :
-   - "coup_de_gueule" : exprimer une injustice de ton secteur
-   - "mythe_a_deconstruire" : démonter une croyance répandue
-   - "storytelling_lecon" : raconter un vécu + en tirer une leçon
-   - "histoire_cliente" : illustrer un blocage commun via un cas réel
-   - "conseil_contre_intuitif" : donner un conseil qui va à l'encontre du consensus
-   - "regard_philosophique" : prendre de la hauteur sur un sujet de société lié à son métier
-   - "before_after" : montrer une évolution (pratique, pensée, résultat)
+   - "recit_experience" : raconter ce qui s'est passé quand… (l'info arrive comme sous-produit de l'histoire)
+   - "declencheur_externe" : rebondir sur un retour client, un chiffre découvert, une conversation, un commentaire reçu
+   - "constat_decale" : remettre en question une évidence du secteur avec un regard lucide (pas une attaque)
+   - "coup_de_gueule" : exprimer une frustration partagée sur un problème systémique du secteur
+   - "mythe_a_deconstruire" : démonter une croyance répandue avec des arguments concrets
+   - "histoire_cliente" : illustrer un blocage commun via un cas réel (social proof incarné)
+   - "before_after" : montrer une transformation concrète (process visible, pas juste un résultat annoncé)
    - "identification" : situation du quotidien dans laquelle la cible se reconnaît
-   - "analyse_decryptage" : décortiquer un sujet en profondeur
-   - "build_in_public" : partager les coulisses de son projet
+   - "build_in_public" : partager les coulisses de son projet en transparence
+   - "regard_philosophique" : prendre de la hauteur sur un sujet de société lié à son métier
    - "surf_actu" : rebondir sur une actualité pertinente
 
 RÈGLES CRITIQUES :
 - Les idées doivent être ULTRA-SPÉCIFIQUES à son activité, sa cible, ses piliers, ses combats. Pas de sujets génériques applicables à n'importe qui.
+- ÉDUCATION EMBARQUÉE OBLIGATOIRE : l'information est le passager, pas le conducteur. Chaque idée doit transmettre l'info via un VÉHICULE (récit, déclencheur, constat, process montré). JAMAIS de sujet formulé comme "X conseils pour", "X erreurs à éviter", "X astuces". Si le hook pourrait commencer par "Conseil n°1", réécrire.
 - Le hook doit être formulé comme la vraie première phrase du post : oral, direct, percutant. Pas un titre de blog SEO.
+- Le hook doit embarquer le lecteur dans une SITUATION, une ANECDOTE, un CONSTAT ou une TENSION. Pas dans une promesse de liste ("Voici 5…", "Les 3 erreurs…").
 - Varier les objectifs : une idée orientée visibilité, une confiance/engagement, une vente/crédibilité.
 - Varier les angles éditoriaux : ne PAS proposer 3 fois le même format.
 - Varier les formats Instagram : mixer post, carousel, reel, story.
