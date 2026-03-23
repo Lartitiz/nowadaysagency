@@ -186,15 +186,16 @@ export const FORMAT_STRUCTURES = `
 STRUCTURES PAR FORMAT
 ═══════════════════════════════════════════════════
 
-CARROUSEL ÉDUCATIF (8-10 slides) :
-- Slide 1 : Hook (verbe d'action + promesse inattendue. Peu de mots.)
-- Slide 2 : Constat (ce que tout le monde croit → connivence)
-- Slide 3 : Bascule/révélation (concept nouveau)
-- Slide 4 : Développement/preuve (donnée, exemple concret)
-- Slide 5 : Interprétation (dans le langage de l'utilisatrice)
-- Slide 6 : Morale bienveillante (ton humain, complice)
-- Slide 7 : Application concrète (rendre utile)
-- Slide 8 : Punchline finale (phrase courte, parallèle raison/émotion)
+CARROUSEL INSIGHT (8-10 slides) :
+- Slide 1 : Hook (situation concrète ou constat décalé. Peu de mots, beaucoup d'intrigue.)
+- Slide 2 : Contexte vécu (une situation, un moment, un déclencheur : "La semaine dernière...", "Une cliente m'a dit...")
+- Slide 3 : Le problème tel qu'on le vit (identification : le lecteur se reconnaît)
+- Slide 4 : Bascule/révélation (le regard qui change, le mécanisme caché)
+- Slide 5 : Développement (preuve, donnée, exemple concret qui ancre)
+- Slide 6 : Ce que ça change concrètement (dans les mots de l'utilisatrice)
+- Slide 7 : Application ou permission (rendre utile sans faire cours)
+- Slide 8 : Punchline (phrase courte qui reste en tête, ouvre plutôt que ferme)
+Note : ce n'est PAS une liste de conseils numérotés. C'est un arc narratif : situation → tension → compréhension → ouverture.
 
 CARROUSEL STORYTELLING (8-10 slides) :
 - Slide 1 : La claque (phrase choc ou chiffrée)
