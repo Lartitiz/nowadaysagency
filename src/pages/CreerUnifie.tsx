@@ -398,9 +398,24 @@ export default function CreerUnifie() {
     });
   }, [generateQuestions]);
 
+  const handleNewsjackingSelect = useCallback((data: { subject: string; context: string; format?: string; vehicule?: string }) => {
+    setIdeaText(data.subject);
+    setNewsjackingContext(data.context);
+    if (data.format) {
+      const formatMap: Record<string, string> = {
+        post: "post", carousel: "carousel", reel: "reel",
+        story: "story", linkedin: "linkedin",
+      };
+      if (formatMap[data.format]) setSelectedFormat(formatMap[data.format]);
+    }
+    if (!objective) setObjective("visibilite");
+    setStep("format");
+  }, [objective]);
+
   const handleIdeaNext = (idea: string, obj?: string) => {
     setIdeaText(idea);
     setObjective(obj || null);
+    setNewsjackingContext(null);
     // Reset format-related state so the user starts fresh at channel selection
     setSelectedFormat(null);
     setEditorialAngle(null);
