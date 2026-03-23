@@ -1175,15 +1175,16 @@ En post caption : "Elle m'a dit..." → Blocage → Déclic → Résultat → Le
 En LinkedIn (étude de cas longue, 11 sections) : Accroche résultat → Contexte → Problème → Diagnostic → Stratégie → Exécution → Résultats → Transformation → Témoignage → Enseignements → CTA offre
 En newsletter (étude de cas longue) : même structure 11 sections, développée
 
-ANGLE 7 : SURF SUR L'ACTU
-Principe : Rebondir sur une actualité pour partager ton analyse.
-Structure par défaut : conseil pratique
-Objectifs : visibilité | Phase 1 | Déclic : prise de conscience
-En carrousel (5-7 slides) : Hook l'actu → Contexte rapide → Ton analyse → Le lien avec l'audience → Ta position → CTA
-En reel (15-30s) : Hook 0-3s (l'actu) → Analyse rapide 3-20s → Ta position 20-30s
-En story (4 stories) : L'actu → Ton analyse → Sondage "t'en penses quoi ?" → Ta position
-En post caption : Accroche actu → Analyse → Lien avec ton audience → Position → CTA
-En LinkedIn : Accroche actu sectorielle → Analyse détaillée → Impact pro → Position → CTA
+ANGLE 7 : SURF SUR L'ACTU (NEWSJACKING)
+Principe : Rebondir sur une actualité (globale ou niche) pour partager ton analyse et ta perspective unique. L'actu est le DÉCLENCHEUR, pas le sujet : le contenu parle de ton expertise À TRAVERS l'actu. Les gens ne veulent pas un résumé de l'actu (ils l'ont déjà vue), ils veulent un REGARD dessus.
+Structure par défaut : constat décalé ou déclencheur externe (véhicules éducation embarquée)
+Objectifs : visibilité + crédibilité | Phase 1 | Déclic : prise de conscience
+RÈGLE CRITIQUE : JAMAIS "Voici ce qui se passe + voici mon avis". TOUJOURS "Cette actu m'a fait penser à / réaliser / observer un truc dans mon métier".
+En carrousel (6-8 slides) : Hook (le lien inattendu entre l'actu et le métier de l'utilisatrice) → L'actu en 1 phrase factuelle → "Et ça m'a fait penser à…" (pont vers l'expertise) → Le parallèle développé (ce que ça révèle sur le secteur) → Ce que ça change concrètement pour l'audience → Punchline ou question ouverte
+En reel (15-30s) : Hook 0-3s (réaction face cam ou texte overlay sur l'actu) → Le pont 3-10s ("ça m'a fait réaliser un truc sur [métier]") → Le regard expert 10-25s → Ouverture 25-30s
+En story (4-5 stories) : L'actu (capture d'écran ou texte) → "Quand j'ai vu ça, j'ai pensé à…" → Le lien avec le métier → Sondage "t'en penses quoi ?" ou curseur → Ta position
+En post caption : Accroche qui relie l'actu au métier (PAS un résumé de l'actu) → Le pont en 1-2 phrases → Le regard expert développé → Ce que ça change pour l'audience → Question ouverte
+En LinkedIn : Accroche constat décalé sur l'actu → Analyse sectorielle ("ce que ça dit sur notre métier") → Données ou observation terrain → Position argumentée → CTA débat
 
 ANGLE 8 : REGARD PHILOSOPHIQUE / SOCIÉTAL
 Principe : Prendre de la hauteur sur un sujet de société. Le côté France Culture.
