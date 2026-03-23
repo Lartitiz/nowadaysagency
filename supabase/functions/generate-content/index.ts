@@ -36,7 +36,7 @@ const ACCROCHE_BANK: Record<string, string[]> = {
   ],
   credibilite: [
     "Accroche décryptage : 'J'ai analysé...' ou 'J'ai remarqué que...'",
-    "Accroche liste : '5 choses que j'ai apprises en...'",
+    "Accroche déclencheur : 'Un chiffre m'a interpellée cette semaine...' ou 'Un retour client m'a fait réaliser que...'",
     "Accroche mythe : '\"Il faut...\" Non.'",
     "Accroche expertise : partage une observation que seul·e un·e expert·e fait",
     "Accroche processus : montre ton framework ou ta méthode",
