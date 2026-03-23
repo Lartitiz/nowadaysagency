@@ -125,7 +125,7 @@ function LoadingMessage() {
   );
 }
 
-export default function ContentCoachingDialog({ open, onOpenChange, onSelect }: Props) {
+export default function ContentCoachingDialog({ open, onOpenChange, onSelect, onNewsjackingRedirect }: Props) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const workspaceId = useWorkspaceId();
