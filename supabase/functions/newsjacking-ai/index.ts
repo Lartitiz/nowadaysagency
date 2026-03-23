@@ -6,7 +6,7 @@ import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { isDemoUser } from "../_shared/guard-demo.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { getModelForAction } from "../_shared/anthropic.ts";
-import { EMBEDDED_EDUCATION } from "../_shared/copywriting-prompts.ts";
+
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
