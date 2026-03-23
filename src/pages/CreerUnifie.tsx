@@ -149,6 +149,7 @@ export default function CreerUnifie() {
   const [structureProposal, setStructureProposal] = useState<StructureProposal | null>(null);
   const [structureLoading, setStructureLoading] = useState(false);
   const [lastConfirmedStructure, setLastConfirmedStructure] = useState<SlideProposal[] | null>(null);
+  const [newsjackingContext, setNewsjackingContext] = useState<string | null>(null);
 
   const { restored: draftRestored, clearDraft } = useFormPersist(
     "creer-unifie-form",
@@ -397,9 +398,24 @@ export default function CreerUnifie() {
     });
   }, [generateQuestions]);
 
+  const handleNewsjackingSelect = useCallback((data: { subject: string; context: string; format?: string; vehicule?: string }) => {
+    setIdeaText(data.subject);
+    setNewsjackingContext(data.context);
+    if (data.format) {
+      const formatMap: Record<string, string> = {
+        post: "post", carousel: "carousel", reel: "reel",
+        story: "story", linkedin: "linkedin",
+      };
+      if (formatMap[data.format]) setSelectedFormat(formatMap[data.format]);
+    }
+    if (!objective) setObjective("visibilite");
+    setStep("format");
+  }, [objective]);
+
   const handleIdeaNext = (idea: string, obj?: string) => {
     setIdeaText(idea);
     setObjective(obj || null);
+    setNewsjackingContext(null);
     // Reset format-related state so the user starts fresh at channel selection
     setSelectedFormat(null);
     setEditorialAngle(null);
@@ -589,7 +605,9 @@ export default function CreerUnifie() {
       const streamBody: any = {
         step: "generate",
         contentType: contentTypeMap[selectedFormat] || "post_instagram",
-        context: enrichedSubject,
+        context: newsjackingContext
+          ? `${enrichedSubject}\n\n--- CONTEXTE ACTUALITÉ ---\n${newsjackingContext}\n--- FIN CONTEXTE ACTUALITÉ ---\n\nIMPORTANT : Ce contenu est un newsjacking. L'actu ci-dessus est le DÉCLENCHEUR, pas le sujet principal. Le contenu doit relier cette actu à l'expertise et au vécu de l'utilisateur·ice. Utilise un véhicule d'éducation embarquée.`
+          : enrichedSubject,
         angle: angleObj,
         answers: Object.keys(ans).length > 0
           ? Object.entries(ans).map(([q, a]) => ({ question: q, answer: a }))
@@ -602,6 +620,7 @@ export default function CreerUnifie() {
         editorialFormat: editorialAngle || undefined,
         editorialFormatLabel: editorialAngle || undefined,
         ...(photoMode ? { photo_mode: true, photo_description: photoDescription } : {}),
+        ...(newsjackingContext ? { deepResearch: true } : {}),
         ...(selectedFormat === "pinterest" && pinterestData ? {
           pinterest_link: pinterestData.link,
           pinterest_board: pinterestData.boardName,
@@ -988,6 +1007,7 @@ export default function CreerUnifie() {
     resetGenerator();
     streamReset();
     setStep("idea");
+    setNewsjackingContext(null);
     setIdeaText("");
     setObjective(null);
     setSelectedFormat(null);
@@ -1790,7 +1810,7 @@ export default function CreerUnifie() {
                     ✨ {remainingTotal()} générations restantes ce mois
                   </p>
                 )}
-                <CreerStepIdea onNext={handleIdeaNext} onCoachingSelect={handleCoachingSelect} />
+                <CreerStepIdea onNext={handleIdeaNext} onCoachingSelect={handleCoachingSelect} onNewsjackingSelect={handleNewsjackingSelect} workspaceId={workspaceId} />
               </>
             )}
 
@@ -1805,7 +1825,7 @@ export default function CreerUnifie() {
                   else setIsLinkedInCarousel(false);
                   handleFormatNext(fmt, angle, { carouselSubMode: sub || (linkedinCar ? "text" : undefined), photos, photoDescription: desc, photoMode: pm });
                 }}
-                onBack={() => setStep("idea")}
+                onBack={() => { setStep("idea"); setNewsjackingContext(null); }}
               />
             )}
 
