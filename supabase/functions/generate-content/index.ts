@@ -123,7 +123,7 @@ serve(async (req) => {
         const objectifInstruction = objectif
           ? `L'objectif choisi est : ${objectif}. Oriente les sujets en conséquence.`
           : "";
-        systemPrompt = `${CORE_PRINCIPLES}\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\n${objectifInstruction}\n\nPropose exactement 5 idées de sujets de posts ${canalLabel}, adaptées à son activité et sa cible. Chaque idée doit être formulée comme un sujet concret et spécifique (pas vague), en une phrase.\n\nVarie les angles : un sujet éducatif, un storytelling, un sujet engagé, un sujet pratique, un sujet inspirant.\n\nRéponds uniquement avec les 5 sujets, un par ligne, sans numérotation, sans tiret, sans explication.`;
+        systemPrompt = `${CORE_PRINCIPLES}\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\n${objectifInstruction}\n\nPropose exactement 5 idées de sujets de posts ${canalLabel}, adaptées à son activité et sa cible. Chaque idée doit être formulée comme un sujet concret et spécifique (pas vague), en une phrase.\n\nVarie les angles : un récit d'expérience (raconter ce qui s'est passé quand…), un constat décalé (remettre en question une évidence du secteur), un déclencheur externe (rebondir sur un retour client, un chiffre, une conversation), un sujet engagé (prise de position sur un enjeu du métier), un sujet qui montre plutôt qu'il explique (process, transformation, avant/après). JAMAIS de sujet formulé comme une liste de conseils ou d'erreurs.\n\nRéponds uniquement avec les 5 sujets, un par ligne, sans numérotation, sans tiret, sans explication.`;
         userPrompt = `Propose-moi 5 sujets de posts ${canalLabel}.`;
 
       } else if (type === "weekly-suggestions") {
