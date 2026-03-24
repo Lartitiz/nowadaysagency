@@ -186,6 +186,11 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
 
   const handleNext = () => {
     if (!selectedFormat) return;
+    // Guard: photo/mix mode requires at least one photo
+    if (selectedFormat === "carousel" && (carouselSubMode === "photo" || carouselSubMode === "mix") && uploadedPhotos.length === 0) {
+      setPhotoWarning(true);
+      return;
+    }
     const isCarouselPhoto = selectedFormat === "carousel" && carouselSubMode === "photo";
     const isCarouselMix = selectedFormat === "carousel" && carouselSubMode === "mix";
     const isPostPhoto = selectedFormat === "post" && photoMode;
