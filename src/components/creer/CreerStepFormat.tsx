@@ -60,6 +60,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
   const [linkedinSubMode, setLinkedinSubMode] = useState<"text" | "carousel" | null>(null);
   const [pinterestSubMode, setPinterestSubMode] = useState<"text" | "visual" | "inspiration" | null>(null);
   const [inspirationPhotos, setInspirationPhotos] = useState<PhotoItem[]>([]);
+  const [photoWarning, setPhotoWarning] = useState(false);
 
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
@@ -186,6 +187,11 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
 
   const handleNext = () => {
     if (!selectedFormat) return;
+    // Guard: photo/mix mode requires at least one photo
+    if (selectedFormat === "carousel" && (carouselSubMode === "photo" || carouselSubMode === "mix") && uploadedPhotos.length === 0) {
+      setPhotoWarning(true);
+      return;
+    }
     const isCarouselPhoto = selectedFormat === "carousel" && carouselSubMode === "photo";
     const isCarouselMix = selectedFormat === "carousel" && carouselSubMode === "mix";
     const isPostPhoto = selectedFormat === "post" && photoMode;
@@ -431,9 +437,30 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
         <div className="animate-fade-in">
           <PhotoUploadZone
             maxPhotos={10}
-            onPhotosChange={setUploadedPhotos}
+            onPhotosChange={(photos) => {
+              setUploadedPhotos(photos);
+              if (photos.length > 0) setPhotoWarning(false);
+            }}
             onDescriptionChange={setPhotoDescription}
           />
+          {photoWarning && (
+            <div className="mt-3 p-3 rounded-lg bg-amber-50 border border-amber-200 space-y-2 animate-fade-in">
+              <p className="text-sm text-amber-800">
+                📸 Pour ce mode, il faut au moins une photo. Pas de photos sous la main ?
+              </p>
+              <button
+                onClick={() => {
+                  setCarouselSubMode("text");
+                  setUploadedPhotos([]);
+                  setPhotoDescription("");
+                  setPhotoWarning(false);
+                }}
+                className="text-sm font-medium text-primary hover:underline"
+              >
+                → Passer en mode Texte (tu pourras toujours ajouter tes photos plus tard)
+              </button>
+            </div>
+          )}
         </div>
       )}
 
