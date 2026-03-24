@@ -92,6 +92,45 @@ serve(async (req) => {
       template_layout_description: charter.template_layout_description || "",
     };
 
+    // Sanitize font names — certains caractères peuvent casser l'URL Google Fonts ou le HTML
+    const safeFontTitle = ch.font_title.replace(/[<>"'&]/g, "");
+    const safeFontBody = ch.font_body.replace(/[<>"'&]/g, "");
+
+    // Tronquer les champs textuels longs pour éviter un system prompt trop gros
+    const MAX_BRIEF = 2000;
+    const MAX_LAYOUT_DESC = 1500;
+    const MAX_MOODBOARD = 1000;
+    if (ch.ai_generated_brief.length > MAX_BRIEF) {
+      ch.ai_generated_brief = ch.ai_generated_brief.slice(0, MAX_BRIEF) + "…";
+      console.warn("carousel-visual: ai_generated_brief tronqué");
+    }
+    if (ch.template_layout_description.length > MAX_LAYOUT_DESC) {
+      ch.template_layout_description = ch.template_layout_description.slice(0, MAX_LAYOUT_DESC) + "…";
+      console.warn("carousel-visual: template_layout_description tronqué");
+    }
+    if (ch.moodboard_description.length > MAX_MOODBOARD) {
+      ch.moodboard_description = ch.moodboard_description.slice(0, MAX_MOODBOARD) + "…";
+      console.warn("carousel-visual: moodboard_description tronqué");
+    }
+
+    // Diagnostic log — contexte utilisateur pour débug
+    console.log(JSON.stringify({
+      type: "carousel_visual_context",
+      user_id: user.id,
+      has_charter: !!bodyCharter || !!charter,
+      font_title: ch.font_title,
+      font_body: ch.font_body,
+      has_uploaded_templates: Array.isArray(charter.uploaded_templates) && charter.uploaded_templates.length > 0,
+      uploaded_templates_count: Array.isArray(charter.uploaded_templates) ? charter.uploaded_templates.length : 0,
+      has_ai_brief: !!ch.ai_generated_brief,
+      ai_brief_length: ch.ai_generated_brief?.length || 0,
+      has_template_layout: !!ch.template_layout_description,
+      template_layout_length: ch.template_layout_description?.length || 0,
+      has_moodboard: !!ch.moodboard_description,
+      moodboard_length: ch.moodboard_description?.length || 0,
+      timestamp: new Date().toISOString(),
+    }));
+
     // Extract uploaded template URLs for charter_reference mode
     const uploadedTemplates: { url: string; name: string }[] = Array.isArray(charter.uploaded_templates) ? charter.uploaded_templates : [];
 
