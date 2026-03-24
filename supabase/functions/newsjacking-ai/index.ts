@@ -164,34 +164,63 @@ Retourne exactement 3 actus, classées par pertinence décroissante. Si aucune a
 
     const data = await response.json();
 
-    // Extract text blocks
+    // Extract text blocks (web search responses have multiple text blocks interleaved with search results)
     const textBlocks = (data.content || []).filter((b: any) => b.type === "text").map((b: any) => b.text);
     const fullText = textBlocks.join("\n");
+    console.log("Raw text blocks count:", textBlocks.length, "Full text length:", fullText.length);
 
-    // Parse JSON
+    // Parse JSON — try multiple strategies
     let parsed: any;
+
+    // Strategy 1: direct parse
     try {
       parsed = JSON.parse(fullText.trim());
     } catch {
-      // Fallback: extract JSON from surrounding text
-      const firstBrace = fullText.indexOf("{");
-      const lastBrace = fullText.lastIndexOf("}");
-      if (firstBrace !== -1 && lastBrace > firstBrace) {
-        try {
-          parsed = JSON.parse(fullText.slice(firstBrace, lastBrace + 1));
-        } catch {
-          console.error("JSON parse failed. Text:", fullText.slice(0, 500));
-          return new Response(JSON.stringify({ error: "Erreur de parsing. Réessaie." }), {
+      // Strategy 2: find the outermost JSON object containing "actus"
+      const actusIndex = fullText.indexOf('"actus"');
+      if (actusIndex !== -1) {
+        let braceStart = fullText.lastIndexOf("{", actusIndex);
+        if (braceStart !== -1) {
+          let depth = 0;
+          let braceEnd = -1;
+          for (let i = braceStart; i < fullText.length; i++) {
+            if (fullText[i] === "{") depth++;
+            else if (fullText[i] === "}") {
+              depth--;
+              if (depth === 0) { braceEnd = i; break; }
+            }
+          }
+          if (braceEnd !== -1) {
+            try {
+              parsed = JSON.parse(fullText.slice(braceStart, braceEnd + 1));
+            } catch (e2) {
+              console.error("JSON parse strategy 2 failed:", (e2 as Error).message);
+            }
+          }
+        }
+      }
+
+      // Strategy 3: last resort — find first { and last }
+      if (!parsed) {
+        const firstBrace = fullText.indexOf("{");
+        const lastBrace = fullText.lastIndexOf("}");
+        if (firstBrace !== -1 && lastBrace > firstBrace) {
+          try {
+            parsed = JSON.parse(fullText.slice(firstBrace, lastBrace + 1));
+          } catch (e3) {
+            console.error("JSON parse failed all strategies. Text preview:", fullText.slice(0, 800));
+            return new Response(JSON.stringify({ error: "Erreur de parsing IA. Réessaie." }), {
+              status: 500,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+        } else {
+          console.error("No JSON found in response. Text preview:", fullText.slice(0, 800));
+          return new Response(JSON.stringify({ error: "Réponse IA invalide. Réessaie." }), {
             status: 500,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
-      } else {
-        console.error("No JSON found in response. Text:", fullText.slice(0, 500));
-        return new Response(JSON.stringify({ error: "Réponse IA invalide. Réessaie." }), {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
       }
     }
 
