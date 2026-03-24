@@ -172,7 +172,7 @@ Tu dois produire des slides qui ressemblent à du design professionnel fait sur 
 - Chaque slide = un <div> EXACTEMENT 1080px × 1350px
 - CSS 100% inline (pas de classes CSS)
 - CHAQUE slide commence par une balise @import Google Fonts :
-  <style>@import url('https://fonts.googleapis.com/css2?family=${encodeURIComponent(ch.font_title)}:ital,wght@0,400;0,700;1,400&family=${encodeURIComponent(ch.font_body)}:wght@400;500;600;700&display=swap');</style>
+  <style>@import url('https://fonts.googleapis.com/css2?family=${encodeURIComponent(safeFontTitle)}:ital,wght@0,400;0,700;1,400&family=${encodeURIComponent(safeFontBody)}:wght@400;500;600;700&display=swap');</style>
 - HTML complet et autonome (chaque slide rendable seule dans un navigateur)
 - Pas de JavaScript
 - JAMAIS de cercle, rond, ou border-radius: 50% en élément décoratif de fond
