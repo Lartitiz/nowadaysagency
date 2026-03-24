@@ -552,7 +552,10 @@ export default function CreerUnifie() {
 
   const handleSkipQuestions = async () => {
     setAnswers({});
-    setStep("result");
+    const willProposeStructure = selectedFormat === "carousel" && !structureProposal && !lastConfirmedStructure;
+    if (!willProposeStructure) {
+      setStep("result");
+    }
     await doGenerate({});
   };
 
