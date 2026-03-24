@@ -251,8 +251,8 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
                                     <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium", vc.className)}>
                                       {vc.emoji} {vc.label}
                                     </span>
-                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                                      {FORMAT_LABELS[angle.format_suggere] || angle.format_suggere}
+                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted/50 text-muted-foreground/70 italic">
+                                      💡 idéal en {FORMAT_LABELS[angle.format_suggere] || angle.format_suggere}
                                     </span>
                                   </div>
                                   <p className="text-sm font-semibold leading-snug">« {angle.hook} »</p>
