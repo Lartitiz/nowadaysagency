@@ -543,7 +543,10 @@ export default function CreerUnifie() {
         .then(({ data }: any) => { if (data?.id) setCurrentBriefId(data.id); }, console.error);
     }
 
-    setStep("result");
+    const willProposeStructure = selectedFormat === "carousel" && !structureProposal && !lastConfirmedStructure;
+    if (!willProposeStructure) {
+      setStep("result");
+    }
     await doGenerate(ans);
   };
 
