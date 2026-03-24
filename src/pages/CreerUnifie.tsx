@@ -1689,6 +1689,11 @@ export default function CreerUnifie() {
       setVisualSlides(data.result?.slides_html || []);
       toast.success("Visuels générés !");
     } catch (e: any) {
+      posthog.capture("carousel_visual_error", {
+        error_message: e?.message || "unknown",
+        had_slides: !!result?.raw?.slides,
+        slides_count: result?.raw?.slides?.length || 0,
+      });
       toast.error(e?.message || "Erreur lors de la génération des visuels");
     } finally {
       setVisualLoading(false);
