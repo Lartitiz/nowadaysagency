@@ -801,7 +801,7 @@ Retourne UNIQUEMENT le JSON.`;
     // Les @import dans les iframes srcDoc ne chargent pas les fonts de façon fiable.
     // On remplace tous les @import Google Fonts par un <link> en tête du HTML.
     if (result?.slides_html) {
-      const fontsLink = `<link href="https://fonts.googleapis.com/css2?family=${encodeURIComponent(ch.font_title)}:ital,wght@0,400;0,700;1,400&family=${encodeURIComponent(ch.font_body)}:wght@400;500;600;700&display=swap" rel="stylesheet">`;
+      const fontsLink = `<link href="https://fonts.googleapis.com/css2?family=${encodeURIComponent(safeFontTitle)}:ital,wght@0,400;0,700;1,400&family=${encodeURIComponent(safeFontBody)}:wght@400;500;600;700&display=swap" rel="stylesheet">`;
       
       result.slides_html = result.slides_html.map((slide: any) => {
         let html = slide.html || "";
