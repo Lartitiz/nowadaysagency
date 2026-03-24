@@ -48,6 +48,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
   const [error, setError] = useState<string | null>(null);
   const [selectedActu, setSelectedActu] = useState<number | null>(null);
   const [isQuotaError, setIsQuotaError] = useState(false);
+  const [filter, setFilter] = useState<"all" | "globale" | "niche">("all");
 
   const fetchActus = useCallback(async () => {
     setLoading(true);
@@ -55,6 +56,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
     setActus(null);
     setSelectedActu(null);
     setIsQuotaError(false);
+    setFilter("all");
 
     try {
       const { data, error: fnError } = await supabase.functions.invoke("newsjacking-ai", {
