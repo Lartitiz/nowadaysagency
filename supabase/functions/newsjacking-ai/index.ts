@@ -126,7 +126,11 @@ Réponds UNIQUEMENT en JSON (pas de markdown, pas de backticks) :
   ]
 }
 
-Retourne exactement 3 actus, classées par pertinence décroissante. Si aucune actu pertinente n'est trouvée, retourne :
+RÉPARTITION OBLIGATOIRE : Retourne exactement 3 actus avec AU MINIMUM 1 actu globale ET au minimum 1 actu niche. Idéalement 1 globale + 2 niches, ou 2 globales + 1 niche.
+
+Pour l'actu GLOBALE : fais une première recherche web sur "actualité France aujourd'hui" ou "tendance société" AVANT de chercher la niche. L'actu globale doit être un sujet dont tout le monde parle, pas juste le secteur de la personne.
+
+Classe par pertinence décroissante. Si aucune actu pertinente n'est trouvée, retourne :
 { "actus": [], "message": "Pas d'actu suffisamment pertinente trouvée pour ton secteur cette semaine. Réessaie dans quelques jours !" }`;
 
     const controller = new AbortController();
