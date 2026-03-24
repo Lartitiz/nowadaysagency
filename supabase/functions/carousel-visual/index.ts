@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
-import { callAnthropic } from "../_shared/anthropic.ts";
+import { callAnthropic, type AnthropicModel } from "../_shared/anthropic.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 
@@ -673,7 +673,17 @@ Retourne UNIQUEMENT le JSON.`;
     }
     } // end else (text mode)
 
-    const model = "claude-opus-4-6" as any;
+    const model: AnthropicModel = "claude-opus-4-6";
+
+    console.log(JSON.stringify({
+      type: "carousel_visual_call",
+      model,
+      slides_count: messages.length,
+      style,
+      is_photo: isPhotoCarousel,
+      is_mix: isMixCarousel,
+      timestamp: new Date().toISOString(),
+    }));
 
     const rawResponse = await callAnthropic({
       model,
