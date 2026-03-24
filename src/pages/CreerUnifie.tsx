@@ -543,13 +543,19 @@ export default function CreerUnifie() {
         .then(({ data }: any) => { if (data?.id) setCurrentBriefId(data.id); }, console.error);
     }
 
-    setStep("result");
+    const willProposeStructure = selectedFormat === "carousel" && !structureProposal && !lastConfirmedStructure;
+    if (!willProposeStructure) {
+      setStep("result");
+    }
     await doGenerate(ans);
   };
 
   const handleSkipQuestions = async () => {
     setAnswers({});
-    setStep("result");
+    const willProposeStructure = selectedFormat === "carousel" && !structureProposal && !lastConfirmedStructure;
+    if (!willProposeStructure) {
+      setStep("result");
+    }
     await doGenerate({});
   };
 
@@ -1896,7 +1902,15 @@ export default function CreerUnifie() {
               )
             )}
 
-            {step === "result" && !isLaunchMode && !generating && !demoGenerating && !streaming && !pinterestVisualGenerating && !result && (
+            {step === "result" && structureLoading && (
+              <div className="py-16 text-center space-y-4 animate-fade-in">
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto" />
+                <p className="text-sm font-medium text-foreground">Préparation de la structure de ton carrousel…</p>
+                <p className="text-xs text-muted-foreground">L'IA organise tes idées en slides. Ça prend quelques secondes.</p>
+              </div>
+            )}
+
+            {step === "result" && !isLaunchMode && !generating && !demoGenerating && !streaming && !pinterestVisualGenerating && !structureLoading && !result && (
               <div className="py-12 text-center space-y-4 animate-fade-in">
                 {error ? (
                   <p className="text-destructive font-medium">{error}</p>
