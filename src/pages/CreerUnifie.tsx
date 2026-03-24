@@ -1574,8 +1574,18 @@ export default function CreerUnifie() {
     if (!result?.raw?.slides || visualLoading) return;
     setVisualLoading(true);
     try {
+      // ═══ Diagnostic : vérifier la structure des slides ═══
+      const rawSlides = result.raw.slides;
+      console.log("[carousel-visual] raw slides type:", typeof rawSlides, "isArray:", Array.isArray(rawSlides), "length:", rawSlides?.length);
+      
+      if (!Array.isArray(rawSlides) || rawSlides.length === 0) {
+        console.error("[carousel-visual] slides invalides:", JSON.stringify(rawSlides).slice(0, 500));
+        toast.error("Les slides ne sont pas dans un format valide. Essaie de régénérer le carrousel.");
+        setVisualLoading(false);
+        return;
+      }
+
       const rawCarouselType = result.raw.carousel_type;
-      // Recalculate effective type: if raw says "photo"/"mix" but no photos uploaded, fallback to text
       const hasActualPhotos = uploadedPhotos.length > 0;
       const effectiveCarouselType = (rawCarouselType === "photo" || rawCarouselType === "mix") && !hasActualPhotos
         ? "text"
@@ -1585,47 +1595,61 @@ export default function CreerUnifie() {
       const isMixCarousel = effectiveCarouselType === "mix";
       const hasPhotos = isPhotoCarousel || isMixCarousel;
 
-      const { data, error: fnError } = await invokeWithTimeout("carousel-visual", {
-        body: {
-          slides: result.raw.slides.map((s: any) => {
-            const slideType = hasPhotos
-              ? (s.slide_type || (isPhotoCarousel ? "photo_full" : "text_only"))
-              : "text_only";
+      // ═══ Construire le body et le valider avant envoi ═══
+      const mappedSlides = rawSlides.map((s: any) => {
+        const slideType = hasPhotos
+          ? (s.slide_type || (isPhotoCarousel ? "photo_full" : "text_only"))
+          : "text_only";
 
-            return {
-              slide_number: s.slide_number,
-              role: s.role,
-              slide_type: slideType,
-              ...(slideType === "photo_full" ? {
-                overlay_text: s.overlay_text,
-                overlay_position: s.overlay_position || "bottom_center",
-                overlay_style: s.overlay_style || "sensoriel",
-                note: s.note,
-                photo_index: s.photo_index,
-              } : {}),
-              ...(slideType === "photo_integrated" ? {
-                photo_index: s.photo_index,
-                photo_layout: s.photo_layout || "top_photo",
-                title: s.title || "",
-                body: s.body || "",
-                note: s.note,
-              } : {}),
-              ...(slideType === "text_only" ? {
-                title: s.title || s.overlay_text || "",
-                body: s.body || s.note || "",
-                visual_suggestion: s.visual_suggestion,
-                ...(s.visual_schema ? { visual_schema: s.visual_schema } : {}),
-              } : {}),
-            };
-          }),
-          ...(hasPhotos && hasActualPhotos ? {
-            photos: uploadedPhotos.map(p => ({ base64: p.base64 })),
-            carousel_type: isMixCarousel ? "mix" : "photo",
-          } : {
-            template_style: null,
-          }),
-          workspace_id: workspaceId !== session.user.id ? workspaceId : undefined,
-        },
+        return {
+          slide_number: s.slide_number,
+          role: s.role,
+          slide_type: slideType,
+          ...(slideType === "photo_full" ? {
+            overlay_text: s.overlay_text,
+            overlay_position: s.overlay_position || "bottom_center",
+            overlay_style: s.overlay_style || "sensoriel",
+            note: s.note,
+            photo_index: s.photo_index,
+          } : {}),
+          ...(slideType === "photo_integrated" ? {
+            photo_index: s.photo_index,
+            photo_layout: s.photo_layout || "top_photo",
+            title: s.title || "",
+            body: s.body || "",
+            note: s.note,
+          } : {}),
+          ...(slideType === "text_only" ? {
+            title: s.title || s.overlay_text || "",
+            body: s.body || s.note || "",
+            visual_suggestion: s.visual_suggestion,
+            ...(s.visual_schema ? { visual_schema: s.visual_schema } : {}),
+          } : {}),
+        };
+      });
+
+      if (!mappedSlides || mappedSlides.length === 0) {
+        console.error("[carousel-visual] mapping a produit 0 slides");
+        toast.error("Erreur de préparation des slides. Régénère le carrousel.");
+        setVisualLoading(false);
+        return;
+      }
+
+      const requestBody: any = {
+        slides: mappedSlides,
+        ...(hasPhotos && hasActualPhotos ? {
+          photos: uploadedPhotos.map(p => ({ base64: p.base64 })),
+          carousel_type: isMixCarousel ? "mix" : "photo",
+        } : {
+          template_style: null,
+        }),
+        workspace_id: workspaceId !== session.user.id ? workspaceId : undefined,
+      };
+
+      console.log("[carousel-visual] request body keys:", Object.keys(requestBody), "slides count:", requestBody.slides?.length);
+
+      const { data, error: fnError } = await invokeWithTimeout("carousel-visual", {
+        body: requestBody,
       }, 120000);
       if (fnError) throw fnError;
       if (data?.error) throw new Error(data.error);
