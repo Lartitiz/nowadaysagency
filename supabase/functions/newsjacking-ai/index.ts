@@ -152,8 +152,11 @@ Retourne exactement 3 actus, classées par pertinence décroissante. Si aucune a
 
     if (!response.ok) {
       const errText = await response.text();
-      console.error("Anthropic error:", response.status, errText);
-      return new Response(JSON.stringify({ error: `Erreur IA (${response.status})` }), {
+      console.error("Anthropic error:", response.status, "model:", model, "body:", errText.slice(0, 500));
+      const userMsg = response.status === 529 ? "L'IA est temporairement surchargée. Réessaie dans quelques secondes."
+        : response.status === 403 ? "Le web search n'est pas activé sur le compte API. Contacte le support."
+        : `Erreur IA (${response.status}). Réessaie.`;
+      return new Response(JSON.stringify({ error: userMsg }), {
         status: 502,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
