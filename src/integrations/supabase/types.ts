@@ -2967,6 +2967,30 @@ export type Database = {
           },
         ]
       }
+      frontend_debug_logs: {
+        Row: {
+          created_at: string | null
+          event: string
+          id: string
+          payload: Json | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          event: string
+          id?: string
+          payload?: Json | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          event?: string
+          id?: string
+          payload?: Json | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       generated_carousels: {
         Row: {
           calendar_post_id: string | null

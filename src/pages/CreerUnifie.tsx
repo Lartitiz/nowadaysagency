@@ -1580,6 +1580,14 @@ export default function CreerUnifie() {
       
       if (!Array.isArray(rawSlides) || rawSlides.length === 0) {
         console.error("[carousel-visual] slides invalides:", JSON.stringify(rawSlides).slice(0, 500));
+        posthog.capture("carousel_visual_invalid_slides", {
+          raw_type: typeof rawSlides,
+          raw_is_array: Array.isArray(rawSlides),
+          raw_length: rawSlides?.length,
+          raw_keys: typeof rawSlides === "object" && rawSlides ? Object.keys(rawSlides) : [],
+          raw_preview: JSON.stringify(rawSlides).slice(0, 300),
+          result_raw_keys: Object.keys(result?.raw || {}),
+        });
         toast.error("Les slides ne sont pas dans un format valide. Essaie de régénérer le carrousel.");
         setVisualLoading(false);
         return;
@@ -1648,6 +1656,31 @@ export default function CreerUnifie() {
 
       console.log("[carousel-visual] request body keys:", Object.keys(requestBody), "slides count:", requestBody.slides?.length);
 
+      // ═══ Tracking automatique pour diagnostic à distance ═══
+      const diagnosticPayload = {
+        raw_keys: Object.keys(result.raw || {}),
+        has_slides: !!result.raw?.slides,
+        slides_type: typeof result.raw?.slides,
+        slides_is_array: Array.isArray(result.raw?.slides),
+        slides_count: rawSlides?.length || 0,
+        mapped_slides_count: mappedSlides?.length || 0,
+        body_keys: Object.keys(requestBody),
+        body_has_slides: !!requestBody.slides,
+        body_slides_count: requestBody.slides?.length || 0,
+        carousel_type: rawCarouselType || "text",
+        effective_type: effectiveCarouselType || "text",
+        has_photos: hasActualPhotos,
+        format: selectedFormat,
+      };
+      posthog.capture("carousel_visual_debug", diagnosticPayload);
+      if (session?.user?.id) {
+        supabase.from("frontend_debug_logs").insert({
+          user_id: session.user.id,
+          event: "carousel_visual_request",
+          payload: diagnosticPayload,
+        }).then(() => {}, () => {});
+      }
+
       const { data, error: fnError } = await invokeWithTimeout("carousel-visual", {
         body: requestBody,
       }, 120000);
@@ -1656,6 +1689,11 @@ export default function CreerUnifie() {
       setVisualSlides(data.result?.slides_html || []);
       toast.success("Visuels générés !");
     } catch (e: any) {
+      posthog.capture("carousel_visual_error", {
+        error_message: e?.message || "unknown",
+        had_slides: !!result?.raw?.slides,
+        slides_count: result?.raw?.slides?.length || 0,
+      });
       toast.error(e?.message || "Erreur lors de la génération des visuels");
     } finally {
       setVisualLoading(false);
