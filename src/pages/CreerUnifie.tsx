@@ -150,6 +150,7 @@ export default function CreerUnifie() {
   const [structureLoading, setStructureLoading] = useState(false);
   const [lastConfirmedStructure, setLastConfirmedStructure] = useState<SlideProposal[] | null>(null);
   const [newsjackingContext, setNewsjackingContext] = useState<string | null>(null);
+  const [newsjackingSuggestedFormat, setNewsjackingSuggestedFormat] = useState<string | null>(null);
 
   const { restored: draftRestored, clearDraft } = useFormPersist(
     "creer-unifie-form",
