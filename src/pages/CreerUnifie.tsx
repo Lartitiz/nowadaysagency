@@ -412,6 +412,7 @@ export default function CreerUnifie() {
     setIdeaText(idea);
     setObjective(obj || null);
     setNewsjackingContext(null);
+    setNewsjackingSuggestedFormat(null);
     // Reset format-related state so the user starts fresh at channel selection
     setSelectedFormat(null);
     setEditorialAngle(null);
