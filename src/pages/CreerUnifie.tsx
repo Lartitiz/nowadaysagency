@@ -1571,38 +1571,51 @@ export default function CreerUnifie() {
     if (!result?.raw?.slides || visualLoading) return;
     setVisualLoading(true);
     try {
-      const isPhotoCarousel = result.raw.carousel_type === "photo";
-      const isMixCarousel = result.raw.carousel_type === "mix";
+      const rawCarouselType = result.raw.carousel_type;
+      // Recalculate effective type: if raw says "photo"/"mix" but no photos uploaded, fallback to text
+      const hasActualPhotos = uploadedPhotos.length > 0;
+      const effectiveCarouselType = (rawCarouselType === "photo" || rawCarouselType === "mix") && !hasActualPhotos
+        ? "text"
+        : rawCarouselType;
+
+      const isPhotoCarousel = effectiveCarouselType === "photo";
+      const isMixCarousel = effectiveCarouselType === "mix";
       const hasPhotos = isPhotoCarousel || isMixCarousel;
 
       const { data, error: fnError } = await invokeWithTimeout("carousel-visual", {
         body: {
-          slides: result.raw.slides.map((s: any) => ({
-            slide_number: s.slide_number,
-            role: s.role,
-            slide_type: s.slide_type || (isPhotoCarousel ? "photo_full" : "text_only"),
-            ...(s.slide_type === "photo_full" || (isPhotoCarousel && !s.slide_type) ? {
-              overlay_text: s.overlay_text,
-              overlay_position: s.overlay_position || "bottom_center",
-              overlay_style: s.overlay_style || "sensoriel",
-              note: s.note,
-              photo_index: s.photo_index,
-            } : {}),
-            ...(s.slide_type === "photo_integrated" ? {
-              photo_index: s.photo_index,
-              photo_layout: s.photo_layout || "top_photo",
-              title: s.title || "",
-              body: s.body || "",
-              note: s.note,
-            } : {}),
-            ...(s.slide_type === "text_only" || (!hasPhotos && !s.slide_type) ? {
-              title: s.title || "",
-              body: s.body || "",
-              visual_suggestion: s.visual_suggestion,
-              ...(s.visual_schema ? { visual_schema: s.visual_schema } : {}),
-            } : {}),
-          })),
-          ...(hasPhotos && uploadedPhotos.length > 0 ? {
+          slides: result.raw.slides.map((s: any) => {
+            const slideType = hasPhotos
+              ? (s.slide_type || (isPhotoCarousel ? "photo_full" : "text_only"))
+              : "text_only";
+
+            return {
+              slide_number: s.slide_number,
+              role: s.role,
+              slide_type: slideType,
+              ...(slideType === "photo_full" ? {
+                overlay_text: s.overlay_text,
+                overlay_position: s.overlay_position || "bottom_center",
+                overlay_style: s.overlay_style || "sensoriel",
+                note: s.note,
+                photo_index: s.photo_index,
+              } : {}),
+              ...(slideType === "photo_integrated" ? {
+                photo_index: s.photo_index,
+                photo_layout: s.photo_layout || "top_photo",
+                title: s.title || "",
+                body: s.body || "",
+                note: s.note,
+              } : {}),
+              ...(slideType === "text_only" ? {
+                title: s.title || s.overlay_text || "",
+                body: s.body || s.note || "",
+                visual_suggestion: s.visual_suggestion,
+                ...(s.visual_schema ? { visual_schema: s.visual_schema } : {}),
+              } : {}),
+            };
+          }),
+          ...(hasPhotos && hasActualPhotos ? {
             photos: uploadedPhotos.map(p => ({ base64: p.base64 })),
             carousel_type: isMixCarousel ? "mix" : "photo",
           } : {
