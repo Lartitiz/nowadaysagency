@@ -286,3 +286,6 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
           </div>
         );
       })()}
+    </div>
+  );
+}
