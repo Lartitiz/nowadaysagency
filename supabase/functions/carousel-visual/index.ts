@@ -689,10 +689,30 @@ Retourne UNIQUEMENT le JSON.`;
       // Filter to only image URLs (exclude PDFs and other unsupported formats)
       const imageUrls = templateUrls.filter((u: string) => isImageUrl(u));
       
-      if (imageUrls.length > 0) {
+      // Vérifier que les URLs sont accessibles (signed URLs Supabase peuvent expirer)
+      const validImageUrls: string[] = [];
+      for (const url of imageUrls) {
+        try {
+          const headRes = await fetch(url, { method: "HEAD" });
+          if (headRes.ok) {
+            const contentLength = parseInt(headRes.headers.get("content-length") || "0", 10);
+            if (contentLength > 0 && contentLength < 5_000_000) {
+              validImageUrls.push(url);
+            } else {
+              console.warn(`carousel-visual: template image trop grosse ou taille inconnue: ${url} (${contentLength} bytes)`);
+            }
+          } else {
+            console.warn(`carousel-visual: template image inaccessible (${headRes.status}): ${url}`);
+          }
+        } catch (e) {
+          console.warn(`carousel-visual: erreur accès template image: ${url}`, e);
+        }
+      }
+      
+      if (validImageUrls.length > 0) {
         // Use vision: send the template image + text prompt
         const content: any[] = [];
-        for (const url of imageUrls) {
+        for (const url of validImageUrls) {
           content.push({
             type: "image",
             source: { type: "url", url },
