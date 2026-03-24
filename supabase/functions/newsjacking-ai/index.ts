@@ -151,7 +151,7 @@ Si aucune actu pertinente n'est trouvée, retourne :
       body: JSON.stringify({
         model,
         max_tokens: 4096,
-        tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3 }],
+        tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5 }],
         messages: [{ role: "user", content: systemPrompt + "\n\nTrouve les actualités les plus pertinentes pour moi en ce moment." }],
       }),
       signal: controller.signal,
