@@ -150,6 +150,7 @@ export default function CreerUnifie() {
   const [structureLoading, setStructureLoading] = useState(false);
   const [lastConfirmedStructure, setLastConfirmedStructure] = useState<SlideProposal[] | null>(null);
   const [newsjackingContext, setNewsjackingContext] = useState<string | null>(null);
+  const [newsjackingSuggestedFormat, setNewsjackingSuggestedFormat] = useState<string | null>(null);
 
   const { restored: draftRestored, clearDraft } = useFormPersist(
     "creer-unifie-form",
@@ -401,13 +402,8 @@ export default function CreerUnifie() {
   const handleNewsjackingSelect = useCallback((data: { subject: string; context: string; format?: string; vehicule?: string }) => {
     setIdeaText(data.subject);
     setNewsjackingContext(data.context);
-    if (data.format) {
-      const formatMap: Record<string, string> = {
-        post: "post", carousel: "carousel", reel: "reel",
-        story: "story", linkedin: "linkedin",
-      };
-      if (formatMap[data.format]) setSelectedFormat(formatMap[data.format]);
-    }
+    setSelectedFormat(null);
+    setNewsjackingSuggestedFormat(data.format || null);
     if (!objective) setObjective("visibilite");
     setStep("format");
   }, [objective]);
@@ -416,6 +412,7 @@ export default function CreerUnifie() {
     setIdeaText(idea);
     setObjective(obj || null);
     setNewsjackingContext(null);
+    setNewsjackingSuggestedFormat(null);
     // Reset format-related state so the user starts fresh at channel selection
     setSelectedFormat(null);
     setEditorialAngle(null);
@@ -1838,6 +1835,7 @@ export default function CreerUnifie() {
                 idea={ideaText}
                 objective={objective || undefined}
                 initialFormat={selectedFormat || undefined}
+                suggestedFormat={newsjackingSuggestedFormat || undefined}
                 onNext={(fmt, angle, sub, photos, desc, pm, pintData, linkedinCar) => {
                   if (pintData) setPinterestData(pintData);
                   if (linkedinCar) setIsLinkedInCarousel(true);

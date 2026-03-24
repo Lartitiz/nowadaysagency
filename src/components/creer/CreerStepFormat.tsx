@@ -38,11 +38,12 @@ interface Props {
   idea: string;
   objective?: string;
   initialFormat?: string;
+  suggestedFormat?: string;
   onNext: (format: string, editorialAngle?: string, carouselSubMode?: "text" | "photo" | "mix", photos?: PhotoItem[], photoDescription?: string, photoMode?: boolean, pinterestData?: { link?: string; boardId?: string; boardName?: string }, linkedinCarousel?: boolean) => void;
   onBack: () => void;
 }
 
-export default function CreerStepFormat({ idea, objective, initialFormat, onNext, onBack }: Props) {
+export default function CreerStepFormat({ idea, objective, initialFormat, suggestedFormat, onNext, onBack }: Props) {
   const [selectedChannel, setSelectedChannel] = useState<ChannelId | null>(
     initialFormat ? deduceChannel(initialFormat) : null
   );
@@ -216,6 +217,27 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* Newsjacking format suggestion */}
+      {suggestedFormat && !selectedFormat && (
+        <div className="rounded-2xl bg-primary/5 border border-primary/10 p-3 flex items-center gap-3">
+          <span className="text-lg">📡</span>
+          <div className="flex-1">
+            <p className="text-sm font-medium">L'IA te suggère : <span className="text-primary">{CONTENT_TYPE_SPECS[suggestedFormat]?.label || suggestedFormat}</span></p>
+            <p className="text-xs text-muted-foreground">C'est une suggestion basée sur l'actu. Tu peux choisir un autre format.</p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const channel = deduceChannel(suggestedFormat);
+              if (channel) setSelectedChannel(channel);
+              setSelectedFormat(suggestedFormat);
+            }}
+          >
+            Appliquer
+          </Button>
+        </div>
+      )}
       {/* Channel selection */}
       {!selectedChannel && (
         <div className="space-y-3">
