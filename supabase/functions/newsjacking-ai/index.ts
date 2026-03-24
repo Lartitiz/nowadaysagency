@@ -77,35 +77,38 @@ serve(async (req) => {
 
     const model = getModelForAction("content");
 
-    const systemPrompt = `Tu es une assistante de veille stratégique pour créateur·ices de contenu. Tu dois trouver des actualités pertinentes que cette personne peut transformer en contenu pour ses réseaux sociaux.
+    const systemPrompt = `Tu es une assistante de veille stratégique pour créateur·ices de contenu.
 
 PROFIL DE L'UTILISATEUR·ICE :
 ${brandingContext}
 
-CONSIGNE : Fais une recherche web pour trouver des actualités RÉCENTES (dernières 48-72h idéalement, dernière semaine maximum).
+TU DOIS EFFECTUER 2 RECHERCHES WEB SÉPARÉES (dans cet ordre) :
 
-Cherche sur 2 axes :
+RECHERCHE 1 — ACTU GLOBALE (obligatoire) :
+Cherche "actualité France mars 2026" ou "tendance société 2026" ou "fait marquant cette semaine France".
+Tu cherches ce dont TOUT LE MONDE parle en ce moment : politique, société, culture, économie, technologie grand public, phénomène viral, nouvelle loi, événement médiatique.
+Exemples d'actus globales : une réforme gouvernementale, un scandale médiatique, une tendance TikTok virale, les résultats d'une élection, un événement culturel majeur, une polémique publique, un fait divers marquant, une avancée scientifique grand public.
+⚠️ Une actu est GLOBALE si quelqu'un qui n'est PAS dans le secteur de cette personne en a entendu parler.
 
-ACTU GLOBALE : tendances société, événements médiatiques, faits culturels, débats publics, nouvelles lois, phénomènes viraux — tout ce dont "les gens parlent en ce moment"
+RECHERCHE 2 — ACTU NICHE :
+Cherche des actualités spécifiques au secteur et au métier de cette personne.
 
-ACTU NICHE : nouveautés, tendances, controverses, études, événements spécifiques au secteur et au métier de cette personne
-
-Pour chaque actu trouvée, évalue si elle a un POTENTIEL DE CONTENU pour cette personne :
-- Est-ce que son audience s'en soucie ?
-- Est-ce qu'elle peut apporter un regard unique dessus grâce à son expertise ?
+POTENTIEL DE CONTENU (pour les deux types) :
+- Est-ce que l'audience de cette personne s'en soucie ?
+- Est-ce qu'elle peut apporter un regard unique dessus ?
 - Est-ce que ça touche à ses piliers de contenu, ses combats, ou ses valeurs ?
 
 ANGLES PROPOSÉS — RÈGLES :
 Chaque angle DOIT utiliser un de ces 4 véhicules :
-1. RÉCIT D'EXPÉRIENCE : "Quand j'ai vu cette actu, ça m'a rappelé…"
-2. DÉCLENCHEUR EXTERNE : "Cette actu m'a fait réaliser un truc sur mon métier…"
-3. CONSTAT DÉCALÉ : "Ce que cette actu révèle sur [secteur], c'est que…"
-4. MONTRER PLUTÔT QU'EXPLIQUER : avant/après, process visible, transformation
-L'actu est le DÉCLENCHEUR, pas le sujet. JAMAIS "voici ce qui se passe + mon avis". TOUJOURS "cette actu m'a fait penser à un truc que je vis dans mon métier".
+1. RÉCIT D'EXPÉRIENCE (recit_experience) : "Quand j'ai vu cette actu, ça m'a rappelé…"
+2. DÉCLENCHEUR EXTERNE (declencheur_externe) : "Cette actu m'a fait réaliser un truc sur mon métier…"
+3. CONSTAT DÉCALÉ (constat_decale) : "Ce que cette actu révèle sur [secteur], c'est que…"
+4. MONTRER PLUTÔT QU'EXPLIQUER (montrer_plutot_quexpliquer) : avant/après, process visible, transformation
+L'actu est le DÉCLENCHEUR, pas le sujet. JAMAIS "voici ce qui se passe + mon avis". TOUJOURS relier à l'expertise et au vécu.
 Les angles doivent être SPÉCIFIQUES au branding de cette personne.
 JAMAIS de format "X conseils" ou "X erreurs".
 
-Réponds UNIQUEMENT en JSON (pas de markdown, pas de backticks) :
+FORMAT DE RÉPONSE — UNIQUEMENT en JSON (pas de markdown, pas de backticks) :
 {
   "actus": [
     {
@@ -118,7 +121,7 @@ Réponds UNIQUEMENT en JSON (pas de markdown, pas de backticks) :
         {
           "vehicule": "recit_experience" | "declencheur_externe" | "constat_decale" | "montrer_plutot_quexpliquer",
           "hook": "La première phrase du contenu (max 20 mots, percutante)",
-          "description": "En 2-3 phrases, l'angle développé : comment relier l'actu à l'expertise de la personne",
+          "description": "En 2-3 phrases, comment relier l'actu à l'expertise de la personne",
           "format_suggere": "post" | "carousel" | "reel" | "story" | "linkedin"
         }
       ]
@@ -126,11 +129,13 @@ Réponds UNIQUEMENT en JSON (pas de markdown, pas de backticks) :
   ]
 }
 
-RÉPARTITION OBLIGATOIRE : Retourne exactement 3 actus avec AU MINIMUM 1 actu globale ET au minimum 1 actu niche. Idéalement 1 globale + 2 niches, ou 2 globales + 1 niche.
+RÉPARTITION STRICTE : Retourne exactement 4 actus :
+- Les 2 PREMIÈRES doivent avoir "type": "globale" (issues de ta recherche 1)
+- Les 2 SUIVANTES doivent avoir "type": "niche" (issues de ta recherche 2)
+Si tu ne trouves qu'1 actu globale pertinente, retourne 1 globale + 3 niches (minimum 1 globale).
+⚠️ Si toutes tes actus sont niche, tu as ÉCHOUÉ. Recommence ta recherche globale.
 
-Pour l'actu GLOBALE : fais une première recherche web sur "actualité France aujourd'hui" ou "tendance société" AVANT de chercher la niche. L'actu globale doit être un sujet dont tout le monde parle, pas juste le secteur de la personne.
-
-Classe par pertinence décroissante. Si aucune actu pertinente n'est trouvée, retourne :
+Si aucune actu pertinente n'est trouvée, retourne :
 { "actus": [], "message": "Pas d'actu suffisamment pertinente trouvée pour ton secteur cette semaine. Réessaie dans quelques jours !" }`;
 
     const controller = new AbortController();
@@ -146,7 +151,7 @@ Classe par pertinence décroissante. Si aucune actu pertinente n'est trouvée, r
       body: JSON.stringify({
         model,
         max_tokens: 4096,
-        tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3 }],
+        tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5 }],
         messages: [{ role: "user", content: systemPrompt + "\n\nTrouve les actualités les plus pertinentes pour moi en ce moment." }],
       }),
       signal: controller.signal,
