@@ -759,14 +759,34 @@ Retourne UNIQUEMENT le JSON.`;
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err: any) {
-    console.error("carousel-visual error:", err);
+    console.error("carousel-visual error:", err?.message || err, err?.status || "");
+
     if (err.message === "Non autorisé") {
       return new Response(JSON.stringify({ error: "Non autorisé" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    return new Response(JSON.stringify({ error: "Erreur interne du serveur" }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+
+    if (err.name === "ValidationError") {
+      return new Response(JSON.stringify({ error: err.message }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const status = err.status || 500;
+    const message = err.message || "Erreur interne du serveur";
+
+    const userMessage = status === 429
+      ? "L'IA est surchargée. Réessaie dans quelques secondes."
+      : status === 529
+      ? "L'IA est temporairement indisponible. Réessaie dans 1-2 minutes."
+      : status === 400
+      ? `Erreur de configuration IA : ${message}`
+      : `Erreur lors de la génération des visuels : ${message}`;
+
+    return new Response(JSON.stringify({ error: userMessage, debug: message }), {
+      status: status >= 400 && status < 600 ? status : 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
