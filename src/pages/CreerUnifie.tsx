@@ -402,13 +402,8 @@ export default function CreerUnifie() {
   const handleNewsjackingSelect = useCallback((data: { subject: string; context: string; format?: string; vehicule?: string }) => {
     setIdeaText(data.subject);
     setNewsjackingContext(data.context);
-    if (data.format) {
-      const formatMap: Record<string, string> = {
-        post: "post", carousel: "carousel", reel: "reel",
-        story: "story", linkedin: "linkedin",
-      };
-      if (formatMap[data.format]) setSelectedFormat(formatMap[data.format]);
-    }
+    setSelectedFormat(null);
+    setNewsjackingSuggestedFormat(data.format || null);
     if (!objective) setObjective("visibilite");
     setStep("format");
   }, [objective]);
