@@ -92,6 +92,45 @@ serve(async (req) => {
       template_layout_description: charter.template_layout_description || "",
     };
 
+    // Sanitize font names — certains caractères peuvent casser l'URL Google Fonts ou le HTML
+    const safeFontTitle = ch.font_title.replace(/[<>"'&]/g, "");
+    const safeFontBody = ch.font_body.replace(/[<>"'&]/g, "");
+
+    // Tronquer les champs textuels longs pour éviter un system prompt trop gros
+    const MAX_BRIEF = 2000;
+    const MAX_LAYOUT_DESC = 1500;
+    const MAX_MOODBOARD = 1000;
+    if (ch.ai_generated_brief.length > MAX_BRIEF) {
+      ch.ai_generated_brief = ch.ai_generated_brief.slice(0, MAX_BRIEF) + "…";
+      console.warn("carousel-visual: ai_generated_brief tronqué");
+    }
+    if (ch.template_layout_description.length > MAX_LAYOUT_DESC) {
+      ch.template_layout_description = ch.template_layout_description.slice(0, MAX_LAYOUT_DESC) + "…";
+      console.warn("carousel-visual: template_layout_description tronqué");
+    }
+    if (ch.moodboard_description.length > MAX_MOODBOARD) {
+      ch.moodboard_description = ch.moodboard_description.slice(0, MAX_MOODBOARD) + "…";
+      console.warn("carousel-visual: moodboard_description tronqué");
+    }
+
+    // Diagnostic log — contexte utilisateur pour débug
+    console.log(JSON.stringify({
+      type: "carousel_visual_context",
+      user_id: user.id,
+      has_charter: !!bodyCharter || !!charter,
+      font_title: ch.font_title,
+      font_body: ch.font_body,
+      has_uploaded_templates: Array.isArray(charter.uploaded_templates) && charter.uploaded_templates.length > 0,
+      uploaded_templates_count: Array.isArray(charter.uploaded_templates) ? charter.uploaded_templates.length : 0,
+      has_ai_brief: !!ch.ai_generated_brief,
+      ai_brief_length: ch.ai_generated_brief?.length || 0,
+      has_template_layout: !!ch.template_layout_description,
+      template_layout_length: ch.template_layout_description?.length || 0,
+      has_moodboard: !!ch.moodboard_description,
+      moodboard_length: ch.moodboard_description?.length || 0,
+      timestamp: new Date().toISOString(),
+    }));
+
     // Extract uploaded template URLs for charter_reference mode
     const uploadedTemplates: { url: string; name: string }[] = Array.isArray(charter.uploaded_templates) ? charter.uploaded_templates : [];
 
@@ -133,7 +172,7 @@ Tu dois produire des slides qui ressemblent à du design professionnel fait sur 
 - Chaque slide = un <div> EXACTEMENT 1080px × 1350px
 - CSS 100% inline (pas de classes CSS)
 - CHAQUE slide commence par une balise @import Google Fonts :
-  <style>@import url('https://fonts.googleapis.com/css2?family=${encodeURIComponent(ch.font_title)}:ital,wght@0,400;0,700;1,400&family=${encodeURIComponent(ch.font_body)}:wght@400;500;600;700&display=swap');</style>
+  <style>@import url('https://fonts.googleapis.com/css2?family=${encodeURIComponent(safeFontTitle)}:ital,wght@0,400;0,700;1,400&family=${encodeURIComponent(safeFontBody)}:wght@400;500;600;700&display=swap');</style>
 - HTML complet et autonome (chaque slide rendable seule dans un navigateur)
 - Pas de JavaScript
 - JAMAIS de cercle, rond, ou border-radius: 50% en élément décoratif de fond
@@ -434,7 +473,7 @@ Chaque slide utilise la PHOTO de l'utilisatrice comme image de fond, et tu poses
 - La photo est en background-image: url() en base64, avec background-size: cover; background-position: center
 - CSS 100% inline (pas de classes CSS)
 - CHAQUE slide commence par la balise @import Google Fonts :
-  <style>@import url('https://fonts.googleapis.com/css2?family=${encodeURIComponent(ch.font_title)}:ital,wght@0,400;0,700;1,400&family=${encodeURIComponent(ch.font_body)}:wght@400;500;600;700&display=swap');</style>
+  <style>@import url('https://fonts.googleapis.com/css2?family=${encodeURIComponent(safeFontTitle)}:ital,wght@0,400;0,700;1,400&family=${encodeURIComponent(safeFontBody)}:wght@400;500;600;700&display=swap');</style>
 
 ═══ CHARTE GRAPHIQUE ═══
 Couleur principale : ${ch.color_primary}
@@ -650,10 +689,30 @@ Retourne UNIQUEMENT le JSON.`;
       // Filter to only image URLs (exclude PDFs and other unsupported formats)
       const imageUrls = templateUrls.filter((u: string) => isImageUrl(u));
       
-      if (imageUrls.length > 0) {
+      // Vérifier que les URLs sont accessibles (signed URLs Supabase peuvent expirer)
+      const validImageUrls: string[] = [];
+      for (const url of imageUrls) {
+        try {
+          const headRes = await fetch(url, { method: "HEAD" });
+          if (headRes.ok) {
+            const contentLength = parseInt(headRes.headers.get("content-length") || "0", 10);
+            if (contentLength > 0 && contentLength < 5_000_000) {
+              validImageUrls.push(url);
+            } else {
+              console.warn(`carousel-visual: template image trop grosse ou taille inconnue: ${url} (${contentLength} bytes)`);
+            }
+          } else {
+            console.warn(`carousel-visual: template image inaccessible (${headRes.status}): ${url}`);
+          }
+        } catch (e) {
+          console.warn(`carousel-visual: erreur accès template image: ${url}`, e);
+        }
+      }
+      
+      if (validImageUrls.length > 0) {
         // Use vision: send the template image + text prompt
         const content: any[] = [];
-        for (const url of imageUrls) {
+        for (const url of validImageUrls) {
           content.push({
             type: "image",
             source: { type: "url", url },
@@ -742,7 +801,7 @@ Retourne UNIQUEMENT le JSON.`;
     // Les @import dans les iframes srcDoc ne chargent pas les fonts de façon fiable.
     // On remplace tous les @import Google Fonts par un <link> en tête du HTML.
     if (result?.slides_html) {
-      const fontsLink = `<link href="https://fonts.googleapis.com/css2?family=${encodeURIComponent(ch.font_title)}:ital,wght@0,400;0,700;1,400&family=${encodeURIComponent(ch.font_body)}:wght@400;500;600;700&display=swap" rel="stylesheet">`;
+      const fontsLink = `<link href="https://fonts.googleapis.com/css2?family=${encodeURIComponent(safeFontTitle)}:ital,wght@0,400;0,700;1,400&family=${encodeURIComponent(safeFontBody)}:wght@400;500;600;700&display=swap" rel="stylesheet">`;
       
       result.slides_html = result.slides_html.map((slide: any) => {
         let html = slide.html || "";
