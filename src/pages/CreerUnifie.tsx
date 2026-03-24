@@ -1835,6 +1835,7 @@ export default function CreerUnifie() {
                 idea={ideaText}
                 objective={objective || undefined}
                 initialFormat={selectedFormat || undefined}
+                suggestedFormat={newsjackingSuggestedFormat || undefined}
                 onNext={(fmt, angle, sub, photos, desc, pm, pintData, linkedinCar) => {
                   if (pintData) setPinterestData(pintData);
                   if (linkedinCar) setIsLinkedInCarousel(true);

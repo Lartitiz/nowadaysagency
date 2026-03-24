@@ -38,11 +38,12 @@ interface Props {
   idea: string;
   objective?: string;
   initialFormat?: string;
+  suggestedFormat?: string;
   onNext: (format: string, editorialAngle?: string, carouselSubMode?: "text" | "photo" | "mix", photos?: PhotoItem[], photoDescription?: string, photoMode?: boolean, pinterestData?: { link?: string; boardId?: string; boardName?: string }, linkedinCarousel?: boolean) => void;
   onBack: () => void;
 }
 
-export default function CreerStepFormat({ idea, objective, initialFormat, onNext, onBack }: Props) {
+export default function CreerStepFormat({ idea, objective, initialFormat, suggestedFormat, onNext, onBack }: Props) {
   const [selectedChannel, setSelectedChannel] = useState<ChannelId | null>(
     initialFormat ? deduceChannel(initialFormat) : null
   );
