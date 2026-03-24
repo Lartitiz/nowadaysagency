@@ -137,8 +137,7 @@ Retourne exactement 3 actus, classées par pertinence décroissante. Si aucune a
       headers: {
         "Content-Type": "application/json",
         "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2025-01-01",
-        "anthropic-beta": "web-search-2025-03-05",
+        "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
         model,
