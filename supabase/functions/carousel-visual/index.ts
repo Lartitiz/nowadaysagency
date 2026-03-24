@@ -473,7 +473,7 @@ Chaque slide utilise la PHOTO de l'utilisatrice comme image de fond, et tu poses
 - La photo est en background-image: url() en base64, avec background-size: cover; background-position: center
 - CSS 100% inline (pas de classes CSS)
 - CHAQUE slide commence par la balise @import Google Fonts :
-  <style>@import url('https://fonts.googleapis.com/css2?family=${encodeURIComponent(ch.font_title)}:ital,wght@0,400;0,700;1,400&family=${encodeURIComponent(ch.font_body)}:wght@400;500;600;700&display=swap');</style>
+  <style>@import url('https://fonts.googleapis.com/css2?family=${encodeURIComponent(safeFontTitle)}:ital,wght@0,400;0,700;1,400&family=${encodeURIComponent(safeFontBody)}:wght@400;500;600;700&display=swap');</style>
 
 ═══ CHARTE GRAPHIQUE ═══
 Couleur principale : ${ch.color_primary}
