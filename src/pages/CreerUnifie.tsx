@@ -1580,6 +1580,14 @@ export default function CreerUnifie() {
       
       if (!Array.isArray(rawSlides) || rawSlides.length === 0) {
         console.error("[carousel-visual] slides invalides:", JSON.stringify(rawSlides).slice(0, 500));
+        posthog.capture("carousel_visual_invalid_slides", {
+          raw_type: typeof rawSlides,
+          raw_is_array: Array.isArray(rawSlides),
+          raw_length: rawSlides?.length,
+          raw_keys: typeof rawSlides === "object" && rawSlides ? Object.keys(rawSlides) : [],
+          raw_preview: JSON.stringify(rawSlides).slice(0, 300),
+          result_raw_keys: Object.keys(result?.raw || {}),
+        });
         toast.error("Les slides ne sont pas dans un format valide. Essaie de régénérer le carrousel.");
         setVisualLoading(false);
         return;
