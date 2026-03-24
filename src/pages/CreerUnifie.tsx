@@ -1656,6 +1656,31 @@ export default function CreerUnifie() {
 
       console.log("[carousel-visual] request body keys:", Object.keys(requestBody), "slides count:", requestBody.slides?.length);
 
+      // ═══ Tracking automatique pour diagnostic à distance ═══
+      const diagnosticPayload = {
+        raw_keys: Object.keys(result.raw || {}),
+        has_slides: !!result.raw?.slides,
+        slides_type: typeof result.raw?.slides,
+        slides_is_array: Array.isArray(result.raw?.slides),
+        slides_count: rawSlides?.length || 0,
+        mapped_slides_count: mappedSlides?.length || 0,
+        body_keys: Object.keys(requestBody),
+        body_has_slides: !!requestBody.slides,
+        body_slides_count: requestBody.slides?.length || 0,
+        carousel_type: rawCarouselType || "text",
+        effective_type: effectiveCarouselType || "text",
+        has_photos: hasActualPhotos,
+        format: selectedFormat,
+      };
+      posthog.capture("carousel_visual_debug", diagnosticPayload);
+      if (session?.user?.id) {
+        supabase.from("frontend_debug_logs").insert({
+          user_id: session.user.id,
+          event: "carousel_visual_request",
+          payload: diagnosticPayload,
+        }).then(() => {}, () => {});
+      }
+
       const { data, error: fnError } = await invokeWithTimeout("carousel-visual", {
         body: requestBody,
       }, 120000);
