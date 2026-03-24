@@ -673,7 +673,17 @@ Retourne UNIQUEMENT le JSON.`;
     }
     } // end else (text mode)
 
-    const model = "claude-opus-4-6" as any;
+    const model: AnthropicModel = "claude-opus-4-6";
+
+    console.log(JSON.stringify({
+      type: "carousel_visual_call",
+      model,
+      slides_count: messages.length,
+      style,
+      is_photo: isPhotoCarousel,
+      is_mix: isMixCarousel,
+      timestamp: new Date().toISOString(),
+    }));
 
     const rawResponse = await callAnthropic({
       model,
