@@ -60,6 +60,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, onNext
   const [linkedinSubMode, setLinkedinSubMode] = useState<"text" | "carousel" | null>(null);
   const [pinterestSubMode, setPinterestSubMode] = useState<"text" | "visual" | "inspiration" | null>(null);
   const [inspirationPhotos, setInspirationPhotos] = useState<PhotoItem[]>([]);
+  const [photoWarning, setPhotoWarning] = useState(false);
 
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
