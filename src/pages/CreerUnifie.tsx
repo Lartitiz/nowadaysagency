@@ -518,6 +518,7 @@ export default function CreerUnifie() {
       return;
     }
 
+    resetGenerator();
     setStep("questions");
     await generateQuestions({ format, subject: enrichedSubject, editorialAngle: angle, objective: objective || undefined, channel: isLinkedInCarousel ? "linkedin" : undefined });
   };
