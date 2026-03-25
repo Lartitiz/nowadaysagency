@@ -1917,7 +1917,7 @@ export default function CreerUnifie() {
                 format={selectedFormat || ""}
                 subject={ideaText}
                 editorialAngle={editorialAngle || undefined}
-                questions={questions.length > 0 ? questions : restoredQuestions}
+                questions={questions}
                 loadingQuestions={loadingQuestions}
                 onNext={handleQuestionsNext}
                 onSkip={handleSkipQuestions}
