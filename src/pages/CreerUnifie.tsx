@@ -112,7 +112,7 @@ export default function CreerUnifie() {
     return ps.step as Step;
   })();
   const [step, setStep] = useState<Step>(safeStep);
-  const [restoredQuestions] = useState(ps?.questions || []);
+  
   const [ideaText, setIdeaText] = useState(ps?.ideaText || paramSujet || locState.sujet || locState.subject || "");
   const [objective, setObjective] = useState<string | null>(
     ps?.objective || paramObjectif || locState.objectif || locState.objective || null
