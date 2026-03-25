@@ -445,7 +445,7 @@ ${isLinkedIn
 - Pas de "Sauvegarde si..." → CTA LinkedIn : "Partagez si...", "Votre avis en commentaire ?", "Envoyez à un·e collègue qui..."
 - Le carrousel LinkedIn est un document de référence : chaque slide doit apporter de la valeur concrète`
   : `- Direct, chaleureux, oral assumé
-- Tutoiement par défaut (sauf si le profil de voix ou le ton de l'utilisatrice indique le vouvoiement)`}
+- Tutoiement par défaut pour les sujets pratiques. Pour les sujets de société, combats ou valeurs : utilise le "NOUS" collectif (ex: "On nous demande de…") au lieu du "TU" accusateur. Le "JE" raconte, le "TU" interpelle ponctuellement.`}
 - Phrases qui alternent longues et courtes (rythme)
 - Expressions naturelles (en vrai, franchement, le truc c'est que)
 - Humour discret, pas forcé
