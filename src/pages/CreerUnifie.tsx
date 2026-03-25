@@ -724,8 +724,10 @@ export default function CreerUnifie() {
     }
 
     // Formats structurés : appel classique (pas de streaming)
-    // Carrousels : proposer la structure d'abord (sauf si déjà validée via structureProposal)
-    if (selectedFormat === "carousel" && !structureProposal && !lastConfirmedStructure) {
+    // Carrousels photo/mix : proposer la structure d'abord (sauf si déjà validée)
+    // Les carrousels texte vont directement à la génération (pas de structure_review)
+    const isPhotoOrMixCarousel = carouselSubMode === "photo" || carouselSubMode === "mix";
+    if (selectedFormat === "carousel" && isPhotoOrMixCarousel && !structureProposal && !lastConfirmedStructure) {
       setStructureLoading(true);
       try {
         const structureBody: any = {
