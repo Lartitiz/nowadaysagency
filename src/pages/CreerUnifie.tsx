@@ -580,9 +580,14 @@ export default function CreerUnifie() {
     setPinterestPinHtml(null);
     setPhotoBriefOverlayHtml(null);
     setPhotoBriefResult(null);
-    const enrichedSubject = existingCalendarContent
+    let enrichedSubject = existingCalendarContent
       ? ideaText + "\n\n[Contenu existant à approfondir]\n" + existingCalendarContent
       : ideaText;
+
+    // Newsjacking : injecter le contexte actualité dans le sujet pour TOUS les formats
+    if (newsjackingContext) {
+      enrichedSubject = `${enrichedSubject}\n\n--- CONTEXTE ACTUALITÉ ---\n${newsjackingContext}\n--- FIN CONTEXTE ACTUALITÉ ---\n\nIMPORTANT : Ce contenu est un newsjacking. Le HOOK / ACCROCHE (slide 1, première phrase) DOIT partir de l'actualité elle-même — c'est elle qui capte l'attention car elle est dans l'air du temps. Ensuite seulement, fais le pont vers l'expertise, le vécu ou le positionnement de l'utilisateur·ice. L'actu n'est pas un prétexte en arrière-plan : c'est le point d'entrée visible du contenu.`;
+    }
 
     // Formats texte : utiliser le streaming SSE
     const textFormats = ["post", "linkedin", "newsletter", "pinterest"];
@@ -611,9 +616,7 @@ export default function CreerUnifie() {
       const streamBody: any = {
         step: "generate",
         contentType: contentTypeMap[selectedFormat] || "post_instagram",
-        context: newsjackingContext
-          ? `${enrichedSubject}\n\n--- CONTEXTE ACTUALITÉ ---\n${newsjackingContext}\n--- FIN CONTEXTE ACTUALITÉ ---\n\nIMPORTANT : Ce contenu est un newsjacking. L'actu ci-dessus est le DÉCLENCHEUR, pas le sujet principal. Le contenu doit relier cette actu à l'expertise et au vécu de l'utilisateur·ice. Utilise un véhicule d'éducation embarquée.`
-          : enrichedSubject,
+        context: enrichedSubject,
         angle: angleObj,
         answers: Object.keys(ans).length > 0
           ? Object.entries(ans).map(([q, a]) => ({ question: q, answer: a }))
