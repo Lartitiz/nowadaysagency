@@ -1077,6 +1077,14 @@ VOIX ET TON :
   }
 - DANS TOUS LES CAS : le contenu doit sonner comme quelqu'un qui PARLE, pas qui rédige un article. Il doit pouvoir être lu à voix haute naturellement.
 
+MODULATION JE / TU / NOUS (Instagram uniquement, ne s'applique pas à LinkedIn) :
+${isLinkedIn ? "" : `La voix par défaut est "JE" (l'auteur·ice raconte, partage, analyse). Le "TU" et le "NOUS" s'utilisent selon le TYPE de sujet :
+- SUJETS PRATIQUES (tips, tutoriel, méthode, how-to) → "TU" direct pour le conseil : "Quand tu postes, pense à..."
+- SUJETS DE SOCIÉTÉ / COMBATS / VALEURS (normes, injustices, prises de position, body image, représentation, discriminations) → "NOUS" collectif et fédérateur : "On nous demande de nous formater", "On a intériorisé cette norme", "On mérite mieux que ça". JAMAIS de "TU" accusateur sur ces sujets ("Tu te formates" → culpabilisant). Le "nous" inclut l'auteur·ice dans le combat.
+- STORYTELLING PERSONNEL → "JE" raconte l'expérience, puis "TU" interpelle en fin de slide ou CTA : "Et toi, tu l'as vécu aussi ?"
+- ANALYSE / DÉCRYPTAGE → "JE" analyse et donne un point de vue, "ON" pour les constats partagés : "On voit de plus en plus que..."
+En cas de doute, privilégie le "JE" + "NOUS" plutôt que le "TU". Le "TU" direct est un outil d'interpellation ponctuel, pas la voix narrative du carrousel.`}
+
 ANTI-PATTERNS IA (si tu en détectes un dans ton output, RÉÉCRIS avant de retourner) :
 - "Dans un monde où...", "Il est important de...", "N'hésitez pas à...", "Voici X astuces pour..." → SUPPRIMER
 - Numérotation mécanique "Tip 1, Tip 2, Tip 3" → chaque tip a un TITRE PROPRE qui accroche
