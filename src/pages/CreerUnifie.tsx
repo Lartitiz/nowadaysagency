@@ -550,7 +550,8 @@ export default function CreerUnifie() {
 
   const handleSkipQuestions = async () => {
     setAnswers({});
-    const willProposeStructure = selectedFormat === "carousel" && !structureProposal && !lastConfirmedStructure;
+    const isPhotoOrMixCarousel = selectedFormat === "carousel" && (carouselSubMode === "photo" || carouselSubMode === "mix");
+    const willProposeStructure = isPhotoOrMixCarousel && !structureProposal && !lastConfirmedStructure;
     if (!willProposeStructure) {
       setStep("result");
     }
