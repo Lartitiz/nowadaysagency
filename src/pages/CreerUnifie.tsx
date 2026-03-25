@@ -796,6 +796,9 @@ export default function CreerUnifie() {
       return;
     }
 
+    // Sécurité : s'assurer qu'on est bien sur l'étape result avant de lancer la génération
+    setStep("result");
+
     await generate({
       format: selectedFormat as any,
       subject: enrichedSubject,
