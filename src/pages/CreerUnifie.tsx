@@ -540,7 +540,8 @@ export default function CreerUnifie() {
         .then(({ data }: any) => { if (data?.id) setCurrentBriefId(data.id); }, console.error);
     }
 
-    const willProposeStructure = selectedFormat === "carousel" && !structureProposal && !lastConfirmedStructure;
+    const isPhotoOrMixCarousel = selectedFormat === "carousel" && (carouselSubMode === "photo" || carouselSubMode === "mix");
+    const willProposeStructure = isPhotoOrMixCarousel && !structureProposal && !lastConfirmedStructure;
     if (!willProposeStructure) {
       setStep("result");
     }
@@ -549,7 +550,8 @@ export default function CreerUnifie() {
 
   const handleSkipQuestions = async () => {
     setAnswers({});
-    const willProposeStructure = selectedFormat === "carousel" && !structureProposal && !lastConfirmedStructure;
+    const isPhotoOrMixCarousel = selectedFormat === "carousel" && (carouselSubMode === "photo" || carouselSubMode === "mix");
+    const willProposeStructure = isPhotoOrMixCarousel && !structureProposal && !lastConfirmedStructure;
     if (!willProposeStructure) {
       setStep("result");
     }
@@ -722,8 +724,10 @@ export default function CreerUnifie() {
     }
 
     // Formats structurés : appel classique (pas de streaming)
-    // Carrousels : proposer la structure d'abord (sauf si déjà validée via structureProposal)
-    if (selectedFormat === "carousel" && !structureProposal && !lastConfirmedStructure) {
+    // Carrousels photo/mix : proposer la structure d'abord (sauf si déjà validée)
+    // Les carrousels texte vont directement à la génération (pas de structure_review)
+    const isPhotoOrMixCarousel = carouselSubMode === "photo" || carouselSubMode === "mix";
+    if (selectedFormat === "carousel" && isPhotoOrMixCarousel && !structureProposal && !lastConfirmedStructure) {
       setStructureLoading(true);
       try {
         const structureBody: any = {
