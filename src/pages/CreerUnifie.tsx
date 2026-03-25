@@ -540,7 +540,8 @@ export default function CreerUnifie() {
         .then(({ data }: any) => { if (data?.id) setCurrentBriefId(data.id); }, console.error);
     }
 
-    const willProposeStructure = selectedFormat === "carousel" && !structureProposal && !lastConfirmedStructure;
+    const isPhotoOrMixCarousel = selectedFormat === "carousel" && (carouselSubMode === "photo" || carouselSubMode === "mix");
+    const willProposeStructure = isPhotoOrMixCarousel && !structureProposal && !lastConfirmedStructure;
     if (!willProposeStructure) {
       setStep("result");
     }
