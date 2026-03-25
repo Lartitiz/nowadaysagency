@@ -796,6 +796,9 @@ export default function CreerUnifie() {
       return;
     }
 
+    // Sécurité : s'assurer qu'on est bien sur l'étape result avant de lancer la génération
+    setStep("result");
+
     await generate({
       format: selectedFormat as any,
       subject: enrichedSubject,
@@ -1917,7 +1920,7 @@ export default function CreerUnifie() {
                 format={selectedFormat || ""}
                 subject={ideaText}
                 editorialAngle={editorialAngle || undefined}
-                questions={questions.length > 0 ? questions : restoredQuestions}
+                questions={questions}
                 loadingQuestions={loadingQuestions}
                 onNext={handleQuestionsNext}
                 onSkip={handleSkipQuestions}
