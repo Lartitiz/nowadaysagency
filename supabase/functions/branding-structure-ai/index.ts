@@ -5,6 +5,7 @@ import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 const SECTION_PROMPTS: Record<string, string> = {
   story: `Tu es une experte en storytelling de marque personnelle.
