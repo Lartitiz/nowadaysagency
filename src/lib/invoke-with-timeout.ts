@@ -46,9 +46,25 @@ export async function invokeWithTimeout(
     async function tryRefreshSession(): Promise<boolean> {
       try {
         const { data, error } = await supabase.auth.refreshSession();
-        return !error && !!data.session;
-      } catch {
+        if (!error && data.session) return true;
+        // Refresh token is dead — force clean signOut to clear stale tokens
+        await forceSignOut();
         return false;
+      } catch {
+        await forceSignOut();
+        return false;
+      }
+    }
+
+    async function forceSignOut(): Promise<void> {
+      try {
+        await supabase.auth.signOut();
+      } catch {
+        // If signOut also fails, manually clear storage so user isn't stuck
+        try {
+          const storageKey = Object.keys(localStorage).find(k => k.startsWith("sb-") && k.endsWith("-auth-token"));
+          if (storageKey) localStorage.removeItem(storageKey);
+        } catch { /* ignore */ }
       }
     }
 
