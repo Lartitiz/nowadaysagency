@@ -203,9 +203,22 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks.`;
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: "Erreur interne du serveur" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    if (error instanceof ValidationError) {
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (error?.status === 429) {
+      return new Response(JSON.stringify({ error: "Trop de requêtes. Réessaie dans un moment." }), {
+        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    console.error("offer-coaching error:", error);
+    const userMessage = error?.message?.includes("API") || error?.message?.includes("IA")
+      ? error.message
+      : "Erreur interne du serveur";
+    return new Response(JSON.stringify({ error: userMessage }), {
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
