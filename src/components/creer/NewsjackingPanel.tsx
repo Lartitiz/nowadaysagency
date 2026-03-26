@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, RefreshCw, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -59,13 +59,13 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
     setFilter("all");
 
     try {
-      const { data, error: fnError } = await supabase.functions.invoke("newsjacking-ai", {
+      const { data, error: fnError } = await invokeWithTimeout("newsjacking-ai", {
         body: { workspace_id: workspaceId || undefined },
-      });
+      }, 90000);
 
       if (fnError) {
-        const msg = typeof fnError === "object" && "message" in fnError ? (fnError as any).message : String(fnError);
-        if (msg.includes("429") || msg.includes("limit_reached") || msg.includes("crédits")) {
+        const msg = fnError.message || "";
+        if (fnError.isRateLimit || msg.includes("limit_reached") || msg.includes("crédits")) {
           setIsQuotaError(true);
           setError("Tu as utilisé tous tes crédits de recherche ce mois-ci.");
         } else {

@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { friendlyError } from "@/lib/error-messages";
 import { useAuth } from "@/contexts/AuthContext";
@@ -143,8 +144,8 @@ export default function ContentRecycling() {
         }
       }
 
-      const { data, error } = await supabase.functions.invoke("creative-flow", { body });
-      if (error) throw error;
+      const { data, error } = await invokeWithTimeout("creative-flow", { body }, 120000);
+      if (error) throw new Error(error.message);
       const r = data?.results || {};
       setResults(r);
       setActiveTab(formats[0] || "");

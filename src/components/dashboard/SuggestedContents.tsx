@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceId, useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { format, startOfWeek } from "date-fns";
@@ -193,13 +194,13 @@ export default function SuggestedContents() {
 
     (async () => {
       try {
-        const { data, error } = await supabase.functions.invoke("generate-content", {
+        const { data, error } = await invokeWithTimeout("generate-content", {
           body: {
             type: "weekly-suggestions",
             canal: "instagram",
             workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
           },
-        });
+        }, 60000);
 
         if (cancelled) return;
 
@@ -310,7 +311,7 @@ export default function SuggestedContents() {
     setActivePopover(null);
     setExpressingIdx(idx);
     try {
-      const { data, error } = await supabase.functions.invoke("generate-content", {
+      const { data, error } = await invokeWithTimeout("generate-content", {
         body: {
           type: "express-draft",
           sujet: idea.idea,
@@ -319,7 +320,7 @@ export default function SuggestedContents() {
           canal: "instagram",
           workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
         },
-      });
+      }, 60000);
 
       if (error) throw new Error(error.message);
 

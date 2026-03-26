@@ -6,7 +6,7 @@ import { MarkdownText } from "@/components/ui/markdown-text";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { cn } from "@/lib/utils";
 
 export interface PreGenBrief {
@@ -81,7 +81,7 @@ export default function PreGenCoaching({ generationType, onComplete, onSkip }: P
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke("coach-chat", {
+      const { data, error } = await invokeWithTimeout("coach-chat", {
         body: {
           messages: updated.map((m) => ({ role: m.role, content: m.content })),
           page_context: `pre-gen-${generationType}`,
@@ -89,9 +89,9 @@ export default function PreGenCoaching({ generationType, onComplete, onSkip }: P
           mode: "pre-gen",
           generation_type: generationType,
         },
-      });
+      }, 60000);
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
 
       const responseText = data?.response || "Désolée, je n'ai pas pu répondre. Réessaie !";
       const assistantMsg: ChatMessage = { role: "assistant", content: responseText };
