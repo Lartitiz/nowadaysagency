@@ -88,6 +88,19 @@ export async function invokeWithTimeout(
     try {
       let result = await doInvoke();
 
+      // When Supabase SDK throws FunctionsHttpError, result.data is null
+      // but the response body (with the real error) is in error.context
+      if (result.error && result.data === null && (result.error as any)?.context) {
+        try {
+          const errorBody = await (result.error as any).context.json();
+          if (errorBody && typeof errorBody === "object") {
+            result = { ...result, data: errorBody };
+          }
+        } catch {
+          // Body already consumed or not JSON — ignore
+        }
+      }
+
       // Edge Function returned an HTTP error
       if (result.error) {
         const status = getStatusFromError(result.error);
