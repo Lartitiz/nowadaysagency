@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
@@ -59,9 +60,9 @@ export default function AiDebugPanel() {
     results[1].status = "running";
     setTests([...results]);
     try {
-      const { data, error } = await supabase.functions.invoke("branding-coaching", {
+      const { data, error } = await invokeWithTimeout("branding-coaching", {
         body: { user_id: "test", section: "story", messages: [], context: {}, covered_topics: [] },
-      });
+      }, 120000);
       if (error) {
         results[1] = {
           label: results[1].label,
@@ -69,7 +70,7 @@ export default function AiDebugPanel() {
           message: JSON.stringify({
             message: error.message,
             context: (error as any).context,
-            name: error.name,
+            name: (error as any).name,
             full: String(error),
           }, null, 2),
         };
@@ -85,9 +86,9 @@ export default function AiDebugPanel() {
     results[2].status = "running";
     setTests([...results]);
     try {
-      const { data, error } = await supabase.functions.invoke("generate-content", {
+      const { data, error } = await invokeWithTimeout("generate-content", {
         body: { type: "caption", theme: "test de connexion", objectif: "visibilite" },
-      });
+      }, 90000);
       if (error) {
         results[2] = {
           label: results[2].label,
@@ -95,7 +96,7 @@ export default function AiDebugPanel() {
           message: JSON.stringify({
             message: error.message,
             context: (error as any).context,
-            name: error.name,
+            name: (error as any).name,
             full: String(error),
           }, null, 2),
         };

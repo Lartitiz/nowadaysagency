@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -50,7 +50,7 @@ export default function AbonnementPage() {
     (async () => {
       setLoadingSub(true);
       try {
-        const { data } = await supabase.functions.invoke("check-subscription");
+        const { data } = await invokeWithTimeout("check-subscription", {}, 15000);
         if (data) setSubInfo(data);
       } catch (e) {
         console.error("Abonnement error:", e);
@@ -63,7 +63,7 @@ export default function AbonnementPage() {
   const handlePortal = async () => {
     setPortalLoading(true);
     try {
-      const { data } = await supabase.functions.invoke("create-portal-session");
+      const { data } = await invokeWithTimeout("create-portal-session", {}, 15000);
       if (data?.url) window.open(data.url, "_blank");
     } catch (e) {
       console.error("Abonnement error:", e);
@@ -75,9 +75,9 @@ export default function AbonnementPage() {
   const handleCheckout = async (priceId: string) => {
     setPortalLoading(true);
     try {
-      const { data } = await supabase.functions.invoke("create-checkout", {
+      const { data } = await invokeWithTimeout("create-checkout", {
         body: { priceId, mode: "subscription" },
-      });
+      }, 15000);
       if (data?.url) window.location.href = data.url;
     } catch (e) {
       console.error("Abonnement error:", e);
@@ -90,9 +90,9 @@ export default function AbonnementPage() {
     if (!priceId) return;
     setPackLoading(packKey);
     try {
-      const { data } = await supabase.functions.invoke("create-checkout", {
+      const { data } = await invokeWithTimeout("create-checkout", {
         body: { priceId, mode: "payment" },
-      });
+      }, 15000);
       if (data?.url) window.location.href = data.url;
     } catch (e) {
       console.error("Abonnement error:", e);

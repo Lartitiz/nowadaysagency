@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { friendlyError } from "@/lib/error-messages";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -78,10 +79,10 @@ export default function AdminUsersTab() {
       if (!session?.access_token) return;
       setLoading(true);
       try {
-        const res = await supabase.functions.invoke("admin-users", {
+        const res = await invokeWithTimeout("admin-users", {
           headers: { Authorization: `Bearer ${session.access_token}` },
           body: null,
-        });
+        }, 30000);
         if (res.data?.users) setUsers(res.data.users);
       } catch (e) {
         console.error("Failed to load users", e);
@@ -123,10 +124,10 @@ export default function AdminUsersTab() {
     if (!session?.access_token) return;
     setResettingUser(true);
     try {
-      const res = await supabase.functions.invoke("reset-onboarding", {
+      const res = await invokeWithTimeout("reset-onboarding", {
         headers: { Authorization: `Bearer ${session.access_token}` },
         body: { targetUserId },
-      });
+      }, 30000);
       if (res.error) throw res.error;
       if (res.data?.error) throw new Error(res.data.error);
 
@@ -434,10 +435,10 @@ export default function AdminUsersTab() {
           if (!deleteTarget || !session?.access_token) return;
           setDeleting(true);
           try {
-            const res = await supabase.functions.invoke("delete-account", {
+            const res = await invokeWithTimeout("delete-account", {
               headers: { Authorization: `Bearer ${session.access_token}` },
               body: { targetUserId: deleteTarget.user_id },
-            });
+            }, 30000);
             if (res.error) throw new Error(res.error.message || "Erreur suppression");
             if (res.data?.error) throw new Error(res.data.error);
             toast.success(`Compte de ${deleteTarget.prenom || deleteTarget.email} supprimé`);

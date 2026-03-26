@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { usePageSEO } from "@/hooks/use-page-seo";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -39,14 +39,14 @@ export default function ServicesPage() {
     }
     setLoadingKey(key);
     try {
-      const { data, error } = await supabase.functions.invoke("create-checkout", {
+      const { data, error } = await invokeWithTimeout("create-checkout", {
         body: {
           priceId,
           mode: "payment",
           successUrl: `${window.location.origin}/payment/success?product=${key}`,
           cancelUrl: `${window.location.origin}/services`,
         },
-      });
+      }, 15000);
       if (error) throw error;
       if (data?.url) window.location.href = data.url;
     } catch {

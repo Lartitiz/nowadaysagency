@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -119,10 +119,10 @@ export default function AdminStatsTab() {
     setLoading(true);
     setError(null);
     try {
-      const res = await supabase.functions.invoke("admin-users?mode=stats", {
+      const res = await invokeWithTimeout("admin-users?mode=stats", {
         headers: { Authorization: `Bearer ${session.access_token}` },
         body: null,
-      });
+      }, 30000);
       if (res.error) {
         setError(res.error?.message || JSON.stringify(res.error));
       } else if (res.data) {

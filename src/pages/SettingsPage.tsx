@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
@@ -63,7 +64,7 @@ export default function SettingsPage() {
   const loadSubscription = async () => {
     setLoadingSub(true);
     try {
-      const { data, error } = await supabase.functions.invoke("check-subscription");
+      const { data, error } = await invokeWithTimeout("check-subscription", {}, 15000);
       if (!error && data) setSubInfo(data);
     } catch (e) {
       console.error("Settings error:", e);
@@ -103,7 +104,7 @@ export default function SettingsPage() {
   const handleManageSubscription = async () => {
     setPortalLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("create-portal-session");
+      const { data, error } = await invokeWithTimeout("create-portal-session", {}, 15000);
       if (error) throw error;
       if (data?.url) window.open(data.url, "_blank");
     } catch {
@@ -115,9 +116,9 @@ export default function SettingsPage() {
   const handleCheckoutOutil = async () => {
     setPortalLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("create-checkout", {
+      const { data, error } = await invokeWithTimeout("create-checkout", {
         body: { priceId: STRIPE_PLANS.outil.priceId, mode: "subscription" },
-      });
+      }, 15000);
       if (error) throw error;
       if (data?.url) window.location.href = data.url;
     } catch {
@@ -130,7 +131,7 @@ export default function SettingsPage() {
     setDeleting(true);
     try {
       console.log("[delete-account] Calling edge function...");
-      const { data, error } = await supabase.functions.invoke("delete-account");
+      const { data, error } = await invokeWithTimeout("delete-account", {}, 30000);
       console.log("[delete-account] Response:", { data, error });
 
       if (error) {
@@ -434,10 +435,10 @@ export default function SettingsPage() {
                     try {
                       const sessionData = await supabase.auth.getSession();
                       const token = sessionData.data.session?.access_token;
-                      const res = await supabase.functions.invoke("reset-onboarding", {
+                      const res = await invokeWithTimeout("reset-onboarding", {
                         headers: { Authorization: `Bearer ${token}` },
                         body: {},
-                      });
+                      }, 30000);
 
                       if (res.error) throw res.error;
                       if (res.data?.error) throw new Error(res.data.error);

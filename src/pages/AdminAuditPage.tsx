@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -311,10 +312,10 @@ async function checkEdgeFunctions(): Promise<AuditResult[]> {
 
   for (const fn of functions) {
     try {
-      const { error } = await supabase.functions.invoke(fn, {
+      const { error } = await invokeWithTimeout(fn, {
         method: "POST",
         body: { ping: true },
-      });
+      }, 30000);
       // A function that responds (even with error) is deployed
       results.push({
         status: "ok",
