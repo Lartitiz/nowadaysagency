@@ -688,19 +688,28 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
       covered_topics: newCovered as any,
     };
 
-    if (existingSession?.id) {
-      (supabase.from("branding_coaching_sessions") as any).update(sessionPayload).eq("id", existingSession.id).then(({ error: saveErr }: any) => {
+    try {
+      if (existingSession?.id) {
+        const { error: saveErr } = await (supabase.from("branding_coaching_sessions") as any)
+          .update(sessionPayload).eq("id", existingSession.id);
         if (saveErr) console.error("[BrandingCoaching] Save session error:", saveErr);
-      });
-    } else {
-      (supabase.from("branding_coaching_sessions") as any).insert(sessionPayload).then(({ error: saveErr }: any) => {
+      } else {
+        const { error: saveErr } = await (supabase.from("branding_coaching_sessions") as any)
+          .insert(sessionPayload);
         if (saveErr) console.error("[BrandingCoaching] Save session error:", saveErr);
-      });
+      }
+    } catch (e) {
+      console.error("[BrandingCoaching] Save session critical error:", e);
     }
 
-    // Save extracted insights
+    // Save extracted insights — MUST await to guarantee persistence before showing completion
     if (response.extracted_insights && Object.keys(response.extracted_insights).length > 0) {
-      saveInsights(section, response.extracted_insights);
+      try {
+        await saveInsights(section, response.extracted_insights);
+      } catch (e) {
+        console.error("[BrandingCoaching] Failed to save insights:", e);
+        toast.error("Tes réponses sont enregistrées dans la conversation mais la fiche n'a pas pu être mise à jour. Clique sur 'Affiner avec l'IA' pour réessayer.");
+      }
     }
 
     if (response.is_complete) {
