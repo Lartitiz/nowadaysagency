@@ -99,9 +99,9 @@ export default function InstagramInspirer() {
     if (!sourceUrl.trim()) return;
     setFetchingLink(true);
     try {
-      const { data, error } = await supabase.functions.invoke("fetch-instagram-post", {
+      const { data, error } = await invokeWithTimeout("fetch-instagram-post", {
         body: { url: sourceUrl.trim() },
-      });
+      }, 30000);
 
       if (error) {
         toast.info("Le lien n'a pas fonctionné. Colle le texte du post directement 👇");
