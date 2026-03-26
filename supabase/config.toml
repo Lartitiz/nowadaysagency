@@ -75,9 +75,6 @@ verify_jwt = false
 [functions.coaching-module]
 verify_jwt = false
 
-[functions.generate-demo]
-verify_jwt = false
-
 [functions.assistant-chat]
 verify_jwt = false
 
@@ -127,9 +124,6 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.engagement-coaching]
-verify_jwt = false
-
-[functions.setup-credit-packs]
 verify_jwt = false
 
 [functions.public-calendar]

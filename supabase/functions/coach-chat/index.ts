@@ -211,11 +211,22 @@ LIMITES :
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (error) {
+  } catch (error: any) {
+    if (error instanceof ValidationError) {
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (error?.status === 429) {
+      return new Response(JSON.stringify({ error: "Trop de requêtes. Réessaie dans un moment." }), {
+        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     console.error("coach-chat error:", error);
-    return new Response(JSON.stringify({
-      error: error instanceof Error ? error.message : "Erreur interne",
-    }), {
+    const userMessage = error instanceof Error && (error.message.includes("API") || error.message.includes("IA"))
+      ? error.message
+      : "Erreur interne";
+    return new Response(JSON.stringify({ error: userMessage }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
