@@ -5,6 +5,7 @@ import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropic, getModelForAction } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { validateInput, ValidationError, InspireAiSchema } from "../_shared/input-validators.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
