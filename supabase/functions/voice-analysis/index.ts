@@ -32,6 +32,9 @@ serve(async (req) => {
       });
     }
 
+    const rateCheck = checkRateLimit(user.id);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+
     // Anthropic API key checked in shared helper
 
     const body = await req.json();

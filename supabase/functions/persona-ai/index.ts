@@ -121,6 +121,9 @@ serve(async (req) => {
     }
     const userId = user.id;
 
+    const rateCheck = checkRateLimit(userId);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+
     if (isDemoUser(userId)) {
       return new Response(JSON.stringify({ error: "Demo mode: this feature is simulated" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
