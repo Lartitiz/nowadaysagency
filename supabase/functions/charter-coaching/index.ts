@@ -173,6 +173,9 @@ serve(async (req) => {
     }
     const userId = user.id;
 
+    const rateCheck = checkRateLimit(userId);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+
     // Resolve workspace owner for profile-scoped tables
     let profileUserId = userId;
     if (workspace_id) {
