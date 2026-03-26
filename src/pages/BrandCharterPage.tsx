@@ -4,6 +4,7 @@ import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query"
 import { useProfile, useBrandProfile } from "@/hooks/use-profile";
 import { useBrandCharter } from "@/hooks/use-branding";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAutoSave, SaveIndicator } from "@/hooks/use-auto-save";
 import AppHeader from "@/components/AppHeader";
