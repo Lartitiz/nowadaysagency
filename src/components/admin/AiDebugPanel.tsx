@@ -60,7 +60,7 @@ export default function AiDebugPanel() {
     results[1].status = "running";
     setTests([...results]);
     try {
-      const { data, error } = await supabase.functions.invoke("branding-coaching", {
+      const { data, error } = await invokeWithTimeout("branding-coaching", {
         body: { user_id: "test", section: "story", messages: [], context: {}, covered_topics: [] },
       });
       if (error) {
