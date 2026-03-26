@@ -78,9 +78,9 @@ export function useSynthesisFetch() {
     if (!user) return;
     setSummariesLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("generate-branding-summary", {
+      const { data, error } = await invokeWithTimeout("generate-branding-summary", {
         body: { force: false },
-      });
+      }, 90000);
       if (!error && data) {
         setSummaries(data.summaries);
       }
