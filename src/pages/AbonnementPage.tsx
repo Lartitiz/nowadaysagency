@@ -50,7 +50,7 @@ export default function AbonnementPage() {
     (async () => {
       setLoadingSub(true);
       try {
-        const { data } = await supabase.functions.invoke("check-subscription");
+        const { data } = await invokeWithTimeout("check-subscription", {}, 15000);
         if (data) setSubInfo(data);
       } catch (e) {
         console.error("Abonnement error:", e);
