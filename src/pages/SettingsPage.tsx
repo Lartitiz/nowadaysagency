@@ -118,7 +118,7 @@ export default function SettingsPage() {
     try {
       const { data, error } = await invokeWithTimeout("create-checkout", {
         body: { priceId: STRIPE_PLANS.outil.priceId, mode: "subscription" },
-      });
+      }, 15000);
       if (error) throw error;
       if (data?.url) window.location.href = data.url;
     } catch {
