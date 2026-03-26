@@ -211,7 +211,7 @@ function InscritesView() {
     for (const r of recipients) {
       try {
         const resolved = resolveVariables(emailBody || `<p>${emailSubject}</p>`, emailSubject, r);
-        const res = await supabase.functions.invoke("send-email", {
+        const res = await invokeWithTimeout("send-email", {
           body: {
             to: r.email,
             subject: resolved.subject,
