@@ -351,7 +351,9 @@ Pour le module editorial, propose piliers de contenu.`;
           0.5,
           4000,
         );
-        return createClientSSEStream(anthropicStream, corsHeaders);
+        return createClientSSEStream(anthropicStream, corsHeaders, async () => {
+          await logUsage(user.id, "suggestion", "coaching_adjust");
+        });
       }
 
       const raw = await callAnthropicSimple(getDefaultModel(), systemPrompt, "Ajuste ta proposition en tenant compte du feedback.", 0.5, 4000);
