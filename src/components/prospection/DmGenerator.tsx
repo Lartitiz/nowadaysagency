@@ -232,7 +232,7 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
     });
   };
 
-  const handlePostpone = () => {
+  const handlePostpone = async () => {
     // Save context even if not sending now
     if (user) {
       const updates: Record<string, any> = {};
@@ -242,7 +242,11 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
       if (toAvoid.trim()) updates.to_avoid = toAvoid;
       if (messageContext.trim()) updates.last_dm_context = messageContext;
       if (Object.keys(updates).length > 0) {
-        supabase.from("prospects").update(updates).eq("id", prospect.id).then(() => {});
+        try {
+          await supabase.from("prospects").update(updates).eq("id", prospect.id);
+        } catch (e) {
+          console.error("[DmGenerator] Failed to save prospect context on postpone:", e);
+        }
       }
     }
     onBack();
