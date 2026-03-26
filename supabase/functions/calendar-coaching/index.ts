@@ -21,6 +21,9 @@ serve(async (req) => {
     const { data: { user }, error: authErr } = await supabase.auth.getUser();
     if (authErr || !user) throw new Error("Non authentifié·e");
 
+    const rateCheck = checkRateLimit(user.id);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+
     const { posts_per_week, context_week, mix_or_focus, mode, existing_posts, workspace_id: bodyWorkspaceId } = await req.json();
 
     // Get workspace
