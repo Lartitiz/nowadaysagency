@@ -189,7 +189,7 @@ export default function CoachChat() {
         if (error.isAuth) {
           const authMsg: ChatMessage = {
             role: "assistant",
-            content: "Ta session a expiré. Recharge la page pour te reconnecter 🔄",
+            content: "Ta session a expiré. Reconnecte-toi pour continuer 🔄",
           };
           const final = [...updated, authMsg];
           setMessages(final);

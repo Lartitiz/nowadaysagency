@@ -279,7 +279,7 @@ export async function invokeWithTimeout(
         resolve({
           data: null,
           error: {
-            message: "Connexion perdue ou session expirée. Recharge la page et réessaie.",
+            message: "Connexion perdue ou session expirée. Reconnecte-toi pour continuer.",
             code: "NETWORK",
             isNetwork: true,
             originalError: err,
