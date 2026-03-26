@@ -194,13 +194,13 @@ export default function SuggestedContents() {
 
     (async () => {
       try {
-        const { data, error } = await supabase.functions.invoke("generate-content", {
+        const { data, error } = await invokeWithTimeout("generate-content", {
           body: {
             type: "weekly-suggestions",
             canal: "instagram",
             workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
           },
-        });
+        }, 60000);
 
         if (cancelled) return;
 
