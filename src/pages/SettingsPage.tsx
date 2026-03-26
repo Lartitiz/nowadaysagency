@@ -64,7 +64,7 @@ export default function SettingsPage() {
   const loadSubscription = async () => {
     setLoadingSub(true);
     try {
-      const { data, error } = await supabase.functions.invoke("check-subscription");
+      const { data, error } = await invokeWithTimeout("check-subscription", {}, 15000);
       if (!error && data) setSubInfo(data);
     } catch (e) {
       console.error("Settings error:", e);
