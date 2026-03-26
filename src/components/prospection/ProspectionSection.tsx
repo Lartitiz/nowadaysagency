@@ -152,16 +152,20 @@ export default function ProspectionSection() {
     setDmInteractions((data || []) as ProspectInteraction[]);
   };
 
-  const handleDmSent = (content: string, approach: string) => {
+  const handleDmSent = async (content: string, approach: string) => {
     if (!dmProspect || !user) return;
     // Log interaction
-    supabase.from("prospect_interactions").insert({
-      prospect_id: dmProspect.id,
-      user_id: user.id,
-      interaction_type: "dm_sent",
-      content,
-      ai_generated: true,
-    });
+    try {
+      await supabase.from("prospect_interactions").insert({
+        prospect_id: dmProspect.id,
+        user_id: user.id,
+        interaction_type: "dm_sent",
+        content,
+        ai_generated: true,
+      });
+    } catch (e) {
+      console.error("[Prospection] Failed to log interaction:", e);
+    }
 
     const nextStage = dmProspect.stage === "to_contact" ? "in_conversation" : dmProspect.stage;
     const reminderDate = new Date();
