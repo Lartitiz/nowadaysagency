@@ -5,6 +5,7 @@ import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 const SECTION_PROMPTS: Record<string, string> = {
   story: `Tu es une experte en storytelling de marque personnelle.
@@ -112,6 +113,10 @@ serve(async (req) => {
 
   try {
     const { userId } = await authenticateRequest(req);
+
+    const rateCheck = checkRateLimit(userId);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+
     const { section, input, branding_context } = await req.json();
 
     const quota = await checkQuota(userId, "coach");

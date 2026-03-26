@@ -5,6 +5,7 @@ import { getUserContext, formatContextForAI, buildIdentityBlock } from "../_shar
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { ANTI_SLOP, CORE_PRINCIPLES } from "../_shared/copywriting-prompts.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -19,6 +20,9 @@ serve(async (req) => {
     );
     const { data: { user }, error: authErr } = await supabase.auth.getUser();
     if (authErr || !user) throw new Error("Non authentifié·e");
+
+    const rateCheck = checkRateLimit(user.id);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
 
     const { posts_per_week, context_week, mix_or_focus, mode, existing_posts, workspace_id: bodyWorkspaceId } = await req.json();
 
