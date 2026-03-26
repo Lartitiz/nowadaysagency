@@ -123,7 +123,7 @@ export default function AdminUsersTab() {
     if (!session?.access_token) return;
     setResettingUser(true);
     try {
-      const res = await supabase.functions.invoke("reset-onboarding", {
+      const res = await invokeWithTimeout("reset-onboarding", {
         headers: { Authorization: `Bearer ${session.access_token}` },
         body: { targetUserId },
       });
