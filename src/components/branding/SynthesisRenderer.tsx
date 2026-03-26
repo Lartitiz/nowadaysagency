@@ -767,10 +767,10 @@ export default function SynthesisRenderer({ section, data, table, onSynthesisGen
         setLocalData({ ...localData, recap_summary: parsed });
       } else if (section === "persona") {
         const profile = { ...(profileData || {}), ...(brandProfileData || {}) };
-        const { data: fnData, error } = await supabase.functions.invoke("persona-ai", {
+        const { data: fnData, error } = await invokeWithTimeout("persona-ai", {
           body: { type: "portrait", profile, persona: localData },
         });
-        if (error) throw error;
+        if (error) throw new Error(error.message);
         const raw = fnData.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
         const parsed = JSON.parse(raw);
         await supabase.from("persona").update({ portrait: parsed as any, portrait_prenom: parsed.prenom }).eq("id", localData.id);
