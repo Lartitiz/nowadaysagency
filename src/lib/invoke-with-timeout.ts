@@ -46,9 +46,25 @@ export async function invokeWithTimeout(
     async function tryRefreshSession(): Promise<boolean> {
       try {
         const { data, error } = await supabase.auth.refreshSession();
-        return !error && !!data.session;
-      } catch {
+        if (!error && data.session) return true;
+        // Refresh token is dead — force clean signOut to clear stale tokens
+        await forceSignOut();
         return false;
+      } catch {
+        await forceSignOut();
+        return false;
+      }
+    }
+
+    async function forceSignOut(): Promise<void> {
+      try {
+        await supabase.auth.signOut();
+      } catch {
+        // If signOut also fails, manually clear storage so user isn't stuck
+        try {
+          const storageKey = Object.keys(localStorage).find(k => k.startsWith("sb-") && k.endsWith("-auth-token"));
+          if (storageKey) localStorage.removeItem(storageKey);
+        } catch { /* ignore */ }
       }
     }
 
@@ -110,7 +126,7 @@ export async function invokeWithTimeout(
                 resolve({
                   data: null,
                   error: {
-                    message: "Ta session a expiré. Recharge la page pour te reconnecter.",
+                    message: "Ta session a expiré. Reconnecte-toi pour continuer.",
                     code: "AUTH",
                     isAuth: true,
                   },
@@ -155,7 +171,7 @@ export async function invokeWithTimeout(
           resolve({
             data: null,
             error: {
-              message: "Ta session a expiré. Recharge la page pour te reconnecter.",
+              message: "Ta session a expiré. Reconnecte-toi pour continuer.",
               code: "AUTH",
               isAuth: true,
             },
@@ -221,7 +237,7 @@ export async function invokeWithTimeout(
                 error: {
                   message:
                     retryStatus === 401 || retryStatus === 403
-                      ? "Ta session a expiré. Recharge la page pour te reconnecter."
+                      ? "Ta session a expiré. Reconnecte-toi pour continuer."
                       : retryMsg || "L'IA a eu un blanc. Réessaie dans quelques instants.",
                   code: retryStatus === 401 || retryStatus === 403 ? "AUTH" : "SERVER_ERROR",
                   isAuth: retryStatus === 401 || retryStatus === 403,
@@ -263,7 +279,7 @@ export async function invokeWithTimeout(
         resolve({
           data: null,
           error: {
-            message: "Connexion perdue ou session expirée. Recharge la page et réessaie.",
+            message: "Connexion perdue ou session expirée. Reconnecte-toi pour continuer.",
             code: "NETWORK",
             isNetwork: true,
             originalError: err,
