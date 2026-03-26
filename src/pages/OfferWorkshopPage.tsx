@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Sparkles, Check, Pencil, Loader2, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { toast } from "sonner";
 import { useAutoSave, SaveIndicator } from "@/hooks/use-auto-save";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
