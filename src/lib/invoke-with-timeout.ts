@@ -237,7 +237,7 @@ export async function invokeWithTimeout(
                 error: {
                   message:
                     retryStatus === 401 || retryStatus === 403
-                      ? "Ta session a expiré. Recharge la page pour te reconnecter."
+                      ? "Ta session a expiré. Reconnecte-toi pour continuer."
                       : retryMsg || "L'IA a eu un blanc. Réessaie dans quelques instants.",
                   code: retryStatus === 401 || retryStatus === 403 ? "AUTH" : "SERVER_ERROR",
                   isAuth: retryStatus === 401 || retryStatus === 403,
