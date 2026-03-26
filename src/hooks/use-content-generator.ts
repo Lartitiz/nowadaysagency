@@ -418,7 +418,7 @@ export function useContentGenerator() {
               editorial_angle: editorialAngle || null,
               content_structure: structurePrompt || null,
             },
-          });
+          }, 60000);
           data = res.data;
           invokeError = res.error;
         } else {
