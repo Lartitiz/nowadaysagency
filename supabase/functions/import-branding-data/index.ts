@@ -4,6 +4,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { callAnthropic, getDefaultModel } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getUserContext, formatContextForAI } from "../_shared/user-context.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
