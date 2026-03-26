@@ -116,7 +116,7 @@ export default function SettingsPage() {
   const handleCheckoutOutil = async () => {
     setPortalLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("create-checkout", {
+      const { data, error } = await invokeWithTimeout("create-checkout", {
         body: { priceId: STRIPE_PLANS.outil.priceId, mode: "subscription" },
       });
       if (error) throw error;
