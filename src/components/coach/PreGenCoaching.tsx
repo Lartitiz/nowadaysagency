@@ -6,7 +6,7 @@ import { MarkdownText } from "@/components/ui/markdown-text";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { cn } from "@/lib/utils";
 
 export interface PreGenBrief {
