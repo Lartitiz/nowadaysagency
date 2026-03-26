@@ -203,7 +203,7 @@ export default function BrandingAuditPage() {
       if (documentText) payload.document_text = documentText;
       if (useFreeText && freeText.trim()) payload.free_text = freeText.trim();
 
-      const { data, error } = await supabase.functions.invoke("audit-branding", { body: { ...payload, workspace_id: workspaceId } });
+      const { data, error } = await invokeWithTimeout("audit-branding", { body: { ...payload, workspace_id: workspaceId } }, 120000);
 
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);

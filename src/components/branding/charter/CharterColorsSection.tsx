@@ -122,23 +122,11 @@ export default function CharterColorsSection({
     setIsGenerating(true);
     toast.info("Appel à l'IA en cours…");
     try {
-      const { data: result, error } = await supabase.functions.invoke("palette-ai", {
+      const { data: result, error } = await invokeWithTimeout("palette-ai", {
         body: { emotions: selectedEmotions, universe: selectedUniverse, styleAxes, userSector }
-      });
+      }, 90000);
       if (error) {
-        const name = (error as any)?.name || "Error";
-        const msg = (error as any)?.message || String(error);
-        console.error("palette-ai invoke error:", name, msg, error);
-        if (name === "FunctionsFetchError" || msg.includes("Failed to fetch")) {
-          throw new Error("La fonction IA n'est pas accessible. Vérifie ta connexion ou réessaie.");
-        }
-        if (msg.includes("402") || msg.includes("Payment Required")) {
-          throw new Error("Crédits IA insuffisants. Passe à un plan supérieur pour continuer.");
-        }
-        if (msg.includes("429") || msg.includes("Too Many Requests")) {
-          throw new Error("Trop de requêtes. Attends quelques secondes puis réessaie.");
-        }
-        throw new Error(`Erreur serveur (${name}): ${msg}`);
+        throw new Error(error.message);
       }
       if (result?.error) throw new Error(result.error);
       if (result?.palettes?.length) {

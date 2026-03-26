@@ -78,14 +78,14 @@ export default function BrandingImportDialog({
     setStep("loading");
 
     try {
-      const { data, error } = await supabase.functions.invoke("import-branding-data", {
+      const { data, error } = await invokeWithTimeout("import-branding-data", {
         body: {
           section: sectionTable,
           text: text.trim(),
           fields: fields.map((f) => ({ key: f.key, label: f.label })),
           workspace_id: workspaceId,
         },
-      });
+      }, 120000);
 
       if (error) throw new Error(error.message || "Erreur lors de l'analyse");
       if (data?.error) throw new Error(data.error);

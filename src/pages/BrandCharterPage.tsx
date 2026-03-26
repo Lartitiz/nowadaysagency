@@ -497,10 +497,10 @@ export default function BrandCharterPage() {
     setAuditing(true);
     try {
       const templateUrls = data.uploaded_templates.map(t => t.url);
-      const { data: result, error } = await supabase.functions.invoke("audit-visual-templates", {
+      const { data: result, error } = await invokeWithTimeout("audit-visual-templates", {
         body: { template_urls: templateUrls },
-      });
-      if (error) throw error;
+      }, 90000);
+      if (error) throw new Error(error.message);
       if (result?.error) {
         toast.error(result.error);
         return;

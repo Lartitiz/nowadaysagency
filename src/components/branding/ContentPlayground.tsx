@@ -70,15 +70,15 @@ export default function ContentPlayground({ section }: Props) {
         .eq(column, value)
         .single();
 
-      const res = await supabase.functions.invoke("generate-content", {
+      const res = await invokeWithTimeout("generate-content", {
         body: {
           type: "playground",
           playground_prompt: actions[idx].prompt,
           profile: profileData || {},
         },
-      });
+      }, 60000);
 
-      if (res.error) throw res.error;
+      if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || res.data;
       setResult(typeof content === "string" ? content : JSON.stringify(content, null, 2));
     } catch (e: any) {

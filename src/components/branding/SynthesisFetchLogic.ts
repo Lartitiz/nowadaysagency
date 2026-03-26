@@ -94,9 +94,9 @@ export function useSynthesisFetch() {
   const regenerateSummaries = useCallback(async () => {
     setSummariesLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("generate-branding-summary", {
+      const { data, error } = await invokeWithTimeout("generate-branding-summary", {
         body: { force: true },
-      });
+      }, 90000);
       if (!error && data) {
         setSummaries(data.summaries);
         toast.success("Résumés régénérés !");

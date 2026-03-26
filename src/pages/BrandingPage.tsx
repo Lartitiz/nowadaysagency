@@ -470,7 +470,7 @@ export default function BrandingPage() {
         }
       }
 
-      const { data: result, error } = await supabase.functions.invoke("analyze-brand", {
+      const { data: result, error } = await invokeWithTimeout("analyze-brand", {
         body: {
           userId: user?.id,
           websiteUrl: normalizedWebsite,
@@ -480,19 +480,10 @@ export default function BrandingPage() {
           documentText: documentText,
           workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
         },
-      });
+      }, 120000);
 
       if (error) {
-        // Extract the actual error message from the response context
-        let detail = "";
-        try {
-          const ctx = (error as any)?.context;
-          if (ctx && typeof ctx.json === "function") {
-            const body = await ctx.json();
-            detail = body?.error || "";
-          }
-        } catch { /* ignore */ }
-        throw new Error(detail || error.message || "Analyse échouée");
+        throw new Error(error.message);
       }
       if (!result?.success) throw new Error(result?.error || "Analyse échouée");
 
