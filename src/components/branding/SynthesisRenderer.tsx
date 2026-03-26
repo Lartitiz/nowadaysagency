@@ -755,10 +755,10 @@ export default function SynthesisRenderer({ section, data, table, onSynthesisGen
       if (section === "story") {
         const story = localData.step_7_polished || localData.imported_text || localData.step_6_full_story || "";
         const profile = { ...(profileData || {}), ...(brandProfileData || {}) };
-        const { data: fnData, error } = await supabase.functions.invoke("storytelling-ai", {
+        const { data: fnData, error } = await invokeWithTimeout("storytelling-ai", {
           body: { type: "generate-recap", storytelling: story, profile },
         });
-        if (error) throw error;
+        if (error) throw new Error(error.message);
         const raw = fnData.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
         const parsed = JSON.parse(raw);
         await supabase.from("storytelling").update({ recap_summary: parsed } as any).eq("id", localData.id);
