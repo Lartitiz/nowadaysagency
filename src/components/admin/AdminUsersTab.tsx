@@ -438,7 +438,7 @@ export default function AdminUsersTab() {
             const res = await invokeWithTimeout("delete-account", {
               headers: { Authorization: `Bearer ${session.access_token}` },
               body: { targetUserId: deleteTarget.user_id },
-            });
+            }, 30000);
             if (res.error) throw new Error(res.error.message || "Erreur suppression");
             if (res.data?.error) throw new Error(res.data.error);
             toast.success(`Compte de ${deleteTarget.prenom || deleteTarget.email} supprimé`);

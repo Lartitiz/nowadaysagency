@@ -92,7 +92,7 @@ export default function AbonnementPage() {
     try {
       const { data } = await invokeWithTimeout("create-checkout", {
         body: { priceId, mode: "payment" },
-      });
+      }, 15000);
       if (data?.url) window.location.href = data.url;
     } catch (e) {
       console.error("Abonnement error:", e);

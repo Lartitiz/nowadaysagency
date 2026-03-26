@@ -122,6 +122,7 @@ export default function AdminStatsTab() {
       const res = await invokeWithTimeout("admin-users?mode=stats", {
         headers: { Authorization: `Bearer ${session.access_token}` },
         body: null,
+      }, 30000);
       });
       if (res.error) {
         setError(res.error?.message || JSON.stringify(res.error));

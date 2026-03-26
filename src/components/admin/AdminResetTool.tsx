@@ -209,7 +209,7 @@ export default function AdminResetTool() {
       const { data, error } = await invokeWithTimeout("reset-onboarding", {
         headers: { Authorization: `Bearer ${session?.access_token}` },
         body: { targetUserId: userId },
-      });
+      }, 30000);
 
       if (error) {
         toast.error("Erreur lors du reset", { description: error.message });

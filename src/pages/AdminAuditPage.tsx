@@ -315,7 +315,7 @@ async function checkEdgeFunctions(): Promise<AuditResult[]> {
       const { error } = await invokeWithTimeout(fn, {
         method: "POST",
         body: { ping: true },
-      });
+      }, 30000);
       // A function that responds (even with error) is deployed
       results.push({
         status: "ok",

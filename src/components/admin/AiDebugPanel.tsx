@@ -88,7 +88,7 @@ export default function AiDebugPanel() {
     try {
       const { data, error } = await invokeWithTimeout("generate-content", {
         body: { type: "caption", theme: "test de connexion", objectif: "visibilite" },
-      });
+      }, 90000);
       if (error) {
         results[2] = {
           label: results[2].label,

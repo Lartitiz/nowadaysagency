@@ -219,7 +219,7 @@ function InscritesView() {
             user_id: r.user_id,
             template_id: selectedTemplateId !== "libre" ? selectedTemplateId : undefined,
           },
-        });
+        }, 30000);
         if (res.data?.success) successCount++;
       } catch (e) { console.error(e); }
     }
