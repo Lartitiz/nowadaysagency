@@ -478,6 +478,16 @@ Deno.serve(async (req) => {
       { headers: { ...cors, "Content-Type": "application/json" } }
     );
   } catch (err: any) {
+    if (err instanceof ValidationError) {
+      return new Response(JSON.stringify({ error: err.message }), {
+        status: 400, headers: { ...cors, "Content-Type": "application/json" },
+      });
+    }
+    if (err?.status === 429) {
+      return new Response(JSON.stringify({ error: "Trop de requêtes. Réessaie dans un moment." }), {
+        status: 429, headers: { ...cors, "Content-Type": "application/json" },
+      });
+    }
     console.error(JSON.stringify({
       type: "edge_function_error",
       function_name: "assistant-chat",
@@ -485,8 +495,11 @@ Deno.serve(async (req) => {
       user_id: null,
       timestamp: new Date().toISOString(),
     }));
+    const userMessage = err?.message?.includes("API") || err?.message?.includes("IA")
+      ? err.message
+      : "Erreur interne du serveur";
     return new Response(
-      JSON.stringify({ error: "Erreur interne du serveur" }),
+      JSON.stringify({ error: userMessage }),
       { status: 500, headers: { ...cors, "Content-Type": "application/json" } }
     );
   }

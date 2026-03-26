@@ -7,7 +7,7 @@ import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { isDemoUser } from "../_shared/guard-demo.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
-import { validateInput, GenerateContentSchema } from "../_shared/input-validators.ts";
+import { validateInput, ValidationError, GenerateContentSchema } from "../_shared/input-validators.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
@@ -571,6 +571,16 @@ Réponds en JSON :
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e: any) {
+    if (e instanceof ValidationError) {
+      return new Response(JSON.stringify({ error: e.message }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (e?.status === 429) {
+      return new Response(JSON.stringify({ error: "Trop de requêtes. Réessaie dans un moment." }), {
+        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     console.error(JSON.stringify({
       type: "edge_function_error",
       function_name: "generate-content",
@@ -578,8 +588,11 @@ Réponds en JSON :
       user_id: null,
       timestamp: new Date().toISOString(),
     }));
+    const userMessage = e?.message?.includes("API") || e?.message?.includes("IA")
+      ? e.message
+      : "Erreur interne du serveur";
     return new Response(
-      JSON.stringify({ error: "Erreur interne du serveur" }),
+      JSON.stringify({ error: userMessage }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
