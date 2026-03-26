@@ -332,10 +332,10 @@ export default function BrandingPage() {
         step_3_for_whom: personaRes.data?.step_1_frustrations || "",
       };
 
-      const { data: fn, error } = await supabase.functions.invoke("proposition-ai", {
+      const { data: fn, error } = await invokeWithTimeout("proposition-ai", {
         body: { type: "generate-versions", proposition_data: syntheticData, persona: personaRes.data, storytelling: storyRes.data, tone: profileRes.data, profile: profiles.data },
-      });
-      if (error) throw error;
+      }, 90000);
+      if (error) throw new Error(error.message);
 
       const raw = fn?.content || fn?.response || (typeof fn === "string" ? fn : JSON.stringify(fn));
       const cleaned = typeof raw === "string" ? raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim() : raw;
