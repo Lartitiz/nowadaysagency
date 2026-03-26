@@ -423,6 +423,15 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
     updateCoveredTopics(response);
     setCompletionPct(response.completion_percentage || completionPct);
 
+    // Save extracted insights on retry too (was missing entirely)
+    if (response.extracted_insights && Object.keys(response.extracted_insights).length > 0) {
+      try {
+        await saveInsights(section, response.extracted_insights);
+      } catch (e) {
+        console.error("[BrandingCoaching] Failed to save insights on retry:", e);
+      }
+    }
+
     if (response.is_complete) {
       setFinalSummary(response.final_summary || "");
       setCompletionPct(100);
@@ -431,7 +440,7 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
       return;
     }
     setCurrentQuestion(response);
-  }, [askAI, completionPct]);
+  }, [askAI, completionPct, section]);
 
   const updateCoveredTopics = useCallback((response: AIResponse) => {
     if (response.covered_topic) {
@@ -679,19 +688,28 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
       covered_topics: newCovered as any,
     };
 
-    if (existingSession?.id) {
-      (supabase.from("branding_coaching_sessions") as any).update(sessionPayload).eq("id", existingSession.id).then(({ error: saveErr }: any) => {
+    try {
+      if (existingSession?.id) {
+        const { error: saveErr } = await (supabase.from("branding_coaching_sessions") as any)
+          .update(sessionPayload).eq("id", existingSession.id);
         if (saveErr) console.error("[BrandingCoaching] Save session error:", saveErr);
-      });
-    } else {
-      (supabase.from("branding_coaching_sessions") as any).insert(sessionPayload).then(({ error: saveErr }: any) => {
+      } else {
+        const { error: saveErr } = await (supabase.from("branding_coaching_sessions") as any)
+          .insert(sessionPayload);
         if (saveErr) console.error("[BrandingCoaching] Save session error:", saveErr);
-      });
+      }
+    } catch (e) {
+      console.error("[BrandingCoaching] Save session critical error:", e);
     }
 
-    // Save extracted insights
+    // Save extracted insights — MUST await to guarantee persistence before showing completion
     if (response.extracted_insights && Object.keys(response.extracted_insights).length > 0) {
-      saveInsights(section, response.extracted_insights);
+      try {
+        await saveInsights(section, response.extracted_insights);
+      } catch (e) {
+        console.error("[BrandingCoaching] Failed to save insights:", e);
+        toast.error("Tes réponses sont enregistrées dans la conversation mais la fiche n'a pas pu être mise à jour. Clique sur 'Affiner avec l'IA' pour réessayer.");
+      }
     }
 
     if (response.is_complete) {
@@ -916,6 +934,9 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
         queryClient.invalidateQueries({ queryKey: ["brand-charter"] });
         queryClient.invalidateQueries({ queryKey: ["persona"] });
       }
+      // Always invalidate the global branding data cache so BrandingPage/BrandingSectionPage see fresh data
+      queryClient.invalidateQueries({ queryKey: ["branding-data"] });
+      queryClient.invalidateQueries({ queryKey: ["branding-completion"] });
     } catch (e) {
       console.error("[BrandingCoaching] Error saving insights:", e);
     }
