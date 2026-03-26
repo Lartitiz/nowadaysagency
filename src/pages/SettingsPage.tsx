@@ -131,7 +131,7 @@ export default function SettingsPage() {
     setDeleting(true);
     try {
       console.log("[delete-account] Calling edge function...");
-      const { data, error } = await supabase.functions.invoke("delete-account");
+      const { data, error } = await invokeWithTimeout("delete-account", {}, 30000);
       console.log("[delete-account] Response:", { data, error });
 
       if (error) {
