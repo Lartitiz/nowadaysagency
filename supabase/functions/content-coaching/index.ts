@@ -32,6 +32,9 @@ Deno.serve(async (req) => {
       });
     }
 
+    const rateCheck = checkRateLimit(user.id);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+
     const quota = await checkQuota(user.id, "suggestion");
     if (!quota.allowed) {
       return new Response(JSON.stringify({ error: quota.message, quota }), {

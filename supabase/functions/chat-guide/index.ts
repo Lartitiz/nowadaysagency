@@ -325,6 +325,9 @@ Deno.serve(async (req) => {
     }
     const userId = user.id;
 
+    const rateCheck = checkRateLimit(userId);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, cors);
+
     const { message, conversationHistory, workspaceId } = await req.json();
     if (!message || typeof message !== "string" || message.length > 2000) {
       return new Response(JSON.stringify({ error: "Message invalide" }), { status: 400, headers: { ...cors, "Content-Type": "application/json" } });
