@@ -99,9 +99,9 @@ export default function AuditCoachingPanel({
 
   const loadQuestions = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke("coaching-module", {
+      const { data, error } = await invokeWithTimeout("coaching-module", {
         body: { phase: "questions", module, rec_id: recId },
-      });
+      }, 60000);
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
       setQuestions(data.questions || []);
