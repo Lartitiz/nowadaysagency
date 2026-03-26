@@ -3,6 +3,7 @@ import { callAnthropicSimple, getDefaultModel } from "../_shared/anthropic.ts";
 import { logUsage, checkQuota } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 // ── HTML to text helper ──
 function htmlToText(html: string): string {
