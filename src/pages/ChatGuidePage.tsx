@@ -12,6 +12,7 @@ import { useGuideRecommendation } from "@/hooks/use-guide-recommendation";
 // useCoachingFlow removed — all interactions now go through the AI edge function
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { parseAIResponse } from "@/lib/parse-ai-response";
 import { LayoutGrid } from "lucide-react";
 import { useDemoContext } from "@/contexts/DemoContext";
