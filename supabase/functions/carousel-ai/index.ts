@@ -615,6 +615,26 @@ RÈGLES :
 - Headlines (title) : 4-7 mots, percutant
 - Caption différente du hook slide 1
 - Hashtags : 3-8, mix large + niche${extraRules}
+
+MODULATION JE / TU / NOUS :
+- VOIX PAR DÉFAUT = "JE". L'auteur·ice raconte, partage, analyse. C'est SA réflexion, SON expérience, SA prise de position.
+- "TU" = interpellation ponctuelle (1-2 fois max dans tout le carrousel). Pour une question directe ou un CTA. JAMAIS comme voix narrative.
+- "NOUS" = pour les sujets de société, combats, valeurs. Fédérateur : "On a intériorisé", "On nous dit que".
+- VÉRIFICATION : si plus de 2 slides utilisent le "tu" comme sujet principal, RÉÉCRIS en "je" ou "nous".
+
+═══ EXIGENCE DE PROFONDEUR PAR SLIDE ═══
+
+Chaque slide (sauf hook et CTA) doit contenir AU MOINS 1 de ces éléments :
+- Un MÉCANISME NOMMÉ : biais cognitif, concept psycho/socio, dynamique systémique (avec auteur si connu)
+- Une DONNÉE CHIFFRÉE sourcée (chiffre + source entre parenthèses)
+- Un EXEMPLE HYPER-SPÉCIFIQUE : situation concrète avec détail (pas "quand tu postes" mais "quand tu passes 45 min à choisir le filtre et que tu finis par ne rien publier")
+- Un RETOURNEMENT DE PERSPECTIVE : une phrase qui recadre complètement le sujet ("Le problème n'est pas X, c'est Y")
+- Une ANALOGIE ORIGINALE ancrée dans le quotidien ou la culture pop
+
+TEST DE PROFONDEUR (applique-le à chaque slide avant de retourner le JSON) :
+- Si on peut remplacer le sujet par un autre et que la slide fonctionne encore → la slide est GÉNÉRIQUE → RÉÉCRIS
+- Si la slide dit quelque chose que tout le monde sait déjà → elle n'apporte rien → RÉÉCRIS
+- Si la slide pourrait être écrite par n'importe qui sans expertise sur le sujet → elle manque de perspective → RÉÉCRIS
 ${deepeningCtx ? "- UTILISE les mots et exemples de l'utilisatrice dans les slides (anecdotes, vécu, arguments)" : ""}
 
 ═══ SCHÉMAS VISUELS (PUISSANT — utilise-les !) ═══
