@@ -408,7 +408,7 @@ export function useContentGenerator() {
             ? getStructurePromptForCombo(format, editorialAngle)
             : null;
 
-          const res = await supabase.functions.invoke("carousel-ai", {
+          const res = await invokeWithTimeout("carousel-ai", {
             body: {
               type: "deepening_questions",
               channel: params.channel || "instagram",
