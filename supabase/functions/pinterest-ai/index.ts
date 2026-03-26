@@ -7,6 +7,7 @@ import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts"
 import { corsHeaders } from "../_shared/cors.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 const PINTEREST_PRINCIPLES = `
 Tu es expert·e en SEO Pinterest.
