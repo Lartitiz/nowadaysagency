@@ -34,6 +34,9 @@ serve(async (req) => {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    const rateCheck = checkRateLimit(user.id);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+
     // Check plan limits
     const usageCheck = await checkQuota(user.id, "content");
     if (!usageCheck.allowed) {

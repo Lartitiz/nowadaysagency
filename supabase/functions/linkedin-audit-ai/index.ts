@@ -33,6 +33,9 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Authentification invalide" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    const rateCheck = checkRateLimit(user.id);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+
     // Anthropic API key checked in shared helper
 
     // Check plan limits (audit type)

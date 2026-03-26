@@ -3,6 +3,7 @@ import { callAnthropicSimple, getDefaultModel } from "../_shared/anthropic.ts";
 import { streamAnthropicSSE, createClientSSEStream } from "../_shared/anthropic-stream.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 const MODULE_QUESTIONS: Record<string, string[]> = {
   persona: [

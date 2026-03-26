@@ -28,6 +28,9 @@ Deno.serve(async (req) => {
     }
     const userId = user.id;
 
+    const rateCheck = checkRateLimit(userId);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+
     // Read optional workspace_id from body
     let workspace_id: string | undefined;
     try {

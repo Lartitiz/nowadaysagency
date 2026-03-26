@@ -36,6 +36,9 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new Error("Non authentifié");
 
+    const rateCheck = checkRateLimit(user.id);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+
     const { force, workspace_id } = await req.json().catch(() => ({ force: false, workspace_id: undefined }));
 
     const filterCol = workspace_id ? "workspace_id" : "user_id";

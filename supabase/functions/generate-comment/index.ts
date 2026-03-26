@@ -23,6 +23,9 @@ Deno.serve(async (req) => {
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) throw new Error("Non authentifié");
 
+    const rateCheck = checkRateLimit(user.id);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+
     // Check plan limits
     const quotaCheck = await checkQuota(user.id, "dm_comment");
     if (!quotaCheck.allowed) {
