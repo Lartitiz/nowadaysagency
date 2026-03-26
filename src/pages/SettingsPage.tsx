@@ -105,7 +105,7 @@ export default function SettingsPage() {
     setPortalLoading(true);
     try {
       const { data, error } = await invokeWithTimeout("create-portal-session", {}, 15000);
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       if (data?.url) window.open(data.url, "_blank");
     } catch {
       toast({ title: "Erreur", description: "Impossible d'ouvrir le portail.", variant: "destructive" });
