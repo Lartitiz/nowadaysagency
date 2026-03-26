@@ -44,8 +44,8 @@ export function useStreamingInvoke(): UseStreamingInvokeReturn {
       const controller = new AbortController();
       abortRef.current = controller;
 
-      // Timeout de 60s pour le streaming (plus long que le non-streaming car on reçoit des tokens)
-      const timeout = setTimeout(() => controller.abort(), 60000);
+      // Timeout de 90s pour le streaming — les newsletters et le deep research peuvent être longs
+      const timeout = setTimeout(() => controller.abort(), 90000);
 
       const resp = await fetch(`${supabaseUrl}/functions/v1/${functionName}`, {
         method: "POST",
