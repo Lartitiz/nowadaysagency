@@ -343,10 +343,10 @@ const SiteAuditPage = () => {
         reader.onload = () => resolve((reader.result as string).split(",")[1]);
         reader.readAsDataURL(screenshotFile);
       });
-      const { data, error } = await supabase.functions.invoke("website-ai", {
+      const { data, error } = await invokeWithTimeout("website-ai", {
         body: { action: "audit-screenshot", image_base64: base64, image_type: screenshotFile.type === "image/png" ? "png" : "jpg", site_url: screenshotUrl || undefined, page_type: screenshotPageType, workspace_id: workspaceId },
-      });
-      if (error) throw error;
+      }, 120000);
+      if (error) throw new Error(error.message);
       const raw = data?.content || data;
       let parsed;
       try { const str = typeof raw === "string" ? raw : JSON.stringify(raw); parsed = typeof raw === "object" && raw.first_impression ? raw : JSON.parse(str.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim()); } catch { throw new Error("Format de réponse inattendu"); }

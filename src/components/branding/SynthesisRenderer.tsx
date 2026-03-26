@@ -755,10 +755,10 @@ export default function SynthesisRenderer({ section, data, table, onSynthesisGen
       if (section === "story") {
         const story = localData.step_7_polished || localData.imported_text || localData.step_6_full_story || "";
         const profile = { ...(profileData || {}), ...(brandProfileData || {}) };
-        const { data: fnData, error } = await supabase.functions.invoke("storytelling-ai", {
+        const { data: fnData, error } = await invokeWithTimeout("storytelling-ai", {
           body: { type: "generate-recap", storytelling: story, profile },
         });
-        if (error) throw error;
+        if (error) throw new Error(error.message);
         const raw = fnData.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
         const parsed = JSON.parse(raw);
         await supabase.from("storytelling").update({ recap_summary: parsed } as any).eq("id", localData.id);
@@ -767,10 +767,10 @@ export default function SynthesisRenderer({ section, data, table, onSynthesisGen
         setLocalData({ ...localData, recap_summary: parsed });
       } else if (section === "persona") {
         const profile = { ...(profileData || {}), ...(brandProfileData || {}) };
-        const { data: fnData, error } = await supabase.functions.invoke("persona-ai", {
+        const { data: fnData, error } = await invokeWithTimeout("persona-ai", {
           body: { type: "portrait", profile, persona: localData },
         });
-        if (error) throw error;
+        if (error) throw new Error(error.message);
         const raw = fnData.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
         const parsed = JSON.parse(raw);
         await supabase.from("persona").update({ portrait: parsed as any, portrait_prenom: parsed.prenom }).eq("id", localData.id);
@@ -795,7 +795,7 @@ export default function SynthesisRenderer({ section, data, table, onSynthesisGen
           .select("creative_concept")
           .eq(column, value)
           .maybeSingle();
-        const { data: fnData, error } = await supabase.functions.invoke("niche-ai", {
+        const { data: fnData, error } = await invokeWithTimeout("niche-ai", {
           body: {
             type: "generate-tone-recap",
             tone_data: {
@@ -816,7 +816,7 @@ export default function SynthesisRenderer({ section, data, table, onSynthesisGen
             creative_concept: stratData?.creative_concept || "",
           },
         });
-        if (error) throw error;
+        if (error) throw new Error(error.message);
         const raw = fnData.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
         const parsed = JSON.parse(raw);
         await (supabase.from("brand_profile") as any).update({ recap_summary: parsed }).eq("id", localData.id);

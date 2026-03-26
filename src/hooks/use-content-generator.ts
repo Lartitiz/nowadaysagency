@@ -1,5 +1,4 @@
 import { useState, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { handleQuotaError } from "@/lib/quota-error-handler";
 import {
@@ -409,7 +408,7 @@ export function useContentGenerator() {
             ? getStructurePromptForCombo(format, editorialAngle)
             : null;
 
-          const res = await supabase.functions.invoke("carousel-ai", {
+          const res = await invokeWithTimeout("carousel-ai", {
             body: {
               type: "deepening_questions",
               channel: params.channel || "instagram",
@@ -419,7 +418,7 @@ export function useContentGenerator() {
               editorial_angle: editorialAngle || null,
               content_structure: structurePrompt || null,
             },
-          });
+          }, 60000);
           data = res.data;
           invokeError = res.error;
         } else {
@@ -442,7 +441,7 @@ export function useContentGenerator() {
             };
           }
 
-          const res = await supabase.functions.invoke("creative-flow", {
+          const res = await invokeWithTimeout("creative-flow", {
             body: {
               step: "questions",
               contentType:
@@ -455,7 +454,7 @@ export function useContentGenerator() {
               angle: angleObj,
               objective: objective || null,
             },
-          });
+          }, 60000);
           data = res.data;
           invokeError = res.error;
         }
