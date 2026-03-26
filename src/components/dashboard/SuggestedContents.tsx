@@ -311,7 +311,7 @@ export default function SuggestedContents() {
     setActivePopover(null);
     setExpressingIdx(idx);
     try {
-      const { data, error } = await supabase.functions.invoke("generate-content", {
+      const { data, error } = await invokeWithTimeout("generate-content", {
         body: {
           type: "express-draft",
           sujet: idea.idea,
@@ -320,7 +320,7 @@ export default function SuggestedContents() {
           canal: "instagram",
           workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
         },
-      });
+      }, 60000);
 
       if (error) throw new Error(error.message);
 

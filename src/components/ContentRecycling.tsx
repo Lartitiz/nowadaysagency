@@ -144,8 +144,8 @@ export default function ContentRecycling() {
         }
       }
 
-      const { data, error } = await supabase.functions.invoke("creative-flow", { body });
-      if (error) throw error;
+      const { data, error } = await invokeWithTimeout("creative-flow", { body }, 120000);
+      if (error) throw new Error(error.message);
       const r = data?.results || {};
       setResults(r);
       setActiveTab(formats[0] || "");

@@ -81,7 +81,7 @@ export default function PreGenCoaching({ generationType, onComplete, onSkip }: P
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke("coach-chat", {
+      const { data, error } = await invokeWithTimeout("coach-chat", {
         body: {
           messages: updated.map((m) => ({ role: m.role, content: m.content })),
           page_context: `pre-gen-${generationType}`,
@@ -89,9 +89,9 @@ export default function PreGenCoaching({ generationType, onComplete, onSkip }: P
           mode: "pre-gen",
           generation_type: generationType,
         },
-      });
+      }, 60000);
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
 
       const responseText = data?.response || "Désolée, je n'ai pas pu répondre. Réessaie !";
       const assistantMsg: ChatMessage = { role: "assistant", content: responseText };

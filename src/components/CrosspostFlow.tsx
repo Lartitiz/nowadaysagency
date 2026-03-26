@@ -91,7 +91,7 @@ export default function CrosspostFlow() {
           fileUrls.push({ url, type: f.type, name: f.name });
         }
       }
-      const res = await supabase.functions.invoke("linkedin-ai", {
+      const res = await invokeWithTimeout("linkedin-ai", {
         body: {
     action: "crosspost",
     sourceContent: sourceContent || "",
@@ -100,7 +100,7 @@ export default function CrosspostFlow() {
     fileUrls,
     workspace_id: workspaceId,
         },
-      });
+      }, 120000);
       if (res.error) throw new Error(res.error.message);
       let parsed: CrosspostResult = parseAIResponse(res.data?.content || "");
       setResult(parsed);

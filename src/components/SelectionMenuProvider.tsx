@@ -23,15 +23,15 @@ export default function SelectionMenuProvider({ children }: { children: ReactNod
         return text + " ✨";
       }
 
-      const { data, error } = await supabase.functions.invoke("ai-text-action", {
+      const { data, error } = await invokeWithTimeout("ai-text-action", {
         body: {
           selected_text: text,
           action_prompt: prompt,
           workspace_id: workspaceId,
         },
-      });
+      }, 30000);
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       return data?.result || text;
     },
     [user?.id, isDemoMode, workspaceId],

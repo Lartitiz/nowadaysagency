@@ -102,7 +102,7 @@ export default function IntakeQuestionnaire({ programId, onComplete, onBack }: I
     setLoading(true);
     setLoadingPhrase(LOADING_PHRASES[Math.floor(Math.random() * LOADING_PHRASES.length)]);
     try {
-      const { data, error } = await supabase.functions.invoke("branding-coaching", {
+      const { data, error } = await invokeWithTimeout("branding-coaching", {
         body: {
           user_id: user!.id,
           section: "intake",
@@ -111,8 +111,8 @@ export default function IntakeQuestionnaire({ programId, onComplete, onBack }: I
           intake_mode: true,
           workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
         },
-      });
-      if (error) throw error;
+      }, 90000);
+      if (error) throw new Error(error.message);
       return data.response as AIResponse;
     } finally {
       setLoading(false);
