@@ -174,7 +174,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const elapsed = Date.now() - lastHiddenAt.current;
         if (elapsed < 5 * 60 * 1000) return;
 
-        supabase.auth.getSession().then(({ data: { session: refreshedSession } }) => {
+        // After 30+ min away: force a server refresh to get a fresh token
+        // After 5-30 min: just read the cached session (faster, usually still valid)
+        const refreshPromise = elapsed > 30 * 60 * 1000
+          ? supabase.auth.refreshSession().then(({ data }) => data.session)
+          : supabase.auth.getSession().then(({ data }) => data.session);
+
+        refreshPromise.then((refreshedSession) => {
           if (!mounted) return;
           if (refreshedSession) {
             setSession(refreshedSession);
