@@ -251,7 +251,7 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
           } else if (err.isTimeout) {
             setError("La génération prend plus de temps que prévu. Réessaie dans quelques instants.");
           } else if (err.isAuth) {
-            setError("Ta session a expiré. Rafraîchis la page pour te reconnecter.");
+            setError("Ta session a expiré. Reconnecte-toi pour continuer.");
           } else if (err.isNetwork) {
             setError("Connexion perdue. Vérifie ta connexion internet et réessaie.");
           } else if (err.message?.includes("invalide") || err.message?.includes("Données")) {
