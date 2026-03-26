@@ -126,9 +126,9 @@ ${prenom || "[Ton prénom]"}`;
   const generateDraft = async () => {
     setGeneratingDraft(true);
     try {
-      const res = await supabase.functions.invoke("linkedin-ai", {
+      const res = await invokeWithTimeout("linkedin-ai", {
         body: { action: "draft-recommendation", person_name: draftName, collab_type: draftType, highlights: draftHighlights },
-      });
+      }, 60000);
       if (res.error) throw new Error(res.error.message);
       setDraftResult(res.data?.content || "");
     } catch (e: any) {

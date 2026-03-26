@@ -99,7 +99,7 @@ export default function LinkedInCrosspost() {
         }
       }
 
-      const res = await supabase.functions.invoke("linkedin-ai", {
+      const res = await invokeWithTimeout("linkedin-ai", {
         body: {
           action: "crosspost",
           sourceContent: sourceContent || "",
@@ -107,7 +107,7 @@ export default function LinkedInCrosspost() {
           targetChannels: Array.from(targets),
           fileUrls,
         },
-      });
+      }, 120000);
       if (res.error) throw new Error(res.error.message);
       let parsed: CrosspostResult = parseAIResponse(res.data?.content || "");
       setResult(parsed);

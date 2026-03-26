@@ -217,7 +217,7 @@ export default function LinkedInAudit() {
     try {
       const uploadedScreenshots = screenshots.length > 0 ? await uploadAllScreenshots() : [];
 
-      const res = await supabase.functions.invoke("linkedin-audit-ai", {
+      const res = await invokeWithTimeout("linkedin-audit-ai", {
         body: {
           workspace_id: workspaceId,
           profileUrl,
@@ -237,11 +237,11 @@ export default function LinkedInAudit() {
           inboundRequests,
           screenshots: uploadedScreenshots,
         },
-      });
+      }, 120000);
 
       if (res.error) {
         const errorMsg = res.error.message || "";
-        if (/limit_reached|quota|limit/i.test(errorMsg)) {
+        if (res.error.isRateLimit || /limit_reached|quota|limit/i.test(errorMsg)) {
           setQuotaExhausted({ message: errorMsg });
           return;
         }

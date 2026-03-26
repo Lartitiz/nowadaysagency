@@ -116,7 +116,7 @@ export default function LinkedInParcours() {
   const suggestSkills = async () => {
     setGeneratingSkills(true);
     try {
-      const res = await supabase.functions.invoke("linkedin-ai", { body: { action: "suggest-skills", workspace_id: workspaceId !== user?.id ? workspaceId : undefined } });
+      const res = await invokeWithTimeout("linkedin-ai", { body: { action: "suggest-skills", workspace_id: workspaceId !== user?.id ? workspaceId : undefined } }, 60000);
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
       let parsed: any;
