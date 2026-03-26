@@ -994,7 +994,20 @@ Privilégie les sources françaises et européennes quand elles existent.`,
     await logUsage(user.id, "content", "creative_flow", undefined, undefined, workspace_id);
     return new Response(JSON.stringify(parsed), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: any) {
+    if (e instanceof ValidationError) {
+      return new Response(JSON.stringify({ error: e.message }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (e?.status === 429) {
+      return new Response(JSON.stringify({ error: "Trop de requêtes. Réessaie dans un moment." }), {
+        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     console.error("creative-flow error:", e);
-    return new Response(JSON.stringify({ error: "Erreur interne du serveur" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const userMessage = e?.message?.includes("API") || e?.message?.includes("IA")
+      ? e.message
+      : "L'IA a eu un blanc. Réessaie dans quelques instants.";
+    return new Response(JSON.stringify({ error: userMessage }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });
