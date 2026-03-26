@@ -167,3 +167,72 @@ verify_jwt = false
 
 [functions.resend-webhook]
 verify_jwt = false
+
+[functions.stories-ai]
+verify_jwt = false
+
+[functions.newsletter-ai]
+verify_jwt = false
+
+[functions.newsjacking-ai]
+verify_jwt = false
+
+[functions.suggest-format]
+verify_jwt = false
+
+[functions.score-content]
+verify_jwt = false
+
+[functions.pinterest-visual]
+verify_jwt = false
+
+[functions.pinterest-inspiration]
+verify_jwt = false
+
+[functions.pinterest-photo-brief]
+verify_jwt = false
+
+[functions.generate-voice-guide]
+verify_jwt = false
+
+[functions.voice-analysis]
+verify_jwt = false
+
+[functions.generate-comment]
+verify_jwt = false
+
+[functions.prospect-dm]
+verify_jwt = false
+
+[functions.offer-coaching]
+verify_jwt = false
+
+[functions.deep-diagnostic]
+verify_jwt = false
+
+[functions.diagnostic-enrichment]
+verify_jwt = false
+
+[functions.analyze-documents]
+verify_jwt = false
+
+[functions.generate-branding-summary]
+verify_jwt = false
+
+[functions.chat-guide]
+verify_jwt = false
+
+[functions.shared-branding-access]
+verify_jwt = false
+
+[functions.pre-scrape-website]
+verify_jwt = false
+
+[functions.public-calendar-edit]
+verify_jwt = false
+
+[functions.redeem-promo]
+verify_jwt = false
+
+[functions.reset-onboarding]
+verify_jwt = false
