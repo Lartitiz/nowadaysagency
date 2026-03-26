@@ -3,7 +3,7 @@ import { Gift, Loader2, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useUserPlan } from "@/hooks/use-user-plan";
 
 export default function PromoCodeInput() {
