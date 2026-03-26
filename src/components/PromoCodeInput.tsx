@@ -20,7 +20,7 @@ export default function PromoCodeInput() {
       const { data, error } = await invokeWithTimeout("redeem-promo", {
         body: { code: code.trim() },
       }, 30000);
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       if (data?.error) {
         toast({ title: "Erreur", description: data.error, variant: "destructive" });
       } else if (data?.success) {

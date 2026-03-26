@@ -105,7 +105,7 @@ export default function SettingsPage() {
     setPortalLoading(true);
     try {
       const { data, error } = await invokeWithTimeout("create-portal-session", {}, 15000);
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       if (data?.url) window.open(data.url, "_blank");
     } catch {
       toast({ title: "Erreur", description: "Impossible d'ouvrir le portail.", variant: "destructive" });
@@ -119,7 +119,7 @@ export default function SettingsPage() {
       const { data, error } = await invokeWithTimeout("create-checkout", {
         body: { priceId: STRIPE_PLANS.outil.priceId, mode: "subscription" },
       }, 15000);
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       if (data?.url) window.location.href = data.url;
     } catch {
       toast({ title: "Erreur", description: "Impossible d'ouvrir le paiement.", variant: "destructive" });
@@ -136,7 +136,7 @@ export default function SettingsPage() {
 
       if (error) {
         console.error("[delete-account] Edge function error:", error);
-        throw error;
+        throw new Error(error.message);
       }
       if (data?.error) {
         console.error("[delete-account] Data error:", data.error);
