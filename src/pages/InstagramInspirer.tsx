@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
@@ -98,9 +99,9 @@ export default function InstagramInspirer() {
     if (!sourceUrl.trim()) return;
     setFetchingLink(true);
     try {
-      const { data, error } = await supabase.functions.invoke("fetch-instagram-post", {
+      const { data, error } = await invokeWithTimeout("fetch-instagram-post", {
         body: { url: sourceUrl.trim() },
-      });
+      }, 30000);
 
       if (error) {
         toast.info("Le lien n'a pas fonctionné. Colle le texte du post directement 👇");
@@ -212,7 +213,7 @@ export default function InstagramInspirer() {
         body = { source_text: sourceText.trim() };
       }
 
-      const { data, error } = await supabase.functions.invoke("inspire-ai", { body: { ...body, workspace_id: workspaceId } });
+      const { data, error } = await invokeWithTimeout("inspire-ai", { body: { ...body, workspace_id: workspaceId } }, 90000);
       if (error || data?.error) {
         toast.error(data?.error || "Erreur lors de l'analyse");
         return;

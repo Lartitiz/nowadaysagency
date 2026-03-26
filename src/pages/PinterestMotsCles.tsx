@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
@@ -40,7 +41,7 @@ export default function PinterestMotsCles() {
   const generateKeywords = async () => {
     setGenerating(true);
     try {
-      const res = await supabase.functions.invoke("pinterest-ai", { body: { action: "keywords" } });
+      const res = await invokeWithTimeout("pinterest-ai", { body: { action: "keywords" } }, 60000);
       if (res.error) throw new Error(res.error.message);
       const c = res.data?.content || "";
       let parsed: any;

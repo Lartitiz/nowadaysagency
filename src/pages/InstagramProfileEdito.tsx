@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useBrandStrategy, useEditorialLine } from "@/hooks/use-branding";
 import { useQueryClient } from "@tanstack/react-query";
@@ -371,7 +372,7 @@ export default function InstagramProfileEdito() {
     if (!user) return;
     setSuggestingPillars(true);
     try {
-      const res = await supabase.functions.invoke("generate-content", {
+      const res = await invokeWithTimeout("generate-content", {
         body: {
           type: "instagram-edito-pillars",
           profile: {
@@ -381,7 +382,7 @@ export default function InstagramProfileEdito() {
           },
           workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
         },
-      });
+      }, 60000);
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
       let parsed: any;
@@ -404,7 +405,7 @@ export default function InstagramProfileEdito() {
     if (!user) return;
     setSuggestingFormats(true);
     try {
-      const res = await supabase.functions.invoke("generate-content", {
+      const res = await invokeWithTimeout("generate-content", {
         body: {
           type: "instagram-edito-formats",
           profile: {
@@ -414,7 +415,7 @@ export default function InstagramProfileEdito() {
           },
           workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
         },
-      });
+      }, 60000);
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
       let parsed: any;
@@ -438,7 +439,7 @@ export default function InstagramProfileEdito() {
     setSuggestingRhythm(true);
     setRhythmSuggestion(null);
     try {
-      const res = await supabase.functions.invoke("generate-content", {
+      const res = await invokeWithTimeout("generate-content", {
         body: {
           type: "instagram-rhythm-adapt",
           profile: {
@@ -451,7 +452,7 @@ export default function InstagramProfileEdito() {
           },
           workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
         },
-      });
+      }, 60000);
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
       let parsed: any;

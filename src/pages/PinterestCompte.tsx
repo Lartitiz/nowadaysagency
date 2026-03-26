@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useBrandProposition } from "@/hooks/use-branding";
 import AppHeader from "@/components/AppHeader";
@@ -89,7 +90,7 @@ export default function PinterestCompte() {
   const generateName = async () => {
     setGeneratingName(true);
     try {
-      const res = await supabase.functions.invoke("pinterest-ai", { body: { action: "name" } });
+      const res = await invokeWithTimeout("pinterest-ai", { body: { action: "name" } }, 60000);
       if (res.error) throw new Error(res.error.message);
       const c = res.data?.content || "";
       let parsed: string[];
@@ -102,7 +103,7 @@ export default function PinterestCompte() {
   const generateBio = async () => {
     setGeneratingBio(true);
     try {
-      const res = await supabase.functions.invoke("pinterest-ai", { body: { action: "bio" } });
+      const res = await invokeWithTimeout("pinterest-ai", { body: { action: "bio" } }, 60000);
       if (res.error) throw new Error(res.error.message);
       const c = res.data?.content || "";
       let parsed: string[];

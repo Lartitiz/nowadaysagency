@@ -3,6 +3,7 @@ import EmptyState from "@/components/EmptyState";
 import { MESSAGES } from "@/lib/messages";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
@@ -59,7 +60,7 @@ export default function PinterestTableaux() {
     if (!b.name.trim()) return;
     setGeneratingIdx(idx);
     try {
-      const res = await supabase.functions.invoke("pinterest-ai", { body: { action: "board-description", board_name: b.name, board_type: b.board_type, workspace_id: workspaceId !== user?.id ? workspaceId : undefined } });
+      const res = await invokeWithTimeout("pinterest-ai", { body: { action: "board-description", board_name: b.name, board_type: b.board_type, workspace_id: workspaceId !== user?.id ? workspaceId : undefined } }, 60000);
       if (res.error) throw new Error(res.error.message);
       updateBoard(idx, "description", res.data?.content || "");
     } catch (e: any) { console.error("Erreur technique:", e); toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" }); }
