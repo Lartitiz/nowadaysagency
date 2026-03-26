@@ -236,3 +236,6 @@ verify_jwt = false
 
 [functions.reset-onboarding]
 verify_jwt = false
+
+[functions.audit-instagram-ai]
+verify_jwt = false
