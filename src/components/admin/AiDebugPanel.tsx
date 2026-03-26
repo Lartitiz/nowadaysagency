@@ -62,7 +62,7 @@ export default function AiDebugPanel() {
     try {
       const { data, error } = await invokeWithTimeout("branding-coaching", {
         body: { user_id: "test", section: "story", messages: [], context: {}, covered_topics: [] },
-      });
+      }, 120000);
       if (error) {
         results[1] = {
           label: results[1].label,
