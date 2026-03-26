@@ -90,9 +90,9 @@ export default function LinkedInCoaching({ open, onOpenChange, initialModule, au
 
   const loadQuestions = async (mod: ModuleKey) => {
     try {
-      const { data, error } = await supabase.functions.invoke("linkedin-coaching", {
+      const { data, error } = await invokeWithTimeout("linkedin-coaching", {
         body: { phase: "questions", module: mod, workspace_id: wsId },
-      });
+      }, 60000);
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
       setQuestions(data.questions || []);
