@@ -452,7 +452,7 @@ export default function InstagramProfileEdito() {
           },
           workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
         },
-      });
+      }, 60000);
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
       let parsed: any;

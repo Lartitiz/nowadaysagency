@@ -173,7 +173,7 @@ export default function InstagramLaunchPlan() {
 
       const extraHours = extraTime ? (TIME_OPTIONS.find((t) => t.id === extraTime)?.hours ?? FALLBACK_TIME_OPTIONS.find((t) => t.id === extraTime)?.hours ?? 0) : 0;
 
-      const res = await supabase.functions.invoke("launch-plan-ai", {
+      const res = await invokeWithTimeout("launch-plan-ai", {
         body: {
           launch: {
             name: launch.name,
@@ -190,7 +190,7 @@ export default function InstagramLaunchPlan() {
           rhythm: editoData?.posts_frequency || "3 posts/semaine",
           workspace_id: workspaceId,
         },
-      });
+      }, 120000);
 
       if (res.error) throw new Error(res.error.message);
 

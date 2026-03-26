@@ -52,7 +52,7 @@ export default function PinterestEpingles() {
     setGenerating(true);
     try {
       const boardName = boards.find(b => b.id === boardId)?.name || "";
-      const res = await supabase.functions.invoke("pinterest-ai", { body: { action: "pin", subject, board_name: boardName } });
+      const res = await invokeWithTimeout("pinterest-ai", { body: { action: "pin", subject, board_name: boardName } }, 60000);
       if (res.error) throw new Error(res.error.message);
       const c = res.data?.content || "";
       let parsed: PinVariant[];

@@ -103,7 +103,7 @@ export default function PinterestCompte() {
   const generateBio = async () => {
     setGeneratingBio(true);
     try {
-      const res = await supabase.functions.invoke("pinterest-ai", { body: { action: "bio" } });
+      const res = await invokeWithTimeout("pinterest-ai", { body: { action: "bio" } }, 60000);
       if (res.error) throw new Error(res.error.message);
       const c = res.data?.content || "";
       let parsed: string[];

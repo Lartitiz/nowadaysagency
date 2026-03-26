@@ -171,7 +171,7 @@ export default function InspireFlow() {
       } else {
         body = { source_text: sourceText.trim() };
       }
-      const { data, error } = await supabase.functions.invoke("inspire-ai", { body: { ...body, workspace_id: workspaceId } });
+      const { data, error } = await invokeWithTimeout("inspire-ai", { body: { ...body, workspace_id: workspaceId } }, 90000);
       if (error || data?.error) { toast.error(data?.error || "Erreur lors de l'analyse"); return; }
       const r = data as InspirationResult;
       setResult(r);

@@ -138,9 +138,9 @@ export default function InstagramProfileCoaching({ open, onOpenChange, initialMo
         question: q.question,
         answer: answers[i] || "",
       }));
-      const { data, error } = await supabase.functions.invoke("instagram-profile-coaching", {
+      const { data, error } = await invokeWithTimeout("instagram-profile-coaching", {
         body: { phase: "diagnostic", module: activeModule, answers: answersPayload, workspace_id: workspaceId !== user?.id ? workspaceId : undefined },
-      });
+      }, 90000);
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
       setDiagnostic(data);

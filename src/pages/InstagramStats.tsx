@@ -236,10 +236,10 @@ export default function InstagramStats() {
     setIsGenerating(true);
     try {
       const last6 = allStats.slice(0, 6);
-      const { data, error } = await supabase.functions.invoke("engagement-insight", {
+      const { data, error } = await invokeWithTimeout("engagement-insight", {
         body: { currentWeek: formData, history: last6, mode: "monthly_stats" },
-      });
-      if (error) throw error;
+      }, 60000);
+      if (error) throw new Error(error.message);
       const insight = data?.insight || "";
       setAiAnalysis(insight);
       if (formId) {
