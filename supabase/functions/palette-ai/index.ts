@@ -3,6 +3,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
