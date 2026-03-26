@@ -17,9 +17,9 @@ export default function PromoCodeInput() {
     if (!code.trim()) return;
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("redeem-promo", {
+      const { data, error } = await invokeWithTimeout("redeem-promo", {
         body: { code: code.trim() },
-      });
+      }, 30000);
       if (error) throw error;
       if (data?.error) {
         toast({ title: "Erreur", description: data.error, variant: "destructive" });

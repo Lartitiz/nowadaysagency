@@ -39,7 +39,7 @@ export default function ServicesPage() {
     }
     setLoadingKey(key);
     try {
-      const { data, error } = await supabase.functions.invoke("create-checkout", {
+      const { data, error } = await invokeWithTimeout("create-checkout", {
         body: {
           priceId,
           mode: "payment",

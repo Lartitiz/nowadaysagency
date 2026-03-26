@@ -119,7 +119,7 @@ export default function AdminStatsTab() {
     setLoading(true);
     setError(null);
     try {
-      const res = await supabase.functions.invoke("admin-users?mode=stats", {
+      const res = await invokeWithTimeout("admin-users?mode=stats", {
         headers: { Authorization: `Bearer ${session.access_token}` },
         body: null,
       });

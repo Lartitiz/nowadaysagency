@@ -312,7 +312,7 @@ async function checkEdgeFunctions(): Promise<AuditResult[]> {
 
   for (const fn of functions) {
     try {
-      const { error } = await supabase.functions.invoke(fn, {
+      const { error } = await invokeWithTimeout(fn, {
         method: "POST",
         body: { ping: true },
       });

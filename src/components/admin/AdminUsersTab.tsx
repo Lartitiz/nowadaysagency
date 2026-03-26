@@ -434,7 +434,7 @@ export default function AdminUsersTab() {
           if (!deleteTarget || !session?.access_token) return;
           setDeleting(true);
           try {
-            const res = await supabase.functions.invoke("delete-account", {
+            const res = await invokeWithTimeout("delete-account", {
               headers: { Authorization: `Bearer ${session.access_token}` },
               body: { targetUserId: deleteTarget.user_id },
             });

@@ -90,7 +90,7 @@ export default function AbonnementPage() {
     if (!priceId) return;
     setPackLoading(packKey);
     try {
-      const { data } = await supabase.functions.invoke("create-checkout", {
+      const { data } = await invokeWithTimeout("create-checkout", {
         body: { priceId, mode: "payment" },
       });
       if (data?.url) window.location.href = data.url;

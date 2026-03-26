@@ -435,7 +435,7 @@ export default function SettingsPage() {
                     try {
                       const sessionData = await supabase.auth.getSession();
                       const token = sessionData.data.session?.access_token;
-                      const res = await supabase.functions.invoke("reset-onboarding", {
+                      const res = await invokeWithTimeout("reset-onboarding", {
                         headers: { Authorization: `Bearer ${token}` },
                         body: {},
                       });

@@ -409,7 +409,7 @@ function SequencesView() {
   async function handleTrigger(event: string) {
     setTriggerLoading(event);
     try {
-      const res = await supabase.functions.invoke("email-trigger", { body: { event } });
+      const res = await invokeWithTimeout("email-trigger", { body: { event } }, 30000);
       if (res.error) throw new Error(res.error.message || "Erreur inconnue");
       const d = res.data || {};
       if (event === "process_queue") {

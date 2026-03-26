@@ -86,7 +86,7 @@ export default function AiDebugPanel() {
     results[2].status = "running";
     setTests([...results]);
     try {
-      const { data, error } = await supabase.functions.invoke("generate-content", {
+      const { data, error } = await invokeWithTimeout("generate-content", {
         body: { type: "caption", theme: "test de connexion", objectif: "visibilite" },
       });
       if (error) {
