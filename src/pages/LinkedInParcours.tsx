@@ -79,9 +79,9 @@ export default function LinkedInParcours() {
     if (!exp.description_raw.trim()) return;
     setGeneratingIdx(idx);
     try {
-      const res = await supabase.functions.invoke("linkedin-ai", {
+      const res = await invokeWithTimeout("linkedin-ai", {
         body: { action: "optimize-experience", job_title: exp.job_title, company: exp.company, description: exp.description_raw, workspace_id: workspaceId !== user?.id ? workspaceId : undefined },
-      });
+      }, 60000);
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
       updateExp(idx, "description_optimized", content);
