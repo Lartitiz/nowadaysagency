@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useProfile } from "@/hooks/use-profile";
 import { useProfileUserId, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useQueryClient } from "@tanstack/react-query";
