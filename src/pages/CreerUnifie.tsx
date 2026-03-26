@@ -528,17 +528,21 @@ export default function CreerUnifie() {
 
     // Sauvegarder le brief en base pour les futures créations
     if (session?.user?.id && Object.keys(ans).length > 0) {
-      supabase.from("content_briefs").insert({
-        user_id: session.user.id,
-        workspace_id: workspaceId && workspaceId !== session.user.id ? workspaceId : null,
-        subject: ideaText,
-        objective: objective || null,
-        format: selectedFormat || null,
-        editorial_angle: editorialAngle || null,
-        questions: questions.map(q => ({ id: q.id, question: q.question })),
-        answers: ans,
-      } as any).select("id").maybeSingle()
-        .then(({ data }: any) => { if (data?.id) setCurrentBriefId(data.id); }, console.error);
+      try {
+        const { data: briefData } = await supabase.from("content_briefs").insert({
+          user_id: session.user.id,
+          workspace_id: workspaceId && workspaceId !== session.user.id ? workspaceId : null,
+          subject: ideaText,
+          objective: objective || null,
+          format: selectedFormat || null,
+          editorial_angle: editorialAngle || null,
+          questions: questions.map(q => ({ id: q.id, question: q.question })),
+          answers: ans,
+        } as any).select("id").maybeSingle();
+        if (briefData?.id) setCurrentBriefId(briefData.id);
+      } catch (e) {
+        console.error("[CreerUnifie] Failed to save content brief:", e);
+      }
     }
 
     const isPhotoOrMixCarousel = selectedFormat === "carousel" && (carouselSubMode === "photo" || carouselSubMode === "mix");
