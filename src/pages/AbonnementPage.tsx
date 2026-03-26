@@ -75,7 +75,7 @@ export default function AbonnementPage() {
   const handleCheckout = async (priceId: string) => {
     setPortalLoading(true);
     try {
-      const { data } = await supabase.functions.invoke("create-checkout", {
+      const { data } = await invokeWithTimeout("create-checkout", {
         body: { priceId, mode: "subscription" },
       });
       if (data?.url) window.location.href = data.url;
