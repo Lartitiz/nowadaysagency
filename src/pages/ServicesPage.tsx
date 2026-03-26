@@ -46,7 +46,7 @@ export default function ServicesPage() {
           successUrl: `${window.location.origin}/payment/success?product=${key}`,
           cancelUrl: `${window.location.origin}/services`,
         },
-      });
+      }, 15000);
       if (error) throw error;
       if (data?.url) window.location.href = data.url;
     } catch {

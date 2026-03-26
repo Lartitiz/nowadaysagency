@@ -123,7 +123,6 @@ export default function AdminStatsTab() {
         headers: { Authorization: `Bearer ${session.access_token}` },
         body: null,
       }, 30000);
-      });
       if (res.error) {
         setError(res.error?.message || JSON.stringify(res.error));
       } else if (res.data) {

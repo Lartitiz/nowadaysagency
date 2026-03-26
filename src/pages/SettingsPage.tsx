@@ -438,7 +438,7 @@ export default function SettingsPage() {
                       const res = await invokeWithTimeout("reset-onboarding", {
                         headers: { Authorization: `Bearer ${token}` },
                         body: {},
-                      });
+                      }, 30000);
 
                       if (res.error) throw res.error;
                       if (res.data?.error) throw new Error(res.data.error);

@@ -137,7 +137,7 @@ export default function PricingPage() {
           priceId: STRIPE_PLANS.outil.priceId,
           mode: "subscription",
         },
-      });
+      }, 15000);
       if (error) throw error;
       if (data?.url) window.location.href = data.url;
     } catch (e: any) {
