@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { extractTextFromFile, ACCEPTED_MIME_TYPES } from "@/lib/file-extractors";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { toast } from "sonner";
