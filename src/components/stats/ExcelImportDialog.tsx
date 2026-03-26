@@ -269,11 +269,11 @@ export default function ExcelImportDialog({ open, onOpenChange, userId, onImport
       }
 
       // Call AI to analyze
-      const { data, error } = await supabase.functions.invoke("analyze-excel-mapping", {
+      const { data, error } = await invokeWithTimeout("analyze-excel-mapping", {
         body: { sheets: infos },
-      });
+      }, 60000);
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
 
       const mapping = data as MappingResult;
       const sheetInfo = infos.find(s => s.name === mapping.sheet) || infos[0];

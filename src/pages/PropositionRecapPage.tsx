@@ -81,7 +81,7 @@ export default function PropositionRecapPage() {
     setGenerating(true);
     try {
       const mergedProfile = { ...(profileData || {}), ...(brandProfileData || {}) };
-      const { data: fnData, error } = await supabase.functions.invoke("proposition-ai", {
+      const { data: fnData, error } = await invokeWithTimeout("proposition-ai", {
         body: {
           type: "generate-recap",
           proposition_data: data,
@@ -89,8 +89,8 @@ export default function PropositionRecapPage() {
           persona: personaHookData || {},
           tone: brandProfileData || {},
         },
-      });
-      if (error) throw error;
+      }, 90000);
+      if (error) throw new Error(error.message);
       const raw = fnData.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       const parsed = JSON.parse(raw);
       await supabase.from("brand_proposition").update({ recap_summary: parsed } as any).eq("id", data.id);

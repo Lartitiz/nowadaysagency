@@ -204,7 +204,7 @@ export default function SiteAuditResult({
         .filter(([, cat]) => cat.max > 0 && (cat.score / cat.max) < 0.75)
         .map(([, cat]) => cat.label);
 
-      const { data, error } = await supabase.functions.invoke("website-ai", {
+      const { data, error } = await invokeWithTimeout("website-ai", {
         body: {
           action: "audit-diagnostic",
           audit_mode: auditMode,
@@ -214,8 +214,8 @@ export default function SiteAuditResult({
           weak_categories: weakCategories,
           workspace_id: workspaceId,
         },
-      });
-      if (error) throw error;
+      }, 90000);
+      if (error) throw new Error(error.message);
 
       const rawDiag = data?.diagnostic || data?.content || "";
       const parsed = parseDiagnostic(rawDiag);

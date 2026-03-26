@@ -29,10 +29,10 @@ export default function SiteCapturePage() {
     if (!user) return;
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("website-ai", {
+      const { data, error } = await invokeWithTimeout("website-ai", {
         body: { action: "capture-page", lead_magnet_name: leadName, lead_magnet_description: leadDesc, workspace_id: workspaceId },
-      });
-      if (error) throw error;
+      }, 90000);
+      if (error) throw new Error(error.message);
       const raw = data?.content || "";
       const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       setResult(JSON.parse(cleaned));

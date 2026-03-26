@@ -85,15 +85,15 @@ export default function SiteInspirationGeneratorPage() {
     if (!sectionType) return;
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("website-ai", {
+      const { data, error } = await invokeWithTimeout("website-ai", {
         body: {
           action: "generate-section-html",
           section_type: sectionType,
           variant_count: 2,
           workspace_id: workspaceId,
         },
-      });
-      if (error) throw error;
+      }, 90000);
+      if (error) throw new Error(error.message);
 
       const content = typeof data === "string" ? data : data?.content ?? data;
       let parsed: { variants: Variant[] };

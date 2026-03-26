@@ -186,7 +186,7 @@ export default function SiteAPropos() {
     setOriginalText(text || "");
     setMode("optimize-loading");
     try {
-      const { data: fnData, error } = await supabase.functions.invoke("website-ai", {
+      const { data: fnData, error } = await invokeWithTimeout("website-ai", {
         body: {
           action: "optimize-about",
           url,
@@ -194,8 +194,8 @@ export default function SiteAPropos() {
           focus: optimizeFocus.trim() || undefined,
           workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
         },
-      });
-      if (error) throw error;
+      }, 90000);
+      if (error) throw new Error(error.message);
       const raw = fnData.content?.replace(/```json|```/g, "").trim();
       const parsed = JSON.parse(raw);
       setOptimizeResult(parsed);

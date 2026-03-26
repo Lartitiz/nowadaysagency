@@ -52,9 +52,9 @@ export default function VoiceGuidePage() {
     if (!user) return;
     setGenerating(true);
     try {
-      const { data, error } = await supabase.functions.invoke("generate-voice-guide", {
+      const { data, error } = await invokeWithTimeout("generate-voice-guide", {
         body: { workspace_id: workspaceId },
-      });
+      }, 90000);
       if (error) throw new Error(error.message || "Erreur");
       setGuide(data.guide);
       toast.success("✨ Guide de voix généré !");

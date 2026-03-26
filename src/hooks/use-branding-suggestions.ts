@@ -94,11 +94,11 @@ export function useBrandingSuggestions(workspaceId?: string) {
     setIsAnalyzing(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke("analyze-branding-impact", {
+      const { data, error } = await invokeWithTimeout("analyze-branding-impact", {
         body: { changed_field: field, old_value: oldValue, new_value: newValue, workspace_id: workspaceId },
-      });
+      }, 90000);
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
 
       if (data?.suggestions?.length > 0) {
         setSuggestions(data.suggestions);

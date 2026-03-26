@@ -124,13 +124,13 @@ export default function SalesPageOptimizer() {
     if (!siteUrl.trim() || !user) return;
     setStep("loading");
     try {
-      const { data, error } = await supabase.functions.invoke("optimize-sales-page", {
+      const { data, error } = await invokeWithTimeout("optimize-sales-page", {
         body: {
           site_url: siteUrl.trim(),
           focus: focus.trim() || null,
           workspace_id: workspaceId !== user.id ? workspaceId : null,
         },
-      });
+      }, 120000);
       if (error || !data?.success) throw new Error(data?.error || error?.message || "Erreur");
       setResult(data.result);
       setStep("results");

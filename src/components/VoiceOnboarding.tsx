@@ -56,10 +56,10 @@ export default function VoiceOnboarding({ onComplete, existingProfile }: VoiceOn
     }
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("voice-analysis", {
+      const { data, error } = await invokeWithTimeout("voice-analysis", {
         body: { texts: validTexts },
-      });
-      if (error) throw error;
+      }, 60000);
+      if (error) throw new Error(error.message);
       setAnalysis(data as VoiceAnalysis);
       setEditedSummary(data.voice_summary || "");
       setStep("review");

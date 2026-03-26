@@ -63,10 +63,10 @@ export default function EngagementCoachingDialog({ open, onOpenChange, platform 
   const generate = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("engagement-coaching", {
+      const { data, error } = await invokeWithTimeout("engagement-coaching", {
         body: { post_text: postText, objectif, ton_envie: ton, platform, workspace_id: workspaceId !== user?.id ? workspaceId : undefined },
-      });
-      if (error) throw error;
+      }, 60000);
+      if (error) throw new Error(error.message);
       setResult(data);
     } catch (e: any) {
       toast({ title: "Erreur", description: e.message || "Impossible de générer", variant: "destructive" });

@@ -152,9 +152,9 @@ export default function OfferWorkshopPage() {
     setAiLoading(true);
     setAiResponse(null);
     try {
-      const res = await supabase.functions.invoke("offer-coaching", {
+      const res = await invokeWithTimeout("offer-coaching", {
         body: { step: stepNum, answer, offerData: { ...offer, ...formData }, brandContext: {}, workspace_id: workspaceId },
-      });
+      }, 90000);
       
       if (res.error) {
         const msg = typeof res.error === "string" ? res.error : (res.error as any)?.message || "Erreur inconnue";
