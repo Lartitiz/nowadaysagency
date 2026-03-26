@@ -2,7 +2,7 @@ import { ReactNode, useCallback } from "react";
 import { useTextSelection } from "@/hooks/use-text-selection";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import SelectionMenu from "./SelectionMenu";
 
