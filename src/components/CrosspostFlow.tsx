@@ -2,6 +2,7 @@ import { useState } from "react";
 import { parseAIResponse } from "@/lib/parse-ai-response";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
