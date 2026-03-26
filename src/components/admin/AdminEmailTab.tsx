@@ -115,7 +115,7 @@ function InscritesView() {
         const res = await invokeWithTimeout("admin-users", {
           headers: { Authorization: `Bearer ${session.access_token}` },
           body: null,
-        });
+        }, 30000);
         if (res.data?.users) setUsers(res.data.users);
       } catch (e) { console.error(e); }
 
