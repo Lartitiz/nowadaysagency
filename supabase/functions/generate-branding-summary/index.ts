@@ -4,6 +4,7 @@ import { callAnthropicSimple, getDefaultModel } from "../_shared/anthropic.ts";
 import { getUserContext, formatContextForAI } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 
 function hashString(str: string): string {
