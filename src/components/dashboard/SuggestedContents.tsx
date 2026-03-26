@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceId, useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { format, startOfWeek } from "date-fns";
