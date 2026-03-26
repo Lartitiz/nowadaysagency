@@ -104,7 +104,7 @@ export default function SettingsPage() {
   const handleManageSubscription = async () => {
     setPortalLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("create-portal-session");
+      const { data, error } = await invokeWithTimeout("create-portal-session", {}, 15000);
       if (error) throw error;
       if (data?.url) window.open(data.url, "_blank");
     } catch {
