@@ -234,7 +234,7 @@ const SiteAuditPage = () => {
         },
       }, 120000);
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       if (data?.error === "site_inaccessible") {
         toast.error(data.message || "Site inaccessible", { duration: 8000 });
         setStep("input");

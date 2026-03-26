@@ -784,7 +784,7 @@ export default function SynthesisRenderer({ section, data, table, onSynthesisGen
         const { data: fnData, error } = await invokeWithTimeout("strategy-ai", {
           body: { type: "generate-recap", strategy_data: localData, profile, persona: personaData, proposition: propositionData, tone: brandProfileData, editorial_line: editorialData },
         }, 120000);
-        if (error) throw error;
+        if (error) throw new Error(error.message);
         const raw = fnData.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
         const parsed = JSON.parse(raw);
         await supabase.from("brand_strategy").update({ recap_summary: parsed } as any).eq("id", localData.id);

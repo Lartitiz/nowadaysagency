@@ -47,7 +47,7 @@ export default function ServicesPage() {
           cancelUrl: `${window.location.origin}/services`,
         },
       }, 15000);
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       if (data?.url) window.location.href = data.url;
     } catch {
       toast({ title: "Erreur", description: "Impossible de lancer le paiement.", variant: "destructive" });

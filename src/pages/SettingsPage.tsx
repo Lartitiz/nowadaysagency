@@ -136,7 +136,7 @@ export default function SettingsPage() {
 
       if (error) {
         console.error("[delete-account] Edge function error:", error);
-        throw error;
+        throw new Error(error.message);
       }
       if (data?.error) {
         console.error("[delete-account] Data error:", data.error);

@@ -138,7 +138,7 @@ export default function PricingPage() {
           mode: "subscription",
         },
       }, 15000);
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       if (data?.url) window.location.href = data.url;
     } catch (e: any) {
       console.error("Erreur technique:", e);
