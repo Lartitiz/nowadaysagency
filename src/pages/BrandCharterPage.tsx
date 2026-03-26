@@ -4,6 +4,7 @@ import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query"
 import { useProfile, useBrandProfile } from "@/hooks/use-profile";
 import { useBrandCharter } from "@/hooks/use-branding";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAutoSave, SaveIndicator } from "@/hooks/use-auto-save";
 import AppHeader from "@/components/AppHeader";
@@ -496,10 +497,10 @@ export default function BrandCharterPage() {
     setAuditing(true);
     try {
       const templateUrls = data.uploaded_templates.map(t => t.url);
-      const { data: result, error } = await supabase.functions.invoke("audit-visual-templates", {
+      const { data: result, error } = await invokeWithTimeout("audit-visual-templates", {
         body: { template_urls: templateUrls },
-      });
-      if (error) throw error;
+      }, 90000);
+      if (error) throw new Error(error.message);
       if (result?.error) {
         toast.error(result.error);
         return;

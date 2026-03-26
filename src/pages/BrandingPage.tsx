@@ -14,6 +14,7 @@ import AiLoadingIndicator from "@/components/AiLoadingIndicator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { fetchBrandingData, calculateBrandingCompletion, type BrandingCompletion } from "@/lib/branding-completion";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { usePersona, useBrandProposition, useStorytelling } from "@/hooks/use-branding";
 import { useQueryClient } from "@tanstack/react-query";
 import BrandingSynthesisSheet from "@/components/branding/BrandingSynthesisSheet";
@@ -134,21 +135,11 @@ export default function BrandingPage() {
     if (mirrorData) return;
     setMirrorLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("branding-mirror", {
+      const { data, error } = await invokeWithTimeout("branding-mirror", {
         body: { workspace_id: workspaceId !== user?.id ? workspaceId : undefined },
-      });
+      }, 90000);
       if (error) {
-        // Extract real error message from FunctionsHttpError context
-        let realMessage = error.message;
-        try {
-          const ctx = (error as any).context;
-          if (ctx && typeof ctx.json === "function") {
-            const body = await ctx.json();
-            if (body?.error) realMessage = body.error;
-            if (body?.message) realMessage = body.message;
-          }
-        } catch { /* ignore parse errors */ }
-        throw new Error(realMessage);
+        throw new Error(error.message);
       }
       if (data?.error) throw new Error(data.error);
       setMirrorData(data);
@@ -341,10 +332,10 @@ export default function BrandingPage() {
         step_3_for_whom: personaRes.data?.step_1_frustrations || "",
       };
 
-      const { data: fn, error } = await supabase.functions.invoke("proposition-ai", {
+      const { data: fn, error } = await invokeWithTimeout("proposition-ai", {
         body: { type: "generate-versions", proposition_data: syntheticData, persona: personaRes.data, storytelling: storyRes.data, tone: profileRes.data, profile: profiles.data },
-      });
-      if (error) throw error;
+      }, 90000);
+      if (error) throw new Error(error.message);
 
       const raw = fn?.content || fn?.response || (typeof fn === "string" ? fn : JSON.stringify(fn));
       const cleaned = typeof raw === "string" ? raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim() : raw;
@@ -479,7 +470,7 @@ export default function BrandingPage() {
         }
       }
 
-      const { data: result, error } = await supabase.functions.invoke("analyze-brand", {
+      const { data: result, error } = await invokeWithTimeout("analyze-brand", {
         body: {
           userId: user?.id,
           websiteUrl: normalizedWebsite,
@@ -489,19 +480,10 @@ export default function BrandingPage() {
           documentText: documentText,
           workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
         },
-      });
+      }, 120000);
 
       if (error) {
-        // Extract the actual error message from the response context
-        let detail = "";
-        try {
-          const ctx = (error as any)?.context;
-          if (ctx && typeof ctx.json === "function") {
-            const body = await ctx.json();
-            detail = body?.error || "";
-          }
-        } catch { /* ignore */ }
-        throw new Error(detail || error.message || "Analyse échouée");
+        throw new Error(error.message);
       }
       if (!result?.success) throw new Error(result?.error || "Analyse échouée");
 

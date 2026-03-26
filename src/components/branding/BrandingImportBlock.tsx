@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Upload, FileText, Globe, Sparkles, Loader2, X, Instagram, Linkedin, LinkIcon } from "lucide-react";
 import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { extractTextFromFile, isAcceptedFile, ACCEPTED_MIME_TYPES } from "@/lib/file-extractors";
 import type { BrandingExtraction } from "@/lib/branding-import-types";
 
@@ -172,7 +172,7 @@ export default function BrandingImportBlock({ onResult, prefillLinks }: Props) {
       if (cleanUrl) payload.url = cleanUrl;
       if (checkedSocial.length > 0) payload.social_links = checkedSocial.map((l) => ({ type: l.type, url: l.url }));
 
-      const { data, error } = await supabase.functions.invoke("analyze-branding-import", { body: payload });
+      const { data, error } = await invokeWithTimeout("analyze-branding-import", { body: payload }, 120000);
 
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);

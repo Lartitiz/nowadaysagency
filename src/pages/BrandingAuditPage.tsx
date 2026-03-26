@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { toast } from "sonner";
 import { extractTextFromFile, isAcceptedFile, ACCEPTED_MIME_TYPES } from "@/lib/file-extractors";
 import { Search, Loader2, Upload, FileText, X, ChevronDown, ChevronUp, ArrowRight } from "lucide-react";
@@ -202,7 +203,7 @@ export default function BrandingAuditPage() {
       if (documentText) payload.document_text = documentText;
       if (useFreeText && freeText.trim()) payload.free_text = freeText.trim();
 
-      const { data, error } = await supabase.functions.invoke("audit-branding", { body: { ...payload, workspace_id: workspaceId } });
+      const { data, error } = await invokeWithTimeout("audit-branding", { body: { ...payload, workspace_id: workspaceId } }, 120000);
 
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
