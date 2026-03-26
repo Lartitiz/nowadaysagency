@@ -6,6 +6,7 @@ import { callAnthropic } from "../_shared/anthropic.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -23,6 +24,9 @@ serve(async (req) => {
 
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new Error("Non autorisé");
+
+    const rateCheck = checkRateLimit(user.id);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
 
     const sbAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,

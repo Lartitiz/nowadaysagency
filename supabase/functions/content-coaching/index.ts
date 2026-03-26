@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildIdentityBlock } from "../_shared/user-context.ts";
 
@@ -30,6 +31,9 @@ Deno.serve(async (req) => {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const rateCheck = checkRateLimit(user.id);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
 
     const quota = await checkQuota(user.id, "suggestion");
     if (!quota.allowed) {

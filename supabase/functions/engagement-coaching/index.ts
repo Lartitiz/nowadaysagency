@@ -6,6 +6,7 @@ import { callAnthropic, getModelForAction } from "../_shared/anthropic.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { validateRequiredFields } from "../_shared/ai-validators.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req); const cors = corsHeaders;
@@ -26,6 +27,9 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Non autorisé" }), { status: 401, headers: cors });
     }
     const userId = user.id;
+
+    const rateCheck = checkRateLimit(userId);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, cors);
 
     const { post_text, objectif, ton_envie, platform, workspace_id } = await req.json();
 

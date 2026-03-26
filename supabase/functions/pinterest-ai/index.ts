@@ -7,6 +7,7 @@ import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts"
 import { corsHeaders } from "../_shared/cors.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 const PINTEREST_PRINCIPLES = `
 Tu es expert·e en SEO Pinterest.
@@ -52,6 +53,9 @@ serve(async (req) => {
     const supabase = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_ANON_KEY") ?? "", { global: { headers: { Authorization: authHeader } } });
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) return new Response(JSON.stringify({ error: "Auth invalide" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+    const rateCheck = checkRateLimit(user.id);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
 
     // Anthropic API key checked in shared helper
 

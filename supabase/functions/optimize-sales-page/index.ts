@@ -6,6 +6,7 @@ import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 /* ─── Constants ─── */
 const PAGE_TIMEOUT_MS = 15_000;
@@ -159,6 +160,9 @@ serve(async (req) => {
       });
     }
     const userId = userData.user.id;
+
+    const rateCheck = checkRateLimit(userId);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
 
     // Parse body
     const body = await req.json();

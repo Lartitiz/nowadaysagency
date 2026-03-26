@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getModelForAction } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 const ICON_MAP: Record<string, string> = {
   branding: "Palette",
@@ -323,6 +324,9 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Non autorisé" }), { status: 401, headers: { ...cors, "Content-Type": "application/json" } });
     }
     const userId = user.id;
+
+    const rateCheck = checkRateLimit(userId);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, cors);
 
     const { message, conversationHistory, workspaceId } = await req.json();
     if (!message || typeof message !== "string" || message.length > 2000) {

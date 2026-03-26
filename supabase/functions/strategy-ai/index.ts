@@ -8,6 +8,7 @@ import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { isDemoUser } from "../_shared/guard-demo.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -29,6 +30,9 @@ serve(async (req) => {
     if (authError || !user) {
       return new Response(JSON.stringify({ error: "Authentification invalide" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+
+    const rateCheck = checkRateLimit(user.id);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
 
     if (isDemoUser(user.id)) {
       return new Response(JSON.stringify({ error: "Demo mode: this feature is simulated" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });

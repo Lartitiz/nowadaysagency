@@ -8,6 +8,7 @@ import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { isDemoUser } from "../_shared/guard-demo.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 function buildProfileBlock(p: any) {
   return [
@@ -119,6 +120,9 @@ serve(async (req) => {
       });
     }
     const userId = user.id;
+
+    const rateCheck = checkRateLimit(userId);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
 
     if (isDemoUser(userId)) {
       return new Response(JSON.stringify({ error: "Demo mode: this feature is simulated" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });

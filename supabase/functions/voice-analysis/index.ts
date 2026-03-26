@@ -4,6 +4,7 @@ import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts"
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 
@@ -30,6 +31,9 @@ serve(async (req) => {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const rateCheck = checkRateLimit(user.id);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
 
     // Anthropic API key checked in shared helper
 
