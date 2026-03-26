@@ -372,7 +372,7 @@ export default function InstagramProfileEdito() {
     if (!user) return;
     setSuggestingPillars(true);
     try {
-      const res = await supabase.functions.invoke("generate-content", {
+      const res = await invokeWithTimeout("generate-content", {
         body: {
           type: "instagram-edito-pillars",
           profile: {
