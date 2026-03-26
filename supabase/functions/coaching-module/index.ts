@@ -78,6 +78,9 @@ Deno.serve(async (req) => {
       });
     }
 
+    const rateCheck = checkRateLimit(user.id);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+
     const body = await req.json();
     const { phase, module, answers, rec_id, previous_diagnostic, adjustment_feedback, iteration_history, iteration, workspace_id } = body;
 
