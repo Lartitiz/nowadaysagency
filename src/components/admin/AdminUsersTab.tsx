@@ -78,7 +78,7 @@ export default function AdminUsersTab() {
       if (!session?.access_token) return;
       setLoading(true);
       try {
-        const res = await supabase.functions.invoke("admin-users", {
+        const res = await invokeWithTimeout("admin-users", {
           headers: { Authorization: `Bearer ${session.access_token}` },
           body: null,
         });
