@@ -222,13 +222,26 @@ La description template_layout_description doit être TRÈS détaillée (200-500
       headers: { ...cors, "Content-Type": "application/json" },
     });
   } catch (err: any) {
+    if (err instanceof ValidationError) {
+      return new Response(JSON.stringify({ error: err.message }), {
+        status: 400, headers: { ...cors, "Content-Type": "application/json" },
+      });
+    }
     console.error("audit-visual-templates error:", err);
     if (err.message === "Non autorisé") {
       return new Response(JSON.stringify({ error: "Non autorisé" }), {
         status: 401, headers: { ...cors, "Content-Type": "application/json" },
       });
     }
-    return new Response(JSON.stringify({ error: "Erreur interne du serveur" }), {
+    if (err?.status === 429) {
+      return new Response(JSON.stringify({ error: "Trop de requêtes. Réessaie dans un moment." }), {
+        status: 429, headers: { ...cors, "Content-Type": "application/json" },
+      });
+    }
+    const userMessage = err?.message?.includes("API") || err?.message?.includes("IA")
+      ? err.message
+      : "Erreur interne du serveur";
+    return new Response(JSON.stringify({ error: userMessage }), {
       status: 500, headers: { ...cors, "Content-Type": "application/json" },
     });
   }
