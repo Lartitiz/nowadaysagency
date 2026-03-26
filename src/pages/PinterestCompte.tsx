@@ -90,7 +90,7 @@ export default function PinterestCompte() {
   const generateName = async () => {
     setGeneratingName(true);
     try {
-      const res = await supabase.functions.invoke("pinterest-ai", { body: { action: "name" } });
+      const res = await invokeWithTimeout("pinterest-ai", { body: { action: "name" } }, 60000);
       if (res.error) throw new Error(res.error.message);
       const c = res.data?.content || "";
       let parsed: string[];
