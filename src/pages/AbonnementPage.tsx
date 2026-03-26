@@ -63,7 +63,7 @@ export default function AbonnementPage() {
   const handlePortal = async () => {
     setPortalLoading(true);
     try {
-      const { data } = await supabase.functions.invoke("create-portal-session");
+      const { data } = await invokeWithTimeout("create-portal-session", {}, 15000);
       if (data?.url) window.open(data.url, "_blank");
     } catch (e) {
       console.error("Abonnement error:", e);
