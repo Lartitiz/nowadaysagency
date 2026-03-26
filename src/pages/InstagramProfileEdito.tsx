@@ -405,7 +405,7 @@ export default function InstagramProfileEdito() {
     if (!user) return;
     setSuggestingFormats(true);
     try {
-      const res = await supabase.functions.invoke("generate-content", {
+      const res = await invokeWithTimeout("generate-content", {
         body: {
           type: "instagram-edito-formats",
           profile: {
