@@ -71,6 +71,10 @@ serve(async (req) => {
 
   try {
     const { userId } = await authenticateRequest(req);
+
+    const rateCheck = checkRateLimit(userId);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+
     const { websiteUrl, instagramHandle, linkedinUrl, documentIds, profile, freeformAnswers, isOnboarding, workspace_id: bodyWorkspaceId } = await req.json();
 
     const supabaseAdmin = createClient(

@@ -11,6 +11,10 @@ serve(async (req) => {
 
   try {
     const { userId } = await authenticateRequest(req);
+
+    const rateCheck = checkRateLimit(userId);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+
     const { emotions, universe, styleAxes, userSector } = await req.json();
 
     const quota = await checkQuota(userId, "content");

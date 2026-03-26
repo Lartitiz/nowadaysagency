@@ -113,6 +113,10 @@ serve(async (req) => {
 
   try {
     const { userId } = await authenticateRequest(req);
+
+    const rateCheck = checkRateLimit(userId);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+
     const { section, input, branding_context } = await req.json();
 
     const quota = await checkQuota(userId, "coach");

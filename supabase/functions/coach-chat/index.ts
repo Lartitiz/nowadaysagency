@@ -39,6 +39,9 @@ serve(async (req) => {
     }
     const userId = user.id;
 
+    const rateCheck = checkRateLimit(userId);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+
     const reqBody = await req.json();
     const { messages, page_context, workspace_id, mode, generation_type } = validateInput(reqBody, z.object({
       messages: z.array(z.object({

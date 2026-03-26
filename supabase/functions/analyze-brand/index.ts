@@ -4,6 +4,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { scrapeWebsite, scrapeInstagram, scrapeLinkedin, processDocuments, extractVisualInfo } from "../_shared/scraping.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 const MAX_TEXT_PER_SOURCE = 8000;
 const GLOBAL_TIMEOUT_MS = 50000;
@@ -20,6 +21,10 @@ serve(async (req) => {
 
   try {
     const { userId } = await authenticateRequest(req);
+
+    const rateCheck = checkRateLimit(userId);
+    if (!rateCheck.allowed) { clearTimeout(timeout); return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders); }
+
     const { websiteUrl, instagramHandle, linkedinUrl, documentIds, documentText, workspace_id: bodyWorkspaceId } = await req.json();
 
     const quota = await checkQuota(userId, "import");

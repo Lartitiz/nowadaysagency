@@ -98,6 +98,10 @@ Deno.serve(async (req) => {
 
   try {
     const { userId } = await authenticateRequest(req);
+
+    const rateCheck = checkRateLimit(userId);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+
     const { text, url, social_links } = await req.json();
 
     const quota = await checkQuota(userId, "import");
