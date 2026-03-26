@@ -454,7 +454,7 @@ export function useContentGenerator() {
               angle: angleObj,
               objective: objective || null,
             },
-          });
+          }, 60000);
           data = res.data;
           invokeError = res.error;
         }

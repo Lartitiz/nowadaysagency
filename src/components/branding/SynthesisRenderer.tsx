@@ -816,7 +816,7 @@ export default function SynthesisRenderer({ section, data, table, onSynthesisGen
             creative_concept: stratData?.creative_concept || "",
           },
         });
-        if (error) throw error;
+        if (error) throw new Error(error.message);
         const raw = fnData.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
         const parsed = JSON.parse(raw);
         await (supabase.from("brand_profile") as any).update({ recap_summary: parsed }).eq("id", localData.id);
