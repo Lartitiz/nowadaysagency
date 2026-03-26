@@ -5,6 +5,7 @@ import { getUserContext, formatContextForAI, buildIdentityBlock } from "../_shar
 import { callAnthropic, getModelForAction } from "../_shared/anthropic.ts";
 import { buildSystemPrompt, CONTENT_VOICE_RULES, ANTI_PATTERNS } from "../_shared/base-prompts.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 
