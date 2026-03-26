@@ -27,7 +27,7 @@ export interface InvokeError {
  */
 export async function invokeWithTimeout(
   functionName: string,
-  options: { body?: any; headers?: Record<string, string>; method?: string } = {},
+  options: { body?: any; headers?: Record<string, string>; method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" } = {},
   timeoutMs = 90000
 ): Promise<{ data: any; error: InvokeError | null }> {
   return new Promise(async (resolve) => {

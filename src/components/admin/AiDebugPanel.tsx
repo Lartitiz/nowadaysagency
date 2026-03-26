@@ -96,7 +96,7 @@ export default function AiDebugPanel() {
           message: JSON.stringify({
             message: error.message,
             context: (error as any).context,
-            name: error.name,
+            name: (error as any).name,
             full: String(error),
           }, null, 2),
         };
