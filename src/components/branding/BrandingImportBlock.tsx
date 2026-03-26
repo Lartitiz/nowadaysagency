@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Upload, FileText, Globe, Sparkles, Loader2, X, Instagram, Linkedin, LinkIcon } from "lucide-react";
 import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { extractTextFromFile, isAcceptedFile, ACCEPTED_MIME_TYPES } from "@/lib/file-extractors";
 import type { BrandingExtraction } from "@/lib/branding-import-types";
 
