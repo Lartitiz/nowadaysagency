@@ -171,7 +171,7 @@ export async function invokeWithTimeout(
           resolve({
             data: null,
             error: {
-              message: "Ta session a expiré. Recharge la page pour te reconnecter.",
+              message: "Ta session a expiré. Reconnecte-toi pour continuer.",
               code: "AUTH",
               isAuth: true,
             },
