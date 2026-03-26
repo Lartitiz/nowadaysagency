@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { type DiagnosticData, computeDiagnosticData, DEMO_DIAGNOSTIC } from "@/lib/diagnostic-data";
