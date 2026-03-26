@@ -934,6 +934,9 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
         queryClient.invalidateQueries({ queryKey: ["brand-charter"] });
         queryClient.invalidateQueries({ queryKey: ["persona"] });
       }
+      // Always invalidate the global branding data cache so BrandingPage/BrandingSectionPage see fresh data
+      queryClient.invalidateQueries({ queryKey: ["branding-data"] });
+      queryClient.invalidateQueries({ queryKey: ["branding-completion"] });
     } catch (e) {
       console.error("[BrandingCoaching] Error saving insights:", e);
     }
