@@ -258,7 +258,7 @@ export default function CreerUnifie() {
     questions,
   } = useContentGenerator();
 
-  const { content: streamingContent, streaming, done: streamDone, invoke: streamInvoke, reset: streamReset } = useStreamingInvoke();
+  const { content: streamingContent, streaming, done: streamDone, invoke: streamInvoke, reset: streamReset, error: streamError } = useStreamingInvoke();
 
   // Restore result from persisted state
   useEffect(() => {
