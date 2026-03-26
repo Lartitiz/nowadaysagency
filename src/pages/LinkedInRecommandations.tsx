@@ -110,7 +110,7 @@ ${prenom || "[Ton prénom]"}`;
   const personalizeMessage = async () => {
     setGeneratingMsg(true);
     try {
-      const res = await supabase.functions.invoke("linkedin-ai", { body: { action: "personalize-message" } });
+      const res = await invokeWithTimeout("linkedin-ai", { body: { action: "personalize-message" } }, 60000);
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
       let parsed: string[];
