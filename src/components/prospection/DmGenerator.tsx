@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useToast } from "@/hooks/use-toast";
 import { friendlyError } from "@/lib/error-messages";
 import { Button } from "@/components/ui/button";
@@ -173,7 +174,7 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
         .map(i => `${new Date(i.created_at).toLocaleDateString("fr-FR")} : ${i.interaction_type}${i.content ? ` - ${i.content}` : ""}`)
         .join("\n") || "Aucune interaction précédente.";
 
-      const { data, error } = await supabase.functions.invoke("prospect-dm", {
+      const { data, error } = await invokeWithTimeout("prospect-dm", {
         body: {
           prospect: {
             ...prospect,
@@ -188,9 +189,9 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
           selected_offer: selectedOffer || null,
           workspace_id: workspaceId,
         },
-      });
+      }, 60000);
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       setVariants(data);
     } catch (err: any) {
       console.error("Erreur technique:", err);

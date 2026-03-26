@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter, useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
@@ -98,9 +99,9 @@ export default function AuditCoachingPanel({
 
   const loadQuestions = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke("coaching-module", {
+      const { data, error } = await invokeWithTimeout("coaching-module", {
         body: { phase: "questions", module, rec_id: recId },
-      });
+      }, 60000);
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
       setQuestions(data.questions || []);
@@ -128,9 +129,9 @@ export default function AuditCoachingPanel({
         question: q.question,
         answer: answers[i] || "",
       }));
-      const { data, error } = await supabase.functions.invoke("coaching-module", {
+      const { data, error } = await invokeWithTimeout("coaching-module", {
         body: { phase: "diagnostic", module, answers: answersPayload, rec_id: recId },
-      });
+      }, 90000);
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
       setDiagnostic(data);

@@ -3,7 +3,7 @@ import CoachingShell from "@/components/coaching/CoachingShell";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2, Copy, Check, Sparkles } from "lucide-react";
@@ -63,10 +63,10 @@ export default function EngagementCoachingDialog({ open, onOpenChange, platform 
   const generate = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("engagement-coaching", {
+      const { data, error } = await invokeWithTimeout("engagement-coaching", {
         body: { post_text: postText, objectif, ton_envie: ton, platform, workspace_id: workspaceId !== user?.id ? workspaceId : undefined },
-      });
-      if (error) throw error;
+      }, 60000);
+      if (error) throw new Error(error.message);
       setResult(data);
     } catch (e: any) {
       toast({ title: "Erreur", description: e.message || "Impossible de générer", variant: "destructive" });

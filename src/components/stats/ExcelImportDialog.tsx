@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Upload, Check, AlertTriangle, Loader2, FileSpreadsheet, X } from "lucide-react";
 
 
@@ -268,11 +269,11 @@ export default function ExcelImportDialog({ open, onOpenChange, userId, onImport
       }
 
       // Call AI to analyze
-      const { data, error } = await supabase.functions.invoke("analyze-excel-mapping", {
+      const { data, error } = await invokeWithTimeout("analyze-excel-mapping", {
         body: { sheets: infos },
-      });
+      }, 60000);
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
 
       const mapping = data as MappingResult;
       const sheetInfo = infos.find(s => s.name === mapping.sheet) || infos[0];

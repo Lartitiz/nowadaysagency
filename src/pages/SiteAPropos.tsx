@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceFilter, useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
@@ -116,8 +117,8 @@ export default function SiteAPropos() {
       if (coachingBrief?.summary) {
         body.pre_gen_brief = coachingBrief.summary;
       }
-      const { data: fnData, error } = await supabase.functions.invoke("website-ai", { body });
-      if (error) throw error;
+      const { data: fnData, error } = await invokeWithTimeout("website-ai", { body }, 90000);
+      if (error) throw new Error(error.message);
       const raw = fnData.content.replace(/```json|```/g, "").trim();
       const parsed = JSON.parse(raw);
 
@@ -185,7 +186,7 @@ export default function SiteAPropos() {
     setOriginalText(text || "");
     setMode("optimize-loading");
     try {
-      const { data: fnData, error } = await supabase.functions.invoke("website-ai", {
+      const { data: fnData, error } = await invokeWithTimeout("website-ai", {
         body: {
           action: "optimize-about",
           url,
@@ -193,8 +194,8 @@ export default function SiteAPropos() {
           focus: optimizeFocus.trim() || undefined,
           workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
         },
-      });
-      if (error) throw error;
+      }, 90000);
+      if (error) throw new Error(error.message);
       const raw = fnData.content?.replace(/```json|```/g, "").trim();
       const parsed = JSON.parse(raw);
       setOptimizeResult(parsed);

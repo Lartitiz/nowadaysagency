@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useBrandProfile } from "@/hooks/use-profile";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -105,7 +106,7 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
         ? `Nom/Activité: ${brand.mission || "?"}\nOffre: ${brand.offer || "?"}\nTon: ${brand.tone_style || "?"} / ${brand.tone_register || "?"}\nExpertise: ${brand.voice_description || "?"}`
         : "";
 
-      const { data, error } = await supabase.functions.invoke("generate-comment", {
+      const { data, error } = await invokeWithTimeout("generate-comment", {
         body: {
           target_username: contact.pseudo,
           post_caption: caption,
@@ -116,9 +117,9 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
           screenshot_media_type: screenshotBase64 ? screenshotMediaType : undefined,
           workspace_id: workspaceId,
         },
-      });
+      }, 30000);
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       if (data?.comments) setComments(data.comments);
       else throw new Error("Réponse inattendue");
     } catch (err: any) {

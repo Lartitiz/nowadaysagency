@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { type DiagnosticData, computeDiagnosticData, DEMO_DIAGNOSTIC } from "@/lib/diagnostic-data";
@@ -273,7 +273,7 @@ export default function DiagnosticLoading({
            useFallback();
          }, 52000);
 
-        const { data, error } = await supabase.functions.invoke("deep-diagnostic", { body: { ...body, isOnboarding: true, workspace_id: workspaceId !== user?.id ? workspaceId : undefined } });
+        const { data, error } = await invokeWithTimeout("deep-diagnostic", { body: { ...body, isOnboarding: true, workspace_id: workspaceId !== user?.id ? workspaceId : undefined } }, 180000);
 
         clearTimeout(safetyTimeout);
         if (timeoutFired) return;

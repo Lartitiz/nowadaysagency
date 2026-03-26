@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import AppHeader from "@/components/AppHeader";
 import AiLoadingIndicator from "@/components/AiLoadingIndicator";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
@@ -123,13 +124,13 @@ export default function SalesPageOptimizer() {
     if (!siteUrl.trim() || !user) return;
     setStep("loading");
     try {
-      const { data, error } = await supabase.functions.invoke("optimize-sales-page", {
+      const { data, error } = await invokeWithTimeout("optimize-sales-page", {
         body: {
           site_url: siteUrl.trim(),
           focus: focus.trim() || null,
           workspace_id: workspaceId !== user.id ? workspaceId : null,
         },
-      });
+      }, 120000);
       if (error || !data?.success) throw new Error(data?.error || error?.message || "Erreur");
       setResult(data.result);
       setStep("results");
