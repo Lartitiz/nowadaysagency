@@ -1098,7 +1098,7 @@ VOIX ET TON :
 - Si le contexte contient une section VOIX PERSONNELLE ou TON & STYLE : c'est TA PRIORITÉ. Reproduis ce style. Réutilise les expressions signature. Respecte le registre (tu/vous, oral/soutenu, humour/sérieux).
 - Si le contexte ne contient PAS de profil de voix : ${isLinkedIn
     ? "adopte un ton professionnel et engagé, vouvoiement, dense mais accessible."
-    : "adopte un ton direct et chaleureux, tutoiement, oral assumé mais pas surjoué."
+    : "adopte un ton direct et chaleureux, oral assumé mais pas surjoué. Voix narrative en JE par défaut (voir MODULATION ci-dessous)."
   }
 - DANS TOUS LES CAS : le contenu doit sonner comme quelqu'un qui PARLE, pas qui rédige un article. Il doit pouvoir être lu à voix haute naturellement.
 
