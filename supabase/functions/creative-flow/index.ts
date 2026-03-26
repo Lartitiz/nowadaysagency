@@ -891,7 +891,9 @@ Privilégie les sources françaises et européennes quand elles existent.`,
         4096,
       );
 
-      return createClientSSEStream(anthropicStream, corsHeaders);
+      return createClientSSEStream(anthropicStream, corsHeaders, async () => {
+        await logUsage(user.id, "content", "creative_flow", undefined, undefined, workspace_id);
+      });
     }
 
     // ── Call Anthropic ──
