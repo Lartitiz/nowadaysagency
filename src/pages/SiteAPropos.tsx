@@ -117,8 +117,8 @@ export default function SiteAPropos() {
       if (coachingBrief?.summary) {
         body.pre_gen_brief = coachingBrief.summary;
       }
-      const { data: fnData, error } = await supabase.functions.invoke("website-ai", { body });
-      if (error) throw error;
+      const { data: fnData, error } = await invokeWithTimeout("website-ai", { body }, 90000);
+      if (error) throw new Error(error.message);
       const raw = fnData.content.replace(/```json|```/g, "").trim();
       const parsed = JSON.parse(raw);
 
