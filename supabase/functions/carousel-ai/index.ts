@@ -445,7 +445,10 @@ ${isLinkedIn
 - Pas de "Sauvegarde si..." → CTA LinkedIn : "Partagez si...", "Votre avis en commentaire ?", "Envoyez à un·e collègue qui..."
 - Le carrousel LinkedIn est un document de référence : chaque slide doit apporter de la valeur concrète`
   : `- Direct, chaleureux, oral assumé
-- Tutoiement par défaut pour les sujets pratiques. Pour les sujets de société, combats ou valeurs : utilise le "NOUS" collectif (ex: "On nous demande de…") au lieu du "TU" accusateur. Le "JE" raconte, le "TU" interpelle ponctuellement.`}
+- VOIX PAR DÉFAUT = "JE". L'auteur·ice raconte, partage, analyse, prend position. C'est SA voix, SON vécu, SA réflexion.
+- Le "TU" est un outil d'INTERPELLATION PONCTUELLE : 1-2 fois par carrousel max, pour une question directe ou un CTA. JAMAIS comme voix narrative de tout le carrousel.
+- Le "NOUS" collectif pour les sujets de société/combats/valeurs : "On nous demande de…", "On a intériorisé cette norme". Fédérateur, pas accusateur.
+- RÈGLE ANTI-TU : si plus de 2 slides sur le carrousel commencent par "Tu" ou utilisent le "tu" comme sujet principal de la phrase, c'est un échec. Réécris en JE ou NOUS.`}
 - Phrases qui alternent longues et courtes (rythme)
 - Expressions naturelles (en vrai, franchement, le truc c'est que)
 - Humour discret, pas forcé
@@ -465,6 +468,8 @@ Les captions de carrousels ne sont PAS des listes de phrases sur des lignes sép
 ${CHAIN_OF_THOUGHT}
 
 ${DEPTH_LAYER}
+
+IMPORTANT SUR LA PROFONDEUR : Le travail interne de DEPTH_LAYER (mécanisme, croyance, retournement) doit être VISIBLE dans les slides finales. Ce n'est PAS juste un exercice de réflexion interne : le mécanisme doit être EXPLIQUÉ dans au moins 1 slide, la croyance NOMMÉE, le retournement FORMULÉ. Si aucune slide ne fait dire "ah, j'avais jamais vu ça comme ça", le carrousel est trop superficiel.
 
 ANTI-BIAIS — TU NE REPRODUIS JAMAIS :
 - Ton paternaliste → Permission : "Tu as le droit de prendre de la place"
@@ -612,6 +617,26 @@ RÈGLES :
 - Headlines (title) : 4-7 mots, percutant
 - Caption différente du hook slide 1
 - Hashtags : 3-8, mix large + niche${extraRules}
+
+MODULATION JE / TU / NOUS :
+- VOIX PAR DÉFAUT = "JE". L'auteur·ice raconte, partage, analyse. C'est SA réflexion, SON expérience, SA prise de position.
+- "TU" = interpellation ponctuelle (1-2 fois max dans tout le carrousel). Pour une question directe ou un CTA. JAMAIS comme voix narrative.
+- "NOUS" = pour les sujets de société, combats, valeurs. Fédérateur : "On a intériorisé", "On nous dit que".
+- VÉRIFICATION : si plus de 2 slides utilisent le "tu" comme sujet principal, RÉÉCRIS en "je" ou "nous".
+
+═══ EXIGENCE DE PROFONDEUR PAR SLIDE ═══
+
+Chaque slide (sauf hook et CTA) doit contenir AU MOINS 1 de ces éléments :
+- Un MÉCANISME NOMMÉ : biais cognitif, concept psycho/socio, dynamique systémique (avec auteur si connu)
+- Une DONNÉE CHIFFRÉE sourcée (chiffre + source entre parenthèses)
+- Un EXEMPLE HYPER-SPÉCIFIQUE : situation concrète avec détail (pas "quand tu postes" mais "quand tu passes 45 min à choisir le filtre et que tu finis par ne rien publier")
+- Un RETOURNEMENT DE PERSPECTIVE : une phrase qui recadre complètement le sujet ("Le problème n'est pas X, c'est Y")
+- Une ANALOGIE ORIGINALE ancrée dans le quotidien ou la culture pop
+
+TEST DE PROFONDEUR (applique-le à chaque slide avant de retourner le JSON) :
+- Si on peut remplacer le sujet par un autre et que la slide fonctionne encore → la slide est GÉNÉRIQUE → RÉÉCRIS
+- Si la slide dit quelque chose que tout le monde sait déjà → elle n'apporte rien → RÉÉCRIS
+- Si la slide pourrait être écrite par n'importe qui sans expertise sur le sujet → elle manque de perspective → RÉÉCRIS
 ${deepeningCtx ? "- UTILISE les mots et exemples de l'utilisatrice dans les slides (anecdotes, vécu, arguments)" : ""}
 
 ═══ SCHÉMAS VISUELS (PUISSANT — utilise-les !) ═══
