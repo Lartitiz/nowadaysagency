@@ -143,9 +143,9 @@ export default function LinkedInResume() {
     setAnalyzing(true);
     try {
       const textToAnalyze = existingText.trim() || savedResume.trim();
-      const res = await supabase.functions.invoke("linkedin-ai", {
+      const res = await invokeWithTimeout("linkedin-ai", {
         body: { action: "analyze-resume", existing_resume: textToAnalyze },
-      });
+      }, 60000);
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
       const parsed = parseAnalysis(content);
