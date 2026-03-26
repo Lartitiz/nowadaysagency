@@ -7,7 +7,7 @@ import { X, Plus, Sparkles, ChevronDown, ChevronUp, Loader2, HelpCircle } from "
 import { type Emotion, type Universe, type StyleAxis, type GeneratedPalette } from "@/lib/charter-palette-generator";
 import { SECTOR_PALETTES, DEFAULT_SECTOR } from "@/lib/charter-palettes";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 
 const NEUTRAL_FALLBACKS: Record<string, string> = {
   color_primary: "#888888",
