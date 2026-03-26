@@ -496,12 +496,13 @@ Un carrousel où TOUTES les slides sont du texte dans des cartes blanches, c'est
 
 Le hook (slide 1) est une CLAQUE, pas un titre de blog.
 
-Exemples de hooks ton Nowadays :
+Exemples de hooks ton Nowadays (noter : majorité en JE, c'est la voix par défaut) :
 - "J'ai arrêté de poster pendant 3 semaines. Voilà ce qui s'est passé."
-- "Ton contenu n'est pas nul. Il est juste invisible."
-- "Le problème c'est pas l'algo. C'est ta stratégie."
+- "Mon contenu n'était pas nul. Il était juste invisible."
+- "Le problème c'est pas l'algo. C'est la stratégie derrière."
 - "On m'a dit que mon feed était 'trop rose'. J'ai doublé le rose."
 - "J'ai compté : 47h de formation en ligne. Résultat : 0 post publié."
+- "On nous vend la régularité comme une religion. J'ai arrêté d'y croire."
 
 JAMAIS : "5 astuces pour...", "Comment booster votre...", "Les X erreurs à éviter", "Le guide ultime de..."
 
@@ -788,57 +789,57 @@ Retourne ce JSON exact :
 function getStructureGuide(type: string): string {
   const guides: Record<string, string> = {
     tips: `TIPS / ASTUCES (5-8 slides) :
-Slide 1: Hook percutant — pas de "X astuces pour", mais une accroche qui crée un gap ("Ce truc que tout le monde fait... et qui sabote tout.")
+Slide 1: Hook percutant — pas de "X astuces pour", mais une accroche en JE qui crée un gap ("Ce truc que je faisais sans réfléchir... et qui sabotait tout.")
 Slide 2: Contexte "J'ai testé/observé ça en [contexte]. Voici ce qui change tout."
-Slides 3-N: 1 tip par slide avec un TITRE PROPRE qui accroche (pas "Tip 1 :", mais "Arrête de te forcer")
-Dernière: CTA "Sauvegarde pour [situation]. Dis-moi lequel tu testes en premier."`,
+Slides 3-N: 1 tip par slide avec un TITRE PROPRE qui accroche (pas "Tip 1 :", mais "J'ai arrêté de me forcer" ou "Le piège de la régularité")
+Dernière: CTA "Sauvegarde pour [situation]. Dis-moi en commentaire lequel te parle le plus."`,
     tutoriel: `TUTORIEL PAS-À-PAS (8-10 slides) :
-Slide 1: Hook promesse de résultat
+Slide 1: Hook promesse de résultat en JE ("J'ai trouvé la méthode pour [résultat] en [durée].")
 Slide 2: Contexte + ce qu'il faut préparer
 Slides 3-8: 1 étape par slide, numérotée, actionnable
 Slide 9: Récap visuel des étapes
 Slide 10: CTA save + "partage à quelqu'un qui en a besoin"`,
     prise_de_position: `PRISE DE POSITION (5-8 slides) :
-Slide 1: Hook opinion tranchée "[Affirmation provocatrice]."
-Slide 2: "Je vais t'expliquer pourquoi."
-Slides 3-5: Arguments (1 par slide, concret)
+Slide 1: Hook opinion tranchée en JE "[Affirmation provocatrice issue du vécu]."
+Slide 2: "Je vais expliquer pourquoi je pense ça."
+Slides 3-5: Arguments (1 par slide, concret, ancré dans l'expérience)
 Slide 6: La nuance (pour pas être dogmatique)
-Slide 7: CTA commentaire "T'es d'accord ou pas du tout ?"`,
+Slide 7: CTA commentaire "D'accord ou pas du tout ? Je veux lire vos avis."`,
     mythe_realite: `MYTHE VS RÉALITÉ (6-10 slides) :
-Slide 1: Hook provocateur "[Mythe courant] est un mensonge."
-Slide 2: Le contexte du mythe
+Slide 1: Hook provocateur en JE "J'ai cru à [mythe courant] pendant [durée]. C'est faux."
+Slide 2: Le contexte du mythe — pourquoi on y croit
 Slides 3-8: Alternance Mythe (❌) / Réalité (✅), 1 paire par slide
 Slide 9: Conclusion
-Slide 10: CTA commentaire "Quel mythe t'énerve le plus ?"`,
+Slide 10: CTA commentaire "Quel mythe vous énerve le plus dans [domaine] ?"`,
     storytelling: `STORYTELLING PERSONNEL (8-12 slides) :
-Slide 1: Hook concret et spécifique "[Situation vécue précise, avec un détail qui accroche]"
+Slide 1: Hook concret et spécifique en JE "[Situation vécue précise, avec un détail qui accroche]"
 Slide 2: Contexte "Il y a [durée], je [situation]."
-Slides 3-5: Le problème, la galère, les doutes
+Slides 3-5: Le problème, la galère, les doutes — racontés au JE
 Slides 6-8: Le tournant, ce qui a changé
-Slide 9: La leçon universelle
+Slide 9: La leçon universelle (passage au NOUS : "On croit que... mais en fait...")
 Slide 10: CTA "Si ça résonne, envoie ce post à [persona]."`,
     etude_de_cas: `ÉTUDE DE CAS (8-10 slides) :
-Slide 1: Hook résultat "[Résultat chiffré] en [durée]. Comment [Prénom] a fait."
-Slide 2: Contexte "Quand [Prénom] est arrivée, [situation]."
+Slide 1: Hook résultat "[Résultat chiffré] en [durée]. Voici comment [Prénom] a fait."
+Slide 2: Contexte "Quand [Prénom] est arrivé·e, [situation]."
 Slide 3: Le problème principal
 Slides 4-6: La solution mise en place
 Slide 7: Les résultats chiffrés (avant → après)
 Slide 8: Témoignage citation directe
-Slide 9: CTA "Tu te reconnais ? DM-moi '[mot-clé]' pour en parler."`,
+Slide 9: CTA "Cette situation vous parle ? DM-moi '[mot-clé]' pour en discuter."`,
     checklist: `CHECKLIST SAUVEGARDABLE (6-8 slides) :
-Slide 1: Hook "La checklist pour [action] (à sauvegarder)"
-Slide 2: Pourquoi cette checklist
+Slide 1: Hook "La checklist que j'utilise avant chaque [action]"
+Slide 2: Pourquoi cette checklist — l'erreur qui m'a poussé·e à la créer
 Slides 3-6: Items de checklist (3-5 par slide ou 1 par slide si détaillé)
 Slide 7: Récap visuel de la checklist complète
 Slide 8: CTA "Sauvegarde pour y revenir avant chaque [action]."`,
     comparatif: `COMPARATIF A VS B (6-8 slides) :
-Slide 1: Hook "[Option A] vs [Option B] : le verdict."
+Slide 1: Hook "[Option A] vs [Option B] : j'ai testé les deux. Voici le verdict."
 Slide 2: Les critères de comparaison
 Slides 3-6: 1 critère par slide avec A et B côte à côte
-Slide 7: Le verdict / la synthèse
-Slide 8: CTA "Tu es plutôt A ou B ? Dis-le en commentaire."`,
+Slide 7: Le verdict / la synthèse (en JE : "Personnellement, je...")
+Slide 8: CTA "Plutôt A ou B ? Dis-le en commentaire."`,
     before_after: `BEFORE / AFTER (6-10 slides) :
-Slide 1: Hook "Il y a [durée], [situation avant]. Aujourd'hui, [situation après]."
+Slide 1: Hook en JE "Il y a [durée], je [situation avant]. Aujourd'hui, [situation après]."
 Slide 2: Le avant en détail
 Slides 3-4: Ce qui a changé, les actions prises
 Slides 5-6: Le après en détail
@@ -846,22 +847,22 @@ Slide 7: Les chiffres / résultats
 Slide 8: La leçon
 Slide 9: CTA`,
     promo: `PROMO / OFFRE (6-8 slides) :
-Slide 1: Hook bénéfice client (PAS le nom de l'offre)
-Slide 2: Le problème que l'offre résout
+Slide 1: Hook bénéfice client — ce que l'offre change concrètement (PAS le nom de l'offre)
+Slide 2: Le problème que l'offre résout (raconté en JE : "Je voyais trop de [personas] galérer avec...")
 Slides 3-4: La solution (ce que l'offre contient)
 Slide 5: La preuve sociale (témoignage, résultat)
 Slide 6: L'offre concrète (nom, prix, détail)
 Slide 7: FAQ rapide (1-2 objections traitées)
 Slide 8: CTA "DM-moi [mot-clé]" ou "Lien en bio"`,
     coulisses: `COULISSES (5-10 slides) :
-Slide 1: Hook "Ce que tu ne vois pas derrière [chose visible]"
-Slides 2-8: Les étapes, le process, les galères, les joies
+Slide 1: Hook en JE "Ce qu'on ne voit pas derrière [chose visible]" ou "Les coulisses de [moment]"
+Slides 2-8: Les étapes, le process, les galères, les joies — racontés au JE
 Slide 9: Le résultat final
-Slide 10: CTA "Quel aspect tu veux que je montre la prochaine fois ?"`,
+Slide 10: CTA "Quel aspect vous voulez que je montre la prochaine fois ?"`,
     photo_dump: `PHOTO DUMP (5-10 slides) :
 Slide 1: Titre ambiance "Les coulisses de [moment/période]"
-Slides 2-9: Photos avec légendes courtes
-Slide 10: CTA doux "Ta photo préférée ? Dis-le moi."
+Slides 2-9: Photos avec légendes courtes (en JE : ce que je ressentais, ce que je faisais)
+Slide 10: CTA doux "Laquelle vous préférez ? Dites-moi."
 (Pour ce type, génère surtout les légendes, pas le visuel)`,
   };
   return guides[type] || guides.tips;
