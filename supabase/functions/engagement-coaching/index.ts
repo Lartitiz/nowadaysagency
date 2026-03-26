@@ -28,6 +28,9 @@ serve(async (req) => {
     }
     const userId = user.id;
 
+    const rateCheck = checkRateLimit(userId);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, cors);
+
     const { post_text, objectif, ton_envie, platform, workspace_id } = await req.json();
 
     const missing = validateRequiredFields({ post_text, objectif, ton_envie, platform }, ["post_text", "objectif", "ton_envie", "platform"]);
