@@ -24,6 +24,9 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new Error("Non autorisé");
 
+    const rateCheck = checkRateLimit(user.id);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+
     // Check workspace
     const sbAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,

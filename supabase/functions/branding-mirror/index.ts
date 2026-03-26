@@ -31,6 +31,9 @@ serve(async (req) => {
       });
     }
 
+    const rateCheck = checkRateLimit(user.id);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, cors);
+
     // Parse body (optional workspace_id)
     let workspace_id: string | undefined;
     try {
