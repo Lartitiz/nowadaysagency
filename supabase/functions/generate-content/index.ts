@@ -7,7 +7,7 @@ import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { isDemoUser } from "../_shared/guard-demo.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
-import { validateInput, GenerateContentSchema } from "../_shared/input-validators.ts";
+import { validateInput, ValidationError, GenerateContentSchema } from "../_shared/input-validators.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
