@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useProfile, useBrandProfile } from "@/hooks/use-profile";
 import { useBrandProposition, usePersona } from "@/hooks/use-branding";
 import { Link } from "react-router-dom";
