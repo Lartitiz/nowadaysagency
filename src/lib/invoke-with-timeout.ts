@@ -22,6 +22,8 @@ export interface InvokeError {
 /**
  * Appelle une Edge Function Supabase avec un timeout configurable.
  * Retourne des erreurs typées pour que le frontend affiche le bon message.
+ * En cas de 401/403 ou FunctionsFetchError, tente un refresh silencieux du token
+ * puis relance l'appel UNE seule fois avant d'échouer.
  */
 export async function invokeWithTimeout(
   functionName: string,
@@ -41,15 +43,38 @@ export async function invokeWithTimeout(
       });
     }, timeoutMs);
 
+    async function tryRefreshSession(): Promise<boolean> {
+      try {
+        const { data, error } = await supabase.auth.refreshSession();
+        return !error && !!data.session;
+      } catch {
+        return false;
+      }
+    }
+
+    function isFetchError(err: any): boolean {
+      return (
+        err?.name === "FunctionsFetchError" ||
+        err?.message?.includes("Failed to send a request") ||
+        err?.message?.includes("Failed to fetch") ||
+        err?.name === "TypeError"
+      );
+    }
+
+    function getStatusFromError(error: any): number | undefined {
+      return error?.status || error?.context?.status;
+    }
+
+    async function doInvoke() {
+      return supabase.functions.invoke(functionName, options);
+    }
+
     try {
-      const result = await supabase.functions.invoke(functionName, options);
-      clearTimeout(timer);
+      let result = await doInvoke();
 
       // Edge Function returned an HTTP error
       if (result.error) {
-        const status =
-          (result.error as any)?.status ||
-          (result.error as any)?.context?.status;
+        const status = getStatusFromError(result.error);
         const body =
           typeof result.data === "object" && result.data !== null
             ? result.data
@@ -58,6 +83,7 @@ export async function invokeWithTimeout(
           body.message || body.error || (result.error as any)?.message;
 
         if (status === 429) {
+          clearTimeout(timer);
           resolve({
             data: body,
             error: {
@@ -71,11 +97,65 @@ export async function invokeWithTimeout(
           return;
         }
 
+        // Auth error (401/403) → try silent refresh + retry once
         if (status === 401 || status === 403) {
+          const refreshed = await tryRefreshSession();
+          if (refreshed) {
+            const retryResult = await doInvoke();
+            clearTimeout(timer);
+
+            if (retryResult.error) {
+              const retryStatus = getStatusFromError(retryResult.error);
+              if (retryStatus === 401 || retryStatus === 403) {
+                resolve({
+                  data: null,
+                  error: {
+                    message: "Ta session a expiré. Recharge la page pour te reconnecter.",
+                    code: "AUTH",
+                    isAuth: true,
+                  },
+                });
+                return;
+              }
+              const retryBody =
+                typeof retryResult.data === "object" && retryResult.data !== null
+                  ? retryResult.data
+                  : {};
+              const retryMsg =
+                retryBody.message || retryBody.error || (retryResult.error as any)?.message;
+              resolve({
+                data: retryBody,
+                error: {
+                  message: retryMsg || "L'IA a eu un blanc. Réessaie dans quelques instants.",
+                  code: "SERVER_ERROR",
+                  originalError: retryResult.error,
+                },
+              });
+              return;
+            }
+
+            if (retryResult.data?.error) {
+              const isLimit = retryResult.data.error === "limit_reached";
+              resolve({
+                data: retryResult.data,
+                error: {
+                  message: retryResult.data.message || retryResult.data.error,
+                  code: isLimit ? "RATE_LIMIT" : "GENERATION_ERROR",
+                  isRateLimit: isLimit,
+                },
+              });
+              return;
+            }
+
+            resolve({ data: retryResult.data, error: null });
+            return;
+          }
+
+          clearTimeout(timer);
           resolve({
             data: null,
             error: {
-              message: "Session expirée. Reconnecte-toi pour continuer.",
+              message: "Ta session a expiré. Recharge la page pour te reconnecter.",
               code: "AUTH",
               isAuth: true,
             },
@@ -83,6 +163,8 @@ export async function invokeWithTimeout(
           return;
         }
 
+        // Other HTTP error
+        clearTimeout(timer);
         resolve({
           data: body,
           error: {
@@ -95,6 +177,8 @@ export async function invokeWithTimeout(
         });
         return;
       }
+
+      clearTimeout(timer);
 
       // Edge Function returned OK but with an error in the body
       if (result.data?.error) {
@@ -116,19 +200,73 @@ export async function invokeWithTimeout(
     } catch (err: any) {
       clearTimeout(timer);
 
-      // Network error
-      if (
-        err?.message?.includes("fetch") ||
-        err?.message?.includes("network") ||
-        err?.name === "TypeError"
-      ) {
+      // FunctionsFetchError or network error → try refresh + retry once
+      if (isFetchError(err)) {
+        const refreshed = await tryRefreshSession();
+        if (refreshed) {
+          try {
+            const retryResult = await doInvoke();
+
+            if (retryResult.error) {
+              const retryStatus = getStatusFromError(retryResult.error);
+              const retryBody =
+                typeof retryResult.data === "object" && retryResult.data !== null
+                  ? retryResult.data
+                  : {};
+              const retryMsg =
+                retryBody.message || retryBody.error || (retryResult.error as any)?.message;
+
+              resolve({
+                data: retryBody,
+                error: {
+                  message:
+                    retryStatus === 401 || retryStatus === 403
+                      ? "Ta session a expiré. Recharge la page pour te reconnecter."
+                      : retryMsg || "L'IA a eu un blanc. Réessaie dans quelques instants.",
+                  code: retryStatus === 401 || retryStatus === 403 ? "AUTH" : "SERVER_ERROR",
+                  isAuth: retryStatus === 401 || retryStatus === 403,
+                  originalError: retryResult.error,
+                },
+              });
+              return;
+            }
+
+            if (retryResult.data?.error) {
+              const isLimit = retryResult.data.error === "limit_reached";
+              resolve({
+                data: retryResult.data,
+                error: {
+                  message: retryResult.data.message || retryResult.data.error,
+                  code: isLimit ? "RATE_LIMIT" : "GENERATION_ERROR",
+                  isRateLimit: isLimit,
+                },
+              });
+              return;
+            }
+
+            resolve({ data: retryResult.data, error: null });
+            return;
+          } catch (retryErr: any) {
+            resolve({
+              data: null,
+              error: {
+                message: "Connexion perdue. Vérifie ta connexion internet et réessaie.",
+                code: "NETWORK",
+                isNetwork: true,
+                originalError: retryErr,
+              },
+            });
+            return;
+          }
+        }
+
         resolve({
           data: null,
           error: {
-            message:
-              "Connexion perdue. Vérifie ta connexion internet et réessaie.",
+            message: "Connexion perdue ou session expirée. Recharge la page et réessaie.",
             code: "NETWORK",
             isNetwork: true,
+            originalError: err,
           },
         });
         return;
