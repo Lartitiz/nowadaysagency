@@ -126,9 +126,6 @@ verify_jwt = false
 [functions.engagement-coaching]
 verify_jwt = false
 
-[functions.setup-credit-packs]
-verify_jwt = false
-
 [functions.public-calendar]
 verify_jwt = false
 
