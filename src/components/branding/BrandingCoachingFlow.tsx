@@ -423,6 +423,15 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
     updateCoveredTopics(response);
     setCompletionPct(response.completion_percentage || completionPct);
 
+    // Save extracted insights on retry too (was missing entirely)
+    if (response.extracted_insights && Object.keys(response.extracted_insights).length > 0) {
+      try {
+        await saveInsights(section, response.extracted_insights);
+      } catch (e) {
+        console.error("[BrandingCoaching] Failed to save insights on retry:", e);
+      }
+    }
+
     if (response.is_complete) {
       setFinalSummary(response.final_summary || "");
       setCompletionPct(100);
@@ -431,7 +440,7 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
       return;
     }
     setCurrentQuestion(response);
-  }, [askAI, completionPct]);
+  }, [askAI, completionPct, section]);
 
   const updateCoveredTopics = useCallback((response: AIResponse) => {
     if (response.covered_topic) {
