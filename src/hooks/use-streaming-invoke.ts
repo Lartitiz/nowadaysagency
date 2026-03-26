@@ -62,18 +62,31 @@ export function useStreamingInvoke(): UseStreamingInvokeReturn {
       clearTimeout(timeout);
 
       if (!resp.ok || !resp.body) {
-        // Fallback: maybe the edge function returned JSON (not streaming)
+        // Fallback: edge function returned JSON error (not streaming)
+        let errorMsg = "Erreur de génération";
         try {
           const json = await resp.json();
-          if (json.error) throw new Error(json.message || json.error);
-          const text = json.content || json.raw || JSON.stringify(json);
-          setContent(text);
-          setDone(true);
-          setStreaming(false);
-          return text;
-        } catch {
-          throw new Error("Erreur de génération");
+          if (json.error === "limit_reached" || json.message?.includes("ce mois")) {
+            const err = new Error(json.message || json.error);
+            (err as any)._isQuota = true;
+            (err as any).data = json;
+            throw err;
+          }
+          if (json.error) {
+            errorMsg = json.message || json.error;
+          } else {
+            // Not an error — it's valid non-streaming content
+            const text = json.content || json.raw || JSON.stringify(json);
+            setContent(text);
+            setDone(true);
+            setStreaming(false);
+            return text;
+          }
+        } catch (parseErr) {
+          if ((parseErr as any)?._isQuota) throw parseErr;
+          // json parse failed — keep errorMsg as is
         }
+        throw new Error(errorMsg);
       }
 
       const reader = resp.body.getReader();
