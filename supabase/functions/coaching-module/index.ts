@@ -243,7 +243,9 @@ Pour le module editorial, propose piliers de contenu.`;
           0.5,
           4000,
         );
-        return createClientSSEStream(anthropicStream, corsHeaders);
+        return createClientSSEStream(anthropicStream, corsHeaders, async () => {
+          await logUsage(user.id, "content", "coaching_diagnostic");
+        });
       }
 
       const raw = await callAnthropicSimple(getDefaultModel(), systemPrompt, "Génère ton diagnostic et tes propositions.", 0.5, 4000);
