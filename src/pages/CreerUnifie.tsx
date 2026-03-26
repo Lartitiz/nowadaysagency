@@ -258,7 +258,7 @@ export default function CreerUnifie() {
     questions,
   } = useContentGenerator();
 
-  const { content: streamingContent, streaming, done: streamDone, invoke: streamInvoke, reset: streamReset } = useStreamingInvoke();
+  const { content: streamingContent, streaming, done: streamDone, invoke: streamInvoke, reset: streamReset, error: streamError } = useStreamingInvoke();
 
   // Restore result from persisted state
   useEffect(() => {
@@ -640,7 +640,17 @@ export default function CreerUnifie() {
         } : {}),
       };
 
-      const fullText = await streamInvoke("creative-flow", streamBody);
+      let fullText = "";
+      try {
+        fullText = await streamInvoke("creative-flow", streamBody);
+      } catch (e: any) {
+        if (e?._isQuota && handleQuotaError(e)) {
+          setStep("format");
+          return;
+        }
+        toast.error(e?.message || "Erreur lors de la génération");
+        return;
+      }
 
       if (fullText) {
         try {
@@ -650,6 +660,8 @@ export default function CreerUnifie() {
         } catch {
           setResult({ type: selectedFormat as any, raw: { content: fullText } });
         }
+      } else if (!streaming) {
+        toast.error("La génération n'a pas abouti. Réessaie !");
       }
       return;
     }
