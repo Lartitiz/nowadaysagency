@@ -439,7 +439,7 @@ export default function InstagramProfileEdito() {
     setSuggestingRhythm(true);
     setRhythmSuggestion(null);
     try {
-      const res = await supabase.functions.invoke("generate-content", {
+      const res = await invokeWithTimeout("generate-content", {
         body: {
           type: "instagram-rhythm-adapt",
           profile: {
