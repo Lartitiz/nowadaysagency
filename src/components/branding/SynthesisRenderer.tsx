@@ -795,7 +795,7 @@ export default function SynthesisRenderer({ section, data, table, onSynthesisGen
           .select("creative_concept")
           .eq(column, value)
           .maybeSingle();
-        const { data: fnData, error } = await supabase.functions.invoke("niche-ai", {
+        const { data: fnData, error } = await invokeWithTimeout("niche-ai", {
           body: {
             type: "generate-tone-recap",
             tone_data: {
