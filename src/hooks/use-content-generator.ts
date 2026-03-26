@@ -441,7 +441,7 @@ export function useContentGenerator() {
             };
           }
 
-          const res = await supabase.functions.invoke("creative-flow", {
+          const res = await invokeWithTimeout("creative-flow", {
             body: {
               step: "questions",
               contentType:
