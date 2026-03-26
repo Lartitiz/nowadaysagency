@@ -14,6 +14,7 @@ import AiLoadingIndicator from "@/components/AiLoadingIndicator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { fetchBrandingData, calculateBrandingCompletion, type BrandingCompletion } from "@/lib/branding-completion";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { usePersona, useBrandProposition, useStorytelling } from "@/hooks/use-branding";
 import { useQueryClient } from "@tanstack/react-query";
 import BrandingSynthesisSheet from "@/components/branding/BrandingSynthesisSheet";
