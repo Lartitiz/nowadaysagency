@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice } from "@/components/ui/textarea-with-voice";
