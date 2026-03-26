@@ -2,6 +2,7 @@ import { useState } from "react";
 import { parseAIResponse } from "@/lib/parse-ai-response";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -98,7 +99,7 @@ export default function LinkedInCrosspost() {
         }
       }
 
-      const res = await supabase.functions.invoke("linkedin-ai", {
+      const res = await invokeWithTimeout("linkedin-ai", {
         body: {
           action: "crosspost",
           sourceContent: sourceContent || "",
@@ -106,7 +107,7 @@ export default function LinkedInCrosspost() {
           targetChannels: Array.from(targets),
           fileUrls,
         },
-      });
+      }, 120000);
       if (res.error) throw new Error(res.error.message);
       let parsed: CrosspostResult = parseAIResponse(res.data?.content || "");
       setResult(parsed);

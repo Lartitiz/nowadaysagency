@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useProfile } from "@/hooks/use-profile";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
@@ -109,7 +110,7 @@ ${prenom || "[Ton prénom]"}`;
   const personalizeMessage = async () => {
     setGeneratingMsg(true);
     try {
-      const res = await supabase.functions.invoke("linkedin-ai", { body: { action: "personalize-message" } });
+      const res = await invokeWithTimeout("linkedin-ai", { body: { action: "personalize-message" } }, 60000);
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
       let parsed: string[];
@@ -125,9 +126,9 @@ ${prenom || "[Ton prénom]"}`;
   const generateDraft = async () => {
     setGeneratingDraft(true);
     try {
-      const res = await supabase.functions.invoke("linkedin-ai", {
+      const res = await invokeWithTimeout("linkedin-ai", {
         body: { action: "draft-recommendation", person_name: draftName, collab_type: draftType, highlights: draftHighlights },
-      });
+      }, 60000);
       if (res.error) throw new Error(res.error.message);
       setDraftResult(res.data?.content || "");
     } catch (e: any) {

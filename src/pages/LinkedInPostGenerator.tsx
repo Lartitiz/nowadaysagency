@@ -3,6 +3,7 @@ import { parseAIResponse } from "@/lib/parse-ai-response";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
@@ -52,9 +53,9 @@ export default function LinkedInPostGenerator() {
     setImproving(true);
     setImproveResult(null);
     try {
-      const res = await supabase.functions.invoke("linkedin-ai", {
+      const res = await invokeWithTimeout("linkedin-ai", {
         body: { action: "improve-post", postContent: existingPost, workspace_id: workspaceId !== user?.id ? workspaceId : undefined },
-      });
+      }, 60000);
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
       let parsed: ImproveResult = parseAIResponse(content);

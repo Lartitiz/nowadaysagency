@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
@@ -90,9 +90,9 @@ export default function LinkedInCoaching({ open, onOpenChange, initialModule, au
 
   const loadQuestions = async (mod: ModuleKey) => {
     try {
-      const { data, error } = await supabase.functions.invoke("linkedin-coaching", {
+      const { data, error } = await invokeWithTimeout("linkedin-coaching", {
         body: { phase: "questions", module: mod, workspace_id: wsId },
-      });
+      }, 60000);
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
       setQuestions(data.questions || []);
@@ -120,9 +120,9 @@ export default function LinkedInCoaching({ open, onOpenChange, initialModule, au
         question: q.question,
         answer: answers[i] || "",
       }));
-      const { data, error } = await supabase.functions.invoke("linkedin-coaching", {
+      const { data, error } = await invokeWithTimeout("linkedin-coaching", {
         body: { phase: "diagnostic", module: activeModule, answers: answersPayload, workspace_id: wsId },
-      });
+      }, 90000);
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
       setDiagnostic(data);
