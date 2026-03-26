@@ -496,12 +496,13 @@ Un carrousel où TOUTES les slides sont du texte dans des cartes blanches, c'est
 
 Le hook (slide 1) est une CLAQUE, pas un titre de blog.
 
-Exemples de hooks ton Nowadays :
+Exemples de hooks ton Nowadays (noter : majorité en JE, c'est la voix par défaut) :
 - "J'ai arrêté de poster pendant 3 semaines. Voilà ce qui s'est passé."
-- "Ton contenu n'est pas nul. Il est juste invisible."
-- "Le problème c'est pas l'algo. C'est ta stratégie."
+- "Mon contenu n'était pas nul. Il était juste invisible."
+- "Le problème c'est pas l'algo. C'est la stratégie derrière."
 - "On m'a dit que mon feed était 'trop rose'. J'ai doublé le rose."
 - "J'ai compté : 47h de formation en ligne. Résultat : 0 post publié."
+- "On nous vend la régularité comme une religion. J'ai arrêté d'y croire."
 
 JAMAIS : "5 astuces pour...", "Comment booster votre...", "Les X erreurs à éviter", "Le guide ultime de..."
 
