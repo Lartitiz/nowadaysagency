@@ -1,4 +1,6 @@
 import { useEffect, lazy, Suspense } from "react";
+import * as Sentry from "@sentry/react";
+import { toast } from "sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -173,6 +175,34 @@ const PUBLIC_PATHS = ["/", "/login", "/connexion", "/reset-password", "/binome",
 function AnimatedRoutes() {
   const location = useLocation();
   useOnlineStatus();
+
+  // Global safety net: catch unhandled async errors
+  useEffect(() => {
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      const msg = event.reason?.message || String(event.reason) || "Erreur inattendue";
+      
+      // Ignore benign errors (ResizeObserver, chunk loading, etc.)
+      if (
+        msg.includes("ResizeObserver") ||
+        msg.includes("Loading chunk") ||
+        msg.includes("dynamically imported module") ||
+        msg.includes("AbortError") ||
+        msg.includes("The user aborted")
+      ) return;
+
+      console.error("[Unhandled rejection]", event.reason);
+      
+      Sentry.captureException(event.reason || new Error(msg));
+      
+      if (!msg.includes("NetworkError") && !msg.includes("Failed to fetch")) {
+        toast.error("Un problème est survenu. Si ça persiste, recharge la page.");
+      }
+    };
+
+    window.addEventListener("unhandledrejection", handleUnhandledRejection);
+    return () => window.removeEventListener("unhandledrejection", handleUnhandledRejection);
+  }, []);
+
   const showAppWidgets = !PUBLIC_PATHS.includes(location.pathname) && !location.pathname.startsWith("/invite/") && !location.pathname.startsWith("/share/") && !location.pathname.startsWith("/calendrier/partage/");
   const showCoach = showAppWidgets && location.pathname !== "/onboarding" && location.pathname !== "/welcome";
 
