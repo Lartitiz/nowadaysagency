@@ -98,7 +98,6 @@ Réponds en JSON :
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
-import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
