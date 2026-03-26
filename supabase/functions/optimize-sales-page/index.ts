@@ -161,6 +161,9 @@ serve(async (req) => {
     }
     const userId = userData.user.id;
 
+    const rateCheck = checkRateLimit(userId);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+
     // Parse body
     const body = await req.json();
     const { url: pageUrl, focus, workspace_id } = body;

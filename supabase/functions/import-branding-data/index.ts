@@ -34,6 +34,9 @@ serve(async (req) => {
       });
     }
 
+    const rateCheck = checkRateLimit(user.id);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+
     const { section, text, fields, workspace_id } = await req.json();
 
     const quota = await checkQuota(user.id, "import", workspace_id || undefined);
