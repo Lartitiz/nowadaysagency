@@ -184,7 +184,7 @@ serve(async (req) => {
     const finalUrl = urlCheck.url!;
 
     // Quota check
-    const quota = await checkQuota(userId, "generation", workspace_id);
+    const quota = await checkQuota(userId, "content", workspace_id);
     if (!quota.allowed) {
       return new Response(JSON.stringify({ error: quota.message, quota: true }), {
         status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
