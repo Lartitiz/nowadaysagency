@@ -83,7 +83,7 @@ Génère 3 commentaires DIFFÉRENTS en JSON :
 
     const raw = await callAnthropic({
       model: getModelForAction("dm_comment"),
-      system: systemPrompt + "\n\n" + ANTI_SLOP,
+      system: systemPrompt,
       messages: [{ role: "user", content: userPrompt }],
       temperature: 0.8,
       max_tokens: 2048,
