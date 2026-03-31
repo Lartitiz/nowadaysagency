@@ -124,6 +124,7 @@ function bestPlan(planA: string, planB: string): string {
   return limitsA.total >= limitsB.total ? planA : planB;
 }
 
+function getMonthStart(): string {
   const now = new Date();
   return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 }
