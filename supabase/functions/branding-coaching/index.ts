@@ -387,6 +387,64 @@ serve(async (req) => {
       });
     }
 
+    // Special section: fill missing persona fields from conversation context
+    if (section === "persona_fill") {
+      const prenom = context?.profile?.prenom || context?.profile?.first_name || "toi";
+      const fillSystemPrompt = BASE_SYSTEM_RULES + `\n\nTu es experte en persona marketing. ${prenom} vient de terminer un coaching sur son client·e idéal·e. À partir de toute la conversation, extrais les informations demandées.
+
+RÈGLES :
+- Réponds UNIQUEMENT en JSON valide, rien d'autre
+- Si tu n'as pas d'information directe pour un champ, DÉDUIS-la intelligemment à partir du contexte de la conversation
+- Chaque valeur doit être une string de 1 à 5 phrases, concrète et spécifique
+- Ton empathique et direct
+- Écriture inclusive avec point médian
+- N'invente PAS de données qui contredisent ce qui a été dit`;
+
+      let fillMessages = (messages || []).map((m: any) => ({
+        role: m.role === "user" ? "user" as const : "assistant" as const,
+        content: m.content,
+      }));
+
+      while (fillMessages.length > 0 && fillMessages[fillMessages.length - 1].role === "assistant") {
+        fillMessages.pop();
+      }
+      if (fillMessages.length === 0) {
+        fillMessages.push({ role: "user" as const, content: "Extrais les informations manquantes." });
+      }
+
+      const merged: typeof fillMessages = [];
+      for (const msg of fillMessages) {
+        if (merged.length > 0 && merged[merged.length - 1].role === msg.role) {
+          merged[merged.length - 1].content += "\n\n" + msg.content;
+        } else {
+          merged.push({ ...msg });
+        }
+      }
+      if (merged.length > 0 && merged[0].role === "assistant") {
+        merged.unshift({ role: "user" as const, content: "Commence." });
+      }
+
+      for (const msg of merged) {
+        if (msg.content.length > 3000) {
+          msg.content = msg.content.slice(0, 3000) + "\n[...tronqué]";
+        }
+      }
+
+      const rawFill = await callAnthropic({
+        model: getDefaultModel(),
+        system: fillSystemPrompt,
+        messages: merged,
+        temperature: 0.5,
+        max_tokens: 2000,
+      });
+
+      await logUsage(userId, "coach", "branding_coaching", undefined, undefined, workspace_id || undefined);
+
+      return new Response(JSON.stringify({ response: rawFill }), {
+        headers: { ...cors, "Content-Type": "application/json" },
+      });
+    }
+
     const systemPrompt = BASE_SYSTEM_RULES + "\n\n" + buildSystemPrompt(section, context || {}, covered_topics || [], autofill_data, autofill_confidence);
 
     // Build anthropic messages — send ALL messages, no pruning

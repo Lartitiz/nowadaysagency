@@ -778,6 +778,135 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
         }
       }
 
+      // If persona, fill missing fields + generate pitches
+      if (section === "persona") {
+        try {
+          const { data: currentPersona } = await (supabase.from("persona") as any)
+            .select("*")
+            .eq(column, value)
+            .eq("is_primary", true)
+            .maybeSingle();
+
+          if (currentPersona?.id) {
+            const targetFields = [
+              "step_1_frustrations", "step_2_transformation", "step_3a_objections",
+              "step_3b_cliches", "step_4_beautiful", "step_4_inspiring",
+              "step_4_repulsive", "step_4_feeling", "step_5_actions"
+            ];
+            const missingFields = targetFields.filter(f => {
+              const v = currentPersona[f];
+              return !v || (typeof v === "string" && v.trim().length === 0);
+            });
+
+            if (missingFields.length > 0) {
+              const fieldLabels: Record<string, string> = {
+                step_1_frustrations: "Ses frustrations profondes",
+                step_2_transformation: "Sa transformation rêvée",
+                step_3a_objections: "Ses objections principales",
+                step_3b_cliches: "Les clichés / croyances à déconstruire",
+                step_4_beautiful: "Ce qu'elle trouve beau (direction esthétique)",
+                step_4_inspiring: "Ce qui l'inspire (personnes, marques, contenus)",
+                step_4_repulsive: "Ce qui la rebute visuellement",
+                step_4_feeling: "Ce qu'elle a besoin de ressentir (émotion recherchée)",
+                step_5_actions: "Ses premières actions / déclencheurs d'achat",
+              };
+              const missingList = missingFields.map(f => `- "${f}": ${fieldLabels[f]}`).join("\n");
+              const ctx = await fetchContext();
+              const simpleMsgs = updatedMessages.map(m => ({ role: m.role, content: m.content }));
+
+              const { data: fillData } = await invokeWithTimeout("branding-coaching", {
+                body: {
+                  user_id: profileUserId,
+                  workspace_id: workspaceId,
+                  section: "persona_fill",
+                  messages: [
+                    ...simpleMsgs,
+                    { role: "user", content: `À partir de TOUTE notre conversation, extrais les informations pour remplir ces champs manquants. Si tu n'as pas d'info directe, déduis-la intelligemment à partir du contexte. Réponds UNIQUEMENT en JSON avec ces clés :\n${missingList}` }
+                  ],
+                  context: ctx,
+                  covered_topics: checklist,
+                },
+              }, 120000);
+
+              const fillResponse = fillData?.response;
+              let fillInsights: Record<string, any> = {};
+              if (fillResponse) {
+                if (typeof fillResponse === "string") {
+                  try {
+                    fillInsights = JSON.parse(fillResponse.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
+                  } catch { /* ignore */ }
+                } else if (typeof fillResponse === "object") {
+                  fillInsights = fillResponse.extracted_insights || fillResponse;
+                }
+              }
+
+              const validFills: Record<string, string> = {};
+              for (const f of missingFields) {
+                const val = fillInsights[f];
+                if (val && typeof val === "string" && val.trim().length > 0) {
+                  validFills[f] = val.trim();
+                }
+              }
+
+              if (Object.keys(validFills).length > 0) {
+                await (supabase.from("persona") as any)
+                  .update({ ...validFills, updated_at: new Date().toISOString() })
+                  .eq("id", currentPersona.id);
+                console.log(`[BrandingCoaching] Persona fill: ${Object.keys(validFills).length} missing fields filled`);
+              }
+            }
+
+            // Generate pitches automatically
+            try {
+              const { data: freshPersona } = await (supabase.from("persona") as any)
+                .select("*")
+                .eq("id", currentPersona.id)
+                .maybeSingle();
+
+              const { data: brandData } = await (supabase.from("brand_profile") as any)
+                .select("activite, mission, offer, target_description, tone_register, voice_description, target_verbatims, combat_cause")
+                .eq(column, value)
+                .maybeSingle();
+
+              const { data: pitchData } = await invokeWithTimeout("persona-ai", {
+                body: {
+                  type: "pitch",
+                  persona: freshPersona || currentPersona,
+                  profile: brandData || {},
+                },
+              }, 60000);
+
+              if (pitchData?.content) {
+                let pitchParsed: any;
+                try {
+                  pitchParsed = typeof pitchData.content === "string"
+                    ? JSON.parse(pitchData.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim())
+                    : pitchData.content;
+                } catch { /* ignore */ }
+
+                if (pitchParsed) {
+                  const pitchUpdate: Record<string, string> = {};
+                  if (pitchParsed.short) pitchUpdate.pitch_short = pitchParsed.short;
+                  if (pitchParsed.medium) pitchUpdate.pitch_medium = pitchParsed.medium;
+                  if (pitchParsed.long) pitchUpdate.pitch_long = pitchParsed.long;
+
+                  if (Object.keys(pitchUpdate).length > 0) {
+                    await (supabase.from("persona") as any)
+                      .update({ ...pitchUpdate, updated_at: new Date().toISOString() })
+                      .eq("id", currentPersona.id);
+                    console.log(`[BrandingCoaching] Persona pitches generated: ${Object.keys(pitchUpdate).join(", ")}`);
+                  }
+                }
+              }
+            } catch (e) {
+              console.error("[BrandingCoaching] Error generating persona pitches:", e);
+            }
+          }
+        } catch (e) {
+          console.error("[BrandingCoaching] Error in persona completion:", e);
+        }
+      }
+
       setFinalSummary(response.final_summary || "");
       setCompletionPct(100);
       setCoveredTopics(checklist);
