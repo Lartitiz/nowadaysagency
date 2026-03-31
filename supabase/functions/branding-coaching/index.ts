@@ -449,7 +449,7 @@ serve(async (req) => {
     let wasTruncated = false;
 
     const aiResult = await callAnthropicWithMeta({
-      model: getDefaultModel(),
+      model: getModelForAction("coaching"),
       system: systemPrompt,
       messages: mergedMessages,
       temperature: 0.7,
