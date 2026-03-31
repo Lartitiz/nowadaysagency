@@ -193,7 +193,47 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
     if (!user || !recordId || isDemoMode) return;
     setIsAutoFilling(true);
     try {
-      if (emptyNonPitchFields.length > 0) {
+      // ─── Étape 0 : Extraire depuis la synthèse portrait (gratuit, instantané) ───
+      const portrait = data?.portrait ? (typeof data.portrait === "string" ? (() => { try { return JSON.parse(data.portrait); } catch { return null; } })() : data.portrait) : null;
+
+      if (portrait) {
+        const extractedFromPortrait: Record<string, string> = {};
+        if (portrait.frustrations?.length > 0) extractedFromPortrait.step_1_frustrations = portrait.frustrations.join("\n");
+        if (portrait.objectifs?.length > 0) extractedFromPortrait.step_2_transformation = portrait.objectifs.join("\n");
+        if (portrait.blocages?.length > 0) extractedFromPortrait.step_3a_objections = portrait.blocages.join("\n");
+        if (portrait.comment_parler?.fuir?.length > 0) extractedFromPortrait.step_4_repulsive = portrait.comment_parler.fuir.join(", ");
+        if (portrait.comment_parler?.ton) extractedFromPortrait.step_4_feeling = portrait.comment_parler.ton;
+        if (portrait.ses_mots?.length > 0) extractedFromPortrait.step_4_inspiring = portrait.ses_mots.join(", ");
+        if (portrait.comment_parler?.convainc) extractedFromPortrait.step_5_actions = portrait.comment_parler.convainc;
+
+        const fillsFromPortrait: Record<string, string> = {};
+        for (const [key, val] of Object.entries(extractedFromPortrait)) {
+          const currentVal = data[key];
+          const isEmpty = !currentVal || (typeof currentVal === "string" && currentVal.trim().length === 0);
+          if (isEmpty && val && val.trim().length > 0) fillsFromPortrait[key] = val.trim();
+        }
+
+        if (Object.keys(fillsFromPortrait).length > 0) {
+          await (supabase.from(table as any) as any)
+            .update({ ...fillsFromPortrait, updated_at: new Date().toISOString() })
+            .eq("id", recordId);
+          for (const [key, val] of Object.entries(fillsFromPortrait)) onFieldUpdate?.(key, val, "");
+        }
+      }
+
+      // ─── Étape 1 : Pour les champs encore vides, appeler l'IA ───
+      const updatedData = { ...data };
+      if (portrait) {
+        const freshFetch = await (supabase.from("persona") as any).select("*").eq("id", recordId).maybeSingle();
+        if (freshFetch.data) Object.assign(updatedData, freshFetch.data);
+      }
+
+      const stillEmptyFields = fields.filter(f => {
+        const v = updatedData[f.key];
+        return (!v || (typeof v === "string" && v.trim().length === 0)) && !f.key.startsWith("pitch_");
+      });
+
+      if (stillEmptyFields.length > 0) {
         const fieldLabels: Record<string, string> = {
           step_1_frustrations: "Ses frustrations profondes",
           step_2_transformation: "Sa transformation rêvée",
@@ -205,45 +245,56 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
           step_4_feeling: "Ce qu'elle a besoin de ressentir (émotion recherchée)",
           step_5_actions: "Ses premières actions / déclencheurs d'achat",
         };
+
         const { data: session } = await (supabase.from("branding_coaching_sessions") as any)
           .select("messages")
           .eq(column, workspaceValue)
           .eq("section", "persona")
           .maybeSingle();
         const conversationMessages = (session?.messages as any[]) || [];
-        const missingList = emptyNonPitchFields
-          .map(f => `- "${f.key}": ${fieldLabels[f.key] || f.label}`)
-          .join("\n");
-        const { data: fillData } = await invokeWithTimeout("branding-coaching", {
-          body: {
-            section: "persona_fill",
-            messages: [
-              ...conversationMessages.map((m: any) => ({ role: m.role, content: m.content })),
-              { role: "user", content: `À partir de TOUTE notre conversation, extrais les informations pour remplir ces champs manquants. Si tu n'as pas d'info directe, déduis-la intelligemment à partir du contexte. Réponds UNIQUEMENT en JSON avec ces clés :\n${missingList}` }
-            ],
-            context: {},
-            covered_topics: [],
-          },
-        }, 120000);
-        const fillResponse = fillData?.response;
-        let fillInsights: Record<string, any> = {};
-        if (fillResponse) {
-          if (typeof fillResponse === "string") {
-            try { fillInsights = JSON.parse(fillResponse.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim()); } catch { /* ignore */ }
-          } else if (typeof fillResponse === "object") {
-            fillInsights = fillResponse.extracted_insights || fillResponse;
+
+        if (conversationMessages.length > 0 || portrait) {
+          const contextForAI = portrait
+            ? [{ role: "user", content: `Voici la synthèse portrait de ma cliente idéale :\n${JSON.stringify(portrait, null, 2)}` }]
+            : [];
+          const missingList = stillEmptyFields
+            .map(f => `- "${f.key}": ${fieldLabels[f.key] || f.label}`)
+            .join("\n");
+
+          const { data: fillData } = await invokeWithTimeout("branding-coaching", {
+            body: {
+              section: "persona_fill",
+              messages: [
+                ...contextForAI,
+                ...conversationMessages.map((m: any) => ({ role: m.role, content: m.content })),
+                { role: "user", content: `À partir de TOUTE notre conversation et de la synthèse, extrais les informations pour remplir ces champs manquants. Si tu n'as pas d'info directe, déduis-la intelligemment à partir du contexte. Réponds UNIQUEMENT en JSON avec ces clés :\n${missingList}` }
+              ],
+              context: {},
+              covered_topics: [],
+            },
+          }, 120000);
+
+          const fillResponse = fillData?.response;
+          let fillInsights: Record<string, any> = {};
+          if (fillResponse) {
+            if (typeof fillResponse === "string") {
+              try { fillInsights = JSON.parse(fillResponse.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim()); } catch { /* ignore */ }
+            } else if (typeof fillResponse === "object") {
+              fillInsights = fillResponse.extracted_insights || fillResponse;
+            }
           }
-        }
-        const validFills: Record<string, string> = {};
-        for (const f of emptyNonPitchFields) {
-          const val = fillInsights[f.key];
-          if (val && typeof val === "string" && val.trim().length > 0) validFills[f.key] = val.trim();
-        }
-        if (Object.keys(validFills).length > 0) {
-          await (supabase.from(table as any) as any)
-            .update({ ...validFills, updated_at: new Date().toISOString() })
-            .eq("id", recordId);
-          for (const [key, val] of Object.entries(validFills)) onFieldUpdate?.(key, val, "");
+
+          const validFills: Record<string, string> = {};
+          for (const f of stillEmptyFields) {
+            const val = fillInsights[f.key];
+            if (val && typeof val === "string" && val.trim().length > 0) validFills[f.key] = val.trim();
+          }
+          if (Object.keys(validFills).length > 0) {
+            await (supabase.from(table as any) as any)
+              .update({ ...validFills, updated_at: new Date().toISOString() })
+              .eq("id", recordId);
+            for (const [key, val] of Object.entries(validFills)) onFieldUpdate?.(key, val, "");
+          }
         }
       }
       // Generate pitches
