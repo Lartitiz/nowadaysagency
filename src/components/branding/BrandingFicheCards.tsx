@@ -164,10 +164,11 @@ interface FieldCardsProps {
   data: Record<string, any>;
   table: string;
   recordId?: string;
+  section?: string;
   onFieldUpdate?: (field: string, value: string, oldValue?: string) => void;
 }
 
-function FieldCards({ fields, data, table, recordId, onFieldUpdate }: FieldCardsProps) {
+function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: FieldCardsProps) {
   const { user } = useAuth();
   const { isDemoMode } = useDemoContext();
   const [editingField, setEditingField] = useState<string | null>(null);
