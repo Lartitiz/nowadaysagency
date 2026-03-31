@@ -187,7 +187,7 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks.`;
 
     const userPrompt = stepPrompts[step] || `L'utilisatrice a répondu "${answer}" à l'étape ${step}. Analyse sa réponse et donne un feedback personnalisé. Retourne un JSON avec "reaction" (string).`;
 
-    const content = await callAnthropicSimple(getModelForAction("offer"), BASE_SYSTEM_RULES + "\n\n" + systemPrompt + "\n\n" + ANTI_SLOP, userPrompt, 0.7, 2000) || "{}";
+    const content = await callAnthropicSimple(getModelForAction("offer"), BASE_SYSTEM_RULES + "\n\n" + systemPrompt, userPrompt, 0.7, 2000) || "{}";
     
     let parsed;
     try {
