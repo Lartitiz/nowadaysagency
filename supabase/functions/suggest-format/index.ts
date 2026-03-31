@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
+
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -80,7 +80,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown), avec ces champs :
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: ANTI_SLOP },
+          { role: "system", content: "Tu es une assistante en stratégie de contenu. Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks." },
           { role: "user", content: prompt },
         ],
         temperature: 0.7,
