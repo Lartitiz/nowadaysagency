@@ -4,7 +4,7 @@ import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildIdentityBlock
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
+
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
