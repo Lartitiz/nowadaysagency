@@ -221,14 +221,16 @@ section === "story" ? `- "story_origin": string, comment tout a commencé
 - "story_struggles": string, les galères traversées
 - "story_unique": string, ce qui rend unique
 - "story_vision": string, la vision pour l'avenir` :
-section === "persona" ? `- "description": string, portrait général de la cliente idéale
-- "demographics": string, âge, situation, localisation
-- "step_1_frustrations": string, ce qui la bloque / ses frustrations
+section === "persona" ? `- "step_1_frustrations": string, ce qui la bloque / ses frustrations profondes
 - "step_2_transformation": string, ce qu'elle veut vraiment / sa transformation rêvée
-- "step_3a_objections": string, ses objections principales
-- "buying_triggers": tableau JSON, les déclencheurs d'achat
-- "channels": tableau de strings, où elle traîne en ligne
-- "daily_life": string, sa journée type` :
+- "step_3a_objections": string, ses objections principales (prix, légitimité, timing…)
+- "step_3b_cliches": string, les croyances / clichés qu'elle a sur ton domaine, à déconstruire
+- "step_4_beautiful": string, ce qu'elle trouve beau (direction esthétique, ambiance visuelle)
+- "step_4_inspiring": string, ce qui l'inspire (personnes, marques, contenus)
+- "step_4_repulsive": string, ce qui la rebute / la fait fuir
+- "step_4_feeling": string, ce qu'elle a besoin de ressentir (confiance, légèreté, fierté…)
+- "step_5_actions": string, ses premières actions concrètes / déclencheurs d'achat
+- "portrait_prenom": string, le prénom fictif de ce persona (si mentionné)` :
 section === "tone_style" ? `- "voice_description": string, comment tu parles / ta voix
 - "tone_register": string, le registre (familier, soutenu, etc.)
 - "tone_do": string, ce que tu fais toujours en com
