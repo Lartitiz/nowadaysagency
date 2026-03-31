@@ -131,7 +131,7 @@ Retourne UNIQUEMENT un JSON :
   "intro": "Message d'intro court et personnalisé (2 phrases max)"
 }`;
 
-      const raw = await callAnthropicSimple(getModelForAction("coaching_light"), BASE_SYSTEM_RULES + "\n\n" + systemPrompt + "\n\n" + ANTI_SLOP, "Génère les questions personnalisées.", 0.4, 1024);
+      const raw = await callAnthropicSimple(getModelForAction("coaching_light"), BASE_SYSTEM_RULES + "\n\n" + systemPrompt, "Génère les questions personnalisées.", 0.4, 1024);
 
       let result;
       try {
