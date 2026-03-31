@@ -207,11 +207,40 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
+
+    // Extraire seulement les champs utiles du profil (pas les métadonnées)
+    const profileCtx = profileData ? {
+      prenom: (profileData as any).prenom || (profileData as any).first_name,
+      activite: (profileData as any).activite || (profileData as any).activity,
+      type_activite: (profileData as any).type_activite || (profileData as any).activity_type,
+      canaux: (profileData as any).canaux,
+      main_goal: (profileData as any).main_goal,
+    } : undefined;
+
+    // Extraire seulement les champs branding utiles (pas id/timestamps/doublons)
+    const brandingCtx = brandProfileData ? {
+      positioning: (brandProfileData as any).positioning,
+      mission: (brandProfileData as any).mission,
+      tone_keywords: (brandProfileData as any).tone_keywords,
+      values: (brandProfileData as any).values,
+      offer: (brandProfileData as any).offer,
+    } : undefined;
+
+    // existing_data : uniquement les champs remplis, sans les champs déjà dans branding
+    let existingData: Record<string, any> | undefined;
+    if (brandProfileData) {
+      const { id, user_id, workspace_id, created_at, updated_at, positioning, mission, tone_keywords, ...rest } = brandProfileData as any;
+      const filled = Object.fromEntries(
+        Object.entries(rest).filter(([_, v]) => v != null && v !== "" && v !== false)
+      );
+      existingData = Object.keys(filled).length > 0 ? filled : undefined;
+    }
+
     const ctx = {
-      profile: profileData,
-      branding: brandProfileData,
+      profile: profileCtx,
+      branding: brandingCtx,
       audit: auditData,
-      existing_data: brandProfileData || {},
+      existing_data: existingData,
     };
     contextRef.current = ctx;
     return ctx;
