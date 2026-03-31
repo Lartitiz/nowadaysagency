@@ -150,7 +150,15 @@ function buildSystemPrompt(section: string, context: any, coveredTopics: string[
 
   const existing = context.existing_data;
   if (existing && Object.keys(existing).length > 0) {
-    contextLines.push(`\nDONNÉES EXISTANTES :\n${JSON.stringify(existing, null, 2)}`);
+    // Ne garder que les champs branding utiles, pas les métadonnées
+    const { id, user_id, workspace_id, created_at, updated_at, ...relevantData } = existing;
+    const relevantStr = JSON.stringify(relevantData, null, 2);
+    // Limiter à 2000 chars pour ne pas exploser le contexte
+    if (relevantStr.length > 2000) {
+      contextLines.push(`\nDONNÉES EXISTANTES (résumé) :\n${relevantStr.slice(0, 2000)}...`);
+    } else if (Object.keys(relevantData).length > 0) {
+      contextLines.push(`\nDONNÉES EXISTANTES :\n${relevantStr}`);
+    }
   }
 
   // ── Autofill context injection ──
@@ -257,7 +265,7 @@ Quand is_complete = true, ajoute :
   "completion_percentage": 100,
   "covered_topic": "dernier champ couvert",
   "extracted_insights": { ... },
-  "final_summary": "Un résumé structuré en 3 parties :\\n\\n✅ Ce qu'on a construit ensemble : [résumé des éléments clés extraits]\\n\\n💡 Pour aller plus loin : [2-3 suggestions concrètes d'amélioration]\\n\\n🎯 Prochaine étape : [une action concrète à faire maintenant]"
+  "final_summary": "2-3 phrases max : ce qu'on a posé ensemble + 1 prochaine étape concrète. PAS de structure en parties, PAS de bullet points, PAS d'emojis de section. Court et direct."
 }`;
 }
 
@@ -371,7 +379,7 @@ serve(async (req) => {
       });
     }
 
-    const systemPrompt = BASE_SYSTEM_RULES + "\n\n" + buildSystemPrompt(section, context || {}, covered_topics || [], autofill_data, autofill_confidence) + "\n\n" + ANTI_SLOP;
+    const systemPrompt = BASE_SYSTEM_RULES + "\n\n" + buildSystemPrompt(section, context || {}, covered_topics || [], autofill_data, autofill_confidence);
 
     // Build anthropic messages — send ALL messages, no pruning
     let anthropicMessages = (messages || []).map((m: any) => ({
@@ -418,7 +426,7 @@ serve(async (req) => {
 
     // ── Garde-fou : limiter la taille du payload ──
     const MAX_MESSAGES = 20;
-    const MAX_CHARS_PER_MESSAGE = 3000;
+    const MAX_CHARS_PER_MESSAGE = 1500;
     for (const msg of mergedMessages) {
       if (msg.content.length > MAX_CHARS_PER_MESSAGE) {
         msg.content = msg.content.slice(0, MAX_CHARS_PER_MESSAGE) + "\n[...réponse tronquée pour la suite de la session]";
