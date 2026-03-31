@@ -156,7 +156,7 @@ serve(async (req) => {
     const model = getModelForAction("content");
     const result = await callAnthropicSimple({
       model,
-      system: `${BASE_SYSTEM_RULES}\n\n${ANTI_SLOP}\n\n${sectionPrompt}\n\nRéponds UNIQUEMENT avec un JSON valide, sans markdown, sans commentaire.`,
+      system: `${BASE_SYSTEM_RULES}\n\n${sectionPrompt}\n\nRéponds UNIQUEMENT avec un JSON valide, sans markdown, sans commentaire.`,
       messages: [{ role: "user", content: userMessage }],
       temperature: 0.7,
       max_tokens: 2000,
