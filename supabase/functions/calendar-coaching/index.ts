@@ -201,7 +201,7 @@ Retourne UNIQUEMENT un JSON valide :
 
     const raw = await callAnthropicSimple(
       getModelForAction("coaching"),
-      systemPrompt + "\n\n" + ANTI_SLOP,
+      systemPrompt,
       `Planifie ${posts_per_week} posts pour ma semaine. Contexte : ${context_week || "semaine normale"}. Approche : ${mix_or_focus}.\n\nRappel : chaque sujet doit avoir un angle Nowadays précis, être hyper-spécifique à mon métier, et l'accroche doit être une VRAIE première ligne de post (max 20 mots, ton oral, percutante).`,
       0.9,
       4096
