@@ -1,5 +1,5 @@
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
+
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 import { buildIdentityBlock } from "../_shared/user-context.ts";
 
@@ -95,7 +95,7 @@ Réponds UNIQUEMENT en JSON :
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: systemPrompt + "\n\n" + ANTI_SLOP },
+          { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
         temperature: 0.6,
