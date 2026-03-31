@@ -144,9 +144,11 @@ export async function checkQuota(
     return { allowed: true, plan: "admin", remaining: 9999, remaining_total: 9999 };
   }
 
-  const plan = workspaceId
-    ? await getWorkspacePlan(workspaceId)
-    : await getUserPlan(userId);
+  // Toujours vérifier le plan personnel de l'utilisatrice (subscriptions)
+  // + le plan du workspace si applicable, et garder le meilleur
+  const userPlan = await getUserPlan(userId);
+  const workspacePlan = workspaceId ? await getWorkspacePlan(workspaceId) : "free";
+  const plan = bestPlan(userPlan, workspacePlan);
   const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
 
   // Check if category is available for this plan
