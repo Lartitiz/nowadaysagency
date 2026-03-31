@@ -95,7 +95,7 @@ Réponds UNIQUEMENT en JSON :
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: systemPrompt + "\n\n" + ANTI_SLOP },
+          { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
         temperature: 0.6,
