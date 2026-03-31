@@ -221,29 +221,37 @@ section === "story" ? `- "story_origin": string, comment tout a commencé
 - "story_struggles": string, les galères traversées
 - "story_unique": string, ce qui rend unique
 - "story_vision": string, la vision pour l'avenir` :
-section === "persona" ? `- "step_1_frustrations": string, ce qui la bloque / ses frustrations profondes
-- "step_2_transformation": string, ce qu'elle veut vraiment / sa transformation rêvée
-- "step_3a_objections": string, ses objections principales (prix, légitimité, timing…)
-- "step_3b_cliches": string, les croyances / clichés qu'elle a sur ton domaine, à déconstruire
-- "step_4_beautiful": string, ce qu'elle trouve beau (direction esthétique, ambiance visuelle)
-- "step_4_inspiring": string, ce qui l'inspire (personnes, marques, contenus)
-- "step_4_repulsive": string, ce qui la rebute / la fait fuir
-- "step_4_feeling": string, ce qu'elle a besoin de ressentir (confiance, légèreté, fierté…)
-- "step_5_actions": string, ses premières actions concrètes / déclencheurs d'achat
-- "portrait_prenom": string, le prénom fictif de ce persona (si mentionné)` :
-section === "tone_style" ? `- "voice_description": string, comment tu parles / ta voix
-- "tone_register": string, le registre (familier, soutenu, etc.)
-- "tone_do": string, ce que tu fais toujours en com
-- "tone_dont": string, ce que tu ne fais jamais
-- "combat_cause": string, ta cause principale / ton combat
-- "combat_fights": string, tes combats secondaires
-- "visual_style": string, ton style visuel` :
-section === "offers" ? `- "offer_name": string, nom de l'offre
-- "offer_price": string, prix et format de paiement
-- "offer_target": string, pour qui c'est fait
-- "offer_promise": string, la promesse / transformation
-- "offer_includes": string, ce qui est inclus` : ""}
-N'inclus dans extracted_insights QUE les clés ci-dessus. Inclus uniquement celles qui sont pertinentes pour la réponse qui vient d'être donnée (pas toutes à chaque fois).
+section === "persona" ? `MAPPING SUJET → CLÉS (remplis TOUTES les clés listées quand tu couvres un sujet) :
+
+Sujet "frustrations" → clés à remplir :
+  - "step_1_frustrations": string, ses frustrations profondes, ce qui la bloque au quotidien
+
+Sujet "transformation" → clés à remplir :
+  - "step_2_transformation": string, ce qu'elle veut vraiment, sa transformation rêvée, comment elle se verrait dans l'idéal
+
+Sujet "objections" → clés à remplir :
+  - "step_3a_objections": string, ses objections principales (prix, légitimité, timing, doutes…)
+
+Sujet "cliches" → clés à remplir :
+  - "step_3b_cliches": string, les croyances, clichés ou préjugés qu'elle a sur ton domaine — ce qu'il faut déconstruire
+
+Sujet "aesthetic_world" → clés à remplir (TOUTES les 2 dans la même réponse) :
+  - "step_4_beautiful": string, ce qu'elle trouve beau — sa direction esthétique, les ambiances visuelles qui l'attirent
+  - "step_4_repulsive": string, ce qui la rebute visuellement, ce qui la fait fuir
+
+Sujet "inspiration" → clés à remplir (TOUTES les 2 dans la même réponse) :
+  - "step_4_inspiring": string, ce qui l'inspire — personnes, marques, contenus, comptes qu'elle suit
+  - "step_4_feeling": string, ce qu'elle a besoin de ressentir — l'émotion qu'elle cherche (confiance, légèreté, fierté…)
+
+Sujet "actions" → clés à remplir :
+  - "step_5_actions": string, ses premières actions concrètes, ce qui la fait passer à l'achat, ses déclencheurs
+
+Clé bonus (à remplir dès que l'info est disponible) :
+  - "portrait_prenom": string, le prénom fictif de ce persona si mentionné
+
+⚠️ IMPORTANT : Quand un sujet mappe vers PLUSIEURS clés (aesthetic_world, inspiration), tu DOIS remplir TOUTES les clés dans le même extracted_insights. Ne renvoie pas une seule clé en ignorant l'autre.` :
+...
+N'inclus dans extracted_insights QUE les clés ci-dessus. Pour chaque réponse, remplis TOUTES les clés mappées au sujet couvert. Si la réponse contient des infos sur d'autres sujets non encore couverts, inclus aussi leurs clés.
 
 ══ FORMAT DE RÉPONSE ══
 Retourne TOUJOURS un JSON valide, rien d'autre :
