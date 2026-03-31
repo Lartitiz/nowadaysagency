@@ -250,7 +250,18 @@ Clé bonus (à remplir dès que l'info est disponible) :
   - "portrait_prenom": string, le prénom fictif de ce persona si mentionné
 
 ⚠️ IMPORTANT : Quand un sujet mappe vers PLUSIEURS clés (aesthetic_world, inspiration), tu DOIS remplir TOUTES les clés dans le même extracted_insights. Ne renvoie pas une seule clé en ignorant l'autre.` :
-...
+section === "tone_style" ? `- "voice_description": string, comment tu parles / ta voix
+- "tone_register": string, le registre (familier, soutenu, etc.)
+- "tone_do": string, ce que tu fais toujours en com
+- "tone_dont": string, ce que tu ne fais jamais
+- "combat_cause": string, ta cause principale / ton combat
+- "combat_fights": string, tes combats secondaires
+- "visual_style": string, ton style visuel` :
+section === "offers" ? `- "offer_name": string, nom de l'offre
+- "offer_price": string, prix et format de paiement
+- "offer_target": string, pour qui c'est fait
+- "offer_promise": string, la promesse / transformation
+- "offer_includes": string, ce qui est inclus` : ""}
 N'inclus dans extracted_insights QUE les clés ci-dessus. Pour chaque réponse, remplis TOUTES les clés mappées au sujet couvert. Si la réponse contient des infos sur d'autres sujets non encore couverts, inclus aussi leurs clés.
 
 ══ FORMAT DE RÉPONSE ══
