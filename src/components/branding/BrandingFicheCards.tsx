@@ -450,5 +450,5 @@ export default function BrandingFicheCards({ section, fields, data, table, recor
   if (section === "story") {
     return <StoryCards />;
   }
-  return <FieldCards fields={fields} data={data} table={table || ""} recordId={recordId} onFieldUpdate={onFieldUpdate} />;
+  return <FieldCards fields={fields} data={data} table={table || ""} recordId={recordId} section={section} onFieldUpdate={onFieldUpdate} />;
 }
