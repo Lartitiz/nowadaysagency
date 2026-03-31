@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { callAnthropic, callAnthropicWithMeta, getDefaultModel } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
+
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
