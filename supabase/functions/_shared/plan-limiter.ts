@@ -117,7 +117,13 @@ async function getWorkspacePlan(workspaceId: string): Promise<string> {
   return resolvePlan(data?.plan || "free");
 }
 
-function getMonthStart(): string {
+/** Compare two plans and return the one with the highest total limit */
+function bestPlan(planA: string, planB: string): string {
+  const limitsA = PLAN_LIMITS[planA] || PLAN_LIMITS.free;
+  const limitsB = PLAN_LIMITS[planB] || PLAN_LIMITS.free;
+  return limitsA.total >= limitsB.total ? planA : planB;
+}
+
   const now = new Date();
   return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 }
