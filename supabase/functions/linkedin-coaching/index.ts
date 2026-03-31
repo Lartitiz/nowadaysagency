@@ -220,7 +220,7 @@ Sois directe, bienveillante, et concrète. Pas de jargon. Tutoiement.`;
         });
       }
 
-      await logUsage(user.id, "content", "linkedin_coaching_diagnostic");
+      await logUsage(user.id, "suggestion", "linkedin_coaching_diagnostic");
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
