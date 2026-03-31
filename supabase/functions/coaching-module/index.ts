@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
     }
 
     // Quota check
-    const category = phase === "questions" ? "suggestion" : "suggestion";
+    const category = phase === "questions" ? "suggestion" : "content";
     const quota = await checkQuota(user.id, category, workspace_id);
     if (!quota.allowed) {
       return new Response(JSON.stringify({ error: quota.message, quota }), {
