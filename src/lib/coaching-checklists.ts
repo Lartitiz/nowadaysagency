@@ -1,6 +1,6 @@
 export const COACHING_CHECKLISTS: Record<string, string[]> = {
   story: ["story_origin", "story_turning_point", "story_struggles", "story_unique", "story_vision"],
-  persona: ["description", "demographics", "frustrations", "desires", "objections", "buying_triggers", "channels", "daily_life"],
+  persona: ["frustrations", "transformation", "objections", "cliches", "aesthetic_world", "inspiration", "actions"],
   tone_style: ["tone_description", "tone_do", "tone_dont", "combats", "visual_style"],
   content_strategy: ["content_pillars", "content_twist", "content_formats", "content_frequency", "content_editorial_line"],
   offers: ["offer_name", "offer_price", "offer_target", "offer_promise", "offer_includes"],
