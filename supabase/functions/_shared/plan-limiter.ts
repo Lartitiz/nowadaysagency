@@ -25,7 +25,7 @@ export const PLAN_LIMITS: Record<string, Record<string, number>> = {
     dm_comment: 60,
     bio_profile: 15,
     suggestion: 30,
-    coach: 60,
+    coach: 120,
     import: 10,
     adaptation: 30,
     deep_research: 15,
