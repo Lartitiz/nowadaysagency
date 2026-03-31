@@ -4,7 +4,7 @@ import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildIdentityBlock
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
+
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
@@ -187,7 +187,7 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks.`;
 
     const userPrompt = stepPrompts[step] || `L'utilisatrice a répondu "${answer}" à l'étape ${step}. Analyse sa réponse et donne un feedback personnalisé. Retourne un JSON avec "reaction" (string).`;
 
-    const content = await callAnthropicSimple(getModelForAction("offer"), BASE_SYSTEM_RULES + "\n\n" + systemPrompt + "\n\n" + ANTI_SLOP, userPrompt, 0.7, 2000) || "{}";
+    const content = await callAnthropicSimple(getModelForAction("offer"), BASE_SYSTEM_RULES + "\n\n" + systemPrompt, userPrompt, 0.7, 2000) || "{}";
     
     let parsed;
     try {
