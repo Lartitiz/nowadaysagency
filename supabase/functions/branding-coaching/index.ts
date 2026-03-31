@@ -461,7 +461,7 @@ serve(async (req) => {
     if (wasTruncated) {
       console.warn("[BrandingCoaching] Response truncated (max_tokens reached). Retrying with higher limit...");
       const retryResult = await callAnthropicWithMeta({
-        model: getDefaultModel(),
+        model: getModelForAction("coaching"),
         system: systemPrompt + "\n\nATTENTION : ta réponse précédente a été tronquée car trop longue. Sois CONCIS. La question doit faire 1-2 phrases max. Les extracted_insights doivent être courts. Pas de remaining_topics si la liste est longue.",
         messages: mergedMessages,
         temperature: 0.7,
