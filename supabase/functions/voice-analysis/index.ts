@@ -79,7 +79,7 @@ RÈGLES :
 
     const rawContent = await callAnthropicSimple(
       getModelForAction("voice"),
-      systemPrompt + "\n\n" + ANTI_SLOP,
+      systemPrompt,
       "Analyse ces textes et retourne le profil de voix."
     );
 

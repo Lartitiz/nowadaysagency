@@ -336,7 +336,7 @@ IMPORTANT : retourne UNIQUEMENT le JSON, sans texte avant ni après.`;
 
     const raw = await callAnthropicSimple(
       getDefaultModel(),
-      systemPrompt + "\n\n" + ANTI_SLOP,
+      systemPrompt,
       userPrompt,
       0.3,
       6000
