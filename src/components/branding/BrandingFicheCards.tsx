@@ -334,6 +334,24 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
         </div>
       </div>
 
+      {/* Auto-fill button for persona with empty fields */}
+      {section === "persona" && totalEmpty > 0 && filled.length > 0 && recordId && (
+        <div className="mb-4">
+          <Button
+            variant="outline"
+            className="w-full border-primary/30 bg-primary/5 hover:bg-primary/10 text-foreground"
+            onClick={handleAutoFill}
+            disabled={isAutoFilling}
+          >
+            {isAutoFilling ? (
+              <><Loader2 className="h-4 w-4 animate-spin mr-2" /> L'IA complète ta fiche...</>
+            ) : (
+              <><Wand2 className="h-4 w-4 mr-2" /> Compléter les {totalEmpty} champs manquants avec l'IA</>
+            )}
+          </Button>
+        </div>
+      )}
+
       {/* Cards for ALL fields (filled AND empty) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {fields.map((f) => {
