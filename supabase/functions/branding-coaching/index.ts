@@ -11,7 +11,7 @@ import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limit
 
 const SECTION_CHECKLISTS: Record<string, string[]> = {
   story: ["story_origin", "story_turning_point", "story_struggles", "story_unique", "story_vision"],
-  persona: ["description", "demographics", "frustrations", "desires", "objections", "buying_triggers", "channels", "daily_life"],
+  persona: ["frustrations", "transformation", "objections", "cliches", "aesthetic_world", "inspiration", "actions"],
   value_proposition: ["value_prop_problem", "value_prop_solution", "value_prop_difference", "value_prop_proof", "value_prop_sentence"],
   tone_style: ["tone_description", "tone_do", "tone_dont", "combats", "visual_style"],
   content_strategy: ["content_pillars", "content_twist", "content_formats", "content_frequency", "content_editorial_line"],
@@ -33,14 +33,13 @@ const TOPIC_LABELS: Record<string, string> = {
   story_struggles: "Les galères",
   story_unique: "Ce qui te rend unique",
   story_vision: "Ta vision",
-  description: "Portrait général",
-  demographics: "Âge, situation, localisation",
-  frustrations: "Ce qui la bloque",
-  desires: "Ce qu'elle veut vraiment",
-  objections: "Ses objections",
-  buying_triggers: "Déclencheurs d'achat",
-  channels: "Où elle traîne",
-  daily_life: "Sa journée type",
+  frustrations: "Ses frustrations",
+  transformation: "Sa transformation rêvée",
+  objections: "Ses objections et croyances",
+  cliches: "Les clichés à déconstruire",
+  aesthetic_world: "Son univers esthétique",
+  inspiration: "Ce qui l'inspire et la rebute",
+  actions: "Ses premières actions",
   value_prop_problem: "Le problème que tu résous",
   value_prop_solution: "Ta solution",
   value_prop_difference: "Ce qui te différencie",
@@ -71,14 +70,13 @@ const TOPIC_ALIASES: Record<string, string> = {
   "unique": "story_unique", "difference": "story_unique", "différence": "story_unique",
   "vision": "story_vision", "futur": "story_vision", "avenir": "story_vision",
   // persona
-  "portrait": "description", "profil": "description",
-  "age": "demographics", "démographie": "demographics", "situation": "demographics",
-  "blocages": "frustrations", "problemes": "frustrations", "problèmes": "frustrations",
-  "envies": "desires", "aspirations": "desires", "besoins": "desires",
+  "blocages": "frustrations", "problemes": "frustrations", "problèmes": "frustrations", "ce_qui_bloque": "frustrations",
+  "desires": "transformation", "envies": "transformation", "aspirations": "transformation", "besoins": "transformation", "reve": "transformation",
   "freins": "objections", "hesitations": "objections", "hésitations": "objections",
-  "declencheurs": "buying_triggers", "déclencheurs": "buying_triggers", "triggers": "buying_triggers",
-  "canaux": "channels", "reseaux": "channels", "réseaux": "channels", "plateformes": "channels",
-  "journee": "daily_life", "journée": "daily_life", "quotidien": "daily_life",
+  "croyances": "cliches", "préjugés": "cliches", "prejuges": "cliches",
+  "esthetique": "aesthetic_world", "esthétique": "aesthetic_world", "beau": "aesthetic_world", "visuel": "aesthetic_world",
+  "inspire": "inspiration", "rebute": "inspiration", "ressenti": "inspiration",
+  "declencheurs": "actions", "déclencheurs": "actions", "triggers": "actions", "premieres_actions": "actions",
   // tone_style
   "ton": "tone_description", "voix": "tone_description", "style_communication": "tone_description",
   "do": "tone_do", "je_fais": "tone_do",
@@ -223,14 +221,16 @@ section === "story" ? `- "story_origin": string, comment tout a commencé
 - "story_struggles": string, les galères traversées
 - "story_unique": string, ce qui rend unique
 - "story_vision": string, la vision pour l'avenir` :
-section === "persona" ? `- "description": string, portrait général de la cliente idéale
-- "demographics": string, âge, situation, localisation
-- "step_1_frustrations": string, ce qui la bloque / ses frustrations
+section === "persona" ? `- "step_1_frustrations": string, ce qui la bloque / ses frustrations profondes
 - "step_2_transformation": string, ce qu'elle veut vraiment / sa transformation rêvée
-- "step_3a_objections": string, ses objections principales
-- "buying_triggers": tableau JSON, les déclencheurs d'achat
-- "channels": tableau de strings, où elle traîne en ligne
-- "daily_life": string, sa journée type` :
+- "step_3a_objections": string, ses objections principales (prix, légitimité, timing…)
+- "step_3b_cliches": string, les croyances / clichés qu'elle a sur ton domaine, à déconstruire
+- "step_4_beautiful": string, ce qu'elle trouve beau (direction esthétique, ambiance visuelle)
+- "step_4_inspiring": string, ce qui l'inspire (personnes, marques, contenus)
+- "step_4_repulsive": string, ce qui la rebute / la fait fuir
+- "step_4_feeling": string, ce qu'elle a besoin de ressentir (confiance, légèreté, fierté…)
+- "step_5_actions": string, ses premières actions concrètes / déclencheurs d'achat
+- "portrait_prenom": string, le prénom fictif de ce persona (si mentionné)` :
 section === "tone_style" ? `- "voice_description": string, comment tu parles / ta voix
 - "tone_register": string, le registre (familier, soutenu, etc.)
 - "tone_do": string, ce que tu fais toujours en com
