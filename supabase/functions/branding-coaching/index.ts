@@ -150,7 +150,15 @@ function buildSystemPrompt(section: string, context: any, coveredTopics: string[
 
   const existing = context.existing_data;
   if (existing && Object.keys(existing).length > 0) {
-    contextLines.push(`\nDONNÉES EXISTANTES :\n${JSON.stringify(existing, null, 2)}`);
+    // Ne garder que les champs branding utiles, pas les métadonnées
+    const { id, user_id, workspace_id, created_at, updated_at, ...relevantData } = existing;
+    const relevantStr = JSON.stringify(relevantData, null, 2);
+    // Limiter à 2000 chars pour ne pas exploser le contexte
+    if (relevantStr.length > 2000) {
+      contextLines.push(`\nDONNÉES EXISTANTES (résumé) :\n${relevantStr.slice(0, 2000)}...`);
+    } else if (Object.keys(relevantData).length > 0) {
+      contextLines.push(`\nDONNÉES EXISTANTES :\n${relevantStr}`);
+    }
   }
 
   // ── Autofill context injection ──
