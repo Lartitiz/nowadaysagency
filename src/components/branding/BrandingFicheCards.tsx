@@ -7,8 +7,10 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Plus } from "lucide-react";
+import { Plus, Pencil, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useDemoContext } from "@/contexts/DemoContext";
+import { toast } from "sonner";
 
 /* ── Field-level emoji map ── */
 const FIELD_EMOJI: Record<string, string> = {
@@ -147,25 +149,68 @@ function StoryCards() {
 }
 
 /* ══════════════════════════════════════════════════════
-   GENERIC SECTION – field cards grouped
+   GENERIC SECTION – field cards with inline editing
    ══════════════════════════════════════════════════════ */
 
 interface FieldDef {
   key: string;
   label: string;
+  multiline?: boolean;
 }
 
 interface FieldCardsProps {
   fields: FieldDef[];
   data: Record<string, any>;
+  table: string;
+  recordId?: string;
+  onFieldUpdate?: (field: string, value: string, oldValue?: string) => void;
 }
 
-function FieldCards({ fields, data }: FieldCardsProps) {
+function FieldCards({ fields, data, table, recordId, onFieldUpdate }: FieldCardsProps) {
+  const { user } = useAuth();
+  const { isDemoMode } = useDemoContext();
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+
   const filled = fields.filter((f) => {
     const v = data[f.key];
     return v && typeof v === "string" && v.trim().length > 0;
   });
   const total = fields.length;
+
+  const handleStartEdit = (field: FieldDef) => {
+    setEditingField(field.key);
+    setEditValue((data[field.key] as string) || "");
+  };
+
+  const handleCancelEdit = () => {
+    setEditingField(null);
+    setEditValue("");
+  };
+
+  const handleSave = async (field: FieldDef) => {
+    if (isDemoMode) {
+      onFieldUpdate?.(field.key, editValue, data[field.key] || "");
+      setEditingField(null);
+      toast.success("C'est noté !");
+      return;
+    }
+    if (!user || !recordId) return;
+    setIsSaving(true);
+    try {
+      const oldValue = (data[field.key] as string) || "";
+      await (supabase.from(table as any) as any)
+        .update({ [field.key]: editValue, updated_at: new Date().toISOString() })
+        .eq("id", recordId);
+      onFieldUpdate?.(field.key, editValue, oldValue);
+      setEditingField(null);
+      toast.success("C'est noté !");
+    } catch {
+      toast.error("Erreur de sauvegarde");
+    }
+    setIsSaving(false);
+  };
 
   return (
     <div>
@@ -182,33 +227,83 @@ function FieldCards({ fields, data }: FieldCardsProps) {
         </div>
       </div>
 
-      {filled.length === 0 ? (
-        <Card className="p-6 text-center border-dashed">
-          <p className="text-muted-foreground text-sm">Aucun champ rempli pour l'instant. Lance le coaching pour commencer !</p>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {filled.map((f) => {
-            const emoji = FIELD_EMOJI[f.key] || "📄";
-            const value = (data[f.key] as string).trim();
+      {/* Cards for ALL fields (filled AND empty) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {fields.map((f) => {
+          const emoji = FIELD_EMOJI[f.key] || "📄";
+          const rawValue = (data[f.key] as string)?.trim() || "";
+          const isFilled = rawValue.length > 0;
+          const isEditing = editingField === f.key;
+          const isMultiline = f.multiline !== false;
 
-            return (
-              <Card
-                key={f.key}
-                className="p-4 border-border hover:border-[hsl(338,100%,71%,0.2)] transition-all"
-              >
-                <div className="flex items-center gap-2 mb-1.5">
+          return (
+            <Card
+              key={f.key}
+              className="group p-4 border-border hover:border-[hsl(338,100%,71%,0.2)] transition-all"
+            >
+              {/* Header: emoji + label + pencil */}
+              <div className="flex items-center justify-between gap-2 mb-1.5">
+                <div className="flex items-center gap-2">
                   <span className="text-base">{emoji}</span>
                   <h4 className="text-xs font-semibold text-foreground uppercase tracking-wide">{f.label}</h4>
                 </div>
-                <p className="text-[13px] text-muted-foreground leading-relaxed line-clamp-3">
-                  {value}
+                {!isEditing && (
+                  <button
+                    onClick={() => handleStartEdit(f)}
+                    className="text-muted-foreground/40 hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
+                    aria-label={`Modifier ${f.label}`}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Content or Edit mode */}
+              {isEditing ? (
+                <div className="mt-1">
+                  {isMultiline ? (
+                    <textarea
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      className="w-full border border-primary/30 rounded-lg p-3 text-foreground text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 min-h-[100px] bg-card resize-none outline-none"
+                      aria-label={f.label}
+                      autoFocus
+                    />
+                  ) : (
+                    <input
+                      type="text"
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      className="w-full border border-primary/30 rounded-lg p-3 text-foreground text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 bg-card outline-none"
+                      aria-label={f.label}
+                      autoFocus
+                    />
+                  )}
+                  <div className="flex gap-2 mt-2">
+                    <Button size="sm" onClick={() => handleSave(f)} disabled={isSaving} className="text-xs rounded-lg">
+                      {isSaving ? <><Loader2 className="h-3 w-3 animate-spin mr-1" /> Sauvegarde...</> : "Sauvegarder"}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={handleCancelEdit} className="text-xs text-muted-foreground">
+                      Annuler
+                    </Button>
+                  </div>
+                </div>
+              ) : isFilled ? (
+                <p className="text-[13px] text-muted-foreground leading-relaxed whitespace-pre-line">
+                  {rawValue}
                 </p>
-              </Card>
-            );
-          })}
-        </div>
-      )}
+              ) : (
+                <p className="text-[13px] text-muted-foreground/50 italic">
+                  Pas encore renseigné ·{" "}
+                  <button onClick={() => handleStartEdit(f)} className="text-primary hover:underline">
+                    Remplir manuellement
+                  </button>
+                </p>
+              )}
+            </Card>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -221,11 +316,14 @@ interface BrandingFicheCardsProps {
   section: string;
   fields: FieldDef[];
   data: Record<string, any>;
+  table?: string;
+  recordId?: string;
+  onFieldUpdate?: (field: string, value: string, oldValue?: string) => void;
 }
 
-export default function BrandingFicheCards({ section, fields, data }: BrandingFicheCardsProps) {
+export default function BrandingFicheCards({ section, fields, data, table, recordId, onFieldUpdate }: BrandingFicheCardsProps) {
   if (section === "story") {
     return <StoryCards />;
   }
-  return <FieldCards fields={fields} data={data} />;
+  return <FieldCards fields={fields} data={data} table={table || ""} recordId={recordId} onFieldUpdate={onFieldUpdate} />;
 }

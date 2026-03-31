@@ -433,6 +433,9 @@ export default function BrandingSectionPage() {
           section={section}
           fields={config.fields}
           data={data}
+          table={config.table}
+          recordId={data?.id}
+          onFieldUpdate={handleFieldUpdate}
         />
       )}
 
