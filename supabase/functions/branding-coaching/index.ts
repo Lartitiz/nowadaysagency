@@ -82,7 +82,7 @@ const TOPIC_ALIASES: Record<string, string> = {
   "do": "tone_do", "je_fais": "tone_do",
   "dont": "tone_dont", "je_ne_fais_pas": "tone_dont", "limites": "tone_dont",
   "combat": "combats", "engagements": "combats", "valeurs_combat": "combats",
-  "style_visuel": "visual_style", "esthetique": "visual_style", "esthétique": "visual_style",
+  "style_visuel": "visual_style",
   // content_strategy
   "piliers": "content_pillars", "pillars": "content_pillars", "themes": "content_pillars", "thèmes": "content_pillars",
   "twist": "content_twist", "twist_creatif": "content_twist", "concept": "content_twist", "angle": "content_twist",
