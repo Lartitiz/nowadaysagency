@@ -265,7 +265,7 @@ Quand is_complete = true, ajoute :
   "completion_percentage": 100,
   "covered_topic": "dernier champ couvert",
   "extracted_insights": { ... },
-  "final_summary": "Un résumé structuré en 3 parties :\\n\\n✅ Ce qu'on a construit ensemble : [résumé des éléments clés extraits]\\n\\n💡 Pour aller plus loin : [2-3 suggestions concrètes d'amélioration]\\n\\n🎯 Prochaine étape : [une action concrète à faire maintenant]"
+  "final_summary": "2-3 phrases max : ce qu'on a posé ensemble + 1 prochaine étape concrète. PAS de structure en parties, PAS de bullet points, PAS d'emojis de section. Court et direct."
 }`;
 }
 
