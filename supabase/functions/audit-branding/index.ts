@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAnthropicSimple, getDefaultModel } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
+
 import { validateInput, ValidationError, AuditBrandingSchema } from "../_shared/input-validators.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildIdentityBlock } from "../_shared/user-context.ts";
@@ -336,7 +336,7 @@ IMPORTANT : retourne UNIQUEMENT le JSON, sans texte avant ni après.`;
 
     const raw = await callAnthropicSimple(
       getDefaultModel(),
-      systemPrompt + "\n\n" + ANTI_SLOP,
+      systemPrompt,
       userPrompt,
       0.3,
       6000
