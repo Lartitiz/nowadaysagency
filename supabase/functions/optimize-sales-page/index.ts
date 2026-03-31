@@ -372,7 +372,7 @@ Réponds UNIQUEMENT en JSON (sans backticks) avec cette structure :
     }
 
     // Log usage
-    await logUsage(userId, "generation", "optimize_sales_page", undefined, "claude-sonnet", workspace_id);
+    await logUsage(userId, "content", "optimize_sales_page", undefined, "claude-sonnet", workspace_id);
 
     return new Response(JSON.stringify(parsed), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
