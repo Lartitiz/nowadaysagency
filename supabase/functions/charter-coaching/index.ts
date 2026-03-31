@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
+
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropic, getModelForAction } from "../_shared/anthropic.ts";
@@ -216,7 +216,7 @@ serve(async (req) => {
 
     const rawResponse = await callAnthropic({
       model: getModelForAction("coaching_light"),
-      system: BASE_SYSTEM_RULES + "\n\n" + prompt + "\n\n" + ANTI_SLOP,
+      system: BASE_SYSTEM_RULES + "\n\n" + prompt,
       messages: [{ role: "user", content: answer }],
       temperature: 0.7,
       max_tokens: 4096,
