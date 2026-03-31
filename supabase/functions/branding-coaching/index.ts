@@ -511,6 +511,35 @@ serve(async (req) => {
       }
     }
 
+    // ── Filet de sécurité : forcer la complétion si tous les sujets sont couverts ──
+    const checklist = SECTION_CHECKLISTS[section] || [];
+    const allCoveredTopics = [...(covered_topics || [])];
+    if (parsed.covered_topic) allCoveredTopics.push(parsed.covered_topic);
+    const uniqueCovered = [...new Set(allCoveredTopics)];
+    const normalizedCovered = uniqueCovered
+      .map(t => normalizeCoveredTopic(t, section))
+      .filter(Boolean) as string[];
+    const remaining = checklist.filter(t => !normalizedCovered.includes(t));
+
+    if (remaining.length === 0 && !parsed.is_complete) {
+      console.log(`[BrandingCoaching] All ${checklist.length} topics covered but is_complete was false — forcing completion`);
+      parsed.is_complete = true;
+      parsed.completion_percentage = 100;
+      if (!parsed.final_summary) {
+        parsed.final_summary = "Ta section est complète ! Tu peux retrouver tout ce qu'on a construit dans ta fiche. N'hésite pas à y revenir pour ajuster.";
+      }
+    }
+
+    // Si la réponse a été tronquée ET qu'il ne reste qu'un seul sujet, forcer aussi
+    if (wasTruncated && remaining.length <= 1 && !parsed.is_complete) {
+      console.warn(`[BrandingCoaching] Response truncated with ${remaining.length} topic(s) remaining — forcing completion`);
+      parsed.is_complete = true;
+      parsed.completion_percentage = 100;
+      if (!parsed.final_summary) {
+        parsed.final_summary = "On a fait un super travail ensemble ! Ta fiche est remplie. Tu peux toujours compléter ou modifier les champs directement.";
+      }
+    }
+
     // Normalize covered_topic to match checklist keys exactly
     if (parsed.covered_topic) {
       parsed.covered_topic = normalizeCoveredTopic(parsed.covered_topic, section);
