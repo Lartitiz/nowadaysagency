@@ -379,7 +379,7 @@ serve(async (req) => {
       });
     }
 
-    const systemPrompt = BASE_SYSTEM_RULES + "\n\n" + buildSystemPrompt(section, context || {}, covered_topics || [], autofill_data, autofill_confidence) + "\n\n" + ANTI_SLOP;
+    const systemPrompt = BASE_SYSTEM_RULES + "\n\n" + buildSystemPrompt(section, context || {}, covered_topics || [], autofill_data, autofill_confidence);
 
     // Build anthropic messages — send ALL messages, no pruning
     let anthropicMessages = (messages || []).map((m: any) => ({
