@@ -426,7 +426,7 @@ serve(async (req) => {
 
     // ── Garde-fou : limiter la taille du payload ──
     const MAX_MESSAGES = 20;
-    const MAX_CHARS_PER_MESSAGE = 3000;
+    const MAX_CHARS_PER_MESSAGE = 1500;
     for (const msg of mergedMessages) {
       if (msg.content.length > MAX_CHARS_PER_MESSAGE) {
         msg.content = msg.content.slice(0, MAX_CHARS_PER_MESSAGE) + "\n[...réponse tronquée pour la suite de la session]";
