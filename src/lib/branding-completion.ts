@@ -135,19 +135,16 @@ export function calculateBrandingCompletion(data: BrandingRawData): BrandingComp
   const stratFilled = stratChecks.filter(filled).length;
   const strategy = Math.round((stratFilled / 3) * 100);
 
-  // CHARTER: weighted score (progressive)
+  // CHARTER: aligned with BrandCharterPage computeCompletion
   const ch = data.charter;
   let charterScore = 0;
   if (ch) {
     if (filled(ch.logo_url)) charterScore += 15;
     const filledColors = (["color_primary", "color_secondary", "color_accent"] as const)
       .filter(k => filled(ch[k])).length;
-    charterScore += Math.min(filledColors * 8, 25);
-    if (filled(ch.font_title)) charterScore += 10;
-    if (filled(ch.font_body)) charterScore += 10;
-    if (Array.isArray(ch.mood_keywords) && ch.mood_keywords.length >= 1) {
-      charterScore += Math.min(ch.mood_keywords.length * 7, 15);
-    }
+    if (filledColors >= 3) charterScore += 25;
+    if (filled(ch.font_title) && filled(ch.font_body)) charterScore += 20;
+    if (Array.isArray(ch.mood_keywords) && ch.mood_keywords.length >= 3) charterScore += 15;
     if (filled(ch.photo_style)) charterScore += 15;
     const templates = Array.isArray(ch.uploaded_templates) ? ch.uploaded_templates : [];
     if (templates.length > 0) charterScore += 10;
