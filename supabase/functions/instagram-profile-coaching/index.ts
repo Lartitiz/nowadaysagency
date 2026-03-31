@@ -198,7 +198,7 @@ Retourne un JSON :
 
 Sois directe, bienveillante, et concrète. Pas de jargon. Tutoiement.`;
 
-      const raw = await callAnthropicSimple(getModelForAction("coaching_light"), BASE_SYSTEM_RULES + "\n\n" + systemPrompt + "\n\n" + ANTI_SLOP, "Génère ton diagnostic et tes propositions.", 0.5, 4000);
+      const raw = await callAnthropicSimple(getModelForAction("coaching_light"), BASE_SYSTEM_RULES + "\n\n" + systemPrompt, "Génère ton diagnostic et tes propositions.", 0.5, 4000);
 
       let result;
       try {
