@@ -80,7 +80,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown), avec ces champs :
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: ANTI_SLOP },
+          { role: "system", content: "Tu es une assistante en stratégie de contenu. Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks." },
           { role: "user", content: prompt },
         ],
         temperature: 0.7,
