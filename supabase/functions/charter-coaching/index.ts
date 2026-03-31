@@ -216,7 +216,7 @@ serve(async (req) => {
 
     const rawResponse = await callAnthropic({
       model: getModelForAction("coaching_light"),
-      system: BASE_SYSTEM_RULES + "\n\n" + prompt + "\n\n" + ANTI_SLOP,
+      system: BASE_SYSTEM_RULES + "\n\n" + prompt,
       messages: [{ role: "user", content: answer }],
       temperature: 0.7,
       max_tokens: 4096,
