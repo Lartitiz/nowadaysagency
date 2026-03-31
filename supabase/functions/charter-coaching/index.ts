@@ -193,7 +193,7 @@ serve(async (req) => {
     }
 
     // Quota check
-    const quota = await checkQuota(userId, "coaching", workspace_id);
+    const quota = await checkQuota(userId, "coach", workspace_id);
     if (!quota.allowed) {
       return new Response(JSON.stringify({ error: quota.message, quota: true }), {
         status: 429,
