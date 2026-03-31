@@ -7,7 +7,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Plus, Pencil, Loader2 } from "lucide-react";
+import { Plus, Pencil, Loader2, Wand2 } from "lucide-react";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Button } from "@/components/ui/button";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { toast } from "sonner";
@@ -163,15 +164,121 @@ interface FieldCardsProps {
   data: Record<string, any>;
   table: string;
   recordId?: string;
+  section?: string;
   onFieldUpdate?: (field: string, value: string, oldValue?: string) => void;
 }
 
-function FieldCards({ fields, data, table, recordId, onFieldUpdate }: FieldCardsProps) {
+function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: FieldCardsProps) {
   const { user } = useAuth();
   const { isDemoMode } = useDemoContext();
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const { column, value: workspaceValue } = useWorkspaceFilter();
+  const [isAutoFilling, setIsAutoFilling] = useState(false);
+
+  const emptyNonPitchFields = section === "persona" ? fields.filter(f => {
+    const v = data[f.key];
+    return (!v || (typeof v === "string" && v.trim().length === 0)) && !f.key.startsWith("pitch_");
+  }) : [];
+
+  const emptyPitchFields = section === "persona" ? fields.filter(f => {
+    const v = data[f.key];
+    return (!v || (typeof v === "string" && v.trim().length === 0)) && f.key.startsWith("pitch_");
+  }) : [];
+
+  const totalEmpty = emptyNonPitchFields.length + emptyPitchFields.length;
+
+  const handleAutoFill = async () => {
+    if (!user || !recordId || isDemoMode) return;
+    setIsAutoFilling(true);
+    try {
+      if (emptyNonPitchFields.length > 0) {
+        const fieldLabels: Record<string, string> = {
+          step_1_frustrations: "Ses frustrations profondes",
+          step_2_transformation: "Sa transformation rêvée",
+          step_3a_objections: "Ses objections principales",
+          step_3b_cliches: "Les clichés / croyances à déconstruire",
+          step_4_beautiful: "Ce qu'elle trouve beau (direction esthétique)",
+          step_4_inspiring: "Ce qui l'inspire (personnes, marques, contenus)",
+          step_4_repulsive: "Ce qui la rebute visuellement",
+          step_4_feeling: "Ce qu'elle a besoin de ressentir (émotion recherchée)",
+          step_5_actions: "Ses premières actions / déclencheurs d'achat",
+        };
+        const { data: session } = await (supabase.from("branding_coaching_sessions") as any)
+          .select("messages")
+          .eq(column, workspaceValue)
+          .eq("section", "persona")
+          .maybeSingle();
+        const conversationMessages = (session?.messages as any[]) || [];
+        const missingList = emptyNonPitchFields
+          .map(f => `- "${f.key}": ${fieldLabels[f.key] || f.label}`)
+          .join("\n");
+        const { data: fillData } = await invokeWithTimeout("branding-coaching", {
+          body: {
+            section: "persona_fill",
+            messages: [
+              ...conversationMessages.map((m: any) => ({ role: m.role, content: m.content })),
+              { role: "user", content: `À partir de TOUTE notre conversation, extrais les informations pour remplir ces champs manquants. Si tu n'as pas d'info directe, déduis-la intelligemment à partir du contexte. Réponds UNIQUEMENT en JSON avec ces clés :\n${missingList}` }
+            ],
+            context: {},
+            covered_topics: [],
+          },
+        }, 120000);
+        const fillResponse = fillData?.response;
+        let fillInsights: Record<string, any> = {};
+        if (fillResponse) {
+          if (typeof fillResponse === "string") {
+            try { fillInsights = JSON.parse(fillResponse.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim()); } catch { /* ignore */ }
+          } else if (typeof fillResponse === "object") {
+            fillInsights = fillResponse.extracted_insights || fillResponse;
+          }
+        }
+        const validFills: Record<string, string> = {};
+        for (const f of emptyNonPitchFields) {
+          const val = fillInsights[f.key];
+          if (val && typeof val === "string" && val.trim().length > 0) validFills[f.key] = val.trim();
+        }
+        if (Object.keys(validFills).length > 0) {
+          await (supabase.from(table as any) as any)
+            .update({ ...validFills, updated_at: new Date().toISOString() })
+            .eq("id", recordId);
+          for (const [key, val] of Object.entries(validFills)) onFieldUpdate?.(key, val, "");
+        }
+      }
+      // Generate pitches
+      const { data: freshPersona } = await (supabase.from("persona") as any).select("*").eq("id", recordId).maybeSingle();
+      const { data: brandData } = await (supabase.from("brand_profile") as any)
+        .select("activite, mission, offer, target_description, tone_register, voice_description, target_verbatims, combat_cause")
+        .eq(column, workspaceValue).maybeSingle();
+      const { data: pitchData } = await invokeWithTimeout("persona-ai", {
+        body: { type: "pitch", persona: freshPersona || data, profile: brandData || {} },
+      }, 60000);
+      if (pitchData?.content) {
+        let pitchParsed: any;
+        try {
+          pitchParsed = typeof pitchData.content === "string"
+            ? JSON.parse(pitchData.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim())
+            : pitchData.content;
+        } catch { /* ignore */ }
+        if (pitchParsed) {
+          const pitchUpdate: Record<string, string> = {};
+          if (pitchParsed.short) pitchUpdate.pitch_short = pitchParsed.short;
+          if (pitchParsed.medium) pitchUpdate.pitch_medium = pitchParsed.medium;
+          if (pitchParsed.long) pitchUpdate.pitch_long = pitchParsed.long;
+          if (Object.keys(pitchUpdate).length > 0) {
+            await (supabase.from("persona") as any).update({ ...pitchUpdate, updated_at: new Date().toISOString() }).eq("id", recordId);
+            for (const [key, val] of Object.entries(pitchUpdate)) onFieldUpdate?.(key, val, "");
+          }
+        }
+      }
+      toast.success("Fiche complétée par l'IA !");
+    } catch (e) {
+      console.error("[PersonaAutoFill] Error:", e);
+      toast.error("Erreur lors de la complétion. Réessaie.");
+    }
+    setIsAutoFilling(false);
+  };
 
   const filled = fields.filter((f) => {
     const v = data[f.key];
@@ -226,6 +333,24 @@ function FieldCards({ fields, data, table, recordId, onFieldUpdate }: FieldCards
           />
         </div>
       </div>
+
+      {/* Auto-fill button for persona with empty fields */}
+      {section === "persona" && totalEmpty > 0 && filled.length > 0 && recordId && (
+        <div className="mb-4">
+          <Button
+            variant="outline"
+            className="w-full border-primary/30 bg-primary/5 hover:bg-primary/10 text-foreground"
+            onClick={handleAutoFill}
+            disabled={isAutoFilling}
+          >
+            {isAutoFilling ? (
+              <><Loader2 className="h-4 w-4 animate-spin mr-2" /> L'IA complète ta fiche...</>
+            ) : (
+              <><Wand2 className="h-4 w-4 mr-2" /> Compléter les {totalEmpty} champs manquants avec l'IA</>
+            )}
+          </Button>
+        </div>
+      )}
 
       {/* Cards for ALL fields (filled AND empty) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -325,5 +450,5 @@ export default function BrandingFicheCards({ section, fields, data, table, recor
   if (section === "story") {
     return <StoryCards />;
   }
-  return <FieldCards fields={fields} data={data} table={table || ""} recordId={recordId} onFieldUpdate={onFieldUpdate} />;
+  return <FieldCards fields={fields} data={data} table={table || ""} recordId={recordId} section={section} onFieldUpdate={onFieldUpdate} />;
 }
