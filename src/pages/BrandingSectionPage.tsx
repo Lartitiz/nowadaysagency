@@ -327,7 +327,7 @@ export default function BrandingSectionPage() {
       const coachingDone = session?.is_complete === true;
 
       if (pct === 0 && !coachingDone) {
-        navigate(`/branding/coaching?section=${section}`, { replace: true });
+        navigate(`/branding/coaching?section=${section}${isPersonaSection && selectedPersonaId ? `&personaId=${selectedPersonaId}` : ""}`, { replace: true });
       }
       setRedirectChecked(true);
     };
