@@ -783,11 +783,14 @@ export default function BrandingCoachingFlow({ section, personaId, onComplete, o
       // If persona, fill missing fields + generate pitches
       if (section === "persona") {
         try {
-          const { data: currentPersona } = await (supabase.from("persona") as any)
-            .select("*")
-            .eq(column, value)
-            .eq("is_primary", true)
-            .maybeSingle();
+          let personaQuery = (supabase.from("persona") as any)
+            .select("*");
+          if (resolvedPersonaIdRef.current) {
+            personaQuery = personaQuery.eq("id", resolvedPersonaIdRef.current);
+          } else {
+            personaQuery = personaQuery.eq(column, value).eq("is_primary", true);
+          }
+          const { data: currentPersona } = await personaQuery.maybeSingle();
 
           if (currentPersona?.id) {
             const targetFields = [
