@@ -105,13 +105,14 @@ function CoachingProgress({ section, coveredTopics }: { section: Section; covere
 
 interface BrandingCoachingFlowProps {
   section: Section;
+  personaId?: string;
   onComplete?: () => void;
   onBack?: () => void;
   autofillData?: Record<string, any> | null;
   autofillConfidence?: string | null;
 }
 
-export default function BrandingCoachingFlow({ section, onComplete, onBack, autofillData, autofillConfidence }: BrandingCoachingFlowProps) {
+export default function BrandingCoachingFlow({ section, personaId, onComplete, onBack, autofillData, autofillConfidence }: BrandingCoachingFlowProps) {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
