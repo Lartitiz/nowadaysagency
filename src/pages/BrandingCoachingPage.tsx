@@ -26,6 +26,7 @@ export default function BrandingCoachingPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const rawSection = searchParams.get("section");
+  const personaId = searchParams.get("personaId");
 
   // Resolve aliases
   const resolved = SECTION_ALIAS[rawSection || ""] || rawSection;
