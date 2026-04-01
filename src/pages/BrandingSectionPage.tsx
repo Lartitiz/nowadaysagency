@@ -599,7 +599,7 @@ export default function BrandingSectionPage() {
               </p>
               <Button
                 className="rounded-full gap-2"
-                onClick={() => navigate(`/branding/coaching?section=${section}`)}
+                onClick={() => navigate(`/branding/coaching?section=${section}${isPersonaSection && selectedPersonaId ? `&personaId=${selectedPersonaId}` : ""}`)}
               >
                 <Sparkles className="h-4 w-4" />
                 {filledCount > 0 ? "Affiner avec l'IA →" : "Lancer le coaching IA →"}

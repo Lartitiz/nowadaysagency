@@ -48,6 +48,7 @@ export default function BrandingCoachingPage() {
     <LocalErrorBoundary fallbackMessage="Le coaching branding a rencontré une erreur.">
       <BrandingCoachingFlow
         section={section}
+        personaId={personaId || undefined}
         onComplete={() => navigate(RECAP_ROUTES[section] || "/branding")}
         onBack={() => navigate("/branding")}
       />
