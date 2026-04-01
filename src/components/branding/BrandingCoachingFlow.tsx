@@ -955,18 +955,27 @@ export default function BrandingCoachingFlow({ section, personaId, onComplete, o
           charterDataRef.current = { ...charterDataRef.current, ...charterPayload };
         }
       } else if (sec === "persona") {
-        const { data: existingPersona } = await (supabase.from("persona") as any)
-          .select("id").eq(column, value).eq("is_primary", true).maybeSingle();
-        if (existingPersona?.id) {
-          await (supabase.from("persona") as any).update({ ...insights, updated_at: new Date().toISOString() }).eq("id", existingPersona.id);
+        let targetPersonaId = resolvedPersonaIdRef.current;
+        
+        if (!targetPersonaId) {
+          const { data: primaryPersona } = await (supabase.from("persona") as any)
+            .select("id").eq(column, value).eq("is_primary", true).maybeSingle();
+          targetPersonaId = primaryPersona?.id || null;
+        }
+        
+        if (targetPersonaId) {
+          await (supabase.from("persona") as any)
+            .update({ ...insights, updated_at: new Date().toISOString() })
+            .eq("id", targetPersonaId);
         } else {
-          await (supabase.from("persona") as any).insert({
+          const { data: newPersona } = await (supabase.from("persona") as any).insert({
             user_id: profileUserId,
             workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
             is_primary: true,
             ...insights,
             updated_at: new Date().toISOString(),
-          });
+          }).select("id").single();
+          if (newPersona?.id) resolvedPersonaIdRef.current = newPersona.id;
         }
       } else if (sec === "story") {
         // Map coaching insights to storytelling columns
