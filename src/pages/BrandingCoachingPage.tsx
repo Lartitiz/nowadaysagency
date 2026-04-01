@@ -26,6 +26,7 @@ export default function BrandingCoachingPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const rawSection = searchParams.get("section");
+  const personaId = searchParams.get("personaId");
 
   // Resolve aliases
   const resolved = SECTION_ALIAS[rawSection || ""] || rawSection;
@@ -47,6 +48,7 @@ export default function BrandingCoachingPage() {
     <LocalErrorBoundary fallbackMessage="Le coaching branding a rencontré une erreur.">
       <BrandingCoachingFlow
         section={section}
+        personaId={personaId || undefined}
         onComplete={() => navigate(RECAP_ROUTES[section] || "/branding")}
         onBack={() => navigate("/branding")}
       />

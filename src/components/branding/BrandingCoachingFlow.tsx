@@ -105,13 +105,14 @@ function CoachingProgress({ section, coveredTopics }: { section: Section; covere
 
 interface BrandingCoachingFlowProps {
   section: Section;
+  personaId?: string;
   onComplete?: () => void;
   onBack?: () => void;
   autofillData?: Record<string, any> | null;
   autofillConfidence?: string | null;
 }
 
-export default function BrandingCoachingFlow({ section, onComplete, onBack, autofillData, autofillConfidence }: BrandingCoachingFlowProps) {
+export default function BrandingCoachingFlow({ section, personaId, onComplete, onBack, autofillData, autofillConfidence }: BrandingCoachingFlowProps) {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
@@ -144,6 +145,7 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
   useEffect(() => { questionIndexRef.current = questionIndex; }, [questionIndex]);
   const coveredTopicsRef = useRef(coveredTopics);
   useEffect(() => { coveredTopicsRef.current = coveredTopics; }, [coveredTopics]);
+  const resolvedPersonaIdRef = useRef<string | null>(personaId || null);
 
   const meta = SECTION_META[section];
   const demoQuestions = isDemoMode ? DEMO_COACHING_DATA[section]?.questions : null;
@@ -781,11 +783,14 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
       // If persona, fill missing fields + generate pitches
       if (section === "persona") {
         try {
-          const { data: currentPersona } = await (supabase.from("persona") as any)
-            .select("*")
-            .eq(column, value)
-            .eq("is_primary", true)
-            .maybeSingle();
+          let personaQuery = (supabase.from("persona") as any)
+            .select("*");
+          if (resolvedPersonaIdRef.current) {
+            personaQuery = personaQuery.eq("id", resolvedPersonaIdRef.current);
+          } else {
+            personaQuery = personaQuery.eq(column, value).eq("is_primary", true);
+          }
+          const { data: currentPersona } = await personaQuery.maybeSingle();
 
           if (currentPersona?.id) {
             const targetFields = [
@@ -953,18 +958,27 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
           charterDataRef.current = { ...charterDataRef.current, ...charterPayload };
         }
       } else if (sec === "persona") {
-        const { data: existingPersona } = await (supabase.from("persona") as any)
-          .select("id").eq(column, value).eq("is_primary", true).maybeSingle();
-        if (existingPersona?.id) {
-          await (supabase.from("persona") as any).update({ ...insights, updated_at: new Date().toISOString() }).eq("id", existingPersona.id);
+        let targetPersonaId = resolvedPersonaIdRef.current;
+        
+        if (!targetPersonaId) {
+          const { data: primaryPersona } = await (supabase.from("persona") as any)
+            .select("id").eq(column, value).eq("is_primary", true).maybeSingle();
+          targetPersonaId = primaryPersona?.id || null;
+        }
+        
+        if (targetPersonaId) {
+          await (supabase.from("persona") as any)
+            .update({ ...insights, updated_at: new Date().toISOString() })
+            .eq("id", targetPersonaId);
         } else {
-          await (supabase.from("persona") as any).insert({
+          const { data: newPersona } = await (supabase.from("persona") as any).insert({
             user_id: profileUserId,
             workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
             is_primary: true,
             ...insights,
             updated_at: new Date().toISOString(),
-          });
+          }).select("id").single();
+          if (newPersona?.id) resolvedPersonaIdRef.current = newPersona.id;
         }
       } else if (sec === "story") {
         // Map coaching insights to storytelling columns

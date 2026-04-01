@@ -327,7 +327,7 @@ export default function BrandingSectionPage() {
       const coachingDone = session?.is_complete === true;
 
       if (pct === 0 && !coachingDone) {
-        navigate(`/branding/coaching?section=${section}`, { replace: true });
+        navigate(`/branding/coaching?section=${section}${isPersonaSection && selectedPersonaId ? `&personaId=${selectedPersonaId}` : ""}`, { replace: true });
       }
       setRedirectChecked(true);
     };
@@ -557,7 +557,7 @@ export default function BrandingSectionPage() {
                 variant="outline"
                 size="sm"
                 className="gap-2 text-xs rounded-full"
-                onClick={() => navigate(`/branding/coaching?section=${section}`)}
+                onClick={() => navigate(`/branding/coaching?section=${section}${isPersonaSection && selectedPersonaId ? `&personaId=${selectedPersonaId}` : ""}`)}
               >
                 <Sparkles className="h-3.5 w-3.5" />
                 Affiner avec l'IA
@@ -599,7 +599,7 @@ export default function BrandingSectionPage() {
               </p>
               <Button
                 className="rounded-full gap-2"
-                onClick={() => navigate(`/branding/coaching?section=${section}`)}
+                onClick={() => navigate(`/branding/coaching?section=${section}${isPersonaSection && selectedPersonaId ? `&personaId=${selectedPersonaId}` : ""}`)}
               >
                 <Sparkles className="h-4 w-4" />
                 {filledCount > 0 ? "Affiner avec l'IA →" : "Lancer le coaching IA →"}
