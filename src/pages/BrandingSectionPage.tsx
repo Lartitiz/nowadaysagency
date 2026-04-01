@@ -557,7 +557,7 @@ export default function BrandingSectionPage() {
                 variant="outline"
                 size="sm"
                 className="gap-2 text-xs rounded-full"
-                onClick={() => navigate(`/branding/coaching?section=${section}`)}
+                onClick={() => navigate(`/branding/coaching?section=${section}${isPersonaSection && selectedPersonaId ? `&personaId=${selectedPersonaId}` : ""}`)}
               >
                 <Sparkles className="h-3.5 w-3.5" />
                 Affiner avec l'IA
