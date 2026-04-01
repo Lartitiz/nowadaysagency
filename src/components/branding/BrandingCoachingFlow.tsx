@@ -145,6 +145,7 @@ export default function BrandingCoachingFlow({ section, personaId, onComplete, o
   useEffect(() => { questionIndexRef.current = questionIndex; }, [questionIndex]);
   const coveredTopicsRef = useRef(coveredTopics);
   useEffect(() => { coveredTopicsRef.current = coveredTopics; }, [coveredTopics]);
+  const resolvedPersonaIdRef = useRef<string | null>(personaId || null);
 
   const meta = SECTION_META[section];
   const demoQuestions = isDemoMode ? DEMO_COACHING_DATA[section]?.questions : null;
