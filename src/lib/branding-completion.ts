@@ -31,7 +31,7 @@ export async function fetchBrandingData(
       (supabase.from("persona") as any).select("description, step_1_frustrations, step_2_transformation, step_3a_objections, step_4_beautiful, step_5_actions").eq(f.column, f.value).order("is_primary", { ascending: false }).order("created_at", { ascending: false }).limit(1).maybeSingle(),
       (supabase.from("brand_proposition") as any).select("step_1_what, step_2a_process, step_2b_values, step_3_for_whom, version_final, version_pitch_naturel").eq(f.column, f.value).maybeSingle(),
       (supabase.from("brand_profile") as any).select("voice_description, combat_cause, combat_fights, combat_alternative, combat_refusals, tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims, channels").eq(f.column, f.value).maybeSingle(),
-      (supabase.from("brand_strategy") as any).select("step_1_hidden_facets, facet_1, pillar_major, creative_concept").eq(f.column, f.value).maybeSingle(),
+      (supabase.from("brand_strategy") as any).select("step_1_hidden_facets, facet_1, pillar_major, creative_concept").eq(f.column, f.value).order("updated_at", { ascending: false }).limit(1).maybeSingle(),
       (supabase.from("offers") as any).select("id, name, promise, target_ideal, price_text, completed").eq(f.column, f.value),
       (supabase.from("brand_charter") as any).select("logo_url, color_primary, color_secondary, color_accent, color_background, color_text, font_title, font_body, mood_keywords, photo_style, uploaded_templates").eq(f.column, f.value).maybeSingle(),
     ]);

@@ -423,7 +423,7 @@ async function saveStrategy(data: AnalysisResult["content_strategy"], userId: st
   if (data.pillars?.[2]) stratPayload.pillar_minor_2 = data.pillars[2];
   if (data.creative_twist) stratPayload.creative_concept = data.creative_twist;
   const { data: existingStrat } = await (supabase.from("brand_strategy") as any)
-    .select("id").eq(filterCol, filterVal).maybeSingle();
+    .select("id").eq(filterCol, filterVal).order("updated_at", { ascending: false }).limit(1).maybeSingle();
   if (existingStrat?.id) {
     await (supabase.from("brand_strategy") as any).update(stratPayload).eq("id", existingStrat.id);
   } else {

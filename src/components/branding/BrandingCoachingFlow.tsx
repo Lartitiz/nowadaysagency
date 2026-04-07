@@ -1046,7 +1046,7 @@ export default function BrandingCoachingFlow({ section, personaId, onComplete, o
         if (Object.keys(strategyData).length > 0) {
           strategyData.updated_at = new Date().toISOString();
           const { data: existingStrat } = await (supabase.from("brand_strategy") as any)
-            .select("id").eq(column, value).maybeSingle();
+            .select("id").eq(column, value).order("updated_at", { ascending: false }).limit(1).maybeSingle();
           if (existingStrat?.id) {
             await (supabase.from("brand_strategy") as any).update(strategyData).eq("id", existingStrat.id);
           } else {
