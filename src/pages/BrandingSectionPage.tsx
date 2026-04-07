@@ -287,7 +287,7 @@ export default function BrandingSectionPage() {
         query = query.eq("is_primary", true);
       }
 
-      const { data: row } = await query.maybeSingle();
+      const { data: row } = await query.order("updated_at", { ascending: false }).limit(1).maybeSingle();
       if (row) {
         setData(row);
         setLastUpdated(row.updated_at || null);
@@ -376,7 +376,7 @@ export default function BrandingSectionPage() {
         const cols = "*";
         let q = (supabase.from(config.table as any) as any).select(cols).eq(column, value);
         if (config.table === "storytelling") q = q.eq("is_primary", true);
-        q.maybeSingle().then(({ data: row }: any) => {
+        q.order("updated_at", { ascending: false }).limit(1).maybeSingle().then(({ data: row }: any) => {
           if (row) { setData(row); setLastUpdated(row.updated_at || null); }
         });
       }
