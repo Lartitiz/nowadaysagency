@@ -137,7 +137,7 @@ export default function InstagramAudit() {
     return supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
   };
 
-  const handleSubmit = async (form: AuditFormData) => {
+  const handleSubmit = async (form: AuditFormData, retryCount = 0) => {
     if (!user) return;
 
     // Pre-check: block if no audit credits left
@@ -152,6 +152,9 @@ export default function InstagramAudit() {
     setAnalyzing(true);
 
     try {
+      // Refresh session preemptively to avoid JWT expiry during long audit
+      await supabase.auth.refreshSession();
+
       // 1. Save profile data
       const highlightsArray = form.highlights ? form.highlights.split(",").map((s) => s.trim()).filter(Boolean) : [];
       const pinnedPosts = [form.pinnedPost1, form.pinnedPost2, form.pinnedPost3].filter(Boolean).map((d) => ({ description: d }));
@@ -240,6 +243,18 @@ export default function InstagramAudit() {
         setQuotaExhausted({ message: res.data.message || "" });
         setAnalyzing(false);
         return;
+      }
+
+      // Check for retryable errors from backend
+      if (res.data?.error && res.data?.retryable && retryCount < 1) {
+        console.log("[Audit] Retryable error, auto-retrying in 3s...", res.data.error);
+        setLoadingMsg("⏳ L'IA met un peu plus de temps que prévu, on réessaie...");
+        await new Promise(r => setTimeout(r, 3000));
+        return handleSubmit(form, retryCount + 1);
+      }
+
+      if (res.data?.error && !res.data?.retryable) {
+        throw new Error(res.data.error);
       }
 
       let parsed: any;
@@ -358,12 +373,34 @@ export default function InstagramAudit() {
     } catch (e: any) {
       console.error("Erreur technique:", e);
       const errStr = e?.message || String(e);
+
+      // Quota errors
       if (/quota|crédit|limit_reached|limit/i.test(errStr)) {
         setQuotaExhausted({ message: "" });
         setAnalyzing(false);
         return;
       }
-      const msg = friendlyError(e);
+
+      // Auto-retry on transient errors (timeout, overload)
+      const isTransient = /surchargée|trop de temps|timeout|abort|504|503|529|429/i.test(errStr);
+      if (isTransient && retryCount < 1) {
+        console.log("[Audit] Transient error, auto-retrying in 3s...", errStr);
+        setLoadingMsg("⏳ L'IA met un peu plus de temps que prévu, on réessaie...");
+        await new Promise(r => setTimeout(r, 3000));
+        return handleSubmit(form, retryCount + 1);
+      }
+
+      // Contextual error messages
+      let msg: string;
+      if (/surchargée|429|529|overload/i.test(errStr)) {
+        msg = "L'IA est surchargée, réessaie dans 2 minutes.";
+      } else if (/timeout|abort|trop de temps|504/i.test(errStr)) {
+        msg = "Le traitement a pris trop de temps, réessaie.";
+      } else if (/auth|session|401|expir/i.test(errStr)) {
+        msg = "Ta session a expiré, reconnecte-toi.";
+      } else {
+        msg = friendlyError(e);
+      }
       setLastError(msg);
       toast({ title: "Erreur", description: msg, variant: "destructive" });
     } finally {

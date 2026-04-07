@@ -45,7 +45,10 @@ const AuditInstagramSchema = z.object({
 
 async function fetchImageAsBase64(url: string): Promise<{ data: string; media_type: string } | null> {
   try {
-    const resp = await fetch(url);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    const resp = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
     if (!resp.ok) return null;
     const buffer = await resp.arrayBuffer();
     
@@ -373,6 +376,34 @@ Réponds en JSON :
 }`;
     const finalSystemPrompt = BASE_SYSTEM_RULES + "\n\n" + systemPrompt;
 
+    // Helper: fallback to Gemini via Lovable AI Gateway (text-only)
+    async function fallbackToGemini(systemPrompt: string, userText: string): Promise<string> {
+      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+      if (!LOVABLE_API_KEY) throw new Error("No fallback API key available");
+      console.log("[audit-instagram-ai] Falling back to Gemini (text-only)...");
+      const geminiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userText },
+          ],
+          temperature: 0.7,
+        }),
+      });
+      if (!geminiResp.ok) {
+        const errText = await geminiResp.text();
+        console.error("[audit-instagram-ai] Gemini fallback failed:", geminiResp.status, errText);
+        throw new Error(`Gemini fallback failed: ${geminiResp.status}`);
+      }
+      const geminiData = await geminiResp.json();
+      return geminiData.choices?.[0]?.message?.content || "";
+    }
+
+    const textOnlyUserPrompt = "Analyse mon profil Instagram et donne-moi un audit complet avec audit visuel annoté et analyse de performance des contenus.";
+
     // Build user message (multimodal if screenshots available)
     if (visionImages && visionImages.length > 0) {
       const userContent: any[] = visionImages.map((img: any) => ({
@@ -384,13 +415,19 @@ Réponds en JSON :
         text: "Analyse mon profil Instagram en détail avec les captures fournies et les données textuelles ci-dessus.",
       });
 
-      const visionResult = await callAnthropic({
-        model: getModelForAction("audit"),
-        system: finalSystemPrompt,
-        messages: [{ role: "user", content: userContent }],
-        temperature: 0.7,
-        max_tokens: 8192,
-      });
+      let visionResult: string;
+      try {
+        visionResult = await callAnthropic({
+          model: getModelForAction("audit"),
+          system: finalSystemPrompt,
+          messages: [{ role: "user", content: userContent }],
+          temperature: 0.7,
+          max_tokens: 8192,
+        });
+      } catch (anthropicErr: any) {
+        console.error("[audit-instagram-ai] Anthropic vision failed:", anthropicErr.message);
+        visionResult = await fallbackToGemini(finalSystemPrompt, textOnlyUserPrompt);
+      }
 
       await logUsage(user.id, "audit", "audit_instagram", undefined, undefined, workspace_id);
       return new Response(
@@ -400,8 +437,13 @@ Réponds en JSON :
     }
 
     // Fallback: text-only audit if no screenshots
-    const userPrompt = "Analyse mon profil Instagram et donne-moi un audit complet avec audit visuel annote et analyse de performance des contenus.";
-    const content = await callAnthropicSimple(getModelForAction("audit"), finalSystemPrompt, userPrompt, 0.7, 8192);
+    let content: string;
+    try {
+      content = await callAnthropicSimple(getModelForAction("audit"), finalSystemPrompt, textOnlyUserPrompt, 0.7, 8192);
+    } catch (anthropicErr: any) {
+      console.error("[audit-instagram-ai] Anthropic text-only failed:", anthropicErr.message);
+      content = await fallbackToGemini(finalSystemPrompt, textOnlyUserPrompt);
+    }
 
     await logUsage(user.id, "audit", "audit_instagram", undefined, undefined, workspace_id);
     return new Response(
@@ -409,12 +451,31 @@ Réponds en JSON :
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e: any) {
+    const errMsg = e.message || "Erreur inconnue";
     console.error(JSON.stringify({
       type: "edge_function_error",
       function_name: "audit-instagram-ai",
-      error: e.message || "Erreur inconnue",
+      error: errMsg,
       timestamp: new Date().toISOString(),
     }));
+
+    // Contextual error messages
+    const isOverload = /429|529|overloaded|rate.?limit/i.test(errMsg);
+    const isTimeout = /timeout|abort|timed.?out/i.test(errMsg);
+
+    if (isOverload) {
+      return new Response(
+        JSON.stringify({ error: "L'IA est momentanément surchargée, réessaie dans 2 minutes.", retryable: true }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    if (isTimeout) {
+      return new Response(
+        JSON.stringify({ error: "Le traitement a pris trop de temps, réessaie.", retryable: true }),
+        { status: 504, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     return new Response(
       JSON.stringify({ error: "Erreur interne du serveur" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
