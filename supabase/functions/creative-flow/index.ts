@@ -1005,10 +1005,20 @@ CORRECTIONS OBLIGATOIRES — applique TOUTES celles qui s'appliquent :
 7. GENRÉ NON INCLUSIF (uniquement féminin ou masculin sans point médian) :
    → Ajouter l'écriture inclusive avec point médian.
 
+8. REDONDANCE (2+ paragraphes qui expriment la même idée sous des angles différents) :
+   → Garder le paragraphe le plus CONCRET (celui avec un exemple, un chiffre, une situation).
+   → Supprimer ou fusionner les autres dans le paragraphe conservé.
+   → Un post LinkedIn dense de 1300 car. > un post dilué de 2000 car.
+
+9. LONGUEUR EXCESSIVE (post > 1900 caractères) :
+   → Identifier le paragraphe le plus FAIBLE (le plus abstrait, le moins d'info nouvelle).
+   → Le supprimer entièrement. Ne pas essayer de "résumer" : couper.
+   → Cible : 1300-1700 caractères. Chaque phrase doit mériter sa place.
+
 RÈGLES :
 - Garde le SENS et la CONVICTION du post. Tu corriges la FORME, pas le FOND.
 - Ne raccourcis pas. Si tu supprimes une phrase isolée, développe-la dans le paragraphe.
-- Le post corrigé fait entre 1300 et 2000 caractères.
+- Le post corrigé fait entre 1300 et 1700 caractères.
 - Retourne UNIQUEMENT le JSON avec le post corrigé, rien d'autre.
 
 Réponds UNIQUEMENT en JSON :
