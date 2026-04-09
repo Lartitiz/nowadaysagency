@@ -170,6 +170,18 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
     let systemPrompt = "";
     let userPrompt: string | null = "";
 
+    // ── Format detection (outer scope — used by generate + streaming) ──
+    const angleFormat = angle?.format_livraison?.toLowerCase() || "";
+    const formatHint = angleFormat || contentType?.toLowerCase() || "";
+    const isCarousel = formatHint.includes("carrousel") || formatHint.includes("carousel");
+    const isReel = formatHint.includes("reel") || formatHint.includes("script");
+    const isStories = formatHint.includes("stories") || formatHint.includes("story");
+    const isLinkedIn = formatHint.includes("linkedin") || contentType === "post_linkedin";
+    const isPinterest = formatHint.includes("pinterest") || contentType === "post_pinterest";
+    const isNewsletter = formatHint.includes("newsletter") || formatHint.includes("email") || contentType === "post_newsletter";
+    const isCaption = !isCarousel && !isReel && !isStories && !isLinkedIn && !isPinterest && !isNewsletter;
+    const isPhotoMode = body.photo_mode === true;
+
     // Format labels (used by recycle, declared here for broader scope)
     const formatLabels: Record<string, string> = {
       carrousel: "Carrousel Instagram (8 slides)",
@@ -293,18 +305,7 @@ Réponds UNIQUEMENT en JSON :
         ? "\n\nQUESTIONS D'APPROFONDISSEMENT :\n" + followUpAnswers.map((a: any, i: number) => `Q${i + 1} : "${a.question}" → "${a.answer}"`).join("\n")
         : "";
 
-      // Determine target format for depth instructions
-      // Priority: angle.format_livraison > contentType > canal detection
-      const angleFormat = angle?.format_livraison?.toLowerCase() || "";
-      const formatHint = angleFormat || contentType?.toLowerCase() || "";
-      const isCarousel = formatHint.includes("carrousel") || formatHint.includes("carousel");
-      const isReel = formatHint.includes("reel") || formatHint.includes("script");
-      const isStories = formatHint.includes("stories") || formatHint.includes("story");
-      const isLinkedIn = formatHint.includes("linkedin") || contentType === "post_linkedin";
-      const isPinterest = formatHint.includes("pinterest") || contentType === "post_pinterest";
-      const isNewsletter = formatHint.includes("newsletter") || formatHint.includes("email") || contentType === "post_newsletter";
-      const isCaption = !isCarousel && !isReel && !isStories && !isLinkedIn && !isPinterest && !isNewsletter;
-      const isPhotoMode = body.photo_mode === true;
+      // Format variables (isLinkedIn, isCarousel, etc.) are defined in outer scope
 
       // Build format-specific depth instructions
       let depthMandate = "";
@@ -950,12 +951,8 @@ Privilégie les sources françaises et européennes quand elles existent.`,
       const apiKey = Deno.env.get("ANTHROPIC_API_KEY")!;
       const model = getModelForAction("content");
 
-      // Re-derive isLinkedIn for streaming scope
-      const streamFormatHint = (angle?.format_livraison?.toLowerCase() || contentType?.toLowerCase() || "");
-      const streamIsLinkedIn = streamFormatHint.includes("linkedin") || contentType === "post_linkedin";
-
       // LinkedIn: disable streaming, use 2-step generation + correction
-      if (streamIsLinkedIn) {
+      if (isLinkedIn) {
         const rawContent = await callAnthropicSimple(model, systemPrompt, userPrompt!, 0.85, 4096);
 
         // Parse the raw content to extract the post text
