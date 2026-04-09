@@ -361,27 +361,95 @@ PROFONDEUR :
 
 FORMAT : POST LINKEDIN (1300-2000 caractères)
 
-LinkedIn ≠ tribune d'expert·e. C'est une conversation entre pro qui se respectent.
+══ ÉTAPE 1 : AVANT D'ÉCRIRE, IDENTIFIE CES 3 ÉLÉMENTS ══
+
+Avant de rédiger une seule ligne, tu DOIS répondre mentalement à ces 3 questions :
+
+1. QUELLE CONVICTION ou ÉMOTION porte ce post ?
+
+   Chaque bon post LinkedIn est porté par un ressort émotionnel : fierté d'un aboutissement, indignation face à un constat, enthousiasme pour une découverte, gratitude envers un parcours, frustration face à une norme...
+
+   → Si tu ne trouves pas l'émotion, le post sera un communiqué. Cherche : qu'est-ce qui ANIME l'auteur·ice sur ce sujet ?
+
+2. QUEL DÉTAIL CONCRET ancre le post dans le réel ?
+
+   Un chiffre précis, une date, un lieu, une phrase entendue, une durée, un nom d'outil, un avant/après mesurable. C'est le détail qui fait que le lecteur se dit "c'est du vécu" et pas "c'est du ChatGPT".
+
+   → Si le sujet ne contient pas de détail, INVENTE-EN PAS. Pose la question dans les réponses de l'utilisatrice, ou ancre dans le contexte branding.
+
+3. QUEL EST LE MOUVEMENT NARRATIF ?
+
+   Un post LinkedIn n'est pas une fiche info. C'est un MOUVEMENT qui embarque :
+
+   - Annonce/événement → ne PAS décrire l'événement. Raconter le CHEMIN qui y mène ou la CONVICTION derrière.
+
+   - Partage d'expertise → ne PAS lister des conseils. Partir d'un CONSTAT TERRAIN et creuser le POURQUOI.
+
+   - Milestone/bilan → ne PAS énumérer les accomplissements. Choisir UN fil rouge émotionnel (ce qui n'a pas changé, ce qui a été le plus dur, ce qu'on referait).
+
+   - Collaboration/rencontre → ne PAS présenter les personnes. Raconter ce que cette rencontre a PROVOQUÉ ou RÉVÉLÉ.
 
 ${linkedinTemplateContent ? `STRUCTURE ÉDITORIALE CHOISIE :\n${linkedinTemplateContent}\n\nSuis cette structure pour organiser le post.` : ""}
 
-TU NE FAIS JAMAIS :
-- Storytelling fabriqué ("Et là, tout a basculé", "Le déclic ?", "Ce jour-là j'ai compris")
-- Phrases courtes en rafale pour faire dramatique ("C'est ton message. Ton message, ça se travaille. Avec méthode. Avec écoute.")
-- Listes à puces inspirationnelles (✅ Soyez authentique)
-- Avant/Après propret et symétrique sans détails concrets
-- "Et vous, qu'en pensez-vous ?" en CTA
-- Flex déguisé en humilité
-- Étirer une idée qui tient en 3 phrases sur 8 paragraphes
+══ ÉTAPE 2 : ÉCRITURE ══
 
-TU FAIS :
-- Accroche dans les 210 premiers caractères : une AFFIRMATION FORTE ou un CONSTAT CONCRET. Pas un teaser.
-- Corps : 2-3 paragraphes de prose fluide. UNE idée creusée, pas 5 survolées. Le rythme vient naturellement (phrases longues qui déroulent + une courte qui claque), pas de rafales mécaniques.
-- Ton direct, chaleureux, engagé. L'oral est OK sur LinkedIn : "en vrai", "le truc c'est que", "sauf que".
-- Prendre position. Dire avec quoi tu n'es PAS d'accord.
-- CTA : une question PRÉCISE liée au sujet, ou rien du tout si le texte se suffit.
-- 0-2 hashtags en fin. Pas plus.
-- DENSE : 1300-2000 caractères. Chaque phrase apporte du NOUVEAU. Zéro reformulation.`;
+ACCROCHE (< 210 caractères) :
+
+- Un FAIT CONCRET ou une ÉMOTION SINCÈRE. Jamais une promesse marketing, un teaser, ou un slogan.
+
+- Exemples de patterns qui marchent : "Ça y est, [fait concret] !" / "Il y a [durée], [situation de départ]. Aujourd'hui, [contraste]." / "Quand [situation concrète], [réaction ou constat]."
+
+- Exemples de patterns INTERDITS : "[Sujet] n'aura plus de secrets pour vous !" / "Je voulais partager avec vous..." / "Et si on parlait de [sujet] ?"
+
+CORPS :
+
+- LinkedIn = conversation entre pro. Le ton est direct, chaleureux, engagé. L'oral est OK : "en vrai", "le truc c'est que", "sauf que", "bon".
+
+- 2-3 paragraphes de prose fluide. UNE idée creusée, pas 5 survolées.
+
+- Chaque paragraphe apporte du NOUVEAU. Si tu reformules le paragraphe précédent, coupe.
+
+- Le rythme vient du CONTRASTE (longue phrase qui déroule → courte qui claque), pas de rafales.
+
+- PRENDS POSITION. Un bon post LinkedIn dit avec quoi l'auteur·ice n'est PAS d'accord, ce qui l'étonne, ce qui le/la dérange. Pas de "chacun son avis".
+
+FIN :
+
+- Question PRÉCISE liée au sujet, ou rien du tout si le texte se suffit.
+
+- La dernière phrase apporte du NOUVEAU ou laisse une tension ouverte.
+
+- JAMAIS de résumé, JAMAIS de crescendo rhétorique.
+
+FORMAT :
+
+- 0-2 emojis max, jamais en puces
+
+- 0-2 hashtags niche en fin
+
+- Écriture inclusive avec point médian
+
+- Pas de tirets cadratin (—), utiliser : ou ;
+
+- DENSE : 1300-2000 caractères. Zéro remplissage.
+
+══ INTERDITS ABSOLUS ══
+
+- Storytelling fabriqué ("Et là, tout a basculé", "Le déclic ?", "Ce jour-là j'ai compris")
+
+- Phrases courtes en rafale pour l'effet dramatique
+
+- Listes à puces inspirationnelles
+
+- Promesses marketing en accroche
+
+- "Et vous, qu'en pensez-vous ?" comme CTA
+
+- Flex déguisé en humilité
+
+- Étirer une idée de 3 phrases sur 8 paragraphes
+
+- Post qui DÉCRIT un sujet sans PRENDRE POSITION dessus`;
       } else if (isPinterest) {
         const pinterestContext = (pinterest_link || pinterest_board)
           ? `\nDÉTAILS DE L'ÉPINGLE :\n${pinterest_link ? `- Lien de destination : ${pinterest_link}` : "- Pas de lien fourni"}\n${pinterest_board ? `- Tableau de destination : "${pinterest_board}"` : ""}\n${pinterest_link ? `\nLa description doit donner envie de cliquer sur ce lien. Mentionne ce que la personne va trouver en cliquant.` : ""}\n`
