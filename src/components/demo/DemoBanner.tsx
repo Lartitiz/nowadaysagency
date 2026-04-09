@@ -4,7 +4,7 @@ import { Film, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function DemoBanner() {
-  const { isDemoMode, demoName, demoActivity, demoPlan, setDemoPlan, deactivateDemo } = useDemoContext();
+  const { isDemoMode, demoName, demoActivity, demoPlan, setDemoPlan, deactivateDemo, demoProfileId, setDemoProfile, availableProfiles } = useDemoContext();
   const navigate = useNavigate();
 
   if (!isDemoMode) return null;
