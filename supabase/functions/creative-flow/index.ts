@@ -549,11 +549,11 @@ PROFONDEUR :
 
 ${ANTI_BIAS}
 
-${FORMAT_STRUCTURES}
+${isLinkedIn ? "" : FORMAT_STRUCTURES}
 
-${WRITING_RESOURCES}
+${isLinkedIn ? "" : WRITING_RESOURCES}
 
-${VISUAL_ANALOGIES}
+${isLinkedIn ? "" : VISUAL_ANALOGIES}
 
 ${angle ? `ANGLE CHOISI :
 - Titre : ${angle.title}
