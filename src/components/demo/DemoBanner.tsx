@@ -4,7 +4,7 @@ import { Film, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function DemoBanner() {
-  const { isDemoMode, demoName, demoActivity, demoPlan, setDemoPlan, deactivateDemo } = useDemoContext();
+  const { isDemoMode, demoName, demoActivity, demoPlan, setDemoPlan, deactivateDemo, demoProfileId, setDemoProfile, availableProfiles } = useDemoContext();
   const navigate = useNavigate();
 
   if (!isDemoMode) return null;
@@ -21,7 +21,19 @@ export default function DemoBanner() {
         <span>🎬 Mode démo · {demoName}, {demoActivity}</span>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
+        {/* Profile selector */}
+        <div className="flex bg-background/60 rounded-full p-0.5 border border-border/50">
+          {availableProfiles.map((p) => (
+            <PlanTab
+              key={p.id}
+              label={p.label}
+              active={demoProfileId === p.id}
+              onClick={() => setDemoProfile(p.id)}
+            />
+          ))}
+        </div>
+
         {/* Plan toggle tabs */}
         <div className="flex bg-background/60 rounded-full p-0.5 border border-border/50">
           <PlanTab
