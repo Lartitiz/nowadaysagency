@@ -950,6 +950,127 @@ Privilégie les sources françaises et européennes quand elles existent.`,
       const apiKey = Deno.env.get("ANTHROPIC_API_KEY")!;
       const model = getModelForAction("content");
 
+      // LinkedIn: disable streaming, use 2-step generation + correction
+      if (isLinkedIn) {
+        const rawContent = await callAnthropicSimple(model, systemPrompt, userPrompt!, 0.85, 4096);
+
+        // Parse the raw content to extract the post text
+        let postText = "";
+        try {
+          const parsed = JSON.parse(rawContent);
+          postText = parsed.content || parsed.full_text || rawContent;
+        } catch {
+          const match = rawContent.match(/\{[\s\S]*\}/);
+          if (match) {
+            try {
+              const parsed = JSON.parse(match[0]);
+              postText = parsed.content || parsed.full_text || rawContent;
+            } catch { postText = rawContent; }
+          } else {
+            postText = rawContent;
+          }
+        }
+
+        // Step 2: Correction pass — short, focused prompt
+        const correctionPrompt = `Tu es un éditeur LinkedIn exigeant. Tu reçois un post et tu dois le CORRIGER phrase par phrase.
+
+CORRECTIONS OBLIGATOIRES — applique TOUTES celles qui s'appliquent :
+
+1. PHRASE ISOLÉE SUR UNE LIGNE (moins de 10 mots seule entre 2 sauts de ligne) :
+   → Intègre-la dans le paragraphe précédent ou suivant. Développe-la.
+   Exemple : "Sauf que." seul → à intégrer comme transition dans le paragraphe suivant.
+   Exemple : "C'est la transmission." seul → fusionner avec la phrase d'avant et ajouter un détail concret.
+
+2. RAFALE DE PHRASES COURTES (2+ phrases de moins de 10 mots d'affilée) :
+   → Fusionner en une seule phrase fluide avec des connecteurs.
+   Exemple : "Pas pour X. Pour Y." → "pas pour X, mais pour Y"
+
+3. ANAPHORE (3+ phrases qui commencent par le même mot/groupe) :
+   → Réécrire en variant les structures de phrase.
+   Exemple : "Je parle de X. Je parle de Y. Je parle de Z." → reformuler en prose variée
+
+4. EMPILEMENT INSPIRATIONNEL (2+ phrases-valeurs abstraites sans exemple concret) :
+   → Remplacer par UN exemple concret qui incarne la même idée.
+
+5. ACCROCHE PROMESSE/SLOGAN :
+   → Remplacer par un fait concret ou une émotion sincère.
+
+6. CTA GÉNÉRIQUE ("Et vous, qu'en pensez-vous ?", "Et vous, [question existentielle] ?") :
+   → Remplacer par une question spécifique au sujet du post, ou supprimer.
+
+7. GENRÉ NON INCLUSIF (uniquement féminin ou masculin sans point médian) :
+   → Ajouter l'écriture inclusive avec point médian.
+
+RÈGLES :
+- Garde le SENS et la CONVICTION du post. Tu corriges la FORME, pas le FOND.
+- Ne raccourcis pas. Si tu supprimes une phrase isolée, développe-la dans le paragraphe.
+- Le post corrigé fait entre 1300 et 2000 caractères.
+- Retourne UNIQUEMENT le JSON avec le post corrigé, rien d'autre.
+
+Réponds UNIQUEMENT en JSON :
+{
+  "content": "le post complet corrigé",
+  "accroche": "les 210 premiers caractères",
+  "corrections_applied": ["liste courte des corrections faites"]
+}`;
+
+        const correctedRaw = await callAnthropicSimple(
+          getModelForAction("content"),
+          correctionPrompt,
+          `Voici le post LinkedIn à corriger :\n\n"""\n${postText}\n"""`,
+          0.3,
+          4096
+        );
+
+        // Parse corrected content, fallback to original if correction fails
+        let finalResult: any = null;
+        try {
+          finalResult = JSON.parse(correctedRaw);
+        } catch {
+          const match = correctedRaw.match(/\{[\s\S]*\}/);
+          if (match) {
+            try { finalResult = JSON.parse(match[0]); } catch { finalResult = null; }
+          }
+        }
+
+        // If correction succeeded, use it; otherwise fall back to original
+        if (finalResult?.content) {
+          let originalParsed: any = {};
+          try { originalParsed = JSON.parse(rawContent); } catch {
+            const m = rawContent.match(/\{[\s\S]*\}/);
+            if (m) try { originalParsed = JSON.parse(m[0]); } catch {}
+          }
+
+          const merged = {
+            ...originalParsed,
+            content: finalResult.content,
+            accroche: finalResult.accroche || originalParsed.accroche,
+            format: originalParsed.format || "linkedin",
+            pillar: originalParsed.pillar || "",
+            objectif: originalParsed.objectif || "",
+          };
+
+          await logUsage(user.id, "content", "creative_flow", undefined, undefined, workspace_id);
+          return new Response(JSON.stringify(merged), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Fallback: return original if correction failed
+        let fallbackParsed: any;
+        try { fallbackParsed = JSON.parse(rawContent); } catch {
+          const m = rawContent.match(/\{[\s\S]*\}/);
+          if (m) try { fallbackParsed = JSON.parse(m[0]); } catch { fallbackParsed = { content: rawContent }; }
+          else fallbackParsed = { content: rawContent };
+        }
+
+        await logUsage(user.id, "content", "creative_flow", undefined, undefined, workspace_id);
+        return new Response(JSON.stringify(fallbackParsed), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Non-LinkedIn: stream as usual
       const anthropicStream = await streamAnthropicSSE(
         apiKey,
         model,
