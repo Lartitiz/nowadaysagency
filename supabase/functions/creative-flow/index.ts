@@ -950,8 +950,12 @@ Privilégie les sources françaises et européennes quand elles existent.`,
       const apiKey = Deno.env.get("ANTHROPIC_API_KEY")!;
       const model = getModelForAction("content");
 
+      // Re-derive isLinkedIn for streaming scope
+      const streamFormatHint = (angle?.format_livraison?.toLowerCase() || contentType?.toLowerCase() || "");
+      const streamIsLinkedIn = streamFormatHint.includes("linkedin") || contentType === "post_linkedin";
+
       // LinkedIn: disable streaming, use 2-step generation + correction
-      if (isLinkedIn) {
+      if (streamIsLinkedIn) {
         const rawContent = await callAnthropicSimple(model, systemPrompt, userPrompt!, 0.85, 4096);
 
         // Parse the raw content to extract the post text
