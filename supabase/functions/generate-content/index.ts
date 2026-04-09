@@ -482,7 +482,58 @@ Réponds en JSON :
         };
         const formatInstruction = calFormat ? `FORMAT : ${formatMap[calFormat] || calFormat}` : "FORMAT : Carrousel par défaut";
         const isLinkedinCalendar = calFormat === "post_linkedin" || (body.canal === "linkedin");
-        const calendarPrinciples = isLinkedinCalendar ? `${LINKEDIN_PRINCIPLES_COMPACT}\n\n${ANTI_BROETRY_LINKEDIN}` : `${CORE_PRINCIPLES}\n\n${FORMAT_STRUCTURES}`;
+        const linkedinDepthMandate = `${ANTI_BROETRY_LINKEDIN}
+
+FORMAT : POST LINKEDIN (1300-2000 caractères)
+
+══ ÉTAPE 1 : AVANT D'ÉCRIRE, IDENTIFIE CES 3 ÉLÉMENTS ══
+
+Avant de rédiger une seule ligne, tu DOIS répondre mentalement à ces 3 questions :
+
+1. QUELLE CONVICTION ou ÉMOTION porte ce post ?
+   Chaque bon post LinkedIn est porté par un ressort émotionnel : fierté d'un aboutissement, indignation face à un constat, enthousiasme pour une découverte, gratitude envers un parcours, frustration face à une norme...
+   → Si tu ne trouves pas l'émotion, le post sera un communiqué.
+
+2. QUEL DÉTAIL CONCRET ancre le post dans le réel ?
+   Un chiffre précis, une date, un lieu, une phrase entendue, une durée, un nom d'outil, un avant/après mesurable.
+   → Si le sujet ne contient pas de détail, ancre dans le contexte branding.
+
+3. QUEL EST LE MOUVEMENT NARRATIF ?
+   - Annonce/événement → raconter le CHEMIN ou la CONVICTION derrière.
+   - Partage d'expertise → partir d'un CONSTAT TERRAIN et creuser le POURQUOI.
+   - Milestone/bilan → choisir UN fil rouge émotionnel.
+   - Collaboration/rencontre → raconter ce que cette rencontre a PROVOQUÉ ou RÉVÉLÉ.
+
+══ ÉTAPE 2 : ÉCRITURE ══
+
+ACCROCHE (< 210 caractères) :
+- Un FAIT CONCRET ou une ÉMOTION SINCÈRE. Jamais une promesse marketing, un teaser, ou un slogan.
+
+CORPS :
+- 2-3 paragraphes de prose fluide. UNE idée creusée, pas 5 survolées.
+- Chaque paragraphe apporte du NOUVEAU. Si tu reformules le précédent, coupe.
+- PRENDS POSITION. Pas de "chacun son avis".
+
+FIN :
+- Question PRÉCISE liée au sujet, ou rien du tout.
+- JAMAIS de résumé, JAMAIS de crescendo rhétorique.
+
+FORMAT :
+- 0-2 emojis max, jamais en puces
+- 0-2 hashtags niche en fin
+- Écriture inclusive avec point médian
+- Pas de tirets cadratin (—), utiliser : ou ;
+- DENSE : 1300-2000 caractères. Zéro remplissage.
+
+══ INTERDITS ABSOLUS ══
+- Storytelling fabriqué ("Et là, tout a basculé", "Le déclic ?", "Ce jour-là j'ai compris")
+- Phrases courtes en rafale pour l'effet dramatique
+- Listes à puces inspirationnelles
+- Promesses marketing en accroche
+- "Et vous, qu'en pensez-vous ?" comme CTA
+- Flex déguisé en humilité
+- Post qui DÉCRIT un sujet sans PRENDRE POSITION dessus`;
+        const calendarPrinciples = isLinkedinCalendar ? `${LINKEDIN_PRINCIPLES_COMPACT}\n\n${linkedinDepthMandate}` : `${CORE_PRINCIPLES}\n\n${FORMAT_STRUCTURES}`;
 
         let launchBlock = "";
         if (launchContext) {
@@ -511,7 +562,58 @@ Réponds en JSON :
         };
         const formatInstruction = expressFormat ? `FORMAT : ${formatMap[expressFormat] || expressFormat}` : "FORMAT : Post Instagram par défaut";
         const isLinkedinFormat = expressFormat === "linkedin";
-        const channelPrinciples = isLinkedinFormat ? `${LINKEDIN_PRINCIPLES_COMPACT}\n\n${ANTI_BROETRY_LINKEDIN}` : `${CORE_PRINCIPLES}\n\n${FORMAT_STRUCTURES}`;
+        const expressLinkedinDepth = `${ANTI_BROETRY_LINKEDIN}
+
+FORMAT : POST LINKEDIN (1300-2000 caractères)
+
+══ ÉTAPE 1 : AVANT D'ÉCRIRE, IDENTIFIE CES 3 ÉLÉMENTS ══
+
+Avant de rédiger une seule ligne, tu DOIS répondre mentalement à ces 3 questions :
+
+1. QUELLE CONVICTION ou ÉMOTION porte ce post ?
+   Chaque bon post LinkedIn est porté par un ressort émotionnel : fierté d'un aboutissement, indignation face à un constat, enthousiasme pour une découverte, gratitude envers un parcours, frustration face à une norme...
+   → Si tu ne trouves pas l'émotion, le post sera un communiqué.
+
+2. QUEL DÉTAIL CONCRET ancre le post dans le réel ?
+   Un chiffre précis, une date, un lieu, une phrase entendue, une durée, un nom d'outil, un avant/après mesurable.
+   → Si le sujet ne contient pas de détail, ancre dans le contexte branding.
+
+3. QUEL EST LE MOUVEMENT NARRATIF ?
+   - Annonce/événement → raconter le CHEMIN ou la CONVICTION derrière.
+   - Partage d'expertise → partir d'un CONSTAT TERRAIN et creuser le POURQUOI.
+   - Milestone/bilan → choisir UN fil rouge émotionnel.
+   - Collaboration/rencontre → raconter ce que cette rencontre a PROVOQUÉ ou RÉVÉLÉ.
+
+══ ÉTAPE 2 : ÉCRITURE ══
+
+ACCROCHE (< 210 caractères) :
+- Un FAIT CONCRET ou une ÉMOTION SINCÈRE. Jamais une promesse marketing, un teaser, ou un slogan.
+
+CORPS :
+- 2-3 paragraphes de prose fluide. UNE idée creusée, pas 5 survolées.
+- Chaque paragraphe apporte du NOUVEAU. Si tu reformules le précédent, coupe.
+- PRENDS POSITION. Pas de "chacun son avis".
+
+FIN :
+- Question PRÉCISE liée au sujet, ou rien du tout.
+- JAMAIS de résumé, JAMAIS de crescendo rhétorique.
+
+FORMAT :
+- 0-2 emojis max, jamais en puces
+- 0-2 hashtags niche en fin
+- Écriture inclusive avec point médian
+- Pas de tirets cadratin (—), utiliser : ou ;
+- DENSE : 1300-2000 caractères. Zéro remplissage.
+
+══ INTERDITS ABSOLUS ══
+- Storytelling fabriqué ("Et là, tout a basculé", "Le déclic ?", "Ce jour-là j'ai compris")
+- Phrases courtes en rafale pour l'effet dramatique
+- Listes à puces inspirationnelles
+- Promesses marketing en accroche
+- "Et vous, qu'en pensez-vous ?" comme CTA
+- Flex déguisé en humilité
+- Post qui DÉCRIT un sujet sans PRENDRE POSITION dessus`;
+        const channelPrinciples = isLinkedinFormat ? `${LINKEDIN_PRINCIPLES_COMPACT}\n\n${expressLinkedinDepth}` : `${CORE_PRINCIPLES}\n\n${FORMAT_STRUCTURES}`;
 
         systemPrompt = `${channelPrinciples}\n\n${WRITING_RESOURCES}\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\nCONTEXTE :\n- Sujet : "${expressSujet || "?"}"\n- Objectif : ${expressObj || "non précisé"}\n- ${formatInstruction}\n\nRÈGLES :\n- Écriture inclusive avec point médian\n- JAMAIS de tiret cadratin (—). Utilise : ou ;\n- Le ton correspond au branding de l'utilisatrice\n- Utiliser ses expressions, son vocabulaire\n- PRIORITÉ ABSOLUE : si un profil de voix existe dans le contexte, le contenu DOIT reproduire ce style\n- Ne JAMAIS utiliser les expressions listées comme interdites dans le profil de voix\n- Le contenu doit pouvoir être publié tel quel\n- Oral assumé mais pas surjoué\n- CTA conversationnel, jamais agressif\n\nGARDE-FOUS ÉTHIQUES :\n- Pas de fausse urgence ni de shaming\n- Pas de promesses de résultats garantis\n\n${EMBEDDED_EDUCATION}\n\n${ANTI_SLOP}\n\n${CHAIN_OF_THOUGHT}\n\nRéponds en JSON avec ce format exact :\n{"accroche": "L'accroche du post (première ligne percutante)", "content": "Le contenu complet prêt à copier-coller (inclus l'accroche au début)", "hashtags": ["3 à 5 hashtags pertinents"]}`;
         userPrompt = `Rédige un contenu complet, engageant et prêt à publier sur : "${expressSujet || "?"}"`;
