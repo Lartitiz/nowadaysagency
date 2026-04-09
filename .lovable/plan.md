@@ -1,85 +1,77 @@
 
 
-# Plan : Résilience de l'audit Instagram
+# Audit : Pourquoi deux systèmes de génération de contenu coexistent
 
-## Résumé
+## Constat
 
-Ajouter un fallback Gemini quand Anthropic échoue, un timeout de 10s sur le fetch d'images, un auto-retry frontend, un refresh de session préventif, et des messages d'erreur contextualisés. La limite d'images reste à 3 (inchangée).
+L'app a **deux Edge Functions distinctes** qui génèrent du contenu texte, avec des prompts, des modèles et des contextes différents :
 
-## Fichier 1 : `supabase/functions/audit-instagram-ai/index.ts`
-
-### A) Timeout 10s sur fetchImageAsBase64
-
-Ajouter un `AbortController` avec timeout de 10s dans `fetchImageAsBase64` pour éviter les blocages réseau :
-
-```typescript
-const controller = new AbortController();
-const timeout = setTimeout(() => controller.abort(), 10000);
-const resp = await fetch(url, { signal: controller.signal });
-clearTimeout(timeout);
+```text
+┌─────────────────────────┐     ┌─────────────────────────┐
+│   generate-content      │     │   creative-flow         │
+│   (599 lignes)          │     │   (1083 lignes)         │
+│                         │     │                         │
+│ • Mode "express"        │     │ • Mode "complet"        │
+│ • Pas de streaming      │     │ • Streaming SSE         │
+│ • Pas de questions      │     │ • Questions → Génération│
+│ • Pas d'angles édito    │     │ • Angles éditoriaux     │
+│ • Prompts plus courts   │     │ • depthMandate riche    │
+│ • Anti-slop basique     │     │ • Anti-broetry avancé   │
+└─────────────────────────┘     └─────────────────────────┘
 ```
 
-### B) Fallback Gemini via Lovable AI Gateway
+## Qui appelle quoi
 
-Entourer les deux appels Anthropic (vision et text-only) d'un try/catch. En cas d'échec (429, 529, timeout, ou toute erreur), tenter un appel text-only via Lovable AI Gateway (`google/gemini-2.5-flash`). Le fallback n'envoie pas d'images (text-only) mais utilise le même prompt système.
+### `generate-content` (le "couteau suisse" historique) — 15+ types
+Appelé depuis :
+- **SuggestedContents** → `type: "express-draft"` (brouillon rapide depuis les suggestions hebdo)
+- **SuggestedContents** → `type: "weekly-suggestions"` (générer 3 idées de la semaine)
+- **CalendarPostDialog** → `type: "calendar-quick"` (rédiger depuis le calendrier)
+- **RedactionFlow** → `type: "redaction-structure"`, `"redaction-accroches"`, `"redaction-draft"`
+- **InstagramBio** → `type: "bio-audit"`, `"bio-generator"`, `"bio"`
+- **InstagramProfileNom** → `type: "instagram-nom"`
+- **InstagramProfileEdito** → `type: "instagram-edito-pillars"`, `"instagram-edito-formats"`, `"instagram-rhythm-adapt"`
+- **InstagramLaunch** → `type: "launch-ideas"`, `"launch-plan"`
+- **ContentPlayground** → `type: "playground"`
 
-```typescript
-// Après échec Anthropic :
-const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-if (!LOVABLE_API_KEY) throw anthropicErr;
+### `creative-flow` (le flow "création guidée") — 4 steps
+Appelé depuis :
+- **CreerUnifie** → `step: "generate"` (streaming, le flow complet /creer)
+- **use-content-generator** → `step: "generate"` + `step: "questions"` (fallback non-streaming pour post/linkedin)
+- **CreerStepEdit** → `step: "adjust"` (ajustement post-génération)
+- **ContentRecycling** → `step: "recycle"` (recyclage multi-format)
 
-const geminiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-  method: "POST",
-  headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-  body: JSON.stringify({
-    model: "google/gemini-2.5-flash",
-    messages: [
-      { role: "system", content: finalSystemPrompt },
-      { role: "user", content: "Analyse mon profil Instagram..." }
-    ],
-    temperature: 0.7,
-  }),
-});
-```
+## Le problème concret
 
-### C) Messages d'erreur spécifiques au lieu du générique 500
+Pour un **même contenu LinkedIn**, deux chemins coexistent :
 
-Dans le catch final, distinguer les erreurs et retourner des messages adaptés :
-- 429/surcharge → `{ error: "L'IA est momentanément surchargée, réessaie dans 2 minutes.", retryable: true }`
-- Timeout → `{ error: "Le traitement a pris trop de temps, réessaie.", retryable: true }`
-- Autre → `{ error: "Erreur interne du serveur" }` (comportement actuel)
+1. **`/creer` (CreerUnifie)** → `creative-flow` step `"generate"` avec streaming, `depthMandate` enrichi (celui qu'on vient d'améliorer avec les exemples avant/après), angles éditoriaux, questions d'approfondissement
 
-### D) Limite d'images : INCHANGÉE
+2. **Calendrier / Express** → `generate-content` type `"calendar-quick"` ou `"express-draft"` avec `LINKEDIN_PRINCIPLES_COMPACT` + `ANTI_BROETRY_LINKEDIN` mais **sans** le `depthMandate`, **sans** angles éditoriaux, **sans** questions, et avec des prompts plus courts/génériques
 
-La limite reste à 3 images pour les posts (ligne 135) + 1 screenshot profil. Pas de modification.
+Résultat : un post LinkedIn créé depuis `/creer` bénéficie de toutes les améliorations anti-broetry, tandis qu'un post créé depuis le calendrier ou les suggestions hebdo utilise un prompt plus faible.
 
-## Fichier 2 : `src/pages/InstagramAudit.tsx`
+## Origine historique
 
-### A) Session refresh préventif
+`generate-content` est la **première Edge Function** de l'app — un monolithe qui gérait tout (bios, captions, idées, etc.). `creative-flow` a été créé plus tard pour le flow guidé avec streaming, questions et angles. Mais `generate-content` n'a jamais été déprécié : il continue de servir le calendrier, les suggestions, et tous les outils Instagram (bio, nom, édito, lancement).
 
-Au début de `handleSubmit`, avant le traitement :
+## Ce qui n'est PAS un problème
 
-```typescript
-await supabase.auth.refreshSession();
-```
+Les types utilitaires dans `generate-content` (bio, nom, edito, launch, playground) sont **légitimes** — ce sont des fonctionnalités différentes qui n'ont rien à voir avec la création de posts. Il ne faut pas les fusionner.
 
-### B) Auto-retry sur erreur transitoire
+## Ce qui EST un problème
 
-Extraire la logique d'appel AI dans une sous-fonction. Si l'erreur contient `retryable: true` ou est un timeout, tenter automatiquement 1 retry après 3s avec un message de progression adapté ("L'IA met un peu plus de temps, on réessaie...").
+Les types `calendar-quick` et `express-draft` dans `generate-content` font **la même chose** que `creative-flow` step `"generate"` (rédiger un post/carousel/reel) mais avec des prompts inférieurs. C'est de la dette technique.
 
-### C) Messages d'erreur contextualisés
+## Recommandation
 
-Mapper les messages d'erreur du backend vers des messages utilisateur :
-- "surchargée" → "L'IA est surchargée, réessaie dans 2 minutes"
-- "trop de temps" → "Le traitement a pris trop de temps, réessaie"
-- Erreur auth → "Ta session a expiré, reconnecte-toi"
+Deux options :
 
-## Ce qui ne change PAS
+**Option A — Aligner les prompts** (rapide, safe)
+Injecter le `depthMandate` LinkedIn amélioré dans `generate-content` pour les types `calendar-quick` et `express-draft` quand le format est LinkedIn. Ça harmonise la qualité sans toucher à l'architecture.
 
-- La limite d'images (reste à 3 pour les posts)
-- Le modèle Anthropic principal (Claude Sonnet pour l'audit)
-- Le formulaire d'input (`AuditInputForm`)
-- Le format de réponse JSON attendu
-- La logique de sauvegarde en base
-- Les autres Edge Functions
+**Option B — Migrer calendar-quick/express-draft vers creative-flow** (plus propre, plus risqué)
+Faire appeler `creative-flow` par le calendrier et les suggestions, en mode non-streaming. Ça élimine la duplication mais nécessite de modifier le frontend (CalendarPostDialog, SuggestedContents) et de gérer les différences de format de réponse.
+
+Je recommande l'**Option A** dans un premier temps — c'est safe et résout le problème de qualité immédiat. L'Option B peut venir ensuite comme refactoring planifié.
 
