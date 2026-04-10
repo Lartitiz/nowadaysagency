@@ -25,7 +25,7 @@ import { useContentGenerator } from "@/hooks/use-content-generator";
 import { CONTENT_STRUCTURES, EDITORIAL_ANGLES, LINKEDIN_EDITORIAL_ANGLES, PINTEREST_EDITORIAL_ANGLES, PINTEREST_VISUAL_ANGLES, getStructureForCombo } from "@/lib/content-structures";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
-import { DEMO_DATA } from "@/lib/demo-data";
+// DEMO_DATA n'est plus importé directement — on utilise demoData du context
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useBrandCharter } from "@/hooks/use-branding";
 import { supabase } from "@/integrations/supabase/client";
@@ -271,7 +271,7 @@ export default function CreerUnifie() {
   // Demo mode: pre-fill with carousel photo example
   useEffect(() => {
     if (!isDemoMode || !demoData) return;
-    const demo = (DEMO_DATA as any).carousel_photo_demo;
+    const demo = (demoData as any)?.carousel_photo_demo;
     if (!demo) return;
     if (!ideaText && !selectedFormat) {
       setIdeaText(demo.subject);
@@ -437,8 +437,9 @@ export default function CreerUnifie() {
       if (pm !== undefined) setPhotoMode(pm);
       setStep("result");
       // Trigger demo generation directly
-      const demo = (DEMO_DATA as any).carousel_photo_demo;
-      if (demo?.result) {
+      const demo = (demoData as any)?.carousel_photo_demo;
+      const isPrefilledSubject = demo && ideaText === demo.subject;
+      if (isPrefilledSubject && demo?.result) {
         setDemoGenerating(true);
         setTimeout(() => {
           setResult({ type: "carousel", raw: demo.result, ...demo.result });
@@ -567,8 +568,11 @@ export default function CreerUnifie() {
     if (!selectedFormat) return;
     // Demo mode: simulate generation with pre-built result
     if (isDemoMode) {
-      const demo = (DEMO_DATA as any).carousel_photo_demo;
-      if (demo?.result) {
+      const demo = (demoData as any)?.carousel_photo_demo;
+      const isPrefilledSubject = demo && ideaText === demo.subject;
+
+      // Si le sujet correspond au pré-fill → résultat pré-généré (rapide, zéro risque)
+      if (isPrefilledSubject && demo?.result) {
         setDemoGenerating(true);
         setStep("result");
         setTimeout(() => {
@@ -577,6 +581,9 @@ export default function CreerUnifie() {
         }, 2500);
         return;
       }
+
+      // Si le sujet est personnalisé → laisser la génération IA se faire normalement
+      // (nécessite une session Supabase active — fonctionne si l'admin est connecté en arrière-plan)
     }
     // Reset post-generation state on new generation
     setSavedId(null);
