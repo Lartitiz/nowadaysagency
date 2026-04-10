@@ -363,18 +363,54 @@ Formate le contenu avec des marqueurs clairs :
 etc.
 Après les slides, ajoute :
 📝 CAPTION : [hook différent de slide 1 + corps + CTA + hashtags]`;
-      } else if (isReel) {
+       } else if (isReel) {
         depthMandate = `FORMAT : SCRIPT REEL (30-60 secondes)
 
-Le reel n'est pas un résumé de carrousel. C'est UNE idée percutante, développée à l'oral.
+══ AVANT D'ÉCRIRE : UN REEL = UNE SEULE IDÉE ══
 
-PROFONDEUR :
-- Hook (0-3s) : la phrase qui fait arrêter le scroll. Texte à l'écran + ce que tu dis.
-- Corps (3-45s) : développe l'idée avec des EXEMPLES CONCRETS. Pas de généralités. Raconte une scène, cite un chiffre, décris une situation.
-- Chaque section doit avoir assez de matière pour être dite à voix haute, pas juste des bullet points.
-- Indique les CUTS visuels et le texte à l'écran pour chaque section.
-- CTA (45-60s) : fermeture avec invitation au dialogue.
-- TOTAL : le script fait 150-300 mots (le rythme parlé = ~150 mots/minute).`;
+Le reel n'est pas un carrousel raccourci ni un post filmé. C'est UNE idée 
+percutante, développée à l'oral, en 30-60 secondes.
+
+AVANT DE SCRIPTER, identifie :
+
+1. QUEL EST LE SEUL POINT que le spectateur retient ?
+   Si tu ne peux pas le résumer en 1 phrase, le reel est trop dispersé.
+   Pas "5 conseils pour..." mais "le truc que personne ne dit sur [sujet]".
+
+2. QUELLE SITUATION CONCRÈTE illustre ce point ?
+   Un reel qui RACONTE une scène (un moment, un échange, un avant/après) 
+   fonctionne 10x mieux qu'un reel qui EXPLIQUE un concept.
+   ❌ "L'erreur n°1 en communication, c'est de ne pas avoir de stratégie."
+   ✅ "La semaine dernière, une cliente m'a dit : 'je poste tous les jours 
+   et j'ai 3 likes'. Je lui ai demandé : 'tu postes pour qui ?'. Silence."
+
+3. QUEL EST LE HOOK DES 3 PREMIÈRES SECONDES ?
+   Le spectateur décide en 1-3 secondes de rester ou scroller. Le hook 
+   doit créer une TENSION immédiate.
+   ❌ "Aujourd'hui je vais te parler de..."
+   ❌ "3 erreurs à éviter sur Instagram"
+   ✅ "Arrête de poster tous les jours." (affirmation choc)
+   ✅ "Ma cliente avait 10K abonnés et zéro client." (fait concret)
+   ✅ "'C'est trop cher.' En vrai, c'est pas le prix le problème." (objection retournée)
+
+══ RÈGLES DE SCRIPT ══
+
+STRUCTURE :
+- Hook (0-3s) : texte à l'écran + ce que tu dis. 1 phrase max. TENSION.
+- Corps (3-45s) : développe avec une SCÈNE CONCRÈTE. Raconte, ne liste pas.
+  Chaque section a du texte parlé complet (phrases, pas bullet points).
+- CTA (45-60s) : fermeture naturelle. Question ou invitation.
+
+FORMAT DE SORTIE :
+- Indique le timing, le texte parlé, le texte overlay (3-8 mots max à l'écran), 
+  les cuts visuels et le cadrage pour chaque section.
+- TOTAL : 150-300 mots de texte parlé (rythme parlé = ~150 mots/minute).
+
+INTERDITS :
+- Script qui LISTE des conseils au lieu de RACONTER
+- Hook descriptif ("Aujourd'hui on va parler de...")
+- Texte overlay qui répète mot pour mot le texte parlé
+- Script qu'on ne peut pas dire à voix haute naturellement`;
       } else if (isStories) {
         depthMandate = `FORMAT : SÉQUENCE STORIES (5-7 stories)
 
