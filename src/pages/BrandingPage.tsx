@@ -31,7 +31,7 @@ import { extractTextFromFile } from "@/lib/file-extractors";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useDemoContext } from "@/contexts/DemoContext";
-import { DEMO_DATA } from "@/lib/demo-data";
+
 import { DEMO_AUTOFILL_RESULT } from "@/lib/demo-autofill-data";
 import { toast } from "sonner";
 import { SkeletonCard } from "@/components/ui/skeleton-card";
@@ -68,7 +68,7 @@ export default function BrandingPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { isDemoMode } = useDemoContext();
+  const { isDemoMode, demoData } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const { profile: hookProfile, brandProfile: hookBrandProfile } = useMergedProfile();
@@ -171,12 +171,12 @@ export default function BrandingPage() {
   const [coachingActive, setCoachingActive] = useState(fromAudit && !!coachingModule);
 
   useEffect(() => {
-    if (isDemoMode) {
-      setCompletion({ storytelling: 100, persona: 100, proposition: 100, tone: 80, strategy: 70, offers: 100, charter: 0, total: DEMO_DATA.branding.completion });
+    if (isDemoMode && demoData) {
+      setCompletion({ storytelling: 100, persona: 100, proposition: 100, tone: 80, strategy: 70, offers: 100, charter: 0, total: (demoData as any).branding.completion });
       setPrimaryStoryId("demo-story");
       setHasEnoughData(true);
       setHasProposition(true);
-      setLastAudit({ id: "demo-audit", created_at: new Date().toISOString(), score_global: DEMO_DATA.audit.score, points_forts: DEMO_DATA.audit.points_forts, points_faibles: DEMO_DATA.audit.points_faibles });
+      setLastAudit({ id: "demo-audit", created_at: new Date().toISOString(), score_global: (demoData as any).audit.score, points_forts: (demoData as any).audit.points_forts, points_faibles: (demoData as any).audit.points_faibles });
       setLoading(false);
       return;
     }

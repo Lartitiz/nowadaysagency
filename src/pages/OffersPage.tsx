@@ -11,7 +11,7 @@ import { ArrowLeft, Plus, Eye, Sparkles, Gift, Gem, Mic, X } from "lucide-react"
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useDemoContext } from "@/contexts/DemoContext";
-import { DEMO_DATA } from "@/lib/demo-data";
+
 import CoachingFlow from "@/components/CoachingFlow";
 import EmptyState from "@/components/EmptyState";
 import OffersSynthesisView from "@/components/branding/OffersSynthesisView";
@@ -25,7 +25,7 @@ const TYPE_CONFIG = {
 export default function OffersPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { isDemoMode } = useDemoContext();
+  const { isDemoMode, demoData } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const [offers, setOffers] = useState<any[]>([]);
@@ -34,8 +34,8 @@ export default function OffersPage() {
   const [activeTab, setActiveTab] = useState("liste");
 
   useEffect(() => {
-    if (isDemoMode) {
-      setOffers(DEMO_DATA.offers.map((o, i) => ({
+    if (isDemoMode && demoData) {
+      setOffers((demoData as any).offers.map((o: any, i: number) => ({
         id: `demo-offer-${i}`,
         offer_type: "paid",
         name: o.name,
