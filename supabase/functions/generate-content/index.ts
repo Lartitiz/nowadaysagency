@@ -101,6 +101,7 @@ serve(async (req) => {
 
     let systemPrompt = "";
     let userPrompt = "";
+    let isLinkedinGeneration = false;
 
     // Handle "raw" type early - no profile block needed
     if (type === "raw") {
@@ -482,6 +483,7 @@ Réponds en JSON :
         };
         const formatInstruction = calFormat ? `FORMAT : ${formatMap[calFormat] || calFormat}` : "FORMAT : Carrousel par défaut";
         const isLinkedinCalendar = calFormat === "post_linkedin" || (body.canal === "linkedin");
+        isLinkedinGeneration = isLinkedinCalendar;
         const linkedinDepthMandate = `${ANTI_BROETRY_LINKEDIN}
 
 FORMAT : POST LINKEDIN (1300-2000 caractères)
@@ -562,6 +564,7 @@ FORMAT :
         };
         const formatInstruction = expressFormat ? `FORMAT : ${formatMap[expressFormat] || expressFormat}` : "FORMAT : Post Instagram par défaut";
         const isLinkedinFormat = expressFormat === "linkedin";
+        isLinkedinGeneration = isLinkedinFormat;
         const expressLinkedinDepth = `${ANTI_BROETRY_LINKEDIN}
 
 FORMAT : POST LINKEDIN (1300-2000 caractères)
@@ -664,8 +667,52 @@ FORMAT :
     const maxTokens = shortTypes.includes(type) ? 1024 : longTypes.includes(type) ? 8192 : 4096;
     const auditTypes = ["bio-audit"];
     const modelAction = auditTypes.includes(type) ? "audit" : "content";
-    const content = await callAnthropicSimple(getModelForAction(modelAction), systemPrompt, userPrompt, 0.8, maxTokens);
+    let content = await callAnthropicSimple(getModelForAction(modelAction), systemPrompt, userPrompt, 0.8, maxTokens);
 
+    // LinkedIn correction pass (same as creative-flow)
+    if (isLinkedinGeneration) {
+      const correctionPrompt = `Tu es un éditeur LinkedIn exigeant. Tu reçois un post et tu dois le CORRIGER phrase par phrase.
+
+CORRECTIONS OBLIGATOIRES :
+
+1. PHRASE ISOLÉE SUR UNE LIGNE (moins de 10 mots seule entre 2 sauts de ligne) :
+   → Intègre-la dans le paragraphe précédent ou suivant. Développe-la.
+
+2. RAFALE DE PHRASES COURTES (2+ phrases de moins de 10 mots d'affilée) :
+   → Fusionner en une seule phrase fluide avec des connecteurs.
+
+3. ANAPHORE (3+ phrases qui commencent par le même mot/groupe) :
+   → Réécrire en variant les structures de phrase.
+
+4. EMPILEMENT INSPIRATIONNEL (2+ phrases-valeurs abstraites sans exemple concret) :
+   → Remplacer par UN exemple concret qui incarne la même idée.
+
+5. REDONDANCE (2+ paragraphes qui expriment la même idée) :
+   → Garder le plus CONCRET, supprimer ou fusionner les autres.
+
+6. LONGUEUR EXCESSIVE (post > 1900 caractères) :
+   → Supprimer le paragraphe le plus faible. Cible : 1300-1700 caractères.
+
+RÈGLES :
+- Garde le SENS et la CONVICTION. Tu corriges la FORME, pas le FOND.
+- Le post corrigé fait entre 1300 et 1700 caractères.
+- Retourne UNIQUEMENT le post corrigé, rien d'autre. Pas de JSON, pas d'explication.`;
+
+      try {
+        const corrected = await callAnthropicSimple(
+          getModelForAction("content"),
+          correctionPrompt,
+          `Voici le post LinkedIn à corriger :\n\n"""\n${content}\n"""`,
+          0.3,
+          4096
+        );
+        if (corrected && corrected.length > 200) {
+          content = corrected;
+        }
+      } catch (correctionError) {
+        console.error("LinkedIn correction pass failed, using original:", correctionError);
+      }
+    }
 
     await logUsage(user.id, usageCategory, type, undefined, undefined, workspace_id);
     return new Response(
