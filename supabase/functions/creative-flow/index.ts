@@ -527,16 +527,60 @@ STRUCTURE DE RÉPONSE :
       } else if (isNewsletter) {
         depthMandate = `FORMAT : NEWSLETTER / EMAIL (1500-3000 caractères)
 
-La newsletter est le format qui a le PLUS de place pour la profondeur.
+══ AVANT D'ÉCRIRE : LA NEWSLETTER N'EST PAS UN POST RALLONGÉ ══
 
-PROFONDEUR :
-- Objet d'email : accrocheur, max 50 caractères, pas clickbait.
-- Intro : hook personnel, anecdote ou question. 2-3 phrases.
-- Corps : développe l'idée en profondeur. Apartés en italique, exemples concrets, nuances. C'est le format France Culture de ta com.
-- Au moins 2 exemples concrets ou anecdotes dans le corps.
-- Conclusion : leçon ou ouverture (pas de résumé).
-- CTA : doux, en lien avec le sujet.
-- TOTAL : vise 2000+ caractères minimum.`;
+La newsletter est le format le plus INTIME. Le lecteur a donné son email : 
+il a dit "oui, je veux t'entendre". C'est une conversation privée, 
+pas un broadcast.
+
+AVANT DE RÉDIGER, identifie :
+
+1. QUELLE EST L'HISTOIRE PERSONNELLE qui porte ce sujet ?
+   Chaque bonne newsletter part d'un VÉCU : un moment de la semaine, 
+   une conversation, une lecture, un échec, une découverte. 
+   Pas "je vais te parler de [sujet]" mais "il m'est arrivé un truc 
+   cette semaine et ça m'a fait réaliser quelque chose sur [sujet]".
+
+2. QUEL EST L'INSIGHT que le lecteur ne trouvera nulle part ailleurs ?
+   La newsletter ne résume pas un article ou un post. Elle offre une 
+   RÉFLEXION qui n'existe que dans ta tête. Le "comment je vois les choses" 
+   que personne d'autre ne peut écrire.
+
+3. OÙ EST LE MOMENT "AH, JE N'AVAIS JAMAIS VU ÇA COMME ÇA" ?
+   Si le lecteur peut refermer l'email en se disant "oui, je savais déjà", 
+   la newsletter a échoué. Il doit y avoir UN point qui déplace le regard.
+
+══ RÈGLES DE RÉDACTION ══
+
+OBJET D'EMAIL :
+- Max 50 caractères. Accrocheur mais pas clickbait.
+- Le meilleur test : "est-ce que j'ouvrirais cet email entre 2 réunions ?"
+- Patterns qui marchent : question courte, constat décalé, confession
+- ❌ "Ma newsletter #12" / "Les news du mois"
+- ✅ "J'ai failli tout annuler" / "Le conseil que je regrette d'avoir suivi"
+
+INTRO (2-3 phrases) :
+- Direct dans le vif. Pas de "Bonjour, j'espère que tu vas bien".
+- Commencer par le VÉCU : la scène, le moment, la phrase entendue.
+- ❌ "Aujourd'hui je voulais te parler de..."
+- ✅ "Mardi, une cliente m'a renvoyé son brouillon avec ce commentaire : '...'"
+
+CORPS :
+- Développe en profondeur. C'est le format France Culture de la com.
+- Apartés personnels en italique ou entre parenthèses.
+- Au moins 2 exemples concrets ou anecdotes.
+- Des nuances, des "oui mais", des zones grises. La newsletter n'est pas 
+  un cours : c'est une réflexion partagée.
+
+CONCLUSION :
+- JAMAIS de résumé ("Pour résumer, retiens que...").
+- Une ouverture : question qui reste, tension non résolue, invitation.
+- ✅ "Je n'ai pas la réponse. Mais je crois que la question mérite qu'on s'y arrête."
+- ❌ "En résumé, les 3 points à retenir sont..."
+
+CTA : doux, en lien avec le sujet. Pas de vente agressive.
+
+LONGUEUR : vise 2000+ caractères. La profondeur justifie la longueur ici.`;
       } else if (isPhotoMode) {
         depthMandate = `FORMAT : LÉGENDE PHOTO INSTAGRAM (400-800 caractères)
 
