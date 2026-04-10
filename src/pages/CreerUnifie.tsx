@@ -655,6 +655,12 @@ export default function CreerUnifie() {
           setStep("format");
           return;
         }
+        // En mode démo, si la génération live échoue, on ne bloque pas
+        if (isDemoMode) {
+          toast("La génération en direct nécessite un compte connecté. Le résultat pré-généré est disponible avec le sujet par défaut.");
+          setStep("format");
+          return;
+        }
         toast.error(e?.message || "Erreur lors de la génération");
         return;
       }
@@ -785,6 +791,11 @@ export default function CreerUnifie() {
           throw new Error("Structure non reçue");
         }
       } catch (e: any) {
+        if (isDemoMode) {
+          toast("La génération en direct nécessite un compte connecté. Le résultat pré-généré est disponible avec le sujet par défaut.");
+          setStep("format");
+          return;
+        }
         if (!handleQuotaError(e)) {
           toast.error("Erreur lors de la proposition de structure. Génération directe...");
           await generate({
