@@ -129,6 +129,7 @@ function AppHeaderInner() {
       activateDemo(demoParam as DemoProfileId);
       navigate("/dashboard");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
   const [hasCoaching, setHasCoaching] = useState(false);
   const [coachingMonth, setCoachingMonth] = useState<number | null>(null);
