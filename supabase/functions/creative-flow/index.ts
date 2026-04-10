@@ -1081,7 +1081,105 @@ Réponds UNIQUEMENT en JSON :
         });
       }
 
-      // Non-LinkedIn: stream as usual
+      // Carousel: disable streaming, use 2-step generation + correction
+      if (isCarousel) {
+        const rawContent = await callAnthropicSimple(model, systemPrompt, userPrompt!, 0.85, 4096);
+
+        // Parse the raw content
+        let parsedContent: any = null;
+        try {
+          parsedContent = JSON.parse(rawContent);
+        } catch {
+          const match = rawContent.match(/\{[\s\S]*\}/);
+          if (match) {
+            try { parsedContent = JSON.parse(match[0]); } catch {}
+          }
+        }
+
+        // Extract slides text for correction
+        const slidesText = parsedContent?.content || rawContent;
+
+        // Step 2: Correction pass for carousel
+        const carouselCorrectionPrompt = `Tu es un éditeur de carrousels Instagram exigeant. Tu reçois un carrousel et tu dois le CORRIGER slide par slide.
+
+CORRECTIONS OBLIGATOIRES — applique TOUTES celles qui s'appliquent :
+
+1. SLIDE-TITRE (slide qui ne contient qu'1 phrase ou moins de 15 mots) :
+   → Développer à 2-4 phrases. Ajouter un exemple, une nuance, un détail concret.
+   → Exception : Slide 1 (hook) DOIT être courte (1-2 phrases max).
+
+2. NUMÉROTATION DE CONSEILS ("Conseil 1", "Erreur n°2", "Étape 3", "Astuce") :
+   → Supprimer la numérotation. Reformuler comme un moment dans un arc narratif.
+   → "Conseil 1 : Soyez authentique" → "Ce que j'ai compris après 2 ans à copier les autres : l'authenticité n'est pas un style, c'est ce qui reste quand on arrête de performer."
+
+3. SLIDES REDONDANTES (2 slides qui disent la même chose différemment) :
+   → Fusionner en une seule slide plus dense, ou remplacer la plus faible par un nouvel angle.
+
+4. MANQUE DE CONCRET (slide entièrement abstraite, sans exemple ni chiffre ni situation) :
+   → Ajouter un détail concret : un cas, un chiffre, une phrase entendue, un avant/après.
+
+5. SLIDE FINALE QUI RÉSUME :
+   → Remplacer par une punchline qui OUVRE (question, tension non résolue, invitation) au lieu de fermer.
+
+6. CAPTION FAIBLE (caption qui répète le contenu des slides) :
+   → Le hook de la caption doit être DIFFÉRENT de la slide 1. La caption apporte un COMPLÉMENT, pas un résumé.
+
+RÈGLES :
+- Garde l'ARC NARRATIF du carrousel. Tu corriges les slides faibles, pas la structure globale.
+- Chaque slide corrigée fait 2-4 phrases (sauf slide 1 : 1-2 phrases max).
+- Le carrousel corrigé fait 1500-3000 caractères au total.
+- Retourne le même format JSON que l'original avec les slides corrigées.
+
+Réponds UNIQUEMENT en JSON :
+{
+  "content": "le carrousel complet corrigé avec les marqueurs 📌 SLIDE et 📝 CAPTION",
+  "accroche": "le hook de la slide 1",
+  "corrections_applied": ["liste courte des corrections faites"]
+}`;
+
+        const correctedRaw = await callAnthropicSimple(
+          getModelForAction("content"),
+          carouselCorrectionPrompt,
+          `Voici le carrousel à corriger :\n\n"""\n${slidesText}\n"""`,
+          0.3,
+          4096
+        );
+
+        // Parse corrected content, fallback to original if correction fails
+        let finalResult: any = null;
+        try {
+          finalResult = JSON.parse(correctedRaw);
+        } catch {
+          const match = correctedRaw.match(/\{[\s\S]*\}/);
+          if (match) {
+            try { finalResult = JSON.parse(match[0]); } catch { finalResult = null; }
+          }
+        }
+
+        if (finalResult?.content) {
+          const merged = {
+            ...(parsedContent || {}),
+            content: finalResult.content,
+            accroche: finalResult.accroche || parsedContent?.accroche,
+            format: parsedContent?.format || "carrousel",
+            pillar: parsedContent?.pillar || "",
+            objectif: parsedContent?.objectif || "",
+          };
+
+          await logUsage(user.id, "content", "creative_flow", undefined, undefined, workspace_id);
+          return new Response(JSON.stringify(merged), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Fallback: return original
+        await logUsage(user.id, "content", "creative_flow", undefined, undefined, workspace_id);
+        return new Response(JSON.stringify(parsedContent || { content: rawContent }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Non-LinkedIn, non-Carousel: stream as usual
       const anthropicStream = await streamAnthropicSSE(
         apiKey,
         model,
