@@ -312,16 +312,50 @@ Réponds UNIQUEMENT en JSON :
       if (isCarousel) {
         depthMandate = `FORMAT : CARROUSEL INSTAGRAM (8 slides minimum)
 
-PROFONDEUR PAR SLIDE :
-- Chaque slide DÉVELOPPE son point. Une slide = 1 idée COMPLÈTE, pas un titre.
-- Slide 1 (hook) : courte et percutante, max 12 mots.
-- Slides 2-7 : chacune DOIT contenir 2-4 phrases qui développent le point. Pas juste un header et une ligne.
-- Au moins 2 slides doivent contenir un EXEMPLE CONCRET, un CHIFFRE, ou une ANECDOTE. Pas que de la théorie.
-- Slide finale : punchline mémorable + CTA.
-- TOTAL : le carrousel complet fait 1500-3000 caractères de contenu textuel (slides + caption).
+══ AVANT D'ÉCRIRE : LE CARROUSEL N'EST PAS UNE LISTE ══
+
+Le piège n°1 des carrousels IA : transformer un sujet en "5 conseils" ou "7 erreurs" où chaque slide est un tip numéroté. Ce format est mort. L'algorithme le catégorise comme générique, le lecteur le scrolle.
+
+Un bon carrousel raconte un MOUVEMENT : situation → tension → compréhension → ouverture.
+Chaque slide fait AVANCER ce mouvement. Pas "Conseil 1... Conseil 2..." mais "Voilà ce qui se passe... Voilà pourquoi... Voilà ce que ça change...".
+
+AVANT DE RÉDIGER, identifie :
+
+1. QUEL EST L'ARC NARRATIF ?
+   - Récit d'expérience → situation de départ → ce qui s'est passé → ce que ça a révélé
+   - Déconstruction → croyance répandue → pourquoi elle existe → pourquoi elle est fausse → ce qui est vrai
+   - Coulisses/process → le résultat visible → ce qu'on ne voit pas derrière → les choix et les galères → la leçon
+   - Prise de position → constat terrain → pourquoi ça pose problème → ce que ça devrait être → invitation
+
+2. QUEL EST LE HOOK VISUEL (Slide 1) ?
+   Pas un titre ("5 erreurs de..."). Une PHRASE qui crée une tension, une curiosité, un décalage.
+   ❌ "5 erreurs de communication à éviter"
+   ❌ "Comment créer du contenu qui engage"
+   ✅ "J'ai perdu ma meilleure cliente en mars."
+   ✅ "Tout le monde te dit de poster tous les jours. C'est probablement le pire conseil."
+   ✅ "Ce que j'aurais aimé savoir avant de lancer mon premier carrousel."
+
+3. OÙ EST LA PROFONDEUR ?
+   Au moins 2 slides doivent contenir un DÉTAIL CONCRET : un chiffre, un cas client, une phrase entendue, un avant/après mesurable. C'est ce qui fait la différence entre un carrousel "tips qu'on a déjà lus 100 fois" et un carrousel "elle sait de quoi elle parle".
+
+══ RÈGLES DE RÉDACTION ══
+
+STRUCTURE DES SLIDES :
+- Slide 1 (hook) : 1-2 phrases max, 12 mots max. Crée la tension. PAS de titre listicle.
+- Slides 2-7 : chacune a un RÔLE dans l'arc narratif (pas un numéro de conseil).
+  Chaque slide = 2-4 phrases qui DÉVELOPPENT le point. Pas un header + une ligne.
+- Slide finale : punchline mémorable qui OUVRE (pas qui résume) + CTA léger.
+- TOTAL : 1500-3000 caractères de contenu textuel (slides + caption).
 
 SLIDE DE PROFONDEUR (obligatoire) :
-Au moins 1 slide doit être un "zoom" : tu prends UN point et tu le creuses en profondeur avec un exemple terrain, un cas réel, ou une analyse fine. C'est cette slide qui fait la différence entre un carrousel "tips génériques" et un carrousel "elle sait de quoi elle parle".
+Au moins 1 slide doit être un "zoom" : UN point creusé avec un exemple terrain, un cas réel, ou une analyse fine.
+
+INTERDITS :
+- Numéroter les conseils ("Conseil 1", "Erreur n°2", "Astuce 3")
+- Slides d'une seule phrase ou d'un seul mot
+- Toutes les slides de la même longueur (varier le rythme)
+- Slide qui reformule la précédente
+- Punchlines isolées style broetry
 
 Formate le contenu avec des marqueurs clairs :
 📌 SLIDE 1 : [contenu]
