@@ -58,7 +58,7 @@ interface Props {
 
 export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile, onCollapse }: Props) {
   const { user } = useAuth();
-  const { isDemoMode } = useDemoContext();
+  const { isDemoMode, demoData } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const { toast } = useToast();

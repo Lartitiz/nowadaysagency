@@ -24,7 +24,7 @@ interface ProgressData {
 
 export default function InstagramHub() {
   const { user } = useAuth();
-  const { isDemoMode } = useDemoContext();
+  const { isDemoMode, demoData } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState<ProgressData>({

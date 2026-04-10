@@ -68,7 +68,7 @@ export default function BrandingPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { isDemoMode } = useDemoContext();
+  const { isDemoMode, demoData } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const { profile: hookProfile, brandProfile: hookBrandProfile } = useMergedProfile();

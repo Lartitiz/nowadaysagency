@@ -25,7 +25,7 @@ const TYPE_CONFIG = {
 export default function OffersPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { isDemoMode } = useDemoContext();
+  const { isDemoMode, demoData } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const [offers, setOffers] = useState<any[]>([]);

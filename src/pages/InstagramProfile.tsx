@@ -54,7 +54,7 @@ function scoreBadge(score: number | null) {
 
 export default function InstagramProfile() {
   const { user } = useAuth();
-  const { isDemoMode } = useDemoContext();
+  const { isDemoMode, demoData } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
   const [audit, setAudit] = useState<AuditData | null>(null);
   const [loading, setLoading] = useState(true);

@@ -37,7 +37,7 @@ function getDayIndex() {
 export default function InstagramEngagement() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const { isDemoMode } = useDemoContext();
+  const { isDemoMode, demoData } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const [showConfetti, setShowConfetti] = useState(false);
