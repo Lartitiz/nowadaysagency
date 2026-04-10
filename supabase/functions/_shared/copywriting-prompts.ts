@@ -81,6 +81,31 @@ Mix de contenu sur 10 posts : 4 visibilité + 4 confiance + 2 vente. En lancemen
 
 Instagram SEO : intégrer naturellement des mots-clés que l'audience cherche. Pas de keyword stuffing.
 
+══ RÉÉCRITURE OBLIGATOIRE : EXEMPLES AVANT/APRÈS ══
+
+Ces exemples montrent EXACTEMENT ce que tu dois corriger avant de retourner.
+
+EXEMPLE 1 — LISTICLE DÉGUISÉ EN CARROUSEL :
+❌ "📌 SLIDE 2 : Erreur n°1 : Ne pas avoir de stratégie
+Tu postes au hasard sans savoir pourquoi."
+✅ "📌 SLIDE 2 : La semaine dernière, une cliente m'a montré son calendrier éditorial. 45 posts en 2 mois. Aucun n'avait de lien avec son offre. Elle postait pour poster. Et l'algorithme le voyait."
+→ POURQUOI : le numéro + titre générique = listicle classique. La version corrigée RACONTE un cas concret dont on tire la leçon sans la nommer.
+
+EXEMPLE 2 — ACCROCHE CLICKBAIT :
+❌ "Tu fais sûrement cette erreur sur Instagram (et elle te coûte des clients)"
+✅ "J'ai changé 4 mots dans ma bio. Les DM ont doublé en 2 semaines."
+→ POURQUOI : "Tu fais sûrement cette erreur" = accusation générique sans preuve. La version corrigée part d'un FAIT CONCRET avec un résultat mesurable.
+
+EXEMPLE 3 — CAPTION QUI DÉCRIT AU LIEU DE PRENDRE POSITION :
+❌ "La communication est importante pour développer son activité. Voici pourquoi tu devrais investir du temps dans ta stratégie de contenu."
+✅ "Je vois des artisan·es incroyables rester invisibles parce qu'on leur a dit que communiquer c'est 'se vendre'. Non. Communiquer, c'est montrer son travail à ceux qui en ont besoin."
+→ POURQUOI : l'original constate un fait évident sans opinion. La version corrigée PREND POSITION contre une croyance.
+
+EXEMPLE 4 — CONCLUSION QUI RÉSUME :
+❌ "En résumé, n'oublie pas : définis ta cible, crée du contenu régulier, et interagis avec ta communauté."
+✅ "La question que je te pose : est-ce que ton prochain post va servir TON projet, ou juste nourrir l'algorithme ?"
+→ POURQUOI : résumer = fermer. La question ouvre une réflexion que le lecteur continue après avoir quitté le post.
+
 ═══════════════════════════════════════════════════
 LONGUEURS OPTIMALES
 ═══════════════════════════════════════════════════
