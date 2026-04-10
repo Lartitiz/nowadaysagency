@@ -73,7 +73,7 @@ export default function CreerUnifie() {
   const navigate = useNavigate();
   const location = useLocation();
   const { session } = useAuth();
-  const { isDemoMode, demoData } = useDemoContext();
+  const { isDemoMode, demoData, demoProfileId } = useDemoContext();
   const workspaceId = useWorkspaceId();
   const { data: charterData } = useBrandCharter();
   const { remainingTotal, loading: planLoading, plan, usage } = useUserPlan();
@@ -268,19 +268,20 @@ export default function CreerUnifie() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Demo mode: pre-fill with carousel photo example
+  // Demo mode: pre-fill with carousel example (type dynamique selon le profil)
   useEffect(() => {
     if (!isDemoMode || !demoData) return;
     const demo = (demoData as any)?.carousel_photo_demo;
     if (!demo) return;
-    if (!ideaText && !selectedFormat) {
-      setIdeaText(demo.subject);
-      setSelectedFormat("carousel");
-      setCarouselSubMode("photo");
-      setObjective(demo.objective);
-      setStep("format");
-    }
-  }, [isDemoMode, demoData, ideaText, selectedFormat]);
+    setIdeaText(demo.subject);
+    setSelectedFormat("carousel");
+    setCarouselSubMode((demo.carousel_type as "text" | "photo" | "mix") || "text");
+    setObjective(demo.objective);
+    setStep("format");
+    setResult(null);
+    setDemoGenerating(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDemoMode, demoProfileId]);
 
   // Auto-persist state on changes
   useEffect(() => {
@@ -427,26 +428,27 @@ export default function CreerUnifie() {
   const handleFormatNext = async (format: string, angle?: string, options?: { carouselSubMode?: "text" | "photo" | "mix"; photos?: any[]; photoDescription?: string; photoMode?: boolean; overrideSubject?: string }) => {
     const { carouselSubMode: sub, photos, photoDescription: desc, photoMode: pm, overrideSubject } = options || {};
 
-    // Demo mode: skip questions step, go directly to generation
+    // Demo mode: si le sujet correspond au pré-fill, afficher instantanément le résultat pré-généré.
+    // Sinon, laisser le flow normal continuer vers la vraie génération IA.
     if (isDemoMode) {
-      setSelectedFormat(format);
-      setEditorialAngle(angle || null);
-      if (sub) setCarouselSubMode(sub);
-      if (photos) setUploadedPhotos(photos);
-      if (desc) setPhotoDescription(desc);
-      if (pm !== undefined) setPhotoMode(pm);
-      setStep("result");
-      // Trigger demo generation directly
       const demo = (demoData as any)?.carousel_photo_demo;
       const isPrefilledSubject = demo && ideaText === demo.subject;
       if (isPrefilledSubject && demo?.result) {
+        setSelectedFormat(format);
+        setEditorialAngle(angle || null);
+        if (sub) setCarouselSubMode(sub);
+        if (photos) setUploadedPhotos(photos);
+        if (desc) setPhotoDescription(desc);
+        if (pm !== undefined) setPhotoMode(pm);
+        setStep("result");
         setDemoGenerating(true);
         setTimeout(() => {
           setResult({ type: "carousel", raw: demo.result, ...demo.result });
           setDemoGenerating(false);
         }, 2500);
+        return;
       }
-      return;
+      // Sinon : ne PAS return, laisser le flow normal continuer (vraie génération IA)
     }
 
     setSelectedFormat(format);
