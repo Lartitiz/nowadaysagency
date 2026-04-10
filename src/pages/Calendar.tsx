@@ -8,7 +8,7 @@ import { useProfile } from "@/hooks/use-profile";
 import { useSearchParams, useLocation, useNavigate } from "react-router-dom";
 import BrandingPrompt from "@/components/BrandingPrompt";
 import { useDemoContext } from "@/contexts/DemoContext";
-import { DEMO_DATA } from "@/lib/demo-data";
+
 import AuditRecommendationBanner from "@/components/AuditRecommendationBanner";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
@@ -259,11 +259,11 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
 
   const fetchPosts = useCallback(async () => {
     setPostsLoading(true);
-    if (isDemoMode) {
-      // Build demo posts from DEMO_DATA.calendar_posts
-      const demoPosts: CalendarPost[] = DEMO_DATA.calendar_posts
-        .filter(p => p.planned_day)
-        .map((p, i) => ({
+    if (isDemoMode && demoData) {
+      // Build demo posts from demoData.calendar_posts
+      const demoPosts: CalendarPost[] = (demoData as any).calendar_posts
+        .filter((p: any) => p.planned_day)
+        .map((p: any, i: number) => ({
           id: `demo-post-${i}`,
           user_id: "demo",
           date: p.planned_day,

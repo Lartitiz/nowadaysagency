@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
-import { DEMO_DATA } from "@/lib/demo-data";
+
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Plus, GripVertical, MoreVertical, Trash2, CalendarIcon, Undo2, Search, X } from "lucide-react";
@@ -71,8 +71,8 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile, onC
   const [planDate, setPlanDate] = useState<Date | undefined>();
 
   const fetchIdeas = async () => {
-    if (isDemoMode) {
-      const demoIdeas = (DEMO_DATA as any).saved_ideas || [];
+    if (isDemoMode && demoData) {
+      const demoIdeas = (demoData as any).saved_ideas || [];
       setIdeas(demoIdeas as SavedIdea[]);
       return;
     }

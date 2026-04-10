@@ -18,7 +18,7 @@ import BrandingSuggestionsCard from "@/components/branding/BrandingSuggestionsCa
 import BrandingSpark from "@/components/branding/BrandingSpark";
 import BrandingActionCTA from "@/components/branding/BrandingActionCTA";
 import { useBrandingSuggestions } from "@/hooks/use-branding-suggestions";
-import { DEMO_DATA } from "@/lib/demo-data";
+
 import { safeParseJson } from "@/lib/branding-utils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
