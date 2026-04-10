@@ -5,6 +5,7 @@ import { Link, useLocation, useNavigate, useSearchParams } from "react-router-do
 import { Home, ClipboardList, Sparkles, CalendarDays, Users, User, Palette, CreditCard, Settings, HelpCircle, LogOut, Film, GraduationCap, Handshake, HeartHandshake, Search, ChevronDown, Check, Plus, Compass, MessageCircle, LayoutGrid, Wrench } from "lucide-react";
 
 import { useDemoContext } from "@/contexts/DemoContext";
+import { DEMO_PROFILES, type DemoProfileId } from "@/lib/demo-profiles";
 import { useUserPlan } from "@/hooks/use-user-plan";
 import { Progress } from "@/components/ui/progress";
 import NotificationBell from "@/components/NotificationBell";
@@ -120,6 +121,15 @@ function AppHeaderInner() {
   const { plan, usage, isBinome, isPaid } = useUserPlan();
   const { activateDemo } = useDemoContext();
   const handleDemoClick = () => { activateDemo(); navigate("/dashboard"); };
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const demoParam = searchParams.get("demo");
+    if (demoParam && demoParam in DEMO_PROFILES) {
+      activateDemo(demoParam as DemoProfileId);
+      navigate("/dashboard");
+    }
+  }, [searchParams]);
   const [hasCoaching, setHasCoaching] = useState(false);
   const [coachingMonth, setCoachingMonth] = useState<number | null>(null);
   const [coachingPhase, setCoachingPhase] = useState<string | null>(null);
