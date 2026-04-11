@@ -650,23 +650,52 @@ LONGUEUR : vise 2000+ caractères. La profondeur justifie la longueur ici.`;
       } else if (isPhotoMode) {
         depthMandate = `FORMAT : LÉGENDE PHOTO INSTAGRAM (400-800 caractères)
 
-La légende ACCOMPAGNE une photo. Elle ne la DÉCRIT PAS.
-La légende COMPLÈTE l'image : contexte invisible, émotion, pourquoi.
+══ AVANT D'ÉCRIRE : LA LÉGENDE EST LE HORS-CHAMP DE LA PHOTO ══
+
+La légende ne décrit JAMAIS la photo. La photo se suffit visuellement. La légende raconte ce que la photo NE PEUT PAS montrer : le contexte invisible, l'émotion derrière le geste, ce qui s'est passé juste avant ou juste après.
 
 ${body.photo_description ? `PHOTO DÉCRITE PAR L'UTILISATRICE : "${body.photo_description}"` : ""}
 
-RÈGLES :
-- L'accroche fait ÉCHO à l'image sans la décrire
-- Le corps développe ce que la photo NE DIT PAS
-- Ton sensoriel : texture, lumière, chaleur, poids, odeur
-- Longueur : 400-800 caractères. La photo fait la moitié du travail.
-- CTA doux : invitation, pas de vente agressive
-- 5-10 hashtags
+AVANT DE RÉDIGER, identifie :
 
-✅ Raconte ce que la photo ne montre pas
-✅ Crée une émotion complémentaire
-❌ Ne décrit pas ce qu'on voit
-❌ Ne sonne pas comme une fiche produit`;
+1. QU'EST-CE QUE LA PHOTO NE MONTRE PAS ?
+   La photo montre une scène. Mais qu'est-ce qu'il y a AUTOUR ? L'odeur du café, la fatigue dans les jambes, la conversation qui vient de finir, l'heure qu'il était, ce qu'on pensait à ce moment-là.
+   ❌ "Voici mon bureau du matin avec mon café" (description de ce qu'on voit)
+   ✅ "C'était la 3e tasse. Et j'avais toujours pas commencé à écrire." (le hors-champ)
+
+2. QUELLE ÉMOTION SPÉCIFIQUE est associée à ce moment ?
+   Pas "j'aime mon métier" (générique). Une émotion PRÉCISE et NOMMABLE : la fierté qui surprend, l'agacement qui retombe, la fatigue heureuse, le doute qui s'installe.
+
+3. QUELLE EST LA PHRASE QUI DÉPLACE LE REGARD ?
+   La meilleure légende fait dire au lecteur "tiens, c'est vrai, j'avais jamais vu ça comme ça". Ce n'est pas une morale, c'est un angle inattendu sur quelque chose de banal.
+
+══ RÈGLES DE RÉDACTION ══
+
+ACCROCHE :
+- Fait ÉCHO à l'image sans la décrire
+- Court, ancré dans un détail concret
+- ❌ "Voici un moment de mon quotidien"
+- ✅ "Il était 23h. La cliente n'avait toujours pas répondu."
+
+CORPS :
+- Développe ce que la photo NE DIT PAS
+- Ton SENSORIEL : texture, lumière, chaleur, poids, odeur, son
+- 2-4 phrases qui avancent. Chaque phrase apporte du nouveau.
+- 1 imperfection humaine (aparté, autocorrection, mot familier)
+
+FIN :
+- CTA doux : invitation, question, ou rien si la phrase finale se suffit
+- JAMAIS de vente agressive ni de promesse marketing
+
+FORMAT :
+- 400-800 caractères. La photo fait la moitié du travail.
+- 5-10 hashtags niche en fin
+
+INTERDITS :
+- Décrire ce qu'on voit (la photo le fait)
+- "Voici / Voilà / Aujourd'hui je vous partage" en accroche
+- Ton "fiche produit" ou "présentation"
+- Légende qui pourrait fonctionner avec n'importe quelle autre photo`;
       } else {
         depthMandate = `FORMAT : CAPTION INSTAGRAM
 ${effectiveObjective === "visibilite" || effectiveObjective === "visibilité" ? `
