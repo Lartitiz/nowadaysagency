@@ -414,14 +414,44 @@ INTERDITS :
       } else if (isStories) {
         depthMandate = `FORMAT : SÉQUENCE STORIES (5-7 stories)
 
-Les stories sont le format le plus INTIME. Comme un message vocal à une amie.
+══ AVANT D'ÉCRIRE : LES STORIES, C'EST UN MESSAGE VOCAL ÉCRIT ══
 
-PROFONDEUR :
-- Story 1 : amorce qui donne envie de taper pour voir la suite. Pas de contexte, direct dans le vif.
-- Stories 2-4 : développement avec ton naturel, confidentiel. Chaque story = 1 écran, 2-4 lignes MAX + indication visuelle.
-- Story 4 ou 5 : INTERACTION obligatoire (sondage, question, quiz). Pas un sondage générique : un sondage qui révèle quelque chose.
-- Story finale : conclusion + CTA.
-- Pour chaque story, indique : le TEXTE affiché + le TYPE (texte seul, photo+texte, vidéo, sondage, quiz).`;
+Les stories sont le format LE PLUS INTIME d'Instagram. Le spectateur les regarde généralement seul, souvent dans un moment d'attente, et il peut sortir à tout moment. C'est exactement comme un message vocal d'une amie qui te raconte un truc en marchant.
+
+AVANT DE RÉDIGER, identifie :
+
+1. QU'EST-CE QUE TU NE DIRAIS À PERSONNE D'AUTRE QU'À UNE AMIE PROCHE ?
+   Les bonnes stories partagent un truc qu'on ne mettrait jamais dans un post : un doute, une réaction sur le vif, une observation banale qu'on trouve drôle, un échange qui nous a marqué·e.
+   ❌ "Voici 5 conseils pour..." (c'est un post, pas une story)
+   ✅ "Bon, je viens de finir un appel client et il faut que je vous raconte un truc" (intimité)
+
+2. QUELLE EST LA VRAIE QUESTION QUE TU TE POSES ?
+   La meilleure interaction (sondage/question) ne sert PAS à animer la communauté. Elle sert à apprendre quelque chose que TU veux savoir.
+   ❌ "Quel est votre format préféré ? A) Carrousel B) Reel" (sondage générique pour likes)
+   ✅ "Vous faites comment quand un client vous demande de baisser vos prix ?" (vraie question)
+
+3. OÙ EST LA TENSION ENTRE LES STORIES ?
+   Une bonne séquence n'est pas 5 stories indépendantes. C'est UN fil narratif qui donne envie de taper pour voir la suite. Chaque story laisse une mini-tension.
+
+══ RÈGLES DE RÉDACTION ══
+
+STRUCTURE NARRATIVE :
+- Story 1 : amorce qui crée la curiosité. Pas de contexte, direct dans le vif. "Bon, faut que je vous raconte" / "OK, je viens de comprendre un truc"
+- Stories 2-4 : développement avec ton naturel, comme si tu parlais à voix haute. Chaque story = 1 écran, 2-4 lignes MAX + indication visuelle.
+- Story 4 ou 5 : INTERACTION (sondage, question, quiz) qui révèle quelque chose. Pas une animation creuse.
+- Story finale : conclusion qui ouvre, pas qui ferme. Question, invitation, ou cliff-hanger pour la prochaine séquence.
+
+POUR CHAQUE STORY, INDIQUE :
+- Le TEXTE affiché (court, comme une bulle de pensée)
+- Le TYPE : texte seul, photo+texte, vidéo, sondage, quiz, question ouverte
+- L'AMBIANCE visuelle si pertinent (selfie cuisine, photo bureau, capture d'écran...)
+
+INTERDITS :
+- Stories qui sonnent comme un mini-post (formel, structuré, "voici X conseils")
+- Sondages génériques pour faire "interactif"
+- Conclusion qui résume au lieu d'ouvrir
+- Stories trop longues (la lecture doit prendre 3-5 secondes max par story)
+- Ton "marketing" : c'est une amie, pas une experte qui vend`;
       } else if (isLinkedIn) {
         // Inject enriched LinkedIn template if a matching editorial format was chosen
         const linkedinTemplateContent = editorialFormat && (LINKEDIN_TEMPLATES as any)[editorialFormat]
