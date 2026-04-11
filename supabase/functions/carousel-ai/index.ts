@@ -492,6 +492,26 @@ Le visual_suggestion doit décrire précisément l'élément visuel ("Diagramme 
 
 Un carrousel où TOUTES les slides sont du texte dans des cartes blanches, c'est un échec visuel.
 
+## AVANT D'ÉCRIRE : LE CARROUSEL N'EST PAS UNE LISTE
+
+Le piège n°1 des carrousels IA : transformer un sujet en "5 conseils" ou "7 erreurs". Ce format est mort. L'algorithme catégorise instantanément, le lecteur scrolle.
+
+Un bon carrousel raconte un MOUVEMENT : situation → tension → compréhension → ouverture. Chaque slide fait AVANCER ce mouvement, elle n'ajoute pas un point à une liste.
+
+AVANT DE GÉNÉRER LES SLIDES, identifie en interne :
+
+1. QUEL EST L'ARC NARRATIF du carrousel ?
+   - Récit d'expérience : situation de départ → ce qui s'est passé → ce que ça a révélé
+   - Déconstruction : croyance répandue → pourquoi elle existe → pourquoi elle est fausse → ce qui est vrai
+   - Coulisses : le résultat visible → ce qu'on ne voit pas derrière → les choix → la leçon
+   - Prise de position : constat terrain → pourquoi ça pose problème → ce qui devrait être → invitation
+
+2. QUELLE CONVICTION ou ÉMOTION porte le carrousel ?
+   Pas "je veux expliquer X" mais "je suis convaincue que Y" ou "je suis frustrée par Z". L'émotion donne le fil rouge.
+
+3. OÙ EST LA SLIDE DE PROFONDEUR ?
+   Au moins UNE slide doit être un "zoom" : un détail concret creusé (un cas client, un chiffre, une phrase entendue, un avant/après mesurable). C'est cette slide qui fait la différence entre "tips génériques" et "elle sait de quoi elle parle".
+
 ## HOOKS CARROUSEL
 
 Le hook (slide 1) est une CLAQUE, pas un titre de blog.
