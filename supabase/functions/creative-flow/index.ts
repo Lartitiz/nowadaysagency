@@ -1225,6 +1225,19 @@ CORRECTIONS OBLIGATOIRES — applique TOUTES celles qui s'appliquent :
    → Le supprimer entièrement. Ne pas essayer de "résumer" : couper.
    → Cible : 1300-1700 caractères. Chaque phrase doit mériter sa place.
 
+10. PUNCHLINES-FORMULES MANUFACTURÉES (phrases trop bien tournées qui sentent le copywriting) :
+   → Détecte ces patterns :
+   - Constructions parallèles trop propres ("X c'est pas Y. C'est Z." ou "Pas X. Pas Y. C'est Z.")
+   - Mots-valises marketing ("bruit joli", "vitrine sans produit", "maison aux fondations bancales", "habiller un message")
+   - Antithèses trop parfaites (impeccable/confus, beau/vide, structure/créativité)
+   - Métaphores empruntées aux manuels (fondations, vitrine, squelette, ADN, pilier, socle)
+   - Triple anaphore subtile ("habille un message qui existe déjà, amplifie ce qui est déjà compris, rend désirable ce qui est déjà clair")
+   → Réécris en plus brut, plus parlé, moins "punchline".
+   Exemple : "Un visuel impeccable avec un message confus, c'est juste du bruit joli."
+   → "Un visuel parfait avec un message flou, ça reste flou. Le beau ne sauve pas le confus."
+   Exemple : "La clarté c'est pas l'ennemi de la créativité. C'est sa condition."
+   → "La clarté ne tue pas la créativité. Elle la rend possible."
+
 RÈGLES :
 - Garde le SENS et la CONVICTION du post. Tu corriges la FORME, pas le FOND.
 - Ne raccourcis pas. Si tu supprimes une phrase isolée, développe-la dans le paragraphe.
