@@ -693,6 +693,16 @@ CORRECTIONS OBLIGATOIRES :
 6. LONGUEUR EXCESSIVE (post > 1900 caractères) :
    → Supprimer le paragraphe le plus faible. Cible : 1300-1700 caractères.
 
+7. PUNCHLINES-FORMULES MANUFACTURÉES (phrases trop bien tournées qui sentent le copywriting) :
+   → Détecte ces patterns :
+   - Constructions parallèles trop propres ("X c'est pas Y. C'est Z." ou "Pas X. Pas Y. C'est Z.")
+   - Mots-valises marketing ("bruit joli", "vitrine sans produit", "maison aux fondations bancales")
+   - Antithèses trop parfaites (impeccable/confus, beau/vide)
+   - Métaphores empruntées aux manuels (fondations, vitrine, squelette, ADN, pilier, socle)
+   → Réécris en plus brut, plus parlé, moins "punchline".
+   Exemple : "Un visuel impeccable avec un message confus, c'est juste du bruit joli."
+   → "Un visuel parfait avec un message flou, ça reste flou. Le beau ne sauve pas le confus."
+
 RÈGLES :
 - Garde le SENS et la CONVICTION. Tu corriges la FORME, pas le FOND.
 - Le post corrigé fait entre 1300 et 1700 caractères.
