@@ -1,27 +1,41 @@
 
 
-# Audit scope bugs — Résultat et refactoring recommandé
+## Diagnostic
 
-## Résultat de l'audit
+Le probleme est clair et confirme par les requetes reseau et la base :
 
-J'ai analysé les **80+ Edge Functions** du projet. Seul `creative-flow/index.ts` avait ce type de bug de scope. Les autres fonctions qui utilisent des variables `is*` (generate-content, carousel-visual, coach-chat, etc.) les utilisent toujours dans le même bloc où elles sont définies.
+1. **`workspace_id = NULL` sur toutes les tables** : Les donnees ont ete inserees avec `user_id` uniquement, mais le frontend filtre par `workspace_id = a53faa5c-851e-4994-b0d6-a4aea991a004` (le workspace "Auriana" cree automatiquement). Resultat : toutes les requetes retournent `[]`.
 
-**Le fix actuel (`streamIsLinkedIn`) fonctionne**, mais la logique de détection LinkedIn est dupliquée à deux endroits (ligne 298-303 et ligne 954-955). Si quelqu'un modifie l'un sans l'autre, le bug reviendra.
+2. **`user_plan_config.onboarding_completed = false`** : L'app affiche l'ecran de bienvenue/onboarding au lieu du dashboard.
 
-## Refactoring recommandé
+## Plan de correction
 
-**Déplacer les variables `is*` format au scope supérieur** (avant les blocs `if (step === ...)`) pour qu'elles soient accessibles partout dans la fonction.
+### Etape 1 -- Patcher le `workspace_id` sur toutes les tables
 
-### Fichier : `supabase/functions/creative-flow/index.ts`
+Executer des UPDATE sur les 10 tables pour ajouter `workspace_id = 'a53faa5c-851e-4994-b0d6-a4aea991a004'` la ou `user_id = 'e8a92ea6-b2b5-4fd3-ad4e-4f5f58f3cda7'` et `workspace_id IS NULL`.
 
-1. **Déplacer les const `isLinkedIn`, `isCarousel`, `isReel`, etc.** juste après la ligne 171 (`let userPrompt`), en utilisant les mêmes sources de données (`angle`, `contentType`)
-2. **Supprimer la déclaration dupliquée** des mêmes variables à l'intérieur du bloc `generate` (lignes 298-307)
-3. **Supprimer `streamIsLinkedIn`** (lignes 954-955) et utiliser `isLinkedIn` directement
-4. Résultat : une seule source de vérité pour la détection du format
+Tables concernees :
+- `profiles`
+- `storytelling`
+- `persona`
+- `brand_profile`
+- `brand_strategy`
+- `user_offers`
+- `user_plan_config`
+- `calendar_posts`
+- `saved_ideas`
+- `instagram_audit`
+- `voice_profile`
 
-### Ce qui ne change pas
-- La logique de détection (même conditions exactes)
-- Le comportement du streaming LinkedIn (2 appels séquentiels)
-- Les autres steps (angles, questions, adjust, recycle, dictation)
-- Le correctionPrompt et ses règles
+### Etape 2 -- Patcher `user_plan_config`
+
+Mettre `onboarding_completed = true` et `welcome_seen = true` pour qu'Auriana arrive directement sur le dashboard.
+
+### Etape 3 -- Verification
+
+Requete de controle pour confirmer que toutes les tables ont bien `workspace_id` renseigne, puis test en se reconnectant.
+
+### Aucun fichier code modifie
+
+Ce sont uniquement des corrections de donnees en base.
 
