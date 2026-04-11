@@ -240,11 +240,18 @@ Réponds UNIQUEMENT en JSON :
       userPrompt = `Propose-moi 3 angles éditoriaux pour : ${context}`;
 
     } else if (step === "questions") {
-      systemPrompt = `${COMMON_PREFIX}
+      const channelLabel = contentType === "linkedin" ? "LinkedIn" : contentType === "newsletter" ? "Newsletter" : "Instagram";
+      const channelGuidance = contentType === "linkedin"
+        ? "Questions orientées PRO : demande des situations professionnelles, des apprentissages business, des résultats concrets, des prises de position assumées."
+        : contentType === "newsletter"
+        ? "Questions orientées PROFONDEUR : demande des réflexions de fond, des convictions, des retours d'expérience détaillés."
+        : "Questions orientées ÉMOTION : demande des moments vécus, des ressentis, des transformations personnelles, des coulisses.";
 
+      systemPrompt = `${COMMON_PREFIX}
+${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}\n` : ""}
 L'utilisatrice a choisi cet angle pour son contenu :
 - Sujet : ${context}
-- Canal : ${contentType}
+- Canal : ${channelLabel}
 ${editorialFormatLabel ? `- Format éditorial : ${editorialFormatLabel}` : ""}
 - Angle : ${angle.title}
 - Structure : ${(angle.structure || []).join(" → ")}
@@ -252,16 +259,29 @@ ${editorialFormatLabel ? `- Format éditorial : ${editorialFormatLabel}` : ""}
 ${angle.format_livraison ? `- Format de livraison recommandé : ${angle.format_livraison}` : ""}
 ${calendarBlock}${objectiveBlock}
 
-Pose exactement 2 questions pour récupérer SA matière première. Ces questions doivent extraire des anecdotes, des réflexions, des émotions PERSONNELLES qui rendront le contenu unique et impossible à reproduire par une IA seule.
+Pose exactement 3 questions pour récupérer SA matière première. Ces questions doivent extraire des anecdotes, des réflexions, des émotions PERSONNELLES qui rendront le contenu unique et impossible à reproduire par une IA seule.
 
 RÈGLES :
-- LIS ATTENTIVEMENT LE SUJET ci-dessus. Les questions doivent être directement liées à CE sujet spécifique, pas à l'angle en général.
-- Questions OUVERTES (pas oui/non)
-- Demande des scènes, des moments, des détails concrets EN RAPPORT AVEC LE SUJET
-- Le ton des questions est chaleureux et curieux (comme une amie qui s'intéresse vraiment)
-- Chaque question a un placeholder qui donne un mini-exemple de réponse SPÉCIFIQUE au sujet
-- ORIENTÉES vers l'objectif : si "vente" → demande des résultats, transformations. Si "engagement" → demande des anecdotes, émotions.
-- INTERDIT : les questions génériques type "Qu'est-ce qui te passionne dans ton métier ?", "Quel est ton parcours ?", "Qu'est-ce qui te différencie ?". Ces questions sont trop vagues. Chaque question doit mentionner le sujet ou un aspect concret du sujet.
+1. LIS ATTENTIVEMENT LE SUJET ci-dessus. Les 3 questions doivent être directement liées à CE sujet spécifique, pas à l'angle en général.
+2. AU MOINS 1 question sur 3 doit creuser le POURQUOI PROFOND : pourquoi elle pense ça, pourquoi c'est important pour elle, quelle conviction personnelle se cache derrière ce sujet.
+3. ${channelGuidance}
+4. Questions OUVERTES (pas oui/non).
+5. Demande des scènes, des moments, des détails concrets EN RAPPORT AVEC LE SUJET.
+6. Le ton des questions est chaleureux et curieux (comme une amie qui s'intéresse vraiment).
+7. Chaque question a un placeholder qui donne un mini-exemple de réponse SPÉCIFIQUE au sujet.
+8. ORIENTÉES vers l'objectif : si "vente" → demande des résultats, transformations. Si "engagement" → demande des anecdotes, émotions.
+
+INTERDIT — NE FAIS JAMAIS ÇA :
+- Questions génériques type "Qu'est-ce qui te passionne dans ton métier ?", "Quel est ton parcours ?", "Qu'est-ce qui te différencie ?"
+- Questions de coaching de vie déconnectées du sujet ("Raconte une situation où tu as vu quelqu'un perdre son audience")
+- Questions trop larges qui pourraient s'appliquer à N'IMPORTE QUEL sujet
+- Chaque question DOIT mentionner le sujet ou un aspect concret du sujet
+
+EXEMPLES (pour le sujet "Pourquoi je ne fais plus de remises") :
+❌ MAUVAIS : "Raconte-moi un moment où tu as dû défendre ta valeur."
+✅ BON : "La dernière fois qu'on t'a demandé une remise, tu as répondu quoi exactement ? Et comment tu t'es sentie après ?"
+❌ MAUVAIS : "Qu'est-ce qui t'a poussée à changer ta stratégie de prix ?"
+✅ BON : "Il y a eu UN moment précis où tu t'es dit 'plus jamais de remise' ? C'était quand, avec qui ?"
 
 Réponds UNIQUEMENT en JSON :
 {
