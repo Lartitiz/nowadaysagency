@@ -1,25 +1,37 @@
 
 
-## Diagnostic
+## Plan — Ajout règle 10 (Punchlines manufacturées) dans creative-flow
 
-L'UPDATE principal est **déjà fait** : `onboarding_completed = true` et `welcome_seen = true` sont en place depuis le correctif précédent. Auriana ne devrait plus être bloquée sur `/onboarding`.
+### Contexte
+Le `correctionPrompt` LinkedIn (ligne ~1223-1226) contient 9 règles de correction. La règle 10 doit s'insérer entre la règle 9 (LONGUEUR EXCESSIVE, L1223-1226) et le bloc "RÈGLES :" (L1228).
 
-Le seul delta par rapport à ton prompt : `level` est à `'beginner'` au lieu de `'intermediate'`.
+### Modification unique
 
-## Plan
+**Fichier** : `supabase/functions/creative-flow/index.ts`
 
-### Étape unique — Mettre `level` à `intermediate`
+Après la ligne 1226 (`→ Cible : 1300-1700 caractères...`) et avant la ligne vide + "RÈGLES :" (L1228), insérer le bloc suivant :
 
-```sql
-UPDATE public.user_plan_config
-SET level = 'intermediate',
-    onboarding_completed_at = now()
-WHERE user_id = 'e8a92ea6-b2b5-4fd3-ad4e-4f5f58f3cda7';
+```
+10. PUNCHLINES-FORMULES MANUFACTURÉES (phrases trop bien tournées qui sentent le copywriting) :
+   → Détecte ces patterns :
+   - Constructions parallèles trop propres ("X c'est pas Y. C'est Z." ou "Pas X. Pas Y. C'est Z.")
+   - Mots-valises marketing ("bruit joli", "vitrine sans produit", "maison aux fondations bancales", "habiller un message")
+   - Antithèses trop parfaites (impeccable/confus, beau/vide, structure/créativité)
+   - Métaphores empruntées aux manuels (fondations, vitrine, squelette, ADN, pilier, socle)
+   - Triple anaphore subtile ("habille un message qui existe déjà, amplifie ce qui est déjà compris, rend désirable ce qui est déjà clair")
+   → Réécris en plus brut, plus parlé, moins "punchline".
+   Exemple : "Un visuel impeccable avec un message confus, c'est juste du bruit joli."
+   → "Un visuel parfait avec un message flou, ça reste flou. Le beau ne sauve pas le confus."
+   Exemple : "La clarté c'est pas l'ennemi de la créativité. C'est sa condition."
+   → "La clarté ne tue pas la créativité. Elle la rend possible."
 ```
 
+### Rien d'autre ne change
+- Règles 1-9 intactes
+- Bloc "RÈGLES :" et structure JSON inchangés
+- `carouselCorrectionPrompt` non touché
+- Aucun autre fichier modifié
+
 ### Vérification
-
-Requête SELECT pour confirmer les 4 champs (`profile_done`, `config_done`, `welcome_seen`, `level = 'intermediate'`).
-
-### Aucun fichier code modifié
+TypeScript check + grep pour confirmer la présence de la règle 10 et l'intégrité de la règle 9.
 
