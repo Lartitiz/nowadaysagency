@@ -153,7 +153,9 @@ export default function AppSidebar() {
   const initial = firstName.charAt(0).toUpperCase();
 
   const { activeWorkspace, workspaces, isMultiWorkspace, switchWorkspace } = useWorkspace();
+  const { savedAccounts, switchToAccount, removeAccount } = useAccountSwitcher();
   const [wsPopoverOpen, setWsPopoverOpen] = useState(false);
+  const [switching, setSwitching] = useState(false);
 
   return (
     <>
