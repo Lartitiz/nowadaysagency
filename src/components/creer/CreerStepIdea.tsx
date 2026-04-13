@@ -14,6 +14,8 @@ interface Props {
   onNewsjackingSelect?: (data: { subject: string; context: string; format?: string; vehicule?: string }) => void;
   workspaceId?: string;
   activite?: string;
+  initialIdea?: string;
+  initialObjective?: string;
 }
 
 const ACTIVITY_PLACEHOLDERS: Record<string, string> = {
@@ -47,9 +49,9 @@ const objectives = Object.entries(OBJECTIVE_RECOMMENDATIONS).map(([id, o]) => ({
   emoji: o.emoji,
 }));
 
-export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingSelect, workspaceId, activite }: Props) {
-  const [idea, setIdea] = useState("");
-  const [objective, setObjective] = useState<string | undefined>(undefined);
+export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingSelect, workspaceId, activite, initialIdea, initialObjective }: Props) {
+  const [idea, setIdea] = useState(initialIdea || "");
+  const [objective, setObjective] = useState<string | undefined>(initialObjective);
   const [coachOpen, setCoachOpen] = useState(false);
   const [showNewsjacking, setShowNewsjacking] = useState(false);
   const { toast } = useToast();

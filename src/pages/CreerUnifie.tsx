@@ -421,6 +421,11 @@ export default function CreerUnifie() {
     setObjective(obj || null);
     setNewsjackingContext(null);
     setNewsjackingSuggestedFormat(null);
+    // Auriana demo: keep pre-filled format/angle if subject unchanged
+    if (aurianaDemoActive && idea === AURIANA_DEMO_SUBJECT) {
+      setStep("format");
+      return;
+    }
     // Reset format-related state so the user starts fresh at channel selection
     setSelectedFormat(null);
     setEditorialAngle(null);
@@ -1964,7 +1969,7 @@ export default function CreerUnifie() {
                     ✨ {remainingTotal()} générations restantes ce mois
                   </p>
                 )}
-                <CreerStepIdea onNext={handleIdeaNext} onCoachingSelect={handleCoachingSelect} onNewsjackingSelect={handleNewsjackingSelect} workspaceId={workspaceId} activite={activityText} />
+                <CreerStepIdea onNext={handleIdeaNext} onCoachingSelect={handleCoachingSelect} onNewsjackingSelect={handleNewsjackingSelect} workspaceId={workspaceId} activite={activityText} initialIdea={ideaText} initialObjective={objective || undefined} />
               </>
             )}
 
