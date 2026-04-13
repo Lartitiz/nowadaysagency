@@ -305,7 +305,6 @@ Réponds UNIQUEMENT en JSON :
     }
   ]
 }`;
-}`;
       userPrompt = `Pose-moi des questions pour créer mon contenu${angle ? ` avec l'angle "${angle.title}"` : ""}.`;
 
     } else if (step === "follow-up") {
