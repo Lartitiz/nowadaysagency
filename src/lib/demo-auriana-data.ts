@@ -99,3 +99,43 @@ export const AURIANA_DEMO_FLOW = {
   editContent: "",
   ts: Date.now(),
 };
+
+/**
+ * Pre-built HTML visual slides for demo — avoids calling carousel-visual edge function.
+ */
+function demoSlideHtml(slideNum: number, title: string, body: string, bgColor: string, accent: string): string {
+  const bodyHtml = body.replace(/\n/g, "<br/>");
+  return `<div style="width:1080px;height:1350px;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:80px;background:${bgColor};font-family:'Inter',sans-serif;box-sizing:border-box;text-align:center;">
+    ${title ? `<div style="font-size:52px;font-weight:800;color:${accent};line-height:1.2;margin-bottom:40px;">${title}</div>` : ""}
+    ${body ? `<div style="font-size:32px;font-weight:400;color:#2d2d2d;line-height:1.6;">${bodyHtml}</div>` : ""}
+    <div style="position:absolute;bottom:50px;right:60px;font-size:20px;color:#aaa;font-weight:600;">@auriana.mdb</div>
+  </div>`;
+}
+
+export function getAurianaDemoVisualSlides(): { slide_number: number; html: string }[] {
+  const slides = AURIANA_DEMO_FLOW.result.slides;
+  const palettes: [string, string][] = [
+    ["#1a1a2e", "#e8c547"],   // dark + gold (hook)
+    ["#f5f0e8", "#1a1a2e"],   // cream + dark
+    ["#ffffff", "#6b4c9a"],   // white + purple
+    ["#e8c547", "#1a1a2e"],   // gold + dark (proof)
+    ["#f5f0e8", "#6b4c9a"],   // cream + purple
+    ["#1a1a2e", "#e8c547"],   // dark + gold (results)
+    ["#ffffff", "#1a1a2e"],   // white + dark
+    ["#6b4c9a", "#ffffff"],   // purple + white (CTA)
+  ];
+  return slides.map((s, i) => {
+    const [bg, acc] = palettes[i] || ["#ffffff", "#1a1a2e"];
+    const textColor = ["#1a1a2e", "#6b4c9a"].includes(bg) ? "#ffffff" : "#2d2d2d";
+    const bodyText = s.body || "";
+    const bodyHtml = bodyText.replace(/\n/g, "<br/>");
+    return {
+      slide_number: s.slide_number,
+      html: `<div style="width:1080px;height:1350px;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:80px;background:${bg};font-family:'Inter',sans-serif;box-sizing:border-box;text-align:center;">
+        ${s.title ? `<div style="font-size:48px;font-weight:800;color:${acc};line-height:1.2;margin-bottom:40px;max-width:900px;">${s.title}</div>` : ""}
+        ${bodyText ? `<div style="font-size:30px;font-weight:400;color:${textColor};line-height:1.6;max-width:900px;text-align:left;">${bodyHtml}</div>` : ""}
+        <div style="position:absolute;bottom:50px;right:60px;font-size:20px;color:${textColor}88;font-weight:600;">@auriana.mdb</div>
+      </div>`,
+    };
+  });
+}
