@@ -28,6 +28,7 @@ import { useDemoContext } from "@/contexts/DemoContext";
 // DEMO_DATA n'est plus importé directement — on utilise demoData du context
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useBrandCharter } from "@/hooks/use-branding";
+import { useActivityExamples } from "@/hooks/use-activity-examples";
 import { supabase } from "@/integrations/supabase/client";
 import { loadFlowState, saveFlowState, clearFlowState } from "@/hooks/use-flow-persistence";
 import { useFormPersist } from "@/hooks/use-form-persist";
@@ -76,6 +77,7 @@ export default function CreerUnifie() {
   const { isDemoMode, demoData } = useDemoContext();
   const workspaceId = useWorkspaceId();
   const { data: charterData } = useBrandCharter();
+  const { activityText } = useActivityExamples();
   const { remainingTotal, loading: planLoading, plan, usage } = useUserPlan();
 
   // URL params
@@ -1935,7 +1937,7 @@ export default function CreerUnifie() {
                     ✨ {remainingTotal()} générations restantes ce mois
                   </p>
                 )}
-                <CreerStepIdea onNext={handleIdeaNext} onCoachingSelect={handleCoachingSelect} onNewsjackingSelect={handleNewsjackingSelect} workspaceId={workspaceId} />
+                <CreerStepIdea onNext={handleIdeaNext} onCoachingSelect={handleCoachingSelect} onNewsjackingSelect={handleNewsjackingSelect} workspaceId={workspaceId} activite={activityText} />
               </>
             )}
 
