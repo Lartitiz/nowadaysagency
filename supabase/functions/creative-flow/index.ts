@@ -1186,7 +1186,9 @@ Privilégie les sources françaises et européennes quand elles existent.`,
 
       // LinkedIn: disable streaming, use 2-step generation + correction
       if (isLinkedIn) {
+        console.log("[CORRECTION DEBUG] LinkedIn correction pass STARTED");
         const rawContent = await callAnthropicSimple(model, systemPrompt, userPrompt!, 0.85, 4096);
+        console.log("[CORRECTION DEBUG] First call done, rawContent length:", rawContent?.length);
 
         // Parse the raw content to extract the post text
         let postText = "";
@@ -1278,6 +1280,7 @@ Réponds UNIQUEMENT en JSON :
           0.3,
           4096
         );
+        console.log("[CORRECTION DEBUG] Correction call done, correctedRaw length:", correctedRaw?.length);
 
         // Parse corrected content, fallback to original if correction fails
         let finalResult: any = null;
@@ -1291,6 +1294,7 @@ Réponds UNIQUEMENT en JSON :
         }
 
         // If correction succeeded, use it; otherwise fall back to original
+        console.log("[CORRECTION DEBUG] finalResult.content present:", !!finalResult?.content);
         if (finalResult?.content) {
           let originalParsed: any = {};
           try { originalParsed = JSON.parse(rawContent); } catch {
@@ -1313,6 +1317,7 @@ Réponds UNIQUEMENT en JSON :
           });
         }
 
+        console.log("[CORRECTION DEBUG] FALLBACK triggered — returning uncorrected post");
         // Fallback: return original if correction failed
         let fallbackParsed: any;
         try { fallbackParsed = JSON.parse(rawContent); } catch {
