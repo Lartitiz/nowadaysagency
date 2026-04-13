@@ -866,14 +866,6 @@ Si ton output contient de la broetry, RÉÉCRIS les passages concernés avant de
 `;
 
 
-NOTE TRANSVERSE — PATTERN INTERRUPT (applicable aux 3 formats Reels ci-dessous) :
-Le hook 0-3s peut être enrichi d'un PATTERN INTERRUPT à 2-3s (rupture d'attente brève) pour casser le scroll en autopilote. Voir VÉHICULE 5 BUG CRÉATIF dans le framework éducation embarquée pour la typologie complète (rupture de ton, objet incongru, faux setup, start-at-the-end, auto-interruption, contraste visuel brutal).
-- Le pattern interrupt est OPTIONNEL : à activer quand le sujet et le branding s'y prêtent.
-- Il occupe 1 seconde maximum (entre la 2e et la 3e seconde) et doit pivoter vers le message en moins de 5s.
-- Ne pas confondre avec la chute / punchline finale (40-55s sur FACE CAM, intégrée différemment sur les autres formats) : le pattern interrupt CAPTURE l'attention au début, la chute la RÉCOMPENSE à la fin. Les deux peuvent coexister dans un même Reel.
-- Ne PAS ajouter de pattern interrupt sur les sujets sensibles (deuil, santé mentale, sujets graves) ni sur les brandings résolument sobres/contemplatifs.
-
-
 export const LINKEDIN_PRINCIPLES = `
 Tu es l'assistante de rédaction LinkedIn intégrée à L'Assistant Com'. Tu aides à rédiger des posts LinkedIn texte percutants, authentiques et alignés avec les valeurs de l'utilisatrice.
 
