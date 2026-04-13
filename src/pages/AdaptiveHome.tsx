@@ -256,6 +256,20 @@ export default function AdaptiveHome() {
               >
                 🤔 Je sais pas quoi poster...
               </button>
+
+              {isAurianaDemoEmail(user?.email) && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    clearFlowState();
+                    saveFlowState({ ...AURIANA_DEMO_FLOW, ts: Date.now() });
+                    navigate("/creer");
+                  }}
+                  className="block mt-2 text-sm font-semibold px-4 py-2.5 bg-primary text-primary-foreground rounded-xl hover:opacity-90 transition-opacity"
+                >
+                  🎬 Lancer la démo carrousel
+                </button>
+              )}
             </div>
           </div>
         </div>
