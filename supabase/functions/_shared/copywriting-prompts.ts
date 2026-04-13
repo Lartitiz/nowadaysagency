@@ -243,6 +243,13 @@ CARROUSEL PROCESS (8 slides) :
 - Slide 8 : CTA léger ou question
 Note : les étapes sont racontées comme un RÉCIT de process, pas comme un mode d'emploi numéroté.
 
+NOTE TRANSVERSE — PATTERN INTERRUPT (applicable aux 3 formats Reels ci-dessous) :
+Le hook 0-3s peut être enrichi d'un PATTERN INTERRUPT à 2-3s (rupture d'attente brève) pour casser le scroll en autopilote. Voir VÉHICULE 5 BUG CRÉATIF dans le framework éducation embarquée pour la typologie complète (rupture de ton, objet incongru, faux setup, start-at-the-end, auto-interruption, contraste visuel brutal).
+- Le pattern interrupt est OPTIONNEL : à activer quand le sujet et le branding s'y prêtent.
+- Il occupe 1 seconde maximum (entre la 2e et la 3e seconde) et doit pivoter vers le message en moins de 5s.
+- Ne pas confondre avec la chute / punchline finale (40-55s sur FACE CAM, intégrée différemment sur les autres formats) : le pattern interrupt CAPTURE l'attention au début, la chute la RÉCOMPENSE à la fin. Les deux peuvent coexister dans un même Reel.
+- Ne PAS ajouter de pattern interrupt sur les sujets sensibles (deuil, santé mentale, sujets graves) ni sur les brandings résolument sobres/contemplatifs.
+
 REEL FACE CAM / TALKING HEAD (30-60 sec) :
 Type : confession, réaction, prise de position face caméra.
 - 0-3s : Hook regard caméra. UNE phrase-choc ou fait concret. Overlay = ancrage (mot-clé).
