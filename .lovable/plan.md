@@ -1,44 +1,74 @@
 
-Problème identifié : le state démo arrive bien jusqu’à `/creer`, mais l’UI ne l’affiche pas correctement.
 
-Ce qui se passe
-- Le bouton démo sauvegarde bien `AURIANA_DEMO_FLOW` avec `ideaText` et `demoScenario`.
-- `CreerUnifie` restaure bien ce state.
-- Mais l’étape Idée n’utilise pas `ideaText` restauré : `CreerStepIdea` garde un state local initialisé à `""`, donc le textarea reste vide.
-- Ensuite, quand on clique “Suivant”, `handleIdeaNext` remet `selectedFormat`, `editorialAngle`, etc. à `null`, ce qui efface une partie du pré-remplissage de la démo.
-- Il y a aussi un risque que l’étape Format ne reflète pas tout le scénario si certains choix ne sont pas persistés/restaurés.
+## Plan : Ameliorer la qualite des scripts Reel
 
-Plan de correction
-1. Pré-remplir réellement l’étape Idée
-- Modifier `CreerStepIdea` pour accepter des props initiales (`initialIdea`, `initialObjective`) ou pour devenir contrôlé par le parent.
-- Dans `CreerUnifie`, passer `ideaText` et `objective` restaurés à cette étape.
-- Résultat : le sujet démo sera visible dès l’arrivée sur `/creer`.
+### Constat
+Le depth mandate Reel (lignes 386-433 de `creative-flow/index.ts`) fait 47 lignes avec une seule structure generique. Le carrousel en a 55 avec 4 arcs narratifs, des regles slide par slide, et des interdits precis. `FORMAT_STRUCTURES` dans `copywriting-prompts.ts` (lignes 246-251) ne donne que 5 lignes pour le Reel face cam. L'IA n'a pas de reference de qualite.
 
-2. Empêcher l’étape Idée d’effacer la démo
-- Ajuster `handleIdeaNext` dans `CreerUnifie`.
-- Si le flow démo Auriana est actif et que l’idée n’a pas changé, ne pas reset `selectedFormat`, `editorialAngle`, `carouselSubMode` et autres champs préchargés.
-- Si l’utilisatrice modifie vraiment l’idée, alors on garde le reset normal.
+### Changements prevus
 
-3. Vérifier le pré-remplissage de l’étape Format
-- Contrôler que `CreerStepFormat` reçoit bien les bonnes valeurs initiales pour le format et, si nécessaire, ajouter les props manquantes pour refléter aussi le sous-mode carrousel / angle éditorial.
-- Objectif : que la démo montre bien l’étape suivante déjà préparée, sans saut ni perte d’état.
+**Prompt 1 — `supabase/functions/_shared/copywriting-prompts.ts` (lignes 246-251)**
 
-4. Conserver le comportement Questions / Résultat déjà prévu
-- Garder l’injection des questions démo via `setQuestions`.
-- Garder `initialAnswers={AURIANA_DEMO_FLOW.answers}`.
-- Garder le bypass final dans `doGenerate` pour afficher le carrousel pré-calculé sans appel IA.
+Remplacer les 5 lignes actuelles par 3 structures detaillees :
 
-5. Vérification attendue après correction
-- Clic sur “Lancer la démo carrousel”
-- Arrivée sur `/creer` avec le sujet déjà visible dans le champ
-- Clic “Suivant” → étape Format déjà cohérente avec la démo
-- Clic “Suivant” → Questions pré-remplies
-- Clic “Générer” → Résultat instantané, sans appel IA
+- **REEL FACE CAM / TALKING HEAD** : confession, reaction, prise de position. Hook regard camera, corps en scene vecue, chute avec deplacement de perspective.
+- **REEL VOIX OFF + B-ROLL** : process, coulisses, transformation. Narration off sur images, structure avant/pendant/apres.
+- **REEL HOOK LOOP** : boucle narrative ou le debut = la fin. Hook = chute incomprehensible, corps = contexte qui eclaire, retour au debut avec un nouveau sens.
 
-Détail technique
-- Cause racine principale : désynchronisation entre state restauré dans `CreerUnifie` et state local interne dans `CreerStepIdea`.
-- Cause secondaire : `handleIdeaNext` réinitialise trop agressivement des données qui devraient être conservées pour un scénario démo verrouillé.
-- Correctif minimal attendu :
-  - `src/components/creer/CreerStepIdea.tsx`
-  - `src/pages/CreerUnifie.tsx`
-  - potentiellement `src/components/creer/CreerStepFormat.tsx` si on veut refléter aussi tous les choix préchargés visuellement
+Chaque structure avec timing et role narratif de chaque section (~25 lignes total, comparable aux 3 structures carrousel).
+
+---
+
+**Prompt 2 — `supabase/functions/creative-flow/index.ts` (lignes 386-433)**
+
+Enrichir le depth mandate Reel :
+
+1. **Arc narratif souple** (remplace "developpe avec une SCENE CONCRETE") :
+   - Avant d'ecrire, identifier le MOUVEMENT : situation → deplacement de perspective → nouvelle comprehension
+   - "Au moins un deplacement de perspective dans le corps : nouvelle info, contre-pied, zoom sur un detail inattendu" (pas "retournement obligatoire")
+
+2. **Regle overlay typee** (remplace "3-8 mots max") :
+   - 3 roles possibles : **ancrage** (mot-cle qui reste a l'ecran), **contrepoint** (ce que le texte parle ne dit pas), **punchline** (chute visuelle)
+   - Chaque overlay doit explicitement choisir un de ces 3 roles
+   - Interdit : overlay qui resume le texte parle en condense
+
+3. **Contrainte corps** :
+   - "Chaque section du corps = 2-4 phrases COMPLETES de texte parle. Pas de one-liners enchaines."
+   - "Le corps raconte UNE scene, pas 3 micro-conseils."
+
+---
+
+**Prompt 3 — `supabase/functions/creative-flow/index.ts` (apres les interdits, ligne ~433)**
+
+Ajouter un exemple compact ❌/✅ (~20 lignes max pour controler le payload) :
+
+```
+❌ SCRIPT GENERIQUE :
+Hook: "3 erreurs sur Instagram"
+Corps: "Erreur 1 : pas de strategie. Erreur 2 : pas de regulierte. Erreur 3 : pas de CTA."
+→ Listicle filme. Zero scene, zero tension.
+
+✅ SCRIPT QUI RACONTE :
+Hook: "Ma cliente avait 10K abonnes et zero client."
+Corps: "Je lui ai demande : 'Tu postes pour qui ?'. Silence. 
+Elle postait 5 fois par semaine. Des tips, des infographies, des reels tendance. 
+Sauf que son audience ideale, elle scroll pas des tips. Elle cherche quelqu'un qui comprend SON probleme.
+On a tout arrete. 2 posts par semaine. Chaque post = une situation que sa cliente vit."
+CTA: "Resultat 3 mois plus tard : 4 appels decouverte par semaine."
+→ Une scene, un deplacement, un resultat.
+```
+
+### Fichiers modifies
+1. `supabase/functions/_shared/copywriting-prompts.ts` — FORMAT_STRUCTURES section Reel
+2. `supabase/functions/creative-flow/index.ts` — depth mandate Reel (lignes 386-433)
+
+### Impact tokens
+- Ajout estime : ~80 lignes de prompt system
+- Comparable a ce qui existe deja pour les carrousels
+- L'exemple ❌/✅ est volontairement compact (20 lignes, pas 40)
+
+### Ce qui ne change PAS
+- Le format de sortie JSON (lignes 879-907) reste identique
+- Les 13 angles editoriaux restent inchanges
+- Le mecanisme de rotation/diversite n'est pas ajoute ici (a traiter separement si besoin apres test)
+
