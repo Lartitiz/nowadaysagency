@@ -99,6 +99,7 @@ export default function AppSidebar() {
   const [open, setOpen] = useState(false);
   const [openSubs, setOpenSubs] = useState<Record<string, boolean>>({});
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wsPopoverRef = useRef(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
   const clearCloseTimer = useCallback(() => {
@@ -110,7 +111,9 @@ export default function AppSidebar() {
 
   const startCloseTimer = useCallback(() => {
     clearCloseTimer();
-    closeTimer.current = setTimeout(() => setOpen(false), 350);
+    closeTimer.current = setTimeout(() => {
+      if (!wsPopoverRef.current) setOpen(false);
+    }, 350);
   }, [clearCloseTimer]);
 
   const handleMouseEnterTrigger = useCallback(() => {
@@ -356,7 +359,7 @@ export default function AppSidebar() {
         </div>
 
         {isMultiWorkspace ? (
-          <Popover open={wsPopoverOpen} onOpenChange={setWsPopoverOpen}>
+          <Popover open={wsPopoverOpen} onOpenChange={(v) => { setWsPopoverOpen(v); wsPopoverRef.current = v; }}>
             <PopoverTrigger asChild>
               <button className="w-full border-t border-border px-4 py-3 flex items-center gap-2.5 hover:bg-muted/50 transition-colors cursor-pointer text-left">
                 <div className="w-8 h-8 rounded-lg bg-bordeaux flex items-center justify-center text-white font-semibold text-sm shrink-0">
