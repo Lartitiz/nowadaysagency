@@ -456,10 +456,10 @@ export default function Dashboard() {
                     </button>
                   ))}
                 </div>
-                <div className="flex items-center gap-3 mt-3">
+                <div className="flex flex-col gap-2 mt-3">
                   <button
                     onClick={(e) => { e.stopPropagation(); setContentCoachingOpen(true); }}
-                    className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                    className="text-xs text-muted-foreground hover:text-primary transition-colors self-start"
                   >
                     🤔 Je sais pas quoi poster...
                   </button>
@@ -471,10 +471,10 @@ export default function Dashboard() {
                         saveFlowState({ ...AURIANA_DEMO_FLOW, ts: Date.now() });
                         navigate("/creer");
                       }}
-                      className="text-xs font-medium px-3.5 py-2 rounded-xl
-                        bg-primary/10 border border-primary/30 text-primary
-                        hover:bg-primary hover:text-primary-foreground
-                        transition-all duration-150"
+                      className="self-start text-sm font-semibold px-4 py-2.5 rounded-xl
+                        bg-primary text-primary-foreground
+                        hover:bg-primary/90
+                        transition-all duration-150 shadow-sm"
                     >
                       🎬 Lancer la démo carrousel
                     </button>
