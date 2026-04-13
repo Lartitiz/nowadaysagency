@@ -402,6 +402,7 @@ export default function AppSidebar() {
           </div>
         )}
 
+        <div className="border-t border-border px-2 py-2">
           <button
             onClick={() => signOut()}
             className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body text-destructive hover:bg-destructive/10 transition-colors text-left"
