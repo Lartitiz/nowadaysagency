@@ -1,22 +1,25 @@
 
 
-## Plan : Ajouter le véhicule 5 "BUG CRÉATIF" à EMBEDDED_EDUCATION
+## Plan : Ajouter la note transverse "PATTERN INTERRUPT" dans FORMAT_STRUCTURES
 
 ### Fichier modifié
 `supabase/functions/_shared/copywriting-prompts.ts` — un seul fichier
 
 ### Action
-Insérer le bloc VÉHICULE 5 tel que fourni, après la ligne 584 (`Signal algorithmique : watch time élevé, saves, partages visuels.`) et avant le séparateur `═══` (ligne 586).
+Insérer le bloc "NOTE TRANSVERSE — PATTERN INTERRUPT" (6 lignes + lignes vides) entre la ligne 245 (ligne vide après CARROUSEL STORYTELLING) et la ligne 246 (`REEL FACE CAM / TALKING HEAD`).
+
+### Contenu inséré
+La note transverse telle que fournie : référence au VÉHICULE 5, règles d'activation (optionnel, 1s max, pivot en 5s), distinction capture vs chute, exclusion sujets sensibles.
 
 ### Vérifications
 - TypeScript compile sans erreur
-- 5 véhicules présents dans EMBEDDED_EDUCATION
-- Les 4 véhicules existants sont intacts
+- Exactement 1 occurrence de "NOTE TRANSVERSE — PATTERN INTERRUPT"
+- Les 3 blocs Reel intacts (1 occurrence chacun)
+- VÉHICULE 5 toujours présent (1 occurrence)
+- FORMAT_STRUCTURES non dupliqué
 - Aucun autre fichier modifié
-- Déploiement automatique via les imports existants
 
 ### Détails techniques
-- Insertion pure entre lignes 585 et 586, aucune ligne existante modifiée
-- Le bloc fait ~40 lignes avec lignes vides de formatage
-- Pas de redéploiement nécessaire des Edge Functions — elles importent EMBEDDED_EDUCATION dynamiquement
+- Insertion pure après ligne 245, aucune ligne existante modifiée
+- ~8 lignes ajoutées (bloc + lignes vides de séparation)
 
