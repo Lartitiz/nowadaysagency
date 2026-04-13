@@ -1,40 +1,44 @@
 
+Problème identifié : le state démo arrive bien jusqu’à `/creer`, mais l’UI ne l’affiche pas correctement.
 
-## Plan : Demo Auriana — parcourir toutes les étapes
+Ce qui se passe
+- Le bouton démo sauvegarde bien `AURIANA_DEMO_FLOW` avec `ideaText` et `demoScenario`.
+- `CreerUnifie` restaure bien ce state.
+- Mais l’étape Idée n’utilise pas `ideaText` restauré : `CreerStepIdea` garde un state local initialisé à `""`, donc le textarea reste vide.
+- Ensuite, quand on clique “Suivant”, `handleIdeaNext` remet `selectedFormat`, `editorialAngle`, etc. à `null`, ce qui efface une partie du pré-remplissage de la démo.
+- Il y a aussi un risque que l’étape Format ne reflète pas tout le scénario si certains choix ne sont pas persistés/restaurés.
 
-### Probleme
-Actuellement, `handleFormatNext` detecte le compte Auriana et saute directement au resultat. L'utilisatrice veut pouvoir montrer chaque etape (format → questions → resultat) avec les donnees pre-remplies, sans appel IA.
+Plan de correction
+1. Pré-remplir réellement l’étape Idée
+- Modifier `CreerStepIdea` pour accepter des props initiales (`initialIdea`, `initialObjective`) ou pour devenir contrôlé par le parent.
+- Dans `CreerUnifie`, passer `ideaText` et `objective` restaurés à cette étape.
+- Résultat : le sujet démo sera visible dès l’arrivée sur `/creer`.
 
-### Changements
+2. Empêcher l’étape Idée d’effacer la démo
+- Ajuster `handleIdeaNext` dans `CreerUnifie`.
+- Si le flow démo Auriana est actif et que l’idée n’a pas changé, ne pas reset `selectedFormat`, `editorialAngle`, `carouselSubMode` et autres champs préchargés.
+- Si l’utilisatrice modifie vraiment l’idée, alors on garde le reset normal.
 
-**1. `src/lib/demo-auriana-data.ts`**
-- Changer `step: "idea"` (actuellement `"format"`) pour demarrer a l'etape `"idea"` — l'utilisatrice voit d'abord le champ sujet pre-rempli et clique "Suivant"
+3. Vérifier le pré-remplissage de l’étape Format
+- Contrôler que `CreerStepFormat` reçoit bien les bonnes valeurs initiales pour le format et, si nécessaire, ajouter les props manquantes pour refléter aussi le sous-mode carrousel / angle éditorial.
+- Objectif : que la démo montre bien l’étape suivante déjà préparée, sans saut ni perte d’état.
 
-**2. `src/pages/CreerUnifie.tsx`** (~15 lignes)
+4. Conserver le comportement Questions / Résultat déjà prévu
+- Garder l’injection des questions démo via `setQuestions`.
+- Garder `initialAnswers={AURIANA_DEMO_FLOW.answers}`.
+- Garder le bypass final dans `doGenerate` pour afficher le carrousel pré-calculé sans appel IA.
 
-a) **Supprimer le bypass dans `handleFormatNext`** (lignes 434-447) : ne plus sauter au resultat. Le flow normal continue vers `generateQuestions` → mais on intercepte la generation de questions.
+5. Vérification attendue après correction
+- Clic sur “Lancer la démo carrousel”
+- Arrivée sur `/creer` avec le sujet déjà visible dans le champ
+- Clic “Suivant” → étape Format déjà cohérente avec la démo
+- Clic “Suivant” → Questions pré-remplies
+- Clic “Générer” → Résultat instantané, sans appel IA
 
-b) **Intercepter `generateQuestions`** : juste apres le `resetGenerator()` + `setStep("questions")` (lignes 542-544), ajouter une detection Auriana. Si c'est le compte demo avec le bon sujet, au lieu d'appeler `generateQuestions(...)`, injecter directement les questions pre-definies depuis `AURIANA_DEMO_FLOW.questions` dans le state du generator (via un nouveau setter ou en appelant directement le state).
-
-c) **Pre-remplir les reponses** : dans `CreerStepQuestions`, les reponses sont gerees par un state local `answers`. On peut passer les `AURIANA_DEMO_FLOW.answers` comme `initialAnswers` prop pour que les champs soient deja remplis quand l'utilisatrice arrive sur cette etape.
-
-d) **Garder le bypass dans `doGenerate`** (lignes 590-600) : quand l'utilisatrice clique "Generer" depuis les questions, le resultat pre-calcule est retourne instantanement. Ce bypass reste tel quel.
-
-**3. `src/components/creer/CreerStepQuestions.tsx`** (~3 lignes)
-- Ajouter une prop `initialAnswers?: Record<string, string>` 
-- Initialiser le state `answers` avec `initialAnswers` au lieu de `{}`
-
-### Flux final
-1. Clic "Lancer la demo" → `/creer` avec sujet pre-rempli (etape "idea")
-2. Clic Suivant → etape "format" avec Instagram/Carousel pre-selectionne
-3. Clic Suivant → etape "questions" avec 3 questions + reponses pre-remplies
-4. Clic "Generer" → etape "result" avec carrousel instantane (2.5s fake delay)
-5. Zero appel IA a chaque etape
-
-### Detail technique pour les questions
-Le hook `useContentGenerator` expose `questions` et `loadingQuestions`. Pour le demo, on a besoin soit :
-- D'un setter `setQuestions` expose par le hook (a ajouter, ~2 lignes dans `use-content-generator.ts`)
-- Ou d'appeler le hook avec les questions pre-definies
-
-Je vais verifier le hook pour choisir la meilleure approche.
-
+Détail technique
+- Cause racine principale : désynchronisation entre state restauré dans `CreerUnifie` et state local interne dans `CreerStepIdea`.
+- Cause secondaire : `handleIdeaNext` réinitialise trop agressivement des données qui devraient être conservées pour un scénario démo verrouillé.
+- Correctif minimal attendu :
+  - `src/components/creer/CreerStepIdea.tsx`
+  - `src/pages/CreerUnifie.tsx`
+  - potentiellement `src/components/creer/CreerStepFormat.tsx` si on veut refléter aussi tous les choix préchargés visuellement
