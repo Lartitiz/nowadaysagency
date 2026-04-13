@@ -375,7 +375,7 @@ export default function AppSidebar() {
               <ChevronDown size={14} className="text-muted-foreground shrink-0" />
             </button>
           </PopoverTrigger>
-          <PopoverContent side="top" align="start" className="w-72 p-1.5">
+          <PopoverContent side="top" align="start" className="w-72 p-1.5 z-[60]">
             {/* Current account */}
             <div className="text-[11px] font-medium text-muted-foreground px-2 py-1.5 uppercase tracking-wider">Compte actif</div>
             <div className="flex items-center gap-2.5 px-2 py-2 rounded-md bg-muted">
