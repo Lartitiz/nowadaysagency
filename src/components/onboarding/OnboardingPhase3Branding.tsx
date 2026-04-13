@@ -2,8 +2,10 @@ import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ChoiceCard, VoiceInput } from "./OnboardingShared";
 import {
-  BLOCKERS, OBJECTIVES, TIME_OPTIONS, CHANNELS, DESIRED_CHANNELS,
+  TIME_OPTIONS, CHANNELS, DESIRED_CHANNELS,
 } from "@/lib/onboarding-constants";
+import { useAuth } from "@/contexts/AuthContext";
+import { getOnboardingVariant } from "@/lib/onboarding-variants";
 import type { Answers } from "@/hooks/use-onboarding";
 
 /* ── Canaux Combined (Step 5) ── */

@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
-import { ACTIVITY_SECTIONS } from "@/lib/onboarding-constants";
+import { useAuth } from "@/contexts/AuthContext";
+import { getOnboardingVariant } from "@/lib/onboarding-variants";
 
 interface ActivityStepProps {
   value: string;
@@ -10,6 +11,8 @@ interface ActivityStepProps {
 }
 
 export default function ActivityStep({ value, detailValue, onChange, onDetailChange, onNext }: ActivityStepProps) {
+  const { user } = useAuth();
+  const { activitySections } = getOnboardingVariant(user?.email);
   const showDetail = value === "autre";
   const canNext = value && (value !== "autre" || detailValue.trim().length >= 5);
 
@@ -20,7 +23,7 @@ export default function ActivityStep({ value, detailValue, onChange, onDetailCha
         <p className="text-sm text-muted-foreground italic">choisis ce qui te correspond le mieux</p>
       </div>
       <div className="space-y-5 max-h-[60vh] overflow-y-auto pr-1" onPointerDown={e => e.stopPropagation()}>
-        {ACTIVITY_SECTIONS.map(section => (
+        {activitySections.map(section => (
           <div key={section.label}>
             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">{section.label}</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
