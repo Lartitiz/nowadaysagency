@@ -100,7 +100,8 @@ export default function CreerUnifie() {
   // 2. OR there is a recent session in storage (survives HMR / tab refresh)
   const hasSomeContext = hasUrlParams || !!location.state;
   const existingFlowState = loadFlowState();
-  const shouldRestore = hasSomeContext || (existingFlowState !== null && existingFlowState.step !== "idea");
+  const aurianaDemoActive = locState?.demoScenario === "auriana-carousel" || existingFlowState?.demoScenario === "auriana-carousel";
+  const shouldRestore = hasSomeContext || aurianaDemoActive || (existingFlowState !== null && existingFlowState.step !== "idea");
   const persistedState = useRef(shouldRestore ? (existingFlowState || null) : null);
 
   // Core state — restore from sessionStorage if available
@@ -274,6 +275,7 @@ export default function CreerUnifie() {
 
   // Demo mode: pre-fill with carousel example (type dynamique selon le profil)
   useEffect(() => {
+    if (aurianaDemoActive) return;
     if (!isDemoMode || !demoData) return;
     const demo = (demoData as any)?.carousel_photo_demo;
     if (!demo) return;
@@ -285,7 +287,7 @@ export default function CreerUnifie() {
     setResult(null);
     setDemoGenerating(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isDemoMode]);
+  }, [aurianaDemoActive, isDemoMode]);
 
   // Auto-persist state on changes
   useEffect(() => {
@@ -306,6 +308,7 @@ export default function CreerUnifie() {
         inspirationAnalysis: inspirationAnalysis || undefined,
         inspirationProposals: inspirationProposals || [],
         inspirationImagePreview: inspirationImagePreview || null,
+        demoScenario: aurianaDemoActive ? "auriana-carousel" : undefined,
       });
     }
   }, [step, ideaText, objective, selectedFormat, editorialAngle, editContent, result, visualSlides?.length, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview]);
@@ -531,7 +534,7 @@ export default function CreerUnifie() {
     setStep("questions");
 
     // Auriana demo: inject pre-built questions instead of calling AI
-    if (isAurianaDemoEmail(session?.user?.email) && ideaText === AURIANA_DEMO_SUBJECT) {
+    if (aurianaDemoActive) {
       setQuestions(AURIANA_DEMO_FLOW.questions);
       return;
     }
@@ -583,7 +586,7 @@ export default function CreerUnifie() {
     if (!selectedFormat) return;
 
     // Auriana demo account: instant pre-built result
-    if (isAurianaDemoEmail(session?.user?.email) && ideaText === AURIANA_DEMO_SUBJECT) {
+    if (aurianaDemoActive) {
       setDemoGenerating(true);
       setStep("result");
       const { type: _t, ...demoRest } = AURIANA_DEMO_FLOW.result;
@@ -1992,7 +1995,7 @@ export default function CreerUnifie() {
                 onSkip={handleSkipQuestions}
                 onBack={() => setStep("format")}
                 previousBriefsCount={briefsCount}
-                initialAnswers={isAurianaDemoEmail(session?.user?.email) && ideaText === AURIANA_DEMO_SUBJECT ? AURIANA_DEMO_FLOW.answers : undefined}
+                initialAnswers={aurianaDemoActive ? AURIANA_DEMO_FLOW.answers : undefined}
               />
             )}
 

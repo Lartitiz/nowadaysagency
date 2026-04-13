@@ -263,7 +263,7 @@ export default function AdaptiveHome() {
                     e.stopPropagation();
                     clearFlowState();
                     saveFlowState({ ...AURIANA_DEMO_FLOW, ts: Date.now() });
-                    navigate("/creer", { state: { demo: true } });
+                    navigate("/creer", { state: { demo: true, demoScenario: "auriana-carousel" } });
                   }}
                   className="block mt-2 text-sm font-semibold px-4 py-2.5 bg-primary text-primary-foreground rounded-xl hover:opacity-90 transition-opacity"
                 >
