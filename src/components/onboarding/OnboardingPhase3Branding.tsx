@@ -78,13 +78,15 @@ export function CanauxCombinedScreen({ answers, set, onNext }: {
 
 /* ── Objectif (Step 6) ── */
 export function ObjectifScreen({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const { user } = useAuth();
+  const { objectives } = getOnboardingVariant(user?.email);
   return (
     <div className="space-y-8">
       <div className="text-center space-y-2">
         <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">Et si tout marchait bien dans 6 mois, ça ressemblerait à quoi ?</h1>
       </div>
       <div className="space-y-3">
-        {OBJECTIVES.map(o => (
+        {objectives.map(o => (
           <ChoiceCard key={o.key} emoji={o.emoji} label={o.label} selected={value === o.key} onClick={() => onChange(o.key)} />
         ))}
       </div>
@@ -94,6 +96,8 @@ export function ObjectifScreen({ value, onChange }: { value: string; onChange: (
 
 /* ── Blocage (Step 7) ── */
 export function BlocageScreen({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const { user } = useAuth();
+  const { blockers } = getOnboardingVariant(user?.email);
   return (
     <div className="space-y-8">
       <div className="text-center space-y-2">
@@ -101,7 +105,7 @@ export function BlocageScreen({ value, onChange }: { value: string; onChange: (v
         <p className="text-sm text-muted-foreground italic">ce qui te fait soupirer quand tu y penses</p>
       </div>
       <div className="space-y-3">
-        {BLOCKERS.map(b => (
+        {blockers.map(b => (
           <ChoiceCard key={b.key} emoji={b.emoji} label={b.label} selected={value === b.key} onClick={() => onChange(b.key)} />
         ))}
       </div>
