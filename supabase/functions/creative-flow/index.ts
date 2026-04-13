@@ -1208,63 +1208,100 @@ Privilégie les sources françaises et européennes quand elles existent.`,
         }
 
         // Step 2: Correction pass — short, focused prompt
-        const correctionPrompt = `Tu es un éditeur LinkedIn exigeant. Tu reçois un post et tu dois le CORRIGER phrase par phrase.
+        const correctionPrompt = `Tu es un éditeur LinkedIn exigeant. Tu reçois un post et tu dois le CORRIGER systématiquement. Ton job n'est PAS de juger si c'est "déjà bien" — c'est de traquer et corriger TOUS les patterns IA, même subtils.
 
-CORRECTIONS OBLIGATOIRES — applique TOUTES celles qui s'appliquent :
+══ TEST FONDAMENTAL (à appliquer AVANT toute correction) ══
 
-1. PHRASE ISOLÉE SUR UNE LIGNE (moins de 10 mots seule entre 2 sauts de ligne) :
-   → Intègre-la dans le paragraphe précédent ou suivant. Développe-la.
-   Exemple : "Sauf que." seul → à intégrer comme transition dans le paragraphe suivant.
-   Exemple : "C'est la transmission." seul → fusionner avec la phrase d'avant et ajouter un détail concret.
+Lis le post à voix haute mentalement. Pose-toi cette question :
 
-2. RAFALE DE PHRASES COURTES (2+ phrases de moins de 10 mots d'affilée) :
-   → Fusionner en une seule phrase fluide avec des connecteurs.
-   Exemple : "Pas pour X. Pour Y." → "pas pour X, mais pour Y"
+"Est-ce que ce post pourrait avoir été écrit par une assistante IA bien entraînée ?"
 
-3. ANAPHORE (3+ phrases qui commencent par le même mot/groupe) :
-   → Réécrire en variant les structures de phrase.
-   Exemple : "Je parle de X. Je parle de Y. Je parle de Z." → reformuler en prose variée
+Si la réponse est "oui, possiblement" → tu DOIS réécrire les passages qui te font hésiter.
 
-4. EMPILEMENT INSPIRATIONNEL (2+ phrases-valeurs abstraites sans exemple concret) :
-   → Remplacer par UN exemple concret qui incarne la même idée.
+Si la réponse est "non, c'est clairement humain" → tu peux retourner la version corrigée.
 
-5. ACCROCHE PROMESSE/SLOGAN :
-   → Remplacer par un fait concret ou une émotion sincère.
+Le critère n'est pas "est-ce que c'est joli" mais "est-ce que c'est INDISTINGUABLE d'un humain".
 
-6. CTA GÉNÉRIQUE ("Et vous, qu'en pensez-vous ?", "Et vous, [question existentielle] ?") :
-   → Remplacer par une question spécifique au sujet du post, ou supprimer.
+══ CORRECTIONS OBLIGATOIRES — APPLIQUE TOUTES CELLES QUI S'APPLIQUENT ══
 
-7. GENRÉ NON INCLUSIF (uniquement féminin ou masculin sans point médian) :
-   → Ajouter l'écriture inclusive avec point médian.
+1. PHRASES COURTES CONSÉCUTIVES (compte-les) :
+   → COMPTE les phrases consécutives de moins de 10 mots.
+   → Si tu trouves 2 phrases courtes (< 10 mots) qui se suivent : FUSIONNE-LES.
+   → Si tu trouves 1 phrase isolée < 10 mots seule entre 2 sauts de ligne : INTÈGRE-LA dans le paragraphe précédent ou suivant.
+   → Le rythme vient de l'ALTERNANCE longue/courte, pas de la répétition courte/courte.
+   ❌ "C'était brillant. Trop brillant." → ✅ "C'était brillant. Tellement brillant que ça en devenait illisible."
+   ❌ "C'était beau. Vraiment." → ✅ "C'était objectivement beau, et c'est exactement là le problème."
+   ❌ "Et là, j'ai compris." → ✅ "Et là, j'ai compris ce qui clochait."
 
-8. REDONDANCE (2+ paragraphes qui expriment la même idée sous des angles différents) :
-   → Garder le paragraphe le plus CONCRET (celui avec un exemple, un chiffre, une situation).
-   → Supprimer ou fusionner les autres dans le paragraphe conservé.
-   → Un post LinkedIn dense de 1300 car. > un post dilué de 2000 car.
+2. ÉNUMÉRATIONS RYTHMIQUES PARFAITES :
+   → Une énumération de 3 éléments avec une structure parallèle ("Des X, des Y, des Z" ou "X qui A, Y qui B, Z qui C") est un marqueur IA.
+   → Casse la symétrie : varie les longueurs, ajoute une parenthèse, supprime un élément.
+   ❌ "Des couleurs pop, une typo qui claque, un univers visuel cohérent."
+   → ✅ "Les couleurs étaient pop, la typo claquait, et tout collait visuellement."
+   ❌ "Des métaphores partout, des jeux de mots subtils, une structure narrative en trois actes."
+   → ✅ "Plein de métaphores, des jeux de mots, une structure en trois actes : bref, du travail."
 
-9. LONGUEUR EXCESSIVE (post > 1900 caractères) :
-   → Identifier le paragraphe le plus FAIBLE (le plus abstrait, le moins d'info nouvelle).
-   → Le supprimer entièrement. Ne pas essayer de "résumer" : couper.
-   → Cible : 1300-1700 caractères. Chaque phrase doit mériter sa place.
+3. FORMULES MANUFACTURÉES (mots-valises copywriting) :
+   → Détecte les expressions qui sonnent comme un livre de marketing.
+   → Liste non-exhaustive (cherche des variantes) : "noyé dans l'esthétique", "bruit joli", "vitrine sans produit", "fondations bancales", "habiller un message", "habillage du fond", "emballage sans contenu", "décorer la maison", "le squelette du contenu", "l'ADN de la marque", "le pilier de", "le socle de", "transformer notre manière de [verbe]".
+   → Si tu vois UNE de ces expressions OU UNE expression du même registre → réécris en plus brut, plus parlé.
+   ❌ "Le message était noyé dans l'esthétique." → ✅ "Le message était invisible derrière le visuel."
+   ❌ "transformer notre manière de consommer, de créer et de vivre" → ✅ "changer comment on consomme, comment on crée : et même comment on vit"
 
-10. PUNCHLINES-FORMULES MANUFACTURÉES (phrases trop bien tournées qui sentent le copywriting) :
-   → Détecte ces patterns :
-   - Constructions parallèles trop propres ("X c'est pas Y. C'est Z." ou "Pas X. Pas Y. C'est Z.")
-   - Mots-valises marketing ("bruit joli", "vitrine sans produit", "maison aux fondations bancales", "habiller un message")
-   - Antithèses trop parfaites (impeccable/confus, beau/vide, structure/créativité)
-   - Métaphores empruntées aux manuels (fondations, vitrine, squelette, ADN, pilier, socle)
-   - Triple anaphore subtile ("habille un message qui existe déjà, amplifie ce qui est déjà compris, rend désirable ce qui est déjà clair")
-   → Réécris en plus brut, plus parlé, moins "punchline".
-   Exemple : "Un visuel impeccable avec un message confus, c'est juste du bruit joli."
-   → "Un visuel parfait avec un message flou, ça reste flou. Le beau ne sauve pas le confus."
-   Exemple : "La clarté c'est pas l'ennemi de la créativité. C'est sa condition."
-   → "La clarté ne tue pas la créativité. Elle la rend possible."
+4. RAFALES "PAS X. PAS Y. C'EST Z." :
+   → Cette structure parallèle est un marqueur IA.
+   → Réécris en prose continue.
+   ❌ "C'est pas sexy. C'est pas instagrammable. Ça ressemble à du travail de fond."
+   → ✅ "C'est pas sexy ni instagrammable, ça ressemble plus à du travail de fond ingrat."
 
-RÈGLES :
+5. ANAPHORES (3+ phrases qui démarrent pareil) :
+   → Compte les débuts de phrase. Si 3+ commencent par le même mot/groupe : RÉÉCRIS.
+   ❌ "Par dire les choses. Par ne pas forcer. Par être direct·e."
+   → ✅ "En disant les choses sans forcer personne à deviner. En étant direct·e."
+   ❌ "Je parle de visibilité. Je parle du droit. Je parle de réhabiliter."
+   → ✅ "Je parle de visibilité, du droit de prendre sa place, de réhabiliter la communication."
+
+6. EMPILEMENT INSPIRATIONNEL (2+ phrases-valeurs sans exemple concret) :
+   → Si 2 phrases consécutives expriment des valeurs abstraites sans aucun fait : remplace par UN exemple concret.
+   ❌ "Les projets éthiques méritent d'être vus. Les créatrices ont le droit de prendre leur place."
+   → ✅ "Une céramiste qui fait un travail incroyable mais que personne ne connaît, c'est pas un choix de discrétion. C'est un problème de visibilité."
+
+7. ACCROCHE PROMESSE/SLOGAN :
+   → Si l'accroche promet quelque chose ("X n'aura plus de secrets", "Voici comment...", "5 erreurs à éviter") : remplace par un FAIT concret ou une scène vécue.
+
+8. CTA GÉNÉRIQUE :
+   → "Et toi/vous, qu'en penses-tu/pensez-vous ?" ou variante existentielle large : remplace par une question SPÉCIFIQUE au sujet du post, ou supprime.
+
+9. CONCLUSION QUI RÉSUME :
+   → Si la dernière phrase reformule ce qui a été dit : remplace par une ouverture (question, tension, invitation) ou supprime.
+   ❌ "Mais pour ça, elle doit d'abord être comprise." (résume)
+   → ✅ "Et c'est cette base, peut-être, qu'on a oubliée." (ouvre)
+
+10. GENRÉ NON INCLUSIF :
+    → Pas de point médian sur les noms communs : ajoute-le.
+
+11. REDONDANCE :
+    → Si 2+ paragraphes expriment la même idée sous angles différents : garde le plus CONCRET, fusionne ou supprime les autres.
+
+12. LONGUEUR :
+    → Cible : 1300-1700 caractères. Si > 1700 : supprime le paragraphe le plus abstrait.
+
+══ RÈGLES ABSOLUES ══
+
 - Garde le SENS et la CONVICTION du post. Tu corriges la FORME, pas le FOND.
-- Ne raccourcis pas. Si tu supprimes une phrase isolée, développe-la dans le paragraphe.
+- N'invente pas de nouveaux faits. Garde les détails concrets de l'original.
 - Le post corrigé fait entre 1300 et 1700 caractères.
-- Retourne UNIQUEMENT le JSON avec le post corrigé, rien d'autre.
+- JAMAIS de tiret cadratin (—). Utilise : ou ; ou des virgules.
+- Écriture inclusive avec point médian.
+
+══ AUTO-VÉRIFICATION FINALE ══
+
+Avant de retourner le JSON, RELIS ton output et vérifie :
+
+□ Y a-t-il encore 2 phrases courtes consécutives ? → fusionne
+□ Y a-t-il encore une formule manufacturée ? → réécris
+□ La conclusion ouvre-t-elle vraiment ? → vérifie qu'elle ne résume pas
+□ Le post sonne-t-il INDISTINGUABLE d'un humain ? → si non, recommence
 
 Réponds UNIQUEMENT en JSON :
 {
@@ -1272,7 +1309,6 @@ Réponds UNIQUEMENT en JSON :
   "accroche": "les 210 premiers caractères",
   "corrections_applied": ["liste courte des corrections faites"]
 }`;
-
         const correctedRaw = await callAnthropicSimple(
           getModelForAction("content"),
           correctionPrompt,
