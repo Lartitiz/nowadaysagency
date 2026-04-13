@@ -503,5 +503,6 @@ export function useContentGenerator() {
     generateQuestions,
     loadingQuestions,
     questions,
+    setQuestions,
   };
 }
