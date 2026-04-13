@@ -463,7 +463,7 @@ export default function Dashboard() {
                   >
                     🤔 Je sais pas quoi poster...
                   </button>
-                  {isAurianaDemoEmail(session?.user?.email) && (
+                  {isAurianaDemoEmail(user?.email) && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
