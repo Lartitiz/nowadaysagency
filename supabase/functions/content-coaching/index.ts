@@ -400,6 +400,14 @@ ${shuffledHooks.map((h, i) => `Idée ${i + 1} → ${h}`).join("\n")}
 INTERDIT pour les hooks : "Et si je te disais", "Dans un monde où", "Spoiler alert", "Le secret de", "La clé c'est", toute formule IA générique.
 Les hooks font max 15 mots. Ils fonctionnent SEULS, sans contexte.
 
+VOIX DU HOOK — RÈGLE ANTI-TU :
+La voix dominante des hooks est le JE (l'utilisatrice qui partage son vécu, sa conviction, son observation).
+- ✅ BON : "J'ai arrêté de faire des remises. Voici ce qui s'est passé."
+- ✅ BON : "Les galeristes des années 80 ont fait une erreur que je retrouve partout."
+- ❌ MAUVAIS : "Les galeristes des années 80 ont fait la même erreur que toi."
+- ❌ MAUVAIS : "Tu fais cette erreur sans le savoir."
+Le TU est réservé à l'interpellation ponctuelle (max 1 hook sur 3). Privilégier le JE narratif ou une formulation neutre/impersonnelle.
+
 ANTI-PATTERNS RÉCURRENTS (l'IA les sur-utilise, INTERDITS sauf exception rare) :
 - "Il y a 2 types de [X]" → formule sur-utilisée, trouver un autre angle
 - "Les X mensonges/erreurs que..." → idem
