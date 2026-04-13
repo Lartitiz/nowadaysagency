@@ -95,7 +95,7 @@ export const AURIANA_DEMO_FLOW = {
     accroche: "Je vends avant d'acheter. Et c'est pour ça que mes opérations sont rentables.",
   },
   savedId: null,
-  visualSlides: [],
+  visualSlides: [] as { slide_number: number; html: string }[],
   editContent: "",
   ts: Date.now(),
 };
