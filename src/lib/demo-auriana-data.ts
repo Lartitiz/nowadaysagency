@@ -13,9 +13,9 @@ export const AURIANA_DEMO_SUBJECT = "La pré-commercialisation en MDB : je vends
 
 export const AURIANA_DEMO_FLOW = {
   step: "idea" as const,
+  ideaText: AURIANA_DEMO_SUBJECT,
   demoScenario: "auriana-carousel" as const,
   objective: "visibilite",
-  selectedFormat: "carousel",
   editorialAngle: "decryptage",
   questions: [
     { id: "q_0", question: "Quel moment précis t'a fait comprendre que pré-commercialiser changeait tout ?", placeholder: "Un deal, une situation, un déclic..." },
