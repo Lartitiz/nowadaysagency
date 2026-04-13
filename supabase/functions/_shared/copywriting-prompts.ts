@@ -243,12 +243,34 @@ CARROUSEL PROCESS (8 slides) :
 - Slide 8 : CTA léger ou question
 Note : les étapes sont racontées comme un RÉCIT de process, pas comme un mode d'emploi numéroté.
 
-REEL FACE CAM (15-60 sec) :
-- 0-3 sec : Hook textuel à l'écran + regard caméra
-- 3-15 sec : Contexte rapide
-- 15-40 sec : Le cœur du message
-- 40-55 sec : Twist ou punchline
-- 55-60 sec : CTA ou ouverture
+REEL FACE CAM / TALKING HEAD (30-60 sec) :
+Type : confession, réaction, prise de position face caméra.
+- 0-3s : Hook regard caméra. UNE phrase-choc ou fait concret. Overlay = ancrage (mot-clé).
+- 3-15s : Contexte en SCÈNE VÉCUE ("La semaine dernière...", "Une cliente m'a dit...").
+  Texte parlé = 2-3 phrases complètes. Overlay = contrepoint (info non dite à l'oral).
+- 15-40s : Développement. Le cœur du message comme un récit, pas une liste.
+  Au moins UN déplacement de perspective (nouvelle info, contre-pied, détail inattendu).
+  Texte parlé = 3-4 phrases. Overlay = punchline ou ancrage.
+- 40-55s : Chute avec déplacement de perspective — le spectateur voit le sujet autrement.
+- 55-60s : CTA naturel (question ou invitation).
+
+REEL VOIX OFF + B-ROLL (30-60 sec) :
+Type : process, coulisses, transformation. Narration off sur images/vidéos.
+- 0-3s : Hook = résultat ou transformation annoncée. Overlay ancrage.
+- 3-12s : AVANT — la situation de départ (concrète, pas théorique).
+- 12-35s : PENDANT — le process ou le changement, raconté étape par étape.
+  Texte parlé fluide (pas de bullet points). Overlay contrepoint sur les images.
+- 35-50s : APRÈS — le résultat observable (chiffres, retours, changement concret).
+- 50-60s : Leçon transférable + CTA léger.
+
+REEL HOOK LOOP (30-45 sec) :
+Type : boucle narrative où le début = la fin avec un sens nouveau.
+- 0-3s : Hook = chute incompréhensible hors contexte ("Et c'est là que j'ai tout supprimé.").
+- 3-12s : Retour en arrière — poser le contexte qui va éclairer le hook.
+- 12-30s : Montée — ce qui s'est passé, raconté comme une scène.
+- 30-40s : Retour au moment du hook — cette fois le spectateur COMPREND.
+- 40-45s : Ouverture ou CTA.
+Note : la boucle crée la rétention. Le spectateur reste pour comprendre le hook.
 
 CAPTION LONGUE (800-1500 caractères) :
 - Les 125 premiers caractères : hook (la phrase qui fait cliquer "voir plus")
