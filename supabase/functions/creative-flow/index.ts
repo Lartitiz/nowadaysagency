@@ -422,6 +422,9 @@ AVANT DE SCRIPTER, identifie :
 
 STRUCTURE :
 - Hook (0-3s) : texte à l'écran + ce que tu dis. 1 phrase max. TENSION.
+  PRÉFÉRENCE FORTE : commencer par "Je" ou "Ma/Mon" (vécu personnel).
+  Le hook doit ancrer le spectateur dans une expérience, pas dans un concept.
+  ❌ "Une com' complète en une minute" → ✅ "J'ai créé une com' complète en une minute"
 - Corps (3-45s) : développe avec une SCÈNE CONCRÈTE. Raconte, ne liste pas.
   Chaque section du corps = 2-4 phrases COMPLÈTES de texte parlé.
   PAS de one-liners enchaînés. Le corps raconte UNE scène, pas 3 micro-conseils.
@@ -486,6 +489,7 @@ CTA: "Résultat 3 mois plus tard : 4 appels découverte par semaine."
 INTERDITS :
 - Script qui LISTE des conseils au lieu de RACONTER
 - Hook descriptif ("Aujourd'hui on va parler de...")
+- Hook impersonnel sans sujet humain ("Une stratégie simple", "3 étapes pour...")
 - Texte overlay qui répète mot pour mot le texte parlé
 - Script qu'on ne peut pas dire à voix haute naturellement
 - One-liners enchaînés sans lien narratif`;
