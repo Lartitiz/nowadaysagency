@@ -578,7 +578,7 @@ export default function CreerUnifie() {
       setStep("result");
       const demoResult = AURIANA_DEMO_FLOW.result;
       setTimeout(() => {
-        setResult({ type: "carousel", raw: demoResult, ...demoResult });
+        setResult({ type: "carousel" as const, raw: demoResult, ...demoResult });
         setDemoGenerating(false);
       }, 2500);
       return;
