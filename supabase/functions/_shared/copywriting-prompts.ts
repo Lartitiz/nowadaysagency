@@ -404,6 +404,7 @@ Rythme artificiel :
 - Anaphore mécanique en fin de texte ("Avec X. Avec Y. Avec Z." ou "Pas X. Pas Y. Mais Z.") → SUPPRIMER.
 - "C'est pas X. C'est Y." plus d'une fois par contenu → UNE FOIS MAX.
 - Phrase isolée dramatique sur une ligne ("Et là, tout a basculé.") → SUPPRIMER.
+- Chute en paire nominale symétrique ("Message clair, preuve concrète.", "Vision forte, exécution solide.", "Simplicité, authenticité.") → BANNI. Ça résume sans rien dire. Terminer par une phrase concrète ou une question qui ouvre.
 
 Storytelling fabriqué :
 - "Et là, tout a basculé/changé." → BANNI. C'est le marqueur IA #1.
