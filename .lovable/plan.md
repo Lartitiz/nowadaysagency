@@ -1,59 +1,36 @@
 
 
-## Plan : Brancher carousel-ai sur le module correction-pass
+## Plan : Personnaliser le placeholder selon l'activité de l'utilisatrice
 
-### Points d'insertion identifiés
+### Problème
+Le placeholder du textarea dans `CreerStepIdea.tsx` (ligne 49) est hardcodé avec "colliers en velours" — un exemple orienté bijoux/artisanat. Quand Auriana (marchande de biens) utilise l'outil, ça n'a aucun sens.
 
-Le fichier a **4 endroits** où du contenu final est généré et retourné :
-
-1. **L.141-161** — Mode `express_full` + `mix` (avec photos) → `content` déclaré en `let` ✓
-2. **L.150-161** — Mode `express_full` + `mix` (sans photos) → même variable `content`
-3. **L.167-208** — Mode `express_full` + `photo` → `content` déclaré en `let` ✓
-4. **L.398-408** — Chemin partagé (hooks, slides, express_full standard, MAIS AUSSI suggest_topics, suggest_angles, deepening_questions) → `content` déclaré en `const` → passer en `let`
+### Solution
+Passer l'activité du profil en prop à `CreerStepIdea` et générer un placeholder contextuel.
 
 ### Modifications
 
-**Import (L.11, après les imports existants) :**
+**1. `src/components/creer/CreerStepIdea.tsx`**
+- Ajouter une prop `activite?: string` à l'interface `Props`
+- Créer un dictionnaire de placeholders par type d'activité (immobilier, coaching, bijoux, etc.) avec un fallback générique
+- Remplacer le placeholder hardcodé (L.49) par la version dynamique
+
+Exemple de dictionnaire :
 ```typescript
-import { applyCorrectionPass } from "../_shared/correction-pass.ts";
+const PLACEHOLDERS: Record<string, string> = {
+  immobilier: "Ex : je veux montrer un bien que je viens d'acquérir / je voudrais parler de pourquoi j'ai choisi le portage / j'ai envie de réagir à une actu immo...",
+  coaching: "Ex : je veux partager une prise de conscience d'une cliente / je voudrais parler de pourquoi j'ai créé mon accompagnement / j'ai envie de réagir à un mythe du développement perso...",
+  default: "Ex : je veux montrer un projet récent / je voudrais parler de pourquoi je fais ce métier / j'ai envie de réagir à une actu...",
+};
 ```
 
-**Point 1 — Mix carousel (L.157, avant `await logUsage`) :**
-Ajouter le bloc correction entre la génération et le return (L.158-161).
+**2. `src/pages/CreerUnifie.tsx`**
+- Récupérer `activite` ou `type_activite` depuis le profil (probablement déjà dispo via un hook existant ou à fetcher)
+- Passer `activite={activite}` à `<CreerStepIdea>`
 
-**Point 2 — Photo carousel (L.204, avant `await logUsage`) :**
-Même bloc correction avant le return (L.205-208).
+**3. `src/lib/content-structures.ts`** (L.91)
+- Optionnel : rendre les `exampleSubjects` aussi contextuels à terme, mais pas nécessaire pour ce fix
 
-**Point 3 — Chemin partagé (L.398-408) :**
-- Changer `const content` en `let content` (L.398)
-- Ajouter le bloc correction APRÈS L.403 mais UNIQUEMENT si `type` est `hooks`, `slides` ou `express_full` (pas pour suggest_topics, suggest_angles, deepening_questions)
-
-### Bloc correction (identique aux 3 points) :
-```typescript
-// Apply correction pass
-if (type === "express_full" || type === "slides" || type === "hooks") {
-  try {
-    const correctionFormat = body.channel === "linkedin" ? "linkedin" : "carousel";
-    const corrected = await applyCorrectionPass(content, correctionFormat, {
-      enabled: true,
-      skipIfShorterThan: 300,
-      logger: (msg) => console.log(msg),
-    });
-    if (corrected && corrected !== content) {
-      content = corrected;
-    }
-  } catch (correctionError) {
-    console.error("Correction pass failed in carousel-ai:", correctionError);
-  }
-}
-```
-
-Pour les points 1 et 2 (mix/photo), le guard `if (type === ...)` n'est pas nécessaire car on est déjà dans `express_full`, mais on le simplifie en gardant juste le try/catch.
-
-### Fichier modifié
-- `supabase/functions/carousel-ai/index.ts` — 1 import + 3 blocs correction
-
-### Vérifications
-- `grep -c "applyCorrectionPass"` → 4 (1 import + 3 appels)
-- `grep -c "correction-pass"` → 1 (import)
+### Résultat
+Auriana voit un placeholder parlant de biens immobiliers, portage, clauses suspensives. Une coach voit un placeholder parlant d'accompagnement. Fallback générique si activité inconnue.
 
