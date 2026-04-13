@@ -39,6 +39,8 @@ import DiscoveryCoachingCard from "@/components/dashboard/DiscoveryCoachingCard"
 import { checkBadges } from "@/lib/badges";
 import { trackError } from "@/lib/error-tracker";
 import OnboardingMissions from "@/components/dashboard/OnboardingMissions";
+import { isAurianaDemoEmail, AURIANA_DEMO_FLOW } from "@/lib/demo-auriana-data";
+import { saveFlowState, clearFlowState } from "@/hooks/use-flow-persistence";
 
 import SessionFocusWidget from "@/components/dashboard/SessionFocusWidget";
 import ContentCoachingDialog from "@/components/dashboard/ContentCoachingDialog";
@@ -454,12 +456,30 @@ export default function Dashboard() {
                     </button>
                   ))}
                 </div>
-                <button
-                  onClick={(e) => { e.stopPropagation(); setContentCoachingOpen(true); }}
-                  className="text-xs text-muted-foreground hover:text-primary mt-3 transition-colors"
-                >
-                  🤔 Je sais pas quoi poster...
-                </button>
+                <div className="flex items-center gap-3 mt-3">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setContentCoachingOpen(true); }}
+                    className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                  >
+                    🤔 Je sais pas quoi poster...
+                  </button>
+                  {isAurianaDemoEmail(user?.email) && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        clearFlowState();
+                        saveFlowState({ ...AURIANA_DEMO_FLOW, ts: Date.now() });
+                        navigate("/creer");
+                      }}
+                      className="text-xs font-medium px-3.5 py-2 rounded-xl
+                        bg-primary/10 border border-primary/30 text-primary
+                        hover:bg-primary hover:text-primary-foreground
+                        transition-all duration-150"
+                    >
+                      🎬 Lancer la démo carrousel
+                    </button>
+                  )}
+                </div>
               </BentoCard>
             </FirstTimeTooltip>
           </div>
