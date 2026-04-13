@@ -1,41 +1,35 @@
 
 
-## Plan : Renforcer la règle "hook en JE" dans le prompt Reel
+## Plan : Calibrage durée Reel selon objectif (reach vs nurture)
 
-### Constat
-Le hook actuel du depth mandate Reel (ligne 424) dit juste "1 phrase max. TENSION." sans contrainte sur le point de vue narratif. L'IA génère donc parfois des hooks impersonnels ("Une com' complète en une minute chrono"). Les exemples ✅ existants utilisent déjà "Ma cliente..." ou "Je lui ai demandé..." mais il manque une règle explicite.
+### Fichier modifié
+`supabase/functions/creative-flow/index.ts` — un seul fichier
 
-### Changement prévu
+### Contexte vérifié
+- `effectiveObjective` est défini ligne 155 (valeurs : `visibilite`, `engagement`, `vente`, `credibilite`, ou null)
+- Le depth mandate Reel se termine ligne 495 par `` - One-liners enchaînés sans lien narratif`; ``
+- Ligne 496 : `} else if (isStories) {`
 
-**Fichier** : `supabase/functions/creative-flow/index.ts`
+### Action
+Remplacer les lignes 495-496 pour insérer entre la fin du depthMandate Reel et le bloc Stories :
 
-**1. Ligne 424** — Enrichir la ligne hook :
+1. Fermer la template string existante (inchangé)
+2. Ajouter un bloc conditionnel `if (effectiveObjective === "visibilite")` qui concatène à `depthMandate` les contraintes format court (15-25s, 40-80 mots)
+3. Ajouter un `else if` pour les 3 autres objectifs (engagement/vente/credibilite) qui concatène les contraintes format long (45-75s, 110-190 mots)
+4. Si `effectiveObjective` est null ou autre valeur, le format standard 30-60s du depth mandate de base s'applique (pas de concaténation)
 
-Remplacer :
-```
-- Hook (0-3s) : texte à l'écran + ce que tu dis. 1 phrase max. TENSION.
-```
-Par :
-```
-- Hook (0-3s) : texte à l'écran + ce que tu dis. 1 phrase max. TENSION.
-  PRÉFÉRENCE FORTE : commencer par "Je" ou "Ma/Mon" (vécu personnel).
-  Le hook doit ancrer le spectateur dans une expérience, pas dans un concept.
-  ❌ "Une com' complète en une minute" → ✅ "J'ai créé une com' complète en une minute"
-```
+### Contenu inséré
+Le bloc exact fourni par l'utilisateur, tel quel.
 
-**2. Ligne 488** — Ajouter un interdit :
-
-Après `- Hook descriptif ("Aujourd'hui on va parler de...")`, ajouter :
-```
-- Hook impersonnel sans sujet humain ("Une stratégie simple", "3 étapes pour...")
-```
-
-### Ce qui ne change pas
-- Les règles overlay / frame 1 / pattern interrupt
-- Les exemples ❌/✅ existants (déjà cohérents avec cette règle)
+### Ce qui ne change PAS
+- Le depthMandate Reel principal (lignes 386-495)
+- Le `objectiveBlock` existant (lignes 154-168) — complémentaire, pas redondant
+- Les autres formats (Stories, Carrousel, etc.)
 - Le format JSON de sortie
 - Aucun autre fichier
 
-### Impact
-~4 lignes ajoutées. Déploiement de la fonction `creative-flow`.
+### Vérifications
+- TypeScript compile sans erreur
+- `grep "CALIBRAGE DURÉE"` retourne 2 occurrences (VISIBILITÉ + NURTURE)
+- Déploiement de la Edge Function `creative-flow`
 
