@@ -400,9 +400,6 @@ AVANT DE SCRIPTER, identifie :
 2. QUELLE SITUATION CONCRÈTE illustre ce point ?
    Un reel qui RACONTE une scène (un moment, un échange, un avant/après) 
    fonctionne 10x mieux qu'un reel qui EXPLIQUE un concept.
-   ❌ "L'erreur n°1 en communication, c'est de ne pas avoir de stratégie."
-   ✅ "La semaine dernière, une cliente m'a dit : 'je poste tous les jours 
-   et j'ai 3 likes'. Je lui ai demandé : 'tu postes pour qui ?'. Silence."
 
 3. QUEL EST LE HOOK DES 3 PREMIÈRES SECONDES ?
    Le spectateur décide en 1-3 secondes de rester ou scroller. Le hook 
@@ -413,24 +410,58 @@ AVANT DE SCRIPTER, identifie :
    ✅ "Ma cliente avait 10K abonnés et zéro client." (fait concret)
    ✅ "'C'est trop cher.' En vrai, c'est pas le prix le problème." (objection retournée)
 
+4. QUEL EST LE MOUVEMENT NARRATIF ?
+   Avant d'écrire, identifie le déplacement :
+   situation → déplacement de perspective → nouvelle compréhension.
+   Au moins UN moment dans le corps doit créer un déplacement :
+   nouvelle info, contre-pied, zoom sur un détail inattendu.
+   Ce n'est PAS un "retournement" dramatique obligatoire, c'est un CHANGEMENT
+   de regard sur le sujet.
+
 ══ RÈGLES DE SCRIPT ══
 
 STRUCTURE :
 - Hook (0-3s) : texte à l'écran + ce que tu dis. 1 phrase max. TENSION.
 - Corps (3-45s) : développe avec une SCÈNE CONCRÈTE. Raconte, ne liste pas.
-  Chaque section a du texte parlé complet (phrases, pas bullet points).
+  Chaque section du corps = 2-4 phrases COMPLÈTES de texte parlé.
+  PAS de one-liners enchaînés. Le corps raconte UNE scène, pas 3 micro-conseils.
 - CTA (45-60s) : fermeture naturelle. Question ou invitation.
 
+OVERLAY — 3 RÔLES POSSIBLES (choisir 1 par section) :
+- ANCRAGE : mot-clé ou concept qui reste à l'écran (ex: "POSITIONNEMENT")
+- CONTREPOINT : info que le texte parlé ne dit PAS (un chiffre, un fait complémentaire)
+- PUNCHLINE : chute visuelle, phrase d'impact différente du texte parlé
+INTERDIT : overlay qui résume ou condense le texte parlé. L'overlay COMPLÈTE, il ne RÉPÈTE PAS.
+3-8 mots max par overlay.
+
 FORMAT DE SORTIE :
-- Indique le timing, le texte parlé, le texte overlay (3-8 mots max à l'écran), 
+- Indique le timing, le texte parlé, le texte overlay (+ son rôle : ancrage/contrepoint/punchline), 
   les cuts visuels et le cadrage pour chaque section.
 - TOTAL : 150-300 mots de texte parlé (rythme parlé = ~150 mots/minute).
+
+══ EXEMPLE QUALITÉ ══
+
+❌ SCRIPT GÉNÉRIQUE (listicle filmé) :
+Hook: "3 erreurs sur Instagram"
+Corps: "Erreur 1 : pas de stratégie. Erreur 2 : pas de régularité. Erreur 3 : pas de CTA."
+→ Zéro scène, zéro tension, zéro déplacement. C'est un post lu à voix haute.
+
+✅ SCRIPT QUI RACONTE (scène + déplacement) :
+Hook: "Ma cliente avait 10K abonnés et zéro client."
+Corps: "Je lui ai demandé : 'Tu postes pour qui ?'. Silence.
+Elle postait 5 fois par semaine. Des tips, des infographies, des reels tendance.
+Sauf que son audience idéale, elle scroll pas des tips. Elle cherche quelqu'un 
+qui comprend SON problème. On a tout arrêté. 2 posts par semaine. 
+Chaque post = une situation que sa cliente vit."
+CTA: "Résultat 3 mois plus tard : 4 appels découverte par semaine."
+→ Une scène, un déplacement ("sauf que"), un résultat concret.
 
 INTERDITS :
 - Script qui LISTE des conseils au lieu de RACONTER
 - Hook descriptif ("Aujourd'hui on va parler de...")
 - Texte overlay qui répète mot pour mot le texte parlé
-- Script qu'on ne peut pas dire à voix haute naturellement`;
+- Script qu'on ne peut pas dire à voix haute naturellement
+- One-liners enchaînés sans lien narratif`;
       } else if (isStories) {
         depthMandate = `FORMAT : SÉQUENCE STORIES (5-7 stories)
 
