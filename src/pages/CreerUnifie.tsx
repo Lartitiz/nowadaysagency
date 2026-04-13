@@ -73,7 +73,7 @@ export default function CreerUnifie() {
   const navigate = useNavigate();
   const location = useLocation();
   const { session } = useAuth();
-  const { isDemoMode, demoData, demoProfileId } = useDemoContext();
+  const { isDemoMode, demoData } = useDemoContext();
   const workspaceId = useWorkspaceId();
   const { data: charterData } = useBrandCharter();
   const { remainingTotal, loading: planLoading, plan, usage } = useUserPlan();
@@ -281,7 +281,7 @@ export default function CreerUnifie() {
     setResult(null);
     setDemoGenerating(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isDemoMode, demoProfileId]);
+  }, [isDemoMode]);
 
   // Auto-persist state on changes
   useEffect(() => {
