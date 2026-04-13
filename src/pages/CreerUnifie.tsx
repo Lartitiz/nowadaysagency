@@ -571,6 +571,19 @@ export default function CreerUnifie() {
 
   const doGenerate = async (ans: Record<string, string>) => {
     if (!selectedFormat) return;
+
+    // Auriana demo account: instant pre-built result
+    if (isAurianaDemoEmail(session?.user?.email) && ideaText === AURIANA_DEMO_SUBJECT) {
+      setDemoGenerating(true);
+      setStep("result");
+      const demoResult = AURIANA_DEMO_FLOW.result;
+      setTimeout(() => {
+        setResult({ type: "carousel", raw: demoResult, ...demoResult });
+        setDemoGenerating(false);
+      }, 2500);
+      return;
+    }
+
     // Demo mode: simulate generation with pre-built result
     if (isDemoMode) {
       const demo = (demoData as any)?.carousel_photo_demo;
