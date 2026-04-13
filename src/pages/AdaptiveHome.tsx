@@ -140,6 +140,7 @@ const MINI_CARDS = [
 export default function AdaptiveHome() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   const { recommendation, profileSummary, isLoading } = useGuideRecommendation();
 
   const [tourDone, setTourDone] = useState(() => !!localStorage.getItem("lac_dashboard_tour_seen"));
