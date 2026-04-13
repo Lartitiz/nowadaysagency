@@ -67,6 +67,9 @@ export function useAccountSwitcher() {
       });
     }
 
+    // Clear creation flow state to prevent cross-account content leakage
+    clearFlowState();
+
     // Restore the target account's session
     const { error } = await supabase.auth.refreshSession({
       refresh_token: account.refreshToken,
