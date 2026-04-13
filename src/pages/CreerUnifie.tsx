@@ -1654,6 +1654,17 @@ export default function CreerUnifie() {
   const handleGenerateVisuals = async () => {
     if (!result?.raw?.slides || visualLoading) return;
     setVisualLoading(true);
+
+    // ═══ Demo bypass: return pre-built visuals instantly ═══
+    if (aurianaDemoActive) {
+      const { getAurianaDemoVisualSlides } = await import("@/lib/demo-auriana-data");
+      await new Promise(r => setTimeout(r, 1500));
+      setVisualSlides(getAurianaDemoVisualSlides());
+      setVisualLoading(false);
+      toast.success("Visuels générés !");
+      return;
+    }
+
     try {
       // ═══ Diagnostic : vérifier la structure des slides ═══
       const rawSlides = result.raw.slides;
