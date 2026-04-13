@@ -100,7 +100,8 @@ export default function CreerUnifie() {
   // 2. OR there is a recent session in storage (survives HMR / tab refresh)
   const hasSomeContext = hasUrlParams || !!location.state;
   const existingFlowState = loadFlowState();
-  const shouldRestore = hasSomeContext || (existingFlowState !== null && existingFlowState.step !== "idea");
+  const aurianaDemoActive = locState?.demoScenario === "auriana-carousel" || existingFlowState?.demoScenario === "auriana-carousel";
+  const shouldRestore = hasSomeContext || aurianaDemoActive || (existingFlowState !== null && existingFlowState.step !== "idea");
   const persistedState = useRef(shouldRestore ? (existingFlowState || null) : null);
 
   // Core state — restore from sessionStorage if available
