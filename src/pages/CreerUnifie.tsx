@@ -431,6 +431,21 @@ export default function CreerUnifie() {
   const handleFormatNext = async (format: string, angle?: string, options?: { carouselSubMode?: "text" | "photo" | "mix"; photos?: any[]; photoDescription?: string; photoMode?: boolean; overrideSubject?: string }) => {
     const { carouselSubMode: sub, photos, photoDescription: desc, photoMode: pm, overrideSubject } = options || {};
 
+    // Auriana demo account: instant pre-built result
+    if (isAurianaDemoEmail(session?.user?.email) && ideaText === AURIANA_DEMO_SUBJECT) {
+      setSelectedFormat(format);
+      setEditorialAngle(angle || null);
+      if (sub) setCarouselSubMode(sub);
+      setStep("result");
+      setDemoGenerating(true);
+      const { type: _t, ...demoRest } = AURIANA_DEMO_FLOW.result;
+      setTimeout(() => {
+        setResult({ type: "carousel" as const, raw: AURIANA_DEMO_FLOW.result, ...demoRest });
+        setDemoGenerating(false);
+      }, 2500);
+      return;
+    }
+
     // Demo mode: si le sujet correspond au pré-fill, afficher instantanément le résultat pré-généré.
     // Sinon, laisser le flow normal continuer vers la vraie génération IA.
     if (isDemoMode) {
