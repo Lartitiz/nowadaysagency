@@ -1,10 +1,12 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ChevronRight, Home, PenLine, CalendarDays, MessageCircle, Palette, ClipboardList, Instagram, Briefcase, Globe, Search, Pin, Users, BarChart3, Brain, Settings, Film, GraduationCap, Wrench, CreditCard, HeartHandshake, LogOut, Menu, X } from "lucide-react";
+import { ChevronRight, ChevronDown, Check, Home, PenLine, CalendarDays, MessageCircle, Palette, ClipboardList, Instagram, Briefcase, Globe, Search, Pin, Users, BarChart3, Brain, Settings, Film, GraduationCap, Wrench, CreditCard, HeartHandshake, LogOut, Menu, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserPlan } from "@/hooks/use-user-plan";
 import { useDemoContext } from "@/contexts/DemoContext";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface NavItem {
   label: string;
@@ -144,6 +146,9 @@ export default function AppSidebar() {
 
   const firstName = user?.user_metadata?.first_name || user?.user_metadata?.prenom || user?.email?.split("@")[0] || "Utilisateur";
   const initial = firstName.charAt(0).toUpperCase();
+
+  const { activeWorkspace, workspaces, isMultiWorkspace, switchWorkspace } = useWorkspace();
+  const [wsPopoverOpen, setWsPopoverOpen] = useState(false);
 
   return (
     <>
@@ -350,15 +355,53 @@ export default function AppSidebar() {
           </Link>
         </div>
 
-        <div className="border-t border-border px-4 py-3 flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-bordeaux flex items-center justify-center text-white font-semibold text-sm shrink-0">
-            {initial}
+        {isMultiWorkspace ? (
+          <Popover open={wsPopoverOpen} onOpenChange={setWsPopoverOpen}>
+            <PopoverTrigger asChild>
+              <button className="w-full border-t border-border px-4 py-3 flex items-center gap-2.5 hover:bg-muted/50 transition-colors cursor-pointer text-left">
+                <div className="w-8 h-8 rounded-lg bg-bordeaux flex items-center justify-center text-white font-semibold text-sm shrink-0">
+                  {activeWorkspace?.name?.charAt(0).toUpperCase() || initial}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[13px] font-semibold text-foreground truncate">{activeWorkspace?.name || firstName}</div>
+                  <div className="text-[11px] text-muted-foreground truncate">{planLabel || "Plan gratuit"}</div>
+                </div>
+                <ChevronDown size={14} className="text-muted-foreground shrink-0" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent side="top" align="start" className="w-64 p-1.5">
+              <div className="text-[11px] font-medium text-muted-foreground px-2 py-1.5 uppercase tracking-wider">Mes espaces</div>
+              {workspaces.map((ws) => (
+                <button
+                  key={ws.id}
+                  onClick={() => { switchWorkspace(ws.id); setWsPopoverOpen(false); setOpen(false); }}
+                  className={`w-full flex items-center gap-2.5 px-2 py-2 rounded-md text-left transition-colors ${
+                    ws.id === activeWorkspace?.id ? "bg-muted" : "hover:bg-muted/50"
+                  }`}
+                >
+                  <div className="w-7 h-7 rounded-md bg-bordeaux/80 flex items-center justify-center text-white font-semibold text-xs shrink-0">
+                    {ws.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[13px] font-medium text-foreground truncate">{ws.name}</div>
+                    <div className="text-[11px] text-muted-foreground truncate">{ws.plan || "Gratuit"}</div>
+                  </div>
+                  {ws.id === activeWorkspace?.id && <Check size={14} className="text-primary shrink-0" />}
+                </button>
+              ))}
+            </PopoverContent>
+          </Popover>
+        ) : (
+          <div className="border-t border-border px-4 py-3 flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-bordeaux flex items-center justify-center text-white font-semibold text-sm shrink-0">
+              {initial}
+            </div>
+            <div className="min-w-0">
+              <div className="text-[13px] font-semibold text-foreground truncate">{firstName}</div>
+              <div className="text-[11px] text-muted-foreground truncate">{planLabel || "Plan gratuit"}</div>
+            </div>
           </div>
-          <div className="min-w-0">
-            <div className="text-[13px] font-semibold text-foreground truncate">{firstName}</div>
-            <div className="text-[11px] text-muted-foreground truncate">{planLabel || "Plan gratuit"}</div>
-          </div>
-        </div>
+        )}
 
         <div className="border-t border-border px-2 py-2">
           <button
