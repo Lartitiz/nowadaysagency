@@ -1,31 +1,51 @@
 
 
-## Plan — Workspace switcher dans la sidebar
+## Plan : Pré-remplir l'onboarding d'Auriana (sans le refaire)
 
-### Constat
-Le `WorkspaceContext` gère déjà tout : liste des workspaces, switch, rôle actif, persistance en localStorage. Mais la sidebar affiche uniquement le nom/plan du workspace actif sans possibilité de changer.
+### Concept
+Tu veux te connecter en Auriana, arriver sur l'onboarding, mais que tous les champs soient **déjà remplis** pour pouvoir cliquer rapidement sans tout retaper. 
 
-### Modification
+L'onboarding stocke ses réponses dans `localStorage`. On va ajouter une logique dans `use-onboarding.ts` qui, quand l'utilisateur a un profil existant en base (prenom, activite remplis) mais `onboarding_completed = false`, **pré-charge les réponses depuis la base** au lieu de partir de zéro.
 
-**Fichier unique** : `src/components/AppSidebar.tsx`
+### Étapes
 
-1. **Importer** `useWorkspace` depuis `WorkspaceContext`
-2. **Remplacer le bloc footer statique** (L353-361) par un composant cliquable :
-   - Si `isMultiWorkspace` est `true` : afficher un chevron et au clic, ouvrir un mini-dropdown (popover) listant tous les workspaces avec leur initiale et nom
-   - Le workspace actif est marqué (check icon)
-   - Cliquer sur un autre workspace appelle `switchWorkspace(id)` et ferme le popover
-   - Si un seul workspace : garder l'affichage actuel (pas de chevron, pas cliquable)
+#### 1. Mettre les flags onboarding à `false` en base
+- `profiles.onboarding_completed = false`, `onboarding_step = 0`
+- `user_plan_config.onboarding_completed = false`, `welcome_seen = false`
 
-3. **UI du switcher** :
-   - Utiliser le composant `Popover` de shadcn (déjà dans le projet)
-   - Chaque workspace : avatar (initiale colorée) + nom + rôle si manager
-   - Workspace actif : icône check à droite
-   - Style cohérent avec le reste de la sidebar (mêmes tailles de texte, couleurs)
+#### 2. Compléter les champs manquants en base pour Auriana
+Certains champs onboarding ne sont pas remplis dans le profil d'Auriana :
+- `main_goal` → ex: `"sell"` (vendre)
+- `main_blocker` → ex: `"invisible"` 
+- `weekly_time` → ex: `"2h"`
+- `website_url` → ex: `"www.auriana-mdb.fr"` (si elle en a un)
+- `instagram_url` → l'URL Instagram si disponible
 
-### Aucune modification backend
-Tout repose sur le `WorkspaceContext` existant — pas de nouvelle requête, pas de migration.
+#### 3. Modifier `use-onboarding.ts` — ajouter le pré-remplissage depuis la DB
+Dans le `useEffect` qui vérifie l'état de l'onboarding (ligne ~200), quand on détecte `onboarding_completed = false` ET que le profil a un `prenom` rempli :
 
-### Détail technique
-- Le `switchWorkspace` invalide déjà toutes les queries React Query → le dashboard se rafraîchit automatiquement
-- Le workspace sélectionné est persisté en `localStorage` → survit au rechargement
+- Fetch les champs du profil : `prenom, activite, type_activite, activity_detail, canaux, main_blocker, main_goal, weekly_time, website_url, instagram_url, linkedin_url, linkedin_summary`
+- Mapper ces valeurs vers les clés `Answers` :
+  - `main_goal` → `objectif`
+  - `main_blocker` → `blocage`  
+  - `weekly_time` → `temps`
+  - `website_url` → `website`
+  - `instagram_url` → `instagram`
+  - `linkedin_url` → `linkedin`
+  - `canaux` → `canaux`
+  - `activity_detail` → `activity_detail`
+- Pré-remplir `setAnswers` avec ces valeurs
+- Ne PAS écraser ce qui est déjà dans localStorage (priorité localStorage > DB)
+
+#### 4. Résultat pour la démo
+1. Tu te connectes en Auriana
+2. Tu arrives sur l'onboarding étape 0 (Welcome)
+3. Tu cliques → étape 1 : prénom "Auriana" et activité déjà remplis
+4. Tu cliques → étape 2 : type "immobilier" déjà sélectionné
+5. Etc. — tout est pré-rempli, tu ne fais que cliquer "Suivant"
+6. À la fin, le diagnostic tourne et tu retrouves le dashboard complet
+
+### Fichiers modifiés
+- `src/hooks/use-onboarding.ts` — ajout du pré-remplissage depuis DB
+- Base de données — reset flags + compléter les champs manquants d'Auriana
 
