@@ -35,51 +35,59 @@ export const AURIANA_DEMO_FLOW = {
     slides: [
       {
         slide_number: 1,
-        hook: "Je vends avant d'acheter.\nEt c'est pour ça que mes opérations sont rentables.",
-        text: "",
-        visual_schema: "Texte bold centré, fond sombre avec texture béton subtile"
+        title: "Je vends avant d'acheter.\nEt c'est pour ça que mes opérations sont rentables.",
+        body: "",
+        role: "hook",
+        visual_suggestion: "Texte bold centré, fond sombre avec texture béton subtile"
       },
       {
         slide_number: 2,
-        hook: "",
-        text: "La plupart des marchands de biens achètent d'abord.\nPuis cherchent des acquéreurs.\nPuis croisent les doigts.\n\nMoi j'ai inversé le process.",
-        visual_schema: "Texte aéré, fond clair, icône flèche inversée"
+        title: "",
+        body: "La plupart des marchands de biens achètent d'abord.\nPuis cherchent des acquéreurs.\nPuis croisent les doigts.\n\nMoi j'ai inversé le process.",
+        role: "context",
+        visual_suggestion: "Texte aéré, fond clair, icône flèche inversée"
       },
       {
         slide_number: 3,
-        hook: "",
-        text: "La pré-commercialisation, c'est simple :\n→ Tu identifies le bien\n→ Tu crées une offre (plans, prix, vision)\n→ Tu signes des réservations AVANT l'acte\n→ Tu achètes avec la certitude de revendre",
-        visual_schema: "Liste à puces, flèches directionnelles, fond structuré"
+        title: "La pré-commercialisation, c'est simple :",
+        body: "→ Tu identifies le bien\n→ Tu crées une offre (plans, prix, vision)\n→ Tu signes des réservations AVANT l'acte\n→ Tu achètes avec la certitude de revendre",
+        role: "explication",
+        visual_suggestion: "Liste à puces, flèches directionnelles, fond structuré"
       },
       {
         slide_number: 4,
-        hook: "",
-        text: "Sur mon 3e projet, j'avais signé 80% des lots avant même d'avoir l'acte.\n\nFinancement bouclé.\nMarge sécurisée.\nStress : zéro.",
-        visual_schema: "Chiffres en gros, fond accent, mise en avant du 80%"
+        title: "80% des lots signés avant l'acte",
+        body: "Sur mon 3e projet, j'avais signé 80% des lots avant même d'avoir l'acte.\n\nFinancement bouclé.\nMarge sécurisée.\nStress : zéro.",
+        role: "preuve",
+        visual_suggestion: "Chiffres en gros, fond accent, mise en avant du 80%"
       },
       {
         slide_number: 5,
-        hook: "",
-        text: "\"T'as pas peur de vendre un truc qui n'existe pas ?\"\n\nNon. Parce que je ne vends pas un bien.\nJe vends une vision du quartier, un plan, un projet.\n\nEt c'est exactement ça qui rassure les acquéreurs.",
-        visual_schema: "Citation en italique + réponse en gras, fond contrasté"
+        title: "\"T'as pas peur de vendre un truc qui n'existe pas ?\"",
+        body: "Non. Parce que je ne vends pas un bien.\nJe vends une vision du quartier, un plan, un projet.\n\nEt c'est exactement ça qui rassure les acquéreurs.",
+        role: "objection",
+        visual_suggestion: "Citation en italique + réponse en gras, fond contrasté"
       },
       {
         slide_number: 6,
-        hook: "",
-        text: "Sur une découpe de 5 lots à Bordeaux :\n• 4 lots pré-vendus en 3 semaines\n• Financement bouclé avant signature\n• Marge sécurisée dès le départ\n\nPas de suspense. Du process.",
-        visual_schema: "Résultats chiffrés, style dashboard, fond sombre"
+        title: "Résultats concrets",
+        body: "Sur une découpe de 5 lots à Bordeaux :\n• 4 lots pré-vendus en 3 semaines\n• Financement bouclé avant signature\n• Marge sécurisée dès le départ\n\nPas de suspense. Du process.",
+        role: "résultat",
+        visual_suggestion: "Résultats chiffrés, style dashboard, fond sombre"
       },
       {
         slide_number: 7,
-        hook: "",
-        text: "La pré-commercialisation n'est pas une astuce.\nC'est un mindset :\n\n1. Valider la demande avant l'offre\n2. Sécuriser le financement par les réservations\n3. Réduire le risque à chaque étape\n\nC'est comme ça qu'on passe de \"j'espère\" à \"je sais\".",
-        visual_schema: "Liste numérotée, fond clair, progression visuelle"
+        title: "Un mindset, pas une astuce",
+        body: "1. Valider la demande avant l'offre\n2. Sécuriser le financement par les réservations\n3. Réduire le risque à chaque étape\n\nC'est comme ça qu'on passe de \"j'espère\" à \"je sais\".",
+        role: "synthèse",
+        visual_suggestion: "Liste numérotée, fond clair, progression visuelle"
       },
       {
         slide_number: 8,
-        hook: "",
-        text: "Tu veux structurer ta prochaine opération avec la pré-commercialisation ?\n\n📩 Envoie-moi \"PRÉ-CO\" en DM.\nJe t'explique comment j'applique ça concrètement.",
-        visual_schema: "CTA clair, bouton DM, fond accent avec logo"
+        title: "Envie de structurer ta prochaine opération ?",
+        body: "📩 Envoie-moi \"PRÉ-CO\" en DM.\nJe t'explique comment j'applique ça concrètement.",
+        role: "cta",
+        visual_suggestion: "CTA clair, bouton DM, fond accent avec logo"
       },
     ],
     hashtags: ["#marchanddebiens #immobilier #precommercialisation #investissementimmobilier #mdb #strategieimmo"],
