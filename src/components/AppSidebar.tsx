@@ -112,12 +112,7 @@ export default function AppSidebar() {
   const startCloseTimer = useCallback(() => {
     clearCloseTimer();
     closeTimer.current = setTimeout(() => {
-      // Don't close sidebar if workspace popover is open
-      setWsPopoverOpen(prev => {
-        if (prev) return prev;
-        setOpen(false);
-        return prev;
-      });
+      if (!wsPopoverRef.current) setOpen(false);
     }, 350);
   }, [clearCloseTimer]);
 
