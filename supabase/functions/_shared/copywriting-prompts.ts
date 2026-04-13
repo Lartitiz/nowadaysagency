@@ -583,6 +583,46 @@ Exemples de transformation :
 
 Signal algorithmique : watch time élevé, saves, partages visuels.
 
+VÉHICULE 5 — BUG CRÉATIF (pattern interrupt)
+
+Principe : Une rupture d'attente brève et précoce (2-3 secondes) qui force le cerveau du spectateur à se réengager. Le scroll est un état d'autopilote ; le bug le casse. Particulièrement puissant sur Reels, vidéos courtes et carrousels, où l'algorithme récompense le watch time / dwell time des premières secondes.
+
+Quand l'utiliser : pour les sujets sérieux/expertise qui risquent d'être perçus comme "encore un post pro de plus", pour les formats où la concurrence d'attention est maximale (Reels, première slide de carrousel, première story), ou quand le contenu démarrerait sinon de façon linéaire.
+
+Quand NE PAS l'utiliser : pour les sujets sensibles (deuil, santé mentale, sujets graves), pour les contenus de fond où le récit porte déjà la rupture, ou si le branding de l'utilisateur·ice est résolument sobre/contemplatif. Le bug doit servir la voix, jamais la trahir.
+
+Ton : surprenant, joueur, parfois absurde, mais TOUJOURS aligné avec le branding et le message.
+
+Typologie de bugs (en piocher UN seul, jamais plusieurs) :
+
+- RUPTURE DE TON : démarrer sérieux puis basculer absurde (ou inverse). Ex. "Aujourd'hui je voulais parler de pricing… *tient un poireau*"
+
+- OBJET INCONGRU : utiliser un objet décalé pour incarner un concept pro. Ex. expliquer le burnout avec une patate qui se ratatine
+
+- FAUX SETUP : démarrer comme un format banal (GRWM, recette, conseil) puis casser l'attente à la 3e seconde
+
+- START-AT-THE-END : ouvrir sur le moment le plus fort, puis dérouler comment on en est arrivé là
+
+- AUTO-INTERRUPTION : se couper soi-même, changer d'avis cash, dire "non en fait oublie" et repartir
+
+- CONTRASTE VISUEL BRUTAL : avant/après inversé, jump cut radical, changement de décor instantané
+
+Exemples de transformation :
+
+  ❌ "5 erreurs de pricing à éviter" → ✅ Reel : ouvre sur "200€" écrit en grand → coupe brutale → "C'est ce que j'ai facturé mon premier site. Aujourd'hui c'est x10. Voilà ce qui a changé."
+
+  ❌ "Comment structurer ton offre" → ✅ Carrousel : Slide 1 = un dessin enfantin d'une offre confuse, Slide 2 = "C'est exactement ce que j'envoyais à mes client·es en 2022", Slide 3 = la bascule
+
+  ❌ "Mes 3 conseils pour ta bio" → ✅ Reel : "Ma bio Instagram en 2023…" *montre une bio chaotique* → *tape sur la table* → "On reprend tout."
+
+RÈGLE D'OR — NON-NÉGOCIABLE : le bug doit TOUJOURS pivoter vers le message principal en moins de 5 secondes. Un bug déconnecté = viralité non-qualifiée = audience non-qualifiée = leads non-pertinents. Le bug attire le scroll, le message retient le bon scroll. Si le bug ne peut pas être suivi naturellement par le sujet, NE PAS l'utiliser.
+
+Signal algorithmique : hook rate élevé (% de spectateurs·ices qui dépassent la 3e seconde), watch time, partages en DM ("regarde ce truc").
+
+Périmètre d'application : Reels, vidéos courtes, carrousels (slide 1 ou bascule slide 2-3), stories séquencées (story 1 ou 2). Moins pertinent pour newsletters et captions longues seules.
+
+NOTE D'USAGE : ce véhicule est OPTIONNEL et complémentaire des 4 autres. Il peut s'EMPILER avec un autre véhicule (ex. un récit d'expérience qui démarre par un bug créatif). Il ne remplace JAMAIS le véhicule principal qui porte l'information.
+
 ═══════════════════════════════════════════════════
 
 APPLICATION DANS LA GÉNÉRATION
