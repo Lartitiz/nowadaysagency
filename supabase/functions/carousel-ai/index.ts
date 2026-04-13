@@ -493,7 +493,14 @@ ${isLinkedIn
 - VOIX PAR DÉFAUT = "JE". L'auteur·ice raconte, partage, analyse, prend position. C'est SA voix, SON vécu, SA réflexion.
 - Le "TU" est un outil d'INTERPELLATION PONCTUELLE : 1-2 fois par carrousel max, pour une question directe ou un CTA. JAMAIS comme voix narrative de tout le carrousel.
 - Le "NOUS" collectif pour les sujets de société/combats/valeurs : "On nous demande de…", "On a intériorisé cette norme". Fédérateur, pas accusateur.
-- RÈGLE ANTI-TU : si plus de 2 slides sur le carrousel commencent par "Tu" ou utilisent le "tu" comme sujet principal de la phrase, c'est un échec. Réécris en JE ou NOUS.`}
+- RÈGLE ANTI-TU : si plus de 2 slides sur le carrousel commencent par "Tu" ou utilisent le "tu" comme sujet principal de la phrase, c'est un échec. Réécris en JE ou NOUS.
+
+══ VÉRIFICATION OBLIGATOIRE AVANT RETOUR ══
+□ Combien de slides utilisent "tu" comme sujet principal ? Si > 2 → RÉÉCRIS IMMÉDIATEMENT en JE/NOUS. C'est un ÉCHEC sinon.
+□ Slide 1 contient "X sans Y, c'est Z" ? → RÉÉCRIS avec un fait concret ou une scène vécue.
+□ Dernière slide = "Et toi, ..." ou "Dis-moi en commentaire" ? → Question SPÉCIFIQUE au sujet.
+□ Une slide récite le brief sans le digérer ? → Reformule avec un argument propre.
+══════════════════════════════════════════`}
 - Phrases qui alternent longues et courtes (rythme)
 - Expressions naturelles (en vrai, franchement, le truc c'est que)
 - Humour discret, pas forcé
