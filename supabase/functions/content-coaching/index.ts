@@ -5,6 +5,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildIdentityBlock } from "../_shared/user-context.ts";
+import { EMBEDDED_EDUCATION } from "../_shared/copywriting-prompts.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req); const cors = corsHeaders;
@@ -250,6 +251,84 @@ RÉPONSES DE L'UTILISATRICE :
 - Format préféré : ${formatLabel}${contentTypeLabel ? `\n- Angle demandé : ${contentTypeLabel}` : ""}
 - Ton souhaité : ${tonLabel}
 
+${(format === "reel" || format === "story" || format === "pinterest_visual") ? `
+
+══════════════════════════════════════
+INSTRUCTIONS SPÉCIFIQUES AU FORMAT ${formatLabel.toUpperCase()}
+══════════════════════════════════════
+
+CRITIQUE : Le format choisi est ${formatLabel}. Ce format n'est PAS un texte qui se lit, c'est un objet ${format === "pinterest_visual" ? "VISUEL qui se SCANNE en 1 seconde" : "VISUEL et SONORE qui se VIT en quelques secondes"}. Les idées, hooks et briefs DOIVENT être pensés pour ce format spécifique, pas pour un post écrit.
+
+${format === "reel" ? `
+ANGLES ÉDITORIAUX SPÉCIFIQUES AU REEL (privilégier ces angles aux 13 angles génériques) :
+- SCÈNE JOUÉE : un micro-moment du quotidien pro reconstitué face caméra (la cliente qui dit X, le moment où Y arrive)
+- PROCESS MONTRÉ : une étape de son métier rendue visible en accéléré ou décomposée
+- TRANSFORMATION VISUELLE : avant/après concret, changement observable
+- RÉACTION CAMÉRA : sa réaction à un commentaire, un email, une situation absurde du métier
+- DUO / DIALOGUE : une conversation jouée (elle / sa cliente, elle / sa version d'avant)
+- DÉMONSTRATION : "regarde ce qui se passe quand je fais X"
+- BUG CRÉATIF (VÉHICULE 5) : voir EMBEDDED_EDUCATION ci-dessous. À privilégier sur 1 idée sur 3 quand le sujet et le branding s'y prêtent.
+
+HOOKS REEL (différents des hooks texte) :
+Un hook Reel n'est PAS une phrase intellectuelle à lire. C'est :
+- UNE PHRASE COURTE DITE À L'ORAL (max 8 mots) + un overlay textuel ancrage
+- OU une ACTION VISIBLE qui démarre dans la première seconde (geste, objet montré, expression)
+- OU un PATTERN INTERRUPT à 2-3s (cf. VÉHICULE 5)
+
+INTERDIT comme hook Reel : les questions abstraites ("Est-ce que ton projet est nul ?"), les affirmations conceptuelles ("Le biais de survie appliqué aux..."), les chiffres seuls sans incarnation visuelle. Ces hooks fonctionnent en carrousel, PAS en Reel.
+
+BRIEF REEL :
+Le brief ne décrit PAS une architecture intellectuelle. Il décrit une MISE EN SCÈNE :
+- Que voit-on à l'écran (cadre, action, objet, personne) ?
+- Qu'est-ce qui est dit à l'oral (texte parlé, court, oral assumé) ?
+- Qu'est-ce qui apparaît en overlay (texte écrit qui complète, jamais qui répète) ?
+- Quelle est la dynamique (jump cuts, accélérations, plans fixes) ?
+` : ""}
+${format === "story" ? `
+ANGLES ÉDITORIAUX SPÉCIFIQUES À LA STORY (privilégier ces angles) :
+- COULISSES BRUTES : ce qui se passe maintenant, sans filtre, instantané
+- PRISE DE POSITION INSTANTANÉE : une réaction à chaud sur quelque chose
+- INTERACTION DIRECTE : sondage, question, quiz, slider qui fait participer
+- TEASER : annonce d'un truc à venir, ouverture de boucle
+- SÉQUENCE NARRATIVE COURTE : 3-5 stories qui racontent un mini-arc
+- BUG CRÉATIF (VÉHICULE 5) sur la story 1 : voir EMBEDDED_EDUCATION
+
+HOOKS STORY :
+La story 1 doit donner ENVIE de tapper pour voir la suite. Elle ne se lit pas, elle s'aperçoit en 0,5s.
+- Une phrase ULTRA courte (max 6 mots) + visuel fort
+- OU un overlay choc sur une image/vidéo qui interpelle
+- OU une question fermée qui appelle un sondage immédiat
+
+INTERDIT comme hook Story : les paragraphes longs, les questions intellectuelles, les hooks de carrousel recyclés.
+
+BRIEF STORY :
+Le brief décrit la SÉQUENCE complète (combien de stories, quoi sur chacune) et l'INTERACTION proposée (sondage, question, lien). Pas une architecture de raisonnement.
+` : ""}
+${format === "pinterest_visual" ? `
+ANGLES ÉDITORIAUX SPÉCIFIQUES À L'ÉPINGLE PINTEREST VISUELLE (privilégier ces angles) :
+- INFOGRAPHIE : un savoir condensé en visuel scannable
+- CHECKLIST : une liste actionnable visualisable d'un coup d'œil
+- SCHÉMA : un mécanisme expliqué par un diagramme
+- COMPARATIF : avant/après, options A vs B, bon/mauvais
+- AVANT/APRÈS : transformation concrète, photographique
+- CITATION FORTE : une phrase qui claque, typographiée pour être épinglée
+
+HOOKS PINTEREST VISUEL :
+Un hook Pinterest est un TITRE SEO qui doit être à la fois cherchable et cliquable. Il n'a pas le même ADN qu'un hook réseau social.
+- Format : "[Bénéfice concret] : [méthode/nombre/angle spécifique]"
+- Exemple : "10 idées de feed Instagram cohérent pour solopreneuses créatives"
+- Utiliser des MOTS-CLÉS recherchés (le hook doit fonctionner comme une requête)
+
+INTERDIT comme hook Pinterest visuel : les questions, les confessions, les hooks à twist. Ce sont des hooks réseaux sociaux, pas des titres SEO.
+
+BRIEF PINTEREST VISUEL :
+Le brief décrit le VISUEL (type d'épingle, contenu textuel à intégrer dans l'image, structure visuelle) et le TITRE SEO. Pas une architecture narrative.
+` : ""}
+CADRE DE RÉFÉRENCE — ÉDUCATION EMBARQUÉE ET BUG CRÉATIF :
+${EMBEDDED_EDUCATION}
+
+RAPPEL : sur les 3 idées générées, AU MOINS 1 doit explicitement utiliser le VÉHICULE 5 BUG CRÉATIF si le sujet et le branding de l'utilisatrice s'y prêtent (pas de sujets sensibles, pas de branding sobre/contemplatif).
+` : ""}
 ══════════════════════════════════════
 ÉTAPE 0 — ANALYSE LE BRANDING (obligatoire avant de générer)
 ══════════════════════════════════════
