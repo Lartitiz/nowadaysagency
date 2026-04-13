@@ -418,6 +418,40 @@ AVANT DE SCRIPTER, identifie :
    Ce n'est PAS un "retournement" dramatique obligatoire, c'est un CHANGEMENT
    de regard sur le sujet.
 
+5. À QUI CE REEL DONNE ENVIE D'ÊTRE ENVOYÉ EN DM, ET POURQUOI ?
+   Les sends en DM sont le signal algorithmique LE PLUS FORT pour atteindre
+   les non-abonnés sur Instagram. Un Reel qui ne donne envie d'être envoyé
+   à personne reste invisible.
+   
+   Avant d'écrire, identifie EXPLICITEMENT :
+   - QUI : à quelle personne précise (pas "ma communauté", pas "les femmes
+     entrepreneures") quelqu'un aurait envie d'envoyer ce Reel ?
+     Exemple : "à une amie qui vient de lancer son freelance et galère
+     à fixer ses prix", "au copain qui doute toujours de sa légitimité".
+   - POURQUOI : quelle est la qualité INTRINSÈQUE qui déclenche le partage ?
+     Trois leviers possibles (en choisir UN dominant) :
+     • RECONNAISSANCE — "C'est exactement ce qu'elle vit en ce moment"
+       (situation ultra-spécifique, scène vécue qui résonne)
+     • VALIDATION — "Ça va lui faire du bien d'entendre ça"
+       (un ressenti non-dit nommé, une permission donnée, une vérité libératrice)
+     • CONTRE-INTUITION DÉBATTABLE — "Tiens, ça va la faire réagir"
+       (prise de position qui bouscule un consensus, info qui mérite discussion)
+   
+   ❌ MAUVAIS critère send-worthy :
+   - "Ce Reel sera utile à beaucoup de gens" (trop large = personne envoie)
+   - "Mes abonnées vont aimer" (aimer ≠ envoyer)
+   - "Il y a un CTA 'partage ce reel'" (le CTA explicite ne fonctionne pas seul)
+   
+   ✅ BON critère send-worthy :
+   - "Toute personne qui a déjà baissé son prix par culpabilité va vouloir
+     l'envoyer à une amie qui fait pareil" → reconnaissance + validation
+   - "Quiconque pense que poster tous les jours est obligatoire va vouloir
+     en débattre avec son binôme de travail" → contre-intuition débattable
+   
+   IMPORTANT : la qualité send-worthy doit être INTRINSÈQUE au contenu,
+   pas un CTA explicite "partage ce reel". Le viewer envoie parce que le
+   contenu lui-même mérite d'être partagé, pas parce qu'on le lui demande.
+
 ══ RÈGLES DE SCRIPT ══
 
 STRUCTURE :
