@@ -13,7 +13,7 @@ export const AURIANA_DEMO_SUBJECT = "La pré-commercialisation en MDB : je vends
 
 export const AURIANA_DEMO_FLOW = {
   step: "idea" as const,
-  ideaText: AURIANA_DEMO_SUBJECT,
+  demoScenario: "auriana-carousel" as const,
   objective: "visibilite",
   selectedFormat: "carousel",
   editorialAngle: "decryptage",

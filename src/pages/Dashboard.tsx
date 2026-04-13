@@ -469,7 +469,7 @@ export default function Dashboard() {
                         e.stopPropagation();
                         clearFlowState();
                         saveFlowState({ ...AURIANA_DEMO_FLOW, ts: Date.now() });
-                        navigate("/creer", { state: { demo: true } });
+                        navigate("/creer", { state: { demo: true, demoScenario: "auriana-carousel" } });
                       }}
                       className="self-start text-sm font-semibold px-4 py-2.5 rounded-xl
                         bg-primary text-primary-foreground
