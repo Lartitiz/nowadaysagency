@@ -12,6 +12,7 @@ interface Props {
   questions: Question[];
   loadingQuestions: boolean;
   previousBriefsCount?: number;
+  initialAnswers?: Record<string, string>;
   onNext: (answers: Record<string, string>) => void;
   onSkip: () => void;
   onBack: () => void;
@@ -24,12 +25,13 @@ export default function CreerStepQuestions({
   questions,
   loadingQuestions,
   previousBriefsCount,
+  initialAnswers,
   onNext,
   onSkip,
   onBack,
 }: Props) {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [answers, setAnswers] = useState<Record<string, string>>(initialAnswers || {});
 
   if (loadingQuestions) {
     return (

@@ -12,7 +12,7 @@ export function isAurianaDemoEmail(email: string | null | undefined): boolean {
 export const AURIANA_DEMO_SUBJECT = "La pré-commercialisation en MDB : je vends avant d'acheter";
 
 export const AURIANA_DEMO_FLOW = {
-  step: "format" as const,
+  step: "idea" as const,
   ideaText: AURIANA_DEMO_SUBJECT,
   objective: "visibilite",
   selectedFormat: "carousel",
