@@ -259,29 +259,42 @@ ${editorialFormatLabel ? `- Format éditorial : ${editorialFormatLabel}` : ""}
 ${angle.format_livraison ? `- Format de livraison recommandé : ${angle.format_livraison}` : ""}
 ${calendarBlock}${objectiveBlock}
 
-Pose exactement 3 questions pour récupérer SA matière première. Ces questions doivent extraire des anecdotes, des réflexions, des émotions PERSONNELLES qui rendront le contenu unique et impossible à reproduire par une IA seule.
+Pose exactement 3 questions pour récupérer SA matière première. Ces questions doivent extraire des éléments PERSONNELS (anecdotes, opinions, observations, process, convictions) qui rendront le contenu unique et impossible à reproduire par une IA seule.
 
 RÈGLES :
 1. LIS ATTENTIVEMENT LE SUJET ci-dessus. Les 3 questions doivent être directement liées à CE sujet spécifique, pas à l'angle en général.
 2. AU MOINS 1 question sur 3 doit creuser le POURQUOI PROFOND : pourquoi elle pense ça, pourquoi c'est important pour elle, quelle conviction personnelle se cache derrière ce sujet.
 3. ${channelGuidance}
 4. Questions OUVERTES (pas oui/non).
-5. Demande des scènes, des moments, des détails concrets EN RAPPORT AVEC LE SUJET.
+5. VARIÉTÉ DE TYPES DE QUESTIONS OBLIGATOIRE — les 3 questions doivent utiliser des TYPES DIFFÉRENTS parmi :
+   - ANECDOTE : "Raconte un moment précis où…" (une scène concrète vécue)
+   - OPINION TRANCHÉE : "C'est quoi ta position sur… ?" / "Tu penses quoi de… ?"
+   - PROCESS / MÉTHODE : "Comment tu fais concrètement quand… ?" / "C'est quoi ta méthode pour… ?"
+   - OBSERVATION : "Qu'est-ce que tu observes chez… ?" / "Qu'est-ce qui te frappe quand… ?"
+   - CONVICTION : "C'est quoi le truc que tu répètes toujours à ce sujet ?" / "Pourquoi t'es convaincue que… ?"
+   ⚠️ INTERDIT de faire 3 questions "Raconte-moi une fois où…". Maximum 1 question anecdote sur les 3.
 6. Le ton des questions est chaleureux et curieux (comme une amie qui s'intéresse vraiment).
 7. Chaque question a un placeholder qui donne un mini-exemple de réponse SPÉCIFIQUE au sujet.
-8. ORIENTÉES vers l'objectif : si "vente" → demande des résultats, transformations. Si "engagement" → demande des anecdotes, émotions.
+8. ORIENTÉES vers l'objectif : si "vente" → demande des résultats, process, transformations. Si "engagement" → demande des anecdotes, émotions. Si "visibilité" → demande des opinions clivantes, observations décalées. Si "crédibilité" → demande des méthodes, des preuves, des observations terrain.
 
 INTERDIT — NE FAIS JAMAIS ÇA :
 - Questions génériques type "Qu'est-ce qui te passionne dans ton métier ?", "Quel est ton parcours ?", "Qu'est-ce qui te différencie ?"
-- Questions de coaching de vie déconnectées du sujet ("Raconte une situation où tu as vu quelqu'un perdre son audience")
+- Questions de coaching de vie déconnectées du sujet
 - Questions trop larges qui pourraient s'appliquer à N'IMPORTE QUEL sujet
+- 3 questions qui commencent toutes par "Raconte-moi" ou "Il y a eu un moment où"
 - Chaque question DOIT mentionner le sujet ou un aspect concret du sujet
 
 EXEMPLES (pour le sujet "Pourquoi je ne fais plus de remises") :
-❌ MAUVAIS : "Raconte-moi un moment où tu as dû défendre ta valeur."
-✅ BON : "La dernière fois qu'on t'a demandé une remise, tu as répondu quoi exactement ? Et comment tu t'es sentie après ?"
-❌ MAUVAIS : "Qu'est-ce qui t'a poussée à changer ta stratégie de prix ?"
-✅ BON : "Il y a eu UN moment précis où tu t'es dit 'plus jamais de remise' ? C'était quand, avec qui ?"
+❌ MAUVAIS MIX :
+1. "Raconte-moi un moment où tu as dû défendre ta valeur."
+2. "Raconte-moi une fois où une cliente t'a demandé une remise."
+3. "Raconte-moi comment tu as changé ta relation à l'argent."
+(= 3x le même type "raconte-moi" → monotone)
+
+✅ BON MIX :
+1. (anecdote) "La dernière fois qu'on t'a demandé une remise, tu as répondu quoi exactement ?"
+2. (opinion) "C'est quoi le truc qui t'agace le plus dans la culture du 'prix cassé' ?"
+3. (process) "Concrètement, comment tu présentes tes tarifs maintenant pour éviter la négociation ?"
 
 Réponds UNIQUEMENT en JSON :
 {
