@@ -198,14 +198,15 @@ export function useOnboarding() {
   }, [restoredFromSave]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Check if onboarding already completed OR if step is stale after a reset
+  // Also pre-fill answers from DB when profile exists but onboarding not completed
+  const prefillDone = useRef(false);
   useEffect(() => {
     if (isDemoMode || !user) return;
 
     const check = async () => {
       const [{ data: profile }, { data: config }] = await Promise.all([
-        supabase
-          .from("profiles")
-          .select("onboarding_completed")
+        (supabase.from("profiles") as any)
+          .select("onboarding_completed, prenom, activite, type_activite, activity_detail, canaux, main_blocker, main_goal, weekly_time, website_url, instagram_username, linkedin_url, linkedin_summary")
           .eq("user_id", profileUserId)
           .maybeSingle(),
         (supabase.from("user_plan_config") as any)
@@ -234,6 +235,31 @@ export function useOnboarding() {
           instagram: "", website: "", linkedin: "", linkedin_summary: "",
           change_priority: "", product_or_service: "", uniqueness: "",
         });
+      }
+
+      // Pre-fill from DB when profile has data but onboarding not completed
+      // Only if localStorage doesn't already have saved answers
+      if (!done && profile?.prenom && !prefillDone.current) {
+        prefillDone.current = true;
+        const hasLocalSave = !!localStorage.getItem("lac_onboarding_answers");
+        if (!hasLocalSave) {
+          console.log("[onboarding] Pre-filling answers from existing profile data");
+          setAnswers(prev => ({
+            ...prev,
+            prenom: profile.prenom || prev.prenom,
+            activite: profile.activite || prev.activite,
+            activity_type: profile.type_activite || prev.activity_type,
+            activity_detail: profile.activity_detail || prev.activity_detail,
+            canaux: (profile.canaux?.length ? profile.canaux : prev.canaux),
+            blocage: profile.main_blocker || prev.blocage,
+            objectif: profile.main_goal || prev.objectif,
+            temps: profile.weekly_time || prev.temps,
+            instagram: profile.instagram_username ? `@${profile.instagram_username}` : prev.instagram,
+            website: profile.website_url || prev.website,
+            linkedin: profile.linkedin_url || prev.linkedin,
+            linkedin_summary: profile.linkedin_summary || prev.linkedin_summary,
+          }));
+        }
       }
     };
     check();
