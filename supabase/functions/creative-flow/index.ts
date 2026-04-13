@@ -434,6 +434,33 @@ OVERLAY — 3 RÔLES POSSIBLES (choisir 1 par section) :
 INTERDIT : overlay qui résume ou condense le texte parlé. L'overlay COMPLÈTE, il ne RÉPÈTE PAS.
 3-8 mots max par overlay.
 
+══ RÈGLE SPÉCIALE FRAME 1 (overlay du hook 0-3s) ══
+
+50% des viewers regardent en MUTE. L'overlay de la frame 1 doit fonctionner SEUL,
+sans le son. Un viewer qui ne voit QUE ce texte doit comprendre la promesse du Reel
+et avoir envie de rester pour la suite.
+
+L'overlay frame 1 n'est PAS un mot-clé décoratif. C'est un MINI-HOOK lisible seul.
+Il doit contenir : soit une promesse concrète, soit une situation reconnaissable,
+soit une affirmation contre-intuitive. JAMAIS juste un thème.
+
+❌ MAUVAIS overlay frame 1 (mot-clé seul, sans contexte) :
+- "POSITIONNEMENT"
+- "Stratégie Instagram"
+- "Mes conseils"
+- "Astuce du jour"
+→ Le viewer en mute ne sait pas pourquoi rester. Il scroll.
+
+✅ BON overlay frame 1 (autoporteur, donne envie de rester) :
+- "10K abonnés. Zéro client."
+- "Pourquoi j'ai supprimé tous mes posts."
+- "Ta cliente ne lit pas tes carrousels."
+- "Le truc que personne ne te dit sur le pricing."
+→ Le viewer en mute comprend l'enjeu et reste pour comprendre.
+
+Cette règle s'applique UNIQUEMENT à l'overlay de la section 0-3s (hook).
+Les overlays des sections suivantes peuvent rester en mode ancrage/contrepoint/punchline classique.
+
 FORMAT DE SORTIE :
 - Indique le timing, le texte parlé, le texte overlay (+ son rôle : ancrage/contrepoint/punchline), 
   les cuts visuels et le cadrage pour chaque section.
