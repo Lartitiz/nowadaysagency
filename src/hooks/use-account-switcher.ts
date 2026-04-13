@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { clearFlowState } from "@/hooks/use-flow-persistence";
 
 const LS_KEY = "saved_accounts";
 
@@ -65,6 +66,9 @@ export function useAccountSwitcher() {
         return updated;
       });
     }
+
+    // Clear creation flow state to prevent cross-account content leakage
+    clearFlowState();
 
     // Restore the target account's session
     const { error } = await supabase.auth.refreshSession({
