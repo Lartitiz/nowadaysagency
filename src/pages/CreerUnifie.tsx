@@ -528,6 +528,13 @@ export default function CreerUnifie() {
 
     resetGenerator();
     setStep("questions");
+
+    // Auriana demo: inject pre-built questions instead of calling AI
+    if (isAurianaDemoEmail(session?.user?.email) && ideaText === AURIANA_DEMO_SUBJECT) {
+      setQuestions(AURIANA_DEMO_FLOW.questions);
+      return;
+    }
+
     await generateQuestions({ format, subject: enrichedSubject, editorialAngle: angle, objective: objective || undefined, channel: isLinkedInCarousel ? "linkedin" : undefined });
   };
 
