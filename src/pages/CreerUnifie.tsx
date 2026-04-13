@@ -31,6 +31,7 @@ import { useBrandCharter } from "@/hooks/use-branding";
 import { useActivityExamples } from "@/hooks/use-activity-examples";
 import { supabase } from "@/integrations/supabase/client";
 import { loadFlowState, saveFlowState, clearFlowState } from "@/hooks/use-flow-persistence";
+import { isAurianaDemoEmail, AURIANA_DEMO_SUBJECT, AURIANA_DEMO_FLOW } from "@/lib/demo-auriana-data";
 import { useFormPersist } from "@/hooks/use-form-persist";
 import { useStreamingInvoke } from "@/hooks/use-streaming-invoke";
 import { useUserPlan } from "@/hooks/use-user-plan";
