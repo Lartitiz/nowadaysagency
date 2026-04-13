@@ -15,6 +15,9 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import Confetti from "@/components/Confetti";
 import { MarkdownText } from "@/components/ui/markdown-text";
+import { isAurianaDemoEmail, AURIANA_DEMO_FLOW } from "@/lib/demo-auriana-data";
+import { saveFlowState, clearFlowState } from "@/hooks/use-flow-persistence";
+import { useAuth } from "@/contexts/AuthContext";
 
 /* ── Icon resolver ── */
 function RecommendationIcon({ name }: { name: string }) {
@@ -137,6 +140,7 @@ const MINI_CARDS = [
 export default function AdaptiveHome() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   const { recommendation, profileSummary, isLoading } = useGuideRecommendation();
 
   const [tourDone, setTourDone] = useState(() => !!localStorage.getItem("lac_dashboard_tour_seen"));
@@ -252,6 +256,20 @@ export default function AdaptiveHome() {
               >
                 🤔 Je sais pas quoi poster...
               </button>
+
+              {isAurianaDemoEmail(user?.email) && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    clearFlowState();
+                    saveFlowState({ ...AURIANA_DEMO_FLOW, ts: Date.now() });
+                    navigate("/creer");
+                  }}
+                  className="block mt-2 text-sm font-semibold px-4 py-2.5 bg-primary text-primary-foreground rounded-xl hover:opacity-90 transition-opacity"
+                >
+                  🎬 Lancer la démo carrousel
+                </button>
+              )}
             </div>
           </div>
         </div>
