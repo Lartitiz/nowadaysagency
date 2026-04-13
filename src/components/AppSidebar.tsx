@@ -150,6 +150,7 @@ export default function AppSidebar() {
   const { activeWorkspace, workspaces, isMultiWorkspace, switchWorkspace } = useWorkspace();
   const [wsPopoverOpen, setWsPopoverOpen] = useState(false);
 
+  return (
     <>
       {/* Desktop: Hover trigger zone — invisible 48px strip on left */}
       <div
