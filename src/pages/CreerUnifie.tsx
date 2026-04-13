@@ -77,6 +77,7 @@ export default function CreerUnifie() {
   const { isDemoMode, demoData } = useDemoContext();
   const workspaceId = useWorkspaceId();
   const { data: charterData } = useBrandCharter();
+  const { activityText } = useActivityExamples();
   const { remainingTotal, loading: planLoading, plan, usage } = useUserPlan();
 
   // URL params
