@@ -9,6 +9,7 @@ import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { applyCorrectionPass } from "../_shared/correction-pass.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -155,6 +156,21 @@ serve(async (req) => {
           });
         }
 
+        // Apply correction pass to remove AI-detectable patterns
+        try {
+          const correctionFormat = body.channel === "linkedin" ? "linkedin" as const : "carousel" as const;
+          const corrected = await applyCorrectionPass(content, correctionFormat, {
+            enabled: true,
+            skipIfShorterThan: 300,
+            logger: (msg) => console.log(msg),
+          });
+          if (corrected && corrected !== content) {
+            content = corrected;
+          }
+        } catch (correctionError) {
+          console.error("Correction pass failed in carousel-ai (mix):", correctionError);
+        }
+
         await logUsage(user.id, category, "carousel_mix");
         return new Response(JSON.stringify({ content }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -200,6 +216,21 @@ serve(async (req) => {
             messages: [{ role: "user", content: textPrompt }],
             max_tokens: 8192,
           });
+        }
+
+        // Apply correction pass to remove AI-detectable patterns
+        try {
+          const correctionFormat = body.channel === "linkedin" ? "linkedin" as const : "carousel" as const;
+          const corrected = await applyCorrectionPass(content, correctionFormat, {
+            enabled: true,
+            skipIfShorterThan: 300,
+            logger: (msg) => console.log(msg),
+          });
+          if (corrected && corrected !== content) {
+            content = corrected;
+          }
+        } catch (correctionError) {
+          console.error("Correction pass failed in carousel-ai (photo):", correctionError);
         }
 
         await logUsage(user.id, category, "carousel_photo");
@@ -395,12 +426,29 @@ Réponds UNIQUEMENT en JSON valide :
       });
     }
 
-    const content = await callAnthropic({
+    let content = await callAnthropic({
       model: getModelForAction("carousel"),
       system: systemPrompt,
       messages: [{ role: "user", content: userPrompt }],
       max_tokens: 8192,
     });
+
+    // Apply correction pass only for final content types
+    if (type === "express_full" || type === "slides" || type === "hooks") {
+      try {
+        const correctionFormat = body.channel === "linkedin" ? "linkedin" as const : "carousel" as const;
+        const corrected = await applyCorrectionPass(content, correctionFormat, {
+          enabled: true,
+          skipIfShorterThan: 300,
+          logger: (msg) => console.log(msg),
+        });
+        if (corrected && corrected !== content) {
+          content = corrected;
+        }
+      } catch (correctionError) {
+        console.error("Correction pass failed in carousel-ai:", correctionError);
+      }
+    }
 
     await logUsage(user.id, category, `carousel_${type}`);
 
