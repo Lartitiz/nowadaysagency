@@ -77,6 +77,20 @@ serve(async (req) => {
 
     const model = getModelForAction("content");
 
+    // Randomize search terms to force variety
+    const searchVariants = [
+      { global: "actualité insolite France cette semaine", niche: "nouveauté surprenante" },
+      { global: "buzz viral réseaux sociaux France 2026", niche: "polémique débat" },
+      { global: "fait divers drôle insolite France", niche: "tendance inattendue" },
+      { global: "actualité décalée société France", niche: "innovation surprenante" },
+      { global: "phénomène viral TikTok Instagram cette semaine", niche: "actu contre-intuitive" },
+      { global: "tendance culturelle pop culture France 2026", niche: "étude chiffre marquant" },
+    ];
+    const variant = searchVariants[Math.floor(Math.random() * searchVariants.length)];
+
+    const moods = ["drôles et insolites", "surprenantes et contre-intuitives", "virales et pop culture", "décalées et débattables"];
+    const mood = moods[Math.floor(Math.random() * moods.length)];
+
     const systemPrompt = `Tu es une assistante de veille stratégique pour créateur·ices de contenu.
 
 PROFIL DE L'UTILISATEUR·ICE :
@@ -85,13 +99,20 @@ ${brandingContext}
 TU DOIS EFFECTUER 2 RECHERCHES WEB SÉPARÉES (dans cet ordre) :
 
 RECHERCHE 1 — ACTU GLOBALE (obligatoire) :
-Cherche "actualité France mars 2026" ou "tendance société 2026" ou "fait marquant cette semaine France".
+Cherche "${variant.global}" ET varie tes requêtes. Essaie aussi d'autres formulations proches.
 Tu cherches ce dont TOUT LE MONDE parle en ce moment : politique, société, culture, économie, technologie grand public, phénomène viral, nouvelle loi, événement médiatique.
 Exemples d'actus globales : une réforme gouvernementale, un scandale médiatique, une tendance TikTok virale, les résultats d'une élection, un événement culturel majeur, une polémique publique, un fait divers marquant, une avancée scientifique grand public.
 ⚠️ Une actu est GLOBALE si quelqu'un qui n'est PAS dans le secteur de cette personne en a entendu parler.
 
+IMPORTANT — VARIÉTÉ OBLIGATOIRE : ne retourne PAS uniquement des actus "sérieuses" (politique, économie).
+Au moins 1 actu sur les 2 globales doit être dans une de ces catégories :
+- INSOLITE / DRÔLE : un fait divers absurde, un record bizarre, une situation cocasse
+- VIRAL / POP CULTURE : un meme, un challenge, une réaction en chaîne sur les réseaux
+- DÉCALÉ : une étude surprenante, un chiffre contre-intuitif, un phénomène de société inattendu
+Ces actus sont souvent les MEILLEURES pour du newsjacking car elles sont plus partageables et moins "corporate".
+
 RECHERCHE 2 — ACTU NICHE :
-Cherche des actualités spécifiques au secteur et au métier de cette personne.
+Cherche des actualités spécifiques au secteur et au métier de cette personne. Essaie aussi "${variant.niche}" dans son domaine.
 
 POTENTIEL DE CONTENU (pour les deux types) :
 - Est-ce que l'audience de cette personne s'en soucie ?
@@ -99,11 +120,12 @@ POTENTIEL DE CONTENU (pour les deux types) :
 - Est-ce que ça touche à ses piliers de contenu, ses combats, ou ses valeurs ?
 
 ANGLES PROPOSÉS — RÈGLES :
-Chaque angle DOIT utiliser un de ces 4 véhicules :
+Chaque angle DOIT utiliser un de ces 5 véhicules :
 1. RÉCIT D'EXPÉRIENCE (recit_experience) : "Quand j'ai vu cette actu, ça m'a rappelé…"
 2. DÉCLENCHEUR EXTERNE (declencheur_externe) : "Cette actu m'a fait réaliser un truc sur mon métier…"
 3. CONSTAT DÉCALÉ (constat_decale) : "Ce que cette actu révèle sur [secteur], c'est que…"
 4. MONTRER PLUTÔT QU'EXPLIQUER (montrer_plutot_quexpliquer) : avant/après, process visible, transformation
+5. PARALLÈLE ABSURDE (parallele_absurde) : "Cette actu n'a rien à voir avec mon métier… et pourtant ça illustre exactement…"
 L'actu est le DÉCLENCHEUR, pas le sujet. JAMAIS "voici ce qui se passe + mon avis". TOUJOURS relier à l'expertise et au vécu.
 Les angles doivent être SPÉCIFIQUES au branding de cette personne.
 JAMAIS de format "X conseils" ou "X erreurs".
@@ -119,7 +141,7 @@ FORMAT DE RÉPONSE — UNIQUEMENT en JSON (pas de markdown, pas de backticks) :
       "pertinence": "En 1 phrase, pourquoi c'est pertinent pour CETTE personne",
       "angles": [
         {
-          "vehicule": "recit_experience" | "declencheur_externe" | "constat_decale" | "montrer_plutot_quexpliquer",
+          "vehicule": "recit_experience" | "declencheur_externe" | "constat_decale" | "montrer_plutot_quexpliquer" | "parallele_absurde",
           "hook": "La première phrase du contenu (max 20 mots, percutante)",
           "description": "En 2-3 phrases, comment relier l'actu à l'expertise de la personne",
           "format_suggere": "post" | "carousel" | "reel" | "story" | "linkedin"
@@ -152,7 +174,7 @@ Si aucune actu pertinente n'est trouvée, retourne :
         model,
         max_tokens: 4096,
         tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5 }],
-        messages: [{ role: "user", content: systemPrompt + "\n\nTrouve les actualités les plus pertinentes pour moi en ce moment." }],
+        messages: [{ role: "user", content: systemPrompt + `\n\nTrouve les actualités les plus pertinentes pour moi en ce moment. Privilégie les actus ${mood} quand c'est possible.` }],
       }),
       signal: controller.signal,
     });
