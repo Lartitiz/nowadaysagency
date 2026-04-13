@@ -576,9 +576,9 @@ export default function CreerUnifie() {
     if (isAurianaDemoEmail(session?.user?.email) && ideaText === AURIANA_DEMO_SUBJECT) {
       setDemoGenerating(true);
       setStep("result");
-      const demoResult = AURIANA_DEMO_FLOW.result;
+      const { type: _t, ...demoRest } = AURIANA_DEMO_FLOW.result;
       setTimeout(() => {
-        setResult({ type: "carousel" as const, raw: demoResult, ...demoResult });
+        setResult({ type: "carousel" as const, raw: AURIANA_DEMO_FLOW.result, ...demoRest });
         setDemoGenerating(false);
       }, 2500);
       return;
