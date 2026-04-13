@@ -9,7 +9,7 @@ import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
-import { applyCorrectionPass } from "../_shared/correction-pass.ts";
+import { applyCorrectionPassCarousel } from "../_shared/correction-pass.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -156,21 +156,19 @@ serve(async (req) => {
           });
         }
 
-        // DISABLED: Correction pass causes JSON structure issues with carousel format
-        // TODO: Adapt carousel correction prompt to preserve JSON structure
-        // try {
-        //   const correctionFormat = body.channel === "linkedin" ? "linkedin" as const : "carousel" as const;
-        //   const corrected = await applyCorrectionPass(content, correctionFormat, {
-        //     enabled: true,
-        //     skipIfShorterThan: 300,
-        //     logger: (msg) => console.log(msg),
-        //   });
-        //   if (corrected && corrected !== content) {
-        //     content = corrected;
-        //   }
-        // } catch (correctionError) {
-        //   console.error("Correction pass failed in carousel-ai (mix):", correctionError);
-        // }
+        // JSON-aware correction pass for carousels
+        try {
+          const corrected = await applyCorrectionPassCarousel(content, {
+            enabled: true,
+            skipIfShorterThan: 300,
+            logger: (msg) => console.log(msg),
+          });
+          if (corrected && corrected !== content) {
+            content = corrected;
+          }
+        } catch (correctionError) {
+          console.error("Correction pass failed in carousel-ai (mix):", correctionError);
+        }
 
         await logUsage(user.id, category, "carousel_mix");
         return new Response(JSON.stringify({ content }), {
@@ -219,21 +217,19 @@ serve(async (req) => {
           });
         }
 
-        // DISABLED: Correction pass causes JSON structure issues with carousel format
-        // TODO: Adapt carousel correction prompt to preserve JSON structure
-        // try {
-        //   const correctionFormat = body.channel === "linkedin" ? "linkedin" as const : "carousel" as const;
-        //   const corrected = await applyCorrectionPass(content, correctionFormat, {
-        //     enabled: true,
-        //     skipIfShorterThan: 300,
-        //     logger: (msg) => console.log(msg),
-        //   });
-        //   if (corrected && corrected !== content) {
-        //     content = corrected;
-        //   }
-        // } catch (correctionError) {
-        //   console.error("Correction pass failed in carousel-ai (photo):", correctionError);
-        // }
+        // JSON-aware correction pass for carousels
+        try {
+          const corrected = await applyCorrectionPassCarousel(content, {
+            enabled: true,
+            skipIfShorterThan: 300,
+            logger: (msg) => console.log(msg),
+          });
+          if (corrected && corrected !== content) {
+            content = corrected;
+          }
+        } catch (correctionError) {
+          console.error("Correction pass failed in carousel-ai (photo):", correctionError);
+        }
 
         await logUsage(user.id, category, "carousel_photo");
         return new Response(JSON.stringify({ content }), {
@@ -435,23 +431,21 @@ Réponds UNIQUEMENT en JSON valide :
       max_tokens: 8192,
     });
 
-    // DISABLED: Correction pass causes JSON structure issues with carousel format
-    // TODO: Adapt carousel correction prompt to preserve JSON structure
-    // if (type === "express_full" || type === "slides" || type === "hooks") {
-    //   try {
-    //     const correctionFormat = body.channel === "linkedin" ? "linkedin" as const : "carousel" as const;
-    //     const corrected = await applyCorrectionPass(content, correctionFormat, {
-    //       enabled: true,
-    //       skipIfShorterThan: 300,
-    //       logger: (msg) => console.log(msg),
-    //     });
-    //     if (corrected && corrected !== content) {
-    //       content = corrected;
-    //     }
-    //   } catch (correctionError) {
-    //     console.error("Correction pass failed in carousel-ai:", correctionError);
-    //   }
-    // }
+    // JSON-aware correction pass for carousels
+    if (type === "express_full" || type === "slides" || type === "hooks") {
+      try {
+        const corrected = await applyCorrectionPassCarousel(content, {
+          enabled: true,
+          skipIfShorterThan: 300,
+          logger: (msg) => console.log(msg),
+        });
+        if (corrected && corrected !== content) {
+          content = corrected;
+        }
+      } catch (correctionError) {
+        console.error("Correction pass failed in carousel-ai:", correctionError);
+      }
+    }
 
     await logUsage(user.id, category, `carousel_${type}`);
 
@@ -499,7 +493,14 @@ ${isLinkedIn
 - VOIX PAR DÉFAUT = "JE". L'auteur·ice raconte, partage, analyse, prend position. C'est SA voix, SON vécu, SA réflexion.
 - Le "TU" est un outil d'INTERPELLATION PONCTUELLE : 1-2 fois par carrousel max, pour une question directe ou un CTA. JAMAIS comme voix narrative de tout le carrousel.
 - Le "NOUS" collectif pour les sujets de société/combats/valeurs : "On nous demande de…", "On a intériorisé cette norme". Fédérateur, pas accusateur.
-- RÈGLE ANTI-TU : si plus de 2 slides sur le carrousel commencent par "Tu" ou utilisent le "tu" comme sujet principal de la phrase, c'est un échec. Réécris en JE ou NOUS.`}
+- RÈGLE ANTI-TU : si plus de 2 slides sur le carrousel commencent par "Tu" ou utilisent le "tu" comme sujet principal de la phrase, c'est un échec. Réécris en JE ou NOUS.
+
+══ VÉRIFICATION OBLIGATOIRE AVANT RETOUR ══
+□ Combien de slides utilisent "tu" comme sujet principal ? Si > 2 → RÉÉCRIS IMMÉDIATEMENT en JE/NOUS. C'est un ÉCHEC sinon.
+□ Slide 1 contient "X sans Y, c'est Z" ? → RÉÉCRIS avec un fait concret ou une scène vécue.
+□ Dernière slide = "Et toi, ..." ou "Dis-moi en commentaire" ? → Question SPÉCIFIQUE au sujet.
+□ Une slide récite le brief sans le digérer ? → Reformule avec un argument propre.
+══════════════════════════════════════════`}
 - Phrases qui alternent longues et courtes (rythme)
 - Expressions naturelles (en vrai, franchement, le truc c'est que)
 - Humour discret, pas forcé
