@@ -9,7 +9,7 @@ import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
-import { applyCorrectionPass } from "../_shared/correction-pass.ts";
+import { applyCorrectionPassCarousel } from "../_shared/correction-pass.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -156,21 +156,19 @@ serve(async (req) => {
           });
         }
 
-        // DISABLED: Correction pass causes JSON structure issues with carousel format
-        // TODO: Adapt carousel correction prompt to preserve JSON structure
-        // try {
-        //   const correctionFormat = body.channel === "linkedin" ? "linkedin" as const : "carousel" as const;
-        //   const corrected = await applyCorrectionPass(content, correctionFormat, {
-        //     enabled: true,
-        //     skipIfShorterThan: 300,
-        //     logger: (msg) => console.log(msg),
-        //   });
-        //   if (corrected && corrected !== content) {
-        //     content = corrected;
-        //   }
-        // } catch (correctionError) {
-        //   console.error("Correction pass failed in carousel-ai (mix):", correctionError);
-        // }
+        // JSON-aware correction pass for carousels
+        try {
+          const corrected = await applyCorrectionPassCarousel(content, {
+            enabled: true,
+            skipIfShorterThan: 300,
+            logger: (msg) => console.log(msg),
+          });
+          if (corrected && corrected !== content) {
+            content = corrected;
+          }
+        } catch (correctionError) {
+          console.error("Correction pass failed in carousel-ai (mix):", correctionError);
+        }
 
         await logUsage(user.id, category, "carousel_mix");
         return new Response(JSON.stringify({ content }), {
@@ -219,21 +217,19 @@ serve(async (req) => {
           });
         }
 
-        // DISABLED: Correction pass causes JSON structure issues with carousel format
-        // TODO: Adapt carousel correction prompt to preserve JSON structure
-        // try {
-        //   const correctionFormat = body.channel === "linkedin" ? "linkedin" as const : "carousel" as const;
-        //   const corrected = await applyCorrectionPass(content, correctionFormat, {
-        //     enabled: true,
-        //     skipIfShorterThan: 300,
-        //     logger: (msg) => console.log(msg),
-        //   });
-        //   if (corrected && corrected !== content) {
-        //     content = corrected;
-        //   }
-        // } catch (correctionError) {
-        //   console.error("Correction pass failed in carousel-ai (photo):", correctionError);
-        // }
+        // JSON-aware correction pass for carousels
+        try {
+          const corrected = await applyCorrectionPassCarousel(content, {
+            enabled: true,
+            skipIfShorterThan: 300,
+            logger: (msg) => console.log(msg),
+          });
+          if (corrected && corrected !== content) {
+            content = corrected;
+          }
+        } catch (correctionError) {
+          console.error("Correction pass failed in carousel-ai (photo):", correctionError);
+        }
 
         await logUsage(user.id, category, "carousel_photo");
         return new Response(JSON.stringify({ content }), {
@@ -435,23 +431,21 @@ Réponds UNIQUEMENT en JSON valide :
       max_tokens: 8192,
     });
 
-    // DISABLED: Correction pass causes JSON structure issues with carousel format
-    // TODO: Adapt carousel correction prompt to preserve JSON structure
-    // if (type === "express_full" || type === "slides" || type === "hooks") {
-    //   try {
-    //     const correctionFormat = body.channel === "linkedin" ? "linkedin" as const : "carousel" as const;
-    //     const corrected = await applyCorrectionPass(content, correctionFormat, {
-    //       enabled: true,
-    //       skipIfShorterThan: 300,
-    //       logger: (msg) => console.log(msg),
-    //     });
-    //     if (corrected && corrected !== content) {
-    //       content = corrected;
-    //     }
-    //   } catch (correctionError) {
-    //     console.error("Correction pass failed in carousel-ai:", correctionError);
-    //   }
-    // }
+    // JSON-aware correction pass for carousels
+    if (type === "express_full" || type === "slides" || type === "hooks") {
+      try {
+        const corrected = await applyCorrectionPassCarousel(content, {
+          enabled: true,
+          skipIfShorterThan: 300,
+          logger: (msg) => console.log(msg),
+        });
+        if (corrected && corrected !== content) {
+          content = corrected;
+        }
+      } catch (correctionError) {
+        console.error("Correction pass failed in carousel-ai:", correctionError);
+      }
+    }
 
     await logUsage(user.id, category, `carousel_${type}`);
 

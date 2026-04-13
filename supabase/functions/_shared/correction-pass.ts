@@ -235,6 +235,160 @@ Réponds UNIQUEMENT avec le script corrigé en gardant la structure JSON origina
 Réponds UNIQUEMENT avec la séquence corrigée en gardant la structure originale.`,
 };
 
+const CAROUSEL_CORRECTION_PROMPT = `Tu es un éditeur de carrousels Instagram/LinkedIn exigeant. Tu reçois les TEXTES extraits d'un carrousel, annotés par marqueurs [SLIDE N - TYPE].
+
+══ TON JOB ══
+Corriger UNIQUEMENT le texte. Retourner le MÊME format annoté avec les textes corrigés.
+
+══ CORRECTIONS OBLIGATOIRES ══
+
+1. FORMULE "X SANS Y, C'EST Z" (slide 1 ou ailleurs) :
+   ❌ "La créativité sans clarté, c'est du bruit"
+   → ✅ Remplace par un FAIT CONCRET ou une SCÈNE VÉCUE. Ex: "J'ai passé 3h sur un visuel. Personne n'a compris ce que je vendais."
+
+2. RÈGLE ANTI-TU (CRITIQUE) :
+   → Compte les slides où "tu" est le SUJET PRINCIPAL.
+   → Si > 2 slides en mode TU → RÉÉCRIS en JE ou NOUS.
+   → Le TU est réservé à 1-2 interpellations ponctuelles, JAMAIS comme voix narrative.
+   ❌ "Tu peux avoir le feed le plus beau... tu sais ce que tu proposes..."
+   → ✅ "J'ai eu le feed le plus beau... je savais ce que je proposais..."
+
+3. CTA GÉNÉRIQUE (dernière slide) :
+   ❌ "Et toi, tu commences par quoi ?" / "Dis-moi en commentaire"
+   → ✅ Question SPÉCIFIQUE au sujet du carrousel. Ex: "Quelle est la dernière slide qui t'a fait arrêter de scroller — et pourquoi ?"
+
+4. RÉCITATION DU SUJET (slide qui répète le brief sans le digérer) :
+   → Reformule avec un ARGUMENT PROPRE, un exemple, une nuance.
+
+5. PHRASES COURTES CONSÉCUTIVES (2+ phrases < 10 mots) :
+   → Fusionne en prose fluide.
+   ❌ "Tu sautes des étapes. Tu parles en raccourcis."
+   → ✅ "Tu sautes des étapes et tu parles en raccourcis sans t'en rendre compte."
+
+6. ÉNUMÉRATIONS RYTHMIQUES PARFAITES :
+   → "Des X, des Y, des Z" → casse la symétrie.
+
+7. FORMULES MANUFACTURÉES :
+   → "noyé dans l'esthétique", "bruit joli", "vitrine sans produit", "le squelette de", "l'ADN de" → réécris en plus brut.
+
+8. ANAPHORES (3+ phrases qui démarrent pareil) :
+   → Varie les structures.
+
+══ FORMAT DE RÉPONSE ══
+Retourne EXACTEMENT le même format annoté :
+[SLIDE 1 - HOOK] texte corrigé
+[SLIDE 2 - TITLE] texte corrigé
+[SLIDE 2 - BODY] texte corrigé
+...
+[CAPTION] texte corrigé
+
+══ RÈGLES ABSOLUES ══
+- Garde le SENS et la CONVICTION. Tu corriges la FORME, pas le FOND.
+- N'invente pas de nouveaux faits.
+- JAMAIS de tiret cadratin (—).
+- Écriture inclusive avec point médian.
+- Ne retourne QUE le bloc annoté, rien d'autre.
+
+══ AUTO-VÉRIFICATION FINALE ══
+□ Slides en mode TU > 2 ? → réécris en JE/NOUS
+□ Slide 1 = "X sans Y, c'est Z" ? → réécris avec fait concret
+□ Dernière slide = "Et toi..." ? → question spécifique
+□ Formule manufacturée restante ? → réécris
+□ INDISTINGUABLE d'un humain ? → si non, recommence`;
+
+/**
+ * Extrait les champs textuels d'un JSON carrousel en bloc annoté.
+ */
+function extractCarouselTexts(parsed: any): string {
+  const lines: string[] = [];
+
+  const slides = parsed.slides || parsed.carousel?.slides || [];
+  for (let i = 0; i < slides.length; i++) {
+    const slide = slides[i];
+    const num = i + 1;
+
+    // Hook (slide 1) or title
+    const title = slide.title || slide.hook || slide.accroche || "";
+    if (title) {
+      lines.push(`[SLIDE ${num} - ${i === 0 ? "HOOK" : "TITLE"}] ${title}`);
+    }
+
+    // Body
+    const body = slide.body || slide.text || slide.content || "";
+    if (body) {
+      lines.push(`[SLIDE ${num} - BODY] ${body}`);
+    }
+
+    // Punchline
+    const punchline = slide.punchline || "";
+    if (punchline) {
+      lines.push(`[SLIDE ${num} - PUNCHLINE] ${punchline}`);
+    }
+  }
+
+  // Caption
+  const caption = parsed.caption || parsed.instagram_caption || "";
+  if (caption) {
+    lines.push(`[CAPTION] ${caption}`);
+  }
+
+  return lines.join("\n");
+}
+
+/**
+ * Réinjecte les textes corrigés dans la structure JSON originale.
+ */
+function reinjectCarouselTexts(parsed: any, correctedBlock: string): any {
+  const result = JSON.parse(JSON.stringify(parsed)); // deep clone
+  const slides = result.slides || result.carousel?.slides || [];
+
+  // Parse annotated block into a map
+  const corrections = new Map<string, string>();
+  const regex = /\[([^\]]+)\]\s*([\s\S]*?)(?=\n\[|$)/g;
+  let match;
+  while ((match = regex.exec(correctedBlock)) !== null) {
+    corrections.set(match[1].trim(), match[2].trim());
+  }
+
+  for (let i = 0; i < slides.length; i++) {
+    const num = i + 1;
+
+    // Hook/title
+    const titleKey = i === 0 ? `SLIDE ${num} - HOOK` : `SLIDE ${num} - TITLE`;
+    if (corrections.has(titleKey)) {
+      const val = corrections.get(titleKey)!;
+      if (slides[i].title !== undefined) slides[i].title = val;
+      else if (slides[i].hook !== undefined) slides[i].hook = val;
+      else if (slides[i].accroche !== undefined) slides[i].accroche = val;
+      else slides[i].title = val;
+    }
+
+    // Body
+    const bodyKey = `SLIDE ${num} - BODY`;
+    if (corrections.has(bodyKey)) {
+      const val = corrections.get(bodyKey)!;
+      if (slides[i].body !== undefined) slides[i].body = val;
+      else if (slides[i].text !== undefined) slides[i].text = val;
+      else if (slides[i].content !== undefined) slides[i].content = val;
+      else slides[i].body = val;
+    }
+
+    // Punchline
+    const punchKey = `SLIDE ${num} - PUNCHLINE`;
+    if (corrections.has(punchKey)) {
+      slides[i].punchline = corrections.get(punchKey)!;
+    }
+  }
+
+  // Caption
+  if (corrections.has("CAPTION")) {
+    if (result.caption !== undefined) result.caption = corrections.get("CAPTION")!;
+    else if (result.instagram_caption !== undefined) result.instagram_caption = corrections.get("CAPTION")!;
+  }
+
+  return result;
+}
+
 /**
  * Applique une passe de correction sur du contenu généré par l'IA.
  * Utilise un 2e appel Anthropic court avec température basse (0.3) pour 
@@ -249,7 +403,6 @@ export async function applyCorrectionPass(
 ): Promise<string> {
   const { skipIfShorterThan = 200, enabled = true, logger } = options;
 
-  // Skip si désactivé ou contenu trop court
   if (!enabled) {
     logger?.(`[correction-pass:${format}] SKIPPED (disabled)`);
     return content;
@@ -288,5 +441,80 @@ export async function applyCorrectionPass(
     logger?.(`[correction-pass:${format}] ERROR: ${error}`);
     console.error(`[correction-pass:${format}] Failed, using original:`, error);
     return content;
+  }
+}
+
+/**
+ * Correction pass JSON-aware pour carrousels.
+ * Extrait les textes du JSON, les corrige, puis les réinjecte sans casser la structure.
+ * Fallback : retourne le contenu original si quoi que ce soit échoue.
+ */
+export async function applyCorrectionPassCarousel(
+  jsonContent: string,
+  options: CorrectionOptions = {}
+): Promise<string> {
+  const { skipIfShorterThan = 300, enabled = true, logger } = options;
+
+  if (!enabled) {
+    logger?.(`[correction-pass:carousel-json] SKIPPED (disabled)`);
+    return jsonContent;
+  }
+
+  try {
+    // Step 1: Find and parse JSON from content
+    const jsonMatch = jsonContent.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      logger?.(`[correction-pass:carousel-json] SKIPPED (no JSON found)`);
+      return jsonContent;
+    }
+
+    let parsed: any;
+    try {
+      parsed = JSON.parse(jsonMatch[0]);
+    } catch {
+      logger?.(`[correction-pass:carousel-json] SKIPPED (invalid JSON)`);
+      return jsonContent;
+    }
+
+    // Step 2: Extract text fields into annotated block
+    const textBlock = extractCarouselTexts(parsed);
+    if (!textBlock || textBlock.length < skipIfShorterThan) {
+      logger?.(`[correction-pass:carousel-json] SKIPPED (text too short: ${textBlock?.length})`);
+      return jsonContent;
+    }
+
+    logger?.(`[correction-pass:carousel-json] STARTED, text block length: ${textBlock.length}`);
+
+    // Step 3: Send only text to correction
+    const correctedBlock = await callAnthropicSimple(
+      getModelForAction("content"),
+      CAROUSEL_CORRECTION_PROMPT,
+      `Voici les textes du carrousel à corriger :\n\n${textBlock}`,
+      0.3,
+      4096
+    );
+
+    if (!correctedBlock || correctedBlock.length < 100) {
+      logger?.(`[correction-pass:carousel-json] FALLBACK (corrected too short: ${correctedBlock?.length})`);
+      return jsonContent;
+    }
+
+    // Step 4: Reinject corrected texts into original JSON
+    const correctedParsed = reinjectCarouselTexts(parsed, correctedBlock);
+
+    // Step 5: Reconstruct the full content string
+    const correctedJson = JSON.stringify(correctedParsed);
+    
+    // Preserve any text before/after the JSON in the original content
+    const jsonStart = jsonContent.indexOf(jsonMatch[0]);
+    const jsonEnd = jsonStart + jsonMatch[0].length;
+    const result = jsonContent.substring(0, jsonStart) + correctedJson + jsonContent.substring(jsonEnd);
+
+    logger?.(`[correction-pass:carousel-json] DONE, result length: ${result.length}`);
+    return result;
+  } catch (error) {
+    logger?.(`[correction-pass:carousel-json] ERROR: ${error}`);
+    console.error(`[correction-pass:carousel-json] Failed, using original:`, error);
+    return jsonContent;
   }
 }
