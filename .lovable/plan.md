@@ -1,35 +1,83 @@
 
 
-## Plan : Calibrage durée Reel selon objectif (reach vs nurture)
+## Plan : Diversifier les actus du newsjacking (variété + actus insolites/drôles)
+
+### Problème identifié
+Le prompt de recherche web est statique : il demande toujours "actualité France mars 2026" ou "tendance société 2026", ce qui pousse Claude à chercher les mêmes mots-clés et retourner les mêmes résultats. De plus, il n'y a aucune instruction pour chercher des actus insolites, drôles ou décalées — uniquement du "sérieux".
 
 ### Fichier modifié
-`supabase/functions/creative-flow/index.ts` — un seul fichier
+`supabase/functions/newsjacking-ai/index.ts` — un seul fichier
 
-### Contexte vérifié
-- `effectiveObjective` est défini ligne 155 (valeurs : `visibilite`, `engagement`, `vente`, `credibilite`, ou null)
-- Le depth mandate Reel se termine ligne 495 par `` - One-liners enchaînés sans lien narratif`; ``
-- Ligne 496 : `} else if (isStories) {`
+### Changements
 
-### Action
-Remplacer les lignes 495-496 pour insérer entre la fin du depthMandate Reel et le bloc Stories :
+**1. Ajouter de la randomisation dans les termes de recherche**
+Avant la construction du `systemPrompt`, créer un tableau de variantes de recherche et en tirer une au hasard. Cela force des requêtes web différentes à chaque appel :
 
-1. Fermer la template string existante (inchangé)
-2. Ajouter un bloc conditionnel `if (effectiveObjective === "visibilite")` qui concatène à `depthMandate` les contraintes format court (15-25s, 40-80 mots)
-3. Ajouter un `else if` pour les 3 autres objectifs (engagement/vente/credibilite) qui concatène les contraintes format long (45-75s, 110-190 mots)
-4. Si `effectiveObjective` est null ou autre valeur, le format standard 30-60s du depth mandate de base s'applique (pas de concaténation)
+```typescript
+const searchVariants = [
+  { global: "actualité insolite France cette semaine", niche: "nouveauté surprenante" },
+  { global: "buzz viral réseaux sociaux France 2026", niche: "polémique débat" },
+  { global: "fait divers drôle insolite France", niche: "tendance inattendue" },
+  { global: "actualité décalée société France", niche: "innovation surprenante" },
+  { global: "phénomène viral TikTok Instagram cette semaine", niche: "actu contre-intuitive" },
+  { global: "tendance culturelle pop culture France 2026", niche: "étude chiffre marquant" },
+];
+const variant = searchVariants[Math.floor(Math.random() * searchVariants.length)];
+```
 
-### Contenu inséré
-Le bloc exact fourni par l'utilisateur, tel quel.
+**2. Enrichir la RECHERCHE 1 avec des catégories d'actus variées**
+Remplacer les exemples de recherche statiques par les variantes dynamiques, et ajouter explicitement la catégorie "insolite / drôle / décalé" comme type d'actu valide :
+
+Dans le bloc RECHERCHE 1, remplacer :
+```
+Cherche "actualité France mars 2026" ou "tendance société 2026" ou "fait marquant cette semaine France".
+```
+Par :
+```
+Cherche "${variant.global}" ET varie tes requêtes.
+```
+
+Et ajouter après les exemples d'actus globales :
+```
+IMPORTANT — VARIÉTÉ OBLIGATOIRE : ne retourne PAS uniquement des actus "sérieuses" (politique, économie).
+Au moins 1 actu sur les 2 globales doit être dans une de ces catégories :
+- INSOLITE / DRÔLE : un fait divers absurde, un record bizarre, une situation cocasse
+- VIRAL / POP CULTURE : un meme, un challenge, une réaction en chaîne sur les réseaux
+- DÉCALÉ : une étude surprenante, un chiffre contre-intuitif, un phénomène de société inattendu
+Ces actus sont souvent les MEILLEURES pour du newsjacking car elles sont plus partageables et moins "corporate".
+```
+
+**3. Ajouter un véhicule d'angle "humour / décalage"**
+Ajouter un 5ème véhicule dans la section ANGLES PROPOSÉS :
+```
+5. PARALLÈLE ABSURDE (parallele_absurde) : "Cette actu n'a rien à voir avec mon métier… et pourtant ça illustre exactement…"
+```
+
+**4. Enrichir le message utilisateur avec un signal de variété**
+Modifier le message final envoyé à Claude pour ajouter un signal aléatoire qui force la diversité :
+```typescript
+const moods = ["drôles et insolites", "surprenantes et contre-intuitives", "virales et pop culture", "décalées et débattables"];
+const mood = moods[Math.floor(Math.random() * moods.length)];
+// Dans le message : "Trouve les actualités les plus pertinentes... Privilégie les actus ${mood} quand c'est possible."
+```
 
 ### Ce qui ne change PAS
-- Le depthMandate Reel principal (lignes 386-495)
-- Le `objectiveBlock` existant (lignes 154-168) — complémentaire, pas redondant
-- Les autres formats (Stories, Carrousel, etc.)
-- Le format JSON de sortie
-- Aucun autre fichier
+- Le format JSON de sortie (même structure `actus[]`)
+- La répartition 2 globales + 2 niches
+- Les 4 véhicules existants (on ajoute un 5ème)
+- La logique de quota, auth, rate limit
+- Le branding context
+- Tous les autres fichiers
 
-### Vérifications
+### Impact
+- Chaque appel aura des termes de recherche différents grâce à la randomisation
+- L'IA est explicitement invitée à chercher des actus drôles/insolites/virales
+- Le nouveau véhicule "parallèle absurde" permet des angles plus créatifs sur les actus décalées
+
+### Vérification
 - TypeScript compile sans erreur
-- `grep "CALIBRAGE DURÉE"` retourne 2 occurrences (VISIBILITÉ + NURTURE)
-- Déploiement de la Edge Function `creative-flow`
+- `grep "VARIÉTÉ OBLIGATOIRE"` retourne 1 occurrence
+- `grep "parallele_absurde"` retourne au moins 1 occurrence
+- `grep "searchVariants"` retourne 1 occurrence
+- Déploiement de la Edge Function `newsjacking-ai`
 
