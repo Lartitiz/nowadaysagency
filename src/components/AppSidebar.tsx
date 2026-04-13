@@ -99,6 +99,7 @@ export default function AppSidebar() {
   const [open, setOpen] = useState(false);
   const [openSubs, setOpenSubs] = useState<Record<string, boolean>>({});
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wsPopoverRef = useRef(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
   const clearCloseTimer = useCallback(() => {
