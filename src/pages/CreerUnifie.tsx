@@ -1992,6 +1992,7 @@ export default function CreerUnifie() {
                 onSkip={handleSkipQuestions}
                 onBack={() => setStep("format")}
                 previousBriefsCount={briefsCount}
+                initialAnswers={isAurianaDemoEmail(session?.user?.email) && ideaText === AURIANA_DEMO_SUBJECT ? AURIANA_DEMO_FLOW.answers : undefined}
               />
             )}
 
