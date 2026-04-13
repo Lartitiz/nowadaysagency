@@ -493,6 +493,56 @@ INTERDITS :
 - Texte overlay qui répète mot pour mot le texte parlé
 - Script qu'on ne peut pas dire à voix haute naturellement
 - One-liners enchaînés sans lien narratif`;
+
+        // ── Calibrage durée Reel selon l'objectif (algo Instagram 2026) ──
+        // Reach (visibilité) = format court 15-25s pour maximiser completion rate
+        // Nurture (engagement, vente, crédibilité) = format long 45-75s pour storytelling
+        if (effectiveObjective === "visibilite") {
+          depthMandate += `
+
+══ CALIBRAGE DURÉE — OBJECTIF VISIBILITÉ (REACH) ══
+
+Pour ce Reel, l'objectif est d'atteindre des NON-ABONNÉS. L'algo Instagram pousse
+vers les non-followers les Reels avec un FORT COMPLETION RATE (% de viewers qui
+regardent jusqu'au bout). Donc : court = mieux.
+
+CONTRAINTES SPÉCIFIQUES :
+- DURÉE CIBLE : 15-25 secondes (PAS 30-60s comme le format standard).
+- TEXTE PARLÉ : 40-80 mots maximum (PAS 150-300 mots).
+- STRUCTURE RAMASSÉE :
+  • Hook (0-3s) : 1 phrase ultra-directe, overlay autoporteur.
+  • Corps (3-18s) : UNE seule scène ou UN seul déplacement de perspective.
+    Pas de mise en contexte longue. On entre direct dans le vif.
+  • CTA (18-25s) : 1 phrase de chute. Question courte ou affirmation finale.
+- AUCUNE digression. Aucune nuance. UNE idée, UN angle, UN punch.
+- Le viewer doit pouvoir tout consommer en moins de 25 secondes.
+
+Privilégier la structure REEL FACE CAM ramassée OU REEL HOOK LOOP court.
+Éviter REEL VOIX OFF + B-ROLL (trop long pour ce format).`;
+        } else if (effectiveObjective === "engagement" || effectiveObjective === "vente" || effectiveObjective === "credibilite") {
+          depthMandate += `
+
+══ CALIBRAGE DURÉE — OBJECTIF ${effectiveObjective.toUpperCase()} (NURTURE) ══
+
+Pour ce Reel, l'objectif est de NOURRIR la relation avec l'audience existante
+(abonnés, prospects chauds). L'algo autorise et récompense les Reels plus longs
+quand la rétention tient. On peut développer la scène et le récit.
+
+CONTRAINTES SPÉCIFIQUES :
+- DURÉE CIBLE : 45-75 secondes (storytelling assumé).
+- TEXTE PARLÉ : 110-190 mots (rythme parlé naturel ~150 mots/min).
+- STRUCTURE NARRATIVE DÉVELOPPÉE :
+  • Hook (0-3s) : ouvre une boucle de curiosité forte.
+  • Corps (3-60s) : développe la SCÈNE COMPLÈTE — contexte, déclic, déplacement,
+    résolution. Le viewer doit ressentir une progression émotionnelle.
+  • CTA (60-75s) : invitation cohérente avec l'objectif (dialogue / offre / approfondissement).
+- ATTENTION : ne JAMAIS dépasser 90 secondes (au-delà = pénalité de distribution).
+- Si le sujet ne porte pas 60s de contenu dense, RACCOURCIR plutôt que diluer.
+
+Toutes les structures Reel sont possibles (FACE CAM, VOIX OFF + B-ROLL, HOOK LOOP).`;
+        }
+        // Si effectiveObjective est null ou autre valeur → format standard 30-60s du depth mandate de base.
+
       } else if (isStories) {
         depthMandate = `FORMAT : SÉQUENCE STORIES (5-7 stories)
 
