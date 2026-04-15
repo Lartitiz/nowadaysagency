@@ -32,7 +32,7 @@ import SpaceBentoCard from "@/components/dashboard/SpaceBentoCard";
 import { spaceModules } from "@/config/dashboardModules";
 import BadgesWidget from "@/components/dashboard/BadgesWidget";
 import WeekCalendarWidget from "@/components/dashboard/WeekCalendarWidget";
-import EngagementRoutineWidget from "@/components/dashboard/EngagementRoutineWidget";
+import PlanWeekWidget from "@/components/dashboard/PlanWeekWidget";
 import MonthlyStatsWidget from "@/components/dashboard/MonthlyStatsWidget";
 import LaetitiaCoachingCard from "@/components/dashboard/LaetitiaCoachingCard";
 import DiscoveryCoachingCard from "@/components/dashboard/DiscoveryCoachingCard";
@@ -530,8 +530,8 @@ export default function Dashboard() {
           <FirstTimeTooltip id="dashboard-calendar" text="Planifie tes contenus de la semaine. Fini le 'je poste quoi aujourd'hui'." className="col-span-4 sm:col-span-6 lg:col-span-6 row-span-3">
             <WeekCalendarWidget animationDelay={nextDelay()} />
           </FirstTimeTooltip>
-          <FirstTimeTooltip id="dashboard-routine" text="15 min/jour pour interagir avec ta communauté. L'habitude qui change tout." className="col-span-4 sm:col-span-6 lg:col-span-6 row-span-1">
-            <EngagementRoutineWidget animationDelay={nextDelay()} />
+          <FirstTimeTooltip id="dashboard-plan-week" text="L'IA te propose un planning de contenus personnalisé pour la semaine." className="col-span-4 sm:col-span-6 lg:col-span-6 row-span-1">
+            <PlanWeekWidget animationDelay={nextDelay()} />
           </FirstTimeTooltip>
           <FirstTimeTooltip id="dashboard-stats" text="Tes chiffres du mois. Publications, engagement, objectifs." className="col-span-4 sm:col-span-6 lg:col-span-6 row-span-2">
             <MonthlyStatsWidget animationDelay={nextDelay()} />
