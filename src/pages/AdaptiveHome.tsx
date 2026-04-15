@@ -324,6 +324,7 @@ export default function AdaptiveHome() {
 
         {/* Content Coaching Dialog */}
         <ContentCoachingDialog open={contentCoachingOpen} onOpenChange={setContentCoachingOpen} />
+        <CalendarCoachingDialog open={planWeekOpen} onOpenChange={setPlanWeekOpen} />
 
         {/* WelcomeOverlay + GuidedTour */}
         <WelcomeOverlay prenom={profileSummary.firstName} />
