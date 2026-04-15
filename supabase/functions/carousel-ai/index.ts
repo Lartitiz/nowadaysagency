@@ -1477,7 +1477,7 @@ RÈGLE ABSOLUE : le JSON retourné doit avoir EXACTEMENT ${slide_structure.lengt
 ═══ RÈGLES DE NARRATION ═══
 
 - ARC NARRATIF OBLIGATOIRE : le carrousel raconte une histoire (situation → tension → développement → résolution → ouverture). Même un carrousel mixte doit avoir un fil conducteur, pas juste une alternance photo/texte sans logique.
-- CONNEXION ENTRE SLIDES : chaque slide crée une tension qui donne envie de swiper. Utilise des bucket brigades : "Le problème, c'est que...", "Sauf que...", "Résultat ?", "Et là...", "La vraie question c'est..."
+- CONNEXION ENTRE SLIDES : chaque slide crée une tension narrative qui donne envie de swiper. La tension vient du SUJET (une question ouverte, un contraste, une info incomplète), pas de formules plaquées. Pas de "bucket brigades" mécaniques.
 - Les slides text_only doivent avoir un body de 30-50 mots MINIMUM, pas juste un titre + quelques mots. Du vrai contenu de fond avec des phrases complètes et fluides.
 - EXEMPLES CONCRETS dans chaque slide texte : pas de conseil abstrait sans illustration.
 - AU MOINS 1 analogie du quotidien ou référence culture pop dans le carrousel.
