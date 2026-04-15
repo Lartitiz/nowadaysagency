@@ -66,6 +66,12 @@ serve(async (req) => {
     const ctx = await getUserContext(sbService, user.id, workspace_id);
     const brandingContext = formatContextForAI(ctx, CONTEXT_PRESETS.content);
 
+    // Extract activity keywords for targeted niche search
+    const activityRaw = ctx?.profile?.activite || ctx?.profile?.type_activite || "";
+    const pillarsRaw = Array.isArray(ctx?.profile?.piliers) ? ctx.profile.piliers.join(", ") : "";
+    const nicheKeywords = [activityRaw, pillarsRaw].filter(Boolean).join(" — ");
+    const nicheLabel = activityRaw || "son secteur";
+
     // Claude call with web search
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
     if (!ANTHROPIC_API_KEY) {
