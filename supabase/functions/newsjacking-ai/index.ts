@@ -126,13 +126,18 @@ Ne cherche PAS des actus génériques "business" ou "entrepreneuriat" — cherch
 Si le métier est "marchande de biens" → cherche "immobilier marchand de biens", "rénovation achat revente", "marché immobilier".
 Si le métier est "coach" → cherche "coaching développement personnel", "bien-être tendance", etc.
 
-FILTRE DE PERTINENCE (CRITIQUE) :
-Avant de retenir une actu, pose-toi ces 3 questions :
-1. Est-ce que l'audience de "${nicheLabel}" s'en soucie ou peut s'y identifier ?
-2. Est-ce que cette personne peut apporter un regard UNIQUE dessus grâce à son expertise en "${nicheLabel}" ?
-3. Est-ce que ça touche à ses piliers de contenu, ses combats, ou ses valeurs ?
-Si la réponse est NON aux 3 → REJETTE cette actu et cherche-en une autre.
-⚠️ Une actu sur "les réseaux sociaux" ou "le marketing digital" N'EST PAS une actu niche sauf si le métier EST le marketing digital.
+FILTRE DE PERTINENCE — ACTUS GLOBALES :
+Pour les actus globales, le critère est : "peut-on créer un PONT entre cette actu et le secteur de ${nicheLabel} ?"
+✅ GARDER si : on peut faire un parallèle, une métaphore, un "ça m'a fait penser à mon métier", un constat transposable vers "${nicheLabel}"
+✅ GARDER si : l'actu touche un sujet universel (argent, confiance, peur, liberté, travail, ambition) que l'audience de "${nicheLabel}" peut s'approprier
+❌ REJETER si : même avec un angle créatif, impossible de relier à l'expertise ou au vécu professionnel de "${nicheLabel}"
+L'actu globale N'A PAS BESOIN de parler du secteur. Elle doit juste être "pontable".
+
+FILTRE DE PERTINENCE — ACTUS NICHE :
+Pour les actus niche, le critère est strict :
+1. L'actu parle directement du secteur, du marché ou des clients de "${nicheLabel}"
+2. L'expertise de cette personne apporte un éclairage unique
+⚠️ "réseaux sociaux" ou "marketing digital" N'EST PAS une actu niche sauf si le métier EST le marketing digital.
 Pour "${nicheLabel}", une actu niche pertinente parle de SON secteur, SES clients, SON marché.
 
 ANGLES PROPOSÉS — RÈGLES :
@@ -145,6 +150,13 @@ Chaque angle DOIT utiliser un de ces 5 véhicules :
 L'actu est le DÉCLENCHEUR, pas le sujet. JAMAIS "voici ce qui se passe + mon avis". TOUJOURS relier à l'expertise et au vécu.
 Les angles doivent être SPÉCIFIQUES au branding de cette personne.
 JAMAIS de format "X conseils" ou "X erreurs".
+
+RÈGLE SPÉCIALE — ANGLES DES ACTUS GLOBALES :
+Pour les actus GLOBALES, l'angle doit TOUJOURS construire un pont :
+- Le hook part de l'actu (ce que tout le monde a vu/entendu)
+- Le pivot ramène à l'expertise métier de "${nicheLabel}" (ce que seul·e cette personne peut dire)
+- Les véhicules idéaux sont "parallele_absurde" ou "declencheur_externe"
+- Exemple : actu sur une polémique politique → "Ce que ce scandale m'a appris sur la confiance dans l'immobilier…"
 
 FORMAT DE RÉPONSE — UNIQUEMENT en JSON (pas de markdown, pas de backticks) :
 {
