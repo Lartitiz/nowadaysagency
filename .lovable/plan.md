@@ -1,68 +1,27 @@
 
 
-## Plan : Fluidifier le coach contenu — de 6 étapes à 3
+## Plan révisé : Anti-fabrication — version concise
 
-### Le problème actuel
-Le flow demande 6 clics minimum avant de voir des idées : Objectif → Sujet → Canal → Format → Angle éditorial → Ton. C'est trop long. L'utilisatrice décroche avant d'arriver aux résultats.
+### Le problème reste le même
+L'IA invente des anecdotes quand l'utilisatrice n'en a pas fourni.
 
-### La refonte
+### La solution, en plus simple
 
-**Nouveau flow en 3 étapes :**
+**Fichier : `supabase/functions/creative-flow/index.ts`**
+
+Une seule règle ajoutée dans le prompt `generate`, après le bloc des réponses utilisatrice :
 
 ```text
-Étape 1 : Objectif + Sujet (fusionnés)
-  ┌─────────────────────────────────┐
-  │ Grille 4 objectifs              │
-  │ + champ sujet optionnel dessous │
-  │ + bouton "Surprise moi" (skip)  │
-  └─────────────────────────────────┘
-
-Étape 2 : Canal + Format (fusionnés)
-  ┌─────────────────────────────────┐
-  │ Grille groupée :                │
-  │ 📸 Insta Post | Carrousel |... │
-  │ 💼 LinkedIn Post | Carrousel   │
-  │ 📌 Pinterest épingle | visuel  │
-  │ 📧 Newsletter                  │
-  └─────────────────────────────────┘
-
-Étape 3 : Génération immédiate
-  → L'angle éditorial et le ton sont choisis par l'IA
-    (basés sur le branding + objectif)
-  → Résultat : 3 idées comme aujourd'hui
+RÈGLE ANTI-FABRICATION :
+N'invente JAMAIS une anecdote, un cas client ou un chiffre que l'utilisatrice n'a pas écrit.
+Pas de vécu fourni → angle expert : décryptage, constat décalé, prise de position.
 ```
 
-### Détails des changements
+C'est tout. Deux lignes au lieu d'un pavé. Le self-check et l'anti-slop ne bougent pas : ils traquent déjà les patterns IA, pas besoin de les alourdir.
 
-**Fichier : `src/components/dashboard/ContentCoachingDialog.tsx`**
-
-1. **Étape 1 — Objectif + Sujet fusionnés**
-   - Afficher la grille des 4 objectifs
-   - Dessous, un champ texte optionnel "Un sujet en tête ? (facultatif)" — plus de sous-étape oui/non
-   - Cliquer un objectif passe directement à l'étape 2 (le sujet est pris s'il est rempli)
-   - Ajouter un bouton "✨ Surprise — l'IA décide tout" qui skip directement à la génération (objectif = auto, sujet = vide, canal/format = auto)
-
-2. **Étape 2 — Canal + Format fusionnés**
-   - Une seule grille groupée par canal avec les formats en sous-items
-   - Cliquer un format déclenche immédiatement la génération (plus d'étape angle ni ton)
-   - Le sous-choix carrousel (texte/photo/mix) reste affiché inline quand on sélectionne carrousel
-
-3. **Supprimer les étapes 5 (angle) et 6 (ton)**
-   - L'angle éditorial est choisi par l'IA côté backend (déjà supporté via `contentType = ""` et le bouton "L'outil choisit pour moi")
-   - Le ton est déduit du `brand_profile.tone_keywords` existant — plus besoin de le demander
-   - Passer `ton_envie: "auto"` et `content_type: "auto"` au backend
-
-4. **Progress bar** : passer de 6 segments à 2
-
-5. **Type Step** : simplifier de `1|2|3|4|5|6|"loading"|"result"` à `1|2|"loading"|"result"`
+### Ce qui change
+- 2 lignes ajoutées dans le prompt de génération de `creative-flow`
 
 ### Ce qui ne change pas
-- Le backend `content-coaching` (il gère déjà les valeurs nulles/auto)
-- L'écran de résultat avec les 3 idées
-- Le bouton "Autres idées" pour régénérer
-- La redirection vers `/creer` avec les bons params
-- Le sous-choix carrousel texte/photo/mix
-
-### Résultat attendu
-2 clics au lieu de 6 pour arriver aux idées. L'utilisatrice choisit son objectif, son canal+format, et l'IA fait le reste.
+- Tout le reste
 
