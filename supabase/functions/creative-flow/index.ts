@@ -527,11 +527,11 @@ Corps: "Erreur 1 : pas de stratégie. Erreur 2 : pas de régularité. Erreur 3 :
 Hook: "Ma cliente avait 10K abonnés et zéro client."
 Corps: "Je lui ai demandé : 'Tu postes pour qui ?'. Silence.
 Elle postait 5 fois par semaine. Des tips, des infographies, des reels tendance.
-Sauf que son audience idéale, elle scroll pas des tips. Elle cherche quelqu'un 
+Mais son audience idéale, elle scroll pas des tips. Elle cherche quelqu'un 
 qui comprend SON problème. On a tout arrêté. 2 posts par semaine. 
 Chaque post = une situation que sa cliente vit."
 CTA: "Résultat 3 mois plus tard : 4 appels découverte par semaine."
-→ Une scène, un déplacement ("sauf que"), un résultat concret.
+→ Une scène, un déplacement narratif, un résultat concret.
 
 INTERDITS :
 - Script qui LISTE des conseils au lieu de RACONTER
@@ -683,7 +683,7 @@ ACCROCHE (< 210 caractères) :
 
 CORPS :
 
-- LinkedIn = conversation entre pro. Le ton est direct, chaleureux, engagé. L'oral est OK : "en vrai", "le truc c'est que", "sauf que", "bon".
+- LinkedIn = conversation entre pro. Le ton est direct, chaleureux, engagé. L'oral est OK : "en vrai", "le truc c'est que", "bon", "franchement".
 
 - 2-3 paragraphes de prose fluide. UNE idée creusée, pas 5 survolées.
 

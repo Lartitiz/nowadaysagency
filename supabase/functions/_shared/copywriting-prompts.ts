@@ -302,18 +302,16 @@ STORIES SÉQUENCÉES (5-7 stories) :
 
 export const WRITING_RESOURCES = `
 ═══════════════════════════════════════════════════
-BUCKET BRIGADES (phrases de relance à intégrer naturellement)
+RYTHME ORAL ET RELANCES
 ═══════════════════════════════════════════════════
 
-Relance curiosité : "Sauf que.", "Et là.", "Le truc c'est que…", "Attends, c'est pas fini.", "Bon, je t'explique.", "Tu vois où je veux en venir ?", "Et devinez quoi."
+Le rythme d'un bon texte vient du CONTRASTE entre phrases longues et courtes, pas de "bucket brigades" plaquées mécaniquement.
 
-Relance émotionnelle : "Franchement.", "J'avoue.", "En vrai.", "Bon.", "Du coup.", "Et là, déclic.", "Bref."
+PRINCIPE : si une relance orale arrive naturellement dans le flux du texte, ok. Mais n'en force JAMAIS. Crée tes propres transitions à partir du SUJET, pas à partir d'une liste.
 
-Relance tension : "Sauf que rien ne s'est passé comme prévu.", "Spoiler : c'était une erreur.", "Sauf que.", "Mais.", "Le truc, c'est que…", "Ce qu'on ne te dit pas, c'est que…"
+Apartés entre parenthèses = OK quand ils ajoutent une nuance sincère : "(Et c'est ok.)", "(Je sais, ça fait peur.)"
 
-Relance validation : "(Oui, même toi.)", "(Pas besoin d'être parfaite pour ça.)", "(Et c'est ok.)", "(Je sais, ça fait peur.)", "(Promis, c'est plus simple qu'il n'y paraît.)"
-
-Relance transition : "Résultat ?", "Concrètement, ça donne quoi ?", "Maintenant, le plus important.", "La bonne nouvelle ?", "Le vrai game changer ?", "Mais attends, y'a mieux."
+Les mots de liaison oraux s'utilisent EN MILIEU DE PHRASE, jamais comme phrase isolée dramatique : "en vrai", "franchement", "du coup", "bon".
 
 ═══════════════════════════════════════════════════
 CTA ÉTHIQUES (à adapter au contexte)
@@ -334,8 +332,9 @@ INSTRUCTIONS DE RÉDACTION FINALE
 
 2. Suis la STRUCTURE de l'angle choisi, adaptée au format.
 
-3. Intègre naturellement 2-3 BUCKET BRIGADES dans le texte pour relancer 
-   la lecture. Elles doivent sonner oral, pas plaquées.
+3. Le rythme oral vient du SUJET et du ton de l'utilisatrice, pas d'une liste 
+   de relances. Si une transition orale arrive naturellement, garde-la. 
+   Si tu dois chercher une relance dans ta mémoire, c'est que le texte n'en a pas besoin.
 
 4. Utilise les MOTS de l'utilisatrice tirés de ses réponses aux questions. 
    Si elle dit "j'ai flippé", écris "j'ai flippé".
@@ -367,7 +366,7 @@ MOTS/EXPRESSIONS BANNIS (si tu les écris, c'est un échec) :
 - "Il est important de noter que…" → dire la chose directement
 - "Plongeons dans…" / "Sans plus attendre" → SUPPRIMER
 - "En outre" / "Par conséquent" → "Et" / "Du coup" / "Résultat"
-- "Cela étant dit" → "Sauf que" / "Le truc c'est que"
+- "Cela étant dit" → "Le truc c'est que"
 - "Je tenais à souligner" → dire la chose, c'est tout
 - "Nous sommes convaincu·es que" → "En vrai"
 - "N'oubliez pas que" → "Rappelle-toi"
@@ -389,7 +388,7 @@ MOTS/EXPRESSIONS BANNIS (si tu les écris, c'est un échec) :
 
 PATTERNS STRUCTURELS BANNIS :
 - Toutes les phrases de la même longueur → VARIER le rythme
-- Bullet points partout → prose fluide, bucket brigades
+- Bullet points partout → prose fluide, rythme oral naturel
 - Conclusion qui résume tout → phrase de fin qui OUVRE (question, invitation)
 - Ton uniformément poli sans aspérités → ajouter de la franchise
 - Pas d'opinion → en proposer une
@@ -404,6 +403,14 @@ Rythme artificiel :
 - Anaphore mécanique en fin de texte ("Avec X. Avec Y. Avec Z." ou "Pas X. Pas Y. Mais Z.") → SUPPRIMER.
 - "C'est pas X. C'est Y." plus d'une fois par contenu → UNE FOIS MAX.
 - Phrase isolée dramatique sur une ligne ("Et là, tout a basculé.") → SUPPRIMER.
+- "Sauf que." comme phrase isolée sur une ligne → BANNI. Marqueur IA #1. Si tu utilises "sauf que", c'est EN MILIEU DE PHRASE, max 1 fois par contenu.
+- "Et là." comme phrase isolée → BANNI.
+- "Et devinez quoi." → BANNI.
+- "Spoiler :" → BANNI.
+- "Le vrai game changer ?" → BANNI.
+- "Mais attends, y'a mieux." → BANNI.
+- "Ce qu'on ne te dit pas, c'est que…" → BANNI.
+- "Et là, déclic." → BANNI.
 - Chute en paire nominale symétrique ("Message clair, preuve concrète.", "Vision forte, exécution solide.", "Simplicité, authenticité.") → BANNI. Ça résume sans rien dire. Terminer par une phrase concrète ou une question qui ouvre.
 
 Storytelling fabriqué :

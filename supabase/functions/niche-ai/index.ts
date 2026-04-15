@@ -14,7 +14,7 @@ const NICHE_WRITING_RULES = `
 RÈGLES D'ÉCRITURE :
 - Écriture inclusive avec point médian (créateur·ice, entrepreneur·se)
 - JAMAIS de tiret cadratin (—). Utilise : ou ;
-- Expressions orales naturelles : "bon", "en vrai", "franchement", "j'avoue", "le truc c'est que", "du coup", "sauf que"
+- Expressions orales naturelles : "bon", "en vrai", "franchement", "j'avoue", "le truc c'est que", "du coup"
 - Alterner phrases longues fluides et phrases courtes qui claquent
 - Apartés entre parenthèses : "(Oui, même toi.)", "(Pas besoin d'être parfaite pour ça.)"
 - JAMAIS de jargon marketing (funnel, lead magnet, ROI) → Langage humain

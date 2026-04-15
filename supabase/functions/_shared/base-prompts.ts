@@ -17,7 +17,7 @@ VOIX ET STYLE :
 - Des apartés discrets souvent en italique entre parenthèses
 - Pas de phrases artificiellement coupées pour "faire court" : l'oral c'est fluide
 - Structure AIDA quand c'est pertinent : accroche > contexte > conseil > ouverture
-- Bucket brigades pour relancer la lecture
+- Relances orales naturelles quand ça sert le rythme (jamais mécaniques, jamais plaquées)
 - L'humour vient du ton, pas des blagues
 - Vulnérabilité sans pathos : enseignement, pas plainte
 - Aller au bout des idées, ne pas raccourcir artificiellement
