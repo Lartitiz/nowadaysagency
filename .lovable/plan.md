@@ -1,52 +1,57 @@
 
 
-## Plan : Assouplir le filtre pour les actus globales — connecter le buzz au secteur
+## Plan : Nettoyer les bucket brigades pour ne garder que celles qui sonnent humain
 
 ### Le problème
-Le filtre de pertinence actuel (lignes 129-136) s'applique uniformément à toutes les actus. Il exige que l'audience du secteur "s'en soucie directement", ce qui élimine les actus chaudes grand public qui sont justement les meilleures pour du newsjacking : prendre un sujet dont tout le monde parle et le relier à son expertise.
+Les bucket brigades actuelles (lignes 308-316 de `copywriting-prompts.ts`) contiennent un mélange de relances naturelles et de marqueurs IA devenus reconnaissables. L'IA les utilise mécaniquement parce qu'elles sont listées comme exemples. Les pires : "Et là.", "Sauf que.", "Et devinez quoi.", "Spoiler :", "Le vrai game changer ?", "Ce qu'on ne te dit pas, c'est que…".
 
 ### La solution
-Séparer les critères de pertinence selon le type d'actu :
+1. **Épurer les listes** : retirer toutes les relances devenues des tics IA
+2. **Remplacer par une instruction de principe** : au lieu de donner une liste que l'IA copie mécaniquement, lui dire de créer ses propres transitions orales adaptées au sujet
+3. **Ajouter les marqueurs bucket brigade au bloc PATTERNS BANNIS**
 
-- **Actus GLOBALES** : le critère n'est plus "est-ce que l'audience s'en soucie" mais **"est-ce qu'on peut créer un PONT vers le secteur"**. Une actu sur une polémique politique peut devenir un parallèle puissant avec l'immobilier si l'angle est bien trouvé.
-- **Actus NICHE** : garder le filtre strict actuel (doit parler du secteur directement).
+### Fichiers modifiés
 
-### Fichier modifié
-`supabase/functions/newsjacking-ai/index.ts` — un seul fichier
+**1. `supabase/functions/_shared/copywriting-prompts.ts`**
 
-### Changements concrets
+Réécrire la SECTION 4 (lignes 303-355) :
 
-**Remplacer le bloc FILTRE DE PERTINENCE unique par deux filtres distincts :**
+- **Supprimer les listes exhaustives de bucket brigades** (lignes 308-316)
+- Les remplacer par :
+  - Une poignée d'exemples (max 3-4) vraiment humains par catégorie
+  - Une instruction claire : "Crée tes propres transitions à partir du sujet, pas à partir de cette liste"
+- **Retirer spécifiquement** : "Et là.", "Sauf que.", "Et devinez quoi.", "Spoiler :", "Le vrai game changer ?", "Ce qu'on ne te dit pas c'est que…", "Mais attends, y'a mieux.", "Et là, déclic."
+- **Garder** : les relances vraiment orales comme "Franchement.", "En vrai.", "Bon.", "Résultat ?", les apartés entre parenthèses
+- Modifier l'instruction ligne 337 : passer de "intègre 2-3 bucket brigades" à "si une relance orale arrive naturellement, ok, mais n'en force jamais"
 
-```
-FILTRE DE PERTINENCE — ACTUS GLOBALES :
-Pour les actus globales, le critère est : "peut-on créer un PONT entre cette actu et le secteur de ${nicheLabel} ?"
-✅ GARDER si : on peut faire un parallèle, une métaphore, un "ça m'a fait penser à mon métier", un constat transposable
-✅ GARDER si : l'actu touche un sujet universel (argent, confiance, peur, liberté, travail) que l'audience peut s'approprier
-❌ REJETER si : même avec un angle créatif, impossible de relier à l'expertise ou au vécu professionnel
+- **Ajouter dans PATTERNS BANNIS** (ligne 406+) :
+  - "Sauf que." comme phrase isolée → BANNI
+  - "Et là." comme phrase isolée → BANNI  
+  - "Et devinez quoi." → BANNI
+  - "Spoiler :" → BANNI
+  - "Le vrai game changer ?" → BANNI
 
-FILTRE DE PERTINENCE — ACTUS NICHE :
-Pour les actus niche, le critère est strict :
-1. L'actu parle directement du secteur, du marché ou des clients de "${nicheLabel}"
-2. L'expertise de cette personne apporte un éclairage unique
-⚠️ "réseaux sociaux" ou "marketing digital" N'EST PAS une actu niche sauf si c'est le métier.
-```
+- **Ligne 370** (anti-slop) : remplacer "Sauf que" par "Le truc c'est que" comme alternative à "Cela étant dit"
+- **Ligne 392** : remplacer "prose fluide, bucket brigades" par "prose fluide, rythme oral naturel"
 
-**Ajouter une instruction explicite pour les angles des actus globales :**
-```
-Pour les actus GLOBALES, l'angle doit TOUJOURS construire un pont :
-- Le hook part de l'actu (ce que tout le monde a vu)
-- Le pivot ramène à l'expertise métier (ce que seul·e cette personne peut dire)
-- Le véhicule idéal est souvent "parallele_absurde" ou "declencheur_externe"
-```
+**2. `supabase/functions/_shared/base-prompts.ts`**
+- Ligne 20 : remplacer "Bucket brigades pour relancer la lecture" par "Relances orales naturelles quand ça sert le rythme (jamais mécaniques)"
+
+**3. `supabase/functions/niche-ai/index.ts`**  
+- Ligne 17 : retirer "sauf que" de la liste d'expressions orales
+
+**4. `supabase/functions/carousel-ai/index.ts`**
+- Ligne 1480 : retirer les exemples de bucket brigades ("Sauf que...", "Et là...") de l'instruction de connexion entre slides, les remplacer par une instruction de tension narrative sans liste copiable
+
+**5. `supabase/functions/creative-flow/index.ts`**
+- Retirer "sauf que" des listes d'expressions orales si présent
 
 ### Ce qui ne change pas
-- La répartition 2 globales + 2 niches
-- Les variantes de recherche randomisées
-- Les 5 véhicules d'angle
-- Le format JSON de sortie
-- Auth, quota, rate limit
+- Le correction-pass (il traque déjà les patterns IA)
+- La structure des prompts
+- Les CTA éthiques
+- Le score-content
 
 ### Résultat attendu
-Les actus globales seront de vraies actus chaudes (buzz, polémiques, tendances virales) avec des angles qui créent un pont vers le secteur, au lieu d'être filtrées parce qu'elles ne parlent pas directement du métier.
+L'IA ne piochera plus mécaniquement dans une liste de bucket brigades reconnaissables. Elle créera ses propres transitions orales adaptées au sujet, ce qui donnera des textes moins "templateisés".
 
