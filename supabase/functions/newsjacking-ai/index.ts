@@ -66,6 +66,12 @@ serve(async (req) => {
     const ctx = await getUserContext(sbService, user.id, workspace_id);
     const brandingContext = formatContextForAI(ctx, CONTEXT_PRESETS.content);
 
+    // Extract activity keywords for targeted niche search
+    const activityRaw = ctx?.profile?.activite || ctx?.profile?.type_activite || "";
+    const pillarsRaw = Array.isArray(ctx?.profile?.piliers) ? ctx.profile.piliers.join(", ") : "";
+    const nicheKeywords = [activityRaw, pillarsRaw].filter(Boolean).join(" — ");
+    const nicheLabel = activityRaw || "son secteur";
+
     // Claude call with web search
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
     if (!ANTHROPIC_API_KEY) {
@@ -111,13 +117,23 @@ Au moins 1 actu sur les 2 globales doit être dans une de ces catégories :
 - DÉCALÉ : une étude surprenante, un chiffre contre-intuitif, un phénomène de société inattendu
 Ces actus sont souvent les MEILLEURES pour du newsjacking car elles sont plus partageables et moins "corporate".
 
-RECHERCHE 2 — ACTU NICHE :
-Cherche des actualités spécifiques au secteur et au métier de cette personne. Essaie aussi "${variant.niche}" dans son domaine.
+RECHERCHE 2 — ACTU NICHE (MOTS-CLÉS MÉTIER OBLIGATOIRES) :
+Le secteur de cette personne : "${nicheLabel}".
+Thématiques clés : ${nicheKeywords || "voir profil ci-dessus"}.
+Tes recherches web DOIVENT inclure ces mots-clés métier dans tes requêtes de recherche.
+Exemples de requêtes à faire : "${activityRaw} actualité 2026", "${activityRaw} tendance", "${activityRaw} ${variant.niche}".
+Ne cherche PAS des actus génériques "business" ou "entrepreneuriat" — cherche des actus SPÉCIFIQUES à "${nicheLabel}".
+Si le métier est "marchande de biens" → cherche "immobilier marchand de biens", "rénovation achat revente", "marché immobilier".
+Si le métier est "coach" → cherche "coaching développement personnel", "bien-être tendance", etc.
 
-POTENTIEL DE CONTENU (pour les deux types) :
-- Est-ce que l'audience de cette personne s'en soucie ?
-- Est-ce qu'elle peut apporter un regard unique dessus ?
-- Est-ce que ça touche à ses piliers de contenu, ses combats, ou ses valeurs ?
+FILTRE DE PERTINENCE (CRITIQUE) :
+Avant de retenir une actu, pose-toi ces 3 questions :
+1. Est-ce que l'audience de "${nicheLabel}" s'en soucie ou peut s'y identifier ?
+2. Est-ce que cette personne peut apporter un regard UNIQUE dessus grâce à son expertise en "${nicheLabel}" ?
+3. Est-ce que ça touche à ses piliers de contenu, ses combats, ou ses valeurs ?
+Si la réponse est NON aux 3 → REJETTE cette actu et cherche-en une autre.
+⚠️ Une actu sur "les réseaux sociaux" ou "le marketing digital" N'EST PAS une actu niche sauf si le métier EST le marketing digital.
+Pour "${nicheLabel}", une actu niche pertinente parle de SON secteur, SES clients, SON marché.
 
 ANGLES PROPOSÉS — RÈGLES :
 Chaque angle DOIT utiliser un de ces 5 véhicules :
