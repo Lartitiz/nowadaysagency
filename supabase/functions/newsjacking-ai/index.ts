@@ -126,10 +126,14 @@ Ne cherche PAS des actus génériques "business" ou "entrepreneuriat" — cherch
 Si le métier est "marchande de biens" → cherche "immobilier marchand de biens", "rénovation achat revente", "marché immobilier".
 Si le métier est "coach" → cherche "coaching développement personnel", "bien-être tendance", etc.
 
-POTENTIEL DE CONTENU (pour les deux types) :
-- Est-ce que l'audience de cette personne s'en soucie ?
-- Est-ce qu'elle peut apporter un regard unique dessus ?
-- Est-ce que ça touche à ses piliers de contenu, ses combats, ou ses valeurs ?
+FILTRE DE PERTINENCE (CRITIQUE) :
+Avant de retenir une actu, pose-toi ces 3 questions :
+1. Est-ce que l'audience de "${nicheLabel}" s'en soucie ou peut s'y identifier ?
+2. Est-ce que cette personne peut apporter un regard UNIQUE dessus grâce à son expertise en "${nicheLabel}" ?
+3. Est-ce que ça touche à ses piliers de contenu, ses combats, ou ses valeurs ?
+Si la réponse est NON aux 3 → REJETTE cette actu et cherche-en une autre.
+⚠️ Une actu sur "les réseaux sociaux" ou "le marketing digital" N'EST PAS une actu niche sauf si le métier EST le marketing digital.
+Pour "${nicheLabel}", une actu niche pertinente parle de SON secteur, SES clients, SON marché.
 
 ANGLES PROPOSÉS — RÈGLES :
 Chaque angle DOIT utiliser un de ces 5 véhicules :
