@@ -112,30 +112,110 @@ function demoSlideHtml(slideNum: number, title: string, body: string, bgColor: s
   </div>`;
 }
 
+const HANDLE = `<div style="position:absolute;bottom:40px;right:50px;font-size:18px;font-family:'IBM Plex Mono',monospace;color:#1B3A4B88;letter-spacing:1px;">@auriana.mdb</div>`;
+const BADGE = (text: string, bg = "#1B3A4B") => `<div style="display:inline-block;background:${bg};color:#fff;font-family:'IBM Plex Mono',monospace;font-size:14px;text-transform:uppercase;letter-spacing:2px;padding:8px 22px;border-radius:100px;margin-bottom:28px;">${text}</div>`;
+const CARD = (content: string, extra = "") => `<div style="background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,0.06);padding:56px 52px;max-width:920px;width:100%;${extra}">${content}</div>`;
+const WRAP = (bg: string, content: string) => `<div style="width:1080px;height:1350px;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:60px 80px;background:${bg};font-family:'Libre Baskerville',Georgia,serif;box-sizing:border-box;position:relative;">${content}${HANDLE}</div>`;
+
 export function getAurianaDemoVisualSlides(): { slide_number: number; html: string }[] {
-  const slides = AURIANA_DEMO_FLOW.result.slides;
-  const palettes: [string, string][] = [
-    ["#1a1a2e", "#e8c547"],   // dark + gold (hook)
-    ["#f5f0e8", "#1a1a2e"],   // cream + dark
-    ["#ffffff", "#6b4c9a"],   // white + purple
-    ["#e8c547", "#1a1a2e"],   // gold + dark (proof)
-    ["#f5f0e8", "#6b4c9a"],   // cream + purple
-    ["#1a1a2e", "#e8c547"],   // dark + gold (results)
-    ["#ffffff", "#1a1a2e"],   // white + dark
-    ["#6b4c9a", "#ffffff"],   // purple + white (CTA)
+  return [
+    // Slide 1 — HOOK
+    { slide_number: 1, html: WRAP("#F5F3EF", `
+      ${BADGE("HOOK")}
+      ${CARD(`
+        <div style="font-size:52px;font-weight:400;color:#1B3A4B;line-height:1.25;text-align:center;">Je vends avant d'acheter.<br/><span style="font-style:italic;color:#91014b;">Et c'est pour ça que mes opérations sont rentables.</span></div>
+      `)}
+    `) },
+
+    // Slide 2 — CONTEXTE
+    { slide_number: 2, html: WRAP("#ffffff", `
+      <div style="border:2px dashed #1B3A4B40;border-radius:16px;padding:52px 48px;max-width:920px;width:100%;">
+        <div style="font-size:40px;font-weight:400;color:#1B3A4B;line-height:1.3;margin-bottom:32px;text-align:center;font-family:'Libre Baskerville',Georgia,serif;">Le problème ?</div>
+        <div style="font-size:28px;color:#2C2C2C;line-height:1.7;font-family:'IBM Plex Mono',monospace;text-align:left;">
+          La plupart des marchands de biens achètent d'abord.<br/>Puis cherchent des acquéreurs.<br/>Puis croisent les doigts.<br/><br/><span style="color:#91014b;font-weight:600;">Moi j'ai inversé le process.</span>
+        </div>
+      </div>
+    `) },
+
+    // Slide 3 — EXPLICATION
+    { slide_number: 3, html: WRAP("#ffffff", `
+      ${BADGE("MÉTHODE")}
+      <div style="border-left:4px solid #D4A843;padding:40px 48px;max-width:880px;width:100%;background:#FAFAFA;border-radius:0 16px 16px 0;">
+        <div style="font-size:36px;font-weight:400;color:#1B3A4B;margin-bottom:28px;font-family:'Libre Baskerville',Georgia,serif;">La pré-commercialisation, c'est simple :</div>
+        <div style="font-size:26px;color:#2C2C2C;line-height:2;font-family:'IBM Plex Mono',monospace;">
+          → Tu identifies le bien<br/>→ Tu crées une offre (plans, prix, vision)<br/>→ Tu signes des réservations AVANT l'acte<br/>→ Tu achètes avec la certitude de revendre
+        </div>
+      </div>
+    `) },
+
+    // Slide 4 — PREUVE (dark)
+    { slide_number: 4, html: `<div style="width:1080px;height:1350px;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:60px 80px;background:#1A1A1A;font-family:'Libre Baskerville',Georgia,serif;box-sizing:border-box;position:relative;">
+      ${BADGE("PREUVE", "#D4A843")}
+      <div style="font-size:120px;font-weight:700;color:#D4A843;font-family:'IBM Plex Mono',monospace;margin-bottom:24px;">80%</div>
+      <div style="font-size:32px;color:#D4A843;margin-bottom:40px;font-family:'Libre Baskerville',Georgia,serif;">des lots signés avant l'acte</div>
+      <div style="font-size:24px;color:#ffffff99;line-height:1.8;max-width:800px;text-align:center;font-family:'IBM Plex Mono',monospace;">
+        Sur mon 3e projet, j'avais signé 80% des lots avant même d'avoir l'acte.<br/><br/>Financement bouclé. Marge sécurisée. Stress : zéro.
+      </div>
+      <div style="position:absolute;bottom:40px;right:50px;font-size:18px;font-family:'IBM Plex Mono',monospace;color:#ffffff44;letter-spacing:1px;">@auriana.mdb</div>
+    </div>` },
+
+    // Slide 5 — OBJECTION
+    { slide_number: 5, html: WRAP("#F5F3EF", `
+      <div style="border:2px dashed #1B3A4B30;border-radius:16px;padding:36px 40px;max-width:880px;width:100%;margin-bottom:32px;">
+        <div style="font-size:30px;font-style:italic;color:#1B3A4B;line-height:1.5;text-align:center;font-family:'Libre Baskerville',Georgia,serif;">
+          "T'as pas peur de vendre un truc qui n'existe pas encore ?"
+        </div>
+      </div>
+      ${CARD(`
+        <div style="border-left:4px solid #C0392B;padding-left:28px;">
+          <div style="font-size:26px;color:#2C2C2C;line-height:1.7;font-family:'IBM Plex Mono',monospace;">
+            Non. Parce que je ne vends pas un bien.<br/>Je vends une vision du quartier, un plan, un projet.<br/><br/><span style="color:#91014b;font-weight:600;">Et c'est exactement ça qui rassure les acquéreurs.</span>
+          </div>
+        </div>
+      `)}
+    `) },
+
+    // Slide 6 — RÉSULTATS
+    { slide_number: 6, html: WRAP("#ffffff", `
+      ${BADGE("RÉSULTATS")}
+      ${CARD(`
+        <div style="text-align:center;margin-bottom:28px;">
+          <div style="font-size:20px;color:#1B3A4B88;font-family:'IBM Plex Mono',monospace;margin-bottom:12px;">Découpe de 5 lots — Bordeaux</div>
+        </div>
+        <div style="display:flex;justify-content:space-around;margin-bottom:36px;">
+          <div style="text-align:center;"><div style="font-size:56px;font-weight:700;color:#1B3A4B;font-family:'IBM Plex Mono',monospace;">4</div><div style="font-size:16px;color:#2C2C2C;font-family:'IBM Plex Mono',monospace;">lots pré-vendus</div></div>
+          <div style="text-align:center;"><div style="font-size:56px;font-weight:700;color:#1B3A4B;font-family:'IBM Plex Mono',monospace;">3</div><div style="font-size:16px;color:#2C2C2C;font-family:'IBM Plex Mono',monospace;">semaines</div></div>
+        </div>
+        <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+          ${BADGE("Financement bouclé", "#1B3A4B")}
+          ${BADGE("Marge sécurisée", "#D4A843")}
+        </div>
+        <div style="text-align:center;margin-top:24px;font-size:22px;color:#91014b;font-family:'Libre Baskerville',Georgia,serif;font-style:italic;">Pas de suspense. Du process.</div>
+      `)}
+    `) },
+
+    // Slide 7 — SYNTHÈSE
+    { slide_number: 7, html: WRAP("#ffffff", `
+      <div style="border-left:4px solid #D4A843;padding:40px 48px;max-width:880px;width:100%;background:#FAFAFA;border-radius:0 16px 16px 0;">
+        <div style="font-size:36px;font-weight:400;color:#1B3A4B;margin-bottom:36px;font-family:'Libre Baskerville',Georgia,serif;">Un mindset, pas une astuce</div>
+        <div style="font-size:26px;color:#2C2C2C;line-height:2.2;font-family:'IBM Plex Mono',monospace;">
+          <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px;"><div style="width:40px;height:40px;border-radius:50%;background:#1B3A4B;color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">1</div> Valider la demande avant l'offre</div>
+          <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px;"><div style="width:40px;height:40px;border-radius:50%;background:#1B3A4B;color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">2</div> Sécuriser le financement par les réservations</div>
+          <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px;"><div style="width:40px;height:40px;border-radius:50%;background:#1B3A4B;color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">3</div> Réduire le risque à chaque étape</div>
+        </div>
+        <div style="font-size:24px;color:#91014b;font-style:italic;margin-top:20px;font-family:'Libre Baskerville',Georgia,serif;">C'est comme ça qu'on passe de "j'espère" à "je sais".</div>
+      </div>
+    `) },
+
+    // Slide 8 — CTA
+    { slide_number: 8, html: WRAP("#F5F3EF", `
+      ${CARD(`
+        <div style="text-align:center;">
+          <div style="font-size:40px;font-weight:400;color:#1B3A4B;line-height:1.3;margin-bottom:32px;font-family:'Libre Baskerville',Georgia,serif;">Envie de structurer ta prochaine opération ?</div>
+          <div style="font-size:28px;color:#2C2C2C;line-height:1.7;margin-bottom:36px;font-family:'IBM Plex Mono',monospace;">📩 Envoie-moi <span style="color:#91014b;font-weight:600;">"PRÉ-CO"</span> en DM.<br/>Je t'explique comment j'applique ça concrètement.</div>
+          ${BADGE("LIEN EN BIO", "#91014b")}
+        </div>
+      `)}
+    `) },
   ];
-  return slides.map((s, i) => {
-    const [bg, acc] = palettes[i] || ["#ffffff", "#1a1a2e"];
-    const textColor = ["#1a1a2e", "#6b4c9a"].includes(bg) ? "#ffffff" : "#2d2d2d";
-    const bodyText = s.body || "";
-    const bodyHtml = bodyText.replace(/\n/g, "<br/>");
-    return {
-      slide_number: s.slide_number,
-      html: `<div style="width:1080px;height:1350px;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:80px;background:${bg};font-family:'Inter',sans-serif;box-sizing:border-box;text-align:center;">
-        ${s.title ? `<div style="font-size:48px;font-weight:800;color:${acc};line-height:1.2;margin-bottom:40px;max-width:900px;">${s.title}</div>` : ""}
-        ${bodyText ? `<div style="font-size:30px;font-weight:400;color:${textColor};line-height:1.6;max-width:900px;text-align:left;">${bodyHtml}</div>` : ""}
-        <div style="position:absolute;bottom:50px;right:60px;font-size:20px;color:${textColor}88;font-weight:600;">@auriana.mdb</div>
-      </div>`,
-    };
-  });
 }
