@@ -188,6 +188,10 @@ export default function AdaptiveHome() {
   }, []);
 
   const handleNavigate = (route: string) => {
+    if (route === "__plan_week__") {
+      setPlanWeekOpen(true);
+      return;
+    }
     if (route === "/creer" && profileSummary.brandingTotal < 50) {
       toast({ title: "Tes contenus seront plus personnalisés une fois que tu auras posé tes bases 💡" });
     }
