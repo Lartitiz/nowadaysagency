@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import CalendarCoachingDialog from "@/components/calendar/CalendarCoachingDialog";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, ChevronDown, Clock } from "lucide-react";
@@ -132,7 +133,7 @@ const TOUR_STEPS = [
 const MINI_CARDS = [
   { emoji: "🎨", title: "Mon identité", subtitle: "Affiner mon image de marque", bg: "bg-accent/10", route: "/branding" },
   { emoji: "🔍", title: "Lancer un audit", subtitle: "Instagram ou site web", bg: "bg-[hsl(var(--bento-blue))]", route: "/instagram/audit" },
-  { emoji: "💬", title: "Ma routine", subtitle: "15 min d'engagement", bg: "bg-rose-pale", route: "/instagram/routine" },
+  { emoji: "✨", title: "Planifier ma semaine", subtitle: "Planning IA personnalisé", bg: "bg-rose-pale", route: "__plan_week__" },
   { emoji: "📅", title: "Mon calendrier", subtitle: "Planifier mes contenus", bg: "bg-accent/10", route: "/calendrier" },
 ];
 
@@ -146,6 +147,7 @@ export default function AdaptiveHome() {
   const [tourDone, setTourDone] = useState(() => !!localStorage.getItem("lac_dashboard_tour_seen"));
   const [welcomeDone, setWelcomeDone] = useState(() => localStorage.getItem("lac_welcome_seen") === "true");
   const [contentCoachingOpen, setContentCoachingOpen] = useState(false);
+  const [planWeekOpen, setPlanWeekOpen] = useState(false);
   const [coachHovered, setCoachHovered] = useState(false);
 
   // Après l'enrichissement fire-and-forget, invalider le cache branding
@@ -186,6 +188,10 @@ export default function AdaptiveHome() {
   }, []);
 
   const handleNavigate = (route: string) => {
+    if (route === "__plan_week__") {
+      setPlanWeekOpen(true);
+      return;
+    }
     if (route === "/creer" && profileSummary.brandingTotal < 50) {
       toast({ title: "Tes contenus seront plus personnalisés une fois que tu auras posé tes bases 💡" });
     }
@@ -318,6 +324,7 @@ export default function AdaptiveHome() {
 
         {/* Content Coaching Dialog */}
         <ContentCoachingDialog open={contentCoachingOpen} onOpenChange={setContentCoachingOpen} />
+        <CalendarCoachingDialog open={planWeekOpen} onOpenChange={setPlanWeekOpen} />
 
         {/* WelcomeOverlay + GuidedTour */}
         <WelcomeOverlay prenom={profileSummary.firstName} />
