@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import CalendarCoachingDialog from "@/components/calendar/CalendarCoachingDialog";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, ChevronDown, Clock } from "lucide-react";
@@ -132,7 +133,7 @@ const TOUR_STEPS = [
 const MINI_CARDS = [
   { emoji: "🎨", title: "Mon identité", subtitle: "Affiner mon image de marque", bg: "bg-accent/10", route: "/branding" },
   { emoji: "🔍", title: "Lancer un audit", subtitle: "Instagram ou site web", bg: "bg-[hsl(var(--bento-blue))]", route: "/instagram/audit" },
-  { emoji: "💬", title: "Ma routine", subtitle: "15 min d'engagement", bg: "bg-rose-pale", route: "/instagram/routine" },
+  { emoji: "✨", title: "Planifier ma semaine", subtitle: "Planning IA personnalisé", bg: "bg-rose-pale", route: "__plan_week__" },
   { emoji: "📅", title: "Mon calendrier", subtitle: "Planifier mes contenus", bg: "bg-accent/10", route: "/calendrier" },
 ];
 
