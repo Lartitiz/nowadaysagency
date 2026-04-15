@@ -971,6 +971,10 @@ ${followUpBlock}
 ${calendarBlock}${objectiveBlock}
 ${preGenBlock}
 
+RÈGLE ANTI-FABRICATION :
+N'invente JAMAIS une anecdote, un cas client ou un chiffre que l'utilisatrice n'a pas écrit.
+Pas de vécu fourni → angle expert : décryptage, constat décalé, prise de position.
+
 ${PREGEN_INJECTION_RULES}
 
 ═══════════════════════════════════════════════════
