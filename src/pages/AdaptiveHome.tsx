@@ -147,6 +147,7 @@ export default function AdaptiveHome() {
   const [tourDone, setTourDone] = useState(() => !!localStorage.getItem("lac_dashboard_tour_seen"));
   const [welcomeDone, setWelcomeDone] = useState(() => localStorage.getItem("lac_welcome_seen") === "true");
   const [contentCoachingOpen, setContentCoachingOpen] = useState(false);
+  const [planWeekOpen, setPlanWeekOpen] = useState(false);
   const [coachHovered, setCoachHovered] = useState(false);
 
   // Après l'enrichissement fire-and-forget, invalider le cache branding
