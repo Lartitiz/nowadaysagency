@@ -1,39 +1,52 @@
 
 
-## Plan : Refaire les visuels pré-générés de la démo Auriana avec le vrai design system
+## Plan : Assouplir le filtre pour les actus globales — connecter le buzz au secteur
 
-### Problème
-Les visuels HTML dans `getAurianaDemoVisualSlides()` sont ultra-basiques : texte centré sur fond uni, pas de cartes blanches, pas de badges pilules, pas de barres accent, pas de hiérarchie typographique. Le résultat ressemble à du PowerPoint 2003, alors que la vraie Edge Function `carousel-visual` génère du design riche avec le design system Nowadays.
+### Le problème
+Le filtre de pertinence actuel (lignes 129-136) s'applique uniformément à toutes les actus. Il exige que l'audience du secteur "s'en soucie directement", ce qui élimine les actus chaudes grand public qui sont justement les meilleures pour du newsjacking : prendre un sujet dont tout le monde parle et le relier à son expertise.
 
-### Solution
-Réécrire entièrement le HTML de chaque slide dans `getAurianaDemoVisualSlides()` en utilisant la charte graphique d'Auriana (Montserrat/Open Sans, #1B3A4B/#D4A843/#C0392B/#F5F3EF/#2C2C2C) et les patterns du design system (cartes blanches avec ombre, badges pilules, barres accent latérales, centrage vertical flex, alternance de fonds).
+### La solution
+Séparer les critères de pertinence selon le type d'actu :
+
+- **Actus GLOBALES** : le critère n'est plus "est-ce que l'audience s'en soucie" mais **"est-ce qu'on peut créer un PONT vers le secteur"**. Une actu sur une polémique politique peut devenir un parallèle puissant avec l'immobilier si l'angle est bien trouvé.
+- **Actus NICHE** : garder le filtre strict actuel (doit parler du secteur directement).
 
 ### Fichier modifié
-`src/lib/demo-auriana-data.ts` — un seul fichier
+`supabase/functions/newsjacking-ai/index.ts` — un seul fichier
 
-### Design par slide (8 slides)
+### Changements concrets
 
-1. **HOOK** (slide 1) : Fond #F5F3EF, grande carte blanche centrée avec ombre douce, titre 60px en Montserrat, mots-clés en #1B3A4B italic, badge pilule #1B3A4B en haut
-2. **CONTEXTE** (slide 2) : Fond blanc, bordure pointillée #1B3A4B40, titre Montserrat 44px, corps Open Sans 30px
-3. **EXPLICATION** (slide 3) : Fond blanc, badge pilule "MÉTHODE", barre accent latérale 4px #D4A843, liste avec flèches en #1B3A4B
-4. **PREUVE** (slide 4) : Fond #1A1A1A (dark box), chiffre "80%" en 80px #D4A843, texte blanc
-5. **OBJECTION** (slide 5) : Fond #F5F3EF, citation en bordure pointillée, réponse en carte blanche avec barre accent #C0392B
-6. **RÉSULTATS** (slide 6) : Fond blanc, stats en gros chiffres #1B3A4B, badges pilules pour les résultats
-7. **SYNTHÈSE** (slide 7) : Fond blanc, liste numérotée avec cercles #1B3A4B, barre accent latérale
-8. **CTA** (slide 8) : Fond #F5F3EF, carte blanche centrée, texte CTA en Montserrat #1B3A4B, badge pilule "lien en bio"
+**Remplacer le bloc FILTRE DE PERTINENCE unique par deux filtres distincts :**
 
-### Principes appliqués
-- Google Fonts Montserrat (titre, font-weight normal) + Open Sans (corps)
-- Centrage vertical flex sur chaque slide (display:flex; justify-content:center; align-items:center; padding:60px 80px)
-- Badges pilules (inline-block, background #1B3A4B, color white, border-radius 100px, uppercase, letter-spacing 2px)
-- Cartes blanches (background #FFF, border-radius 16px, box-shadow 0 4px 24px rgba(0,0,0,0.06))
-- Barres accent latérales (border-left: 4px solid)
-- Alternance de fonds : blanc, #F5F3EF, 1 slide dark #1A1A1A
-- Handle @auriana.mdb en bas à droite
+```
+FILTRE DE PERTINENCE — ACTUS GLOBALES :
+Pour les actus globales, le critère est : "peut-on créer un PONT entre cette actu et le secteur de ${nicheLabel} ?"
+✅ GARDER si : on peut faire un parallèle, une métaphore, un "ça m'a fait penser à mon métier", un constat transposable
+✅ GARDER si : l'actu touche un sujet universel (argent, confiance, peur, liberté, travail) que l'audience peut s'approprier
+❌ REJETER si : même avec un angle créatif, impossible de relier à l'expertise ou au vécu professionnel
 
-### Ce qui ne change PAS
-- La structure `AURIANA_DEMO_FLOW` (slides data, captions, hashtags)
-- La fonction `demoSlideHtml` (inutilisée, peut rester)
-- Le mécanisme de bypass dans `CreerUnifie.tsx`
-- Tous les autres fichiers
+FILTRE DE PERTINENCE — ACTUS NICHE :
+Pour les actus niche, le critère est strict :
+1. L'actu parle directement du secteur, du marché ou des clients de "${nicheLabel}"
+2. L'expertise de cette personne apporte un éclairage unique
+⚠️ "réseaux sociaux" ou "marketing digital" N'EST PAS une actu niche sauf si c'est le métier.
+```
+
+**Ajouter une instruction explicite pour les angles des actus globales :**
+```
+Pour les actus GLOBALES, l'angle doit TOUJOURS construire un pont :
+- Le hook part de l'actu (ce que tout le monde a vu)
+- Le pivot ramène à l'expertise métier (ce que seul·e cette personne peut dire)
+- Le véhicule idéal est souvent "parallele_absurde" ou "declencheur_externe"
+```
+
+### Ce qui ne change pas
+- La répartition 2 globales + 2 niches
+- Les variantes de recherche randomisées
+- Les 5 véhicules d'angle
+- Le format JSON de sortie
+- Auth, quota, rate limit
+
+### Résultat attendu
+Les actus globales seront de vraies actus chaudes (buzz, polémiques, tendances virales) avec des angles qui créent un pont vers le secteur, au lieu d'être filtrées parce qu'elles ne parlent pas directement du métier.
 
