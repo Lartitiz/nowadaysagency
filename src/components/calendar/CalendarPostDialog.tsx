@@ -465,7 +465,6 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
             {actionsBlock}
           </div>
         )}
-        </div>
       </DialogContent>
     </Dialog>
 
