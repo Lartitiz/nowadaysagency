@@ -312,25 +312,25 @@ export const DEMO_DATA = {
         {
           slide_number: 2,
           slide_type: "photo_full",
-          photo_index: 0,
+          photo_index: 1,
           caption: "D'abord, on parle. On prend un café. Tu me racontes ton projet, ce qui te fait vibrer, ce qui te bloque. Je ne touche pas à mon appareil pendant au moins 20 minutes.",
         },
         {
           slide_number: 3,
           slide_type: "photo_full",
-          photo_index: 1,
+          photo_index: 2,
           caption: "Ensuite, le coaching posture. Je te montre comment te tenir naturellement. Pas des poses de magazine : TA posture, celle où tu te sens bien. On rigole beaucoup à cette étape.",
         },
         {
           slide_number: 4,
           slide_type: "photo_full",
-          photo_index: 2,
+          photo_index: 3,
           caption: "Et là, sans que tu t'en rendes compte, je commence à shooter. Les premières photos arrivent dans le mouvement, dans le naturel. Pas de \"cheese\" chez moi.",
         },
         {
           slide_number: 5,
           slide_type: "photo_full",
-          photo_index: 3,
+          photo_index: 4,
           caption: "Le résultat ? Des photos où tu te dis \"c'est vraiment moi\". Pas une version filtrée. Pas une version corporate. TOI, en version confiante.",
         },
         {

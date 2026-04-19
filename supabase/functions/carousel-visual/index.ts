@@ -817,13 +817,42 @@ Retourne UNIQUEMENT le JSON.`;
       });
     }
 
-    // Vérifier qu'il ne reste plus de placeholders non remplacés
+    // P0-3 : remplacer les placeholders {{PHOTO_N}} non substitués par un fallback
+    // (sinon l'iframe affiche `url({{PHOTO_2}})` cassé → slide vide).
     if ((isPhotoCarousel || isMixCarousel) && result?.slides_html) {
-      for (const slide of result.slides_html) {
-        if (slide.html && slide.html.includes("{{PHOTO_")) {
-          console.warn(`carousel-visual: placeholder non remplacé dans slide ${slide.slide_number}`);
-        }
+      // Construire un map des base64 dispos pour fallback (même normalisation que post-proc 1)
+      const photoBase64Map = new Map<number, string>();
+      const reqPhotos = reqBody.photos;
+      if (Array.isArray(reqPhotos)) {
+        reqPhotos.forEach((p: any, i: number) => {
+          const raw = typeof p === "string" ? p : (p?.base64 || p?.data || "");
+          if (raw) {
+            const dataUrl = raw.startsWith("data:") ? raw : `data:image/jpeg;base64,${raw}`;
+            photoBase64Map.set(i + 1, dataUrl);
+          }
+        });
       }
+      const fallbackPhoto = photoBase64Map.get(1) || Array.from(photoBase64Map.values())[0] || "";
+      const placeholderColor =
+        "data:image/svg+xml;base64," +
+        btoa(
+          `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350"><rect width="100%" height="100%" fill="#FFE4ED"/><text x="50%" y="50%" font-family="sans-serif" font-size="48" fill="#91014b" text-anchor="middle" dominant-baseline="middle">Photo manquante</text></svg>`
+        );
+
+      result.slides_html = result.slides_html.map((slide: any) => {
+        let html = slide.html || "";
+        if (html.includes("{{PHOTO_")) {
+          html = html.replace(/\{\{PHOTO_(\d+)\}\}/g, (_match: string, num: string) => {
+            const n = parseInt(num, 10);
+            const b64 = photoBase64Map.get(n) || fallbackPhoto || placeholderColor;
+            console.warn(
+              `carousel-visual: placeholder {{PHOTO_${n}}} orphelin slide ${slide.slide_number} → fallback ${photoBase64Map.has(n) ? "(?)" : fallbackPhoto ? "photo 1" : "placeholder"}`
+            );
+            return b64;
+          });
+        }
+        return { ...slide, html };
+      });
     }
 
     await logUsage(user.id, "content", "carousel_visual", undefined, model, workspaceId);

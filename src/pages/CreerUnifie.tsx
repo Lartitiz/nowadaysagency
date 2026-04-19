@@ -1696,10 +1696,33 @@ export default function CreerUnifie() {
       const hasPhotos = isPhotoCarousel || isMixCarousel;
 
       // ═══ Construire le body et le valider avant envoi ═══
-      const mappedSlides = rawSlides.map((s: any) => {
+      // P0-2: auto-assign photo_index séquentiel si l'IA l'oublie sur photo_full / photo_integrated
+      let autoPhotoCursor = 0;
+      const totalPhotos = uploadedPhotos.length;
+
+      const mappedSlides = rawSlides.map((s: any, slideIdx: number) => {
         const slideType = hasPhotos
           ? (s.slide_type || (isPhotoCarousel ? "photo_full" : "text_only"))
           : "text_only";
+
+        // Résolution photo_index : utilise celui fourni s'il est valide (1-based, dans la range),
+        // sinon attribue séquentiellement la prochaine photo dispo et logge.
+        let resolvedPhotoIndex: number | undefined;
+        if (slideType === "photo_full" || slideType === "photo_integrated") {
+          const provided = Number.isInteger(s.photo_index) ? s.photo_index : null;
+          if (provided && provided >= 1 && provided <= totalPhotos) {
+            resolvedPhotoIndex = provided;
+          } else if (totalPhotos > 0) {
+            resolvedPhotoIndex = (autoPhotoCursor % totalPhotos) + 1;
+            console.warn(
+              `[carousel] slide ${s.slide_number ?? slideIdx + 1} (${slideType}) sans photo_index valide (reçu: ${s.photo_index}). Auto-assigné à ${resolvedPhotoIndex}.`
+            );
+            autoPhotoCursor++;
+          }
+          if (provided && provided >= 1 && provided <= totalPhotos) {
+            autoPhotoCursor = Math.max(autoPhotoCursor, provided);
+          }
+        }
 
         return {
           slide_number: s.slide_number,
@@ -1710,10 +1733,10 @@ export default function CreerUnifie() {
             overlay_position: s.overlay_position || "bottom_center",
             overlay_style: s.overlay_style || "sensoriel",
             note: s.note,
-            photo_index: s.photo_index,
+            photo_index: resolvedPhotoIndex,
           } : {}),
           ...(slideType === "photo_integrated" ? {
-            photo_index: s.photo_index,
+            photo_index: resolvedPhotoIndex,
             photo_layout: s.photo_layout || "top_photo",
             title: s.title || "",
             body: s.body || "",

@@ -250,24 +250,30 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                 )}
               </div>
 
-              {(slide.slide_type === "photo_full" || slide.slide_type === "photo_integrated" || (!slide.slide_type && slide.overlay_text !== undefined)) && (
-                <>
-                  {slide.photo_index && photos?.[slide.photo_index - 1]?.preview && (
-                    <img
-                      src={photos[slide.photo_index - 1].preview}
-                      alt={`Photo ${slide.photo_index}`}
-                      className="h-20 w-auto rounded-md object-cover"
-                    />
-                  )}
-                  {!slide.photo_index && photos?.[idx]?.preview && (
-                    <img
-                      src={photos[idx].preview}
-                      alt={`Photo ${idx + 1}`}
-                      className="h-20 w-auto rounded-md object-cover"
-                    />
-                  )}
-                </>
-              )}
+              {(() => {
+                // P0-4 : helper unifié — une slide est "photo" si elle a un slide_type photo_*
+                // OU (legacy) pas de slide_type mais un overlay_text défini.
+                const isPhotoSlide =
+                  slide.slide_type === "photo_full" ||
+                  slide.slide_type === "photo_integrated" ||
+                  (!slide.slide_type && slide.overlay_text !== undefined);
+                if (!isPhotoSlide) return null;
+
+                // Résolution photo_index 1-based avec fallback sur l'idx de la slide
+                const photoNum =
+                  Number.isInteger(slide.photo_index) && slide.photo_index >= 1
+                    ? slide.photo_index
+                    : idx + 1;
+                const photo = photos?.[photoNum - 1];
+                if (!photo?.preview) return null;
+                return (
+                  <img
+                    src={photo.preview}
+                    alt={`Photo ${photoNum}`}
+                    className="h-20 w-auto rounded-md object-cover"
+                  />
+                );
+              })()}
 
               {slide.slide_type === "photo_integrated" && slide.photo_layout && (
                 <Badge variant="outline" className="text-[10px]">
@@ -279,7 +285,10 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                 <p className="text-xs text-muted-foreground">📷 {slide.photo_description}</p>
               )}
 
-              {(slide.slide_type === "photo_full" || (!slide.slide_type && slide.overlay_text !== undefined)) ? (
+              {/* P0-4 : édition cohérente — photo_full ET photo_integrated affichent l'overlay s'il existe.
+                  Sinon (text_only ou photo_integrated avec title/body) : éditer title/body. */}
+              {(slide.slide_type === "photo_full" ||
+                (!slide.slide_type && slide.overlay_text !== undefined)) ? (
                 <>
                   {slide.overlay_text !== null && slide.overlay_text !== undefined ? (
                     <div className="space-y-1">
