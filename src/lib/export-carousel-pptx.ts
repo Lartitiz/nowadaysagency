@@ -294,20 +294,30 @@ function buildPhotoFullSlide(
   const isBottom = position === "bottom_left" || position === "bottom_center" || !position;
   const isTop = position === "top_left" || position === "top_center";
 
+  // Gradient overlay sombre (simulé en 3 bandes superposées) pour lisibilité du texte
   if (isBottom) {
+    // Bande sombre intense en bas + dégradé vers le haut
     slide.addShape("rect", {
-      x: 0, y: H - 4.0, w: W, h: 4.0,
-      fill: { color: "000000", transparency: 40 },
+      x: 0, y: H - 4.5, w: W, h: 4.5,
+      fill: { color: "000000", transparency: 65 },
+    });
+    slide.addShape("rect", {
+      x: 0, y: H - 3.0, w: W, h: 3.0,
+      fill: { color: "000000", transparency: 35 },
     });
   } else if (isTop) {
     slide.addShape("rect", {
-      x: 0, y: 0, w: W, h: 3.5,
-      fill: { color: "000000", transparency: 40 },
+      x: 0, y: 0, w: W, h: 4.0,
+      fill: { color: "000000", transparency: 65 },
+    });
+    slide.addShape("rect", {
+      x: 0, y: 0, w: W, h: 2.5,
+      fill: { color: "000000", transparency: 35 },
     });
   } else {
     slide.addShape("roundRect", {
       x: 0.5, y: textY - 0.3, w: W - 1.0, h: textH + 0.6,
-      fill: { color: "000000", transparency: 50 },
+      fill: { color: "000000", transparency: 45 },
       rectRadius: 0.15,
     });
   }
@@ -326,9 +336,9 @@ function buildPhotoFullSlide(
       fontSize = 24; fontFace = f.title; bold = false; italic = true;
   }
 
-  // Highlight du dernier mot significatif pour narratif et minimal
+  // Highlight du dernier mot significatif (rose charte)
   if (style === "narratif" || style === "minimal") {
-    const accentColor = c.accent || c.primary;
+    const accentColor = c.primary;
     const parts = highlightLastSignificantWord(overlayText, accentColor, "FFFFFF");
     slide.addText(parts, {
       x: 0.6, y: textY, w: W - 1.2, h: textH,
@@ -342,6 +352,12 @@ function buildPhotoFullSlide(
       align, valign, wrap: true, lineSpacingMultiple: 1.3,
     });
   }
+
+  // Signature : barre rose charte en bas (3pt)
+  slide.addShape("rect", {
+    x: 0, y: H - 0.05, w: W, h: 0.05,
+    fill: { color: c.primary },
+  });
 }
 
 /**
