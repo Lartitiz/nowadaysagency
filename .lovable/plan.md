@@ -1,57 +1,83 @@
 
 
-## Suite de l'audit carrousels mixtes : Pack P1 (UX)
+## Pack P2 complet + corrections de bugs résiduels
 
-Le P0 est livré (bugs critiques fixés). Voici ce que je propose comme prochaine étape.
+### 1. Bugs résiduels (quick wins)
 
-### Pack P1 — Réduire la friction utilisateur
+**A. Mapping CTA propre** (`src/pages/CreerUnifie.tsx` ~ligne 1785)
+Quand on convertit la dernière slide en `text_only` CTA, on supprime explicitement `overlay_text` et `photo_index` du résultat. Mapping clean : `{ slide_type: "text_only", role: "cta", title, body }`.
 
-**5. Bouton "Répartition automatique IA" dans `StructureReviewStep`**
-- Aujourd'hui : pour un carrousel mix, l'utilisateur doit assigner manuellement chaque photo à chaque slide en cliquant
-- L'IA a déjà proposé une répartition dans `structure_proposal` mais on l'ignore au moment du review
-- Ajouter un bouton "✨ Laisse l'IA répartir" en haut de l'étape qui pré-remplit les `photo_index` avec ce que l'IA a suggéré
-- L'utilisateur peut ensuite ajuster manuellement s'il veut
+**B. `handleAutoDistribute` robuste** (`src/components/creer/StructureReviewStep.tsx`)
+Si aucune slide n'est de type photo, on convertit silencieusement les N premières slides (N = nombre de photos) en `photo_full` avant d'assigner. Plus de clic mort.
 
-**6. Warning visuel "photos non utilisées"**
-- Dans le bandeau photos en haut de `StructureReviewStep`, afficher en orange : "⚠ 2 photos non utilisées dans cette structure"
-- Bouton "Ajouter une slide pour" qui crée une slide `photo_full` avec la photo orpheline
-- Empêche les utilisateurs de valider une structure qui ignore 3 photos sur 5 sans s'en rendre compte
+### 2. PPTX natif aligné sur le rendu HTML
 
-**7. Aperçu plus grand + badge type cliquable dans `CarouselPhotoResult`**
-- Photo de référence en `h-32` au lieu de `h-20` (passe de timbre-poste à miniature lisible)
-- Badge `slide_type` (photo_full / photo_integrated / text_only) cliquable pour basculer entre les types sans tout régénérer
-- Au clic : ouvre un petit menu déroulant pour choisir le type
-- Permet de corriger un mauvais choix de l'IA en 2 clics
+**Fichier : `src/lib/export-carousel-pptx.ts`**
 
-**8. Validation post-IA "structure narrative"**
-- À la réception de la réponse IA dans `CreerUnifie.tsx` (mapping mix), vérifier silencieusement :
-  - Slide 1 = `photo_full` ou `photo_integrated` (jamais `text_only` au début)
-  - Dernière slide = `text_only` avec CTA (sinon convertir)
-- Si l'IA dévie, on corrige sans bloquer l'utilisateur, juste un log console
-- Garantit le sequencing voulu sans friction
+Pour `photo_full` :
+- Ajouter un gradient overlay sombre (bottom→top, noir 60% → transparent) sur la moitié basse pour lisibilité
+- Texte overlay en blanc gras Libre Baskerville/IBM Plex sur ce gradient
+- Bordure arrondie simulée (rectangle blanc 2pt en bas pour signature)
 
-### Fichiers modifiés
+Pour `photo_integrated` :
+- Bande de fond rose pâle `#FFF4F8` derrière la zone texte (au lieu du blanc plat)
+- Accent rose `#FB3D80` (barre verticale 4pt à gauche du titre)
+- Titre en `#91014b`, body en gris foncé
 
-- `src/components/creer/StructureReviewStep.tsx` (bouton auto + warning photos non utilisées)
-- `src/components/creer/formatRenderers/CarouselPhotoResult.tsx` (preview h-32 + badge type cliquable)
-- `src/pages/CreerUnifie.tsx` (validation sequencing post-IA, ~10 lignes)
+Pour `text_only` :
+- Fond `#FFF4F8` au lieu de blanc
+- Titre serif `#91014b`, body sans-serif
+- Petit accent rose (point ou trait) en haut à gauche
 
-### Ce qui ne change pas
+### 3. Quality check côté front (fiable)
 
-- Tous les fixes P0 livrés restent en place
-- Le flux global (upload → structure → génération → preview → export) reste identique
-- L'utilisateur peut toujours ignorer la suggestion auto et tout faire à la main
+**Fichier : `src/components/creer/formatRenderers/CarouselPhotoResult.tsx`**
+
+Remplacer le bloc qui lit `quality_check.slides_with_text` etc. par un calcul à partir de `slides` :
+```ts
+const computed = useMemo(() => ({
+  slides_with_text: slides.filter(s => s.overlay_text || s.body || s.title).length,
+  slides_without_text: slides.filter(s => isPhotoSlide(s) && !s.overlay_text).length,
+  all_photos_used: photos ? photos.every((_, i) => slides.some(s => s.photo_index === i + 1)) : true,
+}), [slides, photos]);
+```
+Affichage inchangé visuellement, juste fiable.
+
+### 4. Dégraissage du prompt mix
+
+**Fichier : `supabase/functions/carousel-ai/index.ts` (lignes ~1419-1515)**
+
+Retirer de `buildMixCarouselPrompt` :
+- Règles tirets cadratins (déjà dans `BASE_SYSTEM_RULES`)
+- Règles écriture inclusive
+- Règles anti-jargon AI / anti-slop
+- Règles "pas d'emoji en début de phrase"
+
+Garder uniquement les règles **spécifiques au mix** : sequencing photo/text, overlay short, body length, CTA en fin.
+Économie estimée ~150 lignes / ~30% tokens sur le prompt mix.
+
+### 5. Fichiers modifiés (récap)
+
+- `src/pages/CreerUnifie.tsx` — cleanup mapping CTA (~5 lignes)
+- `src/components/creer/StructureReviewStep.tsx` — `handleAutoDistribute` robuste (~10 lignes)
+- `src/components/creer/formatRenderers/CarouselPhotoResult.tsx` — quality check calculé (~15 lignes)
+- `src/lib/export-carousel-pptx.ts` — refonte visuelle 3 layouts (~80 lignes touchées)
+- `supabase/functions/carousel-ai/index.ts` — nettoyage prompt mix (~150 lignes retirées)
 
 ### Risque
 
-Faible. Aucune modification du backend ni des prompts IA. Que de l'UX qui ajoute des raccourcis sans casser le flux existant.
+- **PPTX** : moyen — visuel change pour tous les exports futurs. Pas de régression fonctionnelle (juste plus joli).
+- **Prompt** : faible — on retire des règles déjà appliquées ailleurs via `BASE_SYSTEM_RULES`.
+- **Front** : très faible — refactor local, pas de changement d'API.
 
-### Alternative si tu veux pousser plus loin
+### Ce qui ne change pas
 
-**Pack P2 — Qualité du rendu** (à faire ensuite ou à la place) :
-- Aligner le PPTX natif avec le rendu HTML (gradients, charte Nowadays sur `photo_integrated`)
-- Nettoyer les redondances dans `buildMixCarouselPrompt` (~150 lignes en moins)
-- Recalculer les quality checks côté front au lieu de faire confiance à l'IA
+- Le flux complet (upload → structure → génération → preview → export)
+- Les types de slides et le schéma JSON
+- L'UX du `StructureReviewStep` (juste plus robuste)
+- Le rendu HTML/visuel (déjà aligné sur la charte)
 
-Dis-moi : **P1 maintenant**, **P2 directement**, ou **autre priorité** (autre feature, autre bug).
+### Test après livraison
+
+Tu testes sur le compte démo Auriana avec un carrousel mix 6-8 slides (mélange `photo_full` + `photo_integrated` + `text_only`), puis tu exportes en PPTX pour vérifier que le rendu match le preview.
 
