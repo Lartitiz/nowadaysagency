@@ -83,7 +83,7 @@ ${p(`Ton espace est prêt. Voici ce que tu peux faire dès maintenant :`)}
 <li>✍️ <strong>Définir ta proposition de valeur</strong> — ce qui te différencie</li>
 <li>📝 <strong>Générer ton premier contenu</strong> avec l'IA</li>
 </ul>
-${p(`Tu as <strong>30 crédits IA gratuits</strong> pour explorer. Pas de piège, pas d'engagement.`)}
+${p(`Tu as <strong>60 crédits IA gratuits</strong> pour explorer. Pas de piège, pas d'engagement.`)}
 ${cta("Découvrir mon espace", `${app_url}/dashboard`)}
 ${p(`À très vite,<br><span style="color:#91014b;font-family:Georgia,'Libre Baskerville',serif;">Laetitia</span>`)}
   `);
@@ -117,12 +117,12 @@ export function creditsExhaustedEmail(vars?: TemplateVars): string {
   const prenom = vars?.prenom || "{{prenom}}";
   const app_url = vars?.app_url || "{{app_url}}";
 
-  return wrap("Tes 30 crédits IA sont utilisés !", `
+  return wrap("Tes 60 crédits IA sont utilisés !", `
 ${greeting(prenom)}
-${p(`Tes 30 crédits gratuits sont épuisés — et franchement, bravo. Ça veut dire que tu as testé, exploré, et commencé à poser les bases de ta com'. C'est déjà beaucoup. 💪`)}
+${p(`Tes 60 crédits gratuits sont épuisés — et franchement, bravo. Ça veut dire que tu as testé, exploré, et commencé à poser les bases de ta com'. C'est déjà beaucoup. 💪`)}
 ${p(`Si tu veux continuer à utiliser l'IA pour tes audits, tes contenus et ta stratégie, tu peux passer au plan <strong>Assistant Com'</strong> :`)}
 <ul style="margin:0 0 16px;padding-left:20px;font-size:15px;color:#1A1A1A;line-height:1.8;">
-<li>📊 <strong>300 crédits IA / mois</strong> — audits, génération, coaching</li>
+<li>📊 <strong>Crédits IA illimités</strong> — audits, génération, coaching</li>
 <li>📅 <strong>Calendrier éditorial</strong> avec génération de contenu</li>
 <li>🎯 <strong>CRM de prospection</strong> pour transformer tes abonné·es en client·es</li>
 </ul>
@@ -165,7 +165,7 @@ ${p(`Ça fait 2 semaines que tu utilises L'Assistant Com'. Tu as posé les bases
 ${p(`Mais imagine si tu pouvais aller plus loin, <strong>sans y passer plus de temps</strong> :`)}
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px;">
 <tr><td style="padding:12px 16px;border-bottom:1px solid #f5e8ee;">
-<span style="font-size:15px;color:#1A1A1A;">📊 <strong>300 crédits IA / mois</strong></span>
+<span style="font-size:15px;color:#1A1A1A;">📊 <strong>Crédits IA illimités</strong></span>
 <span style="font-size:13px;color:#999;display:block;margin-top:2px;">Audits, contenus, coaching — sans compter</span>
 </td></tr>
 <tr><td style="padding:12px 16px;border-bottom:1px solid #f5e8ee;">
@@ -181,7 +181,7 @@ ${p(`Mais imagine si tu pouvais aller plus loin, <strong>sans y passer plus de t
 <span style="font-size:13px;color:#999;display:block;margin-top:2px;">Des entrepreneures qui avancent ensemble</span>
 </td></tr>
 </table>
-${p(`Le plan <strong>Assistant Com'</strong> démarre à 29€/mois. Sans engagement. Et tu peux annuler quand tu veux.`)}
+${p(`Le plan <strong>L'Assistant Com'</strong> démarre à 39€/mois. Sans engagement. Et tu peux annuler quand tu veux.`)}
 ${cta("Découvrir les plans", `${app_url}/abonnement`)}
 ${p(`À très vite,<br><span style="color:#91014b;font-family:Georgia,'Libre Baskerville',serif;">Laetitia</span>`)}
   `);
@@ -192,7 +192,7 @@ ${p(`À très vite,<br><span style="color:#91014b;font-family:Georgia,'Libre Bas
 export const EMAIL_TEMPLATES = {
   welcome: { fn: welcomeEmail, subject: "Bienvenue dans L'Assistant Com' !" },
   tips_day3: { fn: tipsDay3Email, subject: "Le secret des comptes qui percent (indice : c'est pas l'algorithme)" },
-  credits_exhausted: { fn: creditsExhaustedEmail, subject: "Tes 30 crédits IA sont utilisés !" },
+  credits_exhausted: { fn: creditsExhaustedEmail, subject: "Tes 60 crédits IA sont utilisés !" },
   inactive_7d: { fn: inactive7dEmail, subject: "Ta com' t'attend (et elle est pas rancunière)" },
   teaser_premium: { fn: teaserPremiumEmail, subject: "Et si ta com' devenait un jeu ?" },
 } as const;
