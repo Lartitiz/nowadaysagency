@@ -1,95 +1,85 @@
 
 
-## Plan : Dégraisser les prompts de génération — éliminer les redondances
+## Plan : Repenser la Hero Card "Ta prochaine étape"
 
-### Le problème
-Le fichier `copywriting-prompts.ts` (1 424 lignes) contient des redondances massives. Les mêmes règles sont répétées 3 à 8 fois dans différentes sections. Un prompt de génération Instagram injecte probablement 8 000+ tokens de règles, dont ~40% sont des doublons. Ça coûte cher en API, dilue les instructions importantes et peut même confondre le modèle.
+### Le problème actuel
+La card est dense et un peu plate :
+- L'icône à gauche + bloc texte à droite = lecture en zigzag
+- Le titre, l'explication, le CTA et le lien secondaire s'enchaînent sans hiérarchie forte
+- Le bouton "Je sais pas quoi poster" est discret au point qu'on ne le voit pas
+- Pas de signal visuel de "valeur" : on ne sait pas pourquoi on cliquerait
+- L'accent bar verticale gauche est subtile mais ne crée pas de désir
 
-### Exemples de doublons identifiés
-
-```text
-Règle                              Présente dans
-─────────────────────────────────── ────────────────────────────
-"JAMAIS de tiret cadratin"          BASE_SYSTEM_RULES, CORE_PRINCIPLES,
-                                    ANTI_SLOP, LINKEDIN_COMPACT,
-                                    LINKEDIN_PRINCIPLES (8+ fois)
-
-"Écriture inclusive point médian"   BASE_SYSTEM_RULES, CORE_PRINCIPLES,
-                                    LINKEDIN_COMPACT, LINKEDIN_PRINCIPLES (6+)
-
-"Pas de jargon marketing"          BASE_SYSTEM_RULES, CORE_PRINCIPLES,
-                                    LINKEDIN_COMPACT, LINKEDIN_PRINCIPLES (4+)
-
-Patterns anti-IA (broetry, etc.)   ANTI_SLOP, LINKEDIN_COMPACT,
-                                    ANTI_BROETRY_LINKEDIN (3 sections)
-
-Guardrails éthiques                CORE_PRINCIPLES + ETHICAL_GUARDRAILS
-                                    (quasi copie)
-
-Exemples avant/après               CORE_PRINCIPLES + LINKEDIN_COMPACT
-                                    (réécrits)
-```
-
-### La stratégie : couche unique + extensions canal
+### La nouvelle direction : "card-poster" avec hiérarchie claire
 
 ```text
-BASE_SYSTEM_RULES (existe déjà, 33 lignes)
-  → Source unique pour : tiret, inclusif, ton, jargon, vulgarité
-  → Injecté PARTOUT → zéro doublon
-
-CORE_PRINCIPLES
-  → Garder : principes éthiques, algorithme, longueurs, priorité voix
-  → Retirer : tout ce qui est déjà dans BASE_SYSTEM_RULES
-  → Retirer : exemples avant/après (déplacer dans une section "exemples" dédiée)
-
-ANTI_SLOP
-  → Garder : la liste de mots/patterns bannis
-  → Retirer : les règles structurelles déjà dans CORE_PRINCIPLES
-
-ETHICAL_GUARDRAILS
-  → SUPPRIMER : doublon quasi intégral de CORE_PRINCIPLES section "JAMAIS"
-
-ANTI_BIAS
-  → Garder tel quel (peu de redondance)
-
-ANTI_BROETRY_LINKEDIN
-  → SUPPRIMER : doublon de ANTI_SLOP section "patterns voix IA"
-
-LINKEDIN_PRINCIPLES_COMPACT
-  → Retirer : les exemples avant/après (utiliser les mêmes que CORE)
-  → Retirer : les patterns anti-IA (déjà dans ANTI_SLOP)
-  → Garder : ce qui est spécifique LinkedIn (algo, formatage mobile, etc.)
-
-LINKEDIN_PRINCIPLES
-  → Retirer : tout ce qui est dans LINKEDIN_COMPACT (doublon interne)
-  → Ou les fusionner en une seule export
+┌─────────────────────────────────────────────────┐
+│  ✨ TA PROCHAINE ÉTAPE              [⏱ 5 min]   │  ← micro-header
+│                                                  │
+│  Crée ton prochain                               │  ← titre énorme,
+│  contenu                                         │     2 lignes max
+│                                                  │
+│  Ta com' est bien calée. Le secret              │  ← explication
+│  maintenant : la régularité.                     │     courte, aérée
+│                                                  │
+│  ┌───────────────────────────┐                  │
+│  │  C'est parti  →           │  ← CTA gros,    │
+│  └───────────────────────────┘     plein largeur│
+│                                    sur mobile    │
+│  ─────────────────────────────                  │  ← séparateur léger
+│  🤔  Je sais pas quoi poster ?                  │  ← lien secondaire
+│       On en discute →                            │     plus visible
+└─────────────────────────────────────────────────┘
+   ↑ fond légèrement gradient rose-pale → blanc
+   ↑ bordure plus marquée au hover
 ```
 
-### Changements concrets
+### Les changements concrets
 
-**Fichier : `supabase/functions/_shared/copywriting-prompts.ts`**
+**1. Header de carte (nouvelle ligne)**
+- À gauche : `✨ TA PROCHAINE ÉTAPE` en uppercase, petit, avec emoji intégré (au lieu de l'icône box)
+- À droite : badge durée estimée (ex: `⏱ 5 min`) si dispo, sinon rien
+- L'icône lourde de 46px disparaît → gain d'espace vertical
 
-1. **Dé-dupliquer `CORE_PRINCIPLES`** : retirer les 20+ lignes qui répètent `BASE_SYSTEM_RULES` (tirets, inclusif, jargon, ton oral)
-2. **Supprimer `ETHICAL_GUARDRAILS`** : son contenu est déjà dans la section "JAMAIS" de `CORE_PRINCIPLES`
-3. **Supprimer `ANTI_BROETRY_LINKEDIN`** : son contenu est déjà dans `ANTI_SLOP` section patterns voix IA
-4. **Fusionner `LINKEDIN_PRINCIPLES` et `LINKEDIN_PRINCIPLES_COMPACT`** en une seule export `LINKEDIN_RULES` — garder uniquement ce qui est spécifique à LinkedIn
-5. **Nettoyer `ANTI_SLOP`** : retirer les doublons avec `CORE_PRINCIPLES`
-6. **Vérifier tous les fichiers qui importent** ces exports pour mettre à jour les imports (creative-flow, storytelling-ai, content-coaching, generate-content, etc.)
+**2. Titre repensé**
+- Passer de `text-xl` à `text-[26px] sm:text-3xl` 
+- `font-display`, leading serré
+- C'est LE point d'entrée visuel
 
-**Fichier : `supabase/functions/_shared/base-prompts.ts`**
-- Pas de changement, c'est la bonne base
+**3. Explication condensée**
+- Garder le markdown mais limiter visuellement à 2 lignes max
+- Couleur `text-foreground/70` au lieu de `text-muted-foreground` (plus lisible)
 
-### Estimation de la réduction
-- Avant : ~1 424 lignes / ~8 000-10 000 tokens par prompt
-- Après : ~800-900 lignes / ~5 000-6 000 tokens par prompt
-- Gain : ~30-40% de tokens en moins par appel API
+**4. CTA principal**
+- Pleine largeur sur mobile, auto sur desktop
+- Plus haut (h-12), plus contrasté
+- Garder bordeaux mais ajouter une vraie shadow au hover
+- Flèche qui se déplace au hover (`group-hover:translate-x-1`)
+
+**5. Lien secondaire "Je sais pas quoi poster"**
+- Le séparer visuellement du CTA principal avec un divider léger
+- Le rendre plus actionnable : icône + texte + flèche
+- Format : `🤔 Je sais pas quoi poster ? · On en discute →`
+- Couleur primary au survol
+
+**6. Fond et finition**
+- Léger gradient `from-rose-pale/40 to-card` (à peine perceptible, donne de la chaleur)
+- Retirer la barre verticale d'accent (redondante avec le nouveau design)
+- Garder le hover lift mais légèrement plus marqué (-translate-y-[3px])
+
+**7. Bouton démo Auriana**
+- Le déplacer en bas, sous le séparateur, dans un style cohérent (pas de couleur primary qui vole la vedette au CTA principal)
+
+### Fichier modifié
+- `src/pages/AdaptiveHome.tsx` (lignes 232-281 uniquement)
 
 ### Ce qui ne change pas
-- Le contenu des règles (aucune règle supprimée, juste dé-dupliquée)
-- La qualité des outputs (mêmes instructions, juste pas répétées)
-- Les edge functions qui appellent ces prompts (seuls les imports changent)
-- `BASE_SYSTEM_RULES` (déjà propre)
+- La logique (`recommendation`, `handleNavigate`, `setContentCoachingOpen`)
+- Le hook `useDailyRecommendation`
+- Le composant `RecommendationIcon` (juste plus utilisé ici, gardé pour ailleurs)
+- La grille des mini-cards en dessous
+- Le scénario démo Auriana (juste restylé)
 
-### Risque
-Faible. On ne retire aucune règle, on retire des copies. Le seul risque est un import cassé, qu'on vérifiera avec un `grep` sur tous les fichiers qui utilisent les exports supprimés.
+### Résultat attendu
+Une card qui se lit en 1 seconde : œil → titre énorme → CTA évident. Le "Je sais pas quoi poster" devient une vraie alternative visible au lieu d'un lien perdu.
 
