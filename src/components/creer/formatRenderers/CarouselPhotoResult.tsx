@@ -167,20 +167,42 @@ const OVERLAY_STYLE_CLASS: Record<string, string> = {
 
 export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, visualSlides }: CarouselPhotoResultProps) {
   const r = result?.raw || result;
+
+  // Fallback minimal si l'IA a oublié la légende — au moins une amorce éditable
+  const buildCaptionWithFallback = (rawCaption: any, rawSlides: any[]) => {
+    const c = rawCaption || {};
+    const hasContent = c.hook || c.body || c.cta || (c.hashtags && c.hashtags.length > 0);
+    if (hasContent) return c;
+    const firstSlide = rawSlides?.[0] || {};
+    return {
+      hook: firstSlide.overlay_text || firstSlide.title || "",
+      body: "",
+      cta: "",
+      hashtags: [],
+    };
+  };
+
   const [slides, setSlides] = useState<any[]>(r?.slides || []);
-  const [caption, setCaption] = useState<any>(r?.caption || {});
-  const [hashtagInput, setHashtagInput] = useState((r?.caption?.hashtags || []).join(" "));
+  const [caption, setCaption] = useState<any>(buildCaptionWithFallback(r?.caption, r?.slides || []));
+  const [hashtagInput, setHashtagInput] = useState((buildCaptionWithFallback(r?.caption, r?.slides || []).hashtags || []).join(" "));
   
 
-  const prevSignature = useRef(JSON.stringify((r?.slides || []).map((s: any) => s.slide_number)));
+  const prevSignature = useRef(JSON.stringify({
+    slides: (r?.slides || []).map((s: any) => s.slide_number),
+    captionHash: JSON.stringify(r?.caption || {}),
+  }));
 
   useEffect(() => {
     const currentSlides = r?.slides || [];
-    const newSig = JSON.stringify(currentSlides.map((s: any) => s.slide_number));
+    const newSig = JSON.stringify({
+      slides: currentSlides.map((s: any) => s.slide_number),
+      captionHash: JSON.stringify(r?.caption || {}),
+    });
     if (newSig !== prevSignature.current) {
       setSlides(currentSlides);
-      setCaption(r?.caption || {});
-      setHashtagInput((r?.caption?.hashtags || []).join(" "));
+      const nextCaption = buildCaptionWithFallback(r?.caption, currentSlides);
+      setCaption(nextCaption);
+      setHashtagInput((nextCaption.hashtags || []).join(" "));
       prevSignature.current = newSig;
     }
   }, [result]);
