@@ -68,9 +68,10 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   const [contentDraft, setContentDraft] = useState<string | null>(null);
   const [accroche, setAccroche] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [dialogTab, setDialogTab] = useState<"edit" | "preview">("edit");
+  const [dialogTab, setDialogTab] = useState<"edit" | "preview" | "meta">("edit");
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showContentViewer, setShowContentViewer] = useState(false);
+  const [savedDraft, setSavedDraft] = useState<string | null>(null);
 
   useEffect(() => {
     if (!profileData) return;
