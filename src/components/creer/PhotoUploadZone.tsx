@@ -1,12 +1,14 @@
 import { useState, useRef, useCallback, useEffect, DragEvent as ReactDragEvent } from "react";
 import { Upload, X, GripVertical } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 export interface PhotoItem {
   base64: string;
   preview: string;
   name: string;
+  context?: string;
 }
 
 export interface PhotoUploadZoneProps {
@@ -53,6 +55,7 @@ export function PhotoUploadZone({
   const [description, setDescription] = useState(initialDescription ?? "");
   const [isDragOver, setIsDragOver] = useState(false);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [showContexts, setShowContexts] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const isFull = photos.length >= maxPhotos;
 
@@ -90,6 +93,14 @@ export function PhotoUploadZone({
     (idx: number) => {
       const next = photos.filter((_, i) => i !== idx);
       URL.revokeObjectURL(photos[idx].preview);
+      updatePhotos(next);
+    },
+    [photos, updatePhotos],
+  );
+
+  const updateContext = useCallback(
+    (idx: number, value: string) => {
+      const next = photos.map((p, i) => (i === idx ? { ...p, context: value } : p));
       updatePhotos(next);
     },
     [photos, updatePhotos],
@@ -164,35 +175,54 @@ export function PhotoUploadZone({
       {/* ── Thumbnails grid ───────────────────── */}
       {photos.length > 0 && (
         <>
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => setShowContexts((v) => !v)}
+              className="text-xs text-primary hover:underline font-medium"
+            >
+              {showContexts ? "− Masquer les contextes" : "+ Ajouter un contexte par photo"}
+            </button>
+          </div>
           <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
             {photos.map((p, idx) => (
-              <div
-                key={`${p.name}-${idx}`}
-                draggable
-                onDragStart={() => onThumbDragStart(idx)}
-                onDragOver={(e) => onThumbDragOver(e, idx)}
-                onDragEnd={onThumbDragEnd}
-                className={cn(
-                  "relative aspect-square group rounded-lg overflow-hidden border border-border cursor-grab active:cursor-grabbing",
-                  dragIdx === idx && "opacity-50 ring-2 ring-primary",
-                )}
-              >
-                <img
-                  src={p.preview}
-                  alt={p.name}
-                  className="w-full h-full object-cover rounded-lg"
-                  draggable={false}
-                />
-                <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/10 transition-colors rounded-lg" />
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); removePhoto(idx); }}
-                  className="absolute top-1 right-1 h-5 w-5 rounded-full bg-destructive/80 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                  aria-label={`Supprimer ${p.name}`}
+              <div key={`${p.name}-${idx}`} className="flex flex-col gap-1.5">
+                <div
+                  draggable
+                  onDragStart={() => onThumbDragStart(idx)}
+                  onDragOver={(e) => onThumbDragOver(e, idx)}
+                  onDragEnd={onThumbDragEnd}
+                  className={cn(
+                    "relative aspect-square group rounded-lg overflow-hidden border border-border cursor-grab active:cursor-grabbing",
+                    dragIdx === idx && "opacity-50 ring-2 ring-primary",
+                  )}
                 >
-                  <X className="h-3 w-3" />
-                </button>
-                <GripVertical className="absolute bottom-1 left-1 h-3.5 w-3.5 text-white/70 opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
+                  <img
+                    src={p.preview}
+                    alt={p.name}
+                    className="w-full h-full object-cover rounded-lg"
+                    draggable={false}
+                  />
+                  <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/10 transition-colors rounded-lg" />
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); removePhoto(idx); }}
+                    className="absolute top-1 right-1 h-5 w-5 rounded-full bg-destructive/80 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    aria-label={`Supprimer ${p.name}`}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                  <GripVertical className="absolute bottom-1 left-1 h-3.5 w-3.5 text-white/70 opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
+                </div>
+                {showContexts && (
+                  <Input
+                    value={p.context ?? ""}
+                    onChange={(e) => updateContext(idx, e.target.value)}
+                    placeholder="Ex : chantier Acacias, J2 démolition"
+                    maxLength={200}
+                    className="h-8 text-xs px-2"
+                  />
+                )}
               </div>
             ))}
           </div>
