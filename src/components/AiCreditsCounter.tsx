@@ -124,7 +124,7 @@ export default function AiCreditsCounter({ plan, usage }: AiCreditsCounterProps)
               to="/mon-plan"
               className="inline-block rounded-full bg-[#FB3D80] text-white px-4 py-2 text-xs font-medium hover:bg-[#e0326f] transition-colors"
             >
-              Passer au Premium — 300 crédits/mois
+              Passer à L'Assistant Com' — crédits illimités
             </Link>
           </div>
         ) : (
