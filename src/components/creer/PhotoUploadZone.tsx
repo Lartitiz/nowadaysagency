@@ -1,12 +1,14 @@
 import { useState, useRef, useCallback, useEffect, DragEvent as ReactDragEvent } from "react";
 import { Upload, X, GripVertical } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 export interface PhotoItem {
   base64: string;
   preview: string;
   name: string;
+  context?: string;
 }
 
 export interface PhotoUploadZoneProps {
