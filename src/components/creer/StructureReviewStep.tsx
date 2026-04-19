@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { ArrowUp, ArrowDown, X, Plus, Loader2, Check } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { ArrowUp, ArrowDown, X, Plus, Loader2, Check, Sparkles, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
