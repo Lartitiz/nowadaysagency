@@ -270,7 +270,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
             </button>
           </div>
           <p className="text-sm font-semibold text-foreground">Quel format LinkedIn ?</p>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             <button
               onClick={() => { setLinkedinSubMode("text"); handleFormatSelect("linkedin"); }}
               className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
@@ -280,12 +280,20 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
               <p className="text-[10px] text-muted-foreground mt-0.5">1300-2000 caractères</p>
             </button>
             <button
-              onClick={() => { setLinkedinSubMode("carousel"); handleFormatSelect("carousel"); }}
+              onClick={() => { setLinkedinSubMode("carousel"); setCarouselSubMode("text"); handleFormatSelect("carousel"); }}
               className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
             >
               <span className="text-2xl block mb-1">🎠</span>
-              <span className="text-xs font-semibold text-foreground">Carrousel PDF</span>
+              <span className="text-xs font-semibold text-foreground">Carrousel texte</span>
               <p className="text-[10px] text-muted-foreground mt-0.5">8-10 slides téléchargeables</p>
+            </button>
+            <button
+              onClick={() => { setLinkedinSubMode("carousel"); setCarouselSubMode("mix"); handleFormatSelect("carousel"); }}
+              className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
+            >
+              <span className="text-2xl block mb-1">✨</span>
+              <span className="text-xs font-semibold text-foreground">Carrousel mixte</span>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Photos + texte (6-8 slides)</p>
             </button>
           </div>
         </div>
@@ -409,8 +417,8 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
         </div>
       )}
 
-      {/* Carousel sub-mode (Instagram only) */}
-      {selectedFormat === "carousel" && selectedChannel === "instagram" && (
+      {/* Carousel sub-mode (Instagram + LinkedIn) */}
+      {selectedFormat === "carousel" && (selectedChannel === "instagram" || selectedChannel === "linkedin") && (
         <div className="space-y-3 animate-fade-in">
           <p className="text-sm font-semibold text-foreground">Quel type de carrousel ?</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">

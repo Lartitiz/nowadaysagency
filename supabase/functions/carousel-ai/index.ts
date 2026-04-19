@@ -110,7 +110,7 @@ serve(async (req) => {
     } else if (type === "express_full") {
       // ── Mix carousel mode ──
       if (body.carousel_type === "mix") {
-        const mixPrompt = buildMixCarouselPrompt(body);
+        const mixPrompt = buildMixCarouselPrompt(body, isLinkedIn);
         let content: string;
 
         if (body.photos && body.photos.length > 0) {
@@ -1372,8 +1372,24 @@ RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
 }`;
 }
 
-function buildMixCarouselPrompt(body: any): string {
+function buildMixCarouselPrompt(body: any, isLinkedIn: boolean = false): string {
   const { editorial_angle, content_structure, deepening_answers, slide_structure, confirmed_structure } = body;
+
+  // ── Adaptation éditoriale selon le canal ──
+  const channelBlock = isLinkedIn
+    ? `═══ ADAPTATION LINKEDIN (OBLIGATOIRE) ═══
+
+Ce carrousel est destiné à LinkedIn (et non Instagram). Tu DOIS adapter ton, overlays et CTA :
+
+- TON : professionnel mais chaleureux, expert·e mais accessible. Vouvoiement par défaut (sauf si la voix de marque dit le contraire).
+- DENSITÉ : chaque slide texte apporte de la valeur concrète : chiffre, mécanisme, contexte marché, retour terrain, nuance. Pas de phrases vides.
+- OVERLAYS PHOTO : sobres, factuels, sans emojis "girl chic" (✨, 🌸, 💖). 0-1 emoji max par slide. Les overlays décrivent un fait, un moment, une preuve — pas une vibe.
+- ARC NARRATIF type LinkedIn : photo terrain en slide 1 → 3-4 slides analyse / leçon / chiffres → 1 slide "preuve sociale" si pertinent (témoignage, photo client, résultat) → slide texte conclusion → CTA.
+- CTA FINAL : "Partagez si cela résonne", "Votre avis en commentaire ?", "Envoyez à un·e collègue qui…", "Quelle est votre expérience ?". JAMAIS "Sauvegarde", "DM moi", "Tag une copine".
+- LÉGENDE : "vous" plutôt que "tu", pas d'emojis fleurs ni cœurs, hashtags professionnels (secteur, métier, thématique pro).
+
+`
+    : "";
 
   // ── STRUCTURE IMPOSÉE (si confirmée par l'utilisateur·ice) ──
   let confirmedStructureBlock = "";
@@ -1416,9 +1432,9 @@ RÈGLES ABSOLUES :
     angleBlock = `\nANGLE ÉDITORIAL CHOISI : ${editorial_angle}\nSTRUCTURE IMPOSÉE :\n${content_structure}\n\n${EDITORIAL_ANGLES_REFERENCE}`;
   }
 
-  return `${confirmedStructureBlock}Tu es une DIRECTRICE ARTISTIQUE ÉDITORIALE spécialisée dans les carrousels Instagram.
+  return `${confirmedStructureBlock}${channelBlock}Tu es une DIRECTRICE ARTISTIQUE ÉDITORIALE spécialisée dans les carrousels ${isLinkedIn ? "LinkedIn" : "Instagram"}.
 
-Tu crées des carrousels MIXTES : un mélange de slides avec photos et de slides texte pur. C'est le format le plus courant et le plus engageant sur Instagram.
+Tu crées des carrousels MIXTES : un mélange de slides avec photos et de slides texte pur. C'est un format premium qui se démarque dans le feed ${isLinkedIn ? "LinkedIn (où dominent les carrousels PDF tout texte)" : "Instagram"}.
 
 ═══ TYPES DE SLIDES ═══
 
