@@ -181,7 +181,7 @@ ${p(`Mais imagine si tu pouvais aller plus loin, <strong>sans y passer plus de t
 <span style="font-size:13px;color:#999;display:block;margin-top:2px;">Des entrepreneures qui avancent ensemble</span>
 </td></tr>
 </table>
-${p(`Le plan <strong>Assistant Com'</strong> démarre à 29€/mois. Sans engagement. Et tu peux annuler quand tu veux.`)}
+${p(`Le plan <strong>L'Assistant Com'</strong> démarre à 39€/mois. Sans engagement. Et tu peux annuler quand tu veux.`)}
 ${cta("Découvrir les plans", `${app_url}/abonnement`)}
 ${p(`À très vite,<br><span style="color:#91014b;font-family:Georgia,'Libre Baskerville',serif;">Laetitia</span>`)}
   `);
