@@ -239,12 +239,6 @@ export default function AdaptiveHome() {
             <p className="font-mono-ui text-[10.5px] text-foreground/60 uppercase tracking-[0.12em] font-semibold">
               ✨ Ta prochaine étape
             </p>
-            {recommendation.estimatedTime && (
-              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-foreground/60 bg-card/60 border border-border/60 rounded-full px-2.5 py-1">
-                <Clock className="h-3 w-3" />
-                {recommendation.estimatedTime}
-              </span>
-            )}
           </div>
 
           {/* Titre */}
