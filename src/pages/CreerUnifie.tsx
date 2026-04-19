@@ -283,7 +283,10 @@ export default function CreerUnifie() {
     const isEmpty = !c.hook && !c.body && !c.cta && (!c.hashtags || c.hashtags.length === 0);
     if (isEmpty) {
       console.warn("[carousel] caption manquante dans la réponse IA", r);
-      toast("L'IA a oublié la légende, tu peux l'écrire à la main 🌸");
+      const msg = isLinkedInCarousel
+        ? "L'IA a oublié la légende, vous pouvez l'écrire à la main."
+        : "L'IA a oublié la légende, tu peux l'écrire à la main 🌸";
+      toast(msg);
       warnedCaptionRef.current = r;
     }
   }, [result, selectedFormat]);
