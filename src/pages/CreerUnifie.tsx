@@ -1782,13 +1782,15 @@ export default function CreerUnifie() {
           console.warn(
             `[carousel] sequencing: dernière slide n'était pas text_only — conversion en CTA texte.`
           );
+          // Mapping CTA propre : on supprime overlay_text/photo_index/photo_layout
+          // pour ne garder que les champs pertinents pour une slide texte CTA.
           mappedSlides[mappedSlides.length - 1] = {
             slide_number: last.slide_number,
-            role: last.role || "cta",
+            role: "cta",
             slide_type: "text_only",
             title: (last as any).title || (last as any).overlay_text || "",
             body: (last as any).body || (last as any).note || "",
-            visual_suggestion: (last as any).visual_suggestion,
+            ...((last as any).visual_suggestion ? { visual_suggestion: (last as any).visual_suggestion } : {}),
           };
         }
       }
