@@ -1,83 +1,71 @@
 
 
-## Pack P2 complet + corrections de bugs résiduels
+## Diagnostic : pourquoi la card "Légende" est vide
 
-### 1. Bugs résiduels (quick wins)
+### Ce que j'ai trouvé
 
-**A. Mapping CTA propre** (`src/pages/CreerUnifie.tsx` ~ligne 1785)
-Quand on convertit la dernière slide en `text_only` CTA, on supprime explicitement `overlay_text` et `photo_index` du résultat. Mapping clean : `{ slide_type: "text_only", role: "cta", title, body }`.
+La card **est bien rendue** (lignes 422-473 de `CarouselPhotoResult.tsx`) — sans condition. Si tu la vois "vide", c'est que les 4 textareas (Hook / Body / CTA / Hashtags) n'ont pas de contenu.
 
-**B. `handleAutoDistribute` robuste** (`src/components/creer/StructureReviewStep.tsx`)
-Si aucune slide n'est de type photo, on convertit silencieusement les N premières slides (N = nombre de photos) en `photo_full` avant d'assigner. Plus de clic mort.
-
-### 2. PPTX natif aligné sur le rendu HTML
-
-**Fichier : `src/lib/export-carousel-pptx.ts`**
-
-Pour `photo_full` :
-- Ajouter un gradient overlay sombre (bottom→top, noir 60% → transparent) sur la moitié basse pour lisibilité
-- Texte overlay en blanc gras Libre Baskerville/IBM Plex sur ce gradient
-- Bordure arrondie simulée (rectangle blanc 2pt en bas pour signature)
-
-Pour `photo_integrated` :
-- Bande de fond rose pâle `#FFF4F8` derrière la zone texte (au lieu du blanc plat)
-- Accent rose `#FB3D80` (barre verticale 4pt à gauche du titre)
-- Titre en `#91014b`, body en gris foncé
-
-Pour `text_only` :
-- Fond `#FFF4F8` au lieu de blanc
-- Titre serif `#91014b`, body sans-serif
-- Petit accent rose (point ou trait) en haut à gauche
-
-### 3. Quality check côté front (fiable)
-
-**Fichier : `src/components/creer/formatRenderers/CarouselPhotoResult.tsx`**
-
-Remplacer le bloc qui lit `quality_check.slides_with_text` etc. par un calcul à partir de `slides` :
+État actuel :
 ```ts
-const computed = useMemo(() => ({
-  slides_with_text: slides.filter(s => s.overlay_text || s.body || s.title).length,
-  slides_without_text: slides.filter(s => isPhotoSlide(s) && !s.overlay_text).length,
-  all_photos_used: photos ? photos.every((_, i) => slides.some(s => s.photo_index === i + 1)) : true,
-}), [slides, photos]);
+const [caption, setCaption] = useState<any>(r?.caption || {});
 ```
-Affichage inchangé visuellement, juste fiable.
+→ Si l'IA ne renvoie pas `caption` dans son JSON (ou la renvoie vide), les champs sont vides.
 
-### 4. Dégraissage du prompt mix
+### Cause probable
 
-**Fichier : `supabase/functions/carousel-ai/index.ts` (lignes ~1419-1515)**
+Dans `buildMixCarouselPrompt` (`carousel-ai/index.ts` lignes 1491-1496), la section **═══ LÉGENDE ═══** liste les règles éditoriales mais :
+1. N'est pas mise en évidence comme **obligatoire dans le JSON**
+2. Vient **après** une longue section "RÈGLES DE COMPOSITION" + "RÈGLES SPÉCIFIQUES MIX"
+3. Le bloc "VÉRIFICATION FINALE" (ligne 1499) ne mentionne **pas** la caption
 
-Retirer de `buildMixCarouselPrompt` :
-- Règles tirets cadratins (déjà dans `BASE_SYSTEM_RULES`)
-- Règles écriture inclusive
-- Règles anti-jargon AI / anti-slop
-- Règles "pas d'emoji en début de phrase"
+Avec un long prompt, l'IA Gemini omet régulièrement la `caption` ou la renvoie incomplète sur les générations mix. Symptôme classique constaté.
 
-Garder uniquement les règles **spécifiques au mix** : sequencing photo/text, overlay short, body length, CTA en fin.
-Économie estimée ~150 lignes / ~30% tokens sur le prompt mix.
+### Bug secondaire
 
-### 5. Fichiers modifiés (récap)
+Dans `CarouselPhotoResult.tsx` ligne 175 :
+```ts
+const prevSignature = useRef(JSON.stringify((r?.slides || []).map((s: any) => s.slide_number)));
+```
+→ Le `useEffect` ligne 177 ne resync `caption` que si la **signature des slides** change. Si l'utilisateur régénère et obtient le **même nombre de slides** mais avec une caption différente, **la caption locale n'est pas remise à jour**. Bug potentiel mais pas la cause principale.
 
-- `src/pages/CreerUnifie.tsx` — cleanup mapping CTA (~5 lignes)
-- `src/components/creer/StructureReviewStep.tsx` — `handleAutoDistribute` robuste (~10 lignes)
-- `src/components/creer/formatRenderers/CarouselPhotoResult.tsx` — quality check calculé (~15 lignes)
-- `src/lib/export-carousel-pptx.ts` — refonte visuelle 3 layouts (~80 lignes touchées)
-- `supabase/functions/carousel-ai/index.ts` — nettoyage prompt mix (~150 lignes retirées)
+---
+
+## Plan : 3 corrections
+
+### 1. Renforcer l'obligation de `caption` dans le prompt mix
+`supabase/functions/carousel-ai/index.ts` :
+- Ajouter dans la section "VÉRIFICATION FINALE" une ligne explicite : `Le bloc "caption" complet (hook, body, cta, hashtags) est OBLIGATOIRE dans le JSON.`
+- Déplacer la section ═══ LÉGENDE ═══ juste avant le schéma JSON pour qu'elle soit la dernière chose lue par l'IA
+- Renommer en ═══ LÉGENDE (OBLIGATOIRE DANS LE JSON) ═══
+
+### 2. Fallback caption côté front
+`CarouselPhotoResult.tsx` : si `r?.caption` est absente ou vide, **générer un fallback minimal** à partir du contenu des slides :
+- Hook = `slides[0].overlay_text || slides[0].title || ""` 
+- Body = vide (laisser l'utilisateur écrire)
+- CTA = ""
+- Hashtags = []
+
+L'utilisateur verra au moins une amorce et comprendra que c'est éditable, plutôt qu'une card vide qui semble cassée.
+
+### 3. Fix bug de signature
+`CarouselPhotoResult.tsx` ligne 175-186 : inclure la caption dans la signature de resync :
+```ts
+const prevSignature = useRef(JSON.stringify({
+  slides: (r?.slides || []).map((s: any) => s.slide_number),
+  captionHash: JSON.stringify(r?.caption || {}),
+}));
+```
+→ La caption est correctement resync à chaque vraie nouvelle génération.
+
+### 4. Toast d'avertissement (optionnel)
+Dans `CreerUnifie.tsx` après réception du résultat carrousel : si `r.caption` est manquante/vide, log console + toast doux : "L'IA a oublié la légende, tu peux l'écrire à la main 🌸"
+
+### Fichiers modifiés
+- `supabase/functions/carousel-ai/index.ts` (renforcer prompt, ~10 lignes)
+- `src/components/creer/formatRenderers/CarouselPhotoResult.tsx` (fallback + signature, ~15 lignes)
+- `src/pages/CreerUnifie.tsx` (toast warning, ~5 lignes)
 
 ### Risque
-
-- **PPTX** : moyen — visuel change pour tous les exports futurs. Pas de régression fonctionnelle (juste plus joli).
-- **Prompt** : faible — on retire des règles déjà appliquées ailleurs via `BASE_SYSTEM_RULES`.
-- **Front** : très faible — refactor local, pas de changement d'API.
-
-### Ce qui ne change pas
-
-- Le flux complet (upload → structure → génération → preview → export)
-- Les types de slides et le schéma JSON
-- L'UX du `StructureReviewStep` (juste plus robuste)
-- Le rendu HTML/visuel (déjà aligné sur la charte)
-
-### Test après livraison
-
-Tu testes sur le compte démo Auriana avec un carrousel mix 6-8 slides (mélange `photo_full` + `photo_integrated` + `text_only`), puis tu exportes en PPTX pour vérifier que le rendu match le preview.
+Très faible. Pas de changement structurel, juste des garde-fous.
 
