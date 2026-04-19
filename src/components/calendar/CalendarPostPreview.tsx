@@ -1,11 +1,12 @@
 import { Button } from "@/components/ui/button";
-import { Download, Loader2, Sparkles, FileDown, ChevronDown } from "lucide-react";
+import { Download, Loader2, Sparkles, FileDown, ChevronDown, ChevronLeft, ChevronRight, Copy, Maximize2 } from "lucide-react";
 import { useState, useCallback } from "react";
 import html2canvas from "html2canvas";
 import { exportCarouselVisualPptx } from "@/lib/export-carousel-visual-pptx";
 import { SocialMockup } from "@/components/social-mockup/SocialMockup";
 import { ContentPreview } from "@/components/ContentPreview";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useToast } from "@/hooks/use-toast";
 
 interface Props {
   canal: string;
@@ -22,15 +23,21 @@ interface Props {
   hasTheme: boolean;
   slidesData?: any[] | null;
   photoUrls?: string[] | null;
+  compact?: boolean;
+  onFullscreen?: () => void;
+  syncStatus?: "synced" | "dirty";
 }
 
 export function CalendarPostPreview({
   canal, format, caption, theme, username, displayName,
   mediaUrls, visualHtml, visualUrls, onNavigateToGenerator, hasAngle, hasTheme,
-  slidesData, photoUrls,
+  slidesData, photoUrls, compact = false, onFullscreen, syncStatus,
 }: Props) {
+  const { toast } = useToast();
   const [downloading, setDownloading] = useState(false);
   const [downloadingPptx, setDownloadingPptx] = useState(false);
+  const [downloadingEditable, setDownloadingEditable] = useState(false);
+  const [slideIndex, setSlideIndex] = useState(0);
 
   // ── Télécharger en PNG (ZIP si plusieurs slides) ──
   const handleDownloadImages = useCallback(async () => {
@@ -50,13 +57,8 @@ export function CalendarPostPreview({
         await new Promise(r => setTimeout(r, 400));
 
         const canvas = await html2canvas(container, {
-          width: 1080,
-          height: 1350,
-          scale: 1,
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: null,
-          logging: false,
+          width: 1080, height: 1350, scale: 1,
+          useCORS: true, allowTaint: true, backgroundColor: null, logging: false,
         });
 
         const blob = await new Promise<Blob>((resolve) => {
@@ -69,9 +71,7 @@ export function CalendarPostPreview({
       if (images.length === 1) {
         const url = URL.createObjectURL(images[0].blob);
         const a = document.createElement("a");
-        a.href = url;
-        a.download = images[0].name;
-        a.click();
+        a.href = url; a.download = images[0].name; a.click();
         URL.revokeObjectURL(url);
       } else {
         try {
@@ -89,9 +89,7 @@ export function CalendarPostPreview({
           for (const img of images) {
             const url = URL.createObjectURL(img.blob);
             const a = document.createElement("a");
-            a.href = url;
-            a.download = img.name;
-            a.click();
+            a.href = url; a.download = img.name; a.click();
             URL.revokeObjectURL(url);
             await new Promise(r => setTimeout(r, 200));
           }
@@ -105,7 +103,6 @@ export function CalendarPostPreview({
     }
   }, [visualHtml, downloading, theme]);
 
-  // ── Télécharger en PPTX ──
   const handleDownloadPptx = useCallback(async () => {
     if (!visualHtml || visualHtml.length === 0 || downloadingPptx) return;
     setDownloadingPptx(true);
@@ -119,7 +116,6 @@ export function CalendarPostPreview({
     }
   }, [visualHtml, downloadingPptx, theme]);
 
-  // ── Download from Storage URLs (PNG) ──
   const handleDownloadFromUrls = useCallback(async () => {
     const urls = visualUrls || [];
     if (urls.length === 0 || downloading) return;
@@ -168,7 +164,6 @@ export function CalendarPostPreview({
     }
   }, [visualUrls, downloading, theme]);
 
-  // ── Download PPTX from Storage URLs ──
   const handlePptxFromUrls = useCallback(async () => {
     const urls = visualUrls || [];
     if (urls.length === 0 || downloadingPptx) return;
@@ -201,9 +196,6 @@ export function CalendarPostPreview({
     }
   }, [visualUrls, downloadingPptx, theme]);
 
-  // ── Télécharger en PPTX éditable (texte modifiable + photos) ──
-  const [downloadingEditable, setDownloadingEditable] = useState(false);
-
   const handleDownloadEditablePptx = useCallback(async () => {
     if (!slidesData || slidesData.length === 0 || downloadingEditable) return;
     setDownloadingEditable(true);
@@ -235,6 +227,77 @@ export function CalendarPostPreview({
     }
   }, [slidesData, photoUrls, downloadingEditable, theme]);
 
+  const handleCopyCaption = useCallback(() => {
+    if (!caption) return;
+    navigator.clipboard.writeText(caption);
+    toast({ title: "Légende copiée !" });
+  }, [caption, toast]);
+
+  // ── Mini toolbar (toujours rendue si on a du contenu) ──
+  const Toolbar = () => {
+    const hasVisuals = (visualUrls && visualUrls.length > 0) || (visualHtml && visualHtml.length > 0);
+    return (
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <div className="flex items-center gap-1.5">
+          {syncStatus && (
+            <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full ${syncStatus === "synced" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : "bg-amber-500/10 text-amber-700 dark:text-amber-400"}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${syncStatus === "synced" ? "bg-emerald-500" : "bg-amber-500"}`} />
+              {syncStatus === "synced" ? "Synchronisé" : "Modifs en cours"}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-1">
+          {caption && (
+            <Button variant="ghost" size="icon" onClick={handleCopyCaption} className="h-7 w-7" title="Copier la légende">
+              <Copy className="h-3.5 w-3.5" />
+            </Button>
+          )}
+          {hasVisuals && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" disabled={downloading || downloadingPptx} className="h-7 w-7" title="Télécharger">
+                  {(downloading || downloadingPptx) ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {visualUrls && visualUrls.length > 0 ? (
+                  <>
+                    <DropdownMenuItem onClick={handleDownloadFromUrls}>
+                      <Download className="h-4 w-4 mr-2" /> Images PNG {visualUrls.length > 1 ? "(ZIP)" : ""}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handlePptxFromUrls}>
+                      <FileDown className="h-4 w-4 mr-2" /> Présentation (PPTX)
+                    </DropdownMenuItem>
+                  </>
+                ) : (
+                  <>
+                    <DropdownMenuItem onClick={handleDownloadImages}>
+                      <Download className="h-4 w-4 mr-2" /> Images PNG {(visualHtml?.length || 0) > 1 ? "(ZIP)" : "(PNG)"}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleDownloadPptx}>
+                      <FileDown className="h-4 w-4 mr-2" /> Présentation (PPTX)
+                    </DropdownMenuItem>
+                  </>
+                )}
+                {slidesData && slidesData.length > 0 && (
+                  <DropdownMenuItem onClick={handleDownloadEditablePptx} disabled={downloadingEditable}>
+                    {downloadingEditable ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileDown className="h-4 w-4 mr-2" />}
+                    PPTX éditable
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          {onFullscreen && (
+            <Button variant="ghost" size="icon" onClick={onFullscreen} className="h-7 w-7" title="Plein écran">
+              <Maximize2 className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   if (!caption) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -249,122 +312,118 @@ export function CalendarPostPreview({
         )}
         {(!hasTheme || !hasAngle) && (
           <p className="text-xs text-muted-foreground italic">
-            Remplis le thème et l'angle dans l'onglet Éditer.
+            Remplis le thème et l'angle.
           </p>
         )}
       </div>
     );
   }
 
-  // ── Render visuals from Storage URLs (priority over visualHtml) ──
+  // ── Slides depuis Storage URLs ──
   if (visualUrls && visualUrls.length > 0) {
+    const idx = Math.min(slideIndex, visualUrls.length - 1);
+    if (compact) {
+      return (
+        <div className="space-y-2">
+          <Toolbar />
+          <div className="relative rounded-xl border border-border overflow-hidden bg-card">
+            <span className="absolute top-2 right-2 z-10 text-[10px] font-semibold bg-black/60 text-white px-2 py-0.5 rounded-full">
+              {idx + 1}/{visualUrls.length}
+            </span>
+            {idx > 0 && (
+              <button onClick={() => setSlideIndex(i => i - 1)} aria-label="Précédente" className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-white/90 flex items-center justify-center shadow-sm hover:bg-white">
+                <ChevronLeft className="h-4 w-4 text-gray-700" />
+              </button>
+            )}
+            {idx < visualUrls.length - 1 && (
+              <button onClick={() => setSlideIndex(i => i + 1)} aria-label="Suivante" className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-white/90 flex items-center justify-center shadow-sm hover:bg-white">
+                <ChevronRight className="h-4 w-4 text-gray-700" />
+              </button>
+            )}
+            <img src={visualUrls[idx]} alt={`Slide ${idx + 1}`} className="w-full h-auto" loading="lazy" />
+          </div>
+          <div className="flex justify-center gap-1 pt-1">
+            {visualUrls.map((_, i) => (
+              <button key={i} onClick={() => setSlideIndex(i)} className={`rounded-full transition-all ${i === idx ? "w-1.5 h-1.5 bg-primary" : "w-1.5 h-1.5 bg-muted-foreground/30"}`} />
+            ))}
+          </div>
+          {caption && (
+            <div className="mt-3 pt-3 border-t border-border">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Légende</p>
+              <div className="text-xs text-foreground whitespace-pre-wrap line-clamp-6 leading-relaxed">{caption}</div>
+            </div>
+          )}
+        </div>
+      );
+    }
     return (
       <div className="py-2 space-y-4 overflow-y-auto max-h-[60vh]">
-        <div className="flex items-center justify-between">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">✨ Visuels ({visualUrls.length} slides)</p>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={downloading || downloadingPptx}
-                className="rounded-full gap-1.5 text-xs"
-              >
-                {(downloading || downloadingPptx) ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Download className="h-3.5 w-3.5" />
-                )}
-                {downloading ? "Export images..." : downloadingPptx ? "Export PPTX..." : "Télécharger"}
-                <ChevronDown className="h-3 w-3" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={handleDownloadFromUrls}>
-                <Download className="h-4 w-4 mr-2" />
-                Images PNG {visualUrls.length > 1 ? "(ZIP)" : ""}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handlePptxFromUrls}>
-                <FileDown className="h-4 w-4 mr-2" />
-                Présentation (PPTX)
-              </DropdownMenuItem>
-              {slidesData && slidesData.length > 0 && (
-                <DropdownMenuItem onClick={handleDownloadEditablePptx} disabled={downloadingEditable}>
-                  {downloadingEditable ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileDown className="h-4 w-4 mr-2" />}
-                  PPTX éditable
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-        {visualUrls.map((url, idx) => (
-          <div key={idx} className="rounded-xl border border-border overflow-hidden bg-card max-w-[320px] mx-auto">
+        <Toolbar />
+        {visualUrls.map((url, i) => (
+          <div key={i} className="rounded-xl border border-border overflow-hidden bg-card max-w-[320px] mx-auto">
             <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/50 border-b border-border">
-              <span className="text-xs font-medium text-muted-foreground">Slide {idx + 1}</span>
+              <span className="text-xs font-medium text-muted-foreground">Slide {i + 1}</span>
             </div>
-            <img src={url} alt={`Slide ${idx + 1}`} className="w-full h-auto" loading="lazy" />
+            <img src={url} alt={`Slide ${i + 1}`} className="w-full h-auto" loading="lazy" />
           </div>
         ))}
       </div>
     );
   }
 
-  // Visual HTML slides (fallback for older posts)
+  // ── visualHtml fallback ──
   if (visualHtml && visualHtml.length > 0) {
+    const idx = Math.min(slideIndex, visualHtml.length - 1);
+    if (compact) {
+      const vs = visualHtml[idx];
+      return (
+        <div className="space-y-2">
+          <Toolbar />
+          <div className="relative rounded-xl border border-border overflow-hidden bg-card">
+            <span className="absolute top-2 right-2 z-10 text-[10px] font-semibold bg-black/60 text-white px-2 py-0.5 rounded-full">
+              {idx + 1}/{visualHtml.length}
+            </span>
+            {idx > 0 && (
+              <button onClick={() => setSlideIndex(i => i - 1)} aria-label="Précédente" className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-white/90 flex items-center justify-center shadow-sm hover:bg-white">
+                <ChevronLeft className="h-4 w-4 text-gray-700" />
+              </button>
+            )}
+            {idx < visualHtml.length - 1 && (
+              <button onClick={() => setSlideIndex(i => i + 1)} aria-label="Suivante" className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-white/90 flex items-center justify-center shadow-sm hover:bg-white">
+                <ChevronRight className="h-4 w-4 text-gray-700" />
+              </button>
+            )}
+            <div className="relative overflow-hidden" style={{ width: "100%", aspectRatio: "1080/1350" }}>
+              <div style={{ transform: "scale(0.296)", transformOrigin: "top left", width: "1080px", height: "1350px", position: "absolute", top: 0, left: 0 }}>
+                <iframe srcDoc={vs.html} title={`Slide ${vs.slide_number}`} width="1080" height="1350" style={{ border: "none", pointerEvents: "none" }} sandbox="allow-same-origin allow-scripts" />
+              </div>
+            </div>
+          </div>
+          <div className="flex justify-center gap-1 pt-1">
+            {visualHtml.map((_, i) => (
+              <button key={i} onClick={() => setSlideIndex(i)} className={`rounded-full transition-all ${i === idx ? "w-1.5 h-1.5 bg-primary" : "w-1.5 h-1.5 bg-muted-foreground/30"}`} />
+            ))}
+          </div>
+          {caption && (
+            <div className="mt-3 pt-3 border-t border-border">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Légende</p>
+              <div className="text-xs text-foreground whitespace-pre-wrap line-clamp-6 leading-relaxed">{caption}</div>
+            </div>
+          )}
+        </div>
+      );
+    }
     return (
       <div className="py-2 space-y-4 overflow-y-auto max-h-[60vh]">
-        <div className="flex items-center justify-between">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">✨ Visuels générés ({visualHtml.length} slides)</p>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={downloading || downloadingPptx}
-                className="rounded-full gap-1.5 text-xs"
-              >
-                {(downloading || downloadingPptx) ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Download className="h-3.5 w-3.5" />
-                )}
-                {downloading ? "Export images..." : downloadingPptx ? "Export PPTX..." : "Télécharger"}
-                <ChevronDown className="h-3 w-3" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={handleDownloadImages}>
-                <Download className="h-4 w-4 mr-2" />
-                Images PNG {visualHtml.length > 1 ? "(ZIP)" : "(PNG)"}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleDownloadPptx}>
-                <FileDown className="h-4 w-4 mr-2" />
-                Présentation (PPTX)
-              </DropdownMenuItem>
-              {slidesData && slidesData.length > 0 && (
-                <DropdownMenuItem onClick={handleDownloadEditablePptx} disabled={downloadingEditable}>
-                  {downloadingEditable ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileDown className="h-4 w-4 mr-2" />}
-                  PPTX éditable
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-        {visualHtml.map((vs, idx) => (
-          <div key={idx} className="rounded-xl border border-border overflow-hidden bg-card inline-block w-full max-w-[320px] mx-auto block">
+        <Toolbar />
+        {visualHtml.map((vs, i) => (
+          <div key={i} className="rounded-xl border border-border overflow-hidden bg-card inline-block w-full max-w-[320px] mx-auto block">
             <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/50 border-b border-border">
               <span className="text-xs font-medium text-muted-foreground">Slide {vs.slide_number}</span>
             </div>
             <div className="relative overflow-hidden" style={{ width: "320px", height: "400px" }}>
               <div style={{ transform: "scale(0.296)", transformOrigin: "top left", width: "1080px", height: "1350px", position: "absolute", top: 0, left: 0 }}>
-                <iframe
-                  srcDoc={vs.html}
-                  title={`Slide ${vs.slide_number}`}
-                  width="1080"
-                  height="1350"
-                  style={{ border: "none", pointerEvents: "none" }}
-                  sandbox="allow-same-origin allow-scripts"
-                />
+                <iframe srcDoc={vs.html} title={`Slide ${vs.slide_number}`} width="1080" height="1350" style={{ border: "none", pointerEvents: "none" }} sandbox="allow-same-origin allow-scripts" />
               </div>
             </div>
           </div>
@@ -379,6 +438,7 @@ export function CalendarPostPreview({
   if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
     return (
       <div className="py-2 overflow-y-auto">
+        <Toolbar />
         <ContentPreview contentData={parsed} />
       </div>
     );
@@ -392,19 +452,22 @@ export function CalendarPostPreview({
     }));
     const mockupCanal = (canal === "instagram" || canal === "linkedin") ? canal : "instagram";
     return (
-      <div className="flex justify-center py-2 overflow-y-auto">
-        <SocialMockup
-          canal={mockupCanal}
-          format="carousel"
-          username={username || "mon_compte"}
-          displayName={displayName || ""}
-          caption={theme}
-          slides={slides}
-          mediaUrls={mediaUrls}
-          showComments={false}
-          readonly
-          hideFollowButton
-        />
+      <div className={compact ? "space-y-2" : "flex justify-center py-2 overflow-y-auto"}>
+        <Toolbar />
+        <div className={compact ? "" : ""}>
+          <SocialMockup
+            canal={mockupCanal}
+            format="carousel"
+            username={username || "mon_compte"}
+            displayName={displayName || ""}
+            caption={theme}
+            slides={slides}
+            mediaUrls={mediaUrls}
+            showComments={false}
+            readonly
+            hideFollowButton
+          />
+        </div>
       </div>
     );
   }
@@ -418,7 +481,8 @@ export function CalendarPostPreview({
   })();
 
   return (
-    <div className="flex justify-center py-2 overflow-y-auto">
+    <div className={compact ? "space-y-2" : "flex justify-center py-2 overflow-y-auto"}>
+      <Toolbar />
       <SocialMockup
         canal={mockupCanal}
         format={mockupFormat}
