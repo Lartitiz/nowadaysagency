@@ -201,7 +201,21 @@ export default function StructureReviewStep({
       {/* ───── ZONE 2 : BANDEAU PHOTOS ───── */}
       {showPhotoBanner && (
         <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-          <p className="text-sm font-semibold text-gray-700 mb-3">Tes photos</p>
+          <div className="flex items-center justify-between mb-3 gap-2">
+            <p className="text-sm font-semibold text-gray-700">Tes photos</p>
+            {carouselSubMode === "mix" && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleAutoDistribute}
+                className="text-xs h-7 px-2.5"
+              >
+                <Sparkles size={12} className="mr-1" />
+                Laisse l'IA répartir
+              </Button>
+            )}
+          </div>
 
           <div className="flex flex-wrap gap-2">
             {photos!.map((photo, i) => {
@@ -221,7 +235,7 @@ export default function StructureReviewStep({
                       ? "border-[#FB3D80] ring-2 ring-[#FB3D80]/30 opacity-100"
                       : assigned
                         ? "border-green-400 opacity-60"
-                        : "border-transparent opacity-100"
+                        : "border-orange-300 opacity-100"
                   }`}
                 >
                   <img
@@ -238,6 +252,29 @@ export default function StructureReviewStep({
               );
             })}
           </div>
+
+          {/* P1-6 : Warning photos non utilisées (mode mix uniquement) */}
+          {carouselSubMode === "mix" && unusedPhotoIndices.length > 0 && (
+            <div className="mt-3 flex items-center gap-2 p-2.5 bg-orange-50 border border-orange-200 rounded-lg">
+              <AlertTriangle size={14} className="text-orange-500 flex-shrink-0" />
+              <p className="text-xs text-orange-700 flex-1">
+                {unusedPhotoIndices.length === 1
+                  ? "1 photo non utilisée dans cette structure"
+                  : `${unusedPhotoIndices.length} photos non utilisées dans cette structure`}
+              </p>
+              {editableSlides.length < 15 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => addSlideForPhoto(unusedPhotoIndices[0])}
+                  className="text-xs h-7 px-2.5"
+                >
+                  + Ajouter une slide
+                </Button>
+              )}
+            </div>
+          )}
 
           <p className={`mt-2 text-xs ${selectedPhotoIndex ? "text-[#FB3D80] font-medium animate-pulse" : "text-gray-400"}`}>
             {selectedPhotoIndex
