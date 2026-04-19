@@ -822,8 +822,9 @@ Retourne UNIQUEMENT le JSON.`;
     if ((isPhotoCarousel || isMixCarousel) && result?.slides_html) {
       // Construire un map des base64 dispos pour fallback
       const photoBase64Map = new Map<number, string>();
-      if (Array.isArray(photos)) {
-        photos.forEach((p: any, i: number) => {
+      const reqPhotos = reqBody.photos;
+      if (Array.isArray(reqPhotos)) {
+        reqPhotos.forEach((p: any, i: number) => {
           const b64 = typeof p === "string" ? p : (p?.base64 || p?.data || "");
           if (b64) photoBase64Map.set(i + 1, b64);
         });
