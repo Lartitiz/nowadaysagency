@@ -98,6 +98,14 @@ export function PhotoUploadZone({
     [photos, updatePhotos],
   );
 
+  const updateContext = useCallback(
+    (idx: number, value: string) => {
+      const next = photos.map((p, i) => (i === idx ? { ...p, context: value } : p));
+      updatePhotos(next);
+    },
+    [photos, updatePhotos],
+  );
+
   // ── Drop zone events ──────────────────────────────
   const onDragEnter = (e: ReactDragEvent) => { e.preventDefault(); if (!isFull) setIsDragOver(true); };
   const onDragLeave = (e: ReactDragEvent) => { e.preventDefault(); setIsDragOver(false); };
