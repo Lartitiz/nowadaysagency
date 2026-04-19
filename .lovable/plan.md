@@ -1,53 +1,96 @@
 
 
-## Option A — Redesign complet du dialog d'édition
+## Plan — Contexte optionnel par photo dans `PhotoUploadZone`
 
-### Layout cible
-
-**Desktop (≥1024px)** — `max-w-6xl`, grid 3 colonnes :
-```text
-┌──────────────┬─────────────────────┬──────────────────┐
-│ MÉTA (220px) │ ÉDITION (1fr)       │ PREVIEW (340px)  │
-│              │                     │ sticky top       │
-│ Canal        │ Thème               │                  │
-│ Statut       │ ✍️ Contenu (full)   │ 📱 Mockup ou    │
-│ Date+heure   │ Brief               │ 📑 Slides nav    │
-│ Format       │ Notes               │ horizontale      │
-│ Objectif     │ Visuels             │                  │
-│ Angle        │ Comments            │ [📋][📥][🔍]    │
-└──────────────┴─────────────────────┴──────────────────┘
-```
-
-**Mobile (<1024px)** — 3 tabs : `✏️ Éditer / 👁️ Preview / 📋 Méta`
+### Périmètre strict
+Un seul fichier touché : `src/components/creer/PhotoUploadZone.tsx`. Aucune modification ailleurs (CreerUnifie, Edge Functions, autres composants). Les 4 usages actuels du composant continuent de fonctionner sans changement.
 
 ### Modifications
 
-**1. `CalendarPostDialog.tsx`** (~80 lignes)
-- `DialogContent` → `sm:max-w-6xl` + `max-h-[90vh]`
-- Hook `useIsMobile` pour switcher layout
-- Desktop : grid 3 colonnes, colonne preview en `sticky top-0`
-- Mobile : `Tabs` avec 3 onglets remplaçant le toggle 2-modes actuel
-- Retirer le toggle Éditer/Preview sur desktop (les deux visibles)
+**1. Type étendu**
+```ts
+export interface PhotoItem {
+  base64: string;
+  preview: string;
+  name: string;
+  context?: string; // nouveau, optionnel
+}
+```
+Rétrocompatible : tous les consommateurs actuels qui ignorent `context` continuent de marcher.
 
-**2. `CalendarPostPreview.tsx`** (~40 lignes)
-- Nouveau prop `compact?: boolean` (largeur réduite ~320px)
-- Si slides détectées : navigation horizontale (flèches + dots, style `CarouselSlider`) au lieu de scroll vertical
-- Mini-toolbar haut : 📋 Copier · 📥 Télécharger (dropdown) · 🔍 Plein écran
-- Auto-detection : slides → mockup slides ; sinon caption → mockup réseau ; sinon texte simple
+**2. Nouvel état local**
+- `showContexts: boolean` (default `false`) → contrôle l'affichage des inputs par photo.
+- Aucun nouvel état pour les valeurs : le `context` vit directement dans `photos[i].context`.
 
-**3. `CalendarPostContent.tsx`** (~15 lignes)
-- Retirer la troncature 200 chars + boutons "voir la suite/réduire"
-- Zone éditable scrolle naturellement (max-h + overflow-auto)
-- Sur desktop : retirer le bouton "👁️ Voir les slides" (devenu redondant avec preview live)
-- Garder ce bouton sur mobile (pas de preview persistant)
+**3. Lien discret toggle**
+Apparaît **uniquement si `photos.length > 0`**, positionné **juste au-dessus de la grille** (plus visible et logique : "voici tes photos, veux-tu les annoter ?").
 
-**4. Petit polish**
-- Badge synchro `🟢 Synchronisé` / `🟡 Modifs en cours` en haut du preview (état dérivé de `contentDraft` vs sauvegardé)
-- Footer actions desktop : alignement à droite, sticky bas
+```tsx
+<button
+  type="button"
+  onClick={() => setShowContexts(v => !v)}
+  className="text-xs text-primary hover:underline font-medium"
+>
+  {showContexts ? "− Masquer les contextes" : "+ Ajouter un contexte par photo"}
+</button>
+```
 
-### Risque
-Faible. Logique métier inchangée, juste réorganisation. Mobile reste proche de l'actuel.
+**4. Input contextuel sous chaque vignette**
+Quand `showContexts === true`, un `<Input>` apparaît **sous** chaque thumbnail (pas à côté), dans une cellule de grille élargie verticalement.
 
-### Test
-Sur `/calendrier` viewport 1300px : ouvrir un post avec carrousel mix → preview slides visible à droite avec nav horizontale, contenu plein texte au milieu, méta à gauche. Puis viewport mobile : 3 tabs accessibles.
+Refactor de la grille : chaque cellule devient un wrapper flex-col contenant la vignette + l'input optionnel.
+
+```tsx
+<div className="flex flex-col gap-1.5">
+  <div className="relative aspect-square ...">{/* vignette existante */}</div>
+  {showContexts && (
+    <Input
+      value={p.context ?? ""}
+      onChange={(e) => updateContext(idx, e.target.value)}
+      placeholder="Ex : chantier Acacias, J2 démolition"
+      maxLength={200}
+      className="h-8 text-xs"
+    />
+  )}
+</div>
+```
+
+**5. Handler `updateContext`**
+```ts
+const updateContext = (idx: number, value: string) => {
+  const next = photos.map((p, i) => i === idx ? { ...p, context: value } : p);
+  updatePhotos(next);
+};
+```
+Réutilise `updatePhotos` existant → propagation automatique via `onPhotosChange` (signature inchangée).
+
+**6. Conservation du contexte lors du drag/réorder/suppression**
+Déjà gratuit : le `context` étant une propriété de `PhotoItem`, il suit l'objet quand `splice`/`filter` est appliqué dans `onThumbDragOver` et `removePhoto`. Aucune modif nécessaire sur ces handlers.
+
+### Ce qui ne change pas
+- Drop zone, drag & drop fichiers, resize/encode, suppression, réordonnancement
+- Description globale (`description`, `onDescriptionChange`, label, textarea)
+- Signatures des props et callbacks
+- `initialPhotos` / `initialDescription` (un consommateur qui restaure des photos avec `context` aura le contexte restauré ; sans `context` ça reste `undefined`, comportement actuel préservé)
+
+### Détails design
+- Lien : `text-xs text-primary hover:underline` (discret, rose framboise du theme)
+- Input : `h-8 text-xs` (compact pour ne pas dominer la vignette), `maxLength=200`
+- Transition : pas d'anim complexe, juste apparition conditionnelle (fluide naturellement)
+- Le label "1 / 10 photos" reste sous la grille, intact
+
+### Réponses aux questions ouvertes
+- **Placeholder** : générique `"Ex : chantier Acacias, J2 démolition"` (le composant ne connaît pas le type de photo ; un placeholder dynamique nécessiterait une nouvelle prop, hors scope).
+- **Limite caractères** : `maxLength={200}` — suffisant pour un contexte court, contraint l'utilisateur à rester précis (l'IA n'a pas besoin de plus pour identifier une scène).
+- **Position du lien** : **au-dessus** de la grille — plus naturel comme call-to-action après l'upload, et évite que le label "X / Y photos" soit séparé visuellement de la grille.
+
+### Validation
+- `npx tsc --noEmit --skipLibCheck` doit passer (champ optionnel, pas de breaking change)
+- Les 4 usages existants compilent sans modification
+- Test manuel : upload 3 photos → toggle déplie → saisir contexte slide 2 → réordonner → contexte suit la bonne photo → supprimer une photo → contextes restants OK → replier → description globale toujours fonctionnelle
+
+### Hors scope (plans séparés à venir)
+- Propagation `context` vers Edge Functions (`carousel-ai`, `creative-flow`)
+- Bouton "Partir de photos" dans `CreerUnifie`
+- Persistance localStorage
 
