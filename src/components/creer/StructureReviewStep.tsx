@@ -134,6 +134,50 @@ export default function StructureReviewStep({
     setEditableSlides((prev) => [...prev, newSlide]);
   };
 
+  // P1-5 : Répartition automatique IA — restaure la proposition initiale de l'IA,
+  // ou attribue séquentiellement si l'IA n'a rien proposé.
+  const handleAutoDistribute = () => {
+    if (!photos || photos.length === 0) return;
+    const totalPhotos = photos.length;
+    let cursor = 0;
+    setEditableSlides((prev) =>
+      prev.map((s, i) => {
+        const isPhotoSlide =
+          s.slide_type === "photo_full" || s.slide_type === "photo_integrated";
+        if (!isPhotoSlide) return s;
+
+        // 1) Reprendre l'index proposé par l'IA s'il est valide
+        const aiProposed = aiProposedIndices[i];
+        if (
+          Number.isInteger(aiProposed) &&
+          (aiProposed as number) >= 1 &&
+          (aiProposed as number) <= totalPhotos
+        ) {
+          return { ...s, photo_index: aiProposed as number };
+        }
+        // 2) Sinon : attribution séquentielle
+        const next = (cursor % totalPhotos) + 1;
+        cursor++;
+        return { ...s, photo_index: next };
+      }),
+    );
+    setSelectedPhotoIndex(null);
+  };
+
+  // P1-6 : Ajouter une slide photo_full pour une photo orpheline
+  const addSlideForPhoto = (photoIdx: number) => {
+    if (editableSlides.length >= 15) return;
+    const newSlide: SlideProposal = {
+      slide_number: editableSlides.length + 1,
+      role: "visual",
+      title_suggestion: "",
+      strategic_note: `Slide ajoutée pour utiliser la photo ${photoIdx}`,
+      slide_type: "photo_full",
+      photo_index: photoIdx,
+    };
+    setEditableSlides((prev) => [...prev, newSlide]);
+  };
+
   const renumberedSlides = renumber(editableSlides);
 
   return (
