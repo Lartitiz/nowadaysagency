@@ -15,8 +15,13 @@ const SECTION_LABELS: Record<string, string> = {
   offers: "tes offres",
 };
 
+const COMPLETE_DISMISS_KEY = "lac_branding_banner_complete_dismissed";
+
 export default function BrandingStatusBanner() {
   const [dismissed, setDismissed] = useState(false);
+  const [completeDismissed, setCompleteDismissed] = useState(
+    () => typeof window !== "undefined" && localStorage.getItem(COMPLETE_DISMISS_KEY) === "true"
+  );
   const filter = useWorkspaceFilter();
 
   const { data: completion } = useQuery({
@@ -37,8 +42,14 @@ export default function BrandingStatusBanner() {
   const total = completion.total;
 
   if (total >= 80) {
+    if (completeDismissed) return null;
+    const dismissComplete = () => {
+      localStorage.setItem(COMPLETE_DISMISS_KEY, "true");
+      setCompleteDismissed(true);
+      setDismissed(true);
+    };
     return (
-      <Banner onDismiss={() => setDismissed(true)}>
+      <Banner onDismiss={dismissComplete}>
         ✨ Ton identité de marque est bien remplie : l'IA personnalise ce contenu avec ton ton, ta cible et tes valeurs.
       </Banner>
     );
