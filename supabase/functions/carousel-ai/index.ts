@@ -1474,22 +1474,14 @@ RÈGLE ABSOLUE : le JSON retourné doit avoir EXACTEMENT ${slide_structure.lengt
 - Alterne les types pour créer du rythme : photo → texte → photo → texte
 - Ne fais JAMAIS 3 slides du même type à la suite
 
-═══ RÈGLES DE NARRATION ═══
+═══ RÈGLES SPÉCIFIQUES MIX ═══
 
-- ARC NARRATIF OBLIGATOIRE : le carrousel raconte une histoire (situation → tension → développement → résolution → ouverture). Même un carrousel mixte doit avoir un fil conducteur, pas juste une alternance photo/texte sans logique.
-- CONNEXION ENTRE SLIDES : chaque slide crée une tension narrative qui donne envie de swiper. La tension vient du SUJET (une question ouverte, un contraste, une info incomplète), pas de formules plaquées. Pas de "bucket brigades" mécaniques.
-- Les slides text_only doivent avoir un body de 30-50 mots MINIMUM, pas juste un titre + quelques mots. Du vrai contenu de fond avec des phrases complètes et fluides.
-- EXEMPLES CONCRETS dans chaque slide texte : pas de conseil abstrait sans illustration.
-- AU MOINS 1 analogie du quotidien ou référence culture pop dans le carrousel.
-- Le contenu doit sonner comme quelqu'un qui PARLE, pas qui rédige un article. Ton oral : "en vrai", "franchement", "le truc c'est que", apartés en parenthèses.
-- INTERDIT : "Dans un monde où...", "Il est important de...", "N'hésite pas à...", "Voici X astuces pour..."
-
-═══ SUJET = BRIEF CRÉATIF ═══
-
-Le sujet donné par l'utilisatrice est un BRIEF CRÉATIF, pas juste un thème.
-- Si le sujet contient un concept (VS, avant/après, métaphore, angle), le carrousel DOIT s'articuler autour de ce concept. C'est la colonne vertébrale du contenu.
-- Le titre créatif donné par l'utilisatrice doit apparaître (ou être amélioré) sur la slide 1 comme hook.
-- Ne dilue PAS le concept dans un carrousel générique. Le concept structure TOUT.
+- ARC NARRATIF : situation → tension → développement → résolution → ouverture. Fil conducteur clair entre slides photo et texte.
+- Les slides text_only doivent avoir un body de 30-50 mots MINIMUM (phrases complètes, pas des fragments).
+- Les overlay_text sur photo_full sont COURTS (5-20 mots) : ils complètent l'image, ils ne la décrivent pas.
+- Au moins 1 exemple concret OU 1 analogie du quotidien dans le carrousel.
+- Le sujet "${body.subject || ""}" est un BRIEF CRÉATIF : si c'est un concept (VS, avant/après, métaphore), il structure l'ensemble. Le titre apparaît (ou est amélioré) sur la slide 1.
+- Les autres règles d'écriture (ton oral incarné, anti-jargon, anti-formules vides, écriture inclusive, pas de tirets cadratins) sont déjà définies dans le contexte système.
 
 ═══ ASSIGNATION DES PHOTOS ═══
 
@@ -1506,13 +1498,9 @@ ${deepeningCtx}${angleBlock}
 
 ═══ VÉRIFICATION FINALE (avant de retourner le JSON) ═══
 
-Relis chaque slide et vérifie :
-- AUCUNE slide ne contient "Dans un monde où", "Il est important de", "N'hésitez pas", "Voici X astuces"
-- Les slides text_only ont TOUTES un body d'au moins 30 mots (des phrases complètes, pas des fragments)
+- Les slides text_only ont TOUTES un body d'au moins 30 mots
 - Le concept du sujet ("${body.subject || ""}") est visible dans le hook ET structure l'ensemble
-- Il y a un arc narratif clair d'une slide à l'autre (pas juste des slides indépendantes)
-- Le contenu sonne ORAL et INCARNÉ, pas comme un article de blog IA
-Si une slide échoue à un de ces tests, RÉÉCRIS-LA avant de retourner le JSON.
+- Il y a un arc narratif clair (pas des slides indépendantes)
 
 RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
 {
