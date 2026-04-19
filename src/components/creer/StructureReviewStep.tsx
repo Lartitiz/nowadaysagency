@@ -134,19 +134,32 @@ export default function StructureReviewStep({
     setEditableSlides((prev) => [...prev, newSlide]);
   };
 
-  // P1-5 : Répartition automatique IA — restaure la proposition initiale de l'IA,
-  // ou attribue séquentiellement si l'IA n'a rien proposé.
+  // P1-5 / P2 : Répartition automatique IA — restaure la proposition initiale de l'IA,
+  // ou attribue séquentiellement. Si AUCUNE slide n'est de type photo,
+  // on convertit silencieusement les N premières slides (N = nombre de photos)
+  // en photo_full pour éviter le clic mort.
   const handleAutoDistribute = () => {
     if (!photos || photos.length === 0) return;
     const totalPhotos = photos.length;
-    let cursor = 0;
-    setEditableSlides((prev) =>
-      prev.map((s, i) => {
+
+    setEditableSlides((prev) => {
+      const hasAnyPhotoSlide = prev.some(
+        (s) => s.slide_type === "photo_full" || s.slide_type === "photo_integrated",
+      );
+
+      // Si aucune slide photo : on convertit les N premières en photo_full
+      const seeded = hasAnyPhotoSlide
+        ? prev
+        : prev.map((s, i) =>
+            i < totalPhotos ? { ...s, slide_type: "photo_full" as const } : s,
+          );
+
+      let cursor = 0;
+      return seeded.map((s, i) => {
         const isPhotoSlide =
           s.slide_type === "photo_full" || s.slide_type === "photo_integrated";
         if (!isPhotoSlide) return s;
 
-        // 1) Reprendre l'index proposé par l'IA s'il est valide
         const aiProposed = aiProposedIndices[i];
         if (
           Number.isInteger(aiProposed) &&
@@ -155,12 +168,11 @@ export default function StructureReviewStep({
         ) {
           return { ...s, photo_index: aiProposed as number };
         }
-        // 2) Sinon : attribution séquentielle
         const next = (cursor % totalPhotos) + 1;
         cursor++;
         return { ...s, photo_index: next };
-      }),
-    );
+      });
+    });
     setSelectedPhotoIndex(null);
   };
 

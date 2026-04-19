@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -184,6 +184,29 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
       prevSignature.current = newSig;
     }
   }, [result]);
+
+  // P2 : Quality check calculé côté front (au lieu de faire confiance à l'IA)
+  const computedQuality = useMemo(() => {
+    const isPhotoSlide = (s: any) =>
+      s.slide_type === "photo_full" ||
+      s.slide_type === "photo_integrated" ||
+      (!s.slide_type && s.overlay_text !== undefined);
+
+    const slides_with_text = slides.filter(
+      (s: any) => s.overlay_text || s.body || s.title,
+    ).length;
+    const slides_without_text = slides.filter(
+      (s: any) => isPhotoSlide(s) && !s.overlay_text,
+    ).length;
+    const all_photos_used =
+      photos && photos.length > 0
+        ? photos.every((_, i) =>
+            slides.some((s: any) => s.photo_index === i + 1),
+          )
+        : true;
+
+    return { slides_with_text, slides_without_text, all_photos_used };
+  }, [slides, photos]);
 
   const qualityCheck = r?.quality_check;
 
@@ -450,11 +473,16 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
       </Card>
 
       {qualityCheck && (
-        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+        <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
           <Badge className={scoreColor}>{qualityCheck.score}/100</Badge>
           <span>
-            {qualityCheck.slides_with_text ?? 0} slide{(qualityCheck.slides_with_text ?? 0) > 1 ? "s" : ""} avec texte, {qualityCheck.slides_without_text ?? 0} sans
+            {computedQuality.slides_with_text} slide{computedQuality.slides_with_text > 1 ? "s" : ""} avec texte, {computedQuality.slides_without_text} sans
           </span>
+          {!computedQuality.all_photos_used && (
+            <Badge variant="outline" className="text-[10px] border-orange-300 text-orange-700">
+              ⚠ photos non utilisées
+            </Badge>
+          )}
         </div>
       )}
 

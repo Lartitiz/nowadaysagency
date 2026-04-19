@@ -294,20 +294,30 @@ function buildPhotoFullSlide(
   const isBottom = position === "bottom_left" || position === "bottom_center" || !position;
   const isTop = position === "top_left" || position === "top_center";
 
+  // Gradient overlay sombre (simulé en 3 bandes superposées) pour lisibilité du texte
   if (isBottom) {
+    // Bande sombre intense en bas + dégradé vers le haut
     slide.addShape("rect", {
-      x: 0, y: H - 4.0, w: W, h: 4.0,
-      fill: { color: "000000", transparency: 40 },
+      x: 0, y: H - 4.5, w: W, h: 4.5,
+      fill: { color: "000000", transparency: 65 },
+    });
+    slide.addShape("rect", {
+      x: 0, y: H - 3.0, w: W, h: 3.0,
+      fill: { color: "000000", transparency: 35 },
     });
   } else if (isTop) {
     slide.addShape("rect", {
-      x: 0, y: 0, w: W, h: 3.5,
-      fill: { color: "000000", transparency: 40 },
+      x: 0, y: 0, w: W, h: 4.0,
+      fill: { color: "000000", transparency: 65 },
+    });
+    slide.addShape("rect", {
+      x: 0, y: 0, w: W, h: 2.5,
+      fill: { color: "000000", transparency: 35 },
     });
   } else {
     slide.addShape("roundRect", {
       x: 0.5, y: textY - 0.3, w: W - 1.0, h: textH + 0.6,
-      fill: { color: "000000", transparency: 50 },
+      fill: { color: "000000", transparency: 45 },
       rectRadius: 0.15,
     });
   }
@@ -326,9 +336,9 @@ function buildPhotoFullSlide(
       fontSize = 24; fontFace = f.title; bold = false; italic = true;
   }
 
-  // Highlight du dernier mot significatif pour narratif et minimal
+  // Highlight du dernier mot significatif (rose charte)
   if (style === "narratif" || style === "minimal") {
-    const accentColor = c.accent || c.primary;
+    const accentColor = c.primary;
     const parts = highlightLastSignificantWord(overlayText, accentColor, "FFFFFF");
     slide.addText(parts, {
       x: 0.6, y: textY, w: W - 1.2, h: textH,
@@ -342,6 +352,12 @@ function buildPhotoFullSlide(
       align, valign, wrap: true, lineSpacingMultiple: 1.3,
     });
   }
+
+  // Signature : barre rose charte en bas (3pt)
+  slide.addShape("rect", {
+    x: 0, y: H - 0.05, w: W, h: 0.05,
+    fill: { color: c.primary },
+  });
 }
 
 /**
@@ -370,8 +386,8 @@ function buildPhotoIntegratedSlide(
   switch (layout) {
     case "top_photo": {
       const photoH = H * 0.55;
-      const textAreaY = photoH + 0.2;
-      const textAreaH = H - photoH - 0.4;
+      const textAreaY = photoH;
+      const textAreaH = H - photoH;
 
       if (photoData) {
         slide.addImage({
@@ -380,18 +396,29 @@ function buildPhotoIntegratedSlide(
           sizing: { type: "cover", w: W, h: photoH },
         });
       }
+      // Bande rose pâle derrière la zone texte (charte Nowadays)
+      slide.addShape("rect", {
+        x: 0, y: textAreaY, w: W, h: textAreaH,
+        fill: { color: c.bg },
+      });
+      // Accent rose vertical à gauche du titre
+      slide.addShape("rect", {
+        x: PAD_X, y: textAreaY + 0.4, w: 0.06, h: 1.2,
+        fill: { color: c.primary },
+      });
+
       slide.addText(badgeText, { ...badgeOpts, y: photoH - 0.6 });
 
       if (s.title) {
         slide.addText(s.title, {
-          x: PAD_X, y: textAreaY + 0.1, w: CONTENT_W, h: 1.2,
+          x: PAD_X + 0.25, y: textAreaY + 0.35, w: CONTENT_W - 0.25, h: 1.2,
           fontSize: 22, fontFace: f.title, color: c.secondary,
           align: "left", valign: "top", wrap: true, lineSpacingMultiple: 1.2,
         });
       }
       if (s.body) {
         slide.addText(s.body, {
-          x: PAD_X, y: textAreaY + 1.4, w: CONTENT_W, h: textAreaH - 1.6,
+          x: PAD_X + 0.25, y: textAreaY + 1.65, w: CONTENT_W - 0.25, h: textAreaH - 1.85,
           fontSize: 15, fontFace: f.body, color: c.text,
           align: "left", valign: "top", wrap: true, lineSpacingMultiple: 1.5,
         });
@@ -401,8 +428,8 @@ function buildPhotoIntegratedSlide(
 
     case "left_photo": {
       const photoW = W * 0.45;
-      const textX = photoW + 0.3;
-      const textW = W - photoW - 0.3 - PAD_X;
+      const textX = photoW;
+      const textW = W - photoW - PAD_X;
 
       if (photoData) {
         slide.addImage({
@@ -411,18 +438,29 @@ function buildPhotoIntegratedSlide(
           sizing: { type: "cover", w: photoW, h: H },
         });
       }
-      slide.addText(badgeText, { ...badgeOpts, x: textX });
+      // Fond rose pâle sur la zone texte (droite)
+      slide.addShape("rect", {
+        x: photoW, y: 0, w: W - photoW, h: H,
+        fill: { color: c.bg },
+      });
+      // Accent rose vertical à gauche du titre
+      slide.addShape("rect", {
+        x: textX + 0.2, y: 1.2, w: 0.06, h: 1.6,
+        fill: { color: c.primary },
+      });
+
+      slide.addText(badgeText, { ...badgeOpts, x: textX + 0.3 });
 
       if (s.title) {
         slide.addText(s.title, {
-          x: textX, y: 1.3, w: textW, h: 2.0,
+          x: textX + 0.45, y: 1.3, w: textW - 0.4, h: 2.0,
           fontSize: 22, fontFace: f.title, color: c.secondary,
           align: "left", valign: "top", wrap: true, lineSpacingMultiple: 1.2,
         });
       }
       if (s.body) {
         slide.addText(s.body, {
-          x: textX, y: 3.5, w: textW, h: H - 4.5,
+          x: textX + 0.45, y: 3.5, w: textW - 0.4, h: H - 4.5,
           fontSize: 15, fontFace: f.body, color: c.text,
           align: "left", valign: "top", wrap: true, lineSpacingMultiple: 1.5,
         });
@@ -432,7 +470,7 @@ function buildPhotoIntegratedSlide(
 
     case "right_photo": {
       const photoW = W * 0.45;
-      const textW = W - photoW - 0.3 - PAD_X;
+      const textW = W - photoW - PAD_X;
 
       if (photoData) {
         slide.addImage({
@@ -441,18 +479,29 @@ function buildPhotoIntegratedSlide(
           sizing: { type: "cover", w: photoW, h: H },
         });
       }
+      // Fond rose pâle sur la zone texte (gauche)
+      slide.addShape("rect", {
+        x: 0, y: 0, w: W - photoW, h: H,
+        fill: { color: c.bg },
+      });
+      // Accent rose vertical à gauche du titre
+      slide.addShape("rect", {
+        x: PAD_X, y: 1.2, w: 0.06, h: 1.6,
+        fill: { color: c.primary },
+      });
+
       slide.addText(badgeText, badgeOpts);
 
       if (s.title) {
         slide.addText(s.title, {
-          x: PAD_X, y: 1.3, w: textW, h: 2.0,
+          x: PAD_X + 0.25, y: 1.3, w: textW - 0.25, h: 2.0,
           fontSize: 22, fontFace: f.title, color: c.secondary,
           align: "left", valign: "top", wrap: true, lineSpacingMultiple: 1.2,
         });
       }
       if (s.body) {
         slide.addText(s.body, {
-          x: PAD_X, y: 3.5, w: textW, h: H - 4.5,
+          x: PAD_X + 0.25, y: 3.5, w: textW - 0.25, h: H - 4.5,
           fontSize: 15, fontFace: f.body, color: c.text,
           align: "left", valign: "top", wrap: true, lineSpacingMultiple: 1.5,
         });
