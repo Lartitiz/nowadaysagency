@@ -46,6 +46,13 @@ export default function StructureReviewStep({
   const [editableSlides, setEditableSlides] = useState<SlideProposal[]>(structureProposal.slides);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
 
+  // Capture la répartition initiale proposée par l'IA pour pouvoir la restaurer
+  const aiProposedIndices = useMemo(
+    () => structureProposal.slides.map((s) => s.photo_index),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
   useEffect(() => {
     const incoming = structureProposal.slides.map((s) => s.slide_number).join(",");
     const current = editableSlides.map((s) => s.slide_number).join(",");
@@ -63,6 +70,17 @@ export default function StructureReviewStep({
 
   const showPhotoBanner =
     photos && photos.length > 0 && (carouselSubMode === "photo" || carouselSubMode === "mix");
+
+  // P1-6 : photos non utilisées (uniquement pour mix — en mode photo on assigne tout par défaut)
+  const unusedPhotoIndices = useMemo(() => {
+    if (!photos || photos.length === 0) return [];
+    const used = new Set(
+      editableSlides
+        .map((s) => s.photo_index)
+        .filter((n): n is number => Number.isInteger(n) && (n as number) >= 1),
+    );
+    return photos.map((_, i) => i + 1).filter((idx) => !used.has(idx));
+  }, [editableSlides, photos]);
 
   const moveSlide = (index: number, direction: -1 | 1) => {
     const target = index + direction;
