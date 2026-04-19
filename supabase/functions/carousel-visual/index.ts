@@ -820,13 +820,16 @@ Retourne UNIQUEMENT le JSON.`;
     // P0-3 : remplacer les placeholders {{PHOTO_N}} non substitués par un fallback
     // (sinon l'iframe affiche `url({{PHOTO_2}})` cassé → slide vide).
     if ((isPhotoCarousel || isMixCarousel) && result?.slides_html) {
-      // Construire un map des base64 dispos pour fallback
+      // Construire un map des base64 dispos pour fallback (même normalisation que post-proc 1)
       const photoBase64Map = new Map<number, string>();
       const reqPhotos = reqBody.photos;
       if (Array.isArray(reqPhotos)) {
         reqPhotos.forEach((p: any, i: number) => {
-          const b64 = typeof p === "string" ? p : (p?.base64 || p?.data || "");
-          if (b64) photoBase64Map.set(i + 1, b64);
+          const raw = typeof p === "string" ? p : (p?.base64 || p?.data || "");
+          if (raw) {
+            const dataUrl = raw.startsWith("data:") ? raw : `data:image/jpeg;base64,${raw}`;
+            photoBase64Map.set(i + 1, dataUrl);
+          }
         });
       }
       const fallbackPhoto = photoBase64Map.get(1) || Array.from(photoBase64Map.values())[0] || "";
