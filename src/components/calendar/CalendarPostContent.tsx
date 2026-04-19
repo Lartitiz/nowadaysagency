@@ -132,10 +132,9 @@ export function CalendarPostContent({
           <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground bg-muted px-2.5 py-1 rounded-pill">
             <CheckCircle2 className="h-3 w-3" /> Publié
           </span>
-          <div className="rounded-[10px] border border-border bg-card p-3 text-sm leading-relaxed whitespace-pre-wrap opacity-80">
-            {contentPreview}
+          <div className="rounded-[10px] border border-border bg-card p-3 text-sm leading-relaxed whitespace-pre-wrap opacity-80 max-h-[420px] overflow-y-auto">
+            {contentDraft}
           </div>
-          <ExpandCollapseButtons />
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={onCopy} className="rounded-pill text-xs gap-1.5">
               <Copy className="h-3 w-3" /> Copier
@@ -148,7 +147,6 @@ export function CalendarPostContent({
       ) : hasContent && isReady ? (
         <div className="space-y-3">
           {contentEditableJsx}
-          <ExpandCollapseButtons />
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={onCopy} className="rounded-pill text-xs gap-1.5">
               <Copy className="h-3 w-3" /> Copier
