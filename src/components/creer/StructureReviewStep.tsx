@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { ArrowUp, ArrowDown, X, Plus, Loader2, Check } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { ArrowUp, ArrowDown, X, Plus, Loader2, Check, Sparkles, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -46,6 +46,13 @@ export default function StructureReviewStep({
   const [editableSlides, setEditableSlides] = useState<SlideProposal[]>(structureProposal.slides);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
 
+  // Capture la répartition initiale proposée par l'IA pour pouvoir la restaurer
+  const aiProposedIndices = useMemo(
+    () => structureProposal.slides.map((s) => s.photo_index),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
   useEffect(() => {
     const incoming = structureProposal.slides.map((s) => s.slide_number).join(",");
     const current = editableSlides.map((s) => s.slide_number).join(",");
@@ -63,6 +70,17 @@ export default function StructureReviewStep({
 
   const showPhotoBanner =
     photos && photos.length > 0 && (carouselSubMode === "photo" || carouselSubMode === "mix");
+
+  // P1-6 : photos non utilisées (uniquement pour mix — en mode photo on assigne tout par défaut)
+  const unusedPhotoIndices = useMemo(() => {
+    if (!photos || photos.length === 0) return [];
+    const used = new Set(
+      editableSlides
+        .map((s) => s.photo_index)
+        .filter((n): n is number => Number.isInteger(n) && (n as number) >= 1),
+    );
+    return photos.map((_, i) => i + 1).filter((idx) => !used.has(idx));
+  }, [editableSlides, photos]);
 
   const moveSlide = (index: number, direction: -1 | 1) => {
     const target = index + direction;
@@ -116,6 +134,50 @@ export default function StructureReviewStep({
     setEditableSlides((prev) => [...prev, newSlide]);
   };
 
+  // P1-5 : Répartition automatique IA — restaure la proposition initiale de l'IA,
+  // ou attribue séquentiellement si l'IA n'a rien proposé.
+  const handleAutoDistribute = () => {
+    if (!photos || photos.length === 0) return;
+    const totalPhotos = photos.length;
+    let cursor = 0;
+    setEditableSlides((prev) =>
+      prev.map((s, i) => {
+        const isPhotoSlide =
+          s.slide_type === "photo_full" || s.slide_type === "photo_integrated";
+        if (!isPhotoSlide) return s;
+
+        // 1) Reprendre l'index proposé par l'IA s'il est valide
+        const aiProposed = aiProposedIndices[i];
+        if (
+          Number.isInteger(aiProposed) &&
+          (aiProposed as number) >= 1 &&
+          (aiProposed as number) <= totalPhotos
+        ) {
+          return { ...s, photo_index: aiProposed as number };
+        }
+        // 2) Sinon : attribution séquentielle
+        const next = (cursor % totalPhotos) + 1;
+        cursor++;
+        return { ...s, photo_index: next };
+      }),
+    );
+    setSelectedPhotoIndex(null);
+  };
+
+  // P1-6 : Ajouter une slide photo_full pour une photo orpheline
+  const addSlideForPhoto = (photoIdx: number) => {
+    if (editableSlides.length >= 15) return;
+    const newSlide: SlideProposal = {
+      slide_number: editableSlides.length + 1,
+      role: "visual",
+      title_suggestion: "",
+      strategic_note: `Slide ajoutée pour utiliser la photo ${photoIdx}`,
+      slide_type: "photo_full",
+      photo_index: photoIdx,
+    };
+    setEditableSlides((prev) => [...prev, newSlide]);
+  };
+
   const renumberedSlides = renumber(editableSlides);
 
   return (
@@ -139,7 +201,21 @@ export default function StructureReviewStep({
       {/* ───── ZONE 2 : BANDEAU PHOTOS ───── */}
       {showPhotoBanner && (
         <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-          <p className="text-sm font-semibold text-gray-700 mb-3">Tes photos</p>
+          <div className="flex items-center justify-between mb-3 gap-2">
+            <p className="text-sm font-semibold text-gray-700">Tes photos</p>
+            {carouselSubMode === "mix" && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleAutoDistribute}
+                className="text-xs h-7 px-2.5"
+              >
+                <Sparkles size={12} className="mr-1" />
+                Laisse l'IA répartir
+              </Button>
+            )}
+          </div>
 
           <div className="flex flex-wrap gap-2">
             {photos!.map((photo, i) => {
@@ -159,7 +235,7 @@ export default function StructureReviewStep({
                       ? "border-[#FB3D80] ring-2 ring-[#FB3D80]/30 opacity-100"
                       : assigned
                         ? "border-green-400 opacity-60"
-                        : "border-transparent opacity-100"
+                        : "border-orange-300 opacity-100"
                   }`}
                 >
                   <img
@@ -176,6 +252,29 @@ export default function StructureReviewStep({
               );
             })}
           </div>
+
+          {/* P1-6 : Warning photos non utilisées (mode mix uniquement) */}
+          {carouselSubMode === "mix" && unusedPhotoIndices.length > 0 && (
+            <div className="mt-3 flex items-center gap-2 p-2.5 bg-orange-50 border border-orange-200 rounded-lg">
+              <AlertTriangle size={14} className="text-orange-500 flex-shrink-0" />
+              <p className="text-xs text-orange-700 flex-1">
+                {unusedPhotoIndices.length === 1
+                  ? "1 photo non utilisée dans cette structure"
+                  : `${unusedPhotoIndices.length} photos non utilisées dans cette structure`}
+              </p>
+              {editableSlides.length < 15 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => addSlideForPhoto(unusedPhotoIndices[0])}
+                  className="text-xs h-7 px-2.5"
+                >
+                  + Ajouter une slide
+                </Button>
+              )}
+            </div>
+          )}
 
           <p className={`mt-2 text-xs ${selectedPhotoIndex ? "text-[#FB3D80] font-medium animate-pulse" : "text-gray-400"}`}>
             {selectedPhotoIndex
