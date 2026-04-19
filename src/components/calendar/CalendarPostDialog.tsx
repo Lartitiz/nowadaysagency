@@ -95,17 +95,18 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
         || (ssd?.script ? ssd.script.map((s: any) => s.texte_parle || "").join("\n\n") : null)
         || null;
       setContentDraft(draft);
+      setSavedDraft(draft);
       setAccroche((editingPost as any).accroche || null);
       setMediaUrls((editingPost as any).media_urls || []);
     } else if (prefillData) {
       setTheme(prefillData.theme || "");
       setAngle(null); setStatus("idea"); setNotes(prefillData.notes || "");
       setObjectif(null); setPostCanal(defaultCanal !== "all" ? defaultCanal : "instagram");
-      setFormat(null); setContentDraft(null); setAccroche(null); setMediaUrls([]);
+      setFormat(null); setContentDraft(null); setSavedDraft(null); setAccroche(null); setMediaUrls([]);
     } else {
       setTheme(""); setAngle(null); setStatus("idea"); setNotes("");
       setObjectif(null); setPostCanal(defaultCanal !== "all" ? defaultCanal : "instagram");
-      setFormat(null); setContentDraft(null); setAccroche(null); setMediaUrls([]);
+      setFormat(null); setContentDraft(null); setSavedDraft(null); setAccroche(null); setMediaUrls([]);
     }
     setDialogTab("edit");
     setShowAdvanced(false);
