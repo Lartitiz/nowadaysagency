@@ -273,6 +273,21 @@ export default function CreerUnifie() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Warn if AI forgot the carousel caption
+  const warnedCaptionRef = useRef<any>(null);
+  useEffect(() => {
+    if (selectedFormat !== "carousel") return;
+    const r: any = (result as any)?.raw;
+    if (!r?.slides || warnedCaptionRef.current === r) return;
+    const c = r.caption || {};
+    const isEmpty = !c.hook && !c.body && !c.cta && (!c.hashtags || c.hashtags.length === 0);
+    if (isEmpty) {
+      console.warn("[carousel] caption manquante dans la réponse IA", r);
+      toast("L'IA a oublié la légende, tu peux l'écrire à la main 🌸");
+      warnedCaptionRef.current = r;
+    }
+  }, [result, selectedFormat]);
+
   // Demo mode: pre-fill with carousel example (type dynamique selon le profil)
   useEffect(() => {
     if (aurianaDemoActive) return;
