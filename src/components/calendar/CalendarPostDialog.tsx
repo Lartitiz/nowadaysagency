@@ -43,6 +43,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const { data: profileData } = useProfile();
