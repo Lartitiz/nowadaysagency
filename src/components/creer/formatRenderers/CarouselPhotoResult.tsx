@@ -248,12 +248,56 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                   </Badge>
                 )}
                 {slide.slide_type && (
-                  <Badge variant="outline" className="text-[10px]">
-                    {slide.slide_type === "photo_full" ? "📸 Photo plein écran"
-                      : slide.slide_type === "photo_integrated" ? "📷 Photo intégrée"
-                      : slide.slide_type === "text_only" ? "📝 Texte"
-                      : slide.slide_type}
-                  </Badge>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-medium hover:bg-muted transition-colors"
+                        title="Changer le type de slide"
+                      >
+                        {slide.slide_type === "photo_full" ? "📸 Photo plein écran"
+                          : slide.slide_type === "photo_integrated" ? "📷 Photo intégrée"
+                          : slide.slide_type === "text_only" ? "📝 Texte"
+                          : slide.slide_type}
+                        <ChevronDown size={10} />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="text-xs">
+                      <DropdownMenuItem
+                        onClick={() => {
+                          const next = slides.map((s, i) =>
+                            i === idx ? { ...s, slide_type: "photo_full" } : s,
+                          );
+                          setSlides(next);
+                          notify(next, caption);
+                        }}
+                      >
+                        📸 Photo plein écran
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          const next = slides.map((s, i) =>
+                            i === idx ? { ...s, slide_type: "photo_integrated" } : s,
+                          );
+                          setSlides(next);
+                          notify(next, caption);
+                        }}
+                      >
+                        📷 Photo intégrée
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          const next = slides.map((s, i) =>
+                            i === idx ? { ...s, slide_type: "text_only" } : s,
+                          );
+                          setSlides(next);
+                          notify(next, caption);
+                        }}
+                      >
+                        📝 Texte
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 )}
               </div>
 
@@ -277,7 +321,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                   <img
                     src={photo.preview}
                     alt={`Photo ${photoNum}`}
-                    className="h-20 w-auto rounded-md object-cover"
+                    className="h-32 w-auto rounded-md object-cover border border-border"
                   />
                 );
               })()}
