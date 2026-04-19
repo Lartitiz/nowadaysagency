@@ -1488,12 +1488,6 @@ RÈGLE ABSOLUE : le JSON retourné doit avoir EXACTEMENT ${slide_structure.lengt
 Les photos sont fournies dans l'ordre : photo 1, photo 2, etc.
 Pour chaque slide photo (photo_full ou photo_integrated), indique photo_index (1, 2, 3...) pour dire quelle photo utiliser.
 
-═══ LÉGENDE ═══
-- 400-800 caractères
-- Hook : phrase d'accroche DIFFÉRENTE du texte de la slide 1
-- Body : ce que les photos ne montrent pas (l'envers du décor, l'émotion, le pourquoi)
-- CTA : invitation à la conversation
-- 5-10 hashtags pertinents
 ${deepeningCtx}${angleBlock}
 
 ═══ VÉRIFICATION FINALE (avant de retourner le JSON) ═══
@@ -1501,6 +1495,17 @@ ${deepeningCtx}${angleBlock}
 - Les slides text_only ont TOUTES un body d'au moins 30 mots
 - Le concept du sujet ("${body.subject || ""}") est visible dans le hook ET structure l'ensemble
 - Il y a un arc narratif clair (pas des slides indépendantes)
+- Le bloc "caption" complet (hook, body, cta, hashtags) est OBLIGATOIRE dans le JSON — ne JAMAIS l'omettre, ne JAMAIS le laisser vide.
+
+═══ LÉGENDE INSTAGRAM (OBLIGATOIRE — DOIT FIGURER DANS LE JSON SOUS LA CLÉ "caption") ═══
+
+Tu DOIS produire un objet "caption" avec ces 4 champs remplis :
+- "hook" (string, OBLIGATOIRE) : phrase d'accroche DIFFÉRENTE du texte de la slide 1, 1-2 phrases
+- "body" (string, OBLIGATOIRE) : 300-700 caractères — ce que les photos ne montrent pas (l'envers du décor, l'émotion, le pourquoi)
+- "cta" (string, OBLIGATOIRE) : invitation concrète à la conversation (question, appel à commenter, à partager)
+- "hashtags" (array de 5-10 strings, OBLIGATOIRE) : hashtags pertinents sans le "#"
+
+Total caption (hook + body + cta) : 400-800 caractères.
 
 RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
 {
