@@ -157,6 +157,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   const handleSave = () => {
     if (!theme.trim()) return;
     onSave({ theme, angle, status, notes, canal: postCanal, objectif, format, content_draft: contentDraft, accroche, media_urls: mediaUrls.length > 0 ? mediaUrls : null });
+    setSavedDraft(contentDraft);
   };
 
   const handleCopy = () => {
