@@ -1513,7 +1513,7 @@ ${deepeningCtx}${angleBlock}
 - Il y a un arc narratif clair (pas des slides indépendantes)
 - Le bloc "caption" complet (hook, body, cta, hashtags) est OBLIGATOIRE dans le JSON — ne JAMAIS l'omettre, ne JAMAIS le laisser vide.
 
-═══ LÉGENDE INSTAGRAM (OBLIGATOIRE — DOIT FIGURER DANS LE JSON SOUS LA CLÉ "caption") ═══
+═══ LÉGENDE ${isLinkedIn ? "LINKEDIN" : "INSTAGRAM"} (OBLIGATOIRE — DOIT FIGURER DANS LE JSON SOUS LA CLÉ "caption") ═══
 
 Tu DOIS produire un objet "caption" avec ces 4 champs remplis :
 - "hook" (string, OBLIGATOIRE) : phrase d'accroche DIFFÉRENTE du texte de la slide 1, 1-2 phrases
