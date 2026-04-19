@@ -324,13 +324,13 @@ export const DEMO_DATA = {
         {
           slide_number: 4,
           slide_type: "photo_full",
-          photo_index: 2,
+          photo_index: 3,
           caption: "Et là, sans que tu t'en rendes compte, je commence à shooter. Les premières photos arrivent dans le mouvement, dans le naturel. Pas de \"cheese\" chez moi.",
         },
         {
           slide_number: 5,
           slide_type: "photo_full",
-          photo_index: 3,
+          photo_index: 4,
           caption: "Le résultat ? Des photos où tu te dis \"c'est vraiment moi\". Pas une version filtrée. Pas une version corporate. TOI, en version confiante.",
         },
         {
