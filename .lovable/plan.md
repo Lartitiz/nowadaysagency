@@ -1,71 +1,92 @@
 
 
-## Diagnostic : pourquoi la card "Légende" est vide
+## Carrousels mixtes pour LinkedIn — analyse + plan
 
-### Ce que j'ai trouvé
+### État des lieux
 
-La card **est bien rendue** (lignes 422-473 de `CarouselPhotoResult.tsx`) — sans condition. Si tu la vois "vide", c'est que les 4 textareas (Hook / Body / CTA / Hashtags) n'ont pas de contenu.
+Aujourd'hui, sur LinkedIn dans `CreerStepFormat.tsx` (ligne 273-290), seuls 2 choix existent :
+- **Post texte** (1300-2000 caractères)
+- **Carrousel PDF** (texte uniquement)
 
-État actuel :
-```ts
-const [caption, setCaption] = useState<any>(r?.caption || {});
-```
-→ Si l'IA ne renvoie pas `caption` dans son JSON (ou la renvoie vide), les champs sont vides.
+Le **mix photo+texte** et le **mode photo seul** sont réservés à Instagram (lignes 412-455). Pourtant :
+- Le backend `carousel-ai/index.ts` gère déjà `carousel_type: "mix" | "photo" | "text"` indépendamment du canal
+- L'export `export-carousel-pptx.ts` supporte déjà `slide_type: photo_full | photo_integrated | text_only`
+- Le flag `isLinkedInCarousel` se propage déjà (ligne 879, 897, 921 de `CreerUnifie.tsx`) dans les payloads carousel-ai
+- Le flux complet (upload → structure → génération → preview → export PDF/PPTX) est déjà mature côté Instagram
 
-### Cause probable
+**Conclusion** : techniquement, on a 80% du chantier déjà fait. Il manque juste l'exposition UI + quelques ajustements de prompt pour le ton LinkedIn.
 
-Dans `buildMixCarouselPrompt` (`carousel-ai/index.ts` lignes 1491-1496), la section **═══ LÉGENDE ═══** liste les règles éditoriales mais :
-1. N'est pas mise en évidence comme **obligatoire dans le JSON**
-2. Vient **après** une longue section "RÈGLES DE COMPOSITION" + "RÈGLES SPÉCIFIQUES MIX"
-3. Le bloc "VÉRIFICATION FINALE" (ligne 1499) ne mentionne **pas** la caption
+### Pourquoi c'est pertinent sur LinkedIn
 
-Avec un long prompt, l'IA Gemini omet régulièrement la `caption` ou la renvoie incomplète sur les générations mix. Symptôme classique constaté.
+Les carrousels mixtes performent fort sur LinkedIn en 2024-2025 :
+- **Coulisses pro** (photos d'événement, conf, atelier + slides texte avec leçons)
+- **Avant/après cliente** (photos + slides analyse)
+- **Témoignages** (photo cliente + slides citations)
+- **Process documenté** (photos terrain + slides méthodo)
 
-### Bug secondaire
+C'est aussi un format différenciant face aux carrousels PDF "tout texte" qui saturent le feed LinkedIn.
 
-Dans `CarouselPhotoResult.tsx` ligne 175 :
-```ts
-const prevSignature = useRef(JSON.stringify((r?.slides || []).map((s: any) => s.slide_number)));
-```
-→ Le `useEffect` ligne 177 ne resync `caption` que si la **signature des slides** change. Si l'utilisateur régénère et obtient le **même nombre de slides** mais avec une caption différente, **la caption locale n'est pas remise à jour**. Bug potentiel mais pas la cause principale.
+### Plan : 3 niveaux d'ambition
 
----
+**Niveau 1 — Réutilisation directe (faible effort, impact moyen)**
 
-## Plan : 3 corrections
+Ajouter une 3ème carte dans le sub-mode LinkedIn (`CreerStepFormat.tsx` ligne 273-290) : "Carrousel Mixte" qui réutilise exactement le flux Instagram mix. Le backend reçoit déjà `channel: "linkedin"` + `carouselType: "mix"`, donc le prompt s'adapte automatiquement (vouvoiement, ton expert, etc.).
 
-### 1. Renforcer l'obligation de `caption` dans le prompt mix
-`supabase/functions/carousel-ai/index.ts` :
-- Ajouter dans la section "VÉRIFICATION FINALE" une ligne explicite : `Le bloc "caption" complet (hook, body, cta, hashtags) est OBLIGATOIRE dans le JSON.`
-- Déplacer la section ═══ LÉGENDE ═══ juste avant le schéma JSON pour qu'elle soit la dernière chose lue par l'IA
-- Renommer en ═══ LÉGENDE (OBLIGATOIRE DANS LE JSON) ═══
+Modifications :
+- 1 carte UI ajoutée dans le bloc LinkedIn sub-mode
+- Ouverture de `carouselSubMode` pour `selectedChannel === "linkedin"` (ligne 413, juste retirer la restriction Instagram)
+- Le upload zone (ligne 458) fonctionne déjà sans condition de canal
 
-### 2. Fallback caption côté front
-`CarouselPhotoResult.tsx` : si `r?.caption` est absente ou vide, **générer un fallback minimal** à partir du contenu des slides :
-- Hook = `slides[0].overlay_text || slides[0].title || ""` 
-- Body = vide (laisser l'utilisateur écrire)
-- CTA = ""
-- Hashtags = []
+Risque : très faible. Tout le pipeline existant est réutilisé.
 
-L'utilisateur verra au moins une amorce et comprendra que c'est éditable, plutôt qu'une card vide qui semble cassée.
+**Niveau 2 — Adaptation éditoriale LinkedIn (recommandé)**
 
-### 3. Fix bug de signature
-`CarouselPhotoResult.tsx` ligne 175-186 : inclure la caption dans la signature de resync :
-```ts
-const prevSignature = useRef(JSON.stringify({
-  slides: (r?.slides || []).map((s: any) => s.slide_number),
-  captionHash: JSON.stringify(r?.caption || {}),
-}));
-```
-→ La caption est correctement resync à chaque vraie nouvelle génération.
+En plus du Niveau 1, dans `buildMixCarouselPrompt` (`carousel-ai/index.ts` ligne 1375), brancher la branche `isLinkedIn` qui n'existe pas encore pour le mix :
+- Overlays photo plus pros (pas de "✨", pas de "girl chic"), vouvoiement
+- Slides texte avec densité expert (chiffres, mécanismes, contexte marché)
+- CTA fin = "Partagez si...", "Votre avis ?", "Envoyez à un·e collègue qui..." (déjà documenté ligne 490)
+- Sequencing recommandé : photo terrain en slide 1 → 3-4 slides analyse → photo "preuve sociale" en slide milieu → slide texte conclusion → CTA
 
-### 4. Toast d'avertissement (optionnel)
-Dans `CreerUnifie.tsx` après réception du résultat carrousel : si `r.caption` est manquante/vide, log console + toast doux : "L'IA a oublié la légende, tu peux l'écrire à la main 🌸"
+**Niveau 3 — Format natif LinkedIn (option avancée, pour plus tard)**
+
+LinkedIn préfère le format **1080×1350 (4:5 portrait)** pour les carrousels documents, alors qu'Instagram c'est **1080×1350** aussi mais avec marges visuelles différentes. À voir s'il faut adapter `export-carousel-pptx.ts` pour ajouter une signature LinkedIn (logo discret + handle en bas) sur les slides photos. À traiter dans un Pack séparé après validation du Niveau 1+2.
+
+### Ce que je recommande
+
+**Pack "LinkedIn mix" = Niveau 1 + Niveau 2** dans la même livraison, ~30 min de modif, risque faible :
+
+1. **`CreerStepFormat.tsx`** :
+   - Remplacer la grille LinkedIn 2 colonnes par 3 colonnes : Post texte / Carrousel texte / Carrousel mixte
+   - Quand "mixte" est cliqué : `setLinkedinSubMode("carousel")` + `handleFormatSelect("carousel")` + `setCarouselSubMode("mix")` directement
+   - Retirer la restriction `selectedChannel === "instagram"` ligne 413 pour exposer aussi le sub-mode mix sur LinkedIn (au cas où l'user veut basculer entre text/photo/mix après avoir choisi "carousel" en haut)
+   - Adapter le label : "Carrousel PDF" → "Carrousel texte" (8-10 slides) + "Carrousel mixte" (photos + texte, 6-8 slides)
+
+2. **`carousel-ai/index.ts` (`buildMixCarouselPrompt`)** :
+   - Ajouter le paramètre `isLinkedIn` à la fonction (~5 lignes)
+   - Bloc conditionnel pour adapter ton, overlays, CTA selon canal
+   - Réutiliser les règles déjà présentes dans `buildSystemPrompt` lignes 478-491
+
+3. **`CreerUnifie.tsx`** :
+   - Vérifier que `channel: isLinkedInCarousel ? "linkedin" : undefined` est bien passé pour le type `express_full` mix (déjà le cas ligne 879)
+   - Adapter le fallback caption pour LinkedIn (vouvoiement, pas d'emojis fleur)
 
 ### Fichiers modifiés
-- `supabase/functions/carousel-ai/index.ts` (renforcer prompt, ~10 lignes)
-- `src/components/creer/formatRenderers/CarouselPhotoResult.tsx` (fallback + signature, ~15 lignes)
-- `src/pages/CreerUnifie.tsx` (toast warning, ~5 lignes)
+
+- `src/components/creer/CreerStepFormat.tsx` (~25 lignes : nouvelle carte + retrait restriction)
+- `supabase/functions/carousel-ai/index.ts` (~30 lignes dans `buildMixCarouselPrompt`)
+- `src/pages/CreerUnifie.tsx` (~3 lignes : adapter fallback caption si LinkedIn)
+
+### Ce qui ne change pas
+
+- Toute la logique upload, structure review, génération mix, preview, export PPTX
+- Le flag `isLinkedInCarousel` déjà propagé partout
+- Le mode "Carrousel texte" LinkedIn existant reste identique
 
 ### Risque
-Très faible. Pas de changement structurel, juste des garde-fous.
+
+Très faible. On expose une feature backend déjà complète, on ne crée pas de nouveau pipeline.
+
+### Question : option Niveau 3 (signature LinkedIn dans le PPTX) ?
+
+Tu veux que j'inclue l'adaptation visuelle LinkedIn (logo + handle en bas des slides photo, marges plus pro) dans ce pack, ou on garde ça pour un pack ultérieur après validation du flux ?
 
