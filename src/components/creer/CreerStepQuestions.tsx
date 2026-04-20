@@ -36,6 +36,7 @@ export default function CreerStepQuestions({
 }: Props) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>(initialAnswers || {});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Follow-up state (Levier 2 — opt-in)
   const [followUpQuestions, setFollowUpQuestions] = useState<Question[]>([]);
@@ -43,6 +44,16 @@ export default function CreerStepQuestions({
   const [followUpRequested, setFollowUpRequested] = useState(false);
   const [inFollowUp, setInFollowUp] = useState(false);
   const [followUpIndex, setFollowUpIndex] = useState(0);
+
+  const handleSkip = () => {
+    setIsSubmitting(true);
+    onSkip();
+  };
+
+  const handleFinalize = (finalAnswers: Record<string, string>) => {
+    setIsSubmitting(true);
+    onNext(finalAnswers);
+  };
 
   if (loadingQuestions) {
     return (
@@ -58,11 +69,15 @@ export default function CreerStepQuestions({
     return (
       <div className="py-8 text-center animate-fade-in space-y-4">
         <p className="text-sm text-muted-foreground">Pas de questions pour ce format.</p>
-        <Button onClick={onSkip} className="gap-2">
-          <Sparkles className="h-4 w-4" /> Générer directement
+        <Button onClick={handleSkip} disabled={isSubmitting} className="gap-2">
+          {isSubmitting ? (
+            <><Loader2 className="h-4 w-4 animate-spin" /> Lancement…</>
+          ) : (
+            <><Sparkles className="h-4 w-4" /> Générer directement</>
+          )}
         </Button>
         <div>
-          <Button variant="ghost" size="sm" onClick={onBack} className="gap-1">
+          <Button variant="ghost" size="sm" onClick={onBack} disabled={isSubmitting} className="gap-1">
             <ArrowLeft className="h-3.5 w-3.5" /> Retour
           </Button>
         </div>
@@ -92,7 +107,7 @@ export default function CreerStepQuestions({
     }
 
     // Last follow-up answered, or no follow-up offered → done
-    onNext(answers);
+    handleFinalize(answers);
   };
 
   const handlePrev = () => {
@@ -115,7 +130,7 @@ export default function CreerStepQuestions({
       const fu = await onRequestFollowUp(answers);
       if (fu.length === 0) {
         // No follow-up generated → just finish
-        onNext(answers);
+        handleFinalize(answers);
         return;
       }
       setFollowUpQuestions(fu);
@@ -128,7 +143,7 @@ export default function CreerStepQuestions({
   };
 
   const handleDeclineFollowUp = () => {
-    onNext(answers);
+    handleFinalize(answers);
   };
 
   // ── RENDER : opt-in card (after last main question) ──
@@ -220,11 +235,13 @@ export default function CreerStepQuestions({
 
       {/* Navigation */}
       <div className="flex justify-between items-center">
-        <Button variant="ghost" size="sm" onClick={handlePrev} className="gap-1">
+        <Button variant="ghost" size="sm" onClick={handlePrev} disabled={isSubmitting} className="gap-1">
           <ArrowLeft className="h-3.5 w-3.5" /> {activeIndex > 0 || inFollowUp ? "Précédent" : "Retour"}
         </Button>
-        <Button size="sm" onClick={handleNext} className="gap-1">
-          {isLast ? (
+        <Button size="sm" onClick={handleNext} disabled={isSubmitting} className="gap-1">
+          {isSubmitting ? (
+            <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Lancement…</>
+          ) : isLast ? (
             inFollowUp ? (
               <>Générer <Sparkles className="h-3.5 w-3.5" /></>
             ) : onRequestFollowUp ? (
@@ -243,10 +260,21 @@ export default function CreerStepQuestions({
         variant="ghost"
         size="sm"
         className="w-full gap-1.5 text-muted-foreground"
-        onClick={onSkip}
+        onClick={handleSkip}
+        disabled={isSubmitting}
       >
-        <SkipForward className="h-3.5 w-3.5" /> Passer les questions, générer directement
+        {isSubmitting ? (
+          <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Lancement…</>
+        ) : (
+          <><SkipForward className="h-3.5 w-3.5" /> Passer les questions, générer directement</>
+        )}
       </Button>
+
+      {isSubmitting && (
+        <p className="text-xs text-center text-muted-foreground animate-fade-in">
+          ⚡ Préparation de la génération…
+        </p>
+      )}
     </div>
   );
 }
