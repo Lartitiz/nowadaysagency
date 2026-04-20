@@ -1565,15 +1565,17 @@ ${deepeningCtx}${angleBlock}
 - Les slides text_only ont TOUTES un body d'au moins 30 mots
 - Le concept du sujet ("${body.subject || ""}") est visible dans le hook ET structure l'ensemble
 - Il y a un arc narratif clair (pas des slides indépendantes)
-- Le bloc "caption" complet (hook, body, cta, hashtags) est OBLIGATOIRE dans le JSON — ne JAMAIS l'omettre, ne JAMAIS le laisser vide.
+${isLinkedIn ? `- Pour LinkedIn mix : la légende (caption) est OPTIONNELLE — concentre-toi à 100% sur la qualité des slides PDF. Si tu inclus une caption, ne la bâcle pas, sinon laisse-la vide (elle sera générée par un appel dédié).` : `- Le bloc "caption" complet (hook, body, cta, hashtags) est OBLIGATOIRE dans le JSON — ne JAMAIS l'omettre, ne JAMAIS le laisser vide.`}
 
-═══ LÉGENDE ${isLinkedIn ? "LINKEDIN" : "INSTAGRAM"} (OBLIGATOIRE — DOIT FIGURER DANS LE JSON SOUS LA CLÉ "caption") ═══
+${isLinkedIn ? `═══ LÉGENDE LINKEDIN (OPTIONNELLE — peut être vide) ═══
+
+Pour les carrousels mix LinkedIn, la légende est gérée par un appel dédié à linkedin-ai. Tu PEUX inclure un objet "caption" minimal ({"hook":"","body":"","cta":"","hashtags":[]}) ou l'omettre. Ne dépense PAS de tokens à rédiger une caption complète : tout ton effort doit aller dans la qualité des slides PDF (densité, arc narratif, overlays sobres, valeur concrète).` : `═══ LÉGENDE INSTAGRAM (OBLIGATOIRE — DOIT FIGURER DANS LE JSON SOUS LA CLÉ "caption") ═══
 
 Tu DOIS produire un objet "caption" avec ces 4 champs remplis :
 - "hook" (string, OBLIGATOIRE) : phrase d'accroche DIFFÉRENTE du texte de la slide 1, 1-2 phrases
 - "body" (string, OBLIGATOIRE) : 300-700 caractères — ce que les photos ne montrent pas (l'envers du décor, l'émotion, le pourquoi)
 - "cta" (string, OBLIGATOIRE) : invitation concrète à la conversation (question, appel à commenter, à partager)
-- "hashtags" (array de ${isLinkedIn ? "3-5" : "5-10"} strings, OBLIGATOIRE) : hashtags pertinents sans le "#"
+- "hashtags" (array de 5-10 strings, OBLIGATOIRE) : hashtags pertinents sans le "#"
 
 Total caption (hook + body + cta) : 400-800 caractères.
 
@@ -1582,8 +1584,8 @@ EXEMPLE de caption COMPLÈTE (à adapter, JAMAIS laisser vide, JAMAIS sauter le 
   "hook": "Ce chantier cache 3 appartements.",
   "body": "Quand on a démarré la rénovation de cet immeuble bordelais, personne ne voyait le potentiel. Les murs étaient noirs, le sol défoncé, les plafonds bas. Trois mois plus tard, la lumière entre par où on ne l'attendait pas. Ce qu'on ne voit pas sur les photos : les 47 décisions par jour, les compromis avec le voisin du dessus, le moment où on doute. Mais aussi la satisfaction quand le client passe la porte la première fois.",
   "cta": "Tu rénoves bientôt ? Dis-moi en commentaire où tu en es — je réponds à tout le monde.",
-  "hashtags": ${isLinkedIn ? '["renovation", "architecture", "chantier", "bordeaux"]' : '["renovation", "architecture", "chantier", "bordeaux", "interiordesign", "rehabilitation", "bts"]'}
-}
+  "hashtags": ["renovation", "architecture", "chantier", "bordeaux", "interiordesign", "rehabilitation", "bts"]
+}`}
 
 
 RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
