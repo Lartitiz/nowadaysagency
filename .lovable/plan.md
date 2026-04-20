@@ -1,115 +1,116 @@
 
 
-## Phase 5b — Fusion `reels-ai` dans `creative-flow` (rolling, ultra-prudente)
+## Refonte newsjacking — plus d'idées, moins de pré-mâché, axes mixables
 
-### Audit — état actuel
+### Ce que tu demandes
 
-| Fonction | Lignes | Rôle réel |
-|---|---|---|
-| `reels-ai` | 591 | 3 types : `analyze_inspiration`, `hooks`, `script` |
-| `creative-flow` | 1274 | A déjà une branche `isReel` qui appelle `reelBrief()` + JSON `{ format_type, duree_cible, sections[], personal_tip, accroche, pillar, objectif }` |
-| Front (`use-content-generator.ts` l. 254) | — | Appelle `reels-ai` UNIQUEMENT avec `type: "script"` |
-| `CreerUnifie.tsx` l. 1299-1311 | — | Consomme : `format_type, format_label, duree_cible, sections/script, caption, hashtags, cover_text, alt_text, amplification_stories` |
-| `ReelResult.tsx` | — | Consomme : `format_type, duree_cible, sections, personal_tip` |
+1. **Plus d'idées par actu** — aujourd'hui chaque actu arrive avec ses angles déjà rédigés (hook + description + véhicule + format), c'est lourd à scanner et long à générer. Tu veux pouvoir survoler vite et choisir.
+2. **Tous les axes représentés** — au lieu de tirer 1 axe global au sort par appel, tu veux voir plusieurs univers d'actus en même temps (société, économie, culture, science, politique, viral).
+3. **Les axes peuvent se croiser** — "découverte science drôle" doit exister. Pas de cases étanches : un axe = un angle thématique, et le ton (drôle, sérieux, marquant) est indépendant.
 
-**Constats clés** :
-1. `analyze_inspiration` et `hooks` ne sont appelés par AUCUN fichier front (vérifié `grep -rn "type.*hooks"` et `analyze_inspiration` dans `src/`). **Code mort**.
-2. `creative-flow` produit aujourd'hui un JSON reel **incomplet** : il manque `caption`, `hashtags`, `cover_text`, `alt_text`, `amplification_stories`, `format_label`, `checklist`. Une bascule naïve perdrait ces données dans le calendrier.
-3. Les params reels-spécifiques (`face_cam`, `time_available`, `selected_hook`, `pre_gen_answers`, `editorial_angle`, `content_structure`) ne sont actuellement PAS passés au prompt reel de `creative-flow`.
+### Nouvelle logique de génération
 
-### Objectif
+**Avant** : 1 appel IA → 4 actus complètes avec 1-2 angles rédigés chacune → temps long, output dense.
 
-Faire en sorte que **`creative-flow` produise un JSON reel pixel-parfait** par rapport à ce qu'attendent `CreerUnifie.tsx` + `ReelResult.tsx`, **tout en intégrant les params reels-spécifiques** (hook choisi, face_cam, time_available, pre_gen_answers, etc.). Puis basculer le front et supprimer `reels-ai`.
+**Après** : 1 appel IA → **6 actus brèves** (titre + résumé court + axe + pertinence en 1 phrase) **sans angles pré-rédigés**. Les angles sont générés **à la demande** quand tu cliques sur une actu qui t'inspire.
 
-### Stratégie en 4 étapes (rolling)
+Bénéfices :
+- Génération initiale **2-3× plus rapide** (moins de tokens à produire)
+- Tu vois **plus d'idées d'un coup** (6 au lieu de 4)
+- Tu n'attends pas l'IA pour des angles que tu n'utiliseras pas
+- Quand une actu te plaît, tu cliques → 3 angles générés en quelques secondes
 
-#### Étape A — Enrichir `_shared/format-briefs.ts > reelBrief()`
+### Refonte des axes (sans cases étanches)
 
-Étendre la signature actuelle pour accepter les params reels :
-```ts
-reelBrief({
-  effectiveObjective, face_cam, time_available, is_launch,
-  selected_hook, pre_gen_answers, subject,
-  editorial_angle, content_structure, inspiration_context
-})
+**6 axes thématiques** (= "de quoi ça parle") :
+- `societe_debat` — débats de société, faits marquants
+- `economie_argent` — économie, pouvoir d'achat, business
+- `culture_pop` — sorties, films, séries, livres, musique
+- `science_decouverte` — études, découvertes, innovations
+- `politique_loi` — réformes, lois, décisions publiques
+- `viral_insolite` — phénomènes web, faits divers cocasses
+
+**3 tons indépendants** (= "comment c'est raconté") :
+- `serieux_marquant` — actu de fond
+- `drole_decale` — angle léger ou cocasse
+- `surprenant_contre_intuitif` — chiffre ou révélation qui détonne
+
+L'IA pioche **librement** dans les combinaisons axe×ton. Donc oui, on peut avoir "science_decouverte + drole_decale" (étude scientifique surprenante et drôle), "politique_loi + surprenant_contre_intuitif" (réforme avec un effet contre-intuitif), etc.
+
+### Répartition cible des 6 actus retournées
+
+- **3 actus globales** couvrant **3 axes thématiques différents** (jamais 2 actus du même axe)
+- **3 actus niche** dérivées des 3 requêtes métier (combat, cible, secteur+date)
+- Au moins **1 actu "ton drôle/décalé"** et au moins **1 actu "ton sérieux/marquant"** dans le lot
+- Diversité des axes **forcée par le prompt** (l'IA doit annoncer l'axe et le ton de chaque actu)
+
+### Nouvelle UX dans `NewsjackingPanel.tsx`
+
+**État 1 — liste rapide** :
+- Carte par actu : titre, résumé 2 phrases, **chip axe** (ex. "Science"), **chip ton** (ex. "Drôle"), source, pertinence en 1 ligne
+- Bouton **"Voir les angles"** (l'angle n'est PAS encore généré)
+- Bouton "Pas pour moi" (masque l'actu localement)
+
+**État 2 — angles à la demande** :
+- Au clic sur "Voir les angles" → appel d'une **2ème edge function** (`newsjacking-angles`) qui génère **3 angles** pour cette actu précise (hook + véhicule + format suggéré, en quelques secondes)
+- Les angles s'affichent en dépliant la carte
+- Bouton existant "Créer le contenu" reste sur chaque angle
+
+### Architecture technique
+
+**Modifs `supabase/functions/newsjacking-ai/index.ts`** :
+- Sortie JSON simplifiée :
+```json
+{ "actus": [
+  { "titre", "resume", "source", "type": "globale|niche",
+    "axe": "societe_debat|economie_argent|...",
+    "ton": "serieux_marquant|drole_decale|surprenant_contre_intuitif",
+    "pertinence": "1 phrase" }
+] }
 ```
-- Garder tout le contenu actuel (qualité prompt déjà mature).
-- Ajouter en queue les blocs verbatim de `reels-ai > buildScriptPrompt` : ancrage hook choisi, ancrage sujet, bloc `preGenBlock`, structure éditoriale imposée si fournie.
-- Imposer le **JSON de sortie complet** : ajouter à l'actuel `{ format_type, duree_cible, sections[], personal_tip, accroche }` les champs manquants `format_label, caption {text, cta}, hashtags[], cover_text, alt_text, amplification_stories[], checklist[], garde_fou_alerte, editorial_angle_used`.
+- Plus d'`angles[]` dans cette réponse
+- Prompt : 6 actus, diversité axes obligatoire, mix de tons obligatoire
+- Construction des 3 requêtes niche (combat, cible, métier+date)
+- Filtres anti-redondance "pas que IA/réseaux sociaux" conservés
+- `max_tokens` réduit (4096 → 2048 suffit)
 
-Aucun consommateur cassé : `creative-flow` appelle déjà `reelBrief(effectiveObjective)`. On adapte l'appel à l'étape B.
+**Nouvelle fonction `supabase/functions/newsjacking-angles/index.ts`** :
+- Input : `{ actu: { titre, resume, axe, ton, type } }` + workspace_id
+- Output : `{ angles: [ { vehicule, hook, description, format_suggere } ] }` (3 angles)
+- Réutilise `getUserContext` + `formatContextForAI` pour le branding
+- Pas de web search (rapide, juste de la rédaction d'angles)
+- Quota : `light_action` (moins coûteux que `deep_research`)
+- Modèle : `getModelForAction("content")`
 
-#### Étape B — Adapter `creative-flow/index.ts` branche `isReel`
-
-Dans le bloc `step === "generate"` :
-1. Lire les params reels du body (`face_cam`, `time_available`, `selected_hook`, `pre_gen_answers`, `is_launch`, `inspiration_context`, `editorial_angle`, `content_structure`).
-2. Passer ces params à `reelBrief({...})` enrichi.
-3. **Remplacer** le bloc JSON reel actuel (l. 517-544) par le schéma complet imposé directement dans le prompt via `reelBrief` (mêmes clés que `reels-ai`).
-4. Préserver le `launch_context` injecté en système (déjà fait pour stories, à dupliquer pour reels).
-5. **Pas de streaming** pour reels : ajouter `!isReel` à la condition de streaming l. 826 (le front parse le JSON en bloc, comme stories).
-
-Élargir le Zod schema de `creative-flow` pour accepter `face_cam`, `time_available`, `selected_hook`, `pre_gen_answers`, `is_launch`, `inspiration_context`, `editorial_angle`, `content_structure` (déjà partiellement présents pour stories, on étend).
-
-À ce stade, `creative-flow` peut générer un reel complet, mais `reels-ai` reste vivant et le front l'appelle toujours. **Aucun changement utilisateur.**
-
-#### Étape C — Tester `creative-flow` reel en isolation
-
-Via `supabase--curl_edge_functions` : appeler `creative-flow` avec `step: "generate"`, `contentType: "reel"`, des params réalistes. Comparer le JSON produit avec l'ancien `reels-ai` (mêmes inputs). Vérifier 3 cas :
-- Reel "saves" + face_cam + 30min, sans `selected_hook` (cas par défaut depuis `CreerUnifie`)
-- Reel "conversion" + 5min + `pre_gen_answers` riches
-- Reel + `editorial_angle` + `content_structure` (cas angle imposé)
-
-Critère de validation : présence de TOUTES les clés attendues par `CreerUnifie.tsx` l. 1299-1311.
-
-#### Étape D — Bascule front + suppression `reels-ai`
-
-Dans `use-content-generator.ts` `case "reel"` (l. 242-272) :
-- Remplacer l'appel `invokeWithTimeout("reels-ai", { type: "script", ... })` par `invokeWithTimeout("creative-flow", { step: "generate", contentType: "reel", context: subject, face_cam, time_available, selected_hook, pre_gen_answers, editorial_angle, content_structure, ... })`.
-- Le parsing du résultat (`data.content` → JSON reel) reste identique.
-- Modifier `src/lib/content-structures.ts` l. 503 : `edgeFunction: "creative-flow"`.
-- **Supprimer** le dossier `supabase/functions/reels-ai/` + appeler `delete_edge_functions(["reels-ai"])`.
-
-### Précautions (le « pas tout faire bugger »)
-
-1. **Schéma de réponse identique** — `ReelResult.tsx` et le mapping calendrier (`CreerUnifie.tsx` l. 1299-1311) NE SONT PAS modifiés. Tous les champs (`caption`, `hashtags`, `cover_text`, `alt_text`, `amplification_stories`) doivent être produits.
-2. **Code mort non migré** — `analyze_inspiration` et `hooks` ne sont PAS migrés (aucun appelant front). Ils disparaissent avec `reels-ai`.
-3. **Pas de streaming** pour reels dans `creative-flow` — on retourne le JSON en bloc (le front fait `parseAIJson(data.content)`).
-4. **Modèle IA préservé** — `creative-flow` utilise déjà `getModelForRichContent` pour les contenus riches ; ajouter `"reel"` à la liste s'il n'y est pas (à vérifier dans `_shared/anthropic.ts`).
-5. **`launch_context`** dupliqué pour reels (comme stories).
-6. **`reels-ai` n'est supprimé qu'à l'étape D**, après validation manuelle d'une génération réelle bout-en-bout.
-
-### Tests par étape
-
-- A : `tsc --noEmit --skipLibCheck`
-- B : `deploy_edge_functions(["creative-flow"])` + `tsc`
-- C : `curl_edge_functions` avec 3 payloads reels → comparer le JSON à `reels-ai` (mêmes inputs)
-- D : test manuel sur `/creer` → générer un reel complet → vérifier que `ReelResult.tsx` rend tout (sections, timing, overlay, personal_tip) ET que sauvegarde calendrier conserve `caption`, `hashtags`, `cover_text`, `amplification_stories`
-
-### Plan B si ça tourne mal
-
-- A casse : revert `format-briefs.ts` (1 fichier)
-- B casse : revert le bloc `isReel` de `creative-flow` (1 fichier)
-- C signale un mismatch : on corrige `reelBrief()` jusqu'à parité, sans toucher au front
-- D casse : revert le `case "reel"` de `use-content-generator.ts` + revert `content-structures.ts` (2 fichiers). `reels-ai` n'a pas encore été supprimé donc tout reflue. **Suppression `reels-ai` UNIQUEMENT après validation manuelle.**
-
-### Fichiers modifiés
-
-| Fichier | Étape | Changement |
-|---|---|---|
-| `supabase/functions/_shared/format-briefs.ts` | A | `reelBrief()` enrichi (params + JSON complet) (+~150 l) |
-| `supabase/functions/creative-flow/index.ts` | B | branche `isReel` enrichie + Zod étendu + skip streaming (+~30 l) |
-| `src/hooks/use-content-generator.ts` | D | `case "reel"` → `creative-flow` (~15 l modifiées) |
-| `src/lib/content-structures.ts` | D | `edgeFunction: "creative-flow"` (1 ligne) |
-| `supabase/functions/reels-ai/` | D | **supprimé** + `delete_edge_functions` |
+**Modifs `src/components/newsjacking/NewsjackingPanel.tsx`** :
+- Carte d'actu compacte avec chips axe+ton
+- Bouton "Voir les angles" → appel `newsjacking-angles` → rendu inline
+- Loader local par carte pendant la génération d'angles
+- Cache local : si on a déjà cliqué sur une actu, ne pas re-générer
 
 ### Hors scope
 
-- Migration des types morts `analyze_inspiration` / `hooks` (pas d'appelant)
-- Refactor de `CreerUnifie.tsx` (phase 6)
-- Toucher au schéma DB `calendar_posts` ou aux renderers UI
+- Mémoire DB des actus déjà vues (Phase 2 du plan précédent, on garde pour plus tard)
+- Toucher aux `vehicule` (les 5 véhicules restent identiques)
+- Toucher au flow de création de contenu depuis un angle (inchangé)
 
-### Estimation et risque
+### Fichiers modifiés / créés
 
-- Bilan lignes : `reels-ai` supprimé (-591), `format-briefs.ts` (+150), `creative-flow` (+30), front (~-5). Net : **-416 lignes**.
-- Risque : **moyen** — plus de champs JSON à préserver que pour stories (`caption`, `hashtags`, etc.). Mitigé par le rolling 4 étapes et le fait que `reels-ai` reste vivant jusqu'à validation finale.
+| Fichier | Action |
+|---|---|
+| `supabase/functions/newsjacking-ai/index.ts` | Refonte sortie (6 actus brèves, axes+tons), retrait des angles, prompt simplifié |
+| `supabase/functions/newsjacking-angles/index.ts` | **Création** : génère 3 angles à la demande pour une actu donnée |
+| `src/components/newsjacking/NewsjackingPanel.tsx` | UX : chips axe+ton, bouton "Voir les angles", génération à la demande, cache local |
+| `supabase/config.toml` | Ajouter la nouvelle fonction si besoin |
+
+### Validation
+
+- Lancer le panel : 6 actus arrivent en ~5-8s (vs ~15-25s avant), avec 3 axes thématiques différents minimum et au moins 1 ton "drôle/décalé"
+- Cliquer sur "Voir les angles" d'une actu → 3 angles arrivent en ~3-5s
+- Vérifier qu'on peut cliquer sur 2-3 actus différentes sans que ça bloque
+- Vérifier qu'une actu "science drôle" peut apparaître (pas de cloisonnement)
+
+### Risque
+
+Faible-moyen. La nouvelle edge function est isolée (pas de DB, pas de migration). La refonte de `newsjacking-ai` est une simplification du JSON de sortie. Le panel est modifié mais l'intégration aval (création de contenu depuis un angle) reste identique.
 
