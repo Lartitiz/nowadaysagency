@@ -397,38 +397,46 @@ Propose la structure optimale.`;
     } else if (type === "suggest_angles") {
       userPrompt = buildSuggestAnglesPrompt(body);
     } else if (type === "deepening_questions") {
-      // ── Photo carousel: vision-informed questions ──
-      if (body.carousel_type === "photo" && body.photos && body.photos.length > 0) {
+      // ── Photo / mix carousel: vision-informed questions ──
+      if ((body.carousel_type === "photo" || body.carousel_type === "mix") && body.photos && body.photos.length > 0) {
+        const isMix = body.carousel_type === "mix";
+        const channelLabel = isLinkedIn ? "LinkedIn" : "Instagram";
+        const formatLabel = isMix
+          ? `carrousel ${channelLabel} MIXTE (slides photo + slides texte alternées)`
+          : `carrousel photo ${channelLabel}`;
+
         const messageContent: any[] = [];
-        for (const photo of body.photos.slice(0, 10)) {
-          if (photo.base64) {
-            const raw = photo.base64.replace(/^data:image\/[a-z]+;base64,/, "");
-            messageContent.push({
-              type: "image",
-              source: { type: "base64", media_type: "image/jpeg", data: raw },
-            });
-          }
-        }
+        body.photos.slice(0, 10).forEach((photo: any, idx: number) => {
+          pushPhotoWithContext(messageContent, photo, idx);
+        });
+        const photoCtxRecap = buildPhotoContextRecap(body.photos);
         messageContent.push({
           type: "text",
-          text: `Voici ${body.photos.length} photo(s) que l'utilisatrice veut utiliser pour un carrousel photo Instagram.
+          text: `Voici ${body.photos.length} photo(s) que l'utilisatrice veut utiliser pour un ${formatLabel}.
 
 Sujet : "${body.subject || "non précisé"}"
 Objectif : ${body.objective || "engagement"}
-${body.photo_description ? `Description complémentaire : "${body.photo_description}"` : ""}
+${body.photo_description ? `Description complémentaire fournie en amont : "${body.photo_description}"` : ""}${photoCtxRecap}
 
 Tu es une coach com' spécialisée en contenu visuel. Analyse les photos et pose exactement 3 questions d'approfondissement.
 
 Tes questions doivent :
-- MENTIONNER ce que tu vois dans les photos (couleurs, ambiance, éléments, scène)
-- Aider l'utilisatrice à définir l'histoire que ces photos racontent ensemble
-- Extraire le contexte INVISIBLE : pourquoi ce moment, quelle émotion, quel message
-- Être spécifiques aux photos (pas génériques)
+- MENTIONNER ce que tu VOIS RÉELLEMENT dans les photos (éléments concrets, ambiance, couleurs, scène, geste, lieu)
+- Aider l'utilisatrice à définir l'histoire que ces photos racontent ensemble${isMix ? "\n- Identifier QUELLES photos méritent d'être au cœur du carrousel ET QUELS PASSAGES TEXTUELS viennent les accompagner (slides texte intercalées)" : ""}
+- Extraire le contexte INVISIBLE : pourquoi ce moment, quelle émotion, quel message, quel hors-champ
+- Être SPÉCIFIQUES à CES photos (pas génériques, pas interchangeables avec un autre brief)
+${isLinkedIn ? "- Garder un ton PRO (apprentissage business, prise de position, résultat concret derrière l'image)" : "- Garder un ton ÉMOTION/SCÈNE VÉCUE (ressenti, coulisses, instant)"}
 
-Exemples de bonnes questions :
-- "Je vois [élément]. C'était dans quel contexte ? Qu'est-ce que ce moment représente pour toi ?"
-- "L'ambiance de tes photos est [observation]. C'est volontaire ? Quel message tu veux faire passer ?"
-- "Quelle est l'histoire entre la première et la dernière photo ? Il y a une progression ?"
+Exemples de bonnes questions${isMix ? " (carrousel mixte)" : ""} :
+- "Je vois [élément précis]. C'était dans quel contexte ? Qu'est-ce que ce moment représente pour toi ?"
+- "L'ambiance sur la photo [N] est [observation]. C'est volontaire ? Quel message tu veux faire passer ?"
+${isMix
+  ? "- \"Entre la photo [X] et la photo [Y], qu'est-ce que tu veux dire en mots — quelle réflexion / chiffre / conviction vient s'intercaler ?\""
+  : "- \"Quelle est l'histoire entre la première et la dernière photo ? Il y a une progression ?\""}
+
+INTERDIT :
+- Questions génériques qui pourraient s'appliquer à n'importe quel sujet ou n'importe quelles photos
+- Questions sans aucune référence visuelle aux photos analysées
 
 Réponds UNIQUEMENT en JSON valide :
 {
@@ -447,14 +455,14 @@ Réponds UNIQUEMENT en JSON valide :
           max_tokens: 4096,
         });
 
-        await logUsage(user.id, category, "carousel_deepening_photo");
+        await logUsage(user.id, category, `carousel_deepening_${body.carousel_type}`);
         return new Response(JSON.stringify({ content }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      // ── Photo carousel with description only (no actual photos) ──
-      if (body.carousel_type === "photo" && body.photo_description) {
+      // ── Photo/mix carousel with description only (no actual photos) ──
+      if ((body.carousel_type === "photo" || body.carousel_type === "mix") && body.photo_description) {
         const photoDescBlock = `\n\nL'utilisatrice décrit ses photos : "${body.photo_description}". Pose des questions en lien avec ce qu'elle décrit : l'ambiance, le contexte invisible, l'émotion derrière ces images, l'histoire qu'elles racontent ensemble.`;
         userPrompt = buildDeepeningQuestionsPrompt(body, brandingContext, isLinkedIn, recentBriefsContext, brandVocabBlock) + photoDescBlock;
       } else {

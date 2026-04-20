@@ -587,7 +587,24 @@ export default function CreerUnifie() {
       return;
     }
 
-    await generateQuestions({ format, subject: enrichedSubject, editorialAngle: angle, objective: objective || undefined, channel: isLinkedInCarousel ? "linkedin" : undefined });
+    const photosForQuestions = (photos && photos.length > 0 ? photos : uploadedPhotos);
+    const descForQuestions = desc || photoDescription;
+    const subModeForQuestions = sub || carouselSubMode;
+    const photoModeForQuestions = pm !== undefined ? pm : photoMode;
+
+    await generateQuestions({
+      format,
+      subject: enrichedSubject,
+      editorialAngle: angle,
+      objective: objective || undefined,
+      channel: isLinkedInCarousel ? "linkedin" : undefined,
+      photos: photosForQuestions && photosForQuestions.length > 0
+        ? photosForQuestions.map((p: any) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType }))
+        : undefined,
+      photoDescription: descForQuestions || undefined,
+      carouselSubMode: subModeForQuestions || undefined,
+      photoMode: photoModeForQuestions || undefined,
+    });
   };
 
   const handleQuestionsNext = async (ans: Record<string, string>) => {
