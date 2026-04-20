@@ -132,7 +132,18 @@ export default function CreerUnifie() {
 
   // Photo states (carousel photo + post photo)
   const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | "mix" | null>(null);
-  const [uploadedPhotos, setUploadedPhotos] = useState<any[]>([]);
+  const [uploadedPhotos, _setUploadedPhotos] = useState<any[]>([]);
+  // Wrapper avec stack trace pour identifier l'origine des resets accidentels.
+  const setUploadedPhotos = (next: any[] | ((prev: any[]) => any[])) => {
+    if (Array.isArray(next) && next.length === 0) {
+      // eslint-disable-next-line no-console
+      console.log("[uploadedPhotos] RESET to []", new Error().stack?.split("\n").slice(2, 6).join("\n"));
+    }
+    _setUploadedPhotos(next as any);
+  };
+  // Snapshot des photos au moment de la génération du carrousel.
+  // Sert de source de vérité pour handleGenerateVisuals si le state UI est reset.
+  const [generatedWithPhotos, setGeneratedWithPhotos] = useState<any[]>([]);
   const [photoDescription, setPhotoDescription] = useState("");
   const [photoMode, setPhotoMode] = useState(false);
   const [demoGenerating, setDemoGenerating] = useState(false);
