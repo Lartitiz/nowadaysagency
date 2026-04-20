@@ -414,8 +414,25 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
         </div>
       )}
 
-      {/* Post photo toggle */}
-      {selectedFormat === "post" && (
+      {/* Preloaded photos: incompatible format warning */}
+      {(initialPhotos?.length ?? 0) > 0 && selectedFormat &&
+        selectedFormat !== "carousel" && selectedFormat !== "post" && (
+          <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 flex items-start gap-2 animate-fade-in">
+            <span className="text-base leading-tight">⚠</span>
+            <div className="flex-1 text-sm text-amber-800">
+              Ce format n'utilisera pas tes {initialPhotos!.length} photo{initialPhotos!.length > 1 ? "s" : ""} chargée{initialPhotos!.length > 1 ? "s" : ""}.
+              <button
+                onClick={() => handleFormatSelect("carousel")}
+                className="ml-2 font-medium underline hover:no-underline"
+              >
+                Revenir au carrousel
+              </button>
+            </div>
+          </div>
+        )}
+
+      {/* Post photo toggle — hidden if photos preloaded & user hasn't changed format */}
+      {selectedFormat === "post" && !((initialPhotos?.length ?? 0) > 0 && photoMode && postPhoto.length > 0) && (
         <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border animate-fade-in">
           <Switch checked={photoMode} onCheckedChange={setPhotoMode} />
           <div>
@@ -425,19 +442,64 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
         </div>
       )}
 
+      {/* Post — preloaded photo confirmation banner */}
+      {selectedFormat === "post" && (initialPhotos?.length ?? 0) > 0 && photoMode && postPhoto.length > 0 && (
+        <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 flex items-center justify-between gap-3 animate-fade-in">
+          <p className="text-sm text-foreground">
+            📸 <span className="font-medium">Post avec photo</span> — {postPhoto.length} photo{postPhoto.length > 1 ? "s" : ""} chargée{postPhoto.length > 1 ? "s" : ""}
+          </p>
+          <button
+            onClick={() => {
+              setPhotoMode(false);
+              setPostPhoto([]);
+              setPostPhotoDescription("");
+            }}
+            className="text-xs text-muted-foreground hover:text-foreground underline whitespace-nowrap"
+          >
+            Retirer les photos
+          </button>
+        </div>
+      )}
+
       {/* Post photo upload */}
       {selectedFormat === "post" && photoMode && (
         <div className="animate-fade-in">
           <PhotoUploadZone
             maxPhotos={1}
+            initialPhotos={postPhoto.length > 0 ? postPhoto : undefined}
+            initialDescription={postPhotoDescription}
             onPhotosChange={setPostPhoto}
             onDescriptionChange={setPostPhotoDescription}
+            title={postPhoto.length > 0 ? `Vos photos (${postPhoto.length})` : undefined}
           />
         </div>
       )}
 
-      {/* Carousel sub-mode (Instagram + LinkedIn) */}
-      {selectedFormat === "carousel" && (selectedChannel === "instagram" || selectedChannel === "linkedin") && (
+      {/* Carousel — preloaded photo confirmation banner (replaces sub-mode selector) */}
+      {selectedFormat === "carousel" &&
+        (selectedChannel === "instagram" || selectedChannel === "linkedin") &&
+        (initialPhotos?.length ?? 0) > 0 &&
+        carouselSubMode === "mix" &&
+        uploadedPhotos.length > 0 && (
+          <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 flex items-center justify-between gap-3 animate-fade-in">
+            <p className="text-sm text-foreground">
+              📸 <span className="font-medium">{uploadedPhotos.length} photo{uploadedPhotos.length > 1 ? "s" : ""} chargée{uploadedPhotos.length > 1 ? "s" : ""}</span> — Carrousel mixte {selectedChannel === "linkedin" ? "LinkedIn (PDF, photos + slides texte)" : "Instagram (photos + slides texte)"}
+            </p>
+            <button
+              onClick={() => {
+                setCarouselSubMode(null);
+              }}
+              className="text-xs text-muted-foreground hover:text-foreground underline whitespace-nowrap"
+            >
+              Choisir un autre mode
+            </button>
+          </div>
+        )}
+
+      {/* Carousel sub-mode (Instagram + LinkedIn) — hidden when preloaded photos auto-set mix */}
+      {selectedFormat === "carousel" &&
+        (selectedChannel === "instagram" || selectedChannel === "linkedin") &&
+        !((initialPhotos?.length ?? 0) > 0 && carouselSubMode === "mix" && uploadedPhotos.length > 0) && (
         <div className="space-y-3 animate-fade-in">
           <p className="text-sm font-semibold text-foreground">Quel type de carrousel ?</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -486,11 +548,14 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
         <div className="animate-fade-in">
           <PhotoUploadZone
             maxPhotos={10}
+            initialPhotos={uploadedPhotos.length > 0 ? uploadedPhotos : undefined}
+            initialDescription={photoDescription}
             onPhotosChange={(photos) => {
               setUploadedPhotos(photos);
               if (photos.length > 0) setPhotoWarning(false);
             }}
             onDescriptionChange={setPhotoDescription}
+            title={uploadedPhotos.length > 0 ? `Vos photos (${uploadedPhotos.length})` : undefined}
           />
           {photoWarning && (
             <div className="mt-3 p-3 rounded-lg bg-amber-50 border border-amber-200 space-y-2 animate-fade-in">
