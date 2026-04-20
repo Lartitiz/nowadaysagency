@@ -823,7 +823,7 @@ Privilégie les sources françaises et européennes quand elles existent.`,
 
     // ── Streaming SSE (generate step only, no photo/deepResearch) ──
     const wantsStream = req.headers.get("Accept") === "text/event-stream";
-    if (wantsStream && step === "generate" && !body.photo_mode && !deepResearch) {
+    if (wantsStream && step === "generate" && !body.photo_mode && !deepResearch && !isStories) {
       const apiKey = Deno.env.get("ANTHROPIC_API_KEY")!;
       const model = getModelForAction("content");
 
