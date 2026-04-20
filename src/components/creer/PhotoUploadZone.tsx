@@ -151,30 +151,32 @@ export function PhotoUploadZone({
       {title && (
         <p className="text-sm font-semibold text-foreground">{title}</p>
       )}
-      {/* ── Drop zone ─────────────────────────── */}
-      <div
-        onClick={() => !isFull && inputRef.current?.click()}
-        onDragEnter={onDragEnter}
-        onDragLeave={onDragLeave}
-        onDragOver={onDragOverZone}
-        onDrop={onDrop}
-        className={cn(
-          "border-2 border-dashed rounded-xl p-6 text-center transition-colors cursor-pointer",
-          isFull
-            ? "border-border opacity-50 cursor-not-allowed"
-            : isDragOver
-            ? "border-primary bg-primary/5"
-            : "border-border hover:border-primary/40",
-        )}
-      >
-        <Upload className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
-        <p className="text-sm font-medium text-foreground">
-          Glisse tes photos ici ou clique pour sélectionner
-        </p>
-        <p className="text-xs text-muted-foreground mt-1">
-          JPG, PNG • Max {maxPhotos} photos
-        </p>
-      </div>
+      {/* ── Drop zone (hidden in compact mode) ─────────── */}
+      {!compact && (
+        <div
+          onClick={() => !isFull && inputRef.current?.click()}
+          onDragEnter={onDragEnter}
+          onDragLeave={onDragLeave}
+          onDragOver={onDragOverZone}
+          onDrop={onDrop}
+          className={cn(
+            "border-2 border-dashed rounded-xl p-6 text-center transition-colors cursor-pointer",
+            isFull
+              ? "border-border opacity-50 cursor-not-allowed"
+              : isDragOver
+              ? "border-primary bg-primary/5"
+              : "border-border hover:border-primary/40",
+          )}
+        >
+          <Upload className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
+          <p className="text-sm font-medium text-foreground">
+            Glisse tes photos ici ou clique pour sélectionner
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            JPG, PNG • Max {maxPhotos} photos
+          </p>
+        </div>
+      )}
 
       <input
         ref={inputRef}
