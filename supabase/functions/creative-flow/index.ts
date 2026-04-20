@@ -274,7 +274,7 @@ Réponds UNIQUEMENT en JSON :
         : "Questions orientées ÉMOTION : demande des moments vécus, des ressentis, des transformations personnelles, des coulisses.";
 
       systemPrompt = `${COMMON_PREFIX}
-${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}\n` : ""}
+${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}\n` : ""}${brandVocabBlock}${recentBriefsContext}
 L'utilisatrice a choisi cet angle pour son contenu :
 - Sujet : ${context}
 - Canal : ${channelLabel}
@@ -284,6 +284,16 @@ ${editorialFormatLabel ? `- Format éditorial : ${editorialFormatLabel}` : ""}
 - Ton : ${angle.tone}
 ${angle.format_livraison ? `- Format de livraison recommandé : ${angle.format_livraison}` : ""}
 ${calendarBlock}${objectiveBlock}
+
+══ AVANT DE POSER LES QUESTIONS — RAISONNEMENT INTERNE (ne PAS afficher) ══
+
+Réfléchis silencieusement à :
+1. Qu'est-ce que je sais DÉJÀ sur l'utilisatrice grâce au branding et aux briefs précédents ?
+2. Qu'est-ce qui MANQUE pour rendre ce contenu unique sur CE sujet précis ?
+3. Quels angles ont DÉJÀ été couverts dans les briefs récents ? (À ÉVITER de re-demander)
+4. Quel vocabulaire métier puis-je réutiliser dans les questions ?
+
+Puis pose les 3 questions qui maximisent l'apport NOUVEAU sur ce sujet.
 
 Pose exactement 3 questions pour récupérer SA matière première. Ces questions doivent extraire des éléments PERSONNELS (anecdotes, opinions, observations, process, convictions) qui rendront le contenu unique et impossible à reproduire par une IA seule.
 
@@ -302,12 +312,14 @@ RÈGLES :
 6. Le ton des questions est chaleureux et curieux (comme une amie qui s'intéresse vraiment).
 7. Chaque question a un placeholder qui donne un mini-exemple de réponse SPÉCIFIQUE au sujet.
 8. ORIENTÉES vers l'objectif : si "vente" → demande des résultats, process, transformations. Si "engagement" → demande des anecdotes, émotions. Si "visibilité" → demande des opinions clivantes, observations décalées. Si "crédibilité" → demande des méthodes, des preuves, des observations terrain.
+9. ${recentBriefsContext ? "MÉMOIRE DES BRIEFS PRÉCÉDENTS : si un brief récent a déjà couvert un angle (ex : déjà demandé une anecdote sur le même type de situation), CHANGE d'angle. Tu peux faire écho discrètement (\"la dernière fois tu disais X, ici c'est différent ?\") mais ne re-demande jamais la même chose." : ""}
 
 INTERDIT — NE FAIS JAMAIS ÇA :
 - Questions génériques type "Qu'est-ce qui te passionne dans ton métier ?", "Quel est ton parcours ?", "Qu'est-ce qui te différencie ?"
 - Questions de coaching de vie déconnectées du sujet
 - Questions trop larges qui pourraient s'appliquer à N'IMPORTE QUEL sujet
 - 3 questions qui commencent toutes par "Raconte-moi" ou "Il y a eu un moment où"
+- Questions interchangeables d'un user à l'autre (= sans vocabulaire métier)
 - Chaque question DOIT mentionner le sujet ou un aspect concret du sujet
 
 EXEMPLES (pour le sujet "Pourquoi je ne fais plus de remises") :
