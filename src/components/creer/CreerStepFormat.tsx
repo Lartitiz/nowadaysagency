@@ -103,13 +103,17 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
     setSelectedFormat(id);
     setSelectedAngle(undefined);
     if (isFirstSelectionWithPhotos) {
-      // Preserve preloaded photos and auto-select compatible sub-mode
+      // Restore photos from initialPhotos (may have been reset by handleChangeChannel)
+      setUploadedPhotos(initialPhotos!);
+      setPhotoDescription(initialPhotoDescription ?? "");
       if (id === "carousel") {
         setCarouselSubMode("mix");
         setPhotoMode(false);
       } else if (id === "post") {
         setCarouselSubMode(null);
         setPhotoMode(true);
+        setPostPhoto(initialPhotos!.slice(0, 1));
+        setPostPhotoDescription(initialPhotoDescription ?? "");
       } else {
         setCarouselSubMode(null);
         setPhotoMode(false);
