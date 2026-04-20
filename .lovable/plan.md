@@ -1,69 +1,78 @@
 
 
-## Audit du flow d'invitation — Option C : éviter les workspaces en double
+## Le bouton "Compléter avec l'IA" ne fait rien sur la fiche persona de Marion
 
-### Ce que j'ai trouvé en auditant le code + la base
+### Diagnostic confirmé en base
 
-**Cause racine** : il existe **3 endroits** qui créent un workspace pour un client, et **aucun** ne vérifie si ce client a déjà un workspace avant de le faire. Résultat : à chaque action coach, on risque de créer un doublon.
+Marion a bien une fiche persona, mais **7 champs sont vides** (objections, clichés, beau, inspirant, repoussant, ressenti, actions). Ils étaient juste pas remplis pendant son onboarding.
 
-| Endroit | Comportement actuel | Problème |
-|---|---|---|
-| **Trigger DB `create_default_tasks`** | À l'inscription d'une utilisatrice, crée auto un workspace nommé `prenom` et la passe `owner` | OK pour un compte solo, mais ce workspace devient "le vrai" du client |
-| **`KickoffPreparation.tsx` ligne 124-148** (bouton "Ajouter une cliente") | Si createWorkspace coché et que la cliente n'a **aucun** workspace `owner`, en crée un. Sinon, **skip silencieux** sans rien faire | Si la cliente a déjà un workspace (quasi toujours, à cause du trigger), le coach **n'est jamais ajouté** au workspace existant. Donc le coach ne voit rien. |
-| **`handleCreateStandaloneWs` dans `CoachingProgramList.tsx`** (bouton "Nouvel espace") | Crée un workspace tout neuf au nom saisi, avec coach = owner | Aucune vérif si une cliente avec ce nom/email existe déjà → **doublon garanti** si utilisé pour une cliente existante |
+Pour que le bouton "Compléter les 7 champs manquants avec l'IA" fonctionne, le code actuel a besoin d'une **de ces deux sources** comme contexte :
 
-**Vérif base** : workspace `b361a5f2…` de Marion a bien été créé par Laetitia le 20/04 → c'est le bouton "Nouvel espace" (ou Ajouter une cliente avec checkbox) qui l'a généré, alors que Marion avait déjà son workspace `e56b291c…` créé à son inscription le 09/03.
+| Source attendue | État chez Marion |
+|---|---|
+| `persona.portrait` (synthèse JSON) | ❌ vide (`null`) |
+| `branding_coaching_sessions` section `persona` | ❌ aucune ligne en base |
+
+Donc la condition à la ligne 256 du fichier `BrandingFicheCards.tsx` :
+```ts
+if (conversationMessages.length > 0 || portrait) { ... appel IA ... }
+```
+est **fausse**. Le call IA est purement et simplement skippé. Le toast "Fiche complétée par l'IA !" s'affiche mais **aucune IA n'a tourné**. C'est le bug que tu vois.
+
+Pendant ce temps, Marion a en base **tout le contexte qu'il faut** pour qu'une IA déduise ces 7 champs : `target_description` (331 char), `target_verbatims` (259), `mission`, `positioning`, `voice_description`, `target_problem`, `target_beliefs`. Il suffit de les passer comme contexte au prompt.
 
 ### Ce qu'on corrige
 
-#### 1. `KickoffPreparation.tsx` — quand le client existe, on attache, on ne crée pas
+#### 1. Ajouter un fallback "branding context" dans `handleAutoFill`
 
-Bloc lignes 124-148, nouveau comportement :
+Fichier : `src/components/branding/BrandingFicheCards.tsx`, fonction `handleAutoFill`, autour des lignes 248-298.
 
-- Si la cliente a déjà au moins un workspace `owner` → **ajouter le coach comme `manager` à son workspace existant** (le plus ancien) au lieu de skip.
-- Si elle n'en a pas (cas rare, compte créé sans trigger) → créer un nouveau workspace + ajouter coach + cliente.
-- Toujours afficher un toast clair : "Tu as été ajoutée à l'espace existant de Marion" vs "Espace créé pour Marion".
-- Vérifier en plus que le coach n'est pas déjà membre (évite l'erreur `23505`).
+- Avant l'appel IA, fetcher `brand_profile` (champs cible + ton + mission + positioning) **en plus** des sources actuelles.
+- Construire un bloc de contexte enrichi à passer à l'IA, qui contient :
+  - le portrait (s'il existe)
+  - la conversation coaching (si elle existe)
+  - **les champs `brand_profile` pertinents** (toujours dispo dès qu'il y a un branding rempli)
+  - les champs persona déjà remplis (frustrations + transformation chez Marion)
+- **Toujours appeler l'IA** dès qu'au moins une de ces sources contient quelque chose (et pas seulement portrait/conversation).
 
-#### 2. `CoachingProgramList.tsx` — `handleCreateStandaloneWs` devient plus prudent
+#### 2. Élargir la condition d'appel
 
-Le bouton "Nouvel espace" sert à créer un espace **vide** pour une cliente non encore inscrite (cas légitime). On ne change pas le comportement de base, mais on ajoute :
+Remplacer :
+```ts
+if (conversationMessages.length > 0 || portrait) { ... }
+```
+par une condition basée sur la présence d'**au moins une source de contexte** (incluant `brand_profile` et persona partiellement rempli). Concrètement : si on a `target_description` OU `target_verbatims` OU `portrait` OU une conversation OU du persona déjà rempli → on appelle l'IA.
 
-- Un champ optionnel "email de la cliente" dans l'input (à côté du nom).
-- Si email rempli ET qu'un profil + workspace existent déjà pour cet email → **propose d'attacher au workspace existant** au lieu d'en créer un (confirm dialog).
-- Si email rempli mais pas de profil → comportement actuel (création workspace standalone que le client rejoindra plus tard).
-- Si email vide → comportement actuel (création workspace standalone "anonyme").
+#### 3. Améliorer le retour utilisateur
 
-#### 3. `invite-to-workspace` (edge function) — déjà correcte, pas de changement
+Aujourd'hui le toast dit "Fiche complétée" même si zéro champ a été rempli. À corriger :
 
-Cette fonction prend un `workspace_id` existant et y ajoute un membre. Elle est saine. Le bug n'a jamais été là.
+- compter le nombre de champs effectivement remplis par l'étape portrait + l'étape IA
+- toast "X champ(s) complété(s) par l'IA ✨" si > 0
+- toast `info` "Pas assez de contexte pour compléter automatiquement — remplis manuellement quelques champs ou refais le coaching persona" si 0
 
-#### 4. Petit garde-fou DB optionnel
+#### 4. Adapter le prompt côté edge function
 
-Pas obligatoire, mais utile pour le futur : ajouter dans `delete_workspace_with_cleanup` un message d'erreur clair si le workspace n'existe plus (pour ne pas confondre suppression silencieuse et permission refusée). À voir si tu veux.
+Fichier : `supabase/functions/branding-coaching/index.ts`, branche `section === "persona_fill"` (lignes 401-457).
+
+- Le prompt actuel suppose qu'on a "toute la conversation". Le rendre tolérant à des sources mixtes (portrait + brand_profile + persona partiel + conversation, dans n'importe quelle combinaison).
+- Ajouter explicitement dans le system prompt : "Tu peux et tu DOIS déduire à partir de la cible, des verbatims, de la mission et du ton si la conversation est absente. Ne refuse jamais sous prétexte de manque d'info — déduis."
 
 ### Fichiers modifiés
 
 | Fichier | Changement |
 |---|---|
-| `src/components/admin/KickoffPreparation.tsx` | Bloc `if (createWorkspace)` : si client a déjà un workspace owner, ajouter le coach comme manager au lieu de skip |
-| `src/components/admin/CoachingProgramList.tsx` | Ajouter input email optionnel à `handleCreateStandaloneWs` + détection workspace existant + dialog d'attachement |
+| `src/components/branding/BrandingFicheCards.tsx` | `handleAutoFill` : fetch `brand_profile`, contexte enrichi, condition élargie, toast honnête |
+| `supabase/functions/branding-coaching/index.ts` | Branche `persona_fill` : prompt plus tolérant, instruction de déduction obligatoire |
 
 ### Validation
 
-1. Créer un programme pour une nouvelle cliente test (compte tout neuf) → 1 seul workspace, coach = manager, cliente = owner.
-2. Créer un programme pour une cliente existante (qui a déjà rempli son onboarding) → **pas de nouveau workspace**, coach ajouté à son workspace existant, toast "ajoutée à l'espace existant".
-3. Bouton "Nouvel espace" avec un nom + email d'un compte existant → proposer "Attacher au workspace existant de Marion ?" (Oui/Non).
-4. Bouton "Nouvel espace" avec un nom seul (pas d'email) → comportement actuel (espace vide standalone).
-5. Pour les anciens cas comme Marion : la fix d'Option A reste la solution manuelle. Les nouveaux clients sont protégés.
-
-### Hors scope
-
-- Pas de migration des doublons historiques existants (à part Marion déjà traitée). Si tu en repères d'autres, on les traite au cas par cas.
-- Pas de touche au trigger DB `create_default_tasks` (il est correct de créer un workspace à l'inscription).
-- Pas de refonte de l'edge function d'invitation (elle est saine).
+1. Sur l'espace de Marion, cliquer "Compléter les 7 champs manquants avec l'IA" → l'IA tourne réellement, les 7 champs (objections, clichés, beau, inspirant, repoussant, ressenti, actions) sont remplis à partir de son `brand_profile`.
+2. Toast "7 champs complétés par l'IA ✨" si tout passe, ou un compte précis si certains champs n'ont pas pu être déduits.
+3. Sur un compte qui n'a vraiment rien rempli → toast info clair "Pas assez de contexte" au lieu d'un faux succès.
+4. Sur un compte qui a déjà fait le coaching conversationnel → comportement actuel préservé (la conversation prime).
 
 ### Risque
 
-Faible. On ajoute des vérifications avant un INSERT, on n'enlève rien. Si une vérif rate, fallback sur le comportement actuel. Pas de migration DB obligatoire.
+Faible. On ajoute un fetch + on élargit une condition + on change un prompt. Aucune migration DB. Le pire cas reste l'ancien comportement (rien ne se passe), donc pas de régression possible.
 
