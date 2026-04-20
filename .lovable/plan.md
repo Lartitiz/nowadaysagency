@@ -1,82 +1,93 @@
 
 
-## Diagnostic
+## Audit — Upload photo par format aujourd'hui
 
-Quand on arrive sur l'écran questions via "Partir de photos", les questions sont **génériques** car le backend ne reçoit **ni les photos ni leur description** :
+| Canal / Format | Upload photo | Vision IA (questions + génération) |
+|---|---|---|
+| Insta — Carrousel **photo / mixte** | ✅ max 10 (`PhotoUploadZone`) | ✅ `carousel-ai` branche `photo`/`mix` |
+| Insta — **Post simple** (toggle "J'accompagne une photo") | ✅ max 1 | ✅ `creative-flow` branche `photo_mode` |
+| Insta — **Reel** | ❌ | ❌ |
+| Insta — **Story** | ❌ | ❌ |
+| LinkedIn — **Carrousel mixte** | ✅ (vient piocher Insta) | ✅ |
+| LinkedIn — **Post texte** | ❌ | ❌ |
+| **Newsletter** | ❌ (Zod accepte déjà 1 photo, mais aucune UI) | Backend prêt, jamais alimenté |
+| Pinterest visuel / inspiration | ✅ (flow dédié) | n/a |
 
-- `generateQuestions` (front) n'envoie pas `photos`, `photo_description`, ni `carousel_type` → impossible pour Claude de "voir" les photos
-- Conséquence visible (élément sélectionné par l'user·ice) : question type *"Quelle opération de valorisation d'actifs récente pourriez-vous décortiquer…"* → **0 ancrage visuel**, alors que les photos sont déjà chargées
+**Constat** : les Reels, Stories, LinkedIn texte et Newsletter **ne proposent aucun upload photo** alors que :
+- Le backend `creative-flow` accepte déjà `photo_mode + photos[1]` quel que soit le format détecté (lignes 68-70, 1755-1813).
+- La vision Claude est **déjà branchée pour `step=questions` ET `step=generate`** dès que `photo_mode = true`. Aucun blocage backend.
 
-**Bonne nouvelle** : la logique vision existe **déjà côté `carousel-ai`** (lignes 399-454) pour `carousel_type === "photo"` — elle envoie les images à Claude et lui demande "Je vois [élément]…". Il suffit de :
-1. **L'activer aussi pour `mix`** (carrousel mixte LinkedIn / Insta avec photos)
-2. **L'ajouter à `creative-flow`** pour le post simple Insta avec photo + LinkedIn carrousel mixte si routé là
-3. **Faire transiter les photos depuis le front** dans `generateQuestions`
+Donc tout le travail est **côté front** : étendre le toggle "📸 J'accompagne une photo" aux 4 formats manquants + transmettre les photos jusqu'à `handleFormatNext` / `generateQuestions`. Aucune nouvelle Edge Function, aucun changement de schema.
 
-## Fix proposé — 3 fichiers
+## Plan d'extension — front uniquement
 
-### 1. `src/hooks/use-content-generator.ts` — transmettre les photos
+### 1. `CreerStepFormat.tsx` — généraliser le toggle photo
 
-Étendre `GenerateQuestionsParams` :
+Aujourd'hui le bloc lignes 450-493 (toggle + bannière + `PhotoUploadZone`) ne s'affiche que pour `selectedFormat === "post"`. Le rendre disponible pour :
+- `reel` (Insta — accroche/script ancré dans l'image off-screen)
+- `stories` (Insta — séquence de stories autour de la photo)
+- `linkedin` (LinkedIn post texte avec une photo en pièce jointe)
+- `newsletter` (header image / image éditoriale)
+
+Implémentation :
+- Ajouter un helper `formatAcceptsSinglePhoto(format, channel)` qui renvoie `true` pour `post`, `reel`, `stories`, `linkedin` (texte), `newsletter`.
+- Remplacer `selectedFormat === "post"` par ce helper sur les 3 blocs (toggle, bannière préchargée, zone d'upload).
+- Adapter le wording du toggle selon le format :
+  - Post : "📸 J'accompagne une photo" (existant)
+  - Reel : "📸 Mon Reel s'appuie sur une image (référence visuelle / vignette)"
+  - Stories : "📸 Mes stories tournent autour d'une photo"
+  - LinkedIn : "📸 J'attache une photo à mon post"
+  - Newsletter : "📸 Image d'en-tête / illustration"
+- Le `maxPhotos={1}` reste (limite Zod de `creative-flow`).
+- Le mode **compact** reste actif quand `initialPhotos` préchargées (cohérence avec le travail des messages précédents).
+
+### 2. `CreerStepFormat.tsx` — étendre la bannière "incompatible"
+
+Ligne 434 : aujourd'hui `selectedFormat !== "carousel" && selectedFormat !== "post"` déclenche l'avertissement "Ce format n'utilisera pas tes photos". Une fois les 4 nouveaux formats compatibles, retirer cet avertissement pour eux (il ne reste que `pinterest_*` qui ont leur propre flow d'upload séparé).
+
+### 3. `CreerStepFormat.tsx` — auto-préselection avec photos préchargées
+
+Branche `isFirstSelectionWithPhotos` (ligne 105) : actuellement `post` → `photoMode=true + slice(0,1)`. Ajouter le même comportement pour `reel`, `stories`, `linkedin`, `newsletter` : `setPhotoMode(true)` + `setPostPhoto(initialPhotos!.slice(0, 1))`.
+
+### 4. `CreerUnifie.tsx` — propager `photo_mode` jusqu'à la génération
+
+Vérifier que `photoMode + uploadedPhotos[0]` partent bien dans le body de **toutes** les générations `creative-flow` (pas seulement post Insta). Bloc ligne 738 actuel :
 ```ts
-photos?: Array<{ base64: string; context?: string }>;
-photoDescription?: string;
-carouselSubMode?: "text" | "photo" | "mix";
-photoMode?: boolean;
+...(photoMode ? { photo_mode: true, photo_description: photoDescription } : {}),
 ```
+→ il manque `photos: [{ base64, mimeType, context }]`. À ajouter une seule fois, valable pour les 5 formats. Sinon vision côté backend ne se déclenche pas (cf. `body.photos?.[0]?.base64` ligne 1809).
 
-Dans `generateQuestions` :
-- **Branche carousel** : si `photos.length > 0`, ajouter au body `carousel_type: carouselSubMode` (`"photo"` ou `"mix"`), `photos: photos.map(p => ({ base64, context }))`, `photo_description`. Augmenter le timeout à `90000` (vision = +lent).
-- **Branche creative-flow** : si `photos.length > 0` (post simple Insta photo, ou newsletter avec image), ajouter au body `photo_mode: true`, `photos: [premier]` (limite Zod = max 1), `photo_description`.
+### 5. Adapter les prompts vision selon le format (creative-flow)
 
-### 2. `src/pages/CreerUnifie.tsx` — passer les photos à `generateQuestions`
+Pour que la vision serve vraiment, ajouter dans la branche `step=generate + photo_mode` (ligne 1809) un switch léger sur `formatHint` :
+- **Reel** → "À partir de ce que tu vois, propose hook + déroulé voix-off / face cam"
+- **Stories** → "Découpe en 3-5 stories qui exploitent l'image (zooms, crops narratifs)"
+- **LinkedIn** → "Post pro où l'image illustre un point précis du texte"
+- **Newsletter** → "Image éditoriale en ouverture, texte qui prolonge l'ambiance"
+- Post / défaut → comportement actuel inchangé
 
-Dans le seul appel ligne 590 (et ligne 433 pour le coaching), ajouter quand pertinent :
-```ts
-photos: uploadedPhotos.length > 0 ? uploadedPhotos.map(p => ({ base64: p.base64, context: p.context })) : undefined,
-photoDescription: photoDescription || undefined,
-carouselSubMode: carouselSubMode || undefined,
-photoMode: photoMode || undefined,
-```
+Idem pour `step=questions` (ligne 1755) : 3 questions ancrées dans le visuel + adaptées au format final.
 
-### 3. `supabase/functions/carousel-ai/index.ts` — étendre la branche vision au mode `mix`
+### 6. `use-content-generator.ts` — déjà OK
 
-Ligne 401 : remplacer
-```ts
-if (body.carousel_type === "photo" && body.photos && body.photos.length > 0)
-```
-par
-```ts
-if ((body.carousel_type === "photo" || body.carousel_type === "mix") && body.photos && body.photos.length > 0)
-```
+`generateQuestions` accepte déjà `photos`, `photoDescription`, `photoMode` (ajoutés au tour précédent). Rien à modifier.
 
-Adapter le prompt pour mentionner que le carrousel sera **mixte** (photos + slides texte) quand `mix` → questions sur **quelles photos méritent d'être au cœur** + **quels passages textuels les accompagnent**.
-
-### 4. `supabase/functions/creative-flow/index.ts` — branche vision pour `step === "questions"`
-
-Avant le bloc `else if (step === "questions")` actuel (ligne 268), insérer une branche vision si `body.photos?.length > 0 && body.photos[0].base64` :
-- Construire `messageContent` avec l'image + un prompt similaire à celui du carousel ("Je vois [élément]…", 3 questions ancrées dans la photo + le sujet)
-- Adapter le ton selon le canal (Insta légende = émotion/hors-champ, LinkedIn = pro)
-- Réutiliser le mécanisme `callAnthropic` déjà en place avec un modèle vision (Sonnet 4.5)
-- Renvoyer le JSON `{ questions: [...] }` (même format que le path texte)
-
-Sinon, fallback sur la logique actuelle (questions texte).
-
-## Comportement préservé
-- Questions texte standard quand pas de photo (carrousel texte, LinkedIn sans visuel, newsletter sans image)
-- Format de retour identique (`{ questions: [{ question, placeholder }] }`) → aucun changement côté UI
-- `recent_briefs_context`, `editorial_angle`, `objective` toujours injectés
-- Quotas / logging inchangés
+## Fichiers touchés
+- `src/components/creer/CreerStepFormat.tsx` (helper + 3 blocs ré-utilisés)
+- `src/pages/CreerUnifie.tsx` (1 ligne dans le body de génération)
+- `supabase/functions/creative-flow/index.ts` (switch format dans 2 prompts vision)
 
 ## Validation
 1. `tsc --noEmit --skipLibCheck` → 0 erreur
-2. **Flow Partir de photos → Insta Carrousel mixte** : les 3 questions doivent référencer ce qu'il y a sur les photos ("Je vois [X]…")
-3. **Flow Partir de photos → Post simple Insta avec photo** : idem, questions ancrées dans le visuel
-4. **Flow Partir de photos → LinkedIn Carrousel mixte** : questions visuelles + ton pro
-5. **Flow texte sans photo** : aucune régression, questions classiques comme avant
-6. Latence acceptable : ≤ 15s sur 3-5 photos (Sonnet vision)
+2. **Reel + photo** : toggle visible → upload 1 photo → questions vision ancrées → script qui mentionne l'image
+3. **Stories + photo** : idem, séquence narrative autour de l'image
+4. **LinkedIn texte + photo** : idem, post pro qui s'appuie sur l'image
+5. **Newsletter + photo** : header image prise en compte dans le ton
+6. **Partir de photos → Reel/Stories/LinkedIn/Newsletter** : auto-préselection + bannière "1 photo chargée" (pas d'avertissement "incompatible")
+7. **Aucune régression** : carrousel photo/mix + post photo continuent de fonctionner
 
 ## Hors scope
-- Cache des analyses photo (chaque call refait la vision)
-- Modification du prompt de génération finale (déjà OK : carousel-ai/creative-flow utilisent déjà les photos pour générer)
-- Vision pour newsletter (rare cas, pas demandé)
+- Multi-photos (>1) pour Reel/Stories/LinkedIn/Newsletter : la limite Zod de `creative-flow` est `max(1)`. Si besoin un jour, c'est une 2e étape (étendre Zod + adapter prompts).
+- Génération d'image IA pour ces formats (différent du upload).
+- Pinterest (déjà géré séparément).
 
