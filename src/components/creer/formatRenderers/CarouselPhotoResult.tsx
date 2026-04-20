@@ -523,7 +523,11 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
       })}
 
       {/* Alerte légende incomplète (Action 4) — masquée pendant le chargement de la légende LinkedIn */}
-      {!captionLoading && (!caption?.body || caption.body.length < 50) && (
+      {!captionLoading && (
+        channel === "instagram"
+          ? (!caption?.fullText || caption.fullText.length < 80)
+          : (!caption?.body || caption.body.length < 50)
+      ) && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 p-3 flex items-start gap-2">
           <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
           <div className="flex-1 space-y-1.5">
