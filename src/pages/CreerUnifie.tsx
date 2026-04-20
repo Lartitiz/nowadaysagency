@@ -274,6 +274,7 @@ export default function CreerUnifie() {
     loadingQuestions,
     questions,
     setQuestions,
+    generateStream,
   } = useContentGenerator();
 
   const { content: streamingContent, streaming, done: streamDone, invoke: streamInvoke, reset: streamReset, error: streamError } = useStreamingInvoke();
