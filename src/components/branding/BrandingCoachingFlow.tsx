@@ -845,9 +845,43 @@ export default function BrandingCoachingFlow({ section, personaId, onComplete, o
                 }
               }
 
+              // Normalize potential AI alias keys → real DB columns
+              const aliasMap: Record<string, string> = {
+                objections_courantes: "step_3a_objections",
+                objections: "step_3a_objections",
+                freins_achat: "step_3a_objections",
+                freins: "step_3a_objections",
+                croyances_limitantes: "step_3b_cliches",
+                croyances: "step_3b_cliches",
+                cliches: "step_3b_cliches",
+                declencheurs_achat: "step_5_actions",
+                declencheurs: "step_5_actions",
+                premieres_actions: "step_5_actions",
+                actions: "step_5_actions",
+                frustrations_profondes: "step_1_frustrations",
+                frustrations: "step_1_frustrations",
+                transformation_revee: "step_2_transformation",
+                transformation: "step_2_transformation",
+                objectif_principal: "step_2_transformation",
+                beau: "step_4_beautiful",
+                esthetique: "step_4_beautiful",
+                inspirant: "step_4_inspiring",
+                inspiration: "step_4_inspiring",
+                repoussant: "step_4_repulsive",
+                rebute: "step_4_repulsive",
+                ressenti: "step_4_feeling",
+                emotion: "step_4_feeling",
+              };
+              const normalized: Record<string, any> = { ...fillInsights };
+              for (const [alias, realKey] of Object.entries(aliasMap)) {
+                if (fillInsights[alias] && !normalized[realKey]) {
+                  normalized[realKey] = fillInsights[alias];
+                }
+              }
+
               const validFills: Record<string, string> = {};
               for (const f of missingFields) {
-                const val = fillInsights[f];
+                const val = normalized[f];
                 if (val && typeof val === "string" && val.trim().length > 0) {
                   validFills[f] = val.trim();
                 }
@@ -858,6 +892,9 @@ export default function BrandingCoachingFlow({ section, personaId, onComplete, o
                   .update({ ...validFills, updated_at: new Date().toISOString() })
                   .eq("id", currentPersona.id);
                 console.log(`[BrandingCoaching] Persona fill: ${Object.keys(validFills).length} missing fields filled`);
+              } else if (fillResponse) {
+                console.warn("[BrandingCoaching] Persona fill: AI responded but no exploitable keys. Received:",
+                  Object.keys(fillInsights), "Expected:", missingFields);
               }
             }
 
