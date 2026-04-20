@@ -196,6 +196,7 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
       // ─── Étape 0 : Extraire depuis la synthèse portrait (gratuit, instantané) ───
       const portrait = data?.portrait ? (typeof data.portrait === "string" ? (() => { try { return JSON.parse(data.portrait); } catch { return null; } })() : data.portrait) : null;
 
+      let portraitFillsCount = 0;
       if (portrait) {
         const extractedFromPortrait: Record<string, string> = {};
         if (portrait.frustrations?.length > 0) extractedFromPortrait.step_1_frustrations = portrait.frustrations.join("\n");
@@ -218,6 +219,7 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
             .update({ ...fillsFromPortrait, updated_at: new Date().toISOString() })
             .eq("id", recordId);
           for (const [key, val] of Object.entries(fillsFromPortrait)) onFieldUpdate?.(key, val, "");
+          portraitFillsCount = Object.keys(fillsFromPortrait).length;
         }
       }
 
