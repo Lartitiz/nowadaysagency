@@ -1141,3 +1141,4 @@ RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
     "score": 85
   }
 }`;
+}
