@@ -54,14 +54,14 @@ serve(async (req) => {
     const channelFromType = contentType?.includes("linkedin") ? "linkedin" : contentType?.includes("instagram") || contentType?.includes("carousel") || contentType?.includes("reel") || contentType?.includes("stories") ? "instagram" : undefined;
 
     const profileBlock = profile ? buildProfileBlock(profile) : "";
-    const ctx = await getUserContext(supabase, user.id, workspace_id, channelFromType);
+    const ctx = await getUserContext(supabase, userId, workspace_id, channelFromType);
     const brandingContext = formatContextForAI(ctx, CONTEXT_PRESETS.content);
 
     // Recent briefs context — fetched server-side as fallback if not provided.
     // Used by `questions` step to avoid repeating angles already covered.
     let recentBriefsContext = recentBriefsFromBody || "";
     if (!recentBriefsContext && (step === "questions" || step === "follow-up")) {
-      recentBriefsContext = await getRecentBriefsContext(supabase, user.id, workspace_id, 3);
+      recentBriefsContext = await getRecentBriefsContext(supabase, userId, workspace_id, 3);
     }
 
     // Extract vocabulary keywords from branding (offers names, target name, key expressions)
@@ -82,7 +82,7 @@ serve(async (req) => {
       : "";
 
     // Voice profile — already fetched by getUserContext() with correct workspace owner resolution.
-    // Do NOT re-fetch with user.id (that would use the coach's voice instead of the client's).
+    // Do NOT re-fetch with userId (that would use the coach's voice instead of the client's).
     let voiceBlock = "";
     if (ctx.voice) {
       const v = ctx.voice;
@@ -706,7 +706,7 @@ Réponds UNIQUEMENT en JSON :
     // ── Deep Research (web search via Anthropic) ──
     if (deepResearch && step === "generate") {
       // Check deep_research quota
-      const drQuota = await checkQuota(user.id, "deep_research");
+      const drQuota = await checkQuota(userId, "deep_research");
       if (!drQuota.allowed) {
         return new Response(
           JSON.stringify({ error: "limit_reached", message: drQuota.message, remaining: 0 }),
@@ -788,7 +788,7 @@ Privilégie les sources françaises et européennes quand elles existent.`,
       }
 
       // Log deep research usage
-      await logUsage(user.id, "deep_research", "web_search", undefined, "claude-sonnet-4-5-20250929", workspace_id);
+      await logUsage(userId, "deep_research", "web_search", undefined, "claude-sonnet-4-5-20250929", workspace_id);
     }
 
     // ── Streaming SSE (generate step only, no photo/deepResearch) ──
@@ -960,7 +960,7 @@ Réponds UNIQUEMENT en JSON :
             objectif: originalParsed.objectif || "",
           };
 
-          await logUsage(user.id, "content", "creative_flow", undefined, undefined, workspace_id);
+          await logUsage(userId, "content", "creative_flow", undefined, undefined, workspace_id);
           return new Response(JSON.stringify(merged), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
@@ -975,7 +975,7 @@ Réponds UNIQUEMENT en JSON :
           else fallbackParsed = { content: rawContent };
         }
 
-        await logUsage(user.id, "content", "creative_flow", undefined, undefined, workspace_id);
+        await logUsage(userId, "content", "creative_flow", undefined, undefined, workspace_id);
         return new Response(JSON.stringify(fallbackParsed), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -1066,14 +1066,14 @@ Réponds UNIQUEMENT en JSON :
             objectif: parsedContent?.objectif || "",
           };
 
-          await logUsage(user.id, "content", "creative_flow", undefined, undefined, workspace_id);
+          await logUsage(userId, "content", "creative_flow", undefined, undefined, workspace_id);
           return new Response(JSON.stringify(merged), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
 
         // Fallback: return original
-        await logUsage(user.id, "content", "creative_flow", undefined, undefined, workspace_id);
+        await logUsage(userId, "content", "creative_flow", undefined, undefined, workspace_id);
         return new Response(JSON.stringify(parsedContent || { content: rawContent }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -1090,7 +1090,7 @@ Réponds UNIQUEMENT en JSON :
       );
 
       return createClientSSEStream(anthropicStream, corsHeaders, async () => {
-        await logUsage(user.id, "content", "creative_flow", undefined, undefined, workspace_id);
+        await logUsage(userId, "content", "creative_flow", undefined, undefined, workspace_id);
       });
     }
 
@@ -1222,7 +1222,7 @@ Réponds UNIQUEMENT en JSON :
       }
     }
 
-    await logUsage(user.id, "content", "creative_flow", undefined, undefined, workspace_id);
+    await logUsage(userId, "content", "creative_flow", undefined, undefined, workspace_id);
     return new Response(JSON.stringify(parsed), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: any) {
     if (e instanceof ValidationError) {
