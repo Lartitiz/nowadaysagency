@@ -1,12 +1,14 @@
 import { Button } from "@/components/ui/button";
-import { Download, Loader2, Sparkles, FileDown, ChevronDown, ChevronLeft, ChevronRight, Copy, Maximize2 } from "lucide-react";
+import { Download, Loader2, Sparkles, FileDown, ChevronDown, ChevronLeft, ChevronRight, Copy, Maximize2, ImageIcon, FileText } from "lucide-react";
 import { useState, useCallback } from "react";
 import html2canvas from "html2canvas";
 import { exportCarouselVisualPptx } from "@/lib/export-carousel-visual-pptx";
+import { exportCarouselHybridPptx } from "@/lib/export-carousel-hybrid-pptx";
 import { SocialMockup } from "@/components/social-mockup/SocialMockup";
 import { ContentPreview } from "@/components/ContentPreview";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
+import { useBrandCharter } from "@/hooks/use-branding";
 
 interface Props {
   canal: string;
