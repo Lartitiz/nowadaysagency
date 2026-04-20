@@ -1,64 +1,79 @@
 
 
-## Diagnostic — Pourquoi "Passer les questions" ne fait rien
+## Plan — Légende LinkedIn dans CarouselPhotoResult
 
-**La vraie cause = build cassé.** L'app ne tourne pas réellement, donc **AUCUN** bouton ne répond, pas seulement "Passer les questions".
+### Périmètre — 5 fichiers
 
-L'erreur de build :
-```
-src/pages/CreerUnifie.tsx(2119,17): Property 'initialPhotos' does not exist on type 'IntrinsicAttributes & Props'.
-```
+1. `src/pages/CreerUnifie.tsx` — propager `channel`
+2. `src/components/creer/CreerStepResult.tsx` — accepter + propager `channel`
+3. `src/components/creer/formatRenderers/CarouselPhotoResult.tsx` — UI LinkedIn + alerte régénération + log
+4. `src/components/linkedin/LinkedInCaptionEditor.tsx` — **NEW** sous-composant partagé extrait de `LinkedInResult`
+5. `supabase/functions/carousel-ai/index.ts` — durcissement prompt mix LinkedIn
 
-J'ai vérifié `CreerStepFormat.tsx` : malgré ce qu'indiquait le résumé du tour précédent, **les modifs n'ont jamais été appliquées à ce fichier** :
-- Le type `Props` (ligne 37-44) ne contient PAS `initialPhotos` ni `initialPhotoDescription`
-- La destructuration ligne 46 ne les reçoit pas
-- Aucune trace de `hasUserChangedFormat` ou `initialPhotos` (grep = 0 match)
+---
 
-Donc `CreerUnifie.tsx` (ligne 2119) passe des props qui n'existent pas → erreur TS → app ne compile pas → preview vide ou figée → clics sans effet.
+### Action 1 — Propager `channel` jusqu'au renderer
+- `CreerUnifie.tsx` : passer `channel={selectedChannel}` (`"linkedin" | "instagram"`) à `<CreerStepResult>`
+- `CreerStepResult.tsx` : ajouter prop `channel`, la transmettre à `<CarouselPhotoResult>`
+- `CarouselPhotoResult.tsx` : ajouter prop `channel?: "linkedin" | "instagram"` (default `"instagram"` → comportement actuel inchangé)
 
-## Fix — 1 seul fichier
+### Action 2 — Refacto en sous-composant `LinkedInCaptionEditor` (Proposition C validée)
+**Nouveau fichier** `src/components/linkedin/LinkedInCaptionEditor.tsx` :
+- Props : `hook, body, cta, hashtags` + handlers `onChange*`
+- Affiche : 3 cards (Accroche / Corps / CTA) + zone hashtags
+- Compteurs caractères live (Proposition A) avec couleur :
+  - Accroche : sweet spot 100-210, rouge > 210, warning "LinkedIn tronque à ~210 car."
+  - Corps : sweet spot 300-1200, ambre > 2500, rouge > 3000
+  - CTA : info simple
+  - Hashtags : message "3-5 max sur LinkedIn", warning si > 5
+- Réutilise `CharacterCounter` de `src/components/linkedin/CharacterCounter.tsx`
+- Note : `LinkedInResult.tsx` reste tel quel pour V1 (pas de refacto rétroactif, hors scope)
 
-`src/components/creer/CreerStepFormat.tsx` : appliquer les changements oubliés du tour précédent.
+### Action 3 — Intégration dans `CarouselPhotoResult.tsx`
+Dans le bloc Card "Légende" (lignes 444-495) :
+- Si `channel === "linkedin"` → render `<LinkedInCaptionEditor {...captionFields} />`
+- Sinon → garder l'UI Instagram actuelle strictement identique
 
-**Étape 1 — Étendre `Props`**
+### Action 4 — Alerte "Légende incomplète" (V1 minimale validée)
+En haut du bloc Légende, si `caption.body.length < 50` OU `caption.body` vide :
+- Encart ambre : `⚠ La légende n'a pas été générée correctement.`
+- Bouton "Relancer la génération" qui réutilise le handler `onRetry` existant (pas de nouvelle Edge Function)
+
+### Action 5 — Log caption vide (Proposition D validée)
+Dans `CarouselPhotoResult.tsx`, `useEffect` au mount :
 ```ts
-interface Props {
-  idea: string;
-  objective?: string;
-  initialFormat?: string;
-  suggestedFormat?: string;
-  initialPhotos?: PhotoItem[];           // NEW
-  initialPhotoDescription?: string;       // NEW
-  onNext: (...);
-  onBack: () => void;
+if (!caption?.body || caption.body.length < 50) {
+  console.warn("[caption_missing]", { channel, slidesCount, hookOnly: !!caption?.hook });
 }
 ```
+Si `logUsage` accessible → ajouter flag `caption_missing: true`. Sinon juste console.warn (3 lignes).
 
-**Étape 2 — Destructurer + initialiser les states avec**
-```ts
-export default function CreerStepFormat({ idea, objective, initialFormat, suggestedFormat, initialPhotos, initialPhotoDescription, onNext, onBack }: Props) {
-  // ...
-  const [uploadedPhotos, setUploadedPhotos] = useState<PhotoItem[]>(initialPhotos ?? []);
-  const [photoDescription, setPhotoDescription] = useState(initialPhotoDescription ?? "");
-  const [postPhoto, setPostPhoto] = useState<PhotoItem[]>(initialPhotos ?? []);
-  const [postPhotoDescription, setPostPhotoDescription] = useState(initialPhotoDescription ?? "");
-  const hasUserChangedFormat = useRef(false);
-```
+### Action 6 — Durcissement prompt `carousel-ai` mix LinkedIn
+Dans `supabase/functions/carousel-ai/index.ts` (bloc prompt mix LinkedIn ~ligne 1568-1576) :
+- Ajouter exemple inline complet :
+  ```
+  EXEMPLE de caption COMPLÈTE (à adapter, JAMAIS laisser vide) :
+  {
+    "hook": "Ce chantier cache 3 appartements.",
+    "body": "Quand on a démarré la rénovation...[~400 car narratif sensoriel]",
+    "cta": "Tu rénoves bientôt ? Dis-moi où tu en es en commentaire.",
+    "hashtags": ["#renovation", "#architecture", "#chantier", "#bordeaux"]
+  }
+  ```
+- Pas de retry auto V1 (évite latence + coût)
 
-**Étape 3 — Pré-sélection auto au 1er format choisi quand photos pré-chargées**
-Dans `handleFormatSelect` : si c'est la 1re sélection ET `initialPhotos.length > 0` :
-- format `carousel` → `setCarouselSubMode("mix")`
-- format `post` → `setPhotoMode(true)`
-Marquer `hasUserChangedFormat.current = true` pour les sélections suivantes.
+---
 
-**Étape 4 — Préserver le reset existant** sur les choix manuels suivants (comportement actuel inchangé si `initialPhotos` est undefined ou que l'utilisateur·ice change de format).
-
-## Validation
+### Validation
 1. `tsc --noEmit --skipLibCheck` → 0 erreur
-2. Le bouton "Passer les questions" redevient cliquable (avec tous les autres) une fois le build vert
-3. Scénario "Partir de photos" → format → photos pré-remplies dans CreerStepFormat
-4. Scénario classique sans photos initiales → comportement strictement identique
+2. Carrousel LinkedIn mix : 3 blocs FR (Accroche/Corps/CTA) + compteurs + warning 210 + hashtags 3-5
+3. Carrousel Instagram mix : strictement identique à aujourd'hui
+4. Reproduction du bug : régénérer ce carrousel → body se remplit grâce à l'exemple inline
+5. Si body toujours vide après régénération → alerte ambre + bouton relancer visible
 
-## Hors scope
-- Tout le reste du flow (déjà fonctionnel sur le papier, juste bloqué par cette erreur de compilation)
+### Hors scope
+- Edge Function `caption-only` dédiée (V2)
+- Refacto `LinkedInResult.tsx` pour utiliser `LinkedInCaptionEditor`
+- Preview pixel-perfect du feed LinkedIn
+- Retry auto côté Edge Function
 
