@@ -383,7 +383,12 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
           }
         }
       }
-      toast.success("Fiche complétée par l'IA !");
+      const totalFilled = portraitFillsCount + aiFillsCount;
+      if (totalFilled > 0) {
+        toast.success(`${totalFilled} champ${totalFilled > 1 ? "s" : ""} complété${totalFilled > 1 ? "s" : ""} par l'IA ✨`);
+      } else {
+        toast.info("Pas assez de contexte pour compléter automatiquement — remplis manuellement quelques champs ou refais le coaching persona.");
+      }
     } catch (e) {
       console.error("[PersonaAutoFill] Error:", e);
       toast.error("Erreur lors de la complétion. Réessaie.");
