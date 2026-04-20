@@ -43,15 +43,8 @@ function getPlaceholder(activite?: string): string {
   return "Ex : je veux montrer un projet récent / je voudrais parler de pourquoi je fais ce métier / j'ai envie de réagir à une actu...";
 }
 
-const objectives = Object.entries(OBJECTIVE_RECOMMENDATIONS).map(([id, o]) => ({
-  id,
-  label: o.label,
-  emoji: o.emoji,
-}));
-
-export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingSelect, onPhotosNext, workspaceId, activite, initialIdea, initialObjective }: Props) {
+export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingSelect, onPhotosNext, workspaceId, activite, initialIdea }: Props) {
   const [idea, setIdea] = useState(initialIdea || "");
-  const [objective, setObjective] = useState<string | undefined>(initialObjective);
   const [coachOpen, setCoachOpen] = useState(false);
   const [showNewsjacking, setShowNewsjacking] = useState(false);
   const [showPhotosMode, setShowPhotosMode] = useState(false);
