@@ -168,6 +168,7 @@ interface Props {
   visualSlides?: { slide_number: number; html: string }[];
   onExportPptx?: () => void;
   onExportVisualPptx?: () => void;
+  onExportHybridPptx?: () => void;
   onSlidesUpdate?: (slides: any[], caption: any) => void;
   onStoriesUpdate?: (stories: any[]) => void;
   photos?: { preview: string; base64?: string; name?: string }[];
@@ -198,6 +199,7 @@ export default function CreerStepResult({
   visualSlides,
   onExportPptx,
   onExportVisualPptx,
+  onExportHybridPptx,
   onSlidesUpdate,
   onStoriesUpdate,
   photos,
@@ -442,19 +444,35 @@ export default function CreerStepResult({
           <Copy className="h-3.5 w-3.5" /> Copier
         </Button>
         {isCarousel && hasVisuals && onExportPptx && (
-          onExportVisualPptx ? (
+          (onExportVisualPptx || onExportHybridPptx) ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground">
                   <Download className="h-3.5 w-3.5" /> Exporter <ChevronDown className="h-3 w-3 ml-0.5" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={onExportVisualPptx}>
-                  Visuels (images fidèles)
-                </DropdownMenuItem>
+              <DropdownMenuContent align="end" className="w-64">
+                {onExportHybridPptx && (
+                  <DropdownMenuItem onClick={onExportHybridPptx}>
+                    <div className="flex flex-col">
+                      <span>PowerPoint — éditable ✨</span>
+                      <span className="text-[10px] text-muted-foreground">Modifier le texte dans PPT</span>
+                    </div>
+                  </DropdownMenuItem>
+                )}
+                {onExportVisualPptx && (
+                  <DropdownMenuItem onClick={onExportVisualPptx}>
+                    <div className="flex flex-col">
+                      <span>PowerPoint — image fidèle</span>
+                      <span className="text-[10px] text-muted-foreground">Identique au preview, non modifiable</span>
+                    </div>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onClick={onExportPptx}>
-                  Éditable (PowerPoint)
+                  <div className="flex flex-col">
+                    <span>PowerPoint — basique (fallback)</span>
+                    <span className="text-[10px] text-muted-foreground">Design générique éditable</span>
+                  </div>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
