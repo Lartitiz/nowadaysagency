@@ -50,7 +50,7 @@ serve(async (req) => {
     let { type, objective, face_cam, subject, time_available, is_launch, selected_hook, pre_gen_answers, image_urls, inspiration_context, workspace_id, editorial_angle, content_structure, launch_context } = body as any;
 
     // Fetch full context server-side
-    const ctx = await getUserContext(supabase, user.id, workspace_id, "instagram");
+    const ctx = await getUserContext(supabase, userId, workspace_id, "instagram");
     const brandingContext = formatContextForAI(ctx, CONTEXT_PRESETS.reels);
 
     // Fallback: inject branding as pre_gen_answers if none provided
@@ -119,7 +119,7 @@ serve(async (req) => {
       messages: userMsgs,
     });
 
-    await logUsage(user.id, "content", "reels");
+    await logUsage(userId, "content", "reels");
 
     return new Response(JSON.stringify({ content }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
