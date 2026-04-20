@@ -47,6 +47,16 @@ serve(async (req) => {
       photo_description: z.string().max(2000).optional().nullable(),
       photos: z.array(z.object({ base64: z.string(), mimeType: z.string().optional(), context: z.string().max(200).optional() })).max(1).optional(),
       recent_briefs_context: z.string().max(6000).optional().nullable(),
+      face_cam: z.string().max(50).optional().nullable(),
+      time_available: z.string().max(50).optional().nullable(),
+      is_launch: z.boolean().optional().nullable(),
+      selected_hook: z.any().optional().nullable(),
+      pre_gen_answers: z.any().optional().nullable(),
+      inspiration_context: z.string().max(5000).optional().nullable(),
+      editorial_angle: z.string().max(200).optional().nullable(),
+      content_structure: z.string().max(5000).optional().nullable(),
+      launch_context: z.any().optional().nullable(),
+      price_range: z.string().max(50).optional().nullable(),
     }).passthrough());
     const { step, contentType, context, profile, angle, answers, followUpAnswers, content: currentContent, adjustment, calendarContext, preGenAnswers, sourceText, formats, targetFormat, workspace_id, deepResearch, objective, editorialFormat, editorialFormatLabel, variation, previousContent, pinterest_link, pinterest_board, recent_briefs_context: recentBriefsFromBody } = body;
 
@@ -374,7 +384,18 @@ Réponds UNIQUEMENT en JSON :
       if (isCarousel) {
         depthMandate = carouselBrief();
       } else if (isReel) {
-        depthMandate = reelBrief(effectiveObjective);
+        depthMandate = reelBrief({
+          effectiveObjective,
+          face_cam: body.face_cam,
+          time_available: body.time_available,
+          is_launch: body.is_launch,
+          selected_hook: body.selected_hook,
+          pre_gen_answers: body.pre_gen_answers,
+          subject: context,
+          editorial_angle: body.editorial_angle,
+          content_structure: body.content_structure,
+          inspiration_context: body.inspiration_context,
+        });
       } else if (isStories) {
         // Garde-fou : 3 séquences vente sur 7 jours (migré depuis stories-ai)
         if (effectiveObjective === "vente") {
@@ -514,35 +535,7 @@ Tu DOIS proposer une version SIGNIFICATIVEMENT DIFFÉRENTE :
 Rédige le contenu en suivant les INSTRUCTIONS DE RÉDACTION FINALE ci-dessus.
 Le contenu doit être PRÊT À POSTER (pas un brouillon).
 
-${isReel ? `Réponds UNIQUEMENT en JSON valide :
-{
-  "format_type": "le sous-format choisi (face_cam_confession, voix_off_b_roll, hook_loop, talking_head, transition_reveal, etc.)",
-  "duree_cible": "durée cible (ex: 45 sec, 30 sec, 60 sec)",
-  "sections": [
-    {
-      "timing": "0-3s",
-      "label": "Hook",
-      "format_visuel": "description de ce qu'on voit à l'écran (cadrage, décor, geste)",
-      "texte_parle": "le texte exact dit à voix haute",
-      "texte_overlay": "le texte affiché à l'écran (court, percutant, 3-8 mots max)",
-      "cut": "type de transition (cut sec, zoom, swipe, etc.)",
-      "tip": "conseil de tournage pour cette section (optionnel)"
-    }
-  ],
-  "personal_tip": "un conseil personnalisé pour le tournage, lié à l'activité de l'utilisatrice",
-  "pillar": "le pilier de contenu",
-  "objectif": "visibilité | confiance | vente",
-  "accroche": "le hook des 3 premières secondes (pour le calendrier)"
-}
-
-IMPORTANT pour les sections :
-- Minimum 4 sections, maximum 7
-- Chaque section a un timing réaliste qui s'enchaîne
-- texte_parle : le script COMPLET dit à voix haute (phrases complètes, pas des bullet points)
-- texte_overlay : COURT (3-8 mots max), le texte affiché à l'écran
-- format_visuel : description concrète du plan caméra
-- cut : la transition entre cette section et la suivante
-- Le total du texte parlé = 150-300 mots` : isStories ? `` : `Réponds UNIQUEMENT en JSON :
+${isReel || isStories ? `` : `Réponds UNIQUEMENT en JSON :
 {
   "content": "...",
   "accroche": "...",
@@ -550,8 +543,8 @@ IMPORTANT pour les sections :
   "pillar": "...",
   "objectif": "..."
 }`}`;
-      // Inject launch context for stories (preserved from stories-ai)
-      if (isStories && body.launch_context) {
+      // Inject launch context for stories AND reels (preserved from stories-ai / reels-ai)
+      if ((isStories || isReel) && body.launch_context) {
         const lc = body.launch_context;
         systemPrompt += `\n\nCONTEXTE LANCEMENT :\n- Phase : ${lc.phase || "?"}\n- Chapitre : ${lc.chapter_label || "?"}\n- Phase mentale audience : ${lc.audience_phase || "?"}\n- Objectif du slot : ${lc.objective || "?"}\n- Angle suggéré : ${lc.angle_suggestion || "?"}\nCONSIGNE : adapte le contenu à cette phase du lancement. Un contenu de phase "vente" n'a pas le même ton qu'un contenu de phase "teasing".`;
       }
@@ -823,7 +816,7 @@ Privilégie les sources françaises et européennes quand elles existent.`,
 
     // ── Streaming SSE (generate step only, no photo/deepResearch) ──
     const wantsStream = req.headers.get("Accept") === "text/event-stream";
-    if (wantsStream && step === "generate" && !body.photo_mode && !deepResearch && !isStories) {
+    if (wantsStream && step === "generate" && !body.photo_mode && !deepResearch && !isStories && !isReel) {
       const apiKey = Deno.env.get("ANTHROPIC_API_KEY")!;
       const model = getModelForAction("content");
 

@@ -251,11 +251,11 @@ export function useContentGenerator() {
             };
           }
 
-          const res = await invokeWithTimeout("reels-ai", {
+          const res = await invokeWithTimeout("creative-flow", {
             body: {
-              type: "script",
-              subject: effectiveSubject,
-              subject_details: existingContent || undefined,
+              step: "generate",
+              contentType: "reel",
+              context: effectiveSubject + (existingContent ? `\n\n[Contenu existant à approfondir]\n${existingContent}` : ""),
               objective: objective || null,
               face_cam: faceCam || "oui",
               time_available: timeAvailable || "flexible",

@@ -60,7 +60,29 @@ Après les slides, ajoute :
 📝 CAPTION : [hook différent de slide 1 + corps + CTA + hashtags]`;
 }
 
-export function reelBrief(effectiveObjective: string | null): string {
+export interface ReelBriefParams {
+  effectiveObjective?: string | null;
+  face_cam?: string | null;
+  time_available?: string | null;
+  is_launch?: boolean | null;
+  selected_hook?: any;
+  pre_gen_answers?: { anecdote?: string; emotion?: string; conviction?: string } | null;
+  subject?: string | null;
+  editorial_angle?: string | null;
+  content_structure?: string | null;
+  inspiration_context?: string | null;
+}
+
+/**
+ * reelBrief — accepte SOIT une string (legacy: objectif seul), SOIT un objet ReelBriefParams complet.
+ * Quand des params reels-spécifiques sont fournis (subject, selected_hook, pre_gen_answers, etc.),
+ * impose le JSON de sortie complet (caption, hashtags, cover_text, alt_text, amplification_stories, checklist).
+ */
+export function reelBrief(arg: string | null | ReelBriefParams = null): string {
+  // Backward-compat: accept (effectiveObjective: string | null) signature
+  const params: ReelBriefParams =
+    arg && typeof arg === "object" ? arg : { effectiveObjective: arg as string | null };
+  const effectiveObjective = params.effectiveObjective ?? null;
   const base = `FORMAT : SCRIPT REEL (30-60 secondes)
 
 ══ AVANT D'ÉCRIRE : UN REEL = UNE SEULE IDÉE ══
@@ -205,8 +227,9 @@ INTERDITS :
 - Script qu'on ne peut pas dire à voix haute naturellement
 - One-liners enchaînés sans lien narratif`;
 
+  let calibrage = "";
   if (effectiveObjective === "visibilite") {
-    return base + `
+    calibrage = `
 
 ══ CALIBRAGE DURÉE — OBJECTIF VISIBILITÉ (REACH) ══
 
@@ -227,10 +250,8 @@ CONTRAINTES SPÉCIFIQUES :
 
 Privilégier la structure REEL FACE CAM ramassée OU REEL HOOK LOOP court.
 Éviter REEL VOIX OFF + B-ROLL (trop long pour ce format).`;
-  }
-
-  if (effectiveObjective === "engagement" || effectiveObjective === "vente" || effectiveObjective === "credibilite") {
-    return base + `
+  } else if (effectiveObjective === "engagement" || effectiveObjective === "vente" || effectiveObjective === "credibilite") {
+    calibrage = `
 
 ══ CALIBRAGE DURÉE — OBJECTIF ${effectiveObjective.toUpperCase()} (NURTURE) ══
 
@@ -252,7 +273,190 @@ CONTRAINTES SPÉCIFIQUES :
 Toutes les structures Reel sont possibles (FACE CAM, VOIX OFF + B-ROLL, HOOK LOOP).`;
   }
 
-  return base;
+  // ── Bloc personnel (pre_gen_answers) ──
+  const pg = params.pre_gen_answers;
+  const personalBlock = (pg && (pg.anecdote || pg.emotion || pg.conviction))
+    ? `
+
+═══════════════════════════════════════════════════
+ÉLÉMENTS PERSONNELS (PRIORITÉ HAUTE)
+═══════════════════════════════════════════════════
+
+${pg.anecdote ? `MOMENT PERSO : "${pg.anecdote}"
+→ Intègre dans les 3 premières secondes ou dans le développement. Utilise SES mots, pas une reformulation IA.` : ""}
+
+${pg.emotion ? `ÉNERGIE : ${pg.emotion}
+→ Guide le rythme, le ton, les coupes du script entier.` : ""}
+
+${pg.conviction ? `PUNCHLINE : "${pg.conviction}"
+→ Cette phrase doit apparaître quasi textuellement dans le script, au moment du twist ou de la conclusion.` : ""}
+
+RÈGLE : ces éléments sont plus importants que le template. Le script doit sonner comme l'utilisatrice, pas comme un framework.`
+    : `
+
+L'utilisatrice n'a pas fourni d'éléments personnels.
+Génère le script normalement mais REMPLIS le champ "personal_tip" du JSON :
+"Ce script sera 10x plus fort avec ton anecdote perso. Ajoute un truc vécu avant de filmer."`;
+
+  // ── Hook choisi (fallback auto si absent) ──
+  const selectedHook = params.selected_hook || {
+    type: "auto",
+    type_label: "Auto-généré",
+    text: "(génère un hook percutant de 5-12 mots adapté au sujet)",
+    text_overlay: "(génère un text overlay de 3-6 mots en MAJUSCULES)",
+    format_label: "Auto",
+    format_recommande: "auto",
+    duree_cible: "30-45 sec",
+  };
+  const hookBlock = `
+
+HOOK CHOISI :
+- Type : ${selectedHook.type} (${selectedHook.type_label})
+- Texte : "${selectedHook.text}"
+- Texte overlay : "${selectedHook.text_overlay}"
+- Format recommandé : ${selectedHook.format_label}
+- Durée cible : ${selectedHook.duree_cible}`;
+
+  // ── Ancrage sujet ──
+  const subject = params.subject || "";
+  const subjectBlock = `
+
+ANCRAGE SUJET — RÈGLE CRITIQUE :
+Le script ENTIER doit rester ancré dans le sujet "${subject || '(basé sur le hook)'}".
+Ne PAS élargir au sujet général.`;
+
+  // ── Inspiration ──
+  const inspirationBlock = params.inspiration_context
+    ? `
+
+INSPIRATION ANALYSÉE :
+${params.inspiration_context}
+INSPIRE-TOI du style identifié. NE COPIE PAS le contenu.`
+    : "";
+
+  // ── Angle éditorial imposé ──
+  const angleBlock = (params.editorial_angle && params.content_structure)
+    ? `
+
+ANGLE ÉDITORIAL IMPOSÉ : ${params.editorial_angle}
+
+STRUCTURE À SUIVRE (obligatoire) :
+${params.content_structure}
+
+Chaque section du script DOIT correspondre aux étapes de cette structure. Adapte les timings pour que le script respecte ce déroulé.`
+    : "";
+
+  // ── Métadonnées contextuelles ──
+  const metaBlock = `
+
+CONTEXTE GÉNÉRATION :
+- Objectif : ${effectiveObjective || "non précisé"}
+- Face cam : ${params.face_cam || "flexible"}
+- Temps tournage : ${params.time_available || "flexible"}
+- En lancement : ${params.is_launch ? "oui" : "non"}`;
+
+  // ── JSON de sortie complet (parité avec reels-ai) ──
+  const jsonBlock = `
+
+Génère un script complet structuré avec timing seconde par seconde.
+Chaque section body DOIT inclure une indication de CUT (changement de plan).
+
+Retourne UNIQUEMENT ce JSON valide, sans texte avant ou après, sans backticks :
+{
+  "format_type": "face_cam_confession",
+  "format_label": "Face cam confession",
+  "duree_cible": "45 sec",
+  "duree_justification": "Le storytelling a besoin de contexte + tension + leçon",
+  "objectif": "${effectiveObjective || "non précisé"}",
+  "editorial_angle_used": "${params.editorial_angle || "auto"}",
+  "personal_tip": null,
+  "accroche": "le hook des 3 premières secondes (pour le calendrier)",
+  "pillar": "le pilier de contenu",
+  "script": [
+    {
+      "section": "hook",
+      "timing": "0-3 sec",
+      "format_visuel": "Face cam, regarde la caméra, ton direct",
+      "texte_parle": "${selectedHook.text}",
+      "texte_overlay": "${selectedHook.text_overlay}",
+      "cut": null,
+      "tip": "1,7 sec pour décider de rester ou scroller."
+    },
+    {
+      "section": "body",
+      "timing": "3-15 sec",
+      "format_visuel": "Face cam + plans de coupe",
+      "texte_parle": "...",
+      "texte_overlay": null,
+      "cut": "capture ecran ou plan de coupe",
+      "tip": null
+    },
+    {
+      "section": "body",
+      "timing": "15-35 sec",
+      "format_visuel": "...",
+      "texte_parle": "...",
+      "texte_overlay": "3-5 MOTS MAX",
+      "cut": "changement de plan",
+      "tip": null
+    },
+    {
+      "section": "cta",
+      "timing": "35-45 sec",
+      "format_visuel": "Retour face cam",
+      "texte_parle": "...",
+      "texte_overlay": "SAUVEGARDE",
+      "cut": null,
+      "tip": null
+    }
+  ],
+  "sections": "DUPLIQUE ICI le contenu du tableau script (mêmes objets, même ordre) pour compat UI ReelResult",
+  "caption": {
+    "text": "...",
+    "cta": "..."
+  },
+  "hashtags": ["#...", "#...", "#...", "#...", "#..."],
+  "cover_text": "...",
+  "alt_text": "...",
+  "amplification_stories": [
+    {
+      "text": "Nouveau Reel ! ...",
+      "sticker_type": "sondage",
+      "sticker_options": ["Oui", "Faut que je m'y mette"]
+    },
+    {
+      "text": "...",
+      "sticker_type": "question_ouverte",
+      "sticker_options": null
+    }
+  ],
+  "checklist": [
+    { "item": "Hook dans les 1,5 premières secondes", "auto": true },
+    { "item": "Format vertical 9:16", "auto": false },
+    { "item": "Sous-titres ajoutés", "auto": false },
+    { "item": "Qualité vidéo (lumière, stabilité, son)", "auto": false },
+    { "item": "Pas de watermark", "auto": false },
+    { "item": "Pattern interrupts (cuts toutes les 3-5 sec)", "auto": true },
+    { "item": "CTA clair", "auto": true },
+    { "item": "Caption avec hook + mots-clés + CTA", "auto": true },
+    { "item": "Cover custom lisible", "auto": false },
+    { "item": "Alt text ajouté", "auto": false },
+    { "item": "Repartagé en story dans l'heure", "auto": false }
+  ],
+  "garde_fou_alerte": null
+}
+
+IMPORTANT :
+- Le tableau "script" doit avoir entre 3 et 6 sections (hook + body segments + cta)
+- DUPLIQUE le contenu de "script" dans un champ "sections" (même structure) pour compat UI
+- Chaque section body a une indication de cut
+- Le texte overlay est COURT (3-5 mots), en MAJUSCULES
+- La caption ne répète PAS le script, elle offre un angle complémentaire
+- Les hashtags : 3-5 max, mix large + niche
+- Les amplification_stories : 2 stories à poster dans l'heure
+- Pas de markdown dans les valeurs JSON`;
+
+  return base + calibrage + metaBlock + inspirationBlock + hookBlock + subjectBlock + angleBlock + personalBlock + jsonBlock;
 }
 
 export interface StoriesBriefParams {
