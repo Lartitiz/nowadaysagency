@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -74,6 +74,7 @@ export default function BrandingAuditPage() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
+  const profileUserId = useProfileUserId();
   const navigate = useNavigate();
   const location = useLocation();
   const { diagnosticData: diagCache, isRecent: diagIsRecent } = useDiagnosticCache();
@@ -111,7 +112,7 @@ export default function BrandingAuditPage() {
       const { data: profile } = await supabase
         .from("profiles")
         .select("website_url, instagram_url, linkedin_url")
-        .eq("id", user.id)
+        .eq("user_id", profileUserId)
         .maybeSingle();
       if (profile?.website_url) setSiteUrl(profile.website_url);
       if (profile?.instagram_url) {
