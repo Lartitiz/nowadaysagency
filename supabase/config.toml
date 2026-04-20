@@ -171,6 +171,9 @@ verify_jwt = false
 [functions.newsjacking-ai]
 verify_jwt = false
 
+[functions.newsjacking-angles]
+verify_jwt = false
+
 [functions.suggest-format]
 verify_jwt = false
 

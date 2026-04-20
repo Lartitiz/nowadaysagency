@@ -69,8 +69,21 @@ serve(async (req) => {
     // Extract activity keywords for targeted niche search
     const activityRaw = ctx?.profile?.activite || ctx?.profile?.type_activite || "";
     const pillarsRaw = Array.isArray(ctx?.profile?.piliers) ? ctx.profile.piliers.join(", ") : "";
-    const nicheKeywords = [activityRaw, pillarsRaw].filter(Boolean).join(" — ");
+    const cibleRaw = ctx?.profile?.cible || "";
+    const combatCause = ctx?.brand_profile?.combat_cause || "";
     const nicheLabel = activityRaw || "son secteur";
+
+    // Date context for "récent"
+    const now = new Date();
+    const months = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+    const monthLabel = `${months[now.getMonth()]} ${now.getFullYear()}`;
+
+    // Build 3 distinct niche queries
+    const nicheQueries = [
+      activityRaw ? `${activityRaw} actualité ${monthLabel}` : "",
+      cibleRaw ? `${cibleRaw} préoccupations ${now.getFullYear()}` : (pillarsRaw ? `${pillarsRaw} actualité` : ""),
+      combatCause ? `${combatCause} débat actualité ${now.getFullYear()}` : (activityRaw ? `${activityRaw} tendance secteur` : ""),
+    ].filter(Boolean);
 
     // Claude call with web search
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
@@ -83,110 +96,84 @@ serve(async (req) => {
 
     const model = getModelForAction("content");
 
-    // Randomize search terms to force variety
-    const searchVariants = [
-      { global: "actualité insolite France cette semaine", niche: "nouveauté surprenante" },
-      { global: "buzz viral réseaux sociaux France 2026", niche: "polémique débat" },
-      { global: "fait divers drôle insolite France", niche: "tendance inattendue" },
-      { global: "actualité décalée société France", niche: "innovation surprenante" },
-      { global: "phénomène viral TikTok Instagram cette semaine", niche: "actu contre-intuitive" },
-      { global: "tendance culturelle pop culture France 2026", niche: "étude chiffre marquant" },
+    // 6 thematic axes — orthogonal, not overlapping
+    const AXES = [
+      { id: "societe_debat", query: "débat société France actualité semaine" },
+      { id: "economie_argent", query: "économie pouvoir d'achat France actualité semaine" },
+      { id: "culture_pop", query: "sortie culturelle film série livre musique France actualité" },
+      { id: "science_decouverte", query: "étude scientifique découverte recherche France actualité" },
+      { id: "politique_loi", query: "nouvelle loi réforme décision France actualité" },
+      { id: "viral_insolite", query: "phénomène viral insolite fait divers France actualité" },
     ];
-    const variant = searchVariants[Math.floor(Math.random() * searchVariants.length)];
 
-    const moods = ["drôles et insolites", "surprenantes et contre-intuitives", "virales et pop culture", "décalées et débattables"];
-    const mood = moods[Math.floor(Math.random() * moods.length)];
+    // Pick 3 distinct axes for the 3 global news items
+    const shuffled = [...AXES].sort(() => Math.random() - 0.5);
+    const pickedAxes = shuffled.slice(0, 3);
 
     const systemPrompt = `Tu es une assistante de veille stratégique pour créateur·ices de contenu.
 
 PROFIL DE L'UTILISATEUR·ICE :
 ${brandingContext}
 
-TU DOIS EFFECTUER 2 RECHERCHES WEB SÉPARÉES (dans cet ordre) :
+══════════════════════════════════════════════
+TU DOIS EFFECTUER PLUSIEURS RECHERCHES WEB SÉPARÉES
+══════════════════════════════════════════════
 
-RECHERCHE 1 — ACTU GLOBALE (obligatoire) :
-Cherche "${variant.global}" ET varie tes requêtes. Essaie aussi d'autres formulations proches.
-Tu cherches ce dont TOUT LE MONDE parle en ce moment : politique, société, culture, économie, technologie grand public, phénomène viral, nouvelle loi, événement médiatique.
-Exemples d'actus globales : une réforme gouvernementale, un scandale médiatique, une tendance TikTok virale, les résultats d'une élection, un événement culturel majeur, une polémique publique, un fait divers marquant, une avancée scientifique grand public.
-⚠️ Une actu est GLOBALE si quelqu'un qui n'est PAS dans le secteur de cette personne en a entendu parler.
+▶ RECHERCHES GLOBALES — 3 univers thématiques DIFFÉRENTS (obligatoire) :
+Tu dois trouver 3 actus globales, chacune dans un AXE THÉMATIQUE DISTINCT parmi ces 3 axes imposés ci-dessous (1 actu par axe, jamais 2 du même axe).
 
-IMPORTANT — VARIÉTÉ OBLIGATOIRE : ne retourne PAS uniquement des actus "sérieuses" (politique, économie).
-Au moins 1 actu sur les 2 globales doit être dans une de ces catégories :
-- INSOLITE / DRÔLE : un fait divers absurde, un record bizarre, une situation cocasse
-- VIRAL / POP CULTURE : un meme, un challenge, une réaction en chaîne sur les réseaux
-- DÉCALÉ : une étude surprenante, un chiffre contre-intuitif, un phénomène de société inattendu
-Ces actus sont souvent les MEILLEURES pour du newsjacking car elles sont plus partageables et moins "corporate".
+${pickedAxes.map((a, i) => `  ${i + 1}. axe="${a.id}" → cherche : "${a.query}"`).join("\n")}
 
-RECHERCHE 2 — ACTU NICHE (MOTS-CLÉS MÉTIER OBLIGATOIRES) :
-Le secteur de cette personne : "${nicheLabel}".
-Thématiques clés : ${nicheKeywords || "voir profil ci-dessus"}.
-Tes recherches web DOIVENT inclure ces mots-clés métier dans tes requêtes de recherche.
-Exemples de requêtes à faire : "${activityRaw} actualité 2026", "${activityRaw} tendance", "${activityRaw} ${variant.niche}".
-Ne cherche PAS des actus génériques "business" ou "entrepreneuriat" — cherche des actus SPÉCIFIQUES à "${nicheLabel}".
-Si le métier est "marchande de biens" → cherche "immobilier marchand de biens", "rénovation achat revente", "marché immobilier".
-Si le métier est "coach" → cherche "coaching développement personnel", "bien-être tendance", etc.
+Règle : une actu est GLOBALE si quelqu'un qui n'est PAS dans le secteur de cette personne en a entendu parler. Pas besoin de lien direct avec son métier — l'angle viendra ensuite.
 
-FILTRE DE PERTINENCE — ACTUS GLOBALES :
-Pour les actus globales, le critère est : "peut-on créer un PONT entre cette actu et le secteur de ${nicheLabel} ?"
-✅ GARDER si : on peut faire un parallèle, une métaphore, un "ça m'a fait penser à mon métier", un constat transposable vers "${nicheLabel}"
-✅ GARDER si : l'actu touche un sujet universel (argent, confiance, peur, liberté, travail, ambition) que l'audience de "${nicheLabel}" peut s'approprier
-❌ REJETER si : même avec un angle créatif, impossible de relier à l'expertise ou au vécu professionnel de "${nicheLabel}"
-L'actu globale N'A PAS BESOIN de parler du secteur. Elle doit juste être "pontable".
+▶ RECHERCHES NICHE — métier de "${nicheLabel}" (obligatoire) :
+Tu dois trouver 3 actus niche en faisant CES 3 recherches DIFFÉRENTES (pas une seule, les 3) :
+${nicheQueries.map((q, i) => `  ${i + 1}. "${q}"`).join("\n")}
 
-FILTRE DE PERTINENCE — ACTUS NICHE :
-Pour les actus niche, le critère est strict :
-1. L'actu parle directement du secteur, du marché ou des clients de "${nicheLabel}"
-2. L'expertise de cette personne apporte un éclairage unique
-⚠️ "réseaux sociaux" ou "marketing digital" N'EST PAS une actu niche sauf si le métier EST le marketing digital.
-Pour "${nicheLabel}", une actu niche pertinente parle de SON secteur, SES clients, SON marché.
+Une actu niche pertinente parle directement du SECTEUR, du MARCHÉ ou des CLIENTS de "${nicheLabel}".
 
-ANGLES PROPOSÉS — RÈGLES :
-Chaque angle DOIT utiliser un de ces 5 véhicules :
-1. RÉCIT D'EXPÉRIENCE (recit_experience) : "Quand j'ai vu cette actu, ça m'a rappelé…"
-2. DÉCLENCHEUR EXTERNE (declencheur_externe) : "Cette actu m'a fait réaliser un truc sur mon métier…"
-3. CONSTAT DÉCALÉ (constat_decale) : "Ce que cette actu révèle sur [secteur], c'est que…"
-4. MONTRER PLUTÔT QU'EXPLIQUER (montrer_plutot_quexpliquer) : avant/après, process visible, transformation
-5. PARALLÈLE ABSURDE (parallele_absurde) : "Cette actu n'a rien à voir avec mon métier… et pourtant ça illustre exactement…"
-L'actu est le DÉCLENCHEUR, pas le sujet. JAMAIS "voici ce qui se passe + mon avis". TOUJOURS relier à l'expertise et au vécu.
-Les angles doivent être SPÉCIFIQUES au branding de cette personne.
-JAMAIS de format "X conseils" ou "X erreurs".
+══════════════════════════════════════════════
+RÈGLES DE QUALITÉ — TRÈS IMPORTANT
+══════════════════════════════════════════════
 
-RÈGLE SPÉCIALE — ANGLES DES ACTUS GLOBALES :
-Pour les actus GLOBALES, l'angle doit TOUJOURS construire un pont :
-- Le hook part de l'actu (ce que tout le monde a vu/entendu)
-- Le pivot ramène à l'expertise métier de "${nicheLabel}" (ce que seul·e cette personne peut dire)
-- Les véhicules idéaux sont "parallele_absurde" ou "declencheur_externe"
-- Exemple : actu sur une polémique politique → "Ce que ce scandale m'a appris sur la confiance dans l'immobilier…"
+🚫 INTERDIT (sauf si c'est littéralement le métier de la personne) :
+- Actus génériques sur "l'IA", "ChatGPT", "TikTok", "réseaux sociaux", "marketing digital", "outils de productivité"
+- Marronniers sans nouveauté ("comment bien commencer l'année", "tendances 2026" génériques)
+- Communiqués de presse d'entreprises tech mainstream (Meta, Google, OpenAI, Apple) sauf actu vraiment marquante
 
-FORMAT DE RÉPONSE — UNIQUEMENT en JSON (pas de markdown, pas de backticks) :
+✅ MIX DE TONS OBLIGATOIRE — tes 6 actus doivent inclure :
+- AU MOINS 1 actu de ton "drole_decale" (légère, cocasse, fait divers savoureux)
+- AU MOINS 1 actu de ton "serieux_marquant" (actu de fond, qui fait réfléchir)
+- AU MOINS 1 actu de ton "surprenant_contre_intuitif" (chiffre ou révélation qui détonne)
+
+Les axes ET les tons sont INDÉPENDANTS. Tu peux avoir "science_decouverte" + ton "drole_decale" (étude scientifique surprenante et drôle), ou "politique_loi" + ton "surprenant_contre_intuitif". Croise-les librement.
+
+══════════════════════════════════════════════
+FORMAT DE RÉPONSE — JSON STRICT (pas de markdown, pas de backticks)
+══════════════════════════════════════════════
+
 {
   "actus": [
     {
       "titre": "Titre court de l'actu (max 80 caractères)",
-      "resume": "Résumé factuel en 2-3 phrases de ce qui se passe",
+      "resume": "Résumé factuel en 2 phrases courtes de ce qui se passe",
       "source": "Nom du média ou de la source",
-      "type": "globale" ou "niche",
-      "pertinence": "En 1 phrase, pourquoi c'est pertinent pour CETTE personne",
-      "angles": [
-        {
-          "vehicule": "recit_experience" | "declencheur_externe" | "constat_decale" | "montrer_plutot_quexpliquer" | "parallele_absurde",
-          "hook": "La première phrase du contenu (max 20 mots, percutante)",
-          "description": "En 2-3 phrases, comment relier l'actu à l'expertise de la personne",
-          "format_suggere": "post" | "carousel" | "reel" | "story" | "linkedin"
-        }
-      ]
+      "type": "globale" | "niche",
+      "axe": "societe_debat" | "economie_argent" | "culture_pop" | "science_decouverte" | "politique_loi" | "viral_insolite",
+      "ton": "serieux_marquant" | "drole_decale" | "surprenant_contre_intuitif",
+      "pertinence": "En 1 phrase, pourquoi cette actu peut inspirer du contenu pour ${nicheLabel}"
     }
   ]
 }
 
-RÉPARTITION STRICTE : Retourne exactement 4 actus :
-- Les 2 PREMIÈRES doivent avoir "type": "globale" (issues de ta recherche 1)
-- Les 2 SUIVANTES doivent avoir "type": "niche" (issues de ta recherche 2)
-Si tu ne trouves qu'1 actu globale pertinente, retourne 1 globale + 3 niches (minimum 1 globale).
-⚠️ Si toutes tes actus sont niche, tu as ÉCHOUÉ. Recommence ta recherche globale.
+RÉPARTITION STRICTE — exactement 6 actus :
+- 3 actus avec "type": "globale", chacune sur un des 3 axes imposés ci-dessus (1 par axe, JAMAIS 2 du même axe)
+- 3 actus avec "type": "niche" issues des 3 recherches métier ci-dessus
 
-Si aucune actu pertinente n'est trouvée, retourne :
-{ "actus": [], "message": "Pas d'actu suffisamment pertinente trouvée pour ton secteur cette semaine. Réessaie dans quelques jours !" }`;
+Si vraiment aucune actu pertinente n'existe sur un axe, remplace-la par un autre axe non utilisé. Mais ne renvoie JAMAIS 2 actus du même axe.
+
+Si vraiment rien ne fonctionne, retourne :
+{ "actus": [], "message": "Pas d'actu suffisamment pertinente trouvée cette semaine. Réessaie dans quelques jours !" }`;
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 120000);
@@ -200,9 +187,9 @@ Si aucune actu pertinente n'est trouvée, retourne :
       },
       body: JSON.stringify({
         model,
-        max_tokens: 4096,
-        tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5 }],
-        messages: [{ role: "user", content: systemPrompt + `\n\nTrouve les actualités les plus pertinentes pour moi en ce moment. Privilégie les actus ${mood} quand c'est possible.` }],
+        max_tokens: 2048,
+        tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 8 }],
+        messages: [{ role: "user", content: systemPrompt + `\n\nFais les recherches maintenant et renvoie 6 actus variées (axes + tons mélangés).` }],
       }),
       signal: controller.signal,
     });
@@ -238,7 +225,7 @@ Si aucune actu pertinente n'est trouvée, retourne :
       // Strategy 2: find the outermost JSON object containing "actus"
       const actusIndex = fullText.indexOf('"actus"');
       if (actusIndex !== -1) {
-        let braceStart = fullText.lastIndexOf("{", actusIndex);
+        const braceStart = fullText.lastIndexOf("{", actusIndex);
         if (braceStart !== -1) {
           let depth = 0;
           let braceEnd = -1;

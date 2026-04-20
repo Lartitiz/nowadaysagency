@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, RefreshCw, Loader2 } from "lucide-react";
+import { ArrowLeft, RefreshCw, Loader2, Sparkles, EyeOff, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -17,8 +17,10 @@ interface Actu {
   resume: string;
   source: string;
   type: "globale" | "niche";
+  axe?: string;
+  ton?: string;
   pertinence: string;
-  angles: ActuAngle[];
+  // angles are now generated on demand
 }
 
 interface NewsjackingPanelProps {
@@ -32,6 +34,7 @@ const VEHICULE_CONFIG: Record<string, { emoji: string; label: string; className:
   declencheur_externe: { emoji: "🔗", label: "Déclencheur", className: "bg-primary/10 text-primary" },
   constat_decale: { emoji: "🔍", label: "Constat", className: "bg-secondary/40 text-secondary-foreground" },
   montrer_plutot_quexpliquer: { emoji: "👁", label: "Montrer", className: "bg-[hsl(var(--accent))]/30 text-[hsl(var(--accent-foreground))]" },
+  parallele_absurde: { emoji: "🎭", label: "Parallèle", className: "bg-primary/15 text-primary" },
 };
 
 const FORMAT_LABELS: Record<string, string> = {
@@ -42,21 +45,47 @@ const FORMAT_LABELS: Record<string, string> = {
   linkedin: "LinkedIn",
 };
 
+const AXE_CONFIG: Record<string, { emoji: string; label: string }> = {
+  societe_debat: { emoji: "🗣️", label: "Société" },
+  economie_argent: { emoji: "💶", label: "Économie" },
+  culture_pop: { emoji: "🎬", label: "Culture" },
+  science_decouverte: { emoji: "🔬", label: "Science" },
+  politique_loi: { emoji: "⚖️", label: "Politique" },
+  viral_insolite: { emoji: "🌀", label: "Viral" },
+};
+
+const TON_CONFIG: Record<string, { emoji: string; label: string; className: string }> = {
+  serieux_marquant: { emoji: "💭", label: "Marquant", className: "bg-secondary/40 text-secondary-foreground" },
+  drole_decale: { emoji: "😏", label: "Drôle", className: "bg-[hsl(var(--accent))]/30 text-[hsl(var(--accent-foreground))]" },
+  surprenant_contre_intuitif: { emoji: "⚡", label: "Surprenant", className: "bg-primary/10 text-primary" },
+};
+
+interface AnglesState {
+  loading: boolean;
+  data?: ActuAngle[];
+  error?: string;
+}
+
 export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: NewsjackingPanelProps) {
   const [loading, setLoading] = useState(false);
   const [actus, setActus] = useState<Actu[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [selectedActu, setSelectedActu] = useState<number | null>(null);
+  const [expandedActu, setExpandedActu] = useState<number | null>(null);
   const [isQuotaError, setIsQuotaError] = useState(false);
   const [filter, setFilter] = useState<"all" | "globale" | "niche">("all");
+  const [hidden, setHidden] = useState<Set<number>>(new Set());
+  // angles cache, keyed by actu index
+  const [anglesByIdx, setAnglesByIdx] = useState<Record<number, AnglesState>>({});
 
   const fetchActus = useCallback(async () => {
     setLoading(true);
     setError(null);
     setActus(null);
-    setSelectedActu(null);
+    setExpandedActu(null);
     setIsQuotaError(false);
     setFilter("all");
+    setHidden(new Set());
+    setAnglesByIdx({});
 
     try {
       const { data, error: fnError } = await invokeWithTimeout("newsjacking-ai", {
@@ -104,6 +133,62 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
     fetchActus();
   }, [fetchActus]);
 
+  const fetchAngles = useCallback(async (idx: number, actu: Actu) => {
+    // Don't refetch if already loaded
+    if (anglesByIdx[idx]?.data) return;
+
+    setAnglesByIdx((prev) => ({ ...prev, [idx]: { loading: true } }));
+
+    try {
+      const { data, error: fnError } = await invokeWithTimeout("newsjacking-angles", {
+        body: { actu, workspace_id: workspaceId || undefined },
+      }, 50000);
+
+      if (fnError) {
+        const msg = fnError.message || "";
+        const errMsg = fnError.isRateLimit || msg.includes("limit_reached")
+          ? "Tu as atteint ta limite de générations."
+          : "Génération échouée, réessaie.";
+        setAnglesByIdx((prev) => ({ ...prev, [idx]: { loading: false, error: errMsg } }));
+        return;
+      }
+
+      if (data?.error) {
+        setAnglesByIdx((prev) => ({ ...prev, [idx]: { loading: false, error: data.message || data.error } }));
+        return;
+      }
+
+      if (!data?.angles || !Array.isArray(data.angles)) {
+        setAnglesByIdx((prev) => ({ ...prev, [idx]: { loading: false, error: "Format inattendu, réessaie." } }));
+        return;
+      }
+
+      setAnglesByIdx((prev) => ({ ...prev, [idx]: { loading: false, data: data.angles } }));
+    } catch {
+      setAnglesByIdx((prev) => ({ ...prev, [idx]: { loading: false, error: "Génération échouée, réessaie." } }));
+    }
+  }, [anglesByIdx, workspaceId]);
+
+  const handleToggleActu = (idx: number, actu: Actu) => {
+    if (expandedActu === idx) {
+      setExpandedActu(null);
+      return;
+    }
+    setExpandedActu(idx);
+    // Lazy-fetch angles when expanding
+    fetchAngles(idx, actu);
+  };
+
+  const handleHide = (idx: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setHidden((prev) => {
+      const next = new Set(prev);
+      next.add(idx);
+      return next;
+    });
+    if (expandedActu === idx) setExpandedActu(null);
+  };
+
   const handleSelectAngle = (actu: Actu, angle: ActuAngle) => {
     const context = `ACTUALITÉ : ${actu.titre}\nSource : ${actu.source}\nRésumé : ${actu.resume}\nPertinence : ${actu.pertinence}\n\nANGLE CHOISI :\nVéhicule : ${angle.vehicule}\nHook : ${angle.hook}\nDéveloppement : ${angle.description}\nFormat suggéré : ${angle.format_suggere}`;
     onSelect({
@@ -113,6 +198,13 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
       vehicule: angle.vehicule,
     });
   };
+
+  const visibleActus = actus
+    ? actus
+        .map((a, i) => ({ actu: a, idx: i }))
+        .filter(({ idx }) => !hidden.has(idx))
+        .filter(({ actu }) => filter === "all" ? true : actu.type === filter)
+    : [];
 
   return (
     <div className="space-y-4">
@@ -127,6 +219,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
           </Button>
         )}
       </div>
+
       {/* Filter tabs */}
       {actus && actus.length > 0 && !loading && (
         <div className="flex gap-2">
@@ -135,7 +228,8 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
             { id: "globale", label: "Globale", emoji: "🌍" },
             { id: "niche", label: "Ma niche", emoji: "🎯" },
           ] as const).map((tab) => {
-            const count = tab.id === "all" ? actus.length : actus.filter(a => a.type === tab.id).length;
+            const visibleSet = actus.filter((_, i) => !hidden.has(i));
+            const count = tab.id === "all" ? visibleSet.length : visibleSet.filter(a => a.type === tab.id).length;
             return (
               <button
                 key={tab.id}
@@ -185,107 +279,179 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
       )}
 
       {/* Results */}
-      {!loading && actus && actus.length > 0 && (() => {
-        const filteredActus = actus.filter(a => filter === "all" ? true : a.type === filter);
-        if (filteredActus.length === 0) {
-          return (
+      {!loading && actus && actus.length > 0 && (
+        <>
+          {visibleActus.length === 0 ? (
             <div className="text-center py-8 space-y-2">
-              <p className="text-sm text-muted-foreground">Aucune actu {filter === "globale" ? "globale" : "de ta niche"} trouvée cette fois.</p>
-              <Button variant="ghost" size="sm" onClick={() => setFilter("all")}>
-                Voir toutes les actus
+              <p className="text-sm text-muted-foreground">
+                {hidden.size === actus.length
+                  ? "Tu as masqué toutes les actus."
+                  : `Aucune actu ${filter === "globale" ? "globale" : "de ta niche"} à afficher.`}
+              </p>
+              <Button variant="ghost" size="sm" onClick={() => { setFilter("all"); setHidden(new Set()); }}>
+                Tout réafficher
               </Button>
             </div>
-          );
-        }
-        return (
-          <div className="space-y-3">
-            <p className="text-xs text-muted-foreground">{filteredActus.length} actu{filteredActus.length > 1 ? "s" : ""} pertinente{filteredActus.length > 1 ? "s" : ""} trouvée{filteredActus.length > 1 ? "s" : ""}</p>
-            <AnimatePresence>
-              {filteredActus.map((actu, i) => {
-                const isExpanded = selectedActu === i;
-                return (
-                  <motion.div
-                    key={`${filter}-${i}`}
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.08 }}
-                    className={cn(
-                      "rounded-[20px] border bg-card p-4 cursor-pointer transition-shadow",
-                      isExpanded ? "shadow-md ring-1 ring-primary/20" : "hover:shadow-sm"
-                    )}
-                    onClick={() => setSelectedActu(isExpanded ? null : i)}
-                  >
-                    <div className="flex items-start gap-3">
-                      <span className="text-lg mt-0.5">{actu.type === "globale" ? "📰" : "🎯"}</span>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-medium text-sm leading-snug">{actu.titre}</h4>
-                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{actu.resume}</p>
-                        <div className="flex items-center gap-2 mt-2">
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{actu.source}</span>
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">{actu.type === "globale" ? "Actu globale" : "Actu niche"}</span>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                {visibleActus.length} actu{visibleActus.length > 1 ? "s" : ""} • clique sur "Voir les angles" pour générer 3 idées
+              </p>
+              <AnimatePresence>
+                {visibleActus.map(({ actu, idx }, displayI) => {
+                  const isExpanded = expandedActu === idx;
+                  const anglesState = anglesByIdx[idx];
+                  const axe = actu.axe ? AXE_CONFIG[actu.axe] : null;
+                  const ton = actu.ton ? TON_CONFIG[actu.ton] : null;
+                  return (
+                    <motion.div
+                      key={`${filter}-${idx}`}
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: Math.min(displayI * 0.06, 0.3) }}
+                      className={cn(
+                        "rounded-[20px] border bg-card p-4 transition-shadow",
+                        isExpanded ? "shadow-md ring-1 ring-primary/20" : "hover:shadow-sm"
+                      )}
+                    >
+                      {/* Card header */}
+                      <div className="flex items-start gap-3">
+                        <span className="text-lg mt-0.5 shrink-0">{actu.type === "globale" ? "📰" : "🎯"}</span>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-sm leading-snug">{actu.titre}</h4>
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{actu.resume}</p>
+                          <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                              {actu.type === "globale" ? "Globale" : "Niche"}
+                            </span>
+                            {axe && (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-secondary/40 text-secondary-foreground">
+                                {axe.emoji} {axe.label}
+                              </span>
+                            )}
+                            {ton && (
+                              <span className={cn("text-[10px] px-2 py-0.5 rounded-full", ton.className)}>
+                                {ton.emoji} {ton.label}
+                              </span>
+                            )}
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{actu.source}</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-2 italic">💡 {actu.pertinence}</p>
                         </div>
                       </div>
-                    </div>
 
-                    {!isExpanded && (
-                      <p className="text-xs text-muted-foreground mt-2 italic pl-8">💡 {actu.pertinence}</p>
-                    )}
-
-                    <AnimatePresence>
-                      {isExpanded && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: "auto", opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.2 }}
-                          className="overflow-hidden"
+                      {/* Card actions */}
+                      <div className="flex items-center gap-2 mt-3 pl-8">
+                        <Button
+                          size="sm"
+                          variant={isExpanded ? "outline" : "default"}
+                          onClick={() => handleToggleActu(idx, actu)}
+                          className="gap-1.5 flex-1"
                         >
-                          <p className="text-xs text-muted-foreground mt-3 italic pl-8">💡 {actu.pertinence}</p>
-                          <div className="mt-4 space-y-3 pl-8">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Angles proposés</p>
-                            {actu.angles.map((angle, j) => {
-                              const vc = VEHICULE_CONFIG[angle.vehicule] || { emoji: "✨", label: angle.vehicule, className: "bg-muted" };
-                              return (
-                                <div key={j} className="rounded-2xl border bg-background p-3 space-y-2">
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium", vc.className)}>
-                                      {vc.emoji} {vc.label}
-                                    </span>
-                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted/50 text-muted-foreground/70 italic">
-                                      💡 idéal en {FORMAT_LABELS[angle.format_suggere] || angle.format_suggere}
-                                    </span>
-                                  </div>
-                                  <p className="text-sm font-semibold leading-snug">« {angle.hook} »</p>
-                                  <p className="text-xs text-muted-foreground">{angle.description}</p>
-                                  <Button
-                                    size="sm"
-                                    variant="default"
-                                    className="w-full mt-1"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleSelectAngle(actu, angle);
-                                    }}
-                                  >
-                                    Choisir cet angle
+                          {isExpanded ? (
+                            <>
+                              <ChevronDown className="h-3.5 w-3.5 rotate-180 transition-transform" /> Replier
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="h-3.5 w-3.5" /> Voir les angles
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={(e) => handleHide(idx, e)}
+                          className="gap-1.5 text-muted-foreground"
+                          title="Masquer cette actu"
+                        >
+                          <EyeOff className="h-3.5 w-3.5" /> Pas pour moi
+                        </Button>
+                      </div>
+
+                      {/* Angles section (lazy) */}
+                      <AnimatePresence>
+                        {isExpanded && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="mt-4 space-y-3 pl-8">
+                              {anglesState?.loading && (
+                                <div className="flex items-center gap-2 py-4 text-xs text-muted-foreground">
+                                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                                  <span className="animate-pulse">Génération des angles…</span>
+                                </div>
+                              )}
+
+                              {anglesState?.error && (
+                                <div className="py-3 space-y-2">
+                                  <p className="text-xs text-muted-foreground">{anglesState.error}</p>
+                                  <Button size="sm" variant="outline" onClick={() => {
+                                    setAnglesByIdx((prev) => {
+                                      const next = { ...prev };
+                                      delete next[idx];
+                                      return next;
+                                    });
+                                    fetchAngles(idx, actu);
+                                  }} className="gap-1.5">
+                                    <RefreshCw className="h-3.5 w-3.5" /> Réessayer
                                   </Button>
                                 </div>
-                              );
-                            })}
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </motion.div>
-                );
-              })}
-            </AnimatePresence>
+                              )}
 
-            <Button variant="outline" size="sm" onClick={fetchActus} className="w-full gap-1.5 mt-2">
-              <RefreshCw className="h-3.5 w-3.5" /> Relancer la recherche
-            </Button>
-          </div>
-        );
-      })()}
+                              {anglesState?.data && (
+                                <>
+                                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Angles proposés</p>
+                                  {anglesState.data.map((angle, j) => {
+                                    const vc = VEHICULE_CONFIG[angle.vehicule] || { emoji: "✨", label: angle.vehicule, className: "bg-muted" };
+                                    return (
+                                      <div key={j} className="rounded-2xl border bg-background p-3 space-y-2">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium", vc.className)}>
+                                            {vc.emoji} {vc.label}
+                                          </span>
+                                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted/50 text-muted-foreground/70 italic">
+                                            💡 idéal en {FORMAT_LABELS[angle.format_suggere] || angle.format_suggere}
+                                          </span>
+                                        </div>
+                                        <p className="text-sm font-semibold leading-snug">« {angle.hook} »</p>
+                                        <p className="text-xs text-muted-foreground">{angle.description}</p>
+                                        <Button
+                                          size="sm"
+                                          variant="default"
+                                          className="w-full mt-1"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleSelectAngle(actu, angle);
+                                          }}
+                                        >
+                                          Choisir cet angle
+                                        </Button>
+                                      </div>
+                                    );
+                                  })}
+                                </>
+                              )}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+
+              <Button variant="outline" size="sm" onClick={fetchActus} className="w-full gap-1.5 mt-2">
+                <RefreshCw className="h-3.5 w-3.5" /> Relancer la recherche
+              </Button>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
