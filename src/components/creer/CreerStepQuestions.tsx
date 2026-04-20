@@ -36,6 +36,7 @@ export default function CreerStepQuestions({
 }: Props) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>(initialAnswers || {});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Follow-up state (Levier 2 — opt-in)
   const [followUpQuestions, setFollowUpQuestions] = useState<Question[]>([]);
@@ -43,6 +44,16 @@ export default function CreerStepQuestions({
   const [followUpRequested, setFollowUpRequested] = useState(false);
   const [inFollowUp, setInFollowUp] = useState(false);
   const [followUpIndex, setFollowUpIndex] = useState(0);
+
+  const handleSkip = () => {
+    setIsSubmitting(true);
+    onSkip();
+  };
+
+  const handleFinalize = (finalAnswers: Record<string, string>) => {
+    setIsSubmitting(true);
+    onNext(finalAnswers);
+  };
 
   if (loadingQuestions) {
     return (
