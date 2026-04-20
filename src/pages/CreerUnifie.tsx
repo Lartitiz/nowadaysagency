@@ -1850,7 +1850,7 @@ export default function CreerUnifie() {
       const requestBody: any = {
         slides: mappedSlides,
         ...(hasPhotos && hasActualPhotos ? {
-          photos: uploadedPhotos.map(p => ({ base64: p.base64 })),
+          photos: photosForVisuals.map(p => ({ base64: p.base64 })),
           carousel_type: isMixCarousel ? "mix" : "photo",
         } : {
           template_style: null,
