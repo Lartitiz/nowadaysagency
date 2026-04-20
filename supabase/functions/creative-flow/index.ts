@@ -1752,6 +1752,60 @@ Réponds UNIQUEMENT en JSON :
         temperature: 0.8,
         max_tokens: 4096,
       });
+    } else if (step === "questions" && body.photo_mode && body.photos?.[0]?.base64) {
+      // Vision-anchored questions: let Claude SEE the photo to ask grounded questions
+      const photoBase64Q = body.photos[0].base64.replace(/^data:image\/[a-z]+;base64,/, "");
+      const photoMimeQ = body.photos[0].mimeType || "image/jpeg";
+      const perPhotoCtxQ = body.photos[0].context?.trim();
+      const channelLabelQ = contentType === "linkedin_post" ? "LinkedIn" : "Instagram";
+      const channelGuidanceQ = contentType === "linkedin_post"
+        ? "Ton PRO : ce qu'on apprend pro derrière l'image, prise de position assumée, résultat / chiffre concret."
+        : "Ton ÉMOTION / SCÈNE VÉCUE : ressenti, hors-champ, instant, ce qui se passait juste avant ou après la photo.";
+
+      const visionQuestionsPrompt = `Tu es une coach com' qui prépare un brief avec l'utilisatrice.
+
+Voici la photo qu'elle veut utiliser pour un post ${channelLabelQ}.
+Sujet : "${context || "non précisé"}"
+${objective ? `Objectif : ${objective}` : ""}
+${body.photo_description ? `Description globale fournie en amont : "${body.photo_description}"` : ""}
+${perPhotoCtxQ ? `Contexte précis sur cette photo : "${perPhotoCtxQ}"` : ""}
+
+Pose exactement 3 questions d'approfondissement ANCRÉES dans la photo.
+
+RÈGLES :
+- MENTIONNE ce que tu VOIS RÉELLEMENT (élément concret, geste, lumière, lieu, ambiance)
+- Chaque question doit être SPÉCIFIQUE à CETTE photo (impossible à reposer pour une autre image)
+- ${channelGuidanceQ}
+- VARIÉTÉ obligatoire : 1 anecdote/scène, 1 opinion/conviction, 1 process/observation (pas 3 "raconte-moi")
+- Questions OUVERTES, ton chaleureux et curieux
+
+Exemples :
+- "Je vois [élément précis]. C'était dans quel contexte ? Qu'est-ce que ce moment représente pour toi ?"
+- "L'ambiance de la photo est [observation]. C'est volontaire ? Qu'est-ce que tu veux faire passer ?"
+- "Qu'est-ce qui se passait JUSTE avant que cette photo soit prise ?"
+
+Réponds UNIQUEMENT en JSON valide :
+{
+  "questions": [
+    { "question": "...", "placeholder": "..." },
+    { "question": "...", "placeholder": "..." },
+    { "question": "...", "placeholder": "..." }
+  ]
+}`;
+
+      rawContent = await callAnthropic({
+        model: getModelForAction("content"),
+        system: systemPrompt,
+        messages: [{
+          role: "user",
+          content: [
+            { type: "image", source: { type: "base64", media_type: photoMimeQ, data: photoBase64Q } },
+            { type: "text", text: visionQuestionsPrompt },
+          ],
+        }],
+        temperature: 0.8,
+        max_tokens: 1500,
+      });
     } else if (step === "generate" && body.photo_mode && body.photos?.[0]?.base64) {
       // Photo mode with vision: send the image to Claude
       const photoBase64 = body.photos[0].base64.replace(/^data:image\/[a-z]+;base64,/, "");
