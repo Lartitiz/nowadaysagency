@@ -165,6 +165,60 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
     if (!newWsName.trim() || !user?.id) return;
     setCreatingStandalone(true);
     try {
+      // If email provided, check if a profile + workspace already exist
+      const trimmedEmail = newWsEmail.trim();
+      if (trimmedEmail) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("user_id, prenom")
+          .ilike("email", trimmedEmail)
+          .maybeSingle();
+
+        if (profile) {
+          // Find their existing owner workspace (oldest)
+          const { data: existing } = await supabase
+            .from("workspace_members")
+            .select("workspace_id, workspaces!inner(name, created_at)")
+            .eq("user_id", profile.user_id)
+            .eq("role", "owner")
+            .order("workspaces(created_at)" as any, { ascending: true });
+
+          if (existing && existing.length > 0) {
+            const targetWsId = (existing[0] as any).workspace_id;
+            const targetWsName = (existing[0] as any).workspaces?.name || profile.prenom || trimmedEmail;
+            const confirmed = window.confirm(
+              `${profile.prenom || trimmedEmail} a déjà un espace « ${targetWsName} ».\n\nOK = t'attacher à cet espace existant (recommandé)\nAnnuler = créer un NOUVEAU espace en doublon`
+            );
+
+            if (confirmed) {
+              // Attach as manager
+              const { data: alreadyMember } = await supabase
+                .from("workspace_members")
+                .select("id")
+                .eq("workspace_id", targetWsId)
+                .eq("user_id", user.id)
+                .maybeSingle();
+
+              if (!alreadyMember) {
+                const { error: addErr } = await supabase
+                  .from("workspace_members")
+                  .insert({ workspace_id: targetWsId, user_id: user.id, role: "manager" } as any);
+                if (addErr) {
+                  toast.error("Impossible de t'attacher : " + addErr.message);
+                  return;
+                }
+              }
+              toast.success(`Tu es maintenant rattachée à l'espace de ${profile.prenom || trimmedEmail} 🎉`);
+              setNewWsName(""); setNewWsEmail(""); setShowNewWsInput(false);
+              onReload();
+              return;
+            }
+            // User chose to create duplicate anyway → fall through
+          }
+        }
+      }
+
+      // Create a new standalone workspace
       const { data: ws, error } = await supabase
         .from("workspaces")
         .insert({ name: newWsName.trim(), created_by: user.id } as any)
@@ -177,8 +231,7 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
 
       toast.success(`Espace « ${newWsName.trim()} » créé`);
 
-      setNewWsName("");
-      setShowNewWsInput(false);
+      setNewWsName(""); setNewWsEmail(""); setShowNewWsInput(false);
       onReload();
     } catch {
       toast.error("Erreur création");
