@@ -11,6 +11,7 @@ import { isDemoUser } from "../_shared/guard-demo.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { streamAnthropicSSE, createClientSSEStream } from "../_shared/anthropic-stream.ts";
+import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
 
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
 
