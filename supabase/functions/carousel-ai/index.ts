@@ -50,7 +50,7 @@ serve(async (req) => {
       workspace_id: z.string().uuid().optional().nullable(),
       editorial_angle: z.string().max(100).optional().nullable(),
       content_structure: z.string().max(5000).optional().nullable(),
-      photos: z.array(z.object({ base64: z.string() })).max(10).optional(),
+      photos: z.array(z.object({ base64: z.string(), context: z.string().max(200).optional() })).max(10).optional(),
       photo_description: z.string().max(2000).optional().nullable(),
       slide_structure: z.array(z.object({
         slide_number: z.number(),
