@@ -36,9 +36,11 @@ export function CalendarPostPreview({
   slidesData, photoUrls, compact = false, onFullscreen, syncStatus,
 }: Props) {
   const { toast } = useToast();
+  const { data: charterData } = useBrandCharter();
   const [downloading, setDownloading] = useState(false);
   const [downloadingPptx, setDownloadingPptx] = useState(false);
   const [downloadingEditable, setDownloadingEditable] = useState(false);
+  const [downloadingHybrid, setDownloadingHybrid] = useState(false);
   const [slideIndex, setSlideIndex] = useState(0);
 
   // ── Télécharger en PNG (ZIP si plusieurs slides) ──
@@ -228,6 +230,22 @@ export function CalendarPostPreview({
       setDownloadingEditable(false);
     }
   }, [slidesData, photoUrls, downloadingEditable, theme]);
+
+  // ── Hybride : fond capturé fidèlement + texte natif éditable PPT ──
+  const handleDownloadHybridPptx = useCallback(async () => {
+    if (!visualHtml || visualHtml.length === 0 || downloadingHybrid) return;
+    setDownloadingHybrid(true);
+    try {
+      const fileName = `editable-${theme || "carrousel"}`.replace(/[^a-zA-Z0-9àâéèêëïîôùûüç\-_.]/g, "-");
+      await exportCarouselHybridPptx(visualHtml, slidesData || null, charterData || null, fileName);
+      toast({ title: "PowerPoint éditable téléchargé" });
+    } catch (err) {
+      console.error("Hybrid PPTX error:", err);
+      toast({ title: "Erreur lors de l'export", variant: "destructive" });
+    } finally {
+      setDownloadingHybrid(false);
+    }
+  }, [visualHtml, slidesData, charterData, downloadingHybrid, theme, toast]);
 
   const handleCopyCaption = useCallback(() => {
     if (!caption) return;
