@@ -580,53 +580,15 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
         <Card className="border-border">
           <CardContent className="p-4 space-y-3">
             <p className="text-sm font-semibold text-foreground">📝 Légende du carrousel</p>
-
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Hook</label>
-              <Textarea
-                value={caption.hook || ""}
-                onChange={(e) => updateCaption("hook", e.target.value)}
-                className="resize-none min-h-[48px] font-bold text-sm"
-                rows={2}
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Body</label>
-              <Textarea
-                value={caption.body || ""}
-                onChange={(e) => updateCaption("body", e.target.value)}
-                className="resize-none min-h-[96px] text-sm"
-                rows={5}
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">CTA</label>
-              <Textarea
-                value={caption.cta || ""}
-                onChange={(e) => updateCaption("cta", e.target.value)}
-                className="resize-none min-h-[48px] text-sm"
-                rows={2}
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Hashtags</label>
-              <div className="flex flex-wrap gap-1 mb-1">
-                {(caption.hashtags || []).map((tag: string, i: number) => (
-                  <Badge key={i} variant="secondary" className="text-[10px]">
-                    {tag.startsWith("#") ? tag : `#${tag}`}
-                  </Badge>
-                ))}
-              </div>
-              <Input
-                value={hashtagInput}
-                onChange={(e) => updateHashtags(e.target.value)}
-                placeholder="#hashtag1 #hashtag2"
-                className="text-xs"
-              />
-            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Hook, corps, CTA et hashtags réunis dans un seul bloc éditable. Modifie librement.
+            </p>
+            <Textarea
+              value={caption.fullText || ""}
+              onChange={(e) => updateFullText(e.target.value)}
+              placeholder="Écris ou colle ta légende complète (hook, corps, CTA, hashtags)..."
+              className="min-h-[240px] text-sm leading-relaxed"
+            />
           </CardContent>
         </Card>
       )}
