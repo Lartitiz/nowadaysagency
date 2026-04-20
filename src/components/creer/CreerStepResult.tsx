@@ -176,7 +176,7 @@ interface Props {
   onExportPinterestPptx?: () => void;
   onExportPinterestEditablePptx?: () => void;
   photoBriefOverlayHtml?: string | null;
-  
+  channel?: "linkedin" | "instagram";
 }
 
 export default function CreerStepResult({
@@ -204,7 +204,7 @@ export default function CreerStepResult({
   onExportPinterestPptx,
   onExportPinterestEditablePptx,
   photoBriefOverlayHtml,
-  
+  channel,
 }: Props) {
   // ── Rotation des messages et tips pendant le loading ──
   const messages = PROGRESS_MESSAGES[format] || PROGRESS_MESSAGES.default;
@@ -302,7 +302,7 @@ export default function CreerStepResult({
     const r = result?.raw || result;
     if (format === "carousel" && (r?.carousel_type === "photo" || r?.carousel_type === "mix") && photos && photos.length > 0) {
       return (
-        <CarouselPhotoResult result={result} photos={photos} onSlidesUpdate={onSlidesUpdate} visualSlides={visualSlides} />
+        <CarouselPhotoResult result={result} photos={photos} onSlidesUpdate={onSlidesUpdate} visualSlides={visualSlides} channel={channel} onRetry={onRegenerate} />
       );
     }
 
