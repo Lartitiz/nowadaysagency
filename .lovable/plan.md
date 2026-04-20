@@ -1,79 +1,51 @@
 
 
-## Plan — Légende LinkedIn dans CarouselPhotoResult
+## Plan — Clarifier le parcours photos pré-chargées (avec distinction LinkedIn vs Instagram)
 
-### Périmètre — 5 fichiers
+### Contexte
+Quand l'utilisateur·ice arrive depuis "Partir de photos" avec des photos déjà uploadées, on lui re-demande des sous-choix redondants dans `CreerStepFormat`. Précision importante : **le carrousel mixte existe en 2 saveurs** — LinkedIn (max 10 slides PDF, ratio 1:1 ou 4:5, ton pro) et Instagram (max 10 slides image, ratio 4:5, ton plus visuel). Le bandeau de confirmation doit refléter le bon canal.
 
-1. `src/pages/CreerUnifie.tsx` — propager `channel`
-2. `src/components/creer/CreerStepResult.tsx` — accepter + propager `channel`
-3. `src/components/creer/formatRenderers/CarouselPhotoResult.tsx` — UI LinkedIn + alerte régénération + log
-4. `src/components/linkedin/LinkedInCaptionEditor.tsx` — **NEW** sous-composant partagé extrait de `LinkedInResult`
-5. `supabase/functions/carousel-ai/index.ts` — durcissement prompt mix LinkedIn
+### Diagnostic — 3 doublons
 
----
+1. **Carrousel** — sous-choix `text/photo/mix` re-demandé alors que photos déjà uploadées (mix = seul mode pertinent)
+2. **Post** — toggle "Inclure une photo" inutile (forcément ON)
+3. **PhotoUploadZone** — pas de titre clair confirmant que les photos précédentes sont bien là
 
-### Action 1 — Propager `channel` jusqu'au renderer
-- `CreerUnifie.tsx` : passer `channel={selectedChannel}` (`"linkedin" | "instagram"`) à `<CreerStepResult>`
-- `CreerStepResult.tsx` : ajouter prop `channel`, la transmettre à `<CarouselPhotoResult>`
-- `CarouselPhotoResult.tsx` : ajouter prop `channel?: "linkedin" | "instagram"` (default `"instagram"` → comportement actuel inchangé)
+### Fix — 1 seul fichier : `src/components/creer/CreerStepFormat.tsx`
 
-### Action 2 — Refacto en sous-composant `LinkedInCaptionEditor` (Proposition C validée)
-**Nouveau fichier** `src/components/linkedin/LinkedInCaptionEditor.tsx` :
-- Props : `hook, body, cta, hashtags` + handlers `onChange*`
-- Affiche : 3 cards (Accroche / Corps / CTA) + zone hashtags
-- Compteurs caractères live (Proposition A) avec couleur :
-  - Accroche : sweet spot 100-210, rouge > 210, warning "LinkedIn tronque à ~210 car."
-  - Corps : sweet spot 300-1200, ambre > 2500, rouge > 3000
-  - CTA : info simple
-  - Hashtags : message "3-5 max sur LinkedIn", warning si > 5
-- Réutilise `CharacterCounter` de `src/components/linkedin/CharacterCounter.tsx`
-- Note : `LinkedInResult.tsx` reste tel quel pour V1 (pas de refacto rétroactif, hors scope)
+Quand `initialPhotos.length > 0` ET `!hasUserChangedFormat.current` :
 
-### Action 3 — Intégration dans `CarouselPhotoResult.tsx`
-Dans le bloc Card "Légende" (lignes 444-495) :
-- Si `channel === "linkedin"` → render `<LinkedInCaptionEditor {...captionFields} />`
-- Sinon → garder l'UI Instagram actuelle strictement identique
+**1. Carrousel — bandeau adapté au canal sélectionné**
+Masquer le bloc sous-choix `text/photo/mix`. Afficher :
+- Si LinkedIn : `📸 5 photos chargées — Carrousel mixte LinkedIn (PDF, photos + slides texte)`
+- Si Instagram : `📸 5 photos chargées — Carrousel mixte Instagram (photos + slides texte)`
+- Lien discret `[Choisir un autre mode]` qui réaffiche le sélecteur (`hasUserChangedFormat = true`)
 
-### Action 4 — Alerte "Légende incomplète" (V1 minimale validée)
-En haut du bloc Légende, si `caption.body.length < 50` OU `caption.body` vide :
-- Encart ambre : `⚠ La légende n'a pas été générée correctement.`
-- Bouton "Relancer la génération" qui réutilise le handler `onRetry` existant (pas de nouvelle Edge Function)
+→ Récupération du canal via la prop `channel` déjà propagée dans le tour précédent (LinkedIn caption editor). Si la prop n'existe pas encore au niveau de `CreerStepFormat`, je l'ajoute (passage depuis `CreerUnifie` → `CreerStepFormat`).
 
-### Action 5 — Log caption vide (Proposition D validée)
-Dans `CarouselPhotoResult.tsx`, `useEffect` au mount :
-```ts
-if (!caption?.body || caption.body.length < 50) {
-  console.warn("[caption_missing]", { channel, slidesCount, hookOnly: !!caption?.hook });
-}
-```
-Si `logUsage` accessible → ajouter flag `caption_missing: true`. Sinon juste console.warn (3 lignes).
+**2. Post — bandeau de confirmation**
+Masquer le toggle "Inclure une photo". Afficher :
+- `📸 Post avec photo — 3 photos chargées` + lien `[Retirer les photos]`
 
-### Action 6 — Durcissement prompt `carousel-ai` mix LinkedIn
-Dans `supabase/functions/carousel-ai/index.ts` (bloc prompt mix LinkedIn ~ligne 1568-1576) :
-- Ajouter exemple inline complet :
-  ```
-  EXEMPLE de caption COMPLÈTE (à adapter, JAMAIS laisser vide) :
-  {
-    "hook": "Ce chantier cache 3 appartements.",
-    "body": "Quand on a démarré la rénovation...[~400 car narratif sensoriel]",
-    "cta": "Tu rénoves bientôt ? Dis-moi où tu en es en commentaire.",
-    "hashtags": ["#renovation", "#architecture", "#chantier", "#bordeaux"]
-  }
-  ```
-- Pas de retry auto V1 (évite latence + coût)
+**3. PhotoUploadZone — titre explicite**
+Passer `title="Vos photos (3)"` au lieu du label générique pour rassurer.
 
----
+**4. Format incompatible (reel, story, newsletter)**
+Bandeau ambre discret : `⚠ Ce format n'utilisera pas tes photos.` + lien `[Revenir au carrousel/post]`
+
+### Comportement préservé
+- Clic sur "Choisir un autre mode" / "Retirer les photos" → `hasUserChangedFormat.current = true` → UI normale réapparaît
+- Pas de `initialPhotos` → strictement identique à aujourd'hui
 
 ### Validation
 1. `tsc --noEmit --skipLibCheck` → 0 erreur
-2. Carrousel LinkedIn mix : 3 blocs FR (Accroche/Corps/CTA) + compteurs + warning 210 + hashtags 3-5
-3. Carrousel Instagram mix : strictement identique à aujourd'hui
-4. Reproduction du bug : régénérer ce carrousel → body se remplit grâce à l'exemple inline
-5. Si body toujours vide après régénération → alerte ambre + bouton relancer visible
+2. Photos → carrousel LinkedIn : bandeau "Carrousel mixte LinkedIn"
+3. Photos → carrousel Instagram : bandeau "Carrousel mixte Instagram"
+4. Photos → post : pas de toggle, bandeau confirmation
+5. Parcours classique sans photos : aucun changement
 
 ### Hors scope
-- Edge Function `caption-only` dédiée (V2)
-- Refacto `LinkedInResult.tsx` pour utiliser `LinkedInCaptionEditor`
-- Preview pixel-perfect du feed LinkedIn
-- Retry auto côté Edge Function
+- Photo-to-idea (analyse IA des photos)
+- Persistance Storage / bibliothèque média
+- Pré-sélection auto du canal selon les photos
 
