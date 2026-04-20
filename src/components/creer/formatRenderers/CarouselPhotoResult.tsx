@@ -174,17 +174,63 @@ const OVERLAY_STYLE_CLASS: Record<string, string> = {
 export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, visualSlides, channel = "instagram", onRetry, captionLoading = false, onRegenerateCaption }: CarouselPhotoResultProps) {
   const r = result?.raw || result;
 
+  // Construit la version "fullText" mono-bloc à partir des sous-champs
+  const composeFullText = (c: any): string => {
+    const parts: string[] = [];
+    if (c?.hook) parts.push(String(c.hook).trim());
+    if (c?.body) parts.push(String(c.body).trim());
+    if (c?.cta) parts.push(String(c.cta).trim());
+    if (c?.hashtags && c.hashtags.length > 0) {
+      const tags = c.hashtags
+        .map((t: string) => (t.startsWith("#") ? t : `#${t}`))
+        .join(" ");
+      parts.push(tags);
+    }
+    return parts.filter(Boolean).join("\n\n");
+  };
+
+  // Re-split best-effort d'un fullText vers { hook, body, cta, hashtags }
+  // pour rétro-compat (export, programmation, etc.)
+  const splitFullText = (text: string) => {
+    const trimmed = (text || "").trim();
+    if (!trimmed) return { hook: "", body: "", cta: "", hashtags: [] as string[] };
+    const lines = trimmed.split(/\n+/).map((l) => l.trim()).filter(Boolean);
+    let hashtags: string[] = [];
+    // Dernière ligne = hashtags si elle ne contient que des #...
+    const last = lines[lines.length - 1] || "";
+    if (/^(#\S+\s*)+$/.test(last)) {
+      hashtags = last.split(/\s+/).filter(Boolean);
+      lines.pop();
+    }
+    const hook = lines.shift() || "";
+    const body = lines.join("\n\n");
+    return { hook, body, cta: "", hashtags };
+  };
+
   // Fallback minimal si l'IA a oublié la légende — au moins une amorce éditable
   const buildCaptionWithFallback = (rawCaption: any, rawSlides: any[]) => {
     const c = rawCaption || {};
-    const hasContent = c.hook || c.body || c.cta || (c.hashtags && c.hashtags.length > 0);
-    if (hasContent) return c;
+    const hasContent = c.hook || c.body || c.cta || (c.hashtags && c.hashtags.length > 0) || c.fullText;
+    if (hasContent) {
+      const fullText = c.fullText && String(c.fullText).trim().length > 0
+        ? String(c.fullText)
+        : composeFullText(c);
+      return {
+        hook: c.hook || "",
+        body: c.body || "",
+        cta: c.cta || "",
+        hashtags: c.hashtags || [],
+        fullText,
+      };
+    }
     const firstSlide = rawSlides?.[0] || {};
+    const fallbackHook = firstSlide.overlay_text || firstSlide.title || "";
     return {
-      hook: firstSlide.overlay_text || firstSlide.title || "",
+      hook: fallbackHook,
       body: "",
       cta: "",
       hashtags: [],
+      fullText: fallbackHook,
     };
   };
 
