@@ -405,8 +405,14 @@ serve(async (req) => {
 
 À partir de TOUT ce qui est disponible, extrais ou DÉDUIS les informations demandées pour ${prenom}.
 
-RÈGLES STRICTES :
-- Réponds UNIQUEMENT en JSON valide, rien d'autre (pas de markdown, pas de texte autour)
+RÈGLES STRICTES — FORMAT DE SORTIE :
+- Réponds UNIQUEMENT par un OBJET JSON PLAT valide, rien d'autre (pas de markdown, pas de texte avant/après, pas de \`\`\`json)
+- Les SEULES clés autorisées sont EXACTEMENT celles listées dans le dernier message utilisateur (ex: "step_3a_objections", "step_3b_cliches", "step_4_beautiful", "step_4_inspiring", "step_4_repulsive", "step_4_feeling", "step_5_actions", "step_1_frustrations", "step_2_transformation")
+- INTERDIT d'utiliser des clés alternatives comme "objections_courantes", "croyances_limitantes", "declencheurs_achat", "freins_achat", "frustrations_profondes", "objectif_principal", "experience_ideale", "profil_complet", "persona", "insights" ou tout autre alias
+- INTERDIT d'imbriquer (pas de sous-objets, pas de tableaux) — chaque clé demandée DOIT mapper directement à une string
+- Si une clé demandée s'appelle "step_3a_objections", ta sortie DOIT contenir littéralement "step_3a_objections" comme clé, pas un synonyme
+
+RÈGLES DE CONTENU :
 - Tu DOIS produire une valeur concrète et plausible pour CHAQUE champ demandé
 - Si tu n'as pas d'information directe pour un champ, DÉDUIS-la intelligemment à partir de la cible, des verbatims, du problème, de la mission, du ton et de tout autre élément du contexte
 - Ne refuse JAMAIS sous prétexte de manque d'info — déduis. Une déduction plausible vaut mieux qu'un champ vide

@@ -343,9 +343,43 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
             }
           }
 
+          // Normalize potential AI alias keys → real DB columns
+          const aliasMap: Record<string, string> = {
+            objections_courantes: "step_3a_objections",
+            objections: "step_3a_objections",
+            freins_achat: "step_3a_objections",
+            freins: "step_3a_objections",
+            croyances_limitantes: "step_3b_cliches",
+            croyances: "step_3b_cliches",
+            cliches: "step_3b_cliches",
+            declencheurs_achat: "step_5_actions",
+            declencheurs: "step_5_actions",
+            premieres_actions: "step_5_actions",
+            actions: "step_5_actions",
+            frustrations_profondes: "step_1_frustrations",
+            frustrations: "step_1_frustrations",
+            transformation_revee: "step_2_transformation",
+            transformation: "step_2_transformation",
+            objectif_principal: "step_2_transformation",
+            beau: "step_4_beautiful",
+            esthetique: "step_4_beautiful",
+            inspirant: "step_4_inspiring",
+            inspiration: "step_4_inspiring",
+            repoussant: "step_4_repulsive",
+            rebute: "step_4_repulsive",
+            ressenti: "step_4_feeling",
+            emotion: "step_4_feeling",
+          };
+          const normalized: Record<string, any> = { ...fillInsights };
+          for (const [alias, realKey] of Object.entries(aliasMap)) {
+            if (fillInsights[alias] && !normalized[realKey]) {
+              normalized[realKey] = fillInsights[alias];
+            }
+          }
+
           const validFills: Record<string, string> = {};
           for (const f of stillEmptyFields) {
-            const val = fillInsights[f.key];
+            const val = normalized[f.key];
             if (val && typeof val === "string" && val.trim().length > 0) validFills[f.key] = val.trim();
           }
           if (Object.keys(validFills).length > 0) {
@@ -354,6 +388,10 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
               .eq("id", recordId);
             for (const [key, val] of Object.entries(validFills)) onFieldUpdate?.(key, val, "");
             aiFillsCount = Object.keys(validFills).length;
+          } else if (fillResponse) {
+            console.warn("[PersonaAutoFill] AI responded but no exploitable keys found. Received keys:",
+              Object.keys(fillInsights), "Expected:", stillEmptyFields.map(f => f.key));
+            toast.info("L'IA a répondu, mais pas dans le format attendu. Réessaie ou remplis manuellement.");
           }
         }
       }
