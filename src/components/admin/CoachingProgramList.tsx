@@ -108,39 +108,38 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
     navigate("/dashboard");
   };
 
-  const handleDeleteStandaloneWs = async (wsId: string, wsName: string) => {
-    const { data: members } = await supabase
-      .from("workspace_members")
-      .select("user_id, role")
-      .eq("workspace_id", wsId);
-
-    const otherMembers = (members || []).filter(m => m.user_id !== user?.id);
-
-    if (otherMembers.length > 0) {
+  const handleLeaveOrDeleteWs = async (wsId: string, wsName: string, hasOthers: boolean) => {
+    if (hasOthers) {
       const confirmed = window.confirm(
-        `L'espace « ${wsName} » a ${otherMembers.length} autre·s membre·s. Tu seras retiré·e de cet espace mais il ne sera pas supprimé. Continuer ?`
+        `L'espace « ${wsName} » a d'autres membres. Tu vas le quitter (l'espace ne sera pas supprimé). Continuer ?`
       );
       if (!confirmed) return;
       setDeletingWs(wsId);
-      await supabase
+      const { error } = await supabase
         .from("workspace_members")
         .delete()
         .eq("workspace_id", wsId)
         .eq("user_id", user!.id);
+      if (error) {
+        toast.error(`Impossible de quitter : ${error.message}`);
+        setDeletingWs(null);
+        return;
+      }
       toast.success(`Tu as quitté l'espace « ${wsName} »`);
     } else {
       const confirmed = window.confirm(
-        `Supprimer l'espace « ${wsName} » ? Cette action est irréversible.`
+        `Supprimer définitivement l'espace « ${wsName} » et toutes ses données (branding, contenus, calendrier…) ? Action irréversible.`
       );
       if (!confirmed) return;
       setDeletingWs(wsId);
-      await supabase
-        .from("workspaces")
-        .delete()
-        .eq("id", wsId);
-      toast.success(`Espace « ${wsName} » supprimé`);
+      const { error } = await supabase.rpc("delete_workspace_with_cleanup" as any, { _workspace_id: wsId });
+      if (error) {
+        toast.error(`Suppression échouée : ${error.message}`);
+        setDeletingWs(null);
+        return;
+      }
+      toast.success(`Espace « ${wsName} » supprimé définitivement`);
     }
-    // Optimistic removal — hide from UI immediately
     setRemovedWsIds(prev => new Set(prev).add(wsId));
     setDeletingWs(null);
     onReload();
