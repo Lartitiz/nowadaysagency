@@ -235,11 +235,13 @@ export default function CreerStepQuestions({
 
       {/* Navigation */}
       <div className="flex justify-between items-center">
-        <Button variant="ghost" size="sm" onClick={handlePrev} className="gap-1">
+        <Button variant="ghost" size="sm" onClick={handlePrev} disabled={isSubmitting} className="gap-1">
           <ArrowLeft className="h-3.5 w-3.5" /> {activeIndex > 0 || inFollowUp ? "Précédent" : "Retour"}
         </Button>
-        <Button size="sm" onClick={handleNext} className="gap-1">
-          {isLast ? (
+        <Button size="sm" onClick={handleNext} disabled={isSubmitting} className="gap-1">
+          {isSubmitting ? (
+            <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Lancement…</>
+          ) : isLast ? (
             inFollowUp ? (
               <>Générer <Sparkles className="h-3.5 w-3.5" /></>
             ) : onRequestFollowUp ? (
@@ -258,10 +260,21 @@ export default function CreerStepQuestions({
         variant="ghost"
         size="sm"
         className="w-full gap-1.5 text-muted-foreground"
-        onClick={onSkip}
+        onClick={handleSkip}
+        disabled={isSubmitting}
       >
-        <SkipForward className="h-3.5 w-3.5" /> Passer les questions, générer directement
+        {isSubmitting ? (
+          <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Lancement…</>
+        ) : (
+          <><SkipForward className="h-3.5 w-3.5" /> Passer les questions, générer directement</>
+        )}
       </Button>
+
+      {isSubmitting && (
+        <p className="text-xs text-center text-muted-foreground animate-fade-in">
+          ⚡ Préparation de la génération…
+        </p>
+      )}
     </div>
   );
 }
