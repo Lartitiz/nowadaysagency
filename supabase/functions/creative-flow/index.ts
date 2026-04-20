@@ -35,7 +35,7 @@ serve(async (req) => {
     validateInput(body, z.object({
       step: z.string().max(50),
       contentType: z.string().max(100).optional().nullable(),
-      context: z.string().max(5000).optional().nullable(),
+      context: z.string().max(8000).optional().nullable(),
       adjustment: z.string().max(2000).optional().nullable(),
       sourceText: z.string().max(10000).optional().nullable(),
       targetFormat: z.string().max(100).optional().nullable(),
@@ -46,7 +46,7 @@ serve(async (req) => {
       photo_mode: z.boolean().optional(),
       photo_description: z.string().max(2000).optional().nullable(),
       photos: z.array(z.object({ base64: z.string(), mimeType: z.string().optional(), context: z.string().max(200).optional() })).max(1).optional(),
-      recent_briefs_context: z.string().max(4000).optional().nullable(),
+      recent_briefs_context: z.string().max(6000).optional().nullable(),
     }).passthrough());
     const { step, contentType, context, profile, angle, answers, followUpAnswers, content: currentContent, adjustment, calendarContext, preGenAnswers, sourceText, formats, targetFormat, workspace_id, deepResearch, objective, editorialFormat, editorialFormatLabel, variation, previousContent, pinterest_link, pinterest_board, recent_briefs_context: recentBriefsFromBody } = body;
 

@@ -457,8 +457,8 @@ export function useContentGenerator() {
                 return line;
               });
               recentBriefsContext = `\n══ HISTORIQUE RÉCENT (${briefs.length} brief${briefs.length > 1 ? "s" : ""}) ══\n${lines.join("\n\n")}\n\nÉVITE les angles déjà couverts. Tu peux faire écho discrètement.\n`;
-              // Cap dur à 3800 chars pour rester sous la limite Zod (4000) de creative-flow
-              const RECENT_BRIEFS_MAX = 3800;
+              // Cap dur à 5800 chars pour rester sous la limite Zod (6000) de creative-flow
+              const RECENT_BRIEFS_MAX = 5800;
               if (recentBriefsContext.length > RECENT_BRIEFS_MAX) {
                 recentBriefsContext = recentBriefsContext.slice(0, RECENT_BRIEFS_MAX - 20) + "\n... (tronqué)\n";
               }
@@ -529,7 +529,7 @@ export function useContentGenerator() {
                   ? "newsletter"
                   : "instagram_post",
               context: (() => {
-                const CONTEXT_MAX = 4800;
+                const CONTEXT_MAX = 7800;
                 const base = effectiveSubjectQ;
                 if (!existingContentQ) {
                   return base.length > CONTEXT_MAX ? base.slice(0, CONTEXT_MAX - 3) + "..." : base;
