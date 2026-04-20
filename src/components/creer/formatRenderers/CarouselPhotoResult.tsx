@@ -313,7 +313,22 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
 
   const updateCaption = (field: string, value: string) => {
     const next = { ...caption, [field]: value };
+    if (field !== "fullText") {
+      next.fullText = composeFullText(next);
+    }
     setCaption(next);
+    notify(slides, next);
+  };
+
+  const updateFullText = (value: string) => {
+    const split = splitFullText(value);
+    const next = {
+      ...caption,
+      ...split,
+      fullText: value,
+    };
+    setCaption(next);
+    setHashtagInput((split.hashtags || []).join(" "));
     notify(slides, next);
   };
 
@@ -324,6 +339,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
       .map((t) => t.trim())
       .filter(Boolean);
     const next = { ...caption, hashtags: tags };
+    next.fullText = composeFullText(next);
     setCaption(next);
     notify(slides, next);
   };
