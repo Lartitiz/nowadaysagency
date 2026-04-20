@@ -14,7 +14,7 @@ import { ChevronDown } from "lucide-react";
 
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import LinkedInCaptionEditor from "@/components/linkedin/LinkedInCaptionEditor";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, RefreshCw } from "lucide-react";
 
 interface CarouselPhotoResultProps {
   result: any;
@@ -23,6 +23,8 @@ interface CarouselPhotoResultProps {
   visualSlides?: { slide_number: number; html: string }[];
   channel?: "linkedin" | "instagram";
   onRetry?: () => void;
+  captionLoading?: boolean;
+  onRegenerateCaption?: () => void;
 }
 
 // ─── VisualSlidesCarousel (unchanged) ───
