@@ -145,6 +145,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
   };
 
   const handleChangeChannel = () => {
+    hasUserChangedFormat.current = false;
     setSelectedChannel(null);
     setSelectedFormat(null);
     setSelectedAngle(undefined);
