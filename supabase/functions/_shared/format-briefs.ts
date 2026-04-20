@@ -60,7 +60,29 @@ Après les slides, ajoute :
 📝 CAPTION : [hook différent de slide 1 + corps + CTA + hashtags]`;
 }
 
-export function reelBrief(effectiveObjective: string | null): string {
+export interface ReelBriefParams {
+  effectiveObjective?: string | null;
+  face_cam?: string | null;
+  time_available?: string | null;
+  is_launch?: boolean | null;
+  selected_hook?: any;
+  pre_gen_answers?: { anecdote?: string; emotion?: string; conviction?: string } | null;
+  subject?: string | null;
+  editorial_angle?: string | null;
+  content_structure?: string | null;
+  inspiration_context?: string | null;
+}
+
+/**
+ * reelBrief — accepte SOIT une string (legacy: objectif seul), SOIT un objet ReelBriefParams complet.
+ * Quand des params reels-spécifiques sont fournis (subject, selected_hook, pre_gen_answers, etc.),
+ * impose le JSON de sortie complet (caption, hashtags, cover_text, alt_text, amplification_stories, checklist).
+ */
+export function reelBrief(arg: string | null | ReelBriefParams = null): string {
+  // Backward-compat: accept (effectiveObjective: string | null) signature
+  const params: ReelBriefParams =
+    arg && typeof arg === "object" ? arg : { effectiveObjective: arg as string | null };
+  const effectiveObjective = params.effectiveObjective ?? null;
   const base = `FORMAT : SCRIPT REEL (30-60 secondes)
 
 ══ AVANT D'ÉCRIRE : UN REEL = UNE SEULE IDÉE ══
