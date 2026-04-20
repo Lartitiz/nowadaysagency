@@ -211,6 +211,19 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
     }
   }, [result]);
 
+  // Log si la légende est vide / trop courte (Action 5)
+  useEffect(() => {
+    if (!caption?.body || caption.body.length < 50) {
+      console.warn("[caption_missing]", {
+        channel,
+        slidesCount: slides.length,
+        hookOnly: !!caption?.hook && !caption?.body,
+        bodyLen: caption?.body?.length || 0,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // P2 : Quality check calculé côté front (au lieu de faire confiance à l'IA)
   const computedQuality = useMemo(() => {
     const isPhotoSlide = (s: any) =>
