@@ -1,96 +1,113 @@
 
 
-## Plan — Contexte optionnel par photo dans `PhotoUploadZone`
+## Audit — Pertinence des questions de la phase /creer
 
-### Périmètre strict
-Un seul fichier touché : `src/components/creer/PhotoUploadZone.tsx`. Aucune modification ailleurs (CreerUnifie, Edge Functions, autres composants). Les 4 usages actuels du composant continuent de fonctionner sans changement.
+### Comment ça marche aujourd'hui
 
-### Modifications
-
-**1. Type étendu**
-```ts
-export interface PhotoItem {
-  base64: string;
-  preview: string;
-  name: string;
-  context?: string; // nouveau, optionnel
-}
-```
-Rétrocompatible : tous les consommateurs actuels qui ignorent `context` continuent de marcher.
-
-**2. Nouvel état local**
-- `showContexts: boolean` (default `false`) → contrôle l'affichage des inputs par photo.
-- Aucun nouvel état pour les valeurs : le `context` vit directement dans `photos[i].context`.
-
-**3. Lien discret toggle**
-Apparaît **uniquement si `photos.length > 0`**, positionné **juste au-dessus de la grille** (plus visible et logique : "voici tes photos, veux-tu les annoter ?").
-
-```tsx
-<button
-  type="button"
-  onClick={() => setShowContexts(v => !v)}
-  className="text-xs text-primary hover:underline font-medium"
->
-  {showContexts ? "− Masquer les contextes" : "+ Ajouter un contexte par photo"}
-</button>
+```text
+[Format choisi]
+   │
+   ▼
+generateQuestions()  ──►  Edge Function (1 seul appel, 3 questions)
+   │                       ├─ creative-flow (LinkedIn / Instagram / Newsletter)
+   │                       └─ carousel-ai (carrousels)
+   ▼
+3 questions affichées une par une
+   │
+   ▼
+onNext(answers)  ──►  generate (toutes les réponses sont envoyées d'un bloc)
 ```
 
-**4. Input contextuel sous chaque vignette**
-Quand `showContexts === true`, un `<Input>` apparaît **sous** chaque thumbnail (pas à côté), dans une cellule de grille élargie verticalement.
+**Ce qui est passé au prompt aujourd'hui pour générer les questions :**
+- ✅ Sujet exact
+- ✅ Format / canal
+- ✅ Angle éditorial + structure
+- ✅ Objectif (vente, engagement, visibilité, crédibilité)
+- ✅ Contexte branding (ton, cible, offres)
+- ❌ **Aucune mémoire des briefs précédents** (briefsCount est juste affiché dans un bandeau "tes réponses sont sauvegardées" mais jamais injecté dans le prompt)
+- ❌ **Aucun chaînage entre questions** (les 3 sont générées d'un coup, sans regarder ce que l'utilisatrice répond à la Q1 avant de poser la Q2)
+- ❌ **Aucun follow-up** (pourtant `creative-flow` a déjà un step `follow-up` codé… mais jamais appelé depuis `/creer`)
 
-Refactor de la grille : chaque cellule devient un wrapper flex-col contenant la vignette + l'input optionnel.
+### Diagnostic — pourquoi certaines questions semblent peu pertinentes
 
-```tsx
-<div className="flex flex-col gap-1.5">
-  <div className="relative aspect-square ...">{/* vignette existante */}</div>
-  {showContexts && (
-    <Input
-      value={p.context ?? ""}
-      onChange={(e) => updateContext(idx, e.target.value)}
-      placeholder="Ex : chantier Acacias, J2 démolition"
-      maxLength={200}
-      className="h-8 text-xs"
-    />
-  )}
-</div>
-```
+| Faiblesse observée | Cause technique | Impact |
+|---|---|---|
+| Questions parfois trop "scolaires" / abstraites (ex : "raconter en coulisses ton process de création de valeur") | Prompt riche en règles méta mais pauvre en exemples du **domaine d'activité** | Les questions sonnent IA, pas amie experte |
+| Q2 ne tient pas compte de la réponse à Q1 | Génération en **batch unique**, pas de chaînage | Manque l'effet "ah elle m'écoute vraiment" |
+| Pas de mémoire entre briefs (mêmes questions reviennent sur des sujets similaires) | `briefsCount` jamais injecté, juste compté | Sentiment de répétition après 3-4 utilisations |
+| Vocabulaire générique ("ton process", "ta valeur") | Le prompt connaît le branding mais ne force pas à **réutiliser le vocabulaire métier** de l'utilisatrice | Questions interchangeables d'un user à l'autre |
+| Pas de "mode 1 question minimum" | Le flux force 3 questions d'un coup | Friction sur les sujets simples |
 
-**5. Handler `updateContext`**
-```ts
-const updateContext = (idx: number, value: string) => {
-  const next = photos.map((p, i) => i === idx ? { ...p, context: value } : p);
-  updatePhotos(next);
-};
-```
-Réutilise `updatePhotos` existant → propagation automatique via `onPhotosChange` (signature inchangée).
+### 3 leviers d'amélioration (par ordre de ROI)
 
-**6. Conservation du contexte lors du drag/réorder/suppression**
-Déjà gratuit : le `context` étant une propriété de `PhotoItem`, il suit l'objet quand `splice`/`filter` est appliqué dans `onThumbDragOver` et `removePhoto`. Aucune modif nécessaire sur ces handlers.
+**Levier 1 — Enrichissement du prompt SANS appel supplémentaire (gratuit)**
 
-### Ce qui ne change pas
-- Drop zone, drag & drop fichiers, resize/encode, suppression, réordonnancement
-- Description globale (`description`, `onDescriptionChange`, label, textarea)
-- Signatures des props et callbacks
-- `initialPhotos` / `initialDescription` (un consommateur qui restaure des photos avec `context` aura le contexte restauré ; sans `context` ça reste `undefined`, comportement actuel préservé)
+Améliorer la qualité des 3 questions générées en un seul appel, en :
+- Injectant **les 2-3 derniers briefs** de l'utilisatrice (sujet + une réponse marquante) → l'IA évite les questions déjà posées et peut faire écho ("la dernière fois tu disais X, ici c'est différent ?")
+- Forçant l'IA à **citer 1 mot du vocabulaire branding** dans chaque question (nom de l'offre, terme métier, nom de la cible)
+- Ajoutant des **exemples de mauvaises questions à ne PAS poser** spécifiques au domaine détecté
+- Demandant à l'IA de **raisonner en silence** avant (chain-of-thought : "qu'est-ce que je sais déjà / qu'est-ce qui manque ?")
 
-### Détails design
-- Lien : `text-xs text-primary hover:underline` (discret, rose framboise du theme)
-- Input : `h-8 text-xs` (compact pour ne pas dominer la vignette), `maxLength=200`
-- Transition : pas d'anim complexe, juste apparition conditionnelle (fluide naturellement)
-- Le label "1 / 10 photos" reste sous la grille, intact
+→ **Coût : 0 appel supplémentaire** (juste un prompt plus dense, +15% de tokens input)
+→ **Gain : ~70% de la perception "questions pertinentes"**
 
-### Réponses aux questions ouvertes
-- **Placeholder** : générique `"Ex : chantier Acacias, J2 démolition"` (le composant ne connaît pas le type de photo ; un placeholder dynamique nécessiterait une nouvelle prop, hors scope).
-- **Limite caractères** : `maxLength={200}` — suffisant pour un contexte court, contraint l'utilisateur à rester précis (l'IA n'a pas besoin de plus pour identifier une scène).
-- **Position du lien** : **au-dessus** de la grille — plus naturel comme call-to-action après l'upload, et évite que le label "X / Y photos" soit séparé visuellement de la grille.
+**Levier 2 — Chaînage progressif (1 appel léger en plus, optionnel)**
 
-### Validation
-- `npx tsc --noEmit --skipLibCheck` doit passer (champ optionnel, pas de breaking change)
-- Les 4 usages existants compilent sans modification
-- Test manuel : upload 3 photos → toggle déplie → saisir contexte slide 2 → réordonner → contexte suit la bonne photo → supprimer une photo → contextes restants OK → replier → description globale toujours fonctionnelle
+Activer le step `follow-up` déjà codé dans `creative-flow` mais inutilisé :
+- Après les 3 réponses, **1 appel court** qui pose 1-2 questions de creusage basées sur le détail le plus saillant des réponses
+- Affiché en **opt-in discret** : "Veux-tu creuser un détail ? +1-2 questions ciblées" (bouton vert, pas obligatoire)
+- L'utilisatrice peut skipper et générer directement
 
-### Hors scope (plans séparés à venir)
-- Propagation `context` vers Edge Functions (`carousel-ai`, `creative-flow`)
-- Bouton "Partir de photos" dans `CreerUnifie`
-- Persistance localStorage
+→ **Coût : 1 appel additionnel uniquement si l'utilisatrice clique** (estimation : 30% des cas)
+→ **Gain : effet "elle m'a vraiment écoutée", contenu plus singulier**
+
+**Levier 3 — Vrai chaînage Q1→Q2→Q3 (3 appels, à éviter)**
+
+Générer les questions **une par une** en se basant sur la réponse précédente.
+→ **Coût : x3 appels, +latence importante, +crédits consommés**
+→ **Gain marginal vs Levier 1+2**
+→ **Recommandation : NON sauf en mode "Premium deep brief"**
+
+### Recommandation
+
+**Faire Levier 1 + Levier 2** (et garder Levier 3 hors scope).
+
+### Plan d'implémentation
+
+**Périmètre : 3 fichiers**
+
+1. **`supabase/functions/_shared/`** — nouveau helper `getRecentBriefsContext(userId, limit=3)` : récupère sujets + 1 réponse-clé des 3 derniers briefs, formatte un bloc texte court pour le prompt.
+
+2. **`supabase/functions/creative-flow/index.ts`** + **`supabase/functions/carousel-ai/index.ts`** :
+   - Accepter un nouveau body field `recent_briefs_context?: string`
+   - L'injecter dans `buildDeepeningQuestionsPrompt` et le step `questions`
+   - Ajouter au prompt : règle "cite 1 mot du vocabulaire branding par question", règle "évite les angles déjà couverts dans les briefs récents", bloc "exemples de questions ratées dans ce métier"
+
+3. **`src/hooks/use-content-generator.ts`** :
+   - Avant l'appel `generateQuestions`, faire un `select` léger sur `content_briefs` pour récupérer les 3 derniers (sujet + answers JSON)
+   - Construire le `recent_briefs_context` côté front et le passer dans le body
+
+4. **`src/components/creer/CreerStepQuestions.tsx`** + **`CreerUnifie.tsx`** :
+   - Après les 3 réponses, afficher un encart opt-in : « ✨ Creuser un détail ? +1-2 questions ciblées · 10 sec »
+   - Si clic → appel à `creative-flow` avec `step: "follow-up"` (déjà codé côté backend)
+   - Les follow-up answers sont concaténées dans `answers` et passées à la génération finale
+
+### Ce qu'on ne touche pas
+
+- La logique de génération du contenu final
+- Le nombre de questions par défaut (reste à 3)
+- Le bouton "passer les questions"
+- Le compteur de briefs déjà affiché
+- Les autres prompts (slides, hooks, etc.)
+
+### Estimation coût utilisateur
+
+- Levier 1 seul : **0 appel ajouté**, ~+10% de tokens input sur l'appel `questions` (négligeable)
+- Levier 2 (opt-in) : **+1 appel court** (≈ 1 crédit) uniquement si l'utilisatrice choisit de creuser
+
+### Question avant de coder
+
+Une seule décision à confirmer :
+
+**Le levier 2 (follow-up opt-in) — tu le veux dans ce pack, ou on commence par le Levier 1 seul (impact massif, zéro coût) et on fait le levier 2 en pack 2 après avoir mesuré l'effet ?**
 
