@@ -1,93 +1,146 @@
 
 
-## Audit — Upload photo par format aujourd'hui
+## Audit — état actuel
 
-| Canal / Format | Upload photo | Vision IA (questions + génération) |
-|---|---|---|
-| Insta — Carrousel **photo / mixte** | ✅ max 10 (`PhotoUploadZone`) | ✅ `carousel-ai` branche `photo`/`mix` |
-| Insta — **Post simple** (toggle "J'accompagne une photo") | ✅ max 1 | ✅ `creative-flow` branche `photo_mode` |
-| Insta — **Reel** | ❌ | ❌ |
-| Insta — **Story** | ❌ | ❌ |
-| LinkedIn — **Carrousel mixte** | ✅ (vient piocher Insta) | ✅ |
-| LinkedIn — **Post texte** | ❌ | ❌ |
-| **Newsletter** | ❌ (Zod accepte déjà 1 photo, mais aucune UI) | Backend prêt, jamais alimenté |
-| Pinterest visuel / inspiration | ✅ (flow dédié) | n/a |
+### Cartographie des edge functions de création
 
-**Constat** : les Reels, Stories, LinkedIn texte et Newsletter **ne proposent aucun upload photo** alors que :
-- Le backend `creative-flow` accepte déjà `photo_mode + photos[1]` quel que soit le format détecté (lignes 68-70, 1755-1813).
-- La vision Claude est **déjà branchée pour `step=questions` ET `step=generate`** dès que `photo_mode = true`. Aucun blocage backend.
+| Fonction | Lignes | Steps/types gérés | Appelée depuis |
+|---|---|---|---|
+| **creative-flow** | **1897** ⚠️ | `angles`, `questions`, `follow-up`, `generate`, `adjust`, `recycle`, `dictation` + branche vision | post Insta, LinkedIn, recyclage, dictée, ajustement |
+| **carousel-ai** | **1654** ⚠️ | `suggest_topics`, `suggest_angles`, `deepening_questions`, `structure_proposal`, `express_full`, `slides`, `hooks` + branche vision photo/mix | carrousel Insta + LinkedIn |
+| **reels-ai** | 623 | `analyze_inspiration`, `hooks`, `script` | reel Insta |
+| **stories-ai** | 646 | `clarify_subject`, `suggest_subjects`, `sequence`, `daily` | stories Insta |
+| **newsletter-ai** | 247 | (1 seul mode : génération) | newsletter |
+| **linkedin-ai** | 258 | 13 actions (titre, résumé, expérience, recos, crosspost…) — **pas la génération de post** (passe par creative-flow) | pages profil LinkedIn |
+| **generate-content** | 758 | bio, idées, audit, playground… | bio Insta, dashboard |
 
-Donc tout le travail est **côté front** : étendre le toggle "📸 J'accompagne une photo" aux 4 formats manquants + transmettre les photos jusqu'à `handleFormatNext` / `generateQuestions`. Aucune nouvelle Edge Function, aucun changement de schema.
+### Les 3 vrais problèmes
 
-## Plan d'extension — front uniquement
+**1. `creative-flow` est devenu un god-object (1897 lignes)**
+- 7 steps (`angles`, `questions`, `follow-up`, `generate`, `adjust`, `recycle`, `dictation`) dans un seul `if/else if` géant
+- Un switch parallèle interne sur `contentType` (Insta/LinkedIn/Newsletter/Reel/Story) à 2 endroits (questions + generate)
+- La branche vision (lignes 1755-1862) est dupliquée pour `questions` et `generate`
+- Difficile de modifier un format sans risquer de casser les autres
 
-### 1. `CreerStepFormat.tsx` — généraliser le toggle photo
+**2. `carousel-ai` (1654 lignes) duplique presque tout `creative-flow`**
+- Même quotas, même rate limit, même contexte utilisateur
+- Mêmes étapes conceptuelles (questions → angle → génération) mais nommées différemment (`deepening_questions`, `suggest_angles`, `express_full`)
+- Branche vision dupliquée
+- Justification historique : carrousel = sortie multi-slides JSON. Mais les **80% de logique de prompt sont identiques**.
 
-Aujourd'hui le bloc lignes 450-493 (toggle + bannière + `PhotoUploadZone`) ne s'affiche que pour `selectedFormat === "post"`. Le rendre disponible pour :
-- `reel` (Insta — accroche/script ancré dans l'image off-screen)
-- `stories` (Insta — séquence de stories autour de la photo)
-- `linkedin` (LinkedIn post texte avec une photo en pièce jointe)
-- `newsletter` (header image / image éditoriale)
+**3. Le front a 4 manières d'appeler la génération**
+- `useContentGenerator.generate()` → switch sur format (carousel→carousel-ai, reel→reels-ai, story→stories-ai, post→creative-flow, linkedin→creative-flow, newsletter→newsletter-ai)
+- `useContentGenerator.generateQuestions()` → idem mais carousel→carousel-ai vs autres→creative-flow
+- `CreerUnifie.tsx` ligne 754 → streaming direct vers `creative-flow`
+- `ContentRecycling`, `CreerStepEdit`, `ChatGuidePage` → invokes éparpillés vers `creative-flow` ou `carousel-ai`
 
-Implémentation :
-- Ajouter un helper `formatAcceptsSinglePhoto(format, channel)` qui renvoie `true` pour `post`, `reel`, `stories`, `linkedin` (texte), `newsletter`.
-- Remplacer `selectedFormat === "post"` par ce helper sur les 3 blocs (toggle, bannière préchargée, zone d'upload).
-- Adapter le wording du toggle selon le format :
-  - Post : "📸 J'accompagne une photo" (existant)
-  - Reel : "📸 Mon Reel s'appuie sur une image (référence visuelle / vignette)"
-  - Stories : "📸 Mes stories tournent autour d'une photo"
-  - LinkedIn : "📸 J'attache une photo à mon post"
-  - Newsletter : "📸 Image d'en-tête / illustration"
-- Le `maxPhotos={1}` reste (limite Zod de `creative-flow`).
-- Le mode **compact** reste actif quand `initialPhotos` préchargées (cohérence avec le travail des messages précédents).
+→ Pour ajouter un format ou changer un comportement transversal, il faut toucher 3-5 endroits.
 
-### 2. `CreerStepFormat.tsx` — étendre la bannière "incompatible"
+## Plan de refactoring — sans perte de qualité
 
-Ligne 434 : aujourd'hui `selectedFormat !== "carousel" && selectedFormat !== "post"` déclenche l'avertissement "Ce format n'utilisera pas tes photos". Une fois les 4 nouveaux formats compatibles, retirer cet avertissement pour eux (il ne reste que `pinterest_*` qui ont leur propre flow d'upload séparé).
+**Principe directeur** : on garde tous les prompts existants (qualité de sortie identique), on réorganise uniquement la **structure** du code. Refactoring conservateur, par étapes, validable individuellement.
 
-### 3. `CreerStepFormat.tsx` — auto-préselection avec photos préchargées
+### Étape 1 — Découper `creative-flow` en modules (impact zéro côté front)
 
-Branche `isFirstSelectionWithPhotos` (ligne 105) : actuellement `post` → `photoMode=true + slice(0,1)`. Ajouter le même comportement pour `reel`, `stories`, `linkedin`, `newsletter` : `setPhotoMode(true)` + `setPostPhoto(initialPhotos!.slice(0, 1))`.
-
-### 4. `CreerUnifie.tsx` — propager `photo_mode` jusqu'à la génération
-
-Vérifier que `photoMode + uploadedPhotos[0]` partent bien dans le body de **toutes** les générations `creative-flow` (pas seulement post Insta). Bloc ligne 738 actuel :
-```ts
-...(photoMode ? { photo_mode: true, photo_description: photoDescription } : {}),
+Créer `supabase/functions/creative-flow/` :
+```text
+creative-flow/
+├── index.ts              ← router + auth + quotas (≈200 lignes)
+├── steps/
+│   ├── angles.ts         ← step "angles"
+│   ├── questions.ts      ← step "questions" + branche vision
+│   ├── follow-up.ts
+│   ├── generate.ts       ← step "generate" + streaming + vision
+│   ├── adjust.ts
+│   ├── recycle.ts
+│   └── dictation.ts
+└── prompts/
+    ├── format-briefs.ts  ← le switch ctype (linkedin/reel/story/newsletter)
+    └── vision.ts         ← prompts vision factorisés (questions + generate)
 ```
-→ il manque `photos: [{ base64, mimeType, context }]`. À ajouter une seule fois, valable pour les 5 formats. Sinon vision côté backend ne se déclenche pas (cf. `body.photos?.[0]?.base64` ligne 1809).
+Côté Deno, on importe les sous-fichiers via chemin relatif. Aucun changement front, aucun changement de contrat API. **Gain : 1897 lignes → 7 fichiers de 100-300 lignes lisibles.**
 
-### 5. Adapter les prompts vision selon le format (creative-flow)
+### Étape 2 — Découper `carousel-ai` symétriquement
 
-Pour que la vision serve vraiment, ajouter dans la branche `step=generate + photo_mode` (ligne 1809) un switch léger sur `formatHint` :
-- **Reel** → "À partir de ce que tu vois, propose hook + déroulé voix-off / face cam"
-- **Stories** → "Découpe en 3-5 stories qui exploitent l'image (zooms, crops narratifs)"
-- **LinkedIn** → "Post pro où l'image illustre un point précis du texte"
-- **Newsletter** → "Image éditoriale en ouverture, texte qui prolonge l'ambiance"
-- Post / défaut → comportement actuel inchangé
+```text
+carousel-ai/
+├── index.ts              ← router (≈150 lignes)
+├── types/
+│   ├── deepening.ts      ← deepening_questions + vision
+│   ├── express-full.ts   ← génération complète JSON slides
+│   ├── slides.ts
+│   ├── hooks.ts
+│   ├── suggest-topics.ts
+│   ├── suggest-angles.ts
+│   └── structure-proposal.ts
+└── prompts/
+    └── carousel-rules.ts
+```
+**Gain : 1654 lignes → 8 fichiers focalisés.**
 
-Idem pour `step=questions` (ligne 1755) : 3 questions ancrées dans le visuel + adaptées au format final.
+### Étape 3 — Mutualiser ce qui est dupliqué dans `_shared/`
 
-### 6. `use-content-generator.ts` — déjà OK
+Ajouter dans `supabase/functions/_shared/` :
+- `request-pipeline.ts` → wrapper qui fait : auth → demo guard → rate limit → quota → contexte → renvoie `{ user, ctx, body }`. Élimine ~50 lignes répétées au début de chaque fonction.
+- `vision-prompts.ts` → factorise les prompts vision (utilisés par creative-flow ET carousel-ai)
+- `format-briefs.ts` → le switch sur `ctype` (linkedin/reel/story/newsletter) sort des steps et devient une fonction pure réutilisable
 
-`generateQuestions` accepte déjà `photos`, `photoDescription`, `photoMode` (ajoutés au tour précédent). Rien à modifier.
+### Étape 4 — Centraliser le routing front dans `useContentGenerator`
 
-## Fichiers touchés
-- `src/components/creer/CreerStepFormat.tsx` (helper + 3 blocs ré-utilisés)
-- `src/pages/CreerUnifie.tsx` (1 ligne dans le body de génération)
-- `supabase/functions/creative-flow/index.ts` (switch format dans 2 prompts vision)
+Aujourd'hui éparpillé entre `CreerUnifie.tsx` (streaming), `useContentGenerator.generate()` (non-stream), `ContentRecycling`, `CreerStepEdit`. Créer une seule API :
+```ts
+useContentGenerator.generate({ format, mode: "stream" | "json", ... })
+```
+qui gère elle-même le choix stream vs invoke et le routage vers la bonne edge function. `CreerUnifie.tsx` ligne 754 devient un appel à ce hook, plus de `streamInvoke` direct.
+
+**Bénéfice** : pour ajouter un format ou changer un comportement transversal (ex. nouveau header, nouvelle vision), 1 seul endroit à modifier.
+
+### Étape 5 (optionnel, plus tard) — Unifier `reels-ai` + `stories-ai` dans `creative-flow`
+
+Aujourd'hui ces 2 fonctions (623 + 646 = 1269 lignes) ne font que des `step="generate"` avec un format spécifique. Elles pourraient devenir des cas du switch `format-briefs.ts` dans creative-flow. **Mais on garde ça pour une 2e passe**, pour pouvoir valider en isolation.
+
+## Ordre d'exécution recommandé
+
+```text
+Phase 1 (1 PR) : découpage creative-flow      [risque faible, 0 changement contrat]
+   ↓ on déploie + on teste tous les flows
+Phase 2 (1 PR) : découpage carousel-ai
+   ↓ on déploie + on teste carrousel
+Phase 3 (1 PR) : mutualisation _shared
+   ↓ déploie les 2 fonctions ensemble
+Phase 4 (1 PR) : unification front useContentGenerator
+   ↓ test e2e complet
+Phase 5 (plus tard) : fusion reels-ai/stories-ai si on veut
+```
+
+Chaque phase est **indépendante, déployable, réversible**. À tout moment on peut s'arrêter.
+
+## Ce qu'on NE touche PAS
+
+- Les **prompts** (qualité de sortie strictement identique)
+- Les **schemas Zod** (contrat API inchangé)
+- Les **modèles Claude** utilisés
+- La **logique vision** (juste déplacée dans un fichier dédié)
+- Les **autres edge functions** : `linkedin-ai`, `pinterest-ai`, `newsletter-ai`, `generate-content` (déjà raisonnables)
 
 ## Validation
-1. `tsc --noEmit --skipLibCheck` → 0 erreur
-2. **Reel + photo** : toggle visible → upload 1 photo → questions vision ancrées → script qui mentionne l'image
-3. **Stories + photo** : idem, séquence narrative autour de l'image
-4. **LinkedIn texte + photo** : idem, post pro qui s'appuie sur l'image
-5. **Newsletter + photo** : header image prise en compte dans le ton
-6. **Partir de photos → Reel/Stories/LinkedIn/Newsletter** : auto-préselection + bannière "1 photo chargée" (pas d'avertissement "incompatible")
-7. **Aucune régression** : carrousel photo/mix + post photo continuent de fonctionner
+
+1. `tsc --noEmit --skipLibCheck` → 0 erreur après chaque phase
+2. Smoke tests par format après chaque phase :
+   - Carrousel texte / photo / mixte
+   - Post Insta + photo
+   - Reel + photo
+   - Stories + photo
+   - LinkedIn texte + photo
+   - Newsletter
+   - Recyclage 1→3 formats
+   - Ajustement
+3. Comparer 3 sorties avant/après pour vérifier qu'aucune régression de qualité
 
 ## Hors scope
-- Multi-photos (>1) pour Reel/Stories/LinkedIn/Newsletter : la limite Zod de `creative-flow` est `max(1)`. Si besoin un jour, c'est une 2e étape (étendre Zod + adapter prompts).
-- Génération d'image IA pour ces formats (différent du upload).
-- Pinterest (déjà géré séparément).
+
+- Réécriture des prompts
+- Migration vers un autre LLM
+- Changement du modèle de quotas
+- Refonte UI du flow Créer
 
