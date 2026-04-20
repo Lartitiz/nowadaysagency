@@ -1,16 +1,15 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallback, buildIdentityBlock } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropic, getModelForAction, getModelForRichContent } from "../_shared/anthropic.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 import { ANTI_SLOP, EDITORIAL_ANGLES_REFERENCE, CHAIN_OF_THOUGHT, DEPTH_LAYER, PREGEN_INJECTION_RULES, EMBEDDED_EDUCATION } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
-import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { applyCorrectionPassCarousel } from "../_shared/correction-pass.ts";
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
+import { runPipeline } from "../_shared/request-pipeline.ts";
 
 // ── Helpers contexte par photo ──
 // L'ordre des photos correspond à l'ordre d'envoi côté front (post-reorder UX).
@@ -41,34 +40,23 @@ function pushPhotoWithContext(messageContent: any[], photo: { base64: string; co
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const corsHeaders = getCorsHeaders(req);
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Authentification requise" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // Parse body first to extract workspace_id
+    let body: any = {};
+    if (req.method !== "OPTIONS") {
+      try { body = await req.json(); } catch { body = {}; }
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { global: { headers: { Authorization: authHeader } } }
-    );
+    // Quota is handled below per-category, so we skip it here
+    const r = await runPipeline(req, {
+      skipQuota: true,
+      workspaceId: body?.workspace_id ?? undefined,
+    });
+    if (!r.ok) return r.response;
+    const { userId, supabase } = r;
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Authentification invalide" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Rate limit check
-    const rateCheck = checkRateLimit(user.id);
-    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
-
-    const body = await req.json();
     validateInput(body, z.object({
       type: z.enum(["hooks", "slides", "suggest_topics", "suggest_angles", "deepening_questions", "express_full", "structure_proposal"]),
       carousel_type: z.string().max(100).optional().nullable(),
