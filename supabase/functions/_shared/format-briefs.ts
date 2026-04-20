@@ -2,7 +2,7 @@
 // Extracted verbatim from index.ts to keep prompt quality identical.
 // Each function returns the exact same string literal that was previously inlined.
 
-import { ANTI_BROETRY_LINKEDIN, LINKEDIN_TEMPLATES } from "../../_shared/copywriting-prompts.ts";
+import { ANTI_BROETRY_LINKEDIN, LINKEDIN_TEMPLATES } from "./copywriting-prompts.ts";
 
 export function carouselBrief(): string {
   return `FORMAT : CARROUSEL INSTAGRAM (8 slides minimum)
