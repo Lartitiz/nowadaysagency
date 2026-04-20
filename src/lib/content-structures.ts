@@ -500,7 +500,7 @@ export const CONTENT_TYPE_SPECS: Record<string, ContentTypeSpec> = {
     label: "Reel",
     emoji: "🎬",
     channel: "instagram",
-    edgeFunction: "reels-ai",
+    edgeFunction: "creative-flow",
     specs: "15-60 sec, face cam ou voix off",
   },
   story: {
