@@ -171,7 +171,7 @@ const OVERLAY_STYLE_CLASS: Record<string, string> = {
   technique: "text-sm font-mono",
 };
 
-export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, visualSlides, channel = "instagram", onRetry }: CarouselPhotoResultProps) {
+export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, visualSlides, channel = "instagram", onRetry, captionLoading = false, onRegenerateCaption }: CarouselPhotoResultProps) {
   const r = result?.raw || result;
 
   // Fallback minimal si l'IA a oublié la légende — au moins une amorce éditable
