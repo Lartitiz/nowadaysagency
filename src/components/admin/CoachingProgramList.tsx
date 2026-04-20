@@ -34,6 +34,7 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
   const [loadingWsFor, setLoadingWsFor] = useState<string | null>(null);
   const [creatingStandalone, setCreatingStandalone] = useState(false);
   const [newWsName, setNewWsName] = useState("");
+  const [newWsEmail, setNewWsEmail] = useState("");
   const [showNewWsInput, setShowNewWsInput] = useState(false);
   const [deletingWs, setDeletingWs] = useState<string | null>(null);
   const [removedWsIds, setRemovedWsIds] = useState<Set<string>>(new Set());
@@ -164,6 +165,60 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
     if (!newWsName.trim() || !user?.id) return;
     setCreatingStandalone(true);
     try {
+      // If email provided, check if a profile + workspace already exist
+      const trimmedEmail = newWsEmail.trim();
+      if (trimmedEmail) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("user_id, prenom")
+          .ilike("email", trimmedEmail)
+          .maybeSingle();
+
+        if (profile) {
+          // Find their existing owner workspace (oldest)
+          const { data: existing } = await supabase
+            .from("workspace_members")
+            .select("workspace_id, workspaces!inner(name, created_at)")
+            .eq("user_id", profile.user_id)
+            .eq("role", "owner")
+            .order("workspaces(created_at)" as any, { ascending: true });
+
+          if (existing && existing.length > 0) {
+            const targetWsId = (existing[0] as any).workspace_id;
+            const targetWsName = (existing[0] as any).workspaces?.name || profile.prenom || trimmedEmail;
+            const confirmed = window.confirm(
+              `${profile.prenom || trimmedEmail} a déjà un espace « ${targetWsName} ».\n\nOK = t'attacher à cet espace existant (recommandé)\nAnnuler = créer un NOUVEAU espace en doublon`
+            );
+
+            if (confirmed) {
+              // Attach as manager
+              const { data: alreadyMember } = await supabase
+                .from("workspace_members")
+                .select("id")
+                .eq("workspace_id", targetWsId)
+                .eq("user_id", user.id)
+                .maybeSingle();
+
+              if (!alreadyMember) {
+                const { error: addErr } = await supabase
+                  .from("workspace_members")
+                  .insert({ workspace_id: targetWsId, user_id: user.id, role: "manager" } as any);
+                if (addErr) {
+                  toast.error("Impossible de t'attacher : " + addErr.message);
+                  return;
+                }
+              }
+              toast.success(`Tu es maintenant rattachée à l'espace de ${profile.prenom || trimmedEmail} 🎉`);
+              setNewWsName(""); setNewWsEmail(""); setShowNewWsInput(false);
+              onReload();
+              return;
+            }
+            // User chose to create duplicate anyway → fall through
+          }
+        }
+      }
+
+      // Create a new standalone workspace
       const { data: ws, error } = await supabase
         .from("workspaces")
         .insert({ name: newWsName.trim(), created_by: user.id } as any)
@@ -176,8 +231,7 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
 
       toast.success(`Espace « ${newWsName.trim()} » créé`);
 
-      setNewWsName("");
-      setShowNewWsInput(false);
+      setNewWsName(""); setNewWsEmail(""); setShowNewWsInput(false);
       onReload();
     } catch {
       toast.error("Erreur création");
@@ -276,12 +330,16 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
         </div>
 
         {showNewWsInput && (
-          <div className="flex gap-2 mb-4">
-            <Input value={newWsName} onChange={e => setNewWsName(e.target.value)} placeholder="Nom de l'espace…" className="flex-1" onKeyDown={e => e.key === "Enter" && handleCreateStandaloneWs()} />
-            <Button size="sm" onClick={handleCreateStandaloneWs} disabled={creatingStandalone || !newWsName.trim()} className="rounded-full">
-              {creatingStandalone ? <Loader2 className="h-4 w-4 animate-spin" /> : "Créer"}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => { setShowNewWsInput(false); setNewWsName(""); }}>Annuler</Button>
+          <div className="rounded-xl border border-border bg-card p-3 mb-4 space-y-2">
+            <Input value={newWsName} onChange={e => setNewWsName(e.target.value)} placeholder="Nom de l'espace…" onKeyDown={e => e.key === "Enter" && handleCreateStandaloneWs()} />
+            <Input value={newWsEmail} onChange={e => setNewWsEmail(e.target.value)} placeholder="Email de la cliente (optionnel — évite les doublons)" type="email" onKeyDown={e => e.key === "Enter" && handleCreateStandaloneWs()} />
+            <p className="text-[11px] text-muted-foreground">Si tu renseignes un email déjà inscrit, on te proposera de t'attacher à son espace existant au lieu d'en créer un en doublon.</p>
+            <div className="flex gap-2">
+              <Button size="sm" onClick={handleCreateStandaloneWs} disabled={creatingStandalone || !newWsName.trim()} className="rounded-full">
+                {creatingStandalone ? <Loader2 className="h-4 w-4 animate-spin" /> : "Créer"}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => { setShowNewWsInput(false); setNewWsName(""); setNewWsEmail(""); }}>Annuler</Button>
+            </div>
           </div>
         )}
 
