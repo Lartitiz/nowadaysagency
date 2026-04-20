@@ -12,6 +12,34 @@ import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { applyCorrectionPassCarousel } from "../_shared/correction-pass.ts";
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
 
+// ── Helpers contexte par photo ──
+// L'ordre des photos correspond à l'ordre d'envoi côté front (post-reorder UX).
+// `context` (max 200 chars, validé Zod) provient du champ optionnel par photo dans PhotoUploadZone.
+function buildPhotoContextRecap(photos: Array<{ base64: string; context?: string }> | undefined): string {
+  if (!photos || photos.length === 0) return "";
+  const withCtx = photos
+    .map((p, i) => ({ idx: i + 1, ctx: p.context?.trim() }))
+    .filter((p) => p.ctx);
+  if (withCtx.length === 0) return "";
+  const lines = withCtx.map((p) => `- Photo ${p.idx} : ${p.ctx}`).join("\n");
+  const missing = photos.length - withCtx.length;
+  const tail = missing > 0 ? `\n(Les ${missing} autre${missing > 1 ? "s" : ""} photo${missing > 1 ? "s n'ont" : " n'a"} pas de contexte fourni.)` : "";
+  return `\n\nINDICES PRÉCIS PAR PHOTO (fournis par l'utilisatrice — utilise-les pour identifier ce qui est représenté) :\n${lines}${tail}\n`;
+}
+
+function pushPhotoWithContext(messageContent: any[], photo: { base64: string; context?: string }, index: number) {
+  if (!photo.base64) return;
+  const ctx = photo.context?.trim();
+  if (ctx) {
+    messageContent.push({ type: "text", text: `Photo ${index + 1} — contexte fourni par l'utilisatrice : "${ctx}"` });
+  }
+  const raw = photo.base64.replace(/^data:image\/[a-z]+;base64,/, "");
+  messageContent.push({
+    type: "image",
+    source: { type: "base64", media_type: "image/jpeg", data: raw },
+  });
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -50,7 +78,7 @@ serve(async (req) => {
       workspace_id: z.string().uuid().optional().nullable(),
       editorial_angle: z.string().max(100).optional().nullable(),
       content_structure: z.string().max(5000).optional().nullable(),
-      photos: z.array(z.object({ base64: z.string() })).max(10).optional(),
+      photos: z.array(z.object({ base64: z.string(), context: z.string().max(200).optional() })).max(10).optional(),
       photo_description: z.string().max(2000).optional().nullable(),
       slide_structure: z.array(z.object({
         slide_number: z.number(),
@@ -136,21 +164,16 @@ serve(async (req) => {
           const messageContent: any[] = [];
           
           // 1. Brief créatif EN PREMIER (avant les photos)
+          const photoCtxRecap = buildPhotoContextRecap(body.photos);
           messageContent.push({
             type: "text",
-            text: `BRIEF CRÉATIF : "${body.subject || "non précisé"}". Ce concept doit structurer TOUT le carrousel.\n\nObjectif : ${body.objective || "engagement"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : "L'IA choisit le meilleur angle."}\n${body.photo_description ? `Description complémentaire : "${body.photo_description}"` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${body.slide_structure ? `\nStructure imposée : ${body.slide_structure.length} slides définies par l'utilisateur·ice.` : ""}\n\nVoici ${body.photos.length} photo(s) à intégrer dans le carrousel :`,
+            text: `BRIEF CRÉATIF : "${body.subject || "non précisé"}". Ce concept doit structurer TOUT le carrousel.\n\nObjectif : ${body.objective || "engagement"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : "L'IA choisit le meilleur angle."}\n${body.photo_description ? `Description complémentaire : "${body.photo_description}"` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${body.slide_structure ? `\nStructure imposée : ${body.slide_structure.length} slides définies par l'utilisateur·ice.` : ""}${photoCtxRecap}\n\nVoici ${body.photos.length} photo(s) à intégrer dans le carrousel :`,
           });
 
-          // 2. Photos
-          for (const photo of body.photos.slice(0, 10)) {
-            if (photo.base64) {
-              const raw = photo.base64.replace(/^data:image\/[a-z]+;base64,/, "");
-              messageContent.push({
-                type: "image",
-                source: { type: "base64", media_type: "image/jpeg", data: raw },
-              });
-            }
-          }
+          // 2. Photos (avec contexte par photo s'il existe — l'ordre = ordre d'envoi front)
+          body.photos.slice(0, 10).forEach((photo: any, idx: number) => {
+            pushPhotoWithContext(messageContent, photo, idx);
+          });
 
           // 3. Instruction finale après les photos
           messageContent.push({
@@ -203,19 +226,23 @@ serve(async (req) => {
         if (body.photos && body.photos.length > 0) {
           // Vision mode: send photos to Claude
           const messageContent: any[] = [];
-          for (const photo of body.photos.slice(0, 10)) {
-            if (photo.base64) {
-              // Strip data:image/jpeg;base64, prefix if present
-              const raw = photo.base64.replace(/^data:image\/[a-z]+;base64,/, "");
-              messageContent.push({
-                type: "image",
-                source: { type: "base64", media_type: "image/jpeg", data: raw },
-              });
-            }
-          }
+          const photoCtxRecap = buildPhotoContextRecap(body.photos);
+
+          // 1. Brief + recap contexte AVANT les photos
           messageContent.push({
             type: "text",
-            text: `Voici ${body.photos.length} photo(s) pour un carrousel photo Instagram.\n\nSujet : "${body.subject || "non précisé"}"\nObjectif : ${body.objective || "engagement"}\nNombre de slides : ${body.photos.length}\n${body.photo_description ? `Description complémentaire : "${body.photo_description}"` : ""}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : "L'IA choisit le meilleur angle."}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}\n\nAnalyse chaque photo et génère le carrousel photo.`,
+            text: `Voici ${body.photos.length} photo(s) pour un carrousel photo Instagram.\n\nSujet : "${body.subject || "non précisé"}"\nObjectif : ${body.objective || "engagement"}\nNombre de slides : ${body.photos.length}\n${body.photo_description ? `Description complémentaire : "${body.photo_description}"` : ""}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : "L'IA choisit le meilleur angle."}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${photoCtxRecap}`,
+          });
+
+          // 2. Photos (avec contexte par photo s'il existe — l'ordre = ordre d'envoi front)
+          body.photos.slice(0, 10).forEach((photo: any, idx: number) => {
+            pushPhotoWithContext(messageContent, photo, idx);
+          });
+
+          // 3. Instruction finale après les photos
+          messageContent.push({
+            type: "text",
+            text: `Analyse chaque photo et génère le carrousel photo.`,
           });
 
           content = await callAnthropic({
@@ -318,19 +345,15 @@ Propose la structure optimale.`;
       let content: string;
       if (hasPhotos) {
         const messageContent: any[] = [];
+        const photoCtxRecap = buildPhotoContextRecap(photos);
         messageContent.push({
           type: "text",
-          text: structureUserPrompt + "\n\nVoici les photos à analyser :",
+          text: structureUserPrompt + photoCtxRecap + "\n\nVoici les photos à analyser :",
         });
-        for (const photo of photos.slice(0, 10)) {
-          if (photo.base64) {
-            const raw = photo.base64.replace(/^data:image\/[a-z]+;base64,/, "");
-            messageContent.push({
-              type: "image",
-              source: { type: "base64", media_type: "image/jpeg", data: raw },
-            });
-          }
-        }
+        // Photos avec contexte par photo s'il existe (l'ordre = ordre d'envoi front)
+        photos.slice(0, 10).forEach((photo: any, idx: number) => {
+          pushPhotoWithContext(messageContent, photo, idx);
+        });
         messageContent.push({
           type: "text",
           text: "Analyse ces photos et propose la structure optimale avec l'assignation photo.",

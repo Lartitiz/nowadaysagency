@@ -28,7 +28,7 @@ export interface GenerateParams {
   slideCount?: number;
   carouselType?: string;
   // Photo-related
-  photos?: { base64: string }[];
+  photos?: { base64: string; context?: string; mimeType?: string }[];
   photoDescription?: string;
   photoMode?: boolean;
   slideStructure?: Array<{
@@ -292,7 +292,7 @@ export function useContentGenerator() {
               objective: objective || null,
               workspace_id: workspaceId || null,
               photo_mode: params.photoMode || undefined,
-              photos: params.photoMode && params.photos?.length ? [{ base64: params.photos[0].base64, mimeType: "image/jpeg" }] : undefined,
+              photos: params.photoMode && params.photos?.length ? [{ base64: params.photos[0].base64, mimeType: params.photos[0].mimeType || "image/jpeg", context: params.photos[0].context }] : undefined,
               photo_description: params.photoMode ? params.photoDescription : undefined,
             },
           }, 120000);
