@@ -233,6 +233,7 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
         return (!v || (typeof v === "string" && v.trim().length === 0)) && !f.key.startsWith("pitch_");
       });
 
+      let aiFillsCount = 0;
       if (stillEmptyFields.length > 0) {
         const fieldLabels: Record<string, string> = {
           step_1_frustrations: "Ses frustrations profondes",
@@ -246,17 +247,73 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
           step_5_actions: "Ses premières actions / déclencheurs d'achat",
         };
 
-        const { data: session } = await (supabase.from("branding_coaching_sessions") as any)
-          .select("messages")
-          .eq(column, workspaceValue)
-          .eq("section", "persona")
-          .maybeSingle();
-        const conversationMessages = (session?.messages as any[]) || [];
+        // Fetch all available context sources in parallel
+        const [sessionRes, brandProfileRes] = await Promise.all([
+          (supabase.from("branding_coaching_sessions") as any)
+            .select("messages")
+            .eq(column, workspaceValue)
+            .eq("section", "persona")
+            .maybeSingle(),
+          (supabase.from("brand_profile") as any)
+            .select("mission, positioning, offer, target_description, target_problem, target_beliefs, target_verbatims, voice_description, tone_register, tone_level, tone_style, key_expressions, combat_cause, combat_fights, things_to_avoid")
+            .eq(column, workspaceValue)
+            .maybeSingle(),
+        ]);
+        const conversationMessages = (sessionRes?.data?.messages as any[]) || [];
+        const brandProfile = brandProfileRes?.data || null;
 
-        if (conversationMessages.length > 0 || portrait) {
-          const contextForAI = portrait
-            ? [{ role: "user", content: `Voici la synthèse portrait de ma cliente idéale :\n${JSON.stringify(portrait, null, 2)}` }]
-            : [];
+        // Already-filled persona fields (frustrations, transformation, etc.)
+        const filledPersonaFields: Record<string, string> = {};
+        for (const f of fields) {
+          const v = updatedData[f.key];
+          if (v && typeof v === "string" && v.trim().length > 0 && !f.key.startsWith("pitch_")) {
+            filledPersonaFields[f.key] = v.trim();
+          }
+        }
+
+        // Determine if we have ANY usable context
+        const hasBrandContext = brandProfile && (
+          brandProfile.target_description || brandProfile.target_verbatims ||
+          brandProfile.target_problem || brandProfile.mission || brandProfile.positioning
+        );
+        const hasContext = !!portrait || conversationMessages.length > 0 ||
+          hasBrandContext || Object.keys(filledPersonaFields).length > 0;
+
+        if (hasContext) {
+          // Build context blocks
+          const contextBlocks: { role: string; content: string }[] = [];
+
+          if (brandProfile && hasBrandContext) {
+            const bp: string[] = [];
+            if (brandProfile.mission) bp.push(`Mission : ${brandProfile.mission}`);
+            if (brandProfile.positioning) bp.push(`Positionnement : ${brandProfile.positioning}`);
+            if (brandProfile.offer) bp.push(`Offre : ${brandProfile.offer}`);
+            if (brandProfile.target_description) bp.push(`Description de la cible : ${brandProfile.target_description}`);
+            if (brandProfile.target_problem) bp.push(`Problème principal de la cible : ${brandProfile.target_problem}`);
+            if (brandProfile.target_beliefs) bp.push(`Croyances limitantes de la cible : ${brandProfile.target_beliefs}`);
+            if (brandProfile.target_verbatims) bp.push(`Verbatims de la cible : ${brandProfile.target_verbatims}`);
+            if (brandProfile.voice_description) bp.push(`Voix de marque : ${brandProfile.voice_description}`);
+            if (brandProfile.tone_register || brandProfile.tone_level || brandProfile.tone_style) {
+              bp.push(`Ton : ${[brandProfile.tone_register, brandProfile.tone_level, brandProfile.tone_style].filter(Boolean).join(" / ")}`);
+            }
+            if (brandProfile.key_expressions) bp.push(`Expressions clés : ${brandProfile.key_expressions}`);
+            if (brandProfile.combat_cause) bp.push(`Cause défendue : ${brandProfile.combat_cause}`);
+            if (brandProfile.combat_fights) bp.push(`Ce contre quoi on se bat : ${brandProfile.combat_fights}`);
+            if (brandProfile.things_to_avoid) bp.push(`À éviter : ${brandProfile.things_to_avoid}`);
+            contextBlocks.push({ role: "user", content: `CONTEXTE DE MARQUE :\n${bp.join("\n")}` });
+          }
+
+          if (portrait) {
+            contextBlocks.push({ role: "user", content: `SYNTHÈSE PORTRAIT de la cliente idéale :\n${JSON.stringify(portrait, null, 2)}` });
+          }
+
+          if (Object.keys(filledPersonaFields).length > 0) {
+            const filledStr = Object.entries(filledPersonaFields)
+              .map(([k, v]) => `- ${fieldLabels[k] || k} : ${v}`)
+              .join("\n");
+            contextBlocks.push({ role: "user", content: `CHAMPS PERSONA DÉJÀ REMPLIS :\n${filledStr}` });
+          }
+
           const missingList = stillEmptyFields
             .map(f => `- "${f.key}": ${fieldLabels[f.key] || f.label}`)
             .join("\n");
@@ -265,9 +322,9 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
             body: {
               section: "persona_fill",
               messages: [
-                ...contextForAI,
+                ...contextBlocks,
                 ...conversationMessages.map((m: any) => ({ role: m.role, content: m.content })),
-                { role: "user", content: `À partir de TOUTE notre conversation et de la synthèse, extrais les informations pour remplir ces champs manquants. Si tu n'as pas d'info directe, déduis-la intelligemment à partir du contexte. Réponds UNIQUEMENT en JSON avec ces clés :\n${missingList}` }
+                { role: "user", content: `À partir de TOUT le contexte ci-dessus (marque, portrait, champs déjà remplis, conversation), DÉDUIS et remplis ces champs manquants. Tu DOIS produire une valeur concrète et plausible pour CHAQUE champ demandé. Ne refuse jamais sous prétexte de manque d'info — déduis intelligemment. Réponds UNIQUEMENT en JSON avec ces clés :\n${missingList}` }
               ],
               context: {},
               covered_topics: [],
@@ -294,6 +351,7 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
               .update({ ...validFills, updated_at: new Date().toISOString() })
               .eq("id", recordId);
             for (const [key, val] of Object.entries(validFills)) onFieldUpdate?.(key, val, "");
+            aiFillsCount = Object.keys(validFills).length;
           }
         }
       }
