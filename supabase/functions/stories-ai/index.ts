@@ -5,8 +5,10 @@ import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   try {
     // Parse body first to extract workspace_id for quota scoping
     let body: any = {};
@@ -19,7 +21,7 @@ serve(async (req) => {
       workspaceId: body?.workspace_id ?? undefined,
     });
     if (!r.ok) return r.response;
-    const { userId, supabase, corsHeaders } = r;
+    const { userId, supabase } = r;
 
     // logUsage is still imported lazily below (kept for behaviour parity)
     const { logUsage } = await import("../_shared/plan-limiter.ts");
