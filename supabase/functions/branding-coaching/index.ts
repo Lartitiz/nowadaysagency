@@ -401,15 +401,19 @@ serve(async (req) => {
     // Special section: fill missing persona fields from conversation context
     if (section === "persona_fill") {
       const prenom = context?.profile?.prenom || context?.profile?.first_name || "toi";
-      const fillSystemPrompt = BASE_SYSTEM_RULES + `\n\nTu es experte en persona marketing. ${prenom} vient de terminer un coaching sur son client·e idéal·e. À partir de toute la conversation, extrais les informations demandées.
+      const fillSystemPrompt = BASE_SYSTEM_RULES + `\n\nTu es experte en persona marketing. Tu reçois un contexte composite : il peut contenir un CONTEXTE DE MARQUE (mission, cible, verbatims, ton), une SYNTHÈSE PORTRAIT, des CHAMPS PERSONA DÉJÀ REMPLIS, et/ou une CONVERSATION de coaching. Tu peux recevoir une seule de ces sources, plusieurs, ou toutes — adapte-toi.
 
-RÈGLES :
-- Réponds UNIQUEMENT en JSON valide, rien d'autre
-- Si tu n'as pas d'information directe pour un champ, DÉDUIS-la intelligemment à partir du contexte de la conversation
-- Chaque valeur doit être une string de 1 à 5 phrases, concrète et spécifique
+À partir de TOUT ce qui est disponible, extrais ou DÉDUIS les informations demandées pour ${prenom}.
+
+RÈGLES STRICTES :
+- Réponds UNIQUEMENT en JSON valide, rien d'autre (pas de markdown, pas de texte autour)
+- Tu DOIS produire une valeur concrète et plausible pour CHAQUE champ demandé
+- Si tu n'as pas d'information directe pour un champ, DÉDUIS-la intelligemment à partir de la cible, des verbatims, du problème, de la mission, du ton et de tout autre élément du contexte
+- Ne refuse JAMAIS sous prétexte de manque d'info — déduis. Une déduction plausible vaut mieux qu'un champ vide
+- Chaque valeur doit être une string de 1 à 5 phrases, concrète et spécifique (pas de généralités creuses)
 - Ton empathique et direct
 - Écriture inclusive avec point médian
-- N'invente PAS de données qui contredisent ce qui a été dit`;
+- N'invente PAS de données qui CONTREDISENT explicitement ce qui a été dit dans le contexte`;
 
       let fillMessages = (messages || []).map((m: any) => ({
         role: m.role === "user" ? "user" as const : "assistant" as const,
