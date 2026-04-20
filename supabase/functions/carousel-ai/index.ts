@@ -1587,12 +1587,14 @@ Tu DOIS produire un objet "caption" avec ces 4 champs remplis :
 
 Total caption (hook + body + cta) : 400-800 caractères.
 
-EXEMPLE de caption COMPLÈTE (à adapter, JAMAIS laisser vide, JAMAIS sauter le bloc body) :
+⚠️ INTERDICTION ABSOLUE de recopier un exemple textuel. La caption doit être 100% ANCRÉE dans le sujet "${body.subject || ""}" et dans CES photos précises. Si tu produis une caption qui pourrait s\'appliquer à un autre sujet (par ex. une rénovation alors que le sujet n\'a rien à voir), c\'est un ÉCHEC GRAVE.
+
+STRUCTURE attendue (REMPLIS chaque champ avec du contenu ORIGINAL, ancré dans CE sujet et CES photos) :
 {
-  "hook": "Ce chantier cache 3 appartements.",
-  "body": "Quand on a démarré la rénovation de cet immeuble bordelais, personne ne voyait le potentiel. Les murs étaient noirs, le sol défoncé, les plafonds bas. Trois mois plus tard, la lumière entre par où on ne l'attendait pas. Ce qu'on ne voit pas sur les photos : les 47 décisions par jour, les compromis avec le voisin du dessus, le moment où on doute. Mais aussi la satisfaction quand le client passe la porte la première fois.",
-  "cta": "Tu rénoves bientôt ? Dis-moi en commentaire où tu en es — je réponds à tout le monde.",
-  "hashtags": ["renovation", "architecture", "chantier", "bordeaux", "interiordesign", "rehabilitation", "bts"]
+  "hook": "<phrase d\'accroche 1-2 lignes, DIFFÉRENTE du texte slide 1, ancrée dans le sujet>",
+  "body": "<300-700 caractères : l\'envers du décor de CE moment précis, ce que les photos ne disent pas, l\'émotion / le pourquoi spécifique au sujet>",
+  "cta": "<invitation concrète à la conversation, en lien avec le sujet>",
+  "hashtags": [<5 à 10 hashtags pertinents au sujet, sans le #>]
 }`}
 
 
