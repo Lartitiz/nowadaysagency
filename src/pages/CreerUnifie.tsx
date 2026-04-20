@@ -2116,6 +2116,8 @@ export default function CreerUnifie() {
                 objective={objective || undefined}
                 initialFormat={selectedFormat || undefined}
                 suggestedFormat={newsjackingSuggestedFormat || undefined}
+                initialPhotos={uploadedPhotos.length > 0 ? uploadedPhotos : undefined}
+                initialPhotoDescription={photoDescription || undefined}
                 onNext={(fmt, angle, sub, photos, desc, pm, pintData, linkedinCar) => {
                   if (pintData) setPinterestData(pintData);
                   if (linkedinCar) setIsLinkedInCarousel(true);
