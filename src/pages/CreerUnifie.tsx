@@ -1943,6 +1943,23 @@ export default function CreerUnifie() {
     }
   };
 
+  const handleExportHybridPptx = async () => {
+    if (visualSlides.length === 0) return;
+    try {
+      toast.info("Export PowerPoint éditable en cours…");
+      const { exportCarouselHybridPptx } = await import("@/lib/export-carousel-hybrid-pptx");
+      await exportCarouselHybridPptx(
+        visualSlides,
+        result?.raw?.slides || null,
+        charterData || null,
+        ideaText || "carrousel-editable",
+      );
+      toast.success("PowerPoint éditable téléchargé !");
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur lors de l'export");
+    }
+  };
+
   const handleExportPinterestPptx = async () => {
     if (!pinterestPinHtml) return;
     try {
