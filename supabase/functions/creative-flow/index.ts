@@ -1816,10 +1816,30 @@ Réponds UNIQUEMENT en JSON valide :
         max_tokens: 1500,
       });
     } else if (step === "generate" && body.photo_mode && body.photos?.[0]?.base64) {
-      // Photo mode with vision: send the image to Claude
+      // Photo mode with vision: send the image to Claude — format-aware prompt
       const photoBase64 = body.photos[0].base64.replace(/^data:image\/[a-z]+;base64,/, "");
       const photoMimeType = body.photos[0].mimeType || "image/jpeg";
       const perPhotoCtx = body.photos[0].context?.trim();
+      const ctype = String(contentType || "").toLowerCase();
+
+      // Format-aware briefing
+      let formatBrief = `Rédige une légende Instagram pour cette photo. La légende doit COMPLÉTER l'image, pas la décrire. Ton sensoriel. 400-800 caractères.`;
+      let jsonShape = `{\n  "content": "...",\n  "accroche": "...",\n  "format": "caption_photo",\n  "pillar": "...",\n  "objectif": "..."\n}`;
+
+      if (ctype.includes("linkedin")) {
+        formatBrief = `Rédige un POST LINKEDIN pro qui s'appuie sur cette photo. L'image illustre un point précis du texte (ne pas la paraphraser). Ton pro mais incarné. Ouvre par un hook fort qui fait écho au visuel, déroule un apprentissage / prise de position / résultat concret, termine par une invitation à réagir. 1300-2000 caractères.`;
+        jsonShape = `{\n  "content": "...",\n  "accroche": "...",\n  "format": "post_linkedin",\n  "pillar": "...",\n  "objectif": "..."\n}`;
+      } else if (ctype.includes("reel")) {
+        formatBrief = `Rédige le SCRIPT D'UN REEL Instagram qui s'appuie sur cette image (vignette / référence visuelle / plan d'inspiration).\nStructure : HOOK (1 phrase choc, 2-3s) → PROMESSE → DÉROULÉ (3-5 beats voix-off ou face cam) → CTA.\nLe script doit faire un lien explicite avec ce qu'on voit sur l'image (sans la paraphraser bêtement).`;
+        jsonShape = `{\n  "content": "<script complet avec timing indicatif>",\n  "accroche": "<le hook>",\n  "format": "reel_script",\n  "pillar": "...",\n  "objectif": "..."\n}`;
+      } else if (ctype.includes("story") || ctype.includes("stories")) {
+        formatBrief = `Découpe une SÉQUENCE DE 3 À 5 STORIES Instagram qui exploitent cette image (zooms, crops narratifs, hors-champ, sticker question / sondage). Chaque story doit avoir une intention claire (accroche, contexte, révélation, CTA). Texte court, oral, direct.`;
+        jsonShape = `{\n  "content": "<séquence numérotée des stories avec texte + indication visuelle>",\n  "accroche": "<le texte de la story 1>",\n  "format": "stories_sequence",\n  "pillar": "...",\n  "objectif": "..."\n}`;
+      } else if (ctype.includes("newsletter")) {
+        formatBrief = `Rédige une NEWSLETTER (email long format) qui s'ouvre sur cette image en bandeau / illustration. Le texte doit prolonger l'ambiance visuelle, pas la décrire. Ton intime, éditorial, comme une lettre. Objet court (<60 car), pré-header (<90 car), corps 1500-2500 mots avec sous-titres oraux.`;
+        jsonShape = `{\n  "content": "<corps complet>",\n  "subject": "<objet email>",\n  "preheader": "<pré-header>",\n  "accroche": "<première ligne du corps>",\n  "format": "newsletter",\n  "pillar": "...",\n  "objectif": "..."\n}`;
+      }
+
       const photoContent: any[] = [
         {
           type: "image",
@@ -1827,7 +1847,7 @@ Réponds UNIQUEMENT en JSON valide :
         },
         {
           type: "text",
-          text: `Rédige une légende Instagram pour cette photo.${perPhotoCtx ? `\nContexte précis fourni par l'utilisatrice sur cette photo : "${perPhotoCtx}" (utilise-le pour identifier les éléments visuels).` : ""}${body.photo_description ? `\nDescription globale de l'utilisatrice : "${body.photo_description}"` : ""}\nLa légende doit COMPLÉTER l'image, pas la décrire. Ton sensoriel. 400-800 caractères.\n\nRéponds UNIQUEMENT en JSON :\n{\n  "content": "...",\n  "accroche": "...",\n  "format": "caption_photo",\n  "pillar": "...",\n  "objectif": "..."\n}`,
+          text: `${formatBrief}${perPhotoCtx ? `\nContexte précis fourni par l'utilisatrice sur cette photo : "${perPhotoCtx}" (utilise-le pour identifier les éléments visuels, pas pour le recopier).` : ""}${body.photo_description ? `\nDescription globale de l'utilisatrice : "${body.photo_description}"` : ""}\n\n⚠️ INTERDICTION ABSOLUE de recopier un exemple textuel. Génère du contenu ORIGINAL ancré dans CETTE image et CE sujet.\n\nRéponds UNIQUEMENT en JSON :\n${jsonShape}`,
         },
       ];
 
