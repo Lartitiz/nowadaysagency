@@ -433,9 +433,9 @@ Réponds UNIQUEMENT en JSON valide :
       // ── Photo carousel with description only (no actual photos) ──
       if (body.carousel_type === "photo" && body.photo_description) {
         const photoDescBlock = `\n\nL'utilisatrice décrit ses photos : "${body.photo_description}". Pose des questions en lien avec ce qu'elle décrit : l'ambiance, le contexte invisible, l'émotion derrière ces images, l'histoire qu'elles racontent ensemble.`;
-        userPrompt = buildDeepeningQuestionsPrompt(body, brandingContext, isLinkedIn) + photoDescBlock;
+        userPrompt = buildDeepeningQuestionsPrompt(body, brandingContext, isLinkedIn, recentBriefsContext, brandVocabBlock) + photoDescBlock;
       } else {
-        userPrompt = buildDeepeningQuestionsPrompt(body, brandingContext, isLinkedIn);
+        userPrompt = buildDeepeningQuestionsPrompt(body, brandingContext, isLinkedIn, recentBriefsContext, brandVocabBlock);
       }
     } else {
       return new Response(JSON.stringify({ error: "Type invalide" }), {
@@ -959,7 +959,7 @@ Slide 10: CTA doux "Laquelle vous préférez ? Dites-moi."
   return guides[type] || guides.tips;
 }
 
-function buildDeepeningQuestionsPrompt(body: any, brandingContext?: string, isLinkedIn: boolean = false): string {
+function buildDeepeningQuestionsPrompt(body: any, brandingContext?: string, isLinkedIn: boolean = false, recentBriefsContext?: string, brandVocabBlock?: string): string {
   const { carousel_type, subject, objective, editorial_angle, content_structure } = body;
 
   const CAROUSEL_TYPE_LABELS: Record<string, string> = {
@@ -991,19 +991,31 @@ function buildDeepeningQuestionsPrompt(body: any, brandingContext?: string, isLi
 
 SUJET du carrousel : "${subject || "non précisé"}"
 OBJECTIF : ${OBJ_LABELS[objective] || objective || "non précisé"}
-${objective ? `\nOriente les questions vers cet objectif. Si "vente" : demande des témoignages clients, des résultats, des transformations. Si "engagement" : demande des anecdotes personnelles, des moments vécus. Si "visibilité" : demande des opinions tranchées, des constats provocants.\n` : ""}${brandingBlock}${angleBlock}
+${objective ? `\nOriente les questions vers cet objectif. Si "vente" : demande des témoignages clients, des résultats, des transformations. Si "engagement" : demande des anecdotes personnelles, des moments vécus. Si "visibilité" : demande des opinions tranchées, des constats provocants.\n` : ""}${brandingBlock}${brandVocabBlock || ""}${recentBriefsContext || ""}${angleBlock}
 ${isLinkedIn ? `\nATTENTION : c'est un carrousel LINKEDIN. Les questions doivent orienter vers du contenu expert et professionnel :\n- Demander des données, des résultats concrets, des leçons métier\n- Chercher l'expertise spécifique (pas juste l'émotion)\n- Orienter vers du contenu qui positionne comme référence sur le sujet` : ""}
+
+══ AVANT DE POSER LES QUESTIONS — RAISONNEMENT INTERNE (ne PAS afficher) ══
+Réfléchis silencieusement à :
+1. Qu'est-ce que je sais DÉJÀ grâce au branding et aux briefs précédents ?
+2. Qu'est-ce qui MANQUE pour rendre CE carrousel unique sur CE sujet ?
+3. Quels angles ont DÉJÀ été couverts dans les briefs récents ? (À ÉVITER)
+4. Quel vocabulaire métier puis-je réutiliser ?
 
 TON RÔLE : Tu es une coach com' qui aide l'utilisatrice à extraire son vécu, ses opinions et son expertise PERSONNELLE pour que le contenu ne soit pas générique.
 
 RÈGLES pour les questions :
 - Chaque question doit être liée SPÉCIFIQUEMENT au sujet "${subject}" et au format ${formatLabel}
 - Les questions doivent faire émerger du vécu, des anecdotes, des opinions tranchées, des exemples concrets
-- AU MOINS 1 question sur 3 doit creuser le POURQUOI PROFOND : "Pourquoi tu penses que [blocage] existe ?", "Qu'est-ce qui fait que [problème] est si répandu selon toi ?", "Si tu devais expliquer à quelqu'un pourquoi [sujet] est un vrai problème, tu dirais quoi ?". L'objectif est d'extraire une réflexion de fond, pas juste un exemple.
+- AU MOINS 1 question sur 3 doit creuser le POURQUOI PROFOND : "Pourquoi tu penses que [blocage] existe ?", "Qu'est-ce qui fait que [problème] est si répandu selon toi ?". L'objectif est d'extraire une réflexion de fond, pas juste un exemple.
 - Si tu as le contexte branding, adapte les questions à son activité et sa cible (ex : "Quand une de tes clientes [cible] te dit..." plutôt que "Quand quelqu'un te dit...")
+- ${recentBriefsContext ? "MÉMOIRE : ne re-demande pas un angle déjà couvert dans les briefs récents. Tu peux faire écho discrètement (\"la dernière fois tu disais X, ici c'est différent ?\") mais pas re-poser la même question." : ""}
 - ${isLinkedIn ? "Vouvoyez l'utilisatrice, restez professionnel·le et chaleureux·se" : "Tutoie l'utilisatrice, sois directe et chaleureuse"}
 - Chaque question fait 1-2 phrases max
 - Le placeholder est un court exemple de réponse attendue (5-8 mots)
+
+INTERDITS :
+- Questions interchangeables d'un user à l'autre (= sans vocabulaire métier)
+- Questions trop larges qui pourraient s'appliquer à n'importe quel sujet
 
 Réponds UNIQUEMENT en JSON valide, sans texte autour :
 {
