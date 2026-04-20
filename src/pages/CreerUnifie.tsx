@@ -447,9 +447,8 @@ export default function CreerUnifie() {
     setStep("format");
   }, [objective]);
 
-  const handleIdeaNext = (idea: string, obj?: string) => {
+  const handleIdeaNext = (idea: string) => {
     setIdeaText(idea);
-    setObjective(obj || null);
     setNewsjackingContext(null);
     setNewsjackingSuggestedFormat(null);
     // Auriana demo: keep pre-filled format/angle if subject unchanged
