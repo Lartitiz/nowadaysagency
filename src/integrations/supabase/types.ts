@@ -7781,6 +7781,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      delete_workspace_with_cleanup: {
+        Args: { _workspace_id: string }
+        Returns: undefined
+      }
       get_dashboard_summary: {
         Args: { p_user_id: string; p_workspace_id?: string }
         Returns: Json
