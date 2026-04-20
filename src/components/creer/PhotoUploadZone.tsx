@@ -190,13 +190,28 @@ export function PhotoUploadZone({
       {/* ── Thumbnails grid ───────────────────── */}
       {photos.length > 0 && (
         <>
-          <div className="flex justify-end">
+          <div className="flex justify-between items-center gap-2">
+            {compact && !isFull ? (
+              <button
+                type="button"
+                onClick={() => inputRef.current?.click()}
+                className="text-xs text-primary hover:underline font-medium"
+              >
+                + Ajouter d'autres photos
+              </button>
+            ) : (
+              <span />
+            )}
             <button
               type="button"
               onClick={() => setShowContexts((v) => !v)}
               className="text-xs text-primary hover:underline font-medium"
             >
-              {showContexts ? "− Masquer les contextes" : "+ Ajouter un contexte par photo"}
+              {showContexts
+                ? "− Masquer le contexte par photo"
+                : compact
+                ? "Affiner le contexte par photo"
+                : "+ Ajouter un contexte par photo"}
             </button>
           </div>
           <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
