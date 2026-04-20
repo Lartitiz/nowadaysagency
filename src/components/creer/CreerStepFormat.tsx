@@ -487,6 +487,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
             onPhotosChange={setPostPhoto}
             onDescriptionChange={setPostPhotoDescription}
             title={postPhoto.length > 0 ? `Vos photos (${postPhoto.length})` : undefined}
+            compact={(initialPhotos?.length ?? 0) > 0}
           />
         </div>
       )}
@@ -572,6 +573,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
             }}
             onDescriptionChange={setPhotoDescription}
             title={uploadedPhotos.length > 0 ? `Vos photos (${uploadedPhotos.length})` : undefined}
+            compact={(initialPhotos?.length ?? 0) > 0}
           />
           {photoWarning && (
             <div className="mt-3 p-3 rounded-lg bg-amber-50 border border-amber-200 space-y-2 animate-fade-in">

@@ -18,6 +18,13 @@ export interface PhotoUploadZoneProps {
   initialPhotos?: PhotoItem[];
   initialDescription?: string;
   title?: string;
+  /**
+   * Compact mode: hides the large drop zone and the global description textarea.
+   * Keeps thumbnails grid + counter, exposes a discreet "+ Ajouter d'autres photos"
+   * link and a toggle to refine per-photo context. Use when photos and description
+   * have already been provided in a previous step.
+   */
+  compact?: boolean;
 }
 
 function resizeAndEncode(file: File, maxWidth = 1024, quality = 0.8): Promise<{ base64: string; preview: string }> {
@@ -52,6 +59,7 @@ export function PhotoUploadZone({
   initialPhotos,
   initialDescription,
   title,
+  compact = false,
 }: PhotoUploadZoneProps) {
   const [photos, setPhotos] = useState<PhotoItem[]>(initialPhotos ?? []);
   const [description, setDescription] = useState(initialDescription ?? "");
@@ -143,30 +151,32 @@ export function PhotoUploadZone({
       {title && (
         <p className="text-sm font-semibold text-foreground">{title}</p>
       )}
-      {/* ── Drop zone ─────────────────────────── */}
-      <div
-        onClick={() => !isFull && inputRef.current?.click()}
-        onDragEnter={onDragEnter}
-        onDragLeave={onDragLeave}
-        onDragOver={onDragOverZone}
-        onDrop={onDrop}
-        className={cn(
-          "border-2 border-dashed rounded-xl p-6 text-center transition-colors cursor-pointer",
-          isFull
-            ? "border-border opacity-50 cursor-not-allowed"
-            : isDragOver
-            ? "border-primary bg-primary/5"
-            : "border-border hover:border-primary/40",
-        )}
-      >
-        <Upload className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
-        <p className="text-sm font-medium text-foreground">
-          Glisse tes photos ici ou clique pour sélectionner
-        </p>
-        <p className="text-xs text-muted-foreground mt-1">
-          JPG, PNG • Max {maxPhotos} photos
-        </p>
-      </div>
+      {/* ── Drop zone (hidden in compact mode) ─────────── */}
+      {!compact && (
+        <div
+          onClick={() => !isFull && inputRef.current?.click()}
+          onDragEnter={onDragEnter}
+          onDragLeave={onDragLeave}
+          onDragOver={onDragOverZone}
+          onDrop={onDrop}
+          className={cn(
+            "border-2 border-dashed rounded-xl p-6 text-center transition-colors cursor-pointer",
+            isFull
+              ? "border-border opacity-50 cursor-not-allowed"
+              : isDragOver
+              ? "border-primary bg-primary/5"
+              : "border-border hover:border-primary/40",
+          )}
+        >
+          <Upload className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
+          <p className="text-sm font-medium text-foreground">
+            Glisse tes photos ici ou clique pour sélectionner
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            JPG, PNG • Max {maxPhotos} photos
+          </p>
+        </div>
+      )}
 
       <input
         ref={inputRef}
@@ -180,13 +190,28 @@ export function PhotoUploadZone({
       {/* ── Thumbnails grid ───────────────────── */}
       {photos.length > 0 && (
         <>
-          <div className="flex justify-end">
+          <div className="flex justify-between items-center gap-2">
+            {compact && !isFull ? (
+              <button
+                type="button"
+                onClick={() => inputRef.current?.click()}
+                className="text-xs text-primary hover:underline font-medium"
+              >
+                + Ajouter d'autres photos
+              </button>
+            ) : (
+              <span />
+            )}
             <button
               type="button"
               onClick={() => setShowContexts((v) => !v)}
               className="text-xs text-primary hover:underline font-medium"
             >
-              {showContexts ? "− Masquer les contextes" : "+ Ajouter un contexte par photo"}
+              {showContexts
+                ? "− Masquer le contexte par photo"
+                : compact
+                ? "Affiner le contexte par photo"
+                : "+ Ajouter un contexte par photo"}
             </button>
           </div>
           <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
@@ -237,21 +262,23 @@ export function PhotoUploadZone({
         </>
       )}
 
-      {/* ── Text description ──────────────────── */}
-      <div className="space-y-1.5">
-        <label className="text-sm font-medium text-foreground">
-          Ou décris tes photos en quelques mots
-        </label>
-        {photos.length > 0 && (
-          <p className="text-xs text-muted-foreground">(optionnel si tu as uploadé tes photos)</p>
-        )}
-        <Textarea
-          value={description}
-          onChange={(e) => handleDesc(e.target.value)}
-          placeholder="Ex : 6 photos d'un soutien-gorge en dentelle ivoire, ambiance boudoir, lumière dorée"
-          className="min-h-[72px] resize-none"
-        />
-      </div>
+      {/* ── Text description (hidden in compact mode) ─────── */}
+      {!compact && (
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-foreground">
+            Ou décris tes photos en quelques mots
+          </label>
+          {photos.length > 0 && (
+            <p className="text-xs text-muted-foreground">(optionnel si tu as uploadé tes photos)</p>
+          )}
+          <Textarea
+            value={description}
+            onChange={(e) => handleDesc(e.target.value)}
+            placeholder="Ex : 6 photos d'un soutien-gorge en dentelle ivoire, ambiance boudoir, lumière dorée"
+            className="min-h-[72px] resize-none"
+          />
+        </div>
+      )}
     </div>
   );
 }
