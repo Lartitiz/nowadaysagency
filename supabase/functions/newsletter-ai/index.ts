@@ -111,11 +111,11 @@ serve(async (req) => {
     let { topic, preGenAnswers, template, workspace_id } = body;
 
     // Fetch user context + voice profile
-    const ctx = await getUserContext(supabase, user.id, workspace_id);
+    const ctx = await getUserContext(supabase, userId, workspace_id);
     const brandingContext = formatContextForAI(ctx, CONTEXT_PRESETS.content);
 
     // Voice profile — already fetched by getUserContext() with correct workspace owner resolution.
-    // Do NOT re-fetch with user.id (that would use the coach's voice instead of the client's).
+    // Do NOT re-fetch with userId (that would use the coach's voice instead of the client's).
     let voiceBlock = "";
     if (ctx.voice) {
       const v = ctx.voice;
@@ -202,7 +202,7 @@ ${template ? `FORMAT DEMANDÉ : ${template}` : ""}`;
       });
     }
 
-    await logUsage(user.id, "content", "newsletter");
+    await logUsage(userId, "content", "newsletter");
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
