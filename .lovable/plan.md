@@ -1,81 +1,115 @@
 
 
-## Sauvegarder une actu pour plus tard depuis le panel Newsjacking
+## Fix workspace isolation — "Salut Laetitia" sur le dashboard de Marion + données vides
 
-### Ce que tu veux
+### Diagnostic confirmé (base + code)
 
-Quand une actu te plaît mais que tu n'as pas le temps de créer le contenu maintenant, pouvoir la **mettre de côté** pour la retrouver facilement plus tard. Pas la jeter (`Pas pour moi`), pas générer les angles tout de suite, juste la **bookmarker**.
+**Vérifié en base** : les données de Marion sont bien présentes et correctement taguées avec `workspace_id` pour ses 2 workspaces :
 
-### Comment ça marche (UX)
+| Table | Rows avec `workspace_id` de Marion | Rows orphelines (`user_id` seul) |
+|---|---|---|
+| storytelling | 1 | 0 |
+| persona | 1 | 0 |
+| brand_proposition | 1 | 0 |
+| brand_profile | 1 | 0 |
+| brand_strategy | 1 | 0 |
+| brand_charter | 1 | 0 |
+| offers | 0 | 0 |
 
-Sur chaque carte d'actu, en plus des boutons existants (`Voir les angles`, `Pas pour moi`), un nouveau bouton **`📌 Sauvegarder`** :
+Bonne nouvelle : **brand_charter a bien une colonne `workspace_id`** (le memo était obsolète). **Aucune migration DB nécessaire.**
 
-- Clic → l'actu (titre + résumé + source + axe + ton + pertinence) est enregistrée dans **Mes idées** (table `saved_ideas` qu'on a déjà)
-- Toast confirmation : *"📌 Sauvegardée dans Mes idées"* avec un lien *"Voir"* qui ouvre `/idees`
-- Le bouton se transforme en **`✓ Sauvegardée`** (état désactivé) pour éviter les doublons dans la même session
-- L'actu **reste visible** dans la liste (contrairement à `Pas pour moi`) — tu peux toujours générer les angles ensuite si l'envie vient
+**Confirmé côté code** : tu es bien `manager` sur le workspace `b361a5f2…` de Marion (user_id `7860d5e5…`, email `contact@lejardinparfume.fr`). Le bug est **100 % frontend** — une seule fonction oublie d'utiliser `useProfileUserId()`.
 
-### Comment on retrouve l'actu sauvegardée
+### La cause unique
 
-Page **Mes idées** (déjà existante, `/idees`) — l'actu apparaît comme une carte avec :
-- Titre = titre de l'actu (préfixé `📰`)
-- Tag/angle = `actualité` + l'axe (ex. `science`, `économie`)
-- Source = champ source de l'actu
-- Notes = résumé + pertinence + lien source si dispo
-- `source_module: "newsjacking"` → permet de filtrer plus tard
-- `format: "actu"` (nouveau) → distingue d'une vraie idée de contenu
+`src/hooks/use-guide-recommendation.ts` — lignes 237-244 :
 
-Quand tu rouvres l'idée plus tard depuis Mes idées (composant `IdeaDetailSheet`), tu vois l'actu, et un bouton **"Créer un contenu à partir de cette actu"** te renvoie vers `/creer` avec le sujet pré-rempli (réutilise la prop `onSelect` de NewsjackingPanel).
+```ts
+(supabase.from("profiles") as any)
+  .select("prenom, onboarding_completed")
+  .eq("user_id", user.id)           // ← TOI (Laetitia), pas Marion
+  .maybeSingle(),
+(supabase.from("user_plan_config") as any)
+  .select("onboarding_completed")
+  .eq("user_id", user.id)           // ← TOI à nouveau
+  .maybeSingle(),
+```
 
-### Architecture technique
+Résultat sur le dashboard de Marion :
+- `firstName = "Laetitia"` → "Salut Laetitia 👋" s'affiche
+- `onboardingDone` calculé sur TON onboarding à toi, pas celui de Marion → mauvaise reco guide
 
-**Aucune migration DB** — la table `saved_ideas` a déjà tous les champs nécessaires :
-- `titre` ← `actu.titre`
-- `notes` ← résumé + pertinence + source URL
-- `source_module` ← `"newsjacking"`
-- `canal` ← `"instagram"` par défaut (l'actu n'a pas encore de canal)
-- `format` ← `"actu"` (nouvelle valeur, libre car `string`)
-- `angle` ← l'axe (`economie_argent`, `science_decouverte`…)
-- `content_data` (JSON) ← l'objet `actu` complet pour pouvoir régénérer les angles plus tard
-- `status` ← `"to_explore"` (déjà utilisé)
-- `user_id` + `workspace_id` (isolation)
+Toutes les autres requêtes du même hook (`calendar_posts`, `instagram_audit`, `content_drafts`, `fetchBrandingData`) utilisent correctement `filter.column / filter.value` venant de `useWorkspaceFilter`. Donc le Branding qui paraît vide n'est PAS vide à cause du filtre — il est rempli en base mais la page d'affichage doit être vérifiée séparément (voir point 2 ci-dessous).
 
-**Modifs `src/components/creer/NewsjackingPanel.tsx`** :
-- Ajouter état `savedIdx: Set<number>` (les actus sauvegardées dans la session)
-- Ajouter handler `handleSaveActu(idx, actu)` qui insère dans `saved_ideas` via supabase + toast
-- Ajouter bouton `Bookmark` (lucide-react) à côté de `Pas pour moi`, désactivé si déjà dans `savedIdx`
-- Toast Sonner avec action "Voir" → `navigate("/idees")`
-- ~+40 lignes
+### Ce qu'on corrige
 
-**Modifs `src/components/calendar/IdeaDetailSheet.tsx`** (léger) :
-- Si `idea.source_module === "newsjacking"` et `idea.format === "actu"` :
-  - Afficher un bandeau spécial *"📰 Actualité sauvegardée"*
-  - Afficher le bouton **"Créer un contenu à partir de cette actu"** qui navigue vers `/creer?subject=...&context=...` (les params seront lus côté `CreerUnifie.tsx` si déjà supporté, sinon via state navigation)
-- Pas de refonte, juste un bloc conditionnel ~20 lignes
+#### 1. Fix principal — `use-guide-recommendation.ts`
 
-### Fichiers modifiés
+Remplacer `user.id` par `useProfileUserId()` pour les 2 requêtes `profiles` + `user_plan_config` :
 
-| Fichier | Action |
-|---|---|
-| `src/components/creer/NewsjackingPanel.tsx` | Bouton "Sauvegarder" + handler insert + état local + toast |
-| `src/components/calendar/IdeaDetailSheet.tsx` | Bandeau "Actualité" + bouton "Créer un contenu" si `source_module === "newsjacking"` |
+```ts
+import { useWorkspaceFilter, useProfileUserId } from "@/hooks/use-workspace-query";
+// ...
+const profileUserId = useProfileUserId();  // owner du workspace actif (Marion) ou user.id si pas de workspace
+
+// dans la Promise.all :
+(supabase.from("profiles") as any)
+  .select("prenom, onboarding_completed")
+  .eq("user_id", profileUserId)
+  .maybeSingle(),
+(supabase.from("user_plan_config") as any)
+  .select("onboarding_completed")
+  .eq("user_id", profileUserId)
+  .maybeSingle(),
+```
+
+Ajouter `profileUserId` dans la `queryKey` pour que le cache se réinitialise au switch de workspace :
+```ts
+queryKey: ["guide-recommendation", user?.id, profileUserId, column, value, isDemoMode],
+```
+
+Impact : dès que tu passes sur le workspace de Marion, "Salut Marion 👋" s'affiche et la reco guide se base sur son état réel (pas le tien).
+
+#### 2. Vérification des pages de Branding
+
+Les **données** sont en base (vérifié). Si les pages Branding s'affichent vides sur le workspace de Marion, c'est que certaines sous-pages utilisent encore `user.id` ou `useProfileUserId()` au lieu de `useWorkspaceFilter()`. Je veux faire un **scan ciblé** dans les 6 sous-pages Branding (`BrandingAuditPage`, `BrandingCoachingFlow`, `BrandingSuggestionsCard`, pages section story/persona/proposition/tone/strategy/offers/charter) et corriger les requêtes qui filtrent mal.
+
+Pattern de fix attendu (à appliquer uniquement où c'est nécessaire) :
+- Tables avec colonne `workspace_id` (storytelling, persona, brand_proposition, brand_profile, brand_strategy, brand_charter, offers) → `useWorkspaceFilter()`
+- Tables sans colonne `workspace_id` (profiles, user_plan_config, voice_profile) → `useProfileUserId()` / `useProfileFilter()`
+
+Je scannerai les 6 sections Branding et ne modifierai que les fichiers qui filtrent mal. Liste qui sera affichée avant modif.
+
+#### 3. Bonus — `BrandingAuditPage.tsx` ligne 114
+
+```ts
+.eq("id", user.id)  // ← bug : "id" n'est pas la bonne colonne pour profiles (c'est "user_id")
+```
+→ Probablement cassé depuis longtemps, je corrige en passant (`.eq("user_id", profileUserId)`).
 
 ### Hors scope
 
-- Pas de nouvelle table (réutilise `saved_ideas`)
-- Pas de migration
-- Pas de filtre dédié "Actus sauvegardées" dans `/idees` (les actus apparaissent dans la liste générale, taggées `📰`) — peut être ajouté ensuite si besoin
-- La génération des angles depuis une actu sauvegardée passera par le bouton "Créer un contenu" qui re-route vers `/creer` (pas de re-fetch d'angles depuis Mes idées dans cette phase)
+- Pas de migration DB (colonnes en place, données présentes et taguées)
+- Pas de backfill (aucune row orpheline)
+- Pas de refonte de `useWorkspaceFilter` / `useProfileUserId` — le pattern est bon
+- Pas de fix des leaks Edge Functions déjà listés dans ton memo (Pinterest, calendar-coaching) — à traiter séparément
+
+### Fichiers modifiés
+
+| Fichier | Changement |
+|---|---|
+| `src/hooks/use-guide-recommendation.ts` | `user.id` → `profileUserId` sur les 2 requêtes `profiles` + `user_plan_config`, ajout dans queryKey |
+| `src/pages/BrandingAuditPage.tsx` | `.eq("id", user.id)` → `.eq("user_id", profileUserId)` |
+| **Scan Branding sections** (fichiers à confirmer après scan) | Fix des filtres `user.id`/`profileUserId` qui devraient être `useWorkspaceFilter` — liste affichée avant modifs |
 
 ### Validation
 
-1. Sur `/creer` → Newsjacking, cliquer **Sauvegarder** sur 2 actus → toast OK, bouton devient `✓ Sauvegardée`
-2. Aller sur `/idees` → les 2 actus apparaissent en haut (tri par date desc), avec emoji 📰 dans le titre
-3. Ouvrir une actu sauvegardée → voir le bandeau "Actualité" + bouton "Créer un contenu"
-4. Cliquer "Créer un contenu" → arrive sur `/creer` avec le sujet de l'actu pré-rempli
-5. Rafraîchir le panel newsjacking → les boutons `✓ Sauvegardée` reviennent à l'état initial (état session uniquement, c'est OK : si on relance, on a de nouvelles actus)
+1. Sur le dashboard de Marion (workspace `b361a5f2…`) → "Salut **Marion** 👋" (et non Laetitia)
+2. Sur `/branding` sur le workspace de Marion → voir ses 6 sections remplies (storytelling + persona + proposition + tone + strategy + charter, et offers vide c'est normal)
+3. Switch retour sur ton workspace Laetitia → "Salut **Laetitia** 👋" + tes propres données
+4. Vérifier que le switch de workspace invalide bien le cache React Query (pas de flash de l'ancien workspace)
 
 ### Risque
 
-Très faible. Pas de DB, pas de logique IA, juste 1 insert + 1 bouton + 1 bandeau conditionnel. Réutilise des patterns existants (`SaveToIdeasDialog`, `IdeaDetailSheet`).
+Faible. Le pattern `useProfileUserId()` existe et est déjà utilisé correctement dans 17 fichiers. On ne fait qu'aligner `use-guide-recommendation.ts` sur le même pattern. Les tables concernées ont les bonnes colonnes en base (vérifié). Si un fix Branding section révèle un cas tordu, je le signale avant d'appliquer.
 
