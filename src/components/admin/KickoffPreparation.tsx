@@ -179,8 +179,6 @@ export default function KickoffPreparation({ open, onOpenChange, coachUserId, on
     } else {
       toast.success("Programme créé pour " + clientName + " ! 🎉");
     }
-    // dummy to preserve next line behavior
-    if (false) toast.success("");
     setEmail(""); setWhatsapp(""); setCreateWorkspace(true); setCreating(false); onOpenChange(false); onCreated();
   };
 
