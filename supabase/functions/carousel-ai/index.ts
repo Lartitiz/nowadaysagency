@@ -10,6 +10,7 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { applyCorrectionPassCarousel } from "../_shared/correction-pass.ts";
+import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -65,6 +66,7 @@ serve(async (req) => {
         photo_index: z.number().optional(),
         slide_type: z.enum(["photo_full", "photo_integrated", "text_only"]).optional(),
       })).optional().nullable(),
+      recent_briefs_context: z.string().max(4000).optional().nullable(),
     }).passthrough());
     const { type, workspace_id, launch_context } = body;
     const isLinkedIn = body.channel === "linkedin";
@@ -80,6 +82,23 @@ serve(async (req) => {
 
     const ctx = await getUserContext(supabase, user.id, workspace_id, "instagram");
     const brandingContext = formatContextForAI(ctx, CONTEXT_PRESETS.posts);
+
+    // Recent briefs context — fetched server-side as fallback for deepening_questions
+    let recentBriefsContext = body.recent_briefs_context || "";
+    if (!recentBriefsContext && type === "deepening_questions") {
+      recentBriefsContext = await getRecentBriefsContext(supabase, user.id, workspace_id, 3);
+    }
+
+    // Brand vocabulary for forcing concrete questions
+    const brandVocab: string[] = [];
+    if (ctx?.profile?.activite) brandVocab.push(`activité: ${ctx.profile.activite}`);
+    if (ctx?.profile?.cible) brandVocab.push(`cible: ${ctx.profile.cible}`);
+    if (ctx?.tone?.key_expressions && typeof ctx.tone.key_expressions === "string") {
+      brandVocab.push(`expressions clés: ${ctx.tone.key_expressions.slice(0, 200)}`);
+    }
+    const brandVocabBlock = brandVocab.length > 0
+      ? `\n\nVOCABULAIRE MÉTIER (à RÉUTILISER dans les questions, au moins 2/3) :\n${brandVocab.map(v => `- ${v}`).join("\n")}\n`
+      : "";
 
     // Fallback: inject branding as deepening_answers if none provided
     if (!body.deepening_answers && (type === "express_full" || type === "slides" || type === "hooks")) {
@@ -414,9 +433,9 @@ Réponds UNIQUEMENT en JSON valide :
       // ── Photo carousel with description only (no actual photos) ──
       if (body.carousel_type === "photo" && body.photo_description) {
         const photoDescBlock = `\n\nL'utilisatrice décrit ses photos : "${body.photo_description}". Pose des questions en lien avec ce qu'elle décrit : l'ambiance, le contexte invisible, l'émotion derrière ces images, l'histoire qu'elles racontent ensemble.`;
-        userPrompt = buildDeepeningQuestionsPrompt(body, brandingContext, isLinkedIn) + photoDescBlock;
+        userPrompt = buildDeepeningQuestionsPrompt(body, brandingContext, isLinkedIn, recentBriefsContext, brandVocabBlock) + photoDescBlock;
       } else {
-        userPrompt = buildDeepeningQuestionsPrompt(body, brandingContext, isLinkedIn);
+        userPrompt = buildDeepeningQuestionsPrompt(body, brandingContext, isLinkedIn, recentBriefsContext, brandVocabBlock);
       }
     } else {
       return new Response(JSON.stringify({ error: "Type invalide" }), {
@@ -940,7 +959,7 @@ Slide 10: CTA doux "Laquelle vous préférez ? Dites-moi."
   return guides[type] || guides.tips;
 }
 
-function buildDeepeningQuestionsPrompt(body: any, brandingContext?: string, isLinkedIn: boolean = false): string {
+function buildDeepeningQuestionsPrompt(body: any, brandingContext?: string, isLinkedIn: boolean = false, recentBriefsContext?: string, brandVocabBlock?: string): string {
   const { carousel_type, subject, objective, editorial_angle, content_structure } = body;
 
   const CAROUSEL_TYPE_LABELS: Record<string, string> = {
@@ -972,19 +991,31 @@ function buildDeepeningQuestionsPrompt(body: any, brandingContext?: string, isLi
 
 SUJET du carrousel : "${subject || "non précisé"}"
 OBJECTIF : ${OBJ_LABELS[objective] || objective || "non précisé"}
-${objective ? `\nOriente les questions vers cet objectif. Si "vente" : demande des témoignages clients, des résultats, des transformations. Si "engagement" : demande des anecdotes personnelles, des moments vécus. Si "visibilité" : demande des opinions tranchées, des constats provocants.\n` : ""}${brandingBlock}${angleBlock}
+${objective ? `\nOriente les questions vers cet objectif. Si "vente" : demande des témoignages clients, des résultats, des transformations. Si "engagement" : demande des anecdotes personnelles, des moments vécus. Si "visibilité" : demande des opinions tranchées, des constats provocants.\n` : ""}${brandingBlock}${brandVocabBlock || ""}${recentBriefsContext || ""}${angleBlock}
 ${isLinkedIn ? `\nATTENTION : c'est un carrousel LINKEDIN. Les questions doivent orienter vers du contenu expert et professionnel :\n- Demander des données, des résultats concrets, des leçons métier\n- Chercher l'expertise spécifique (pas juste l'émotion)\n- Orienter vers du contenu qui positionne comme référence sur le sujet` : ""}
+
+══ AVANT DE POSER LES QUESTIONS — RAISONNEMENT INTERNE (ne PAS afficher) ══
+Réfléchis silencieusement à :
+1. Qu'est-ce que je sais DÉJÀ grâce au branding et aux briefs précédents ?
+2. Qu'est-ce qui MANQUE pour rendre CE carrousel unique sur CE sujet ?
+3. Quels angles ont DÉJÀ été couverts dans les briefs récents ? (À ÉVITER)
+4. Quel vocabulaire métier puis-je réutiliser ?
 
 TON RÔLE : Tu es une coach com' qui aide l'utilisatrice à extraire son vécu, ses opinions et son expertise PERSONNELLE pour que le contenu ne soit pas générique.
 
 RÈGLES pour les questions :
 - Chaque question doit être liée SPÉCIFIQUEMENT au sujet "${subject}" et au format ${formatLabel}
 - Les questions doivent faire émerger du vécu, des anecdotes, des opinions tranchées, des exemples concrets
-- AU MOINS 1 question sur 3 doit creuser le POURQUOI PROFOND : "Pourquoi tu penses que [blocage] existe ?", "Qu'est-ce qui fait que [problème] est si répandu selon toi ?", "Si tu devais expliquer à quelqu'un pourquoi [sujet] est un vrai problème, tu dirais quoi ?". L'objectif est d'extraire une réflexion de fond, pas juste un exemple.
+- AU MOINS 1 question sur 3 doit creuser le POURQUOI PROFOND : "Pourquoi tu penses que [blocage] existe ?", "Qu'est-ce qui fait que [problème] est si répandu selon toi ?". L'objectif est d'extraire une réflexion de fond, pas juste un exemple.
 - Si tu as le contexte branding, adapte les questions à son activité et sa cible (ex : "Quand une de tes clientes [cible] te dit..." plutôt que "Quand quelqu'un te dit...")
+- ${recentBriefsContext ? "MÉMOIRE : ne re-demande pas un angle déjà couvert dans les briefs récents. Tu peux faire écho discrètement (\"la dernière fois tu disais X, ici c'est différent ?\") mais pas re-poser la même question." : ""}
 - ${isLinkedIn ? "Vouvoyez l'utilisatrice, restez professionnel·le et chaleureux·se" : "Tutoie l'utilisatrice, sois directe et chaleureuse"}
 - Chaque question fait 1-2 phrases max
 - Le placeholder est un court exemple de réponse attendue (5-8 mots)
+
+INTERDITS :
+- Questions interchangeables d'un user à l'autre (= sans vocabulaire métier)
+- Questions trop larges qui pourraient s'appliquer à n'importe quel sujet
 
 Réponds UNIQUEMENT en JSON valide, sans texte autour :
 {

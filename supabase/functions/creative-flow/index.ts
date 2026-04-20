@@ -11,6 +11,7 @@ import { isDemoUser } from "../_shared/guard-demo.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { streamAnthropicSSE, createClientSSEStream } from "../_shared/anthropic-stream.ts";
+import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
 
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
 
@@ -67,8 +68,9 @@ serve(async (req) => {
       photo_mode: z.boolean().optional(),
       photo_description: z.string().max(2000).optional().nullable(),
       photos: z.array(z.object({ base64: z.string(), mimeType: z.string().optional() })).max(1).optional(),
+      recent_briefs_context: z.string().max(4000).optional().nullable(),
     }).passthrough());
-    const { step, contentType, context, profile, angle, answers, followUpAnswers, content: currentContent, adjustment, calendarContext, preGenAnswers, sourceText, formats, targetFormat, workspace_id, deepResearch, objective, editorialFormat, editorialFormatLabel, variation, previousContent, pinterest_link, pinterest_board } = body;
+    const { step, contentType, context, profile, angle, answers, followUpAnswers, content: currentContent, adjustment, calendarContext, preGenAnswers, sourceText, formats, targetFormat, workspace_id, deepResearch, objective, editorialFormat, editorialFormatLabel, variation, previousContent, pinterest_link, pinterest_board, recent_briefs_context: recentBriefsFromBody } = body;
 
     // Determine channel from contentType for persona selection
     const channelFromType = contentType?.includes("linkedin") ? "linkedin" : contentType?.includes("instagram") || contentType?.includes("carousel") || contentType?.includes("reel") || contentType?.includes("stories") ? "instagram" : undefined;
@@ -76,7 +78,31 @@ serve(async (req) => {
     const profileBlock = profile ? buildProfileBlock(profile) : "";
     const ctx = await getUserContext(supabase, user.id, workspace_id, channelFromType);
     const brandingContext = formatContextForAI(ctx, CONTEXT_PRESETS.content);
-    
+
+    // Recent briefs context — fetched server-side as fallback if not provided.
+    // Used by `questions` step to avoid repeating angles already covered.
+    let recentBriefsContext = recentBriefsFromBody || "";
+    if (!recentBriefsContext && (step === "questions" || step === "follow-up")) {
+      recentBriefsContext = await getRecentBriefsContext(supabase, user.id, workspace_id, 3);
+    }
+
+    // Extract vocabulary keywords from branding (offers names, target name, key expressions)
+    // → forces the AI to use the user's actual vocabulary in questions
+    const brandVocab: string[] = [];
+    if (ctx?.profile?.activite) brandVocab.push(`activité: ${ctx.profile.activite}`);
+    if (ctx?.profile?.cible) brandVocab.push(`cible: ${ctx.profile.cible}`);
+    if (ctx?.tone?.key_expressions) {
+      const keyExp = typeof ctx.tone.key_expressions === "string" ? ctx.tone.key_expressions : "";
+      if (keyExp) brandVocab.push(`expressions clés: ${keyExp.slice(0, 200)}`);
+    }
+    if (ctx?.brand_profile?.offer) {
+      const off = typeof ctx.brand_profile.offer === "string" ? ctx.brand_profile.offer : "";
+      if (off) brandVocab.push(`offre: ${off.slice(0, 150)}`);
+    }
+    const brandVocabBlock = brandVocab.length > 0
+      ? `\n\nVOCABULAIRE MÉTIER DE L'UTILISATRICE (à RÉUTILISER dans les questions) :\n${brandVocab.map(v => `- ${v}`).join("\n")}\n\nRÈGLE : au moins 2 questions sur 3 doivent réutiliser un mot/concept de ce vocabulaire (nom de l'offre, terme de la cible, expression clé). Les questions doivent montrer que tu connais SON univers, pas un univers générique.\n`
+      : "";
+
     // Voice profile — already fetched by getUserContext() with correct workspace owner resolution.
     // Do NOT re-fetch with user.id (that would use the coach's voice instead of the client's).
     let voiceBlock = "";
@@ -248,7 +274,7 @@ Réponds UNIQUEMENT en JSON :
         : "Questions orientées ÉMOTION : demande des moments vécus, des ressentis, des transformations personnelles, des coulisses.";
 
       systemPrompt = `${COMMON_PREFIX}
-${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}\n` : ""}
+${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}\n` : ""}${brandVocabBlock}${recentBriefsContext}
 L'utilisatrice a choisi cet angle pour son contenu :
 - Sujet : ${context}
 - Canal : ${channelLabel}
@@ -258,6 +284,16 @@ ${editorialFormatLabel ? `- Format éditorial : ${editorialFormatLabel}` : ""}
 - Ton : ${angle.tone}
 ${angle.format_livraison ? `- Format de livraison recommandé : ${angle.format_livraison}` : ""}
 ${calendarBlock}${objectiveBlock}
+
+══ AVANT DE POSER LES QUESTIONS — RAISONNEMENT INTERNE (ne PAS afficher) ══
+
+Réfléchis silencieusement à :
+1. Qu'est-ce que je sais DÉJÀ sur l'utilisatrice grâce au branding et aux briefs précédents ?
+2. Qu'est-ce qui MANQUE pour rendre ce contenu unique sur CE sujet précis ?
+3. Quels angles ont DÉJÀ été couverts dans les briefs récents ? (À ÉVITER de re-demander)
+4. Quel vocabulaire métier puis-je réutiliser dans les questions ?
+
+Puis pose les 3 questions qui maximisent l'apport NOUVEAU sur ce sujet.
 
 Pose exactement 3 questions pour récupérer SA matière première. Ces questions doivent extraire des éléments PERSONNELS (anecdotes, opinions, observations, process, convictions) qui rendront le contenu unique et impossible à reproduire par une IA seule.
 
@@ -276,12 +312,14 @@ RÈGLES :
 6. Le ton des questions est chaleureux et curieux (comme une amie qui s'intéresse vraiment).
 7. Chaque question a un placeholder qui donne un mini-exemple de réponse SPÉCIFIQUE au sujet.
 8. ORIENTÉES vers l'objectif : si "vente" → demande des résultats, process, transformations. Si "engagement" → demande des anecdotes, émotions. Si "visibilité" → demande des opinions clivantes, observations décalées. Si "crédibilité" → demande des méthodes, des preuves, des observations terrain.
+9. ${recentBriefsContext ? "MÉMOIRE DES BRIEFS PRÉCÉDENTS : si un brief récent a déjà couvert un angle (ex : déjà demandé une anecdote sur le même type de situation), CHANGE d'angle. Tu peux faire écho discrètement (\"la dernière fois tu disais X, ici c'est différent ?\") mais ne re-demande jamais la même chose." : ""}
 
 INTERDIT — NE FAIS JAMAIS ÇA :
 - Questions génériques type "Qu'est-ce qui te passionne dans ton métier ?", "Quel est ton parcours ?", "Qu'est-ce qui te différencie ?"
 - Questions de coaching de vie déconnectées du sujet
 - Questions trop larges qui pourraient s'appliquer à N'IMPORTE QUEL sujet
 - 3 questions qui commencent toutes par "Raconte-moi" ou "Il y a eu un moment où"
+- Questions interchangeables d'un user à l'autre (= sans vocabulaire métier)
 - Chaque question DOIT mentionner le sujet ou un aspect concret du sujet
 
 EXEMPLES (pour le sujet "Pourquoi je ne fais plus de remises") :
@@ -310,13 +348,25 @@ Réponds UNIQUEMENT en JSON :
     } else if (step === "follow-up") {
       const answersBlock = answers.map((a: any, i: number) => `Q${i + 1} : "${a.question}" → "${a.answer}"`).join("\n");
       systemPrompt = `${COMMON_PREFIX}
+${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}\n` : ""}${brandVocabBlock}
+SUJET du contenu : "${context}"
 
-L'utilisatrice a répondu à ces questions :
+L'utilisatrice a répondu à ces 3 questions initiales :
 ${answersBlock}
 
-Lis ses réponses. Identifie le détail le plus intéressant, le plus singulier, ou le plus émotionnel. Pose 1-2 questions de suivi pour creuser CE détail spécifique.
+══ TON RÔLE : creuser UN détail singulier ══
 
-Le but : aller chercher le truc que personne d'autre ne pourrait dire. L'anecdote, le ressenti, la conviction qui rend ce contenu UNIQUE.
+Lis ses réponses comme une amie experte qui veut sortir le contenu unique.
+Identifie LE détail le plus intéressant, le plus singulier, ou le plus émotionnel — celui qui mérite d'être creusé pour passer du "post correct" au "post mémorable".
+
+Pose 1 à 2 questions de suivi MAXIMUM pour creuser CE détail spécifique.
+
+RÈGLES :
+- Cite EXPLICITEMENT le détail que tu creuses (ex : "Tu dis que ta cliente a pleuré quand tu as livré : qu'est-ce qu'elle a dit exactement ?")
+- Sois PRÉCISE, pas générique. Pas "Peux-tu détailler ?" mais "Cette phrase '[citation]' — c'est arrivé dans quel contexte ?"
+- Si une réponse contient un chiffre, une scène, une citation, ou une émotion forte → c'est CETTE matière qu'il faut creuser
+- Si toutes les réponses sont déjà très complètes, pose 1 SEULE question (pas 2) — ne creuse pas pour creuser
+- Le ${"\""}why${"\""} explique en 1 phrase pourquoi cette question rendra le contenu plus singulier
 
 Réponds UNIQUEMENT en JSON :
 {
@@ -328,7 +378,7 @@ Réponds UNIQUEMENT en JSON :
     }
   ]
 }`;
-      userPrompt = "Pose-moi des questions d'approfondissement basées sur mes réponses.";
+      userPrompt = "Pose-moi 1 ou 2 questions d'approfondissement basées sur mes réponses.";
 
     } else if (step === "generate") {
       const answersBlock = answers?.length

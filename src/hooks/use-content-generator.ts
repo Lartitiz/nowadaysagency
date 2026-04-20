@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import { supabase } from "@/integrations/supabase/client";
 import { handleQuotaError } from "@/lib/quota-error-handler";
 import {
   EDITORIAL_ANGLES,
@@ -52,6 +53,7 @@ export interface GenerateQuestionsParams {
   editorialAngle?: string;
   objective?: string;
   channel?: "instagram" | "linkedin";
+  workspaceId?: string;
 }
 
 export interface Question {
@@ -384,7 +386,7 @@ export function useContentGenerator() {
 
   const generateQuestions = useCallback(
     async (params: GenerateQuestionsParams) => {
-      const { format, subject, editorialAngle, objective } = params;
+      const { format, subject, editorialAngle, objective, workspaceId } = params;
 
       setLoadingQuestions(true);
       setQuestions([]);
@@ -403,6 +405,45 @@ export function useContentGenerator() {
           existingContentQ = subject.slice(idx + CALENDAR_MARKER_Q.length);
         }
 
+        // Fetch 3 most recent briefs to give the AI memory + avoid repetition.
+        // Done client-side so the edge function doesn't need to repeat the work.
+        let recentBriefsContext = "";
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user?.id) {
+            let q = supabase
+              .from("content_briefs")
+              .select("subject, format, editorial_angle, answers, created_at")
+              .order("created_at", { ascending: false })
+              .limit(3);
+            if (workspaceId) q = q.eq("workspace_id", workspaceId);
+            else q = q.eq("user_id", user.id);
+            const { data: briefs } = await q;
+            if (briefs && briefs.length > 0) {
+              const lines = briefs.map((b: any, i: number) => {
+                const parts = [`Brief #${i + 1} — sujet : "${b.subject}"`];
+                if (b.format) parts.push(`format : ${b.format}`);
+                if (b.editorial_angle) parts.push(`angle : ${b.editorial_angle}`);
+                let line = parts.join(" · ");
+                if (b.answers && typeof b.answers === "object") {
+                  const vals = Object.values(b.answers as Record<string, string>)
+                    .filter((v): v is string => typeof v === "string" && v.trim().length > 20);
+                  if (vals.length > 0) {
+                    let key = vals.sort((a, b) => b.length - a.length)[0];
+                    if (key.length > 180) key = key.slice(0, 177) + "...";
+                    line += `\n  Réponse marquante : "${key}"`;
+                  }
+                }
+                return line;
+              });
+              recentBriefsContext = `\n══ HISTORIQUE RÉCENT (${briefs.length} brief${briefs.length > 1 ? "s" : ""}) ══\n${lines.join("\n\n")}\n\nÉVITE les angles déjà couverts. Tu peux faire écho discrètement.\n`;
+            }
+          }
+        } catch (e) {
+          // non-blocking
+          console.warn("[generateQuestions] could not fetch recent briefs:", e);
+        }
+
         if (format === "carousel") {
           const structurePrompt = editorialAngle
             ? getStructurePromptForCombo(format, editorialAngle)
@@ -417,6 +458,7 @@ export function useContentGenerator() {
               objective: objective || null,
               editorial_angle: editorialAngle || null,
               content_structure: structurePrompt || null,
+              recent_briefs_context: recentBriefsContext || undefined,
             },
           }, 60000);
           data = res.data;
@@ -453,6 +495,7 @@ export function useContentGenerator() {
               context: effectiveSubjectQ + (existingContentQ ? `\n\n[Contenu existant à approfondir]\n${existingContentQ}` : ""),
               angle: angleObj,
               objective: objective || null,
+              recent_briefs_context: recentBriefsContext || undefined,
             },
           }, 60000);
           data = res.data;
@@ -493,6 +536,51 @@ export function useContentGenerator() {
     []
   );
 
+  const generateFollowUp = useCallback(
+    async (params: {
+      subject: string;
+      answers: Record<string, string>;
+      questions: Question[];
+      contentType?: string;
+      objective?: string;
+    }): Promise<Question[]> => {
+      try {
+        const answersArray = params.questions.map((q) => ({
+          question: q.question,
+          answer: params.answers[q.id] || "",
+        })).filter((a) => a.answer.trim());
+
+        if (answersArray.length === 0) return [];
+
+        const res = await invokeWithTimeout("creative-flow", {
+          body: {
+            step: "follow-up",
+            contentType: params.contentType || "instagram_post",
+            context: params.subject,
+            answers: answersArray,
+            objective: params.objective || null,
+          },
+        }, 45000);
+
+        if (res.error) throw new Error(res.error.message || "Erreur follow-up");
+        const rawContent = res.data?.content ?? res.data;
+        const parsed = parseAIJson(rawContent);
+        const list = parsed?.follow_up_questions || parsed?.questions || [];
+        if (!Array.isArray(list)) return [];
+
+        return list.map((q: any, i: number) => ({
+          id: q.id || `fu_${i}`,
+          question: q.question || q.label || String(q),
+          placeholder: q.placeholder || q.hint || "",
+        }));
+      } catch (e: any) {
+        console.error("[generateFollowUp] error:", e);
+        return [];
+      }
+    },
+    []
+  );
+
   return {
     generate,
     generating,
@@ -501,6 +589,7 @@ export function useContentGenerator() {
     error,
     reset,
     generateQuestions,
+    generateFollowUp,
     loadingQuestions,
     questions,
     setQuestions,
