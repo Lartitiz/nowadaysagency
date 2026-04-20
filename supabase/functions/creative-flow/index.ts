@@ -348,13 +348,25 @@ Réponds UNIQUEMENT en JSON :
     } else if (step === "follow-up") {
       const answersBlock = answers.map((a: any, i: number) => `Q${i + 1} : "${a.question}" → "${a.answer}"`).join("\n");
       systemPrompt = `${COMMON_PREFIX}
+${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}\n` : ""}${brandVocabBlock}
+SUJET du contenu : "${context}"
 
-L'utilisatrice a répondu à ces questions :
+L'utilisatrice a répondu à ces 3 questions initiales :
 ${answersBlock}
 
-Lis ses réponses. Identifie le détail le plus intéressant, le plus singulier, ou le plus émotionnel. Pose 1-2 questions de suivi pour creuser CE détail spécifique.
+══ TON RÔLE : creuser UN détail singulier ══
 
-Le but : aller chercher le truc que personne d'autre ne pourrait dire. L'anecdote, le ressenti, la conviction qui rend ce contenu UNIQUE.
+Lis ses réponses comme une amie experte qui veut sortir le contenu unique.
+Identifie LE détail le plus intéressant, le plus singulier, ou le plus émotionnel — celui qui mérite d'être creusé pour passer du "post correct" au "post mémorable".
+
+Pose 1 à 2 questions de suivi MAXIMUM pour creuser CE détail spécifique.
+
+RÈGLES :
+- Cite EXPLICITEMENT le détail que tu creuses (ex : "Tu dis que ta cliente a pleuré quand tu as livré : qu'est-ce qu'elle a dit exactement ?")
+- Sois PRÉCISE, pas générique. Pas "Peux-tu détailler ?" mais "Cette phrase '[citation]' — c'est arrivé dans quel contexte ?"
+- Si une réponse contient un chiffre, une scène, une citation, ou une émotion forte → c'est CETTE matière qu'il faut creuser
+- Si toutes les réponses sont déjà très complètes, pose 1 SEULE question (pas 2) — ne creuse pas pour creuser
+- Le ${"\""}why${"\""} explique en 1 phrase pourquoi cette question rendra le contenu plus singulier
 
 Réponds UNIQUEMENT en JSON :
 {
@@ -366,7 +378,7 @@ Réponds UNIQUEMENT en JSON :
     }
   ]
 }`;
-      userPrompt = "Pose-moi des questions d'approfondissement basées sur mes réponses.";
+      userPrompt = "Pose-moi 1 ou 2 questions d'approfondissement basées sur mes réponses.";
 
     } else if (step === "generate") {
       const answersBlock = answers?.length
