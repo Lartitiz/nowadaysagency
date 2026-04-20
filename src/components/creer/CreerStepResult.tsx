@@ -177,6 +177,8 @@ interface Props {
   onExportPinterestEditablePptx?: () => void;
   photoBriefOverlayHtml?: string | null;
   channel?: "linkedin" | "instagram";
+  captionLoading?: boolean;
+  onRegenerateCaption?: () => void;
 }
 
 export default function CreerStepResult({
