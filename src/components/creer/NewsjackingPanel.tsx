@@ -412,6 +412,26 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
                         <Button
                           size="sm"
                           variant="ghost"
+                          onClick={(e) => handleSaveActu(idx, actu, e)}
+                          disabled={savedIdx.has(idx) || savingIdx.has(idx)}
+                          className={cn(
+                            "gap-1.5",
+                            savedIdx.has(idx) ? "text-primary" : "text-muted-foreground"
+                          )}
+                          title={savedIdx.has(idx) ? "Déjà sauvegardée" : "Sauvegarder pour plus tard"}
+                        >
+                          {savingIdx.has(idx) ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : savedIdx.has(idx) ? (
+                            <BookmarkCheck className="h-3.5 w-3.5" />
+                          ) : (
+                            <Bookmark className="h-3.5 w-3.5" />
+                          )}
+                          {savedIdx.has(idx) ? "Sauvegardée" : "Sauvegarder"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
                           onClick={(e) => handleHide(idx, e)}
                           className="gap-1.5 text-muted-foreground"
                           title="Masquer cette actu"
