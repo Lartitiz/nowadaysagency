@@ -1722,7 +1722,16 @@ export default function CreerUnifie() {
       }
 
       const rawCarouselType = result.raw.carousel_type;
-      const hasActualPhotos = uploadedPhotos.length > 0;
+      // ═══ Source de vérité photos : snapshot pris au moment de la génération.
+      // Si le state UI uploadedPhotos a été reset (changement d'onglet, etc.),
+      // on retombe sur generatedWithPhotos pour ne pas perdre les photos.
+      const photosForVisuals = uploadedPhotos.length > 0 ? uploadedPhotos : generatedWithPhotos;
+      const hasActualPhotos = photosForVisuals.length > 0;
+      console.log("[carousel-visual] photos source:", {
+        ui_state: uploadedPhotos.length,
+        snapshot: generatedWithPhotos.length,
+        used: photosForVisuals.length,
+      });
       const effectiveCarouselType = (rawCarouselType === "photo" || rawCarouselType === "mix") && !hasActualPhotos
         ? "text"
         : rawCarouselType;
@@ -1734,7 +1743,7 @@ export default function CreerUnifie() {
       // ═══ Construire le body et le valider avant envoi ═══
       // P0-2: auto-assign photo_index séquentiel si l'IA l'oublie sur photo_full / photo_integrated
       let autoPhotoCursor = 0;
-      const totalPhotos = uploadedPhotos.length;
+      const totalPhotos = photosForVisuals.length;
 
       const mappedSlides = rawSlides.map((s: any, slideIdx: number) => {
         const slideType = hasPhotos
