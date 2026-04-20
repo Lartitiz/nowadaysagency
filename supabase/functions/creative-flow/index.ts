@@ -374,7 +374,18 @@ Réponds UNIQUEMENT en JSON :
       if (isCarousel) {
         depthMandate = carouselBrief();
       } else if (isReel) {
-        depthMandate = reelBrief(effectiveObjective);
+        depthMandate = reelBrief({
+          effectiveObjective,
+          face_cam: body.face_cam,
+          time_available: body.time_available,
+          is_launch: body.is_launch,
+          selected_hook: body.selected_hook,
+          pre_gen_answers: body.pre_gen_answers,
+          subject: context,
+          editorial_angle: body.editorial_angle,
+          content_structure: body.content_structure,
+          inspiration_context: body.inspiration_context,
+        });
       } else if (isStories) {
         // Garde-fou : 3 séquences vente sur 7 jours (migré depuis stories-ai)
         if (effectiveObjective === "vente") {
