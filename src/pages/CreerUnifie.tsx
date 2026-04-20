@@ -132,7 +132,18 @@ export default function CreerUnifie() {
 
   // Photo states (carousel photo + post photo)
   const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | "mix" | null>(null);
-  const [uploadedPhotos, setUploadedPhotos] = useState<any[]>([]);
+  const [uploadedPhotos, _setUploadedPhotos] = useState<any[]>([]);
+  // Wrapper avec stack trace pour identifier l'origine des resets accidentels.
+  const setUploadedPhotos = (next: any[] | ((prev: any[]) => any[])) => {
+    if (Array.isArray(next) && next.length === 0) {
+      // eslint-disable-next-line no-console
+      console.log("[uploadedPhotos] RESET to []", new Error().stack?.split("\n").slice(2, 6).join("\n"));
+    }
+    _setUploadedPhotos(next as any);
+  };
+  // Snapshot des photos au moment de la génération du carrousel.
+  // Sert de source de vérité pour handleGenerateVisuals si le state UI est reset.
+  const [generatedWithPhotos, setGeneratedWithPhotos] = useState<any[]>([]);
   const [photoDescription, setPhotoDescription] = useState("");
   const [photoMode, setPhotoMode] = useState(false);
   const [demoGenerating, setDemoGenerating] = useState(false);
@@ -832,6 +843,8 @@ export default function CreerUnifie() {
         // En mode photo/mix, envoyer les photos pour analyse visuelle
         if ((carouselSubMode === "photo" || carouselSubMode === "mix") && uploadedPhotos.length > 0) {
           structureBody.photos = uploadedPhotos.map(p => ({ base64: p.base64, context: p.context }));
+          // Snapshot pour handleGenerateVisuals (résiste aux resets de state UI)
+          setGeneratedWithPhotos(uploadedPhotos);
         }
         const structureTimeout = (carouselSubMode === "photo" || carouselSubMode === "mix") && uploadedPhotos.length > 0 ? 60000 : 30000;
         const { data, error: fnError } = await invokeWithTimeout("carousel-ai", {
@@ -916,6 +929,10 @@ export default function CreerUnifie() {
     setLastConfirmedStructure(confirmedSlides);
     setStructureProposal(null);
     setStep("result");
+    // Snapshot des photos avant la génération finale (au cas où le state UI serait reset)
+    if ((carouselSubMode === "photo" || carouselSubMode === "mix") && uploadedPhotos.length > 0) {
+      setGeneratedWithPhotos(uploadedPhotos);
+    }
     await generate({
       format: "carousel",
       subject: enrichedSubject,
@@ -1705,7 +1722,16 @@ export default function CreerUnifie() {
       }
 
       const rawCarouselType = result.raw.carousel_type;
-      const hasActualPhotos = uploadedPhotos.length > 0;
+      // ═══ Source de vérité photos : snapshot pris au moment de la génération.
+      // Si le state UI uploadedPhotos a été reset (changement d'onglet, etc.),
+      // on retombe sur generatedWithPhotos pour ne pas perdre les photos.
+      const photosForVisuals = uploadedPhotos.length > 0 ? uploadedPhotos : generatedWithPhotos;
+      const hasActualPhotos = photosForVisuals.length > 0;
+      console.log("[carousel-visual] photos source:", {
+        ui_state: uploadedPhotos.length,
+        snapshot: generatedWithPhotos.length,
+        used: photosForVisuals.length,
+      });
       const effectiveCarouselType = (rawCarouselType === "photo" || rawCarouselType === "mix") && !hasActualPhotos
         ? "text"
         : rawCarouselType;
@@ -1717,7 +1743,7 @@ export default function CreerUnifie() {
       // ═══ Construire le body et le valider avant envoi ═══
       // P0-2: auto-assign photo_index séquentiel si l'IA l'oublie sur photo_full / photo_integrated
       let autoPhotoCursor = 0;
-      const totalPhotos = uploadedPhotos.length;
+      const totalPhotos = photosForVisuals.length;
 
       const mappedSlides = rawSlides.map((s: any, slideIdx: number) => {
         const slideType = hasPhotos
@@ -1824,7 +1850,7 @@ export default function CreerUnifie() {
       const requestBody: any = {
         slides: mappedSlides,
         ...(hasPhotos && hasActualPhotos ? {
-          photos: uploadedPhotos.map(p => ({ base64: p.base64 })),
+          photos: photosForVisuals.map(p => ({ base64: p.base64 })),
           carousel_type: isMixCarousel ? "mix" : "photo",
         } : {
           template_style: null,
