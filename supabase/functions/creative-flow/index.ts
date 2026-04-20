@@ -1,61 +1,37 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOURCES, ANTI_SLOP, CHAIN_OF_THOUGHT, ETHICAL_GUARDRAILS, ANTI_BIAS, PREGEN_INJECTION_RULES, EDITORIAL_ANGLES_REFERENCE, VISUAL_ANALOGIES, LINKEDIN_TEMPLATES, ANTI_BROETRY_LINKEDIN, EMBEDDED_EDUCATION } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildProfileBlock, buildPreGenFallback } from "../_shared/user-context.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
-import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
-import { isDemoUser } from "../_shared/guard-demo.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { streamAnthropicSSE, createClientSSEStream } from "../_shared/anthropic-stream.ts";
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
 import { carouselBrief, reelBrief, storiesBrief, linkedinBrief, pinterestBrief, newsletterBrief, photoCaptionBrief, captionBrief } from "./prompts/format-briefs.ts";
 import { buildVisionQuestionsPrompt, buildVisionGenerateBrief } from "./prompts/vision.ts";
+import { runPipeline } from "../_shared/request-pipeline.ts";
 
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Authentification requise" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    // Parse body first to extract workspace_id
+    let body: any = {};
+    if (req.method !== "OPTIONS") {
+      try { body = await req.json(); } catch { body = {}; }
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { global: { headers: { Authorization: authHeader } } }
-    );
+    const r = await runPipeline(req, {
+      category: "content",
+      workspaceId: body?.workspace_id ?? undefined,
+    });
+    if (!r.ok) return r.response;
+    const { userId, supabase } = r;
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Authentification invalide" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    if (isDemoUser(user.id)) {
-      return new Response(JSON.stringify({ error: "Demo mode: this feature is simulated" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    // Rate limit check
-    const rateCheck = checkRateLimit(user.id);
-    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
-
-    // Check plan limits
-    const usageCheck = await checkQuota(user.id, "content");
-    if (!usageCheck.allowed) {
-      return new Response(
-        JSON.stringify({ error: "limit_reached", message: usageCheck.error, remaining: 0 }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const body = await req.json();
     validateInput(body, z.object({
       step: z.string().max(50),
       contentType: z.string().max(100).optional().nullable(),
