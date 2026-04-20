@@ -456,7 +456,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
 
       {/* Preloaded photos: incompatible format warning */}
       {(initialPhotos?.length ?? 0) > 0 && selectedFormat &&
-        selectedFormat !== "carousel" && selectedFormat !== "post" && (
+        selectedFormat !== "carousel" && !formatAcceptsSinglePhoto(selectedFormat) && (
           <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 flex items-start gap-2 animate-fade-in">
             <span className="text-base leading-tight">⚠</span>
             <div className="flex-1 text-sm text-amber-800">
@@ -471,22 +471,22 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
           </div>
         )}
 
-      {/* Post photo toggle — hidden if photos preloaded & user hasn't changed format */}
-      {selectedFormat === "post" && !((initialPhotos?.length ?? 0) > 0 && photoMode && postPhoto.length > 0) && (
+      {/* Single-photo formats toggle (post, reel, story, linkedin, newsletter) — hidden if photos preloaded & user hasn't changed format */}
+      {formatAcceptsSinglePhoto(selectedFormat) && !((initialPhotos?.length ?? 0) > 0 && photoMode && postPhoto.length > 0) && (
         <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border animate-fade-in">
           <Switch checked={photoMode} onCheckedChange={setPhotoMode} />
           <div>
-            <p className="text-sm font-medium text-foreground">📸 J'accompagne une photo</p>
-            <p className="text-xs text-muted-foreground">L'IA adapte ta légende à ton image</p>
+            <p className="text-sm font-medium text-foreground">{getPhotoToggleCopy(selectedFormat!).title}</p>
+            <p className="text-xs text-muted-foreground">{getPhotoToggleCopy(selectedFormat!).subtitle}</p>
           </div>
         </div>
       )}
 
-      {/* Post — preloaded photo confirmation banner */}
-      {selectedFormat === "post" && (initialPhotos?.length ?? 0) > 0 && photoMode && postPhoto.length > 0 && (
+      {/* Single-photo formats — preloaded photo confirmation banner */}
+      {formatAcceptsSinglePhoto(selectedFormat) && (initialPhotos?.length ?? 0) > 0 && photoMode && postPhoto.length > 0 && (
         <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 flex items-center justify-between gap-3 animate-fade-in">
           <p className="text-sm text-foreground">
-            📸 <span className="font-medium">Post avec photo</span> — {postPhoto.length} photo{postPhoto.length > 1 ? "s" : ""} chargée{postPhoto.length > 1 ? "s" : ""}
+            📸 <span className="font-medium">{CONTENT_TYPE_SPECS[selectedFormat!]?.label || "Contenu"} avec photo</span> — {postPhoto.length} photo{postPhoto.length > 1 ? "s" : ""} chargée{postPhoto.length > 1 ? "s" : ""}
           </p>
           <button
             onClick={() => {
@@ -501,8 +501,8 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
         </div>
       )}
 
-      {/* Post photo upload */}
-      {selectedFormat === "post" && photoMode && (
+      {/* Single-photo upload zone */}
+      {formatAcceptsSinglePhoto(selectedFormat) && photoMode && (
         <div className="animate-fade-in">
           <PhotoUploadZone
             maxPhotos={1}
