@@ -386,7 +386,7 @@ export function useContentGenerator() {
 
   const generateQuestions = useCallback(
     async (params: GenerateQuestionsParams) => {
-      const { format, subject, editorialAngle, objective } = params;
+      const { format, subject, editorialAngle, objective, workspaceId } = params;
 
       setLoadingQuestions(true);
       setQuestions([]);
@@ -405,6 +405,45 @@ export function useContentGenerator() {
           existingContentQ = subject.slice(idx + CALENDAR_MARKER_Q.length);
         }
 
+        // Fetch 3 most recent briefs to give the AI memory + avoid repetition.
+        // Done client-side so the edge function doesn't need to repeat the work.
+        let recentBriefsContext = "";
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user?.id) {
+            let q = supabase
+              .from("content_briefs")
+              .select("subject, format, editorial_angle, answers, created_at")
+              .order("created_at", { ascending: false })
+              .limit(3);
+            if (workspaceId) q = q.eq("workspace_id", workspaceId);
+            else q = q.eq("user_id", user.id);
+            const { data: briefs } = await q;
+            if (briefs && briefs.length > 0) {
+              const lines = briefs.map((b: any, i: number) => {
+                const parts = [`Brief #${i + 1} — sujet : "${b.subject}"`];
+                if (b.format) parts.push(`format : ${b.format}`);
+                if (b.editorial_angle) parts.push(`angle : ${b.editorial_angle}`);
+                let line = parts.join(" · ");
+                if (b.answers && typeof b.answers === "object") {
+                  const vals = Object.values(b.answers as Record<string, string>)
+                    .filter((v): v is string => typeof v === "string" && v.trim().length > 20);
+                  if (vals.length > 0) {
+                    let key = vals.sort((a, b) => b.length - a.length)[0];
+                    if (key.length > 180) key = key.slice(0, 177) + "...";
+                    line += `\n  Réponse marquante : "${key}"`;
+                  }
+                }
+                return line;
+              });
+              recentBriefsContext = `\n══ HISTORIQUE RÉCENT (${briefs.length} brief${briefs.length > 1 ? "s" : ""}) ══\n${lines.join("\n\n")}\n\nÉVITE les angles déjà couverts. Tu peux faire écho discrètement.\n`;
+            }
+          }
+        } catch (e) {
+          // non-blocking
+          console.warn("[generateQuestions] could not fetch recent briefs:", e);
+        }
+
         if (format === "carousel") {
           const structurePrompt = editorialAngle
             ? getStructurePromptForCombo(format, editorialAngle)
@@ -419,6 +458,7 @@ export function useContentGenerator() {
               objective: objective || null,
               editorial_angle: editorialAngle || null,
               content_structure: structurePrompt || null,
+              recent_briefs_context: recentBriefsContext || undefined,
             },
           }, 60000);
           data = res.data;
@@ -455,6 +495,7 @@ export function useContentGenerator() {
               context: effectiveSubjectQ + (existingContentQ ? `\n\n[Contenu existant à approfondir]\n${existingContentQ}` : ""),
               angle: angleObj,
               objective: objective || null,
+              recent_briefs_context: recentBriefsContext || undefined,
             },
           }, 60000);
           data = res.data;
