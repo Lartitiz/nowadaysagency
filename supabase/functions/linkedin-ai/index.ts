@@ -48,6 +48,10 @@ serve(async (req) => {
       existing_resume: z.string().max(5000).optional().nullable(),
       editorial_angle: z.string().max(100).optional().nullable(),
       content_structure: z.string().max(5000).optional().nullable(),
+      subject: z.string().max(5000).optional().nullable(),
+      chosen_angle: z.string().max(500).optional().nullable(),
+      slides_summary: z.string().max(8000).optional().nullable(),
+      objective: z.string().max(200).optional().nullable(),
     }).passthrough());
     const { action, workspace_id, ...params } = reqBody;
 
