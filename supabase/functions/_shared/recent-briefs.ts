@@ -73,8 +73,8 @@ export async function getRecentBriefsContext(
 - ÉVITE de poser des questions déjà couvertes par ces briefs (même angle, même type d'anecdote demandée).
 - Si le sujet actuel résonne avec un brief passé, tu PEUX y faire écho discrètement dans une question (ex : "La dernière fois tu parlais de X, là c'est différent : qu'est-ce qui change ?").
 - L'objectif : éviter la sensation de répétition après plusieurs créations.\n`;
-    // Cap dur à 3800 chars pour rester sous la limite Zod (4000) côté creative-flow
-    const MAX = 3800;
+    // Cap dur à 5800 chars pour rester sous la limite Zod (6000) côté creative-flow
+    const MAX = 5800;
     if (result.length > MAX) {
       result = result.slice(0, MAX - 20) + "\n... (tronqué)\n";
     }
