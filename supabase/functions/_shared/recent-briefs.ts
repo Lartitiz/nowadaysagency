@@ -69,10 +69,16 @@ export async function getRecentBriefsContext(
       return line;
     });
 
-    return `\n══ HISTORIQUE RÉCENT DE L'UTILISATRICE (${briefs.length} dernier${briefs.length > 1 ? "s" : ""} brief${briefs.length > 1 ? "s" : ""}) ══\n${lines.join("\n\n")}\n\nUTILISATION OBLIGATOIRE de cet historique :
+    let result = `\n══ HISTORIQUE RÉCENT DE L'UTILISATRICE (${briefs.length} dernier${briefs.length > 1 ? "s" : ""} brief${briefs.length > 1 ? "s" : ""}) ══\n${lines.join("\n\n")}\n\nUTILISATION OBLIGATOIRE de cet historique :
 - ÉVITE de poser des questions déjà couvertes par ces briefs (même angle, même type d'anecdote demandée).
 - Si le sujet actuel résonne avec un brief passé, tu PEUX y faire écho discrètement dans une question (ex : "La dernière fois tu parlais de X, là c'est différent : qu'est-ce qui change ?").
 - L'objectif : éviter la sensation de répétition après plusieurs créations.\n`;
+    // Cap dur à 3800 chars pour rester sous la limite Zod (4000) côté creative-flow
+    const MAX = 3800;
+    if (result.length > MAX) {
+      result = result.slice(0, MAX - 20) + "\n... (tronqué)\n";
+    }
+    return result;
   } catch (e) {
     console.error("[getRecentBriefsContext] error:", e);
     return "";
