@@ -15,7 +15,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { CalendarIcon, Sparkles, Trash2, Save, RefreshCw } from "lucide-react";
+import { CalendarIcon, Sparkles, Trash2, Save, RefreshCw, Newspaper } from "lucide-react";
 import type { SavedIdea } from "./CalendarIdeasSidebar";
 
 const FORMAT_OPTIONS = [
