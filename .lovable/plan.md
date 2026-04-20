@@ -1,144 +1,82 @@
 
-## Pourquoi ça ne complète pas
 
-Ce n’est pas un problème de “champs non connectés” côté fiche. Les champs sont bien câblés dans l’UI :
+## Fix : une seule zone de texte « Légende complète » pour le carrousel Instagram
 
-- `step_3a_objections`
-- `step_3b_cliches`
-- `step_4_beautiful`
-- `step_4_inspiring`
-- `step_4_repulsive`
-- `step_4_feeling`
-- `step_5_actions`
+### Le vrai problème
 
-Le vrai bug est plus bas dans la chaîne :
+Aujourd'hui sur le carrousel photo/mix Instagram :
 
-1. Le bouton lance bien l’IA.
-   - Le POST `branding-coaching` part bien
-   - la fonction répond en `200`
-   - les logs backend montrent bien `section=persona_fill`
+- l'IA **est censée** retourner un objet `caption = { hook, body, cta, hashtags }` complet
+- en pratique, elle ne retourne souvent **que le hook** (ou rien)
+- le fallback front met juste l'overlay de la slide 1 dans `hook` et laisse `body / cta / hashtags` vides
+- résultat : tu vois 4 cases dont 3 sont vides, et tu ne peux pas écrire ta légende d'un trait
 
-2. Mais la réponse IA ne respecte pas les clés demandées.
-   - au lieu de renvoyer :
-     - `step_3a_objections`
-     - `step_3b_cliches`
-     - `step_4_beautiful`
-     - `step_4_inspiring`
-     - `step_4_repulsive`
-     - `step_4_feeling`
-     - `step_5_actions`
-   - elle renvoie un autre format de persona, avec des clés du type :
-     - `objections_courantes`
-     - `croyances_limitantes`
-     - `declencheurs_achat`
-     - etc.
+### Ce qu'on change
 
-3. Le front ne sauvegarde que les clés exactes attendues.
-   - dans `BrandingFicheCards.tsx`, la boucle fait `fillInsights[f.key]`
-   - donc si l’IA renvoie `objections_courantes` au lieu de `step_3a_objections`, la valeur est ignorée
-   - résultat : `validFills` reste vide
+#### 1. UI : 1 seul textarea `Légende` au lieu de 4 cases
 
-4. Ensuite seuls les pitchs sont régénérés.
-   - le réseau montre un `PATCH persona` réussi
-   - mais ce PATCH contient seulement `pitch_short`, `pitch_medium`, `pitch_long`
-   - aucun des 7 champs manquants n’est envoyé
+Fichier : `src/components/creer/formatRenderers/CarouselPhotoResult.tsx`
 
-En bref : l’IA tourne, mais elle parle le mauvais “dialecte JSON”, donc les champs persona restent vides.
+Dans la branche Instagram (lignes 513-566), remplacer le bloc Hook / Body / CTA / Hashtags par **un seul Textarea** :
 
-## Ce qu’on corrige
+- libellé : `📝 Légende du carrousel`
+- placeholder : `Écris ou colle ta légende complète (hook, corps, CTA, hashtags)...`
+- valeur initiale = concaténation propre de ce que l'IA a renvoyé :
+  - `hook` + ligne vide + `body` + ligne vide + `cta` + ligne vide + `hashtags` (préfixés `#`, séparés par espaces)
+  - on saute proprement les blocs vides
+- `min-h-[240px]`, mono-bloc éditable
+- au `onChange` on stocke dans un nouveau champ `caption.fullText`
 
-### 1. Forcer `persona_fill` à renvoyer uniquement les vraies clés DB
-Fichier : `supabase/functions/branding-coaching/index.ts`
+LinkedIn reste inchangé (il garde son `LinkedInCaptionEditor` séparé et son flow dédié, qui marche bien).
 
-Dans la branche `section === "persona_fill"` :
+#### 2. Stockage et propagation
 
-- renforcer le prompt pour interdire tout autre schéma de sortie
-- lister explicitement les seules clés autorisées
-- préciser que toute réponse doit être un objet plat avec exactement les clés demandées
-- interdire les clés “profil complet” type `objections_courantes`, `croyances_limitantes`, `declencheurs_achat`
+Toujours dans `CarouselPhotoResult.tsx` :
 
-Objectif :
-```json
-{
-  "step_3a_objections": "...",
-  "step_3b_cliches": "...",
-  "step_4_beautiful": "...",
-  "step_4_inspiring": "...",
-  "step_4_repulsive": "...",
-  "step_4_feeling": "...",
-  "step_5_actions": "..."
-}
-```
+- nouveau state `fullCaption: string` (en plus du `caption` actuel pour rétro-compat LinkedIn)
+- pour Instagram, on envoie `notify(slides, { ...caption, fullText: fullCaption })` à chaque édition
+- on garde aussi un re-split best-effort côté front pour ne pas casser ce qui consomme `caption.hook / body / cta / hashtags` ailleurs (logique simple : 1ère ligne = hook, dernière ligne `#…` = hashtags, le reste = body)
 
-### 2. Ajouter un garde-fou côté front si l’IA renvoie encore des alias
-Fichier : `src/components/branding/BrandingFicheCards.tsx`
+#### 3. Initialisation depuis le résultat IA
 
-Dans `handleAutoFill` :
+Adapter `buildCaptionWithFallback` (lignes 178-189) :
 
-- garder le parsing actuel
-- ajouter une normalisation des alias éventuels vers les vraies colonnes persona
+- s'il y a un `body` non vide, construire `fullText = hook\n\nbody\n\ncta\n\n#hashtag1 #hashtag2…`
+- s'il n'y a que le `hook`, mettre `fullText = hook`
+- s'il n'y a rien du tout, fallback sur `firstSlide.overlay_text` ou chaîne vide
+- toujours retourner aussi les 4 sous-champs (pour LinkedIn et la rétro-compat)
 
-Mapping prévu :
+#### 4. Alerte « légende incomplète »
 
-- `objections_courantes` → `step_3a_objections`
-- `croyances_limitantes` → `step_3b_cliches`
-- `declencheurs_achat` → `step_5_actions`
-- `freins_achat` → `step_3a_objections` si le champ est encore vide
-- `experience_ideale` → ne pas mapper automatiquement, sauf si on décide explicitement une correspondance
-- `frustrations_profondes` → `step_1_frustrations`
-- `objectif_principal` / `objectifs_secondaires` → `step_2_transformation` uniquement si utile
+Lignes 463-498 actuellement : alerte si `body` < 50 caractères.
 
-Comme ça :
-- le backend devient correct
-- et le front reste robuste si le modèle dérive encore
+Pour Instagram on bascule la condition sur `fullText.length < 80` (sinon l'alerte sera toujours là). On garde le bouton « Relancer la génération » (`onRetry`) déjà présent pour rejouer l'appel `carousel-ai` en cas de légende vraiment vide.
 
-### 3. Rendre le diagnostic visible en cas d’échec
-Toujours dans `BrandingFicheCards.tsx` :
+#### 5. Côté backend : pas obligatoire mais utile
 
-- si la réponse IA existe mais qu’aucune clé exploitable n’est trouvée :
-  - logguer les clés réellement reçues
-  - afficher un toast plus honnête du type :
-    - “L’IA a répondu, mais pas dans le format attendu”
-- ne plus laisser croire à une complétion si seuls les pitchs ont été générés
+Fichier : `supabase/functions/carousel-ai/index.ts` (autour des lignes 1568-1576)
 
-### 4. Aligner aussi le même correctif dans le flow coaching
-Fichier : `src/components/branding/BrandingCoachingFlow.tsx`
+- garder la consigne actuelle « caption obligatoire avec 4 champs »
+- ajouter en repli : si l'IA ne retourne pas tous les champs, on accepte aussi un champ unique `caption.fullText` (string Markdown). Le front sait afficher l'un ou l'autre.
 
-Le même parsing existe aussi là-bas pour `persona_fill`.
+Ça évite de re-déployer le prompt en urgence si le modèle continue à shipper du JSON cassé : le front est tolérant.
 
-À corriger aussi pour éviter deux comportements différents :
-- même normalisation des alias
-- même logique de `validFills`
-- même robustesse si le modèle renvoie un objet “persona complet” au lieu des clés DB
-
-## Fichiers concernés
+### Fichiers modifiés
 
 | Fichier | Changement |
 |---|---|
-| `supabase/functions/branding-coaching/index.ts` | prompt `persona_fill` plus strict, sortie JSON bornée aux clés DB attendues |
-| `src/components/branding/BrandingFicheCards.tsx` | normalisation des alias IA, meilleur diagnostic, sauvegarde robuste |
-| `src/components/branding/BrandingCoachingFlow.tsx` | appliquer la même normalisation dans le flow coaching |
+| `src/components/creer/formatRenderers/CarouselPhotoResult.tsx` | Branche Instagram : un seul Textarea `Légende complète`, init depuis hook/body/cta/hashtags, re-split best-effort pour rétro-compat |
+| `supabase/functions/carousel-ai/index.ts` | (optionnel) accepter aussi `caption.fullText` en repli |
 
-## Validation
+### Validation
 
-1. Sur la fiche persona, cliquer “Compléter les champs manquants avec l’IA”.
-2. Vérifier que les 7 champs ciblés se remplissent réellement :
-   - objections
-   - croyances / clichés
-   - ce qu’elle trouve beau
-   - ce qui l’inspire
-   - ce qui la rebute
-   - ce qu’elle a besoin de ressentir
-   - premières actions
-3. Vérifier que le `PATCH persona` contient bien ces colonnes, pas seulement les pitchs.
-4. Vérifier que si l’IA renvoie encore des alias, ils sont correctement remappés.
-5. Vérifier que le flow coaching persona remplit les mêmes champs avec le même comportement.
+1. Générer un carrousel mix Instagram avec photos → un seul bloc `Légende du carrousel` apparaît, pré-rempli avec ce que l'IA a renvoyé (au moins le hook).
+2. Modifier la légende → le contenu est bien sauvegardé (la programmation, les exports, l'enregistrement final).
+3. Si l'IA n'a renvoyé que le hook → tu vois le hook dans le textarea et tu peux compléter à la main, sans 3 cases vides qui te demandent de deviner ce qui va où.
+4. Le carrousel LinkedIn n'est pas touché : il garde ses 4 champs séparés et son bouton « Régénérer la légende ».
+5. Le bouton « Relancer la génération » reste visible si la légende est vraiment vide (< 80 caractères).
 
-## Risque
+### Risque
 
-Faible.
+Faible. On change uniquement le rendu Instagram du bloc légende et on garde la rétro-compat avec les autres composants qui lisent encore `caption.hook / body / cta / hashtags`. Pas de migration DB. LinkedIn intact.
 
-- pas de migration base
-- pas de changement de schéma
-- le bug est un problème de contrat JSON entre frontend et backend IA
-- le correctif consiste surtout à réaligner les clés et ajouter un fallback de mapping
