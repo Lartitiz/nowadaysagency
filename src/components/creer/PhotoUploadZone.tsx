@@ -17,6 +17,7 @@ export interface PhotoUploadZoneProps {
   onDescriptionChange: (description: string) => void;
   initialPhotos?: PhotoItem[];
   initialDescription?: string;
+  title?: string;
 }
 
 function resizeAndEncode(file: File, maxWidth = 1024, quality = 0.8): Promise<{ base64: string; preview: string }> {
@@ -50,6 +51,7 @@ export function PhotoUploadZone({
   onDescriptionChange,
   initialPhotos,
   initialDescription,
+  title,
 }: PhotoUploadZoneProps) {
   const [photos, setPhotos] = useState<PhotoItem[]>(initialPhotos ?? []);
   const [description, setDescription] = useState(initialDescription ?? "");
@@ -138,6 +140,9 @@ export function PhotoUploadZone({
 
   return (
     <div className="space-y-4">
+      {title && (
+        <p className="text-sm font-semibold text-foreground">{title}</p>
+      )}
       {/* ── Drop zone ─────────────────────────── */}
       <div
         onClick={() => !isFull && inputRef.current?.click()}
