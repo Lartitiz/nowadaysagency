@@ -2106,7 +2106,7 @@ export default function CreerUnifie() {
                     ✨ {remainingTotal()} générations restantes ce mois
                   </p>
                 )}
-                <CreerStepIdea onNext={handleIdeaNext} onCoachingSelect={handleCoachingSelect} onNewsjackingSelect={handleNewsjackingSelect} workspaceId={workspaceId} activite={activityText} initialIdea={ideaText} initialObjective={objective || undefined} />
+                <CreerStepIdea onNext={handleIdeaNext} onCoachingSelect={handleCoachingSelect} onNewsjackingSelect={handleNewsjackingSelect} onPhotosNext={handlePhotosNext} workspaceId={workspaceId} activite={activityText} initialIdea={ideaText} initialObjective={objective || undefined} />
               </>
             )}
 
