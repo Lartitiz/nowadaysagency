@@ -1,104 +1,115 @@
 
 
-## Phase 5a — Fusion `stories-ai` dans `creative-flow` (rolling, ultra-prudente)
+## Phase 5b — Fusion `reels-ai` dans `creative-flow` (rolling, ultra-prudente)
 
 ### Audit — état actuel
 
 | Fonction | Lignes | Rôle réel |
 |---|---|---|
-| `stories-ai` | 622 | 4 types : `clarify_subject`, `suggest_subjects`, `daily`, `generate` (séquence) + garde-fou "3 ventes en 7j" + insertion `stories_sequences` |
-| `creative-flow` | 1244 | Multi-format : déjà un `storiesBrief()` mais sortie `{ content }` plate, **pas** la séquence structurée |
-| Front (`use-content-generator.ts` l. 274) | — | Appelle `stories-ai` avec `type: "generate"` uniquement |
-| `StoryResult.tsx` / `ContentPreview.tsx` | — | Consomment `{ structure_type, narrative_angle, stories[], stickers_used, ... }` |
+| `reels-ai` | 591 | 3 types : `analyze_inspiration`, `hooks`, `script` |
+| `creative-flow` | 1274 | A déjà une branche `isReel` qui appelle `reelBrief()` + JSON `{ format_type, duree_cible, sections[], personal_tip, accroche, pillar, objectif }` |
+| Front (`use-content-generator.ts` l. 254) | — | Appelle `reels-ai` UNIQUEMENT avec `type: "script"` |
+| `CreerUnifie.tsx` l. 1299-1311 | — | Consomme : `format_type, format_label, duree_cible, sections/script, caption, hashtags, cover_text, alt_text, amplification_stories` |
+| `ReelResult.tsx` | — | Consomme : `format_type, duree_cible, sections, personal_tip` |
 
-**Constat clé** : la difficulté n'est pas le prompt (déjà mutualisable), c'est le **schéma de réponse**. Le front s'attend à un objet `stories[]` riche. Une fusion naïve casserait le rendu.
+**Constats clés** :
+1. `analyze_inspiration` et `hooks` ne sont appelés par AUCUN fichier front (vérifié `grep -rn "type.*hooks"` et `analyze_inspiration` dans `src/`). **Code mort**.
+2. `creative-flow` produit aujourd'hui un JSON reel **incomplet** : il manque `caption`, `hashtags`, `cover_text`, `alt_text`, `amplification_stories`, `format_label`, `checklist`. Une bascule naïve perdrait ces données dans le calendrier.
+3. Les params reels-spécifiques (`face_cam`, `time_available`, `selected_hook`, `pre_gen_answers`, `editorial_angle`, `content_structure`) ne sont actuellement PAS passés au prompt reel de `creative-flow`.
 
-**Constats secondaires** :
-- `clarify_subject`, `suggest_subjects`, `daily` ne sont appelés par AUCUN fichier front (vérifié avec `grep`). Code mort côté flow principal.
-- Le garde-fou "3 séquences vente en 7 jours" est unique à stories-ai et doit être préservé.
+### Objectif
 
-### Objectif (et SEULEMENT ça)
-
-Faire en sorte que **`creative-flow` puisse générer une séquence stories au format JSON attendu par `StoryResult.tsx`**, puis basculer le front. **Sans** toucher au schéma de réponse côté UI.
+Faire en sorte que **`creative-flow` produise un JSON reel pixel-parfait** par rapport à ce qu'attendent `CreerUnifie.tsx` + `ReelResult.tsx`, **tout en intégrant les params reels-spécifiques** (hook choisi, face_cam, time_available, pre_gen_answers, etc.). Puis basculer le front et supprimer `reels-ai`.
 
 ### Stratégie en 4 étapes (rolling)
 
-#### Étape A — Enrichir `_shared/format-briefs.ts > storiesBrief()`
+#### Étape A — Enrichir `_shared/format-briefs.ts > reelBrief()`
 
-Remplacer l'actuel `storiesBrief()` (court) par une version **complète** qui :
-- inclut tout le contenu de `buildMainPrompt()` de `stories-ai` (structures par temps dispo, hooks, angles narratifs, garde-fous, instructions vente par price_range)
-- impose le **JSON de sortie identique** à stories-ai : `{ structure_type, structure_label, narrative_angle, total_stories, stories[], stickers_used, garde_fou_alerte, personal_tip }`
-- accepte des params : `{ objective, price_range, time_available, face_cam, is_launch, gardeFouAlerte, pre_gen_answers }`
+Étendre la signature actuelle pour accepter les params reels :
+```ts
+reelBrief({
+  effectiveObjective, face_cam, time_available, is_launch,
+  selected_hook, pre_gen_answers, subject,
+  editorial_angle, content_structure, inspiration_context
+})
+```
+- Garder tout le contenu actuel (qualité prompt déjà mature).
+- Ajouter en queue les blocs verbatim de `reels-ai > buildScriptPrompt` : ancrage hook choisi, ancrage sujet, bloc `preGenBlock`, structure éditoriale imposée si fournie.
+- Imposer le **JSON de sortie complet** : ajouter à l'actuel `{ format_type, duree_cible, sections[], personal_tip, accroche }` les champs manquants `format_label, caption {text, cta}, hashtags[], cover_text, alt_text, amplification_stories[], checklist[], garde_fou_alerte, editorial_angle_used`.
 
-Aucun consommateur n'est cassé : `creative-flow` utilise déjà `storiesBrief()` mais imposait ensuite un format `{ content }` à part. On va lever cette contrainte à l'étape B.
+Aucun consommateur cassé : `creative-flow` appelle déjà `reelBrief(effectiveObjective)`. On adapte l'appel à l'étape B.
 
-#### Étape B — Adapter `creative-flow/index.ts` pour les stories
+#### Étape B — Adapter `creative-flow/index.ts` branche `isReel`
 
 Dans le bloc `step === "generate"` :
-1. Si `isStories` est vrai :
-   - Lire les params stories spécifiques du body (`price_range`, `time_available`, `face_cam`, `is_launch`, `pre_gen_answers`, `launch_context`)
-   - Calculer le garde-fou "3 ventes en 7 jours" (copie de stories-ai l. 165-180, requête sur `stories_sequences`)
-   - Appeler `storiesBrief({ ... })` enrichi
-   - **Court-circuiter** la sortie JSON `{ content, accroche, format, ... }` — laisser le prompt imposer le schéma stories complet
-   - **Pas de streaming** pour stories (la séquence est consommée en bloc)
-   - Retourner `{ content: rawJsonString }` pour rester compatible avec le wrapper existant côté front (qui parse `data.content`)
+1. Lire les params reels du body (`face_cam`, `time_available`, `selected_hook`, `pre_gen_answers`, `is_launch`, `inspiration_context`, `editorial_angle`, `content_structure`).
+2. Passer ces params à `reelBrief({...})` enrichi.
+3. **Remplacer** le bloc JSON reel actuel (l. 517-544) par le schéma complet imposé directement dans le prompt via `reelBrief` (mêmes clés que `reels-ai`).
+4. Préserver le `launch_context` injecté en système (déjà fait pour stories, à dupliquer pour reels).
+5. **Pas de streaming** pour reels : ajouter `!isReel` à la condition de streaming l. 826 (le front parse le JSON en bloc, comme stories).
 
-À ce stade, `creative-flow` peut générer une séquence stories valide, mais `stories-ai` continue d'exister et le front continue de l'appeler. **Aucun changement utilisateur.**
+Élargir le Zod schema de `creative-flow` pour accepter `face_cam`, `time_available`, `selected_hook`, `pre_gen_answers`, `is_launch`, `inspiration_context`, `editorial_angle`, `content_structure` (déjà partiellement présents pour stories, on étend).
 
-#### Étape C — Tester `creative-flow` stories en isolation
+À ce stade, `creative-flow` peut générer un reel complet, mais `reels-ai` reste vivant et le front l'appelle toujours. **Aucun changement utilisateur.**
 
-Via `supabase--curl_edge_functions` : appeler `creative-flow` avec `step: "generate"`, `contentType: "stories"`, des params réalistes. Vérifier que le JSON renvoyé matche celui de stories-ai (mêmes clés, même structure). Vérifier 2-3 cas : objectif "vente" + price_range, objectif "connexion" sans price, séquence "5min".
+#### Étape C — Tester `creative-flow` reel en isolation
 
-#### Étape D — Bascule front + suppression `stories-ai`
+Via `supabase--curl_edge_functions` : appeler `creative-flow` avec `step: "generate"`, `contentType: "reel"`, des params réalistes. Comparer le JSON produit avec l'ancien `reels-ai` (mêmes inputs). Vérifier 3 cas :
+- Reel "saves" + face_cam + 30min, sans `selected_hook` (cas par défaut depuis `CreerUnifie`)
+- Reel "conversion" + 5min + `pre_gen_answers` riches
+- Reel + `editorial_angle` + `content_structure` (cas angle imposé)
 
-Dans `use-content-generator.ts` `case "story"` :
-- Remplacer l'appel `invokeWithTimeout("stories-ai", ...)` par un appel `invokeWithTimeout("creative-flow", { step: "generate", contentType: "stories", context: ..., objective, price_range, time_available, face_cam, ... })`
-- Le parsing du résultat (`data.content` → JSON séquence stories) reste identique
-- Retirer `stories-ai` de `src/lib/content-structures.ts` (`edgeFunction: "creative-flow"`)
-- **Supprimer** le dossier `supabase/functions/stories-ai/` + appeler `delete_edge_functions(["stories-ai"])`
+Critère de validation : présence de TOUTES les clés attendues par `CreerUnifie.tsx` l. 1299-1311.
 
-### Précautions (le « faire très attention »)
+#### Étape D — Bascule front + suppression `reels-ai`
 
-1. **Schéma de réponse identique** — `StoryResult.tsx` et `ContentPreview.tsx` ne sont PAS modifiés. Le JSON doit être pixel-parfait.
-2. **Garde-fou vente préservé** — copie 1:1 depuis stories-ai (requête `stories_sequences` sur 7j).
-3. **Code mort non migré** — `clarify_subject`, `suggest_subjects`, `daily` ne sont PAS migrés (aucun appelant). Ils disparaissent avec `stories-ai`.
-4. **Pas de streaming** pour stories dans creative-flow — on retourne JSON en bloc comme stories-ai le faisait.
-5. **`launch_context`** préservé (utilisé par les contenus liés à un lancement).
-6. **Aucune touche au schéma DB** — `stories_sequences` reste tel quel.
+Dans `use-content-generator.ts` `case "reel"` (l. 242-272) :
+- Remplacer l'appel `invokeWithTimeout("reels-ai", { type: "script", ... })` par `invokeWithTimeout("creative-flow", { step: "generate", contentType: "reel", context: subject, face_cam, time_available, selected_hook, pre_gen_answers, editorial_angle, content_structure, ... })`.
+- Le parsing du résultat (`data.content` → JSON reel) reste identique.
+- Modifier `src/lib/content-structures.ts` l. 503 : `edgeFunction: "creative-flow"`.
+- **Supprimer** le dossier `supabase/functions/reels-ai/` + appeler `delete_edge_functions(["reels-ai"])`.
+
+### Précautions (le « pas tout faire bugger »)
+
+1. **Schéma de réponse identique** — `ReelResult.tsx` et le mapping calendrier (`CreerUnifie.tsx` l. 1299-1311) NE SONT PAS modifiés. Tous les champs (`caption`, `hashtags`, `cover_text`, `alt_text`, `amplification_stories`) doivent être produits.
+2. **Code mort non migré** — `analyze_inspiration` et `hooks` ne sont PAS migrés (aucun appelant front). Ils disparaissent avec `reels-ai`.
+3. **Pas de streaming** pour reels dans `creative-flow` — on retourne le JSON en bloc (le front fait `parseAIJson(data.content)`).
+4. **Modèle IA préservé** — `creative-flow` utilise déjà `getModelForRichContent` pour les contenus riches ; ajouter `"reel"` à la liste s'il n'y est pas (à vérifier dans `_shared/anthropic.ts`).
+5. **`launch_context`** dupliqué pour reels (comme stories).
+6. **`reels-ai` n'est supprimé qu'à l'étape D**, après validation manuelle d'une génération réelle bout-en-bout.
 
 ### Tests par étape
 
-- A : `tsc --noEmit --skipLibCheck` (pas de typage cassé)
+- A : `tsc --noEmit --skipLibCheck`
 - B : `deploy_edge_functions(["creative-flow"])` + `tsc`
-- C : `curl_edge_functions` avec 3 payloads stories différents → comparer le JSON à stories-ai (même endpoint mais ancien) avec mêmes inputs
-- D : test manuel sur `/creer` → générer une séquence stories complète → vérifier que `StoryResult.tsx` rend tous les champs (narrative_angle, hook_options, stickers, etc.)
+- C : `curl_edge_functions` avec 3 payloads reels → comparer le JSON à `reels-ai` (mêmes inputs)
+- D : test manuel sur `/creer` → générer un reel complet → vérifier que `ReelResult.tsx` rend tout (sections, timing, overlay, personal_tip) ET que sauvegarde calendrier conserve `caption`, `hashtags`, `cover_text`, `amplification_stories`
 
 ### Plan B si ça tourne mal
 
 - A casse : revert `format-briefs.ts` (1 fichier)
-- B casse : revert le bloc `isStories` de creative-flow (1 fichier)
-- C signale un mismatch de schéma : on corrige le prompt dans `storiesBrief()` jusqu'à parité, sans toucher au front
-- D casse : revert le `case "story"` de `use-content-generator.ts` (1 fichier), `stories-ai` n'a pas encore été supprimé donc tout reflue. **`stories-ai` n'est supprimé qu'après validation manuelle.**
+- B casse : revert le bloc `isReel` de `creative-flow` (1 fichier)
+- C signale un mismatch : on corrige `reelBrief()` jusqu'à parité, sans toucher au front
+- D casse : revert le `case "reel"` de `use-content-generator.ts` + revert `content-structures.ts` (2 fichiers). `reels-ai` n'a pas encore été supprimé donc tout reflue. **Suppression `reels-ai` UNIQUEMENT après validation manuelle.**
 
 ### Fichiers modifiés
 
 | Fichier | Étape | Changement |
 |---|---|---|
-| `supabase/functions/_shared/format-briefs.ts` | A | `storiesBrief()` enrichi (+~250 l) |
-| `supabase/functions/creative-flow/index.ts` | B | branche `isStories` dans `step=generate` (+~40 l) |
-| `src/hooks/use-content-generator.ts` | D | `case "story"` → `creative-flow` (~10 l modifiées) |
+| `supabase/functions/_shared/format-briefs.ts` | A | `reelBrief()` enrichi (params + JSON complet) (+~150 l) |
+| `supabase/functions/creative-flow/index.ts` | B | branche `isReel` enrichie + Zod étendu + skip streaming (+~30 l) |
+| `src/hooks/use-content-generator.ts` | D | `case "reel"` → `creative-flow` (~15 l modifiées) |
 | `src/lib/content-structures.ts` | D | `edgeFunction: "creative-flow"` (1 ligne) |
-| `supabase/functions/stories-ai/` | D | **supprimé** + `delete_edge_functions` |
+| `supabase/functions/reels-ai/` | D | **supprimé** + `delete_edge_functions` |
 
 ### Hors scope
 
-- Phase 5b (reels-ai) — sera attaquée après stabilisation 5a
-- Refactor de `stories_sequences` (table inchangée)
-- Migration des types `clarify_subject` / `suggest_subjects` / `daily` (code mort)
-- `CreerUnifie.tsx` (reste à 2416 l, attendra phase 6)
+- Migration des types morts `analyze_inspiration` / `hooks` (pas d'appelant)
+- Refactor de `CreerUnifie.tsx` (phase 6)
+- Toucher au schéma DB `calendar_posts` ou aux renderers UI
 
 ### Estimation et risque
 
-- Bilan lignes : `stories-ai` supprimé (-622), `format-briefs.ts` (+250), `creative-flow` (+40), front (~-10). Net : **-340 lignes**.
-- Risque : **faible-moyen** grâce au rolling 4 étapes et au fait que `stories-ai` reste vivant jusqu'à validation finale (étape D).
+- Bilan lignes : `reels-ai` supprimé (-591), `format-briefs.ts` (+150), `creative-flow` (+30), front (~-5). Net : **-416 lignes**.
+- Risque : **moyen** — plus de champs JSON à préserver que pour stories (`caption`, `hashtags`, etc.). Mitigé par le rolling 4 étapes et le fait que `reels-ai` reste vivant jusqu'à validation finale.
 
