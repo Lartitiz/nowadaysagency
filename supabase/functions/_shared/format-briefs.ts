@@ -90,7 +90,79 @@ export function reelBrief(arg: string | null | ReelBriefParams = null): string {
 Le reel n'est pas un carrousel raccourci ni un post filmé. C'est UNE idée 
 percutante, développée à l'oral, en 30-60 secondes.
 
-AVANT DE SCRIPTER, identifie :
+══ PROFONDEUR DE RÉFLEXION OBLIGATOIRE ══
+
+Un reel n'est PAS une liste de constats filmée. C'est une réflexion qui CREUSE
+un sujet en 30-60s, comme une amie qui prend le temps de t'expliquer ce qu'elle
+a compris. La densité de pensée doit être COMPARABLE à celle d'un carrousel —
+mais dite à l'oral, pas écrite.
+
+3 COUCHES OBLIGATOIRES dans le script (peuvent se chevaucher entre sections) :
+
+1. LE SYMPTÔME — ce qu'on observe, ce qui coince, le constat de surface.
+   (1 section, souvent le hook.)
+
+2. LE MÉCANISME — POURQUOI ça se passe comme ça : le rouage caché, le truc
+   psychologique, la croyance de fond, la mécanique économique/sociale derrière.
+   (1-2 sections, le CŒUR du reel. C'est ici que se joue la profondeur.)
+
+3. LA REFORMULATION — comment on regarde ça AUTREMENT : le déplacement de
+   regard, la nuance, le contre-pied, la conséquence pratique nouvelle.
+   (1 section, souvent le CTA ou juste avant.)
+
+TEST DÉCISIF : si tu enlèves la couche "mécanisme", il reste un constat + un
+conseil = LISTICLE FILMÉ. C'est cassé. Recommence.
+
+══ CE QU'ON BANNIT (ANTI-LISTICLE) ══
+
+❌ Sections juxtaposées qui énumèrent ("d'abord X, puis Y, puis Z") sans
+   creuser le pourquoi.
+❌ Conseil parachuté sans explication du mécanisme ("la solution c'est X" →
+   mais pourquoi ça marche ? d'où vient le problème vraiment ?).
+❌ Schéma "hook constat → body conseil → CTA" : c'est plat. Il manque le
+   "POURQUOI personne ne le voit".
+❌ Phrases qui sonnent comme des slogans LinkedIn ("Le secret c'est X",
+   "Voilà la vérité", "Spoiler : ça marche pas").
+❌ Conclusion qui répète le hook au lieu de le RETOURNER.
+❌ Texte parlé qui ressemble à un post écrit lu à voix haute.
+
+══ MARQUEURS DE PROFONDEUR ORALE (utilise-en au moins 2) ══
+
+Au-delà des "alors", "tu vois" cosmétiques, il faut des marqueurs qui
+SIGNALENT qu'on est en train de creuser une idée :
+
+• Bascule de regard : "et en vrai, le truc qu'on voit pas c'est que…",
+  "ce qu'il se passe vraiment c'est…", "le vrai problème c'est pas X, c'est Y".
+• Mécanisme révélé : "tu sais pourquoi ? parce que…", "ce qui se joue
+  là-dessous c'est…", "la mécanique c'est…".
+• Contre-pied assumé : "sauf que…", "et c'est là que ça devient intéressant…",
+  "en fait on s'est trompé d'endroit…".
+• Nuance honnête : "alors attention, je dis pas que…", "c'est pas aussi
+  simple, mais…".
+
+Ces marqueurs ≠ remplisseurs. Chacun introduit une VRAIE idée nouvelle.
+
+══ ORALITÉ : MONOLOGUE, PAS SCRIPT TÉLÉ ══
+
+L'utilisatrice va lire ce script FACE CAM, en une prise, comme si elle parlait
+à une amie en visio. Le découpage par sections est TECHNIQUE (pour le tournage),
+mais le texte parlé doit s'enchaîner comme UN SEUL monologue continu.
+
+CONTINUITÉ ENTRE SECTIONS — règle stricte :
+- Le texte_parle de chaque section body DOIT commencer par un connecteur qui
+  enchaîne sur la section précédente ("Et là…", "Sauf que…", "Le truc c'est
+  que…", "Donc…", "Attends…").
+- Première phrase de chaque section ≠ phrase autonome qu'on pourrait poster.
+  C'est la SUITE de la phrase précédente.
+- Hook + body 1 = paire question/réponse (ou affirmation/preuve), pas 2
+  affirmations indépendantes.
+- Si tu peux supprimer une section sans casser le sens du reste → elle est
+  mal écrite, elle ne s'enchaîne pas.
+
+L'oral naturel inclut ~25-30% de mots-outils ("alors", "donc", "tu vois",
+"en fait", "le truc c'est"). Ne les compte PAS comme du gras à supprimer.
+
+AVANT D'ÉCRIRE, identifie aussi :
 
 1. QUEL EST LE SEUL POINT que le spectateur retient ?
    Si tu ne peux pas le résumer en 1 phrase, le reel est trop dispersé.
@@ -112,56 +184,25 @@ AVANT DE SCRIPTER, identifie :
 4. QUEL EST LE MOUVEMENT NARRATIF ?
    Avant d'écrire, identifie le déplacement :
    situation → déplacement de perspective → nouvelle compréhension.
-   Au moins UN moment dans le corps doit créer un déplacement :
-   nouvelle info, contre-pied, zoom sur un détail inattendu.
-   Ce n'est PAS un "retournement" dramatique obligatoire, c'est un CHANGEMENT
-   de regard sur le sujet.
+   Au moins UN moment dans le corps doit créer un déplacement.
 
 5. À QUI CE REEL DONNE ENVIE D'ÊTRE ENVOYÉ EN DM, ET POURQUOI ?
-   Les sends en DM sont le signal algorithmique LE PLUS FORT pour atteindre
-   les non-abonnés sur Instagram. Un Reel qui ne donne envie d'être envoyé
-   à personne reste invisible.
-   
-   Avant d'écrire, identifie EXPLICITEMENT :
-   - QUI : à quelle personne précise (pas "ma communauté", pas "les femmes
-     entrepreneures") quelqu'un aurait envie d'envoyer ce Reel ?
-     Exemple : "à une amie qui vient de lancer son freelance et galère
-     à fixer ses prix", "au copain qui doute toujours de sa légitimité".
-   - POURQUOI : quelle est la qualité INTRINSÈQUE qui déclenche le partage ?
-     Trois leviers possibles (en choisir UN dominant) :
-     • RECONNAISSANCE — "C'est exactement ce qu'elle vit en ce moment"
-       (situation ultra-spécifique, scène vécue qui résonne)
+   Trois leviers possibles (en choisir UN dominant) :
+     • RECONNAISSANCE — "C'est exactement ce qu'elle vit"
      • VALIDATION — "Ça va lui faire du bien d'entendre ça"
-       (un ressenti non-dit nommé, une permission donnée, une vérité libératrice)
      • CONTRE-INTUITION DÉBATTABLE — "Tiens, ça va la faire réagir"
-       (prise de position qui bouscule un consensus, info qui mérite discussion)
-   
-   ❌ MAUVAIS critère send-worthy :
-   - "Ce Reel sera utile à beaucoup de gens" (trop large = personne envoie)
-   - "Mes abonnées vont aimer" (aimer ≠ envoyer)
-   - "Il y a un CTA 'partage ce reel'" (le CTA explicite ne fonctionne pas seul)
-   
-   ✅ BON critère send-worthy :
-   - "Toute personne qui a déjà baissé son prix par culpabilité va vouloir
-     l'envoyer à une amie qui fait pareil" → reconnaissance + validation
-   - "Quiconque pense que poster tous les jours est obligatoire va vouloir
-     en débattre avec son binôme de travail" → contre-intuition débattable
-   
-   IMPORTANT : la qualité send-worthy doit être INTRINSÈQUE au contenu,
-   pas un CTA explicite "partage ce reel". Le viewer envoie parce que le
-   contenu lui-même mérite d'être partagé, pas parce qu'on le lui demande.
+   La qualité send-worthy doit être INTRINSÈQUE au contenu, pas un CTA explicite.
 
 ══ RÈGLES DE SCRIPT ══
 
 STRUCTURE :
 - Hook (0-3s) : texte à l'écran + ce que tu dis. 1 phrase max. TENSION.
   PRÉFÉRENCE FORTE : commencer par "Je" ou "Ma/Mon" (vécu personnel).
-  Le hook doit ancrer le spectateur dans une expérience, pas dans un concept.
   ❌ "Une com' complète en une minute" → ✅ "J'ai créé une com' complète en une minute"
-- Corps (3-45s) : développe avec une SCÈNE CONCRÈTE. Raconte, ne liste pas.
-  Chaque section du corps = 2-4 phrases COMPLÈTES de texte parlé.
-  PAS de one-liners enchaînés. Le corps raconte UNE scène, pas 3 micro-conseils.
-- CTA (45-60s) : fermeture naturelle. Question ou invitation.
+- Corps (3-45s) : développe avec une SCÈNE CONCRÈTE + le MÉCANISME.
+  Chaque section body = 25-50 mots de texte parlé (oral dense, pas
+  télégraphique). Au moins UNE section body explique le POURQUOI (mécanisme).
+- CTA (45-60s) : reformulation finale. Pas de répétition du hook.
 
 OVERLAY — 3 RÔLES POSSIBLES (choisir 1 par section) :
 - ANCRAGE : mot-clé ou concept qui reste à l'écran (ex: "POSITIONNEMENT")
@@ -173,59 +214,57 @@ INTERDIT : overlay qui résume ou condense le texte parlé. L'overlay COMPLÈTE,
 ══ RÈGLE SPÉCIALE FRAME 1 (overlay du hook 0-3s) ══
 
 50% des viewers regardent en MUTE. L'overlay de la frame 1 doit fonctionner SEUL,
-sans le son. Un viewer qui ne voit QUE ce texte doit comprendre la promesse du Reel
-et avoir envie de rester pour la suite.
+sans le son. C'est un MINI-HOOK lisible seul (promesse concrète, situation
+reconnaissable, ou affirmation contre-intuitive).
 
-L'overlay frame 1 n'est PAS un mot-clé décoratif. C'est un MINI-HOOK lisible seul.
-Il doit contenir : soit une promesse concrète, soit une situation reconnaissable,
-soit une affirmation contre-intuitive. JAMAIS juste un thème.
+❌ MAUVAIS : "POSITIONNEMENT" / "Stratégie Instagram" / "Mes conseils"
+✅ BON : "10K abonnés. Zéro client." / "Pourquoi j'ai supprimé tous mes posts."
 
-❌ MAUVAIS overlay frame 1 (mot-clé seul, sans contexte) :
-- "POSITIONNEMENT"
-- "Stratégie Instagram"
-- "Mes conseils"
-- "Astuce du jour"
-→ Le viewer en mute ne sait pas pourquoi rester. Il scroll.
+══ DENSITÉ DE TEXTE PARLÉ (cible recalibrée) ══
 
-✅ BON overlay frame 1 (autoporteur, donne envie de rester) :
-- "10K abonnés. Zéro client."
-- "Pourquoi j'ai supprimé tous mes posts."
-- "Ta cliente ne lit pas tes carrousels."
-- "Le truc que personne ne te dit sur le pricing."
-→ Le viewer en mute comprend l'enjeu et reste pour comprendre.
+- Reel court (15-30s) : 80-150 mots. La couche mécanisme reste obligatoire (en condensé).
+- Reel moyen (30-60s) : 220-320 mots (rythme parlé naturel ~150 mots/min, marqueurs
+  d'oralité inclus).
+- Reel long (60-90s) : 350-500 mots. Profondeur pleine sur les 3 couches étalées.
 
-Cette règle s'applique UNIQUEMENT à l'overlay de la section 0-3s (hook).
-Les overlays des sections suivantes peuvent rester en mode ancrage/contrepoint/punchline classique.
+Si tu es sous le plancher → DÉVELOPPE la couche "mécanisme", ne resserre PAS le reste.
+Une section body de 8 mots = slogan, pas du parlé. Vise 25-50 mots par section body.
 
-FORMAT DE SORTIE :
-- Indique le timing, le texte parlé, le texte overlay (+ son rôle : ancrage/contrepoint/punchline), 
-  les cuts visuels et le cadrage pour chaque section.
-- TOTAL : 150-300 mots de texte parlé (rythme parlé = ~150 mots/minute).
+══ EXEMPLE AVANT / APRÈS ══
 
-══ EXEMPLE QUALITÉ ══
+Sujet : "tarifer ses prestations".
 
-❌ SCRIPT GÉNÉRIQUE (listicle filmé) :
-Hook: "3 erreurs sur Instagram"
-Corps: "Erreur 1 : pas de stratégie. Erreur 2 : pas de régularité. Erreur 3 : pas de CTA."
-→ Zéro scène, zéro tension, zéro déplacement. C'est un post lu à voix haute.
+❌ AVANT (listicle filmé, sans profondeur, sans oralité) :
+Hook  : "Tu n'oses pas augmenter tes prix ?"
+Body 1: "Tu te dis que tes clients vont fuir."
+Body 2: "Mais en vrai, c'est l'inverse : les bons clients respectent les prix justes."
+CTA   : "Augmente, tu verras."
+→ 4 affirmations plates. Aucun mécanisme expliqué. Aucun connecteur oral. Plat.
 
-✅ SCRIPT QUI RACONTE (scène + déplacement) :
-Hook: "Ma cliente avait 10K abonnés et zéro client."
-Corps: "Je lui ai demandé : 'Tu postes pour qui ?'. Silence.
-Elle postait 5 fois par semaine. Des tips, des infographies, des reels tendance.
-Mais son audience idéale, elle scroll pas des tips. Elle cherche quelqu'un 
-qui comprend SON problème. On a tout arrêté. 2 posts par semaine. 
-Chaque post = une situation que sa cliente vit."
-CTA: "Résultat 3 mois plus tard : 4 appels découverte par semaine."
-→ Une scène, un déplacement narratif, un résultat concret.
+✅ APRÈS (profondeur + oralité, 3 couches identifiables) :
+Hook  : "Tu sais le truc bizarre avec les prix ? On pense que c'est une question
+         de calcul. C'est pas ça."
+Body 1: "En vrai, quand tu galères à fixer tes tarifs, c'est rarement un problème
+         de marché. Le marché il s'en fout, il s'aligne. Le truc c'est que TOI,
+         tu te demandes en boucle si tu vaux ça. Et cette question-là, elle se
+         voit dans ta voix au moment où tu annonces le prix."
+Body 2: "Et c'est ÇA que les clients captent. Pas le chiffre. L'hésitation derrière
+         le chiffre. Ils achètent ta certitude, pas ton tarif. C'est pour ça que
+         deux freelances avec le même tarif vendent pas pareil."
+CTA   : "Donc avant de toucher à tes prix, regarde plutôt comment tu les dis.
+         C'est là que tout se joue."
+→ Symptôme (galère à tarifer) → Mécanisme (l'hésitation perçue) → Reformulation
+   (regarde comment tu les dis). Connecteurs oraux ("en vrai", "le truc c'est
+   que", "et c'est ÇA", "donc"). 220+ mots. Profondeur + monologue continu.
 
 INTERDITS :
-- Script qui LISTE des conseils au lieu de RACONTER
+- Script qui LISTE des conseils au lieu de RACONTER + EXPLIQUER LE POURQUOI
 - Hook descriptif ("Aujourd'hui on va parler de...")
-- Hook impersonnel sans sujet humain ("Une stratégie simple", "3 étapes pour...")
+- Hook impersonnel sans sujet humain
 - Texte overlay qui répète mot pour mot le texte parlé
 - Script qu'on ne peut pas dire à voix haute naturellement
-- One-liners enchaînés sans lien narratif`;
+- Sections juxtaposées sans connecteur oral
+- Conseil sans mécanisme expliqué`;
 
   let calibrage = "";
   if (effectiveObjective === "visibilite") {
@@ -370,6 +409,7 @@ Retourne UNIQUEMENT ce JSON valide, sans texte avant ou après, sans backticks :
   "objectif": "${effectiveObjective || "non précisé"}",
   "editorial_angle_used": "${params.editorial_angle || "auto"}",
   "personal_tip": null,
+  "lecture_test": "MONOLOGUE CONTINU : concatène ici tous les texte_parle des sections dans l'ordre, sans coupure, comme un seul paragraphe lisible d'une traite face cam. Doit contenir les 3 couches (symptôme + mécanisme + reformulation) et au moins 2 marqueurs de profondeur orale.",
   "accroche": "le hook des 3 premières secondes (pour le calendrier)",
   "pillar": "le pilier de contenu",
   "script": [
