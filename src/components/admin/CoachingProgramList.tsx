@@ -34,6 +34,7 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
   const [loadingWsFor, setLoadingWsFor] = useState<string | null>(null);
   const [creatingStandalone, setCreatingStandalone] = useState(false);
   const [newWsName, setNewWsName] = useState("");
+  const [newWsEmail, setNewWsEmail] = useState("");
   const [showNewWsInput, setShowNewWsInput] = useState(false);
   const [deletingWs, setDeletingWs] = useState<string | null>(null);
   const [removedWsIds, setRemovedWsIds] = useState<Set<string>>(new Set());
