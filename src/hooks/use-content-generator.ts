@@ -617,6 +617,140 @@ export function useContentGenerator() {
     []
   );
 
+  // ── Streaming generation (text formats: post / linkedin / newsletter / pinterest) ──
+  // Encapsulates the SSE flow that used to live inline in CreerUnifie.tsx.
+  // Mirrors EXACTLY the previous behavior: contentType mapping, body shape,
+  // angle resolution across all 4 angle catalogs, JSON parsing, quota handling.
+  const generateStream = useCallback(
+    async (params: GenerateStreamParams): Promise<ContentResult | null> => {
+      const {
+        format,
+        subject,
+        objective,
+        editorialAngle,
+        answers,
+        workspaceId,
+        photoMode,
+        photos,
+        photoDescription,
+        deepResearch,
+        pinterestLink,
+        pinterestBoard,
+      } = params;
+
+      streamReset();
+      setError(null);
+      setResult(null);
+
+      const contentTypeMap: Record<string, string> = {
+        post: "post_instagram",
+        linkedin: "post_linkedin",
+        newsletter: "post_newsletter",
+        pinterest: "post_pinterest",
+      };
+
+      // Resolve angle across all 4 catalogs (same lookup CreerUnifie used)
+      const angleObj = editorialAngle
+        ? (() => {
+            const found =
+              EDITORIAL_ANGLES.find((a) => a.id === editorialAngle) ||
+              LINKEDIN_EDITORIAL_ANGLES.find((a) => a.id === editorialAngle) ||
+              PINTEREST_EDITORIAL_ANGLES.find((a) => a.id === editorialAngle) ||
+              PINTEREST_VISUAL_ANGLES.find((a) => a.id === editorialAngle);
+            const structureId = getStructureForCombo(format, editorialAngle);
+            const structure = structureId ? CONTENT_STRUCTURES[structureId] : undefined;
+            return found
+              ? {
+                  title: found.label,
+                  structure: structure?.steps.map((s) => s.label),
+                  tone: "direct, chaleureux, oral assumé",
+                }
+              : undefined;
+          })()
+        : undefined;
+
+      const ans = answers || {};
+      const hasAnswers = Object.keys(ans).length > 0;
+
+      const streamBody: any = {
+        step: "generate",
+        contentType: contentTypeMap[format] || "post_instagram",
+        context: subject,
+        angle: angleObj,
+        answers: hasAnswers
+          ? Object.entries(ans).map(([q, a]) => ({ question: q, answer: a }))
+          : undefined,
+        preGenAnswers: hasAnswers
+          ? {
+              anecdote: ans.anecdote || ans.q_0 || undefined,
+              emotion: ans.emotion || ans.q_1 || undefined,
+              conviction: ans.conviction || ans.q_2 || undefined,
+            }
+          : undefined,
+        workspace_id: workspaceId || undefined,
+        objective: objective || undefined,
+        editorialFormat: editorialAngle || undefined,
+        editorialFormatLabel: editorialAngle || undefined,
+        ...(photoMode
+          ? {
+              photo_mode: true,
+              photo_description: photoDescription,
+              ...(photos && photos.length > 0 && photos[0]?.base64
+                ? {
+                    photos: [
+                      {
+                        base64: photos[0].base64,
+                        mimeType: photos[0].mimeType || "image/jpeg",
+                        context: photos[0].context,
+                      },
+                    ],
+                  }
+                : {}),
+            }
+          : {}),
+        ...(deepResearch ? { deepResearch: true } : {}),
+        ...(format === "pinterest" && (pinterestLink || pinterestBoard)
+          ? { pinterest_link: pinterestLink, pinterest_board: pinterestBoard }
+          : {}),
+      };
+
+      let fullText = "";
+      try {
+        fullText = await streamInvoke("creative-flow", streamBody);
+      } catch (e: any) {
+        if (e?._isQuota && handleQuotaError(e)) {
+          setError(null);
+          return null;
+        }
+        const msg = e?.message || "Erreur lors de la génération";
+        setError(msg);
+        return null;
+      }
+
+      if (!fullText) {
+        // Empty result — let the caller decide whether to surface a toast
+        return null;
+      }
+
+      // Tolerant JSON parse (same logic as inline CreerUnifie)
+      let parsed: any;
+      try {
+        const jsonMatch = fullText.match(/\{[\s\S]*\}/);
+        parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { content: fullText };
+      } catch {
+        parsed = { content: fullText };
+      }
+
+      const normalized: ContentResult = {
+        type: format as ContentResult["type"],
+        raw: parsed,
+      };
+      setResult(normalized);
+      return normalized;
+    },
+    [streamInvoke, streamReset]
+  );
+
   return {
     generate,
     generating,
@@ -629,5 +763,28 @@ export function useContentGenerator() {
     loadingQuestions,
     questions,
     setQuestions,
+    // Streaming API (Phase 4 — proxy of internal useStreamingInvoke)
+    generateStream,
+    streamingContent,
+    streaming,
+    streamDone,
+    streamError,
+    streamReset,
   };
+}
+
+// ── Streaming params type ──
+export interface GenerateStreamParams {
+  format: "post" | "linkedin" | "newsletter" | "pinterest";
+  subject: string;
+  objective?: string;
+  editorialAngle?: string;
+  answers?: Record<string, string>;
+  workspaceId?: string;
+  photoMode?: boolean;
+  photos?: { base64: string; mimeType?: string; context?: string }[];
+  photoDescription?: string;
+  deepResearch?: boolean;
+  pinterestLink?: string;
+  pinterestBoard?: string;
 }
