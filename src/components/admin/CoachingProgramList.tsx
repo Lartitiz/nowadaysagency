@@ -37,6 +37,21 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
   const [showNewWsInput, setShowNewWsInput] = useState(false);
   const [deletingWs, setDeletingWs] = useState<string | null>(null);
   const [removedWsIds, setRemovedWsIds] = useState<Set<string>>(new Set());
+  const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    const ids = standaloneWorkspaces.map(w => w.id);
+    if (ids.length === 0) { setMemberCounts({}); return; }
+    (async () => {
+      const { data } = await supabase
+        .from("workspace_members")
+        .select("workspace_id")
+        .in("workspace_id", ids);
+      const counts: Record<string, number> = {};
+      (data || []).forEach((r: any) => { counts[r.workspace_id] = (counts[r.workspace_id] || 0) + 1; });
+      setMemberCounts(counts);
+    })();
+  }, [standaloneWorkspaces]);
 
   const getNextSession = (programId: string) => sessions.find(s => s.program_id === programId && s.status === "scheduled" && s.scheduled_date);
   const getSessionStats = (programId: string) => {
