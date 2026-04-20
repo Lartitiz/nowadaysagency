@@ -4,7 +4,7 @@ import { ANTI_SLOP, EDITORIAL_ANGLES_REFERENCE, CHAIN_OF_THOUGHT, DEPTH_LAYER, P
 import { BASE_SYSTEM_RULES } from "../../_shared/base-prompts.ts";
 import { buildIdentityBlock } from "../../_shared/user-context.ts";
 
-function buildSystemPrompt(brandingContext: string, isLinkedIn: boolean = false, profile?: any): string {
+export function buildSystemPrompt(brandingContext: string, isLinkedIn: boolean = false, profile?: any): string {
   return `${BASE_SYSTEM_RULES}
 
 Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :
@@ -139,7 +139,7 @@ RÈGLES ABSOLUES DES CARROUSELS :
 RETOURNE UNIQUEMENT un JSON valide, sans texte avant ou après, sans backticks.`;
 }
 
-function buildHooksPrompt(body: any): string {
+export function buildHooksPrompt(body: any): string {
   const { carousel_type, subject, objective, slide_count, deepening_answers, chosen_angle } = body;
   
   let deepeningCtx = "";
@@ -180,7 +180,7 @@ Retourne ce JSON exact :
 }`;
 }
 
-function buildSlidesPrompt(body: any): string {
+export function buildSlidesPrompt(body: any): string {
   const { carousel_type, subject, objective, selected_hook, slide_count, selected_offer, deepening_answers, chosen_angle, editorial_angle, content_structure } = body;
 
   const structureGuide = getStructureGuide(carousel_type);
@@ -338,7 +338,7 @@ Retourne ce JSON exact :
 }`;
 }
 
-function buildSuggestTopicsPrompt(body: any): string {
+export function buildSuggestTopicsPrompt(body: any): string {
   const { carousel_type, objective, recent_posts } = body;
   return `DEMANDE : Suggère 5 sujets de carrousels Instagram.
 
@@ -363,7 +363,7 @@ Retourne ce JSON exact :
 }`;
 }
 
-function buildSuggestAnglesPrompt(body: any): string {
+export function buildSuggestAnglesPrompt(body: any): string {
   const { carousel_type, subject, objective, deepening_answers } = body;
 
   let deepeningCtx = "";
@@ -479,7 +479,7 @@ Slide 10: CTA doux "Laquelle vous préférez ? Dites-moi."
   return guides[type] || guides.tips;
 }
 
-function buildDeepeningQuestionsPrompt(body: any, brandingContext?: string, isLinkedIn: boolean = false, recentBriefsContext?: string, brandVocabBlock?: string): string {
+export function buildDeepeningQuestionsPrompt(body: any, brandingContext?: string, isLinkedIn: boolean = false, recentBriefsContext?: string, brandVocabBlock?: string): string {
   const { carousel_type, subject, objective, editorial_angle, content_structure } = body;
 
   const CAROUSEL_TYPE_LABELS: Record<string, string> = {
@@ -547,7 +547,7 @@ Réponds UNIQUEMENT en JSON valide, sans texte autour :
 }`;
 }
 
-function buildExpressFullPrompt(body: any, isLinkedIn: boolean = false): string {
+export function buildExpressFullPrompt(body: any, isLinkedIn: boolean = false): string {
   const { subject, carousel_type, objective, slide_count, deepening_answers, selected_offer, editorial_angle, content_structure, confirmed_structure } = body;
 
   // ── 0. STRUCTURE IMPOSÉE (si confirmée par l'utilisateur·ice) ──
@@ -804,7 +804,7 @@ Retourne ce JSON exact :
 }`;
 }
 
-function buildPhotoCarouselPrompt(body: any): string {
+export function buildPhotoCarouselPrompt(body: any): string {
   const { editorial_angle, content_structure, deepening_answers, confirmed_structure } = body;
 
   // ── STRUCTURE IMPOSÉE (si confirmée par l'utilisateur·ice) ──
@@ -923,7 +923,7 @@ RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
 }`;
 }
 
-function buildMixCarouselPrompt(body: any, isLinkedIn: boolean = false): string {
+export function buildMixCarouselPrompt(body: any, isLinkedIn: boolean = false): string {
   const { editorial_angle, content_structure, deepening_answers, slide_structure, confirmed_structure } = body;
 
   // ── Adaptation éditoriale selon le canal ──
