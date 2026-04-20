@@ -1,58 +1,34 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAnthropicSimple, AnthropicError, getModelForAction, getModelForRichContent } from "../_shared/anthropic.ts";
-import { corsHeaders } from "../_shared/cors.ts";
 import { ANTI_SLOP, CHAIN_OF_THOUGHT } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
-import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { runPipeline } from "../_shared/request-pipeline.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-
+  const corsHeaders = getCorsHeaders(req);
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Authentification requise" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // Parse body first to extract workspace_id for quota scoping
+    let body: any = {};
+    if (req.method !== "OPTIONS") {
+      try { body = await req.json(); } catch { body = {}; }
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-    const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-    const supabase = createClient(supabaseUrl, supabaseKey, {
-      global: { headers: { Authorization: authHeader } },
+    const r = await runPipeline(req, {
+      category: "content",
+      workspaceId: body?.workspace_id ?? undefined,
     });
+    if (!r.ok) return r.response;
+    const { userId, supabase } = r;
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: "Authentification invalide" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    const userId = user.id;
-
-    // Anthropic API key checked in shared helper
-
-    // Rate limit check
-    const rateCheck = checkRateLimit(user.id);
-    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
-
-    // Check plan limits
-    const { checkQuota, logUsage } = await import("../_shared/plan-limiter.ts");
-    const usageCheck = await checkQuota(user.id, "content");
-    if (!usageCheck.allowed) {
-      return new Response(
-        JSON.stringify({ error: "limit_reached", message: usageCheck.error, remaining: 0 }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    // logUsage is still imported lazily below (kept for behaviour parity)
+    const { logUsage } = await import("../_shared/plan-limiter.ts");
 
     // Fetch full context server-side
     const { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallback, buildIdentityBlock } = await import("../_shared/user-context.ts");
 
-    const body = await req.json();
     validateInput(body, z.object({
       type: z.string().max(50).optional(),
       objective: z.string().max(100).optional().nullable(),
@@ -65,7 +41,7 @@ serve(async (req) => {
     }).passthrough());
     let { objective, price_range, time_available, face_cam, subject, subject_details, raw_idea, clarify_context, direction, is_launch, type, pre_gen_answers, workspace_id, launch_context } = body;
 
-    const ctx = await getUserContext(supabase, user.id, workspace_id, "instagram");
+    const ctx = await getUserContext(supabase, userId, workspace_id, "instagram");
     const branding_context = formatContextForAI(ctx, CONTEXT_PRESETS.stories);
 
     // Fallback: inject branding as pre_gen_answers if none provided
@@ -128,7 +104,7 @@ RETOURNE un JSON strict :
 }
 Réponds UNIQUEMENT avec le JSON.`;
       const response = await callAnthropicSimple(getModelForAction("stories"), systemPrompt, `Idée brute : "${body.raw_idea}"`);
-      await logUsage(user.id, "content", "stories");
+      await logUsage(userId, "content", "stories");
       return new Response(JSON.stringify({ content: response }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -176,7 +152,7 @@ RETOURNE un JSON strict :
 Réponds UNIQUEMENT avec le JSON.`;
       const model = "claude-opus-4-6";
       const response = await callAnthropicSimple(model, BASE_SYSTEM_RULES + "\n\n" + systemPrompt, "Propose-moi 5 sujets de stories.");
-      await logUsage(user.id, "content", "stories");
+      await logUsage(userId, "content", "stories");
       return new Response(JSON.stringify({ content: response }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -207,7 +183,7 @@ Réponds UNIQUEMENT avec le JSON.`;
     if (type === "daily") {
       const systemPrompt = buildDailyPrompt(STORIES_PREFIX);
       const response = await callAnthropicSimple(getModelForAction("stories"), systemPrompt, "Génère mes 5 stories du quotidien.");
-      await logUsage(user.id, "content", "stories");
+      await logUsage(userId, "content", "stories");
       return new Response(JSON.stringify({ content: response }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -238,7 +214,7 @@ Réponds UNIQUEMENT avec le JSON.`;
     }
 
     const response = await callAnthropicSimple(model, systemPrompt, "Génère ma séquence stories.");
-    await logUsage(user.id, "content", "stories");
+    await logUsage(userId, "content", "stories");
     return new Response(JSON.stringify({ content: response }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

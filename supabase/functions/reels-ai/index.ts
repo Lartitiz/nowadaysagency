@@ -1,67 +1,35 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallback, buildIdentityBlock } from "../_shared/user-context.ts";
-import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
+import { logUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropic, AnthropicError, getModelForAction, getModelForRichContent } from "../_shared/anthropic.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 import { ANTI_SLOP, EDITORIAL_ANGLES_REFERENCE, CHAIN_OF_THOUGHT, PREGEN_INJECTION_RULES, EMBEDDED_EDUCATION } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
-import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { runPipeline } from "../_shared/request-pipeline.ts";
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-
+  const corsHeaders = getCorsHeaders(req);
   let userId: string | null = null;
   try {
     console.log("reels-ai: start handler");
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Authentification requise" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    console.log("reels-ai: auth header present");
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Authentification invalide" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    userId = user.id;
-    console.log("reels-ai: auth OK, userId =", userId);
-
-    // Anthropic API key checked in shared helper
-
-    // Rate limit check
-    const rateCheck = checkRateLimit(user.id);
-    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
-
-    // Check plan limits
-    const usageCheck = await checkQuota(user.id, "content");
-    console.log("reels-ai: quota check done", usageCheck.allowed);
-    if (!usageCheck.allowed) {
-      return new Response(
-        JSON.stringify({ error: "limit_reached", message: usageCheck.error, remaining: 0 }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    // Parse body first to extract workspace_id
+    let rawBody: any = null;
+    if (req.method !== "OPTIONS") {
+      try { rawBody = await req.json(); } catch { rawBody = null; }
     }
 
-    let rawBody: any;
-    try {
-      rawBody = await req.json();
-    } catch {
-      rawBody = null;
-    }
-    console.log("reels-ai: rawBody type =", typeof rawBody, "keys =", rawBody ? Object.keys(rawBody) : "null");
+    const r = await runPipeline(req, {
+      category: "content",
+      workspaceId: rawBody?.workspace_id ?? undefined,
+    });
+    if (!r.ok) return r.response;
+    const { userId: uid, supabase } = r;
+    userId = uid;
+    console.log("reels-ai: pipeline OK, userId =", userId);
+
     if (!rawBody || typeof rawBody !== "object") {
       return new Response(JSON.stringify({ error: "Corps de requête invalide" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -82,7 +50,7 @@ serve(async (req) => {
     let { type, objective, face_cam, subject, time_available, is_launch, selected_hook, pre_gen_answers, image_urls, inspiration_context, workspace_id, editorial_angle, content_structure, launch_context } = body as any;
 
     // Fetch full context server-side
-    const ctx = await getUserContext(supabase, user.id, workspace_id, "instagram");
+    const ctx = await getUserContext(supabase, userId, workspace_id, "instagram");
     const brandingContext = formatContextForAI(ctx, CONTEXT_PRESETS.reels);
 
     // Fallback: inject branding as pre_gen_answers if none provided
@@ -151,7 +119,7 @@ serve(async (req) => {
       messages: userMsgs,
     });
 
-    await logUsage(user.id, "content", "reels");
+    await logUsage(userId, "content", "reels");
 
     return new Response(JSON.stringify({ content }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
