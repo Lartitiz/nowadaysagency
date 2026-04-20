@@ -262,21 +262,23 @@ export function PhotoUploadZone({
         </>
       )}
 
-      {/* ── Text description ──────────────────── */}
-      <div className="space-y-1.5">
-        <label className="text-sm font-medium text-foreground">
-          Ou décris tes photos en quelques mots
-        </label>
-        {photos.length > 0 && (
-          <p className="text-xs text-muted-foreground">(optionnel si tu as uploadé tes photos)</p>
-        )}
-        <Textarea
-          value={description}
-          onChange={(e) => handleDesc(e.target.value)}
-          placeholder="Ex : 6 photos d'un soutien-gorge en dentelle ivoire, ambiance boudoir, lumière dorée"
-          className="min-h-[72px] resize-none"
-        />
-      </div>
+      {/* ── Text description (hidden in compact mode) ─────── */}
+      {!compact && (
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-foreground">
+            Ou décris tes photos en quelques mots
+          </label>
+          {photos.length > 0 && (
+            <p className="text-xs text-muted-foreground">(optionnel si tu as uploadé tes photos)</p>
+          )}
+          <Textarea
+            value={description}
+            onChange={(e) => handleDesc(e.target.value)}
+            placeholder="Ex : 6 photos d'un soutien-gorge en dentelle ivoire, ambiance boudoir, lumière dorée"
+            className="min-h-[72px] resize-none"
+          />
+        </div>
+      )}
     </div>
   );
 }
