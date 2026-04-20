@@ -10,6 +10,7 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { applyCorrectionPassCarousel } from "../_shared/correction-pass.ts";
+import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -65,6 +66,7 @@ serve(async (req) => {
         photo_index: z.number().optional(),
         slide_type: z.enum(["photo_full", "photo_integrated", "text_only"]).optional(),
       })).optional().nullable(),
+      recent_briefs_context: z.string().max(4000).optional().nullable(),
     }).passthrough());
     const { type, workspace_id, launch_context } = body;
     const isLinkedIn = body.channel === "linkedin";
