@@ -12,6 +12,34 @@ import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { applyCorrectionPassCarousel } from "../_shared/correction-pass.ts";
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
 
+// ── Helpers contexte par photo ──
+// L'ordre des photos correspond à l'ordre d'envoi côté front (post-reorder UX).
+// `context` (max 200 chars, validé Zod) provient du champ optionnel par photo dans PhotoUploadZone.
+function buildPhotoContextRecap(photos: Array<{ base64: string; context?: string }> | undefined): string {
+  if (!photos || photos.length === 0) return "";
+  const withCtx = photos
+    .map((p, i) => ({ idx: i + 1, ctx: p.context?.trim() }))
+    .filter((p) => p.ctx);
+  if (withCtx.length === 0) return "";
+  const lines = withCtx.map((p) => `- Photo ${p.idx} : ${p.ctx}`).join("\n");
+  const missing = photos.length - withCtx.length;
+  const tail = missing > 0 ? `\n(Les ${missing} autre${missing > 1 ? "s" : ""} photo${missing > 1 ? "s n'ont" : " n'a"} pas de contexte fourni.)` : "";
+  return `\n\nINDICES PRÉCIS PAR PHOTO (fournis par l'utilisatrice — utilise-les pour identifier ce qui est représenté) :\n${lines}${tail}\n`;
+}
+
+function pushPhotoWithContext(messageContent: any[], photo: { base64: string; context?: string }, index: number) {
+  if (!photo.base64) return;
+  const ctx = photo.context?.trim();
+  if (ctx) {
+    messageContent.push({ type: "text", text: `Photo ${index + 1} — contexte fourni par l'utilisatrice : "${ctx}"` });
+  }
+  const raw = photo.base64.replace(/^data:image\/[a-z]+;base64,/, "");
+  messageContent.push({
+    type: "image",
+    source: { type: "base64", media_type: "image/jpeg", data: raw },
+  });
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
