@@ -1,115 +1,61 @@
 
 
-## Fix workspace isolation — "Salut Laetitia" sur le dashboard de Marion + données vides
+## Le vrai problème — Marion a 2 workspaces, tu es membre du mauvais
 
-### Diagnostic confirmé (base + code)
+### Ce que je vois dans la base
 
-**Vérifié en base** : les données de Marion sont bien présentes et correctement taguées avec `workspace_id` pour ses 2 workspaces :
+Marion (`7860d5e5…`) possède **deux workspaces** qui s'appellent tous les deux "Marion" :
 
-| Table | Rows avec `workspace_id` de Marion | Rows orphelines (`user_id` seul) |
-|---|---|---|
-| storytelling | 1 | 0 |
-| persona | 1 | 0 |
-| brand_proposition | 1 | 0 |
-| brand_profile | 1 | 0 |
-| brand_strategy | 1 | 0 |
-| brand_charter | 1 | 0 |
-| offers | 0 | 0 |
+| Workspace ID | Créé le | Membres | Données branding | Tes droits |
+|---|---|---|---|---|
+| `e56b291c…` | **09/03/2026** | Marion seule (owner) | ✅ **Tout** : storytelling, persona, 3× brand_*, brand_charter, 1 idée sauvegardée | ❌ **Tu n'es PAS membre** |
+| `b361a5f2…` | 20/04/2026 (aujourd'hui) | Marion (owner) + toi (manager) | ❌ Vide complet | ✅ Tu es manager |
 
-Bonne nouvelle : **brand_charter a bien une colonne `workspace_id`** (le memo était obsolète). **Aucune migration DB nécessaire.**
+Quand tu cliques sur "Marion" dans ton sélecteur de workspaces, tu atterris forcément sur `b361a5f2…` parce que c'est le seul où tu es invitée. Mais Marion a fait tout son travail dans son workspace original `e56b291c…` créé le 09/03, et **personne ne t'y a jamais invitée**. C'est un workspace solo Marion.
 
-**Confirmé côté code** : tu es bien `manager` sur le workspace `b361a5f2…` de Marion (user_id `7860d5e5…`, email `contact@lejardinparfume.fr`). Le bug est **100 % frontend** — une seule fonction oublie d'utiliser `useProfileUserId()`.
+Le code de la fix précédente fonctionne correctement — il affiche bien les données du workspace actif. Le problème, c'est qu'on regarde un workspace **vide par construction** parce qu'il vient d'être créé et qu'il ne sera jamais rempli automatiquement avec les données de l'autre workspace de Marion.
 
-### La cause unique
+### Pourquoi ça arrive
 
-`src/hooks/use-guide-recommendation.ts` — lignes 237-244 :
+Un workspace est créé automatiquement à l'inscription d'un user. Marion s'est inscrite le 09/03 → workspace `e56b291c` créé pour elle, elle l'a rempli. Puis, plus tard (peut-être quand tu as activé le mode coaching agence ou quand elle t'a invitée), un **nouveau** workspace `b361a5f2` a été créé au lieu d'attacher ton accès au workspace existant. Probablement un bug de l'invitation/onboarding agence.
 
-```ts
-(supabase.from("profiles") as any)
-  .select("prenom, onboarding_completed")
-  .eq("user_id", user.id)           // ← TOI (Laetitia), pas Marion
-  .maybeSingle(),
-(supabase.from("user_plan_config") as any)
-  .select("onboarding_completed")
-  .eq("user_id", user.id)           // ← TOI à nouveau
-  .maybeSingle(),
+### 3 options pour résoudre — à toi de choisir
+
+**Option A — Ajouter ton accès manager au vrai workspace de Marion (le plus propre, immédiat)**
+
+Une seule ligne SQL à exécuter :
+```sql
+INSERT INTO workspace_members (workspace_id, user_id, role)
+VALUES ('e56b291c-5577-440f-bf4b-7d87be94d6f9',
+        'ec5e783c-e89d-44f0-aff2-bca434869740',
+        'manager');
 ```
 
-Résultat sur le dashboard de Marion :
-- `firstName = "Laetitia"` → "Salut Laetitia 👋" s'affiche
-- `onboardingDone` calculé sur TON onboarding à toi, pas celui de Marion → mauvaise reco guide
+Ensuite tu rafraîchis la page, et "Marion" apparaît **deux fois** dans ton sélecteur de workspaces (les deux ont le même nom). Tu choisis celui de mars 2026 → toutes ses données apparaissent. Après vérification, on supprime le workspace `b361a5f2` (vide, créé par erreur).
 
-Toutes les autres requêtes du même hook (`calendar_posts`, `instagram_audit`, `content_drafts`, `fetchBrandingData`) utilisent correctement `filter.column / filter.value` venant de `useWorkspaceFilter`. Donc le Branding qui paraît vide n'est PAS vide à cause du filtre — il est rempli en base mais la page d'affichage doit être vérifiée séparément (voir point 2 ci-dessous).
+Avantages : aucune perte de données, immédiat. Inconvénient : tu vois temporairement deux "Marion" dans le menu jusqu'à la suppression du doublon.
 
-### Ce qu'on corrige
+**Option B — Fusionner les deux workspaces en un seul (le plus propre à long terme)**
 
-#### 1. Fix principal — `use-guide-recommendation.ts`
+Migrer tout ce qui est attaché au workspace `b361a5f2` vers `e56b291c` (ton lien manager + l'éventuel reste), puis supprimer `b361a5f2`. Comme `b361a5f2` est vide à part toi, ça revient quasiment à l'option A mais en plus définitif (un seul workspace Marion à la fin).
 
-Remplacer `user.id` par `useProfileUserId()` pour les 2 requêtes `profiles` + `user_plan_config` :
+Étapes SQL :
+1. Repointer ton membership : `UPDATE workspace_members SET workspace_id = 'e56b291c…' WHERE workspace_id = 'b361a5f2…' AND user_id = 'ec5e783c…';`
+2. Supprimer le workspace vide : `DELETE FROM workspaces WHERE id = 'b361a5f2…';` (CASCADE supprime le membership owner restant)
 
-```ts
-import { useWorkspaceFilter, useProfileUserId } from "@/hooks/use-workspace-query";
-// ...
-const profileUserId = useProfileUserId();  // owner du workspace actif (Marion) ou user.id si pas de workspace
+Avantages : un seul workspace Marion propre, pas de doublon dans ton menu. Inconvénient : si l'invitation a généré d'autres rows liées à `b361a5f2` (notifications, settings, etc.), il faut vérifier.
 
-// dans la Promise.all :
-(supabase.from("profiles") as any)
-  .select("prenom, onboarding_completed")
-  .eq("user_id", profileUserId)
-  .maybeSingle(),
-(supabase.from("user_plan_config") as any)
-  .select("onboarding_completed")
-  .eq("user_id", profileUserId)
-  .maybeSingle(),
-```
+**Option C — Comprendre d'abord pourquoi un 2e workspace a été créé, puis corriger le bug d'invitation avant la fusion**
 
-Ajouter `profileUserId` dans la `queryKey` pour que le cache se réinitialise au switch de workspace :
-```ts
-queryKey: ["guide-recommendation", user?.id, profileUserId, column, value, isDemoMode],
-```
+Avant de fusionner, on cherche dans le code le flow qui a créé `b361a5f2` à la place d'utiliser `e56b291c`. C'est probablement dans l'edge function ou le composant qui gère l'invitation agence/manager. On corrige le bug de fond (pour que les futurs invités atterrissent dans le workspace existant du client), puis on applique l'Option B.
 
-Impact : dès que tu passes sur le workspace de Marion, "Salut Marion 👋" s'affiche et la reco guide se base sur son état réel (pas le tien).
+Avantages : règle le problème pour tes prochains clients. Inconvénient : prend plus de temps avant que tu retrouves les données de Marion.
 
-#### 2. Vérification des pages de Branding
+### Ma recommandation
 
-Les **données** sont en base (vérifié). Si les pages Branding s'affichent vides sur le workspace de Marion, c'est que certaines sous-pages utilisent encore `user.id` ou `useProfileUserId()` au lieu de `useWorkspaceFilter()`. Je veux faire un **scan ciblé** dans les 6 sous-pages Branding (`BrandingAuditPage`, `BrandingCoachingFlow`, `BrandingSuggestionsCard`, pages section story/persona/proposition/tone/strategy/offers/charter) et corriger les requêtes qui filtrent mal.
+**Option A maintenant** (1 ligne SQL, accès immédiat aux données de Marion), **puis Option C** dans une 2e étape (audit du flow d'invitation pour éviter le doublon à l'avenir, et suppression propre du workspace vide).
 
-Pattern de fix attendu (à appliquer uniquement où c'est nécessaire) :
-- Tables avec colonne `workspace_id` (storytelling, persona, brand_proposition, brand_profile, brand_strategy, brand_charter, offers) → `useWorkspaceFilter()`
-- Tables sans colonne `workspace_id` (profiles, user_plan_config, voice_profile) → `useProfileUserId()` / `useProfileFilter()`
+### Ce qu'il te faut faire pour que je lance
 
-Je scannerai les 6 sections Branding et ne modifierai que les fichiers qui filtrent mal. Liste qui sera affichée avant modif.
-
-#### 3. Bonus — `BrandingAuditPage.tsx` ligne 114
-
-```ts
-.eq("id", user.id)  // ← bug : "id" n'est pas la bonne colonne pour profiles (c'est "user_id")
-```
-→ Probablement cassé depuis longtemps, je corrige en passant (`.eq("user_id", profileUserId)`).
-
-### Hors scope
-
-- Pas de migration DB (colonnes en place, données présentes et taguées)
-- Pas de backfill (aucune row orpheline)
-- Pas de refonte de `useWorkspaceFilter` / `useProfileUserId` — le pattern est bon
-- Pas de fix des leaks Edge Functions déjà listés dans ton memo (Pinterest, calendar-coaching) — à traiter séparément
-
-### Fichiers modifiés
-
-| Fichier | Changement |
-|---|---|
-| `src/hooks/use-guide-recommendation.ts` | `user.id` → `profileUserId` sur les 2 requêtes `profiles` + `user_plan_config`, ajout dans queryKey |
-| `src/pages/BrandingAuditPage.tsx` | `.eq("id", user.id)` → `.eq("user_id", profileUserId)` |
-| **Scan Branding sections** (fichiers à confirmer après scan) | Fix des filtres `user.id`/`profileUserId` qui devraient être `useWorkspaceFilter` — liste affichée avant modifs |
-
-### Validation
-
-1. Sur le dashboard de Marion (workspace `b361a5f2…`) → "Salut **Marion** 👋" (et non Laetitia)
-2. Sur `/branding` sur le workspace de Marion → voir ses 6 sections remplies (storytelling + persona + proposition + tone + strategy + charter, et offers vide c'est normal)
-3. Switch retour sur ton workspace Laetitia → "Salut **Laetitia** 👋" + tes propres données
-4. Vérifier que le switch de workspace invalide bien le cache React Query (pas de flash de l'ancien workspace)
-
-### Risque
-
-Faible. Le pattern `useProfileUserId()` existe et est déjà utilisé correctement dans 17 fichiers. On ne fait qu'aligner `use-guide-recommendation.ts` sur le même pattern. Les tables concernées ont les bonnes colonnes en base (vérifié). Si un fix Branding section révèle un cas tordu, je le signale avant d'appliquer.
+Choisis A, B ou C. Si tu veux A, je crée la migration SQL d'1 ligne et tu rafraîchis. Si tu veux B ou C, on cadre les étapes en plus.
 
