@@ -18,6 +18,7 @@ import CreerStepQuestions from "@/components/creer/CreerStepQuestions";
 import CreerStepResult from "@/components/creer/CreerStepResult";
 import CreerStepEdit from "@/components/creer/CreerStepEdit";
 import PinterestInspirationStep from "@/components/creer/PinterestInspirationStep";
+import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
 import StructureReviewStep from "@/components/creer/StructureReviewStep";
 import type { SlideProposal, StructureProposal } from "@/components/creer/StructureReviewStep";
 import CreerTransformTab from "@/components/creer/CreerTransformTab";
@@ -456,12 +457,25 @@ export default function CreerUnifie() {
       setStep("format");
       return;
     }
-    // Reset format-related state so the user starts fresh at channel selection
+    // Reset format-related state so the user starts fresh at channel selection.
+    // NOTE: photos (uploadedPhotos / photoDescription) are NOT reset here so
+    // that the "Partir de photos" entry point can pre-load them in CreerStepFormat.
     setSelectedFormat(null);
     setEditorialAngle(null);
     setCarouselSubMode(null);
-    setUploadedPhotos([]);
-    setPhotoDescription("");
+    setPhotoMode(false);
+    setPinterestData(null);
+    setStep("format");
+  };
+
+  const handlePhotosNext = (photos: PhotoItem[], description: string) => {
+    setUploadedPhotos(photos);
+    setPhotoDescription(description);
+    setNewsjackingContext(null);
+    setNewsjackingSuggestedFormat(null);
+    setSelectedFormat(null);
+    setEditorialAngle(null);
+    setCarouselSubMode(null);
     setPhotoMode(false);
     setPinterestData(null);
     setStep("format");
@@ -2092,7 +2106,7 @@ export default function CreerUnifie() {
                     ✨ {remainingTotal()} générations restantes ce mois
                   </p>
                 )}
-                <CreerStepIdea onNext={handleIdeaNext} onCoachingSelect={handleCoachingSelect} onNewsjackingSelect={handleNewsjackingSelect} workspaceId={workspaceId} activite={activityText} initialIdea={ideaText} initialObjective={objective || undefined} />
+                <CreerStepIdea onNext={handleIdeaNext} onCoachingSelect={handleCoachingSelect} onNewsjackingSelect={handleNewsjackingSelect} onPhotosNext={handlePhotosNext} workspaceId={workspaceId} activite={activityText} initialIdea={ideaText} initialObjective={objective || undefined} />
               </>
             )}
 
@@ -2102,6 +2116,8 @@ export default function CreerUnifie() {
                 objective={objective || undefined}
                 initialFormat={selectedFormat || undefined}
                 suggestedFormat={newsjackingSuggestedFormat || undefined}
+                initialPhotos={uploadedPhotos.length > 0 ? uploadedPhotos : undefined}
+                initialPhotoDescription={photoDescription || undefined}
                 onNext={(fmt, angle, sub, photos, desc, pm, pintData, linkedinCar) => {
                   if (pintData) setPinterestData(pintData);
                   if (linkedinCar) setIsLinkedInCarousel(true);

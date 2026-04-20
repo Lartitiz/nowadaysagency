@@ -2,16 +2,18 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, Sparkles, HelpCircle, Newspaper } from "lucide-react";
+import { ArrowRight, Sparkles, HelpCircle, Newspaper, Camera, ArrowLeft } from "lucide-react";
 import { OBJECTIVE_RECOMMENDATIONS } from "@/lib/content-structures";
 import ContentCoachingDialog from "@/components/dashboard/ContentCoachingDialog";
 import NewsjackingPanel from "./NewsjackingPanel";
+import { PhotoUploadZone, type PhotoItem } from "./PhotoUploadZone";
 import { useToast } from "@/hooks/use-toast";
 
 interface Props {
   onNext: (idea: string, objective?: string) => void;
   onCoachingSelect?: (data: { subject: string; format: string; objective: string; carouselSubMode?: "text" | "photo" }) => void;
   onNewsjackingSelect?: (data: { subject: string; context: string; format?: string; vehicule?: string }) => void;
+  onPhotosNext?: (photos: PhotoItem[], description: string) => void;
   workspaceId?: string;
   activite?: string;
   initialIdea?: string;
@@ -49,12 +51,21 @@ const objectives = Object.entries(OBJECTIVE_RECOMMENDATIONS).map(([id, o]) => ({
   emoji: o.emoji,
 }));
 
-export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingSelect, workspaceId, activite, initialIdea, initialObjective }: Props) {
+export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingSelect, onPhotosNext, workspaceId, activite, initialIdea, initialObjective }: Props) {
   const [idea, setIdea] = useState(initialIdea || "");
   const [objective, setObjective] = useState<string | undefined>(initialObjective);
   const [coachOpen, setCoachOpen] = useState(false);
   const [showNewsjacking, setShowNewsjacking] = useState(false);
+  const [showPhotosMode, setShowPhotosMode] = useState(false);
+  const [localPhotos, setLocalPhotos] = useState<PhotoItem[]>([]);
+  const [localDescription, setLocalDescription] = useState("");
   const { toast } = useToast();
+
+  const exitPhotosMode = () => {
+    setShowPhotosMode(false);
+    setLocalPhotos([]);
+    setLocalDescription("");
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -67,7 +78,7 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
         </p>
       </div>
 
-      {!showNewsjacking && (
+      {!showNewsjacking && !showPhotosMode && (
         <>
           {/* Subject textarea */}
           <div className="space-y-2">
@@ -96,6 +107,16 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
               >
                 <Newspaper className="h-3.5 w-3.5" /> Surfer sur l'actu
               </Button>
+              {onPhotosNext && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 text-muted-foreground"
+                  onClick={() => setShowPhotosMode(true)}
+                >
+                  <Camera className="h-3.5 w-3.5" /> Partir de photos
+                </Button>
+              )}
             </div>
           </div>
 
@@ -130,6 +151,44 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
             Suivant <ArrowRight className="h-4 w-4" />
           </Button>
         </>
+      )}
+
+      {/* Photos-first mode */}
+      {showPhotosMode && (
+        <div className="space-y-4 animate-fade-in">
+          <button
+            type="button"
+            onClick={exitPhotosMode}
+            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+          >
+            <ArrowLeft className="h-3 w-3" /> Revenir au mode texte
+          </button>
+
+          <div>
+            <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
+              <Camera className="h-4 w-4 text-primary" /> Pars de tes photos
+            </h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              Uploade tes photos et leur contexte. On choisira ensuite le format ensemble.
+            </p>
+          </div>
+
+          <PhotoUploadZone
+            maxPhotos={10}
+            onPhotosChange={setLocalPhotos}
+            onDescriptionChange={setLocalDescription}
+            initialPhotos={localPhotos}
+            initialDescription={localDescription}
+          />
+
+          <Button
+            onClick={() => onPhotosNext?.(localPhotos, localDescription)}
+            disabled={localPhotos.length === 0}
+            className="w-full gap-2"
+          >
+            Suivant <ArrowRight className="h-4 w-4" />
+          </Button>
+        </div>
       )}
 
       {/* Newsjacking panel */}
