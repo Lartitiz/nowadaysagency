@@ -78,8 +78,12 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
   const [isQuotaError, setIsQuotaError] = useState(false);
   const [filter, setFilter] = useState<"all" | "globale" | "niche">("all");
   const [hidden, setHidden] = useState<Set<number>>(new Set());
+  const [savedIdx, setSavedIdx] = useState<Set<number>>(new Set());
+  const [savingIdx, setSavingIdx] = useState<Set<number>>(new Set());
   // angles cache, keyed by actu index
   const [anglesByIdx, setAnglesByIdx] = useState<Record<number, AnglesState>>({});
+  const navigate = useNavigate();
+  const { user } = useAuth();
 
   const fetchActus = useCallback(async () => {
     setLoading(true);
