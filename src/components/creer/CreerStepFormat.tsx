@@ -487,6 +487,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
             onPhotosChange={setPostPhoto}
             onDescriptionChange={setPostPhotoDescription}
             title={postPhoto.length > 0 ? `Vos photos (${postPhoto.length})` : undefined}
+            compact={(initialPhotos?.length ?? 0) > 0}
           />
         </div>
       )}
