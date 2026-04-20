@@ -164,21 +164,16 @@ serve(async (req) => {
           const messageContent: any[] = [];
           
           // 1. Brief créatif EN PREMIER (avant les photos)
+          const photoCtxRecap = buildPhotoContextRecap(body.photos);
           messageContent.push({
             type: "text",
-            text: `BRIEF CRÉATIF : "${body.subject || "non précisé"}". Ce concept doit structurer TOUT le carrousel.\n\nObjectif : ${body.objective || "engagement"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : "L'IA choisit le meilleur angle."}\n${body.photo_description ? `Description complémentaire : "${body.photo_description}"` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${body.slide_structure ? `\nStructure imposée : ${body.slide_structure.length} slides définies par l'utilisateur·ice.` : ""}\n\nVoici ${body.photos.length} photo(s) à intégrer dans le carrousel :`,
+            text: `BRIEF CRÉATIF : "${body.subject || "non précisé"}". Ce concept doit structurer TOUT le carrousel.\n\nObjectif : ${body.objective || "engagement"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : "L'IA choisit le meilleur angle."}\n${body.photo_description ? `Description complémentaire : "${body.photo_description}"` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${body.slide_structure ? `\nStructure imposée : ${body.slide_structure.length} slides définies par l'utilisateur·ice.` : ""}${photoCtxRecap}\n\nVoici ${body.photos.length} photo(s) à intégrer dans le carrousel :`,
           });
 
-          // 2. Photos
-          for (const photo of body.photos.slice(0, 10)) {
-            if (photo.base64) {
-              const raw = photo.base64.replace(/^data:image\/[a-z]+;base64,/, "");
-              messageContent.push({
-                type: "image",
-                source: { type: "base64", media_type: "image/jpeg", data: raw },
-              });
-            }
-          }
+          // 2. Photos (avec contexte par photo s'il existe — l'ordre = ordre d'envoi front)
+          body.photos.slice(0, 10).forEach((photo: any, idx: number) => {
+            pushPhotoWithContext(messageContent, photo, idx);
+          });
 
           // 3. Instruction finale après les photos
           messageContent.push({
