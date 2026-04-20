@@ -2066,6 +2066,7 @@ export default function CreerUnifie() {
   const effectiveHandleAddToCalendar = isDemoMode ? demoToast : handleAddToCalendar;
   const effectiveHandleExportPptx = isDemoMode ? demoToast : handleExportPptx;
   const effectiveHandleExportVisualPptx = isDemoMode ? demoToast : handleExportVisualPptx;
+  const effectiveHandleExportHybridPptx = isDemoMode ? demoToast : handleExportHybridPptx;
 
   return (
     <div className="min-h-screen bg-background">
