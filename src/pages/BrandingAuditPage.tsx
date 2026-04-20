@@ -146,7 +146,7 @@ export default function BrandingAuditPage() {
         setFormOpen(true);
       }
     })();
-  }, [user]);
+  }, [user, profileUserId, column, value]);
 
   // If navigated with ?refaire hash, open form
   useEffect(() => {
