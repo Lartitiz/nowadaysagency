@@ -3,21 +3,19 @@ import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Sparkles, HelpCircle, Newspaper, Camera, ArrowLeft } from "lucide-react";
-import { OBJECTIVE_RECOMMENDATIONS } from "@/lib/content-structures";
 import ContentCoachingDialog from "@/components/dashboard/ContentCoachingDialog";
 import NewsjackingPanel from "./NewsjackingPanel";
 import { PhotoUploadZone, type PhotoItem } from "./PhotoUploadZone";
 import { useToast } from "@/hooks/use-toast";
 
 interface Props {
-  onNext: (idea: string, objective?: string) => void;
+  onNext: (idea: string) => void;
   onCoachingSelect?: (data: { subject: string; format: string; objective: string; carouselSubMode?: "text" | "photo" }) => void;
   onNewsjackingSelect?: (data: { subject: string; context: string; format?: string; vehicule?: string }) => void;
   onPhotosNext?: (photos: PhotoItem[], description: string) => void;
   workspaceId?: string;
   activite?: string;
   initialIdea?: string;
-  initialObjective?: string;
 }
 
 const ACTIVITY_PLACEHOLDERS: Record<string, string> = {
@@ -45,15 +43,8 @@ function getPlaceholder(activite?: string): string {
   return "Ex : je veux montrer un projet récent / je voudrais parler de pourquoi je fais ce métier / j'ai envie de réagir à une actu...";
 }
 
-const objectives = Object.entries(OBJECTIVE_RECOMMENDATIONS).map(([id, o]) => ({
-  id,
-  label: o.label,
-  emoji: o.emoji,
-}));
-
-export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingSelect, onPhotosNext, workspaceId, activite, initialIdea, initialObjective }: Props) {
+export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingSelect, onPhotosNext, workspaceId, activite, initialIdea }: Props) {
   const [idea, setIdea] = useState(initialIdea || "");
-  const [objective, setObjective] = useState<string | undefined>(initialObjective);
   const [coachOpen, setCoachOpen] = useState(false);
   const [showNewsjacking, setShowNewsjacking] = useState(false);
   const [showPhotosMode, setShowPhotosMode] = useState(false);
@@ -120,31 +111,9 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
             </div>
           </div>
 
-          {/* Objective selector */}
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-foreground">
-              Quel objectif ? <span className="text-muted-foreground font-normal">(optionnel)</span>
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {objectives.map((o) => (
-                <button
-                  key={o.id}
-                  onClick={() => setObjective(objective === o.id ? undefined : o.id)}
-                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium border transition-all ${
-                    objective === o.id
-                      ? "bg-primary/10 text-primary border-primary/30"
-                      : "bg-card text-muted-foreground border-border hover:border-primary/30"
-                  }`}
-                >
-                  <span>{o.emoji}</span> {o.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
           {/* Next button */}
           <Button
-            onClick={() => onNext(idea.trim(), objective)}
+            onClick={() => onNext(idea.trim())}
             disabled={!idea.trim()}
             className="w-full gap-2"
           >
