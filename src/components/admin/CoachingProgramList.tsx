@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +37,21 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
   const [showNewWsInput, setShowNewWsInput] = useState(false);
   const [deletingWs, setDeletingWs] = useState<string | null>(null);
   const [removedWsIds, setRemovedWsIds] = useState<Set<string>>(new Set());
+  const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    const ids = standaloneWorkspaces.map(w => w.id);
+    if (ids.length === 0) { setMemberCounts({}); return; }
+    (async () => {
+      const { data } = await supabase
+        .from("workspace_members")
+        .select("workspace_id")
+        .in("workspace_id", ids);
+      const counts: Record<string, number> = {};
+      (data || []).forEach((r: any) => { counts[r.workspace_id] = (counts[r.workspace_id] || 0) + 1; });
+      setMemberCounts(counts);
+    })();
+  }, [standaloneWorkspaces]);
 
   const getNextSession = (programId: string) => sessions.find(s => s.program_id === programId && s.status === "scheduled" && s.scheduled_date);
   const getSessionStats = (programId: string) => {
@@ -108,39 +123,38 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
     navigate("/dashboard");
   };
 
-  const handleDeleteStandaloneWs = async (wsId: string, wsName: string) => {
-    const { data: members } = await supabase
-      .from("workspace_members")
-      .select("user_id, role")
-      .eq("workspace_id", wsId);
-
-    const otherMembers = (members || []).filter(m => m.user_id !== user?.id);
-
-    if (otherMembers.length > 0) {
+  const handleLeaveOrDeleteWs = async (wsId: string, wsName: string, hasOthers: boolean) => {
+    if (hasOthers) {
       const confirmed = window.confirm(
-        `L'espace « ${wsName} » a ${otherMembers.length} autre·s membre·s. Tu seras retiré·e de cet espace mais il ne sera pas supprimé. Continuer ?`
+        `L'espace « ${wsName} » a d'autres membres. Tu vas le quitter (l'espace ne sera pas supprimé). Continuer ?`
       );
       if (!confirmed) return;
       setDeletingWs(wsId);
-      await supabase
+      const { error } = await supabase
         .from("workspace_members")
         .delete()
         .eq("workspace_id", wsId)
         .eq("user_id", user!.id);
+      if (error) {
+        toast.error(`Impossible de quitter : ${error.message}`);
+        setDeletingWs(null);
+        return;
+      }
       toast.success(`Tu as quitté l'espace « ${wsName} »`);
     } else {
       const confirmed = window.confirm(
-        `Supprimer l'espace « ${wsName} » ? Cette action est irréversible.`
+        `Supprimer définitivement l'espace « ${wsName} » et toutes ses données (branding, contenus, calendrier…) ? Action irréversible.`
       );
       if (!confirmed) return;
       setDeletingWs(wsId);
-      await supabase
-        .from("workspaces")
-        .delete()
-        .eq("id", wsId);
-      toast.success(`Espace « ${wsName} » supprimé`);
+      const { error } = await supabase.rpc("delete_workspace_with_cleanup" as any, { _workspace_id: wsId });
+      if (error) {
+        toast.error(`Suppression échouée : ${error.message}`);
+        setDeletingWs(null);
+        return;
+      }
+      toast.success(`Espace « ${wsName} » supprimé définitivement`);
     }
-    // Optimistic removal — hide from UI immediately
     setRemovedWsIds(prev => new Set(prev).add(wsId));
     setDeletingWs(null);
     onReload();
@@ -158,7 +172,7 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
 
       if (error || !ws) { console.error("Erreur création workspace:", error); toast.error("Erreur création: " + (error?.message || "inconnu")); return; }
 
-      await supabase.from("workspace_members").insert({ workspace_id: ws.id, user_id: user.id, role: "manager" } as any);
+      await supabase.from("workspace_members").insert({ workspace_id: ws.id, user_id: user.id, role: "owner" } as any);
 
       toast.success(`Espace « ${newWsName.trim()} » créé`);
 
@@ -285,16 +299,22 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
                   <Button size="sm" variant="ghost" className="gap-1 text-xs" onClick={(e) => handleOpenStandaloneWs(ws.id, e)}>
                     <ExternalLink className="h-3 w-3" /> Ouvrir
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="gap-1 text-xs text-destructive hover:text-destructive"
-                    onClick={(e) => { e.stopPropagation(); handleDeleteStandaloneWs(ws.id, ws.name); }}
-                    disabled={deletingWs === ws.id}
-                  >
-                    {deletingWs === ws.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
-                    Supprimer
-                  </Button>
+                  {(() => {
+                    const count = memberCounts[ws.id] ?? 1;
+                    const hasOthers = count > 1;
+                    return (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="gap-1 text-xs text-destructive hover:text-destructive"
+                        onClick={(e) => { e.stopPropagation(); handleLeaveOrDeleteWs(ws.id, ws.name, hasOthers); }}
+                        disabled={deletingWs === ws.id}
+                      >
+                        {deletingWs === ws.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                        {hasOthers ? "Quitter" : "Supprimer définitivement"}
+                      </Button>
+                    );
+                  })()}
                 </div>
               </div>
             ))}
