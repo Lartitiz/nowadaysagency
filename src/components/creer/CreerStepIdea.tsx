@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Sparkles, HelpCircle, Newspaper, Camera, ArrowLeft } from "lucide-react";
-import { OBJECTIVE_RECOMMENDATIONS } from "@/lib/content-structures";
 import ContentCoachingDialog from "@/components/dashboard/ContentCoachingDialog";
 import NewsjackingPanel from "./NewsjackingPanel";
 import { PhotoUploadZone, type PhotoItem } from "./PhotoUploadZone";
