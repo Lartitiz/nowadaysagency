@@ -1943,6 +1943,23 @@ export default function CreerUnifie() {
     }
   };
 
+  const handleExportHybridPptx = async () => {
+    if (visualSlides.length === 0) return;
+    try {
+      toast.info("Export PowerPoint éditable en cours…");
+      const { exportCarouselHybridPptx } = await import("@/lib/export-carousel-hybrid-pptx");
+      await exportCarouselHybridPptx(
+        visualSlides,
+        result?.raw?.slides || null,
+        charterData || null,
+        ideaText || "carrousel-editable",
+      );
+      toast.success("PowerPoint éditable téléchargé !");
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur lors de l'export");
+    }
+  };
+
   const handleExportPinterestPptx = async () => {
     if (!pinterestPinHtml) return;
     try {
@@ -2049,6 +2066,7 @@ export default function CreerUnifie() {
   const effectiveHandleAddToCalendar = isDemoMode ? demoToast : handleAddToCalendar;
   const effectiveHandleExportPptx = isDemoMode ? demoToast : handleExportPptx;
   const effectiveHandleExportVisualPptx = isDemoMode ? demoToast : handleExportVisualPptx;
+  const effectiveHandleExportHybridPptx = isDemoMode ? demoToast : handleExportHybridPptx;
 
   return (
     <div className="min-h-screen bg-background">
@@ -2247,6 +2265,7 @@ export default function CreerUnifie() {
                 visualSlides={visualSlides.length > 0 ? visualSlides : undefined}
                 onExportPptx={selectedFormat === "carousel" ? effectiveHandleExportPptx : undefined}
                 onExportVisualPptx={selectedFormat === "carousel" && visualSlides.length > 0 ? effectiveHandleExportVisualPptx : undefined}
+                onExportHybridPptx={selectedFormat === "carousel" && visualSlides.length > 0 ? effectiveHandleExportHybridPptx : undefined}
                 pinterestPinHtml={pinterestPinHtml}
                 onExportPinterestPng={selectedFormat === "pinterest_visual" ? handleExportPinterestPng : selectedFormat === "pinterest_photo" ? handleExportPhotoBriefPng : undefined}
                 onExportPinterestPptx={selectedFormat === "pinterest_visual" ? handleExportPinterestPptx : undefined}
