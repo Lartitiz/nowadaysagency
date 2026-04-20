@@ -1756,6 +1756,7 @@ Réponds UNIQUEMENT en JSON :
       // Photo mode with vision: send the image to Claude
       const photoBase64 = body.photos[0].base64.replace(/^data:image\/[a-z]+;base64,/, "");
       const photoMimeType = body.photos[0].mimeType || "image/jpeg";
+      const perPhotoCtx = body.photos[0].context?.trim();
       const photoContent: any[] = [
         {
           type: "image",
@@ -1763,7 +1764,7 @@ Réponds UNIQUEMENT en JSON :
         },
         {
           type: "text",
-          text: `Rédige une légende Instagram pour cette photo.${body.photo_description ? `\nDescription de l'utilisatrice : "${body.photo_description}"` : ""}\nLa légende doit COMPLÉTER l'image, pas la décrire. Ton sensoriel. 400-800 caractères.\n\nRéponds UNIQUEMENT en JSON :\n{\n  "content": "...",\n  "accroche": "...",\n  "format": "caption_photo",\n  "pillar": "...",\n  "objectif": "..."\n}`,
+          text: `Rédige une légende Instagram pour cette photo.${perPhotoCtx ? `\nContexte précis fourni par l'utilisatrice sur cette photo : "${perPhotoCtx}" (utilise-le pour identifier les éléments visuels).` : ""}${body.photo_description ? `\nDescription globale de l'utilisatrice : "${body.photo_description}"` : ""}\nLa légende doit COMPLÉTER l'image, pas la décrire. Ton sensoriel. 400-800 caractères.\n\nRéponds UNIQUEMENT en JSON :\n{\n  "content": "...",\n  "accroche": "...",\n  "format": "caption_photo",\n  "pillar": "...",\n  "objectif": "..."\n}`,
         },
       ];
 

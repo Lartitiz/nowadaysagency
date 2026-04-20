@@ -345,19 +345,15 @@ Propose la structure optimale.`;
       let content: string;
       if (hasPhotos) {
         const messageContent: any[] = [];
+        const photoCtxRecap = buildPhotoContextRecap(photos);
         messageContent.push({
           type: "text",
-          text: structureUserPrompt + "\n\nVoici les photos à analyser :",
+          text: structureUserPrompt + photoCtxRecap + "\n\nVoici les photos à analyser :",
         });
-        for (const photo of photos.slice(0, 10)) {
-          if (photo.base64) {
-            const raw = photo.base64.replace(/^data:image\/[a-z]+;base64,/, "");
-            messageContent.push({
-              type: "image",
-              source: { type: "base64", media_type: "image/jpeg", data: raw },
-            });
-          }
-        }
+        // Photos avec contexte par photo s'il existe (l'ordre = ordre d'envoi front)
+        photos.slice(0, 10).forEach((photo: any, idx: number) => {
+          pushPhotoWithContext(messageContent, photo, idx);
+        });
         messageContent.push({
           type: "text",
           text: "Analyse ces photos et propose la structure optimale avec l'assignation photo.",
