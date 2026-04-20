@@ -48,12 +48,17 @@ serve(async (req) => {
       existing_resume: z.string().max(5000).optional().nullable(),
       editorial_angle: z.string().max(100).optional().nullable(),
       content_structure: z.string().max(5000).optional().nullable(),
+      subject: z.string().max(5000).optional().nullable(),
+      chosen_angle: z.string().max(500).optional().nullable(),
+      slides_summary: z.string().max(8000).optional().nullable(),
+      objective: z.string().max(200).optional().nullable(),
     }).passthrough());
     const { action, workspace_id, ...params } = reqBody;
 
     // Determine category based on action
     const categoryMap: Record<string, string> = {
       "improve-post": "content",
+      "caption-for-carousel": "content",
       "adapt-instagram": "adaptation",
       "crosspost": "adaptation",
       "title": "bio_profile",
@@ -174,6 +179,11 @@ serve(async (req) => {
       const { existing_resume } = params;
       systemPrompt = `${LINKEDIN_PRINCIPLES_COMPACT}\n\n${context}\n\n${qualityBlocks}\n\nRÉSUMÉ LINKEDIN ACTUEL :\n"""\n${existing_resume}\n"""\n\nANALYSE le résumé selon 5 éléments :\n1. HOOK (3 premières lignes)\n2. PASSION\n3. PARCOURS\n4. PROPOSITION\n5. CTA\n\nRETOURNE UNIQUEMENT un JSON valide :\n{\n  "score": 55,\n  "summary": { "positives": ["max 2"], "improvements": ["max 2"] },\n  "recommendations": [\n    { "number": 1, "title": "max 8 mots", "status": "good|partial|missing", "explanation": "max 2 phrases", "example": "optionnel" }\n  ],\n  "proposed_version": "Version améliorée complète, 1500-2000 caractères."\n}`;
       userPrompt = "Analyse et améliore mon résumé LinkedIn existant.";
+
+    } else if (action === "caption-for-carousel") {
+      const { subject, chosen_angle, slides_summary, editorial_angle, objective } = params;
+      systemPrompt = `${LINKEDIN_PRINCIPLES_COMPACT}\n\n${ANTI_BROETRY_LINKEDIN}\n\n${context}\n\n${qualityBlocks}\n\nTu rédiges UNIQUEMENT la légende (caption) qui accompagne un carrousel LinkedIn (PDF de slides). Les slides portent déjà la valeur structurée : la légende complète, contextualise, donne envie de cliquer le PDF.\n\nCONTEXTE DU CARROUSEL :\n- Sujet : "${subject || ""}"\n${chosen_angle ? `- Angle choisi : "${chosen_angle}"\n` : ""}${editorial_angle ? `- Angle éditorial : "${editorial_angle}"\n` : ""}${objective ? `- Objectif : "${objective}"\n` : ""}${slides_summary ? `- Résumé des slides du PDF :\n${slides_summary}\n` : ""}\n\nRÈGLES LINKEDIN STRICTES :\n1. HOOK (max 210 caractères) : phrase d'accroche AVANT le "voir plus". DOIT donner envie d'ouvrir le carrousel. PAS la même phrase que la slide 1 du PDF — elle complète, elle ne répète pas.\n2. BODY (800-1500 caractères) : développe le pourquoi de ce sujet, l'envers du décor, le contexte personnel ou professionnel, ce que le PDF ne montre pas. Phrases complètes, paragraphes courts (2-4 lignes), aérés. PAS de listicle. PAS de phrases isolées sur des lignes séparées (anti-broetry).\n3. CTA (1-2 phrases) : invitation concrète à la conversation. Exemples : "Quelle est votre expérience ?", "Partagez si cela résonne", "Envoyez à un·e collègue qui…". JAMAIS "Sauvegarde", "DM moi", "Tag une copine".\n4. HASHTAGS : EXACTEMENT 3 à 5 hashtags professionnels (secteur, métier, thématique). PAS de hashtags génériques type #motivation #life. Sans le "#" dans le tableau.\n5. PAS de tirets cadratins (—). Écriture inclusive (point médian quand pertinent).\n6. Ton : professionnel chaleureux, expert·e accessible. Vouvoiement par défaut sauf si la voix de marque dit le contraire.\n\nRETOURNE UNIQUEMENT un JSON valide sans backticks ni texte avant/après :\n{\n  "hook": "max 210 caractères",\n  "body": "800 à 1500 caractères",\n  "cta": "1-2 phrases",\n  "hashtags": ["mot1", "mot2", "mot3"]\n}`;
+      userPrompt = "Rédige la légende LinkedIn pour ce carrousel.";
 
     } else if (action === "improve-post") {
       const { postContent } = params;

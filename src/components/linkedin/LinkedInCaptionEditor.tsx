@@ -2,6 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Loader2 } from "lucide-react";
 import CharacterCounter from "@/components/linkedin/CharacterCounter";
 
 interface LinkedInCaptionEditorProps {
@@ -14,6 +15,7 @@ interface LinkedInCaptionEditorProps {
   onChangeBody: (v: string) => void;
   onChangeCta: (v: string) => void;
   onChangeHashtags: (raw: string) => void;
+  loading?: boolean;
 }
 
 export default function LinkedInCaptionEditor({
@@ -26,7 +28,32 @@ export default function LinkedInCaptionEditor({
   onChangeBody,
   onChangeCta,
   onChangeHashtags,
+  loading = false,
 }: LinkedInCaptionEditorProps) {
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-semibold text-foreground">📝 Post LinkedIn (légende)</p>
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+          <span className="text-xs text-muted-foreground">✍️ Rédaction de la légende LinkedIn…</span>
+        </div>
+        {[0, 1, 2, 3].map((i) => (
+          <Card key={i} className="border-border">
+            <CardContent className="p-3 space-y-2">
+              <div className="h-3 w-24 rounded bg-muted/70 animate-pulse" />
+              <div className="space-y-1.5">
+                <div className="h-3 w-full rounded bg-muted/50 animate-pulse" />
+                <div className="h-3 w-11/12 rounded bg-muted/50 animate-pulse" />
+                <div className="h-3 w-3/4 rounded bg-muted/50 animate-pulse" />
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
   const hookLen = (hook || "").length;
   const bodyLen = (body || "").length;
   const ctaLen = (cta || "").length;
