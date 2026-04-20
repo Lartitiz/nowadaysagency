@@ -1,78 +1,144 @@
 
+## Pourquoi ça ne complète pas
 
-## Le bouton "Compléter avec l'IA" ne fait rien sur la fiche persona de Marion
+Ce n’est pas un problème de “champs non connectés” côté fiche. Les champs sont bien câblés dans l’UI :
 
-### Diagnostic confirmé en base
+- `step_3a_objections`
+- `step_3b_cliches`
+- `step_4_beautiful`
+- `step_4_inspiring`
+- `step_4_repulsive`
+- `step_4_feeling`
+- `step_5_actions`
 
-Marion a bien une fiche persona, mais **7 champs sont vides** (objections, clichés, beau, inspirant, repoussant, ressenti, actions). Ils étaient juste pas remplis pendant son onboarding.
+Le vrai bug est plus bas dans la chaîne :
 
-Pour que le bouton "Compléter les 7 champs manquants avec l'IA" fonctionne, le code actuel a besoin d'une **de ces deux sources** comme contexte :
+1. Le bouton lance bien l’IA.
+   - Le POST `branding-coaching` part bien
+   - la fonction répond en `200`
+   - les logs backend montrent bien `section=persona_fill`
 
-| Source attendue | État chez Marion |
-|---|---|
-| `persona.portrait` (synthèse JSON) | ❌ vide (`null`) |
-| `branding_coaching_sessions` section `persona` | ❌ aucune ligne en base |
+2. Mais la réponse IA ne respecte pas les clés demandées.
+   - au lieu de renvoyer :
+     - `step_3a_objections`
+     - `step_3b_cliches`
+     - `step_4_beautiful`
+     - `step_4_inspiring`
+     - `step_4_repulsive`
+     - `step_4_feeling`
+     - `step_5_actions`
+   - elle renvoie un autre format de persona, avec des clés du type :
+     - `objections_courantes`
+     - `croyances_limitantes`
+     - `declencheurs_achat`
+     - etc.
 
-Donc la condition à la ligne 256 du fichier `BrandingFicheCards.tsx` :
-```ts
-if (conversationMessages.length > 0 || portrait) { ... appel IA ... }
+3. Le front ne sauvegarde que les clés exactes attendues.
+   - dans `BrandingFicheCards.tsx`, la boucle fait `fillInsights[f.key]`
+   - donc si l’IA renvoie `objections_courantes` au lieu de `step_3a_objections`, la valeur est ignorée
+   - résultat : `validFills` reste vide
+
+4. Ensuite seuls les pitchs sont régénérés.
+   - le réseau montre un `PATCH persona` réussi
+   - mais ce PATCH contient seulement `pitch_short`, `pitch_medium`, `pitch_long`
+   - aucun des 7 champs manquants n’est envoyé
+
+En bref : l’IA tourne, mais elle parle le mauvais “dialecte JSON”, donc les champs persona restent vides.
+
+## Ce qu’on corrige
+
+### 1. Forcer `persona_fill` à renvoyer uniquement les vraies clés DB
+Fichier : `supabase/functions/branding-coaching/index.ts`
+
+Dans la branche `section === "persona_fill"` :
+
+- renforcer le prompt pour interdire tout autre schéma de sortie
+- lister explicitement les seules clés autorisées
+- préciser que toute réponse doit être un objet plat avec exactement les clés demandées
+- interdire les clés “profil complet” type `objections_courantes`, `croyances_limitantes`, `declencheurs_achat`
+
+Objectif :
+```json
+{
+  "step_3a_objections": "...",
+  "step_3b_cliches": "...",
+  "step_4_beautiful": "...",
+  "step_4_inspiring": "...",
+  "step_4_repulsive": "...",
+  "step_4_feeling": "...",
+  "step_5_actions": "..."
+}
 ```
-est **fausse**. Le call IA est purement et simplement skippé. Le toast "Fiche complétée par l'IA !" s'affiche mais **aucune IA n'a tourné**. C'est le bug que tu vois.
 
-Pendant ce temps, Marion a en base **tout le contexte qu'il faut** pour qu'une IA déduise ces 7 champs : `target_description` (331 char), `target_verbatims` (259), `mission`, `positioning`, `voice_description`, `target_problem`, `target_beliefs`. Il suffit de les passer comme contexte au prompt.
+### 2. Ajouter un garde-fou côté front si l’IA renvoie encore des alias
+Fichier : `src/components/branding/BrandingFicheCards.tsx`
 
-### Ce qu'on corrige
+Dans `handleAutoFill` :
 
-#### 1. Ajouter un fallback "branding context" dans `handleAutoFill`
+- garder le parsing actuel
+- ajouter une normalisation des alias éventuels vers les vraies colonnes persona
 
-Fichier : `src/components/branding/BrandingFicheCards.tsx`, fonction `handleAutoFill`, autour des lignes 248-298.
+Mapping prévu :
 
-- Avant l'appel IA, fetcher `brand_profile` (champs cible + ton + mission + positioning) **en plus** des sources actuelles.
-- Construire un bloc de contexte enrichi à passer à l'IA, qui contient :
-  - le portrait (s'il existe)
-  - la conversation coaching (si elle existe)
-  - **les champs `brand_profile` pertinents** (toujours dispo dès qu'il y a un branding rempli)
-  - les champs persona déjà remplis (frustrations + transformation chez Marion)
-- **Toujours appeler l'IA** dès qu'au moins une de ces sources contient quelque chose (et pas seulement portrait/conversation).
+- `objections_courantes` → `step_3a_objections`
+- `croyances_limitantes` → `step_3b_cliches`
+- `declencheurs_achat` → `step_5_actions`
+- `freins_achat` → `step_3a_objections` si le champ est encore vide
+- `experience_ideale` → ne pas mapper automatiquement, sauf si on décide explicitement une correspondance
+- `frustrations_profondes` → `step_1_frustrations`
+- `objectif_principal` / `objectifs_secondaires` → `step_2_transformation` uniquement si utile
 
-#### 2. Élargir la condition d'appel
+Comme ça :
+- le backend devient correct
+- et le front reste robuste si le modèle dérive encore
 
-Remplacer :
-```ts
-if (conversationMessages.length > 0 || portrait) { ... }
-```
-par une condition basée sur la présence d'**au moins une source de contexte** (incluant `brand_profile` et persona partiellement rempli). Concrètement : si on a `target_description` OU `target_verbatims` OU `portrait` OU une conversation OU du persona déjà rempli → on appelle l'IA.
+### 3. Rendre le diagnostic visible en cas d’échec
+Toujours dans `BrandingFicheCards.tsx` :
 
-#### 3. Améliorer le retour utilisateur
+- si la réponse IA existe mais qu’aucune clé exploitable n’est trouvée :
+  - logguer les clés réellement reçues
+  - afficher un toast plus honnête du type :
+    - “L’IA a répondu, mais pas dans le format attendu”
+- ne plus laisser croire à une complétion si seuls les pitchs ont été générés
 
-Aujourd'hui le toast dit "Fiche complétée" même si zéro champ a été rempli. À corriger :
+### 4. Aligner aussi le même correctif dans le flow coaching
+Fichier : `src/components/branding/BrandingCoachingFlow.tsx`
 
-- compter le nombre de champs effectivement remplis par l'étape portrait + l'étape IA
-- toast "X champ(s) complété(s) par l'IA ✨" si > 0
-- toast `info` "Pas assez de contexte pour compléter automatiquement — remplis manuellement quelques champs ou refais le coaching persona" si 0
+Le même parsing existe aussi là-bas pour `persona_fill`.
 
-#### 4. Adapter le prompt côté edge function
+À corriger aussi pour éviter deux comportements différents :
+- même normalisation des alias
+- même logique de `validFills`
+- même robustesse si le modèle renvoie un objet “persona complet” au lieu des clés DB
 
-Fichier : `supabase/functions/branding-coaching/index.ts`, branche `section === "persona_fill"` (lignes 401-457).
-
-- Le prompt actuel suppose qu'on a "toute la conversation". Le rendre tolérant à des sources mixtes (portrait + brand_profile + persona partiel + conversation, dans n'importe quelle combinaison).
-- Ajouter explicitement dans le system prompt : "Tu peux et tu DOIS déduire à partir de la cible, des verbatims, de la mission et du ton si la conversation est absente. Ne refuse jamais sous prétexte de manque d'info — déduis."
-
-### Fichiers modifiés
+## Fichiers concernés
 
 | Fichier | Changement |
 |---|---|
-| `src/components/branding/BrandingFicheCards.tsx` | `handleAutoFill` : fetch `brand_profile`, contexte enrichi, condition élargie, toast honnête |
-| `supabase/functions/branding-coaching/index.ts` | Branche `persona_fill` : prompt plus tolérant, instruction de déduction obligatoire |
+| `supabase/functions/branding-coaching/index.ts` | prompt `persona_fill` plus strict, sortie JSON bornée aux clés DB attendues |
+| `src/components/branding/BrandingFicheCards.tsx` | normalisation des alias IA, meilleur diagnostic, sauvegarde robuste |
+| `src/components/branding/BrandingCoachingFlow.tsx` | appliquer la même normalisation dans le flow coaching |
 
-### Validation
+## Validation
 
-1. Sur l'espace de Marion, cliquer "Compléter les 7 champs manquants avec l'IA" → l'IA tourne réellement, les 7 champs (objections, clichés, beau, inspirant, repoussant, ressenti, actions) sont remplis à partir de son `brand_profile`.
-2. Toast "7 champs complétés par l'IA ✨" si tout passe, ou un compte précis si certains champs n'ont pas pu être déduits.
-3. Sur un compte qui n'a vraiment rien rempli → toast info clair "Pas assez de contexte" au lieu d'un faux succès.
-4. Sur un compte qui a déjà fait le coaching conversationnel → comportement actuel préservé (la conversation prime).
+1. Sur la fiche persona, cliquer “Compléter les champs manquants avec l’IA”.
+2. Vérifier que les 7 champs ciblés se remplissent réellement :
+   - objections
+   - croyances / clichés
+   - ce qu’elle trouve beau
+   - ce qui l’inspire
+   - ce qui la rebute
+   - ce qu’elle a besoin de ressentir
+   - premières actions
+3. Vérifier que le `PATCH persona` contient bien ces colonnes, pas seulement les pitchs.
+4. Vérifier que si l’IA renvoie encore des alias, ils sont correctement remappés.
+5. Vérifier que le flow coaching persona remplit les mêmes champs avec le même comportement.
 
-### Risque
+## Risque
 
-Faible. On ajoute un fetch + on élargit une condition + on change un prompt. Aucune migration DB. Le pire cas reste l'ancien comportement (rien ne se passe), donc pas de régression possible.
+Faible.
 
+- pas de migration base
+- pas de changement de schéma
+- le bug est un problème de contrat JSON entre frontend et backend IA
+- le correctif consiste surtout à réaligner les clés et ajouter un fallback de mapping
