@@ -77,49 +77,26 @@ ${PREGEN_INJECTION_RULES}
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Authentification requise" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // Parse body first so we can extract workspace_id for quota scoping
+    let body: any;
+    if (req.method !== "OPTIONS") {
+      try {
+        body = await req.json();
+      } catch {
+        body = {};
+      }
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { global: { headers: { Authorization: authHeader } } }
-    );
+    // Run shared pipeline: CORS, auth, demo guard, rate limit, quota
+    const r = await runPipeline(req, {
+      category: "content",
+      workspaceId: body?.workspace_id ?? undefined,
+    });
+    if (!r.ok) return r.response;
+    const { userId, supabase } = r;
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Authentification invalide" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    if (isDemoUser(user.id)) {
-      return new Response(JSON.stringify({ error: "Demo mode: this feature is simulated" }), {
-        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Rate limit
-    const rateCheck = checkRateLimit(user.id);
-    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
-
-    // Plan limits
-    const usageCheck = await checkQuota(user.id, "content");
-    if (!usageCheck.allowed) {
-      return new Response(
-        JSON.stringify({ error: "limit_reached", message: usageCheck.error, remaining: 0 }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const body = await req.json();
     validateInput(body, z.object({
       topic: z.string().min(1).max(2000),
       preGenAnswers: z.object({
