@@ -1,51 +1,48 @@
 
 
-## Plan — Clarifier le parcours photos pré-chargées (avec distinction LinkedIn vs Instagram)
+## Diagnostic
 
-### Contexte
-Quand l'utilisateur·ice arrive depuis "Partir de photos" avec des photos déjà uploadées, on lui re-demande des sous-choix redondants dans `CreerStepFormat`. Précision importante : **le carrousel mixte existe en 2 saveurs** — LinkedIn (max 10 slides PDF, ratio 1:1 ou 4:5, ton pro) et Instagram (max 10 slides image, ratio 4:5, ton plus visuel). Le bandeau de confirmation doit refléter le bon canal.
+Le bouton "Passer les questions, générer directement" appelle `onSkip` mais **ne donne aucun feedback visuel immédiat**. La génération démarre derrière (et `AiLoadingIndicator` s'affichera plus loin dans le flow), mais entre le clic et l'apparition du loader, il y a un trou silencieux → l'utilisateur·ice clique plusieurs fois en pensant que ça bug.
 
-### Diagnostic — 3 doublons
+Même chose pour le bouton "Générer" en bas (dernière question / fin de follow-up) : pas de feedback pendant le délai de transition vers l'écran de loading.
 
-1. **Carrousel** — sous-choix `text/photo/mix` re-demandé alors que photos déjà uploadées (mix = seul mode pertinent)
-2. **Post** — toggle "Inclure une photo" inutile (forcément ON)
-3. **PhotoUploadZone** — pas de titre clair confirmant que les photos précédentes sont bien là
+## Fix — 1 seul fichier : `src/components/creer/CreerStepQuestions.tsx`
 
-### Fix — 1 seul fichier : `src/components/creer/CreerStepFormat.tsx`
+### 1. Ajouter un état `isSubmitting`
+```ts
+const [isSubmitting, setIsSubmitting] = useState(false);
+```
 
-Quand `initialPhotos.length > 0` ET `!hasUserChangedFormat.current` :
+### 2. Wrapper `onSkip` et `onNext` (cas final) pour activer l'état
+- `handleSkip` : `setIsSubmitting(true)` puis `onSkip()`
+- `handleNext` quand c'est le dernier (génération réelle) : `setIsSubmitting(true)` puis `onNext(answers)`
+- Le decline follow-up déclenche aussi `setIsSubmitting(true)`
 
-**1. Carrousel — bandeau adapté au canal sélectionné**
-Masquer le bloc sous-choix `text/photo/mix`. Afficher :
-- Si LinkedIn : `📸 5 photos chargées — Carrousel mixte LinkedIn (PDF, photos + slides texte)`
-- Si Instagram : `📸 5 photos chargées — Carrousel mixte Instagram (photos + slides texte)`
-- Lien discret `[Choisir un autre mode]` qui réaffiche le sélecteur (`hasUserChangedFormat = true`)
+### 3. Feedback visuel sur les 2 boutons concernés
+- **Bouton "Passer les questions"** (ligne ~244) :
+  - `disabled={isSubmitting}`
+  - Si `isSubmitting` → icône `Loader2` qui spin + texte `"Lancement…"` au lieu de `SkipForward` + texte actuel
+- **Bouton "Générer"** (en bas, dans `handleNext` final) :
+  - `disabled={isSubmitting}`
+  - Si `isSubmitting` → `Loader2` spin + texte `"Lancement…"` au lieu de `Sparkles` + "Générer"
+- **Bouton "Précédent"** : aussi `disabled={isSubmitting}` pour éviter retour pendant transition
 
-→ Récupération du canal via la prop `channel` déjà propagée dans le tour précédent (LinkedIn caption editor). Si la prop n'existe pas encore au niveau de `CreerStepFormat`, je l'ajoute (passage depuis `CreerUnifie` → `CreerStepFormat`).
+### 4. Bandeau discret de confirmation (optionnel mais recommandé)
+Quand `isSubmitting`, afficher juste sous les boutons un petit texte centré :
+> `⚡ Préparation de la génération…`
+Pour rassurer pendant les ~500ms-1s avant que `AiLoadingIndicator` du parent prenne le relais.
 
-**2. Post — bandeau de confirmation**
-Masquer le toggle "Inclure une photo". Afficher :
-- `📸 Post avec photo — 3 photos chargées` + lien `[Retirer les photos]`
+## Comportement préservé
+- Si l'utilisateur·ice annule la génération côté parent et revient sur cet écran → `isSubmitting` est reset (composant démonté/remonté)
+- Aucun changement de logique métier, juste du feedback UI
 
-**3. PhotoUploadZone — titre explicite**
-Passer `title="Vos photos (3)"` au lieu du label générique pour rassurer.
-
-**4. Format incompatible (reel, story, newsletter)**
-Bandeau ambre discret : `⚠ Ce format n'utilisera pas tes photos.` + lien `[Revenir au carrousel/post]`
-
-### Comportement préservé
-- Clic sur "Choisir un autre mode" / "Retirer les photos" → `hasUserChangedFormat.current = true` → UI normale réapparaît
-- Pas de `initialPhotos` → strictement identique à aujourd'hui
-
-### Validation
+## Validation
 1. `tsc --noEmit --skipLibCheck` → 0 erreur
-2. Photos → carrousel LinkedIn : bandeau "Carrousel mixte LinkedIn"
-3. Photos → carrousel Instagram : bandeau "Carrousel mixte Instagram"
-4. Photos → post : pas de toggle, bandeau confirmation
-5. Parcours classique sans photos : aucun changement
+2. Clic sur "Passer les questions" → bouton devient spinner immédiatement, plus de double-clic possible
+3. Clic sur "Générer" final → idem
+4. Le flow normal (Suivant entre questions) reste instantané, pas de spinner
 
-### Hors scope
-- Photo-to-idea (analyse IA des photos)
-- Persistance Storage / bibliothèque média
-- Pré-sélection auto du canal selon les photos
+## Hors scope
+- Changement de l'`AiLoadingIndicator` du parent
+- Refonte du flow de questions
 
