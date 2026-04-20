@@ -83,6 +83,23 @@ serve(async (req) => {
     const ctx = await getUserContext(supabase, user.id, workspace_id, "instagram");
     const brandingContext = formatContextForAI(ctx, CONTEXT_PRESETS.posts);
 
+    // Recent briefs context — fetched server-side as fallback for deepening_questions
+    let recentBriefsContext = body.recent_briefs_context || "";
+    if (!recentBriefsContext && type === "deepening_questions") {
+      recentBriefsContext = await getRecentBriefsContext(supabase, user.id, workspace_id, 3);
+    }
+
+    // Brand vocabulary for forcing concrete questions
+    const brandVocab: string[] = [];
+    if (ctx?.profile?.activite) brandVocab.push(`activité: ${ctx.profile.activite}`);
+    if (ctx?.profile?.cible) brandVocab.push(`cible: ${ctx.profile.cible}`);
+    if (ctx?.tone?.key_expressions && typeof ctx.tone.key_expressions === "string") {
+      brandVocab.push(`expressions clés: ${ctx.tone.key_expressions.slice(0, 200)}`);
+    }
+    const brandVocabBlock = brandVocab.length > 0
+      ? `\n\nVOCABULAIRE MÉTIER (à RÉUTILISER dans les questions, au moins 2/3) :\n${brandVocab.map(v => `- ${v}`).join("\n")}\n`
+      : "";
+
     // Fallback: inject branding as deepening_answers if none provided
     if (!body.deepening_answers && (type === "express_full" || type === "slides" || type === "hooks")) {
       const fallback = buildPreGenFallback(ctx);
