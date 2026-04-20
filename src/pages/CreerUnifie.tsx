@@ -18,6 +18,7 @@ import CreerStepQuestions from "@/components/creer/CreerStepQuestions";
 import CreerStepResult from "@/components/creer/CreerStepResult";
 import CreerStepEdit from "@/components/creer/CreerStepEdit";
 import PinterestInspirationStep from "@/components/creer/PinterestInspirationStep";
+import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
 import StructureReviewStep from "@/components/creer/StructureReviewStep";
 import type { SlideProposal, StructureProposal } from "@/components/creer/StructureReviewStep";
 import CreerTransformTab from "@/components/creer/CreerTransformTab";
