@@ -235,7 +235,7 @@ Renvoie EXACTEMENT 3 angles, avec 3 véhicules différents.`;
       });
     }
 
-    await logUsage(user.id, "light_action", "newsjacking", undefined, model, workspace_id);
+    await logUsage(user.id, "content", "newsjacking", undefined, model, workspace_id);
 
     return new Response(JSON.stringify(parsed), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
