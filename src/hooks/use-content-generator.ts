@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import { supabase } from "@/integrations/supabase/client";
 import { handleQuotaError } from "@/lib/quota-error-handler";
 import {
   EDITORIAL_ANGLES,
@@ -52,6 +53,7 @@ export interface GenerateQuestionsParams {
   editorialAngle?: string;
   objective?: string;
   channel?: "instagram" | "linkedin";
+  workspaceId?: string;
 }
 
 export interface Question {
