@@ -1,61 +1,100 @@
 
+## Fix suppression des espaces clients qui “reviennent”
 
-## Le vrai problème — Marion a 2 workspaces, tu es membre du mauvais
+### Diagnostic confirmé
 
-### Ce que je vois dans la base
+Le problème ne vient pas d’un simple refresh visuel. Il y a en fait **2 bugs distincts** dans le flow actuel :
 
-Marion (`7860d5e5…`) possède **deux workspaces** qui s'appellent tous les deux "Marion" :
+1. **Le front affiche un succès même si la suppression a échoué**
+   - `src/components/admin/CoachingProgramList.tsx`
+   - `handleDeleteStandaloneWs()` ne vérifie pas les erreurs des requêtes `delete()`
+   - le workspace est masqué localement via `removedWsIds`, puis il réapparaît au reload
 
-| Workspace ID | Créé le | Membres | Données branding | Tes droits |
-|---|---|---|---|---|
-| `e56b291c…` | **09/03/2026** | Marion seule (owner) | ✅ **Tout** : storytelling, persona, 3× brand_*, brand_charter, 1 idée sauvegardée | ❌ **Tu n'es PAS membre** |
-| `b361a5f2…` | 20/04/2026 (aujourd'hui) | Marion (owner) + toi (manager) | ❌ Vide complet | ✅ Tu es manager |
+2. **Le bouton “Supprimer” ne supprime pas toujours**
+   - si l’espace a d’autres membres, le code fait seulement un `DELETE` sur **ta ligne dans `workspace_members`**
+   - donc l’action réelle est “quitter l’espace”, pas “supprimer l’espace”
 
-Quand tu cliques sur "Marion" dans ton sélecteur de workspaces, tu atterris forcément sur `b361a5f2…` parce que c'est le seul où tu es invitée. Mais Marion a fait tout son travail dans son workspace original `e56b291c…` créé le 09/03, et **personne ne t'y a jamais invitée**. C'est un workspace solo Marion.
+3. **Les workspaces solo avec données ne peuvent probablement pas être supprimés en brut**
+   - plusieurs tables ont un `workspace_id` relié à `workspaces`
+   - certains espaces de ta liste ont déjà des données branding
+   - un `DELETE FROM workspaces` direct peut donc être refusé par les contraintes SQL
+   - aujourd’hui cette erreur est silencieuse côté UI
 
-Le code de la fix précédente fonctionne correctement — il affiche bien les données du workspace actif. Le problème, c'est qu'on regarde un workspace **vide par construction** parce qu'il vient d'être créé et qu'il ne sera jamais rempli automatiquement avec les données de l'autre workspace de Marion.
+### Ce qu’on va corriger
 
-### Pourquoi ça arrive
+#### 1. Rendre l’UI honnête
+Dans `src/components/admin/CoachingProgramList.tsx` :
 
-Un workspace est créé automatiquement à l'inscription d'un user. Marion s'est inscrite le 09/03 → workspace `e56b291c` créé pour elle, elle l'a rempli. Puis, plus tard (peut-être quand tu as activé le mode coaching agence ou quand elle t'a invitée), un **nouveau** workspace `b361a5f2` a été créé au lieu d'attacher ton accès au workspace existant. Probablement un bug de l'invitation/onboarding agence.
+- attendre explicitement le résultat des suppressions
+- vérifier `error` après chaque requête
+- ne faire `toast.success(...)` + `setRemovedWsIds(...)` **que si la suppression a vraiment réussi**
+- afficher `toast.error(...)` avec le vrai message sinon
 
-### 3 options pour résoudre — à toi de choisir
+#### 2. Séparer clairement les 2 actions
+Toujours dans `CoachingProgramList.tsx` :
 
-**Option A — Ajouter ton accès manager au vrai workspace de Marion (le plus propre, immédiat)**
+- si l’espace a d’autres membres :
+  - libellé/action = **“Quitter”**
+  - suppression de ta ligne `workspace_members`
+- si tu es seule sur l’espace :
+  - libellé/action = **“Supprimer définitivement”**
+  - appel d’une vraie suppression complète backend
 
-Une seule ligne SQL à exécuter :
-```sql
-INSERT INTO workspace_members (workspace_id, user_id, role)
-VALUES ('e56b291c-5577-440f-bf4b-7d87be94d6f9',
-        'ec5e783c-e89d-44f0-aff2-bca434869740',
-        'manager');
-```
+Ça évite l’ambiguïté actuelle où “Supprimer” veut parfois dire “me retirer seulement”.
 
-Ensuite tu rafraîchis la page, et "Marion" apparaît **deux fois** dans ton sélecteur de workspaces (les deux ont le même nom). Tu choisis celui de mars 2026 → toutes ses données apparaissent. Après vérification, on supprime le workspace `b361a5f2` (vide, créé par erreur).
+#### 3. Ajouter une vraie suppression backend du workspace
+Créer une migration avec une fonction SQL sécurisée, par exemple :
 
-Avantages : aucune perte de données, immédiat. Inconvénient : tu vois temporairement deux "Marion" dans le menu jusqu'à la suppression du doublon.
+- `public.delete_workspace_with_cleanup(_workspace_id uuid)`
 
-**Option B — Fusionner les deux workspaces en un seul (le plus propre à long terme)**
+Cette fonction devra :
 
-Migrer tout ce qui est attaché au workspace `b361a5f2` vers `e56b291c` (ton lien manager + l'éventuel reste), puis supprimer `b361a5f2`. Comme `b361a5f2` est vide à part toi, ça revient quasiment à l'option A mais en plus définitif (un seul workspace Marion à la fin).
+- vérifier que l’utilisatrice courante a le droit de supprimer l’espace
+- nettoyer les données liées au workspace dans le bon ordre
+- supprimer ensuite la ligne `workspaces`
 
-Étapes SQL :
-1. Repointer ton membership : `UPDATE workspace_members SET workspace_id = 'e56b291c…' WHERE workspace_id = 'b361a5f2…' AND user_id = 'ec5e783c…';`
-2. Supprimer le workspace vide : `DELETE FROM workspaces WHERE id = 'b361a5f2…';` (CASCADE supprime le membership owner restant)
+Pourquoi une fonction backend :
+- la suppression directe côté client est trop fragile
+- certaines tables liées bloquent le delete
+- il faut centraliser la logique et contourner proprement les limites RLS
 
-Avantages : un seul workspace Marion propre, pas de doublon dans ton menu. Inconvénient : si l'invitation a généré d'autres rows liées à `b361a5f2` (notifications, settings, etc.), il faut vérifier.
+#### 4. Nettoyer les tables liées au workspace
+Dans cette fonction, faire un audit des tables `workspace_id` et appliquer la bonne stratégie :
 
-**Option C — Comprendre d'abord pourquoi un 2e workspace a été créé, puis corriger le bug d'invitation avant la fusion**
+- **tables purement workspace-scoped** : suppression des rows liées
+  - ex. branding, contenu, idées, calendrier, etc.
+- **tables plus “profil utilisateur”** : décider au cas par cas si on supprime ou si on remet `workspace_id = null`
 
-Avant de fusionner, on cherche dans le code le flow qui a créé `b361a5f2` à la place d'utiliser `e56b291c`. C'est probablement dans l'edge function ou le composant qui gère l'invitation agence/manager. On corrige le bug de fond (pour que les futurs invités atterrissent dans le workspace existant du client), puis on applique l'Option B.
+Le but est d’éviter :
+- les erreurs de contrainte SQL
+- la suppression accidentelle de données utilisateur qui ne doivent pas disparaître
 
-Avantages : règle le problème pour tes prochains clients. Inconvénient : prend plus de temps avant que tu retrouves les données de Marion.
+#### 5. Corriger la création des nouveaux espaces standalone
+Dans `src/components/admin/CoachingProgramList.tsx`, `handleCreateStandaloneWs()` :
 
-### Ma recommandation
+- aujourd’hui un espace créé via “Nouvel espace” ajoute l’utilisatrice comme **manager**
+- le comportement attendu est plutôt **owner**
 
-**Option A maintenant** (1 ligne SQL, accès immédiat aux données de Marion), **puis Option C** dans une 2e étape (audit du flow d'invitation pour éviter le doublon à l'avenir, et suppression propre du workspace vide).
+Je corrigerai ça pour éviter des états incohérents sur les espaces créés depuis cette section.
 
-### Ce qu'il te faut faire pour que je lance
+### Fichiers concernés
 
-Choisis A, B ou C. Si tu veux A, je crée la migration SQL d'1 ligne et tu rafraîchis. Si tu veux B ou C, on cadre les étapes en plus.
+| Fichier | Changement |
+|---|---|
+| `src/components/admin/CoachingProgramList.tsx` | gestion d’erreurs, distinction Quitter/Supprimer, appel RPC de suppression réelle, correction owner/manager sur création standalone |
+| `supabase/migrations/...sql` | création de la fonction SQL sécurisée de suppression complète du workspace |
+| éventuellement autres fichiers/types auto-sync | seulement si nécessaires après ajout de la RPC |
 
+### Validation
+
+1. Supprimer un espace **sans autre membre** → il disparaît et **ne revient pas** après refresh
+2. “Supprimer” un espace **avec autre membre** → le bouton devient “Quitter”, l’espace disparaît de ta liste et ne revient pas
+3. Si une suppression backend échoue → **pas de faux succès**, message d’erreur visible
+4. Créer un nouvel espace via “Nouvel espace” → tu es bien `owner`, pas `manager`
+
+### Risque
+
+Moyen-faible :
+- le bug UI est simple
+- la partie sensible est la suppression complète des données liées au workspace, qui doit être faite proprement table par table pour éviter toute perte de données non voulue
+- mais c’est la bonne solution pour arrêter définitivement ces “faux deletes”
