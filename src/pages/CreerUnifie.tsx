@@ -456,12 +456,25 @@ export default function CreerUnifie() {
       setStep("format");
       return;
     }
-    // Reset format-related state so the user starts fresh at channel selection
+    // Reset format-related state so the user starts fresh at channel selection.
+    // NOTE: photos (uploadedPhotos / photoDescription) are NOT reset here so
+    // that the "Partir de photos" entry point can pre-load them in CreerStepFormat.
     setSelectedFormat(null);
     setEditorialAngle(null);
     setCarouselSubMode(null);
-    setUploadedPhotos([]);
-    setPhotoDescription("");
+    setPhotoMode(false);
+    setPinterestData(null);
+    setStep("format");
+  };
+
+  const handlePhotosNext = (photos: PhotoItem[], description: string) => {
+    setUploadedPhotos(photos);
+    setPhotoDescription(description);
+    setNewsjackingContext(null);
+    setNewsjackingSuggestedFormat(null);
+    setSelectedFormat(null);
+    setEditorialAngle(null);
+    setCarouselSubMode(null);
     setPhotoMode(false);
     setPinterestData(null);
     setStep("format");
