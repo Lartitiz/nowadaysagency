@@ -370,12 +370,37 @@ Réponds UNIQUEMENT en JSON :
 
       // Build format-specific depth instructions
       let depthMandate = "";
+      let storiesGardeFouAlerte: string | null = null;
       if (isCarousel) {
         depthMandate = carouselBrief();
       } else if (isReel) {
         depthMandate = reelBrief(effectiveObjective);
       } else if (isStories) {
-        depthMandate = storiesBrief();
+        // Garde-fou : 3 séquences vente sur 7 jours (migré depuis stories-ai)
+        if (effectiveObjective === "vente") {
+          const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+          const gardeFouCol = workspace_id ? "workspace_id" : "user_id";
+          const gardeFouVal = workspace_id || userId;
+          const { count } = await supabase
+            .from("stories_sequences")
+            .select("id", { count: "exact", head: true })
+            .eq(gardeFouCol, gardeFouVal)
+            .eq("objective", "vente")
+            .gte("created_at", sevenDaysAgo);
+          if ((count ?? 0) >= 3) {
+            storiesGardeFouAlerte = "⚠️ Tes stories récentes sont très orientées vente. Reviens à de la connexion ou de l'éducation pour maintenir la confiance. Ratio sain : 80% connexion/éducation, 20% vente.";
+          }
+        }
+        depthMandate = storiesBrief({
+          objective: effectiveObjective,
+          price_range: body.price_range,
+          time_available: body.time_available,
+          face_cam: body.face_cam,
+          is_launch: body.is_launch,
+          gardeFouAlerte: storiesGardeFouAlerte,
+          pre_gen_answers: body.pre_gen_answers,
+          subject: context,
+        });
       } else if (isLinkedIn) {
         depthMandate = linkedinBrief(editorialFormat);
       } else if (isPinterest) {
