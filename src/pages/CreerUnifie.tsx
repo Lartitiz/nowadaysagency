@@ -843,6 +843,8 @@ export default function CreerUnifie() {
         // En mode photo/mix, envoyer les photos pour analyse visuelle
         if ((carouselSubMode === "photo" || carouselSubMode === "mix") && uploadedPhotos.length > 0) {
           structureBody.photos = uploadedPhotos.map(p => ({ base64: p.base64, context: p.context }));
+          // Snapshot pour handleGenerateVisuals (résiste aux resets de state UI)
+          setGeneratedWithPhotos(uploadedPhotos);
         }
         const structureTimeout = (carouselSubMode === "photo" || carouselSubMode === "mix") && uploadedPhotos.length > 0 ? 60000 : 30000;
         const { data, error: fnError } = await invokeWithTimeout("carousel-ai", {
@@ -927,6 +929,10 @@ export default function CreerUnifie() {
     setLastConfirmedStructure(confirmedSlides);
     setStructureProposal(null);
     setStep("result");
+    // Snapshot des photos avant la génération finale (au cas où le state UI serait reset)
+    if ((carouselSubMode === "photo" || carouselSubMode === "mix") && uploadedPhotos.length > 0) {
+      setGeneratedWithPhotos(uploadedPhotos);
+    }
     await generate({
       format: "carousel",
       subject: enrichedSubject,
