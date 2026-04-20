@@ -55,7 +55,9 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
   const [uploadedPhotos, setUploadedPhotos] = useState<PhotoItem[]>(initialPhotos ?? []);
   const [photoDescription, setPhotoDescription] = useState(initialPhotoDescription ?? "");
   const [photoMode, setPhotoMode] = useState(false);
-  const [postPhoto, setPostPhoto] = useState<PhotoItem[]>(initialPhotos ?? []);
+  const [postPhoto, setPostPhoto] = useState<PhotoItem[]>(
+    initialPhotos?.slice(0, 1) ?? []
+  );
   const [postPhotoDescription, setPostPhotoDescription] = useState(initialPhotoDescription ?? "");
   const hasUserChangedFormat = useRef(false);
   const [pinterestLink, setPinterestLink] = useState("");
