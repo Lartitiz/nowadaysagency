@@ -39,22 +39,25 @@ interface Props {
   objective?: string;
   initialFormat?: string;
   suggestedFormat?: string;
+  initialPhotos?: PhotoItem[];
+  initialPhotoDescription?: string;
   onNext: (format: string, editorialAngle?: string, carouselSubMode?: "text" | "photo" | "mix", photos?: PhotoItem[], photoDescription?: string, photoMode?: boolean, pinterestData?: { link?: string; boardId?: string; boardName?: string }, linkedinCarousel?: boolean) => void;
   onBack: () => void;
 }
 
-export default function CreerStepFormat({ idea, objective, initialFormat, suggestedFormat, onNext, onBack }: Props) {
+export default function CreerStepFormat({ idea, objective, initialFormat, suggestedFormat, initialPhotos, initialPhotoDescription, onNext, onBack }: Props) {
   const [selectedChannel, setSelectedChannel] = useState<ChannelId | null>(
     initialFormat ? deduceChannel(initialFormat) : null
   );
   const [selectedFormat, setSelectedFormat] = useState<string | null>(initialFormat || null);
   const [selectedAngle, setSelectedAngle] = useState<string | undefined>(undefined);
   const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | "mix" | null>(null);
-  const [uploadedPhotos, setUploadedPhotos] = useState<PhotoItem[]>([]);
-  const [photoDescription, setPhotoDescription] = useState("");
+  const [uploadedPhotos, setUploadedPhotos] = useState<PhotoItem[]>(initialPhotos ?? []);
+  const [photoDescription, setPhotoDescription] = useState(initialPhotoDescription ?? "");
   const [photoMode, setPhotoMode] = useState(false);
-  const [postPhoto, setPostPhoto] = useState<PhotoItem[]>([]);
-  const [postPhotoDescription, setPostPhotoDescription] = useState("");
+  const [postPhoto, setPostPhoto] = useState<PhotoItem[]>(initialPhotos ?? []);
+  const [postPhotoDescription, setPostPhotoDescription] = useState(initialPhotoDescription ?? "");
+  const hasUserChangedFormat = useRef(false);
   const [pinterestLink, setPinterestLink] = useState("");
   const [pinterestBoardId, setPinterestBoardId] = useState("");
   const [pinterestBoards, setPinterestBoards] = useState<{ id: string; name: string }[]>([]);
