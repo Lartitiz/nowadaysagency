@@ -54,6 +54,11 @@ export interface GenerateQuestionsParams {
   objective?: string;
   channel?: "instagram" | "linkedin";
   workspaceId?: string;
+  // Photo-related — when present, ask vision-anchored questions
+  photos?: Array<{ base64: string; context?: string; mimeType?: string }>;
+  photoDescription?: string;
+  carouselSubMode?: "text" | "photo" | "mix";
+  photoMode?: boolean;
 }
 
 export interface Question {
@@ -449,6 +454,9 @@ export function useContentGenerator() {
             ? getStructurePromptForCombo(format, editorialAngle)
             : null;
 
+          const hasPhotos = (params.photos?.length ?? 0) > 0;
+          const visionMode = hasPhotos && (params.carouselSubMode === "photo" || params.carouselSubMode === "mix");
+
           const res = await invokeWithTimeout("carousel-ai", {
             body: {
               type: "deepening_questions",
@@ -459,8 +467,13 @@ export function useContentGenerator() {
               editorial_angle: editorialAngle || null,
               content_structure: structurePrompt || null,
               recent_briefs_context: recentBriefsContext || undefined,
+              carousel_type: visionMode ? params.carouselSubMode : undefined,
+              photos: visionMode
+                ? params.photos!.map((p) => ({ base64: p.base64, context: p.context }))
+                : undefined,
+              photo_description: visionMode ? params.photoDescription || undefined : undefined,
             },
-          }, 60000);
+          }, visionMode ? 90000 : 60000);
           data = res.data;
           invokeError = res.error;
         } else {
@@ -483,6 +496,9 @@ export function useContentGenerator() {
             };
           }
 
+          const hasPhotosCF = (params.photos?.length ?? 0) > 0 && !!params.photos?.[0]?.base64;
+          const photoModeCF = hasPhotosCF && (params.photoMode === true || format === "post" || format === "linkedin");
+
           const res = await invokeWithTimeout("creative-flow", {
             body: {
               step: "questions",
@@ -496,8 +512,13 @@ export function useContentGenerator() {
               angle: angleObj,
               objective: objective || null,
               recent_briefs_context: recentBriefsContext || undefined,
+              photo_mode: photoModeCF || undefined,
+              photos: photoModeCF
+                ? [{ base64: params.photos![0].base64, mimeType: params.photos![0].mimeType || "image/jpeg", context: params.photos![0].context }]
+                : undefined,
+              photo_description: photoModeCF ? params.photoDescription || undefined : undefined,
             },
-          }, 60000);
+          }, photoModeCF ? 90000 : 60000);
           data = res.data;
           invokeError = res.error;
         }
