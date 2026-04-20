@@ -1,58 +1,32 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAnthropicSimple, AnthropicError, getModelForAction, getModelForRichContent } from "../_shared/anthropic.ts";
-import { corsHeaders } from "../_shared/cors.ts";
 import { ANTI_SLOP, CHAIN_OF_THOUGHT } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
-import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { runPipeline } from "../_shared/request-pipeline.ts";
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Authentification requise" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // Parse body first to extract workspace_id for quota scoping
+    let body: any = {};
+    if (req.method !== "OPTIONS") {
+      try { body = await req.json(); } catch { body = {}; }
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-    const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-    const supabase = createClient(supabaseUrl, supabaseKey, {
-      global: { headers: { Authorization: authHeader } },
+    const r = await runPipeline(req, {
+      category: "content",
+      workspaceId: body?.workspace_id ?? undefined,
     });
+    if (!r.ok) return r.response;
+    const { userId, supabase, corsHeaders } = r;
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: "Authentification invalide" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    const userId = user.id;
-
-    // Anthropic API key checked in shared helper
-
-    // Rate limit check
-    const rateCheck = checkRateLimit(user.id);
-    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
-
-    // Check plan limits
-    const { checkQuota, logUsage } = await import("../_shared/plan-limiter.ts");
-    const usageCheck = await checkQuota(user.id, "content");
-    if (!usageCheck.allowed) {
-      return new Response(
-        JSON.stringify({ error: "limit_reached", message: usageCheck.error, remaining: 0 }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    // logUsage is still imported lazily below (kept for behaviour parity)
+    const { logUsage } = await import("../_shared/plan-limiter.ts");
 
     // Fetch full context server-side
     const { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallback, buildIdentityBlock } = await import("../_shared/user-context.ts");
 
-    const body = await req.json();
     validateInput(body, z.object({
       type: z.string().max(50).optional(),
       objective: z.string().max(100).optional().nullable(),
