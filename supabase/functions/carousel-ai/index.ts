@@ -88,7 +88,7 @@ serve(async (req) => {
     const isLinkedIn = body.channel === "linkedin";
 
     const category = (type === "suggest_topics" || type === "suggest_angles" || type === "deepening_questions" || type === "structure_proposal") ? "suggestion" : "content";
-    const quotaCheck = await checkQuota(user.id, category, workspace_id);
+    const quotaCheck = await checkQuota(userId, category, workspace_id);
     if (!quotaCheck.allowed) {
       return new Response(
         JSON.stringify({ error: "limit_reached", message: quotaCheck.message, remaining: 0, category: quotaCheck.reason }),
@@ -96,13 +96,13 @@ serve(async (req) => {
       );
     }
 
-    const ctx = await getUserContext(supabase, user.id, workspace_id, "instagram");
+    const ctx = await getUserContext(supabase, userId, workspace_id, "instagram");
     const brandingContext = formatContextForAI(ctx, CONTEXT_PRESETS.posts);
 
     // Recent briefs context — fetched server-side as fallback for deepening_questions
     let recentBriefsContext = body.recent_briefs_context || "";
     if (!recentBriefsContext && type === "deepening_questions") {
-      recentBriefsContext = await getRecentBriefsContext(supabase, user.id, workspace_id, 3);
+      recentBriefsContext = await getRecentBriefsContext(supabase, userId, workspace_id, 3);
     }
 
     // Brand vocabulary for forcing concrete questions
@@ -200,7 +200,7 @@ serve(async (req) => {
           console.error("Correction pass failed in carousel-ai (mix):", correctionError);
         }
 
-        await logUsage(user.id, category, "carousel_mix");
+        await logUsage(userId, category, "carousel_mix");
         return new Response(JSON.stringify({ content }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -265,7 +265,7 @@ serve(async (req) => {
           console.error("Correction pass failed in carousel-ai (photo):", correctionError);
         }
 
-        await logUsage(user.id, category, "carousel_photo");
+        await logUsage(userId, category, "carousel_photo");
         return new Response(JSON.stringify({ content }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -443,7 +443,7 @@ Réponds UNIQUEMENT en JSON valide :
           max_tokens: 4096,
         });
 
-        await logUsage(user.id, category, `carousel_deepening_${body.carousel_type}`);
+        await logUsage(userId, category, `carousel_deepening_${body.carousel_type}`);
         return new Response(JSON.stringify({ content }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -485,7 +485,7 @@ Réponds UNIQUEMENT en JSON valide :
       }
     }
 
-    await logUsage(user.id, category, `carousel_${type}`);
+    await logUsage(userId, category, `carousel_${type}`);
 
     return new Response(JSON.stringify({ content }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
