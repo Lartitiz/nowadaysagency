@@ -144,6 +144,17 @@ export function useContentGenerator() {
   const [loadingQuestions, setLoadingQuestions] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([]);
 
+  // Internal streaming wrapper — proxied to consumers via the hook's return.
+  // Kept inside the hook so all callers share the same SSE state.
+  const {
+    content: streamingContent,
+    streaming,
+    done: streamDone,
+    error: streamError,
+    invoke: streamInvoke,
+    reset: streamReset,
+  } = useStreamingInvoke();
+
   const reset = useCallback(() => {
     setGenerating(false);
     setResult(null);
