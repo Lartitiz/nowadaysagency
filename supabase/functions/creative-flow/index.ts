@@ -1757,20 +1757,34 @@ Réponds UNIQUEMENT en JSON :
       const photoBase64Q = body.photos[0].base64.replace(/^data:image\/[a-z]+;base64,/, "");
       const photoMimeQ = body.photos[0].mimeType || "image/jpeg";
       const perPhotoCtxQ = body.photos[0].context?.trim();
-      const channelLabelQ = contentType === "linkedin_post" ? "LinkedIn" : "Instagram";
-      const channelGuidanceQ = contentType === "linkedin_post"
-        ? "Ton PRO : ce qu'on apprend pro derrière l'image, prise de position assumée, résultat / chiffre concret."
-        : "Ton ÉMOTION / SCÈNE VÉCUE : ressenti, hors-champ, instant, ce qui se passait juste avant ou après la photo.";
+
+      // Format-aware channel framing
+      const ctype = String(contentType || "").toLowerCase();
+      let channelLabelQ = "Instagram (post photo)";
+      let channelGuidanceQ = "Ton ÉMOTION / SCÈNE VÉCUE : ressenti, hors-champ, instant, ce qui se passait juste avant ou après la photo.";
+      if (ctype.includes("linkedin")) {
+        channelLabelQ = "LinkedIn (post pro)";
+        channelGuidanceQ = "Ton PRO : ce qu'on apprend pro derrière l'image, prise de position assumée, résultat / chiffre concret, contexte business.";
+      } else if (ctype.includes("reel")) {
+        channelLabelQ = "Reel Instagram (vidéo courte)";
+        channelGuidanceQ = "L'image sert de référence visuelle / vignette / plan d'inspiration. Questions sur : l'instant à montrer, la promesse rapide, ce que la voix off ou face cam dit pendant qu'on voit l'image.";
+      } else if (ctype.includes("story") || ctype.includes("stories")) {
+        channelLabelQ = "Stories Instagram (séquence éphémère)";
+        channelGuidanceQ = "L'image est le point d'ancrage d'une séquence (zooms, crops, hors-champ, sticker question). Questions sur : ce qu'on découpe, le 'avant/après', ce qu'on veut faire réagir.";
+      } else if (ctype.includes("newsletter")) {
+        channelLabelQ = "Newsletter (email long format)";
+        channelGuidanceQ = "Ton ÉDITORIAL / INTIME : l'image est en ouverture, le texte prolonge l'ambiance. Questions sur : ce que l'image évoque, le fil narratif qu'elle ouvre, l'angle perso à creuser.";
+      }
 
       const visionQuestionsPrompt = `Tu es une coach com' qui prépare un brief avec l'utilisatrice.
 
-Voici la photo qu'elle veut utiliser pour un post ${channelLabelQ}.
+Voici la photo qu'elle veut utiliser pour un contenu ${channelLabelQ}.
 Sujet : "${context || "non précisé"}"
 ${objective ? `Objectif : ${objective}` : ""}
 ${body.photo_description ? `Description globale fournie en amont : "${body.photo_description}"` : ""}
 ${perPhotoCtxQ ? `Contexte précis sur cette photo : "${perPhotoCtxQ}"` : ""}
 
-Pose exactement 3 questions d'approfondissement ANCRÉES dans la photo.
+Pose exactement 3 questions d'approfondissement ANCRÉES dans la photo et adaptées au format ${channelLabelQ}.
 
 RÈGLES :
 - MENTIONNE ce que tu VOIS RÉELLEMENT (élément concret, geste, lumière, lieu, ambiance)
@@ -1778,11 +1792,6 @@ RÈGLES :
 - ${channelGuidanceQ}
 - VARIÉTÉ obligatoire : 1 anecdote/scène, 1 opinion/conviction, 1 process/observation (pas 3 "raconte-moi")
 - Questions OUVERTES, ton chaleureux et curieux
-
-Exemples :
-- "Je vois [élément précis]. C'était dans quel contexte ? Qu'est-ce que ce moment représente pour toi ?"
-- "L'ambiance de la photo est [observation]. C'est volontaire ? Qu'est-ce que tu veux faire passer ?"
-- "Qu'est-ce qui se passait JUSTE avant que cette photo soit prise ?"
 
 Réponds UNIQUEMENT en JSON valide :
 {
@@ -1807,10 +1816,30 @@ Réponds UNIQUEMENT en JSON valide :
         max_tokens: 1500,
       });
     } else if (step === "generate" && body.photo_mode && body.photos?.[0]?.base64) {
-      // Photo mode with vision: send the image to Claude
+      // Photo mode with vision: send the image to Claude — format-aware prompt
       const photoBase64 = body.photos[0].base64.replace(/^data:image\/[a-z]+;base64,/, "");
       const photoMimeType = body.photos[0].mimeType || "image/jpeg";
       const perPhotoCtx = body.photos[0].context?.trim();
+      const ctype = String(contentType || "").toLowerCase();
+
+      // Format-aware briefing
+      let formatBrief = `Rédige une légende Instagram pour cette photo. La légende doit COMPLÉTER l'image, pas la décrire. Ton sensoriel. 400-800 caractères.`;
+      let jsonShape = `{\n  "content": "...",\n  "accroche": "...",\n  "format": "caption_photo",\n  "pillar": "...",\n  "objectif": "..."\n}`;
+
+      if (ctype.includes("linkedin")) {
+        formatBrief = `Rédige un POST LINKEDIN pro qui s'appuie sur cette photo. L'image illustre un point précis du texte (ne pas la paraphraser). Ton pro mais incarné. Ouvre par un hook fort qui fait écho au visuel, déroule un apprentissage / prise de position / résultat concret, termine par une invitation à réagir. 1300-2000 caractères.`;
+        jsonShape = `{\n  "content": "...",\n  "accroche": "...",\n  "format": "post_linkedin",\n  "pillar": "...",\n  "objectif": "..."\n}`;
+      } else if (ctype.includes("reel")) {
+        formatBrief = `Rédige le SCRIPT D'UN REEL Instagram qui s'appuie sur cette image (vignette / référence visuelle / plan d'inspiration).\nStructure : HOOK (1 phrase choc, 2-3s) → PROMESSE → DÉROULÉ (3-5 beats voix-off ou face cam) → CTA.\nLe script doit faire un lien explicite avec ce qu'on voit sur l'image (sans la paraphraser bêtement).`;
+        jsonShape = `{\n  "content": "<script complet avec timing indicatif>",\n  "accroche": "<le hook>",\n  "format": "reel_script",\n  "pillar": "...",\n  "objectif": "..."\n}`;
+      } else if (ctype.includes("story") || ctype.includes("stories")) {
+        formatBrief = `Découpe une SÉQUENCE DE 3 À 5 STORIES Instagram qui exploitent cette image (zooms, crops narratifs, hors-champ, sticker question / sondage). Chaque story doit avoir une intention claire (accroche, contexte, révélation, CTA). Texte court, oral, direct.`;
+        jsonShape = `{\n  "content": "<séquence numérotée des stories avec texte + indication visuelle>",\n  "accroche": "<le texte de la story 1>",\n  "format": "stories_sequence",\n  "pillar": "...",\n  "objectif": "..."\n}`;
+      } else if (ctype.includes("newsletter")) {
+        formatBrief = `Rédige une NEWSLETTER (email long format) qui s'ouvre sur cette image en bandeau / illustration. Le texte doit prolonger l'ambiance visuelle, pas la décrire. Ton intime, éditorial, comme une lettre. Objet court (<60 car), pré-header (<90 car), corps 1500-2500 mots avec sous-titres oraux.`;
+        jsonShape = `{\n  "content": "<corps complet>",\n  "subject": "<objet email>",\n  "preheader": "<pré-header>",\n  "accroche": "<première ligne du corps>",\n  "format": "newsletter",\n  "pillar": "...",\n  "objectif": "..."\n}`;
+      }
+
       const photoContent: any[] = [
         {
           type: "image",
@@ -1818,7 +1847,7 @@ Réponds UNIQUEMENT en JSON valide :
         },
         {
           type: "text",
-          text: `Rédige une légende Instagram pour cette photo.${perPhotoCtx ? `\nContexte précis fourni par l'utilisatrice sur cette photo : "${perPhotoCtx}" (utilise-le pour identifier les éléments visuels).` : ""}${body.photo_description ? `\nDescription globale de l'utilisatrice : "${body.photo_description}"` : ""}\nLa légende doit COMPLÉTER l'image, pas la décrire. Ton sensoriel. 400-800 caractères.\n\nRéponds UNIQUEMENT en JSON :\n{\n  "content": "...",\n  "accroche": "...",\n  "format": "caption_photo",\n  "pillar": "...",\n  "objectif": "..."\n}`,
+          text: `${formatBrief}${perPhotoCtx ? `\nContexte précis fourni par l'utilisatrice sur cette photo : "${perPhotoCtx}" (utilise-le pour identifier les éléments visuels, pas pour le recopier).` : ""}${body.photo_description ? `\nDescription globale de l'utilisatrice : "${body.photo_description}"` : ""}\n\n⚠️ INTERDICTION ABSOLUE de recopier un exemple textuel. Génère du contenu ORIGINAL ancré dans CETTE image et CE sujet.\n\nRéponds UNIQUEMENT en JSON :\n${jsonShape}`,
         },
       ];
 

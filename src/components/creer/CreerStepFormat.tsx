@@ -34,6 +34,30 @@ function deduceChannel(format: string): ChannelId {
   return "instagram";
 }
 
+// Formats supporting a single attached photo (vision-anchored generation via creative-flow / future single-photo flows).
+// Excludes carousel (handled separately, multi-photo) and pinterest_* (own flow).
+function formatAcceptsSinglePhoto(format: string | null | undefined): boolean {
+  if (!format) return false;
+  return ["post", "reel", "story", "linkedin", "newsletter"].includes(format);
+}
+
+function getPhotoToggleCopy(format: string): { title: string; subtitle: string } {
+  switch (format) {
+    case "post":
+      return { title: "📸 J'accompagne une photo", subtitle: "L'IA adapte ta légende à ton image" };
+    case "reel":
+      return { title: "📸 Mon Reel s'appuie sur une image", subtitle: "Référence visuelle, vignette ou plan d'inspiration — l'IA s'en sert pour le hook et le script" };
+    case "story":
+      return { title: "📸 Mes stories tournent autour d'une photo", subtitle: "L'IA construit une séquence narrative à partir de l'image" };
+    case "linkedin":
+      return { title: "📸 J'attache une photo à mon post", subtitle: "L'IA ancre le texte sur un point précis du visuel" };
+    case "newsletter":
+      return { title: "📸 Image d'en-tête / illustration", subtitle: "L'IA prolonge l'ambiance de l'image dans le texte" };
+    default:
+      return { title: "📸 J'accompagne une photo", subtitle: "L'IA adapte ton contenu à ton image" };
+  }
+}
+
 interface Props {
   idea: string;
   objective?: string;
@@ -109,7 +133,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
       if (id === "carousel") {
         setCarouselSubMode("mix");
         setPhotoMode(false);
-      } else if (id === "post") {
+      } else if (formatAcceptsSinglePhoto(id)) {
         setCarouselSubMode(null);
         setPhotoMode(true);
         setPostPhoto(initialPhotos!.slice(0, 1));
@@ -221,7 +245,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
     }
     const isCarouselPhoto = selectedFormat === "carousel" && carouselSubMode === "photo";
     const isCarouselMix = selectedFormat === "carousel" && carouselSubMode === "mix";
-    const isPostPhoto = selectedFormat === "post" && photoMode;
+    const isSinglePhotoFormat = formatAcceptsSinglePhoto(selectedFormat) && photoMode;
     const isLinkedInCarousel = selectedChannel === "linkedin" && selectedFormat === "carousel";
     const isInspirationPin = selectedFormat === "pinterest_inspiration";
     const pinterestData = (selectedFormat === "pinterest" || selectedFormat === "pinterest_visual") ? {
@@ -233,9 +257,9 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
       selectedFormat,
       selectedAngle,
       selectedFormat === "carousel" ? (carouselSubMode || "text") : undefined,
-      isCarouselPhoto || isCarouselMix ? uploadedPhotos : isPostPhoto ? postPhoto : isInspirationPin ? inspirationPhotos : undefined,
-      isCarouselPhoto || isCarouselMix ? photoDescription : isPostPhoto ? postPhotoDescription : undefined,
-      selectedFormat === "post" ? photoMode : undefined,
+      isCarouselPhoto || isCarouselMix ? uploadedPhotos : isSinglePhotoFormat ? postPhoto : isInspirationPin ? inspirationPhotos : undefined,
+      isCarouselPhoto || isCarouselMix ? photoDescription : isSinglePhotoFormat ? postPhotoDescription : undefined,
+      formatAcceptsSinglePhoto(selectedFormat) ? photoMode : undefined,
       pinterestData,
       isLinkedInCarousel,
     );
@@ -432,7 +456,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
 
       {/* Preloaded photos: incompatible format warning */}
       {(initialPhotos?.length ?? 0) > 0 && selectedFormat &&
-        selectedFormat !== "carousel" && selectedFormat !== "post" && (
+        selectedFormat !== "carousel" && !formatAcceptsSinglePhoto(selectedFormat) && (
           <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 flex items-start gap-2 animate-fade-in">
             <span className="text-base leading-tight">⚠</span>
             <div className="flex-1 text-sm text-amber-800">
@@ -447,22 +471,22 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
           </div>
         )}
 
-      {/* Post photo toggle — hidden if photos preloaded & user hasn't changed format */}
-      {selectedFormat === "post" && !((initialPhotos?.length ?? 0) > 0 && photoMode && postPhoto.length > 0) && (
+      {/* Single-photo formats toggle (post, reel, story, linkedin, newsletter) — hidden if photos preloaded & user hasn't changed format */}
+      {formatAcceptsSinglePhoto(selectedFormat) && !((initialPhotos?.length ?? 0) > 0 && photoMode && postPhoto.length > 0) && (
         <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border animate-fade-in">
           <Switch checked={photoMode} onCheckedChange={setPhotoMode} />
           <div>
-            <p className="text-sm font-medium text-foreground">📸 J'accompagne une photo</p>
-            <p className="text-xs text-muted-foreground">L'IA adapte ta légende à ton image</p>
+            <p className="text-sm font-medium text-foreground">{getPhotoToggleCopy(selectedFormat!).title}</p>
+            <p className="text-xs text-muted-foreground">{getPhotoToggleCopy(selectedFormat!).subtitle}</p>
           </div>
         </div>
       )}
 
-      {/* Post — preloaded photo confirmation banner */}
-      {selectedFormat === "post" && (initialPhotos?.length ?? 0) > 0 && photoMode && postPhoto.length > 0 && (
+      {/* Single-photo formats — preloaded photo confirmation banner */}
+      {formatAcceptsSinglePhoto(selectedFormat) && (initialPhotos?.length ?? 0) > 0 && photoMode && postPhoto.length > 0 && (
         <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 flex items-center justify-between gap-3 animate-fade-in">
           <p className="text-sm text-foreground">
-            📸 <span className="font-medium">Post avec photo</span> — {postPhoto.length} photo{postPhoto.length > 1 ? "s" : ""} chargée{postPhoto.length > 1 ? "s" : ""}
+            📸 <span className="font-medium">{CONTENT_TYPE_SPECS[selectedFormat!]?.label || "Contenu"} avec photo</span> — {postPhoto.length} photo{postPhoto.length > 1 ? "s" : ""} chargée{postPhoto.length > 1 ? "s" : ""}
           </p>
           <button
             onClick={() => {
@@ -477,8 +501,8 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
         </div>
       )}
 
-      {/* Post photo upload */}
-      {selectedFormat === "post" && photoMode && (
+      {/* Single-photo upload zone */}
+      {formatAcceptsSinglePhoto(selectedFormat) && photoMode && (
         <div className="animate-fade-in">
           <PhotoUploadZone
             maxPhotos={1}

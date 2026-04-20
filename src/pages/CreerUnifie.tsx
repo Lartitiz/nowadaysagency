@@ -735,7 +735,13 @@ export default function CreerUnifie() {
         objective: objective || undefined,
         editorialFormat: editorialAngle || undefined,
         editorialFormatLabel: editorialAngle || undefined,
-        ...(photoMode ? { photo_mode: true, photo_description: photoDescription } : {}),
+        ...(photoMode ? {
+          photo_mode: true,
+          photo_description: photoDescription,
+          ...(uploadedPhotos.length > 0 && uploadedPhotos[0]?.base64
+            ? { photos: [{ base64: uploadedPhotos[0].base64, mimeType: (uploadedPhotos[0] as any).mimeType || "image/jpeg", context: uploadedPhotos[0].context }] }
+            : {}),
+        } : {}),
         ...(newsjackingContext ? { deepResearch: true } : {}),
         ...(selectedFormat === "pinterest" && pinterestData ? {
           pinterest_link: pinterestData.link,
