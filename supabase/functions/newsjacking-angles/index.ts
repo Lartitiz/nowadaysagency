@@ -74,8 +74,8 @@ serve(async (req) => {
       return rateLimitResponse(rl.retryAfterMs!, corsHeaders);
     }
 
-    // Quota — light_action (moins coûteux qu'une vraie recherche)
-    const quota = await checkQuota(user.id, "light_action", workspace_id);
+    // Quota — "content" (rédaction d'angles, moins coûteux qu'une vraie recherche web)
+    const quota = await checkQuota(user.id, "content", workspace_id);
     if (!quota.allowed) {
       return quotaDeniedResponse(quota, corsHeaders);
     }
