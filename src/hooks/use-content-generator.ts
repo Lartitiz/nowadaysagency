@@ -528,7 +528,21 @@ export function useContentGenerator() {
                   : format === "newsletter"
                   ? "newsletter"
                   : "instagram_post",
-              context: effectiveSubjectQ + (existingContentQ ? `\n\n[Contenu existant à approfondir]\n${existingContentQ}` : ""),
+              context: (() => {
+                const CONTEXT_MAX = 4800;
+                const base = effectiveSubjectQ;
+                if (!existingContentQ) {
+                  return base.length > CONTEXT_MAX ? base.slice(0, CONTEXT_MAX - 3) + "..." : base;
+                }
+                const suffix = `\n\n[Contenu existant à approfondir]\n`;
+                const reservedForSubject = Math.min(base.length, Math.floor(CONTEXT_MAX * 0.4));
+                const remaining = CONTEXT_MAX - reservedForSubject - suffix.length;
+                const safeSubject = base.length > reservedForSubject ? base.slice(0, reservedForSubject - 3) + "..." : base;
+                const safeExisting = existingContentQ.length > remaining
+                  ? existingContentQ.slice(0, remaining - 3) + "..."
+                  : existingContentQ;
+                return safeSubject + suffix + safeExisting;
+              })(),
               angle: angleObj,
               objective: objective || null,
               recent_briefs_context: recentBriefsContext || undefined,
