@@ -1,9 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, RefreshCw, Loader2, Sparkles, EyeOff, ChevronDown } from "lucide-react";
+import { ArrowLeft, RefreshCw, Loader2, Sparkles, EyeOff, ChevronDown, Bookmark, BookmarkCheck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface ActuAngle {
   vehicule: string;
@@ -74,8 +78,12 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
   const [isQuotaError, setIsQuotaError] = useState(false);
   const [filter, setFilter] = useState<"all" | "globale" | "niche">("all");
   const [hidden, setHidden] = useState<Set<number>>(new Set());
+  const [savedIdx, setSavedIdx] = useState<Set<number>>(new Set());
+  const [savingIdx, setSavingIdx] = useState<Set<number>>(new Set());
   // angles cache, keyed by actu index
   const [anglesByIdx, setAnglesByIdx] = useState<Record<number, AnglesState>>({});
+  const navigate = useNavigate();
+  const { user } = useAuth();
 
   const fetchActus = useCallback(async () => {
     setLoading(true);
@@ -85,6 +93,8 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
     setIsQuotaError(false);
     setFilter("all");
     setHidden(new Set());
+    setSavedIdx(new Set());
+    setSavingIdx(new Set());
     setAnglesByIdx({});
 
     try {
@@ -187,6 +197,47 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
       return next;
     });
     if (expandedActu === idx) setExpandedActu(null);
+  };
+
+  const handleSaveActu = async (idx: number, actu: Actu, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!user || savedIdx.has(idx) || savingIdx.has(idx)) return;
+    setSavingIdx((prev) => new Set(prev).add(idx));
+
+    const sourceLine = actu.source ? `\n\nSource : ${actu.source}` : "";
+    const notesText = `${actu.resume}\n\n💡 Pertinence : ${actu.pertinence}${sourceLine}`;
+    const axeLabel = actu.axe ? AXE_CONFIG[actu.axe]?.label || actu.axe : null;
+
+    const { error } = await (supabase.from("saved_ideas") as any).insert({
+      user_id: user.id,
+      workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+      titre: `📰 ${actu.titre}`,
+      angle: ["actualité", axeLabel].filter(Boolean).join(", "),
+      format: "actu",
+      canal: "instagram",
+      type: "draft",
+      status: "to_explore",
+      notes: notesText,
+      source_module: "newsjacking",
+      content_data: actu,
+    });
+
+    setSavingIdx((prev) => {
+      const next = new Set(prev);
+      next.delete(idx);
+      return next;
+    });
+
+    if (error) {
+      console.error("Save actu error:", error);
+      toast.error("Impossible de sauvegarder l'actu");
+      return;
+    }
+
+    setSavedIdx((prev) => new Set(prev).add(idx));
+    toast.success("📌 Sauvegardée dans Mes idées", {
+      action: { label: "Voir", onClick: () => navigate("/idees") },
+    });
   };
 
   const handleSelectAngle = (actu: Actu, angle: ActuAngle) => {
@@ -357,6 +408,26 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
                               <Sparkles className="h-3.5 w-3.5" /> Voir les angles
                             </>
                           )}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={(e) => handleSaveActu(idx, actu, e)}
+                          disabled={savedIdx.has(idx) || savingIdx.has(idx)}
+                          className={cn(
+                            "gap-1.5",
+                            savedIdx.has(idx) ? "text-primary" : "text-muted-foreground"
+                          )}
+                          title={savedIdx.has(idx) ? "Déjà sauvegardée" : "Sauvegarder pour plus tard"}
+                        >
+                          {savingIdx.has(idx) ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : savedIdx.has(idx) ? (
+                            <BookmarkCheck className="h-3.5 w-3.5" />
+                          ) : (
+                            <Bookmark className="h-3.5 w-3.5" />
+                          )}
+                          {savedIdx.has(idx) ? "Sauvegardée" : "Sauvegarder"}
                         </Button>
                         <Button
                           size="sm"
