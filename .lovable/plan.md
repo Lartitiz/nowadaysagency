@@ -1,146 +1,119 @@
 
 
-## Audit — état actuel
+## Phase 3 (étape 1 isolée) — `_shared/request-pipeline.ts`
 
-### Cartographie des edge functions de création
+Objectif : extraire le bloc `auth → demo guard → rate limit → quota` qui se répète au début de **5 edge functions**, sans toucher aux prompts ni aux contrats API.
 
-| Fonction | Lignes | Steps/types gérés | Appelée depuis |
-|---|---|---|---|
-| **creative-flow** | **1897** ⚠️ | `angles`, `questions`, `follow-up`, `generate`, `adjust`, `recycle`, `dictation` + branche vision | post Insta, LinkedIn, recyclage, dictée, ajustement |
-| **carousel-ai** | **1654** ⚠️ | `suggest_topics`, `suggest_angles`, `deepening_questions`, `structure_proposal`, `express_full`, `slides`, `hooks` + branche vision photo/mix | carrousel Insta + LinkedIn |
-| **reels-ai** | 623 | `analyze_inspiration`, `hooks`, `script` | reel Insta |
-| **stories-ai** | 646 | `clarify_subject`, `suggest_subjects`, `sequence`, `daily` | stories Insta |
-| **newsletter-ai** | 247 | (1 seul mode : génération) | newsletter |
-| **linkedin-ai** | 258 | 13 actions (titre, résumé, expérience, recos, crosspost…) — **pas la génération de post** (passe par creative-flow) | pages profil LinkedIn |
-| **generate-content** | 758 | bio, idées, audit, playground… | bio Insta, dashboard |
+### Ce qui est dupliqué aujourd'hui (audit)
 
-### Les 3 vrais problèmes
+Au début de chaque fonction (`creative-flow`, `carousel-ai`, `reels-ai`, `stories-ai`, `newsletter-ai`), on retrouve la même séquence :
 
-**1. `creative-flow` est devenu un god-object (1897 lignes)**
-- 7 steps (`angles`, `questions`, `follow-up`, `generate`, `adjust`, `recycle`, `dictation`) dans un seul `if/else if` géant
-- Un switch parallèle interne sur `contentType` (Insta/LinkedIn/Newsletter/Reel/Story) à 2 endroits (questions + generate)
-- La branche vision (lignes 1755-1862) est dupliquée pour `questions` et `generate`
-- Difficile de modifier un format sans risquer de casser les autres
-
-**2. `carousel-ai` (1654 lignes) duplique presque tout `creative-flow`**
-- Même quotas, même rate limit, même contexte utilisateur
-- Mêmes étapes conceptuelles (questions → angle → génération) mais nommées différemment (`deepening_questions`, `suggest_angles`, `express_full`)
-- Branche vision dupliquée
-- Justification historique : carrousel = sortie multi-slides JSON. Mais les **80% de logique de prompt sont identiques**.
-
-**3. Le front a 4 manières d'appeler la génération**
-- `useContentGenerator.generate()` → switch sur format (carousel→carousel-ai, reel→reels-ai, story→stories-ai, post→creative-flow, linkedin→creative-flow, newsletter→newsletter-ai)
-- `useContentGenerator.generateQuestions()` → idem mais carousel→carousel-ai vs autres→creative-flow
-- `CreerUnifie.tsx` ligne 754 → streaming direct vers `creative-flow`
-- `ContentRecycling`, `CreerStepEdit`, `ChatGuidePage` → invokes éparpillés vers `creative-flow` ou `carousel-ai`
-
-→ Pour ajouter un format ou changer un comportement transversal, il faut toucher 3-5 endroits.
-
-## Plan de refactoring — sans perte de qualité
-
-**Principe directeur** : on garde tous les prompts existants (qualité de sortie identique), on réorganise uniquement la **structure** du code. Refactoring conservateur, par étapes, validable individuellement.
-
-### Étape 1 — Découper `creative-flow` en modules (impact zéro côté front)
-
-Créer `supabase/functions/creative-flow/` :
-```text
-creative-flow/
-├── index.ts              ← router + auth + quotas (≈200 lignes)
-├── steps/
-│   ├── angles.ts         ← step "angles"
-│   ├── questions.ts      ← step "questions" + branche vision
-│   ├── follow-up.ts
-│   ├── generate.ts       ← step "generate" + streaming + vision
-│   ├── adjust.ts
-│   ├── recycle.ts
-│   └── dictation.ts
-└── prompts/
-    ├── format-briefs.ts  ← le switch ctype (linkedin/reel/story/newsletter)
-    └── vision.ts         ← prompts vision factorisés (questions + generate)
-```
-Côté Deno, on importe les sous-fichiers via chemin relatif. Aucun changement front, aucun changement de contrat API. **Gain : 1897 lignes → 7 fichiers de 100-300 lignes lisibles.**
-
-### Étape 2 — Découper `carousel-ai` symétriquement
-
-```text
-carousel-ai/
-├── index.ts              ← router (≈150 lignes)
-├── types/
-│   ├── deepening.ts      ← deepening_questions + vision
-│   ├── express-full.ts   ← génération complète JSON slides
-│   ├── slides.ts
-│   ├── hooks.ts
-│   ├── suggest-topics.ts
-│   ├── suggest-angles.ts
-│   └── structure-proposal.ts
-└── prompts/
-    └── carousel-rules.ts
-```
-**Gain : 1654 lignes → 8 fichiers focalisés.**
-
-### Étape 3 — Mutualiser ce qui est dupliqué dans `_shared/`
-
-Ajouter dans `supabase/functions/_shared/` :
-- `request-pipeline.ts` → wrapper qui fait : auth → demo guard → rate limit → quota → contexte → renvoie `{ user, ctx, body }`. Élimine ~50 lignes répétées au début de chaque fonction.
-- `vision-prompts.ts` → factorise les prompts vision (utilisés par creative-flow ET carousel-ai)
-- `format-briefs.ts` → le switch sur `ctype` (linkedin/reel/story/newsletter) sort des steps et devient une fonction pure réutilisable
-
-### Étape 4 — Centraliser le routing front dans `useContentGenerator`
-
-Aujourd'hui éparpillé entre `CreerUnifie.tsx` (streaming), `useContentGenerator.generate()` (non-stream), `ContentRecycling`, `CreerStepEdit`. Créer une seule API :
 ```ts
-useContentGenerator.generate({ format, mode: "stream" | "json", ... })
+// 1. CORS preflight
+if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+// 2. Auth
+const { userId, supabase } = await authenticateRequest(req);
+
+// 3. Demo guard
+if (isDemoUser(userId)) return new Response(...403...);
+
+// 4. Rate limit
+const rl = checkRateLimit(userId, 20, 60_000);
+if (!rl.allowed) return rateLimitResponse(rl.retryAfterMs!, corsHeaders);
+
+// 5. Parse body + Zod
+const body = await req.json();
+const parsed = Schema.safeParse(body);
+if (!parsed.success) return new Response(...400...);
+
+// 6. Quota
+const quota = await checkQuota(userId, category, workspaceId);
+if (!quota.allowed) return quotaDeniedResponse(quota, corsHeaders);
 ```
-qui gère elle-même le choix stream vs invoke et le routage vers la bonne edge function. `CreerUnifie.tsx` ligne 754 devient un appel à ce hook, plus de `streamInvoke` direct.
 
-**Bénéfice** : pour ajouter un format ou changer un comportement transversal (ex. nouveau header, nouvelle vision), 1 seul endroit à modifier.
+→ ~50 lignes × 5 fonctions = **~250 lignes dupliquées**, et chaque évolution (ex. nouveau header CORS, nouvelle politique de rate limit) doit être répliquée 5 fois.
 
-### Étape 5 (optionnel, plus tard) — Unifier `reels-ai` + `stories-ai` dans `creative-flow`
+### Ce que je vais créer
 
-Aujourd'hui ces 2 fonctions (623 + 646 = 1269 lignes) ne font que des `step="generate"` avec un format spécifique. Elles pourraient devenir des cas du switch `format-briefs.ts` dans creative-flow. **Mais on garde ça pour une 2e passe**, pour pouvoir valider en isolation.
+**Nouveau fichier unique : `supabase/functions/_shared/request-pipeline.ts`**
 
-## Ordre d'exécution recommandé
+Une fonction `runPipeline(req, options)` qui :
+1. Gère le preflight OPTIONS
+2. Authentifie (réutilise `authenticateRequest`)
+3. Bloque le demo user
+4. Applique le rate limit (paramètres configurables : `maxRequests`, `windowMs`)
+5. Vérifie le quota (catégorie configurable, workspace_id optionnel extrait du body)
+6. Renvoie soit une `Response` (early return) soit `{ userId, supabase, body, quota, corsHeaders }`
 
-```text
-Phase 1 (1 PR) : découpage creative-flow      [risque faible, 0 changement contrat]
-   ↓ on déploie + on teste tous les flows
-Phase 2 (1 PR) : découpage carousel-ai
-   ↓ on déploie + on teste carrousel
-Phase 3 (1 PR) : mutualisation _shared
-   ↓ déploie les 2 fonctions ensemble
-Phase 4 (1 PR) : unification front useContentGenerator
-   ↓ test e2e complet
-Phase 5 (plus tard) : fusion reels-ai/stories-ai si on veut
+Signature proposée :
+```ts
+type PipelineOk = { ok: true; userId: string; supabase: any; corsHeaders: Record<string,string>; quota: QuotaResult };
+type PipelineBlocked = { ok: false; response: Response };
+
+runPipeline(req, {
+  category: "content" | "audit" | "carousel" | ...,
+  rateLimit?: { max: number; windowMs: number },  // défaut 20/60s
+  workspaceId?: string,                           // si déjà extrait
+  skipQuota?: boolean,                            // pour endpoints sans coût IA
+}): Promise<PipelineOk | PipelineBlocked>
 ```
 
-Chaque phase est **indépendante, déployable, réversible**. À tout moment on peut s'arrêter.
+Usage côté fonction :
+```ts
+const r = await runPipeline(req, { category: "content", workspaceId: body.workspace_id });
+if (!r.ok) return r.response;
+const { userId, supabase, corsHeaders, quota } = r;
+// ... logique métier
+```
 
-## Ce qu'on NE touche PAS
+### Précautions de sécurité (ce qui m'inquiète et comment je m'en protège)
 
-- Les **prompts** (qualité de sortie strictement identique)
-- Les **schemas Zod** (contrat API inchangé)
-- Les **modèles Claude** utilisés
-- La **logique vision** (juste déplacée dans un fichier dédié)
-- Les **autres edge functions** : `linkedin-ai`, `pinterest-ai`, `newsletter-ai`, `generate-content` (déjà raisonnables)
+1. **Rate limit cold-start partagé** : déjà partagé via `_shared/rate-limiter.ts`, donc pas de nouveau risque. ✅
+2. **Body déjà lu** : un `req.json()` ne peut être appelé qu'une fois. → Le pipeline NE lit PAS le body lui-même ; il prend `category` en option et le `workspaceId` est passé par l'appelant après son propre `req.json()`. C'est l'appelant qui garde la main sur le parsing Zod (qui est spécifique à chaque fonction).
+3. **Catégories de quota différentes par step** : dans `creative-flow`, `step="dictation"` et `step="generate"` peuvent avoir des catégories différentes. → Le pipeline est appelé APRÈS la décision de catégorie, dans le routeur, pas en pré-traitement aveugle.
+4. **Logging d'usage** : `logUsage()` reste à l'appelant (après succès AI), je n'y touche pas.
+5. **Pas de changement sur `_shared/auth.ts`, `rate-limiter.ts`, `plan-limiter.ts`** : on ne fait qu'agréger.
 
-## Validation
+### Plan d'application — ULTRA conservateur
 
-1. `tsc --noEmit --skipLibCheck` → 0 erreur après chaque phase
-2. Smoke tests par format après chaque phase :
-   - Carrousel texte / photo / mixte
-   - Post Insta + photo
-   - Reel + photo
-   - Stories + photo
-   - LinkedIn texte + photo
-   - Newsletter
-   - Recyclage 1→3 formats
-   - Ajustement
-3. Comparer 3 sorties avant/après pour vérifier qu'aucune régression de qualité
+**Étape A** : Créer `_shared/request-pipeline.ts` SEUL (aucun appel ajouté). Vérifier que les 5 fonctions compilent toujours (rien ne change pour elles).
 
-## Hors scope
+**Étape B** : Migrer **UNE SEULE fonction** d'abord — la plus simple : **`newsletter-ai`** (247 lignes, 1 step, peu de risque).
+- Refactor → deploy → curl smoke test (1 appel POST génération newsletter)
+- Si KO : revert immédiat, on s'arrête.
 
-- Réécriture des prompts
-- Migration vers un autre LLM
-- Changement du modèle de quotas
-- Refonte UI du flow Créer
+**Étape C** : Si A+B OK, migrer dans l'ordre : `stories-ai`, `reels-ai`, `carousel-ai`, `creative-flow`. Chaque migration = 1 fichier modifié + 1 deploy + 1 curl. Si une casse, revert juste celle-là.
+
+### Validation
+
+- `tsc --noEmit --skipLibCheck` après chaque étape
+- Curl smoke test après CHAQUE migration (pas en batch) :
+  - newsletter-ai : POST génération
+  - stories-ai : POST `daily`
+  - reels-ai : POST `hooks`
+  - carousel-ai : POST `suggest_topics`
+  - creative-flow : POST `angles` + `generate`
+- Vérifier qu'aucune réponse ne renvoie 500 (un 400/429 attendu sur payload minimal est OK)
+
+### Ce que je NE touche PAS
+
+- Les prompts (`prompts/` de creative-flow et carousel-ai)
+- Les schemas Zod
+- La logique de quota/rate-limit elle-même (juste leur orchestration)
+- `linkedin-ai`, `pinterest-ai`, `generate-content` (out of scope phase 3 minimale)
+- Le front (phase 4)
+
+### Plan B si ça tourne mal
+
+Si la migration d'une fonction casse :
+1. Revert UNIQUEMENT le `index.ts` de cette fonction (le pipeline reste créé mais non utilisé)
+2. On documente le cas particulier qui empêche la migration
+3. Les autres fonctions migrées restent en place
+
+### Estimation
+
+- Fichier `request-pipeline.ts` : ~80 lignes
+- Migration par fonction : ~40 lignes supprimées, ~5 lignes ajoutées
+- Risque : **faible** grâce au rollout 1-par-1
 
