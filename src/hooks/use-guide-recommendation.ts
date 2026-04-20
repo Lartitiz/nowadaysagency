@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
-import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useProfileUserId } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
   fetchBrandingData,
@@ -187,9 +187,10 @@ export function useGuideRecommendation(): UseGuideRecommendationResult {
   const { user } = useAuth();
   const { isDemoMode, demoData } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
+  const profileUserId = useProfileUserId();
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["guide-recommendation", user?.id, column, value, isDemoMode],
+    queryKey: ["guide-recommendation", user?.id, profileUserId, column, value, isDemoMode],
     queryFn: async (): Promise<{
       recommendation: GuideRecommendation;
       profileSummary: ProfileSummary;
@@ -234,13 +235,13 @@ export function useGuideRecommendation(): UseGuideRecommendationResult {
       const [brandingData, profileRes, planConfigRes, calendarCountRes, auditRes, contentsCountRes] =
         await Promise.all([
           fetchBrandingData(filter),
-    (supabase.from("profiles") as any)
+          (supabase.from("profiles") as any)
             .select("prenom, onboarding_completed")
-            .eq("user_id", user.id)
+            .eq("user_id", profileUserId)
             .maybeSingle(),
           (supabase.from("user_plan_config") as any)
             .select("onboarding_completed")
-            .eq("user_id", user.id)
+            .eq("user_id", profileUserId)
             .maybeSingle(),
           (supabase.from("calendar_posts") as any)
             .select("id", { count: "exact", head: true })
