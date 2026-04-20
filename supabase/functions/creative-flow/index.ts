@@ -542,7 +542,7 @@ IMPORTANT pour les sections :
 - texte_overlay : COURT (3-8 mots max), le texte affiché à l'écran
 - format_visuel : description concrète du plan caméra
 - cut : la transition entre cette section et la suivante
-- Le total du texte parlé = 150-300 mots` : `Réponds UNIQUEMENT en JSON :
+- Le total du texte parlé = 150-300 mots` : isStories ? `` : `Réponds UNIQUEMENT en JSON :
 {
   "content": "...",
   "accroche": "...",
@@ -550,6 +550,11 @@ IMPORTANT pour les sections :
   "pillar": "...",
   "objectif": "..."
 }`}`;
+      // Inject launch context for stories (preserved from stories-ai)
+      if (isStories && body.launch_context) {
+        const lc = body.launch_context;
+        systemPrompt += `\n\nCONTEXTE LANCEMENT :\n- Phase : ${lc.phase || "?"}\n- Chapitre : ${lc.chapter_label || "?"}\n- Phase mentale audience : ${lc.audience_phase || "?"}\n- Objectif du slot : ${lc.objective || "?"}\n- Angle suggéré : ${lc.angle_suggestion || "?"}\nCONSIGNE : adapte le contenu à cette phase du lancement. Un contenu de phase "vente" n'a pas le même ton qu'un contenu de phase "teasing".`;
+      }
       userPrompt = "Rédige mon contenu à partir de mes réponses et de l'angle choisi.";
 
     } else if (step === "adjust") {
