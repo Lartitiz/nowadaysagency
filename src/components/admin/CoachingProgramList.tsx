@@ -299,16 +299,22 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
                   <Button size="sm" variant="ghost" className="gap-1 text-xs" onClick={(e) => handleOpenStandaloneWs(ws.id, e)}>
                     <ExternalLink className="h-3 w-3" /> Ouvrir
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="gap-1 text-xs text-destructive hover:text-destructive"
-                    onClick={(e) => { e.stopPropagation(); handleDeleteStandaloneWs(ws.id, ws.name); }}
-                    disabled={deletingWs === ws.id}
-                  >
-                    {deletingWs === ws.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
-                    Supprimer
-                  </Button>
+                  {(() => {
+                    const count = memberCounts[ws.id] ?? 1;
+                    const hasOthers = count > 1;
+                    return (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="gap-1 text-xs text-destructive hover:text-destructive"
+                        onClick={(e) => { e.stopPropagation(); handleLeaveOrDeleteWs(ws.id, ws.name, hasOthers); }}
+                        disabled={deletingWs === ws.id}
+                      >
+                        {deletingWs === ws.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                        {hasOthers ? "Quitter" : "Supprimer définitivement"}
+                      </Button>
+                    );
+                  })()}
                 </div>
               </div>
             ))}
