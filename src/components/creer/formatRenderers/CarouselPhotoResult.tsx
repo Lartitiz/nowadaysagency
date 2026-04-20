@@ -13,12 +13,16 @@ import {
 import { ChevronDown } from "lucide-react";
 
 import AiGeneratedMention from "@/components/AiGeneratedMention";
+import LinkedInCaptionEditor from "@/components/linkedin/LinkedInCaptionEditor";
+import { AlertTriangle } from "lucide-react";
 
 interface CarouselPhotoResultProps {
   result: any;
   photos?: { preview: string }[];
   onSlidesUpdate?: (slides: any[], caption: any) => void;
   visualSlides?: { slide_number: number; html: string }[];
+  channel?: "linkedin" | "instagram";
+  onRetry?: () => void;
 }
 
 // ─── VisualSlidesCarousel (unchanged) ───
@@ -165,7 +169,7 @@ const OVERLAY_STYLE_CLASS: Record<string, string> = {
   technique: "text-sm font-mono",
 };
 
-export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, visualSlides }: CarouselPhotoResultProps) {
+export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, visualSlides, channel = "instagram", onRetry }: CarouselPhotoResultProps) {
   const r = result?.raw || result;
 
   // Fallback minimal si l'IA a oublié la légende — au moins une amorce éditable
