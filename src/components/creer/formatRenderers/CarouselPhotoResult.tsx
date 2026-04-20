@@ -174,17 +174,63 @@ const OVERLAY_STYLE_CLASS: Record<string, string> = {
 export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, visualSlides, channel = "instagram", onRetry, captionLoading = false, onRegenerateCaption }: CarouselPhotoResultProps) {
   const r = result?.raw || result;
 
+  // Construit la version "fullText" mono-bloc à partir des sous-champs
+  const composeFullText = (c: any): string => {
+    const parts: string[] = [];
+    if (c?.hook) parts.push(String(c.hook).trim());
+    if (c?.body) parts.push(String(c.body).trim());
+    if (c?.cta) parts.push(String(c.cta).trim());
+    if (c?.hashtags && c.hashtags.length > 0) {
+      const tags = c.hashtags
+        .map((t: string) => (t.startsWith("#") ? t : `#${t}`))
+        .join(" ");
+      parts.push(tags);
+    }
+    return parts.filter(Boolean).join("\n\n");
+  };
+
+  // Re-split best-effort d'un fullText vers { hook, body, cta, hashtags }
+  // pour rétro-compat (export, programmation, etc.)
+  const splitFullText = (text: string) => {
+    const trimmed = (text || "").trim();
+    if (!trimmed) return { hook: "", body: "", cta: "", hashtags: [] as string[] };
+    const lines = trimmed.split(/\n+/).map((l) => l.trim()).filter(Boolean);
+    let hashtags: string[] = [];
+    // Dernière ligne = hashtags si elle ne contient que des #...
+    const last = lines[lines.length - 1] || "";
+    if (/^(#\S+\s*)+$/.test(last)) {
+      hashtags = last.split(/\s+/).filter(Boolean);
+      lines.pop();
+    }
+    const hook = lines.shift() || "";
+    const body = lines.join("\n\n");
+    return { hook, body, cta: "", hashtags };
+  };
+
   // Fallback minimal si l'IA a oublié la légende — au moins une amorce éditable
   const buildCaptionWithFallback = (rawCaption: any, rawSlides: any[]) => {
     const c = rawCaption || {};
-    const hasContent = c.hook || c.body || c.cta || (c.hashtags && c.hashtags.length > 0);
-    if (hasContent) return c;
+    const hasContent = c.hook || c.body || c.cta || (c.hashtags && c.hashtags.length > 0) || c.fullText;
+    if (hasContent) {
+      const fullText = c.fullText && String(c.fullText).trim().length > 0
+        ? String(c.fullText)
+        : composeFullText(c);
+      return {
+        hook: c.hook || "",
+        body: c.body || "",
+        cta: c.cta || "",
+        hashtags: c.hashtags || [],
+        fullText,
+      };
+    }
     const firstSlide = rawSlides?.[0] || {};
+    const fallbackHook = firstSlide.overlay_text || firstSlide.title || "";
     return {
-      hook: firstSlide.overlay_text || firstSlide.title || "",
+      hook: fallbackHook,
       body: "",
       cta: "",
       hashtags: [],
+      fullText: fallbackHook,
     };
   };
 
@@ -267,7 +313,22 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
 
   const updateCaption = (field: string, value: string) => {
     const next = { ...caption, [field]: value };
+    if (field !== "fullText") {
+      next.fullText = composeFullText(next);
+    }
     setCaption(next);
+    notify(slides, next);
+  };
+
+  const updateFullText = (value: string) => {
+    const split = splitFullText(value);
+    const next = {
+      ...caption,
+      ...split,
+      fullText: value,
+    };
+    setCaption(next);
+    setHashtagInput((split.hashtags || []).join(" "));
     notify(slides, next);
   };
 
@@ -278,6 +339,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
       .map((t) => t.trim())
       .filter(Boolean);
     const next = { ...caption, hashtags: tags };
+    next.fullText = composeFullText(next);
     setCaption(next);
     notify(slides, next);
   };
@@ -461,7 +523,11 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
       })}
 
       {/* Alerte légende incomplète (Action 4) — masquée pendant le chargement de la légende LinkedIn */}
-      {!captionLoading && (!caption?.body || caption.body.length < 50) && (
+      {!captionLoading && (
+        channel === "instagram"
+          ? (!caption?.fullText || caption.fullText.length < 80)
+          : (!caption?.body || caption.body.length < 50)
+      ) && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 p-3 flex items-start gap-2">
           <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
           <div className="flex-1 space-y-1.5">
@@ -514,53 +580,15 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
         <Card className="border-border">
           <CardContent className="p-4 space-y-3">
             <p className="text-sm font-semibold text-foreground">📝 Légende du carrousel</p>
-
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Hook</label>
-              <Textarea
-                value={caption.hook || ""}
-                onChange={(e) => updateCaption("hook", e.target.value)}
-                className="resize-none min-h-[48px] font-bold text-sm"
-                rows={2}
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Body</label>
-              <Textarea
-                value={caption.body || ""}
-                onChange={(e) => updateCaption("body", e.target.value)}
-                className="resize-none min-h-[96px] text-sm"
-                rows={5}
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">CTA</label>
-              <Textarea
-                value={caption.cta || ""}
-                onChange={(e) => updateCaption("cta", e.target.value)}
-                className="resize-none min-h-[48px] text-sm"
-                rows={2}
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Hashtags</label>
-              <div className="flex flex-wrap gap-1 mb-1">
-                {(caption.hashtags || []).map((tag: string, i: number) => (
-                  <Badge key={i} variant="secondary" className="text-[10px]">
-                    {tag.startsWith("#") ? tag : `#${tag}`}
-                  </Badge>
-                ))}
-              </div>
-              <Input
-                value={hashtagInput}
-                onChange={(e) => updateHashtags(e.target.value)}
-                placeholder="#hashtag1 #hashtag2"
-                className="text-xs"
-              />
-            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Hook, corps, CTA et hashtags réunis dans un seul bloc éditable. Modifie librement.
+            </p>
+            <Textarea
+              value={caption.fullText || ""}
+              onChange={(e) => updateFullText(e.target.value)}
+              placeholder="Écris ou colle ta légende complète (hook, corps, CTA, hashtags)..."
+              className="min-h-[240px] text-sm leading-relaxed"
+            />
           </CardContent>
         </Card>
       )}
