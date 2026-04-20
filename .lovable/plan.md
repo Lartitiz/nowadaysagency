@@ -1,100 +1,69 @@
 
-## Fix suppression des espaces clients qui “reviennent”
 
-### Diagnostic confirmé
+## Audit du flow d'invitation — Option C : éviter les workspaces en double
 
-Le problème ne vient pas d’un simple refresh visuel. Il y a en fait **2 bugs distincts** dans le flow actuel :
+### Ce que j'ai trouvé en auditant le code + la base
 
-1. **Le front affiche un succès même si la suppression a échoué**
-   - `src/components/admin/CoachingProgramList.tsx`
-   - `handleDeleteStandaloneWs()` ne vérifie pas les erreurs des requêtes `delete()`
-   - le workspace est masqué localement via `removedWsIds`, puis il réapparaît au reload
+**Cause racine** : il existe **3 endroits** qui créent un workspace pour un client, et **aucun** ne vérifie si ce client a déjà un workspace avant de le faire. Résultat : à chaque action coach, on risque de créer un doublon.
 
-2. **Le bouton “Supprimer” ne supprime pas toujours**
-   - si l’espace a d’autres membres, le code fait seulement un `DELETE` sur **ta ligne dans `workspace_members`**
-   - donc l’action réelle est “quitter l’espace”, pas “supprimer l’espace”
+| Endroit | Comportement actuel | Problème |
+|---|---|---|
+| **Trigger DB `create_default_tasks`** | À l'inscription d'une utilisatrice, crée auto un workspace nommé `prenom` et la passe `owner` | OK pour un compte solo, mais ce workspace devient "le vrai" du client |
+| **`KickoffPreparation.tsx` ligne 124-148** (bouton "Ajouter une cliente") | Si createWorkspace coché et que la cliente n'a **aucun** workspace `owner`, en crée un. Sinon, **skip silencieux** sans rien faire | Si la cliente a déjà un workspace (quasi toujours, à cause du trigger), le coach **n'est jamais ajouté** au workspace existant. Donc le coach ne voit rien. |
+| **`handleCreateStandaloneWs` dans `CoachingProgramList.tsx`** (bouton "Nouvel espace") | Crée un workspace tout neuf au nom saisi, avec coach = owner | Aucune vérif si une cliente avec ce nom/email existe déjà → **doublon garanti** si utilisé pour une cliente existante |
 
-3. **Les workspaces solo avec données ne peuvent probablement pas être supprimés en brut**
-   - plusieurs tables ont un `workspace_id` relié à `workspaces`
-   - certains espaces de ta liste ont déjà des données branding
-   - un `DELETE FROM workspaces` direct peut donc être refusé par les contraintes SQL
-   - aujourd’hui cette erreur est silencieuse côté UI
+**Vérif base** : workspace `b361a5f2…` de Marion a bien été créé par Laetitia le 20/04 → c'est le bouton "Nouvel espace" (ou Ajouter une cliente avec checkbox) qui l'a généré, alors que Marion avait déjà son workspace `e56b291c…` créé à son inscription le 09/03.
 
-### Ce qu’on va corriger
+### Ce qu'on corrige
 
-#### 1. Rendre l’UI honnête
-Dans `src/components/admin/CoachingProgramList.tsx` :
+#### 1. `KickoffPreparation.tsx` — quand le client existe, on attache, on ne crée pas
 
-- attendre explicitement le résultat des suppressions
-- vérifier `error` après chaque requête
-- ne faire `toast.success(...)` + `setRemovedWsIds(...)` **que si la suppression a vraiment réussi**
-- afficher `toast.error(...)` avec le vrai message sinon
+Bloc lignes 124-148, nouveau comportement :
 
-#### 2. Séparer clairement les 2 actions
-Toujours dans `CoachingProgramList.tsx` :
+- Si la cliente a déjà au moins un workspace `owner` → **ajouter le coach comme `manager` à son workspace existant** (le plus ancien) au lieu de skip.
+- Si elle n'en a pas (cas rare, compte créé sans trigger) → créer un nouveau workspace + ajouter coach + cliente.
+- Toujours afficher un toast clair : "Tu as été ajoutée à l'espace existant de Marion" vs "Espace créé pour Marion".
+- Vérifier en plus que le coach n'est pas déjà membre (évite l'erreur `23505`).
 
-- si l’espace a d’autres membres :
-  - libellé/action = **“Quitter”**
-  - suppression de ta ligne `workspace_members`
-- si tu es seule sur l’espace :
-  - libellé/action = **“Supprimer définitivement”**
-  - appel d’une vraie suppression complète backend
+#### 2. `CoachingProgramList.tsx` — `handleCreateStandaloneWs` devient plus prudent
 
-Ça évite l’ambiguïté actuelle où “Supprimer” veut parfois dire “me retirer seulement”.
+Le bouton "Nouvel espace" sert à créer un espace **vide** pour une cliente non encore inscrite (cas légitime). On ne change pas le comportement de base, mais on ajoute :
 
-#### 3. Ajouter une vraie suppression backend du workspace
-Créer une migration avec une fonction SQL sécurisée, par exemple :
+- Un champ optionnel "email de la cliente" dans l'input (à côté du nom).
+- Si email rempli ET qu'un profil + workspace existent déjà pour cet email → **propose d'attacher au workspace existant** au lieu d'en créer un (confirm dialog).
+- Si email rempli mais pas de profil → comportement actuel (création workspace standalone que le client rejoindra plus tard).
+- Si email vide → comportement actuel (création workspace standalone "anonyme").
 
-- `public.delete_workspace_with_cleanup(_workspace_id uuid)`
+#### 3. `invite-to-workspace` (edge function) — déjà correcte, pas de changement
 
-Cette fonction devra :
+Cette fonction prend un `workspace_id` existant et y ajoute un membre. Elle est saine. Le bug n'a jamais été là.
 
-- vérifier que l’utilisatrice courante a le droit de supprimer l’espace
-- nettoyer les données liées au workspace dans le bon ordre
-- supprimer ensuite la ligne `workspaces`
+#### 4. Petit garde-fou DB optionnel
 
-Pourquoi une fonction backend :
-- la suppression directe côté client est trop fragile
-- certaines tables liées bloquent le delete
-- il faut centraliser la logique et contourner proprement les limites RLS
+Pas obligatoire, mais utile pour le futur : ajouter dans `delete_workspace_with_cleanup` un message d'erreur clair si le workspace n'existe plus (pour ne pas confondre suppression silencieuse et permission refusée). À voir si tu veux.
 
-#### 4. Nettoyer les tables liées au workspace
-Dans cette fonction, faire un audit des tables `workspace_id` et appliquer la bonne stratégie :
-
-- **tables purement workspace-scoped** : suppression des rows liées
-  - ex. branding, contenu, idées, calendrier, etc.
-- **tables plus “profil utilisateur”** : décider au cas par cas si on supprime ou si on remet `workspace_id = null`
-
-Le but est d’éviter :
-- les erreurs de contrainte SQL
-- la suppression accidentelle de données utilisateur qui ne doivent pas disparaître
-
-#### 5. Corriger la création des nouveaux espaces standalone
-Dans `src/components/admin/CoachingProgramList.tsx`, `handleCreateStandaloneWs()` :
-
-- aujourd’hui un espace créé via “Nouvel espace” ajoute l’utilisatrice comme **manager**
-- le comportement attendu est plutôt **owner**
-
-Je corrigerai ça pour éviter des états incohérents sur les espaces créés depuis cette section.
-
-### Fichiers concernés
+### Fichiers modifiés
 
 | Fichier | Changement |
 |---|---|
-| `src/components/admin/CoachingProgramList.tsx` | gestion d’erreurs, distinction Quitter/Supprimer, appel RPC de suppression réelle, correction owner/manager sur création standalone |
-| `supabase/migrations/...sql` | création de la fonction SQL sécurisée de suppression complète du workspace |
-| éventuellement autres fichiers/types auto-sync | seulement si nécessaires après ajout de la RPC |
+| `src/components/admin/KickoffPreparation.tsx` | Bloc `if (createWorkspace)` : si client a déjà un workspace owner, ajouter le coach comme manager au lieu de skip |
+| `src/components/admin/CoachingProgramList.tsx` | Ajouter input email optionnel à `handleCreateStandaloneWs` + détection workspace existant + dialog d'attachement |
 
 ### Validation
 
-1. Supprimer un espace **sans autre membre** → il disparaît et **ne revient pas** après refresh
-2. “Supprimer” un espace **avec autre membre** → le bouton devient “Quitter”, l’espace disparaît de ta liste et ne revient pas
-3. Si une suppression backend échoue → **pas de faux succès**, message d’erreur visible
-4. Créer un nouvel espace via “Nouvel espace” → tu es bien `owner`, pas `manager`
+1. Créer un programme pour une nouvelle cliente test (compte tout neuf) → 1 seul workspace, coach = manager, cliente = owner.
+2. Créer un programme pour une cliente existante (qui a déjà rempli son onboarding) → **pas de nouveau workspace**, coach ajouté à son workspace existant, toast "ajoutée à l'espace existant".
+3. Bouton "Nouvel espace" avec un nom + email d'un compte existant → proposer "Attacher au workspace existant de Marion ?" (Oui/Non).
+4. Bouton "Nouvel espace" avec un nom seul (pas d'email) → comportement actuel (espace vide standalone).
+5. Pour les anciens cas comme Marion : la fix d'Option A reste la solution manuelle. Les nouveaux clients sont protégés.
+
+### Hors scope
+
+- Pas de migration des doublons historiques existants (à part Marion déjà traitée). Si tu en repères d'autres, on les traite au cas par cas.
+- Pas de touche au trigger DB `create_default_tasks` (il est correct de créer un workspace à l'inscription).
+- Pas de refonte de l'edge function d'invitation (elle est saine).
 
 ### Risque
 
-Moyen-faible :
-- le bug UI est simple
-- la partie sensible est la suppression complète des données liées au workspace, qui doit être faite proprement table par table pour éviter toute perte de données non voulue
-- mais c’est la bonne solution pour arrêter définitivement ces “faux deletes”
+Faible. On ajoute des vérifications avant un INSERT, on n'enlève rien. Si une vérif rate, fallback sur le comportement actuel. Pas de migration DB obligatoire.
+
