@@ -96,14 +96,30 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
 
   const handleFormatSelect = (id: string) => {
     if (CONTENT_TYPE_SPECS[id]?.comingSoon) return;
+    const isFirstSelectionWithPhotos = !hasUserChangedFormat.current && (initialPhotos?.length ?? 0) > 0;
+    hasUserChangedFormat.current = true;
     setSelectedFormat(id);
     setSelectedAngle(undefined);
-    setCarouselSubMode(null);
-    setUploadedPhotos([]);
-    setPhotoDescription("");
-    setPhotoMode(false);
-    setPostPhoto([]);
-    setPostPhotoDescription("");
+    if (isFirstSelectionWithPhotos) {
+      // Preserve preloaded photos and auto-select compatible sub-mode
+      if (id === "carousel") {
+        setCarouselSubMode("mix");
+        setPhotoMode(false);
+      } else if (id === "post") {
+        setCarouselSubMode(null);
+        setPhotoMode(true);
+      } else {
+        setCarouselSubMode(null);
+        setPhotoMode(false);
+      }
+    } else {
+      setCarouselSubMode(null);
+      setUploadedPhotos([]);
+      setPhotoDescription("");
+      setPhotoMode(false);
+      setPostPhoto([]);
+      setPostPhotoDescription("");
+    }
   };
 
   const handleChannelSelect = (channelId: ChannelId) => {
