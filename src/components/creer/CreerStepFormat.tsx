@@ -236,6 +236,15 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* Preloaded photos banner — visible until user picks a format */}
+      {(initialPhotos?.length ?? 0) > 0 && !hasUserChangedFormat.current && (
+        <div className="rounded-2xl bg-primary/5 border border-primary/10 p-3 flex items-center gap-3">
+          <span className="text-lg">📸</span>
+          <p className="text-sm font-medium text-foreground">
+            {initialPhotos!.length} photo{initialPhotos!.length > 1 ? "s" : ""} déjà prête{initialPhotos!.length > 1 ? "s" : ""} à être utilisée{initialPhotos!.length > 1 ? "s" : ""}
+          </p>
+        </div>
+      )}
       {/* Newsjacking format suggestion */}
       {suggestedFormat && !selectedFormat && (
         <div className="rounded-2xl bg-primary/5 border border-primary/10 p-3 flex items-center gap-3">
