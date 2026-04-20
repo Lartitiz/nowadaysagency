@@ -13,12 +13,16 @@ import {
 import { ChevronDown } from "lucide-react";
 
 import AiGeneratedMention from "@/components/AiGeneratedMention";
+import LinkedInCaptionEditor from "@/components/linkedin/LinkedInCaptionEditor";
+import { AlertTriangle } from "lucide-react";
 
 interface CarouselPhotoResultProps {
   result: any;
   photos?: { preview: string }[];
   onSlidesUpdate?: (slides: any[], caption: any) => void;
   visualSlides?: { slide_number: number; html: string }[];
+  channel?: "linkedin" | "instagram";
+  onRetry?: () => void;
 }
 
 // ─── VisualSlidesCarousel (unchanged) ───
@@ -165,7 +169,7 @@ const OVERLAY_STYLE_CLASS: Record<string, string> = {
   technique: "text-sm font-mono",
 };
 
-export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, visualSlides }: CarouselPhotoResultProps) {
+export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, visualSlides, channel = "instagram", onRetry }: CarouselPhotoResultProps) {
   const r = result?.raw || result;
 
   // Fallback minimal si l'IA a oublié la légende — au moins une amorce éditable
@@ -206,6 +210,19 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
       prevSignature.current = newSig;
     }
   }, [result]);
+
+  // Log si la légende est vide / trop courte (Action 5)
+  useEffect(() => {
+    if (!caption?.body || caption.body.length < 50) {
+      console.warn("[caption_missing]", {
+        channel,
+        slidesCount: slides.length,
+        hookOnly: !!caption?.hook && !caption?.body,
+        bodyLen: caption?.body?.length || 0,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // P2 : Quality check calculé côté front (au lieu de faire confiance à l'IA)
   const computedQuality = useMemo(() => {
@@ -441,58 +458,97 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
         );
       })}
 
-      <Card className="border-border">
-        <CardContent className="p-4 space-y-3">
-          <p className="text-sm font-semibold text-foreground">📝 Légende du carrousel</p>
-
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">Hook</label>
-            <Textarea
-              value={caption.hook || ""}
-              onChange={(e) => updateCaption("hook", e.target.value)}
-              className="resize-none min-h-[48px] font-bold text-sm"
-              rows={2}
-            />
+      {/* Alerte légende incomplète (Action 4) */}
+      {(!caption?.body || caption.body.length < 50) && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 p-3 flex items-start gap-2">
+          <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+          <div className="flex-1 space-y-1.5">
+            <p className="text-xs font-medium text-amber-900 dark:text-amber-200">
+              ⚠ La légende n'a pas été générée correctement.
+            </p>
+            <p className="text-[11px] text-amber-800 dark:text-amber-300">
+              Tu peux la rédiger à la main ci-dessous{onRetry ? ", ou relancer la génération du carrousel." : "."}
+            </p>
+            {onRetry && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs border-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40"
+                onClick={onRetry}
+              >
+                Relancer la génération
+              </Button>
+            )}
           </div>
+        </div>
+      )}
 
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">Body</label>
-            <Textarea
-              value={caption.body || ""}
-              onChange={(e) => updateCaption("body", e.target.value)}
-              className="resize-none min-h-[96px] text-sm"
-              rows={5}
-            />
-          </div>
+      {channel === "linkedin" ? (
+        <LinkedInCaptionEditor
+          hook={caption.hook || ""}
+          body={caption.body || ""}
+          cta={caption.cta || ""}
+          hashtags={caption.hashtags || []}
+          hashtagInput={hashtagInput}
+          onChangeHook={(v) => updateCaption("hook", v)}
+          onChangeBody={(v) => updateCaption("body", v)}
+          onChangeCta={(v) => updateCaption("cta", v)}
+          onChangeHashtags={updateHashtags}
+        />
+      ) : (
+        <Card className="border-border">
+          <CardContent className="p-4 space-y-3">
+            <p className="text-sm font-semibold text-foreground">📝 Légende du carrousel</p>
 
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">CTA</label>
-            <Textarea
-              value={caption.cta || ""}
-              onChange={(e) => updateCaption("cta", e.target.value)}
-              className="resize-none min-h-[48px] text-sm"
-              rows={2}
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">Hashtags</label>
-            <div className="flex flex-wrap gap-1 mb-1">
-              {(caption.hashtags || []).map((tag: string, i: number) => (
-                <Badge key={i} variant="secondary" className="text-[10px]">
-                  {tag.startsWith("#") ? tag : `#${tag}`}
-                </Badge>
-              ))}
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Hook</label>
+              <Textarea
+                value={caption.hook || ""}
+                onChange={(e) => updateCaption("hook", e.target.value)}
+                className="resize-none min-h-[48px] font-bold text-sm"
+                rows={2}
+              />
             </div>
-            <Input
-              value={hashtagInput}
-              onChange={(e) => updateHashtags(e.target.value)}
-              placeholder="#hashtag1 #hashtag2"
-              className="text-xs"
-            />
-          </div>
-        </CardContent>
-      </Card>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Body</label>
+              <Textarea
+                value={caption.body || ""}
+                onChange={(e) => updateCaption("body", e.target.value)}
+                className="resize-none min-h-[96px] text-sm"
+                rows={5}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">CTA</label>
+              <Textarea
+                value={caption.cta || ""}
+                onChange={(e) => updateCaption("cta", e.target.value)}
+                className="resize-none min-h-[48px] text-sm"
+                rows={2}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Hashtags</label>
+              <div className="flex flex-wrap gap-1 mb-1">
+                {(caption.hashtags || []).map((tag: string, i: number) => (
+                  <Badge key={i} variant="secondary" className="text-[10px]">
+                    {tag.startsWith("#") ? tag : `#${tag}`}
+                  </Badge>
+                ))}
+              </div>
+              <Input
+                value={hashtagInput}
+                onChange={(e) => updateHashtags(e.target.value)}
+                placeholder="#hashtag1 #hashtag2"
+                className="text-xs"
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {qualityCheck && (
         <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">

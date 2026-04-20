@@ -2262,7 +2262,7 @@ export default function CreerUnifie() {
                   }
                 } : undefined}
                 photoBriefOverlayHtml={photoBriefOverlayHtml}
-                
+                channel={isLinkedInCarousel ? "linkedin" : "instagram"}
               />
             )}
 
