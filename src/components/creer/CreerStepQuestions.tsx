@@ -107,7 +107,7 @@ export default function CreerStepQuestions({
     }
 
     // Last follow-up answered, or no follow-up offered → done
-    onNext(answers);
+    handleFinalize(answers);
   };
 
   const handlePrev = () => {
@@ -130,7 +130,7 @@ export default function CreerStepQuestions({
       const fu = await onRequestFollowUp(answers);
       if (fu.length === 0) {
         // No follow-up generated → just finish
-        onNext(answers);
+        handleFinalize(answers);
         return;
       }
       setFollowUpQuestions(fu);
@@ -143,7 +143,7 @@ export default function CreerStepQuestions({
   };
 
   const handleDeclineFollowUp = () => {
-    onNext(answers);
+    handleFinalize(answers);
   };
 
   // ── RENDER : opt-in card (after last main question) ──
