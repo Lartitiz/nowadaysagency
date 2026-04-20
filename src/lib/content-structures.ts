@@ -507,7 +507,7 @@ export const CONTENT_TYPE_SPECS: Record<string, ContentTypeSpec> = {
     label: "Story",
     emoji: "📱",
     channel: "instagram",
-    edgeFunction: "stories-ai",
+    edgeFunction: "creative-flow",
     specs: "4-7 séquences, engagement interactif",
   },
   post: {

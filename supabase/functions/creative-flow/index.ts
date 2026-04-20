@@ -370,12 +370,37 @@ Réponds UNIQUEMENT en JSON :
 
       // Build format-specific depth instructions
       let depthMandate = "";
+      let storiesGardeFouAlerte: string | null = null;
       if (isCarousel) {
         depthMandate = carouselBrief();
       } else if (isReel) {
         depthMandate = reelBrief(effectiveObjective);
       } else if (isStories) {
-        depthMandate = storiesBrief();
+        // Garde-fou : 3 séquences vente sur 7 jours (migré depuis stories-ai)
+        if (effectiveObjective === "vente") {
+          const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+          const gardeFouCol = workspace_id ? "workspace_id" : "user_id";
+          const gardeFouVal = workspace_id || userId;
+          const { count } = await supabase
+            .from("stories_sequences")
+            .select("id", { count: "exact", head: true })
+            .eq(gardeFouCol, gardeFouVal)
+            .eq("objective", "vente")
+            .gte("created_at", sevenDaysAgo);
+          if ((count ?? 0) >= 3) {
+            storiesGardeFouAlerte = "⚠️ Tes stories récentes sont très orientées vente. Reviens à de la connexion ou de l'éducation pour maintenir la confiance. Ratio sain : 80% connexion/éducation, 20% vente.";
+          }
+        }
+        depthMandate = storiesBrief({
+          objective: effectiveObjective,
+          price_range: body.price_range,
+          time_available: body.time_available,
+          face_cam: body.face_cam,
+          is_launch: body.is_launch,
+          gardeFouAlerte: storiesGardeFouAlerte,
+          pre_gen_answers: body.pre_gen_answers,
+          subject: context,
+        });
       } else if (isLinkedIn) {
         depthMandate = linkedinBrief(editorialFormat);
       } else if (isPinterest) {
@@ -517,7 +542,7 @@ IMPORTANT pour les sections :
 - texte_overlay : COURT (3-8 mots max), le texte affiché à l'écran
 - format_visuel : description concrète du plan caméra
 - cut : la transition entre cette section et la suivante
-- Le total du texte parlé = 150-300 mots` : `Réponds UNIQUEMENT en JSON :
+- Le total du texte parlé = 150-300 mots` : isStories ? `` : `Réponds UNIQUEMENT en JSON :
 {
   "content": "...",
   "accroche": "...",
@@ -525,6 +550,11 @@ IMPORTANT pour les sections :
   "pillar": "...",
   "objectif": "..."
 }`}`;
+      // Inject launch context for stories (preserved from stories-ai)
+      if (isStories && body.launch_context) {
+        const lc = body.launch_context;
+        systemPrompt += `\n\nCONTEXTE LANCEMENT :\n- Phase : ${lc.phase || "?"}\n- Chapitre : ${lc.chapter_label || "?"}\n- Phase mentale audience : ${lc.audience_phase || "?"}\n- Objectif du slot : ${lc.objective || "?"}\n- Angle suggéré : ${lc.angle_suggestion || "?"}\nCONSIGNE : adapte le contenu à cette phase du lancement. Un contenu de phase "vente" n'a pas le même ton qu'un contenu de phase "teasing".`;
+      }
       userPrompt = "Rédige mon contenu à partir de mes réponses et de l'angle choisi.";
 
     } else if (step === "adjust") {
@@ -793,7 +823,7 @@ Privilégie les sources françaises et européennes quand elles existent.`,
 
     // ── Streaming SSE (generate step only, no photo/deepResearch) ──
     const wantsStream = req.headers.get("Accept") === "text/event-stream";
-    if (wantsStream && step === "generate" && !body.photo_mode && !deepResearch) {
+    if (wantsStream && step === "generate" && !body.photo_mode && !deepResearch && !isStories) {
       const apiKey = Deno.env.get("ANTHROPIC_API_KEY")!;
       const model = getModelForAction("content");
 

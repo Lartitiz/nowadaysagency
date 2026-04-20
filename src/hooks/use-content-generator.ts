@@ -272,14 +272,15 @@ export function useContentGenerator() {
         }
 
         case "story": {
-          const res = await invokeWithTimeout("stories-ai", {
+          const res = await invokeWithTimeout("creative-flow", {
             body: {
-              type: "generate",
-              subject: effectiveSubject,
-              subject_details: existingContent || undefined,
+              step: "generate",
+              contentType: "stories",
+              context: effectiveSubject + (existingContent ? `\n\n[Contenu existant à approfondir]\n${existingContent}` : ""),
               objective: objective || null,
-              editorial_angle: editorialAngle || null,
-              content_structure: structurePrompt || null,
+              face_cam: faceCam || "flexible",
+              time_available: timeAvailable || "flexible",
+              pre_gen_answers: preGenAnswers || null,
               workspace_id: workspaceId || null,
             },
           }, 120000);
