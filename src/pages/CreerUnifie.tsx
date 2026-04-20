@@ -34,7 +34,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { loadFlowState, saveFlowState, clearFlowState } from "@/hooks/use-flow-persistence";
 import { isAurianaDemoEmail, AURIANA_DEMO_SUBJECT, AURIANA_DEMO_FLOW } from "@/lib/demo-auriana-data";
 import { useFormPersist } from "@/hooks/use-form-persist";
-import { useStreamingInvoke } from "@/hooks/use-streaming-invoke";
+// Phase 4: streaming SSE is now encapsulated inside useContentGenerator
 import { useUserPlan } from "@/hooks/use-user-plan";
 
 function LowCreditsBanner({ remaining, plan }: { remaining: number; plan: string }) {
