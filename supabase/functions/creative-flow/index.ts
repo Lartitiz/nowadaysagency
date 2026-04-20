@@ -12,6 +12,8 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { streamAnthropicSSE, createClientSSEStream } from "../_shared/anthropic-stream.ts";
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
+import { carouselBrief, reelBrief, storiesBrief, linkedinBrief, pinterestBrief, newsletterBrief, photoCaptionBrief, captionBrief } from "./prompts/format-briefs.ts";
+import { buildVisionQuestionsPrompt, buildVisionGenerateBrief } from "./prompts/vision.ts";
 
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
 
