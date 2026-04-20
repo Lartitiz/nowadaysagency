@@ -111,31 +111,9 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
             </div>
           </div>
 
-          {/* Objective selector */}
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-foreground">
-              Quel objectif ? <span className="text-muted-foreground font-normal">(optionnel)</span>
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {objectives.map((o) => (
-                <button
-                  key={o.id}
-                  onClick={() => setObjective(objective === o.id ? undefined : o.id)}
-                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium border transition-all ${
-                    objective === o.id
-                      ? "bg-primary/10 text-primary border-primary/30"
-                      : "bg-card text-muted-foreground border-border hover:border-primary/30"
-                  }`}
-                >
-                  <span>{o.emoji}</span> {o.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
           {/* Next button */}
           <Button
-            onClick={() => onNext(idea.trim(), objective)}
+            onClick={() => onNext(idea.trim())}
             disabled={!idea.trim()}
             className="w-full gap-2"
           >
