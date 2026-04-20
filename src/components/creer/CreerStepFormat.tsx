@@ -34,6 +34,30 @@ function deduceChannel(format: string): ChannelId {
   return "instagram";
 }
 
+// Formats supporting a single attached photo (vision-anchored generation via creative-flow / future single-photo flows).
+// Excludes carousel (handled separately, multi-photo) and pinterest_* (own flow).
+function formatAcceptsSinglePhoto(format: string | null | undefined): boolean {
+  if (!format) return false;
+  return ["post", "reel", "story", "linkedin", "newsletter"].includes(format);
+}
+
+function getPhotoToggleCopy(format: string): { title: string; subtitle: string } {
+  switch (format) {
+    case "post":
+      return { title: "📸 J'accompagne une photo", subtitle: "L'IA adapte ta légende à ton image" };
+    case "reel":
+      return { title: "📸 Mon Reel s'appuie sur une image", subtitle: "Référence visuelle, vignette ou plan d'inspiration — l'IA s'en sert pour le hook et le script" };
+    case "story":
+      return { title: "📸 Mes stories tournent autour d'une photo", subtitle: "L'IA construit une séquence narrative à partir de l'image" };
+    case "linkedin":
+      return { title: "📸 J'attache une photo à mon post", subtitle: "L'IA ancre le texte sur un point précis du visuel" };
+    case "newsletter":
+      return { title: "📸 Image d'en-tête / illustration", subtitle: "L'IA prolonge l'ambiance de l'image dans le texte" };
+    default:
+      return { title: "📸 J'accompagne une photo", subtitle: "L'IA adapte ton contenu à ton image" };
+  }
+}
+
 interface Props {
   idea: string;
   objective?: string;
