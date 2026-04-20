@@ -703,62 +703,44 @@ export default function CreerUnifie() {
 
     if (isTextFormat) {
       streamReset();
-      const contentTypeMap: Record<string, string> = {
-        post: "post_instagram",
-        linkedin: "post_linkedin",
-        newsletter: "post_newsletter",
-        pinterest: "post_pinterest",
-      };
-      // Build angle object matching classic path
-      const angleObj = editorialAngle
-        ? (() => {
-            const found = EDITORIAL_ANGLES.find((a) => a.id === editorialAngle) || LINKEDIN_EDITORIAL_ANGLES.find((a) => a.id === editorialAngle) || PINTEREST_EDITORIAL_ANGLES.find((a) => a.id === editorialAngle) || PINTEREST_VISUAL_ANGLES.find((a) => a.id === editorialAngle);
-            const structureId = getStructureForCombo(selectedFormat, editorialAngle);
-            const structure = structureId ? CONTENT_STRUCTURES[structureId] : undefined;
-            return found
-              ? { title: found.label, structure: structure?.steps.map((s) => s.label), tone: "direct, chaleureux, oral assumé" }
-              : undefined;
-          })()
-        : undefined;
-
-      const streamBody: any = {
-        step: "generate",
-        contentType: contentTypeMap[selectedFormat] || "post_instagram",
-        context: enrichedSubject,
-        angle: angleObj,
-        answers: Object.keys(ans).length > 0
-          ? Object.entries(ans).map(([q, a]) => ({ question: q, answer: a }))
-          : undefined,
-        preGenAnswers: Object.keys(ans).length > 0
-          ? { anecdote: ans.anecdote || ans.q_0 || undefined, emotion: ans.emotion || ans.q_1 || undefined, conviction: ans.conviction || ans.q_2 || undefined }
-          : undefined,
-        workspace_id: workspaceId !== session.user.id ? workspaceId : undefined,
-        objective: objective || undefined,
-        editorialFormat: editorialAngle || undefined,
-        editorialFormatLabel: editorialAngle || undefined,
-        ...(photoMode ? {
-          photo_mode: true,
-          photo_description: photoDescription,
-          ...(uploadedPhotos.length > 0 && uploadedPhotos[0]?.base64
-            ? { photos: [{ base64: uploadedPhotos[0].base64, mimeType: (uploadedPhotos[0] as any).mimeType || "image/jpeg", context: uploadedPhotos[0].context }] }
-            : {}),
-        } : {}),
-        ...(newsjackingContext ? { deepResearch: true } : {}),
-        ...(selectedFormat === "pinterest" && pinterestData ? {
-          pinterest_link: pinterestData.link,
-          pinterest_board: pinterestData.boardName,
-        } : {}),
-      };
-
-      let fullText = "";
       try {
-        fullText = await streamInvoke("creative-flow", streamBody);
+        const generated = await generateStream({
+          format: selectedFormat as "post" | "linkedin" | "newsletter" | "pinterest",
+          subject: enrichedSubject,
+          objective: objective || undefined,
+          editorialAngle: editorialAngle || undefined,
+          answers: ans,
+          workspaceId: workspaceId !== session.user.id ? workspaceId : undefined,
+          photoMode: photoMode || undefined,
+          photos: photoMode && uploadedPhotos.length > 0 && uploadedPhotos[0]?.base64
+            ? [{
+                base64: uploadedPhotos[0].base64,
+                mimeType: (uploadedPhotos[0] as any).mimeType || "image/jpeg",
+                context: uploadedPhotos[0].context,
+              }]
+            : undefined,
+          photoDescription: photoMode ? photoDescription : undefined,
+          deepResearch: !!newsjackingContext,
+          pinterestLink: selectedFormat === "pinterest" ? pinterestData?.link : undefined,
+          pinterestBoard: selectedFormat === "pinterest" ? pinterestData?.boardName : undefined,
+        });
+
+        // generateStream already handles quota errors silently and returns null.
+        // If null + not streaming → likely an error or empty result we should surface.
+        if (!generated && !streaming) {
+          // Demo mode fallback parity with the previous inline behavior
+          if (isDemoMode) {
+            toast("La génération en direct nécessite un compte connecté. Le résultat pré-généré est disponible avec le sujet par défaut.");
+            setStep("format");
+            return;
+          }
+        }
       } catch (e: any) {
+        // Defensive — generateStream catches its own errors, but keep parity.
         if (e?._isQuota && handleQuotaError(e)) {
           setStep("format");
           return;
         }
-        // En mode démo, si la génération live échoue, on ne bloque pas
         if (isDemoMode) {
           toast("La génération en direct nécessite un compte connecté. Le résultat pré-généré est disponible avec le sujet par défaut.");
           setStep("format");
@@ -766,18 +748,6 @@ export default function CreerUnifie() {
         }
         toast.error(e?.message || "Erreur lors de la génération");
         return;
-      }
-
-      if (fullText) {
-        try {
-          const jsonMatch = fullText.match(/\{[\s\S]*\}/);
-          const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { content: fullText };
-          setResult({ type: selectedFormat as any, raw: parsed });
-        } catch {
-          setResult({ type: selectedFormat as any, raw: { content: fullText } });
-        }
-      } else if (!streaming) {
-        toast.error("La génération n'a pas abouti. Réessaie !");
       }
       return;
     }
