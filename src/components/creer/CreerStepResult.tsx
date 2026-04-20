@@ -207,6 +207,8 @@ export default function CreerStepResult({
   onExportPinterestEditablePptx,
   photoBriefOverlayHtml,
   channel,
+  captionLoading,
+  onRegenerateCaption,
 }: Props) {
   // ── Rotation des messages et tips pendant le loading ──
   const messages = PROGRESS_MESSAGES[format] || PROGRESS_MESSAGES.default;
@@ -304,7 +306,7 @@ export default function CreerStepResult({
     const r = result?.raw || result;
     if (format === "carousel" && (r?.carousel_type === "photo" || r?.carousel_type === "mix") && photos && photos.length > 0) {
       return (
-        <CarouselPhotoResult result={result} photos={photos} onSlidesUpdate={onSlidesUpdate} visualSlides={visualSlides} channel={channel} onRetry={onRegenerate} />
+        <CarouselPhotoResult result={result} photos={photos} onSlidesUpdate={onSlidesUpdate} visualSlides={visualSlides} channel={channel} onRetry={onRegenerate} captionLoading={captionLoading} onRegenerateCaption={onRegenerateCaption} />
       );
     }
 
