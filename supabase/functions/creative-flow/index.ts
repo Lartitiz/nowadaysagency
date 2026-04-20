@@ -78,7 +78,31 @@ serve(async (req) => {
     const profileBlock = profile ? buildProfileBlock(profile) : "";
     const ctx = await getUserContext(supabase, user.id, workspace_id, channelFromType);
     const brandingContext = formatContextForAI(ctx, CONTEXT_PRESETS.content);
-    
+
+    // Recent briefs context — fetched server-side as fallback if not provided.
+    // Used by `questions` step to avoid repeating angles already covered.
+    let recentBriefsContext = recentBriefsFromBody || "";
+    if (!recentBriefsContext && (step === "questions" || step === "follow-up")) {
+      recentBriefsContext = await getRecentBriefsContext(supabase, user.id, workspace_id, 3);
+    }
+
+    // Extract vocabulary keywords from branding (offers names, target name, key expressions)
+    // → forces the AI to use the user's actual vocabulary in questions
+    const brandVocab: string[] = [];
+    if (ctx?.profile?.activite) brandVocab.push(`activité: ${ctx.profile.activite}`);
+    if (ctx?.profile?.cible) brandVocab.push(`cible: ${ctx.profile.cible}`);
+    if (ctx?.tone?.key_expressions) {
+      const keyExp = typeof ctx.tone.key_expressions === "string" ? ctx.tone.key_expressions : "";
+      if (keyExp) brandVocab.push(`expressions clés: ${keyExp.slice(0, 200)}`);
+    }
+    if (ctx?.brand_profile?.offer) {
+      const off = typeof ctx.brand_profile.offer === "string" ? ctx.brand_profile.offer : "";
+      if (off) brandVocab.push(`offre: ${off.slice(0, 150)}`);
+    }
+    const brandVocabBlock = brandVocab.length > 0
+      ? `\n\nVOCABULAIRE MÉTIER DE L'UTILISATRICE (à RÉUTILISER dans les questions) :\n${brandVocab.map(v => `- ${v}`).join("\n")}\n\nRÈGLE : au moins 2 questions sur 3 doivent réutiliser un mot/concept de ce vocabulaire (nom de l'offre, terme de la cible, expression clé). Les questions doivent montrer que tu connais SON univers, pas un univers générique.\n`
+      : "";
+
     // Voice profile — already fetched by getUserContext() with correct workspace owner resolution.
     // Do NOT re-fetch with user.id (that would use the coach's voice instead of the client's).
     let voiceBlock = "";
