@@ -18,6 +18,13 @@ export interface PhotoUploadZoneProps {
   initialPhotos?: PhotoItem[];
   initialDescription?: string;
   title?: string;
+  /**
+   * Compact mode: hides the large drop zone and the global description textarea.
+   * Keeps thumbnails grid + counter, exposes a discreet "+ Ajouter d'autres photos"
+   * link and a toggle to refine per-photo context. Use when photos and description
+   * have already been provided in a previous step.
+   */
+  compact?: boolean;
 }
 
 function resizeAndEncode(file: File, maxWidth = 1024, quality = 0.8): Promise<{ base64: string; preview: string }> {
