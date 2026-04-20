@@ -258,6 +258,7 @@ export default function CreerUnifie() {
     error,
     reset: resetGenerator,
     generateQuestions,
+    generateFollowUp,
     loadingQuestions,
     questions,
     setQuestions,
@@ -2097,6 +2098,15 @@ export default function CreerUnifie() {
                 onBack={() => setStep("format")}
                 previousBriefsCount={briefsCount}
                 initialAnswers={aurianaDemoActive ? AURIANA_DEMO_FLOW.answers : undefined}
+                onRequestFollowUp={async (currentAnswers) => {
+                  return await generateFollowUp({
+                    subject: ideaText,
+                    answers: currentAnswers,
+                    questions,
+                    contentType: selectedFormat || "instagram_post",
+                    objective: objective || undefined,
+                  });
+                }}
               />
             )}
 
