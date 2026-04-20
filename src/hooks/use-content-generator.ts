@@ -536,6 +536,51 @@ export function useContentGenerator() {
     []
   );
 
+  const generateFollowUp = useCallback(
+    async (params: {
+      subject: string;
+      answers: Record<string, string>;
+      questions: Question[];
+      contentType?: string;
+      objective?: string;
+    }): Promise<Question[]> => {
+      try {
+        const answersArray = params.questions.map((q) => ({
+          question: q.question,
+          answer: params.answers[q.id] || "",
+        })).filter((a) => a.answer.trim());
+
+        if (answersArray.length === 0) return [];
+
+        const res = await invokeWithTimeout("creative-flow", {
+          body: {
+            step: "follow-up",
+            contentType: params.contentType || "instagram_post",
+            context: params.subject,
+            answers: answersArray,
+            objective: params.objective || null,
+          },
+        }, 45000);
+
+        if (res.error) throw new Error(res.error.message || "Erreur follow-up");
+        const rawContent = res.data?.content ?? res.data;
+        const parsed = parseAIJson(rawContent);
+        const list = parsed?.follow_up_questions || parsed?.questions || [];
+        if (!Array.isArray(list)) return [];
+
+        return list.map((q: any, i: number) => ({
+          id: q.id || `fu_${i}`,
+          question: q.question || q.label || String(q),
+          placeholder: q.placeholder || q.hint || "",
+        }));
+      } catch (e: any) {
+        console.error("[generateFollowUp] error:", e);
+        return [];
+      }
+    },
+    []
+  );
+
   return {
     generate,
     generating,
@@ -544,6 +589,7 @@ export function useContentGenerator() {
     error,
     reset,
     generateQuestions,
+    generateFollowUp,
     loadingQuestions,
     questions,
     setQuestions,
