@@ -1757,20 +1757,34 @@ Réponds UNIQUEMENT en JSON :
       const photoBase64Q = body.photos[0].base64.replace(/^data:image\/[a-z]+;base64,/, "");
       const photoMimeQ = body.photos[0].mimeType || "image/jpeg";
       const perPhotoCtxQ = body.photos[0].context?.trim();
-      const channelLabelQ = contentType === "linkedin_post" ? "LinkedIn" : "Instagram";
-      const channelGuidanceQ = contentType === "linkedin_post"
-        ? "Ton PRO : ce qu'on apprend pro derrière l'image, prise de position assumée, résultat / chiffre concret."
-        : "Ton ÉMOTION / SCÈNE VÉCUE : ressenti, hors-champ, instant, ce qui se passait juste avant ou après la photo.";
+
+      // Format-aware channel framing
+      const ctype = String(contentType || "").toLowerCase();
+      let channelLabelQ = "Instagram (post photo)";
+      let channelGuidanceQ = "Ton ÉMOTION / SCÈNE VÉCUE : ressenti, hors-champ, instant, ce qui se passait juste avant ou après la photo.";
+      if (ctype.includes("linkedin")) {
+        channelLabelQ = "LinkedIn (post pro)";
+        channelGuidanceQ = "Ton PRO : ce qu'on apprend pro derrière l'image, prise de position assumée, résultat / chiffre concret, contexte business.";
+      } else if (ctype.includes("reel")) {
+        channelLabelQ = "Reel Instagram (vidéo courte)";
+        channelGuidanceQ = "L'image sert de référence visuelle / vignette / plan d'inspiration. Questions sur : l'instant à montrer, la promesse rapide, ce que la voix off ou face cam dit pendant qu'on voit l'image.";
+      } else if (ctype.includes("story") || ctype.includes("stories")) {
+        channelLabelQ = "Stories Instagram (séquence éphémère)";
+        channelGuidanceQ = "L'image est le point d'ancrage d'une séquence (zooms, crops, hors-champ, sticker question). Questions sur : ce qu'on découpe, le 'avant/après', ce qu'on veut faire réagir.";
+      } else if (ctype.includes("newsletter")) {
+        channelLabelQ = "Newsletter (email long format)";
+        channelGuidanceQ = "Ton ÉDITORIAL / INTIME : l'image est en ouverture, le texte prolonge l'ambiance. Questions sur : ce que l'image évoque, le fil narratif qu'elle ouvre, l'angle perso à creuser.";
+      }
 
       const visionQuestionsPrompt = `Tu es une coach com' qui prépare un brief avec l'utilisatrice.
 
-Voici la photo qu'elle veut utiliser pour un post ${channelLabelQ}.
+Voici la photo qu'elle veut utiliser pour un contenu ${channelLabelQ}.
 Sujet : "${context || "non précisé"}"
 ${objective ? `Objectif : ${objective}` : ""}
 ${body.photo_description ? `Description globale fournie en amont : "${body.photo_description}"` : ""}
 ${perPhotoCtxQ ? `Contexte précis sur cette photo : "${perPhotoCtxQ}"` : ""}
 
-Pose exactement 3 questions d'approfondissement ANCRÉES dans la photo.
+Pose exactement 3 questions d'approfondissement ANCRÉES dans la photo et adaptées au format ${channelLabelQ}.
 
 RÈGLES :
 - MENTIONNE ce que tu VOIS RÉELLEMENT (élément concret, geste, lumière, lieu, ambiance)
@@ -1778,11 +1792,6 @@ RÈGLES :
 - ${channelGuidanceQ}
 - VARIÉTÉ obligatoire : 1 anecdote/scène, 1 opinion/conviction, 1 process/observation (pas 3 "raconte-moi")
 - Questions OUVERTES, ton chaleureux et curieux
-
-Exemples :
-- "Je vois [élément précis]. C'était dans quel contexte ? Qu'est-ce que ce moment représente pour toi ?"
-- "L'ambiance de la photo est [observation]. C'est volontaire ? Qu'est-ce que tu veux faire passer ?"
-- "Qu'est-ce qui se passait JUSTE avant que cette photo soit prise ?"
 
 Réponds UNIQUEMENT en JSON valide :
 {
