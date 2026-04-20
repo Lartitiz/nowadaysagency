@@ -69,11 +69,15 @@ export default function CreerStepQuestions({
     return (
       <div className="py-8 text-center animate-fade-in space-y-4">
         <p className="text-sm text-muted-foreground">Pas de questions pour ce format.</p>
-        <Button onClick={onSkip} className="gap-2">
-          <Sparkles className="h-4 w-4" /> Générer directement
+        <Button onClick={handleSkip} disabled={isSubmitting} className="gap-2">
+          {isSubmitting ? (
+            <><Loader2 className="h-4 w-4 animate-spin" /> Lancement…</>
+          ) : (
+            <><Sparkles className="h-4 w-4" /> Générer directement</>
+          )}
         </Button>
         <div>
-          <Button variant="ghost" size="sm" onClick={onBack} className="gap-1">
+          <Button variant="ghost" size="sm" onClick={onBack} disabled={isSubmitting} className="gap-1">
             <ArrowLeft className="h-3.5 w-3.5" /> Retour
           </Button>
         </div>
