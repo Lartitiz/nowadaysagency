@@ -93,6 +93,8 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
     setIsQuotaError(false);
     setFilter("all");
     setHidden(new Set());
+    setSavedIdx(new Set());
+    setSavingIdx(new Set());
     setAnglesByIdx({});
 
     try {
@@ -195,6 +197,47 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
       return next;
     });
     if (expandedActu === idx) setExpandedActu(null);
+  };
+
+  const handleSaveActu = async (idx: number, actu: Actu, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!user || savedIdx.has(idx) || savingIdx.has(idx)) return;
+    setSavingIdx((prev) => new Set(prev).add(idx));
+
+    const sourceLine = actu.source ? `\n\nSource : ${actu.source}` : "";
+    const notesText = `${actu.resume}\n\n💡 Pertinence : ${actu.pertinence}${sourceLine}`;
+    const axeLabel = actu.axe ? AXE_CONFIG[actu.axe]?.label || actu.axe : null;
+
+    const { error } = await (supabase.from("saved_ideas") as any).insert({
+      user_id: user.id,
+      workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+      titre: `📰 ${actu.titre}`,
+      angle: ["actualité", axeLabel].filter(Boolean).join(", "),
+      format: "actu",
+      canal: "instagram",
+      type: "draft",
+      status: "to_explore",
+      notes: notesText,
+      source_module: "newsjacking",
+      content_data: actu,
+    });
+
+    setSavingIdx((prev) => {
+      const next = new Set(prev);
+      next.delete(idx);
+      return next;
+    });
+
+    if (error) {
+      console.error("Save actu error:", error);
+      toast.error("Impossible de sauvegarder l'actu");
+      return;
+    }
+
+    setSavedIdx((prev) => new Set(prev).add(idx));
+    toast.success("📌 Sauvegardée dans Mes idées", {
+      action: { label: "Voir", onClick: () => navigate("/idees") },
+    });
   };
 
   const handleSelectAngle = (actu: Actu, angle: ActuAngle) => {
