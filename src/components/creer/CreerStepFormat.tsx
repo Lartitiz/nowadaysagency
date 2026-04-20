@@ -133,7 +133,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
       if (id === "carousel") {
         setCarouselSubMode("mix");
         setPhotoMode(false);
-      } else if (id === "post") {
+      } else if (formatAcceptsSinglePhoto(id)) {
         setCarouselSubMode(null);
         setPhotoMode(true);
         setPostPhoto(initialPhotos!.slice(0, 1));
