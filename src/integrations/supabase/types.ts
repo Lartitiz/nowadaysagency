@@ -1106,6 +1106,7 @@ export type Database = {
           content_type_emoji: string | null
           created_at: string
           date: string
+          episode_number: number | null
           format: string | null
           generated_content_id: string | null
           generated_content_type: string | null
@@ -1115,6 +1116,7 @@ export type Database = {
           notes: string | null
           objectif: string | null
           objective: string | null
+          series_id: string | null
           status: string
           stories_count: number | null
           stories_objective: string | null
@@ -1142,6 +1144,7 @@ export type Database = {
           content_type_emoji?: string | null
           created_at?: string
           date: string
+          episode_number?: number | null
           format?: string | null
           generated_content_id?: string | null
           generated_content_type?: string | null
@@ -1151,6 +1154,7 @@ export type Database = {
           notes?: string | null
           objectif?: string | null
           objective?: string | null
+          series_id?: string | null
           status?: string
           stories_count?: number | null
           stories_objective?: string | null
@@ -1178,6 +1182,7 @@ export type Database = {
           content_type_emoji?: string | null
           created_at?: string
           date?: string
+          episode_number?: number | null
           format?: string | null
           generated_content_id?: string | null
           generated_content_type?: string | null
@@ -1187,6 +1192,7 @@ export type Database = {
           notes?: string | null
           objectif?: string | null
           objective?: string | null
+          series_id?: string | null
           status?: string
           stories_count?: number | null
           stories_objective?: string | null
@@ -1205,6 +1211,13 @@ export type Database = {
             columns: ["launch_id"]
             isOneToOne: false
             referencedRelation: "launches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_posts_series_id_fkey"
+            columns: ["series_id"]
+            isOneToOne: false
+            referencedRelation: "series"
             referencedColumns: ["id"]
           },
           {
@@ -6300,6 +6313,68 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      series: {
+        Row: {
+          cadence: string | null
+          channels: string[] | null
+          created_at: string
+          format_template: string | null
+          id: string
+          name: string
+          notes: string | null
+          pillar_key: string | null
+          planned_episodes: number | null
+          promise: string
+          signature_description: string | null
+          status: string
+          updated_at: string
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          cadence?: string | null
+          channels?: string[] | null
+          created_at?: string
+          format_template?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          pillar_key?: string | null
+          planned_episodes?: number | null
+          promise: string
+          signature_description?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          cadence?: string | null
+          channels?: string[] | null
+          created_at?: string
+          format_template?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          pillar_key?: string | null
+          planned_episodes?: number | null
+          promise?: string
+          signature_description?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "series_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       shared_branding_links: {
         Row: {
