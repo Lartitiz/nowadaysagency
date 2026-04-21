@@ -442,44 +442,26 @@ export default function CreerStepResult({
         }} className="gap-1.5 text-xs text-muted-foreground">
           <Copy className="h-3.5 w-3.5" /> Copier
         </Button>
-        {isCarousel && hasVisuals && onExportPptx && (
-          (onExportVisualPptx || onExportHybridPptx) ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground">
-                  <Download className="h-3.5 w-3.5" /> Exporter <ChevronDown className="h-3 w-3 ml-0.5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-64">
-                {onExportHybridPptx && (
-                  <DropdownMenuItem onClick={onExportHybridPptx}>
-                    <div className="flex flex-col">
-                      <span>PowerPoint — éditable ✨</span>
-                      <span className="text-[10px] text-muted-foreground">Modifier le texte dans PPT</span>
-                    </div>
-                  </DropdownMenuItem>
-                )}
-                {onExportVisualPptx && (
-                  <DropdownMenuItem onClick={onExportVisualPptx}>
-                    <div className="flex flex-col">
-                      <span>PowerPoint — image fidèle</span>
-                      <span className="text-[10px] text-muted-foreground">Identique au preview, non modifiable</span>
-                    </div>
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuItem onClick={onExportPptx}>
-                  <div className="flex flex-col">
-                    <span>PowerPoint — basique (fallback)</span>
-                    <span className="text-[10px] text-muted-foreground">Design générique éditable</span>
-                  </div>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <Button variant="ghost" size="sm" onClick={onExportPptx} className="gap-1.5 text-xs text-muted-foreground">
-              <Download className="h-3.5 w-3.5" /> Export PPTX
-            </Button>
-          )
+        {isCarousel && hasVisuals && (onExportVisualPng || onExportHybridPptx) && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground">
+                <Download className="h-3.5 w-3.5" /> Télécharger <ChevronDown className="h-3 w-3 ml-0.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64">
+              <DownloadMenuItems
+                onPng={onExportVisualPng}
+                onPptxEditable={onExportHybridPptx}
+                count={visualSlides?.length ?? 1}
+              />
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+        {isCarousel && !hasVisuals && onExportPptx && (
+          <Button variant="ghost" size="sm" onClick={onExportPptx} className="gap-1.5 text-xs text-muted-foreground">
+            <Download className="h-3.5 w-3.5" /> Télécharger PPTX
+          </Button>
         )}
         {isCarousel && hasVisuals && onGenerateVisuals && (
           <Button variant="ghost" size="sm" onClick={onGenerateVisuals} className="gap-1.5 text-xs text-muted-foreground">
