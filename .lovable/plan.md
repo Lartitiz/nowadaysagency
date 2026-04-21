@@ -1,45 +1,74 @@
 
 
-## Bug : photos `photo_integrated` toujours mal cadrées dans le PNG export
+## Bug : la légende LinkedIn d'un carrousel mixte (avec photos) ne contient que l'accroche
 
-### Réponse rapide à ta question
+### Diagnostic complet
 
-**Non, ce n'est pas lié au "fix précédent".** Le fix précédent concernait l'option PowerPoint éditable (HTML stocké en BDD). Le PNG est toujours capturé en direct à partir du HTML à chaque clic — donc la date de génération du post ne change rien. Le bug est dans le moteur de capture lui-même.
+C'est un **trou dans le flow** côté front, prévu côté back mais jamais implémenté.
 
-### Diagnostic
+**Côté edge function `carousel-ai`** (`buildMixCarouselPrompt`, ligne 1564) :
+> "Pour LinkedIn mix : la légende (caption) est OPTIONNELLE — concentre-toi à 100% sur la qualité des slides PDF. **Si tu inclus une caption, ne la bâcle pas, sinon laisse-la vide (elle sera générée par un appel dédié)**."
 
-Les carrousels photo ont **deux modes** :
-- `photo_full` → photo en `background-image: cover` plein cadre. **Marche bien** (slide-1 dans tes captures).
-- `photo_integrated` → `<img src="..." style="width:100%; height:auto; object-fit:cover">` dans une carte. **Cassé** (slides 3 et 6).
+L'IA suit l'instruction : sur LinkedIn + carrousel mix, elle renvoie une caption vide ou minimale (juste un hook éventuellement). Le prompt suppose qu'**un appel dédié** à `linkedin-ai` action `caption-for-carousel` viendra ensuite remplir hook/body/CTA/hashtags.
 
-Le problème : on utilise `html2canvas` (v1.4.1), qui **ne supporte pas correctement `object-fit: cover`** sur les `<img>`. Il rend l'image à ses dimensions natives au lieu de respecter le cadre → impression de "compression" / mauvais cadrage.
+**Côté front (`CreerUnifie.tsx` + `use-content-generator.ts`)** : cet appel dédié **n'existe pas**. Après la réponse de `carousel-ai`, on affiche directement le résultat avec le caption vide. Conséquence visible :
+- Hook éventuel rempli (parfois), corps vide, CTA vide, hashtags vide.
+- Le bouton "Régénérer la légende" prévu dans `CarouselPhotoResult.tsx` (ligne 541) est du **code mort** : `onRegenerateCaption` n'est jamais passé depuis `CreerStepResult` → `CreerUnifie`.
+- L'action `caption-for-carousel` existe pourtant côté back (`linkedin-ai/index.ts` ligne 183) avec un prompt dédié strict (hook 210 car., body 800-1500 car., CTA, 3-5 hashtags).
 
-Or, on a déjà `html2canvas-pro` (v2.0.2) installé dans le projet — c'est un fork qui **corrige précisément `object-fit`** et est déjà utilisé avec succès par `export-carousel-hybrid-pptx.ts` (qui capture sans souci ces mêmes slides).
-
-Bonus secondaire : on capture `documentElement` au lieu de `body` (le hybrid PPTX capture `body`), ce qui peut introduire des artefacts de scroll vertical sur certains layouts.
+**À noter** : ce bug ne touche QUE le canal LinkedIn + carrousel mix (et potentiellement photo si jamais l'IA choisit de bâcler). Sur Instagram, le prompt impose une caption complète obligatoire → ça marche.
 
 ### Solution
 
-**Fichier touché : `src/lib/export-carousel-png.ts` uniquement.**
+Brancher l'appel dédié manquant. Trois pièces à mettre en place :
 
-1. Remplacer `import html2canvas from "html2canvas"` par `import html2canvas from "html2canvas-pro"`.
-2. Cibler `doc.body` au lieu de `doc.documentElement` dans `captureSlide` (alignement avec le hybride qui marche).
-3. Garder le reste de la logique (iframe isolé, attente fonts/images, decode, scale 2, retries) — déjà solide.
+#### 1. Auto-générer la légende LinkedIn juste après la génération du carrousel mix/photo
 
-C'est tout. Pas de changement d'API, pas de migration, pas de touche backend.
+Dans `CreerUnifie.tsx`, juste après que `carousel-ai` retourne le résultat pour le canal LinkedIn ET un carrousel `mix` ou `photo`, déclencher en arrière-plan un appel à `linkedin-ai` action `caption-for-carousel` avec :
+- `subject` (le sujet du carrousel)
+- `chosen_angle` (depuis `result.raw.chosen_angle`)
+- `slides_summary` (concat des `overlay_text` + `title`/`body` des slides, max ~1500 char)
+- `editorial_angle`, `objective`
 
-### Pourquoi ça va marcher
+Quand la réponse arrive : merger `{ hook, body, cta, hashtags }` dans `result.raw.caption` et déclencher un `setResult` pour rafraîchir le composant.
 
-`html2canvas-pro` fait déjà le job sur les **mêmes HTML de slides** dans le pipeline PowerPoint éditable (`captureBackground` dans `export-carousel-hybrid-pptx.ts`). On reproduit exactement la même config → même résultat fidèle.
+#### 2. Loader visible pendant la génération de la légende
+
+- Ajouter un state `captionLoading: boolean` dans `CreerUnifie.tsx`.
+- Le passer à `<CreerStepResult captionLoading={...} />` (la prop existe déjà).
+- L'éditeur `LinkedInCaptionEditor` affiche déjà son skeleton "✍️ Rédaction de la légende LinkedIn…" quand `loading={true}` — on l'utilise tel quel.
+
+#### 3. Brancher le bouton "Régénérer la légende"
+
+- Créer `handleRegenerateLinkedInCaption()` dans `CreerUnifie.tsx` qui rappelle `caption-for-carousel` à la demande.
+- Le passer en prop `onRegenerateCaption` à `CreerStepResult` puis à `CarouselPhotoResult` (les deux signatures existent déjà).
+
+#### 4. Sauvegarde calendrier : reconstruire `caption.fullText` après merge
+
+`CarouselPhotoResult` recompose `fullText` à partir de hook/body/cta/hashtags via `composeFullText` — c'est déjà géré, rien à modifier.
+
+### Fichiers touchés
+
+| Fichier | Changement |
+|---|---|
+| `src/pages/CreerUnifie.tsx` | Ajout state `captionLoading`, fonction `regenerateLinkedInCarouselCaption()`, hook auto-trigger après carousel-ai LinkedIn mix/photo, props `captionLoading` + `onRegenerateCaption` passées à `CreerStepResult` |
+
+Aucun autre fichier touché : `CreerStepResult`, `CarouselPhotoResult`, `LinkedInCaptionEditor` ont déjà toute la plomberie en place (props, états, UI). C'est purement le **branchement manquant** dans la page.
+
+### Pourquoi pas une autre approche
+
+- **Forcer carousel-ai à générer la caption complète pour LinkedIn mix** : possible mais on perd la qualité éditoriale du prompt LinkedIn dédié (anti-broetry, règles strictes 210 car. hook, hashtags pro). Le découplage actuel est volontaire et meilleur — il manque juste le branchement.
+- **Régénérer manuellement à chaque fois** : trop friction utilisateur. L'auto-trigger après génération est attendu par l'UX existant ("Légende manquante ? Régénérer" est un fallback, pas le flow principal).
 
 ### Validation
 
-1. Re-télécharger le carrousel des captures : slides 3 et 6 doivent être pixel-identiques au preview (cadre carte respecté, photo cropped proprement).
-2. Vérifier slide-1 (photo_full) : pas de régression.
-3. Tester un carrousel texte pur : pas de régression.
-4. Tester depuis le calendrier ET depuis l'atelier : même rendu.
+1. Créer un carrousel mix sur LinkedIn avec 3 photos → après la fin de génération, le skeleton "✍️ Rédaction de la légende LinkedIn…" apparaît, puis hook + body (800-1500 car.) + CTA + 3-5 hashtags se remplissent automatiquement.
+2. Si la première caption ne plaît pas → cliquer "Régénérer la légende" → nouveau body/CTA/hashtags.
+3. Le `fullText` injecté dans le calendrier (sauvegarde) contient bien hook + body + CTA + hashtags.
+4. Pas de régression Instagram : la caption est toujours complète directement depuis carousel-ai.
+5. Pas de régression carrousel texte LinkedIn (sans photos) : ce flow passe par un autre prompt (`buildExpressFullPrompt` avec `isLinkedIn`) qui n'a pas le shortcut "caption optionnelle" → on n'y touche pas.
 
 ### Risques
 
-Très faibles. `html2canvas-pro` est déjà en production sur le projet via le PPTX hybride. C'est un changement d'import à 1 ligne + un `body` au lieu de `documentElement`.
+Faibles. L'edge function `caption-for-carousel` existe et est testée. Le composant `LinkedInCaptionEditor` a déjà son état loading prêt. C'est un branchement front pur, pas de migration BDD, pas de nouveau prompt.
 
