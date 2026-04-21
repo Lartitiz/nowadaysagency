@@ -16,6 +16,7 @@ const SECTION_CHECKLISTS: Record<string, string[]> = {
   tone_style: ["tone_description", "tone_do", "tone_dont", "combats", "visual_style"],
   content_strategy: ["content_pillars", "content_twist", "content_formats", "content_frequency", "content_editorial_line"],
   offers: ["offer_name", "offer_price", "offer_target", "offer_promise", "offer_includes"],
+  content_series: ["series_count", "series_pitch", "series_pillar_link", "series_format", "series_signature"],
 };
 
 const SECTION_NAMES: Record<string, string> = {
@@ -25,6 +26,7 @@ const SECTION_NAMES: Record<string, string> = {
   tone_style: "Mon ton, mon style & mes combats",
   content_strategy: "Ma stratégie de contenu",
   offers: "Mes offres",
+  content_series: "Mes séries signatures",
 };
 
 const TOPIC_LABELS: Record<string, string> = {
@@ -60,6 +62,11 @@ const TOPIC_LABELS: Record<string, string> = {
   offer_target: "Pour qui",
   offer_promise: "La promesse",
   offer_includes: "Ce qui est inclus",
+  series_count: "Combien de séries",
+  series_pitch: "Nom et promesse de chaque série",
+  series_pillar_link: "Rattachement aux piliers",
+  series_format: "Format fixe",
+  series_signature: "Signature visuelle",
 };
 
 const TOPIC_ALIASES: Record<string, string> = {
@@ -95,6 +102,12 @@ const TOPIC_ALIASES: Record<string, string> = {
   "cible": "offer_target", "target": "offer_target", "pour_qui": "offer_target",
   "promesse": "offer_promise", "promise": "offer_promise", "transformation": "offer_promise",
   "inclus": "offer_includes", "includes": "offer_includes", "contenu_offre": "offer_includes",
+  // content_series
+  "nombre_series": "series_count", "combien": "series_count", "nb_series": "series_count",
+  "pitch": "series_pitch",
+  "pilier": "series_pillar_link", "rattachement": "series_pillar_link", "pillar": "series_pillar_link",
+  "format": "series_format", "format_fixe": "series_format",
+  "signature": "series_signature", "signature_visuelle": "series_signature",
 };
 
 function normalizeCoveredTopic(topic: string | null | undefined, section: string): string | null {
@@ -145,6 +158,21 @@ function buildSystemPrompt(section: string, context: any, coveredTopics: string[
   if (a) {
     if (a.score_global) contextLines.push(`Score audit global : ${a.score_global}/100`);
   }
+
+  // ── Contexte spécifique content_series : piliers ──
+  let pillarsContext = "Aucun pilier défini pour le moment (mode combo)";
+  if (section === "content_series") {
+    const bs = context.brand_strategy;
+    if (bs && (bs.pillar_major || bs.pillar_minor_1 || bs.pillar_minor_2 || bs.pillar_minor_3)) {
+      const pillars: string[] = [];
+      if (bs.pillar_major) pillars.push(`• Pilier majeur : ${bs.pillar_major}`);
+      if (bs.pillar_minor_1) pillars.push(`• Pilier mineur 1 : ${bs.pillar_minor_1}`);
+      if (bs.pillar_minor_2) pillars.push(`• Pilier mineur 2 : ${bs.pillar_minor_2}`);
+      if (bs.pillar_minor_3) pillars.push(`• Pilier mineur 3 : ${bs.pillar_minor_3}`);
+      pillarsContext = pillars.join("\n");
+    }
+  }
+  const isComboMode = section === "content_series" && pillarsContext.startsWith("Aucun pilier");
 
   const existing = context.existing_data;
   if (existing && Object.keys(existing).length > 0) {
@@ -261,7 +289,49 @@ section === "offers" ? `- "offer_name": string, nom de l'offre
 - "offer_price": string, prix et format de paiement
 - "offer_target": string, pour qui c'est fait
 - "offer_promise": string, la promesse / transformation
-- "offer_includes": string, ce qui est inclus` : ""}
+- "offer_includes": string, ce qui est inclus` :
+section === "content_series" ? `══ CONTEXTE SPÉCIFIQUE SÉRIES ══
+Tu aides ${prenom} à définir 1 à 3 séries éditoriales. Une série = un rendez-vous éditorial récurrent avec une promesse claire, un format fixe et une cadence.
+
+Piliers éditoriaux de ${prenom} :
+${pillarsContext}
+
+${isComboMode
+  ? `MODE COMBO : ${prenom} n'a pas encore défini ses piliers éditoriaux. Tu vas commencer par lui faire poser 2-4 piliers (1 majeur + 1 à 3 mineurs) AVANT d'aborder les séries. Extrais les piliers dans extracted_insights.pillars_new (tableau de 2-4 strings, le premier étant le pilier majeur).`
+  : `Tu parcours les piliers un par un et proposes, pour chacun, d'en faire une série. ${prenom} peut skipper certains piliers ("cette série-là je la sens pas") et/ou ajouter une série transversale hors-piliers à la fin.`}
+
+══ APPROCHE PÉDAGOGIQUE ══
+- Présente le concept de série en 1-2 phrases max (promesse + format + cadence)
+- Si piliers existants : parcours les piliers un par un ("Parlons de ton pilier [X]. Si tu devais en faire une série hebdo, ça ressemblerait à quoi ?")
+- Si mode combo : pose 2-3 piliers d'abord (majeur + mineurs), puis enchaîne sur une série pour le pilier majeur
+- Pour chaque série, recueille idéalement : nom, promesse, cadence, format, signature
+- Propose des suggestions concrètes quand ${prenom} bloque ("Par exemple 'Le cas client du vendredi' : carrousel 6 slides, chaque vendredi, numérotation #N en coin")
+- JAMAIS de format listé ("5 erreurs", "3 conseils") dans les suggestions — aligne-toi sur le framework éducation embarquée (récit, déclencheur externe, constat décalé, process visible)
+- Rappelle que la cadence peut être hebdo/bimensuelle/mensuelle/irrégulière — valorise l'irrégulier si ${prenom} hésite à s'engager
+
+══ CLÉS OBLIGATOIRES POUR extracted_insights (section content_series) ══
+
+Extrais les séries au fur et à mesure. Quand ${prenom} a décrit au moins UNE série complète (name + promise minimum), remplis :
+
+- "series" : tableau d'objets, un par série définie. Format de chaque objet :
+  {
+    "name": string,                       // nom court, ex: "Le cas client du vendredi"
+    "promise": string,                    // phrase pitch complète
+    "pillar_key": "pillar_major" | "pillar_minor_1" | "pillar_minor_2" | "pillar_minor_3" | null,  // null si transversale
+    "cadence": string,                    // texte libre type "chaque vendredi", "tous les 15 jours" — le mapping vers l'enum est fait côté client
+    "format_template": string,            // ex: "carrousel 6 slides + CTA story"
+    "signature_description": string,      // ex: "numérotation #N, couleur framboise, emoji 🎬"
+    "channels": array de strings parmi ["instagram", "linkedin", "pinterest", "newsletter", "website"]
+  }
+
+${isComboMode ? `- "pillars_new" : array de 2-4 strings, le premier étant le pilier majeur (OBLIGATOIRE en mode combo dès que ${prenom} a posé ses piliers)` : ""}
+
+RÈGLES DE REMPLISSAGE :
+- name et promise sont TOUJOURS obligatoires
+- Les autres champs sont optionnels : ne les inclus que si ${prenom} les a évoqués clairement
+- Ne fabrique pas de cadence ou de format si ${prenom} ne s'est pas prononcé — laisse le champ absent
+- Mets à jour le tableau "series" progressivement : si ${prenom} précise la série #1 après avoir décrit la #2, republie les 2 objets complets à chaque extraction
+- LIMITE : maximum 8 séries dans le tableau` : ""}
 N'inclus dans extracted_insights QUE les clés ci-dessus. Pour chaque réponse, remplis TOUTES les clés mappées au sujet couvert. Si la réponse contient des infos sur d'autres sujets non encore couverts, inclus aussi leurs clés.
 
 ══ FORMAT DE RÉPONSE ══
@@ -609,8 +679,35 @@ Ton job : remplir la LIGNE ÉDITORIALE de ${prenom} — c'est-à-dire les facett
         mergedMessages.splice(0, mergedMessages.length, first, ...recent);
       }
       console.log(`[BrandingCoaching] Pruned messages from ${originalLen} to ${mergedMessages.length}`);
-      }
+    }
 
+    // ── content_series : truncation à 8 + validation Zod du shape series[] ──
+    if (section === "content_series" && parsed?.extracted_insights?.series && Array.isArray(parsed.extracted_insights.series)) {
+      if (parsed.extracted_insights.series.length > 8) {
+        console.warn(`[BrandingCoaching] series array length ${parsed.extracted_insights.series.length} > 8, truncating to 8 most recent`);
+        parsed.extracted_insights.series = parsed.extracted_insights.series.slice(-8);
+      }
+      const SeriesItemSchema = z.object({
+        name: z.string().min(1),
+        promise: z.string().min(1),
+        pillar_key: z.enum(["pillar_major", "pillar_minor_1", "pillar_minor_2", "pillar_minor_3"]).nullable().optional(),
+        cadence: z.string().optional(),
+        cadence_raw: z.string().optional(),
+        format_template: z.string().optional(),
+        signature_description: z.string().optional(),
+        channels: z.array(z.string()).optional(),
+      });
+      const validated: any[] = [];
+      for (const item of parsed.extracted_insights.series) {
+        const result = SeriesItemSchema.safeParse(item);
+        if (result.success) {
+          validated.push(result.data);
+        } else {
+          console.warn("[BrandingCoaching] Invalid series item rejected:", JSON.stringify(item), result.error.flatten());
+        }
+      }
+      parsed.extracted_insights.series = validated;
+    }
 
     let rawResponse: string;
     let wasTruncated = false;

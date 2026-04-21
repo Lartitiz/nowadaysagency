@@ -2,9 +2,9 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import BrandingCoachingFlow from "@/components/branding/BrandingCoachingFlow";
 import { LocalErrorBoundary } from "@/components/LocalErrorBoundary";
 
-type Section = "story" | "persona" | "tone_style" | "content_strategy" | "offers" | "charter";
+type Section = "story" | "persona" | "tone_style" | "content_strategy" | "offers" | "charter" | "content_series";
 
-const VALID_SECTIONS: Section[] = ["story", "persona", "tone_style", "content_strategy", "offers", "charter"];
+const VALID_SECTIONS: Section[] = ["story", "persona", "tone_style", "content_strategy", "offers", "charter", "content_series"];
 
 const SECTION_ALIAS: Record<string, string> = {
   storytelling: "story",
@@ -20,6 +20,7 @@ const RECAP_ROUTES: Record<Section, string> = {
   content_strategy: "/branding/section?section=content_strategy&tab=synthese",
   offers: "/branding/offres",
   charter: "/branding/charter",
+  content_series: "/branding/section?section=content_strategy&tab=series",
 };
 
 export default function BrandingCoachingPage() {
