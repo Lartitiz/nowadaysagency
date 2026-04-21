@@ -2,9 +2,11 @@ import PptxGenJS from "pptxgenjs";
 import html2canvas from "html2canvas-pro";
 import {
   mapFontToPptx,
-  getOverlayCoords,
-  computeOverlayFontSize,
   normalizeHex,
+  pxToInches,
+  fontSizePxToPt,
+  extractEditableBlocks,
+  type EditableBlock,
 } from "./pptx-font-mapping";
 
 interface VisualSlide {
@@ -33,6 +35,11 @@ const SLIDE_W_PX = 1080;
 const SLIDE_H_PX = 1350;
 const PPTX_W_IN = 7.5;
 const PPTX_H_IN = 9.375;
+const PX_PER_IN = SLIDE_W_PX / PPTX_W_IN; // 144
+
+// ---------------------------------------------------------------------------
+// iframe mounting + readiness
+// ---------------------------------------------------------------------------
 
 async function mountIframe(html: string): Promise<HTMLIFrameElement> {
   const iframe = document.createElement("iframe");
@@ -48,8 +55,7 @@ async function mountIframe(html: string): Promise<HTMLIFrameElement> {
 <style>
   html, body { margin:0; padding:0; width:${SLIDE_W_PX}px; height:${SLIDE_H_PX}px; overflow:hidden; background:transparent; }
   *, *::before, *::after { box-sizing: border-box; }
-  /* When we want to hide overlays for the hybrid mode */
-  [data-pptx-hide="true"] { visibility: hidden !important; }
+  [data-pptx-hide="true"] { color: transparent !important; text-shadow: none !important; -webkit-text-fill-color: transparent !important; }
 </style></head><body>${html}</body></html>`;
 
   document.body.appendChild(iframe);
@@ -99,62 +105,141 @@ async function waitReady(iframe: HTMLIFrameElement): Promise<void> {
   await new Promise((r) => setTimeout(r, 200));
 }
 
-function hideOverlayInDoc(doc: Document, overlayText: string): boolean {
-  const target = (overlayText || "").trim();
-  if (!target || target.length < 3) return false;
+// ---------------------------------------------------------------------------
+// capture
+// ---------------------------------------------------------------------------
 
-  let best: Element | null = null;
-  const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_ELEMENT);
-  let node = walker.nextNode() as Element | null;
-  while (node) {
-    const txt = (node.textContent || "").trim();
-    if (txt && (txt === target || txt.includes(target)) && txt.length < target.length * 3) {
-      if (!best || (node.contains(best) === false && best.contains(node))) {
-        best = node;
-      } else if (!best) {
-        best = node;
-      } else {
-        if ((node.textContent || "").length < (best.textContent || "").length) best = node;
-      }
+async function captureBody(doc: Document): Promise<string> {
+  const canvas = await html2canvas(doc.body, {
+    width: SLIDE_W_PX,
+    height: SLIDE_H_PX,
+    windowWidth: SLIDE_W_PX,
+    windowHeight: SLIDE_H_PX,
+    scale: 3,
+    useCORS: true,
+    allowTaint: true,
+    backgroundColor: null,
+    logging: false,
+    imageTimeout: 8000,
+  });
+  return canvas.toDataURL("image/png");
+}
+
+// ---------------------------------------------------------------------------
+// overlay slide (stratégie A) : photo + overlay_text court
+// ---------------------------------------------------------------------------
+
+/** Find the smallest element whose textContent contains the overlay text. */
+function findOverlayElement(doc: Document, overlayText: string): HTMLElement | null {
+  const target = overlayText.trim().toLowerCase();
+  if (!target || target.length < 3) return null;
+
+  const all = Array.from(doc.body.querySelectorAll<HTMLElement>("*"));
+  let best: HTMLElement | null = null;
+  let bestLen = Infinity;
+
+  for (const el of all) {
+    const txt = (el.textContent || "").trim().toLowerCase();
+    if (!txt) continue;
+    // Accept exact match OR partial (overlay text contained in the element)
+    const matches = txt === target || txt.includes(target);
+    if (!matches) continue;
+    // We want the SMALLEST container — i.e. closest to the actual text node
+    if (txt.length < bestLen) {
+      best = el;
+      bestLen = txt.length;
     }
-    node = walker.nextNode() as Element | null;
   }
-
-  if (best) {
-    best.setAttribute("data-pptx-hide", "true");
-    return true;
-  }
-  return false;
+  return best;
 }
 
-async function captureBackground(html: string, overlayText: string | null): Promise<string | null> {
-  const iframe = await mountIframe(html);
-  try {
-    await waitReady(iframe);
-    const doc = iframe.contentDocument!;
-    if (overlayText) hideOverlayInDoc(doc, overlayText);
-    await new Promise((r) => setTimeout(r, 50));
+interface BlockRender {
+  text: string;
+  rect: { x: number; y: number; w: number; h: number };
+  style: EditableBlock["style"];
+  kind: EditableBlock["kind"];
+}
 
-    const canvas = await html2canvas(doc.body, {
-      width: SLIDE_W_PX,
-      height: SLIDE_H_PX,
-      windowWidth: SLIDE_W_PX,
-      windowHeight: SLIDE_H_PX,
-      scale: 3,
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: null,
-      logging: false,
-      imageTimeout: 8000,
-    });
-    return canvas.toDataURL("image/png");
-  } catch (e) {
-    console.error("[hybrid] background capture failed", e);
-    return null;
-  } finally {
-    iframe.remove();
+function blockFromElement(el: HTMLElement, doc: Document, kind: EditableBlock["kind"]): BlockRender | null {
+  const win = doc.defaultView;
+  if (!win) return null;
+  const cs = win.getComputedStyle(el);
+  const r = el.getBoundingClientRect();
+  if (r.width < 20 || r.height < 10) return null;
+  const fontSizePx = parseFloat(cs.fontSize) || 24;
+  const weight = parseInt(cs.fontWeight, 10) || 400;
+  return {
+    text: (el.textContent || "").trim(),
+    rect: { x: r.left, y: r.top, w: r.width, h: r.height },
+    style: {
+      color: cs.color || "#FFFFFF",
+      fontFamily: cs.fontFamily || "",
+      fontSizePx,
+      fontWeight: weight,
+      fontStyle: cs.fontStyle || "normal",
+      textAlign:
+        cs.textAlign === "center" || cs.textAlign === "right" || cs.textAlign === "left"
+          ? (cs.textAlign as "left" | "center" | "right")
+          : "left",
+      textTransform: cs.textTransform || "none",
+      lineHeight: parseFloat(cs.lineHeight) || fontSizePx * 1.25,
+    },
+    kind,
+  };
+}
+
+function applyTextTransform(text: string, transform: string): string {
+  switch (transform) {
+    case "uppercase":
+      return text.toUpperCase();
+    case "lowercase":
+      return text.toLowerCase();
+    case "capitalize":
+      return text.replace(/\b\w/g, (c) => c.toUpperCase());
+    default:
+      return text;
   }
 }
+
+function addBlockToSlide(
+  slide: PptxGenJS.Slide,
+  block: BlockRender,
+  charter: HybridCharter | null | undefined,
+) {
+  const x = pxToInches(block.rect.x, PX_PER_IN);
+  const y = pxToInches(block.rect.y, PX_PER_IN);
+  const w = pxToInches(block.rect.w, PX_PER_IN);
+  // Add a little vertical breathing room so PPTX wrapping doesn't clip
+  const h = Math.min(PPTX_H_IN - y, pxToInches(block.rect.h, PX_PER_IN) + 0.1);
+
+  const isTitleish = block.kind === "title" || block.kind === "overlay";
+  const fontFace = mapFontToPptx(
+    block.style.fontFamily || (isTitleish ? charter?.font_title : charter?.font_body),
+  );
+  const fontSize = fontSizePxToPt(block.style.fontSizePx, PX_PER_IN);
+  const color = normalizeHex(block.style.color, isTitleish ? "FFFFFF" : "FFFFFF");
+
+  slide.addText(applyTextTransform(block.text, block.style.textTransform), {
+    x,
+    y,
+    w,
+    h,
+    fontFace,
+    fontSize,
+    bold: block.style.fontWeight >= 600,
+    italic: block.style.fontStyle === "italic",
+    color,
+    align: block.style.textAlign,
+    valign: "top",
+    wrap: true,
+    margin: 0,
+    lineSpacingMultiple: Math.max(0.9, Math.min(1.6, block.style.lineHeight / Math.max(1, block.style.fontSizePx))),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// main export
+// ---------------------------------------------------------------------------
 
 export async function exportCarouselHybridPptx(
   visualSlides: VisualSlide[],
@@ -167,59 +252,66 @@ export async function exportCarouselHybridPptx(
   pptx.layout = "INSTAGRAM";
   pptx.author = "L'Assistant Com'";
 
-  const titleFont = mapFontToPptx(charter?.font_title);
-  const bodyFont = mapFontToPptx(charter?.font_body);
-  const textColor = normalizeHex(charter?.color_text, "FFFFFF");
-
   for (let i = 0; i < visualSlides.length; i++) {
     const vs = visualSlides[i];
     const data = slidesData?.find((s) => s.slide_number === vs.slide_number) || slidesData?.[i];
-    const overlayText =
-      (data?.overlay_text || data?.title || data?.body || "").trim() || null;
-
-    const bg = await captureBackground(vs.html, overlayText);
     const slide = pptx.addSlide();
 
-    if (bg) {
-      slide.addImage({ data: bg, x: 0, y: 0, w: PPTX_W_IN, h: PPTX_H_IN });
-    } else {
-      slide.background = { color: normalizeHex(charter?.color_background, "FFFFFF") };
-    }
+    const iframe = await mountIframe(vs.html);
+    try {
+      await waitReady(iframe);
+      const doc = iframe.contentDocument!;
+      const win = doc.defaultView!;
 
-    if (overlayText) {
-      const coords = getOverlayCoords(data?.overlay_position);
-      const fontSize = computeOverlayFontSize(overlayText);
-      const style = (data?.overlay_style || "sensoriel").toLowerCase();
-      const isSerifVibe = style === "sensoriel" || style === "narratif";
-      const isMinimal = style === "minimal";
+      const overlayText = (data?.overlay_text || "").trim();
+      const blocks: BlockRender[] = [];
 
-      const needsScrim = !isMinimal;
-      if (needsScrim) {
-        slide.addShape("rect", {
-          x: 0,
-          y: coords.valign === "bottom" ? PPTX_H_IN - coords.h - 0.7 : coords.y - 0.3,
-          w: PPTX_W_IN,
-          h: coords.h + 1.0,
-          fill: { color: "000000", transparency: 55 },
-          line: { type: "none" },
-        });
+      // ---- Strategy A: short overlay_text (photo slides) ------------------
+      if (overlayText && overlayText.length <= 200) {
+        const el = findOverlayElement(doc, overlayText);
+        if (el) {
+          const blk = blockFromElement(el, doc, "overlay");
+          if (blk) {
+            // Use the canonical overlay text (handles partial matches)
+            blk.text = overlayText;
+            blocks.push(blk);
+            el.setAttribute("data-pptx-hide", "true");
+          }
+        }
+      } else {
+        // ---- Strategy B: text slides — detect editable blocks structurally
+        const detected = extractEditableBlocks(doc, { minFontPx: 20, minTextLen: 3, maxBlocks: 8 });
+        for (const eb of detected) {
+          // Skip if not visible in the slide bounds
+          if (eb.rect.y > SLIDE_H_PX || eb.rect.x > SLIDE_W_PX) continue;
+          if (eb.rect.y + eb.rect.h < 0) continue;
+          blocks.push({ text: eb.text, rect: eb.rect, style: eb.style, kind: eb.kind });
+          (eb.el as HTMLElement).setAttribute("data-pptx-hide", "true");
+        }
       }
 
-      slide.addText(overlayText, {
-        x: coords.x,
-        y: coords.y,
-        w: coords.w,
-        h: coords.h,
-        fontFace: isSerifVibe ? titleFont : bodyFont,
-        fontSize,
-        bold: isMinimal,
-        italic: style === "sensoriel",
-        color: textColor,
-        align: coords.align,
-        valign: coords.valign,
-        wrap: true,
-        lineSpacingMultiple: 1.25,
-      });
+      // Force layout flush after hiding
+      void win.document.body.offsetHeight;
+      await new Promise((r) => setTimeout(r, 50));
+
+      // Capture background WITH text hidden if we have blocks; otherwise capture as-is
+      const bg = await captureBody(doc);
+
+      slide.addImage({ data: bg, x: 0, y: 0, w: PPTX_W_IN, h: PPTX_H_IN });
+
+      // Add editable text blocks (only if detection succeeded)
+      for (const b of blocks) {
+        try {
+          addBlockToSlide(slide, b, charter);
+        } catch (e) {
+          console.warn("[hybrid] addBlockToSlide failed", e);
+        }
+      }
+    } catch (e) {
+      console.error("[hybrid] slide capture failed", e);
+      slide.background = { color: normalizeHex(charter?.color_background, "FFFFFF") };
+    } finally {
+      iframe.remove();
     }
   }
 
