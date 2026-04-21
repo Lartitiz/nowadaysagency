@@ -159,6 +159,21 @@ function buildSystemPrompt(section: string, context: any, coveredTopics: string[
     if (a.score_global) contextLines.push(`Score audit global : ${a.score_global}/100`);
   }
 
+  // ── Contexte spécifique content_series : piliers ──
+  let pillarsContext = "Aucun pilier défini pour le moment (mode combo)";
+  if (section === "content_series") {
+    const bs = context.brand_strategy;
+    if (bs && (bs.pillar_major || bs.pillar_minor_1 || bs.pillar_minor_2 || bs.pillar_minor_3)) {
+      const pillars: string[] = [];
+      if (bs.pillar_major) pillars.push(`• Pilier majeur : ${bs.pillar_major}`);
+      if (bs.pillar_minor_1) pillars.push(`• Pilier mineur 1 : ${bs.pillar_minor_1}`);
+      if (bs.pillar_minor_2) pillars.push(`• Pilier mineur 2 : ${bs.pillar_minor_2}`);
+      if (bs.pillar_minor_3) pillars.push(`• Pilier mineur 3 : ${bs.pillar_minor_3}`);
+      pillarsContext = pillars.join("\n");
+    }
+  }
+  const isComboMode = section === "content_series" && pillarsContext.startsWith("Aucun pilier");
+
   const existing = context.existing_data;
   if (existing && Object.keys(existing).length > 0) {
     // Ne garder que les champs branding utiles, pas les métadonnées
