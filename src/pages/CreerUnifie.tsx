@@ -1931,13 +1931,13 @@ export default function CreerUnifie() {
     }
   };
 
-  const handleExportVisualPptx = async () => {
+  const handleExportVisualPng = async () => {
     if (visualSlides.length === 0) return;
     try {
-      toast.info("Export visuels en cours (capture des slides)…");
-      const { exportCarouselVisualPptx } = await import("@/lib/export-carousel-visual-pptx");
-      await exportCarouselVisualPptx(visualSlides, ideaText || "carrousel-visuels");
-      toast.success("PPTX visuels téléchargé !");
+      toast.info("Export PNG en cours…");
+      const { exportCarouselPng } = await import("@/lib/export-carousel-png");
+      await exportCarouselPng(visualSlides, ideaText || "carrousel");
+      toast.success(visualSlides.length > 1 ? "ZIP des images téléchargé !" : "PNG téléchargé !");
     } catch (e: any) {
       toast.error(e?.message || "Erreur lors de l'export");
     }
@@ -1955,18 +1955,6 @@ export default function CreerUnifie() {
         ideaText || "carrousel-editable",
       );
       toast.success("PowerPoint éditable téléchargé !");
-    } catch (e: any) {
-      toast.error(e?.message || "Erreur lors de l'export");
-    }
-  };
-
-  const handleExportPinterestPptx = async () => {
-    if (!pinterestPinHtml) return;
-    try {
-      toast.info("Export PPTX en cours...");
-      const { exportPinterestVisualPptx } = await import("@/lib/export-pinterest-visual-pptx");
-      await exportPinterestVisualPptx(pinterestPinHtml, ideaText || "epingle-pinterest");
-      toast.success("PPTX téléchargé !");
     } catch (e: any) {
       toast.error(e?.message || "Erreur lors de l'export");
     }
@@ -2065,7 +2053,7 @@ export default function CreerUnifie() {
   const effectiveHandleSave = isDemoMode ? demoToast : handleSave;
   const effectiveHandleAddToCalendar = isDemoMode ? demoToast : handleAddToCalendar;
   const effectiveHandleExportPptx = isDemoMode ? demoToast : handleExportPptx;
-  const effectiveHandleExportVisualPptx = isDemoMode ? demoToast : handleExportVisualPptx;
+  const effectiveHandleExportVisualPng = isDemoMode ? demoToast : handleExportVisualPng;
   const effectiveHandleExportHybridPptx = isDemoMode ? demoToast : handleExportHybridPptx;
 
   return (
