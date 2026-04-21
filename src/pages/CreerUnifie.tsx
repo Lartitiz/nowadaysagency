@@ -2379,6 +2379,12 @@ export default function CreerUnifie() {
                 } : undefined}
                 photoBriefOverlayHtml={photoBriefOverlayHtml}
                 channel={isLinkedInCarousel ? "linkedin" : "instagram"}
+                captionLoading={captionLoading}
+                onRegenerateCaption={
+                  isLinkedInCarousel && (carouselSubMode === "mix" || carouselSubMode === "photo")
+                    ? () => { captionAutoTriggeredRef.current = null; generateLinkedInCarouselCaption(); }
+                    : undefined
+                }
               />
             )}
 
