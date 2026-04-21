@@ -1,4 +1,4 @@
-import html2canvas from "html2canvas";
+import html2canvas from "html2canvas-pro";
 
 interface VisualSlide {
   slide_number: number;
@@ -171,7 +171,7 @@ async function captureSlide(
   try {
     await waitForIframeReady(iframe, html);
 
-    const target = iframe.contentDocument!.documentElement;
+    const target = iframe.contentDocument!.body;
     const canvas = await html2canvas(target, {
       width: SLIDE_W,
       height: SLIDE_H,
