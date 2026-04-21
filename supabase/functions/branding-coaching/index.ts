@@ -289,7 +289,49 @@ section === "offers" ? `- "offer_name": string, nom de l'offre
 - "offer_price": string, prix et format de paiement
 - "offer_target": string, pour qui c'est fait
 - "offer_promise": string, la promesse / transformation
-- "offer_includes": string, ce qui est inclus` : ""}
+- "offer_includes": string, ce qui est inclus` :
+section === "content_series" ? `══ CONTEXTE SPÉCIFIQUE SÉRIES ══
+Tu aides ${prenom} à définir 1 à 3 séries éditoriales. Une série = un rendez-vous éditorial récurrent avec une promesse claire, un format fixe et une cadence.
+
+Piliers éditoriaux de ${prenom} :
+${pillarsContext}
+
+${isComboMode
+  ? `MODE COMBO : ${prenom} n'a pas encore défini ses piliers éditoriaux. Tu vas commencer par lui faire poser 2-4 piliers (1 majeur + 1 à 3 mineurs) AVANT d'aborder les séries. Extrais les piliers dans extracted_insights.pillars_new (tableau de 2-4 strings, le premier étant le pilier majeur).`
+  : `Tu parcours les piliers un par un et proposes, pour chacun, d'en faire une série. ${prenom} peut skipper certains piliers ("cette série-là je la sens pas") et/ou ajouter une série transversale hors-piliers à la fin.`}
+
+══ APPROCHE PÉDAGOGIQUE ══
+- Présente le concept de série en 1-2 phrases max (promesse + format + cadence)
+- Si piliers existants : parcours les piliers un par un ("Parlons de ton pilier [X]. Si tu devais en faire une série hebdo, ça ressemblerait à quoi ?")
+- Si mode combo : pose 2-3 piliers d'abord (majeur + mineurs), puis enchaîne sur une série pour le pilier majeur
+- Pour chaque série, recueille idéalement : nom, promesse, cadence, format, signature
+- Propose des suggestions concrètes quand ${prenom} bloque ("Par exemple 'Le cas client du vendredi' : carrousel 6 slides, chaque vendredi, numérotation #N en coin")
+- JAMAIS de format listé ("5 erreurs", "3 conseils") dans les suggestions — aligne-toi sur le framework éducation embarquée (récit, déclencheur externe, constat décalé, process visible)
+- Rappelle que la cadence peut être hebdo/bimensuelle/mensuelle/irrégulière — valorise l'irrégulier si ${prenom} hésite à s'engager
+
+══ CLÉS OBLIGATOIRES POUR extracted_insights (section content_series) ══
+
+Extrais les séries au fur et à mesure. Quand ${prenom} a décrit au moins UNE série complète (name + promise minimum), remplis :
+
+- "series" : tableau d'objets, un par série définie. Format de chaque objet :
+  {
+    "name": string,                       // nom court, ex: "Le cas client du vendredi"
+    "promise": string,                    // phrase pitch complète
+    "pillar_key": "pillar_major" | "pillar_minor_1" | "pillar_minor_2" | "pillar_minor_3" | null,  // null si transversale
+    "cadence": string,                    // texte libre type "chaque vendredi", "tous les 15 jours" — le mapping vers l'enum est fait côté client
+    "format_template": string,            // ex: "carrousel 6 slides + CTA story"
+    "signature_description": string,      // ex: "numérotation #N, couleur framboise, emoji 🎬"
+    "channels": array de strings parmi ["instagram", "linkedin", "pinterest", "newsletter", "website"]
+  }
+
+${isComboMode ? `- "pillars_new" : array de 2-4 strings, le premier étant le pilier majeur (OBLIGATOIRE en mode combo dès que ${prenom} a posé ses piliers)` : ""}
+
+RÈGLES DE REMPLISSAGE :
+- name et promise sont TOUJOURS obligatoires
+- Les autres champs sont optionnels : ne les inclus que si ${prenom} les a évoqués clairement
+- Ne fabrique pas de cadence ou de format si ${prenom} ne s'est pas prononcé — laisse le champ absent
+- Mets à jour le tableau "series" progressivement : si ${prenom} précise la série #1 après avoir décrit la #2, republie les 2 objets complets à chaque extraction
+- LIMITE : maximum 8 séries dans le tableau` : ""}
 N'inclus dans extracted_insights QUE les clés ci-dessus. Pour chaque réponse, remplis TOUTES les clés mappées au sujet couvert. Si la réponse contient des infos sur d'autres sujets non encore couverts, inclus aussi leurs clés.
 
 ══ FORMAT DE RÉPONSE ══
