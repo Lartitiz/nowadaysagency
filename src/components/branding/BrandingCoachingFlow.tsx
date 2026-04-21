@@ -20,7 +20,7 @@ import Confetti from "@/components/Confetti";
 import { toast } from "sonner";
 import { MarkdownText } from "@/components/ui/markdown-text";
 
-type Section = "story" | "persona" | "tone_style" | "content_strategy" | "offers" | "charter";
+type Section = "story" | "persona" | "tone_style" | "content_strategy" | "offers" | "charter" | "content_series";
 
 interface Message {
   id: string;
@@ -48,6 +48,7 @@ const SECTION_META: Record<Section, { emoji: string; title: string; description:
   content_strategy: { emoji: "🍒", title: "Ma ligne éditoriale", description: "On va poser tes piliers de contenu et ton concept créatif. Réponds à mes questions, et ta ligne éditoriale prend forme automatiquement.", duration: "~4 min" },
   offers: { emoji: "🎁", title: "Mes offres", description: "On va formuler tes offres pour qu'elles donnent envie. Je te pose les bonnes questions, ta fiche offres se remplit.", duration: "~5 min" },
   charter: { emoji: "🎨", title: "Ma charte graphique", description: "On va définir ton identité visuelle ensemble : couleurs, typos, style, ambiance. Je te guide pas à pas.", duration: "~4 min" },
+  content_series: { emoji: "📺", title: "Mes séries signatures", description: "On va poser 1 à 3 séries éditoriales qui vont structurer ta communication dans la durée. Je pars de tes piliers pour te proposer des séries qui les incarnent.", duration: "~6-8 min" },
 };
 
 const LOADING_PHRASES = [
@@ -238,15 +239,27 @@ export default function BrandingCoachingFlow({ section, personaId, onComplete, o
       existingData = Object.keys(filled).length > 0 ? filled : undefined;
     }
 
-    const ctx = {
+    const ctx: any = {
       profile: profileCtx,
       branding: brandingCtx,
       audit: auditData,
       existing_data: existingData,
     };
+
+    // Enrichissement spécifique pour content_series : on a besoin des piliers
+    if (section === "content_series") {
+      const { data: bs } = await (supabase.from("brand_strategy") as any)
+        .select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3, creative_concept")
+        .eq(column, value)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (bs) ctx.brand_strategy = bs;
+    }
+
     contextRef.current = ctx;
     return ctx;
-  }, [user?.id, profileData, brandProfileData]);
+  }, [user?.id, profileData, brandProfileData, section, column, value]);
 
   // Charter coaching state
   const charterStepRef = useRef(0);
