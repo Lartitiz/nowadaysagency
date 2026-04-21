@@ -519,6 +519,14 @@ export default function BrandingCoachingFlow({ section, personaId, onComplete, o
     if (startingRef.current) return;
     startingRef.current = true;
 
+    // Garde démo : content_series n'est pas dispo en démo
+    if (section === "content_series" && isDemoMode) {
+      startingRef.current = false;
+      toast.info("Pas dispo en mode démo, crée un compte");
+      onBack?.();
+      return;
+    }
+
     setPhase("coaching");
 
     try {
@@ -1126,7 +1134,110 @@ export default function BrandingCoachingFlow({ section, personaId, onComplete, o
             .select("id").eq(column, value).maybeSingle();
           if (existingEdito?.id) {
             await (supabase.from("instagram_editorial_line") as any).update(editoData).eq("id", existingEdito.id);
-          } else {
+      } else if (sec === "content_series") {
+        // ── Mapping cadence libre → enum DB ──
+        const mapCadence = (raw?: string): "weekly" | "biweekly" | "monthly" | "irregular" | null => {
+          if (!raw || typeof raw !== "string") return null;
+          const s = raw.toLowerCase().trim();
+          if (/(hebdo|chaque semaine|toutes les semaines|une fois par semaine|weekly|every week)/.test(s)) return "weekly";
+          if (/(bimensuel|tous les 15 jours|toutes les deux semaines|deux fois par mois|biweekly|every two weeks)/.test(s)) return "biweekly";
+          if (/(mensuel|chaque mois|tous les mois|une fois par mois|monthly|every month)/.test(s)) return "monthly";
+          if (/(irr[ée]gulier|quand [çc]a vient|sporadique|al[ée]atoire|irregular|ad hoc)/.test(s)) return "irregular";
+          if (["weekly", "biweekly", "monthly", "irregular"].includes(s)) return s as any;
+          return null;
+        };
+
+        // A. Sauvegarde des séries
+        const seriesArr: any[] = Array.isArray(insights.series) ? insights.series.slice(0, 8) : [];
+        for (const serie of seriesArr) {
+          try {
+            if (!serie?.name || !serie?.promise) continue;
+            const name = String(serie.name).trim();
+            if (!name) continue;
+
+            // Lookup existant par (workspace, name)
+            const { data: existingSerie } = await (supabase.from("series") as any)
+              .select("id")
+              .eq(column, value)
+              .eq("name", name)
+              .maybeSingle();
+
+            const payload: Record<string, any> = {
+              name,
+              promise: String(serie.promise).trim(),
+            };
+            if (serie.pillar_key && ["pillar_major", "pillar_minor_1", "pillar_minor_2", "pillar_minor_3"].includes(serie.pillar_key)) {
+              payload.pillar_key = serie.pillar_key;
+            }
+            const cadence = mapCadence(serie.cadence ?? serie.cadence_raw);
+            if (cadence) payload.cadence = cadence;
+            if (serie.format_template) payload.format_template = String(serie.format_template).trim();
+            if (serie.signature_description) payload.signature_description = String(serie.signature_description).trim();
+            if (Array.isArray(serie.channels) && serie.channels.length > 0) {
+              payload.channels = serie.channels.filter((c: any) => typeof c === "string");
+            }
+
+            if (existingSerie?.id) {
+              const { error } = await (supabase.from("series") as any)
+                .update({ ...payload, updated_at: new Date().toISOString() })
+                .eq("id", existingSerie.id);
+              if (error) console.error("[ContentSeries] Update error:", error);
+            } else {
+              const { error } = await (supabase.from("series") as any).insert({
+                ...payload,
+                user_id: profileUserId,
+                workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
+              });
+              if (error) console.error("[ContentSeries] Insert error:", error);
+            }
+          } catch (serieErr) {
+            console.error("[ContentSeries] Failed to save serie:", serie?.name, serieErr);
+          }
+        }
+
+        // B. Mode combo : pillars_new (n'écrit que si vide en DB)
+        const pillarsNew: string[] = Array.isArray(insights.pillars_new)
+          ? insights.pillars_new.filter((p: any) => typeof p === "string" && p.trim()).slice(0, 4)
+          : [];
+        if (pillarsNew.length > 0) {
+          try {
+            const { data: existingStrat } = await (supabase.from("brand_strategy") as any)
+              .select("id, pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3")
+              .eq(column, value)
+              .order("updated_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            const isEmpty = (v: any) => !v || (typeof v === "string" && v.trim().length === 0);
+            const cols = ["pillar_major", "pillar_minor_1", "pillar_minor_2", "pillar_minor_3"];
+            const updates: Record<string, any> = {};
+            cols.forEach((col, i) => {
+              if (i < pillarsNew.length && (!existingStrat || isEmpty(existingStrat[col]))) {
+                updates[col] = pillarsNew[i].trim();
+              }
+            });
+
+            if (Object.keys(updates).length > 0) {
+              if (existingStrat?.id) {
+                await (supabase.from("brand_strategy") as any)
+                  .update({ ...updates, updated_at: new Date().toISOString() })
+                  .eq("id", existingStrat.id);
+              } else {
+                await (supabase.from("brand_strategy") as any).insert({
+                  user_id: profileUserId,
+                  workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
+                  ...updates,
+                });
+              }
+            }
+          } catch (pillarsErr) {
+            console.error("[ContentSeries] Failed to save pillars_new:", pillarsErr);
+          }
+        }
+
+        queryClient.invalidateQueries({ queryKey: ["series"] });
+        queryClient.invalidateQueries({ queryKey: ["brand-strategy"] });
+      } else {
             await (supabase.from("instagram_editorial_line") as any).insert({
               user_id: profileUserId,
               workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
