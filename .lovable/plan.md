@@ -1,113 +1,107 @@
 
 
-## Audit complet des exports PowerPoint carrousel
+## Migration DB — Table `series` + rattachement `calendar_posts`
 
-### Ce qui existe aujourd'hui — état des lieux honnête
+### Fichier créé
+`supabase/migrations/20250421080100_create_series_table.sql`
 
-Tu as **3 chemins d'export PPTX** qui cohabitent dans le menu "Télécharger" :
+### Contenu SQL
 
-| Bouton menu | Fichier | Méthode | Résultat réel |
-|---|---|---|---|
-| **Présentation (PPTX)** depuis URLs | `CalendarPostPreview.tsx` (`handlePptxFromUrls`) | Fetch des PNG Storage → un `addImage` plein cadre par slide | Fidèle (puisqu'on prend le PNG déjà rendu côté serveur). **Le meilleur des trois aujourd'hui.** |
-| **Présentation (PPTX)** depuis HTML | `export-carousel-visual-pptx.ts` | `html2canvas` sur HTML hors écran, scale 2 | Souvent **flou ou cassé** : gradients mal rendus, fonts qui ne chargent pas à temps, `oklch` non supporté, attente d'images insuffisante |
-| **PPTX éditable** | `export-carousel-pptx.ts` (2179 lignes) | Recompose chaque slide nativement avec shapes, badges, photos compressées | Texte modifiable mais **ne ressemble pas au preview HTML** : c'est un design "maison" pptxgenjs, pas un rendu fidèle de tes templates HTML |
+```sql
+-- ============================================
+-- Migration: Création table series + rattachement calendar_posts
+-- Date: 2025-04-21
+-- ============================================
 
-### Les vrais problèmes
+-- 1. Création de la table public.series
+CREATE TABLE IF NOT EXISTS public.series (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
+    workspace_id UUID NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
+    
+    -- Champs obligatoires
+    name TEXT NOT NULL,
+    promise TEXT NOT NULL,
+    
+    -- Champs optionnels avec documentation
+    pillar_key TEXT, -- 'pillar_major', 'pillar_minor_1', 'pillar_minor_2', 'pillar_minor_3', ou NULL pour série transversale
+    cadence TEXT CHECK (cadence IN ('weekly', 'biweekly', 'monthly', 'irregular')) DEFAULT NULL,
+    format_template TEXT,
+    signature_description TEXT,
+    channels TEXT[] DEFAULT '{}', -- array des canaux ciblés: 'instagram', 'linkedin', 'pinterest', 'newsletter', 'website'
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'paused', 'archived')),
+    planned_episodes INTEGER, -- nombre d'épisodes prévus, NULL = série ouverte sans fin annoncée
+    notes TEXT,
+    
+    -- Timestamps
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 
-1. **L'utilisateur ne sait pas quoi choisir.** Trois options qui produisent trois rendus différents, sans guidance. "PPTX éditable" laisse croire à un éditable fidèle au preview → en réalité c'est un autre design.
-2. **`exportCarouselVisualPptx` (HTML→image) est faible :**
-   - `html2canvas` standard ne gère pas `oklch`, `color-mix`, `backdrop-filter`, certains gradients
-   - le fallback "scale: 2" est bas pour PowerPoint (16/9 grand écran)
-   - attente de fonts/images trop courte → captures partielles
-   - pas d'iframe sandbox → conflits CSS Tailwind possibles
-3. **Le PPTX éditable est bon mais orphelin :** beau code, mais visuellement différent du preview que voit l'utilisateur. Donc effet "surprise" à l'ouverture.
-4. **Aucun calque texte natif sur le mode "image" :** même quand l'utilisateur veut juste retoucher un mot, il est obligé de relancer la génération.
+-- 2. RLS - Enable
+ALTER TABLE public.series ENABLE ROW LEVEL SECURITY;
 
-### Ce qu'on fait — refonte en 3 livrables
+-- 3. RLS Policies - workspace-scoped (pattern calendar_posts)
+CREATE POLICY workspace_select_series ON public.series
+    FOR SELECT USING (public.user_has_workspace_access(workspace_id));
 
-#### Livrable 1 — Fiabiliser le mode "image fidèle" (rendu HTML)
+CREATE POLICY workspace_insert_series ON public.series
+    FOR INSERT WITH CHECK (public.user_has_workspace_access(workspace_id));
 
-Fichier : `src/lib/export-carousel-visual-pptx.ts` — refonte
+CREATE POLICY workspace_update_series ON public.series
+    FOR UPDATE USING (public.user_has_workspace_access(workspace_id));
 
-- Remplacer `html2canvas` par **`html2canvas-pro`** (fork moderne qui gère `oklch`, `lab`, `color-mix`, gradients modernes)
-- Capturer dans une **iframe sandbox isolée** (un `<iframe srcdoc>` avec les mêmes balises `<link>` Google Fonts), pas dans une div Tailwind du parent — finis les conflits de styles
-- Attendre proprement : `iframe.contentDocument.fonts.ready` + toutes les `<img>` → `complete && naturalWidth > 0` + 2 `requestAnimationFrame` + 200ms tampon
-- `scale: 3` (3240×4050 px) → ultra net dans PowerPoint
-- Si la capture échoue sur une slide : retry une fois, sinon log + slide rouge "Slide non rendue, relancer l'export"
+CREATE POLICY workspace_delete_series ON public.series
+    FOR DELETE USING (public.user_has_workspace_access(workspace_id));
 
-Effet : le mode image actuel devient **vraiment** fidèle au preview, même sur Safari et avec des gradients complexes.
+-- 4. Trigger updated_at
+CREATE TRIGGER update_series_updated_at
+    BEFORE UPDATE ON public.series
+    FOR EACH ROW
+    EXECUTE FUNCTION public.update_updated_at_column();
 
-#### Livrable 2 — Mode hybride "image + texte natif éditable"
+-- 5. Index partiel pour les séries actives (proposition 2 acceptée)
+CREATE INDEX idx_series_workspace_active ON public.series(workspace_id) 
+    WHERE status = 'active';
 
-Nouveau fichier : `src/lib/export-carousel-hybrid-pptx.ts` + mapping fonts dans `src/lib/pptx-font-mapping.ts`
+-- Index sur user_id (conservé)
+CREATE INDEX idx_series_user ON public.series(user_id);
 
-Pour chaque slide :
-1. Capturer le HTML **sans le texte overlay** (en retirant temporairement `[data-overlay-text]` ou via une variante CSS `.export-bg-only`) → PNG haute qualité = fond fidèle
-2. Lire les overlays depuis `slidesData` (déjà disponible côté calendrier) : `overlay_text`, `title`, `body`, `overlay_position`, `overlay_style`
-3. Ajouter les overlays comme **vrais TextBox PowerPoint** (`slide.addText`) par-dessus :
-   - position calculée depuis `overlay_position` (mapping `bottom_left → x:0.5, y:7.8, align:left`, etc.)
-   - couleur depuis la charte (`color_text` / `color_primary`)
-   - police mappée Google Font → police PPTX sûre :
+-- 6. Rattachement sur calendar_posts
+ALTER TABLE public.calendar_posts
+    ADD COLUMN IF NOT EXISTS series_id UUID REFERENCES public.series(id) ON DELETE SET NULL,
+    ADD COLUMN IF NOT EXISTS episode_number INTEGER CHECK (episode_number >= 1);
 
-| Google Font (charte) | Police PowerPoint mappée |
-|---|---|
-| Playfair Display, Lora, Merriweather, Libre Baskerville | Georgia |
-| Inter, Manrope, IBM Plex Sans | Calibri |
-| Montserrat | Verdana |
-| Poppins | Trebuchet MS |
-| IBM Plex Mono, Consolas | Consolas |
-| (autre) | Calibri |
+-- Index pour les requêtes par série
+CREATE INDEX IF NOT EXISTS idx_calendar_posts_series
+    ON public.calendar_posts(series_id)
+    WHERE series_id IS NOT NULL;
 
-Résultat : **le client peut modifier le texte directement dans PowerPoint** tout en gardant un rendu très proche du preview.
+-- 7. COMMENT ON COLUMN (proposition 5 acceptée)
+COMMENT ON COLUMN public.series.pillar_key IS 
+    'Clé du pilier brand_strategy associé. Valeurs attendues: pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3, ou NULL pour série transversale';
 
-#### Livrable 3 — UX unifiée : 1 seul menu, 2 choix clairs
+COMMENT ON COLUMN public.series.cadence IS 
+    'Cadence éditoriale de la série. Valeurs: weekly (hebdo), biweekly (2 semaines), monthly (mensuel), irregular (irrégulier)';
 
-Dans `CalendarPostPreview.tsx` (et le miroir `CreerUnifie.tsx`), remplacer les 3 entrées actuelles par :
+COMMENT ON COLUMN public.series.channels IS 
+    'Array des canaux ciblés par la série. Valeurs possibles: instagram, linkedin, pinterest, newsletter, website';
 
+COMMENT ON COLUMN public.series.status IS 
+    'Statut de la série. Valeurs: active (en cours), paused (en pause), archived (archivée)';
+
+COMMENT ON COLUMN public.series.planned_episodes IS 
+    'Nombre d''épisodes prévus pour la série. NULL = série ouverte sans fin annoncée';
 ```
-Télécharger ▾
-├── Images PNG (ZIP)
-├── PowerPoint — éditable (recommandé)        ← Livrable 2 (hybride)
-└── PowerPoint — image fidèle                 ← Livrable 1 (rendu HTML net)
-```
 
-- "Éditable (recommandé)" : utilise le hybride si `slidesData` est dispo, sinon fallback sur l'image fidèle
-- Le vieux `export-carousel-pptx.ts` (2179 lignes "design maison") est conservé en interne **uniquement comme fallback de dernier recours** quand on n'a ni `visualHtml` ni `visualUrls` — il n'est plus exposé comme bouton autonome
-- Tooltips clairs sur chaque option : "Modifier le texte dans PowerPoint" vs "Identique au preview, non modifiable"
+### Récapitulatif des modifications acceptées
 
-#### Bonus — Bouton "Aperçu PDF rapide" (optionnel)
-
-Beaucoup de clients ouvrent le .pptx juste pour partager. Ajouter un export PDF parallèle (via `jspdf` côté client, en réutilisant les mêmes captures que le mode image) en 3ème option. À garder pour un round suivant si tu valides l'idée.
-
-### Fichiers modifiés
-
-| Fichier | Changement |
-|---|---|
-| `src/lib/export-carousel-visual-pptx.ts` | Refonte : iframe sandbox + html2canvas-pro + scale 3 + attentes robustes + retry |
-| `src/lib/export-carousel-hybrid-pptx.ts` (nouveau) | Capture sans overlay + ajout texte PPTX natif par-dessus |
-| `src/lib/pptx-font-mapping.ts` (nouveau) | Mapping Google Font → PPTX + mapping `overlay_position` → coords |
-| `src/components/calendar/CalendarPostPreview.tsx` | Menu "Télécharger" simplifié à 3 entrées (PNG / éditable / image fidèle) |
-| `src/pages/CreerUnifie.tsx` | Idem, alignement du menu d'export carrousel |
-| `package.json` | Ajout `html2canvas-pro` |
-
-### Validation
-
-1. Sur le calendrier, ouvrir un carrousel mix Instagram avec photos + overlays.
-2. Cliquer "PowerPoint — image fidèle" → ouvrir le .pptx :
-   - Slides 100% identiques au preview (gradients, fonts, layout)
-   - Pas de slide floue, pas de slide blanche
-3. Cliquer "PowerPoint — éditable" → ouvrir le .pptx :
-   - Le fond ressemble au preview
-   - Les overlays sont **sélectionnables et modifiables** comme vrai texte
-   - Les fonts utilisées sont raisonnables (mapping appliqué)
-4. Tester sur un carrousel text_only (sans photo) : le rendu reste correct
-5. Tester sur Chrome + Safari : pas de divergence majeure
-6. Tester depuis `CreerUnifie` (page de création) : même comportement que depuis le calendrier
-
-### Risques
-
-- **Mapping fonts approximatif** : Playfair → Georgia n'est pas pixel-perfect. C'est inévitable côté PowerPoint. Le mode "image fidèle" reste là pour les cas où la typo doit être exacte.
-- **`html2canvas-pro`** : nouvelle dépendance, à valider qu'elle build avec Vite (a priori oui, c'est un fork drop-in).
-- **Calque texte mal positionné sur des layouts exotiques** : on garde TOUJOURS le PNG complet (avec l'overlay en dur) en arrière-plan dans le mode hybride → si le texte natif tombe mal, l'image en dessous reste cohérente. Le pire cas est juste "double texte", repérable à l'œil et corrigeable en supprimant le TextBox.
-- **Pas de migration DB, pas de touche au backend.** Tout se passe côté client.
+| Proposition | Statut | Implémentation |
+|-------------|--------|----------------|
+| 1. CHECK episode_number >= 1 | ✅ Acceptée | `CHECK (episode_number >= 1)` sur `calendar_posts.episode_number` |
+| 2. Index partiel status='active' | ✅ Acceptée | `idx_series_workspace_active` avec `WHERE status = 'active'` |
+| 3. Contrainte unicité (series_id, episode_number) | ❌ Refusée | Non implémentée |
+| 4. CHECK array_length <= 5 | ❌ Refusée | Non implémentée |
+| 5. COMMENT ON COLUMN | ✅ Acceptée | 5 commentaires sur `pillar_key`, `cadence`, `channels`, `status`, `planned_episodes` |
+| 6. Alignement user_id NOT NULL | ✅ Validée | `user_id NOT NULL` cohérent avec `calendar_posts` |
 
