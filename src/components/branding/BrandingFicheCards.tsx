@@ -177,7 +177,9 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
   const { column, value: workspaceValue } = useWorkspaceFilter();
   const [isAutoFilling, setIsAutoFilling] = useState(false);
 
-  const emptyNonPitchFields = section === "persona" ? fields.filter(f => {
+  const supportsAutoFill = section === "persona" || section === "content_strategy";
+
+  const emptyNonPitchFields = supportsAutoFill ? fields.filter(f => {
     const v = data[f.key];
     return (!v || (typeof v === "string" && v.trim().length === 0)) && !f.key.startsWith("pitch_");
   }) : [];
