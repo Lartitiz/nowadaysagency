@@ -5,6 +5,7 @@ export const COACHING_CHECKLISTS: Record<string, string[]> = {
   content_strategy: ["content_pillars", "content_twist", "content_formats", "content_frequency", "content_editorial_line"],
   offers: ["offer_name", "offer_price", "offer_target", "offer_promise", "offer_includes"],
   charter: ["mood_place", "colors", "visual_style", "typography", "logo", "visual_donts"],
+  content_series: ["series_count", "series_pitch", "series_pillar_link", "series_format", "series_signature"],
 };
 
 export const COACHING_LABELS: Record<string, Record<string, string>> = {
@@ -52,5 +53,12 @@ export const COACHING_LABELS: Record<string, Record<string, string>> = {
     typography: "Tes polices",
     logo: "Ton logo",
     visual_donts: "Ce que tu détestes visuellement",
+  },
+  content_series: {
+    series_count: "Combien de séries",
+    series_pitch: "Nom et promesse de chaque série",
+    series_pillar_link: "Rattachement aux piliers",
+    series_format: "Format fixe",
+    series_signature: "Signature visuelle",
   },
 };
