@@ -16,6 +16,7 @@ const SECTION_CHECKLISTS: Record<string, string[]> = {
   tone_style: ["tone_description", "tone_do", "tone_dont", "combats", "visual_style"],
   content_strategy: ["content_pillars", "content_twist", "content_formats", "content_frequency", "content_editorial_line"],
   offers: ["offer_name", "offer_price", "offer_target", "offer_promise", "offer_includes"],
+  content_series: ["series_count", "series_pitch", "series_pillar_link", "series_format", "series_signature"],
 };
 
 const SECTION_NAMES: Record<string, string> = {
@@ -25,6 +26,7 @@ const SECTION_NAMES: Record<string, string> = {
   tone_style: "Mon ton, mon style & mes combats",
   content_strategy: "Ma stratégie de contenu",
   offers: "Mes offres",
+  content_series: "Mes séries signatures",
 };
 
 const TOPIC_LABELS: Record<string, string> = {
@@ -60,6 +62,11 @@ const TOPIC_LABELS: Record<string, string> = {
   offer_target: "Pour qui",
   offer_promise: "La promesse",
   offer_includes: "Ce qui est inclus",
+  series_count: "Combien de séries",
+  series_pitch: "Nom et promesse de chaque série",
+  series_pillar_link: "Rattachement aux piliers",
+  series_format: "Format fixe",
+  series_signature: "Signature visuelle",
 };
 
 const TOPIC_ALIASES: Record<string, string> = {
@@ -95,6 +102,12 @@ const TOPIC_ALIASES: Record<string, string> = {
   "cible": "offer_target", "target": "offer_target", "pour_qui": "offer_target",
   "promesse": "offer_promise", "promise": "offer_promise", "transformation": "offer_promise",
   "inclus": "offer_includes", "includes": "offer_includes", "contenu_offre": "offer_includes",
+  // content_series
+  "nombre_series": "series_count", "combien": "series_count", "nb_series": "series_count",
+  "pitch": "series_pitch",
+  "pilier": "series_pillar_link", "rattachement": "series_pillar_link", "pillar": "series_pillar_link",
+  "format": "series_format", "format_fixe": "series_format",
+  "signature": "series_signature", "signature_visuelle": "series_signature",
 };
 
 function normalizeCoveredTopic(topic: string | null | undefined, section: string): string | null {
