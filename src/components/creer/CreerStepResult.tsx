@@ -468,35 +468,25 @@ export default function CreerStepResult({
             <RefreshCw className="h-3.5 w-3.5" /> Regénérer visuels
           </Button>
         )}
-        {format === "pinterest_visual" && (result?.pin_html || result?.title) && (onExportPinterestPng || onExportPinterestEditablePptx || onExportPinterestPptx) && (
+        {format === "pinterest_visual" && (result?.pin_html || result?.title) && (onExportPinterestPng || onExportPinterestEditablePptx) && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground">
-                <Download className="h-3.5 w-3.5" /> Exporter <ChevronDown className="h-3 w-3 ml-0.5" />
+                <Download className="h-3.5 w-3.5" /> Télécharger <ChevronDown className="h-3 w-3 ml-0.5" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {onExportPinterestEditablePptx && (
-                <DropdownMenuItem onClick={onExportPinterestEditablePptx}>
-                  Éditable (PowerPoint)
-                </DropdownMenuItem>
-              )}
-              {onExportPinterestPptx && (
-                <DropdownMenuItem onClick={onExportPinterestPptx}>
-                  Image fidèle (PPTX)
-                </DropdownMenuItem>
-              )}
-              {onExportPinterestPng && (
-                <DropdownMenuItem onClick={onExportPinterestPng}>
-                  Image PNG
-                </DropdownMenuItem>
-              )}
+            <DropdownMenuContent align="end" className="w-64">
+              <DownloadMenuItems
+                onPng={onExportPinterestPng}
+                onPptxEditable={onExportPinterestEditablePptx}
+                count={1}
+              />
             </DropdownMenuContent>
           </DropdownMenu>
         )}
         {format === "pinterest_photo" && result?.overlay_html && onExportPinterestPng && (
           <Button variant="ghost" size="sm" onClick={onExportPinterestPng} className="gap-1.5 text-xs text-muted-foreground">
-            <Download className="h-3.5 w-3.5" /> Exporter PNG
+            <Download className="h-3.5 w-3.5" /> Télécharger PNG
           </Button>
         )}
         <Button variant="ghost" size="sm" onClick={onReset} className="gap-1.5 text-xs text-muted-foreground">
