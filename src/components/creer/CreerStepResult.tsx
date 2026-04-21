@@ -12,6 +12,7 @@ import PinterestVisualResult from "@/components/creer/formatRenderers/PinterestV
 import PinterestPhotoBriefResult from "@/components/creer/formatRenderers/PinterestPhotoBriefResult";
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DownloadMenuItems } from "@/components/exports/DownloadMenuItems";
 
 /**
  * Nettoie le contenu streamé en temps réel.
@@ -167,14 +168,13 @@ interface Props {
   visualLoading?: boolean;
   visualSlides?: { slide_number: number; html: string }[];
   onExportPptx?: () => void;
-  onExportVisualPptx?: () => void;
   onExportHybridPptx?: () => void;
+  onExportVisualPng?: () => void;
   onSlidesUpdate?: (slides: any[], caption: any) => void;
   onStoriesUpdate?: (stories: any[]) => void;
   photos?: { preview: string; base64?: string; name?: string }[];
   pinterestPinHtml?: string | null;
   onExportPinterestPng?: () => void;
-  onExportPinterestPptx?: () => void;
   onExportPinterestEditablePptx?: () => void;
   photoBriefOverlayHtml?: string | null;
   channel?: "linkedin" | "instagram";
@@ -198,14 +198,13 @@ export default function CreerStepResult({
   visualLoading,
   visualSlides,
   onExportPptx,
-  onExportVisualPptx,
   onExportHybridPptx,
+  onExportVisualPng,
   onSlidesUpdate,
   onStoriesUpdate,
   photos,
   pinterestPinHtml,
   onExportPinterestPng,
-  onExportPinterestPptx,
   onExportPinterestEditablePptx,
   photoBriefOverlayHtml,
   channel,
