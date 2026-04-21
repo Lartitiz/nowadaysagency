@@ -1,82 +1,64 @@
 
 
-## Simplification + harmonisation des téléchargements partout
+## Bug : photos mal cadrées / compressées dans le PNG exporté
 
-### Décision
+### Diagnostic
 
-**Supprimer "PowerPoint — image fidèle" partout.** C'est de la redondance pure : un PPTX où chaque slide = une image, c'est exactement les PNG dans un autre conteneur. On garde **2 options uniquement**, identiques sur toutes les surfaces :
+Le **preview** rend chaque slide dans un `<iframe srcDoc>` à 1080×1350 réel (puis scaled down via CSS transform). Le navigateur gère parfaitement `background-size: cover` + base64 → cadrage correct.
 
-1. **🖼️ Images PNG** — *À publier directement (Insta, LinkedIn…)*
-2. **📝 PowerPoint — éditable ✨** — *Modifie le texte dans PowerPoint, fond préservé*
+L'**export PNG actuel** (`src/lib/export-carousel-png.ts`) injecte le HTML dans un `<div>` direct via `container.innerHTML = vs.html`, puis appelle `html2canvas`. Trois problèmes connus :
 
-Plus de fallback "PPTX basique" visible côté carrousel non plus : le hybride éditable couvre déjà ce besoin et fait mieux.
+1. **`html2canvas` rate régulièrement `background-size: cover`** sur conteneur 1080×1350 : il clone le DOM dans un sandbox interne où les dimensions calculées des éléments parents diffèrent → le cover est calculé sur une mauvaise hauteur de référence et l'image est **déformée / re-cadrée**.
+2. **Les images base64** (parfois 2-5 MB par photo) ne sont **pas garanties d'être décodées** quand html2canvas snapshote — un simple `setTimeout(400ms)` ne suffit pas. Résultat : photo partiellement rendue / mauvais ratio.
+3. **Pas d'isolation** : les styles globaux du document (resets Tailwind, `box-sizing`, fonts) **interfèrent** avec le HTML brut généré, ce qui peut écraser les dimensions des éléments.
 
-### Audit + actions par surface
+Le preview iframe ne souffre d'aucun des trois.
 
-| Surface | État actuel | Action |
-|---|---|---|
-| **Calendrier — preview compact** (`CalendarPostPreview.tsx`) | 3 options + bouton icône peu visible | Garder 2 options. Bouton devient `Button` visible avec label "Télécharger" |
-| **Calendrier — plein écran** (même composant) | idem | idem (même composant) |
-| **Atelier carrousel** (`CreerStepResult.tsx` + `CreerUnifie.tsx`) | 3 options PPTX, **pas d'option PNG** | Ajouter "Images PNG" en 1er. Supprimer "PowerPoint — image fidèle" et "PowerPoint — basique (fallback)". Garder "PowerPoint — éditable ✨" |
-| **Atelier épingle Pinterest** (`CreerStepResult.tsx`) | 3 options : Éditable / Image fidèle / PNG | Garder 2 options : "Image PNG" en 1er + "PowerPoint — éditable ✨" |
-| **Atelier brief photo Pinterest** | PNG seul | Inchangé (c'est un brief, pas un visuel à publier) |
+### Solution : capturer depuis le même iframe que le preview
 
-### Composant partagé
+Réécrire `exportCarouselPng` pour qu'il **capture depuis un iframe** identique à celui du preview, plutôt que d'un `<div>` brut. C'est la même technique que `export-carousel-visual-pptx.ts` utilise déjà (`captureSlideWithRetry`) — on l'adopte pour le PNG.
 
-Création de `src/components/exports/DownloadMenuItems.tsx` qui prend `{ onPng, onPptxEditable, downloadingPng?, downloadingPptx?, count? }` et rend les 2 items avec wording strictement identique partout :
+**Étapes par slide :**
 
-- **🖼️ Images PNG** *(ZIP si N>1)* — *À publier directement*
-- **📝 PowerPoint — éditable ✨** — *Modifie le texte dans PowerPoint, fond préservé*
+1. Créer un `<iframe>` 1080×1350 hors-écran, `srcDoc={html}` → environnement isolé, mêmes conditions que le preview.
+2. Attendre `iframe.onload` puis :
+   - `await iframeDoc.fonts.ready`
+   - **Attendre que toutes les `<img>` aient `complete && naturalWidth > 0`** (vraie attente de décodage, pas un timeout aveugle).
+   - **Pour les `background-image` base64** : pré-charger via `new Image()` + `await img.decode()` pour chaque URL extraite du HTML. C'est l'étape qui manque aujourd'hui et qui cause la majorité des cas "image compressée".
+3. Capturer avec `html2canvas` ciblé sur le `documentElement` de l'iframe avec `windowWidth: 1080, windowHeight: 1350, scale: 2` (scale 2 pour qualité retina, downscale optionnel à 1080×1350 si trop lourd).
+4. Détruire l'iframe.
 
-### Factorisation export PNG
+**Bonus qualité :** passer en `scale: 2` permet un PNG plus net qu'aujourd'hui (scale 1 actuellement → un peu mou sur Insta).
 
-Création de `src/lib/export-carousel-png.ts` exportant `exportCarouselPng(visualSlides, fileName)` qui contient la logique de `CalendarPostPreview.handleDownloadImages` (boucle html2canvas → PNG single ou ZIP via JSZip, 1080×1350, scale 1). Réutilisé par calendrier ET atelier → zéro duplication.
+### Fallback / robustesse
 
-### Bouton "Télécharger" visible
+- Si html2canvas échoue (taint sur certaines images) → retry une fois avec `useCORS: false, allowTaint: true`.
+- Si une image ne décode jamais (timeout 8s) → on capture quand même, on `console.warn` la slide.
+- Le ZIP / téléchargement single reste identique en sortie.
 
-Côté **calendrier** : remplacer l'`IconButton` 28px par un vrai bouton avec label :
-
-```tsx
-<Button variant="outline" size="sm" className="gap-1.5 h-7 text-xs">
-  <Download className="h-3.5 w-3.5" /> Télécharger <ChevronDown className="h-3 w-3" />
-</Button>
-```
-
-Côté **atelier** : remplacer "Exporter" par "Télécharger" pour aligner le wording.
-
-### Code mort à nettoyer
-
-- `src/lib/export-carousel-visual-pptx.ts` : le fichier reste pour l'instant (au cas où on veut le rebrancher), mais aucun import ne le référence plus → marqué `@deprecated` en commentaire.
-- `src/lib/export-pinterest-visual-pptx.ts` : la fonction `exportPinterestVisualPptx` (image fidèle) n'est plus appelée → marquée `@deprecated`. `exportPinterestVisualPng` reste utilisée.
-- Handlers correspondants dans `CreerUnifie.tsx` (`handleExportVisualPptx`, `handlePinterestPptx`) : retirés ou conservés non-branchés.
-
-### Fichiers modifiés
+### Fichier touché
 
 | Fichier | Changement |
 |---|---|
-| **Nouveau** `src/lib/export-carousel-png.ts` | Util `exportCarouselPng(visualSlides, fileName)` |
-| **Nouveau** `src/components/exports/DownloadMenuItems.tsx` | Items menu unifiés (PNG + PPTX éditable) |
-| `src/components/calendar/CalendarPostPreview.tsx` | Supprime option "PowerPoint — image fidèle". Bouton "Télécharger" visible. Utilise `DownloadMenuItems` et `exportCarouselPng`. |
-| `src/components/creer/CreerStepResult.tsx` | Ajoute "Images PNG" via nouvelle prop `onExportVisualPng`. Supprime "PowerPoint — image fidèle" et "PowerPoint — basique". Pour Pinterest : supprime "Image fidèle (PPTX)". Utilise `DownloadMenuItems` côté carrousel. Wording "Télécharger" partout. |
-| `src/pages/CreerUnifie.tsx` | Nouveau handler `handleExportVisualPng` (réutilise `exportCarouselPng`). Retire le branchement `onExportVisualPptx` côté carrousel et `onExportPinterestPptx`. |
+| `src/lib/export-carousel-png.ts` | Réécriture de la boucle : iframe-based capture + attente décodage image + scale 2 |
 
-### Hors scope
+Aucun autre fichier touché. Les surfaces qui appellent `exportCarouselPng` (calendrier + atelier carrousel + Pinterest visuel via util similaire) bénéficient automatiquement du fix — pas de changement d'API.
 
-- Brief photo Pinterest : reste PNG seul.
-- Exports PDF (Voice guide, Mirror, Offres) : autre stack, pas concerné.
-- Reels / stories / newsletter : pas de visuels carrousel.
-- Pas de migration DB, pas de touche backend.
+### Pourquoi pas une autre approche
+
+- **Régler html2canvas avec des options** (`foreignObjectRendering: true`, etc.) : essayé, casse les fonts, peu fiable cross-browser.
+- **Render côté serveur via Puppeteer / edge function** : overkill pour cette feature, coût et latence multipliés.
+- **Utiliser l'image déjà rendue dans le preview iframe** : impossible, on ne peut pas screenshoter un iframe cross-document via Canvas API standard. L'astuce iframe ci-dessus contourne ça parce qu'on contrôle le document de l'iframe (même origine, srcDoc).
 
 ### Validation
 
-1. Calendrier : clic "Télécharger" (bouton avec label visible) → 2 options.
-2. Atelier carrousel : clic "Télécharger" → 2 options identiques au calendrier.
-3. Atelier Pinterest : clic "Télécharger" → 2 options.
-4. Le PNG depuis l'atelier = pixel-identique au PNG depuis le calendrier (même fonction).
-5. Le PPTX éditable depuis les 2 endroits = même fichier (déjà le cas, on confirme).
-6. Plus aucune option "image fidèle" nulle part dans l'UI.
+1. Export PNG d'un carrousel photo (type photo_full ou photo_integrated) : la photo doit être **identique au preview**, pas re-cadrée ni écrasée.
+2. Comparer slide par slide : ouvrir le preview à 100%, télécharger le PNG, superposer → match pixel à 99%+.
+3. Pas de régression sur les carrousels texte pur (pas d'image → la capture fonctionne déjà).
+4. Pas de régression sur le PNG depuis Storage URLs (`handleDownloadFromUrls` côté calendrier — ce chemin ne passe pas par html2canvas, intouché).
+5. Performance : capture d'un carrousel 8 slides toujours < 15s sur connexion normale.
 
 ### Risques
 
-Très faibles. Suppressions d'options redondantes + factorisation. Aucune logique nouvelle. Le moteur d'export hybride (PPTX éditable) reste celui qu'on a livré au plan précédent.
+Faibles. La technique iframe est éprouvée (déjà en place dans `export-carousel-visual-pptx.ts`). Le seul risque résiduel : sur Safari, certains base64 très lourds peuvent prendre > 8s à décoder → on log et on continue, l'utilisateur ne reste pas bloqué.
 
