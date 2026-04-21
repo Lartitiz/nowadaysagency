@@ -1371,6 +1371,8 @@ export default function CreerUnifie() {
             toast.info("Upload des visuels...");
             const visualUrls = await uploadVisualsToStorage(calendarPostId);
             if (visualUrls.length > 0) storageUpdates.visual_urls = visualUrls;
+            // Persist source HTML to enable PowerPoint éditable from calendar
+            storageUpdates.visual_html = visualSlides;
           } catch (err) {
             console.warn("Visual upload failed:", err);
           }
@@ -1382,6 +1384,7 @@ export default function CreerUnifie() {
             toast.info("Upload du visuel Pinterest...");
             const pinVisualUrls = await uploadPinterestVisualToStorage(calendarPostId, pinterestPinHtml);
             if (pinVisualUrls.length > 0) storageUpdates.visual_urls = pinVisualUrls;
+            storageUpdates.visual_html = [{ slide_number: 1, html: pinterestPinHtml }];
           } catch (err) {
             console.warn("Pinterest visual upload failed:", err);
           }
@@ -1393,6 +1396,7 @@ export default function CreerUnifie() {
             toast.info("Upload de l'overlay...");
             const overlayUrls = await uploadPinterestVisualToStorage(calendarPostId, photoBriefOverlayHtml);
             if (overlayUrls.length > 0) storageUpdates.visual_urls = overlayUrls;
+            storageUpdates.visual_html = [{ slide_number: 1, html: photoBriefOverlayHtml }];
           } catch (err) {
             console.warn("Overlay upload failed (non-blocking):", err);
           }
@@ -1634,6 +1638,8 @@ export default function CreerUnifie() {
             if (visualUrls.length > 0) {
               updates.visual_urls = visualUrls;
             }
+            // Persist source HTML to enable PowerPoint éditable from calendar
+            updates.visual_html = visualSlides;
           } catch (err) {
             console.warn("Visual upload failed (non-blocking):", err);
           }
@@ -1647,6 +1653,7 @@ export default function CreerUnifie() {
             if (pinVisualUrls.length > 0) {
               updates.visual_urls = pinVisualUrls;
             }
+            updates.visual_html = [{ slide_number: 1, html: pinterestPinHtml }];
           } catch (err) {
             console.warn("Pinterest visual upload failed (non-blocking):", err);
           }
@@ -1660,6 +1667,7 @@ export default function CreerUnifie() {
             if (overlayUrls.length > 0) {
               updates.visual_urls = overlayUrls;
             }
+            updates.visual_html = [{ slide_number: 1, html: photoBriefOverlayHtml }];
           } catch (err) {
             console.warn("Overlay upload failed (non-blocking):", err);
           }
