@@ -151,67 +151,28 @@ export function CalendarPostPreview({
           {hasVisuals && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" disabled={downloading || downloadingPptx || downloadingHybrid} className="h-7 w-7" title="Télécharger">
-                  {(downloading || downloadingPptx || downloadingHybrid) ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={downloadingPng || downloadingHybrid}
+                  className="gap-1.5 h-7 text-xs"
+                  title="Télécharger"
+                >
+                  {(downloadingPng || downloadingHybrid)
+                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    : <Download className="h-3.5 w-3.5" />}
+                  Télécharger
+                  <ChevronDown className="h-3 w-3" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-64">
-                {/* 1. Images PNG */}
-                {visualUrls && visualUrls.length > 0 ? (
-                  <DropdownMenuItem onClick={handleDownloadFromUrls}>
-                    <ImageIcon className="h-4 w-4 mr-2" />
-                    <div className="flex flex-col">
-                      <span>Images PNG {visualUrls.length > 1 ? "(ZIP)" : ""}</span>
-                      <span className="text-[10px] text-muted-foreground">À publier directement</span>
-                    </div>
-                  </DropdownMenuItem>
-                ) : (
-                  <DropdownMenuItem onClick={handleDownloadImages}>
-                    <ImageIcon className="h-4 w-4 mr-2" />
-                    <div className="flex flex-col">
-                      <span>Images PNG {(visualHtml?.length || 0) > 1 ? "(ZIP)" : ""}</span>
-                      <span className="text-[10px] text-muted-foreground">À publier directement</span>
-                    </div>
-                  </DropdownMenuItem>
-                )}
-
-                {/* 2. PowerPoint éditable (recommandé) — hybride */}
-                {visualHtml && visualHtml.length > 0 && (
-                  <DropdownMenuItem onClick={handleDownloadHybridPptx} disabled={downloadingHybrid}>
-                    {downloadingHybrid ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
-                    <div className="flex flex-col">
-                      <span>PowerPoint — éditable ✨</span>
-                      <span className="text-[10px] text-muted-foreground">Modifier le texte dans PPT</span>
-                    </div>
-                  </DropdownMenuItem>
-                )}
-
-                {/* 3. PowerPoint image fidèle */}
-                {visualUrls && visualUrls.length > 0 ? (
-                  <DropdownMenuItem onClick={handlePptxFromUrls}>
-                    <FileDown className="h-4 w-4 mr-2" />
-                    <div className="flex flex-col">
-                      <span>PowerPoint — image fidèle</span>
-                      <span className="text-[10px] text-muted-foreground">Identique au preview, non modifiable</span>
-                    </div>
-                  </DropdownMenuItem>
-                ) : (
-                  <DropdownMenuItem onClick={handleDownloadPptx}>
-                    <FileDown className="h-4 w-4 mr-2" />
-                    <div className="flex flex-col">
-                      <span>PowerPoint — image fidèle</span>
-                      <span className="text-[10px] text-muted-foreground">Identique au preview, non modifiable</span>
-                    </div>
-                  </DropdownMenuItem>
-                )}
-
-                {/* Fallback "design maison" — uniquement si aucun visualHtml/Urls (cas extrême) */}
-                {(!visualHtml || visualHtml.length === 0) && (!visualUrls || visualUrls.length === 0) && slidesData && slidesData.length > 0 && (
-                  <DropdownMenuItem onClick={handleDownloadEditablePptx} disabled={downloadingEditable}>
-                    {downloadingEditable ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileDown className="h-4 w-4 mr-2" />}
-                    PPTX éditable (basique)
-                  </DropdownMenuItem>
-                )}
+                <DownloadMenuItems
+                  onPng={visualUrls && visualUrls.length > 0 ? handleDownloadFromUrls : handleDownloadImages}
+                  onPptxEditable={visualHtml && visualHtml.length > 0 ? handleDownloadHybridPptx : undefined}
+                  downloadingPng={downloadingPng}
+                  downloadingPptx={downloadingHybrid}
+                  count={(visualUrls?.length ?? visualHtml?.length ?? 1)}
+                />
               </DropdownMenuContent>
             </DropdownMenu>
           )}
