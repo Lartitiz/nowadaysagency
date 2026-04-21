@@ -1,96 +1,106 @@
 
 
-## Bouton "Compléter avec l'IA" pour Ma ligne éditoriale (content_strategy)
-
-### Le besoin
-
-Sur la fiche **Ma ligne éditoriale** (section `content_strategy`), pouvoir cliquer sur un bouton qui demande à l'IA de remplir d'un coup les champs vides : facettes cachées, facettes 1/2/3, piliers majeur/mineurs, concept créatif. Exactement comme le bouton "Compléter les X champs manquants avec l'IA" qui existe déjà sur **Ma cliente idéale** (persona).
-
-### Comment c'est déjà fait pour persona (rappel)
-
-Dans `BrandingFicheCards.tsx` → composant `FieldCards` :
-- Un bouton conditionné à `section === "persona"` apparaît si au moins un champ est vide
-- Il appelle `handleAutoFill` qui :
-  1. Extrait ce qui est récupérable depuis la synthèse "portrait" déjà en base (gratuit, instantané)
-  2. Pour les champs encore vides, appelle l'edge function `branding-coaching` avec `section: "persona_fill"` en agrégeant tout le contexte disponible (brand_profile, conversation de coaching, champs déjà remplis)
-  3. Normalise les clés alias renvoyées par l'IA, écrit en base, met à jour l'UI via `onFieldUpdate`
-
-L'edge function a un cas spécial `if (section === "persona_fill")` avec un prompt très strict sur le format de sortie.
-
-### Ce qu'on ajoute
-
-#### 1. Nouveau cas `content_strategy_fill` dans l'edge function
-
-Fichier : `supabase/functions/branding-coaching/index.ts`
-
-Ajout d'un bloc `if (section === "content_strategy_fill")` calqué sur `persona_fill` mais avec :
-- Un prompt système spécialisé "ligne éditoriale" qui sait ce qu'est une facette de marque, un pilier majeur/mineur, un concept créatif
-- La liste blanche des clés autorisées : `step_1_hidden_facets`, `facet_1`, `facet_2`, `facet_3`, `pillar_major`, `pillar_minor_1`, `pillar_minor_2`, `pillar_minor_3`, `creative_concept`
-- L'interdiction d'alias type "pilier_principal", "concept", "axe_editorial", etc.
-- Règles de cohérence métier : les 3 facettes mineures doivent être distinctes du pilier majeur, le concept créatif doit relier les piliers entre eux, les piliers doivent rester ancrés dans la voix/cible/mission de la marque (pas du contenu hors-sol)
-
-#### 2. Branchement côté front dans `BrandingFicheCards.tsx`
-
-Dans le composant `FieldCards` :
-
-- Élargir la condition d'apparition du bouton : `section === "persona" || section === "content_strategy"`
-- Élargir `emptyNonPitchFields` et `totalEmpty` pour qu'ils fonctionnent aussi avec `content_strategy` (ces tableaux sont aujourd'hui vides si `section !== "persona"`)
-- Refactor de `handleAutoFill` en deux variantes (ou une seule fonction qui branche sur `section`) :
-  - **Variante persona** : inchangée
-  - **Variante content_strategy** :
-    1. Récupère en parallèle :
-       - `brand_profile` (mission, positioning, voice_description, tone_register/level/style, combat_cause, combat_fights, key_expressions, things_to_avoid, target_description, target_verbatims)
-       - `brand_proposition` (version_final, step_1_what)
-       - `persona` primaire (step_1_frustrations, step_2_transformation, step_4_beautiful, step_4_inspiring)
-       - `storytelling` primaire (step_7_polished, pitch_short)
-       - La conversation de coaching `branding_coaching_sessions` section `content_strategy` si elle existe
-       - Les champs `content_strategy` déjà remplis pour ne pas les écraser et les utiliser comme guide
-    2. Construit des `contextBlocks` similaires à persona (CONTEXTE DE MARQUE / PROPOSITION / PERSONA / STORY / CHAMPS LIGNE ÉDITO DÉJÀ REMPLIS)
-    3. Appelle `branding-coaching` avec `section: "content_strategy_fill"` et la liste explicite des clés à remplir
-    4. Normalise via un `aliasMap` dédié (ex : `pilier_principal → pillar_major`, `axe_majeur → pillar_major`, `concept → creative_concept`, `facettes_cachees → step_1_hidden_facets`, etc.)
-    5. Écrit en base sur `brand_strategy`, met à jour l'UI via `onFieldUpdate`
-    6. Toast de succès avec le nombre de champs complétés
-
-- Tooltip / texte du bouton adapté selon la section : "Compléter les X champs manquants avec l'IA" reste valable.
-
-#### 3. Aucune migration DB
-
-Tous les champs existent déjà dans `brand_strategy`. Zéro changement de schéma.
-
-### Comportement attendu
-
-- Le bouton **n'apparaît que** s'il reste au moins un champ vide dans la fiche `content_strategy`
-- Le bouton **est désactivé en mode démo** (cohérent avec persona)
-- Si aucun contexte exploitable n'est trouvé (cas peu probable vu qu'il y a forcément un brand_profile), toast info "Pas assez de contexte — remplis manuellement quelques champs ou refais le coaching"
-- Les champs déjà remplis ne sont **jamais écrasés**
-- Les valeurs renvoyées par l'IA passent par la même logique de normalisation d'alias que persona, pour être robustes
+## Coaching IA "Mes séries signatures" — backend (version finale validée)
 
 ### Fichiers modifiés
 
 | Fichier | Changement |
 |---|---|
-| `supabase/functions/branding-coaching/index.ts` | Ajout du cas `section === "content_strategy_fill"` (~50 lignes, calqué sur `persona_fill`) |
-| `src/components/branding/BrandingFicheCards.tsx` | Élargir le bouton autofill à `content_strategy`, refactor `handleAutoFill` pour brancher selon la section, ajouter `aliasMap` dédié à la stratégie éditoriale |
+| `src/lib/coaching-checklists.ts` | Ajout checklist + labels `content_series` |
+| `src/components/branding/BrandingCoachingFlow.tsx` | Type `Section`, `SECTION_META`, garde démo, `fetchContext` enrichi pour `content_series`, branche `saveInsights` (séries + mode combo + mapping cadence) |
+| `src/pages/BrandingCoachingPage.tsx` | `VALID_SECTIONS` + `RECAP_ROUTES` |
+| `supabase/functions/branding-coaching/index.ts` | `SECTION_CHECKLISTS`, `SECTION_NAMES`, `TOPIC_LABELS`, alias topics, bloc prompt `content_series`, validation Zod du shape `series[]`, truncation à 8 |
 
-### Validation
+Aucun autre fichier touché.
 
-1. Aller sur `/branding/section?section=content_strategy` avec un compte qui a un brand_profile rempli mais une `brand_strategy` vide ou partielle
-2. Vérifier que le bouton "Compléter les X champs manquants avec l'IA" apparaît avec le bon compteur
-3. Cliquer → loader → toast de succès → les cartes vides se remplissent
-4. Recharger : les valeurs sont bien persistées en DB
-5. Cliquer à nouveau quand tout est rempli : le bouton ne doit plus apparaître
-6. Vérifier qu'un champ déjà rempli (ex : pilier majeur "Portraits d'artisan·es") n'a PAS été écrasé
-7. Mode démo : le bouton est masqué ou désactivé
+### 1. Checklists (`coaching-checklists.ts`)
+
+```ts
+content_series: ["series_count", "series_pitch", "series_pillar_link", "series_format", "series_signature"]
+```
+
+Labels : "Combien de séries", "Nom et promesse de chaque série", "Rattachement aux piliers", "Format fixe", "Signature visuelle".
+
+### 2. `BrandingCoachingFlow.tsx`
+
+- Type `Section` étendu avec `"content_series"`.
+- `SECTION_META.content_series` : 📺 / "Mes séries signatures" / description spec / "~6-8 min".
+- **Garde démo** (proposition 6) : au tout début de `startCoaching` (ou équivalent), si `section === "content_series" && isDemoMode` → `toast.info("Pas dispo en mode démo, crée un compte")` + `onBack()`. Aucun appel Edge Function.
+- **`fetchContext` enrichi UNIQUEMENT pour `content_series`** : ajout d'un select sur `brand_strategy` (`pillar_major`, `pillar_minor_1/2/3`, `creative_concept`) → injecté dans `ctx.brand_strategy`. Les autres sections inchangées.
+- **Nouvelle branche `saveInsights` (`section === "content_series"`)** :
+  - **A. Mapping cadence (proposition 1)** — helper local :
+    ```ts
+    function mapCadence(raw?: string): "weekly"|"biweekly"|"monthly"|"irregular"|null {
+      if (!raw) return null;
+      const s = raw.toLowerCase();
+      if (/(hebdo|chaque semaine|toutes les semaines|weekly|every week)/.test(s)) return "weekly";
+      if (/(bimensuel|tous les 15 jours|toutes les deux semaines|biweekly|every two weeks)/.test(s)) return "biweekly";
+      if (/(mensuel|chaque mois|tous les mois|monthly|every month)/.test(s)) return "monthly";
+      if (/(irrégulier|quand ça vient|sporadique|irregular|ad hoc)/.test(s)) return "irregular";
+      // fallback : si LLM a déjà renvoyé l'enum directement
+      if (["weekly","biweekly","monthly","irregular"].includes(s)) return s as any;
+      return null;
+    }
+    ```
+    Appliqué : `cadence: mapCadence(serie.cadence ?? serie.cadence_raw)`.
+  - **B. Boucle d'écriture séries** : pour chaque objet de `insights.series` (au max 8, voir #4) :
+    - Lookup `(workspace_id, name)` → `UPDATE` si existe, `INSERT` sinon.
+    - `user_id: profileUserId`, `workspace_id: workspaceId !== profileUserId ? workspaceId : undefined`.
+    - Champs absents (undefined) non insérés → defaults DB conservés.
+    - `try/catch` par série : `console.error` + on continue.
+  - **C. Mode combo `pillars_new`** : si présent (array 1-4), lookup `brand_strategy`. N'écrit `pillar_major`/`pillar_minor_1/2/3` QUE sur les colonnes actuellement NULL/empty. Aucune écrasure.
+  - Invalidations React Query : `["series"]`, `["brand-strategy"]`, `["branding-data"]`, `["branding-completion"]`.
+
+### 3. `BrandingCoachingPage.tsx`
+
+- `VALID_SECTIONS` += `"content_series"`.
+- `RECAP_ROUTES.content_series = "/branding/section?section=content_strategy&tab=series"` (tab futur, fallback acceptable).
+
+### 4. Edge Function `branding-coaching/index.ts`
+
+- `SECTION_CHECKLISTS.content_series`, `SECTION_NAMES.content_series`, `TOPIC_LABELS` : ajouts.
+- `normalizeCoveredTopic` : alias (`nombre_series`, `combien`, `nom`, `promesse`, `pitch`, `pilier`, `rattachement`, `format`, `signature`, `visuel`).
+- `buildSystemPrompt` :
+  - Lecture `context.brand_strategy` → construit `pillarsContext` (texte des piliers, ou "Aucun pilier défini" → mode combo).
+  - Bloc conditionnel `if (section === "content_series")` AVANT le `else` final, contenant l'intro pédagogique (parcours pilier-par-pilier OU mode combo avec extraction `pillars_new`), règle anti-format-listé, et le bloc `extracted_insights` strict (schéma de l'array `series` + `pillars_new` optionnel + indication d'extraire `cadence` en texte libre type "chaque vendredi" — le mapping vers l'enum se fait côté client).
+- **Truncation (proposition 4, seuil 8)** : juste après le `safeParseAIResponse`, si `parsed.extracted_insights?.series?.length > 8`, garder les **8 derniers éléments** (les plus récents) silencieusement. `console.warn` pour debug.
+- **Validation Zod (proposition 5)** : juste après la truncation, valider le shape `series[]` :
+  ```ts
+  const SeriesItemSchema = z.object({
+    name: z.string().min(1),
+    promise: z.string().min(1),
+    pillar_key: z.enum(["pillar_major","pillar_minor_1","pillar_minor_2","pillar_minor_3"]).nullable().optional(),
+    cadence: z.string().optional(),       // texte libre, mappé côté client
+    cadence_raw: z.string().optional(),   // alias accepté
+    format_template: z.string().optional(),
+    signature_description: z.string().optional(),
+    channels: z.array(z.string()).optional(),
+  });
+  const SeriesArraySchema = z.array(SeriesItemSchema);
+  ```
+  Filtrage : on garde uniquement les items qui passent la validation. Les rejets sont `console.warn`-és, pas renvoyés. Le flow continue même si tout est rejeté (l'utilisateur peut continuer la conversation).
+- Le quota reste `checkQuota("coach", …)` — pas de nouvelle catégorie.
+
+### Ce qui ne bouge pas
+
+- Logique des autres sections (story, persona, tone_style, content_strategy, offers, charter) : zéro refacto.
+- Schéma DB : aucune migration. Tables `series` (Plan 1) et `brand_strategy` utilisées telles quelles.
+- Mode démo (DemoContext, demo-coaching-data.ts) : seul ajout = la garde au début du flow.
+- Routes/navigation hors `RECAP_ROUTES` : inchangé.
+- `BrandingSectionPage.tsx` : intouché (Plan 3).
+
+### Validation post-merge
+
+1. `npx tsc --noEmit --skipLibCheck` → 0 erreur.
+2. Edge function déployée, logs clean.
+3. Scénario "avec piliers" : 2 séries définies → `SELECT * FROM series WHERE workspace_id = '…'` retourne 2 lignes avec `pillar_key` correct, `cadence` mappée vers l'enum.
+4. Scénario "mode combo" : `brand_strategy` rempli (sans écraser de piliers existants partiels) ET séries créées.
+5. Cadence orale "chaque vendredi" → DB = `weekly`. Cadence farfelue → DB = `NULL` (pas d'erreur CHECK).
+6. Mode démo : clic sur "Lancer coaching séries" → toast + retour, aucun appel Edge.
+7. Quota `coach` décrémenté.
+8. Isolation workspace OK.
 
 ### Risques
 
-Très faibles. Pattern dupliqué d'un système déjà éprouvé en production (persona). Pas de migration. Pas de changement structurel. Le seul vrai risque est que l'IA renvoie des clés mal nommées — mitigé par l'`aliasMap` et la liste blanche stricte côté prompt.
-
-### Améliorations possibles (à valider avant ou après)
-
-1. **Bouton "régénérer ce champ uniquement"** : sur chaque carte, un petit bouton ✨ qui demande à l'IA de proposer une nouvelle valeur pour ce champ précis, en gardant tous les autres comme contexte. Plus chirurgical que le bouton global. À chiffrer séparément si tu veux.
-2. **Étendre le pattern à `tone_style`** : la fiche "Mon ton" a aussi 13 champs souvent vides. Même bouton autofill possible. Hors scope pour ce plan, mais la même fondation servirait.
-3. **Mémoriser le dernier autofill** : conserver `last_autofill_at` sur `brand_strategy` pour afficher "Complété par IA il y a 3 jours" et inviter à régénérer si la marque a évolué. Optionnel.
-
-Dis-moi si tu veux qu'on parte sur le scope de base (bouton autofill global pour `content_strategy`) ou si tu valides aussi l'amélioration #1 (bouton ✨ par champ) pour la même livraison.
+Très faibles. Pattern dupliqué d'une fondation éprouvée. Le seul risque résiduel (LLM qui invente une cadence ou des clés) est mitigé par : mapping regex côté client + validation Zod côté Edge + truncation à 8.
 
