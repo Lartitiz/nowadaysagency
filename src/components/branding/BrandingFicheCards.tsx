@@ -711,7 +711,7 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
       </div>
 
       {/* Auto-fill button for persona with empty fields */}
-      {section === "persona" && totalEmpty > 0 && recordId && (data?.portrait || filled.length > 0) && (
+      {supportsAutoFill && totalEmpty > 0 && recordId && (section === "content_strategy" || data?.portrait || filled.length > 0) && (
         <div className="mb-4">
           <Button
             variant="outline"
