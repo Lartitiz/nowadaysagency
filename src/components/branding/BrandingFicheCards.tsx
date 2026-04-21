@@ -177,7 +177,9 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
   const { column, value: workspaceValue } = useWorkspaceFilter();
   const [isAutoFilling, setIsAutoFilling] = useState(false);
 
-  const emptyNonPitchFields = section === "persona" ? fields.filter(f => {
+  const supportsAutoFill = section === "persona" || section === "content_strategy";
+
+  const emptyNonPitchFields = supportsAutoFill ? fields.filter(f => {
     const v = data[f.key];
     return (!v || (typeof v === "string" && v.trim().length === 0)) && !f.key.startsWith("pitch_");
   }) : [];
@@ -189,7 +191,227 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
 
   const totalEmpty = emptyNonPitchFields.length + emptyPitchFields.length;
 
+  const handleAutoFillContentStrategy = async () => {
+    if (!user || !recordId || isDemoMode) return;
+    setIsAutoFilling(true);
+    try {
+      // Champs ligne édito encore vides
+      const stillEmptyFields = fields.filter(f => {
+        const v = data[f.key];
+        return (!v || (typeof v === "string" && v.trim().length === 0));
+      });
+
+      if (stillEmptyFields.length === 0) {
+        toast.info("Tous les champs sont déjà remplis ✨");
+        setIsAutoFilling(false);
+        return;
+      }
+
+      const fieldLabels: Record<string, string> = {
+        step_1_hidden_facets: "Mes facettes cachées (zones d'intimité de la marque)",
+        facet_1: "Facette 1 (phrase courte, 5-12 mots)",
+        facet_2: "Facette 2 (phrase courte, 5-12 mots)",
+        facet_3: "Facette 3 (phrase courte, 5-12 mots)",
+        pillar_major: "Pilier majeur de contenu (4-10 mots)",
+        pillar_minor_1: "Pilier mineur 1 (4-10 mots, distinct du majeur)",
+        pillar_minor_2: "Pilier mineur 2 (4-10 mots, distinct du majeur)",
+        pillar_minor_3: "Pilier mineur 3 (4-10 mots, distinct du majeur)",
+        creative_concept: "Concept créatif qui relie les piliers (1-3 phrases)",
+      };
+
+      // Récupère TOUT le contexte branding en parallèle
+      const [bpRes, propRes, persRes, storyRes, sessRes] = await Promise.all([
+        (supabase.from("brand_profile") as any)
+          .select("mission, positioning, voice_description, tone_register, tone_level, tone_style, combat_cause, combat_fights, key_expressions, things_to_avoid, target_description, target_verbatims, target_problem")
+          .eq(column, workspaceValue).maybeSingle(),
+        (supabase.from("brand_proposition") as any)
+          .select("version_final, step_1_what")
+          .eq(column, workspaceValue).maybeSingle(),
+        (supabase.from("persona") as any)
+          .select("step_1_frustrations, step_2_transformation, step_4_beautiful, step_4_inspiring")
+          .eq(column, workspaceValue).eq("is_primary", true).maybeSingle(),
+        (supabase.from("storytelling") as any)
+          .select("step_7_polished, pitch_short")
+          .eq(column, workspaceValue).order("is_primary", { ascending: false }).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+        (supabase.from("branding_coaching_sessions") as any)
+          .select("messages")
+          .eq(column, workspaceValue).eq("section", "content_strategy").maybeSingle(),
+      ]);
+
+      const bp = bpRes?.data || null;
+      const prop = propRes?.data || null;
+      const pers = persRes?.data || null;
+      const story = storyRes?.data || null;
+      const conversationMessages = (sessRes?.data?.messages as any[]) || [];
+
+      // Champs déjà remplis (à ne pas écraser, à utiliser comme guide)
+      const filledStrategyFields: Record<string, string> = {};
+      for (const f of fields) {
+        const v = data[f.key];
+        if (v && typeof v === "string" && v.trim().length > 0) {
+          filledStrategyFields[f.key] = v.trim();
+        }
+      }
+
+      const hasBrandContext = bp && (bp.mission || bp.positioning || bp.voice_description || bp.target_description);
+      const hasContext = hasBrandContext || !!prop || !!pers || !!story || conversationMessages.length > 0 || Object.keys(filledStrategyFields).length > 0;
+
+      if (!hasContext) {
+        toast.info("Pas assez de contexte pour compléter automatiquement — remplis manuellement quelques champs ou refais le coaching.");
+        setIsAutoFilling(false);
+        return;
+      }
+
+      const contextBlocks: { role: string; content: string }[] = [];
+
+      if (bp && hasBrandContext) {
+        const lines: string[] = [];
+        if (bp.mission) lines.push(`Mission : ${bp.mission}`);
+        if (bp.positioning) lines.push(`Positionnement : ${bp.positioning}`);
+        if (bp.voice_description) lines.push(`Voix de marque : ${bp.voice_description}`);
+        if (bp.tone_register || bp.tone_level || bp.tone_style) {
+          lines.push(`Ton : ${[bp.tone_register, bp.tone_level, bp.tone_style].filter(Boolean).join(" / ")}`);
+        }
+        if (bp.combat_cause) lines.push(`Cause défendue : ${bp.combat_cause}`);
+        if (bp.combat_fights) lines.push(`Ce contre quoi on se bat : ${bp.combat_fights}`);
+        if (bp.key_expressions) lines.push(`Expressions clés : ${bp.key_expressions}`);
+        if (bp.things_to_avoid) lines.push(`À éviter : ${bp.things_to_avoid}`);
+        if (bp.target_description) lines.push(`Cible : ${bp.target_description}`);
+        if (bp.target_problem) lines.push(`Problème de la cible : ${bp.target_problem}`);
+        if (bp.target_verbatims) lines.push(`Verbatims cible : ${bp.target_verbatims}`);
+        contextBlocks.push({ role: "user", content: `CONTEXTE DE MARQUE :\n${lines.join("\n")}` });
+      }
+
+      if (prop && (prop.version_final || prop.step_1_what)) {
+        const lines: string[] = [];
+        if (prop.version_final) lines.push(`Proposition de valeur (version finale) : ${prop.version_final}`);
+        if (prop.step_1_what) lines.push(`Ce que je fais : ${prop.step_1_what}`);
+        contextBlocks.push({ role: "user", content: `PROPOSITION :\n${lines.join("\n")}` });
+      }
+
+      if (pers) {
+        const lines: string[] = [];
+        if (pers.step_1_frustrations) lines.push(`Frustrations cliente : ${pers.step_1_frustrations}`);
+        if (pers.step_2_transformation) lines.push(`Transformation rêvée : ${pers.step_2_transformation}`);
+        if (pers.step_4_beautiful) lines.push(`Ce qu'elle trouve beau : ${pers.step_4_beautiful}`);
+        if (pers.step_4_inspiring) lines.push(`Ce qui l'inspire : ${pers.step_4_inspiring}`);
+        if (lines.length > 0) contextBlocks.push({ role: "user", content: `PERSONA :\n${lines.join("\n")}` });
+      }
+
+      if (story && (story.step_7_polished || story.pitch_short)) {
+        const lines: string[] = [];
+        if (story.pitch_short) lines.push(`Pitch court : ${story.pitch_short}`);
+        if (story.step_7_polished) lines.push(`Storytelling : ${story.step_7_polished.slice(0, 1500)}`);
+        contextBlocks.push({ role: "user", content: `STORY :\n${lines.join("\n")}` });
+      }
+
+      if (Object.keys(filledStrategyFields).length > 0) {
+        const filledStr = Object.entries(filledStrategyFields)
+          .map(([k, v]) => `- ${fieldLabels[k] || k} : ${v}`)
+          .join("\n");
+        contextBlocks.push({ role: "user", content: `CHAMPS LIGNE ÉDITO DÉJÀ REMPLIS (à NE PAS écraser, à utiliser comme guide de cohérence) :\n${filledStr}` });
+      }
+
+      const missingList = stillEmptyFields
+        .map(f => `- "${f.key}": ${fieldLabels[f.key] || f.label}`)
+        .join("\n");
+
+      const { data: fillData } = await invokeWithTimeout("branding-coaching", {
+        body: {
+          section: "content_strategy_fill",
+          messages: [
+            ...contextBlocks,
+            ...conversationMessages.map((m: any) => ({ role: m.role, content: m.content })),
+            { role: "user", content: `À partir de TOUT le contexte ci-dessus (marque, proposition, persona, story, champs déjà remplis, conversation), DÉDUIS et remplis ces champs manquants de la ligne éditoriale. Tu DOIS produire une valeur concrète et plausible pour CHAQUE champ demandé. Respecte les règles de cohérence métier (piliers mineurs distincts du majeur, concept créatif qui relie, etc.). Réponds UNIQUEMENT en JSON plat avec ces clés EXACTES :\n${missingList}` },
+          ],
+          context: {},
+          covered_topics: [],
+        },
+      }, 120000);
+
+      const fillResponse = fillData?.response;
+      let fillInsights: Record<string, any> = {};
+      if (fillResponse) {
+        if (typeof fillResponse === "string") {
+          try { fillInsights = JSON.parse(fillResponse.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim()); } catch { /* ignore */ }
+        } else if (typeof fillResponse === "object") {
+          fillInsights = fillResponse.extracted_insights || fillResponse;
+        }
+      }
+
+      // Normalisation alias → clés DB
+      const aliasMap: Record<string, string> = {
+        facettes_cachees: "step_1_hidden_facets",
+        facettes: "step_1_hidden_facets",
+        hidden_facets: "step_1_hidden_facets",
+        intimite: "step_1_hidden_facets",
+        facet1: "facet_1",
+        facette_1: "facet_1",
+        facet2: "facet_2",
+        facette_2: "facet_2",
+        facet3: "facet_3",
+        facette_3: "facet_3",
+        pilier_principal: "pillar_major",
+        pilier_majeur: "pillar_major",
+        axe_majeur: "pillar_major",
+        pilier_central: "pillar_major",
+        main_pillar: "pillar_major",
+        pilier_mineur_1: "pillar_minor_1",
+        pilier_mineur_2: "pillar_minor_2",
+        pilier_mineur_3: "pillar_minor_3",
+        minor_pillar_1: "pillar_minor_1",
+        minor_pillar_2: "pillar_minor_2",
+        minor_pillar_3: "pillar_minor_3",
+        concept: "creative_concept",
+        concept_creatif: "creative_concept",
+        twist: "creative_concept",
+        twist_creatif: "creative_concept",
+        axe_editorial: "creative_concept",
+        ligne_editoriale: "creative_concept",
+      };
+      const normalized: Record<string, any> = { ...fillInsights };
+      for (const [alias, realKey] of Object.entries(aliasMap)) {
+        if (fillInsights[alias] && !normalized[realKey]) {
+          normalized[realKey] = fillInsights[alias];
+        }
+      }
+
+      const validFills: Record<string, string> = {};
+      for (const f of stillEmptyFields) {
+        const val = normalized[f.key];
+        if (val && typeof val === "string" && val.trim().length > 0) {
+          validFills[f.key] = val.trim();
+        } else if (Array.isArray(val) && val.length > 0) {
+          // tolérance : si l'IA renvoie un tableau, on join
+          validFills[f.key] = val.filter(Boolean).join(", ");
+        }
+      }
+
+      if (Object.keys(validFills).length > 0) {
+        await (supabase.from(table as any) as any)
+          .update({ ...validFills, updated_at: new Date().toISOString() })
+          .eq("id", recordId);
+        for (const [key, val] of Object.entries(validFills)) onFieldUpdate?.(key, val, "");
+        toast.success(`${Object.keys(validFills).length} champ${Object.keys(validFills).length > 1 ? "s" : ""} complété${Object.keys(validFills).length > 1 ? "s" : ""} par l'IA ✨`);
+      } else if (fillResponse) {
+        console.warn("[ContentStrategyAutoFill] AI responded but no exploitable keys. Received:",
+          Object.keys(fillInsights), "Expected:", stillEmptyFields.map(f => f.key));
+        toast.info("L'IA a répondu, mais pas dans le format attendu. Réessaie ou remplis manuellement.");
+      } else {
+        toast.info("Pas assez de contexte pour compléter automatiquement.");
+      }
+    } catch (e) {
+      console.error("[ContentStrategyAutoFill] Error:", e);
+      toast.error("Erreur lors de la complétion. Réessaie.");
+    }
+    setIsAutoFilling(false);
+  };
+
   const handleAutoFill = async () => {
+    if (section === "content_strategy") {
+      await handleAutoFillContentStrategy();
+      return;
+    }
     if (!user || !recordId || isDemoMode) return;
     setIsAutoFilling(true);
     try {
@@ -489,7 +711,7 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
       </div>
 
       {/* Auto-fill button for persona with empty fields */}
-      {section === "persona" && totalEmpty > 0 && recordId && (data?.portrait || filled.length > 0) && (
+      {supportsAutoFill && totalEmpty > 0 && recordId && (section === "content_strategy" || data?.portrait || filled.length > 0) && (
         <div className="mb-4">
           <Button
             variant="outline"

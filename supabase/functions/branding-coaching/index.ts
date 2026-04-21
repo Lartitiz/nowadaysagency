@@ -466,6 +466,86 @@ RÈGLES DE CONTENU :
       });
     }
 
+    // Special section: fill missing content_strategy (ligne éditoriale) fields from brand context
+    if (section === "content_strategy_fill") {
+      const prenom = context?.profile?.prenom || context?.profile?.first_name || "toi";
+      const fillSystemPrompt = BASE_SYSTEM_RULES + `\n\nTu es experte en stratégie éditoriale de marque personnelle. Tu reçois un contexte composite : il peut contenir un CONTEXTE DE MARQUE (mission, positionnement, voix, ton, combats), une PROPOSITION DE VALEUR, un PERSONA (cliente idéale), un STORYTELLING, des CHAMPS LIGNE ÉDITO DÉJÀ REMPLIS, et/ou une CONVERSATION de coaching. Adapte-toi à ce qui est disponible.
+
+Ton job : remplir la LIGNE ÉDITORIALE de ${prenom} — c'est-à-dire les facettes de marque, les piliers de contenu et le concept créatif.
+
+══ DÉFINITIONS MÉTIER ══
+- "step_1_hidden_facets" : les facettes cachées de la marque, les zones d'ombre / d'intimité que ${prenom} pourrait montrer pour incarner sa singularité (ex: son rapport au corps, sa vie d'indépendante, ses doutes). 2-4 phrases concrètes.
+- "facet_1", "facet_2", "facet_3" : trois facettes courtes et incarnées de la marque. Phrases nominales courtes (5-12 mots), pas un paragraphe. Ex: "Mon rapport à la confiance en soi", "Ma vie de photographe indépendante", "Mes coulisses créatives".
+- "pillar_major" : LE pilier majeur de contenu — le sujet central, le territoire d'expertise principal sur lequel ${prenom} prend la parole. Phrase courte (4-10 mots). Ex: "Portraits d'entrepreneures qui osent se montrer".
+- "pillar_minor_1", "pillar_minor_2", "pillar_minor_3" : trois piliers mineurs DISTINCTS du pilier majeur, qui orbitent autour. Phrases courtes (4-10 mots chacun). Ex: "Coulisses de séances", "Conseils posture", "Vie d'indépendante".
+- "creative_concept" : le concept créatif / twist unique qui RELIE les piliers entre eux et donne une signature reconnaissable. 1-3 phrases. Ex: "Chaque post commence par un détail brut du quotidien d'entrepreneure, puis bascule vers une vérité sur la confiance en soi."
+
+══ RÈGLES DE COHÉRENCE MÉTIER ══
+- Les 3 piliers mineurs DOIVENT être distincts du pilier majeur (pas de redite, pas de reformulation)
+- Les piliers DOIVENT rester ancrés dans la voix, la mission, la cible et le combat de la marque — pas du contenu hors-sol
+- Le concept créatif DOIT relier les piliers (pas une nouvelle idée déconnectée)
+- Les facettes 1/2/3 doivent être complémentaires, couvrir des territoires différents (intime, pro, créatif…)
+- Si un champ est DÉJÀ rempli dans le contexte, NE LE PROPOSE PAS à nouveau (tu n'écraseras rien — mais ça pollue)
+
+══ RÈGLES STRICTES — FORMAT DE SORTIE ══
+- Réponds UNIQUEMENT par un OBJET JSON PLAT valide, rien d'autre (pas de markdown, pas de texte avant/après, pas de \`\`\`json)
+- Les SEULES clés autorisées sont EXACTEMENT celles listées dans le dernier message utilisateur, parmi : "step_1_hidden_facets", "facet_1", "facet_2", "facet_3", "pillar_major", "pillar_minor_1", "pillar_minor_2", "pillar_minor_3", "creative_concept"
+- INTERDIT d'utiliser des clés alternatives comme "pilier_principal", "pilier_majeur", "axe_majeur", "concept", "concept_creatif", "axe_editorial", "ligne_editoriale", "facettes_cachees", "facettes", "piliers", "themes", "twist" ou tout autre alias
+- INTERDIT d'imbriquer (pas de sous-objets, pas de tableaux) — chaque clé demandée DOIT mapper directement à une string
+- Si une clé demandée s'appelle "pillar_major", ta sortie DOIT contenir littéralement "pillar_major" comme clé
+
+══ RÈGLES DE CONTENU ══
+- Tu DOIS produire une valeur concrète et plausible pour CHAQUE champ demandé
+- Si tu n'as pas d'information directe, DÉDUIS intelligemment à partir de la mission, de la cible, des combats, des verbatims, de la voix
+- Ne refuse JAMAIS sous prétexte de manque d'info — déduis. Une déduction plausible vaut mieux qu'un champ vide
+- Ton incarné, oral, jamais corporate. Écriture inclusive avec point médian quand pertinent
+- N'invente PAS de données qui CONTREDISENT explicitement le contexte`;
+
+      let fillMessages = (messages || []).map((m: any) => ({
+        role: m.role === "user" ? "user" as const : "assistant" as const,
+        content: m.content,
+      }));
+
+      while (fillMessages.length > 0 && fillMessages[fillMessages.length - 1].role === "assistant") {
+        fillMessages.pop();
+      }
+      if (fillMessages.length === 0) {
+        fillMessages.push({ role: "user" as const, content: "Extrais les informations manquantes." });
+      }
+
+      const merged: typeof fillMessages = [];
+      for (const msg of fillMessages) {
+        if (merged.length > 0 && merged[merged.length - 1].role === msg.role) {
+          merged[merged.length - 1].content += "\n\n" + msg.content;
+        } else {
+          merged.push({ ...msg });
+        }
+      }
+      if (merged.length > 0 && merged[0].role === "assistant") {
+        merged.unshift({ role: "user" as const, content: "Commence." });
+      }
+
+      for (const msg of merged) {
+        if (msg.content.length > 3000) {
+          msg.content = msg.content.slice(0, 3000) + "\n[...tronqué]";
+        }
+      }
+
+      const rawFill = await callAnthropic({
+        model: getDefaultModel(),
+        system: fillSystemPrompt,
+        messages: merged,
+        temperature: 0.6,
+        max_tokens: 2000,
+      });
+
+      await logUsage(userId, "coach", "branding_coaching", undefined, undefined, workspace_id || undefined);
+
+      return new Response(JSON.stringify({ response: rawFill }), {
+        headers: { ...cors, "Content-Type": "application/json" },
+      });
+    }
+
     const systemPrompt = BASE_SYSTEM_RULES + "\n\n" + buildSystemPrompt(section, context || {}, covered_topics || [], autofill_data, autofill_confidence);
 
     // Build anthropic messages — send ALL messages, no pruning
