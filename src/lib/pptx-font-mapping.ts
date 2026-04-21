@@ -162,5 +162,135 @@ export function computeOverlayFontSize(text: string): number {
 /** Strip the leading "#" so PptxGenJS gets a 6-char hex string. */
 export function normalizeHex(color?: string | null, fallback = "FFFFFF"): string {
   if (!color) return fallback;
-  return color.replace("#", "").padEnd(6, "0").slice(0, 6).toUpperCase();
+  let c = color.trim();
+  // rgb(r,g,b) or rgba(r,g,b,a)
+  const rgbMatch = c.match(/rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/i);
+  if (rgbMatch) {
+    const r = Math.max(0, Math.min(255, parseInt(rgbMatch[1], 10)));
+    const g = Math.max(0, Math.min(255, parseInt(rgbMatch[2], 10)));
+    const b = Math.max(0, Math.min(255, parseInt(rgbMatch[3], 10)));
+    return [r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("").toUpperCase();
+  }
+  c = c.replace("#", "");
+  if (c.length === 3) c = c.split("").map((ch) => ch + ch).join("");
+  return c.padEnd(6, "0").slice(0, 6).toUpperCase();
+}
+
+/** Convert pixels (in the captured iframe coord system) to inches at the given ratio. */
+export function pxToInches(px: number, pxPerInch: number): number {
+  return Math.max(0, px / pxPerInch);
+}
+
+export interface EditableBlock {
+  el: Element;
+  text: string;
+  rect: { x: number; y: number; w: number; h: number };
+  style: {
+    color: string;
+    fontFamily: string;
+    fontSizePx: number;
+    fontWeight: number;
+    fontStyle: string;
+    textAlign: "left" | "center" | "right";
+    textTransform: string;
+    lineHeight: number;
+  };
+  kind: "title" | "body" | "overlay";
+}
+
+function parseAlign(v: string): "left" | "center" | "right" {
+  if (v === "center" || v === "right" || v === "left") return v;
+  if (v === "start") return "left";
+  if (v === "end") return "right";
+  return "left";
+}
+
+function parseFontWeight(v: string): number {
+  const n = parseInt(v, 10);
+  if (!isNaN(n)) return n;
+  if (v === "bold" || v === "bolder") return 700;
+  return 400;
+}
+
+/**
+ * Walk the document and detect text blocks worth making editable in PPTX.
+ * Heuristic: leaf-ish elements (no element children OR only inline children)
+ * with non-trivial text, font-size >= minFontPx OR bold OR semantic (h1/h2/h3).
+ */
+export function extractEditableBlocks(
+  doc: Document,
+  opts: { minFontPx?: number; minTextLen?: number; maxBlocks?: number } = {},
+): EditableBlock[] {
+  const minFontPx = opts.minFontPx ?? 18;
+  const minTextLen = opts.minTextLen ?? 3;
+  const maxBlocks = opts.maxBlocks ?? 12;
+  const win = doc.defaultView;
+  if (!win) return [];
+
+  const candidates: EditableBlock[] = [];
+  const all = Array.from(doc.body.querySelectorAll<HTMLElement>("*"));
+
+  for (const el of all) {
+    const text = (el.textContent || "").trim();
+    if (text.length < minTextLen) continue;
+
+    // Skip if any child is itself a text-bearing element (we want leaf-ish blocks)
+    const hasBlockChild = Array.from(el.children).some((c) => {
+      const cd = win.getComputedStyle(c as HTMLElement).display;
+      return cd && cd !== "inline" && cd !== "inline-block" && (c.textContent || "").trim().length > 0;
+    });
+    if (hasBlockChild) continue;
+
+    const cs = win.getComputedStyle(el);
+    if (cs.visibility === "hidden" || cs.display === "none" || parseFloat(cs.opacity || "1") < 0.05) continue;
+
+    const fontSizePx = parseFloat(cs.fontSize) || 0;
+    const weight = parseFontWeight(cs.fontWeight);
+    const tag = el.tagName.toLowerCase();
+    const isSemantic = ["h1", "h2", "h3", "h4"].includes(tag);
+    const isBold = weight >= 600;
+
+    if (!isSemantic && !isBold && fontSizePx < minFontPx) continue;
+
+    const r = el.getBoundingClientRect();
+    if (r.width < 20 || r.height < 10) continue;
+
+    let kind: EditableBlock["kind"] = "body";
+    if (isSemantic || fontSizePx >= 36) kind = "title";
+    if (text.length < 60 && fontSizePx >= 28) kind = "overlay";
+
+    candidates.push({
+      el,
+      text,
+      rect: { x: r.left, y: r.top, w: r.width, h: r.height },
+      style: {
+        color: cs.color || "#FFFFFF",
+        fontFamily: cs.fontFamily || "",
+        fontSizePx,
+        fontWeight: weight,
+        fontStyle: cs.fontStyle || "normal",
+        textAlign: parseAlign(cs.textAlign || "left"),
+        textTransform: cs.textTransform || "none",
+        lineHeight: parseFloat(cs.lineHeight) || fontSizePx * 1.25,
+      },
+      kind,
+    });
+  }
+
+  // Drop ancestors when a descendant is also a candidate (avoid double-rendering)
+  const filtered = candidates.filter(
+    (c) => !candidates.some((other) => other !== c && c.el.contains(other.el)),
+  );
+
+  // Sort by visual order (top to bottom) and cap
+  filtered.sort((a, b) => a.rect.y - b.rect.y || a.rect.x - b.rect.x);
+  return filtered.slice(0, maxBlocks);
+}
+
+/** Convert CSS px font-size into PPTX point size for a 1080px wide -> 7.5in slide. */
+export function fontSizePxToPt(px: number, pxPerInch: number): number {
+  // PPTX uses 72pt/inch. Apply a small visual correction (~0.92) so PPTX text
+  // doesn't render larger than the captured background.
+  const inches = px / pxPerInch;
+  return Math.max(8, Math.round(inches * 72 * 0.92));
 }
