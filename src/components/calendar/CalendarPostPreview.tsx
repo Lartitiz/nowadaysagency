@@ -1,12 +1,12 @@
 import { Button } from "@/components/ui/button";
-import { Download, Loader2, Sparkles, FileDown, ChevronDown, ChevronLeft, ChevronRight, Copy, Maximize2, ImageIcon, FileText } from "lucide-react";
+import { Download, Loader2, Sparkles, ChevronDown, ChevronLeft, ChevronRight, Copy, Maximize2 } from "lucide-react";
 import { useState, useCallback } from "react";
-import html2canvas from "html2canvas";
-import { exportCarouselVisualPptx } from "@/lib/export-carousel-visual-pptx";
+import { exportCarouselPng } from "@/lib/export-carousel-png";
 import { exportCarouselHybridPptx } from "@/lib/export-carousel-hybrid-pptx";
 import { SocialMockup } from "@/components/social-mockup/SocialMockup";
 import { ContentPreview } from "@/components/ContentPreview";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DownloadMenuItems } from "@/components/exports/DownloadMenuItems";
 import { useToast } from "@/hooks/use-toast";
 import { useBrandCharter } from "@/hooks/use-branding";
 
@@ -37,93 +37,31 @@ export function CalendarPostPreview({
 }: Props) {
   const { toast } = useToast();
   const { data: charterData } = useBrandCharter();
-  const [downloading, setDownloading] = useState(false);
-  const [downloadingPptx, setDownloadingPptx] = useState(false);
-  const [downloadingEditable, setDownloadingEditable] = useState(false);
+  const [downloadingPng, setDownloadingPng] = useState(false);
   const [downloadingHybrid, setDownloadingHybrid] = useState(false);
   const [slideIndex, setSlideIndex] = useState(0);
 
-  // ── Télécharger en PNG (ZIP si plusieurs slides) ──
+  const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9àâéèêëïîôùûüç\-_.]/g, "-");
+
+  // ── PNG depuis visualHtml (capture html2canvas) ──
   const handleDownloadImages = useCallback(async () => {
-    if (!visualHtml || visualHtml.length === 0 || downloading) return;
-    setDownloading(true);
-
-    const container = document.createElement("div");
-    container.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:1080px;height:1350px;overflow:hidden;z-index:-1;";
-    document.body.appendChild(container);
-
+    if (!visualHtml || visualHtml.length === 0 || downloadingPng) return;
+    setDownloadingPng(true);
     try {
-      const images: { name: string; blob: Blob }[] = [];
-
-      for (const vs of visualHtml) {
-        container.innerHTML = vs.html;
-        await document.fonts.ready;
-        await new Promise(r => setTimeout(r, 400));
-
-        const canvas = await html2canvas(container, {
-          width: 1080, height: 1350, scale: 1,
-          useCORS: true, allowTaint: true, backgroundColor: null, logging: false,
-        });
-
-        const blob = await new Promise<Blob>((resolve) => {
-          canvas.toBlob((b) => resolve(b!), "image/png");
-        });
-
-        images.push({ name: `slide-${vs.slide_number}.png`, blob });
-      }
-
-      if (images.length === 1) {
-        const url = URL.createObjectURL(images[0].blob);
-        const a = document.createElement("a");
-        a.href = url; a.download = images[0].name; a.click();
-        URL.revokeObjectURL(url);
-      } else {
-        try {
-          const JSZip = (await import("jszip")).default;
-          const zip = new JSZip();
-          for (const img of images) zip.file(img.name, img.blob);
-          const zipBlob = await zip.generateAsync({ type: "blob" });
-          const url = URL.createObjectURL(zipBlob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = `visuels-${theme || "carrousel"}.zip`.replace(/[^a-zA-Z0-9àâéèêëïîôùûüç\-_.]/g, "-");
-          a.click();
-          URL.revokeObjectURL(url);
-        } catch {
-          for (const img of images) {
-            const url = URL.createObjectURL(img.blob);
-            const a = document.createElement("a");
-            a.href = url; a.download = img.name; a.click();
-            URL.revokeObjectURL(url);
-            await new Promise(r => setTimeout(r, 200));
-          }
-        }
-      }
+      await exportCarouselPng(visualHtml, theme || "carrousel");
     } catch (err) {
       console.error("Download error:", err);
+      toast({ title: "Erreur lors du téléchargement", variant: "destructive" });
     } finally {
-      document.body.removeChild(container);
-      setDownloading(false);
+      setDownloadingPng(false);
     }
-  }, [visualHtml, downloading, theme]);
+  }, [visualHtml, downloadingPng, theme, toast]);
 
-  const handleDownloadPptx = useCallback(async () => {
-    if (!visualHtml || visualHtml.length === 0 || downloadingPptx) return;
-    setDownloadingPptx(true);
-    try {
-      const fileName = `visuels-${theme || "carrousel"}`.replace(/[^a-zA-Z0-9àâéèêëïîôùûüç\-_.]/g, "-");
-      await exportCarouselVisualPptx(visualHtml, fileName);
-    } catch (err) {
-      console.error("PPTX export error:", err);
-    } finally {
-      setDownloadingPptx(false);
-    }
-  }, [visualHtml, downloadingPptx, theme]);
-
+  // ── PNG depuis Storage URLs (déjà rendus côté serveur) ──
   const handleDownloadFromUrls = useCallback(async () => {
     const urls = visualUrls || [];
-    if (urls.length === 0 || downloading) return;
-    setDownloading(true);
+    if (urls.length === 0 || downloadingPng) return;
+    setDownloadingPng(true);
     try {
       if (urls.length === 1) {
         const response = await fetch(urls[0]);
@@ -145,7 +83,7 @@ export function CalendarPostPreview({
           const zipBlob = await zip.generateAsync({ type: "blob" });
           const a = document.createElement("a");
           a.href = URL.createObjectURL(zipBlob);
-          a.download = `visuels-${theme || "carrousel"}.zip`.replace(/[^a-zA-Z0-9àâéèêëïîôùûüç\-_.]/g, "-");
+          a.download = sanitize(`visuels-${theme || "carrousel"}.zip`);
           a.click();
           URL.revokeObjectURL(a.href);
         } catch {
@@ -163,80 +101,18 @@ export function CalendarPostPreview({
       }
     } catch (err) {
       console.error("Download error:", err);
+      toast({ title: "Erreur lors du téléchargement", variant: "destructive" });
     } finally {
-      setDownloading(false);
+      setDownloadingPng(false);
     }
-  }, [visualUrls, downloading, theme]);
-
-  const handlePptxFromUrls = useCallback(async () => {
-    const urls = visualUrls || [];
-    if (urls.length === 0 || downloadingPptx) return;
-    setDownloadingPptx(true);
-    try {
-      const PptxGenJS = (await import("pptxgenjs")).default;
-      const pptx = new PptxGenJS();
-      pptx.defineLayout({ name: "INSTAGRAM", width: 7.5, height: 9.375 });
-      pptx.layout = "INSTAGRAM";
-      pptx.author = "L'Assistant Com'";
-
-      for (let i = 0; i < urls.length; i++) {
-        const response = await fetch(urls[i]);
-        const blob = await response.blob();
-        const base64 = await new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.readAsDataURL(blob);
-        });
-        const slide = pptx.addSlide();
-        slide.addImage({ data: base64, x: 0, y: 0, w: 7.5, h: 9.375 });
-      }
-
-      const fileName = `visuels-${theme || "carrousel"}`.replace(/[^a-zA-Z0-9àâéèêëïîôùûüç\-_.]/g, "-");
-      await pptx.writeFile({ fileName: fileName + ".pptx" });
-    } catch (err) {
-      console.error("PPTX error:", err);
-    } finally {
-      setDownloadingPptx(false);
-    }
-  }, [visualUrls, downloadingPptx, theme]);
-
-  const handleDownloadEditablePptx = useCallback(async () => {
-    if (!slidesData || slidesData.length === 0 || downloadingEditable) return;
-    setDownloadingEditable(true);
-    try {
-      const { exportCarouselPptx } = await import("@/lib/export-carousel-pptx");
-
-      let photos: { base64: string }[] | undefined;
-      if (photoUrls && photoUrls.length > 0) {
-        photos = await Promise.all(
-          photoUrls.map(async (url) => {
-            const response = await fetch(url);
-            const blob = await response.blob();
-            const base64 = await new Promise<string>((resolve) => {
-              const reader = new FileReader();
-              reader.onload = () => resolve(reader.result as string);
-              reader.readAsDataURL(blob);
-            });
-            return { base64 };
-          })
-        );
-      }
-
-      const fileName = `editable-${theme || "carrousel"}`.replace(/[^a-zA-Z0-9àâéèêëïîôùûüç\-_.]/g, "-");
-      await exportCarouselPptx(slidesData as any, fileName, undefined, null, photos);
-    } catch (err) {
-      console.error("Editable PPTX export error:", err);
-    } finally {
-      setDownloadingEditable(false);
-    }
-  }, [slidesData, photoUrls, downloadingEditable, theme]);
+  }, [visualUrls, downloadingPng, theme, toast]);
 
   // ── Hybride : fond capturé fidèlement + texte natif éditable PPT ──
   const handleDownloadHybridPptx = useCallback(async () => {
     if (!visualHtml || visualHtml.length === 0 || downloadingHybrid) return;
     setDownloadingHybrid(true);
     try {
-      const fileName = `editable-${theme || "carrousel"}`.replace(/[^a-zA-Z0-9àâéèêëïîôùûüç\-_.]/g, "-");
+      const fileName = sanitize(`editable-${theme || "carrousel"}`);
       await exportCarouselHybridPptx(visualHtml, slidesData || null, charterData || null, fileName);
       toast({ title: "PowerPoint éditable téléchargé" });
     } catch (err) {
@@ -275,67 +151,28 @@ export function CalendarPostPreview({
           {hasVisuals && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" disabled={downloading || downloadingPptx || downloadingHybrid} className="h-7 w-7" title="Télécharger">
-                  {(downloading || downloadingPptx || downloadingHybrid) ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={downloadingPng || downloadingHybrid}
+                  className="gap-1.5 h-7 text-xs"
+                  title="Télécharger"
+                >
+                  {(downloadingPng || downloadingHybrid)
+                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    : <Download className="h-3.5 w-3.5" />}
+                  Télécharger
+                  <ChevronDown className="h-3 w-3" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-64">
-                {/* 1. Images PNG */}
-                {visualUrls && visualUrls.length > 0 ? (
-                  <DropdownMenuItem onClick={handleDownloadFromUrls}>
-                    <ImageIcon className="h-4 w-4 mr-2" />
-                    <div className="flex flex-col">
-                      <span>Images PNG {visualUrls.length > 1 ? "(ZIP)" : ""}</span>
-                      <span className="text-[10px] text-muted-foreground">À publier directement</span>
-                    </div>
-                  </DropdownMenuItem>
-                ) : (
-                  <DropdownMenuItem onClick={handleDownloadImages}>
-                    <ImageIcon className="h-4 w-4 mr-2" />
-                    <div className="flex flex-col">
-                      <span>Images PNG {(visualHtml?.length || 0) > 1 ? "(ZIP)" : ""}</span>
-                      <span className="text-[10px] text-muted-foreground">À publier directement</span>
-                    </div>
-                  </DropdownMenuItem>
-                )}
-
-                {/* 2. PowerPoint éditable (recommandé) — hybride */}
-                {visualHtml && visualHtml.length > 0 && (
-                  <DropdownMenuItem onClick={handleDownloadHybridPptx} disabled={downloadingHybrid}>
-                    {downloadingHybrid ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
-                    <div className="flex flex-col">
-                      <span>PowerPoint — éditable ✨</span>
-                      <span className="text-[10px] text-muted-foreground">Modifier le texte dans PPT</span>
-                    </div>
-                  </DropdownMenuItem>
-                )}
-
-                {/* 3. PowerPoint image fidèle */}
-                {visualUrls && visualUrls.length > 0 ? (
-                  <DropdownMenuItem onClick={handlePptxFromUrls}>
-                    <FileDown className="h-4 w-4 mr-2" />
-                    <div className="flex flex-col">
-                      <span>PowerPoint — image fidèle</span>
-                      <span className="text-[10px] text-muted-foreground">Identique au preview, non modifiable</span>
-                    </div>
-                  </DropdownMenuItem>
-                ) : (
-                  <DropdownMenuItem onClick={handleDownloadPptx}>
-                    <FileDown className="h-4 w-4 mr-2" />
-                    <div className="flex flex-col">
-                      <span>PowerPoint — image fidèle</span>
-                      <span className="text-[10px] text-muted-foreground">Identique au preview, non modifiable</span>
-                    </div>
-                  </DropdownMenuItem>
-                )}
-
-                {/* Fallback "design maison" — uniquement si aucun visualHtml/Urls (cas extrême) */}
-                {(!visualHtml || visualHtml.length === 0) && (!visualUrls || visualUrls.length === 0) && slidesData && slidesData.length > 0 && (
-                  <DropdownMenuItem onClick={handleDownloadEditablePptx} disabled={downloadingEditable}>
-                    {downloadingEditable ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileDown className="h-4 w-4 mr-2" />}
-                    PPTX éditable (basique)
-                  </DropdownMenuItem>
-                )}
+                <DownloadMenuItems
+                  onPng={visualUrls && visualUrls.length > 0 ? handleDownloadFromUrls : handleDownloadImages}
+                  onPptxEditable={visualHtml && visualHtml.length > 0 ? handleDownloadHybridPptx : undefined}
+                  downloadingPng={downloadingPng}
+                  downloadingPptx={downloadingHybrid}
+                  count={(visualUrls?.length ?? visualHtml?.length ?? 1)}
+                />
               </DropdownMenuContent>
             </DropdownMenu>
           )}

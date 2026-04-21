@@ -12,6 +12,7 @@ import PinterestVisualResult from "@/components/creer/formatRenderers/PinterestV
 import PinterestPhotoBriefResult from "@/components/creer/formatRenderers/PinterestPhotoBriefResult";
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DownloadMenuItems } from "@/components/exports/DownloadMenuItems";
 
 /**
  * Nettoie le contenu streamé en temps réel.
@@ -167,14 +168,13 @@ interface Props {
   visualLoading?: boolean;
   visualSlides?: { slide_number: number; html: string }[];
   onExportPptx?: () => void;
-  onExportVisualPptx?: () => void;
   onExportHybridPptx?: () => void;
+  onExportVisualPng?: () => void;
   onSlidesUpdate?: (slides: any[], caption: any) => void;
   onStoriesUpdate?: (stories: any[]) => void;
   photos?: { preview: string; base64?: string; name?: string }[];
   pinterestPinHtml?: string | null;
   onExportPinterestPng?: () => void;
-  onExportPinterestPptx?: () => void;
   onExportPinterestEditablePptx?: () => void;
   photoBriefOverlayHtml?: string | null;
   channel?: "linkedin" | "instagram";
@@ -198,14 +198,13 @@ export default function CreerStepResult({
   visualLoading,
   visualSlides,
   onExportPptx,
-  onExportVisualPptx,
   onExportHybridPptx,
+  onExportVisualPng,
   onSlidesUpdate,
   onStoriesUpdate,
   photos,
   pinterestPinHtml,
   onExportPinterestPng,
-  onExportPinterestPptx,
   onExportPinterestEditablePptx,
   photoBriefOverlayHtml,
   channel,
@@ -443,79 +442,51 @@ export default function CreerStepResult({
         }} className="gap-1.5 text-xs text-muted-foreground">
           <Copy className="h-3.5 w-3.5" /> Copier
         </Button>
-        {isCarousel && hasVisuals && onExportPptx && (
-          (onExportVisualPptx || onExportHybridPptx) ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground">
-                  <Download className="h-3.5 w-3.5" /> Exporter <ChevronDown className="h-3 w-3 ml-0.5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-64">
-                {onExportHybridPptx && (
-                  <DropdownMenuItem onClick={onExportHybridPptx}>
-                    <div className="flex flex-col">
-                      <span>PowerPoint — éditable ✨</span>
-                      <span className="text-[10px] text-muted-foreground">Modifier le texte dans PPT</span>
-                    </div>
-                  </DropdownMenuItem>
-                )}
-                {onExportVisualPptx && (
-                  <DropdownMenuItem onClick={onExportVisualPptx}>
-                    <div className="flex flex-col">
-                      <span>PowerPoint — image fidèle</span>
-                      <span className="text-[10px] text-muted-foreground">Identique au preview, non modifiable</span>
-                    </div>
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuItem onClick={onExportPptx}>
-                  <div className="flex flex-col">
-                    <span>PowerPoint — basique (fallback)</span>
-                    <span className="text-[10px] text-muted-foreground">Design générique éditable</span>
-                  </div>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <Button variant="ghost" size="sm" onClick={onExportPptx} className="gap-1.5 text-xs text-muted-foreground">
-              <Download className="h-3.5 w-3.5" /> Export PPTX
-            </Button>
-          )
+        {isCarousel && hasVisuals && (onExportVisualPng || onExportHybridPptx) && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground">
+                <Download className="h-3.5 w-3.5" /> Télécharger <ChevronDown className="h-3 w-3 ml-0.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64">
+              <DownloadMenuItems
+                onPng={onExportVisualPng}
+                onPptxEditable={onExportHybridPptx}
+                count={visualSlides?.length ?? 1}
+              />
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+        {isCarousel && !hasVisuals && onExportPptx && (
+          <Button variant="ghost" size="sm" onClick={onExportPptx} className="gap-1.5 text-xs text-muted-foreground">
+            <Download className="h-3.5 w-3.5" /> Télécharger PPTX
+          </Button>
         )}
         {isCarousel && hasVisuals && onGenerateVisuals && (
           <Button variant="ghost" size="sm" onClick={onGenerateVisuals} className="gap-1.5 text-xs text-muted-foreground">
             <RefreshCw className="h-3.5 w-3.5" /> Regénérer visuels
           </Button>
         )}
-        {format === "pinterest_visual" && (result?.pin_html || result?.title) && (onExportPinterestPng || onExportPinterestEditablePptx || onExportPinterestPptx) && (
+        {format === "pinterest_visual" && (result?.pin_html || result?.title) && (onExportPinterestPng || onExportPinterestEditablePptx) && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground">
-                <Download className="h-3.5 w-3.5" /> Exporter <ChevronDown className="h-3 w-3 ml-0.5" />
+                <Download className="h-3.5 w-3.5" /> Télécharger <ChevronDown className="h-3 w-3 ml-0.5" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {onExportPinterestEditablePptx && (
-                <DropdownMenuItem onClick={onExportPinterestEditablePptx}>
-                  Éditable (PowerPoint)
-                </DropdownMenuItem>
-              )}
-              {onExportPinterestPptx && (
-                <DropdownMenuItem onClick={onExportPinterestPptx}>
-                  Image fidèle (PPTX)
-                </DropdownMenuItem>
-              )}
-              {onExportPinterestPng && (
-                <DropdownMenuItem onClick={onExportPinterestPng}>
-                  Image PNG
-                </DropdownMenuItem>
-              )}
+            <DropdownMenuContent align="end" className="w-64">
+              <DownloadMenuItems
+                onPng={onExportPinterestPng}
+                onPptxEditable={onExportPinterestEditablePptx}
+                count={1}
+              />
             </DropdownMenuContent>
           </DropdownMenu>
         )}
         {format === "pinterest_photo" && result?.overlay_html && onExportPinterestPng && (
           <Button variant="ghost" size="sm" onClick={onExportPinterestPng} className="gap-1.5 text-xs text-muted-foreground">
-            <Download className="h-3.5 w-3.5" /> Exporter PNG
+            <Download className="h-3.5 w-3.5" /> Télécharger PNG
           </Button>
         )}
         <Button variant="ghost" size="sm" onClick={onReset} className="gap-1.5 text-xs text-muted-foreground">
