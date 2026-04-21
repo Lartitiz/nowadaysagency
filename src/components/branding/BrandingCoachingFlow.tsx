@@ -1134,6 +1134,15 @@ export default function BrandingCoachingFlow({ section, personaId, onComplete, o
             .select("id").eq(column, value).maybeSingle();
           if (existingEdito?.id) {
             await (supabase.from("instagram_editorial_line") as any).update(editoData).eq("id", existingEdito.id);
+          } else {
+            await (supabase.from("instagram_editorial_line") as any).insert({
+              user_id: profileUserId,
+              workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
+              ...editoData,
+            });
+          }
+          queryClient.invalidateQueries({ queryKey: ["editorial-line"] });
+        }
       } else if (sec === "content_series") {
         // ── Mapping cadence libre → enum DB ──
         const mapCadence = (raw?: string): "weekly" | "biweekly" | "monthly" | "irregular" | null => {
@@ -1155,7 +1164,6 @@ export default function BrandingCoachingFlow({ section, personaId, onComplete, o
             const name = String(serie.name).trim();
             if (!name) continue;
 
-            // Lookup existant par (workspace, name)
             const { data: existingSerie } = await (supabase.from("series") as any)
               .select("id")
               .eq(column, value)
@@ -1237,15 +1245,6 @@ export default function BrandingCoachingFlow({ section, personaId, onComplete, o
 
         queryClient.invalidateQueries({ queryKey: ["series"] });
         queryClient.invalidateQueries({ queryKey: ["brand-strategy"] });
-      } else {
-            await (supabase.from("instagram_editorial_line") as any).insert({
-              user_id: profileUserId,
-              workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
-              ...editoData,
-            });
-          }
-          queryClient.invalidateQueries({ queryKey: ["editorial-line"] });
-        }
       } else {
         const { data: existingBP } = await (supabase.from("brand_profile") as any)
           .select("id").eq(column, value).maybeSingle();
