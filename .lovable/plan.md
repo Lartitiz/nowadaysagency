@@ -1,57 +1,45 @@
 
 
-## Bug : "PowerPoint éditable" absent du menu Télécharger sur le calendrier
+## Bug : photos `photo_integrated` toujours mal cadrées dans le PNG export
+
+### Réponse rapide à ta question
+
+**Non, ce n'est pas lié au "fix précédent".** Le fix précédent concernait l'option PowerPoint éditable (HTML stocké en BDD). Le PNG est toujours capturé en direct à partir du HTML à chaque clic — donc la date de génération du post ne change rien. Le bug est dans le moteur de capture lui-même.
 
 ### Diagnostic
 
-Dans `CalendarPostPreview.tsx` ligne 171, le handler PPTX éditable est conditionné à `visualHtml`. Mais sur les posts du calendrier déjà générés, on stocke les **PNG rendus** (`visual_urls` dans Storage) — pas le `visualHtml` source. Résultat : `onPptxEditable = undefined` → l'option disparaît silencieusement.
+Les carrousels photo ont **deux modes** :
+- `photo_full` → photo en `background-image: cover` plein cadre. **Marche bien** (slide-1 dans tes captures).
+- `photo_integrated` → `<img src="..." style="width:100%; height:auto; object-fit:cover">` dans une carte. **Cassé** (slides 3 et 6).
 
-C'est attendu techniquement (le moteur hybride a besoin du HTML pour capturer le fond + injecter le texte natif), mais c'est incohérent côté UX : on a promis "2 options identiques partout".
+Le problème : on utilise `html2canvas` (v1.4.1), qui **ne supporte pas correctement `object-fit: cover`** sur les `<img>`. Il rend l'image à ses dimensions natives au lieu de respecter le cadre → impression de "compression" / mauvais cadrage.
 
-### Vérification rapide
+Or, on a déjà `html2canvas-pro` (v2.0.2) installé dans le projet — c'est un fork qui **corrige précisément `object-fit`** et est déjà utilisé avec succès par `export-carousel-hybrid-pptx.ts` (qui capture sans souci ces mêmes slides).
 
-Avant de coder, je vérifie d'où viennent `visualUrls` et `visualHtml` côté calendrier (depuis quelle table / quelle requête), pour confirmer si on peut récupérer le HTML d'origine quand seules les URLs sont en BDD. Il y a 3 cas possibles :
+Bonus secondaire : on capture `documentElement` au lieu de `body` (le hybrid PPTX capture `body`), ce qui peut introduire des artefacts de scroll vertical sur certains layouts.
 
-- **Cas A** : le HTML est aussi stocké en BDD à côté des URLs → bug pur de transmission de prop. Fix : passer `visualHtml` au composant en plus de `visualUrls`. **Trivial.**
-- **Cas B** : le HTML n'est PAS stocké, seulement les PNG → on ne peut pas générer d'éditable. Deux options à arbitrer (voir plus bas).
-- **Cas C** : le HTML est récupérable via une nouvelle requête (ex. table `posts_visuals` avec colonne `html`) → fix moyen, on fetch à la volée si l'utilisateur clique.
+### Solution
 
-### Solution selon le cas
+**Fichier touché : `src/lib/export-carousel-png.ts` uniquement.**
 
-**Si Cas A** (HTML déjà disponible) :
-- Passer `visualHtml` à `CalendarPostPreview` partout où il est disponible.
-- Garder `visualUrls` pour l'affichage (plus rapide), utiliser `visualHtml` pour les exports.
-- L'option éditable réapparaît automatiquement.
+1. Remplacer `import html2canvas from "html2canvas"` par `import html2canvas from "html2canvas-pro"`.
+2. Cibler `doc.body` au lieu de `doc.documentElement` dans `captureSlide` (alignement avec le hybride qui marche).
+3. Garder le reste de la logique (iframe isolé, attente fonts/images, decode, scale 2, retries) — déjà solide.
 
-**Si Cas B** (HTML non stocké) — deux choix utilisateur :
-1. **Stocker le HTML aussi** lors de la génération initiale (migration : ajouter colonne `visual_html jsonb` sur la table concernée). Coût : un peu de BDD en plus, mais c'est la voie propre.
-2. **Cacher proprement l'option** côté calendrier en affichant une note discrète ("PowerPoint éditable disponible depuis l'atelier") — moins satisfaisant mais zéro travail.
+C'est tout. Pas de changement d'API, pas de migration, pas de touche backend.
 
-**Si Cas C** (HTML fetchable séparément) :
-- Lazy-fetch au clic : on récupère le HTML uniquement quand l'utilisateur clique sur "PowerPoint éditable".
-- Loader pendant le fetch + génération.
+### Pourquoi ça va marcher
 
-### Étapes
+`html2canvas-pro` fait déjà le job sur les **mêmes HTML de slides** dans le pipeline PowerPoint éditable (`captureBackground` dans `export-carousel-hybrid-pptx.ts`). On reproduit exactement la même config → même résultat fidèle.
 
-1. Tracer la source de `visualUrls` vs `visualHtml` côté calendrier (quel composant parent passe ces props, quelle requête les charge, quelle table BDD les stocke).
-2. Identifier le cas (A/B/C).
-3. Appliquer le fix correspondant.
+### Validation
 
-### Fichiers potentiellement touchés
+1. Re-télécharger le carrousel des captures : slides 3 et 6 doivent être pixel-identiques au preview (cadre carte respecté, photo cropped proprement).
+2. Vérifier slide-1 (photo_full) : pas de régression.
+3. Tester un carrousel texte pur : pas de régression.
+4. Tester depuis le calendrier ET depuis l'atelier : même rendu.
 
-| Fichier | Changement probable |
-|---|---|
-| `src/components/calendar/CalendarPostPreview.tsx` | Logique d'activation de `onPptxEditable` selon le cas |
-| Composant parent du calendrier qui passe les props | Transmission du `visualHtml` si Cas A |
-| Hook/requête qui charge les visuels du post | Inclure `visual_html` dans le SELECT si Cas A/C |
-| Migration SQL | Si Cas B option 1, ajout colonne `visual_html` |
+### Risques
 
-### Question pour toi
-
-Avant que je propose le fix définitif, j'ai besoin de savoir : **les posts du calendrier que tu télécharges aujourd'hui ont été générés AVANT ou APRÈS le passage au système de stockage PNG côté serveur ?**
-
-- Si tous tes posts récents sont en PNG-Storage uniquement → on est probablement en Cas B et il faudra décider entre stocker le HTML aussi (recommandé) ou cacher l'option proprement.
-- Si certains posts ont encore le HTML en BDD → c'est juste un bug de prop, fix en 5 min.
-
-Dis-moi et j'enchaîne avec le plan d'exécution exact.
+Très faibles. `html2canvas-pro` est déjà en production sur le projet via le PPTX hybride. C'est un changement d'import à 1 ligne + un `body` au lieu de `documentElement`.
 
