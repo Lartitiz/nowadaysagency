@@ -1,74 +1,83 @@
 
 
-## Bug : la légende LinkedIn d'un carrousel mixte (avec photos) ne contient que l'accroche
+## Audit + refonte du PowerPoint éditable (double texte + mauvais cadrage)
 
-### Diagnostic complet
+### Diagnostic — ce qui se passe vraiment
 
-C'est un **trou dans le flow** côté front, prévu côté back mais jamais implémenté.
+Trois bugs cumulés dans `src/lib/export-carousel-hybrid-pptx.ts` produisent ce que tu vois sur tes captures :
 
-**Côté edge function `carousel-ai`** (`buildMixCarouselPrompt`, ligne 1564) :
-> "Pour LinkedIn mix : la légende (caption) est OPTIONNELLE — concentre-toi à 100% sur la qualité des slides PDF. **Si tu inclus une caption, ne la bâcle pas, sinon laisse-la vide (elle sera générée par un appel dédié)**."
+**Bug 1 — On essaie de masquer le mauvais texte.** Ligne 178 :
+```ts
+const overlayText = (data?.overlay_text || data?.title || data?.body || "").trim();
+```
+Sur tes slides "LE PROBLÈME" et "PHASE STRATÉGIQUE", il n'y a **pas d'`overlay_text`** (c'est réservé aux slides photo full). Donc on prend `body` — un bloc de 400-600 caractères avec `<strong>`, `<span class="accent">` au milieu. Le walker DOM cherche un élément dont le `textContent` matche EXACTEMENT cette chaîne → match foiré dans 90 % des cas.
 
-L'IA suit l'instruction : sur LinkedIn + carrousel mix, elle renvoie une caption vide ou minimale (juste un hook éventuellement). Le prompt suppose qu'**un appel dédié** à `linkedin-ai` action `caption-for-carousel` viendra ensuite remplir hook/body/CTA/hashtags.
+**Bug 2 — Quand le match foire, le texte d'origine reste visible.** Et **on dessine quand même** ce body en overlay PPTX par-dessus, à une position arbitraire bottom_center → **double texte** + scrim noir hideux que tu vois en bas de la capture 2.
 
-**Côté front (`CreerUnifie.tsx` + `use-content-generator.ts`)** : cet appel dédié **n'existe pas**. Après la réponse de `carousel-ai`, on affiche directement le résultat avec le caption vide. Conséquence visible :
-- Hook éventuel rempli (parfois), corps vide, CTA vide, hashtags vide.
-- Le bouton "Régénérer la légende" prévu dans `CarouselPhotoResult.tsx` (ligne 541) est du **code mort** : `onRegenerateCaption` n'est jamais passé depuis `CreerStepResult` → `CreerUnifie`.
-- L'action `caption-for-carousel` existe pourtant côté back (`linkedin-ai/index.ts` ligne 183) avec un prompt dédié strict (hook 210 car., body 800-1500 car., CTA, 3-5 hashtags).
+**Bug 3 — Coords génériques.** `getOverlayCoords` retourne des positions calculées (bottom/center/top), aucun lien avec la **vraie position** du texte dans le HTML d'origine. D'où le cadrage cassé.
 
-**À noter** : ce bug ne touche QUE le canal LinkedIn + carrousel mix (et potentiellement photo si jamais l'IA choisit de bâcler). Sur Instagram, le prompt impose une caption complète obligatoire → ça marche.
+**Bug bonus** — Le titre stylisé en italique tout en bas ("Ce que personne ne vous dit") est dans le HTML, n'est jamais masqué, et n'est jamais rendu en éditable non plus → toujours image figée.
 
-### Solution
+### Pourquoi c'est devenu pire qu'avant
 
-Brancher l'appel dédié manquant. Trois pièces à mettre en place :
+L'ancien export PPTX (`src/lib/export-carousel-pptx.ts`) ne tentait PAS le mode hybride : il rendait juste l'image complète OU il dessinait des blocs natifs en se basant sur les coords de `slide.photo_layout`. Pas de double texte possible. Le nouveau moteur hybride a été conçu pour les slides **photo+overlay** uniquement, mais on le déclenche aussi sur les slides texte → ça casse.
 
-#### 1. Auto-générer la légende LinkedIn juste après la génération du carrousel mix/photo
+### Solution — refonte ciblée
 
-Dans `CreerUnifie.tsx`, juste après que `carousel-ai` retourne le résultat pour le canal LinkedIn ET un carrousel `mix` ou `photo`, déclencher en arrière-plan un appel à `linkedin-ai` action `caption-for-carousel` avec :
-- `subject` (le sujet du carrousel)
-- `chosen_angle` (depuis `result.raw.chosen_angle`)
-- `slides_summary` (concat des `overlay_text` + `title`/`body` des slides, max ~1500 char)
-- `editorial_angle`, `objective`
+**Principe :** ne plus jamais deviner ce qu'il faut masquer dans le HTML. À la place, **détecter le type de slide** et appliquer la bonne stratégie.
 
-Quand la réponse arrive : merger `{ hook, body, cta, hashtags }` dans `result.raw.caption` et déclencher un `setResult` pour rafraîchir le composant.
+#### Stratégie A — Slide photo avec `overlay_text` court (5-20 mots)
 
-#### 2. Loader visible pendant la génération de la légende
+Cas idéal du moteur hybride. On le garde mais on le fiabilise :
+1. Masquage robuste : remplacer le walker par un sélecteur DOM direct (`querySelectorAll`) qui cherche le **plus petit** élément contenant `overlay_text`, on accepte la correspondance même partielle. **Si rien trouvé** → on ne dessine PAS l'overlay PPTX (on garde l'image telle quelle, pas de double texte).
+2. Récupérer la **vraie bounding box** de l'élément masqué (`getBoundingClientRect`) et la convertir en coords PPTX (px → inches via ratio 1080→7.5). Plus de coords génériques.
+3. Récupérer la **vraie couleur**, **font-size**, **font-family**, **text-align** depuis `getComputedStyle`. Tout ce qui s'affiche sera identique à l'original.
+4. Pas de scrim noir automatique (on hérite du fond capturé).
 
-- Ajouter un state `captionLoading: boolean` dans `CreerUnifie.tsx`.
-- Le passer à `<CreerStepResult captionLoading={...} />` (la prop existe déjà).
-- L'éditeur `LinkedInCaptionEditor` affiche déjà son skeleton "✍️ Rédaction de la légende LinkedIn…" quand `loading={true}` — on l'utilise tel quel.
+#### Stratégie B — Slide texte (pas d'`overlay_text`, juste `title` + `body`)
 
-#### 3. Brancher le bouton "Régénérer la légende"
+C'est tes captures. Approche complètement différente :
+1. **Capturer le fond complet AVEC le texte** (donc pas de masquage), exactement comme une image figée.
+2. Identifier les blocs **éditables** dans le DOM par sélecteurs structurels (`h1`, `h2`, `p`, éléments avec `font-size > 30px` ou `font-weight bold`). Pour chacun :
+   - Récupérer bbox + styles calculés
+   - **Masquer ces éléments** puis recapturer le fond
+   - Ajouter un `addText` PPTX par-dessus avec la bonne position, taille, couleur, font
+3. Si la détection foire → **fallback image-only** (pas d'overlay éditable plutôt qu'un overlay cassé). C'est mieux d'avoir un PowerPoint non-éditable qu'un PowerPoint avec double texte.
 
-- Créer `handleRegenerateLinkedInCaption()` dans `CreerUnifie.tsx` qui rappelle `caption-for-carousel` à la demande.
-- Le passer en prop `onRegenerateCaption` à `CreerStepResult` puis à `CarouselPhotoResult` (les deux signatures existent déjà).
+#### Stratégie C — Marqueurs côté générateur (optionnel, V2)
 
-#### 4. Sauvegarde calendrier : reconstruire `caption.fullText` après merge
+Pour fiabiliser à 100 %, ajouter dans `carousel-visual` un attribut `data-pptx-editable="title|body|overlay"` sur les éléments texte clés. Le front n'aurait plus à deviner. **Pas dans ce fix** (impact prompt IA), mais à noter pour la suite.
 
-`CarouselPhotoResult` recompose `fullText` à partir de hook/body/cta/hashtags via `composeFullText` — c'est déjà géré, rien à modifier.
-
-### Fichiers touchés
+### Fichier touché
 
 | Fichier | Changement |
 |---|---|
-| `src/pages/CreerUnifie.tsx` | Ajout state `captionLoading`, fonction `regenerateLinkedInCarouselCaption()`, hook auto-trigger après carousel-ai LinkedIn mix/photo, props `captionLoading` + `onRegenerateCaption` passées à `CreerStepResult` |
+| `src/lib/export-carousel-hybrid-pptx.ts` | Refonte complète : détection type slide, masquage par bbox, extraction styles calculés, fallback safe |
+| `src/lib/pptx-font-mapping.ts` | Ajout helper `pxToInches(px, ratio)` + helper `extractEditableBlocks(doc)` |
 
-Aucun autre fichier touché : `CreerStepResult`, `CarouselPhotoResult`, `LinkedInCaptionEditor` ont déjà toute la plomberie en place (props, états, UI). C'est purement le **branchement manquant** dans la page.
+Pas de migration, pas de touche back, pas de changement de prompt.
 
-### Pourquoi pas une autre approche
+### Validation visuelle
 
-- **Forcer carousel-ai à générer la caption complète pour LinkedIn mix** : possible mais on perd la qualité éditoriale du prompt LinkedIn dédié (anti-broetry, règles strictes 210 car. hook, hashtags pro). Le découplage actuel est volontaire et meilleur — il manque juste le branchement.
-- **Régénérer manuellement à chaque fois** : trop friction utilisateur. L'auto-trigger après génération est attendu par l'UX existant ("Légende manquante ? Régénérer" est un fallback, pas le flow principal).
+Sur tes 2 captures actuelles, après fix :
 
-### Validation
+| Capture | Avant | Après attendu |
+|---|---|---|
+| 1 (LE PROBLÈME, fond clair) | Texte du body figé + même texte dupliqué + scrim noir | Texte body éditable, positionné exactement comme l'original, fond clair sans scrim, titre "Ce que personne ne vous dit" en bas éditable aussi |
+| 2 (PHASE STRATÉGIQUE, fond sombre + photo) | Texte body figé + même texte dupliqué en blanc + scrim noir parasite | Photo capturée en haut, texte body en blanc éditable au bon endroit, titre stylisé éditable, pas de doublon |
 
-1. Créer un carrousel mix sur LinkedIn avec 3 photos → après la fin de génération, le skeleton "✍️ Rédaction de la légende LinkedIn…" apparaît, puis hook + body (800-1500 car.) + CTA + 3-5 hashtags se remplissent automatiquement.
-2. Si la première caption ne plaît pas → cliquer "Régénérer la légende" → nouveau body/CTA/hashtags.
-3. Le `fullText` injecté dans le calendrier (sauvegarde) contient bien hook + body + CTA + hashtags.
-4. Pas de régression Instagram : la caption est toujours complète directement depuis carousel-ai.
-5. Pas de régression carrousel texte LinkedIn (sans photos) : ce flow passe par un autre prompt (`buildExpressFullPrompt` avec `isLinkedIn`) qui n'a pas le shortcut "caption optionnelle" → on n'y touche pas.
+Tu pourras :
+- Modifier le texte directement dans PowerPoint (titre, body, accroches).
+- Garder la photo et tous les éléments décoratifs (badges, lignes, ronds en arrière-plan) figés en image.
+- Aucune zone fantôme ni scrim parasite.
 
 ### Risques
 
-Faibles. L'edge function `caption-for-carousel` existe et est testée. Le composant `LinkedInCaptionEditor` a déjà son état loading prêt. C'est un branchement front pur, pas de migration BDD, pas de nouveau prompt.
+- **Détection structurelle** : si une slide a une mise en page très atypique générée par l'IA, la détection peut rater 1-2 blocs. Le fallback image-only garantit qu'on n'aura JAMAIS pire que le PNG (vs aujourd'hui où on a pire). Acceptable.
+- **Performance** : capture supplémentaire après masquage (2× html2canvas par slide). +1s par slide environ. Sur 8 slides = +8s. Acceptable pour un export éditable.
+- **Fonts** : on continue de mapper les fonts custom vers Calibri/Georgia/etc. via `mapFontToPptx`. Pas de régression.
+
+### Note sur "avant c'était mieux"
+
+C'est exact. Avant la refonte hybride, l'export PowerPoint éditable rendait les slides via l'ancien `export-carousel-pptx.ts` qui faisait du **vrai layout natif** (card, photo+text à gauche/droite) en se basant sur `slide.photo_layout`. Ça marchait bien sur les layouts simples mais cassait dès qu'on avait des designs IA complexes. La refonte hybride a voulu généraliser → trop ambitieuse, bugs introduits. Le fix proposé garde l'ambition (hybride) mais ajoute les garde-fous qui manquaient.
 
