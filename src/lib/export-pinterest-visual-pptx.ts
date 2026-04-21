@@ -1,6 +1,10 @@
 import PptxGenJS from "pptxgenjs";
 import html2canvas from "html2canvas";
 
+/**
+ * @deprecated Plus utilisé dans l'UI depuis l'unification "Télécharger".
+ * `exportPinterestVisualPng` (plus bas) reste utilisée.
+ */
 export async function exportPinterestVisualPptx(
   pinHtml: string,
   fileName = "epingle-pinterest"

@@ -1,3 +1,7 @@
+/**
+ * @deprecated Plus utilisé dans l'UI depuis l'unification "Télécharger" (PNG + PPTX éditable).
+ * Conservé temporairement au cas où on voudrait rebrancher l'export "image fidèle".
+ */
 import PptxGenJS from "pptxgenjs";
 import html2canvas from "html2canvas-pro";
 
