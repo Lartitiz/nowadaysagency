@@ -25,6 +25,7 @@ import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import { usePersonas } from "@/hooks/use-personas";
 import PersonaList from "@/components/branding/PersonaList";
+import SeriesFicheCards from "@/components/branding/SeriesFicheCards";
 
 type Section = "story" | "persona" | "tone_style" | "content_strategy";
 
@@ -552,12 +553,28 @@ export default function BrandingSectionPage() {
                 >
                   📝 Modifier les champs
                 </button>
+                {section === "content_strategy" && (
+                  <button
+                    onClick={() => setActiveTab("series")}
+                    className={`text-sm font-medium px-3 py-1.5 rounded-full transition-colors ${
+                      activeTab === "series"
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    📺 Mes séries
+                  </button>
+                )}
               </div>
               <Button
                 variant="outline"
                 size="sm"
                 className="gap-2 text-xs rounded-full"
-                onClick={() => navigate(`/branding/coaching?section=${section}${isPersonaSection && selectedPersonaId ? `&personaId=${selectedPersonaId}` : ""}`)}
+                onClick={() => {
+                  const targetSection = activeTab === "series" ? "content_series" : section;
+                  const personaQuery = isPersonaSection && selectedPersonaId ? `&personaId=${selectedPersonaId}` : "";
+                  navigate(`/branding/coaching?section=${targetSection}${personaQuery}`);
+                }}
               >
                 <Sparkles className="h-3.5 w-3.5" />
                 Affiner avec l'IA
@@ -579,6 +596,11 @@ export default function BrandingSectionPage() {
                   </p>
                 )}
               </div>
+            ) : activeTab === "series" ? (
+              <SeriesFicheCards
+                hasRecap={hasRecap}
+                onLaunchCoaching={() => navigate("/branding/coaching?section=content_series")}
+              />
             ) : (
               <div>{ficheContent}</div>
             )}
