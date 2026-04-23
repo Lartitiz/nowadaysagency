@@ -369,7 +369,7 @@ serve(async (req) => {
         section: z.string().max(100).min(1, "section requis"),
         messages: z.array(z.object({
           role: z.enum(["user", "assistant"]),
-          content: z.string().max(10000),
+          content: z.string().max(50000),
         })).max(50).optional(),
         context: z.record(z.unknown()).optional().nullable(),
         covered_topics: z.array(z.string().max(100)).max(30).optional(),
