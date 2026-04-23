@@ -1,83 +1,81 @@
 
 
-## Audit + refonte du PowerPoint éditable (double texte + mauvais cadrage)
+## Plan — UI "Mes séries" : 3e onglet dans la section Ligne éditoriale (final)
 
-### Diagnostic — ce qui se passe vraiment
+### Décisions intégrées
 
-Trois bugs cumulés dans `src/lib/export-carousel-hybrid-pptx.ts` produisent ce que tu vois sur tes captures :
+- ✅ Toasts sonner sur update/archive/delete
+- ✅ Skeleton de chargement pendant `loading === true`
+- ✅ Statu quo sur le hook `useBrandStrategy` (query inline)
+- ❌ Pas de drag & drop (Phase 2)
+- ❌ Pas de bouton "Nouvelle série manuelle" (Phase 2)
+- ✅ État pédagogique dédié si `hasRecap === false` sur l'onglet series — **pas de fallback vers `tab=fiche`**, on reste sur l'onglet avec une card explicative qui oriente vers le coaching combo
 
-**Bug 1 — On essaie de masquer le mauvais texte.** Ligne 178 :
+### Fichiers créés
+
+**`src/hooks/use-series.ts`**
+- Interface `SerieSummary` exactement comme spécifiée.
+- `useAuth()` + `useWorkspaceFilter()` pour scoping workspace.
+- `fetchSeries` : `SELECT *` filtré par `column/value`, tri client-side : `status` (active → paused → archived) puis `created_at ASC`.
+- `useEffect` initial. Démo (`isDemoMode`) → `[]`.
+- Expose : `series`, `activeSeries`, `archivedSeries`, `loading`, `refetch`, `updateStatus(id, status)`, `deleteSerie(id)`.
+- Toast `sonner` après chaque mutation.
+
+**`src/components/branding/SeriesFicheCards.tsx`**
+
+Props : `{ onLaunchCoaching: () => void; hasRecap: boolean }`.
+
+Constantes en haut :
 ```ts
-const overlayText = (data?.overlay_text || data?.title || data?.body || "").trim();
+const CADENCE_LABELS = { weekly: "Hebdo", biweekly: "Tous les 15 jours", monthly: "Mensuel", irregular: "Irrégulier" };
+const CHANNEL_LABELS = { instagram: "Instagram", linkedin: "LinkedIn", pinterest: "Pinterest", newsletter: "Newsletter", website: "Site web" };
 ```
-Sur tes slides "LE PROBLÈME" et "PHASE STRATÉGIQUE", il n'y a **pas d'`overlay_text`** (c'est réservé aux slides photo full). Donc on prend `body` — un bloc de 400-600 caractères avec `<strong>`, `<span class="accent">` au milieu. Le walker DOM cherche un élément dont le `textContent` matche EXACTEMENT cette chaîne → match foiré dans 90 % des cas.
 
-**Bug 2 — Quand le match foire, le texte d'origine reste visible.** Et **on dessine quand même** ce body en overlay PPTX par-dessus, à une position arbitraire bottom_center → **double texte** + scrim noir hideux que tu vois en bas de la capture 2.
+Structure :
+- **Header** : titre "📺 Mes séries signatures" + sous-titre + bouton à droite (variant change selon `activeSeries.length`).
 
-**Bug 3 — Coords génériques.** `getOverlayCoords` retourne des positions calculées (bottom/center/top), aucun lien avec la **vraie position** du texte dans le HTML d'origine. D'où le cadrage cassé.
+- **Cas A — `hasRecap === false`** (nouveau, état pédagogique dédié) :
+  Card centrée bordure `border-primary/20` fond `bg-primary/5` avec :
+  > Tu n'as pas encore défini tes piliers éditoriaux.
+  > 
+  > Pas de souci : le coaching séries peut poser tes piliers et tes séries dans la même session. On commence par les piliers, puis on les incarne en séries signatures.
+  
+  Bouton primary "✨ Lancer le coaching séries" → `onLaunchCoaching()`.
+  Le header (titre + bouton "Affiner") reste masqué dans ce cas pour ne pas créer de double CTA.
 
-**Bug bonus** — Le titre stylisé en italique tout en bas ("Ce que personne ne vous dit") est dans le HTML, n'est jamais masqué, et n'est jamais rendu en éditable non plus → toujours image figée.
+- **Cas B — `loading === true`** : 2 skeletons de cards (animate-pulse, hauteur ~180px, fond `bg-muted` arrondi).
 
-### Pourquoi c'est devenu pire qu'avant
+- **Cas C — `series.length === 0` ET `hasRecap === true`** : état vide standard avec copie originale ("Tu n'as pas encore défini de série…") + bouton "✨ Lancer le coaching séries".
 
-L'ancien export PPTX (`src/lib/export-carousel-pptx.ts`) ne tentait PAS le mode hybride : il rendait juste l'image complète OU il dessinait des blocs natifs en se basant sur les coords de `slide.photo_layout`. Pas de double texte possible. Le nouveau moteur hybride a été conçu pour les slides **photo+overlay** uniquement, mais on le déclenche aussi sur les slides texte → ça casse.
+- **Cas D — Liste séries actives + en pause** : pour chaque série, card avec :
+  - Header : nom (font-display bold) + promise (sous-titre) ; à droite `DropdownMenu` shadcn avec Éditer / Pause-Réactiver / Archiver / [séparateur] / Supprimer (rouge → `AlertDialog` shadcn).
+  - Corps : badge pilier (mapping `pillar_key` → libellé fetché depuis `brand_strategy` via query inline au montage), chip cadence, chip format, italique signature, chips canaux.
+  - Mode édition inline : champs texte via `EditableField` (table=`series`, idField=`id`, recordId=serie.id) pour `name`, `promise`, `format_template`, `signature_description`, `notes`. `pillar_key`, `cadence`, `status`, `channels` via shadcn `Select`/`Checkbox` avec update direct supabase + `refetch()` + toast. Bouton "Terminer".
+  - `status === "paused"` → card en `opacity-60` + badge "En pause".
 
-### Solution — refonte ciblée
+- **Séries archivées** : `Accordion` shadcn fermé par défaut "📦 Séries archivées (N)", cards en `opacity-50`, menu limité à Réactiver + Supprimer.
 
-**Principe :** ne plus jamais deviner ce qu'il faut masquer dans le HTML. À la place, **détecter le type de slide** et appliquer la bonne stratégie.
+### Fichier modifié
 
-#### Stratégie A — Slide photo avec `overlay_text` court (5-20 mots)
+**`src/pages/BrandingSectionPage.tsx`**
+- Import `SeriesFicheCards`.
+- Toggle bar : ajout conditionnel d'un 3e bouton "📺 Mes séries" si `section === "content_strategy"`.
+- Branche de rendu : ajout `activeTab === "series"` → `<SeriesFicheCards hasRecap={hasRecap} onLaunchCoaching={() => navigate("/branding/coaching?section=content_series")} />`.
+- Bouton "Affiner avec l'IA" du header : `onClick` adapté pour cibler `content_series` quand `activeTab === "series"`.
+- Garde-fou `useEffect` lignes 347-351 : étendre la condition pour ne PAS court-circuiter `activeTab === "series"` (le composant gère son propre état pédagogique). Donc : `if (!hasRecap && activeTab === "synthese") setActiveTab("fiche")` reste tel quel — pas de redirection forcée pour `series`.
+- `defaultTab` (ligne 197) déjà compatible avec `?tab=series`.
+- Bloc `!hasRecap` (ligne 586+) intact.
 
-Cas idéal du moteur hybride. On le garde mais on le fiabilise :
-1. Masquage robuste : remplacer le walker par un sélecteur DOM direct (`querySelectorAll`) qui cherche le **plus petit** élément contenant `overlay_text`, on accepte la correspondance même partielle. **Si rien trouvé** → on ne dessine PAS l'overlay PPTX (on garde l'image telle quelle, pas de double texte).
-2. Récupérer la **vraie bounding box** de l'élément masqué (`getBoundingClientRect`) et la convertir en coords PPTX (px → inches via ratio 1080→7.5). Plus de coords génériques.
-3. Récupérer la **vraie couleur**, **font-size**, **font-family**, **text-align** depuis `getComputedStyle`. Tout ce qui s'affiche sera identique à l'original.
-4. Pas de scrim noir automatique (on hérite du fond capturé).
+### Hors scope confirmé
 
-#### Stratégie B — Slide texte (pas d'`overlay_text`, juste `title` + `body`)
+Phase 2 (injection prompts IA, tag visuel calendrier, banner dashboard, mode démo séries, vue feuilleton, module dédié, drag & drop, bouton création manuelle, BrandingStatusBanner). Aucune migration DB. Aucun edge function touché.
 
-C'est tes captures. Approche complètement différente :
-1. **Capturer le fond complet AVEC le texte** (donc pas de masquage), exactement comme une image figée.
-2. Identifier les blocs **éditables** dans le DOM par sélecteurs structurels (`h1`, `h2`, `p`, éléments avec `font-size > 30px` ou `font-weight bold`). Pour chacun :
-   - Récupérer bbox + styles calculés
-   - **Masquer ces éléments** puis recapturer le fond
-   - Ajouter un `addText` PPTX par-dessus avec la bonne position, taille, couleur, font
-3. Si la détection foire → **fallback image-only** (pas d'overlay éditable plutôt qu'un overlay cassé). C'est mieux d'avoir un PowerPoint non-éditable qu'un PowerPoint avec double texte.
+### Validation
 
-#### Stratégie C — Marqueurs côté générateur (optionnel, V2)
-
-Pour fiabiliser à 100 %, ajouter dans `carousel-visual` un attribut `data-pptx-editable="title|body|overlay"` sur les éléments texte clés. Le front n'aurait plus à deviner. **Pas dans ce fix** (impact prompt IA), mais à noter pour la suite.
-
-### Fichier touché
-
-| Fichier | Changement |
-|---|---|
-| `src/lib/export-carousel-hybrid-pptx.ts` | Refonte complète : détection type slide, masquage par bbox, extraction styles calculés, fallback safe |
-| `src/lib/pptx-font-mapping.ts` | Ajout helper `pxToInches(px, ratio)` + helper `extractEditableBlocks(doc)` |
-
-Pas de migration, pas de touche back, pas de changement de prompt.
-
-### Validation visuelle
-
-Sur tes 2 captures actuelles, après fix :
-
-| Capture | Avant | Après attendu |
-|---|---|---|
-| 1 (LE PROBLÈME, fond clair) | Texte du body figé + même texte dupliqué + scrim noir | Texte body éditable, positionné exactement comme l'original, fond clair sans scrim, titre "Ce que personne ne vous dit" en bas éditable aussi |
-| 2 (PHASE STRATÉGIQUE, fond sombre + photo) | Texte body figé + même texte dupliqué en blanc + scrim noir parasite | Photo capturée en haut, texte body en blanc éditable au bon endroit, titre stylisé éditable, pas de doublon |
-
-Tu pourras :
-- Modifier le texte directement dans PowerPoint (titre, body, accroches).
-- Garder la photo et tous les éléments décoratifs (badges, lignes, ronds en arrière-plan) figés en image.
-- Aucune zone fantôme ni scrim parasite.
-
-### Risques
-
-- **Détection structurelle** : si une slide a une mise en page très atypique générée par l'IA, la détection peut rater 1-2 blocs. Le fallback image-only garantit qu'on n'aura JAMAIS pire que le PNG (vs aujourd'hui où on a pire). Acceptable.
-- **Performance** : capture supplémentaire après masquage (2× html2canvas par slide). +1s par slide environ. Sur 8 slides = +8s. Acceptable pour un export éditable.
-- **Fonts** : on continue de mapper les fonts custom vers Calibri/Georgia/etc. via `mapFontToPptx`. Pas de régression.
-
-### Note sur "avant c'était mieux"
-
-C'est exact. Avant la refonte hybride, l'export PowerPoint éditable rendait les slides via l'ancien `export-carousel-pptx.ts` qui faisait du **vrai layout natif** (card, photo+text à gauche/droite) en se basant sur `slide.photo_layout`. Ça marchait bien sur les layouts simples mais cassait dès qu'on avait des designs IA complexes. La refonte hybride a voulu généraliser → trop ambitieuse, bugs introduits. Le fix proposé garde l'ambition (hybride) mais ajoute les garde-fous qui manquaient.
+- TypeScript compile sans erreur.
+- Sections non-`content_strategy` : toggle bar inchangée (2 boutons).
+- `content_strategy` avec recap : 3 boutons.
+- `content_strategy` SANS recap + clic sur "Mes séries" : état pédagogique dédié s'affiche, redirige vers coaching combo.
+- État vide standard (recap OK, 0 série) : copie originale + CTA.
+- Édition inline / changement statut / archivage / accordéon / suppression / isolation workspace / bouton "Affiner avec l'IA" cible `content_series` : tout couvert.
 
