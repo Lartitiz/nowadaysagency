@@ -608,25 +608,59 @@ export default function BrandingSectionPage() {
         ) : (
           <div>
             {/* No recap: show fiche + coaching CTA */}
-            {ficheContent}
+            {/* Toggle bar réduite uniquement pour content_strategy */}
+            {section === "content_strategy" && (
+              <div className="flex items-center gap-1 bg-muted rounded-full p-1 w-fit mb-6">
+                <button
+                  onClick={() => setActiveTab("fiche")}
+                  className={`text-sm font-medium px-3 py-1.5 rounded-full transition-colors ${
+                    activeTab === "fiche" || activeTab === "synthese"
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  📝 Modifier les champs
+                </button>
+                <button
+                  onClick={() => setActiveTab("series")}
+                  className={`text-sm font-medium px-3 py-1.5 rounded-full transition-colors ${
+                    activeTab === "series"
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  📺 Mes séries
+                </button>
+              </div>
+            )}
 
-            <div className="rounded-2xl border-2 border-primary/20 bg-primary/5 p-5 mt-6 text-center space-y-3">
-              <p className="font-display text-base font-bold text-foreground">
-                {filledCount > 0 ? "Envie d'aller plus loin ?" : "Tu ne sais pas quoi écrire ?"}
-              </p>
-              <p className="text-sm text-muted-foreground leading-relaxed max-w-md mx-auto">
-                {filledCount > 0
-                  ? "L'IA te pose des questions ciblées pour enrichir et affiner cette section. Tes réponses mettent à jour ta fiche automatiquement."
-                  : "Pas de panique : l'IA te guide question par question. Tu réponds, elle remplit ta fiche. Simple."}
-              </p>
-              <Button
-                className="rounded-full gap-2"
-                onClick={() => navigate(`/branding/coaching?section=${section}${isPersonaSection && selectedPersonaId ? `&personaId=${selectedPersonaId}` : ""}`)}
-              >
-                <Sparkles className="h-4 w-4" />
-                {filledCount > 0 ? "Affiner avec l'IA →" : "Lancer le coaching IA →"}
-              </Button>
-            </div>
+            {section === "content_strategy" && activeTab === "series" ? (
+              <SeriesFicheCards
+                hasRecap={false}
+                onLaunchCoaching={() => navigate("/branding/coaching?section=content_series")}
+              />
+            ) : (
+              <>
+                {ficheContent}
+                <div className="rounded-2xl border-2 border-primary/20 bg-primary/5 p-5 mt-6 text-center space-y-3">
+                  <p className="font-display text-base font-bold text-foreground">
+                    {filledCount > 0 ? "Envie d'aller plus loin ?" : "Tu ne sais pas quoi écrire ?"}
+                  </p>
+                  <p className="text-sm text-muted-foreground leading-relaxed max-w-md mx-auto">
+                    {filledCount > 0
+                      ? "L'IA te pose des questions ciblées pour enrichir et affiner cette section. Tes réponses mettent à jour ta fiche automatiquement."
+                      : "Pas de panique : l'IA te guide question par question. Tu réponds, elle remplit ta fiche. Simple."}
+                  </p>
+                  <Button
+                    className="rounded-full gap-2"
+                    onClick={() => navigate(`/branding/coaching?section=${section}${isPersonaSection && selectedPersonaId ? `&personaId=${selectedPersonaId}` : ""}`)}
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    {filledCount > 0 ? "Affiner avec l'IA →" : "Lancer le coaching IA →"}
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         )}
 
