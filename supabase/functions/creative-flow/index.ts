@@ -729,6 +729,21 @@ Réponds UNIQUEMENT en JSON :
 
     // COMMON_PREFIX already includes BASE_SYSTEM_RULES + voice priority + CORE_PRINCIPLES + ANTI_SLOP + ETHICAL_GUARDRAILS + fullContext
 
+    // ── Inject SERIES context (when this post belongs to a series) ──
+    if (series_id && step === "generate") {
+      try {
+        const channelForSeries = isLinkedIn ? "linkedin" : isPinterest ? "pinterest" : isNewsletter ? "newsletter" : "instagram";
+        const seriesCtx = await buildSeriesContext(supabase, series_id, episode_number, channelForSeries);
+        if (seriesCtx) {
+          console.log(`[creative-flow] series context injected (${contentType}): ${seriesCtx.seriesName} (ep #${seriesCtx.episodeNumber})`);
+          systemPrompt += `\n\n${seriesCtx.block}`;
+        }
+      } catch (e) {
+        console.error("[creative-flow] buildSeriesContext failed", e);
+      }
+    }
+
+
     // ── Deep Research (web search via Anthropic) ──
     if (deepResearch && step === "generate") {
       // Check deep_research quota
