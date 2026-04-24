@@ -71,8 +71,8 @@ function DraggableWeekCard({ post, onClick, onQuickStatusChange, onQuickDuplicat
 /* ── Droppable day column ── */
 function DroppableWeekDay({
   date, dateStr, isToday, posts, onCreatePost, onEditPost, onAddIdea, onQuickCreate,
-  onQuickStatusChange, onQuickDuplicate, onQuickDelete, onQuickGenerate, todayRef,
-  ownerUsername, ownerDisplayName,
+  onQuickStatusChange, onQuickDuplicate, onQuickDelete, onQuickGenerate, onQuickAttachSeries, todayRef,
+  ownerUsername, ownerDisplayName, seriesNameById,
 }: {
   date: Date; dateStr: string; isToday: boolean;
   posts: CalendarPost[]; onCreatePost: (dateStr: string) => void; onEditPost: (p: CalendarPost) => void;
@@ -81,9 +81,11 @@ function DroppableWeekDay({
   onQuickDuplicate?: (post: CalendarPost) => void;
   onQuickDelete?: (postId: string) => void;
   onQuickGenerate?: (post: CalendarPost) => void;
+  onQuickAttachSeries?: (post: CalendarPost) => void;
   todayRef?: React.RefObject<HTMLDivElement>;
   ownerUsername?: string;
   ownerDisplayName?: string;
+  seriesNameById?: Record<string, string>;
 }) {
   const [inlineInput, setInlineInput] = useState(false);
   const [inlineValue, setInlineValue] = useState("");
@@ -173,8 +175,10 @@ function DroppableWeekDay({
             onQuickDuplicate={onQuickDuplicate}
             onQuickDelete={onQuickDelete}
             onQuickGenerate={onQuickGenerate}
+            onQuickAttachSeries={onQuickAttachSeries}
             ownerUsername={ownerUsername}
             ownerDisplayName={ownerDisplayName}
+            seriesNameById={seriesNameById}
           />
         ))}
       </div>
