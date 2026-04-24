@@ -1,94 +1,135 @@
-## Plan — Tag série dans le calendrier éditorial
+## Plan Photo 1 — Fondations : `user_photos` + bucket Storage + quota `photo_retouch`
 
-### Constat
+### Vérifications préalables (faites)
 
-Les briques existent déjà :
-- `calendar_posts.series_id` / `episode_number` sont persistés (fait dans la session précédente)
-- `CalendarPostDialog` permet déjà de sélectionner une série → l'action "rattacher" est techniquement disponible mais peu découvrable
-- `useActiveSeries()` retourne les séries actives du workspace
-- Le pattern de filtre est en place (`CalendarCategoryFilters`)
+- `public.update_updated_at_column()` existe ✅
+- `public.user_has_workspace_access(uuid)` existe ✅
+- Pattern bucket privé `crosspost-uploads` confirmé (policies par dossier `auth.uid()`)
+- `src/lib/plan-limits.ts` est le mirror frontend de `_shared/plan-limiter.ts` → devra être synchronisé aussi (sinon le tableau d'usage frontend ignorera la nouvelle catégorie)
 
-Il manque trois choses **visibles** :
-1. **Tag série visible sur les cards** du calendrier (mois, semaine, kanban, liste)
-2. **Filtre par série** dans la barre de filtres
-3. **Découvrabilité** de l'action "rattacher à une série" depuis un post existant
+---
 
-### Architecture cible
+### (a) Spec demandée — implémentation
 
-```text
-┌─ CalendarPostDialog (déjà OK) ─── select série → save series_id/episode_number
-│
-└─ Affichage card ─── badge "📺 {série} · #{n}" en haut de la card
-       │
-       └─ CalendarCategoryFilters ─── chip "Par série ▾" déroulant
-              │
-              └─ filtre useMemo ajouté dans Calendar.tsx
+**1. Migration SQL `[timestamp]_create_user_photos_table.sql`**
+
+Table `public.user_photos` avec exactement les champs spécifiés :
+- Obligatoires : `id`, `user_id`, `workspace_id` (FK `workspaces ON DELETE CASCADE`), `storage_path`, `original_storage_path`, `status` (CHECK pending/processing/ready/failed), `created_at`, `updated_at`
+- Optionnels : `name`, `tags TEXT[]`, `background_prompt`, `background_preset_key`, `source_type` (CHECK upload/generated/imported, default `upload`), `width`, `height`, `file_size_bytes`, `error_message`
+
+Index :
+```sql
+CREATE INDEX idx_user_photos_workspace ON public.user_photos(workspace_id, status) WHERE status = 'ready';
+CREATE INDEX idx_user_photos_user ON public.user_photos(user_id);
+CREATE INDEX idx_user_photos_tags ON public.user_photos USING GIN(tags);
 ```
 
-### Étapes
+Trigger `updated_at` réutilisant `public.update_updated_at_column()`.
 
-**1. Badge série sur les cards (`CalendarContentCard.tsx`)**
+RLS workspace-scoped (4 policies : SELECT/INSERT/UPDATE/DELETE) via `public.user_has_workspace_access(workspace_id)`.
 
-Ajouter un badge compact au-dessus du titre quand `post.series_id` est non null :
+Bucket privé :
+```sql
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('user-photos', 'user-photos', false)
+ON CONFLICT (id) DO NOTHING;
+```
 
-- Variant `detailed` (semaine, kanban, liste) : pill `📺 {nom_série} · #{episode_number}` en `text-[10px]`, fond `bg-primary/10`, texte `text-primary`, tronqué à 22 caractères
-- Variant `compact` (mois) : pill mini `📺 #{episode_number}` (juste le numéro pour économiser la place), tooltip enrichi avec le nom complet
-- Le tooltip existant gagne une ligne `Série : {name} (épisode #{n})` quand applicable
+3 policies storage.objects :
+- INSERT : dossier = `auth.uid()` (cohérent crosspost-uploads)
+- SELECT : passage par `user_photos` + `user_has_workspace_access` (pour partage workspace multi-membres)
+- DELETE : dossier = `auth.uid()`
 
-Le composant a besoin du nom de la série → on le récupère via une `Map<series_id, name>` injectée en prop optionnelle `seriesNameById?: Record<string, string>`. Construit une seule fois dans `Calendar.tsx` à partir de `useActiveSeries()` (et fallback sur un fetch léger pour récupérer aussi les séries paused/archived référencées par des posts).
+Commentaires `COMMENT ON COLUMN` sur les 5 colonnes non-évidentes (storage_path, original_storage_path, source_type, background_preset_key, status).
 
-**2. Filtre par série (`CalendarCategoryFilters.tsx` + `Calendar.tsx`)**
+**2. `supabase/functions/_shared/plan-limiter.ts`**
 
-Deux options de design considérées :
-- (A) Ajouter un bouton "🎬 Série ▾" à côté du filtre objectif → ouvre un dropdown listant les séries actives
-- (B) Étendre le composant filtre actuel avec une seconde ligne "Par série"
+Ajout `photo_retouch` dans `PLAN_LIMITS` (free: 5, outil: 50, binome: 100) et dans `CATEGORY_LABELS` ("retouches photo").
 
-→ **Option A** retenue (plus clair, séparé du filtre objectif).
+---
 
-Implémentation :
-- Nouveau composant léger `CalendarSeriesFilter.tsx` (DropdownMenu radix) à côté de `CalendarCategoryFilters`
-- Affiche les séries `active` (avec compteur d'épisodes du workspace courant pour donner du contexte : `Stratégie facile (3)`)
-- Option "Tout" + "Sans série" pour filtrer les posts orphelins
-- Nouveau state `seriesFilter` dans `Calendar.tsx` : `"all" | "none" | <series_id>`
-- Ajout au `filteredPosts` useMemo :
-  ```ts
-  if (seriesFilter === "none") result = result.filter(p => !p.series_id);
-  else if (seriesFilter !== "all") result = result.filter(p => p.series_id === seriesFilter);
-  ```
-- Synchronisation URL via `?serie={id}` (cohérent avec `?canal=` existant)
+### (b) Propositions d'amélioration — à valider individuellement
 
-**3. Découvrabilité du rattachement depuis un post existant**
+**Prop 1 — Synchroniser `src/lib/plan-limits.ts` (mirror frontend)** ⚠️ Recommandé fortement
 
-Le sélecteur "Série" existe déjà dans `CalendarPostMetadata.tsx` (intégré au dialog). Pour le rendre plus découvrable :
+Le fichier `src/lib/plan-limits.ts` mirrore manuellement `PLAN_LIMITS`. Sans synchro :
+- Les UI qui affichent le quota restant (composants type "Tu as utilisé X/Y retouches photo") ne connaîtront pas la catégorie
+- La constante `CATEGORIES` ne contiendra pas `photo_retouch`, ce qui peut casser des typages stricts
 
-- **Quick action sur la card** (variant detailed) : ajouter un 5ᵉ bouton dans le hover toolbar — icône 📺 (lucide `Tv` ou `Film`) "Rattacher à une série" — qui ouvre le dialog directement positionné/scrollé sur la section série (ouverture standard du dialog, pas besoin de scroll-to si la section est dans la fold haute du dialog)
-- **Sur le badge "Sans série"** : non — n'affichons rien quand pas de série pour ne pas polluer
-- **Tooltip enrichi** : la tooltip du card mentionne la série quand présente
+**Action proposée** : ajouter `photo_retouch` dans le tableau `CATEGORIES` et dans les 3 plans (mêmes valeurs que côté serveur). C'est strictement de la synchro, pas un changement de comportement.
 
-### Fichiers touchés
+**Prop 2 — Pas de contrainte CHECK sur `file_size_bytes`** ✅ Garder côté applicatif
 
-**Modifiés**
-- `src/components/calendar/CalendarContentCard.tsx` — badge série + tooltip + bouton hover
-- `src/pages/Calendar.tsx` — state `seriesFilter`, filtre, lecture URL `?serie=`, passage de `seriesNameById` aux composants enfants
-- `src/components/calendar/CalendarKanbanView.tsx`, `CalendarGrid.tsx`, `CalendarWeekGrid.tsx`, `CalendarListView.tsx` — propagation de la prop `seriesNameById` à chaque `<CalendarContentCard>`
+Recommandation : ne PAS ajouter de CHECK DB. Justification :
+- La limite Photoroom peut évoluer
+- Une migration future serait pénible
+- L'applicatif (Edge Function du Plan 2) doit rejeter avant upload, ce qui donne un meilleur message d'erreur
 
-**Nouveau**
-- `src/components/calendar/CalendarSeriesFilter.tsx` — dropdown filtre par série (utilise `useActiveSeries`)
+**Prop 3 — Pas de `deleted_at` (soft-delete)** ✅ Hard delete suffit pour la v1
 
-### Hors scope
+Justification :
+- Ajoute de la complexité partout (filtres `WHERE deleted_at IS NULL` dans toutes les queries)
+- Le storage delete est de toute façon irréversible (coût €€)
+- À ajouter en Phase 2 si retours utilisateur réels
 
-- Édition inline de la série depuis la card (le clic ouvre le dialog où c'est déjà éditable)
-- Création d'une nouvelle série depuis le dialog (renvoyer vers Branding comme aujourd'hui)
-- Vue dédiée "Mes séries dans le calendrier" (Phase 2 si besoin)
-- Affichage du badge dans les vues d'export CSV/XLSX (les colonnes existent déjà dans le payload, on peut les ajouter en Phase 2)
-- Réordonnancement des numéros d'épisode
+**Prop 4 — Seuils quota (5/50/100)** ✅ Cohérents avec coût Photoroom (~$0.02/photo)
 
-### Validation
+Coût max plan binôme : 100 × $0.02 = $2/utilisateur·ice/mois. Acceptable. Pas de changement proposé.
 
-- Créer un post rattaché à une série → badge `📺 {série} · #1` visible sur la card en vue mois/semaine/kanban/liste
-- Cliquer sur le filtre série → liste les séries actives + "Sans série" + "Tout"
-- Sélectionner une série → seuls les posts rattachés s'affichent ; URL contient `?serie={id}`
-- Sélectionner "Sans série" → seuls les posts sans `series_id` s'affichent
-- Hover sur une card sans série → bouton 📺 "Rattacher" disponible ; clic → dialog ouvert
-- Régression : aucun post avec série ≠ aucune card rendue différemment (comportement inchangé pour `series_id = null`)
-- Tooltip card avec série : ligne "Série : {name} (épisode #{n})" présente
+**Prop 5 — Ajout d'un CHECK `width > 0 AND height > 0` quand renseignés ?** ❌ Non recommandé
+
+Les CHECK avec NULL sont passants par défaut, mais ça alourdit pour peu de valeur. L'Edge Function doit valider les dimensions de toute façon.
+
+**Prop 6 — Index supplémentaire sur `(workspace_id, created_at DESC)` pour la liste de la bibliothèque** 🤔 Optionnel
+
+L'index `idx_user_photos_workspace` couvre déjà `workspace_id` (partial sur `status='ready'`). Pour la liste paginée triée par date, un index dédié serait plus optimal. **Recommandation : attendre le Plan 3** (UI bibliothèque) pour mesurer si nécessaire avec EXPLAIN.
+
+---
+
+### Décisions à prendre avant exec
+
+| # | Proposition | Action si OUI |
+|---|---|---|
+| 1 | Synchroniser `src/lib/plan-limits.ts` | Ajout 1 ligne dans `CATEGORIES` + 1 ligne dans chaque plan |
+| 2 | CHECK file_size_bytes | Aucune (recommandation : SKIP) |
+| 3 | soft-delete `deleted_at` | Aucune (recommandation : SKIP) |
+| 4 | Revoir seuils quota | Spécifier les nouvelles valeurs |
+| 5 | CHECK width/height > 0 | Aucune (recommandation : SKIP) |
+| 6 | Index (workspace_id, created_at DESC) | Ajouter dans la migration |
+
+**Mon avis** : ne valider que la **Prop 1** (sync mirror frontend, c'est de l'hygiène) et garder le reste pour Phase 2.
+
+---
+
+### Fichiers touchés (si Prop 1 acceptée)
+
+**Création**
+- `supabase/migrations/[timestamp]_create_user_photos_table.sql`
+
+**Modification**
+- `supabase/functions/_shared/plan-limiter.ts` — ajout `photo_retouch` dans `PLAN_LIMITS` (3 plans) + `CATEGORY_LABELS`
+- `src/lib/plan-limits.ts` — ajout `photo_retouch` dans `CATEGORIES` + `PLAN_LIMITS` (3 plans + `free` qui contient déjà toutes les catégories à 60)
+
+⚠️ Note sur `src/lib/plan-limits.ts` : le plan `free` du mirror frontend contient toutes les catégories à 60, mais `_shared/plan-limiter.ts` côté serveur n'a pas la même structure pour `free` (toutes à 60 aussi en réalité). On gardera la cohérence en mettant `photo_retouch: 5` côté serveur ET côté mirror (pas 60).
+
+⚠️ Le mirror frontend a aussi un plan `pro` qui n'existe PAS côté serveur. Je le laisse tel quel (hors scope) mais signale qu'il est désynchronisé et devrait être nettoyé un jour.
+
+---
+
+### Hors scope (confirmé)
+
+- Edge Function `photo-background-replace` (Plan 2)
+- UI `/photos` (Plan 3)
+- Intégration dans `CreerUnifie.tsx` (Plan 4)
+- Presets de fond (Plan 5)
+- Configuration secret `PHOTOROOM_API_KEY` (manuel)
+- Régénération `src/integrations/supabase/types.ts` (auto au prochain code touch)
+
+### Validation (après exec)
+
+- Migration applique sans erreur
+- `psql -c "SELECT * FROM public.user_photos LIMIT 0"` → schéma OK
+- Bucket `user-photos` visible et `public=false`
+- Test cascade : DELETE workspace → user_photos liées supprimées
+- Test isolation RLS workspace
+- Compilation TS sans erreur
