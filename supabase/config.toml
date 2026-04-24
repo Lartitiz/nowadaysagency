@@ -236,3 +236,6 @@ verify_jwt = false
 
 [functions.audit-instagram-ai]
 verify_jwt = false
+
+[functions.photo-background-replace]
+verify_jwt = false
