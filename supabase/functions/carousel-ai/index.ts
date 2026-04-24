@@ -10,6 +10,7 @@ import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { applyCorrectionPassCarousel } from "../_shared/correction-pass.ts";
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
+import { buildSeriesContext } from "../_shared/series-context.ts";
 
 // ── Helpers contexte par photo ──
 // L'ordre des photos correspond à l'ordre d'envoi côté front (post-reorder UX).
@@ -83,8 +84,10 @@ serve(async (req) => {
         slide_type: z.enum(["photo_full", "photo_integrated", "text_only"]).optional(),
       })).optional().nullable(),
       recent_briefs_context: z.string().max(6000).optional().nullable(),
+      series_id: z.string().uuid().optional().nullable(),
+      episode_number: z.number().int().min(1).optional().nullable(),
     }).passthrough());
-    const { type, workspace_id, launch_context } = body;
+    const { type, workspace_id, launch_context, series_id, episode_number } = body;
     const isLinkedIn = body.channel === "linkedin";
 
     const category = (type === "suggest_topics" || type === "suggest_angles" || type === "deepening_questions" || type === "structure_proposal") ? "suggestion" : "content";
@@ -129,6 +132,19 @@ serve(async (req) => {
     }
 
     let systemPrompt = buildSystemPrompt(brandingContext, isLinkedIn, ctx.profile);
+
+    // Inject SERIES context if the post belongs to a series
+    if (series_id && (type === "express_full" || type === "hooks" || type === "slides" || type === "structure_proposal")) {
+      try {
+        const seriesCtx = await buildSeriesContext(supabase, series_id, episode_number, isLinkedIn ? "linkedin" : "instagram");
+        if (seriesCtx) {
+          console.log(`[carousel-ai] series context injected: ${seriesCtx.seriesName} (ep #${seriesCtx.episodeNumber})`);
+          systemPrompt += `\n\n${seriesCtx.block}`;
+        }
+      } catch (e) {
+        console.error("[carousel-ai] buildSeriesContext failed", e);
+      }
+    }
 
     // Inject launch context if present
     if (launch_context && (type === "express_full" || type === "hooks" || type === "slides")) {
