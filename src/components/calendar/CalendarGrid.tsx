@@ -246,6 +246,7 @@ export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, on
                     onCreatePost={onCreatePost}
                     onEditPost={onEditPost}
                     onAddIdea={addIdeaHandler}
+                    seriesNameById={seriesNameById}
                   />
                 );
               })}
