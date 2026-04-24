@@ -100,15 +100,19 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       setSavedDraft(draft);
       setAccroche((editingPost as any).accroche || null);
       setMediaUrls((editingPost as any).media_urls || []);
+      setSeriesId((editingPost as any).series_id || null);
+      setEpisodeNumber((editingPost as any).episode_number ?? null);
     } else if (prefillData) {
       setTheme(prefillData.theme || "");
       setAngle(null); setStatus("idea"); setNotes(prefillData.notes || "");
       setObjectif(null); setPostCanal(defaultCanal !== "all" ? defaultCanal : "instagram");
       setFormat(null); setContentDraft(null); setSavedDraft(null); setAccroche(null); setMediaUrls([]);
+      setSeriesId(null); setEpisodeNumber(null);
     } else {
       setTheme(""); setAngle(null); setStatus("idea"); setNotes("");
       setObjectif(null); setPostCanal(defaultCanal !== "all" ? defaultCanal : "instagram");
       setFormat(null); setContentDraft(null); setSavedDraft(null); setAccroche(null); setMediaUrls([]);
+      setSeriesId(null); setEpisodeNumber(null);
     }
     setDialogTab("edit");
     setShowAdvanced(false);

@@ -106,6 +106,43 @@ export function CalendarPostMetadata({
         </div>
       )}
 
+      {/* Série + N° épisode */}
+      {setSeriesId && (
+        <div className="space-y-2">
+          <label className="text-xs font-semibold block text-foreground">📚 Série</label>
+          <select
+            value={seriesId || ""}
+            onChange={(e) => {
+              const v = e.target.value || null;
+              setSeriesId(v);
+              if (!v && setEpisodeNumber) setEpisodeNumber(null);
+            }}
+            className="w-full rounded-[10px] h-9 px-2 text-xs bg-card border border-border text-foreground"
+          >
+            <option value="">Aucune série</option>
+            {activeSeries.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+          {selectedSerie && setEpisodeNumber && (
+            <div>
+              <label className="text-[11px] font-medium mb-1 block text-muted-foreground">N° épisode</label>
+              <Input
+                type="number"
+                min={1}
+                value={episodeNumber ?? ""}
+                onChange={(e) => {
+                  const n = parseInt(e.target.value, 10);
+                  setEpisodeNumber(Number.isFinite(n) && n > 0 ? n : null);
+                }}
+                placeholder="auto"
+                className="rounded-[10px] h-9 text-xs"
+              />
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Résumé Canal + Format — ligne compacte */}
       <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
         <span className="font-medium">{
