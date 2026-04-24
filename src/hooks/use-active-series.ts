@@ -39,6 +39,36 @@ export function useActiveSeries() {
 }
 
 /**
+ * Returns ALL series in the workspace (active + paused + archived) as a map
+ * { id → name }. Used by calendar cards to display the series name even when
+ * the series has been paused/archived after the post was attached.
+ */
+export function useAllSeriesMap() {
+  const { column, value } = useWorkspaceFilter();
+
+  return useQuery({
+    queryKey: ["all-series-map", column, value],
+    queryFn: async (): Promise<Record<string, string>> => {
+      if (!value) return {};
+      const { data, error } = await (supabase.from("series" as any) as any)
+        .select("id, name")
+        .eq(column, value);
+      if (error) {
+        console.warn("[use-all-series-map]", error.message);
+        return {};
+      }
+      const map: Record<string, string> = {};
+      for (const row of (data || []) as Array<{ id: string; name: string }>) {
+        map[row.id] = row.name;
+      }
+      return map;
+    },
+    enabled: !!value,
+    staleTime: 60 * 1000,
+  });
+}
+
+/**
  * Computes the next episode number for a series by looking at existing
  * calendar_posts. Returns 1 for an empty series.
  */
