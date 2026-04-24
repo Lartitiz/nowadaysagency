@@ -9,6 +9,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { buildSeriesContext } from "../_shared/series-context.ts";
 
 // Voice profile is fetched by getUserContext now
 
@@ -52,8 +53,10 @@ serve(async (req) => {
       chosen_angle: z.string().max(500).optional().nullable(),
       slides_summary: z.string().max(8000).optional().nullable(),
       objective: z.string().max(200).optional().nullable(),
+      series_id: z.string().uuid().optional().nullable(),
+      episode_number: z.number().int().min(1).optional().nullable(),
     }).passthrough());
-    const { action, workspace_id, ...params } = reqBody;
+    const { action, workspace_id, series_id, episode_number, ...params } = reqBody;
 
     // Determine category based on action
     const categoryMap: Record<string, string> = {
@@ -229,6 +232,21 @@ serve(async (req) => {
     }
 
     systemPrompt = BASE_SYSTEM_RULES + "\n\n" + VOICE_PRIORITY + systemPrompt;
+
+    // Inject SERIES context for content-generating actions
+    const seriesActions = new Set(["caption-for-carousel", "improve-post", "adapt-instagram", "crosspost"]);
+    if (series_id && seriesActions.has(action)) {
+      try {
+        const seriesCtx = await buildSeriesContext(supabase, series_id, episode_number, "linkedin");
+        if (seriesCtx) {
+          console.log(`[linkedin-ai] series context injected: ${seriesCtx.seriesName} (ep #${seriesCtx.episodeNumber})`);
+          systemPrompt += `\n\n${seriesCtx.block}`;
+        }
+      } catch (e) {
+        console.error("[linkedin-ai] buildSeriesContext failed", e);
+      }
+    }
+
     const content = await callAnthropicSimple(getModelForAction("linkedin_post"), systemPrompt, userPrompt, 0.8);
 
     await logUsage(user.id, category, `linkedin_${action}`, undefined, undefined, workspace_id);

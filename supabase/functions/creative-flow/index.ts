@@ -12,6 +12,7 @@ import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
 import { carouselBrief, reelBrief, storiesBrief, linkedinBrief, pinterestBrief, newsletterBrief, photoCaptionBrief, captionBrief } from "../_shared/format-briefs.ts";
 import { buildVisionQuestionsPrompt, buildVisionGenerateBrief } from "../_shared/vision-prompts.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
+import { buildSeriesContext } from "../_shared/series-context.ts";
 
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
 
