@@ -24,6 +24,8 @@ import { CalendarGrid } from "@/components/calendar/CalendarGrid";
 import { CalendarWeekGrid } from "@/components/calendar/CalendarWeekGrid";
 import { CalendarPostDialog } from "@/components/calendar/CalendarPostDialog";
 import { CalendarCategoryFilters } from "@/components/calendar/CalendarCategoryFilters";
+import { CalendarSeriesFilter } from "@/components/calendar/CalendarSeriesFilter";
+import { useAllSeriesMap } from "@/hooks/use-active-series";
 import { SkeletonCard } from "@/components/ui/skeleton-card";
 
 import { CalendarKanbanView } from "@/components/calendar/CalendarKanbanView";
@@ -204,6 +206,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   const [editingPost, setEditingPost] = useState<CalendarPost | null>(null);
   const [prefillData, setPrefillData] = useState<{ theme?: string; notes?: string } | null>(null);
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [seriesFilter, setSeriesFilter] = useState<string>("all");
   const [mobileTab, setMobileTab] = useState<"calendar" | "ideas">("calendar");
   const [activeDragItem, setActiveDragItem] = useState<any>(null);
   const [postsPerWeek, setPostsPerWeek] = useState(3);
@@ -222,6 +225,8 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     if (urlCanal && CANAL_FILTERS.some((c) => c.id === urlCanal && c.enabled)) {
       setCanalFilter(urlCanal);
     }
+    const urlSerie = searchParams.get("serie");
+    if (urlSerie) setSeriesFilter(urlSerie);
     const prefillTheme = searchParams.get("prefill_theme");
     const prefillContent = searchParams.get("prefill_content");
     if (prefillTheme) {
@@ -234,6 +239,20 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       setCoachingOpen(true);
     }
   }, [searchParams]);
+
+  // Fetch all series names (for badge display)
+  const { data: seriesNameById = {} } = useAllSeriesMap();
+
+  // Sync seriesFilter to URL
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams);
+    if (seriesFilter && seriesFilter !== "all") next.set("serie", seriesFilter);
+    else next.delete("serie");
+    if (next.toString() !== searchParams.toString()) {
+      navigate({ search: next.toString() }, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seriesFilter]);
 
   // Fetch posts target from communication_plans
   useEffect(() => {
