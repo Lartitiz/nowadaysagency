@@ -44,9 +44,9 @@ export function PillarsSyncBanner() {
 
   return (
     <>
-      <div className="rounded-2xl border border-orange-300 bg-orange-50 dark:bg-orange-950/30 dark:border-orange-800 p-4 mb-4">
+      <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 mb-4">
         <div className="flex items-start gap-3">
-          <AlertTriangle className="h-5 w-5 text-orange-600 dark:text-orange-400 shrink-0 mt-0.5" />
+          <AlertTriangle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
           <div className="flex-1 space-y-3">
             <div>
               <h3 className="text-sm font-semibold text-foreground">
