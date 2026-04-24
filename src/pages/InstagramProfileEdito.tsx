@@ -17,6 +17,7 @@ import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { Save, Loader2, Sparkles, Mic, MicOff, Plus, X, Lightbulb } from "lucide-react";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import AuditInsight from "@/components/AuditInsight";
+import { PillarsSyncBanner } from "@/components/edito/PillarsSyncBanner";
 
 /* ─── Types ─── */
 interface Pillar {
@@ -616,6 +617,8 @@ export default function InstagramProfileEdito() {
           </section>
 
           {/* ── Section C: Piliers ── */}
+          <div>
+            <PillarsSyncBanner />
           <section className="rounded-2xl border border-border bg-card p-5">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-base font-display font-bold text-foreground">📊 Mes piliers et leur répartition</h2>
