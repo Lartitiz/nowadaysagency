@@ -87,7 +87,7 @@ serve(async (req) => {
       return new Response(JSON.stringify({ pong: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     const body = validateInput(rawBody, GenerateContentSchema);
-    const { type, format, sujet, profile, canal, objectif, structure: structureInput, accroche: accrocheInput, angle: angleInput, prompt: rawPrompt, playground_prompt, workspace_id } = body;
+    const { type, format, sujet, profile, canal, objectif, structure: structureInput, accroche: accrocheInput, angle: angleInput, prompt: rawPrompt, playground_prompt, workspace_id, series_id, episode_number } = body;
 
     // Check plan limits — use "audit" category for audit types, "content" otherwise
     const isAuditType = type === "bio-audit";
