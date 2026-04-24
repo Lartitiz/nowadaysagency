@@ -123,6 +123,7 @@ const SharedBrandingPage = lazy(() => import("./pages/SharedBrandingPage"));
 const SharedCalendarPage = lazy(() => import("./pages/SharedCalendarPage"));
 const VoiceGuidePage = lazy(() => import("./pages/VoiceGuidePage"));
 const BrandCharterPage = lazy(() => import("./pages/BrandCharterPage"));
+const PhotosPage = lazy(() => import("./pages/PhotosPage"));
 
 
 const queryClient = new QueryClient({
@@ -268,6 +269,7 @@ function AnimatedRoutes() {
               <Route path="/lives" element={<ProtectedRoute><LivesPage /></ProtectedRoute>} />
               <Route path="/communaute" element={<ProtectedRoute><CommunautePage /></ProtectedRoute>} />
               <Route path="/contacts" element={<ProtectedRoute><ContactsPage /></ProtectedRoute>} />
+              <Route path="/photos" element={<ProtectedRoute><PhotosPage /></ProtectedRoute>} />
               <Route path="/profil" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
               <Route path="/parametres" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
               <Route path="/parametres/connexions" element={<ProtectedRoute><ConnectionCheckPage /></ProtectedRoute>} />
