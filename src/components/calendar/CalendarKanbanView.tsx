@@ -166,7 +166,7 @@ export function CalendarKanbanView({ posts, onEditPost, onStatusChange, canalFil
             <EmptyState {...MESSAGES.empty.calendar_empty} />
           )}
           {currentPosts.map((post) => (
-            <CalendarContentCard key={post.id} post={post} onClick={() => onEditPost(post)} variant="detailed" />
+            <CalendarContentCard key={post.id} post={post} onClick={() => onEditPost(post)} variant="detailed" seriesNameById={seriesNameById} />
           ))}
         </div>
       </div>
@@ -183,6 +183,7 @@ export function CalendarKanbanView({ posts, onEditPost, onStatusChange, canalFil
           label={s.label}
           posts={postsByStatus[s.id] || []}
           onEditPost={onEditPost}
+          seriesNameById={seriesNameById}
         />
       ))}
     </div>
