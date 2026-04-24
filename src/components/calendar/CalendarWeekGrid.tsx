@@ -357,6 +357,7 @@ export function CalendarWeekGrid({ weekDays, postsByDate, todayStr, isMobile, on
                 onCreatePost={onCreatePost}
                 onEditPost={onEditPost} onMove={handleMobileMove}
                 onAddIdea={addIdeaHandler}
+                seriesNameById={seriesNameById}
               />
             );
           })}
@@ -406,9 +407,11 @@ export function CalendarWeekGrid({ weekDays, postsByDate, todayStr, isMobile, on
                 onQuickDuplicate={onQuickDuplicate}
                 onQuickDelete={onQuickDelete}
                 onQuickGenerate={onQuickGenerate}
+                onQuickAttachSeries={onQuickAttachSeries}
                 todayRef={dateStr === todayStr ? todayRef : undefined}
                 ownerUsername={ownerUsername}
                 ownerDisplayName={ownerDisplayName}
+                seriesNameById={seriesNameById}
               />
             );
           })}
