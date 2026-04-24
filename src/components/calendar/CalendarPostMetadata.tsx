@@ -4,9 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Input } from "@/components/ui/input";
 import { cn, toLocalDateStr } from "@/lib/utils";
 import { ChevronDown, CalendarIcon } from "lucide-react";
 import { ANGLES, STATUSES, OBJECTIFS } from "@/lib/calendar-constants";
+import { useActiveSeries } from "@/hooks/use-active-series";
 
 const FORMAT_OPTIONS_BY_CANAL: Record<string, { id: string; emoji: string; label: string }[]> = {
   instagram: [
@@ -47,13 +49,20 @@ interface Props {
   editingPostId?: string;
   selectedDate: string | null;
   onDateChange?: (postId: string, newDate: string) => void;
+  seriesId?: string | null;
+  setSeriesId?: (id: string | null) => void;
+  episodeNumber?: number | null;
+  setEpisodeNumber?: (n: number | null) => void;
 }
 
 export function CalendarPostMetadata({
   status, setStatus, postCanal, setPostCanal, format, setFormat,
   objectif, setObjectif, angle, setAngle, showAdvanced, setShowAdvanced,
   editingPostId, selectedDate, onDateChange,
+  seriesId, setSeriesId, episodeNumber, setEpisodeNumber,
 }: Props) {
+  const { data: activeSeries = [] } = useActiveSeries();
+  const selectedSerie = activeSeries.find((s) => s.id === seriesId) || null;
   return (
     <>
       {/* Statut — toujours visible */}
