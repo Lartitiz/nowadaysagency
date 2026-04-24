@@ -171,6 +171,7 @@ describe("SeriesFicheCards — 4 component states", () => {
 
 describe("SeriesFicheCards — card actions", () => {
   it("opens dropdown menu and triggers status change to paused", async () => {
+    const user = userEvent.setup();
     const serie = baseSerie();
     mockSeriesState = {
       series: [serie],
@@ -180,14 +181,15 @@ describe("SeriesFicheCards — card actions", () => {
     };
     render(<SeriesFicheCards hasRecap={true} onLaunchCoaching={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole("button", { name: /Options/i }));
-    const pauseItem = await screen.findByText(/Mettre en pause/i);
-    fireEvent.click(pauseItem);
+    await user.click(screen.getByRole("button", { name: /Options/i }));
+    const pauseItem = await screen.findByRole("menuitem", { name: /Mettre en pause/i });
+    await user.click(pauseItem);
 
     expect(mockUpdateStatus).toHaveBeenCalledWith(serie.id, "paused");
   });
 
   it("triggers archive action from menu", async () => {
+    const user = userEvent.setup();
     const serie = baseSerie();
     mockSeriesState = {
       series: [serie],
@@ -197,12 +199,13 @@ describe("SeriesFicheCards — card actions", () => {
     };
     render(<SeriesFicheCards hasRecap={true} onLaunchCoaching={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole("button", { name: /Options/i }));
-    fireEvent.click(await screen.findByText(/^Archiver$/));
+    await user.click(screen.getByRole("button", { name: /Options/i }));
+    await user.click(await screen.findByRole("menuitem", { name: /^Archiver$/ }));
     expect(mockUpdateStatus).toHaveBeenCalledWith(serie.id, "archived");
   });
 
   it("opens AlertDialog on delete and calls deleteSerie on confirm", async () => {
+    const user = userEvent.setup();
     const serie = baseSerie();
     mockSeriesState = {
       series: [serie],
@@ -212,12 +215,16 @@ describe("SeriesFicheCards — card actions", () => {
     };
     render(<SeriesFicheCards hasRecap={true} onLaunchCoaching={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole("button", { name: /Options/i }));
-    fireEvent.click(await screen.findByText(/^Supprimer$/));
+    await user.click(screen.getByRole("button", { name: /Options/i }));
+    await user.click(await screen.findByRole("menuitem", { name: /^Supprimer$/ }));
 
     // AlertDialog appears
-    expect(await screen.findByText(/Supprimer cette série \?/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /^Supprimer$/ }));
+    const dialog = await screen.findByRole("alertdialog");
+    expect(dialog).toHaveTextContent(/Supprimer cette série \?/i);
+
+    // Confirm button is inside the dialog (avoid colliding with menuitem if still open)
+    const confirmBtn = await screen.findByRole("button", { name: /^Supprimer$/ });
+    await user.click(confirmBtn);
 
     await waitFor(() => {
       expect(mockDeleteSerie).toHaveBeenCalledWith(serie.id);
@@ -225,6 +232,7 @@ describe("SeriesFicheCards — card actions", () => {
   });
 
   it("toggles edit mode when clicking 'Éditer' in dropdown", async () => {
+    const user = userEvent.setup();
     const serie = baseSerie();
     mockSeriesState = {
       series: [serie],
@@ -234,10 +242,9 @@ describe("SeriesFicheCards — card actions", () => {
     };
     render(<SeriesFicheCards hasRecap={true} onLaunchCoaching={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole("button", { name: /Options/i }));
-    fireEvent.click(await screen.findByText(/^Éditer$/));
+    await user.click(screen.getByRole("button", { name: /Options/i }));
+    await user.click(await screen.findByRole("menuitem", { name: /^Éditer$/ }));
 
-    // EditableField stubs become visible
     expect(await screen.findByTestId("editable-Nom de la série")).toBeInTheDocument();
     expect(screen.getByTestId("editable-Promesse")).toBeInTheDocument();
   });
