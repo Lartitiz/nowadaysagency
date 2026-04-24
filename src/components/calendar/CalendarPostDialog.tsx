@@ -162,7 +162,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
 
   const handleSave = () => {
     if (!theme.trim()) return;
-    onSave({ theme, angle, status, notes, canal: postCanal, objectif, format, content_draft: contentDraft, accroche, media_urls: mediaUrls.length > 0 ? mediaUrls : null });
+    onSave({ theme, angle, status, notes, canal: postCanal, objectif, format, content_draft: contentDraft, accroche, media_urls: mediaUrls.length > 0 ? mediaUrls : null, series_id: seriesId, episode_number: episodeNumber });
     setSavedDraft(contentDraft);
   };
 
@@ -214,7 +214,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   };
 
   const handleOpenAtelier = () => {
-    if (theme.trim()) onSave({ theme, angle, status, notes, canal: postCanal, objectif, format, content_draft: contentDraft, accroche, media_urls: mediaUrls.length > 0 ? mediaUrls : null });
+    if (theme.trim()) onSave({ theme, angle, status, notes, canal: postCanal, objectif, format, content_draft: contentDraft, accroche, media_urls: mediaUrls.length > 0 ? mediaUrls : null, series_id: seriesId, episode_number: episodeNumber });
     onOpenChange(false);
     setTimeout(() => {
       navigate("/creer?canal=" + (postCanal || "instagram"), {
@@ -224,7 +224,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   };
 
   const handleNavigateToGenerator = (mode: "generate" | "regenerate" | "view") => {
-    if (theme.trim()) onSave({ theme, angle, status, notes, canal: postCanal, objectif, format, content_draft: contentDraft, accroche, media_urls: mediaUrls.length > 0 ? mediaUrls : null });
+    if (theme.trim()) onSave({ theme, angle, status, notes, canal: postCanal, objectif, format, content_draft: contentDraft, accroche, media_urls: mediaUrls.length > 0 ? mediaUrls : null, series_id: seriesId, episode_number: episodeNumber });
     onOpenChange(false);
     setTimeout(() => {
       const params = new URLSearchParams();
@@ -246,7 +246,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   };
 
   const handleNavigateToDeepen = () => {
-    if (theme.trim()) onSave({ theme, angle, status, notes, canal: postCanal, objectif, format, content_draft: contentDraft, accroche, media_urls: mediaUrls.length > 0 ? mediaUrls : null });
+    if (theme.trim()) onSave({ theme, angle, status, notes, canal: postCanal, objectif, format, content_draft: contentDraft, accroche, media_urls: mediaUrls.length > 0 ? mediaUrls : null, series_id: seriesId, episode_number: episodeNumber });
     onOpenChange(false);
     setTimeout(() => {
       const params = new URLSearchParams();
