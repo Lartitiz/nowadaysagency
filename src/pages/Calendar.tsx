@@ -395,8 +395,20 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     } else if (categoryFilter === "a_rediger") {
       result = result.filter((p) => p.status === "a_rediger");
     }
+    if (seriesFilter === "none") result = result.filter((p) => !(p as any).series_id);
+    else if (seriesFilter !== "all") result = result.filter((p) => (p as any).series_id === seriesFilter);
     return result;
-  }, [posts, canalFilter, categoryFilter]);
+  }, [posts, canalFilter, categoryFilter, seriesFilter]);
+
+  // Counts per series across all posts (not yet filtered) for the filter chip
+  const seriesCounts = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const p of posts) {
+      const sid = (p as any).series_id;
+      if (sid) map[sid] = (map[sid] || 0) + 1;
+    }
+    return map;
+  }, [posts]);
 
   const postsByDate = useMemo(() => {
     const map: Record<string, CalendarPost[]> = {};
