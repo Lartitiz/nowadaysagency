@@ -114,7 +114,7 @@ function MobilePostCard({ post, onClick, onMove, seriesNameById }: { post: Calen
 }
 
 /* ── Main component (no DndContext — parent provides it) ── */
-export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, onCreatePost, onEditPost, onMovePost, onAddIdea }: Props) {
+export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, onCreatePost, onEditPost, onMovePost, onAddIdea, seriesNameById }: Props) {
   const [moveDialogPost, setMoveDialogPost] = useState<CalendarPost | null>(null);
   const [moveDate, setMoveDate] = useState<Date | undefined>();
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
@@ -155,7 +155,7 @@ export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, on
                 </div>
                 <div>
                   {(expandedDays.has(dateStr) ? dayPosts : dayPosts.slice(0, 1)).map((p) => (
-                    <MobilePostCard key={p.id} post={p} onClick={() => onEditPost(p)} onMove={handleMobileMove} />
+                    <MobilePostCard key={p.id} post={p} onClick={() => onEditPost(p)} onMove={handleMobileMove} seriesNameById={seriesNameById} />
                   ))}
                   {dayPosts.length > 1 && !expandedDays.has(dateStr) && (
                     <button
