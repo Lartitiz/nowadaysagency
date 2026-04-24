@@ -228,10 +228,11 @@ function DroppableWeekDay({
 }
 
 /* ── Mobile week day ── */
-function MobileWeekDay({ date, dateStr, isToday, posts, onCreatePost, onEditPost, onMove, onAddIdea }: {
+function MobileWeekDay({ date, dateStr, isToday, posts, onCreatePost, onEditPost, onMove, onAddIdea, seriesNameById }: {
   date: Date; dateStr: string; isToday: boolean;
   posts: CalendarPost[]; onCreatePost: (dateStr: string) => void; onEditPost: (p: CalendarPost) => void;
   onMove: (post: CalendarPost) => void; onAddIdea: (dateStr: string) => void;
+  seriesNameById?: Record<string, string>;
 }) {
   const dayLabel = date.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric" });
   const [pressTimers, setPressTimers] = useState<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -300,7 +301,7 @@ function MobileWeekDay({ date, dateStr, isToday, posts, onCreatePost, onEditPost
             onTouchEnd={() => handleTouchEnd(p.id)}
             onTouchCancel={() => handleTouchEnd(p.id)}
           >
-            <CalendarContentCard post={p} onClick={() => onEditPost(p)} variant="compact" />
+            <CalendarContentCard post={p} onClick={() => onEditPost(p)} variant="compact" seriesNameById={seriesNameById} />
           </div>
         ))}
       </div>
@@ -309,7 +310,7 @@ function MobileWeekDay({ date, dateStr, isToday, posts, onCreatePost, onEditPost
 }
 
 /* ── Main (no DndContext — parent provides it) ── */
-export function CalendarWeekGrid({ weekDays, postsByDate, todayStr, isMobile, onCreatePost, onEditPost, onMovePost, onAddIdea, onQuickCreate, onQuickStatusChange, onQuickDuplicate, onQuickDelete, onQuickGenerate, ownerUsername, ownerDisplayName }: Props) {
+export function CalendarWeekGrid({ weekDays, postsByDate, todayStr, isMobile, onCreatePost, onEditPost, onMovePost, onAddIdea, onQuickCreate, onQuickStatusChange, onQuickDuplicate, onQuickDelete, onQuickGenerate, onQuickAttachSeries, ownerUsername, ownerDisplayName, seriesNameById }: Props) {
   const [moveDialogPost, setMoveDialogPost] = useState<CalendarPost | null>(null);
   const [moveDate, setMoveDate] = useState<Date | undefined>();
   const todayRef = useRef<HTMLDivElement>(null);
