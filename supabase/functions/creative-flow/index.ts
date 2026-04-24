@@ -12,6 +12,7 @@ import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
 import { carouselBrief, reelBrief, storiesBrief, linkedinBrief, pinterestBrief, newsletterBrief, photoCaptionBrief, captionBrief } from "../_shared/format-briefs.ts";
 import { buildVisionQuestionsPrompt, buildVisionGenerateBrief } from "../_shared/vision-prompts.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
+import { buildSeriesContext } from "../_shared/series-context.ts";
 
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
 
@@ -57,8 +58,10 @@ serve(async (req) => {
       content_structure: z.string().max(5000).optional().nullable(),
       launch_context: z.any().optional().nullable(),
       price_range: z.string().max(50).optional().nullable(),
+      series_id: z.string().uuid().optional().nullable(),
+      episode_number: z.number().int().min(1).optional().nullable(),
     }).passthrough());
-    const { step, contentType, context, profile, angle, answers, followUpAnswers, content: currentContent, adjustment, calendarContext, preGenAnswers, sourceText, formats, targetFormat, workspace_id, deepResearch, objective, editorialFormat, editorialFormatLabel, variation, previousContent, pinterest_link, pinterest_board, recent_briefs_context: recentBriefsFromBody } = body;
+    const { step, contentType, context, profile, angle, answers, followUpAnswers, content: currentContent, adjustment, calendarContext, preGenAnswers, sourceText, formats, targetFormat, workspace_id, deepResearch, objective, editorialFormat, editorialFormatLabel, variation, previousContent, pinterest_link, pinterest_board, recent_briefs_context: recentBriefsFromBody, series_id, episode_number } = body;
 
     // Determine channel from contentType for persona selection
     const channelFromType = contentType?.includes("linkedin") ? "linkedin" : contentType?.includes("instagram") || contentType?.includes("carousel") || contentType?.includes("reel") || contentType?.includes("stories") ? "instagram" : undefined;
@@ -725,6 +728,21 @@ Réponds UNIQUEMENT en JSON :
     }
 
     // COMMON_PREFIX already includes BASE_SYSTEM_RULES + voice priority + CORE_PRINCIPLES + ANTI_SLOP + ETHICAL_GUARDRAILS + fullContext
+
+    // ── Inject SERIES context (when this post belongs to a series) ──
+    if (series_id && step === "generate") {
+      try {
+        const channelForSeries = isLinkedIn ? "linkedin" : isPinterest ? "pinterest" : isNewsletter ? "newsletter" : "instagram";
+        const seriesCtx = await buildSeriesContext(supabase, series_id, episode_number, channelForSeries);
+        if (seriesCtx) {
+          console.log(`[creative-flow] series context injected (${contentType}): ${seriesCtx.seriesName} (ep #${seriesCtx.episodeNumber})`);
+          systemPrompt += `\n\n${seriesCtx.block}`;
+        }
+      } catch (e) {
+        console.error("[creative-flow] buildSeriesContext failed", e);
+      }
+    }
+
 
     // ── Deep Research (web search via Anthropic) ──
     if (deepResearch && step === "generate") {

@@ -54,6 +54,8 @@ export const GenerateContentSchema = z.object({
   ctaInfo: z.record(z.unknown()).optional().nullable(),
   structureChoice: shortText.optional().nullable(),
   screenshotImages: z.array(z.object({ data: z.string(), media_type: z.string() })).optional(),
+  series_id: optionalUuid,
+  episode_number: z.number().int().min(1).optional().nullable(),
 }).passthrough();
 
 /* ─── create-checkout ─── */

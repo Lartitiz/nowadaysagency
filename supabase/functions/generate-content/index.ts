@@ -9,6 +9,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { validateInput, ValidationError, GenerateContentSchema } from "../_shared/input-validators.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
+import { buildSeriesContext } from "../_shared/series-context.ts";
 
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
 
@@ -86,7 +87,7 @@ serve(async (req) => {
       return new Response(JSON.stringify({ pong: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     const body = validateInput(rawBody, GenerateContentSchema);
-    const { type, format, sujet, profile, canal, objectif, structure: structureInput, accroche: accrocheInput, angle: angleInput, prompt: rawPrompt, playground_prompt, workspace_id } = body;
+    const { type, format, sujet, profile, canal, objectif, structure: structureInput, accroche: accrocheInput, angle: angleInput, prompt: rawPrompt, playground_prompt, workspace_id, series_id, episode_number } = body;
 
     // Check plan limits — use "audit" category for audit types, "content" otherwise
     const isAuditType = type === "bio-audit";
@@ -632,6 +633,20 @@ FORMAT :
           JSON.stringify({ error: "Type de requête non reconnu" }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
+      }
+    }
+
+    // Inject SERIES context for content-generating types (post on this calendar entry belongs to a series)
+    const seriesTypes = new Set(["calendar-quick", "express-draft", "redaction-draft", "redaction-structure", "redaction-accroches", "caption"]);
+    if (series_id && seriesTypes.has(type)) {
+      try {
+        const seriesCtx = await buildSeriesContext(supabase, series_id, episode_number, canal || undefined);
+        if (seriesCtx) {
+          console.log(`[generate-content] series context injected for ${type}: ${seriesCtx.seriesName} (ep #${seriesCtx.episodeNumber})`);
+          systemPrompt += `\n\n${seriesCtx.block}`;
+        }
+      } catch (e) {
+        console.error("[generate-content] buildSeriesContext failed", e);
       }
     }
 

@@ -32,7 +32,7 @@ interface Props {
   editingPost: CalendarPost | null;
   selectedDate: string | null;
   defaultCanal: string;
-  onSave: (data: { theme: string; angle: string | null; status: string; notes: string; canal: string; objectif: string | null; format: string | null; content_draft: string | null; accroche: string | null; media_urls: string[] | null }) => void;
+  onSave: (data: { theme: string; angle: string | null; status: string; notes: string; canal: string; objectif: string | null; format: string | null; content_draft: string | null; accroche: string | null; media_urls: string[] | null; series_id: string | null; episode_number: number | null }) => void;
   onDelete: () => void;
   onUnplan?: () => void;
   onDateChange?: (postId: string, newDate: string) => void;
@@ -72,6 +72,8 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showContentViewer, setShowContentViewer] = useState(false);
   const [savedDraft, setSavedDraft] = useState<string | null>(null);
+  const [seriesId, setSeriesId] = useState<string | null>(null);
+  const [episodeNumber, setEpisodeNumber] = useState<number | null>(null);
 
   useEffect(() => {
     if (!profileData) return;
@@ -98,15 +100,19 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       setSavedDraft(draft);
       setAccroche((editingPost as any).accroche || null);
       setMediaUrls((editingPost as any).media_urls || []);
+      setSeriesId((editingPost as any).series_id || null);
+      setEpisodeNumber((editingPost as any).episode_number ?? null);
     } else if (prefillData) {
       setTheme(prefillData.theme || "");
       setAngle(null); setStatus("idea"); setNotes(prefillData.notes || "");
       setObjectif(null); setPostCanal(defaultCanal !== "all" ? defaultCanal : "instagram");
       setFormat(null); setContentDraft(null); setSavedDraft(null); setAccroche(null); setMediaUrls([]);
+      setSeriesId(null); setEpisodeNumber(null);
     } else {
       setTheme(""); setAngle(null); setStatus("idea"); setNotes("");
       setObjectif(null); setPostCanal(defaultCanal !== "all" ? defaultCanal : "instagram");
       setFormat(null); setContentDraft(null); setSavedDraft(null); setAccroche(null); setMediaUrls([]);
+      setSeriesId(null); setEpisodeNumber(null);
     }
     setDialogTab("edit");
     setShowAdvanced(false);

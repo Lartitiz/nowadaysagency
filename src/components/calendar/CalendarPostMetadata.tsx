@@ -4,9 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Input } from "@/components/ui/input";
 import { cn, toLocalDateStr } from "@/lib/utils";
 import { ChevronDown, CalendarIcon } from "lucide-react";
 import { ANGLES, STATUSES, OBJECTIFS } from "@/lib/calendar-constants";
+import { useActiveSeries } from "@/hooks/use-active-series";
 
 const FORMAT_OPTIONS_BY_CANAL: Record<string, { id: string; emoji: string; label: string }[]> = {
   instagram: [
@@ -47,13 +49,20 @@ interface Props {
   editingPostId?: string;
   selectedDate: string | null;
   onDateChange?: (postId: string, newDate: string) => void;
+  seriesId?: string | null;
+  setSeriesId?: (id: string | null) => void;
+  episodeNumber?: number | null;
+  setEpisodeNumber?: (n: number | null) => void;
 }
 
 export function CalendarPostMetadata({
   status, setStatus, postCanal, setPostCanal, format, setFormat,
   objectif, setObjectif, angle, setAngle, showAdvanced, setShowAdvanced,
   editingPostId, selectedDate, onDateChange,
+  seriesId, setSeriesId, episodeNumber, setEpisodeNumber,
 }: Props) {
+  const { data: activeSeries = [] } = useActiveSeries();
+  const selectedSerie = activeSeries.find((s) => s.id === seriesId) || null;
   return (
     <>
       {/* Statut — toujours visible */}
@@ -94,6 +103,43 @@ export function CalendarPostMetadata({
               />
             </PopoverContent>
           </Popover>
+        </div>
+      )}
+
+      {/* Série + N° épisode */}
+      {setSeriesId && (
+        <div className="space-y-2">
+          <label className="text-xs font-semibold block text-foreground">📚 Série</label>
+          <select
+            value={seriesId || ""}
+            onChange={(e) => {
+              const v = e.target.value || null;
+              setSeriesId(v);
+              if (!v && setEpisodeNumber) setEpisodeNumber(null);
+            }}
+            className="w-full rounded-[10px] h-9 px-2 text-xs bg-card border border-border text-foreground"
+          >
+            <option value="">Aucune série</option>
+            {activeSeries.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+          {selectedSerie && setEpisodeNumber && (
+            <div>
+              <label className="text-[11px] font-medium mb-1 block text-muted-foreground">N° épisode</label>
+              <Input
+                type="number"
+                min={1}
+                value={episodeNumber ?? ""}
+                onChange={(e) => {
+                  const n = parseInt(e.target.value, 10);
+                  setEpisodeNumber(Number.isFinite(n) && n > 0 ? n : null);
+                }}
+                placeholder="auto"
+                className="rounded-[10px] h-9 text-xs"
+              />
+            </div>
+          )}
         </div>
       )}
 
