@@ -14,6 +14,8 @@ interface CalendarKanbanViewProps {
   onStatusChange: (postId: string, newStatus: string) => void;
   canalFilter: string;
   categoryFilter: string;
+  seriesFilter?: string;
+  seriesNameById?: Record<string, string>;
 }
 
 const COLUMN_STYLES: Record<string, { bg: string; border: string; headerBg: string }> = {
@@ -29,7 +31,7 @@ const STATUS_EMOJIS: Record<string, string> = {
 };
 
 /** Draggable card wrapper */
-function DraggableCard({ post, onEditPost }: { post: CalendarPost; onEditPost: (p: CalendarPost) => void }) {
+function DraggableCard({ post, onEditPost, seriesNameById }: { post: CalendarPost; onEditPost: (p: CalendarPost) => void; seriesNameById?: Record<string, string> }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: post.id,
     data: { type: "kanban-card", post },
@@ -41,7 +43,7 @@ function DraggableCard({ post, onEditPost }: { post: CalendarPost; onEditPost: (
 
   return (
     <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
-      <CalendarContentCard post={post} onClick={() => onEditPost(post)} variant="compact" />
+      <CalendarContentCard post={post} onClick={() => onEditPost(post)} variant="compact" seriesNameById={seriesNameById} />
     </div>
   );
 }
@@ -52,11 +54,13 @@ function KanbanColumn({
   label,
   posts,
   onEditPost,
+  seriesNameById,
 }: {
   statusId: string;
   label: string;
   posts: CalendarPost[];
   onEditPost: (p: CalendarPost) => void;
+  seriesNameById?: Record<string, string>;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `kanban-col-${statusId}` });
   const styles = COLUMN_STYLES[statusId] || COLUMN_STYLES.idea;
@@ -84,7 +88,7 @@ function KanbanColumn({
             <EmptyState {...MESSAGES.empty.calendar_empty} />
           )}
           {posts.map((post) => (
-            <DraggableCard key={post.id} post={post} onEditPost={onEditPost} />
+            <DraggableCard key={post.id} post={post} onEditPost={onEditPost} seriesNameById={seriesNameById} />
           ))}
         </div>
       </ScrollArea>
@@ -92,7 +96,7 @@ function KanbanColumn({
   );
 }
 
-export function CalendarKanbanView({ posts, onEditPost, onStatusChange, canalFilter, categoryFilter }: CalendarKanbanViewProps) {
+export function CalendarKanbanView({ posts, onEditPost, onStatusChange, canalFilter, categoryFilter, seriesFilter, seriesNameById }: CalendarKanbanViewProps) {
   const isMobile = useIsMobile();
   const [mobileStatus, setMobileStatus] = useState("idea");
 
@@ -108,8 +112,10 @@ export function CalendarKanbanView({ posts, onEditPost, onStatusChange, canalFil
     } else if (categoryFilter === "a_rediger") {
       result = result.filter((p) => p.status === "a_rediger");
     }
+    if (seriesFilter === "none") result = result.filter((p) => !(p as any).series_id);
+    else if (seriesFilter && seriesFilter !== "all") result = result.filter((p) => (p as any).series_id === seriesFilter);
     return result;
-  }, [posts, canalFilter, categoryFilter]);
+  }, [posts, canalFilter, categoryFilter, seriesFilter]);
 
   const postsByStatus = useMemo(() => {
     const map: Record<string, CalendarPost[]> = {};
@@ -160,7 +166,7 @@ export function CalendarKanbanView({ posts, onEditPost, onStatusChange, canalFil
             <EmptyState {...MESSAGES.empty.calendar_empty} />
           )}
           {currentPosts.map((post) => (
-            <CalendarContentCard key={post.id} post={post} onClick={() => onEditPost(post)} variant="detailed" />
+            <CalendarContentCard key={post.id} post={post} onClick={() => onEditPost(post)} variant="detailed" seriesNameById={seriesNameById} />
           ))}
         </div>
       </div>
@@ -177,6 +183,7 @@ export function CalendarKanbanView({ posts, onEditPost, onStatusChange, canalFil
           label={s.label}
           posts={postsByStatus[s.id] || []}
           onEditPost={onEditPost}
+          seriesNameById={seriesNameById}
         />
       ))}
     </div>

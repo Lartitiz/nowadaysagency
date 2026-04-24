@@ -24,6 +24,8 @@ import { CalendarGrid } from "@/components/calendar/CalendarGrid";
 import { CalendarWeekGrid } from "@/components/calendar/CalendarWeekGrid";
 import { CalendarPostDialog } from "@/components/calendar/CalendarPostDialog";
 import { CalendarCategoryFilters } from "@/components/calendar/CalendarCategoryFilters";
+import { CalendarSeriesFilter } from "@/components/calendar/CalendarSeriesFilter";
+import { useAllSeriesMap } from "@/hooks/use-active-series";
 import { SkeletonCard } from "@/components/ui/skeleton-card";
 
 import { CalendarKanbanView } from "@/components/calendar/CalendarKanbanView";
@@ -204,6 +206,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   const [editingPost, setEditingPost] = useState<CalendarPost | null>(null);
   const [prefillData, setPrefillData] = useState<{ theme?: string; notes?: string } | null>(null);
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [seriesFilter, setSeriesFilter] = useState<string>("all");
   const [mobileTab, setMobileTab] = useState<"calendar" | "ideas">("calendar");
   const [activeDragItem, setActiveDragItem] = useState<any>(null);
   const [postsPerWeek, setPostsPerWeek] = useState(3);
@@ -222,6 +225,8 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     if (urlCanal && CANAL_FILTERS.some((c) => c.id === urlCanal && c.enabled)) {
       setCanalFilter(urlCanal);
     }
+    const urlSerie = searchParams.get("serie");
+    if (urlSerie) setSeriesFilter(urlSerie);
     const prefillTheme = searchParams.get("prefill_theme");
     const prefillContent = searchParams.get("prefill_content");
     if (prefillTheme) {
@@ -234,6 +239,20 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       setCoachingOpen(true);
     }
   }, [searchParams]);
+
+  // Fetch all series names (for badge display)
+  const { data: seriesNameById = {} } = useAllSeriesMap();
+
+  // Sync seriesFilter to URL
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams);
+    if (seriesFilter && seriesFilter !== "all") next.set("serie", seriesFilter);
+    else next.delete("serie");
+    if (next.toString() !== searchParams.toString()) {
+      navigate({ search: next.toString() }, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seriesFilter]);
 
   // Fetch posts target from communication_plans
   useEffect(() => {
@@ -376,8 +395,20 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     } else if (categoryFilter === "a_rediger") {
       result = result.filter((p) => p.status === "a_rediger");
     }
+    if (seriesFilter === "none") result = result.filter((p) => !(p as any).series_id);
+    else if (seriesFilter !== "all") result = result.filter((p) => (p as any).series_id === seriesFilter);
     return result;
-  }, [posts, canalFilter, categoryFilter]);
+  }, [posts, canalFilter, categoryFilter, seriesFilter]);
+
+  // Counts per series across all posts (not yet filtered) for the filter chip
+  const seriesCounts = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const p of posts) {
+      const sid = (p as any).series_id;
+      if (sid) map[sid] = (map[sid] || 0) + 1;
+    }
+    return map;
+  }, [posts]);
 
   const postsByDate = useMemo(() => {
     const map: Record<string, CalendarPost[]> = {};
@@ -679,7 +710,10 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
         ))}
       </div>
 
-      <CalendarCategoryFilters value={categoryFilter} onChange={setCategoryFilter} />
+      <div className="flex items-start gap-2 flex-wrap mb-1">
+        <CalendarCategoryFilters value={categoryFilter} onChange={setCategoryFilter} />
+        <CalendarSeriesFilter value={seriesFilter} onChange={setSeriesFilter} counts={seriesCounts} />
+      </div>
 
       {/* View toggle + Navigation */}
       <div className="flex items-center justify-between mb-4">
@@ -761,6 +795,8 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
           onStatusChange={handleQuickStatusChange}
           canalFilter={canalFilter}
           categoryFilter={categoryFilter}
+          seriesFilter={seriesFilter}
+          seriesNameById={seriesNameById}
         />
       ) : viewMode === "list" ? (
         <CalendarListView
@@ -772,12 +808,15 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
           onUpdateDraft={handleUpdateDraft}
           canalFilter={canalFilter}
           categoryFilter={categoryFilter}
+          seriesFilter={seriesFilter}
+          seriesNameById={seriesNameById}
         />
       ) : viewMode === "month" ? (
         <CalendarGrid
           calendarDays={calendarDays} postsByDate={postsByDate} todayStr={todayStr} isMobile={isMobile}
           onCreatePost={openCreateDialog} onEditPost={handlePostClick} onMovePost={handleMovePost}
           onAddIdea={openCreateDialog}
+          seriesNameById={seriesNameById}
         />
       ) : (
         <>
@@ -790,8 +829,10 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
             onQuickDuplicate={handleQuickDuplicate}
             onQuickDelete={handleQuickDelete}
             onQuickGenerate={handleQuickGenerate}
+            onQuickAttachSeries={(post) => { setEditingPost(post); setSelectedDate(post.date); setDialogOpen(true); }}
             ownerUsername={igUsername}
             ownerDisplayName={ownerName}
+            seriesNameById={seriesNameById}
           />
           
         </>

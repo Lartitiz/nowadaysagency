@@ -25,19 +25,23 @@ interface Props {
   onQuickDuplicate?: (post: CalendarPost) => void;
   onQuickDelete?: (postId: string) => void;
   onQuickGenerate?: (post: CalendarPost) => void;
+  onQuickAttachSeries?: (post: CalendarPost) => void;
   ownerUsername?: string;
   ownerDisplayName?: string;
+  seriesNameById?: Record<string, string>;
 }
 
 /* ── Draggable content card ── */
-function DraggableWeekCard({ post, onClick, onQuickStatusChange, onQuickDuplicate, onQuickDelete, onQuickGenerate, ownerUsername, ownerDisplayName }: {
+function DraggableWeekCard({ post, onClick, onQuickStatusChange, onQuickDuplicate, onQuickDelete, onQuickGenerate, onQuickAttachSeries, ownerUsername, ownerDisplayName, seriesNameById }: {
   post: CalendarPost; onClick: () => void;
   onQuickStatusChange?: (postId: string, newStatus: string) => void;
   onQuickDuplicate?: (post: CalendarPost) => void;
   onQuickDelete?: (postId: string) => void;
   onQuickGenerate?: (post: CalendarPost) => void;
+  onQuickAttachSeries?: (post: CalendarPost) => void;
   ownerUsername?: string;
   ownerDisplayName?: string;
+  seriesNameById?: Record<string, string>;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: post.id });
   const style: React.CSSProperties = {
@@ -55,8 +59,10 @@ function DraggableWeekCard({ post, onClick, onQuickStatusChange, onQuickDuplicat
         onQuickDuplicate={onQuickDuplicate}
         onQuickDelete={onQuickDelete}
         onQuickGenerate={onQuickGenerate}
+        onQuickAttachSeries={onQuickAttachSeries}
         ownerUsername={ownerUsername}
         ownerDisplayName={ownerDisplayName}
+        seriesNameById={seriesNameById}
       />
     </div>
   );
@@ -65,8 +71,8 @@ function DraggableWeekCard({ post, onClick, onQuickStatusChange, onQuickDuplicat
 /* ── Droppable day column ── */
 function DroppableWeekDay({
   date, dateStr, isToday, posts, onCreatePost, onEditPost, onAddIdea, onQuickCreate,
-  onQuickStatusChange, onQuickDuplicate, onQuickDelete, onQuickGenerate, todayRef,
-  ownerUsername, ownerDisplayName,
+  onQuickStatusChange, onQuickDuplicate, onQuickDelete, onQuickGenerate, onQuickAttachSeries, todayRef,
+  ownerUsername, ownerDisplayName, seriesNameById,
 }: {
   date: Date; dateStr: string; isToday: boolean;
   posts: CalendarPost[]; onCreatePost: (dateStr: string) => void; onEditPost: (p: CalendarPost) => void;
@@ -75,9 +81,11 @@ function DroppableWeekDay({
   onQuickDuplicate?: (post: CalendarPost) => void;
   onQuickDelete?: (postId: string) => void;
   onQuickGenerate?: (post: CalendarPost) => void;
+  onQuickAttachSeries?: (post: CalendarPost) => void;
   todayRef?: React.RefObject<HTMLDivElement>;
   ownerUsername?: string;
   ownerDisplayName?: string;
+  seriesNameById?: Record<string, string>;
 }) {
   const [inlineInput, setInlineInput] = useState(false);
   const [inlineValue, setInlineValue] = useState("");
@@ -167,8 +175,10 @@ function DroppableWeekDay({
             onQuickDuplicate={onQuickDuplicate}
             onQuickDelete={onQuickDelete}
             onQuickGenerate={onQuickGenerate}
+            onQuickAttachSeries={onQuickAttachSeries}
             ownerUsername={ownerUsername}
             ownerDisplayName={ownerDisplayName}
+            seriesNameById={seriesNameById}
           />
         ))}
       </div>
@@ -218,10 +228,11 @@ function DroppableWeekDay({
 }
 
 /* ── Mobile week day ── */
-function MobileWeekDay({ date, dateStr, isToday, posts, onCreatePost, onEditPost, onMove, onAddIdea }: {
+function MobileWeekDay({ date, dateStr, isToday, posts, onCreatePost, onEditPost, onMove, onAddIdea, seriesNameById }: {
   date: Date; dateStr: string; isToday: boolean;
   posts: CalendarPost[]; onCreatePost: (dateStr: string) => void; onEditPost: (p: CalendarPost) => void;
   onMove: (post: CalendarPost) => void; onAddIdea: (dateStr: string) => void;
+  seriesNameById?: Record<string, string>;
 }) {
   const dayLabel = date.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric" });
   const [pressTimers, setPressTimers] = useState<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -290,7 +301,7 @@ function MobileWeekDay({ date, dateStr, isToday, posts, onCreatePost, onEditPost
             onTouchEnd={() => handleTouchEnd(p.id)}
             onTouchCancel={() => handleTouchEnd(p.id)}
           >
-            <CalendarContentCard post={p} onClick={() => onEditPost(p)} variant="compact" />
+            <CalendarContentCard post={p} onClick={() => onEditPost(p)} variant="compact" seriesNameById={seriesNameById} />
           </div>
         ))}
       </div>
@@ -299,7 +310,7 @@ function MobileWeekDay({ date, dateStr, isToday, posts, onCreatePost, onEditPost
 }
 
 /* ── Main (no DndContext — parent provides it) ── */
-export function CalendarWeekGrid({ weekDays, postsByDate, todayStr, isMobile, onCreatePost, onEditPost, onMovePost, onAddIdea, onQuickCreate, onQuickStatusChange, onQuickDuplicate, onQuickDelete, onQuickGenerate, ownerUsername, ownerDisplayName }: Props) {
+export function CalendarWeekGrid({ weekDays, postsByDate, todayStr, isMobile, onCreatePost, onEditPost, onMovePost, onAddIdea, onQuickCreate, onQuickStatusChange, onQuickDuplicate, onQuickDelete, onQuickGenerate, onQuickAttachSeries, ownerUsername, ownerDisplayName, seriesNameById }: Props) {
   const [moveDialogPost, setMoveDialogPost] = useState<CalendarPost | null>(null);
   const [moveDate, setMoveDate] = useState<Date | undefined>();
   const todayRef = useRef<HTMLDivElement>(null);
@@ -346,6 +357,7 @@ export function CalendarWeekGrid({ weekDays, postsByDate, todayStr, isMobile, on
                 onCreatePost={onCreatePost}
                 onEditPost={onEditPost} onMove={handleMobileMove}
                 onAddIdea={addIdeaHandler}
+                seriesNameById={seriesNameById}
               />
             );
           })}
@@ -395,9 +407,11 @@ export function CalendarWeekGrid({ weekDays, postsByDate, todayStr, isMobile, on
                 onQuickDuplicate={onQuickDuplicate}
                 onQuickDelete={onQuickDelete}
                 onQuickGenerate={onQuickGenerate}
+                onQuickAttachSeries={onQuickAttachSeries}
                 todayRef={dateStr === todayStr ? todayRef : undefined}
                 ownerUsername={ownerUsername}
                 ownerDisplayName={ownerDisplayName}
+                seriesNameById={seriesNameById}
               />
             );
           })}
