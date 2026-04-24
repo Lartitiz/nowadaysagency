@@ -32,7 +32,7 @@ interface Props {
   editingPost: CalendarPost | null;
   selectedDate: string | null;
   defaultCanal: string;
-  onSave: (data: { theme: string; angle: string | null; status: string; notes: string; canal: string; objectif: string | null; format: string | null; content_draft: string | null; accroche: string | null; media_urls: string[] | null }) => void;
+  onSave: (data: { theme: string; angle: string | null; status: string; notes: string; canal: string; objectif: string | null; format: string | null; content_draft: string | null; accroche: string | null; media_urls: string[] | null; series_id: string | null; episode_number: number | null }) => void;
   onDelete: () => void;
   onUnplan?: () => void;
   onDateChange?: (postId: string, newDate: string) => void;
@@ -72,6 +72,8 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showContentViewer, setShowContentViewer] = useState(false);
   const [savedDraft, setSavedDraft] = useState<string | null>(null);
+  const [seriesId, setSeriesId] = useState<string | null>(null);
+  const [episodeNumber, setEpisodeNumber] = useState<number | null>(null);
 
   useEffect(() => {
     if (!profileData) return;
