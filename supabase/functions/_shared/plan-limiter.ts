@@ -67,6 +67,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   import: "imports",
   adaptation: "adaptations",
   deep_research: "recherches approfondies",
+  photo_retouch: "retouches photo",
 };
 
 export interface QuotaResult {
