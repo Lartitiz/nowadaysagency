@@ -636,6 +636,20 @@ FORMAT :
       }
     }
 
+    // Inject SERIES context for content-generating types (post on this calendar entry belongs to a series)
+    const seriesTypes = new Set(["calendar-quick", "express-draft", "redaction-draft", "redaction-structure", "redaction-accroches", "caption"]);
+    if (series_id && seriesTypes.has(type)) {
+      try {
+        const seriesCtx = await buildSeriesContext(supabase, series_id, episode_number, canal || undefined);
+        if (seriesCtx) {
+          console.log(`[generate-content] series context injected for ${type}: ${seriesCtx.seriesName} (ep #${seriesCtx.episodeNumber})`);
+          systemPrompt += `\n\n${seriesCtx.block}`;
+        }
+      } catch (e) {
+        console.error("[generate-content] buildSeriesContext failed", e);
+      }
+    }
+
     // Prepend voice priority instruction
     systemPrompt = BASE_SYSTEM_RULES + "\n\n" + `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :\n- Reproduis fidèlement le style décrit\n- Réutilise les expressions signature naturellement dans le texte\n- RESPECTE les expressions interdites : ne les utilise JAMAIS\n- Imite les patterns de ton et de structure\n- Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA\n\n` + systemPrompt;
 
