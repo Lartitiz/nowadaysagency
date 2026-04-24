@@ -710,7 +710,10 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
         ))}
       </div>
 
-      <CalendarCategoryFilters value={categoryFilter} onChange={setCategoryFilter} />
+      <div className="flex items-start gap-2 flex-wrap mb-1">
+        <CalendarCategoryFilters value={categoryFilter} onChange={setCategoryFilter} />
+        <CalendarSeriesFilter value={seriesFilter} onChange={setSeriesFilter} counts={seriesCounts} />
+      </div>
 
       {/* View toggle + Navigation */}
       <div className="flex items-center justify-between mb-4">
@@ -792,6 +795,8 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
           onStatusChange={handleQuickStatusChange}
           canalFilter={canalFilter}
           categoryFilter={categoryFilter}
+          seriesFilter={seriesFilter}
+          seriesNameById={seriesNameById}
         />
       ) : viewMode === "list" ? (
         <CalendarListView
@@ -803,12 +808,15 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
           onUpdateDraft={handleUpdateDraft}
           canalFilter={canalFilter}
           categoryFilter={categoryFilter}
+          seriesFilter={seriesFilter}
+          seriesNameById={seriesNameById}
         />
       ) : viewMode === "month" ? (
         <CalendarGrid
           calendarDays={calendarDays} postsByDate={postsByDate} todayStr={todayStr} isMobile={isMobile}
           onCreatePost={openCreateDialog} onEditPost={handlePostClick} onMovePost={handleMovePost}
           onAddIdea={openCreateDialog}
+          seriesNameById={seriesNameById}
         />
       ) : (
         <>
