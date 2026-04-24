@@ -58,8 +58,10 @@ serve(async (req) => {
       content_structure: z.string().max(5000).optional().nullable(),
       launch_context: z.any().optional().nullable(),
       price_range: z.string().max(50).optional().nullable(),
+      series_id: z.string().uuid().optional().nullable(),
+      episode_number: z.number().int().min(1).optional().nullable(),
     }).passthrough());
-    const { step, contentType, context, profile, angle, answers, followUpAnswers, content: currentContent, adjustment, calendarContext, preGenAnswers, sourceText, formats, targetFormat, workspace_id, deepResearch, objective, editorialFormat, editorialFormatLabel, variation, previousContent, pinterest_link, pinterest_board, recent_briefs_context: recentBriefsFromBody } = body;
+    const { step, contentType, context, profile, angle, answers, followUpAnswers, content: currentContent, adjustment, calendarContext, preGenAnswers, sourceText, formats, targetFormat, workspace_id, deepResearch, objective, editorialFormat, editorialFormatLabel, variation, previousContent, pinterest_link, pinterest_board, recent_briefs_context: recentBriefsFromBody, series_id, episode_number } = body;
 
     // Determine channel from contentType for persona selection
     const channelFromType = contentType?.includes("linkedin") ? "linkedin" : contentType?.includes("instagram") || contentType?.includes("carousel") || contentType?.includes("reel") || contentType?.includes("stories") ? "instagram" : undefined;
