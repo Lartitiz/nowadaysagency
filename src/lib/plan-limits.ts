@@ -11,6 +11,7 @@ export const CATEGORIES = [
   "import",
   "adaptation",
   "deep_research",
+  "photo_retouch",
 ] as const;
 
 export type Category = (typeof CATEGORIES)[number];
@@ -27,6 +28,7 @@ export const PLAN_LIMITS: Record<string, Record<string, number>> = {
     import: 60,
     adaptation: 60,
     deep_research: 60,
+    photo_retouch: 5,
   },
   outil: {
     total: 9999,
@@ -39,6 +41,7 @@ export const PLAN_LIMITS: Record<string, Record<string, number>> = {
     import: 10,
     adaptation: 30,
     deep_research: 15,
+    photo_retouch: 50,
   },
   binome: {
     total: 9999,
@@ -51,6 +54,7 @@ export const PLAN_LIMITS: Record<string, Record<string, number>> = {
     import: 10,
     adaptation: 30,
     deep_research: 30,
+    photo_retouch: 100,
   },
   pro: {
     total: 500,
@@ -63,5 +67,6 @@ export const PLAN_LIMITS: Record<string, Record<string, number>> = {
     import: 15,
     adaptation: 50,
     deep_research: 50,
+    photo_retouch: 50,
   },
 };

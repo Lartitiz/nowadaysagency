@@ -7021,6 +7021,74 @@ export type Database = {
         }
         Relationships: []
       }
+      user_photos: {
+        Row: {
+          background_preset_key: string | null
+          background_prompt: string | null
+          created_at: string
+          error_message: string | null
+          file_size_bytes: number | null
+          height: number | null
+          id: string
+          name: string | null
+          original_storage_path: string
+          source_type: string
+          status: string
+          storage_path: string
+          tags: string[]
+          updated_at: string
+          user_id: string
+          width: number | null
+          workspace_id: string
+        }
+        Insert: {
+          background_preset_key?: string | null
+          background_prompt?: string | null
+          created_at?: string
+          error_message?: string | null
+          file_size_bytes?: number | null
+          height?: number | null
+          id?: string
+          name?: string | null
+          original_storage_path: string
+          source_type?: string
+          status?: string
+          storage_path: string
+          tags?: string[]
+          updated_at?: string
+          user_id: string
+          width?: number | null
+          workspace_id: string
+        }
+        Update: {
+          background_preset_key?: string | null
+          background_prompt?: string | null
+          created_at?: string
+          error_message?: string | null
+          file_size_bytes?: number | null
+          height?: number | null
+          id?: string
+          name?: string | null
+          original_storage_path?: string
+          source_type?: string
+          status?: string
+          storage_path?: string
+          tags?: string[]
+          updated_at?: string
+          user_id?: string
+          width?: number | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_photos_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_plan_config: {
         Row: {
           channels: Json
