@@ -1,135 +1,136 @@
-## Plan Photo 1 — Fondations : `user_photos` + bucket Storage + quota `photo_retouch`
 
-### Vérifications préalables (faites)
+# Plan Photo 2 — Edge Function `photo-background-replace`
 
-- `public.update_updated_at_column()` existe ✅
-- `public.user_has_workspace_access(uuid)` existe ✅
-- Pattern bucket privé `crosspost-uploads` confirmé (policies par dossier `auth.uid()`)
-- `src/lib/plan-limits.ts` est le mirror frontend de `_shared/plan-limiter.ts` → devra être synchronisé aussi (sinon le tableau d'usage frontend ignorera la nouvelle catégorie)
+## Objectif
+Créer la Edge Function qui orchestre la retouche de fond IA via l'API Photoroom (`/v2/edit`).
+Cœur backend de la feature : valide l'input, vérifie le quota `photo_retouch`, télécharge la photo originale, appelle Photoroom, ré-upload le résultat, met à jour la DB et logge l'usage.
 
----
+## Préalable côté user
+Ajouter le secret **`PHOTOROOM_API_KEY`** dans les secrets Lovable Cloud (demandé via `add_secret` au début de l'exec, exec bloqué tant que pas fait).
 
-### (a) Spec demandée — implémentation
+## Fichiers
+**Création :**
+- `supabase/functions/photo-background-replace/index.ts`
 
-**1. Migration SQL `[timestamp]_create_user_photos_table.sql`**
+**Modification :**
+- `supabase/config.toml` → ajout du bloc `[functions.photo-background-replace]` avec `verify_jwt = false` (pattern projet)
 
-Table `public.user_photos` avec exactement les champs spécifiés :
-- Obligatoires : `id`, `user_id`, `workspace_id` (FK `workspaces ON DELETE CASCADE`), `storage_path`, `original_storage_path`, `status` (CHECK pending/processing/ready/failed), `created_at`, `updated_at`
-- Optionnels : `name`, `tags TEXT[]`, `background_prompt`, `background_preset_key`, `source_type` (CHECK upload/generated/imported, default `upload`), `width`, `height`, `file_size_bytes`, `error_message`
+**Aucun autre fichier touché.** Pas de migration DB (table + bucket déjà créés au Plan 1). Pas de frontend (Plan 3).
 
-Index :
-```sql
-CREATE INDEX idx_user_photos_workspace ON public.user_photos(workspace_id, status) WHERE status = 'ready';
-CREATE INDEX idx_user_photos_user ON public.user_photos(user_id);
-CREATE INDEX idx_user_photos_tags ON public.user_photos USING GIN(tags);
+## Contrat d'API
+
+### Input (Zod)
+```ts
+{
+  photo_id: string (uuid, required),
+  workspace_id: string (uuid, optional),
+  background_prompt: string (3-500 chars, optional),
+  background_preset_key: string (max 100, optional),
+}
+// refine: au moins background_prompt OU background_preset_key requis
 ```
 
-Trigger `updated_at` réutilisant `public.update_updated_at_column()`.
+Le client (Plan 3) aura déjà :
+1. Uploadé la photo originale dans le bucket à `{user_id}/{photo_id}_original.jpg`
+2. Inséré la row `user_photos` avec `status='pending'`, `original_storage_path` rempli, `workspace_id` correct
 
-RLS workspace-scoped (4 policies : SELECT/INSERT/UPDATE/DELETE) via `public.user_has_workspace_access(workspace_id)`.
-
-Bucket privé :
-```sql
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('user-photos', 'user-photos', false)
-ON CONFLICT (id) DO NOTHING;
+### Output succès (200)
+```json
+{ "success": true, "photo_id": "...", "storage_path": "user_id/photo_id.jpg", "remaining": 4 }
 ```
 
-3 policies storage.objects :
-- INSERT : dossier = `auth.uid()` (cohérent crosspost-uploads)
-- SELECT : passage par `user_photos` + `user_has_workspace_access` (pour partage workspace multi-membres)
-- DELETE : dossier = `auth.uid()`
+### Codes erreur
+| Code | Cas |
+|---|---|
+| 400 | Body Zod invalide |
+| 401 | Pas d'auth (via pipeline) |
+| 403 | Demo user OU photo appartient à un autre user OU workspace_id du body ≠ workspace_id de la photo |
+| 404 | photo_id introuvable |
+| 409 | Photo déjà `ready` ou `processing` (anti-doublon) |
+| 429 | Quota `photo_retouch` épuisé OU rate limit (10/min) |
+| 502 | Échec Photoroom (avec error_message friendly) |
+| 500 | Échec download/upload bucket |
 
-Commentaires `COMMENT ON COLUMN` sur les 5 colonnes non-évidentes (storage_path, original_storage_path, source_type, background_preset_key, status).
+## Pipeline (ordre strict)
 
-**2. `supabase/functions/_shared/plan-limiter.ts`**
+1. **`runPipeline()`** avec `category: "photo_retouch"`, `workspaceId`, `rateLimit: { max: 10, windowMs: 60_000 }`
+2. **Parse + valider** body (Zod)
+3. **Fetch `user_photos`** par `photo_id` → 404 si absent
+4. **Sécurité (amélioration E)** :
+   - `photo.user_id === userId` → sinon 403
+   - Si `body.workspace_id` fourni : `photo.workspace_id === body.workspace_id` → sinon 403
+   - `photo.status NOT IN ('processing', 'ready')` → sinon 409 (autorise `pending` et `failed` pour permettre retry)
+5. **Marquer `processing`** dans DB
+6. **Download original** depuis bucket (`photo.original_storage_path`)
+7. **Construire le prompt final** : `PRESET_PROMPTS[preset_key] ?? background_prompt` (PRESET_PROMPTS = `{}` vide en v1, rempli au Plan 5)
+8. **Appel Photoroom `/v2/edit`** :
+   - URL : `https://image-api.photoroom.com/v2/edit`
+   - Header : `x-api-key: PHOTOROOM_API_KEY`
+   - FormData : `imageFile`, `background.prompt`, `segmentation.mode=auto`, `outputSize=originalImage`
+   - Timeout : `AbortSignal.timeout(60_000)`
+9. **Amélioration A — Retry 1x sur 5xx** :
+   - Si `status >= 500` ou `TimeoutError` : attendre 2s, refaire l'appel 1 fois
+   - Si retry échoue aussi → `markFailed` + 502
+   - 401, 429, 4xx autres → pas de retry, fail direct
+10. **Mapping erreurs friendly** :
+    - 401 → "Clé API Photoroom invalide" (côté config, on logge en console.error)
+    - 429 → "Limite Photoroom atteinte, réessayez dans 1 min"
+    - 5xx → "Photoroom temporairement indisponible"
+    - autres → "Erreur Photoroom (status N)"
+11. **Upload résultat** : `{userId}/{photo_id}.jpg` dans bucket `user-photos` avec `upsert: true`
+12. **Update DB final** : `status='ready'`, `storage_path`, `background_prompt`, `background_preset_key`, `file_size_bytes`, `error_message=null`
+13. **`logUsage()`** : category `photo_retouch`, action `background_replace`, model_used `photoroom-v2`
+14. **Amélioration D — Log structuré** :
+    ```ts
+    console.log(JSON.stringify({
+      event: "photo_retouch_success",
+      photo_id, user_id, workspace_id,
+      photoroom_ms: timing,
+      input_bytes: blob.size,
+      output_bytes: resultBlob.size,
+      retry_used: retried,
+    }));
+    ```
+15. **Retour 200** avec `remaining` du quota
 
-Ajout `photo_retouch` dans `PLAN_LIMITS` (free: 5, outil: 50, binome: 100) et dans `CATEGORY_LABELS` ("retouches photo").
+## Helper interne `markFailed(photoId, errorMessage)`
+Update `user_photos` → `status='failed'`, `error_message=errorMessage`. **Pas** de `logUsage` (quota préservé).
 
----
+## Politique quota explicite
+- `runPipeline` vérifie le quota AVANT toute action → si épuisé, 429 et la photo reste `pending` côté DB (le client la voit, peut supprimer/reprendre plus tard)
+- `logUsage` n'est appelé QUE après succès Photoroom + upload
+- Échec Photoroom (502) ou bucket (500) → quota préservé
 
-### (b) Propositions d'amélioration — à valider individuellement
+## `supabase/config.toml`
+Append (sans toucher aux entries existantes) :
+```toml
+[functions.photo-background-replace]
+verify_jwt = false
+```
 
-**Prop 1 — Synchroniser `src/lib/plan-limits.ts` (mirror frontend)** ⚠️ Recommandé fortement
+## Ce qui ne bouge pas
+- Aucun autre fichier `_shared/*`, aucune autre Edge Function
+- Aucune migration DB (table + bucket + policies déjà au Plan 1)
+- Aucun frontend (Plan 3)
+- Pas de `photo_retouch_logs` séparé (tracking dans `ai_usage`)
+- Pas de webhook Photoroom (`/v2/edit` synchrone)
+- Pas de simulation mode démo (le pipeline bloque déjà avec 403)
+- `PRESET_PROMPTS` reste `{}` vide → rempli au Plan 5
 
-Le fichier `src/lib/plan-limits.ts` mirrore manuellement `PLAN_LIMITS`. Sans synchro :
-- Les UI qui affichent le quota restant (composants type "Tu as utilisé X/Y retouches photo") ne connaîtront pas la catégorie
-- La constante `CATEGORIES` ne contiendra pas `photo_retouch`, ce qui peut casser des typages stricts
+## Critères d'acceptation
+1. `supabase functions deploy photo-background-replace` → succès
+2. Curl sans auth → 401
+3. Curl auth + body invalide → 400 Zod
+4. Curl auth + `photo_id` inexistant → 404
+5. Curl auth + photo d'un autre user → 403
+6. Curl auth + `workspace_id` body ≠ photo.workspace_id → 403 (test amélioration E)
+7. Curl auth + photo `ready` → 409
+8. Curl auth + photo `pending` valide + prompt → row passe `pending → processing → ready`, fichier visible à `{user_id}/{photo_id}.jpg`, original préservé, row `ai_usage` créée
+9. PHOTOROOM_API_KEY invalide → status `failed`, error_message friendly, **pas** de row `ai_usage`
+10. User free avec 5/5 retouches déjà ce mois → 429 sans appel Photoroom
+11. Logs structurés `photo_retouch_success` visibles dans edge function logs
 
-**Action proposée** : ajouter `photo_retouch` dans le tableau `CATEGORIES` et dans les 3 plans (mêmes valeurs que côté serveur). C'est strictement de la synchro, pas un changement de comportement.
-
-**Prop 2 — Pas de contrainte CHECK sur `file_size_bytes`** ✅ Garder côté applicatif
-
-Recommandation : ne PAS ajouter de CHECK DB. Justification :
-- La limite Photoroom peut évoluer
-- Une migration future serait pénible
-- L'applicatif (Edge Function du Plan 2) doit rejeter avant upload, ce qui donne un meilleur message d'erreur
-
-**Prop 3 — Pas de `deleted_at` (soft-delete)** ✅ Hard delete suffit pour la v1
-
-Justification :
-- Ajoute de la complexité partout (filtres `WHERE deleted_at IS NULL` dans toutes les queries)
-- Le storage delete est de toute façon irréversible (coût €€)
-- À ajouter en Phase 2 si retours utilisateur réels
-
-**Prop 4 — Seuils quota (5/50/100)** ✅ Cohérents avec coût Photoroom (~$0.02/photo)
-
-Coût max plan binôme : 100 × $0.02 = $2/utilisateur·ice/mois. Acceptable. Pas de changement proposé.
-
-**Prop 5 — Ajout d'un CHECK `width > 0 AND height > 0` quand renseignés ?** ❌ Non recommandé
-
-Les CHECK avec NULL sont passants par défaut, mais ça alourdit pour peu de valeur. L'Edge Function doit valider les dimensions de toute façon.
-
-**Prop 6 — Index supplémentaire sur `(workspace_id, created_at DESC)` pour la liste de la bibliothèque** 🤔 Optionnel
-
-L'index `idx_user_photos_workspace` couvre déjà `workspace_id` (partial sur `status='ready'`). Pour la liste paginée triée par date, un index dédié serait plus optimal. **Recommandation : attendre le Plan 3** (UI bibliothèque) pour mesurer si nécessaire avec EXPLAIN.
-
----
-
-### Décisions à prendre avant exec
-
-| # | Proposition | Action si OUI |
-|---|---|---|
-| 1 | Synchroniser `src/lib/plan-limits.ts` | Ajout 1 ligne dans `CATEGORIES` + 1 ligne dans chaque plan |
-| 2 | CHECK file_size_bytes | Aucune (recommandation : SKIP) |
-| 3 | soft-delete `deleted_at` | Aucune (recommandation : SKIP) |
-| 4 | Revoir seuils quota | Spécifier les nouvelles valeurs |
-| 5 | CHECK width/height > 0 | Aucune (recommandation : SKIP) |
-| 6 | Index (workspace_id, created_at DESC) | Ajouter dans la migration |
-
-**Mon avis** : ne valider que la **Prop 1** (sync mirror frontend, c'est de l'hygiène) et garder le reste pour Phase 2.
-
----
-
-### Fichiers touchés (si Prop 1 acceptée)
-
-**Création**
-- `supabase/migrations/[timestamp]_create_user_photos_table.sql`
-
-**Modification**
-- `supabase/functions/_shared/plan-limiter.ts` — ajout `photo_retouch` dans `PLAN_LIMITS` (3 plans) + `CATEGORY_LABELS`
-- `src/lib/plan-limits.ts` — ajout `photo_retouch` dans `CATEGORIES` + `PLAN_LIMITS` (3 plans + `free` qui contient déjà toutes les catégories à 60)
-
-⚠️ Note sur `src/lib/plan-limits.ts` : le plan `free` du mirror frontend contient toutes les catégories à 60, mais `_shared/plan-limiter.ts` côté serveur n'a pas la même structure pour `free` (toutes à 60 aussi en réalité). On gardera la cohérence en mettant `photo_retouch: 5` côté serveur ET côté mirror (pas 60).
-
-⚠️ Le mirror frontend a aussi un plan `pro` qui n'existe PAS côté serveur. Je le laisse tel quel (hors scope) mais signale qu'il est désynchronisé et devrait être nettoyé un jour.
-
----
-
-### Hors scope (confirmé)
-
-- Edge Function `photo-background-replace` (Plan 2)
-- UI `/photos` (Plan 3)
-- Intégration dans `CreerUnifie.tsx` (Plan 4)
-- Presets de fond (Plan 5)
-- Configuration secret `PHOTOROOM_API_KEY` (manuel)
-- Régénération `src/integrations/supabase/types.ts` (auto au prochain code touch)
-
-### Validation (après exec)
-
-- Migration applique sans erreur
-- `psql -c "SELECT * FROM public.user_photos LIMIT 0"` → schéma OK
-- Bucket `user-photos` visible et `public=false`
-- Test cascade : DELETE workspace → user_photos liées supprimées
-- Test isolation RLS workspace
-- Compilation TS sans erreur
+## Hors scope (plans suivants)
+- Plan Photo 3 : UI `/photos` (gallery, upload, edit dialog, retry)
+- Plan Photo 4 : intégration `CreerUnifie.tsx`
+- Plan Photo 5 : presets de fond (`PRESET_PROMPTS` rempli)
