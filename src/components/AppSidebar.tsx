@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ChevronRight, ChevronDown, Check, Home, PenLine, CalendarDays, MessageCircle, Palette, ClipboardList, Instagram, Briefcase, Globe, Search, Pin, Users, BarChart3, Brain, Settings, Film, GraduationCap, Wrench, CreditCard, HeartHandshake, LogOut, Menu, X, Plus, Trash2 } from "lucide-react";
+import { ChevronRight, ChevronDown, Check, Home, PenLine, CalendarDays, MessageCircle, Palette, ClipboardList, Instagram, Briefcase, Globe, Search, Pin, Users, BarChart3, Brain, Settings, Film, GraduationCap, Wrench, CreditCard, HeartHandshake, LogOut, Menu, X, Plus, Trash2, Image } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserPlan } from "@/hooks/use-user-plan";
 import { useDemoContext } from "@/contexts/DemoContext";
@@ -83,6 +83,7 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
     label: "OUTILS",
     items: [
       { label: "Contacts", path: "/contacts", icon: <Users size={16} /> },
+      { label: "Photos", path: "/photos", icon: <Image size={16} /> },
       { label: "Mon plan", path: "/calendrier?tab=strategie", icon: <BarChart3 size={16} /> },
       { label: "Coach IA", path: "/dashboard/guide", icon: <Brain size={16} /> },
     ],
