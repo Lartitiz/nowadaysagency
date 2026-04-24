@@ -681,34 +681,6 @@ Ton job : remplir la LIGNE ÉDITORIALE de ${prenom} — c'est-à-dire les facett
       console.log(`[BrandingCoaching] Pruned messages from ${originalLen} to ${mergedMessages.length}`);
     }
 
-    // ── content_series : truncation à 8 + validation Zod du shape series[] ──
-    if (section === "content_series" && parsed?.extracted_insights?.series && Array.isArray(parsed.extracted_insights.series)) {
-      if (parsed.extracted_insights.series.length > 8) {
-        console.warn(`[BrandingCoaching] series array length ${parsed.extracted_insights.series.length} > 8, truncating to 8 most recent`);
-        parsed.extracted_insights.series = parsed.extracted_insights.series.slice(-8);
-      }
-      const SeriesItemSchema = z.object({
-        name: z.string().min(1),
-        promise: z.string().min(1),
-        pillar_key: z.enum(["pillar_major", "pillar_minor_1", "pillar_minor_2", "pillar_minor_3"]).nullable().optional(),
-        cadence: z.string().optional(),
-        cadence_raw: z.string().optional(),
-        format_template: z.string().optional(),
-        signature_description: z.string().optional(),
-        channels: z.array(z.string()).optional(),
-      });
-      const validated: any[] = [];
-      for (const item of parsed.extracted_insights.series) {
-        const result = SeriesItemSchema.safeParse(item);
-        if (result.success) {
-          validated.push(result.data);
-        } else {
-          console.warn("[BrandingCoaching] Invalid series item rejected:", JSON.stringify(item), result.error.flatten());
-        }
-      }
-      parsed.extracted_insights.series = validated;
-    }
-
     let rawResponse: string;
     let wasTruncated = false;
 
@@ -773,6 +745,34 @@ Ton job : remplir la LIGNE ÉDITORIALE de ${prenom} — c'est-à-dire les facett
           remaining_topics: SECTION_CHECKLISTS[section] || [],
         };
       }
+    }
+
+    // ── content_series : truncation à 8 + validation Zod du shape series[] ──
+    if (section === "content_series" && parsed?.extracted_insights?.series && Array.isArray(parsed.extracted_insights.series)) {
+      if (parsed.extracted_insights.series.length > 8) {
+        console.warn(`[BrandingCoaching] series array length ${parsed.extracted_insights.series.length} > 8, truncating to 8 most recent`);
+        parsed.extracted_insights.series = parsed.extracted_insights.series.slice(-8);
+      }
+      const SeriesItemSchema = z.object({
+        name: z.string().min(1),
+        promise: z.string().min(1),
+        pillar_key: z.enum(["pillar_major", "pillar_minor_1", "pillar_minor_2", "pillar_minor_3"]).nullable().optional(),
+        cadence: z.string().optional(),
+        cadence_raw: z.string().optional(),
+        format_template: z.string().optional(),
+        signature_description: z.string().optional(),
+        channels: z.array(z.string()).optional(),
+      });
+      const validated: any[] = [];
+      for (const item of parsed.extracted_insights.series) {
+        const result = SeriesItemSchema.safeParse(item);
+        if (result.success) {
+          validated.push(result.data);
+        } else {
+          console.warn("[BrandingCoaching] Invalid series item rejected:", JSON.stringify(item), result.error.flatten());
+        }
+      }
+      parsed.extracted_insights.series = validated;
     }
 
     // ── Filet de sécurité : forcer la complétion si tous les sujets sont couverts ──
