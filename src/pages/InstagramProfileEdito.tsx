@@ -682,6 +682,7 @@ export default function InstagramProfileEdito() {
               )}
             </div>
           </section>
+          </div>
 
           {/* ── Section D: Formats ── */}
           <section className="rounded-2xl border border-border bg-card p-5">
