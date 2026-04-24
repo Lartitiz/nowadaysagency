@@ -25,19 +25,23 @@ interface Props {
   onQuickDuplicate?: (post: CalendarPost) => void;
   onQuickDelete?: (postId: string) => void;
   onQuickGenerate?: (post: CalendarPost) => void;
+  onQuickAttachSeries?: (post: CalendarPost) => void;
   ownerUsername?: string;
   ownerDisplayName?: string;
+  seriesNameById?: Record<string, string>;
 }
 
 /* ── Draggable content card ── */
-function DraggableWeekCard({ post, onClick, onQuickStatusChange, onQuickDuplicate, onQuickDelete, onQuickGenerate, ownerUsername, ownerDisplayName }: {
+function DraggableWeekCard({ post, onClick, onQuickStatusChange, onQuickDuplicate, onQuickDelete, onQuickGenerate, onQuickAttachSeries, ownerUsername, ownerDisplayName, seriesNameById }: {
   post: CalendarPost; onClick: () => void;
   onQuickStatusChange?: (postId: string, newStatus: string) => void;
   onQuickDuplicate?: (post: CalendarPost) => void;
   onQuickDelete?: (postId: string) => void;
   onQuickGenerate?: (post: CalendarPost) => void;
+  onQuickAttachSeries?: (post: CalendarPost) => void;
   ownerUsername?: string;
   ownerDisplayName?: string;
+  seriesNameById?: Record<string, string>;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: post.id });
   const style: React.CSSProperties = {
@@ -55,8 +59,10 @@ function DraggableWeekCard({ post, onClick, onQuickStatusChange, onQuickDuplicat
         onQuickDuplicate={onQuickDuplicate}
         onQuickDelete={onQuickDelete}
         onQuickGenerate={onQuickGenerate}
+        onQuickAttachSeries={onQuickAttachSeries}
         ownerUsername={ownerUsername}
         ownerDisplayName={ownerDisplayName}
+        seriesNameById={seriesNameById}
       />
     </div>
   );
