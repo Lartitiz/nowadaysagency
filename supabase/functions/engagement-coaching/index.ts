@@ -5,7 +5,7 @@ import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildIdentityBlock
 import { callAnthropic, getModelForAction } from "../_shared/anthropic.ts";
 
 import { validateRequiredFields } from "../_shared/ai-validators.ts";
-import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
+import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 serve(async (req) => {
@@ -37,8 +37,8 @@ serve(async (req) => {
     if (missing) return new Response(JSON.stringify({ error: missing }), { status: 400, headers: cors });
 
     // Check usage
-    const limitCheck = await checkQuota(userId, "coach");
-    if (!limitCheck.allowed) return new Response(JSON.stringify({ error: limitCheck.message }), { status: 403, headers: cors });
+    const limitCheck = await checkQuota(userId, "coach", workspace_id);
+    if (!limitCheck.allowed) return quotaDeniedResponse(limitCheck, cors);
 
     // Get user context
     const context = await getUserContext(supabase, userId, workspace_id);
@@ -97,7 +97,7 @@ Génère 3 commentaires DIFFÉRENTS en JSON :
       result = { comments: [], tip: raw };
     }
 
-    await logUsage(userId, "coach", "engagement_coaching");
+    await logUsage(userId, "coach", "engagement_coaching", undefined, undefined, workspace_id);
     return new Response(JSON.stringify(result), {
       headers: { ...cors, "Content-Type": "application/json" },
     });

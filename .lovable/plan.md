@@ -1,71 +1,64 @@
-# Cleanup — suppression de `checkAndIncrementUsage` (deprecated)
+# Plan — Hygiène quota `engagement-coaching`
 
-## Diagnostic
+## Objectif
 
-Vérification effectuée sur tout le repo :
+Aligner `engagement-coaching` sur le standard quota du repo (déjà appliqué à `audit-instagram-ai`) pour que la `QuotaWallModal` côté front se déclenche correctement, et que les workspaces partagés soient correctement comptabilisés.
 
+## Fichier impacté
+
+**Un seul fichier** : `supabase/functions/engagement-coaching/index.ts`
+
+## Modifications
+
+### 1. Import (ligne 8)
+
+Ajouter `quotaDeniedResponse` :
+
+```ts
+import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 ```
-rg -n "checkAndIncrementUsage" supabase/ src/
-→ 1 seul résultat : la définition elle-même (plan-limiter.ts:300)
+
+### 2. `checkQuota` (ligne 40) — passer `workspace_id`
+
+```ts
+const limitCheck = await checkQuota(userId, "coach", workspace_id);
 ```
 
-**Aucun appel** depuis aucune edge function ni le frontend. La fonction est strictement dead code, marquée `@deprecated` depuis sa réécriture (pattern obsolète : incrémente AVANT l'appel IA, donc décompte le crédit même si Anthropic échoue).
+### 3. Réponse quota dénié (ligne 41) — passer de 403 manuel à `quotaDeniedResponse` (qui retourne 429 + payload structuré)
 
-Risque actuel : un futur prompt pourrait la retrouver via auto-complétion ou recherche et la réutiliser → réintroduction du bug quota historique.
+```ts
+if (!limitCheck.allowed) return quotaDeniedResponse(limitCheck, cors);
+```
 
-## Modification (1 seul fichier)
+### 4. `logUsage` (ligne 100) — passer `workspace_id` en dernier argument
 
-### `supabase/functions/_shared/plan-limiter.ts`
+```ts
+await logUsage(userId, "coach", "engagement_coaching", undefined, undefined, workspace_id);
+```
 
-Supprimer **uniquement** les lignes 299-313 :
+## État actuel confirmé (via grep)
 
-- Ligne 299 : `/** @deprecated Use checkQuota + logUsage instead */`
-- Lignes 300-313 : tout le bloc `export async function checkAndIncrementUsage(...) { ... }`
+- L8 : `import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";`
+- L40 : `const limitCheck = await checkQuota(userId, "coach");`
+- L41 : `if (!limitCheck.allowed) return new Response(JSON.stringify({ error: limitCheck.message }), { status: 403, headers: cors });`
+- L100 : `await logUsage(userId, "coach", "engagement_coaching");`
 
-Tout le reste du fichier est préservé à l'identique :
-- `PLAN_LIMITS`, `PLAN_ALIASES`, `CATEGORY_LABELS`
-- `resolvePlan`, `bestPlan`, `getMonthStart`, `getServiceClient`
-- `getUserPlan`, `getWorkspacePlan`, `getBonusCredits`
-- `quotaDeniedResponse`, `checkQuota`, `logUsage`
-- L'interface `QuotaResult`
+## Hors scope (intact)
+
+- Tout le reste du fichier (system prompt, user prompt, parsing JSON, gestion erreurs)
+- `_shared/plan-limiter.ts` (la fonction `quotaDeniedResponse` existe déjà)
+- Toute autre Edge Function
+
+## Déploiement
+
+Re-déployer `engagement-coaching` après modification.
 
 ## Validation
 
-Après suppression :
+1. Le fichier compile (`deno check`).
+2. Côté front, épuiser quota `coach` d'un compte free puis appeler engagement-coaching → la `QuotaWallModal` s'affiche (status 429 reconnu par `quota-error-handler`).
+3. Vérifier en DB que `ai_usage` contient bien `workspace_id` après un appel réussi depuis un workspace partagé.
 
-```bash
-rg -n "checkAndIncrementUsage" supabase/ src/
-→ doit retourner 0 résultat
-```
+## Propositions de cleanup (hors scope, pour validation séparée)
 
-Le fichier `plan-limiter.ts` doit toujours exporter exactement les mêmes symboles **moins** `checkAndIncrementUsage`.
-
-## Note sur les build errors préexistants
-
-Les erreurs TypeScript actuellement remontées (`_shared/scraping.ts`, `assistant-chat`, `analyze-brand`, etc.) **préexistent ce chantier** et concernent d'autres fichiers (problèmes de typage Deno : `DecompressionStream("raw")`, `Uint8Array<ArrayBufferLike>`, types Supabase `never`). Elles avaient déjà été identifiées comme "non liées" dans une session précédente. La suppression de `checkAndIncrementUsage` ne les touche pas et n'en crée pas de nouvelles.
-
-→ Le critère "tsc 0 erreur global" ne sera pas atteint, mais le fichier `plan-limiter.ts` lui-même compile proprement après suppression.
-
-## Hors scope (respecté)
-
-- ❌ Pas de touche aux autres exports de `plan-limiter.ts`
-- ❌ Pas de migration Supabase
-- ❌ Pas de refacto
-- ❌ Pas de fix des build errors préexistants (un autre chantier)
-
-## (b) Propositions de cleanup additionnel — pour validation séparée
-
-Recherche `@deprecated` sur tout `supabase/functions/` :
-
-```
-rg -n "@deprecated" supabase/functions/
-→ 1 seul résultat : celui qu'on supprime
-```
-
-**Aucun autre `@deprecated` à signaler** dans les edge functions. Le repo est propre de ce côté-là.
-
-Si tu veux pousser le cleanup plus loin (autre chantier), les pistes seraient :
-- Auditer les fonctions exportées de `_shared/` jamais importées (dead code non taggé)
-- Auditer les imports inutilisés dans les edge functions actives
-
-Mais rien de signalé comme `@deprecated` aujourd'hui à part la cible de ce chantier.
+Audit rapide à faire dans un prochain chantier : les autres Edge Functions qui retournent un `403` quota manuel au lieu de `quotaDeniedResponse`, et celles qui omettent `workspace_id` dans `checkQuota`/`logUsage`. Je peux faire le grep et te lister les candidates si tu veux lancer un chantier d'harmonisation globale.
