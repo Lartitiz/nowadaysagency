@@ -23,10 +23,13 @@ import { deletePhotoCompletely } from "@/lib/photo-storage";
 import { PhotoCard } from "@/components/photos/PhotoCard";
 import { PhotoUploadDialog } from "@/components/photos/PhotoUploadDialog";
 import { PhotoDetailDialog } from "@/components/photos/PhotoDetailDialog";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 export default function PhotosPage() {
   const { data: photos = [], isLoading } = useUserPhotos();
   const { retry, isRetrying } = useRetryPhotoRetouch();
+  const { activeWorkspace, loading: wsLoading } = useWorkspace();
+  const wsReady = !!activeWorkspace && !wsLoading;
 
   const [uploadOpen, setUploadOpen] = useState(false);
   const [detailPhoto, setDetailPhoto] = useState<UserPhotoRow | null>(null);

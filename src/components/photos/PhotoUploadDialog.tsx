@@ -222,10 +222,14 @@ export function PhotoUploadDialog({ open, onOpenChange }: PhotoUploadDialogProps
           >
             Annuler
           </Button>
-          <Button onClick={handleSubmit} disabled={isPending || !file}>
+          <Button onClick={handleSubmit} disabled={isPending || !file || !ready}>
             {isPending ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Envoi…
+              </>
+            ) : !ready ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Chargement de l'espace…
               </>
             ) : (
               <>
