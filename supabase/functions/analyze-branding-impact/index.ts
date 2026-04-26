@@ -22,6 +22,9 @@ serve(async (req) => {
     const { data: { user }, error: userError } = await anonClient.auth.getUser(authHeader.replace("Bearer ", ""));
     if (userError || !user) throw new Error("Unauthorized");
 
+    const rateCheck = checkRateLimit(user.id);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+
     const { changed_field, old_value, new_value, workspace_id } = await req.json();
     if (!changed_field || !old_value || !new_value) {
       return new Response(JSON.stringify({ suggestions: [] }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
