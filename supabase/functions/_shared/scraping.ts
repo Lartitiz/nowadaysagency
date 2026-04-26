@@ -1,6 +1,6 @@
 // Shared scraping utilities for edge functions (analyze-brand, deep-diagnostic, etc.)
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 
 const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
 

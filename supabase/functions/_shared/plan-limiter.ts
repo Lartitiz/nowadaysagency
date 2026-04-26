@@ -3,7 +3,7 @@
  * Checks per-category and total monthly limits, logs usage after success.
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 
 export const PLAN_LIMITS: Record<string, Record<string, number>> = {
   free: {

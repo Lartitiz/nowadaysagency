@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { CORE_PRINCIPLES } from "../_shared/copywriting-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildIdentityBlock } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";

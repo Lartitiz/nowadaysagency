@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getModelForAction } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
