@@ -59,15 +59,6 @@ serve(async (req) => {
 
     // Anthropic API key checked in shared helper
 
-    // Check plan limits
-    const usageCheck = await checkQuota(user.id, "content");
-    if (!usageCheck.allowed) {
-      return new Response(
-        JSON.stringify({ error: "limit_reached", message: usageCheck.error, remaining: 0 }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     const reqBody = await req.json();
     validateInput(reqBody, z.object({
       action: z.enum(["name", "bio", "board-description", "pin", "keywords"]),
@@ -76,6 +67,24 @@ serve(async (req) => {
       subject: z.string().max(5000).optional().nullable(),
     }).passthrough());
     const { action, workspace_id, ...params } = reqBody;
+
+    // Check plan limits (workspace-aware)
+    const usageCheck = await checkQuota(user.id, "content", workspace_id || undefined);
+    if (!usageCheck.allowed) {
+      return quotaDeniedResponse(usageCheck, corsHeaders);
+    }
+
+    // Resolve workspace owner's user_id for tables without workspace_id (e.g. pinterest_keywords)
+    let profileUserId = user.id;
+    if (workspace_id) {
+      const { data: ownerRow } = await supabase
+        .from("workspace_members")
+        .select("user_id")
+        .eq("workspace_id", workspace_id)
+        .eq("role", "owner")
+        .maybeSingle();
+      if (ownerRow?.user_id) profileUserId = ownerRow.user_id;
+    }
 
     // Fetch full user context server-side
     const ctx = await getUserContext(supabase, user.id, workspace_id);
