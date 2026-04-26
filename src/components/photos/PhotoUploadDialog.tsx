@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useCreatePhotoRetouch } from "@/hooks/use-user-photos";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 interface PhotoUploadDialogProps {
   open: boolean;
@@ -43,6 +44,8 @@ export function PhotoUploadDialog({ open, onOpenChange }: PhotoUploadDialogProps
   const inputRef = useRef<HTMLInputElement>(null);
 
   const { mutate, isPending } = useCreatePhotoRetouch();
+  const { activeWorkspace, loading: wsLoading } = useWorkspace();
+  const ready = !!activeWorkspace && !wsLoading;
 
   function reset() {
     setFile(null);
