@@ -111,7 +111,7 @@ serve(async (req) => {
 
     } else if (action === "pin") {
       const { subject, board_name } = params;
-      const kwRes = await supabase.from("pinterest_keywords").select("keywords_raw").eq("user_id", user.id).maybeSingle();
+      const kwRes = await supabase.from("pinterest_keywords").select("keywords_raw").eq("user_id", profileUserId).maybeSingle();
       const kw = kwRes.data?.keywords_raw || "";
       systemPrompt = `${PINTEREST_PRINCIPLES}\n\nSUJET DE L'ÉPINGLE : "${subject}"\nTABLEAU : "${board_name}"\n\n${context}\n\nMOTS-CLÉS DISPONIBLES : ${kw}\n\nGénère 3 variantes titre + description pour cette épingle :\n\nVARIANTE 1 — SEO\nVARIANTE 2 — STORYTELLING\nVARIANTE 3 — BÉNÉFICE\n\nPour chaque variante :\n- Titre : max 100 caractères\n- Description : 100-200 mots, PAS de hashtags\n- Intégrer les mots-clés naturellement\n- Ton humain et engageant\n- Inclure un appel à l'action doux en fin\n\nRéponds UNIQUEMENT en JSON sans backticks :\n[{"title": "...", "description": "..."}, {"title": "...", "description": "..."}, {"title": "...", "description": "..."}]`;
       userPrompt = "Génère titre + description pour l'épingle.";
