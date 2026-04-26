@@ -1,77 +1,80 @@
-## Plan — Fix workspace leak (Pinterest x4 + calendar-coaching)
+## Plan — Corriger le blocage RLS sur les photos
 
-### Diagnostic confirmé
-J'ai relu les 5 fichiers et confirmé chaque leak. **MAIS j'ai aussi détecté un point bloquant dans la spec d'origine** que je signale avant d'exécuter (voir section "Point d'attention critique" ci-dessous).
+### Ce que j’ai confirmé
 
-| Fichier | Ligne(s) leak | Notes |
-|---|---|---|
-| `pinterest-ai/index.ts` | 98, 105 | + bonus 403→429 ligne 67 |
-| `pinterest-inspiration/index.ts` | 39 (workspace_members) | leak mineur : sert juste à récupérer le workspace par défaut, **pas un vrai leak de données** |
-| `pinterest-photo-brief/index.ts` | 39 (workspace_members) | idem |
-| `pinterest-visual/index.ts` | 39 (workspace_members) | idem |
-| `calendar-coaching/index.ts` | 33 (workspace_members) | idem |
+Le problème arrive avant même la retouche IA : aucun enregistrement `user_photos` n’est créé, donc le blocage se produit sur l’insert initial côté front.
 
-### ⚠️ Point d'attention critique : la spec ne fonctionne pas telle quelle
+Points confirmés dans le code :
+- `uploadPhotoOriginal()` insère dans `public.user_photos` avec `user_id` et `workspace_id` avant l’upload storage.
+- La policy actuelle d’insert sur `user_photos` vérifie seulement `user_has_workspace_access(workspace_id)`.
+- Le toast affiché dans ta capture (`new row violates row-level security policy`) est cohérent avec un rejet RLS sur cet insert.
+- Il n’y a pas encore de ligne récente dans `user_photos`, ce qui confirme que ça casse au tout début du flux.
 
-La spec dit :
-```ts
-const profileUserId = ctx.profile?.user_id || user.id;
+### Hypothèse la plus probable
+
+La policy d’insert de `user_photos` est trop permissive sur le mauvais axe : elle valide l’accès au workspace, mais elle ne verrouille pas explicitement que `user_id = auth.uid()`.
+
+Dans ce projet, d’autres tables workspace-scoped utilisent déjà le pattern robuste suivant :
+- autoriser si `auth.uid() = user_id`
+- ou si `user_has_workspace_access(workspace_id)` selon le besoin métier
+
+Pour un upload photo initié par l’utilisateur connecté, le plus sûr est d’exiger les deux cohérences :
+- `workspace_id` accessible
+- `user_id = auth.uid()`
+
+### Correctif proposé
+
+1. Ajouter une migration ciblée sur `public.user_photos`
+   - remplacer la policy `workspace_insert_user_photos`
+   - nouvelle règle :
+     - `auth.uid() = user_id`
+     - `AND public.user_has_workspace_access(workspace_id)`
+
+2. Renforcer aussi les policies UPDATE/DELETE si nécessaire
+   - vérifier si elles doivent également imposer `auth.uid() = user_id` pour les actions initiées côté client
+   - garder inchangé ce qui doit rester workspace-shared pour la lecture
+
+3. Améliorer le message côté front
+   - dans `uploadPhotoOriginal()`, conserver la traduction d’erreur RLS en message clair
+   - optionnellement élargir la détection pour couvrir les variantes de message Postgres/RLS et éviter le brut technique dans les toasts
+
+4. Validation après correction
+   - tester un upload photo depuis le compte connecté
+   - vérifier qu’une ligne `user_photos` est bien créée avec `status = 'pending'`
+   - vérifier que l’upload storage part ensuite normalement
+   - vérifier qu’en cas de workspace partagé, l’insert reste autorisé pour le membre connecté si `user_id` est bien son propre id
+
+### Détails techniques
+
+Changement prévu :
+```sql
+DROP POLICY IF EXISTS workspace_insert_user_photos ON public.user_photos;
+
+CREATE POLICY workspace_insert_user_photos ON public.user_photos
+FOR INSERT
+WITH CHECK (
+  auth.uid() = user_id
+  AND public.user_has_workspace_access(workspace_id)
+);
 ```
 
-**Ça ne marche pas.** Le `select` fait par `getUserContext` sur la table `profiles` (ligne 102 de `_shared/user-context.ts`) ne contient PAS `user_id` :
-```ts
-.select("prenom, activite, type_activite, cible, ..., bio_cta_text")
+Lecture à conserver telle quelle :
+```sql
+user_has_workspace_access(workspace_id)
 ```
 
-Donc `ctx.profile?.user_id` sera **toujours `undefined`** → `profileUserId` retombera systématiquement sur `user.id` → **le bug ne sera pas corrigé**.
+Pourquoi ce fix est le bon :
+- il aligne `user_photos` sur le pattern RLS déjà utilisé ailleurs dans le projet
+- il évite les inserts incohérents
+- il sécurise sans casser le modèle workspace
 
-### Re-clarification du diagnostic ligne 39
+### Hors périmètre
 
-Sur les 4 fichiers `pinterest-inspiration/photo-brief/visual` et `calendar-coaching`, la ligne 39 (`.eq("user_id", user.id)`) sert à récupérer le **workspace par défaut du caller** quand le client n'a pas envoyé `workspace_id` dans le body. C'est un comportement légitime : on cherche le workspace dont le caller est owner pour fallback. **Ça n'est pas un leak de données utilisatrice** — c'est juste un lookup de routing.
+Je ne toucherai pas dans ce chantier :
+- au flux `photo-background-replace`
+- aux buckets/policies storage si l’insert DB redevient fonctionnel
+- aux autres modules workspace
 
-Le **seul vrai leak de données** est dans `pinterest-ai/index.ts` lignes 98 et 105 où on lit `pinterest_keywords` avec `user_id = user.id` au lieu du propriétaire du workspace en cours.
+### Point d’attention
 
-### Plan d'action proposé
-
-J'ai 2 options à te soumettre. Choisis avant que j'exécute.
-
-#### Option A (recommandée, 1 seul fichier modifié) — fix ciblé
-Ne corriger que le **vrai leak** : `pinterest-ai/index.ts`.
-1. Ajouter `quotaDeniedResponse` à l'import `_shared/plan-limiter.ts`
-2. Remplacer la réponse 403 (ligne 64-68) par `return quotaDeniedResponse(usageCheck, corsHeaders);`
-3. Passer `workspace_id` à `checkQuota(user.id, "content", workspace_id)` ligne 63
-4. Après la ligne 81, résoudre le propriétaire du workspace via une query inline :
-   ```ts
-   let profileUserId = user.id;
-   if (workspace_id) {
-     const sbAdmin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-     const { data: ownerRow } = await sbAdmin.from("workspace_members")
-       .select("user_id").eq("workspace_id", workspace_id).eq("role", "owner").maybeSingle();
-     if (ownerRow?.user_id) profileUserId = ownerRow.user_id;
-   }
-   ```
-5. Lignes 98 et 105 : `.eq("user_id", profileUserId)`
-6. Passer `workspace_id` à `logUsage` ligne 120
-
-Et **laisser tels quels** les 4 autres fichiers (les `.eq("user_id", user.id)` ligne 39 sont du lookup de fallback de workspace, pas du leak de données client·e).
-
-#### Option B (spec d'origine adaptée, 6 fichiers modifiés) — fix exhaustif
-Corriger les 5 fichiers + modifier `_shared/user-context.ts` pour qu'il expose `profileUserId` dans le retour de `getUserContext`. Ça permet au pattern `ctx.profileUserId` de fonctionner réellement et c'est plus propre à long terme. **Mais ça contredit la contrainte "Pas de modification de `_shared/user-context.ts`"** dans ta spec.
-
-#### Option C — fix exhaustif sans toucher au shared
-Corriger les 5 fichiers, et dans chacun ajouter le bloc `workspace_members` inline (duplication x5 de la résolution `profileUserId`). Respecte la contrainte mais duplique du code.
-
-### Ma recommandation
-**Option A**. Raison : le seul leak de données client·e est dans `pinterest-ai`. Les autres lignes 39 sont du routing, pas du leak. On évite 4 modifications inutiles et on garde le shared intact. Si tu confirmes que les 4 autres lignes 39 sont quand même à corriger pour une raison que je ne vois pas (ex: tu veux un comportement différent quand un manager appelle sans envoyer `workspace_id`), pars sur Option C.
-
-### Ce qui ne bouge dans tous les cas
-- `_shared/user-context.ts` (Options A et C)
-- Les 3 Edge Functions hors scope (`audit-visual-templates`, `carousel-visual`, `invite-to-workspace`)
-- Aucune migration SQL
-
-### Critères de validation post-exec
-1. `deno check` sur chaque fichier modifié → 0 erreur
-2. `grep -n '.eq("user_id", user.id)' supabase/functions/pinterest-ai/index.ts` → 0 résultat (Option A)
-3. Test manuel 2 comptes (toi + compte démo client·e) sur l'action `pinterest-ai board-description`
-
-**Dis-moi quelle option tu valides** (A recommandée, B, ou C) avant que je passe en exécution.
+Si après ce correctif l’erreur persiste, le second suspect sera le mode démo : `/photos` semble accessible via route protégée classique, mais l’app a un faux user `demo-user` dans certains cas. Dans ce cas, il faudra ajouter un garde-fou explicite pour désactiver l’upload photo en démo avec un message propre au lieu de laisser partir une requête RLS.
