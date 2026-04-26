@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useCreatePhotoRetouch } from "@/hooks/use-user-photos";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 interface PhotoUploadDialogProps {
   open: boolean;
@@ -43,6 +44,8 @@ export function PhotoUploadDialog({ open, onOpenChange }: PhotoUploadDialogProps
   const inputRef = useRef<HTMLInputElement>(null);
 
   const { mutate, isPending } = useCreatePhotoRetouch();
+  const { activeWorkspace, loading: wsLoading } = useWorkspace();
+  const ready = !!activeWorkspace && !wsLoading;
 
   function reset() {
     setFile(null);
@@ -219,10 +222,14 @@ export function PhotoUploadDialog({ open, onOpenChange }: PhotoUploadDialogProps
           >
             Annuler
           </Button>
-          <Button onClick={handleSubmit} disabled={isPending || !file}>
+          <Button onClick={handleSubmit} disabled={isPending || !file || !ready}>
             {isPending ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Envoi…
+              </>
+            ) : !ready ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Chargement de l'espace…
               </>
             ) : (
               <>

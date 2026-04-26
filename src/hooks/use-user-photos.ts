@@ -88,6 +88,11 @@ export function useCreatePhotoRetouch() {
     if (!user?.id || !workspaceId) {
       throw new Error("Espace de travail introuvable");
     }
+    // Garde-fou : useWorkspaceId fallback sur user.id si le contexte n'est pas prêt.
+    // Un user.id n'est pas un workspace_id valide → la RLS rejetterait l'INSERT.
+    if (workspaceId === user.id) {
+      throw new Error("Espace de travail en cours de chargement, réessaie dans 1 seconde.");
+    }
     if (!input.backgroundPrompt && !input.backgroundPresetKey) {
       throw new Error("Décris le décor souhaité avant de lancer la retouche.");
     }
@@ -136,6 +141,10 @@ export function useRetryPhotoRetouch() {
 
   async function retry(photo: UserPhotoRow): Promise<void> {
     if (!workspaceId) throw new Error("Espace de travail introuvable");
+    // Même garde-fou que dans useCreatePhotoRetouch
+    if (photo.user_id && workspaceId === photo.user_id) {
+      throw new Error("Espace de travail en cours de chargement, réessaie dans 1 seconde.");
+    }
     if (!photo.background_prompt && !photo.background_preset_key) {
       throw new Error("Aucun prompt mémorisé pour cette photo. Recommence depuis l'upload.");
     }

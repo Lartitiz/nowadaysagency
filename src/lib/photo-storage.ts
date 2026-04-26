@@ -155,7 +155,11 @@ export async function uploadPhotoOriginal({
     .single();
 
   if (insertRes.error || !insertRes.data) {
-    throw new Error(insertRes.error?.message || "Impossible de créer la photo");
+    const raw = insertRes.error?.message || "";
+    if (raw.toLowerCase().includes("row-level security")) {
+      throw new Error("Espace de travail invalide. Recharge la page et réessaie.");
+    }
+    throw new Error(raw || "Impossible de créer la photo");
   }
 
   const photoId = insertRes.data.id as string;
