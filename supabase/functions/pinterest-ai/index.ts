@@ -104,7 +104,7 @@ serve(async (req) => {
 
     } else if (action === "board-description") {
       const { board_name, board_type } = params;
-      const kwRes = await supabase.from("pinterest_keywords").select("keywords_raw").eq("user_id", user.id).maybeSingle();
+      const kwRes = await supabase.from("pinterest_keywords").select("keywords_raw").eq("user_id", profileUserId).maybeSingle();
       const kw = kwRes.data?.keywords_raw || "";
       systemPrompt = `${PINTEREST_PRINCIPLES}\n\nNOM DU TABLEAU : "${board_name}"\nTYPE : ${board_type}\n\n${context}\n\nMOTS-CLÉS DISPONIBLES : ${kw}\n\nRédige une description optimisée SEO (50-100 mots).\n- Intègre les mots-clés naturellement dans des phrases fluides\n- Ton chaleureux, pas robotique\n- Pas de hashtags\n- La description doit donner envie d'explorer le tableau\n\nRéponds avec le texte seul.`;
       userPrompt = "Rédige la description du tableau.";
