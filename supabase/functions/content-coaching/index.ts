@@ -141,7 +141,7 @@ Deno.serve(async (req) => {
         .select("theme, accroche, date, canal, format")
         .eq(filterCol, filterVal)
         .order("date", { ascending: false })
-        .limit(20),
+        .limit(8),
       sbService.from("brand_strategy")
         .select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3")
         .eq(filterCol, filterVal)
@@ -150,7 +150,7 @@ Deno.serve(async (req) => {
         .select("subject, hook_text, carousel_type, objective, created_at")
         .eq(filterCol === "workspace_id" ? "workspace_id" : "user_id", filterCol === "workspace_id" ? filterVal : user.id)
         .order("created_at", { ascending: false })
-        .limit(20),
+        .limit(8),
     ]);
 
     const contextText = formatContextForAI(ctx, CONTEXT_PRESETS.content);
