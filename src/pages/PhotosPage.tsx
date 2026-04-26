@@ -67,7 +67,7 @@ export default function PhotosPage() {
               Importe une photo, décris l'ambiance que tu veux derrière, et l'IA remplace ton décor pour des visuels prêts à publier.
             </p>
           </div>
-          <Button onClick={() => setUploadOpen(true)}>
+          <Button onClick={() => setUploadOpen(true)} disabled={!wsReady}>
             <Plus className="h-4 w-4 mr-2" /> Nouvelle photo
           </Button>
         </header>
@@ -87,7 +87,7 @@ export default function PhotosPage() {
             <p className="text-sm text-muted-foreground mb-6 max-w-sm mx-auto">
               Lance ta première retouche pour voir tes visuels apparaître ici dès qu'ils sont prêts.
             </p>
-            <Button onClick={() => setUploadOpen(true)}>
+            <Button onClick={() => setUploadOpen(true)} disabled={!wsReady}>
               <Plus className="h-4 w-4 mr-2" /> Importer une photo
             </Button>
           </div>
