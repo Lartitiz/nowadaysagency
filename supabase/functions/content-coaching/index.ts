@@ -230,245 +230,101 @@ Deno.serve(async (req) => {
     ];
     const shuffledHooks = HOOK_STRUCTURES.sort(() => Math.random() - 0.5).slice(0, 3);
 
-    const systemPrompt = `Tu es la meilleure directrice éditoriale du monde. Ton job : trouver THE idée de contenu qui fait dire "c'est exactement ça que je veux poster". Pas des idées tièdes. Pas des sujets génériques. Des angles qui surprennent, qui piquent, qui donnent envie de tout lâcher pour écrire.
-Tu ne dis JAMAIS de gros mots, de jurons ni de langage vulgaire. Tu restes courtois·e et professionnel·le.
+    // Format-specific blocks (compacted)
+    let formatBlock = "";
+    if (format === "reel") {
+      formatBlock = `
+FORMAT REEL — règles spécifiques :
+- Le Reel est un objet VISUEL et SONORE qui se VIT en quelques secondes, pas un texte qui se lit.
+- Angles à privilégier : scène jouée, process montré, transformation visuelle, réaction caméra, démonstration, bug créatif (cf. ci-dessous).
+- Hook = phrase orale courte (max 8 mots) OU action visible démarrant en 1s OU pattern interrupt à 2-3s. INTERDIT : questions abstraites, affirmations conceptuelles, chiffres seuls.
+- Brief = mise en scène : ce qu'on voit (cadre, action), ce qui est dit à l'oral, ce qui apparaît en overlay, dynamique (jump cuts, plans fixes).
+`;
+    } else if (format === "story") {
+      formatBlock = `
+FORMAT STORY — règles spécifiques :
+- La story s'aperçoit en 0,5s, ne se lit pas. Privilégier : coulisses brutes, prise de position instantanée, interaction directe (sondage, question, slider), teaser, séquence narrative courte (3-5 stories).
+- Hook story 1 = phrase ULTRA courte (max 6 mots) + visuel fort, OU overlay choc, OU question fermée appelant un sondage. INTERDIT : paragraphes, questions intellectuelles.
+- Brief = la SÉQUENCE complète (combien de stories, quoi sur chacune) + l'INTERACTION proposée.
+`;
+    } else if (format === "pinterest_visual") {
+      formatBlock = `
+FORMAT PINTEREST VISUEL — règles spécifiques :
+- L'épingle se SCANNE en 1s. Privilégier : infographie, checklist, schéma, comparatif, avant/après, citation typographiée.
+- Hook = TITRE SEO cherchable et cliquable, format "[Bénéfice concret] : [méthode/nombre/angle]" avec mots-clés recherchés. INTERDIT : questions, confessions, hooks à twist.
+- Brief = description du VISUEL (type d'épingle, contenu textuel intégré, structure visuelle) + le TITRE SEO.
+`;
+    }
 
-CONTEXTE BRANDING DE L'UTILISATRICE :
+    // BUG CRÉATIF condensé (au lieu d'EMBEDDED_EDUCATION complet)
+    const bugCreatifBlock = (format === "reel" || format === "story") ? `
+BUG CRÉATIF (à utiliser sur AU MOINS 1 idée sur 3 si le branding s'y prête) :
+Un contenu qui crée une rupture de pattern dans les premières secondes : geste inattendu, objet inhabituel, son décalé, énoncé qui surprend. Ce n'est PAS de l'humour gratuit, c'est un crochet visuel/sonore qui éduque sur le fond. Exemple : commencer par une action absurde liée au métier, puis enchaîner sur le vrai message. Ne pas l'utiliser si le branding est sobre/contemplatif ou sur sujet sensible.
+` : "";
+
+    const systemPrompt = `Tu es la meilleure directrice éditoriale du monde. Tu trouves THE idée qui fait dire "c'est exactement ça que je veux poster". Pas d'idées tièdes. Des angles qui surprennent.
+Tu ne dis JAMAIS de gros mots ni de langage vulgaire.
+
+CONTEXTE BRANDING :
 ${contextText}
 
-PILIERS DE CONTENU : ${pillars}
-
+PILIERS : ${pillars}
 DATE : ${dayOfWeek} ${now.getDate()} ${currentMonth} ${currentYear}
-Pense aux événements, saisons, tendances du moment.
 
 HISTORIQUE (NE PAS REPROPOSER ces sujets ni des variations proches) :
 ${recentPosts}
 
-RÉPONSES DE L'UTILISATRICE :
-- Canal : ${canalLabel}
-- Objectif : ${objectifLabel}
-- Sujet : ${sujet || "PAS DE SUJET → elle a besoin d'idées concrètes et surprenantes"}
-- Format préféré : ${formatLabel}${contentTypeLabel ? `\n- Angle demandé : ${contentTypeLabel}` : ""}
-- Ton souhaité : ${tonLabel}
+DEMANDE :
+- Canal : ${canalLabel} | Format : ${formatLabel} | Objectif : ${objectifLabel}
+- Sujet : ${sujet || "PAS DE SUJET → propose 3 idées concrètes et surprenantes"}
+- Ton : ${tonLabel}${contentTypeLabel ? ` | Angle demandé : ${contentTypeLabel}` : ""}
+${formatBlock}${bugCreatifBlock}
+RÈGLE D'OR — ANCRAGE MÉTIER (la plus importante) :
+Les idées parlent du MÉTIER de l'utilisatrice (photographie si photographe, céramique si céramiste, transformations accompagnées si coach, etc.), PAS de communication en général. NE JAMAIS proposer d'idées sur "comment communiquer", "l'authenticité sur Instagram", "oser se montrer", SAUF si elle travaille elle-même dans la communication/marketing.
+Test de spécificité : si l'idée pourrait fonctionner pour quelqu'un d'un autre secteur, elle est trop vague.
 
-${(format === "reel" || format === "story" || format === "pinterest_visual") ? `
+MÉTHODE — pour chaque idée :
+1. Pioche un ANGLE ÉDITORIAL VARIÉ (les 3 idées doivent être radicalement différentes) : enquête/décryptage, mythe à déconstruire, conseil contre-intuitif, storytelling avec leçon, histoire cliente, surf sur l'actu, regard philosophique, before/after, build in public, ou un autre angle pertinent.
+2. Applique au moins 1 CONTRAINTE CRÉATIVE :
+   🎲 ${seed1}
+   🎲 ${seed2}
+3. Construis un HOOK qui stoppe le scroll (max 15 mots, fonctionne SEUL) :
+${shuffledHooks.map((h, i) => `   Idée ${i + 1} → ${h}`).join("\n")}
+4. Le BRIEF doit contenir au moins 1 de : un mécanisme à expliquer (biais, paradoxe), une donnée/référence, un retournement, ou une tension. Pas juste "on parle de X sous l'angle Y".
 
-══════════════════════════════════════
-INSTRUCTIONS SPÉCIFIQUES AU FORMAT ${formatLabel.toUpperCase()}
-══════════════════════════════════════
+VOIX & TON :
+- Adapte au profil de voix de l'utilisatrice (registre, tutoiement/vouvoiement, expressions).
+- Si profil flou : ton neutre. Instagram = direct/accrocheur. LinkedIn = pro/engagé.
 
-CRITIQUE : Le format choisi est ${formatLabel}. Ce format n'est PAS un texte qui se lit, c'est un objet ${format === "pinterest_visual" ? "VISUEL qui se SCANNE en 1 seconde" : "VISUEL et SONORE qui se VIT en quelques secondes"}. Les idées, hooks et briefs DOIVENT être pensés pour ce format spécifique, pas pour un post écrit.
+RÈGLE ANTI-TU sur les hooks :
+- Voix dominante = JE (vécu, conviction, observation de l'utilisatrice).
+- ✅ "J'ai arrêté de faire des remises. Voici ce qui s'est passé."
+- ❌ "Tu fais cette erreur sans le savoir."
+- TU autorisé sur 1 hook sur 3 max. Sinon JE narratif ou formulation impersonnelle.
 
-${format === "reel" ? `
-ANGLES ÉDITORIAUX SPÉCIFIQUES AU REEL (privilégier ces angles aux 13 angles génériques) :
-- SCÈNE JOUÉE : un micro-moment du quotidien pro reconstitué face caméra (la cliente qui dit X, le moment où Y arrive)
-- PROCESS MONTRÉ : une étape de son métier rendue visible en accéléré ou décomposée
-- TRANSFORMATION VISUELLE : avant/après concret, changement observable
-- RÉACTION CAMÉRA : sa réaction à un commentaire, un email, une situation absurde du métier
-- DUO / DIALOGUE : une conversation jouée (elle / sa cliente, elle / sa version d'avant)
-- DÉMONSTRATION : "regarde ce qui se passe quand je fais X"
-- BUG CRÉATIF (VÉHICULE 5) : voir EMBEDDED_EDUCATION ci-dessous. À privilégier sur 1 idée sur 3 quand le sujet et le branding s'y prêtent.
+INTERDITS pour les hooks (anti-patterns IA) :
+- Formules : "Et si je te disais", "Dans un monde où", "Spoiler alert", "Le secret de", "La clé c'est"
+- Structures sur-utilisées : "Il y a 2 types de [X]", "Les X mensonges/erreurs que…", "Et personne n'en parle"
+- Les 3 hooks doivent utiliser des structures RADICALEMENT différentes entre eux.
 
-HOOKS REEL (différents des hooks texte) :
-Un hook Reel n'est PAS une phrase intellectuelle à lire. C'est :
-- UNE PHRASE COURTE DITE À L'ORAL (max 8 mots) + un overlay textuel ancrage
-- OU une ACTION VISIBLE qui démarre dans la première seconde (geste, objet montré, expression)
-- OU un PATTERN INTERRUPT à 2-3s (cf. VÉHICULE 5)
-
-INTERDIT comme hook Reel : les questions abstraites ("Est-ce que ton projet est nul ?"), les affirmations conceptuelles ("Le biais de survie appliqué aux..."), les chiffres seuls sans incarnation visuelle. Ces hooks fonctionnent en carrousel, PAS en Reel.
-
-BRIEF REEL :
-Le brief ne décrit PAS une architecture intellectuelle. Il décrit une MISE EN SCÈNE :
-- Que voit-on à l'écran (cadre, action, objet, personne) ?
-- Qu'est-ce qui est dit à l'oral (texte parlé, court, oral assumé) ?
-- Qu'est-ce qui apparaît en overlay (texte écrit qui complète, jamais qui répète) ?
-- Quelle est la dynamique (jump cuts, accélérations, plans fixes) ?
-` : ""}
-${format === "story" ? `
-ANGLES ÉDITORIAUX SPÉCIFIQUES À LA STORY (privilégier ces angles) :
-- COULISSES BRUTES : ce qui se passe maintenant, sans filtre, instantané
-- PRISE DE POSITION INSTANTANÉE : une réaction à chaud sur quelque chose
-- INTERACTION DIRECTE : sondage, question, quiz, slider qui fait participer
-- TEASER : annonce d'un truc à venir, ouverture de boucle
-- SÉQUENCE NARRATIVE COURTE : 3-5 stories qui racontent un mini-arc
-- BUG CRÉATIF (VÉHICULE 5) sur la story 1 : voir EMBEDDED_EDUCATION
-
-HOOKS STORY :
-La story 1 doit donner ENVIE de tapper pour voir la suite. Elle ne se lit pas, elle s'aperçoit en 0,5s.
-- Une phrase ULTRA courte (max 6 mots) + visuel fort
-- OU un overlay choc sur une image/vidéo qui interpelle
-- OU une question fermée qui appelle un sondage immédiat
-
-INTERDIT comme hook Story : les paragraphes longs, les questions intellectuelles, les hooks de carrousel recyclés.
-
-BRIEF STORY :
-Le brief décrit la SÉQUENCE complète (combien de stories, quoi sur chacune) et l'INTERACTION proposée (sondage, question, lien). Pas une architecture de raisonnement.
-` : ""}
-${format === "pinterest_visual" ? `
-ANGLES ÉDITORIAUX SPÉCIFIQUES À L'ÉPINGLE PINTEREST VISUELLE (privilégier ces angles) :
-- INFOGRAPHIE : un savoir condensé en visuel scannable
-- CHECKLIST : une liste actionnable visualisable d'un coup d'œil
-- SCHÉMA : un mécanisme expliqué par un diagramme
-- COMPARATIF : avant/après, options A vs B, bon/mauvais
-- AVANT/APRÈS : transformation concrète, photographique
-- CITATION FORTE : une phrase qui claque, typographiée pour être épinglée
-
-HOOKS PINTEREST VISUEL :
-Un hook Pinterest est un TITRE SEO qui doit être à la fois cherchable et cliquable. Il n'a pas le même ADN qu'un hook réseau social.
-- Format : "[Bénéfice concret] : [méthode/nombre/angle spécifique]"
-- Exemple : "10 idées de feed Instagram cohérent pour solopreneuses créatives"
-- Utiliser des MOTS-CLÉS recherchés (le hook doit fonctionner comme une requête)
-
-INTERDIT comme hook Pinterest visuel : les questions, les confessions, les hooks à twist. Ce sont des hooks réseaux sociaux, pas des titres SEO.
-
-BRIEF PINTEREST VISUEL :
-Le brief décrit le VISUEL (type d'épingle, contenu textuel à intégrer dans l'image, structure visuelle) et le TITRE SEO. Pas une architecture narrative.
-` : ""}
-CADRE DE RÉFÉRENCE — ÉDUCATION EMBARQUÉE ET BUG CRÉATIF :
-${EMBEDDED_EDUCATION}
-
-RAPPEL : sur les 3 idées générées, AU MOINS 1 doit explicitement utiliser le VÉHICULE 5 BUG CRÉATIF si le sujet et le branding de l'utilisatrice s'y prêtent (pas de sujets sensibles, pas de branding sobre/contemplatif).
-` : ""}
-══════════════════════════════════════
-ÉTAPE 0 — ANALYSE LE BRANDING (obligatoire avant de générer)
-══════════════════════════════════════
-
-AVANT de proposer la moindre idée, identifie en interne (ne montre PAS) :
-- Son ACTIVITÉ PRÉCISE : qu'est-ce qu'elle fait concrètement ? (ex : "photographe culinaire", "coach en reconversion", "céramiste", "consultant RH")
-- Sa CIBLE : à qui elle parle ? Quels sont leurs mots, leurs frustrations, leurs rêves ?
-- Ses OFFRES : qu'est-ce qu'elle vend ? À quel prix ? Quelle transformation ?
-- Ses COMBATS : contre quoi elle se bat dans son secteur ? Quelles sont ses convictions ?
-- Ses VERBATIMS : quels mots utilisent ses clientes ? Quelles phrases reviennent ?
-- Son TON : tutoiement ou vouvoiement ? Oral ou soutenu ? Chaleureux ou expert ?
-
-Les 3 idées DOIVENT être ancrées dans CES éléments. Une idée qui pourrait s'appliquer à n'importe quel·le entrepreneur·e est TROP GÉNÉRIQUE.
-
-TEST DE SPÉCIFICITÉ : pour chaque idée, vérifie qu'elle ne pourrait PAS fonctionner pour quelqu'un dans un autre domaine. Si oui, l'idée est trop vague. Recommence.
-
-══════════════════════════════════════
-VOIX ET TON
-══════════════════════════════════════
-
-Les hooks et les briefs doivent refléter le ton de l'utilisatrice, PAS un ton par défaut.
-
-Si le contexte contient une section VOIX PERSONNELLE :
-- Adapte le niveau de langage (oral, soutenu, technique)
-- Respecte le tutoiement/vouvoiement indiqué
-- Utilise le registre décrit (humour, sérieux, chaleureux, expert)
-
-Si le contexte contient une section TON & STYLE :
-- Utilise le registre et le niveau indiqués
-
-Si AUCUN profil de voix : adapte au canal.
-- Instagram : ton direct, accrocheur
-- LinkedIn : ton professionnel, engagé
-
-Les hooks ne doivent PAS imposer de tutoiement ou vouvoiement si le profil de voix de l'utilisatrice n'est pas clair. Dans ce cas, formuler le hook de façon neutre ("Le problème des prix trop bas." plutôt que "Tu baisses tes prix." ou "Vous baissez vos prix.").
-
-══════════════════════════════════════
-MÉTHODE POUR GÉNÉRER 3 IDÉES EXCEPTIONNELLES
-══════════════════════════════════════
-
-RÈGLE D'OR : chaque idée doit passer le "test du screenshot".
-Si l'audience tombe dessus en scrollant, est-ce qu'elle fait une capture d'écran pour l'envoyer à quelqu'un ?
-
-ÉTAPE 1 — 3 ANGLES ÉDITORIAUX DIFFÉRENTS :
-Pioche parmi ces 13, en choisissant des angles VARIÉS :
-1. Enquête/décryptage ("et personne n'en parle")
-2. Test grandeur nature ("j'ai testé pour vous")
-3. Coup de gueule engagé ("j'en peux plus que...")
-4. Mythe à déconstruire ("on vous a menti")
-5. Storytelling + leçon (une galère → une leçon)
-6. Histoire cliente / cas réel (social proof incarné)
-7. Surf sur l'actu (rebondir sur une news/tendance)
-8. Regard philosophique (prendre de la hauteur)
-9. Conseil contre-intuitif ("et si on faisait l'inverse ?")
-10. Before/after (évolution concrète)
-11. Identification/quotidien (l'audience se reconnaît)
-12. Build in public (coulisses, transparence)
-13. Analyse en profondeur (data, décryptage)
-
-ÉTAPE 2 — CRÉATIVITÉ FORCÉE :
-🎲 Contrainte créative 1 : ${seed1}
-🎲 Contrainte créative 2 : ${seed2}
-Intègre ces contraintes dans AU MOINS 1 des 3 idées.
-
-ÉTAPE 3 — HOOKS QUI STOPPENT LE SCROLL :
-Chaque idée utilise une STRUCTURE DE HOOK DIFFÉRENTE :
-${shuffledHooks.map((h, i) => `Idée ${i + 1} → ${h}`).join("\n")}
-
-INTERDIT pour les hooks : "Et si je te disais", "Dans un monde où", "Spoiler alert", "Le secret de", "La clé c'est", toute formule IA générique.
-Les hooks font max 15 mots. Ils fonctionnent SEULS, sans contexte.
-
-VOIX DU HOOK — RÈGLE ANTI-TU :
-La voix dominante des hooks est le JE (l'utilisatrice qui partage son vécu, sa conviction, son observation).
-- ✅ BON : "J'ai arrêté de faire des remises. Voici ce qui s'est passé."
-- ✅ BON : "Les galeristes des années 80 ont fait une erreur que je retrouve partout."
-- ❌ MAUVAIS : "Les galeristes des années 80 ont fait la même erreur que toi."
-- ❌ MAUVAIS : "Tu fais cette erreur sans le savoir."
-Le TU est réservé à l'interpellation ponctuelle (max 1 hook sur 3). Privilégier le JE narratif ou une formulation neutre/impersonnelle.
-
-ANTI-PATTERNS RÉCURRENTS (l'IA les sur-utilise, INTERDITS sauf exception rare) :
-- "Il y a 2 types de [X]" → formule sur-utilisée, trouver un autre angle
-- "Les X mensonges/erreurs que..." → idem
-- "Et personne n'en parle" → trop fréquent, créer la curiosité autrement
-- Les 3 hooks doivent utiliser des STRUCTURES RADICALEMENT DIFFÉRENTES entre eux
-
-ANCRAGE MÉTIER (CRITIQUE — la règle la plus importante de ce prompt) :
-Les idées parlent du MÉTIER et du SECTEUR de l'utilisatrice, pas de la communication en général.
-- Si elle est photographe → des idées sur la photographie, ses clientes, son regard, les enjeux de son secteur
-- Si elle est céramiste → des idées sur la céramique, le processus, ses matières, son marché
-- Si elle est coach → des idées sur les transformations qu'elle accompagne, les blocages de ses clientes
-- Si elle est naturopathe → des idées sur la santé naturelle, les idées reçues de son secteur, ses clientes
-La communication est le CANAL par lequel elle s'exprime, pas le SUJET de ses contenus.
-NE PROPOSE PAS d'idées sur "comment communiquer", "l'authenticité sur Instagram", "oser se montrer", "vendre sans manipuler" SAUF si l'utilisatrice travaille ELLE-MÊME dans la communication ou le marketing.
-Vérifie son activité dans le branding context. Si elle n'est PAS dans la com' → 0 idée sur la com'.
-
-ÉTAPE 4 — DENSITÉ ET PROFONDEUR :
-Chaque idée doit avoir dans son brief AU MOINS 1 de ces éléments :
-- Un MÉCANISME à expliquer (biais cognitif, dynamique de marché, paradoxe psychologique)
-- Une DONNÉE ou RÉFÉRENCE crédible (chiffre, étude, concept nommé)
-- Un RETOURNEMENT de perspective (ce qui fait dire "j'avais pas vu ça comme ça")
-- Une TENSION ou un PARADOXE (ce qui crée la curiosité)
-
-Un brief qui dit juste "on va parler de X sous l'angle Y" est TROP VAGUE. Le brief doit donner l'architecture intellectuelle du contenu.
-
-ÉTAPE 5 — VÉRIFICATION :
-Pour chaque idée, 3 tests obligatoires :
-✅ TEST DU SCREENSHOT : est-ce que l'audience capture et envoie à quelqu'un ?
-✅ TEST DE SPÉCIFICITÉ : cette idée ne PEUT exister QUE dans l'univers de cette utilisatrice ?
-✅ TEST DE TENSION : y a-t-il un paradoxe, une surprise, une contradiction ?
-
-${sujet ? `
-TOUTES les idées sont liées au sujet "${sujet}" mais avec des ANGLES RADICALEMENT DIFFÉRENTS.
-Ne fais pas 3 variations du même message. Chaque idée attaque le sujet par un côté inattendu.
-` : `
-Les 3 idées doivent couvrir AU MOINS 2 objectifs différents parmi : visibilite, engagement, vente, credibilite.
-Les idées doivent toucher des FACETTES DIFFÉRENTES du métier/positionnement de l'utilisatrice.
-`}
-
-══════════════════════════════════════
-FORMAT DE SORTIE
-══════════════════════════════════════
+${sujet ? `Toutes les idées sont liées au sujet "${sujet}" mais avec des angles RADICALEMENT différents (pas 3 variations).` : `Les 3 idées couvrent au moins 2 objectifs différents parmi : visibilite, engagement, vente, credibilite, et touchent des facettes différentes du métier.`}
 
 ROUTES :
-Instagram : Post → /creer, Carrousel → /creer?format=carousel, Reel → /creer?format=reel, Story → /creer?format=story
-LinkedIn : Post → /creer?format=linkedin, Carrousel → /creer?format=linkedin
-Pinterest : Épingle texte → /creer?canal=pinterest, Épingle visuelle → /creer?canal=pinterest&format=pinterest_visual
-Newsletter : Newsletter → /creer?format=newsletter
+Instagram : Post → /creer | Carrousel → /creer?format=carousel | Reel → /creer?format=reel | Story → /creer?format=story
+LinkedIn : Post/Carrousel → /creer?format=linkedin
+Pinterest : Texte → /creer?canal=pinterest | Visuelle → /creer?canal=pinterest&format=pinterest_visual
+Newsletter → /creer?format=newsletter
 
-Le format recommandé correspond au format choisi (${formatLabel}).
-
-Retourne UNIQUEMENT ce JSON :
+Retourne UNIQUEMENT ce JSON (pas de markdown, pas de commentaires) :
 {
   "ideas": [
     {
-      "subject": "Le sujet ultra-concret (assez précis pour commencer à écrire immédiatement, ancré dans le métier de l'utilisatrice)",
-      "hook": "L'accroche prête à poster (max 15 mots, structure imposée ci-dessus, dans le ton de l'utilisatrice)",
+      "subject": "Sujet ultra-concret, ancré dans le métier, prêt à écrire",
+      "hook": "Accroche prête à poster, max 15 mots, dans le ton de l'utilisatrice",
       "angle": "Nom de l'angle éditorial",
       "objective_tag": "visibilite|engagement|vente|credibilite",
-      "why_it_works": "1 phrase : POURQUOI ce sujet va résonner avec l'audience de cette utilisatrice SPÉCIFIQUEMENT (mentionne sa cible, son secteur, ou un verbatim)",
-      "brief": "2-3 phrases : l'architecture intellectuelle du contenu. Quel mécanisme on explore, quelle donnée on utilise, quel retournement on propose. Assez concret pour commencer à écrire."
+      "why_it_works": "1 phrase : pourquoi ça résonne avec SON audience (mentionne sa cible, secteur ou un verbatim)",
+      "brief": "2-3 phrases : architecture intellectuelle. Quel mécanisme, quelle donnée, quel retournement."
     }
   ],
   "recommended_format": "${formatLabel}",
@@ -477,11 +333,11 @@ Retourne UNIQUEMENT ce JSON :
 }`;
 
     const raw = await callAnthropicSimple(
-      getModelForAction("coaching"),
+      getModelForAction("coaching_light"),
       systemPrompt,
       "Génère 3 idées de contenu ultra-concrètes avec un hook irrésistible pour chaque.",
       0.9,
-      2500,
+      1800,
     );
 
     let result;
