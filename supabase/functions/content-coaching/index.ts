@@ -224,8 +224,8 @@ Deno.serve(async (req) => {
       "Micro-scène : 'Ce matin, en [action banale], j'ai réalisé que...'",
       "Liste-appât : 'Les 3 [trucs] que [les experts] ne disent jamais'",
       "Comparaison inattendue : '[Chose A] et [chose B] ont plus en commun qu'on croit'",
-      "Interpellation directe : Pointer une erreur courante que l'audience fait sans le savoir",
-      "Polarisation douce : Opposer deux postures face à un enjeu du métier et demander laquelle résonne",
+      "Observation tranchée : Nommer une erreur courante du secteur à la 3e personne (les solopreneuses, les coachs, le marché…), JAMAIS en interpellant le lecteur",
+      "Polarisation douce : Opposer deux postures du métier ('il y a celles qui X, il y a celles qui Y') sans s'adresser au lecteur",
       "Promesse-mystère : Annoncer un changement de jeu inattendu dans son activité, sans le révéler tout de suite",
     ];
     const shuffledHooks = HOOK_STRUCTURES.sort(() => Math.random() - 0.5).slice(0, 3);
@@ -296,11 +296,17 @@ VOIX & TON :
 - Adapte au profil de voix de l'utilisatrice (registre, tutoiement/vouvoiement, expressions).
 - Si profil flou : ton neutre. Instagram = direct/accrocheur. LinkedIn = pro/engagé.
 
-RÈGLE ANTI-TU sur les hooks :
-- Voix dominante = JE (vécu, conviction, observation de l'utilisatrice).
-- ✅ "J'ai arrêté de faire des remises. Voici ce qui s'est passé."
-- ❌ "Tu fais cette erreur sans le savoir."
-- TU autorisé sur 1 hook sur 3 max. Sinon JE narratif ou formulation impersonnelle.
+RÈGLE ANTI-TU (CRITIQUE — la voix par défaut n'est PAS le TU) :
+La voix dominante des hooks, subjects ET briefs est le JE narratif (vécu, conviction, observation de l'utilisatrice) OU une formulation IMPERSONNELLE (3e personne : "les solopreneuses…", "le marché…", "Patagonia fait X" / on : "quand on lance une offre…" / nominalisations : "Le problème des prix trop bas.").
+INTERDIT par défaut dans les hooks, subjects et briefs : "tu", "te", "t'", "toi", "ton", "ta", "tes", "vous", "votre", "vos".
+✅ BON hook : "Patagonia dit 'n'achetez pas cette veste'. Et pourtant, ils explosent les ventes."
+✅ BON hook : "J'ai arrêté de faire des remises. Voici ce qui s'est passé."
+✅ BON hook : "Les céramistes qui vendent le mieux ont arrêté de poster sur Instagram."
+❌ MAUVAIS : "Patagonia te dit de pas acheter. Et pourtant, tu achètes."
+❌ MAUVAIS : "Tu fais cette erreur sans le savoir."
+❌ MAUVAIS brief : "Tu vas découvrir comment…"
+EXCEPTION (max 1 hook sur 3) : le TU est autorisé UNIQUEMENT si la structure de hook est explicitement "Question rhétorique qui pique" ET que le contenu serait artificiel sans interpellation. Dans tous les autres cas, reformule en JE ou impersonnel.
+Le BRIEF est TOUJOURS rédigé en JE narratif ou à la 3e personne, JAMAIS en TU adressé au lecteur.
 
 INTERDITS pour les hooks (anti-patterns IA) :
 - Formules : "Et si je te disais", "Dans un monde où", "Spoiler alert", "Le secret de", "La clé c'est"
