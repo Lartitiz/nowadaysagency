@@ -295,19 +295,3 @@ export async function logUsage(
     }
   }
 }
-
-/** @deprecated Use checkQuota + logUsage instead */
-export async function checkAndIncrementUsage(
-  _supabase: any,
-  userId: string,
-  type: "generation" | "audit" = "generation"
-): Promise<{ allowed: boolean; remaining?: number; plan: string; error?: string }> {
-  const category = type === "audit" ? "audit" : "content";
-  const result = await checkQuota(userId, category);
-  if (!result.allowed) {
-    return { allowed: false, plan: result.plan, error: result.message };
-  }
-  // Log immediately for backward compat
-  await logUsage(userId, category, type === "audit" ? "audit_instagram" : "content_generic");
-  return { allowed: true, remaining: result.remaining, plan: result.plan };
-}
