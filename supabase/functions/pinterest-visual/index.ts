@@ -7,6 +7,7 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { buildPptxInvariants, formatInvariantsForPrompt } from "../_shared/pptx-invariants.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
