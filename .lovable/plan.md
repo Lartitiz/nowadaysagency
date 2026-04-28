@@ -1,65 +1,45 @@
-## Contexte
+## Objectif
+Faire en sorte que la carte « Lancer un audit » du dashboard permette réellement de choisir entre **audit Instagram** et **audit site web**, au lieu d’envoyer automatiquement vers Instagram.
 
-Tu reçois un message d'erreur dans la boîte de dialogue "Nouvelle photo retouchée" (page `/photos`). Les logs Edge Function `photo-background-replace` sont vides côté serveur, ce qui signifie que **l'erreur survient AVANT l'invocation de PhotoRoom** — donc à l'une de ces étapes :
+## Ce que je vais modifier
+1. Remplacer le routage direct de la mini-carte d’audit sur la page d’accueil par une ouverture de sélection.
+2. Ajouter une petite fenêtre de choix avec 2 options claires :
+   - Instagram
+   - Site web
+3. Rediriger chaque option vers la bonne page existante :
+   - `/instagram/audit`
+   - `/site/audit`
+4. Garder le reste du comportement du dashboard intact, sans toucher aux autres CTA qui sont volontairement spécifiques à Instagram ou LinkedIn.
 
-1. **INSERT en base** dans `user_photos` (bloqué par RLS si `workspace_id` invalide).
-2. **Upload du fichier original** dans le bucket `user-photos` (bloqué par les policies storage).
-3. **UPDATE de la ligne** avec les chemins finaux.
+## Détails d’implémentation
+- Fichier principal concerné : `src/pages/AdaptiveHome.tsx`
+- Approche :
+  - introduire un état local pour ouvrir/fermer un `Dialog`
+  - remplacer la route statique de la carte audit par une action spéciale du type `__choose_audit__`
+  - faire passer cette action par `handleNavigate()`
+  - utiliser les composants UI déjà présents dans le projet pour rester cohérent visuellement
+- Le contenu de la sélection sera sobre et explicite, pour éviter toute ambiguïté entre la promesse du texte et l’action réelle.
 
-Une cause très probable : **il manque une policy `UPDATE` sur `storage.objects` pour le bucket `user-photos**`. Or `uploadPhotoOriginal` utilise `upsert: true`, qui requiert le droit UPDATE en plus de INSERT. Si la photo existe déjà (retry après un premier essai partiellement raté), l'upload échoue silencieusement avec un message peu clair.
+## Ce que je ne vais pas changer
+- Les pages d’audit elles-mêmes
+- Les audits LinkedIn
+- Les recommandations intelligentes du dashboard qui pointent déjà explicitement vers un audit précis
+- La sidebar, qui a déjà des entrées séparées par espace
 
-Autres pistes secondaires :
+## Résultat attendu
+Quand on clique sur « Lancer un audit » depuis la carte du dashboard, une sélection s’ouvre et l’utilisateur choisit le type d’audit avant d’être redirigé.
 
-- Image HEIC (iPhone) → `createImageBitmap` échoue dans Safari → message générique "Échec du lancement".
-- Workspace pas encore chargé → message "Espace de travail en cours de chargement…" (peu probable, déjà géré).
+## Détail technique
+Flux visé :
 
-## Pour identifier la cause exacte
-
-J'ai besoin du **texte du message d'erreur** affiché dans le toast rouge. Peux-tu me le copier ou m'envoyer une capture d'écran ? new row violate security policy qqch comme ça
-
-En parallèle, voici les corrections à appliquer dès maintenant :
-
-## Correctifs à apporter
-
-### 1. Migration SQL — ajouter la policy UPDATE manquante
-
-Bucket `user-photos` n'a actuellement que les policies INSERT/SELECT/DELETE. Ajouter :
-
-```sql
-CREATE POLICY "Users can update own photos" ON storage.objects
-  FOR UPDATE USING (
-    bucket_id = 'user-photos'
-    AND (storage.foldername(name))[1] = auth.uid()::text
-  );
+```text
+Dashboard mini-card
+  -> ouverture d’une modal
+    -> clic sur Instagram -> /instagram/audit
+    -> clic sur Site web -> /site/audit
 ```
 
-Cela débloquera tout `upsert` sur une photo qui existe déjà (cas du retry).
-
-### 2. `src/lib/photo-storage.ts` — meilleure gestion d'erreur d'upload
-
-Aujourd'hui un échec d'upload affiche le message brut du SDK (souvent cryptique). Détecter les cas typiques :
-
-- `new row violates row-level security policy` → "Espace de travail invalide, recharge la page."
-- Permission denied / 403 sur storage → "Impossible d'enregistrer la photo (droits insuffisants)."
-- HEIC non supporté → suggérer JPG/PNG.
-
-Et **rollback de la ligne `user_photos**` si l'upload OU l'update final échoue, pour éviter d'accumuler des photos "orphelines" en `pending`.
-
-### 3. `src/components/photos/PhotoUploadDialog.tsx` — validation côté client
-
-Avant d'envoyer :
-
-- Refuser explicitement les `.heic` / `.heif` avec un message clair ("Convertis ta photo en JPG/PNG").
-- Refuser les fichiers > 15 Mo avant compression (évite un freeze du navigateur).
-
-### 4. (Optionnel) Logs côté Edge Function
-
-Dans `photo-background-replace`, si l'erreur arrive après l'invocation, on l'aurait vue. Comme aucun log n'apparaît, on confirme que c'est bien un échec frontend/storage. Pas de modification serveur nécessaire pour l'instant.
-
-## Étapes après ton retour
-
-1. Tu me donnes le message d'erreur exact (ou capture).
-2. J'applique les correctifs SQL + frontend ci-dessus.
-3. On retente un upload pour valider.
-
-Veux-tu que je lance directement les correctifs 1, 2, 3 (ils sont sans risque), ou tu préfères d'abord me partager le message d'erreur ?
+Je vérifierai que :
+- la carte n’envoie plus directement vers Instagram
+- les deux options naviguent correctement
+- aucun autre CTA du dashboard n’est impacté

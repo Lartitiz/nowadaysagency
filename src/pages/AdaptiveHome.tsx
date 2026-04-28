@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import CalendarCoachingDialog from "@/components/calendar/CalendarCoachingDialog";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, ChevronDown, Clock } from "lucide-react";
+import { ArrowRight, ChevronDown, Clock, Globe, Instagram } from "lucide-react";
 
 import { useGuideRecommendation } from "@/hooks/use-guide-recommendation";
 import { useOnboardingMissions, OnboardingMission } from "@/hooks/use-onboarding-missions";
@@ -14,6 +14,13 @@ import ContentCoachingDialog from "@/components/dashboard/ContentCoachingDialog"
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import Confetti from "@/components/Confetti";
 import { MarkdownText } from "@/components/ui/markdown-text";
 import { isAurianaDemoEmail, AURIANA_DEMO_FLOW } from "@/lib/demo-auriana-data";
@@ -132,7 +139,7 @@ const TOUR_STEPS = [
 /* ── Mini-cards data ── */
 const MINI_CARDS = [
   { emoji: "🎨", title: "Mon identité", subtitle: "Affiner mon image de marque", bg: "bg-accent/10", route: "/branding" },
-  { emoji: "🔍", title: "Lancer un audit", subtitle: "Instagram ou site web", bg: "bg-[hsl(var(--bento-blue))]", route: "/instagram/audit" },
+  { emoji: "🔍", title: "Lancer un audit", subtitle: "Instagram ou site web", bg: "bg-[hsl(var(--bento-blue))]", route: "__choose_audit__" },
   { emoji: "✨", title: "Planifier ma semaine", subtitle: "Planning IA personnalisé", bg: "bg-rose-pale", route: "__plan_week__" },
   { emoji: "📅", title: "Mon calendrier", subtitle: "Planifier mes contenus", bg: "bg-accent/10", route: "/calendrier" },
 ];
@@ -148,6 +155,7 @@ export default function AdaptiveHome() {
   const [welcomeDone, setWelcomeDone] = useState(() => localStorage.getItem("lac_welcome_seen") === "true");
   const [contentCoachingOpen, setContentCoachingOpen] = useState(false);
   const [planWeekOpen, setPlanWeekOpen] = useState(false);
+  const [auditPickerOpen, setAuditPickerOpen] = useState(false);
   const [coachHovered, setCoachHovered] = useState(false);
 
   // Après l'enrichissement fire-and-forget, invalider le cache branding
@@ -192,9 +200,18 @@ export default function AdaptiveHome() {
       setPlanWeekOpen(true);
       return;
     }
+    if (route === "__choose_audit__") {
+      setAuditPickerOpen(true);
+      return;
+    }
     if (route === "/creer" && profileSummary.brandingTotal < 50) {
       toast({ title: "Tes contenus seront plus personnalisés une fois que tu auras posé tes bases 💡" });
     }
+    navigate(route);
+  };
+
+  const handleAuditChoice = (route: "/instagram/audit" | "/site/audit") => {
+    setAuditPickerOpen(false);
     navigate(route);
   };
 
@@ -337,6 +354,52 @@ export default function AdaptiveHome() {
         {/* Content Coaching Dialog */}
         <ContentCoachingDialog open={contentCoachingOpen} onOpenChange={setContentCoachingOpen} />
         <CalendarCoachingDialog open={planWeekOpen} onOpenChange={setPlanWeekOpen} />
+        <Dialog open={auditPickerOpen} onOpenChange={setAuditPickerOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Quel audit veux-tu lancer&nbsp;?</DialogTitle>
+              <DialogDescription>
+                Choisis l'espace que tu veux analyser maintenant.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="grid gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => handleAuditChoice("/instagram/audit")}
+                className="flex w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-4 text-left transition-colors hover:border-primary hover:bg-accent/40"
+              >
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent/60 text-foreground">
+                  <Instagram className="h-5 w-5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold text-foreground">Audit Instagram</span>
+                  <span className="block text-xs text-muted-foreground">
+                    Bio, feed, highlights et points d'amélioration.
+                  </span>
+                </span>
+                <ArrowRight className="h-4 w-4 text-muted-foreground" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleAuditChoice("/site/audit")}
+                className="flex w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-4 text-left transition-colors hover:border-primary hover:bg-accent/40"
+              >
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent/60 text-foreground">
+                  <Globe className="h-5 w-5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold text-foreground">Audit site web</span>
+                  <span className="block text-xs text-muted-foreground">
+                    Conversion, lisibilité et clarté des pages.
+                  </span>
+                </span>
+                <ArrowRight className="h-4 w-4 text-muted-foreground" />
+              </button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* WelcomeOverlay + GuidedTour */}
         <WelcomeOverlay prenom={profileSummary.firstName} />
