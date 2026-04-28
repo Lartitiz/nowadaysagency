@@ -124,6 +124,14 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
                   <Camera className="h-3.5 w-3.5" /> Partir de photos
                 </Button>
               )}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1.5 text-muted-foreground"
+                onClick={() => setShowTransform(true)}
+              >
+                <Repeat className="h-3.5 w-3.5" /> Transformer un contenu
+              </Button>
             </div>
           </div>
 
