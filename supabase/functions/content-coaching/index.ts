@@ -215,52 +215,17 @@ Deno.serve(async (req) => {
     let seed2 = CREATIVE_SEEDS[Math.floor(Math.random() * CREATIVE_SEEDS.length)];
     while (seed2 === seed1) seed2 = CREATIVE_SEEDS[Math.floor(Math.random() * CREATIVE_SEEDS.length)];
 
-    // Random hook structures to force variety
-    const HOOK_STRUCTURES = [
-      "Question rhétorique qui pique : 'Pourquoi [paradoxe] ?'",
-      "Confession : 'J'ai longtemps cru que [croyance]. Jusqu'à [déclic].'",
-      "Chiffre choc : '[Stat]% des [cible] font [erreur]. Et personne n'en parle.'",
-      "Contradiction : '[Conseil mainstream]. Sauf que c'est faux.'",
-      "Micro-scène : 'Ce matin, en [action banale], j'ai réalisé que...'",
-      "Liste-appât : 'Les 3 [trucs] que [les experts] ne disent jamais'",
-      "Comparaison inattendue : '[Chose A] et [chose B] ont plus en commun qu'on croit'",
-      "Observation tranchée : Nommer une erreur courante du secteur à la 3e personne (les solopreneuses, les coachs, le marché…), JAMAIS en interpellant le lecteur",
-      "Polarisation douce : Opposer deux postures du métier ('il y a celles qui X, il y a celles qui Y') sans s'adresser au lecteur",
-      "Promesse-mystère : Annoncer un changement de jeu inattendu dans son activité, sans le révéler tout de suite",
-    ];
-    const shuffledHooks = HOOK_STRUCTURES.sort(() => Math.random() - 0.5).slice(0, 3);
-
-    // Format-specific blocks (compacted)
+    // Format-specific blocks (allégés — on génère juste l'idée, pas le hook ni le brief)
     let formatBlock = "";
     if (format === "reel") {
-      formatBlock = `
-FORMAT REEL — règles spécifiques :
-- Le Reel est un objet VISUEL et SONORE qui se VIT en quelques secondes, pas un texte qui se lit.
-- Angles à privilégier : scène jouée, process montré, transformation visuelle, réaction caméra, démonstration, bug créatif (cf. ci-dessous).
-- Hook = phrase orale courte (max 8 mots) OU action visible démarrant en 1s OU pattern interrupt à 2-3s. INTERDIT : questions abstraites, affirmations conceptuelles, chiffres seuls.
-- Brief = mise en scène : ce qu'on voit (cadre, action), ce qui est dit à l'oral, ce qui apparaît en overlay, dynamique (jump cuts, plans fixes).
-`;
+      formatBlock = `\nFORMAT REEL : sujets qui se VIVENT en quelques secondes (scène jouée, process montré, transformation visuelle, démonstration). Éviter sujets purement conceptuels.\n`;
     } else if (format === "story") {
-      formatBlock = `
-FORMAT STORY — règles spécifiques :
-- La story s'aperçoit en 0,5s, ne se lit pas. Privilégier : coulisses brutes, prise de position instantanée, interaction directe (sondage, question, slider), teaser, séquence narrative courte (3-5 stories).
-- Hook story 1 = phrase ULTRA courte (max 6 mots) + visuel fort, OU overlay choc, OU question fermée appelant un sondage. INTERDIT : paragraphes, questions intellectuelles.
-- Brief = la SÉQUENCE complète (combien de stories, quoi sur chacune) + l'INTERACTION proposée.
-`;
+      formatBlock = `\nFORMAT STORY : sujets pour coulisses brutes, prise de position instantanée, séquence narrative courte, interaction (sondage, question).\n`;
     } else if (format === "pinterest_visual") {
-      formatBlock = `
-FORMAT PINTEREST VISUEL — règles spécifiques :
-- L'épingle se SCANNE en 1s. Privilégier : infographie, checklist, schéma, comparatif, avant/après, citation typographiée.
-- Hook = TITRE SEO cherchable et cliquable, format "[Bénéfice concret] : [méthode/nombre/angle]" avec mots-clés recherchés. INTERDIT : questions, confessions, hooks à twist.
-- Brief = description du VISUEL (type d'épingle, contenu textuel intégré, structure visuelle) + le TITRE SEO.
-`;
+      formatBlock = `\nFORMAT PINTEREST VISUEL : sujets qui se SCANNENT en 1s (infographie, checklist, schéma, comparatif, avant/après). Sujet = bénéfice concret + angle SEO cherchable.\n`;
     }
 
-    // BUG CRÉATIF condensé (au lieu d'EMBEDDED_EDUCATION complet)
-    const bugCreatifBlock = (format === "reel" || format === "story") ? `
-BUG CRÉATIF (à utiliser sur AU MOINS 1 idée sur 3 si le branding s'y prête) :
-Un contenu qui crée une rupture de pattern dans les premières secondes : geste inattendu, objet inhabituel, son décalé, énoncé qui surprend. Ce n'est PAS de l'humour gratuit, c'est un crochet visuel/sonore qui éduque sur le fond. Exemple : commencer par une action absurde liée au métier, puis enchaîner sur le vrai message. Ne pas l'utiliser si le branding est sobre/contemplatif ou sur sujet sensible.
-` : "";
+    const bugCreatifBlock = "";
 
     const cibleTxt = ctx?.profile?.cible || "non renseignée";
     const activiteTxt = ctx?.profile?.activite || ctx?.profile?.type_activite || "non renseignée";
