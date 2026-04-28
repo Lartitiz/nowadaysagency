@@ -6,6 +6,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { posthog } from "@/lib/posthog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2, CalendarDays, Palette } from "lucide-react";
@@ -145,6 +155,11 @@ export default function CreerUnifie() {
   // Snapshot des photos au moment de la génération du carrousel.
   // Sert de source de vérité pour handleGenerateVisuals si le state UI est reset.
   const [generatedWithPhotos, setGeneratedWithPhotos] = useState<any[]>([]);
+  // Dialog "photos manquantes" : remplace le downgrade silencieux.
+  const [photoMissingDialog, setPhotoMissingDialog] = useState<{
+    open: boolean;
+    rawType: "photo" | "mix" | null;
+  }>({ open: false, rawType: null });
   const [photoDescription, setPhotoDescription] = useState("");
   const [photoMode, setPhotoMode] = useState(false);
   const [demoGenerating, setDemoGenerating] = useState(false);
@@ -418,6 +433,15 @@ export default function CreerUnifie() {
   useEffect(() => {
     if (error) toast.error(error);
   }, [error]);
+
+  // Snapshot défensif : sync uploadedPhotos -> generatedWithPhotos dès qu'on a
+  // des photos. Évite la perte si le state UI est reset entre l'upload et la
+  // génération du visuel (changement d'onglet, re-render, etc.).
+  useEffect(() => {
+    if (uploadedPhotos.length > 0) {
+      setGeneratedWithPhotos((prev) => (prev.length === uploadedPhotos.length ? prev : uploadedPhotos));
+    }
+  }, [uploadedPhotos]);
 
   // ── Step handlers ──
 
@@ -1803,7 +1827,7 @@ export default function CreerUnifie() {
     }
   };
 
-  const handleGenerateVisuals = async () => {
+  const handleGenerateVisuals = async (opts?: { forceText?: boolean }) => {
     if (!result?.raw?.slides || visualLoading) return;
     setVisualLoading(true);
 
@@ -1848,6 +1872,19 @@ export default function CreerUnifie() {
         snapshot: generatedWithPhotos.length,
         used: photosForVisuals.length,
       });
+      // ═══ Downgrade EXPLICITE : si l'IA demande photo/mix mais qu'aucune photo
+      // n'est disponible, on n'applique JAMAIS un downgrade silencieux. On ouvre
+      // un dialog pour laisser l'utilisateur décider (ajouter des photos OU
+      // continuer en texte). Si forceText === true, l'utilisateur a confirmé.
+      let downgradeReason: "no_photos_at_generation" | "user_chose_text" | null = null;
+      if ((rawCarouselType === "photo" || rawCarouselType === "mix") && !hasActualPhotos) {
+        if (!opts?.forceText) {
+          setPhotoMissingDialog({ open: true, rawType: rawCarouselType });
+          setVisualLoading(false);
+          return;
+        }
+        downgradeReason = "user_chose_text";
+      }
       const effectiveCarouselType = (rawCarouselType === "photo" || rawCarouselType === "mix") && !hasActualPhotos
         ? "text"
         : rawCarouselType;
@@ -1990,6 +2027,9 @@ export default function CreerUnifie() {
         carousel_type: rawCarouselType || "text",
         effective_type: effectiveCarouselType || "text",
         has_photos: hasActualPhotos,
+        ui_state_count: uploadedPhotos.length,
+        snapshot_count: generatedWithPhotos.length,
+        downgrade_reason: downgradeReason,
         format: selectedFormat,
       };
       posthog.capture("carousel_visual_debug", diagnosticPayload);
@@ -2007,7 +2047,11 @@ export default function CreerUnifie() {
       if (fnError) throw fnError;
       if (data?.error) throw new Error(data.error);
       setVisualSlides(data.result?.slides_html || []);
-      toast.success("Visuels générés !");
+      if (downgradeReason === "user_chose_text") {
+        toast.success("Carrousel généré en mode texte (aucune photo disponible).");
+      } else {
+        toast.success("Visuels générés !");
+      }
     } catch (e: any) {
       posthog.capture("carousel_visual_error", {
         error_message: e?.message || "unknown",
@@ -2503,6 +2547,57 @@ export default function CreerUnifie() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog "photos manquantes" : remplace le downgrade silencieux des
+          carrousels mix/photo générés sans photos uploadées (cas typique :
+          entrée par le coaching, qui ne propose pas d'upload). */}
+      <AlertDialog
+        open={photoMissingDialog.open}
+        onOpenChange={(open) => {
+          if (!open) setPhotoMissingDialog({ open: false, rawType: null });
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Ce carrousel gagnerait à avoir des photos</AlertDialogTitle>
+            <AlertDialogDescription>
+              L'IA a structuré un carrousel{" "}
+              <strong>{photoMissingDialog.rawType === "mix" ? "mixte (texte + photos)" : "photo"}</strong>,
+              mais aucune photo n'a été uploadée. Tu peux en ajouter maintenant
+              ou continuer en mode texte uniquement.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel
+              onClick={() => setPhotoMissingDialog({ open: false, rawType: null })}
+            >
+              Annuler
+            </AlertDialogCancel>
+            <Button
+              variant="outline"
+              onClick={() => {
+                // Continuer en texte : relance la génération avec forceText.
+                setPhotoMissingDialog({ open: false, rawType: null });
+                handleGenerateVisuals({ forceText: true });
+              }}
+            >
+              Continuer en texte
+            </Button>
+            <AlertDialogAction
+              onClick={() => {
+                // Ajouter des photos : retour à l'étape format, on force le
+                // sub-mode mix pour exposer la zone d'upload. Le contexte
+                // (sujet, angle, réponses, format) est préservé.
+                setCarouselSubMode("mix");
+                setPhotoMissingDialog({ open: false, rawType: null });
+                setStep("format");
+              }}
+            >
+              Ajouter des photos
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

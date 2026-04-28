@@ -1,101 +1,63 @@
-## Diagnostic
+# Carrousels mixtes : fixer le downgrade silencieux + le cas coaching
 
-Le moteur `newsjacking-ai` cherche actuellement dans 6 axes très "actu chaude" (`politique_loi`, `economie_argent`, `societe_debat`...) avec des requêtes du type "actualité semaine France". C'est ce qui produit du contenu hors-sol : des trucs vrais, mais qu'aucun pont ne relie naturellement à toi.
+## Le vrai problème
 
-Tu veux trois changements :
+Quand on entre dans la création par le **coaching**, le flow saute directement de "coaching" → "questions" (cf. `handleCoachingSelect` ligne 436 de `CreerUnifie.tsx` : commentaire `"Coaching dialog already handles sub-mode choice"`). Sauf que le dialog de coaching **ne propose jamais d'uploader de photos** — il ne fait que choisir un sujet, un format et un objectif.
 
-1. **Type de sujets** → micro-phénomènes culturels (mots qui reviennent, formats émergents, obsessions collectives) plutôt qu'actu brûlante. alors ça peut être une actu mais faut que ça puisse connecté au projet
-2. **Connexion** → chaque sujet doit avoir un pont explicite vers ta cible ou ton expertise, sinon il dégage.
-3. **Surprise** → 1 sujet sur 3 doit sortir de l'ordinaire (le reste reste confortable).
+Résultat : `uploadedPhotos = []` à la génération. Si l'IA renvoie quand même `carousel_type: "mix"` (parce que le sujet s'y prête), le frontend détecte `hasActualPhotos = false` et bascule **silencieusement** en `text` (ligne 1851). L'utilisatrice ne comprend pas pourquoi son carrousel mixte est devenu un carrousel texte.
 
----
+## Ce qu'on va faire
 
-## Plan — 3 chantiers dans `newsjacking-ai/index.ts`
+### 1. Détecter et proposer un retour (cas coaching et tous les autres)
 
-### Chantier 1 — Remplacer les axes "actu chaude" par des axes "micro-phénomènes"
+Dans `CreerUnifie.tsx`, au moment où le visuel est sur le point d'être généré :
 
-Les 6 axes actuels deviennent 6 axes orientés culturel/comportemental. Le moteur en pioche toujours 3 au hasard pour la variété, mais sur un terrain beaucoup plus connecté à la com et à la culture.
+- Si `rawCarouselType ∈ {"photo", "mix"}` **et** `hasActualPhotos === false`, **ne pas downgrader silencieusement**.
+- Ouvrir un `AlertDialog` clair avec trois choix :
+  1. **"Ajouter des photos"** → ramène à l'étape `format` (upload zone visible) avec le sujet/angle/réponses préservés
+  2. **"Continuer en carrousel texte"** → bascule explicite vers `text`, avec toast confirmant le choix
+  3. **"Annuler"** → ferme la modale, ne fait rien
 
-Nouveaux axes proposés : je ne pense pas que ça doit venir des réseaux pck tout le monde ne travaille pas sur les réseaux dans les utilisateurs de l'otuil
+### 2. Préserver le contexte au retour à l'étape format
 
+Quand l'utilisatrice clique "Ajouter des photos", on doit **conserver** : `ideaText`, `objective`, `editorialAngle`, `answers`, `selectedFormat`, `carouselSubMode` (forcer à `mix`). Seul `step` change pour `format`. Comme ça elle reprend exactement où elle en est, juste pour uploader.
 
-| ID                      | Description                                                                                   | Exemple de requête                                            |
-| ----------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| `micro_tendance_reseau` | Format, son, mot, esthétique qui émerge sur Insta / TikTok / LinkedIn                         | "format viral réseaux sociaux émergent semaine"               |
-| `mot_qui_revient`       | Expression / concept qui sature les conversations en ligne                                    | "expression mot tendance conversation 2026 France"            |
-| `obsession_collective`  | Sujet sur lequel tout le monde a un avis sans qu'on sache pourquoi maintenant                 | "phénomène culturel obsession discussion France"              |
-| `comportement_emergent` | Nouvelle façon de consommer, travailler, se présenter                                         | "nouveau comportement génération tendance France"             |
-| `debat_recurrent`       | Vieux débat qui ressort sous un nouveau prétexte (productivité, authenticité, ego, pro/perso) | "débat authenticité productivité créateurs contenu"           |
-| `objet_culturel_passe`  | Film, livre, série, album sorti récemment dont on parle au-delà du public cible               | "sortie culturelle film série livre dont tout le monde parle" |
+### 3. Rendre le downgrade traceable
 
+- Ajouter un toast d'information **systématique** quand un downgrade se produit (même si l'utilisatrice a choisi "Continuer en texte") : `"Carrousel généré en mode texte (aucune photo disponible)"`.
+- Ajouter dans le payload de génération un champ `downgrade_reason` (`"no_photos_at_generation"` / `"user_chose_text"`) pour distinguer les deux cas dans les logs edge.
 
-Note : `politique_loi` et `economie_argent` disparaissent (trop actu pure). `viral_insolite` est gardé en esprit mais reformulé en `micro_tendance_reseau`.
+### 4. (Bonus minimal) Snapshot photos persistant
 
-### Chantier 2 — Pont explicite obligatoire (rejet en cas d'échec)
+Petit `useEffect` qui synchronise `uploadedPhotos` → `generatedWithPhotos` dès qu'il y a des photos. Évite la perte en cas de re-render entre l'upload et la génération. C'est défensif mais peu coûteux.
 
-Aujourd'hui, le champ `pertinence` existe mais c'est un nice-to-have descriptif. On le promeut en **garde-fou** :
+## Hors-scope (volontairement)
 
-- Renommer `pertinence` en `pont_explicite` dans le schéma.
-- Le prompt impose : pour chaque sujet, écrire en 1 phrase concrète **pourquoi cette personne en particulier (avec son activité / sa cible / son combat) a quelque chose à dire dessus**. Pas un lien forcé du genre "et ça nous rappelle que la communication...". Un vrai pont.
-- Règle de rejet dans le prompt : si le pont sonne forcé ou générique, **ne renvoie pas l'actu**. Mieux vaut 3 sujets connectés que 6 hors-sol.
-- Ajout d'une checklist anti-pont-forcé dans le prompt :
-  - ❌ "ça nous rappelle l'importance de..."
-  - ❌ "comme dans la com, il faut..."
-  - ❌ "à l'image de ce phénomène, votre marque..."
-  - ✅ "ta cible (X) vit exactement ce dilemme quand elle Y"
-  - ✅ "tu as déjà parlé de Z, ce sujet permet de creuser sous un autre angle"
+- **Pas d'ajout d'un step "photos" dans le dialog de coaching.** Tu as choisi "détecter et proposer un retour" → on garde le coaching focalisé sur le sujet/format/objectif et on délègue les photos à l'étape `format` existante, qui est déjà conçue pour ça.
+- Pas de refonte de `CoachingFlow.tsx`.
+- Pas de changement côté edge functions (`carousel-visual`, etc.).
 
-### Chantier 3 — Quota "1 sujet inattendu sur 3"
+## Détails techniques
 
-Aujourd'hui le moteur impose un mix de tons (`serieux_marquant`, `drole_decale`, `surprenant_contre_intuitif`). On reformule pour matcher le besoin :
+**Fichier principal** : `src/pages/CreerUnifie.tsx`
 
-- Renommer le champ `ton` en `registre`, avec 3 valeurs :
-  - `confortable` — sujet que ta cible reconnaîtrait immédiatement comme "de ton univers"
-  - `decalant` — sujet auquel personne dans ton secteur ne penserait
-  - `entre_deux` — connu mais pris sous un angle inattendu
-- Règle dans le prompt : sur N sujets renvoyés (3 à 6), **exactement ⌈N/3⌉ doivent être `decalant**`, le reste se répartit entre `confortable` et `entre_deux`.
-- Le `decalant` ne dispense PAS du pont explicite — il reste connecté, juste par un chemin moins évident.
+- Nouveau state : `const [photoMissingDialog, setPhotoMissingDialog] = useState<{ open: boolean; rawType: string | null }>({ open: false, rawType: null })`
+- Au début de `handleGenerate` (ou équivalent visuel), remplacer le calcul direct de `effectiveCarouselType` par :
+  ```ts
+  if ((rawCarouselType === "photo" || rawCarouselType === "mix") && !hasActualPhotos) {
+    setPhotoMissingDialog({ open: true, rawType: rawCarouselType });
+    return; // arrêter, attendre la décision utilisateur
+  }
+  ```
+- Trois handlers : `onAddPhotos` (→ `setStep("format")`), `onContinueAsText` (→ relance la génération avec `effectiveCarouselType = "text"` + toast), `onCancel`.
 
-### Détails techniques
+**Composant UI** : un `AlertDialog` shadcn déjà disponible, pas de nouvelle dépendance.
 
-Fichier touché : `supabase/functions/newsjacking-ai/index.ts` uniquement.
+**Logging** : ajouter `downgrade_reason` au log diagnostic (déjà présent ligne ~1860).
 
-Changements précis :
+## Critères d'acceptation
 
-- Lignes 99-107 : remplacer le tableau `AXES` par les 6 nouveaux axes.
-- Lignes 113-177 (le `systemPrompt`) : réécrire la section "RÈGLES DE QUALITÉ" pour intégrer le pont obligatoire + le quota 1/3 décalant + l'anti-pont-forcé.
-- Lignes 156-167 (schéma JSON) : renommer `pertinence` → `pont_explicite`, `ton` → `registre`, mettre à jour les valeurs enum.
-- Conserver le découpage globale/niche existant (3+3) — il fonctionne.
-
-Pas de changement DB (les actus ne sont pas persistées telles quelles, juste retournées au front).
-
-### Compatibilité front
-
-À vérifier avant de pusher : `src/components/creer/NewsjackingPanel.tsx` et `src/pages/CreerUnifie.tsx` consomment probablement les champs `ton` et `pertinence`. Pendant l'implémentation, il faudra :
-
-- soit mettre à jour les noms de champs côté front,
-- soit garder des alias dans la réponse de l'edge function (`ton` = `registre`, `pertinence` = `pont_explicite`).
-
-L'option alias est moins risquée pour ne rien casser. À décider au moment de l'implémentation après lecture du front.
-
-### Validation
-
-Après déploiement, tester avec 2-3 profils différents (un en charte business, un en charte créatif) :
-
-- Vérifier qu'aucun sujet ne tombe dans la politique pure / l'éco pure.
-- Vérifier que le `pont_explicite` cite **un élément précis** du profil (cible, activité, combat) et pas une généralité.
-- Vérifier qu'un tiers exactement des sujets est tagué `decalant`.
-
-### Hors-scope
-
-- Toucher à `newsjacking-angles` (la génération d'angles à partir d'une actu choisie) — c'est une étape postérieure, déjà refactorisée au tour précédent (règle de vérité).
-- Ajouter une UI de filtrage par registre/axe — peut venir plus tard si tu veux trier visuellement.
-- Persister les actus en DB pour historique — non demandé.
-
-### Mise à jour mémoire
-
-À la fin, mettre à jour `mem://features/newsjacking` pour refléter :
-
-- Axes orientés micro-phénomènes (pas actu chaude).
-- Pont explicite obligatoire.
-- Ratio 1/3 décalant.
+- Entrer par le coaching, choisir un sujet "carrousel" → générer → si l'IA renvoie `mix` sans photos, **un dialog s'affiche** au lieu d'un carrousel texte muet.
+- Cliquer "Ajouter des photos" → on retombe sur l'étape `format` avec le sujet/angle/réponses **intacts** et la zone d'upload visible.
+- Cliquer "Continuer en texte" → carrousel texte généré + **toast explicite**.
+- Aucun downgrade silencieux ne subsiste dans les logs (chaque cas a un `downgrade_reason`).
