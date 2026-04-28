@@ -239,3 +239,6 @@ verify_jwt = false
 
 [functions.photo-background-replace]
 verify_jwt = false
+
+[functions.photoroom-edit]
+verify_jwt = false
