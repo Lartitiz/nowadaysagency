@@ -434,6 +434,15 @@ export default function CreerUnifie() {
     if (error) toast.error(error);
   }, [error]);
 
+  // Snapshot défensif : sync uploadedPhotos -> generatedWithPhotos dès qu'on a
+  // des photos. Évite la perte si le state UI est reset entre l'upload et la
+  // génération du visuel (changement d'onglet, re-render, etc.).
+  useEffect(() => {
+    if (uploadedPhotos.length > 0) {
+      setGeneratedWithPhotos((prev) => (prev.length === uploadedPhotos.length ? prev : uploadedPhotos));
+    }
+  }, [uploadedPhotos]);
+
   // ── Step handlers ──
 
   const handleCoachingSelect = useCallback((data: { subject: string; format: string; objective: string; carouselSubMode?: "text" | "photo" | "mix" }) => {
