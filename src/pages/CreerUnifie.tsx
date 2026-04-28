@@ -1863,6 +1863,19 @@ export default function CreerUnifie() {
         snapshot: generatedWithPhotos.length,
         used: photosForVisuals.length,
       });
+      // ═══ Downgrade EXPLICITE : si l'IA demande photo/mix mais qu'aucune photo
+      // n'est disponible, on n'applique JAMAIS un downgrade silencieux. On ouvre
+      // un dialog pour laisser l'utilisateur décider (ajouter des photos OU
+      // continuer en texte). Si forceText === true, l'utilisateur a confirmé.
+      let downgradeReason: "no_photos_at_generation" | "user_chose_text" | null = null;
+      if ((rawCarouselType === "photo" || rawCarouselType === "mix") && !hasActualPhotos) {
+        if (!opts?.forceText) {
+          setPhotoMissingDialog({ open: true, rawType: rawCarouselType });
+          setVisualLoading(false);
+          return;
+        }
+        downgradeReason = "user_chose_text";
+      }
       const effectiveCarouselType = (rawCarouselType === "photo" || rawCarouselType === "mix") && !hasActualPhotos
         ? "text"
         : rawCarouselType;
