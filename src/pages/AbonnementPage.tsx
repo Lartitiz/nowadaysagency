@@ -334,7 +334,7 @@ export default function AbonnementPage() {
               plan === "binome" ? "border-primary bg-rose-pale" : "border-border hover:border-primary/30"
             }`}>
               <h3 className="font-display font-bold text-foreground">🤝 Ta binôme de com</h3>
-              <p className="text-lg font-semibold text-primary mt-1">250€/mois</p>
+              <p className="text-lg font-semibold text-primary mt-1">290€/mois</p>
               <p className="text-xs text-muted-foreground mt-0.5">Engagement 6 mois</p>
               <div className="text-[11px] text-muted-foreground mt-1 space-y-0.5 text-left">
                 <p>✅ L'outil complet (300 crédits/mois)</p>
