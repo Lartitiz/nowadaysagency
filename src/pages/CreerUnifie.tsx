@@ -1818,7 +1818,7 @@ export default function CreerUnifie() {
     }
   };
 
-  const handleGenerateVisuals = async () => {
+  const handleGenerateVisuals = async (opts?: { forceText?: boolean }) => {
     if (!result?.raw?.slides || visualLoading) return;
     setVisualLoading(true);
 
