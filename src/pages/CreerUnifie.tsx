@@ -31,7 +31,7 @@ import PinterestInspirationStep from "@/components/creer/PinterestInspirationSte
 import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
 import StructureReviewStep from "@/components/creer/StructureReviewStep";
 import type { SlideProposal, StructureProposal } from "@/components/creer/StructureReviewStep";
-import CreerTransformTab from "@/components/creer/CreerTransformTab";
+
 import { useContentGenerator } from "@/hooks/use-content-generator";
 import { CONTENT_STRUCTURES, EDITORIAL_ANGLES, LINKEDIN_EDITORIAL_ANGLES, PINTEREST_EDITORIAL_ANGLES, PINTEREST_VISUAL_ANGLES, getStructureForCombo } from "@/lib/content-structures";
 import { useAuth } from "@/contexts/AuthContext";
