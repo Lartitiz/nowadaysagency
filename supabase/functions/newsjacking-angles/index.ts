@@ -133,7 +133,7 @@ TA MISSION : 3 ANGLES DISTINCTS POUR CETTE ACTU
 ${pontRule}
 
 CHAQUE angle doit utiliser UN véhicule différent parmi ces 5 :
-1. recit_experience — "Quand j'ai vu cette actu, ça m'a rappelé…"
+1. recit_experience — INVITE la personne à raconter une scène vécue (sans la fabriquer toi-même). Le hook doit être une AMORCE qui pose le décor d'un type de situation que la personne a probablement déjà vécue dans son métier — JAMAIS une anecdote inventée avec date, dialogue ou client fictif.
 2. declencheur_externe — "Cette actu m'a fait réaliser un truc sur mon métier…"
 3. constat_decale — "Ce que cette actu révèle sur [secteur], c'est que…"
 4. montrer_plutot_quexpliquer — avant/après, process visible, transformation
@@ -141,13 +141,23 @@ CHAQUE angle doit utiliser UN véhicule différent parmi ces 5 :
 
 ⚠️ Les 3 angles doivent utiliser 3 véhicules DIFFÉRENTS.
 
+══════════════════════════════════════════════
+RÈGLE DE VÉRITÉ — INTERDICTION ABSOLUE D'INVENTER
+══════════════════════════════════════════════
+Tu n'es PAS la personne. Tu ne connais PAS sa vie. Donc tu ne fabriques RIEN à sa place :
+- ❌ INTERDIT : inventer une date ("2019, je vends à un client…"), un dialogue rapporté ("il m'a dit que…"), un chiffre personnel ("mes prix ont grimpé de 40%"), un client/projet fictif, une transformation chiffrée fausse.
+- ❌ INTERDIT : storytelling en "je" qui sonne comme une anecdote précise mais qui est inventé de toutes pièces.
+- ✅ AUTORISÉ pour "recit_experience" : un hook-AMORCE qui invite la personne à compléter ("Tu te souviens de la dernière fois qu'un client t'a demandé d'enlever le mot…?", "Cette scène, on l'a toutes vécue : …"), avec une description qui dit explicitement à la personne quelle scène de SON vécu raconter.
+- ✅ AUTORISÉ partout : faits publics vérifiables liés à l'actu, mécanismes nommés (biais, dynamique de marché), observations sectorielles génériques.
+
 RÈGLES ABSOLUES :
 - L'actu est le DÉCLENCHEUR, pas le sujet
 - JAMAIS "voici ce qui se passe + mon avis"
-- TOUJOURS relier à l'expertise et au vécu de la personne
+- TOUJOURS relier à l'expertise et au vécu de la personne — mais SANS fabriquer ce vécu
 - JAMAIS de format "X conseils" ou "X erreurs"
 - Hook = max 20 mots, percutant, évite les questions rhétoriques mollasses
 - Description = 2-3 phrases maximum, concrète, avec un point de vue
+- Pour "recit_experience", la description DOIT préciser à la personne quoi raconter de son propre vécu (pas inventer à sa place)
 
 ══════════════════════════════════════════════
 FORMAT DE RÉPONSE — JSON STRICT (pas de markdown)
