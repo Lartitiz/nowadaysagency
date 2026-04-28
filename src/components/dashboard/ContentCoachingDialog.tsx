@@ -13,11 +13,11 @@ type Step = 1 | 2 | "loading" | "result";
 
 interface ContentIdea {
   subject: string;
-  hook: string;
   angle: string;
   objective_tag: string;
   why_it_works: string;
-  brief: string;
+  hook?: string;
+  brief?: string;
 }
 
 interface ContentResult {
