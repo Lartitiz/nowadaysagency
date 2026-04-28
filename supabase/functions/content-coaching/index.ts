@@ -339,6 +339,15 @@ LinkedIn : Post/Carrousel → /creer?format=linkedin
 Pinterest : Texte → /creer?canal=pinterest | Visuelle → /creer?canal=pinterest&format=pinterest_visual
 Newsletter → /creer?format=newsletter
 
+═══════════════════════════════════════════════
+TEST DE VALIDITÉ — applique-le sur CHAQUE idée AVANT de la sortir
+═══════════════════════════════════════════════
+1. Si l'idée contient une ANALOGIE ("X est comme Y", "X communique comme Y") → est-ce que Y fonctionne vraiment de cette manière ? Si non, change d'analogie ou supprime-la.
+2. Si l'idée contient un CONTRE-PIED ("contrairement à ce qu'on croit, X") → est-ce que la croyance énoncée est vraiment répandue ET est-ce que le contre-pied est factuellement vrai ? Si l'un des deux est faux, change d'angle.
+3. Si l'idée contient un CHIFFRE → applique la RÈGLE DE VÉRITÉ. Aucun chiffre inventé.
+4. Si l'idée contient un RETEX en JE → est-ce qu'il est cohérent avec le parcours/métier réel de l'utilisatrice tel qu'il apparaît dans le contexte branding ? Si non, reformule.
+5. Si l'idée cite une marque → applique l'ALIGNEMENT D'ÉCHELLE. Pas de géants en hook.
+
 Retourne UNIQUEMENT ce JSON (pas de markdown, pas de commentaires) :
 {
   "ideas": [
@@ -348,7 +357,7 @@ Retourne UNIQUEMENT ce JSON (pas de markdown, pas de commentaires) :
       "angle": "Nom de l'angle éditorial",
       "objective_tag": "visibilite|engagement|vente|credibilite",
       "why_it_works": "1 phrase : pourquoi ça résonne avec SON audience (mentionne sa cible, secteur ou un verbatim)",
-      "brief": "2-3 phrases : architecture intellectuelle. Quel mécanisme, quelle donnée, quel retournement."
+      "brief": "2-3 phrases : architecture intellectuelle. Quel mécanisme, quelle donnée VÉRIFIABLE, quel retournement JUSTE."
     }
   ],
   "recommended_format": "${formatLabel}",
@@ -359,8 +368,8 @@ Retourne UNIQUEMENT ce JSON (pas de markdown, pas de commentaires) :
     const raw = await callAnthropicSimple(
       getModelForAction("coaching_light"),
       systemPrompt,
-      "Génère 3 idées de contenu ultra-concrètes avec un hook irrésistible pour chaque.",
-      0.9,
+      "Génère 3 idées de contenu ultra-concrètes avec un hook irrésistible pour chaque. Avant de répondre, applique le TEST DE VALIDITÉ sur chaque idée.",
+      0.75,
       1800,
     );
 
