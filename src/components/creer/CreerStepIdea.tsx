@@ -46,14 +46,27 @@ function getPlaceholder(activite?: string): string {
   return "Ex : je veux montrer un projet récent / je voudrais parler de pourquoi je fais ce métier / j'ai envie de réagir à une actu...";
 }
 
-export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingSelect, onPhotosNext, workspaceId, activite, initialIdea }: Props) {
+export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingSelect, onPhotosNext, workspaceId, activite, initialIdea, autoOpenTransform }: Props) {
   const [idea, setIdea] = useState(initialIdea || "");
   const [coachOpen, setCoachOpen] = useState(false);
   const [showNewsjacking, setShowNewsjacking] = useState(false);
   const [showPhotosMode, setShowPhotosMode] = useState(false);
+  const [showTransform, setShowTransform] = useState(!!autoOpenTransform);
   const [localPhotos, setLocalPhotos] = useState<PhotoItem[]>([]);
   const [localDescription, setLocalDescription] = useState("");
   const { toast } = useToast();
+
+  // Si on arrive via un legacy redirect (?mode=transform), nettoyer le param
+  // de l'URL pour éviter que le panneau ne se ré-ouvre au refresh.
+  useEffect(() => {
+    if (autoOpenTransform && typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has("mode")) {
+        url.searchParams.delete("mode");
+        window.history.replaceState({}, "", url.toString());
+      }
+    }
+  }, [autoOpenTransform]);
 
   const exitPhotosMode = () => {
     setShowPhotosMode(false);
