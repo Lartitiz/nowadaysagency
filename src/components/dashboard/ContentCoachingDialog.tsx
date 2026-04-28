@@ -13,11 +13,11 @@ type Step = 1 | 2 | "loading" | "result";
 
 interface ContentIdea {
   subject: string;
-  hook: string;
   angle: string;
   objective_tag: string;
   why_it_works: string;
-  brief: string;
+  hook?: string;
+  brief?: string;
 }
 
 interface ContentResult {
@@ -416,9 +416,9 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
                         }`}
                       >
                         <p className={`text-sm font-bold leading-snug ${isSelected ? "text-primary" : "text-foreground"}`}>
-                          « {idea.hook} »
+                          {idea.subject}
                         </p>
-                        <div className="flex items-center gap-2 mt-2">
+                        <div className="flex items-center gap-2 mt-2 flex-wrap">
                           <span className="text-[10px] font-semibold uppercase tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded-full">
                             {idea.angle}
                           </span>
@@ -429,16 +429,8 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
                             <span className="ml-auto text-[10px] text-muted-foreground/70">Voir le détail →</span>
                           )}
                         </div>
-                        {isSelected && (
-                          <div className="mt-3 pt-3 border-t border-border/50 space-y-2 animate-fade-in">
-                            <div>
-                              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Sujet</p>
-                              <p className="text-xs text-foreground leading-relaxed">{idea.subject}</p>
-                            </div>
-                            <div>
-                              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Brief</p>
-                              <p className="text-xs text-foreground leading-relaxed">{idea.brief}</p>
-                            </div>
+                        {isSelected && idea.why_it_works && (
+                          <div className="mt-3 pt-3 border-t border-border/50 animate-fade-in">
                             <p className="text-[11px] text-muted-foreground italic">💡 {idea.why_it_works}</p>
                           </div>
                         )}
