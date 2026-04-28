@@ -2038,7 +2038,11 @@ export default function CreerUnifie() {
       if (fnError) throw fnError;
       if (data?.error) throw new Error(data.error);
       setVisualSlides(data.result?.slides_html || []);
-      toast.success("Visuels générés !");
+      if (downgradeReason === "user_chose_text") {
+        toast.success("Carrousel généré en mode texte (aucune photo disponible).");
+      } else {
+        toast.success("Visuels générés !");
+      }
     } catch (e: any) {
       posthog.capture("carousel_visual_error", {
         error_message: e?.message || "unknown",
