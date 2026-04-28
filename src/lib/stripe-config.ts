@@ -28,7 +28,7 @@ export const STRIPE_PLANS = {
   },
   binome_monthly: {
     name: "Ton binôme de com'",
-    price: 250,
+    price: 290,
     priceId: "price_1T7uZbIwPeG7Gjpy3arZSdx8",
     productId: "prod_U66n9TkhjJae5r",
     mode: "subscription" as const,
