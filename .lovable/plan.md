@@ -1,45 +1,48 @@
 ## Objectif
-Faire en sorte que la carte « Lancer un audit » du dashboard permette réellement de choisir entre **audit Instagram** et **audit site web**, au lieu d’envoyer automatiquement vers Instagram.
 
-## Ce que je vais modifier
-1. Remplacer le routage direct de la mini-carte d’audit sur la page d’accueil par une ouverture de sélection.
-2. Ajouter une petite fenêtre de choix avec 2 options claires :
-   - Instagram
-   - Site web
-3. Rediriger chaque option vers la bonne page existante :
-   - `/instagram/audit`
-   - `/site/audit`
-4. Garder le reste du comportement du dashboard intact, sans toucher aux autres CTA qui sont volontairement spécifiques à Instagram ou LinkedIn.
+Réduire le temps perçu d'attente dans le Coach contenu en n'affichant au départ que l'essentiel des 3 idées (hook + angle court). Les détails (sujet long, brief, "pourquoi ça marche") s'ouvrent uniquement quand l'utilisatrice clique sur une idée — sans nouvelle génération IA.
 
-## Détails d’implémentation
-- Fichier principal concerné : `src/pages/AdaptiveHome.tsx`
-- Approche :
-  - introduire un état local pour ouvrir/fermer un `Dialog`
-  - remplacer la route statique de la carte audit par une action spéciale du type `__choose_audit__`
-  - faire passer cette action par `handleNavigate()`
-  - utiliser les composants UI déjà présents dans le projet pour rester cohérent visuellement
-- Le contenu de la sélection sera sobre et explicite, pour éviter toute ambiguïté entre la promesse du texte et l’action réelle.
+## Principe retenu
 
-## Ce que je ne vais pas changer
-- Les pages d’audit elles-mêmes
-- Les audits LinkedIn
-- Les recommandations intelligentes du dashboard qui pointent déjà explicitement vers un audit précis
-- La sidebar, qui a déjà des entrées séparées par espace
+3 idées allégées, détail inline sous la carte sélectionnée, **une seule génération** côté serveur (on évite un deuxième appel IA pour ne pas re-payer en latence).
 
-## Résultat attendu
-Quand on clique sur « Lancer un audit » depuis la carte du dashboard, une sélection s’ouvre et l’utilisateur choisit le type d’audit avant d’être redirigé.
+## Changements UI dans `ContentCoachingDialog.tsx`
 
-## Détail technique
-Flux visé :
+État de chargement (étape "loading") :
+- Skeleton plus compact : 3 lignes courtes au lieu des 3 cartes hautes actuelles.
+- Réduire la hauteur du dialog pendant le loading (moins de "ça défile dans le vide").
+- Garder le `LoadingMessage` rotatif mais raccourcir les messages.
 
-```text
-Dashboard mini-card
-  -> ouverture d’une modal
-    -> clic sur Instagram -> /instagram/audit
-    -> clic sur Site web -> /site/audit
-```
+Étape "result" (`step === "result"`) avec idées :
+- Carte fermée par défaut : afficher uniquement
+  - le hook (« … »),
+  - le tag d'angle (badge),
+  - le tag d'objectif.
+- **Masquer par défaut** : `idea.subject` (le résumé long sous le hook), `idea.brief`, `idea.why_it_works`.
+- Au clic sur une carte (`setSelectedIdea`), révéler en dessous, dans la même carte, un bloc dépliant :
+  - `subject` (en label "Sujet")
+  - `brief`
+  - `why_it_works` (en italique discret)
+- Animation `animate-fade-in` déjà utilisée → réutiliser pour la zone dépliée.
+- Un seul élément ouvert à la fois (déjà géré par `selectedIdea`).
+- Le bouton « C'est parti, on crée ! » reste désactivé tant qu'aucune idée n'est sélectionnée (comportement actuel conservé).
 
-Je vérifierai que :
-- la carte n’envoie plus directement vers Instagram
-- les deux options naviguent correctement
-- aucun autre CTA du dashboard n’est impacté
+Bloc "Format recommandé" :
+- Le replier sous un petit toggle "Pourquoi ce format ?" pour alléger la vue (optionnel mais cohérent avec la demande).
+
+## Ce qui ne change PAS
+
+- L'edge function `content-coaching` reste inchangée : elle renvoie déjà tout en un appel. On exploite simplement mieux la donnée côté front (chargement progressif visuel, pas progressif réseau).
+- Pas de nouvel appel IA au clic — pour éviter d'allonger le temps total et la consommation de quota.
+- Aucune logique métier modifiée : `handleGo`, redirection, `onSelect`, sous-mode carrousel, surprise — tout reste identique.
+
+## Fichiers touchés
+
+- `src/components/dashboard/ContentCoachingDialog.tsx` (UI uniquement)
+
+## Vérif après implémentation
+
+- Lancer le coach, vérifier que la vue résultat affiche 3 cartes compactes.
+- Cliquer sur une idée → le brief apparaît inline, fade-in fluide.
+- Re-cliquer → la carte se referme.
+- Cliquer sur « C'est parti » → même redirection qu'avant.

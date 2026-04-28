@@ -87,10 +87,9 @@ const CANAL_FORMATS = [
 
 function LoadingMessage() {
   const messages = [
-    "Je fouille dans ton branding…",
-    "Je cherche des angles originaux…",
-    "Je formule 3 idées percutantes…",
-    "J'écris un hook percutant pour chaque…",
+    "Je fouille ton univers…",
+    "Je cherche des angles…",
+    "Je formule 3 idées…",
     "Derniers ajustements…",
   ];
   const [index, setIndex] = useState(0);
@@ -375,26 +374,19 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
 
         {/* ─── Loading ─── */}
         {step === "loading" && (
-          <div className="space-y-4 animate-fade-in py-4">
-            <div className="space-y-2">
+          <div className="space-y-3 animate-fade-in py-3">
+            <div className="space-y-1.5">
               {[1, 2, 3].map((i) => (
                 <div
                   key={i}
-                  className="rounded-xl border border-border bg-muted/30 p-3.5 animate-pulse"
+                  className="rounded-lg border border-border bg-muted/30 p-2.5 animate-pulse"
                   style={{ animationDelay: `${i * 150}ms`, animationFillMode: "backwards" }}
                 >
-                  <div className="h-3.5 bg-muted rounded-full w-3/4 mb-2" />
-                  <div className="flex gap-2">
-                    <div className="h-2.5 bg-muted rounded-full w-1/3" />
-                    <div className="h-2.5 bg-muted rounded-full w-1/4" />
-                  </div>
+                  <div className="h-2.5 bg-muted rounded-full w-2/3" />
                 </div>
               ))}
             </div>
             <LoadingMessage />
-            <p className="text-[11px] text-muted-foreground text-center px-4">
-              💡 L'IA analyse ton branding pour proposer des idées vraiment adaptées à ton univers.
-            </p>
           </div>
         )}
 
@@ -417,7 +409,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
                       <button
                         key={i}
                         onClick={() => setSelectedIdea(isSelected ? null : idea)}
-                        className={`w-full text-left rounded-xl border-2 p-3.5 transition-all ${
+                        className={`w-full text-left rounded-xl border-2 p-3 transition-all ${
                           isSelected
                             ? "border-primary bg-primary/5 shadow-sm"
                             : "border-border bg-card hover:border-primary/40"
@@ -426,9 +418,6 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
                         <p className={`text-sm font-bold leading-snug ${isSelected ? "text-primary" : "text-foreground"}`}>
                           « {idea.hook} »
                         </p>
-                        <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-                          {idea.subject}
-                        </p>
                         <div className="flex items-center gap-2 mt-2">
                           <span className="text-[10px] font-semibold uppercase tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded-full">
                             {idea.angle}
@@ -436,11 +425,21 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
                           <span className="text-[10px] text-muted-foreground">
                             {objectiveEmojis[idea.objective_tag] || "✨"} {idea.objective_tag}
                           </span>
+                          {!isSelected && (
+                            <span className="ml-auto text-[10px] text-muted-foreground/70">Voir le détail →</span>
+                          )}
                         </div>
                         {isSelected && (
                           <div className="mt-3 pt-3 border-t border-border/50 space-y-2 animate-fade-in">
-                            <p className="text-xs text-foreground leading-relaxed">{idea.brief}</p>
-                            <p className="text-[11px] text-muted-foreground italic">{idea.why_it_works}</p>
+                            <div>
+                              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Sujet</p>
+                              <p className="text-xs text-foreground leading-relaxed">{idea.subject}</p>
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Brief</p>
+                              <p className="text-xs text-foreground leading-relaxed">{idea.brief}</p>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground italic">💡 {idea.why_it_works}</p>
                           </div>
                         )}
                       </button>
