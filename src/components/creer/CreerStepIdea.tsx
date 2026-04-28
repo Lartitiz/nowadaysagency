@@ -18,6 +18,7 @@ interface Props {
   workspaceId?: string;
   activite?: string;
   initialIdea?: string;
+  autoOpenTransform?: boolean;
 }
 
 const ACTIVITY_PLACEHOLDERS: Record<string, string> = {
