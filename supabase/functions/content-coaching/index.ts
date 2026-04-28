@@ -328,13 +328,19 @@ Les idées parlent du MÉTIER de l'utilisatrice (photographie si photographe, c�
 Test de spécificité : si l'idée pourrait fonctionner pour quelqu'un d'un autre secteur, elle est trop vague.
 
 MÉTHODE — pour chaque idée :
-1. Pioche un ANGLE ÉDITORIAL VARIÉ (les 3 idées doivent être radicalement différentes) : enquête/décryptage, mythe à déconstruire, conseil contre-intuitif, storytelling avec leçon, histoire cliente, surf sur l'actu, regard philosophique, before/after, build in public, ou un autre angle pertinent.
-2. Applique au moins 1 CONTRAINTE CRÉATIVE :
+1. Les 3 idées DOIVENT piocher dans 3 catégories DIFFÉRENTES parmi :
+   A. Observation de terrain ancrée (vu chez ses clientes / dans son secteur de cible)
+   B. Mécanisme/biais nommé et décortiqué
+   C. Contre-pied factuel d'un conseil mainstream PRÉCIS et VÉRIFIABLEMENT répandu
+   D. Micro-scène / archive personnelle (un moment, un détail concret)
+   E. Question ouverte sans réponse (qui invite la cible à formuler la sienne)
+   F. Décryptage d'un mot/concept galvaudé du secteur de la cible
+2. Applique au moins 1 CONTRAINTE CRÉATIVE si elle s'y prête naturellement :
    🎲 ${seed1}
    🎲 ${seed2}
-3. Construis un HOOK qui stoppe le scroll (max 15 mots, fonctionne SEUL) :
+3. Construis un HOOK qui stoppe le scroll (max 15 mots, fonctionne SEUL, OUVRE sur la suite — ne résume pas) :
 ${shuffledHooks.map((h, i) => `   Idée ${i + 1} → ${h}`).join("\n")}
-4. Le BRIEF doit contenir au moins 1 de : un mécanisme à expliquer (biais, paradoxe), une donnée/référence, un retournement, ou une tension. Pas juste "on parle de X sous l'angle Y".
+4. Le BRIEF doit contenir au moins 1 de : un mécanisme nommé et décrit, une donnée vérifiable, un retournement factuel, une tension localisée. Pas juste "on parle de X sous l'angle Y".
 
 VOIX & TON :
 - Adapte au profil de voix de l'utilisatrice (registre, tutoiement/vouvoiement, expressions).
