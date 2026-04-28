@@ -170,13 +170,17 @@ export async function uploadPhotoOriginal({
     .from(USER_PHOTOS_BUCKET)
     .upload(originalPath, blob, {
       contentType: "image/jpeg",
-      upsert: true,
+      upsert: false,
     });
 
   if (upload.error) {
     // Best-effort cleanup
     await supabase.from("user_photos").delete().eq("id", photoId);
-    throw new Error(upload.error.message);
+    const raw = upload.error.message || "";
+    if (raw.toLowerCase().includes("row-level security")) {
+      throw new Error("Le stockage a refusé l'envoi de la photo. Recharge la page puis réessaie.");
+    }
+    throw new Error(raw || "Impossible d'envoyer la photo dans le stockage");
   }
 
   // Update the row with the real paths
@@ -189,7 +193,7 @@ export async function uploadPhotoOriginal({
     .eq("id", photoId);
 
   if (update.error) {
-    throw new Error(update.error.message);
+    throw new Error(update.error.message || "Impossible de finaliser la photo");
   }
 
   return { photoId, originalPath };
