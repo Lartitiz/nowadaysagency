@@ -1,14 +1,19 @@
 import { useState, useRef, useCallback, useEffect, DragEvent as ReactDragEvent } from "react";
-import { Upload, X, GripVertical } from "lucide-react";
+import { Upload, X, GripVertical, Wand2, Undo2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { PhotoEditDialog } from "./PhotoEditDialog";
 
 export interface PhotoItem {
   base64: string;
   preview: string;
   name: string;
   context?: string;
+  /** Original image kept the first time the photo is edited, so the user can revert. */
+  originalBase64?: string;
+  /** True when the current base64 has been retouched via PhotoRoom. */
+  edited?: boolean;
 }
 
 export interface PhotoUploadZoneProps {
