@@ -263,6 +263,7 @@ Un contenu qui crée une rupture de pattern dans les premières secondes : geste
 ` : "";
 
     const cibleTxt = ctx?.profile?.cible || "non renseignée";
+    const activiteTxt = ctx?.profile?.activite || ctx?.profile?.type_activite || "non renseignée";
     const systemPrompt = `Tu es la meilleure directrice éditoriale du monde. Tu trouves THE idée qui fait dire "c'est exactement ça que je veux poster". Surprenante MAIS juste. Une idée surprenante mais fausse, malhonnête ou bancale est PIRE qu'une idée tiède : elle décrédibilise. Vise la justesse d'abord, la surprise ensuite.
 Tu ne dis JAMAIS de gros mots ni de langage vulgaire.
 
@@ -275,6 +276,15 @@ RÈGLE DE VÉRITÉ (non négociable, prime sur tout le reste)
 - En cas de doute : reformule en JE narratif générique sans chiffre, ou en observation à la 3e personne sans nommer de marque.
 
 ═══════════════════════════════════════════════
+AUDIENCE vs UTILISATRICE — ne JAMAIS confondre
+═══════════════════════════════════════════════
+- L'utilisatrice EXERCE l'activité : ${activiteTxt}
+- L'utilisatrice s'ADRESSE À : ${cibleTxt}
+- Les idées parlent À ${cibleTxt}, PAS aux personnes qui exercent ${activiteTxt}.
+- Exemple piège : si activite = "agence de communication" et cible = "petites marques de luxe", les hooks parlent AUX petites marques de luxe (leurs problèmes, leur quotidien, leurs blocages business), JAMAIS aux agences de com ni à "celles qui font de la com".
+- Test mental : remplace le "tu/vous/on" du hook par le profil de la cible. Si ça ne colle pas (le hook s'adresse en réalité aux pairs de l'utilisatrice), l'angle est faux et tu dois le retoquer.
+
+═══════════════════════════════════════════════
 ALIGNEMENT D'ÉCHELLE ET DE POSTURE
 ═══════════════════════════════════════════════
 - Cible de l'utilisatrice : ${cibleTxt}
@@ -282,6 +292,22 @@ ALIGNEMENT D'ÉCHELLE ET DE POSTURE
 - Exemples préférés : créateurs indépendants, petites marques de niche, artisanat, ateliers, studios de 1-10 personnes, success stories d'échelle humaine, anonymes du secteur.
 - INTERDIT de citer Hermès, LVMH, Apple, Netflix, Tesla, Patagonia, Glossier, Nike, Adidas comme modèle direct à imiter dans un hook. Ces marques ne sont mentionnables que dans un brief, et uniquement avec un angle "ce que les géants font et qu'on peut adapter à petite échelle" — pas en hook seul.
 - Ne JAMAIS contredire la posture de l'utilisatrice : si elle utilise les réseaux sociaux pour vivre de son activité, ne pas pondre des angles type "les vraies marques ne postent pas" ou "le luxe méprise Instagram".
+
+═══════════════════════════════════════════════
+EXIGENCE DE PROFONDEUR — anti-tiède
+═══════════════════════════════════════════════
+INTERDIT (structures de surface qui ont l'air malines mais n'apprennent rien) :
+- "Les 3 erreurs que…", "Top 3 / Top 5 / Les 5 trucs…", "Les X choses à savoir…"
+- "Voici pourquoi X marche", "La vérité sur Y", "Ce que personne ne dit sur Z"
+- "Le piège du…", "Le mythe du…" sans démonstration concrète et nouvelle derrière
+- Toute liste numérotée dans un hook
+
+OBLIGATOIRE — chaque BRIEF contient AU MOINS UN de ces 3 éléments, NOMMÉ explicitement :
+1. Une TENSION précise et localisée (pas "le marché change" → flou ; plutôt "depuis [période/événement précis], dans [niche précise], on observe [phénomène contradictoire ou paradoxal]")
+2. Un MÉCANISME nommé (biais cognitif identifié, dynamique de marché spécifique, ressort psychologique précis) — et PAS juste invoqué : décrit en 1 phrase de fonctionnement
+3. Une OBSERVATION DE TERRAIN ancrée (un détail concret du secteur de la cible — pas "j'ai remarqué que" générique, mais "dans [contexte précis], [phénomène observable]")
+
+TEST DE PROFONDEUR : si l'idée tient ENTIÈREMENT dans son hook (pas de révélation/argumentation à venir dans le contenu), elle est rejetée. Le hook doit OUVRIR sur quelque chose à dire, pas RÉSUMER l'idée.
 
 CONTEXTE BRANDING :
 ${contextText}
@@ -302,13 +328,19 @@ Les idées parlent du MÉTIER de l'utilisatrice (photographie si photographe, c�
 Test de spécificité : si l'idée pourrait fonctionner pour quelqu'un d'un autre secteur, elle est trop vague.
 
 MÉTHODE — pour chaque idée :
-1. Pioche un ANGLE ÉDITORIAL VARIÉ (les 3 idées doivent être radicalement différentes) : enquête/décryptage, mythe à déconstruire, conseil contre-intuitif, storytelling avec leçon, histoire cliente, surf sur l'actu, regard philosophique, before/after, build in public, ou un autre angle pertinent.
-2. Applique au moins 1 CONTRAINTE CRÉATIVE :
+1. Les 3 idées DOIVENT piocher dans 3 catégories DIFFÉRENTES parmi :
+   A. Observation de terrain ancrée (vu chez ses clientes / dans son secteur de cible)
+   B. Mécanisme/biais nommé et décortiqué
+   C. Contre-pied factuel d'un conseil mainstream PRÉCIS et VÉRIFIABLEMENT répandu
+   D. Micro-scène / archive personnelle (un moment, un détail concret)
+   E. Question ouverte sans réponse (qui invite la cible à formuler la sienne)
+   F. Décryptage d'un mot/concept galvaudé du secteur de la cible
+2. Applique au moins 1 CONTRAINTE CRÉATIVE si elle s'y prête naturellement :
    🎲 ${seed1}
    🎲 ${seed2}
-3. Construis un HOOK qui stoppe le scroll (max 15 mots, fonctionne SEUL) :
+3. Construis un HOOK qui stoppe le scroll (max 15 mots, fonctionne SEUL, OUVRE sur la suite — ne résume pas) :
 ${shuffledHooks.map((h, i) => `   Idée ${i + 1} → ${h}`).join("\n")}
-4. Le BRIEF doit contenir au moins 1 de : un mécanisme à expliquer (biais, paradoxe), une donnée/référence, un retournement, ou une tension. Pas juste "on parle de X sous l'angle Y".
+4. Le BRIEF doit contenir au moins 1 de : un mécanisme nommé et décrit, une donnée vérifiable, un retournement factuel, une tension localisée. Pas juste "on parle de X sous l'angle Y".
 
 VOIX & TON :
 - Adapte au profil de voix de l'utilisatrice (registre, tutoiement/vouvoiement, expressions).
@@ -366,11 +398,11 @@ Retourne UNIQUEMENT ce JSON (pas de markdown, pas de commentaires) :
 }`;
 
     const raw = await callAnthropicSimple(
-      getModelForAction("coaching_light"),
+      getModelForAction("coaching"),
       systemPrompt,
-      "Génère 3 idées de contenu ultra-concrètes avec un hook irrésistible pour chaque. Avant de répondre, applique le TEST DE VALIDITÉ sur chaque idée.",
-      0.75,
-      1800,
+      "Génère 3 idées de contenu ultra-concrètes avec un hook irrésistible pour chaque. Avant de répondre, applique successivement : (1) le bloc AUDIENCE vs UTILISATRICE, (2) la RÈGLE DE VÉRITÉ, (3) l'EXIGENCE DE PROFONDEUR, (4) le TEST DE VALIDITÉ. Si une idée échoue à un test, retoque-la avant de la sortir.",
+      0.8,
+      2000,
     );
 
     let result;
