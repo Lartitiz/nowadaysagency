@@ -194,8 +194,9 @@ export interface EditableBlock {
     textAlign: "left" | "center" | "right";
     textTransform: string;
     lineHeight: number;
+    letterSpacingPx: number;
   };
-  kind: "title" | "body" | "overlay";
+  kind: "title" | "body" | "overlay" | "caption";
 }
 
 function parseAlign(v: string): "left" | "center" | "right" {
