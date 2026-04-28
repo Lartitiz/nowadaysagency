@@ -96,17 +96,18 @@ serve(async (req) => {
 
     const model = getModelForAction("content");
 
-    // 6 thematic axes — orthogonal, not overlapping
+    // 6 axes orientés micro-phénomènes culturels et comportementaux
+    // (plus de politique/éco pure, plus de "réseaux sociaux" — tout le monde n'est pas créateur)
     const AXES = [
-      { id: "societe_debat", query: "débat société France actualité semaine" },
-      { id: "economie_argent", query: "économie pouvoir d'achat France actualité semaine" },
-      { id: "culture_pop", query: "sortie culturelle film série livre musique France actualité" },
-      { id: "science_decouverte", query: "étude scientifique découverte recherche France actualité" },
-      { id: "politique_loi", query: "nouvelle loi réforme décision France actualité" },
-      { id: "viral_insolite", query: "phénomène viral insolite fait divers France actualité" },
+      { id: "mot_qui_revient", query: "expression mot concept qui revient conversations 2026 France" },
+      { id: "obsession_collective", query: "phénomène culturel dont tout le monde parle France 2026" },
+      { id: "comportement_emergent", query: "nouveau comportement quotidien tendance société France 2026" },
+      { id: "debat_recurrent", query: "débat récurrent authenticité productivité éthique vie quotidienne 2026" },
+      { id: "objet_culturel", query: "film série livre album sortie récente discussion France 2026" },
+      { id: "actu_connectable", query: "actualité société qui touche au quotidien et aux choix de vie France 2026" },
     ];
 
-    // Pick 3 distinct axes for the 3 global news items
+    // Pick 3 distinct axes for the 3 global items
     const shuffled = [...AXES].sort(() => Math.random() - 0.5);
     const pickedAxes = shuffled.slice(0, 3);
 
