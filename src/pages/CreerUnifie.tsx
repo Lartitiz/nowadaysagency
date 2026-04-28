@@ -2547,6 +2547,57 @@ export default function CreerUnifie() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog "photos manquantes" : remplace le downgrade silencieux des
+          carrousels mix/photo générés sans photos uploadées (cas typique :
+          entrée par le coaching, qui ne propose pas d'upload). */}
+      <AlertDialog
+        open={photoMissingDialog.open}
+        onOpenChange={(open) => {
+          if (!open) setPhotoMissingDialog({ open: false, rawType: null });
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Ce carrousel gagnerait à avoir des photos</AlertDialogTitle>
+            <AlertDialogDescription>
+              L'IA a structuré un carrousel{" "}
+              <strong>{photoMissingDialog.rawType === "mix" ? "mixte (texte + photos)" : "photo"}</strong>,
+              mais aucune photo n'a été uploadée. Tu peux en ajouter maintenant
+              ou continuer en mode texte uniquement.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel
+              onClick={() => setPhotoMissingDialog({ open: false, rawType: null })}
+            >
+              Annuler
+            </AlertDialogCancel>
+            <Button
+              variant="outline"
+              onClick={() => {
+                // Continuer en texte : relance la génération avec forceText.
+                setPhotoMissingDialog({ open: false, rawType: null });
+                handleGenerateVisuals({ forceText: true });
+              }}
+            >
+              Continuer en texte
+            </Button>
+            <AlertDialogAction
+              onClick={() => {
+                // Ajouter des photos : retour à l'étape format, on force le
+                // sub-mode mix pour exposer la zone d'upload. Le contexte
+                // (sujet, angle, réponses, format) est préservé.
+                setCarouselSubMode("mix");
+                setPhotoMissingDialog({ open: false, rawType: null });
+                setStep("format");
+              }}
+            >
+              Ajouter des photos
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
