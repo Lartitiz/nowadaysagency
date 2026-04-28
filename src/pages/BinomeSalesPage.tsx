@@ -91,7 +91,7 @@ const NOT_FOR_YOU = [
 ];
 
 const OBJECTIONS = [
-  { q: "250€/mois c'est trop cher pour moi", a: "C'est moins qu'un·e community manager freelance (800-2000€/mois). Et tu acquiers des compétences à vie. C'est un investissement, pas une dépense." },
+  { q: "290€/mois c'est trop cher pour moi", a: "C'est moins qu'un·e community manager freelance (800-2000€/mois). Et tu acquiers des compétences à vie. C'est un investissement, pas une dépense." },
   { q: "Je n'ai pas le temps", a: "L'accompagnement est conçu pour les entrepreneur·es débordé·es. 2-3h par semaine suffisent. L'outil automatise le reste." },
   { q: "Je suis débutant·e, c'est pour moi ?", a: "C'est même idéal ! Tu poses les bonnes bases dès le départ au lieu de perdre des mois à tâtonner." },
   { q: "Et si ça ne marche pas ?", a: "L'accompagnement est satisfait ou remboursé. Si tu appliques tout et que tu n'as pas de résultats, on te rembourse." },
