@@ -341,6 +341,17 @@ export function PhotoUploadZone({
           />
         </div>
       )}
+
+      {/* ── PhotoRoom edit dialog ─────────────────── */}
+      {editIdx !== null && photos[editIdx] && (
+        <PhotoEditDialog
+          open={editIdx !== null}
+          onOpenChange={(o) => { if (!o) setEditIdx(null); }}
+          originalBase64={photos[editIdx].originalBase64 ?? photos[editIdx].base64}
+          name={photos[editIdx].name}
+          onApply={(newBase64) => applyEditedPhoto(editIdx, newBase64)}
+        />
+      )}
     </div>
   );
 }
