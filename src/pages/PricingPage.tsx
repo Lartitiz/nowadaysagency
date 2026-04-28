@@ -120,7 +120,7 @@ export default function PricingPage() {
 
   usePageSEO({
     title: "Tarifs — Gratuit, Premium ou Binôme",
-    description: "Découvre les formules de l'Assistant Com'. Gratuit pour démarrer, Premium à 39€/mois pour l'IA illimitée, Binôme à 250€/mois avec coaching humain.",
+    description: "Découvre les formules de l'Assistant Com'. Gratuit pour démarrer, Premium à 39€/mois pour l'IA illimitée, Binôme à 290€/mois avec coaching humain.",
     canonical: "/pricing",
   });
   
