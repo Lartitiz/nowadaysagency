@@ -313,9 +313,9 @@ export default function BinomeSalesPage() {
             L'investissement
           </h2>
           <p className="text-4xl sm:text-5xl font-bold text-primary mb-2">
-            250€<span className="text-lg font-normal text-muted-foreground">/mois × 6 mois</span>
+            290€<span className="text-lg font-normal text-muted-foreground">/mois × 6 mois</span>
           </p>
-          <p className="text-muted-foreground mb-2">soit 1 500€ au total</p>
+          <p className="text-muted-foreground mb-2">soit 1 740€ au total</p>
           <p className="text-sm font-semibold text-primary mb-6">Satisfaite ou remboursée.</p>
           <p className="text-sm text-muted-foreground max-w-md mx-auto mb-8">
             Moins qu'un community manager. Des compétences à vie.
