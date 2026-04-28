@@ -198,18 +198,18 @@ Deno.serve(async (req) => {
 
     // Random creative seed to force variety between sessions
     const CREATIVE_SEEDS = [
-      "Une idée doit utiliser une analogie avec la cuisine, le sport, ou le jardinage",
-      "Une idée doit s'appuyer sur un biais cognitif précis (effet Dunning-Kruger, biais de survie, paradoxe du choix, etc.)",
-      "Une idée doit faire un parallèle avec un film, une série ou un livre connu",
-      "Une idée doit partir d'un chiffre ou d'une statistique concrète (même approximative)",
-      "Une idée doit prendre le contre-pied EXACT d'un conseil mainstream dans le domaine de l'utilisatrice",
-      "Une idée doit raconter un micro-moment du quotidien (pas une grande histoire, un détail précis)",
-      "Une idée doit faire un parallèle inattendu avec un autre métier ou une autre industrie",
-      "Une idée doit utiliser le format 'confession' ou 'j'avoue que...'",
-      "Une idée doit poser une question que l'audience se pose en secret mais n'ose pas formuler",
-      "Une idée doit comparer deux époques (avant/maintenant) sur un aspect du métier de l'utilisatrice",
-      "Une idée doit décortiquer un mot ou un concept que tout le monde utilise sans le comprendre",
-      "Une idée doit s'inspirer d'une tendance sociétale actuelle (slow life, dé-croissance, IA, etc.)",
+      "Si l'angle s'y prête naturellement, une idée peut utiliser une analogie cuisine/sport/jardinage. Sinon ignore.",
+      "Si pertinent, une idée peut s'appuyer sur un biais cognitif précis (Dunning-Kruger, biais de survie, paradoxe du choix). Sinon ignore.",
+      "Si le parallèle tient vraiment, une idée peut faire un lien avec un film, série ou livre connu. Sinon ignore.",
+      "Si un chiffre FACTUEL et SOURÇABLE est disponible (étude publique, donnée du contexte branding), une idée peut s'appuyer dessus. JAMAIS de chiffre inventé.",
+      "Si un conseil mainstream précis du secteur est réellement faux ou nuancé, une idée peut prendre son contre-pied. Sinon ignore.",
+      "Une idée peut raconter un micro-moment du quotidien (un détail précis, pas une grande histoire).",
+      "Si le parallèle tient, une idée peut faire un lien inattendu avec un autre métier. Sinon ignore.",
+      "Une idée peut utiliser le format 'confession' ou 'j'avoue que...' à condition que ce soit cohérent avec le vécu de l'utilisatrice.",
+      "Une idée peut poser une question que l'audience se pose en secret mais n'ose pas formuler.",
+      "Une idée peut comparer deux époques (avant/maintenant) sur un aspect du métier de l'utilisatrice.",
+      "Une idée peut décortiquer un mot ou un concept que tout le monde utilise sans le comprendre.",
+      "Une idée peut s'inspirer d'une tendance sociétale actuelle (slow life, dé-croissance, IA, etc.) si elle touche réellement le métier.",
     ];
     const seed1 = CREATIVE_SEEDS[Math.floor(Math.random() * CREATIVE_SEEDS.length)];
     let seed2 = CREATIVE_SEEDS[Math.floor(Math.random() * CREATIVE_SEEDS.length)];
@@ -262,8 +262,26 @@ BUG CRÉATIF (à utiliser sur AU MOINS 1 idée sur 3 si le branding s'y prête) 
 Un contenu qui crée une rupture de pattern dans les premières secondes : geste inattendu, objet inhabituel, son décalé, énoncé qui surprend. Ce n'est PAS de l'humour gratuit, c'est un crochet visuel/sonore qui éduque sur le fond. Exemple : commencer par une action absurde liée au métier, puis enchaîner sur le vrai message. Ne pas l'utiliser si le branding est sobre/contemplatif ou sur sujet sensible.
 ` : "";
 
-    const systemPrompt = `Tu es la meilleure directrice éditoriale du monde. Tu trouves THE idée qui fait dire "c'est exactement ça que je veux poster". Pas d'idées tièdes. Des angles qui surprennent.
+    const cibleTxt = ctx?.profile?.cible || "non renseignée";
+    const systemPrompt = `Tu es la meilleure directrice éditoriale du monde. Tu trouves THE idée qui fait dire "c'est exactement ça que je veux poster". Surprenante MAIS juste. Une idée surprenante mais fausse, malhonnête ou bancale est PIRE qu'une idée tiède : elle décrédibilise. Vise la justesse d'abord, la surprise ensuite.
 Tu ne dis JAMAIS de gros mots ni de langage vulgaire.
+
+═══════════════════════════════════════════════
+RÈGLE DE VÉRITÉ (non négociable, prime sur tout le reste)
+═══════════════════════════════════════════════
+- AUCUN chiffre inventé dans hooks/briefs ("+40% de prix", "3x plus de clients", "82% des gens"). Si chiffre nécessaire : soit factuel et sourçable (étude publique connue, donnée du contexte branding), soit reformulation qualitative ("nettement plus", "une majorité", "la plupart").
+- AUCUN faux retex à la 1re personne ("j'ai viré X et mes prix ont grimpé de Y%", "j'ai testé X pendant 30 jours") sauf si l'événement est attesté dans le contexte branding (story, retex existant, témoignage).
+- AUCUN exemple de marque/personnalité qui contredit un fait vérifiable. Exemples de pièges à éviter : "Netflix recommande mal" (faux, leur algo est référence), "Hermès ne fait pas de réseaux" (fausse simplification), "Apple ne fait pas de pub" (faux).
+- En cas de doute : reformule en JE narratif générique sans chiffre, ou en observation à la 3e personne sans nommer de marque.
+
+═══════════════════════════════════════════════
+ALIGNEMENT D'ÉCHELLE ET DE POSTURE
+═══════════════════════════════════════════════
+- Cible de l'utilisatrice : ${cibleTxt}
+- Si tu cites une marque/exemple, elle doit être de TAILLE COMPARABLE à l'utilisatrice OU à sa cible. Pas Hermès ni LVMH si elle s'adresse à des PETITES marques de luxe ; pas Patagonia ni Apple si elle est solopreneuse.
+- Exemples préférés : créateurs indépendants, petites marques de niche, artisanat, ateliers, studios de 1-10 personnes, success stories d'échelle humaine, anonymes du secteur.
+- INTERDIT de citer Hermès, LVMH, Apple, Netflix, Tesla, Patagonia, Glossier, Nike, Adidas comme modèle direct à imiter dans un hook. Ces marques ne sont mentionnables que dans un brief, et uniquement avec un angle "ce que les géants font et qu'on peut adapter à petite échelle" — pas en hook seul.
+- Ne JAMAIS contredire la posture de l'utilisatrice : si elle utilise les réseaux sociaux pour vivre de son activité, ne pas pondre des angles type "les vraies marques ne postent pas" ou "le luxe méprise Instagram".
 
 CONTEXTE BRANDING :
 ${contextText}
@@ -321,6 +339,15 @@ LinkedIn : Post/Carrousel → /creer?format=linkedin
 Pinterest : Texte → /creer?canal=pinterest | Visuelle → /creer?canal=pinterest&format=pinterest_visual
 Newsletter → /creer?format=newsletter
 
+═══════════════════════════════════════════════
+TEST DE VALIDITÉ — applique-le sur CHAQUE idée AVANT de la sortir
+═══════════════════════════════════════════════
+1. Si l'idée contient une ANALOGIE ("X est comme Y", "X communique comme Y") → est-ce que Y fonctionne vraiment de cette manière ? Si non, change d'analogie ou supprime-la.
+2. Si l'idée contient un CONTRE-PIED ("contrairement à ce qu'on croit, X") → est-ce que la croyance énoncée est vraiment répandue ET est-ce que le contre-pied est factuellement vrai ? Si l'un des deux est faux, change d'angle.
+3. Si l'idée contient un CHIFFRE → applique la RÈGLE DE VÉRITÉ. Aucun chiffre inventé.
+4. Si l'idée contient un RETEX en JE → est-ce qu'il est cohérent avec le parcours/métier réel de l'utilisatrice tel qu'il apparaît dans le contexte branding ? Si non, reformule.
+5. Si l'idée cite une marque → applique l'ALIGNEMENT D'ÉCHELLE. Pas de géants en hook.
+
 Retourne UNIQUEMENT ce JSON (pas de markdown, pas de commentaires) :
 {
   "ideas": [
@@ -330,7 +357,7 @@ Retourne UNIQUEMENT ce JSON (pas de markdown, pas de commentaires) :
       "angle": "Nom de l'angle éditorial",
       "objective_tag": "visibilite|engagement|vente|credibilite",
       "why_it_works": "1 phrase : pourquoi ça résonne avec SON audience (mentionne sa cible, secteur ou un verbatim)",
-      "brief": "2-3 phrases : architecture intellectuelle. Quel mécanisme, quelle donnée, quel retournement."
+      "brief": "2-3 phrases : architecture intellectuelle. Quel mécanisme, quelle donnée VÉRIFIABLE, quel retournement JUSTE."
     }
   ],
   "recommended_format": "${formatLabel}",
@@ -341,8 +368,8 @@ Retourne UNIQUEMENT ce JSON (pas de markdown, pas de commentaires) :
     const raw = await callAnthropicSimple(
       getModelForAction("coaching_light"),
       systemPrompt,
-      "Génère 3 idées de contenu ultra-concrètes avec un hook irrésistible pour chaque.",
-      0.9,
+      "Génère 3 idées de contenu ultra-concrètes avec un hook irrésistible pour chaque. Avant de répondre, applique le TEST DE VALIDITÉ sur chaque idée.",
+      0.75,
       1800,
     );
 
