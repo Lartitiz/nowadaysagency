@@ -6,6 +6,7 @@ import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { callAnthropic, type AnthropicModel } from "../_shared/anthropic.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
+import { buildPptxInvariants, formatInvariantsForPrompt } from "../_shared/pptx-invariants.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -78,6 +79,16 @@ serve(async (req) => {
       charter = dbCharter || {};
     }
 
+    // Hybride : on enrichit avec le ton éditorial (brand_profile) pour dériver
+    // motif visuel, dominante et tailles. La charte reste la source pour palette/polices.
+    const bpCol = workspaceId ? "workspace_id" : "user_id";
+    const bpVal = workspaceId || user.id;
+    const { data: brandProfile } = await sbAdmin
+      .from("brand_profile")
+      .select("tone_register")
+      .eq(bpCol, bpVal)
+      .maybeSingle();
+
     const ch = {
       color_primary: charter.color_primary || "#FB3D80",
       color_secondary: charter.color_secondary || "#91014b",
@@ -95,6 +106,10 @@ serve(async (req) => {
       icon_style: charter.icon_style || "",
       template_layout_description: charter.template_layout_description || "",
     };
+
+    // Construit les invariants PPTX (source de vérité unique pour la phase d'export).
+    const invariants = buildPptxInvariants({ charter, brandProfile });
+    const invariantsBlock = formatInvariantsForPrompt(invariants);
 
     // Sanitize font names — certains caractères peuvent casser l'URL Google Fonts ou le HTML
     const safeFontTitle = ch.font_title.replace(/[<>"'&]/g, "");
@@ -738,10 +753,15 @@ Retourne UNIQUEMENT le JSON.`;
 
     const model: AnthropicModel = "claude-opus-4-6";
 
-    // ═══ Append PPTX-editable annotation rules to ALL modes ═══
-    // Ces annotations permettent à l'export PPTX de rendre une seule version de chaque texte
-    // (en éditable), sans le doublonner dans l'image de fond.
+    // ═══ Append PPTX-editable annotation rules + invariants to ALL modes ═══
+    // Discipline issue de l'étude "Le design via Claude" :
+    //  - Section A (HTML libre) = déjà dans `finalSystemPrompt` (le prompt principal).
+    //  - Section B (contrat PPTX) = invariants explicites ci-dessous + annotations.
+    //  - Section C (output) = on demande aussi `slides_invariants` pour que l'exporter
+    //    n'ait plus à deviner palette/polices/tailles via getComputedStyle.
     const pptxAnnotationRules = `
+
+${invariantsBlock}
 
 ═══ ANNOTATIONS POUR EXPORT POWERPOINT ÉDITABLE — OBLIGATOIRE ═══
 
@@ -760,6 +780,31 @@ Règles :
 Exemple :
 <div style="...carte..."><h2 data-pptx-editable="title" style="...">Mon titre</h2><p data-pptx-editable="body" style="...">Mon paragraphe</p></div>
 <span data-pptx-editable="caption" style="...badge...">01 / 05</span>
+
+═══ FORMAT DE RÉPONSE — JSON enrichi ═══
+
+Le JSON DOIT inclure deux champs au top-level :
+{
+  "slides_html": [ { "slide_number": 1, "html": "..." }, ... ],
+  "slides_invariants": {
+    "palette_used": { "primary": "#...", "secondary": "#...", "accent": "#...", "bg": "#...", "text": "#..." },
+    "typography_used": { "title_pptx_safe": "Georgia", "body_pptx_safe": "Calibri", "title_pt": 40, "body_pt": 16 },
+    "layouts_used": ["hook_card", "stack_centered", ...],  // 1 entrée par slide, max 4 valeurs distinctes
+    "motif": "carte_blanche_ombre_douce"
+  }
+}
+
+Le bloc \`slides_invariants\` confirme la palette/typo/layouts que TU as effectivement appliqués. Il pilote l'exporter PPTX. S'il manque, l'export échoue.
+
+═══ AUTO-CHECK AVANT DE RETOURNER ═══
+
+Avant de répondre, vérifie :
+1. Chaque titre tient en ≤3 lignes à la taille indiquée (sinon réduis ou raccourcis).
+2. Chaque corps de texte tient en ≤6 lignes.
+3. Le carrousel utilise au maximum 3-4 layouts différents (cohérence > variété).
+4. Aucune slide n'a de ligne décorative sous un titre.
+5. Aucune slide n'a un fond beige/crème par défaut.
+Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de contenu cassé.
 `;
 
     const systemPromptWithAnnotations = finalSystemPrompt + pptxAnnotationRules;
@@ -771,6 +816,8 @@ Exemple :
       style,
       is_photo: isPhotoCarousel,
       is_mix: isMixCarousel,
+      invariants_motif: invariants.motif,
+      invariants_title_pt: invariants.typography.title_pt,
       timestamp: new Date().toISOString(),
     }));
 
@@ -879,6 +926,30 @@ Exemple :
         }
         return { ...slide, html };
       });
+    }
+
+    // Fallback : si Claude a oublié `slides_invariants` dans la réponse, on injecte
+    // les invariants serveur (déduits de la charte) pour que l'exporter ne soit jamais
+    // privé de la source de vérité.
+    if (result && !result.slides_invariants) {
+      result.slides_invariants = {
+        palette_used: {
+          primary: invariants.palette.primary_hex,
+          secondary: invariants.palette.secondary_hex,
+          accent: invariants.palette.accent_hex,
+          bg: invariants.palette.bg_hex,
+          text: invariants.palette.text_hex,
+        },
+        typography_used: {
+          title_pptx_safe: invariants.typography.title_pptx_safe,
+          body_pptx_safe: invariants.typography.body_pptx_safe,
+          title_pt: invariants.typography.title_pt,
+          body_pt: invariants.typography.body_pt,
+        },
+        layouts_used: [],
+        motif: invariants.motif,
+      };
+      console.warn("carousel-visual: slides_invariants manquant dans la réponse Claude → fallback serveur");
     }
 
     await logUsage(user.id, "content", "carousel_visual", undefined, model, workspaceId);

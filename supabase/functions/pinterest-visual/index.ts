@@ -7,6 +7,7 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { buildPptxInvariants, formatInvariantsForPrompt } from "../_shared/pptx-invariants.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -67,17 +68,23 @@ serve(async (req) => {
     const col = filterWs ? "workspace_id" : "user_id";
     const val = filterWs || user.id;
 
-    const [ctx, charterRes] = await Promise.all([
+    const [ctx, charterRes, brandProfileRes] = await Promise.all([
       getUserContext(sbAdmin, user.id, filterWs),
       sbAdmin
         .from("brand_charter")
         .select("color_primary, color_secondary, color_accent, color_background, color_text, font_title, font_body, mood_keywords, border_radius, photo_style, visual_donts, ai_generated_brief, moodboard_description, icon_style, template_layout_description")
         .eq(col, val)
         .maybeSingle(),
+      sbAdmin
+        .from("brand_profile")
+        .select("tone_register")
+        .eq(col, val)
+        .maybeSingle(),
     ]);
 
     const contextText = formatContextForAI(ctx, CONTEXT_PRESETS.pinterest);
     const charter = charterRes.data || {};
+    const brandProfile = brandProfileRes.data || null;
 
     const ch = {
       color_primary: charter.color_primary || "#FB3D80",
@@ -96,6 +103,11 @@ serve(async (req) => {
       icon_style: charter.icon_style || "",
       template_layout_description: charter.template_layout_description || "",
     };
+
+    // Invariants PPTX (charte + identité). Pinterest n'a qu'une slide,
+    // donc on annonce juste le motif/palette/typo pour aligner HTML preview et export.
+    const invariants = buildPptxInvariants({ charter, brandProfile });
+    const invariantsBlock = formatInvariantsForPrompt(invariants);
 
     const systemPrompt = `Tu es une directrice artistique ET experte SEO Pinterest. Tu génères un visuel HTML/CSS inline pour une épingle Pinterest au format 1000×1500px, PLUS le titre et la description SEO.
 
@@ -229,6 +241,8 @@ Si pin_type = "schema_visuel" :
 - PAS de hashtags
 - Écriture inclusive point médian
 
+${invariantsBlock}
+
 FORMAT DE RÉPONSE (JSON strict, rien d'autre) :
 {
   "pin_html": "<style>@import url(...);\\n</style><div style=\\"width:1000px;height:1500px;...\\">...</div>",
@@ -249,8 +263,15 @@ FORMAT DE RÉPONSE (JSON strict, rien d'autre) :
     ],
     "cta_text": "Texte du CTA en bas si applicable",
     "watermark": "Texte du watermark en bas (nom du projet)"
+  },
+  "pin_invariants": {
+    "palette_used": { "primary": "#...", "secondary": "#...", "accent": "#...", "bg": "#...", "text": "#..." },
+    "typography_used": { "title_pptx_safe": "Georgia", "body_pptx_safe": "Calibri", "title_pt": 40, "body_pt": 16 },
+    "motif": "carte_blanche_ombre_douce"
   }
 }
+
+Le bloc \`pin_invariants\` confirme la palette/typo que TU as effectivement appliquée. Il pilote l'export PPTX éditable. S'il manque, l'export retombe sur les valeurs serveur.
 
 RÈGLES pour pin_data.elements :
 - Pour "infographie" et "mini_tuto" : chaque élément a number, label, description, emoji optionnel
@@ -346,6 +367,27 @@ Retourne UNIQUEMENT le JSON, pas de texte avant ou après.`;
       let html = result.pin_html;
       html = html.replace(/<style>\s*@import\s+url\([^)]*fonts\.googleapis\.com[^)]*\)\s*;?\s*<\/style>/gi, "");
       result.pin_html = fontsLink + html;
+    }
+
+    // Fallback : injecter les invariants serveur si Claude les a oubliés.
+    if (result && !result.pin_invariants) {
+      result.pin_invariants = {
+        palette_used: {
+          primary: invariants.palette.primary_hex,
+          secondary: invariants.palette.secondary_hex,
+          accent: invariants.palette.accent_hex,
+          bg: invariants.palette.bg_hex,
+          text: invariants.palette.text_hex,
+        },
+        typography_used: {
+          title_pptx_safe: invariants.typography.title_pptx_safe,
+          body_pptx_safe: invariants.typography.body_pptx_safe,
+          title_pt: invariants.typography.title_pt,
+          body_pt: invariants.typography.body_pt,
+        },
+        motif: invariants.motif,
+      };
+      console.warn("pinterest-visual: pin_invariants manquant → fallback serveur");
     }
 
     await logUsage(user.id, "content", "pinterest_visual", undefined, model, workspaceId);
