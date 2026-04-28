@@ -117,7 +117,7 @@ export default function CreerUnifie() {
 
   // Core state — restore from sessionStorage if available
   const ps = persistedState.current;
-  const [mode, setMode] = useState<Mode>(paramMode === "transform" ? "transform" : "create");
+  const autoOpenTransform = paramMode === "transform";
   // Restore step — allow "result" and "edit" if their data is available
   const safeStep = (() => {
     if (!ps?.step) return "idea";
