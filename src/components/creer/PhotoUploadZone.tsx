@@ -71,6 +71,7 @@ export function PhotoUploadZone({
   const [isDragOver, setIsDragOver] = useState(false);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [showContexts, setShowContexts] = useState(false);
+  const [editIdx, setEditIdx] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const isFull = photos.length >= maxPhotos;
 
