@@ -398,11 +398,11 @@ Retourne UNIQUEMENT ce JSON (pas de markdown, pas de commentaires) :
 }`;
 
     const raw = await callAnthropicSimple(
-      getModelForAction("coaching_light"),
+      getModelForAction("coaching"),
       systemPrompt,
-      "Génère 3 idées de contenu ultra-concrètes avec un hook irrésistible pour chaque. Avant de répondre, applique le TEST DE VALIDITÉ sur chaque idée.",
-      0.75,
-      1800,
+      "Génère 3 idées de contenu ultra-concrètes avec un hook irrésistible pour chaque. Avant de répondre, applique successivement : (1) le bloc AUDIENCE vs UTILISATRICE, (2) la RÈGLE DE VÉRITÉ, (3) l'EXIGENCE DE PROFONDEUR, (4) le TEST DE VALIDITÉ. Si une idée échoue à un test, retoque-la avant de la sortir.",
+      0.8,
+      2000,
     );
 
     let result;
