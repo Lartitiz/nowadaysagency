@@ -1,127 +1,83 @@
-# Plan — Profondeur, modèle Opus, et fix audience pour le Coach Contenu
+## Diagnostic — pourquoi l'export PPTX éditable est bancal
 
-## Réponses à tes questions
+L'étude `etude-design-claude.docx` met le doigt sur la bonne tension : HTML est expressif et fluide, PPTX est rigide (canvas fixe, polices limitées, pas de wrap auto). Aujourd'hui notre exporter `export-carousel-hybrid-pptx.ts` essaie de faire les deux en même temps — capturer le HTML en image **et** superposer du texte éditable — et c'est là que ça casse.
 
-### 1. Quel modèle utilise actuellement le Coach Contenu ?
+Les 4 problèmes concrets identifiés :
 
-**Tu n'es PAS sur Opus.** Le code utilise `getModelForAction("coaching_light")` qui mappe sur **`claude-sonnet-4-5-20250929`** (cf. `_shared/anthropic.ts` ligne 27). Seul le coaching "lourd" (assistant chat, audit branding, stratégie) est sur **`claude-opus-4-6`** (Opus 4.6 = bien le dernier Opus de la famille 4.x).
+1. **Double-rendu incohérent** — Stratégie A masque *un seul* élément (le smallest container du `overlay_text`), Stratégie B masque les blocs détectés heuristiquement. Mais beaucoup de slides ont **du texte qui n'entre dans aucune des deux logiques** : il reste imprimé dans l'image **et** rien ne le rend éditable. D'où l'impression "y'a des textes dans l'image et d'autres éditables".
+2. **Heuristique de détection fragile** — `extractEditableBlocks` filtre sur `minFontPx ≥ 20`, écarte les ancêtres de candidats, exige `width ≥ 20px`. Sur des layouts denses (titre + sous-titre + numéro + footer), la moitié des textes passe à travers les mailles ou au contraire est dédupliquée trop agressivement.
+3. **Mismatch visuel image vs texte PPTX** — On capture en `scale: 3` puis on ré-écrit le texte avec `mapFontToPptx` (Georgia/Calibri/Verdana/Trebuchet). La police remplaçante n'a ni les mêmes métriques, ni le même letter-spacing, ni le même line-height que la Google Font d'origine → décalage visible, surtout sur les titres serif.
+4. **Pas de marqueur côté HTML** — Les slides générées par l'IA n'indiquent pas quels noeuds sont du "vrai contenu éditable" vs de la décoration. L'exporter doit deviner. C'est la racine du problème.
 
-Donc deux options :
-- **Passer le Coach Contenu sur Opus 4.6** : raisonnement plus profond, distinction "audience que JE sers" vs "audience qui me ressemble" mieux gérée, analogies plus justes. Coût ~5x Sonnet, latence +3-5s.
-- **Rester sur Sonnet et compenser par le prompt** : moins cher, plus rapide, mais le bug d'audience peut revenir si le prompt n'est pas blindé.
+L'étude propose une vraie discipline : **ne pas chercher la fidélité littérale**, traiter PPTX comme un format d'**exécution**, pas d'exploration. On va appliquer ça au code.
 
-Recommandation : **bascule sur Opus 4.6** pour le Coach Contenu. C'est l'endroit où la justesse compte le plus (un mauvais hook démolit la confiance), et la latence supplémentaire est tolérable car c'est un acte volontaire de l'utilisatrice (elle attend un résultat travaillé, pas instant).
+---
 
-### 2. Pourquoi ça parlait d'agences de com alors que TU ES une agence ?
+## Plan — 3 chantiers
 
-J'ai inspecté le contexte injecté (`formatContextForAI` + preset `content`). Le profil contient bien :
-- `activite` (ce que tu fais)
-- `type_activite` (statut / forme)
-- `cible` (à qui tu parles)
-- `persona` (cliente idéale détaillée)
+### Chantier 1 — Source de vérité unique : `data-pptx-editable`
 
-Mais **rien dans le prompt actuel ne dit explicitement à l'IA "ne confonds pas TON métier avec TA cible"**. Quand `activite = "agence de communication"` et `cible = "petites marques de luxe"`, l'IA peut basculer dans des angles type "les agences font cette erreur" parce qu'elle pioche dans le champ le plus saillant (activite) au lieu de cibler `cible`.
+Plutôt que de deviner, on **annote** le HTML des slides avec `data-pptx-editable="title|body|overlay|caption"` au moment de la génération. L'exporter ne fait alors que :
 
-C'est exactement le pattern miroir du fix précédent : "ne confonds pas l'utilisatrice avec sa cible".
+- masquer **tous** les noeuds annotés avant capture image
+- ré-injecter ces noeuds (et eux seuls) en texte PPTX
 
-### 3. Comment ajouter de la profondeur ?
+Concrètement :
 
-Le Sonnet actuel produit du "tiède intelligent" : structures bien tournées mais idées de surface (les 3 erreurs, le top 5, le contre-pied facile). Pour aller plus profond :
+- Mettre à jour les prompts visuels (côté Edge Function `pinterest-visual` et le générateur de carrousel) pour qu'ils ajoutent `data-pptx-editable` sur les blocs texte significatifs (titre, sous-titre, corps, overlay, numéro de slide).
+- Fallback : si **aucun** noeud annoté n'est trouvé, on retombe sur l'heuristique actuelle (rétro-compatibilité avec les slides déjà générées).
 
-**a) Modèle Opus** = capacité de raisonnement multi-étapes naturelle.
+Bénéfice : fini le double-rendu. Ce qui est dans l'image n'est jamais aussi dans le texte, et inversement.
 
-**b) Banir explicitement les structures "de surface"** dans le prompt :
-- Plus de "Les 3 erreurs que…"
-- Plus de "Top 5 / Top 3"
-- Plus de "Voici pourquoi X marche / ne marche pas"
-- Plus de "La vérité sur…"
+### Chantier 2 — Stratégie de capture cohérente
 
-**c) Imposer une "couche d'analyse" dans le brief** :
-Chaque idée doit contenir DANS le brief :
-- Soit une TENSION précise (pas une généralité : "le marché du luxe se massifie" → ok ; "la com est partout" → flou)
-- Soit un MÉCANISME nommé (effet psychologique, dynamique de marché, biais perceptif)
-- Soit une OBSERVATION DE TERRAIN (un détail vu chez ses propres clientes/dans son secteur)
+Dans `export-carousel-hybrid-pptx.ts` :
 
-**d) "Test de profondeur" avant sortie** : si l'idée tient en une punchline sans rien apprendre de neuf après le hook, elle est rejetée.
+- **Étape 1** : parser le doc, sélectionner `[data-pptx-editable]`. Si vide → fallback heuristique.
+- **Étape 2** : capturer chaque bloc → `BlockRender` (texte, rect, style).
+- **Étape 3** : appliquer `data-pptx-hide="true"` sur **tous** les blocs retenus (et leurs descendants texte) — pas juste un.
+- **Étape 4** : forcer un reflow (`getBoundingClientRect()` sur body), attendre 2 RAFs, puis capturer en `scale: 3`.
+- **Étape 5** : ré-injecter les blocs en `slide.addText()` avec les coords pré-calculées.
 
-**e) Diversifier les angles éditoriaux par OBLIGATION explicite** : forcer 3 axes radicalement différents parmi : observation de terrain / contre-pied factuel / mécanisme nommé / micro-scène / archive personnelle / question ouverte sans réponse.
+Côté `pptx-font-mapping.ts`, ajouter :
 
-## Périmètre d'exécution
+- Détection `data-pptx-hide` étendue : si un parent est marqué hidden, ne pas ré-extraire ses enfants.
+- `extractEditableBlocks` doit ignorer les noeuds annotés `data-pptx-editable` (pour éviter doublons quand on combine les deux).
 
-**1 fichier : `supabase/functions/content-coaching/index.ts`**
+### Chantier 3 — Réduire le mismatch visuel (polices + tailles)
 
-### Fix 1 — Bascule modèle vers Opus 4.6
-Remplacer `getModelForAction("coaching_light")` par `getModelForAction("coaching")` (qui mappe déjà sur Opus). Une seule ligne.
+L'étude liste les pairings PPTX-safe : Georgia+Calibri, Cambria+Calibri, Trebuchet+Calibri. On va :
 
-### Fix 2 — Bloc "AUDIENCE vs UTILISATRICE" (anti-confusion)
-Ajouter en haut du prompt, juste après la RÈGLE DE VÉRITÉ :
-```
-═══════════════════════════════════════════════
-AUDIENCE vs UTILISATRICE — ne JAMAIS confondre
-═══════════════════════════════════════════════
-- L'utilisatrice EXERCE l'activité : ${activite}
-- L'utilisatrice s'ADRESSE À : ${cibleTxt}
-- Les idées parlent À ${cibleTxt}, PAS aux personnes qui exercent ${activite}.
-- Si activite = "agence de communication" et cible = "petites marques de luxe" : 
-  les hooks parlent AUX petites marques de luxe (leurs problèmes, leur quotidien, 
-  leurs blocages), JAMAIS aux agences de com.
-- Test : remplace mentalement le "tu/vous/on" du hook par le profil de la cible. 
-  Si ça ne colle pas, l'angle est faux.
-```
+- **Tailles** : `fontSizePxToPt` applique déjà un facteur `0.92`. On va le tuner à `0.94` après tests visuels (la majorité des cas actuels sont *trop petits* en PPTX par rapport à l'image).
+- **Letter-spacing** : capturer `letterSpacing` du computed style et le passer à `pptxgenjs` via `charSpacing` (en centièmes de point). Aujourd'hui ignoré → écart visible sur les titres en small caps.
+- **Couleur de fallback** : actuellement hardcodée `FFFFFF`. Utiliser `charter.color_text` quand l'élément n'a pas de couleur explicite.
 
-### Fix 3 — Bloc "PROFONDEUR" (anti-tiède)
-Ajouter juste après le TEST DE VALIDITÉ :
-```
-═══════════════════════════════════════════════
-EXIGENCE DE PROFONDEUR — anti-tiède
-═══════════════════════════════════════════════
-INTERDIT (structures de surface qui ont l'air malines mais n'apprennent rien) :
-- "Les 3 erreurs que…", "Top 3 / Top 5 / Les 5 trucs…"
-- "Voici pourquoi X marche", "La vérité sur Y", "Ce que personne ne dit sur Z"
-- "Le piège du…", "Le mythe du…" sans démonstration concrète derrière
-- Toute liste numérotée dans un hook
+### Détails techniques
 
-OBLIGATOIRE — chaque brief contient AU MOINS UN de ces 3 éléments :
-1. Une TENSION précise et localisée (pas "le marché change" ; plutôt 
-   "depuis [période/événement], dans [niche précise], on observe [phénomène 
-   contradictoire]")
-2. Un MÉCANISME nommé (biais cognitif identifié, dynamique de marché 
-   spécifique, ressort psychologique précis) — et PAS juste invoqué : 
-   expliqué dans le brief
-3. Une OBSERVATION DE TERRAIN ancrée (un détail concret du secteur de 
-   l'utilisatrice ou de sa cible — pas "j'ai remarqué que" générique, mais 
-   "dans [contexte précis], [phénomène observable]")
+Fichiers touchés :
 
-TEST DE PROFONDEUR : si l'idée tient ENTIÈREMENT dans son hook (pas de 
-révélation/argumentation à venir dans le contenu), elle est rejetée. 
-Le hook doit OUVRIR sur quelque chose à dire, pas RÉSUMER l'idée.
-```
+- `src/lib/export-carousel-hybrid-pptx.ts` — refonte stratégie A/B → stratégie unique annotée + fallback.
+- `src/lib/pptx-font-mapping.ts` — ajout `charSpacing`, ajustement `fontSizePxToPt`, exclusion des noeuds `data-pptx-editable` du fallback heuristique.
+- `supabase/functions/pinterest-visual/index.ts` (et autres générateurs visuels actifs) — instruction prompt : ajouter `data-pptx-editable` sur les blocs texte significatifs.
+- `src/lib/export-pinterest-editable-pptx.ts` — appliquer la même logique (à vérifier qu'elle existe et s'il faut factoriser).
 
-### Fix 4 — Diversification forte des angles
-Modifier la phrase qui demande "3 idées radicalement différentes" pour imposer un mix précis :
-```
-Les 3 idées doivent piocher dans 3 catégories DIFFÉRENTES parmi :
-A. Observation de terrain ancrée (vu chez ses clientes / dans son secteur)
-B. Mécanisme/biais nommé et décortiqué
-C. Contre-pied factuel d'un conseil mainstream précis
-D. Micro-scène / archive personnelle (un moment, un détail)
-E. Question ouverte sans réponse (qui invite la cible à formuler la sienne)
-F. Décryptage d'un mot/concept galvaudé du secteur
-```
+Pas de changement DB, pas de changement UI utilisateur — juste un export qui marche.
 
-### Fix 5 — Ajuster temperature pour Opus
-Opus tolère mieux une température un peu plus haute sans dériver. Garder 0.75 ou monter légèrement à 0.8. Je recommande 0.8 pour ne pas brider le côté créatif sur Opus.
+### Validation
 
-## Hors périmètre (à valider plus tard)
+Après implémentation, tester sur 3 carrousels représentatifs (déjà générés en base) :
 
-- Propager Opus + ces blocs aux autres générateurs (carousel-ai, linkedin-ai). Commençons par valider l'effet sur content-coaching d'abord.
-- Pas de changement frontend.
+1. Un carrousel "photo + overlay court"
+2. Un carrousel "tout texte" (3-4 blocs par slide)
+3. Un carrousel mixte
 
-## Test après application
+Pour chacun :
 
-Re-générer 3 idées sur le profil "agence de communication s'adressant à petites marques de luxe" :
-- ✅ Aucun hook ne doit s'adresser aux agences de com
-- ✅ Aucun hook ne doit commencer par "Les 3 erreurs", "Top X", "La vérité sur"
-- ✅ Chaque brief doit contenir une tension/mécanisme/observation NOMMÉE
-- ✅ Aucun chiffre inventé ni faux retex
-- ✅ Aucune marque géante citée comme modèle direct
+- Exporter en PPTX éditable
+- Ouvrir dans LibreOffice, convertir en PDF, vérifier visuellement
+- Critères : aucun texte dupliqué (image+pptx), aucun texte manquant, écart de position < 10px, polices cohérentes.
+
+### Hors-scope (suggéré pour plus tard)
+
+- Refonte des prompts pour adopter le workflow de l'étude (HTML → PPTX en 2 phases avec invariants explicites).
+- Ajout d'un mode "PDF depuis HTML" pour les livrables où l'édition n'est pas requise (qualité visuelle maximale, comme recommandé par l'étude pour audits/études).
