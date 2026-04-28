@@ -1,14 +1,19 @@
 import { useState, useRef, useCallback, useEffect, DragEvent as ReactDragEvent } from "react";
-import { Upload, X, GripVertical } from "lucide-react";
+import { Upload, X, GripVertical, Wand2, Undo2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { PhotoEditDialog } from "./PhotoEditDialog";
 
 export interface PhotoItem {
   base64: string;
   preview: string;
   name: string;
   context?: string;
+  /** Original image kept the first time the photo is edited, so the user can revert. */
+  originalBase64?: string;
+  /** True when the current base64 has been retouched via PhotoRoom. */
+  edited?: boolean;
 }
 
 export interface PhotoUploadZoneProps {
@@ -66,6 +71,7 @@ export function PhotoUploadZone({
   const [isDragOver, setIsDragOver] = useState(false);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [showContexts, setShowContexts] = useState(false);
+  const [editIdx, setEditIdx] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const isFull = photos.length >= maxPhotos;
 
@@ -111,6 +117,42 @@ export function PhotoUploadZone({
   const updateContext = useCallback(
     (idx: number, value: string) => {
       const next = photos.map((p, i) => (i === idx ? { ...p, context: value } : p));
+      updatePhotos(next);
+    },
+    [photos, updatePhotos],
+  );
+
+  // ── PhotoRoom edit ────────────────────────────────
+  const applyEditedPhoto = useCallback(
+    (idx: number, newBase64: string) => {
+      const next = photos.map((p, i) => {
+        if (i !== idx) return p;
+        // Keep the very first version as originalBase64 so we can revert.
+        const originalBase64 = p.originalBase64 ?? p.base64;
+        return {
+          ...p,
+          base64: newBase64,
+          preview: newBase64, // data URL works directly as <img src>
+          originalBase64,
+          edited: true,
+        };
+      });
+      updatePhotos(next);
+    },
+    [photos, updatePhotos],
+  );
+
+  const revertPhoto = useCallback(
+    (idx: number) => {
+      const next = photos.map((p, i) => {
+        if (i !== idx || !p.originalBase64) return p;
+        return {
+          ...p,
+          base64: p.originalBase64,
+          preview: p.originalBase64,
+          edited: false,
+        };
+      });
       updatePhotos(next);
     },
     [photos, updatePhotos],
@@ -242,6 +284,26 @@ export function PhotoUploadZone({
                   >
                     <X className="h-3 w-3" />
                   </button>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setEditIdx(idx); }}
+                    className="absolute top-1 left-1 h-5 w-5 rounded-full bg-primary/85 text-primary-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    aria-label={`Modifier le fond de ${p.name}`}
+                    title="Modifier le fond avec l'IA"
+                  >
+                    <Wand2 className="h-3 w-3" />
+                  </button>
+                  {p.edited && p.originalBase64 && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); revertPhoto(idx); }}
+                      className="absolute bottom-1 right-1 h-5 px-1.5 rounded-full bg-foreground/80 text-background flex items-center gap-0.5 text-[9px] font-medium opacity-90 hover:opacity-100 transition-opacity"
+                      title="Revenir à l'original"
+                    >
+                      <Undo2 className="h-2.5 w-2.5" />
+                      Original
+                    </button>
+                  )}
                   <GripVertical className="absolute bottom-1 left-1 h-3.5 w-3.5 text-white/70 opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
                 </div>
                 {showContexts && (
@@ -278,6 +340,17 @@ export function PhotoUploadZone({
             className="min-h-[72px] resize-none"
           />
         </div>
+      )}
+
+      {/* ── PhotoRoom edit dialog ─────────────────── */}
+      {editIdx !== null && photos[editIdx] && (
+        <PhotoEditDialog
+          open={editIdx !== null}
+          onOpenChange={(o) => { if (!o) setEditIdx(null); }}
+          originalBase64={photos[editIdx].originalBase64 ?? photos[editIdx].base64}
+          name={photos[editIdx].name}
+          onApply={(newBase64) => applyEditedPhoto(editIdx, newBase64)}
+        />
       )}
     </div>
   );
