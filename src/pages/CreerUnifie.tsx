@@ -155,6 +155,11 @@ export default function CreerUnifie() {
   // Snapshot des photos au moment de la génération du carrousel.
   // Sert de source de vérité pour handleGenerateVisuals si le state UI est reset.
   const [generatedWithPhotos, setGeneratedWithPhotos] = useState<any[]>([]);
+  // Dialog "photos manquantes" : remplace le downgrade silencieux.
+  const [photoMissingDialog, setPhotoMissingDialog] = useState<{
+    open: boolean;
+    rawType: "photo" | "mix" | null;
+  }>({ open: false, rawType: null });
   const [photoDescription, setPhotoDescription] = useState("");
   const [photoMode, setPhotoMode] = useState(false);
   const [demoGenerating, setDemoGenerating] = useState(false);
