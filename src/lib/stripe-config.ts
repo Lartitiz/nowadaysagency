@@ -42,7 +42,7 @@ export const STRIPE_PLANS = {
   },
   binome_once: {
     name: "Ton binôme de com' (paiement unique)",
-    price: 1500,
+    price: 1740,
     priceId: "price_1T7uZoIwPeG7GjpysrHPkLgh",
     productId: "prod_U66nHw9q4JTxHL",
     mode: "payment" as const,
