@@ -204,6 +204,16 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
 
       {/* Coaching dialog */}
       <ContentCoachingDialog open={coachOpen} onOpenChange={setCoachOpen} onSelect={onCoachingSelect} onNewsjackingRedirect={() => setShowNewsjacking(true)} />
+
+      {/* Transform sheet : panneau latéral pour recycler / crossposter / s'inspirer */}
+      <Sheet open={showTransform} onOpenChange={setShowTransform}>
+        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader className="mb-4">
+            <SheetTitle>Transformer un contenu existant</SheetTitle>
+          </SheetHeader>
+          <CreerTransformTab />
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
