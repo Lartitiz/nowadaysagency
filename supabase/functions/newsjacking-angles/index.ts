@@ -8,6 +8,14 @@ import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/
 import { getModelForAction } from "../_shared/anthropic.ts";
 
 const AXE_LABELS: Record<string, string> = {
+  // Nouveaux axes (micro-phénomènes culturels)
+  mot_qui_revient: "Mot / concept qui revient",
+  obsession_collective: "Obsession collective",
+  comportement_emergent: "Comportement émergent",
+  debat_recurrent: "Débat récurrent",
+  objet_culturel: "Objet culturel (film/livre/série)",
+  actu_connectable: "Actu connectable",
+  // Anciens axes (rétro-compat pour réponses en cache)
   societe_debat: "Société / Débat",
   economie_argent: "Économie / Argent",
   culture_pop: "Culture / Pop",
@@ -17,6 +25,11 @@ const AXE_LABELS: Record<string, string> = {
 };
 
 const TON_LABELS: Record<string, string> = {
+  // Nouveaux registres
+  confortable: "confortable et reconnaissable",
+  entre_deux: "connu pris sous un angle inattendu",
+  decalant: "décalant et inattendu",
+  // Anciens (rétro-compat)
   serieux_marquant: "sérieux et marquant",
   drole_decale: "drôle et décalé",
   surprenant_contre_intuitif: "surprenant et contre-intuitif",
