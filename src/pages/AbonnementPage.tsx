@@ -140,7 +140,7 @@ export default function AbonnementPage() {
               <p className="text-sm">
                 <span className="font-semibold text-primary">{subInfo?.source === "promo" ? "💎 " : ""}{planLabel}</span>
                 {subInfo?.plan === "outil" && " · 39€/mois"}
-                {subInfo?.plan === "binome" && " · 250€/mois"}
+                {subInfo?.plan === "binome" && " · 290€/mois"}
               </p>
               {subInfo?.plan === "binome" && (
                 <div className="mt-2 space-y-1">
