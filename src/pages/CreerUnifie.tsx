@@ -2018,6 +2018,9 @@ export default function CreerUnifie() {
         carousel_type: rawCarouselType || "text",
         effective_type: effectiveCarouselType || "text",
         has_photos: hasActualPhotos,
+        ui_state_count: uploadedPhotos.length,
+        snapshot_count: generatedWithPhotos.length,
+        downgrade_reason: downgradeReason,
         format: selectedFormat,
       };
       posthog.capture("carousel_visual_debug", diagnosticPayload);
