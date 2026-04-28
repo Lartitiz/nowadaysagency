@@ -383,8 +383,25 @@ export default function CreerUnifie() {
     if (obj) setObjective(obj);
     if (locState?.existingContent) setExistingCalendarContent(locState.existingContent);
 
-    const fmt = paramFormat || locState?.format;
+    const fmtRaw = paramFormat || locState?.format;
     const paramCarouselSubMode = searchParams.get("carouselSubMode") as "text" | "photo" | "mix" | null;
+
+    // Mapping vers les formats canoniques de CreerUnifie/use-content-generator
+    // Couvre les valeurs venues du calendrier ET de saved_ideas (boîte à idées).
+    const FORMAT_MAP: Record<string, string> = {
+      "post_photo": "post",
+      "post_texte": "post",
+      "post_carrousel": "carousel",
+      "carrousel": "carousel",
+      "story_serie": "story",
+    };
+    const SUPPORTED_FORMATS = new Set([
+      "post", "carousel", "reel", "story", "linkedin",
+      "newsletter", "pinterest", "pinterest_visual", "pinterest_inspiration", "pinterest_photo",
+    ]);
+    const fmtMapped = fmtRaw ? (FORMAT_MAP[fmtRaw] || fmtRaw) : null;
+    const fmt = fmtMapped && SUPPORTED_FORMATS.has(fmtMapped) ? fmtMapped : null;
+
     if (fmt) setSelectedFormat(fmt);
     if (paramCarouselSubMode) setCarouselSubMode(paramCarouselSubMode);
 
@@ -408,16 +425,11 @@ export default function CreerUnifie() {
         handleFormatNext(fmt, calendarAngle, { overrideSubject: enrichedSubject });
       }
     } else if (locState?.fromCalendar && subject) {
-      // Map calendar formats to CreerUnifie formats
-      const FORMAT_MAP: Record<string, string> = {
-        "post_photo": "post",
-        "post_texte": "post",
-        "post_carrousel": "carousel",
-        "story_serie": "story",
-      };
-      const mappedFormat = locState.format ? (FORMAT_MAP[locState.format] || locState.format) : null;
-      if (mappedFormat) setSelectedFormat(mappedFormat);
+      // Calendar fallback path (already handled above with FORMAT_MAP)
       if (locState.angle) setEditorialAngle(locState.angle);
+      setStep("format");
+    } else if (fmt || (fmtRaw && subject.trim())) {
+      // Format inconnu/non-supporté mais sujet présent → laisser choisir le format
       setStep("format");
     } else if (fmt) {
       setStep("format");
