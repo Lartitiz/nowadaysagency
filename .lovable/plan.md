@@ -1,63 +1,66 @@
-# Carrousels mixtes : fixer le downgrade silencieux + le cas coaching
+# Sortir "Partir de zéro / Transformer" de toutes les étapes du flow
 
-## Le vrai problème
+## Le problème
 
-Quand on entre dans la création par le **coaching**, le flow saute directement de "coaching" → "questions" (cf. `handleCoachingSelect` ligne 436 de `CreerUnifie.tsx` : commentaire `"Coaching dialog already handles sub-mode choice"`). Sauf que le dialog de coaching **ne propose jamais d'uploader de photos** — il ne fait que choisir un sujet, un format et un objectif.
+Aujourd'hui, les deux gros onglets "✨ Partir de zéro" et "🔄 Transformer un contenu existant" sont rendus **en permanence** en haut de la page de création (`CreerUnifie.tsx`, lignes 2225-2237), peu importe l'étape : sujet, format, questions, validation de structure, résultat, édition…
 
-Résultat : `uploadedPhotos = []` à la génération. Si l'IA renvoie quand même `carousel_type: "mix"` (parce que le sujet s'y prête), le frontend détecte `hasActualPhotos = false` et bascule **silencieusement** en `text` (ligne 1851). L'utilisatrice ne comprend pas pourquoi son carrousel mixte est devenu un carrousel texte.
+C'est inutile et risqué : une utilisatrice engagée dans un flow ne va pas changer de mode au milieu, et un clic accidentel ferait disparaître son brouillon. C'est aussi du bruit visuel constant sur toutes les étapes.
 
 ## Ce qu'on va faire
 
-### 1. Détecter et proposer un retour (cas coaching et tous les autres)
+**Supprimer le système d'onglets et faire de "Transformer" une entrée parmi les autres**, uniquement visible sur l'écran de départ (étape `idea`), au même niveau que "Aide-moi à trouver une idée", "Surfer sur l'actu" et "Partir de photos".
 
-Dans `CreerUnifie.tsx`, au moment où le visuel est sur le point d'être généré :
+### 1. Ajouter "Transformer un contenu" dans la rangée d'entrées de `CreerStepIdea`
 
-- Si `rawCarouselType ∈ {"photo", "mix"}` **et** `hasActualPhotos === false`, **ne pas downgrader silencieusement**.
-- Ouvrir un `AlertDialog` clair avec trois choix :
-  1. **"Ajouter des photos"** → ramène à l'étape `format` (upload zone visible) avec le sujet/angle/réponses préservés
-  2. **"Continuer en carrousel texte"** → bascule explicite vers `text`, avec toast confirmant le choix
-  3. **"Annuler"** → ferme la modale, ne fait rien
+Dans `src/components/creer/CreerStepIdea.tsx`, ajouter un 4e bouton ghost à côté des trois existants :
 
-### 2. Préserver le contexte au retour à l'étape format
+```
+[Aide-moi à trouver une idée] [Surfer sur l'actu] [Partir de photos] [Transformer un contenu]
+```
 
-Quand l'utilisatrice clique "Ajouter des photos", on doit **conserver** : `ideaText`, `objective`, `editorialAngle`, `answers`, `selectedFormat`, `carouselSubMode` (forcer à `mix`). Seul `step` change pour `format`. Comme ça elle reprend exactement où elle en est, juste pour uploader.
+Au clic, il ouvre un **Sheet** (panneau latéral shadcn) qui rend `<CreerTransformTab />` tel quel — le composant est déjà autonome (52 lignes, gère lui-même son state interne avec recycle/crosspost/inspire).
 
-### 3. Rendre le downgrade traceable
+### 2. Supprimer les onglets de `CreerUnifie.tsx`
 
-- Ajouter un toast d'information **systématique** quand un downgrade se produit (même si l'utilisatrice a choisi "Continuer en texte") : `"Carrousel généré en mode texte (aucune photo disponible)"`.
-- Ajouter dans le payload de génération un champ `downgrade_reason` (`"no_photos_at_generation"` / `"user_chose_text"`) pour distinguer les deux cas dans les logs edge.
+- Supprimer le `<Tabs>` / `<TabsList>` / `<TabsTrigger>` lignes 2225-2237.
+- Supprimer le `<TabsContent value="transform">` ligne 2510 (le rendu Transform passera par le Sheet).
+- Garder le contenu de `<TabsContent value="create">` mais le sortir du wrapper Tabs — c'est désormais le seul rendu de la page.
+- Supprimer le state `mode` / `setMode` (ligne 120) et le type `Mode` (ligne 82) — devenus inutiles.
+- Garder `BrandingStatusBanner` à sa place actuelle (juste avant le contenu).
 
-### 4. (Bonus minimal) Snapshot photos persistant
+### 3. Préserver les liens legacy `?mode=transform`
 
-Petit `useEffect` qui synchronise `uploadedPhotos` → `generatedWithPhotos` dès qu'il y a des photos. Évite la perte en cas de re-render entre l'upload et la génération. C'est défensif mais peu coûteux.
+3 routes redirigent encore vers `/creer?mode=transform` (`src/App.tsx` lignes 308, 317, 325 : `/instagram/inspirer`, `/transformer`, `/instagram/inspiration`).
 
-## Hors-scope (volontairement)
+Pour ne pas les casser : dans `CreerStepIdea`, lire `searchParams.get("mode")` au mount (via une nouvelle prop `autoOpenTransform?: boolean` passée par `CreerUnifie`), et ouvrir automatiquement le Sheet Transform si `mode === "transform"`. Nettoyer le param de l'URL après ouverture pour éviter qu'il se ré-ouvre au refresh.
 
-- **Pas d'ajout d'un step "photos" dans le dialog de coaching.** Tu as choisi "détecter et proposer un retour" → on garde le coaching focalisé sur le sujet/format/objectif et on délègue les photos à l'étape `format` existante, qui est déjà conçue pour ça.
-- Pas de refonte de `CoachingFlow.tsx`.
-- Pas de changement côté edge functions (`carousel-visual`, etc.).
+## Hors-scope
+
+- Pas de refonte de `CreerTransformTab` ni de ses sous-flows (recycle/crosspost/inspire) — on les réutilise tels quels.
+- Pas de changement sur les autres entrées (coaching, newsjacking, photos).
+- Pas de changement sur les étapes au-delà de `idea`.
 
 ## Détails techniques
 
-**Fichier principal** : `src/pages/CreerUnifie.tsx`
+**Fichiers modifiés** :
 
-- Nouveau state : `const [photoMissingDialog, setPhotoMissingDialog] = useState<{ open: boolean; rawType: string | null }>({ open: false, rawType: null })`
-- Au début de `handleGenerate` (ou équivalent visuel), remplacer le calcul direct de `effectiveCarouselType` par :
-  ```ts
-  if ((rawCarouselType === "photo" || rawCarouselType === "mix") && !hasActualPhotos) {
-    setPhotoMissingDialog({ open: true, rawType: rawCarouselType });
-    return; // arrêter, attendre la décision utilisateur
-  }
-  ```
-- Trois handlers : `onAddPhotos` (→ `setStep("format")`), `onContinueAsText` (→ relance la génération avec `effectiveCarouselType = "text"` + toast), `onCancel`.
+1. **`src/components/creer/CreerStepIdea.tsx`**
+   - Ajouter prop `autoOpenTransform?: boolean`
+   - Ajouter state `showTransform: boolean` (init avec `autoOpenTransform`)
+   - Ajouter 4e bouton ghost "Transformer un contenu" avec icône `Sparkles` ou `Repeat` (lucide)
+   - Wrapper `<Sheet>` shadcn contenant `<CreerTransformTab />`
+   - Au mount : si `autoOpenTransform`, nettoyer `?mode=` de l'URL avec `window.history.replaceState`
 
-**Composant UI** : un `AlertDialog` shadcn déjà disponible, pas de nouvelle dépendance.
-
-**Logging** : ajouter `downgrade_reason` au log diagnostic (déjà présent ligne ~1860).
+2. **`src/pages/CreerUnifie.tsx`**
+   - Supprimer import `Tabs/TabsContent/TabsList/TabsTrigger` s'ils ne sont plus utilisés ailleurs (vérifier ligne 2467 : `Tabs defaultValue="0"` pour le launch mode → on garde l'import si oui)
+   - Supprimer state `mode`/`setMode`, type `Mode`, lecture `paramMode`
+   - Remplacer le bloc Tabs (2225-2237 + 2241/2510) par le contenu direct de l'ancien `TabsContent value="create"`
+   - Passer `autoOpenTransform={paramMode === "transform"}` à `<CreerStepIdea />`
+   - Supprimer l'usage de `CreerTransformTab` directement dans la page
 
 ## Critères d'acceptation
 
-- Entrer par le coaching, choisir un sujet "carrousel" → générer → si l'IA renvoie `mix` sans photos, **un dialog s'affiche** au lieu d'un carrousel texte muet.
-- Cliquer "Ajouter des photos" → on retombe sur l'étape `format` avec le sujet/angle/réponses **intacts** et la zone d'upload visible.
-- Cliquer "Continuer en texte" → carrousel texte généré + **toast explicite**.
-- Aucun downgrade silencieux ne subsiste dans les logs (chaque cas a un `downgrade_reason`).
+- Sur l'étape `idea`, on voit 4 boutons ghost dont "Transformer un contenu". Clic → panneau latéral avec recycle/crosspost/inspire.
+- Sur toutes les autres étapes (`format`, `questions`, `structure_review`, `result`, `edit`), aucun onglet en haut. Plus de bouton "Transformer" visible.
+- Aller sur `/transformer` → atterrit sur l'étape `idea` avec le panneau Transform **déjà ouvert**.
+- Aucun flow en cours n'est interrompu par un onglet parasite.
