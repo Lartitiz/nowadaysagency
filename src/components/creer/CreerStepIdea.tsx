@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, Sparkles, HelpCircle, Newspaper, Camera, ArrowLeft } from "lucide-react";
+import { ArrowRight, Sparkles, HelpCircle, Newspaper, Camera, ArrowLeft, Repeat } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import ContentCoachingDialog from "@/components/dashboard/ContentCoachingDialog";
 import NewsjackingPanel from "./NewsjackingPanel";
+import CreerTransformTab from "./CreerTransformTab";
 import { PhotoUploadZone, type PhotoItem } from "./PhotoUploadZone";
 import { useToast } from "@/hooks/use-toast";
 
@@ -16,6 +18,7 @@ interface Props {
   workspaceId?: string;
   activite?: string;
   initialIdea?: string;
+  autoOpenTransform?: boolean;
 }
 
 const ACTIVITY_PLACEHOLDERS: Record<string, string> = {
@@ -43,14 +46,27 @@ function getPlaceholder(activite?: string): string {
   return "Ex : je veux montrer un projet récent / je voudrais parler de pourquoi je fais ce métier / j'ai envie de réagir à une actu...";
 }
 
-export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingSelect, onPhotosNext, workspaceId, activite, initialIdea }: Props) {
+export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingSelect, onPhotosNext, workspaceId, activite, initialIdea, autoOpenTransform }: Props) {
   const [idea, setIdea] = useState(initialIdea || "");
   const [coachOpen, setCoachOpen] = useState(false);
   const [showNewsjacking, setShowNewsjacking] = useState(false);
   const [showPhotosMode, setShowPhotosMode] = useState(false);
+  const [showTransform, setShowTransform] = useState(!!autoOpenTransform);
   const [localPhotos, setLocalPhotos] = useState<PhotoItem[]>([]);
   const [localDescription, setLocalDescription] = useState("");
   const { toast } = useToast();
+
+  // Si on arrive via un legacy redirect (?mode=transform), nettoyer le param
+  // de l'URL pour éviter que le panneau ne se ré-ouvre au refresh.
+  useEffect(() => {
+    if (autoOpenTransform && typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has("mode")) {
+        url.searchParams.delete("mode");
+        window.history.replaceState({}, "", url.toString());
+      }
+    }
+  }, [autoOpenTransform]);
 
   const exitPhotosMode = () => {
     setShowPhotosMode(false);
@@ -108,6 +124,14 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
                   <Camera className="h-3.5 w-3.5" /> Partir de photos
                 </Button>
               )}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1.5 text-muted-foreground"
+                onClick={() => setShowTransform(true)}
+              >
+                <Repeat className="h-3.5 w-3.5" /> Transformer un contenu
+              </Button>
             </div>
           </div>
 
@@ -180,6 +204,16 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
 
       {/* Coaching dialog */}
       <ContentCoachingDialog open={coachOpen} onOpenChange={setCoachOpen} onSelect={onCoachingSelect} onNewsjackingRedirect={() => setShowNewsjacking(true)} />
+
+      {/* Transform sheet : panneau latéral pour recycler / crossposter / s'inspirer */}
+      <Sheet open={showTransform} onOpenChange={setShowTransform}>
+        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader className="mb-4">
+            <SheetTitle>Transformer un contenu existant</SheetTitle>
+          </SheetHeader>
+          <CreerTransformTab />
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

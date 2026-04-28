@@ -31,7 +31,7 @@ import PinterestInspirationStep from "@/components/creer/PinterestInspirationSte
 import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
 import StructureReviewStep from "@/components/creer/StructureReviewStep";
 import type { SlideProposal, StructureProposal } from "@/components/creer/StructureReviewStep";
-import CreerTransformTab from "@/components/creer/CreerTransformTab";
+
 import { useContentGenerator } from "@/hooks/use-content-generator";
 import { CONTENT_STRUCTURES, EDITORIAL_ANGLES, LINKEDIN_EDITORIAL_ANGLES, PINTEREST_EDITORIAL_ANGLES, PINTEREST_VISUAL_ANGLES, getStructureForCombo } from "@/lib/content-structures";
 import { useAuth } from "@/contexts/AuthContext";
@@ -79,7 +79,7 @@ function LowCreditsBanner({ remaining, plan }: { remaining: number; plan: string
 }
 
 type Step = "idea" | "format" | "questions" | "structure_review" | "inspiration_proposals" | "result" | "edit";
-type Mode = "create" | "transform";
+
 
 export default function CreerUnifie() {
   const [searchParams] = useSearchParams();
@@ -117,7 +117,7 @@ export default function CreerUnifie() {
 
   // Core state — restore from sessionStorage if available
   const ps = persistedState.current;
-  const [mode, setMode] = useState<Mode>(paramMode === "transform" ? "transform" : "create");
+  const autoOpenTransform = paramMode === "transform";
   // Restore step — allow "result" and "edit" if their data is available
   const safeStep = (() => {
     if (!ps?.step) return "idea";
@@ -2222,24 +2222,10 @@ export default function CreerUnifie() {
         )}
 
         {/* Mode tabs — first visible choice */}
-        <Tabs value={mode} onValueChange={(v) => setMode(v as Mode)} className="mb-4">
-          <TabsList className="w-full h-11 border bg-muted/50">
-            <TabsTrigger value="create" className="flex-1 gap-1.5 text-sm">
-              <span>✨</span>
-              <span className="hidden sm:inline">Partir de zéro</span>
-              <span className="sm:hidden">Créer</span>
-            </TabsTrigger>
-            <TabsTrigger value="transform" className="flex-1 gap-1.5 text-sm">
-              <span>🔄</span>
-              <span className="hidden sm:inline">Transformer un contenu existant</span>
-              <span className="sm:hidden">Transformer</span>
-            </TabsTrigger>
-          </TabsList>
+        <BrandingStatusBanner />
 
-          <BrandingStatusBanner />
-
-          <TabsContent value="create" className="mt-4">
-            {/* Progress bar (from step 2+) */}
+        <div className="mt-4">
+          {/* Progress bar (from step 2+) */}
             {step !== "idea" && (
               <div className="flex gap-1 mb-5">
                 {stepOrder.map((s, i) => (
@@ -2266,7 +2252,7 @@ export default function CreerUnifie() {
                     ✨ {remainingTotal()} générations restantes ce mois
                   </p>
                 )}
-                <CreerStepIdea onNext={handleIdeaNext} onCoachingSelect={handleCoachingSelect} onNewsjackingSelect={handleNewsjackingSelect} onPhotosNext={handlePhotosNext} workspaceId={workspaceId} activite={activityText} initialIdea={ideaText} />
+                <CreerStepIdea onNext={handleIdeaNext} onCoachingSelect={handleCoachingSelect} onNewsjackingSelect={handleNewsjackingSelect} onPhotosNext={handlePhotosNext} workspaceId={workspaceId} activite={activityText} initialIdea={ideaText} autoOpenTransform={autoOpenTransform} />
               </>
             )}
 
@@ -2505,12 +2491,7 @@ export default function CreerUnifie() {
                 }}
               />
             )}
-          </TabsContent>
-
-          <TabsContent value="transform" className="mt-4">
-            <CreerTransformTab />
-          </TabsContent>
-        </Tabs>
+        </div>
       </div>
 
       {/* Calendar date dialog */}
