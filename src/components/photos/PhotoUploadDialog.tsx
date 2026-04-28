@@ -35,6 +35,9 @@ const PROMPT_SUGGESTIONS = [
   "Bureau minimaliste scandinave, bois clair et blanc",
 ];
 
+const MAX_FILE_BYTES = 15 * 1024 * 1024;
+const HEIC_TYPES = ["image/heic", "image/heif"];
+
 export function PhotoUploadDialog({ open, onOpenChange }: PhotoUploadDialogProps) {
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -59,6 +62,14 @@ export function PhotoUploadDialog({ open, onOpenChange }: PhotoUploadDialogProps
     if (!f) return;
     if (!f.type.startsWith("image/")) {
       toast.error("Le fichier doit être une image.");
+      return;
+    }
+    if (HEIC_TYPES.includes(f.type.toLowerCase()) || /\.hei[cf]$/i.test(f.name)) {
+      toast.error("Le format HEIC n'est pas encore pris en charge. Convertis la photo en JPG ou PNG.");
+      return;
+    }
+    if (f.size > MAX_FILE_BYTES) {
+      toast.error("La photo dépasse 15 Mo. Réduis-la puis réessaie.");
       return;
     }
     if (previewUrl) URL.revokeObjectURL(previewUrl);
