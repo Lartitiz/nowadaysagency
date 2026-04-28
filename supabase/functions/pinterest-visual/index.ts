@@ -68,17 +68,23 @@ serve(async (req) => {
     const col = filterWs ? "workspace_id" : "user_id";
     const val = filterWs || user.id;
 
-    const [ctx, charterRes] = await Promise.all([
+    const [ctx, charterRes, brandProfileRes] = await Promise.all([
       getUserContext(sbAdmin, user.id, filterWs),
       sbAdmin
         .from("brand_charter")
         .select("color_primary, color_secondary, color_accent, color_background, color_text, font_title, font_body, mood_keywords, border_radius, photo_style, visual_donts, ai_generated_brief, moodboard_description, icon_style, template_layout_description")
         .eq(col, val)
         .maybeSingle(),
+      sbAdmin
+        .from("brand_profile")
+        .select("tone_register")
+        .eq(col, val)
+        .maybeSingle(),
     ]);
 
     const contextText = formatContextForAI(ctx, CONTEXT_PRESETS.pinterest);
     const charter = charterRes.data || {};
+    const brandProfile = brandProfileRes.data || null;
 
     const ch = {
       color_primary: charter.color_primary || "#FB3D80",
@@ -97,6 +103,11 @@ serve(async (req) => {
       icon_style: charter.icon_style || "",
       template_layout_description: charter.template_layout_description || "",
     };
+
+    // Invariants PPTX (charte + identité). Pinterest n'a qu'une slide,
+    // donc on annonce juste le motif/palette/typo pour aligner HTML preview et export.
+    const invariants = buildPptxInvariants({ charter, brandProfile });
+    const invariantsBlock = formatInvariantsForPrompt(invariants);
 
     const systemPrompt = `Tu es une directrice artistique ET experte SEO Pinterest. Tu génères un visuel HTML/CSS inline pour une épingle Pinterest au format 1000×1500px, PLUS le titre et la description SEO.
 
