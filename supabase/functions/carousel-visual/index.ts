@@ -79,6 +79,16 @@ serve(async (req) => {
       charter = dbCharter || {};
     }
 
+    // Hybride : on enrichit avec le ton éditorial (brand_profile) pour dériver
+    // motif visuel, dominante et tailles. La charte reste la source pour palette/polices.
+    const bpCol = workspaceId ? "workspace_id" : "user_id";
+    const bpVal = workspaceId || user.id;
+    const { data: brandProfile } = await sbAdmin
+      .from("brand_profile")
+      .select("tone_register")
+      .eq(bpCol, bpVal)
+      .maybeSingle();
+
     const ch = {
       color_primary: charter.color_primary || "#FB3D80",
       color_secondary: charter.color_secondary || "#91014b",
@@ -96,6 +106,10 @@ serve(async (req) => {
       icon_style: charter.icon_style || "",
       template_layout_description: charter.template_layout_description || "",
     };
+
+    // Construit les invariants PPTX (source de vérité unique pour la phase d'export).
+    const invariants = buildPptxInvariants({ charter, brandProfile });
+    const invariantsBlock = formatInvariantsForPrompt(invariants);
 
     // Sanitize font names — certains caractères peuvent casser l'URL Google Fonts ou le HTML
     const safeFontTitle = ch.font_title.replace(/[<>"'&]/g, "");
