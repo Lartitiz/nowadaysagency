@@ -5,7 +5,9 @@ import {
   normalizeHex,
   pxToInches,
   fontSizePxToPt,
+  letterSpacingPxToCharSpacing,
   extractEditableBlocks,
+  extractAnnotatedBlocks,
   type EditableBlock,
 } from "./pptx-font-mapping";
 
@@ -126,7 +128,7 @@ async function captureBody(doc: Document): Promise<string> {
 }
 
 // ---------------------------------------------------------------------------
-// overlay slide (stratégie A) : photo + overlay_text court
+// overlay slide (fallback) : photo + overlay_text court
 // ---------------------------------------------------------------------------
 
 /** Find the smallest element whose textContent contains the overlay text. */
@@ -141,10 +143,8 @@ function findOverlayElement(doc: Document, overlayText: string): HTMLElement | n
   for (const el of all) {
     const txt = (el.textContent || "").trim().toLowerCase();
     if (!txt) continue;
-    // Accept exact match OR partial (overlay text contained in the element)
     const matches = txt === target || txt.includes(target);
     if (!matches) continue;
-    // We want the SMALLEST container — i.e. closest to the actual text node
     if (txt.length < bestLen) {
       best = el;
       bestLen = txt.length;
@@ -183,6 +183,7 @@ function blockFromElement(el: HTMLElement, doc: Document, kind: EditableBlock["k
           : "left",
       textTransform: cs.textTransform || "none",
       lineHeight: parseFloat(cs.lineHeight) || fontSizePx * 1.25,
+      letterSpacingPx: parseFloat(cs.letterSpacing) || 0,
     },
     kind,
   };
@@ -217,7 +218,9 @@ function addBlockToSlide(
     block.style.fontFamily || (isTitleish ? charter?.font_title : charter?.font_body),
   );
   const fontSize = fontSizePxToPt(block.style.fontSizePx, PX_PER_IN);
-  const color = normalizeHex(block.style.color, isTitleish ? "FFFFFF" : "FFFFFF");
+  const charterTextFallback = normalizeHex(charter?.color_text, "FFFFFF");
+  const color = normalizeHex(block.style.color, charterTextFallback);
+  const charSpacing = letterSpacingPxToCharSpacing(block.style.letterSpacingPx, PX_PER_IN);
 
   slide.addText(applyTextTransform(block.text, block.style.textTransform), {
     x,
@@ -233,6 +236,7 @@ function addBlockToSlide(
     valign: "top",
     wrap: true,
     margin: 0,
+    charSpacing: charSpacing || undefined,
     lineSpacingMultiple: Math.max(0.9, Math.min(1.6, block.style.lineHeight / Math.max(1, block.style.fontSizePx))),
   });
 }
@@ -263,30 +267,43 @@ export async function exportCarouselHybridPptx(
       const doc = iframe.contentDocument!;
       const win = doc.defaultView!;
 
-      const overlayText = (data?.overlay_text || "").trim();
       const blocks: BlockRender[] = [];
 
-      // ---- Strategy A: short overlay_text (photo slides) ------------------
-      if (overlayText && overlayText.length <= 200) {
-        const el = findOverlayElement(doc, overlayText);
-        if (el) {
-          const blk = blockFromElement(el, doc, "overlay");
-          if (blk) {
-            // Use the canonical overlay text (handles partial matches)
-            blk.text = overlayText;
-            blocks.push(blk);
-            el.setAttribute("data-pptx-hide", "true");
-          }
+      // ---- Strategy A (priority): explicit [data-pptx-editable] annotations
+      const annotated = extractAnnotatedBlocks(doc);
+      if (annotated.length > 0) {
+        for (const ab of annotated) {
+          if (ab.rect.y > SLIDE_H_PX || ab.rect.x > SLIDE_W_PX) continue;
+          if (ab.rect.y + ab.rect.h < 0) continue;
+          blocks.push({ text: ab.text, rect: ab.rect, style: ab.style, kind: ab.kind });
+          (ab.el as HTMLElement).setAttribute("data-pptx-hide", "true");
         }
       } else {
-        // ---- Strategy B: text slides — detect editable blocks structurally
-        const detected = extractEditableBlocks(doc, { minFontPx: 20, minTextLen: 3, maxBlocks: 8 });
-        for (const eb of detected) {
-          // Skip if not visible in the slide bounds
-          if (eb.rect.y > SLIDE_H_PX || eb.rect.x > SLIDE_W_PX) continue;
-          if (eb.rect.y + eb.rect.h < 0) continue;
-          blocks.push({ text: eb.text, rect: eb.rect, style: eb.style, kind: eb.kind });
-          (eb.el as HTMLElement).setAttribute("data-pptx-hide", "true");
+        // ---- Strategy B (fallback) : short overlay_text on photo slides
+        const overlayText = (data?.overlay_text || "").trim();
+        if (overlayText && overlayText.length <= 200) {
+          const el = findOverlayElement(doc, overlayText);
+          if (el) {
+            const blk = blockFromElement(el, doc, "overlay");
+            if (blk) {
+              blk.text = overlayText;
+              blocks.push(blk);
+              el.setAttribute("data-pptx-hide", "true");
+            }
+          }
+        } else {
+          // ---- Strategy C (fallback) : heuristic detection
+          const detected = extractEditableBlocks(doc, {
+            minFontPx: 20,
+            minTextLen: 3,
+            maxBlocks: 8,
+          });
+          for (const eb of detected) {
+            if (eb.rect.y > SLIDE_H_PX || eb.rect.x > SLIDE_W_PX) continue;
+            if (eb.rect.y + eb.rect.h < 0) continue;
+            blocks.push({ text: eb.text, rect: eb.rect, style: eb.style, kind: eb.kind });
+            (eb.el as HTMLElement).setAttribute("data-pptx-hide", "true");
+          }
         }
       }
 
@@ -294,12 +311,9 @@ export async function exportCarouselHybridPptx(
       void win.document.body.offsetHeight;
       await new Promise((r) => setTimeout(r, 50));
 
-      // Capture background WITH text hidden if we have blocks; otherwise capture as-is
       const bg = await captureBody(doc);
-
       slide.addImage({ data: bg, x: 0, y: 0, w: PPTX_W_IN, h: PPTX_H_IN });
 
-      // Add editable text blocks (only if detection succeeded)
       for (const b of blocks) {
         try {
           addBlockToSlide(slide, b, charter);

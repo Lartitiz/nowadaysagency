@@ -738,6 +738,32 @@ Retourne UNIQUEMENT le JSON.`;
 
     const model: AnthropicModel = "claude-opus-4-6";
 
+    // ═══ Append PPTX-editable annotation rules to ALL modes ═══
+    // Ces annotations permettent à l'export PPTX de rendre une seule version de chaque texte
+    // (en éditable), sans le doublonner dans l'image de fond.
+    const pptxAnnotationRules = `
+
+═══ ANNOTATIONS POUR EXPORT POWERPOINT ÉDITABLE — OBLIGATOIRE ═══
+
+Sur CHAQUE bloc de texte significatif (titre, corps, overlay sur photo, légende, numéro de slide, badge), ajoute l'attribut HTML \`data-pptx-editable\` avec une de ces valeurs :
+- \`data-pptx-editable="title"\` → titre principal de la slide (hook, headline)
+- \`data-pptx-editable="body"\` → corps de texte, paragraphes, items de liste, descriptions
+- \`data-pptx-editable="overlay"\` → texte court superposé à une photo
+- \`data-pptx-editable="caption"\` → numéro de slide, badge "INFOGRAPHIE", watermark, légende discrète
+
+Règles :
+1. L'attribut va sur le NOEUD QUI CONTIENT DIRECTEMENT le texte (le <p>, <h1>, <h2>, <span>, <div>...), pas sur un parent qui en contient plusieurs.
+2. N'annote PAS les éléments purement décoratifs (formes SVG, traits, fonds colorés, emojis isolés sans texte autour).
+3. Si une carte contient un titre + un paragraphe, annote les DEUX séparément, pas la carte entière.
+4. Si un même texte apparaît à plusieurs endroits visuellement (ex: titre dupliqué pour effet typographique), annote-en UN SEUL.
+
+Exemple :
+<div style="...carte..."><h2 data-pptx-editable="title" style="...">Mon titre</h2><p data-pptx-editable="body" style="...">Mon paragraphe</p></div>
+<span data-pptx-editable="caption" style="...badge...">01 / 05</span>
+`;
+
+    const systemPromptWithAnnotations = finalSystemPrompt + pptxAnnotationRules;
+
     console.log(JSON.stringify({
       type: "carousel_visual_call",
       model,
@@ -750,7 +776,7 @@ Retourne UNIQUEMENT le JSON.`;
 
     const rawResponse = await callAnthropic({
       model,
-      system: finalSystemPrompt,
+      system: systemPromptWithAnnotations,
       messages,
       temperature: 0.5,
       max_tokens: 16384,

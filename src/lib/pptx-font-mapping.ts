@@ -194,8 +194,9 @@ export interface EditableBlock {
     textAlign: "left" | "center" | "right";
     textTransform: string;
     lineHeight: number;
+    letterSpacingPx: number;
   };
-  kind: "title" | "body" | "overlay";
+  kind: "title" | "body" | "overlay" | "caption";
 }
 
 function parseAlign(v: string): "left" | "center" | "right" {
@@ -219,11 +220,12 @@ function parseFontWeight(v: string): number {
  */
 export function extractEditableBlocks(
   doc: Document,
-  opts: { minFontPx?: number; minTextLen?: number; maxBlocks?: number } = {},
+  opts: { minFontPx?: number; minTextLen?: number; maxBlocks?: number; skipAnnotated?: boolean } = {},
 ): EditableBlock[] {
   const minFontPx = opts.minFontPx ?? 18;
   const minTextLen = opts.minTextLen ?? 3;
   const maxBlocks = opts.maxBlocks ?? 12;
+  const skipAnnotated = opts.skipAnnotated ?? true;
   const win = doc.defaultView;
   if (!win) return [];
 
@@ -233,6 +235,9 @@ export function extractEditableBlocks(
   for (const el of all) {
     const text = (el.textContent || "").trim();
     if (text.length < minTextLen) continue;
+
+    // Skip nodes already covered by an annotated ancestor (avoid double-render)
+    if (skipAnnotated && el.closest("[data-pptx-editable]")) continue;
 
     // Skip if any child is itself a text-bearing element (we want leaf-ish blocks)
     const hasBlockChild = Array.from(el.children).some((c) => {
@@ -272,6 +277,7 @@ export function extractEditableBlocks(
         textAlign: parseAlign(cs.textAlign || "left"),
         textTransform: cs.textTransform || "none",
         lineHeight: parseFloat(cs.lineHeight) || fontSizePx * 1.25,
+        letterSpacingPx: parseFloat(cs.letterSpacing) || 0,
       },
       kind,
     });
@@ -287,10 +293,61 @@ export function extractEditableBlocks(
   return filtered.slice(0, maxBlocks);
 }
 
+/**
+ * Read explicit `[data-pptx-editable="title|body|overlay|caption"]` blocks.
+ * This is the source of truth when the HTML generator opted in to annotation.
+ */
+export function extractAnnotatedBlocks(doc: Document): EditableBlock[] {
+  const win = doc.defaultView;
+  if (!win) return [];
+  const nodes = Array.from(doc.body.querySelectorAll<HTMLElement>("[data-pptx-editable]"));
+  const blocks: EditableBlock[] = [];
+  for (const el of nodes) {
+    const text = (el.textContent || "").trim();
+    if (!text) continue;
+    const cs = win.getComputedStyle(el);
+    if (cs.visibility === "hidden" || cs.display === "none") continue;
+    const r = el.getBoundingClientRect();
+    if (r.width < 5 || r.height < 5) continue;
+    const fontSizePx = parseFloat(cs.fontSize) || 16;
+    const rawKind = (el.getAttribute("data-pptx-editable") || "body").toLowerCase();
+    const kind: EditableBlock["kind"] =
+      rawKind === "title" || rawKind === "overlay" || rawKind === "caption" ? rawKind : "body";
+    blocks.push({
+      el,
+      text,
+      rect: { x: r.left, y: r.top, w: r.width, h: r.height },
+      style: {
+        color: cs.color || "#FFFFFF",
+        fontFamily: cs.fontFamily || "",
+        fontSizePx,
+        fontWeight: parseFontWeight(cs.fontWeight),
+        fontStyle: cs.fontStyle || "normal",
+        textAlign: parseAlign(cs.textAlign || "left"),
+        textTransform: cs.textTransform || "none",
+        lineHeight: parseFloat(cs.lineHeight) || fontSizePx * 1.25,
+        letterSpacingPx: parseFloat(cs.letterSpacing) || 0,
+      },
+      kind,
+    });
+  }
+  // Drop ancestors when a descendant is also annotated
+  return blocks.filter(
+    (b) => !blocks.some((other) => other !== b && b.el.contains(other.el)),
+  );
+}
+
 /** Convert CSS px font-size into PPTX point size for a 1080px wide -> 7.5in slide. */
 export function fontSizePxToPt(px: number, pxPerInch: number): number {
-  // PPTX uses 72pt/inch. Apply a small visual correction (~0.92) so PPTX text
-  // doesn't render larger than the captured background.
+  // PPTX uses 72pt/inch. 0.94 factor matches the visual size of the captured background.
   const inches = px / pxPerInch;
-  return Math.max(8, Math.round(inches * 72 * 0.92));
+  return Math.max(8, Math.round(inches * 72 * 0.94));
 }
+
+/** Convert CSS letter-spacing (px) to pptxgenjs `charSpacing` (integer points). */
+export function letterSpacingPxToCharSpacing(px: number, pxPerInch: number): number {
+  if (!px || Math.abs(px) < 0.1) return 0;
+  const points = (px / pxPerInch) * 72;
+  return Math.round(points);
+}
+
