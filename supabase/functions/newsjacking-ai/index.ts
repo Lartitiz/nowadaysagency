@@ -166,13 +166,14 @@ FORMAT DE RÉPONSE — JSON STRICT (pas de markdown, pas de backticks)
   ]
 }
 
-RÉPARTITION STRICTE — exactement 6 actus :
-- 3 actus avec "type": "globale", chacune sur un des 3 axes imposés ci-dessus (1 par axe, JAMAIS 2 du même axe)
-- 3 actus avec "type": "niche" issues des 3 recherches métier ci-dessus
+RÉPARTITION SOUPLE — entre 3 et 6 actus, qualité avant quantité :
+- Idéalement 3 actus "globale" (1 par axe imposé) + 3 actus "niche" (1 par recherche métier)
+- Si un axe ou une recherche ne donne rien de pertinent, tu peux renvoyer moins (ex : 2 globales + 3 niche, ou 3 globales + 2 niche)
+- Minimum acceptable : 3 actus au total, avec au moins 1 globale ET 1 niche
+- Règle absolue : JAMAIS 2 actus du même axe
+- Si tu renvoies 4+ actus, respecte le mix de tons (au moins 2 tons différents)
 
-Si vraiment aucune actu pertinente n'existe sur un axe, remplace-la par un autre axe non utilisé. Mais ne renvoie JAMAIS 2 actus du même axe.
-
-Si vraiment rien ne fonctionne, retourne :
+Si vraiment rien ne fonctionne (moins de 3 actus pertinentes au total), retourne :
 { "actus": [], "message": "Pas d'actu suffisamment pertinente trouvée cette semaine. Réessaie dans quelques jours !" }`;
 
     const controller = new AbortController();

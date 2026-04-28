@@ -1,72 +1,45 @@
-# Plan — Sécurité : rate-limiting sur `analyze-branding-impact`
+# Plan — Fix bug "pas assez d'actu" sur Surfer sur l'actu
 
 ## Contexte
 
-`analyze-branding-impact` appelle le **Lovable AI Gateway** (et non Anthropic directement, contrairement à ce qu'indiquait le ticket initial — détail vérifié à la lecture du fichier ligne 109). Elle n'utilise ni `runPipeline` ni `checkRateLimit`. Sans rate-limit, un user authentifié peut spammer l'endpoint et :
+L'Edge Function `newsjacking-ai` est trop contrainte : `max_tokens: 2048` insuffisant (les réponses avec web search interleaved sont coupées), `max_uses: 8` limite la couverture, et le prompt exige "exactement 6 actus" avec répartition stricte. Quand Claude ne peut pas remplir, il renvoie un message d'erreur ou un JSON vide → le frontend affiche "pas assez d'actu".
 
-- faire exploser les coûts gateway,
-- contourner le quota `suggestion` en envoyant N requêtes en parallèle avant que `logUsage` n'écrive en DB.
+Le frontend (`NewsjackingPanel.tsx`) gère déjà `actus.length === 0` avec un message, et affiche correctement n'importe quel nombre d'actus > 0 (vu via `visibleActus`). Donc **aucun changement frontend nécessaire** — il suffit d'assouplir le backend.
 
-Pattern de référence retenu : `engagement-coaching/index.ts` lignes 31-32, déjà en prod et conforme aux conventions du projet.
+## Périmètre — Edge Function uniquement
 
-## Fichier impacté
+**Fichier : `supabase/functions/newsjacking-ai/index.ts`**
 
-**1 seul fichier** : `supabase/functions/analyze-branding-impact/index.ts`
+### Fix 1 : Augmenter `max_tokens` 2048 → 4096
+Donne assez de room à Claude pour générer 6 actus détaillées avec le raisonnement web search interleaved.
 
-## Comportement attendu
+### Fix 2 : Augmenter `max_uses` web_search 8 → 10
+Permet à Claude de couvrir les 6 axes (3 globaux + 3 niche) avec un peu de marge pour reformuler une recherche infructueuse.
 
-### 1. Import (ligne 5)
+### Fix 3 : Assouplir le prompt — accepter 3 à 6 actus
+- Ligne 169 (`RÉPARTITION STRICTE — exactement 6 actus`) → `RÉPARTITION SOUPLE — entre 3 et 6 actus, qualité avant quantité`.
+- Ligne 192 (message user) : remplacer "renvoie 6 actus" par "renvoie entre 3 et 6 actus variées. Privilégie la qualité : mieux vaut 3 bonnes actus que 6 médiocres."
+- Garder la règle "jamais 2 actus du même axe" et le mix de tons (mais conditionnel au nombre).
 
-Ajouter sous l'import de `getCorsHeaders` :
-
-```ts
-import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
-```
-
-### 2. Vérification rate-limit
-
-Insérer le bloc ci-dessous **juste après la ligne 22** (`if (userError || !user) throw new Error("Unauthorized");`) et **avant la ligne 24** (parsing du body) :
+## Détails techniques
 
 ```ts
-const rateCheck = checkRateLimit(user.id);
-if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+// L.190-192
+max_tokens: 4096,
+tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 10 }],
+messages: [{ role: "user", content: systemPrompt + `\n\nFais les recherches maintenant et renvoie entre 3 et 6 actus variées (axes + tons mélangés). Privilégie la qualité : mieux vaut 3 bonnes actus que 6 médiocres.` }],
 ```
 
-⚠️ **Note variable cors** : dans ce fichier la variable s'appelle `corsHeaders` (pas `cors` comme dans `engagement-coaching`). À respecter pour éviter une `ReferenceError`.
+Et dans le `systemPrompt`, remplacer la section "RÉPARTITION STRICTE" par une formulation souple qui demande "idéalement 3 globales + 3 niche, mais accepte 2+1 ou 3+2 si certains axes ne donnent rien".
 
-### 3. Pourquoi placer le rate-limit AVANT le parsing du body et le `checkQuota`
+## Hors périmètre (pas touché)
 
-- Avant `req.json()` : on évite de payer le coût de parsing si le user spamme.
-- Avant `checkQuota` : on évite une requête DB par tentative spammée (le rate-limit est en mémoire, gratuit).
+- Frontend `NewsjackingPanel.tsx` : déjà tolérant à `< 6 actus`, gère le cas vide avec message.
+- Logique de parsing JSON : déjà robuste (3 stratégies).
+- Quota / rate-limit / auth : intacts.
 
-C'est exactement l'ordre d'`engagement-coaching` (rate-limit ligne 31, parsing ligne 34, quota ligne 40).
+## Vérification
 
-## Ce qui NE DOIT PAS bouger
-
-- Le `checkQuota` existant ligne 30 (logique métier et fallback `suggestions: []` conservés tels quels)
-- L'appel au gateway Lovable AI ligne 102+
-- Le parsing du tool call et le save en DB
-- `_shared/rate-limiter.ts` et `_shared/plan-limiter.ts` (intacts)
-- Aucun changement front
-- Pas de migration vers `runPipeline` (hors scope, à ouvrir séparément si besoin)
-
-## Critères de validation
-
-1. `grep -n "checkRateLimit\|rateLimitResponse" supabase/functions/analyze-branding-impact/index.ts` → 1 ligne d'import + 2 lignes (déclaration + return)
-2. Le bloc rate-limit doit apparaître **avant** `await req.json()` (vérifiable au diff)
-3. Test fonctionnel : déclencher 25 modifs branding rapides en moins d'une minute → la 21e doit retourner HTTP 429 avec header `Retry-After` (limite par défaut `checkRateLimit` = 20 req/min, cf. `_shared/rate-limiter.ts`)
-4. Test non-régression : une seule modif branding → la fonction répond normalement avec ses suggestions (ou `suggestions: []` si quota dépassé)
-
-## Améliorations identifiées (hors scope, à valider séparément si tu veux les ouvrir)
-
-**(a) Périmètre demandé** : strictement le rate-limit sur cette fonction. ✅
-
-**(b) Propositions d'amélioration repérées en lisant le fichier** (ne PAS exécuter dans ce ticket) :
-
-1. **Réponse 200 sur quota épuisé (ligne 31)** : la fonction renvoie `200 + suggestions: []` au lieu d'un `429` standardisé via `quotaDeniedResponse`. Conséquence : la `QuotaWallModal` côté front ne s'affiche jamais sur cette feature. C'est exactement le bug qu'on a déjà corrigé sur `engagement-coaching` et `pinterest-ai`. → **Ticket dédié recommandé**.
-
-2. **Double client Supabase (lignes 17 + 20)** : un client service-role + un client anon créés à chaque requête. Pattern moins propre que celui d'`engagement-coaching` qui utilise un seul client anon avec le header Authorization. Cosmétique, pas urgent.
-
-3. **`logUsage` en fire-and-forget (ligne 169)** : actuellement `await logUsage(...)` est bien awaité ✅, c'est conforme à la règle Core mémoire. Pas d'action.
-
-Confirme si tu veux que j'ouvre le ticket (b.1) en suivant immédiatement après celui-ci.
+1. Déployer la fonction (auto via Lovable).
+2. Re-tester `/creer` → bouton "Surfer sur l'actu" → doit retourner 4-6 actus la plupart du temps.
+3. Vérifier les logs : `Raw text blocks count` et `Full text length` doivent indiquer une réponse non tronquée.
