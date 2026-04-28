@@ -98,6 +98,7 @@ export default function CreerUnifie() {
   const paramObjectif = searchParams.get("objectif") || searchParams.get("objective") || "";
   const paramMode = searchParams.get("mode");
   const paramFrom = searchParams.get("from");
+  const paramAngle = searchParams.get("angle");
 
   // Location state (from calendar, etc.)
   const locState = (location.state as any) || {};
@@ -394,13 +395,14 @@ export default function CreerUnifie() {
       const enrichedSubject = calendarContent
         ? subject + "\n\n[Contenu existant à approfondir]\n" + calendarContent
         : subject;
-      const calendarAngle = locState?.angle || undefined;
+      const calendarAngle = locState?.angle || paramAngle || undefined;
       if (calendarAngle) setEditorialAngle(calendarAngle);
-      
-      // Si le format est "carousel" ou "post", passer par l'étape format
-      // pour permettre le sous-choix (carrousel texte/photo, toggle photo)
-      // SAUF si on vient du calendrier avec un angle déjà choisi (flow calendrier = direct)
-      if ((fmt === "carousel" || fmt === "post") && !locState?.fromCalendar) {
+
+      // Si un angle est déjà choisi (depuis la boîte à idées ou le calendrier),
+      // on saute l'étape "format" et on enchaîne directement sur les questions.
+      // Sinon, pour carousel/post on passe par l'étape format pour permettre
+      // le sous-choix (carrousel texte/photo, toggle photo).
+      if ((fmt === "carousel" || fmt === "post") && !locState?.fromCalendar && !paramAngle) {
         setStep("format");
       } else {
         handleFormatNext(fmt, calendarAngle, { overrideSubject: enrichedSubject });

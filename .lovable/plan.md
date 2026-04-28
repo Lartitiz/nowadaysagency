@@ -1,48 +1,56 @@
-## Objectif
+## Diagnostic
 
-Réduire le temps perçu d'attente dans le Coach contenu en n'affichant au départ que l'essentiel des 3 idées (hook + angle court). Les détails (sujet long, brief, "pourquoi ça marche") s'ouvrent uniquement quand l'utilisatrice clique sur une idée — sans nouvelle génération IA.
+Quand on clique « Rédiger » depuis la boîte à idées (`/idees`), `handleRediger` dans `IdeasPage.tsx` redirige vers :
 
-## Principe retenu
+```
+/creer?theme=…&angle=…&format=…&canal=…&objectif=…&idea_id=…
+```
 
-3 idées allégées, détail inline sous la carte sélectionnée, **une seule génération** côté serveur (on évite un deuxième appel IA pour ne pas re-payer en latence).
+Mais `CreerUnifie.tsx` ne lit **jamais** `theme` — il attend `sujet` (ou `subject`). Conséquence :
+- `paramSujet` = "" → `subject.trim()` est faux
+- L'init tombe dans le fallback `setStep("format")` (sans sujet, sans angle propagé proprement)
+- L'utilisatrice voit "Comment tu veux en parler ? L'outil choisit pour moi"
+- En cliquant, `handleFormatNext` lance `generateQuestions({ subject: "" })` → la edge function refuse / renvoie 0 question → écran qui paraît bloqué
 
-## Changements UI dans `ContentCoachingDialog.tsx`
+L'angle passé en query param (`angle=…`) n'est pas non plus pris en compte dans cette branche.
 
-État de chargement (étape "loading") :
-- Skeleton plus compact : 3 lignes courtes au lieu des 3 cartes hautes actuelles.
-- Réduire la hauteur du dialog pendant le loading (moins de "ça défile dans le vide").
-- Garder le `LoadingMessage` rotatif mais raccourcir les messages.
+## Correctifs
 
-Étape "result" (`step === "result"`) avec idées :
-- Carte fermée par défaut : afficher uniquement
-  - le hook (« … »),
-  - le tag d'angle (badge),
-  - le tag d'objectif.
-- **Masquer par défaut** : `idea.subject` (le résumé long sous le hook), `idea.brief`, `idea.why_it_works`.
-- Au clic sur une carte (`setSelectedIdea`), révéler en dessous, dans la même carte, un bloc dépliant :
-  - `subject` (en label "Sujet")
-  - `brief`
-  - `why_it_works` (en italique discret)
-- Animation `animate-fade-in` déjà utilisée → réutiliser pour la zone dépliée.
-- Un seul élément ouvert à la fois (déjà géré par `selectedIdea`).
-- Le bouton « C'est parti, on crée ! » reste désactivé tant qu'aucune idée n'est sélectionnée (comportement actuel conservé).
+### 1. `src/pages/IdeasPage.tsx` — corriger les noms de paramètres
 
-Bloc "Format recommandé" :
-- Le replier sous un petit toggle "Pourquoi ce format ?" pour alléger la vue (optionnel mais cohérent avec la demande).
+Dans `handleRediger`, renommer pour matcher ce que `CreerUnifie` attend :
+- `theme` → `sujet`
+- garder `angle`, `format`, `canal`, `objectif`, `idea_id`
 
-## Ce qui ne change PAS
+```ts
+const params = new URLSearchParams({
+  sujet: idea.titre,
+  angle: idea.angle,
+  format: idea.format,
+  canal: idea.canal,
+  objectif: idea.objectif || "",
+  idea_id: idea.id,
+});
+```
 
-- L'edge function `content-coaching` reste inchangée : elle renvoie déjà tout en un appel. On exploite simplement mieux la donnée côté front (chargement progressif visuel, pas progressif réseau).
-- Pas de nouvel appel IA au clic — pour éviter d'allonger le temps total et la consommation de quota.
-- Aucune logique métier modifiée : `handleGo`, redirection, `onSelect`, sous-mode carrousel, surprise — tout reste identique.
+### 2. `src/pages/CreerUnifie.tsx` — propager l'angle issu des query params
+
+Aujourd'hui `paramAngle` n'existe pas. Ajouter :
+- `const paramAngle = searchParams.get("angle");`
+- Dans le bloc `if (fmt && subject.trim())` (ligne ~390) : si `paramAngle` est défini et qu'aucun `calendarAngle` n'est trouvé, l'utiliser et passer directement à `handleFormatNext(fmt, paramAngle, { overrideSubject: enrichedSubject })`. Comme un angle est déjà choisi côté boîte à idées, on saute l'étape « Comment tu veux en parler ? » et on enchaîne sur les questions.
+- Conserver l'exception existante carousel/post quand `!locState?.fromCalendar` **uniquement si** `paramAngle` est absent — sinon on enchaîne directement (l'utilisatrice a déjà fait son choix d'angle dans la boîte à idées).
+
+### 3. (Optionnel mais cohérent) — rendre l'init defensive
+
+Si `subject` est vide mais `fmt` est défini, ne pas essayer d'aller plus loin que `step === "format"` ; afficher un message si possible. (Garde-fou pour éviter des futurs cas similaires.)
+
+## Vérif
+
+1. Aller sur `/idees`, cliquer « Rédiger » sur une idée → on doit arriver directement à l'étape « questions » avec le sujet rempli et l'angle pré-choisi.
+2. Vérifier que cliquer « Rédiger » sur une idée sans angle (cas rare) renvoie sur l'étape format avec le sujet pré-rempli, pas sur un écran vide.
+3. Console : vérifier qu'aucune requête `creative-flow` ou `carousel-ai` n'est envoyée avec `subject: ""`.
 
 ## Fichiers touchés
 
-- `src/components/dashboard/ContentCoachingDialog.tsx` (UI uniquement)
-
-## Vérif après implémentation
-
-- Lancer le coach, vérifier que la vue résultat affiche 3 cartes compactes.
-- Cliquer sur une idée → le brief apparaît inline, fade-in fluide.
-- Re-cliquer → la carte se referme.
-- Cliquer sur « C'est parti » → même redirection qu'avant.
+- `src/pages/IdeasPage.tsx` (handler `handleRediger`)
+- `src/pages/CreerUnifie.tsx` (lecture query params + branchement init)
