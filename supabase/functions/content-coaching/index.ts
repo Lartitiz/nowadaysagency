@@ -405,13 +405,30 @@ Retourne UNIQUEMENT ce JSON (pas de markdown, pas de commentaires) :
       2000,
     );
 
-    let result;
+    let result: any;
     try {
-      const jsonMatch = raw.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error("No JSON");
-      result = JSON.parse(jsonMatch[0]);
-    } catch {
-      console.error("Failed to parse content-coaching response:", raw);
+      // Strip markdown fences éventuelles puis isole le 1er { ... } équilibré.
+      let cleaned = (raw || "")
+        .replace(/```json\s*/gi, "")
+        .replace(/```\s*/g, "")
+        .trim();
+      const start = cleaned.indexOf("{");
+      const end = cleaned.lastIndexOf("}");
+      if (start === -1 || end === -1 || end <= start) {
+        throw new Error("No JSON object found");
+      }
+      cleaned = cleaned.slice(start, end + 1);
+      try {
+        result = JSON.parse(cleaned);
+      } catch {
+        // Réparations courantes : virgules trailing + caractères de contrôle.
+        const repaired = cleaned
+          .replace(/,(\s*[}\]])/g, "$1")
+          .replace(/[\x00-\x1F\x7F]/g, " ");
+        result = JSON.parse(repaired);
+      }
+    } catch (parseErr) {
+      console.error("Failed to parse content-coaching response:", parseErr, "raw:", raw?.slice(0, 800));
       return new Response(JSON.stringify({ error: "Erreur lors de l'analyse. Réessaie." }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
