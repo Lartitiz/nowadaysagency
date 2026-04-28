@@ -2491,12 +2491,7 @@ export default function CreerUnifie() {
                 }}
               />
             )}
-          </TabsContent>
-
-          <TabsContent value="transform" className="mt-4">
-            <CreerTransformTab />
-          </TabsContent>
-        </Tabs>
+        </div>
       </div>
 
       {/* Calendar date dialog */}
