@@ -727,7 +727,7 @@ export default function LandingPage() {
               <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
                 <div className="text-left flex-1">
                   <h3 className="font-display text-lg font-bold text-foreground">Tu préfères qu'on le fasse ensemble ?</h3>
-                  <p className="text-sm text-muted-foreground mt-1">L'outil + Laetitia à tes côtés pendant 6 mois. Stratégie, contenu, visio, WhatsApp. 250€/mois.</p>
+                  <p className="text-sm text-muted-foreground mt-1">L'outil + Laetitia à tes côtés pendant 6 mois. Stratégie, contenu, visio, WhatsApp. 290€/mois.</p>
                 </div>
                 <Link to="/binome" className="shrink-0 inline-flex items-center gap-1 rounded-pill border border-primary text-primary px-5 py-2.5 text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
                   Découvrir <ArrowRight className="h-3.5 w-3.5" />

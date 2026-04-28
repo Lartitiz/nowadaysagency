@@ -120,7 +120,7 @@ export default function PricingPage() {
 
   usePageSEO({
     title: "Tarifs — Gratuit, Premium ou Binôme",
-    description: "Découvre les formules de l'Assistant Com'. Gratuit pour démarrer, Premium à 39€/mois pour l'IA illimitée, Binôme à 250€/mois avec coaching humain.",
+    description: "Découvre les formules de l'Assistant Com'. Gratuit pour démarrer, Premium à 39€/mois pour l'IA illimitée, Binôme à 290€/mois avec coaching humain.",
     canonical: "/pricing",
   });
   
@@ -270,7 +270,7 @@ export default function PricingPage() {
             <h3 className="font-display text-xl font-bold">Ta binôme de com</h3>
             <p className="text-xs text-muted-foreground font-medium mt-1">On fait ensemble. Tu n'es plus seul·e face à ta com'.</p>
             <p className="text-3xl font-bold mt-2 text-primary">
-              250€
+              290€
               <span className="text-base font-normal text-muted-foreground">
                 /mois × 6
               </span>

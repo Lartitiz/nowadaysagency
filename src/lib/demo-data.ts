@@ -251,7 +251,7 @@ export const DEMO_DATA = {
   coaching: {
     formula: "binome",
     duration_months: 6,
-    price_monthly: 250,
+    price_monthly: 290,
     current_month: 2,
     total_sessions: 7,
     sessions: DEMO_COACHING_SESSIONS,

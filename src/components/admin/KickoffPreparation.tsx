@@ -193,7 +193,7 @@ export default function KickoffPreparation({ open, onOpenChange, coachUserId, on
           </section>
           <section>
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Le programme</p>
-            <div className="rounded-xl bg-rose-pale/50 p-3 text-sm text-foreground"><p className="font-semibold">Engagement : 6 mois · 250€/mois · 1 500€ total</p></div>
+            <div className="rounded-xl bg-rose-pale/50 p-3 text-sm text-foreground"><p className="font-semibold">Engagement : 6 mois · 290€/mois · 1 740€ total</p></div>
             <div className="mt-3"><label className="text-sm font-medium text-foreground">Date de début</label><Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="mt-1" /></div>
           </section>
           <section>
