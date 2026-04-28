@@ -122,6 +122,42 @@ export function PhotoUploadZone({
     [photos, updatePhotos],
   );
 
+  // ── PhotoRoom edit ────────────────────────────────
+  const applyEditedPhoto = useCallback(
+    (idx: number, newBase64: string) => {
+      const next = photos.map((p, i) => {
+        if (i !== idx) return p;
+        // Keep the very first version as originalBase64 so we can revert.
+        const originalBase64 = p.originalBase64 ?? p.base64;
+        return {
+          ...p,
+          base64: newBase64,
+          preview: newBase64, // data URL works directly as <img src>
+          originalBase64,
+          edited: true,
+        };
+      });
+      updatePhotos(next);
+    },
+    [photos, updatePhotos],
+  );
+
+  const revertPhoto = useCallback(
+    (idx: number) => {
+      const next = photos.map((p, i) => {
+        if (i !== idx || !p.originalBase64) return p;
+        return {
+          ...p,
+          base64: p.originalBase64,
+          preview: p.originalBase64,
+          edited: false,
+        };
+      });
+      updatePhotos(next);
+    },
+    [photos, updatePhotos],
+  );
+
   // ── Drop zone events ──────────────────────────────
   const onDragEnter = (e: ReactDragEvent) => { e.preventDefault(); if (!isFull) setIsDragOver(true); };
   const onDragLeave = (e: ReactDragEvent) => { e.preventDefault(); setIsDragOver(false); };
