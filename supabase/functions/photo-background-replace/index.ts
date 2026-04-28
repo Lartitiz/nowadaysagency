@@ -198,8 +198,9 @@ serve(async (req) => {
     const callPhotoroom = async (): Promise<Response> => {
       const formData = new FormData();
       formData.append("imageFile", originalBlob, "input.jpg");
+      formData.append("referenceBox", "originalImage");
       formData.append("background.prompt", finalPrompt);
-      formData.append("segmentation.mode", "auto");
+      formData.append("segmentation.mode", "keepSalientObject");
       formData.append("outputSize", "originalImage");
 
       return await fetch(PHOTOROOM_URL, {
@@ -270,7 +271,11 @@ serve(async (req) => {
       } else if (photoroomRes.status === 429) {
         friendly = "Limite Photoroom atteinte, réessaie dans 1 min";
       } else if (photoroomRes.status === 400 || photoroomRes.status === 422) {
-        friendly = "Photo non traitable par Photoroom (format ou contenu refusé)";
+        if (errBody.includes("segmentation must have required property 'prompt'")) {
+          friendly = "Le paramétrage PhotoRoom était invalide. Corrigé côté serveur, réessaie.";
+        } else {
+          friendly = "Photo non traitable par Photoroom (format ou contenu refusé)";
+        }
       } else if (photoroomRes.status >= 500) {
         friendly = "Photoroom temporairement indisponible";
       }
