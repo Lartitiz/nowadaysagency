@@ -261,18 +261,13 @@ ALIGNEMENT D'ÉCHELLE ET DE POSTURE
 ═══════════════════════════════════════════════
 EXIGENCE DE PROFONDEUR — anti-tiède
 ═══════════════════════════════════════════════
-INTERDIT (structures de surface qui ont l'air malines mais n'apprennent rien) :
-- "Les 3 erreurs que…", "Top 3 / Top 5 / Les 5 trucs…", "Les X choses à savoir…"
-- "Voici pourquoi X marche", "La vérité sur Y", "Ce que personne ne dit sur Z"
-- "Le piège du…", "Le mythe du…" sans démonstration concrète et nouvelle derrière
-- Toute liste numérotée dans un hook
+INTERDIT (sujets de surface qui n'apprennent rien) :
+- "Les 3 erreurs que…", "Top 3 / Top 5", "Voici pourquoi X marche", "La vérité sur Y", "Ce que personne ne dit sur Z", "Le piège du…", "Le mythe du…" sans angle réellement nouveau.
 
-OBLIGATOIRE — chaque BRIEF contient AU MOINS UN de ces 3 éléments, NOMMÉ explicitement :
-1. Une TENSION précise et localisée (pas "le marché change" → flou ; plutôt "depuis [période/événement précis], dans [niche précise], on observe [phénomène contradictoire ou paradoxal]")
-2. Un MÉCANISME nommé (biais cognitif identifié, dynamique de marché spécifique, ressort psychologique précis) — et PAS juste invoqué : décrit en 1 phrase de fonctionnement
-3. Une OBSERVATION DE TERRAIN ancrée (un détail concret du secteur de la cible — pas "j'ai remarqué que" générique, mais "dans [contexte précis], [phénomène observable]")
-
-TEST DE PROFONDEUR : si l'idée tient ENTIÈREMENT dans son hook (pas de révélation/argumentation à venir dans le contenu), elle est rejetée. Le hook doit OUVRIR sur quelque chose à dire, pas RÉSUMER l'idée.
+Chaque sujet doit ouvrir sur AU MOINS UN de ces 3 éléments (à révéler ensuite à la rédaction) :
+1. Une TENSION précise et localisée (pas "le marché change" → flou).
+2. Un MÉCANISME nommable (biais cognitif, dynamique de marché, ressort psychologique précis).
+3. Une OBSERVATION DE TERRAIN ancrée dans le secteur de la cible.
 
 CONTEXTE BRANDING :
 ${contextText}
@@ -292,41 +287,20 @@ RÈGLE D'OR — ANCRAGE MÉTIER (la plus importante) :
 Les idées parlent du MÉTIER de l'utilisatrice (photographie si photographe, céramique si céramiste, transformations accompagnées si coach, etc.), PAS de communication en général. NE JAMAIS proposer d'idées sur "comment communiquer", "l'authenticité sur Instagram", "oser se montrer", SAUF si elle travaille elle-même dans la communication/marketing.
 Test de spécificité : si l'idée pourrait fonctionner pour quelqu'un d'un autre secteur, elle est trop vague.
 
-MÉTHODE — pour chaque idée :
-1. Les 3 idées DOIVENT piocher dans 3 catégories DIFFÉRENTES parmi :
+MÉTHODE :
+Les 3 idées DOIVENT piocher dans 3 catégories DIFFÉRENTES parmi :
    A. Observation de terrain ancrée (vu chez ses clientes / dans son secteur de cible)
    B. Mécanisme/biais nommé et décortiqué
    C. Contre-pied factuel d'un conseil mainstream PRÉCIS et VÉRIFIABLEMENT répandu
    D. Micro-scène / archive personnelle (un moment, un détail concret)
    E. Question ouverte sans réponse (qui invite la cible à formuler la sienne)
    F. Décryptage d'un mot/concept galvaudé du secteur de la cible
-2. Applique au moins 1 CONTRAINTE CRÉATIVE si elle s'y prête naturellement :
+Applique au moins 1 CONTRAINTE CRÉATIVE si elle s'y prête naturellement :
    🎲 ${seed1}
    🎲 ${seed2}
-3. Construis un HOOK qui stoppe le scroll (max 15 mots, fonctionne SEUL, OUVRE sur la suite — ne résume pas) :
-${shuffledHooks.map((h, i) => `   Idée ${i + 1} → ${h}`).join("\n")}
-4. Le BRIEF doit contenir au moins 1 de : un mécanisme nommé et décrit, une donnée vérifiable, un retournement factuel, une tension localisée. Pas juste "on parle de X sous l'angle Y".
 
-VOIX & TON :
-- Adapte au profil de voix de l'utilisatrice (registre, tutoiement/vouvoiement, expressions).
-- Si profil flou : ton neutre. Instagram = direct/accrocheur. LinkedIn = pro/engagé.
-
-RÈGLE ANTI-TU (CRITIQUE — la voix par défaut n'est PAS le TU) :
-La voix dominante des hooks, subjects ET briefs est le JE narratif (vécu, conviction, observation de l'utilisatrice) OU une formulation IMPERSONNELLE (3e personne : "les solopreneuses…", "le marché…", "Patagonia fait X" / on : "quand on lance une offre…" / nominalisations : "Le problème des prix trop bas.").
-INTERDIT par défaut dans les hooks, subjects et briefs : "tu", "te", "t'", "toi", "ton", "ta", "tes", "vous", "votre", "vos".
-✅ BON hook : "Patagonia dit 'n'achetez pas cette veste'. Et pourtant, ils explosent les ventes."
-✅ BON hook : "J'ai arrêté de faire des remises. Voici ce qui s'est passé."
-✅ BON hook : "Les céramistes qui vendent le mieux ont arrêté de poster sur Instagram."
-❌ MAUVAIS : "Patagonia te dit de pas acheter. Et pourtant, tu achètes."
-❌ MAUVAIS : "Tu fais cette erreur sans le savoir."
-❌ MAUVAIS brief : "Tu vas découvrir comment…"
-EXCEPTION (max 1 hook sur 3) : le TU est autorisé UNIQUEMENT si la structure de hook est explicitement "Question rhétorique qui pique" ET que le contenu serait artificiel sans interpellation. Dans tous les autres cas, reformule en JE ou impersonnel.
-Le BRIEF est TOUJOURS rédigé en JE narratif ou à la 3e personne, JAMAIS en TU adressé au lecteur.
-
-INTERDITS pour les hooks (anti-patterns IA) :
-- Formules : "Et si je te disais", "Dans un monde où", "Spoiler alert", "Le secret de", "La clé c'est"
-- Structures sur-utilisées : "Il y a 2 types de [X]", "Les X mensonges/erreurs que…", "Et personne n'en parle"
-- Les 3 hooks doivent utiliser des structures RADICALEMENT différentes entre eux.
+RÈGLE ANTI-TU :
+Le SUBJECT est rédigé en JE narratif ou IMPERSONNEL (3e personne, on, nominalisations). INTERDIT par défaut : "tu", "te", "t'", "toi", "ton", "ta", "tes", "vous", "votre", "vos".
 
 ${sujet ? `Toutes les idées sont liées au sujet "${sujet}" mais avec des angles RADICALEMENT différents (pas 3 variations).` : `Les 3 idées couvrent au moins 2 objectifs différents parmi : visibilite, engagement, vente, credibilite, et touchent des facettes différentes du métier.`}
 
@@ -339,35 +313,32 @@ Newsletter → /creer?format=newsletter
 ═══════════════════════════════════════════════
 TEST DE VALIDITÉ — applique-le sur CHAQUE idée AVANT de la sortir
 ═══════════════════════════════════════════════
-1. Si l'idée contient une ANALOGIE ("X est comme Y", "X communique comme Y") → est-ce que Y fonctionne vraiment de cette manière ? Si non, change d'analogie ou supprime-la.
-2. Si l'idée contient un CONTRE-PIED ("contrairement à ce qu'on croit, X") → est-ce que la croyance énoncée est vraiment répandue ET est-ce que le contre-pied est factuellement vrai ? Si l'un des deux est faux, change d'angle.
-3. Si l'idée contient un CHIFFRE → applique la RÈGLE DE VÉRITÉ. Aucun chiffre inventé.
-4. Si l'idée contient un RETEX en JE → est-ce qu'il est cohérent avec le parcours/métier réel de l'utilisatrice tel qu'il apparaît dans le contexte branding ? Si non, reformule.
-5. Si l'idée cite une marque → applique l'ALIGNEMENT D'ÉCHELLE. Pas de géants en hook.
+1. ANALOGIE : si l'idée en contient une, vérifie qu'elle tient vraiment. Sinon, change.
+2. CONTRE-PIED : la croyance citée doit être vraiment répandue ET le contre-pied factuellement vrai.
+3. CHIFFRE : aucun chiffre inventé (RÈGLE DE VÉRITÉ).
+4. RETEX en JE : cohérent avec le parcours réel visible dans le contexte branding.
+5. MARQUE citée : alignement d'échelle, pas de géants.
 
-Retourne UNIQUEMENT ce JSON (pas de markdown, pas de commentaires) :
+Retourne UNIQUEMENT ce JSON (pas de markdown, pas de commentaires, pas de prose avant) :
 {
   "ideas": [
     {
-      "subject": "Sujet ultra-concret, ancré dans le métier, prêt à écrire",
-      "hook": "Accroche prête à poster, max 15 mots, dans le ton de l'utilisatrice",
-      "angle": "Nom de l'angle éditorial",
+      "subject": "Sujet ultra-concret, ancré dans le métier, prêt à écrire (1 phrase claire)",
+      "angle": "Nom court de l'angle éditorial (ex: Contre-pied factuel, Micro-scène, Décryptage de concept)",
       "objective_tag": "visibilite|engagement|vente|credibilite",
-      "why_it_works": "1 phrase : pourquoi ça résonne avec SON audience (mentionne sa cible, secteur ou un verbatim)",
-      "brief": "2-3 phrases : architecture intellectuelle. Quel mécanisme, quelle donnée VÉRIFIABLE, quel retournement JUSTE."
+      "why_it_works": "1 phrase : pourquoi ça résonne avec SA cible spécifique"
     }
   ],
   "recommended_format": "${formatLabel}",
-  "format_reason": "Pourquoi ce format en 1 phrase",
   "redirect_route": "route correspondant au format et canal choisis"
 }`;
 
     const raw = await callAnthropicSimple(
       getModelForAction("coaching"),
       systemPrompt,
-      "Génère 3 idées de contenu ultra-concrètes avec un hook irrésistible pour chaque. Avant de répondre, applique successivement : (1) le bloc AUDIENCE vs UTILISATRICE, (2) la RÈGLE DE VÉRITÉ, (3) l'EXIGENCE DE PROFONDEUR, (4) le TEST DE VALIDITÉ. Si une idée échoue à un test, retoque-la avant de la sortir.",
+      "Génère 3 idées de contenu (sujet + angle uniquement, PAS de hook ni de brief). Applique successivement : (1) AUDIENCE vs UTILISATRICE, (2) RÈGLE DE VÉRITÉ, (3) RÈGLE D'OR métier, (4) TEST DE VALIDITÉ. Réponds UNIQUEMENT avec le JSON demandé.",
       0.8,
-      2000,
+      800,
     );
 
     let result: any;
