@@ -284,6 +284,26 @@ export function PhotoUploadZone({
                   >
                     <X className="h-3 w-3" />
                   </button>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setEditIdx(idx); }}
+                    className="absolute top-1 left-1 h-5 w-5 rounded-full bg-primary/85 text-primary-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    aria-label={`Modifier le fond de ${p.name}`}
+                    title="Modifier le fond avec l'IA"
+                  >
+                    <Wand2 className="h-3 w-3" />
+                  </button>
+                  {p.edited && p.originalBase64 && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); revertPhoto(idx); }}
+                      className="absolute bottom-1 right-1 h-5 px-1.5 rounded-full bg-foreground/80 text-background flex items-center gap-0.5 text-[9px] font-medium opacity-90 hover:opacity-100 transition-opacity"
+                      title="Revenir à l'original"
+                    >
+                      <Undo2 className="h-2.5 w-2.5" />
+                      Original
+                    </button>
+                  )}
                   <GripVertical className="absolute bottom-1 left-1 h-3.5 w-3.5 text-white/70 opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
                 </div>
                 {showContexts && (
