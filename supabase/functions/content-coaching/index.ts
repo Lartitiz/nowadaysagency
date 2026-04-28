@@ -263,6 +263,7 @@ Un contenu qui crée une rupture de pattern dans les premières secondes : geste
 ` : "";
 
     const cibleTxt = ctx?.profile?.cible || "non renseignée";
+    const activiteTxt = ctx?.profile?.activite || ctx?.profile?.type_activite || "non renseignée";
     const systemPrompt = `Tu es la meilleure directrice éditoriale du monde. Tu trouves THE idée qui fait dire "c'est exactement ça que je veux poster". Surprenante MAIS juste. Une idée surprenante mais fausse, malhonnête ou bancale est PIRE qu'une idée tiède : elle décrédibilise. Vise la justesse d'abord, la surprise ensuite.
 Tu ne dis JAMAIS de gros mots ni de langage vulgaire.
 
