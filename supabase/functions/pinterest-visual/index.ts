@@ -369,6 +369,27 @@ Retourne UNIQUEMENT le JSON, pas de texte avant ou après.`;
       result.pin_html = fontsLink + html;
     }
 
+    // Fallback : injecter les invariants serveur si Claude les a oubliés.
+    if (result && !result.pin_invariants) {
+      result.pin_invariants = {
+        palette_used: {
+          primary: invariants.palette.primary_hex,
+          secondary: invariants.palette.secondary_hex,
+          accent: invariants.palette.accent_hex,
+          bg: invariants.palette.bg_hex,
+          text: invariants.palette.text_hex,
+        },
+        typography_used: {
+          title_pptx_safe: invariants.typography.title_pptx_safe,
+          body_pptx_safe: invariants.typography.body_pptx_safe,
+          title_pt: invariants.typography.title_pt,
+          body_pt: invariants.typography.body_pt,
+        },
+        motif: invariants.motif,
+      };
+      console.warn("pinterest-visual: pin_invariants manquant → fallback serveur");
+    }
+
     await logUsage(user.id, "content", "pinterest_visual", undefined, model, workspaceId);
 
     return new Response(JSON.stringify({ result, remaining: quota.remaining }), {
