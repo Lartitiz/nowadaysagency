@@ -425,7 +425,14 @@ Retourne UNIQUEMENT ce JSON (pas de markdown, pas de commentaires) :
         const repaired = cleaned
           .replace(/,(\s*[}\]])/g, "$1")
           .replace(/[\x00-\x1F\x7F]/g, " ");
-        result = JSON.parse(repaired);
+        try {
+          result = JSON.parse(repaired);
+        } catch {
+          // Dernier recours : jsonrepair gère les guillemets non échappés,
+          // virgules manquantes, retours-ligne dans les strings, etc.
+          const { jsonrepair } = await import("npm:jsonrepair@3.8.1");
+          result = JSON.parse(jsonrepair(cleaned));
+        }
       }
     } catch (parseErr) {
       console.error("Failed to parse content-coaching response:", parseErr, "raw:", raw?.slice(0, 800));
