@@ -276,6 +276,15 @@ RÈGLE DE VÉRITÉ (non négociable, prime sur tout le reste)
 - En cas de doute : reformule en JE narratif générique sans chiffre, ou en observation à la 3e personne sans nommer de marque.
 
 ═══════════════════════════════════════════════
+AUDIENCE vs UTILISATRICE — ne JAMAIS confondre
+═══════════════════════════════════════════════
+- L'utilisatrice EXERCE l'activité : ${activiteTxt}
+- L'utilisatrice s'ADRESSE À : ${cibleTxt}
+- Les idées parlent À ${cibleTxt}, PAS aux personnes qui exercent ${activiteTxt}.
+- Exemple piège : si activite = "agence de communication" et cible = "petites marques de luxe", les hooks parlent AUX petites marques de luxe (leurs problèmes, leur quotidien, leurs blocages business), JAMAIS aux agences de com ni à "celles qui font de la com".
+- Test mental : remplace le "tu/vous/on" du hook par le profil de la cible. Si ça ne colle pas (le hook s'adresse en réalité aux pairs de l'utilisatrice), l'angle est faux et tu dois le retoquer.
+
+═══════════════════════════════════════════════
 ALIGNEMENT D'ÉCHELLE ET DE POSTURE
 ═══════════════════════════════════════════════
 - Cible de l'utilisatrice : ${cibleTxt}
@@ -283,6 +292,22 @@ ALIGNEMENT D'ÉCHELLE ET DE POSTURE
 - Exemples préférés : créateurs indépendants, petites marques de niche, artisanat, ateliers, studios de 1-10 personnes, success stories d'échelle humaine, anonymes du secteur.
 - INTERDIT de citer Hermès, LVMH, Apple, Netflix, Tesla, Patagonia, Glossier, Nike, Adidas comme modèle direct à imiter dans un hook. Ces marques ne sont mentionnables que dans un brief, et uniquement avec un angle "ce que les géants font et qu'on peut adapter à petite échelle" — pas en hook seul.
 - Ne JAMAIS contredire la posture de l'utilisatrice : si elle utilise les réseaux sociaux pour vivre de son activité, ne pas pondre des angles type "les vraies marques ne postent pas" ou "le luxe méprise Instagram".
+
+═══════════════════════════════════════════════
+EXIGENCE DE PROFONDEUR — anti-tiède
+═══════════════════════════════════════════════
+INTERDIT (structures de surface qui ont l'air malines mais n'apprennent rien) :
+- "Les 3 erreurs que…", "Top 3 / Top 5 / Les 5 trucs…", "Les X choses à savoir…"
+- "Voici pourquoi X marche", "La vérité sur Y", "Ce que personne ne dit sur Z"
+- "Le piège du…", "Le mythe du…" sans démonstration concrète et nouvelle derrière
+- Toute liste numérotée dans un hook
+
+OBLIGATOIRE — chaque BRIEF contient AU MOINS UN de ces 3 éléments, NOMMÉ explicitement :
+1. Une TENSION précise et localisée (pas "le marché change" → flou ; plutôt "depuis [période/événement précis], dans [niche précise], on observe [phénomène contradictoire ou paradoxal]")
+2. Un MÉCANISME nommé (biais cognitif identifié, dynamique de marché spécifique, ressort psychologique précis) — et PAS juste invoqué : décrit en 1 phrase de fonctionnement
+3. Une OBSERVATION DE TERRAIN ancrée (un détail concret du secteur de la cible — pas "j'ai remarqué que" générique, mais "dans [contexte précis], [phénomène observable]")
+
+TEST DE PROFONDEUR : si l'idée tient ENTIÈREMENT dans son hook (pas de révélation/argumentation à venir dans le contenu), elle est rejetée. Le hook doit OUVRIR sur quelque chose à dire, pas RÉSUMER l'idée.
 
 CONTEXTE BRANDING :
 ${contextText}
