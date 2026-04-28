@@ -241,6 +241,8 @@ Si pin_type = "schema_visuel" :
 - PAS de hashtags
 - Écriture inclusive point médian
 
+${invariantsBlock}
+
 FORMAT DE RÉPONSE (JSON strict, rien d'autre) :
 {
   "pin_html": "<style>@import url(...);\\n</style><div style=\\"width:1000px;height:1500px;...\\">...</div>",
@@ -261,8 +263,15 @@ FORMAT DE RÉPONSE (JSON strict, rien d'autre) :
     ],
     "cta_text": "Texte du CTA en bas si applicable",
     "watermark": "Texte du watermark en bas (nom du projet)"
+  },
+  "pin_invariants": {
+    "palette_used": { "primary": "#...", "secondary": "#...", "accent": "#...", "bg": "#...", "text": "#..." },
+    "typography_used": { "title_pptx_safe": "Georgia", "body_pptx_safe": "Calibri", "title_pt": 40, "body_pt": 16 },
+    "motif": "carte_blanche_ombre_douce"
   }
 }
+
+Le bloc \`pin_invariants\` confirme la palette/typo que TU as effectivement appliquée. Il pilote l'export PPTX éditable. S'il manque, l'export retombe sur les valeurs serveur.
 
 RÈGLES pour pin_data.elements :
 - Pour "infographie" et "mini_tuto" : chaque élément a number, label, description, emoji optionnel
