@@ -2222,24 +2222,10 @@ export default function CreerUnifie() {
         )}
 
         {/* Mode tabs — first visible choice */}
-        <Tabs value={mode} onValueChange={(v) => setMode(v as Mode)} className="mb-4">
-          <TabsList className="w-full h-11 border bg-muted/50">
-            <TabsTrigger value="create" className="flex-1 gap-1.5 text-sm">
-              <span>✨</span>
-              <span className="hidden sm:inline">Partir de zéro</span>
-              <span className="sm:hidden">Créer</span>
-            </TabsTrigger>
-            <TabsTrigger value="transform" className="flex-1 gap-1.5 text-sm">
-              <span>🔄</span>
-              <span className="hidden sm:inline">Transformer un contenu existant</span>
-              <span className="sm:hidden">Transformer</span>
-            </TabsTrigger>
-          </TabsList>
+        <BrandingStatusBanner />
 
-          <BrandingStatusBanner />
-
-          <TabsContent value="create" className="mt-4">
-            {/* Progress bar (from step 2+) */}
+        <div className="mt-4">
+          {/* Progress bar (from step 2+) */}
             {step !== "idea" && (
               <div className="flex gap-1 mb-5">
                 {stepOrder.map((s, i) => (
