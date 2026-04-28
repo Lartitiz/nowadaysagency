@@ -50,6 +50,14 @@ const FORMAT_LABELS: Record<string, string> = {
 };
 
 const AXE_CONFIG: Record<string, { emoji: string; label: string }> = {
+  // Nouveaux axes (micro-phénomènes culturels)
+  mot_qui_revient: { emoji: "💬", label: "Mot" },
+  obsession_collective: { emoji: "🌀", label: "Obsession" },
+  comportement_emergent: { emoji: "🔄", label: "Comportement" },
+  debat_recurrent: { emoji: "⚖️", label: "Débat" },
+  objet_culturel: { emoji: "🎬", label: "Culture" },
+  actu_connectable: { emoji: "📰", label: "Actu" },
+  // Anciens (rétro-compat)
   societe_debat: { emoji: "🗣️", label: "Société" },
   economie_argent: { emoji: "💶", label: "Économie" },
   culture_pop: { emoji: "🎬", label: "Culture" },
@@ -59,6 +67,11 @@ const AXE_CONFIG: Record<string, { emoji: string; label: string }> = {
 };
 
 const TON_CONFIG: Record<string, { emoji: string; label: string; className: string }> = {
+  // Nouveaux registres
+  confortable: { emoji: "🪴", label: "Confortable", className: "bg-secondary/40 text-secondary-foreground" },
+  entre_deux: { emoji: "🔀", label: "Angle inattendu", className: "bg-primary/10 text-primary" },
+  decalant: { emoji: "✨", label: "Décalant", className: "bg-[hsl(var(--accent))]/30 text-[hsl(var(--accent-foreground))]" },
+  // Anciens (rétro-compat)
   serieux_marquant: { emoji: "💭", label: "Marquant", className: "bg-secondary/40 text-secondary-foreground" },
   drole_decale: { emoji: "😏", label: "Drôle", className: "bg-[hsl(var(--accent))]/30 text-[hsl(var(--accent-foreground))]" },
   surprenant_contre_intuitif: { emoji: "⚡", label: "Surprenant", className: "bg-primary/10 text-primary" },
