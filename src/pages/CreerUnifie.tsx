@@ -653,7 +653,9 @@ export default function CreerUnifie() {
     setAnswers(ans);
 
     // Sauvegarder le brief en base pour les futures créations
-    if (session?.user?.id && Object.keys(ans).length > 0) {
+    // ⚠️ On n'enregistre PAS les briefs sans sujet : ils polluent l'historique
+    // récent envoyé à l'IA et provoquent des questions hors-sujet.
+    if (session?.user?.id && Object.keys(ans).length > 0 && ideaText.trim().length > 0) {
       try {
         const { data: briefData } = await supabase.from("content_briefs").insert({
           user_id: session.user.id,

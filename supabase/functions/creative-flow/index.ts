@@ -265,9 +265,20 @@ Réponds UNIQUEMENT en JSON :
         : "Questions orientées ÉMOTION : demande des moments vécus, des ressentis, des transformations personnelles, des coulisses.";
 
       systemPrompt = `${COMMON_PREFIX}
-${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}\n` : ""}${brandVocabBlock}${recentBriefsContext}
-L'utilisatrice a choisi cet angle pour son contenu :
-- Sujet : ${context}
+${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}\n` : ""}${brandVocabBlock}
+
+══════════════════════════════════════
+SUJET COURANT — PRIORITÉ ABSOLUE
+══════════════════════════════════════
+"${context}"
+
+Tout ce qui suit (angle, branding, historique) est SECONDAIRE par rapport à ce sujet.
+Les 3 questions doivent toutes porter sur CE sujet précis.
+Si une question pourrait concerner un autre sujet, elle est invalide.
+
+══════════════════════════════════════
+ANGLE & CANAL
+══════════════════════════════════════
 - Canal : ${channelLabel}
 ${editorialFormatLabel ? `- Format éditorial : ${editorialFormatLabel}` : ""}
 - Angle : ${angle.title}
@@ -275,21 +286,21 @@ ${editorialFormatLabel ? `- Format éditorial : ${editorialFormatLabel}` : ""}
 - Ton : ${angle.tone}
 ${angle.format_livraison ? `- Format de livraison recommandé : ${angle.format_livraison}` : ""}
 ${calendarBlock}${objectiveBlock}
+${recentBriefsContext}
 
 ══ AVANT DE POSER LES QUESTIONS — RAISONNEMENT INTERNE (ne PAS afficher) ══
 
 Réfléchis silencieusement à :
-1. Qu'est-ce que je sais DÉJÀ sur l'utilisatrice grâce au branding et aux briefs précédents ?
-2. Qu'est-ce qui MANQUE pour rendre ce contenu unique sur CE sujet précis ?
-3. Quels angles ont DÉJÀ été couverts dans les briefs récents ? (À ÉVITER de re-demander)
-4. Quel vocabulaire métier puis-je réutiliser dans les questions ?
+1. Quel est le SUJET COURANT ? (ré-extraire 1 mot-clé du bloc ci-dessus)
+2. Quel vocabulaire métier de l'utilisatrice puis-je intégrer naturellement ?
+3. Y a-t-il un sujet identique dans l'historique récent ? Si oui, quelle question NE PAS reposer ?
 
-Puis pose les 3 questions qui maximisent l'apport NOUVEAU sur ce sujet.
+Puis pose les 3 questions qui maximisent la matière personnelle apportée sur CE sujet.
 
-Pose exactement 3 questions pour récupérer SA matière première. Ces questions doivent extraire des éléments PERSONNELS (anecdotes, opinions, observations, process, convictions) qui rendront le contenu unique et impossible à reproduire par une IA seule.
+Pose exactement 3 questions pour récupérer SA matière première sur le sujet courant. Ces questions doivent extraire des éléments PERSONNELS (anecdotes, opinions, observations, process, convictions) qui rendront le contenu unique.
 
 RÈGLES :
-1. LIS ATTENTIVEMENT LE SUJET ci-dessus. Les 3 questions doivent être directement liées à CE sujet spécifique, pas à l'angle en général.
+1. ANCRAGE SUJET (règle n°1, non négociable) : chaque question DOIT contenir un mot du sujet courant ou un aspect concret directement déductible du sujet courant. Une question qui ne référence pas le sujet courant est invalide — réécris-la.
 2. AU MOINS 1 question sur 3 doit creuser le POURQUOI PROFOND : pourquoi elle pense ça, pourquoi c'est important pour elle, quelle conviction personnelle se cache derrière ce sujet.
 3. ${channelGuidance}
 4. Questions OUVERTES (pas oui/non).
@@ -301,9 +312,9 @@ RÈGLES :
    - CONVICTION : "C'est quoi le truc que tu répètes toujours à ce sujet ?" / "Pourquoi t'es convaincue que… ?"
    ⚠️ INTERDIT de faire 3 questions "Raconte-moi une fois où…". Maximum 1 question anecdote sur les 3.
 6. Le ton des questions est chaleureux et curieux (comme une amie qui s'intéresse vraiment).
-7. Chaque question a un placeholder qui donne un mini-exemple de réponse SPÉCIFIQUE au sujet.
+7. Chaque question a un placeholder qui donne un mini-exemple de réponse SPÉCIFIQUE au sujet courant.
 8. ORIENTÉES vers l'objectif : si "vente" → demande des résultats, process, transformations. Si "engagement" → demande des anecdotes, émotions. Si "visibilité" → demande des opinions clivantes, observations décalées. Si "crédibilité" → demande des méthodes, des preuves, des observations terrain.
-9. ${recentBriefsContext ? "MÉMOIRE DES BRIEFS PRÉCÉDENTS : si un brief récent a déjà couvert un angle (ex : déjà demandé une anecdote sur le même type de situation), CHANGE d'angle. Tu peux faire écho discrètement (\"la dernière fois tu disais X, ici c'est différent ?\") mais ne re-demande jamais la même chose." : ""}
+9. ${recentBriefsContext ? "MÉMOIRE ANTI-RÉPÉTITION : l'historique ci-dessus liste des sujets DIFFÉRENTS déjà traités. Tu ne dois JAMAIS importer leur contenu, leur vocabulaire spécifique ou leurs scènes dans tes questions sur le sujet courant. Ils servent uniquement à éviter de re-poser une question identique." : ""}
 
 INTERDIT — NE FAIS JAMAIS ÇA :
 - Questions génériques type "Qu'est-ce qui te passionne dans ton métier ?", "Quel est ton parcours ?", "Qu'est-ce qui te différencie ?"
@@ -311,7 +322,8 @@ INTERDIT — NE FAIS JAMAIS ÇA :
 - Questions trop larges qui pourraient s'appliquer à N'IMPORTE QUEL sujet
 - 3 questions qui commencent toutes par "Raconte-moi" ou "Il y a eu un moment où"
 - Questions interchangeables d'un user à l'autre (= sans vocabulaire métier)
-- Chaque question DOIT mentionner le sujet ou un aspect concret du sujet
+- ⚠️ Questions qui mentionnent des éléments venus de l'historique des briefs précédents (scènes, lieux, personnages, anecdotes d'anciens briefs) — l'historique ne sert PAS de matière narrative pour le sujet courant
+- Chaque question DOIT mentionner le sujet courant ou un aspect concret du sujet courant
 
 EXEMPLES (pour le sujet "Pourquoi je ne fais plus de remises") :
 ❌ MAUVAIS MIX :
@@ -334,7 +346,7 @@ Réponds UNIQUEMENT en JSON :
     }
   ]
 }`;
-      userPrompt = `Pose-moi des questions pour créer mon contenu${angle ? ` avec l'angle "${angle.title}"` : ""}.`;
+      userPrompt = `Pose-moi 3 questions pour créer mon contenu sur ce sujet précis : "${context}"${angle ? ` (angle "${angle.title}")` : ""}.`;
 
     } else if (step === "follow-up") {
       const answersBlock = answers.map((a: any, i: number) => `Q${i + 1} : "${a.question}" → "${a.answer}"`).join("\n");

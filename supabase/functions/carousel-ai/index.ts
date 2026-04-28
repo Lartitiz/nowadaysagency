@@ -1024,33 +1024,41 @@ function buildDeepeningQuestionsPrompt(body: any, brandingContext?: string, isLi
 
   return `Tu dois générer exactement 3 questions d'approfondissement pour aider à créer un carrousel ${formatLabel}.
 
-SUJET du carrousel : "${subject || "non précisé"}"
+══════════════════════════════════════
+SUJET COURANT — PRIORITÉ ABSOLUE
+══════════════════════════════════════
+"${subject || "non précisé"}"
+
+Tout ce qui suit (objectif, branding, historique, angle) est SECONDAIRE.
+Les 3 questions doivent toutes porter sur CE sujet précis.
+Si une question pourrait concerner un autre sujet, elle est invalide.
+
 OBJECTIF : ${OBJ_LABELS[objective] || objective || "non précisé"}
-${objective ? `\nOriente les questions vers cet objectif. Si "vente" : demande des témoignages clients, des résultats, des transformations. Si "engagement" : demande des anecdotes personnelles, des moments vécus. Si "visibilité" : demande des opinions tranchées, des constats provocants.\n` : ""}${brandingBlock}${brandVocabBlock || ""}${recentBriefsContext || ""}${angleBlock}
+${objective ? `\nOriente les questions vers cet objectif. Si "vente" : témoignages clients, résultats, transformations. Si "engagement" : anecdotes personnelles, moments vécus. Si "visibilité" : opinions tranchées, constats provocants.\n` : ""}${brandingBlock}${brandVocabBlock || ""}${recentBriefsContext || ""}${angleBlock}
 ${isLinkedIn ? `\nATTENTION : c'est un carrousel LINKEDIN. Les questions doivent orienter vers du contenu expert et professionnel :\n- Demander des données, des résultats concrets, des leçons métier\n- Chercher l'expertise spécifique (pas juste l'émotion)\n- Orienter vers du contenu qui positionne comme référence sur le sujet` : ""}
 
 ══ AVANT DE POSER LES QUESTIONS — RAISONNEMENT INTERNE (ne PAS afficher) ══
 Réfléchis silencieusement à :
-1. Qu'est-ce que je sais DÉJÀ grâce au branding et aux briefs précédents ?
-2. Qu'est-ce qui MANQUE pour rendre CE carrousel unique sur CE sujet ?
-3. Quels angles ont DÉJÀ été couverts dans les briefs récents ? (À ÉVITER)
-4. Quel vocabulaire métier puis-je réutiliser ?
+1. Quel est le SUJET COURANT ? (ré-extraire 1 mot-clé)
+2. Quel vocabulaire métier puis-je intégrer ?
+3. Y a-t-il un sujet identique dans l'historique récent ? Si oui, quelle question NE PAS reposer ?
 
-TON RÔLE : Tu es une coach com' qui aide l'utilisatrice à extraire son vécu, ses opinions et son expertise PERSONNELLE pour que le contenu ne soit pas générique.
+TON RÔLE : coach com' qui aide à extraire le vécu, les opinions et l'expertise PERSONNELLE pour que le contenu ne soit pas générique.
 
-RÈGLES pour les questions :
-- Chaque question doit être liée SPÉCIFIQUEMENT au sujet "${subject}" et au format ${formatLabel}
-- Les questions doivent faire émerger du vécu, des anecdotes, des opinions tranchées, des exemples concrets
-- AU MOINS 1 question sur 3 doit creuser le POURQUOI PROFOND : "Pourquoi tu penses que [blocage] existe ?", "Qu'est-ce qui fait que [problème] est si répandu selon toi ?". L'objectif est d'extraire une réflexion de fond, pas juste un exemple.
-- Si tu as le contexte branding, adapte les questions à son activité et sa cible (ex : "Quand une de tes clientes [cible] te dit..." plutôt que "Quand quelqu'un te dit...")
-- ${recentBriefsContext ? "MÉMOIRE : ne re-demande pas un angle déjà couvert dans les briefs récents. Tu peux faire écho discrètement (\"la dernière fois tu disais X, ici c'est différent ?\") mais pas re-poser la même question." : ""}
+RÈGLES :
+- ANCRAGE SUJET (règle n°1, non négociable) : chaque question doit contenir un mot du sujet courant ou un aspect directement déductible. Une question qui ne référence pas le sujet courant est invalide — réécris-la.
+- Chaque question doit faire émerger du vécu, des anecdotes, des opinions tranchées, des exemples concrets
+- AU MOINS 1 question sur 3 doit creuser le POURQUOI PROFOND
+- Si le contexte branding est présent, adapte les questions à son activité et sa cible
+- ${recentBriefsContext ? "MÉMOIRE ANTI-RÉPÉTITION : l'historique liste des sujets DIFFÉRENTS déjà traités. N'importe JAMAIS leur contenu, vocabulaire ou scènes dans tes questions sur le sujet courant." : ""}
 - ${isLinkedIn ? "Vouvoyez l'utilisatrice, restez professionnel·le et chaleureux·se" : "Tutoie l'utilisatrice, sois directe et chaleureuse"}
 - Chaque question fait 1-2 phrases max
-- Le placeholder est un court exemple de réponse attendue (5-8 mots)
+- Le placeholder est un court exemple SPÉCIFIQUE au sujet courant (5-8 mots)
 
 INTERDITS :
 - Questions interchangeables d'un user à l'autre (= sans vocabulaire métier)
 - Questions trop larges qui pourraient s'appliquer à n'importe quel sujet
+- ⚠️ Questions qui réutilisent une scène, un lieu, un personnage venu de l'historique des briefs précédents
 
 Réponds UNIQUEMENT en JSON valide, sans texte autour :
 {

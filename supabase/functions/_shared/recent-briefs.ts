@@ -5,16 +5,19 @@ export interface RecentBrief {
   subject: string;
   format?: string | null;
   editorial_angle?: string | null;
-  key_answer?: string | null;
   created_at?: string;
 }
 
 /**
- * Récupère les N derniers briefs de l'utilisatrice et formatte un bloc
- * texte court à injecter dans le prompt système.
+ * Récupère les N derniers briefs et formatte un bloc TRÈS COURT
+ * (sujets / format / angle uniquement) à injecter dans le prompt système.
  *
- * Objectif : permettre à l'IA d'éviter les angles déjà couverts et de
- * faire écho aux réflexions précédentes ("la dernière fois tu disais X").
+ * On NE PASSE PLUS les "réponses marquantes" : trop longues, trop dominantes
+ * dans le prompt, l'IA finit par mélanger les contextes et fabriquer des
+ * questions hors-sujet (ex : Beaux-Arts qui n'a rien à voir avec le sujet courant).
+ *
+ * Objectif : permettre à l'IA d'éviter de re-poser la même question, sans
+ * lui injecter de matière narrative qui pollue le sujet courant.
  */
 export async function getRecentBriefsContext(
   supabase: any,
@@ -25,9 +28,9 @@ export async function getRecentBriefsContext(
   try {
     let query = supabase
       .from("content_briefs")
-      .select("subject, format, editorial_angle, answers, created_at")
+      .select("subject, format, editorial_angle, created_at")
       .order("created_at", { ascending: false })
-      .limit(limit);
+      .limit(limit + 5); // marge pour filtrer les sujets vides
 
     if (workspaceId) {
       query = query.eq("workspace_id", workspaceId);
@@ -38,43 +41,34 @@ export async function getRecentBriefsContext(
     const { data, error } = await query;
     if (error || !data || data.length === 0) return "";
 
-    const briefs: RecentBrief[] = data.map((b: any) => {
-      // Extract one key answer (longest non-trivial response)
-      let keyAnswer: string | null = null;
-      if (b.answers && typeof b.answers === "object") {
-        const values = Object.values(b.answers as Record<string, string>)
-          .filter((v): v is string => typeof v === "string" && v.trim().length > 20);
-        if (values.length > 0) {
-          // Pick the longest (likely the most substantive)
-          keyAnswer = values.sort((a, b) => b.length - a.length)[0];
-          // Truncate to 180 chars to keep the prompt lean
-          if (keyAnswer.length > 180) keyAnswer = keyAnswer.slice(0, 177) + "...";
-        }
-      }
-      return {
-        subject: b.subject,
+    const briefs: RecentBrief[] = data
+      .filter((b: any) => typeof b.subject === "string" && b.subject.trim().length > 0)
+      .slice(0, limit)
+      .map((b: any) => ({
+        subject: b.subject.trim(),
         format: b.format,
         editorial_angle: b.editorial_angle,
-        key_answer: keyAnswer,
         created_at: b.created_at,
-      };
-    });
+      }));
+
+    if (briefs.length === 0) return "";
 
     const lines = briefs.map((b, i) => {
-      const parts = [`Brief #${i + 1} — sujet : "${b.subject}"`];
+      // Sujet tronqué à 120 chars : juste assez pour comparer, pas de matière narrative.
+      const subj = b.subject.length > 120 ? b.subject.slice(0, 117) + "..." : b.subject;
+      const parts = [`Brief #${i + 1} — sujet : "${subj}"`];
       if (b.format) parts.push(`format : ${b.format}`);
       if (b.editorial_angle) parts.push(`angle : ${b.editorial_angle}`);
-      let line = parts.join(" · ");
-      if (b.key_answer) line += `\n  Réponse marquante : "${b.key_answer}"`;
-      return line;
+      return parts.join(" · ");
     });
 
-    let result = `\n══ HISTORIQUE RÉCENT DE L'UTILISATRICE (${briefs.length} dernier${briefs.length > 1 ? "s" : ""} brief${briefs.length > 1 ? "s" : ""}) ══\n${lines.join("\n\n")}\n\nUTILISATION OBLIGATOIRE de cet historique :
-- ÉVITE de poser des questions déjà couvertes par ces briefs (même angle, même type d'anecdote demandée).
-- Si le sujet actuel résonne avec un brief passé, tu PEUX y faire écho discrètement dans une question (ex : "La dernière fois tu parlais de X, là c'est différent : qu'est-ce qui change ?").
-- L'objectif : éviter la sensation de répétition après plusieurs créations.\n`;
-    // Cap dur à 5800 chars pour rester sous la limite Zod (6000) côté creative-flow
-    const MAX = 5800;
+    let result = `\n══ HISTORIQUE RÉCENT (${briefs.length} brief${briefs.length > 1 ? "s" : ""}, à titre indicatif) ══
+${lines.join("\n")}
+
+USAGE STRICT : ne re-pose pas une question déjà posée pour ces sujets passés. Ces briefs sont une référence ANTI-RÉPÉTITION uniquement — ils ne décrivent PAS le sujet courant. Ne mélange jamais leur contenu avec le sujet courant.
+`;
+    // Cap dur conservateur (était 5800)
+    const MAX = 1500;
     if (result.length > MAX) {
       result = result.slice(0, MAX - 20) + "\n... (tronqué)\n";
     }
