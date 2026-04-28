@@ -426,40 +426,35 @@ export function useContentGenerator() {
           existingContentQ = subject.slice(idx + CALENDAR_MARKER_Q.length);
         }
 
-        // Fetch 3 most recent briefs to give the AI memory + avoid repetition.
-        // Done client-side so the edge function doesn't need to repeat the work.
+        // Fetch recent briefs (sujets uniquement) pour mémoire anti-répétition.
+        // ⚠️ On NE PASSE PAS les "réponses marquantes" : elles polluent le prompt
+        // et l'IA finit par mélanger un ancien vécu avec le sujet courant.
         let recentBriefsContext = "";
         try {
           const { data: { user } } = await supabase.auth.getUser();
           if (user?.id) {
             let q = supabase
               .from("content_briefs")
-              .select("subject, format, editorial_angle, answers, created_at")
+              .select("subject, format, editorial_angle, created_at")
               .order("created_at", { ascending: false })
-              .limit(3);
+              .limit(8); // marge pour filtrer les sujets vides
             if (workspaceId) q = q.eq("workspace_id", workspaceId);
             else q = q.eq("user_id", user.id);
             const { data: briefs } = await q;
-            if (briefs && briefs.length > 0) {
-              const lines = briefs.map((b: any, i: number) => {
-                const parts = [`Brief #${i + 1} — sujet : "${b.subject}"`];
+            const cleanBriefs = (briefs || [])
+              .filter((b: any) => typeof b.subject === "string" && b.subject.trim().length > 0)
+              .slice(0, 3);
+            if (cleanBriefs.length > 0) {
+              const lines = cleanBriefs.map((b: any, i: number) => {
+                const subj = b.subject.trim();
+                const safeSubj = subj.length > 120 ? subj.slice(0, 117) + "..." : subj;
+                const parts = [`Brief #${i + 1} — sujet : "${safeSubj}"`];
                 if (b.format) parts.push(`format : ${b.format}`);
                 if (b.editorial_angle) parts.push(`angle : ${b.editorial_angle}`);
-                let line = parts.join(" · ");
-                if (b.answers && typeof b.answers === "object") {
-                  const vals = Object.values(b.answers as Record<string, string>)
-                    .filter((v): v is string => typeof v === "string" && v.trim().length > 20);
-                  if (vals.length > 0) {
-                    let key = vals.sort((a, b) => b.length - a.length)[0];
-                    if (key.length > 180) key = key.slice(0, 177) + "...";
-                    line += `\n  Réponse marquante : "${key}"`;
-                  }
-                }
-                return line;
+                return parts.join(" · ");
               });
-              recentBriefsContext = `\n══ HISTORIQUE RÉCENT (${briefs.length} brief${briefs.length > 1 ? "s" : ""}) ══\n${lines.join("\n\n")}\n\nÉVITE les angles déjà couverts. Tu peux faire écho discrètement.\n`;
-              // Cap dur à 5800 chars pour rester sous la limite Zod (6000) de creative-flow
-              const RECENT_BRIEFS_MAX = 5800;
+              recentBriefsContext = `\n══ HISTORIQUE RÉCENT (${cleanBriefs.length} brief${cleanBriefs.length > 1 ? "s" : ""}, indicatif) ══\n${lines.join("\n")}\n\nUSAGE STRICT : ne re-pose pas une question déjà posée pour ces sujets passés. Ces briefs ne décrivent PAS le sujet courant — ne mélange jamais leur contenu avec le sujet courant.\n`;
+              const RECENT_BRIEFS_MAX = 1500;
               if (recentBriefsContext.length > RECENT_BRIEFS_MAX) {
                 recentBriefsContext = recentBriefsContext.slice(0, RECENT_BRIEFS_MAX - 20) + "\n... (tronqué)\n";
               }
