@@ -200,7 +200,7 @@ serve(async (req) => {
       formData.append("imageFile", originalBlob, "input.jpg");
       formData.append("referenceBox", "originalImage");
       formData.append("background.prompt", finalPrompt);
-      formData.append("segmentation.mode", "keepSalientObject");
+      formData.append("removeBackground", "true");
       formData.append("outputSize", "originalImage");
 
       return await fetch(PHOTOROOM_URL, {
