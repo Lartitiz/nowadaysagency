@@ -198,18 +198,18 @@ Deno.serve(async (req) => {
 
     // Random creative seed to force variety between sessions
     const CREATIVE_SEEDS = [
-      "Une idée doit utiliser une analogie avec la cuisine, le sport, ou le jardinage",
-      "Une idée doit s'appuyer sur un biais cognitif précis (effet Dunning-Kruger, biais de survie, paradoxe du choix, etc.)",
-      "Une idée doit faire un parallèle avec un film, une série ou un livre connu",
-      "Une idée doit partir d'un chiffre ou d'une statistique concrète (même approximative)",
-      "Une idée doit prendre le contre-pied EXACT d'un conseil mainstream dans le domaine de l'utilisatrice",
-      "Une idée doit raconter un micro-moment du quotidien (pas une grande histoire, un détail précis)",
-      "Une idée doit faire un parallèle inattendu avec un autre métier ou une autre industrie",
-      "Une idée doit utiliser le format 'confession' ou 'j'avoue que...'",
-      "Une idée doit poser une question que l'audience se pose en secret mais n'ose pas formuler",
-      "Une idée doit comparer deux époques (avant/maintenant) sur un aspect du métier de l'utilisatrice",
-      "Une idée doit décortiquer un mot ou un concept que tout le monde utilise sans le comprendre",
-      "Une idée doit s'inspirer d'une tendance sociétale actuelle (slow life, dé-croissance, IA, etc.)",
+      "Si l'angle s'y prête naturellement, une idée peut utiliser une analogie cuisine/sport/jardinage. Sinon ignore.",
+      "Si pertinent, une idée peut s'appuyer sur un biais cognitif précis (Dunning-Kruger, biais de survie, paradoxe du choix). Sinon ignore.",
+      "Si le parallèle tient vraiment, une idée peut faire un lien avec un film, série ou livre connu. Sinon ignore.",
+      "Si un chiffre FACTUEL et SOURÇABLE est disponible (étude publique, donnée du contexte branding), une idée peut s'appuyer dessus. JAMAIS de chiffre inventé.",
+      "Si un conseil mainstream précis du secteur est réellement faux ou nuancé, une idée peut prendre son contre-pied. Sinon ignore.",
+      "Une idée peut raconter un micro-moment du quotidien (un détail précis, pas une grande histoire).",
+      "Si le parallèle tient, une idée peut faire un lien inattendu avec un autre métier. Sinon ignore.",
+      "Une idée peut utiliser le format 'confession' ou 'j'avoue que...' à condition que ce soit cohérent avec le vécu de l'utilisatrice.",
+      "Une idée peut poser une question que l'audience se pose en secret mais n'ose pas formuler.",
+      "Une idée peut comparer deux époques (avant/maintenant) sur un aspect du métier de l'utilisatrice.",
+      "Une idée peut décortiquer un mot ou un concept que tout le monde utilise sans le comprendre.",
+      "Une idée peut s'inspirer d'une tendance sociétale actuelle (slow life, dé-croissance, IA, etc.) si elle touche réellement le métier.",
     ];
     const seed1 = CREATIVE_SEEDS[Math.floor(Math.random() * CREATIVE_SEEDS.length)];
     let seed2 = CREATIVE_SEEDS[Math.floor(Math.random() * CREATIVE_SEEDS.length)];
