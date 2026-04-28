@@ -928,6 +928,30 @@ Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de con
       });
     }
 
+    // Fallback : si Claude a oublié `slides_invariants` dans la réponse, on injecte
+    // les invariants serveur (déduits de la charte) pour que l'exporter ne soit jamais
+    // privé de la source de vérité.
+    if (result && !result.slides_invariants) {
+      result.slides_invariants = {
+        palette_used: {
+          primary: invariants.palette.primary_hex,
+          secondary: invariants.palette.secondary_hex,
+          accent: invariants.palette.accent_hex,
+          bg: invariants.palette.bg_hex,
+          text: invariants.palette.text_hex,
+        },
+        typography_used: {
+          title_pptx_safe: invariants.typography.title_pptx_safe,
+          body_pptx_safe: invariants.typography.body_pptx_safe,
+          title_pt: invariants.typography.title_pt,
+          body_pt: invariants.typography.body_pt,
+        },
+        layouts_used: [],
+        motif: invariants.motif,
+      };
+      console.warn("carousel-visual: slides_invariants manquant dans la réponse Claude → fallback serveur");
+    }
+
     await logUsage(user.id, "content", "carousel_visual", undefined, model, workspaceId);
 
     return new Response(JSON.stringify({ result, remaining: quota.remaining }), {
