@@ -644,11 +644,8 @@ export default function CreerUnifie() {
                 : ""));
 
     // Channel: calculé depuis les arguments locaux (pas le state, qui n'est pas
-    // encore commit après setSelectedFormat).
-    const isLinkedInCarouselLocal = format === "carousel" && subModeForQuestions === "text";
-    // NB: linkedin carousel mix/photo reste une publication LinkedIn → on passe "linkedin"
-    const channelForQuestions = (format === "linkedin" || isLinkedInCarouselLocal
-      || (format === "carousel" && (subModeForQuestions === "mix" || subModeForQuestions === "photo") && (photoModeForQuestions === false || isLinkedInCarousel)))
+    // encore commit après setSelectedFormat / setIsLinkedInCarousel).
+    const channelForQuestions = (format === "linkedin" || linkedinCarLocal || isLinkedInCarousel)
       ? "linkedin"
       : undefined;
 
