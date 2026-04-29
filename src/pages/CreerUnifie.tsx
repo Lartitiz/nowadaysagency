@@ -673,21 +673,16 @@ export default function CreerUnifie() {
       }
     }
 
-    const isPhotoOrMixCarousel = selectedFormat === "carousel" && (carouselSubMode === "photo" || carouselSubMode === "mix");
-    const willProposeStructure = isPhotoOrMixCarousel && !structureProposal && !lastConfirmedStructure;
-    if (!willProposeStructure) {
-      setStep("result");
-    }
+    // On bascule TOUJOURS vers "result" pour afficher un loader pendant
+    // que doGenerate tourne (pour les carrousels photo/mix, ce loader correspond
+    // à l'écran "structureLoading"). Sinon l'écran questions reste figé 30-60s.
+    setStep("result");
     await doGenerate(ans);
   };
 
   const handleSkipQuestions = async () => {
     setAnswers({});
-    const isPhotoOrMixCarousel = selectedFormat === "carousel" && (carouselSubMode === "photo" || carouselSubMode === "mix");
-    const willProposeStructure = isPhotoOrMixCarousel && !structureProposal && !lastConfirmedStructure;
-    if (!willProposeStructure) {
-      setStep("result");
-    }
+    setStep("result");
     await doGenerate({});
   };
 
