@@ -522,8 +522,8 @@ export default function CreerUnifie() {
     setStep("format");
   };
 
-  const handleFormatNext = async (format: string, angle?: string, options?: { carouselSubMode?: "text" | "photo" | "mix"; photos?: any[]; photoDescription?: string; photoMode?: boolean; overrideSubject?: string }) => {
-    const { carouselSubMode: sub, photos, photoDescription: desc, photoMode: pm, overrideSubject } = options || {};
+  const handleFormatNext = async (format: string, angle?: string, options?: { carouselSubMode?: "text" | "photo" | "mix"; photos?: any[]; photoDescription?: string; photoMode?: boolean; overrideSubject?: string; linkedinCarousel?: boolean }) => {
+    const { carouselSubMode: sub, photos, photoDescription: desc, photoMode: pm, overrideSubject, linkedinCarousel: linkedinCarLocal } = options || {};
 
     // Auriana demo account: let the flow continue through all steps (no bypass)
 
@@ -634,12 +634,27 @@ export default function CreerUnifie() {
     const subModeForQuestions = sub || carouselSubMode;
     const photoModeForQuestions = pm !== undefined ? pm : photoMode;
 
+    // Fallback subject: si l'utilisateur n'a pas tapé de sujet (flow photo),
+    // on injecte la description ou un placeholder pour ne jamais envoyer "" à l'IA.
+    const safeSubject = enrichedSubject?.trim()
+      ? enrichedSubject
+      : (descForQuestions?.trim()
+          || (photosForQuestions && photosForQuestions.length > 0
+                ? "Carrousel basé sur les photos uploadées"
+                : ""));
+
+    // Channel: calculé depuis les arguments locaux (pas le state, qui n'est pas
+    // encore commit après setSelectedFormat / setIsLinkedInCarousel).
+    const channelForQuestions = (format === "linkedin" || linkedinCarLocal || isLinkedInCarousel)
+      ? "linkedin"
+      : undefined;
+
     await generateQuestions({
       format,
-      subject: enrichedSubject,
+      subject: safeSubject,
       editorialAngle: angle,
       objective: objective || undefined,
-      channel: isLinkedInCarousel ? "linkedin" : undefined,
+      channel: channelForQuestions,
       photos: photosForQuestions && photosForQuestions.length > 0
         ? photosForQuestions.map((p: any) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType }))
         : undefined,
@@ -673,21 +688,16 @@ export default function CreerUnifie() {
       }
     }
 
-    const isPhotoOrMixCarousel = selectedFormat === "carousel" && (carouselSubMode === "photo" || carouselSubMode === "mix");
-    const willProposeStructure = isPhotoOrMixCarousel && !structureProposal && !lastConfirmedStructure;
-    if (!willProposeStructure) {
-      setStep("result");
-    }
+    // On bascule TOUJOURS vers "result" pour afficher un loader pendant
+    // que doGenerate tourne (pour les carrousels photo/mix, ce loader correspond
+    // à l'écran "structureLoading"). Sinon l'écran questions reste figé 30-60s.
+    setStep("result");
     await doGenerate(ans);
   };
 
   const handleSkipQuestions = async () => {
     setAnswers({});
-    const isPhotoOrMixCarousel = selectedFormat === "carousel" && (carouselSubMode === "photo" || carouselSubMode === "mix");
-    const willProposeStructure = isPhotoOrMixCarousel && !structureProposal && !lastConfirmedStructure;
-    if (!willProposeStructure) {
-      setStep("result");
-    }
+    setStep("result");
     await doGenerate({});
   };
 
@@ -2286,7 +2296,7 @@ export default function CreerUnifie() {
                   if (pintData) setPinterestData(pintData);
                   if (linkedinCar) setIsLinkedInCarousel(true);
                   else setIsLinkedInCarousel(false);
-                  handleFormatNext(fmt, angle, { carouselSubMode: sub || (linkedinCar ? "text" : undefined), photos, photoDescription: desc, photoMode: pm });
+                  handleFormatNext(fmt, angle, { carouselSubMode: sub || (linkedinCar ? "text" : undefined), photos, photoDescription: desc, photoMode: pm, linkedinCarousel: !!linkedinCar });
                 }}
                 onBack={() => { setStep("idea"); setNewsjackingContext(null); }}
               />
