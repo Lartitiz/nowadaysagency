@@ -12,6 +12,38 @@ serve(async (req) => {
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
+  // ─── AUTH: accept either service-role key (internal/cron) OR an admin user JWT ───
+  const authHeader = req.headers.get("Authorization") || "";
+  const bearer = authHeader.replace(/^Bearer\s+/i, "");
+  let authorized = false;
+
+  if (bearer && bearer === serviceRoleKey) {
+    authorized = true;
+  } else if (bearer) {
+    try {
+      const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
+      const { data: userData, error: userErr } = await anonClient.auth.getUser(bearer);
+      if (!userErr && userData.user) {
+        const { data: roleRow } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", userData.user.id)
+          .eq("role", "admin")
+          .maybeSingle();
+        if (roleRow) authorized = true;
+      }
+    } catch (_) {
+      // fall through
+    }
+  }
+
+  if (!authorized) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   try {
     const { event, user_id } = await req.json();
 
