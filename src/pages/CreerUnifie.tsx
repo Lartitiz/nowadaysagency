@@ -634,12 +634,30 @@ export default function CreerUnifie() {
     const subModeForQuestions = sub || carouselSubMode;
     const photoModeForQuestions = pm !== undefined ? pm : photoMode;
 
+    // Fallback subject: si l'utilisateur n'a pas tapé de sujet (flow photo),
+    // on injecte la description ou un placeholder pour ne jamais envoyer "" à l'IA.
+    const safeSubject = enrichedSubject?.trim()
+      ? enrichedSubject
+      : (descForQuestions?.trim()
+          || (photosForQuestions && photosForQuestions.length > 0
+                ? "Carrousel basé sur les photos uploadées"
+                : ""));
+
+    // Channel: calculé depuis les arguments locaux (pas le state, qui n'est pas
+    // encore commit après setSelectedFormat).
+    const isLinkedInCarouselLocal = format === "carousel" && subModeForQuestions === "text";
+    // NB: linkedin carousel mix/photo reste une publication LinkedIn → on passe "linkedin"
+    const channelForQuestions = (format === "linkedin" || isLinkedInCarouselLocal
+      || (format === "carousel" && (subModeForQuestions === "mix" || subModeForQuestions === "photo") && (photoModeForQuestions === false || isLinkedInCarousel)))
+      ? "linkedin"
+      : undefined;
+
     await generateQuestions({
       format,
-      subject: enrichedSubject,
+      subject: safeSubject,
       editorialAngle: angle,
       objective: objective || undefined,
-      channel: isLinkedInCarousel ? "linkedin" : undefined,
+      channel: channelForQuestions,
       photos: photosForQuestions && photosForQuestions.length > 0
         ? photosForQuestions.map((p: any) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType }))
         : undefined,
