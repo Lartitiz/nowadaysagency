@@ -1000,7 +1000,9 @@ export default function CreerUnifie() {
         body: {
           action: "caption-for-carousel",
           subject: ideaText,
-          chosen_angle: r.chosen_angle || null,
+          chosen_angle: typeof r.chosen_angle === "string"
+            ? r.chosen_angle
+            : (r.chosen_angle?.title || r.chosen_angle?.angle || (r.chosen_angle ? JSON.stringify(r.chosen_angle) : null)),
           slides_summary: slidesSummary,
           editorial_angle: editorialAngle || null,
           objective: objective || null,
