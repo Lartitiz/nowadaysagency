@@ -231,8 +231,17 @@ function addBlockToSlide(
   const x = pxToInches(block.rect.x, PX_PER_IN);
   const y = pxToInches(block.rect.y, PX_PER_IN);
   const w = pxToInches(block.rect.w, PX_PER_IN);
-  // Add a little vertical breathing room so PPTX wrapping doesn't clip
-  const h = Math.min(PPTX_H_IN - y, pxToInches(block.rect.h, PX_PER_IN) + 0.1);
+  // Marge de sécurité proportionnelle à la taille de police (≈ demi-ligne),
+  // plancher 0.15" — absorbe les écarts de wrapping HTML vs PowerPoint
+  // (métriques de fonts, kerning, arrondis lineSpacing/charSpacing).
+  const safetyMargin = Math.max(
+    0.15,
+    pxToInches(block.style.fontSizePx, PX_PER_IN) * 0.5,
+  );
+  const h = Math.min(
+    PPTX_H_IN - y,
+    pxToInches(block.rect.h, PX_PER_IN) + safetyMargin,
+  );
 
   const isTitleish = block.kind === "title" || block.kind === "overlay";
   const fontFace = mapFontToPptx(
