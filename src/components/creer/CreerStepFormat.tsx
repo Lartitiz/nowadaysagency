@@ -121,7 +121,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
       )
     : { recommended: [], others: [] };
 
-  const handleFormatSelect = (id: string) => {
+  const handleFormatSelect = (id: string, opts?: { keepCarouselSubMode?: "text" | "photo" | "mix" }) => {
     if (CONTENT_TYPE_SPECS[id]?.comingSoon) return;
     const isFirstSelectionWithPhotos = !hasUserChangedFormat.current && (initialPhotos?.length ?? 0) > 0;
     hasUserChangedFormat.current = true;
@@ -132,7 +132,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
       setUploadedPhotos(initialPhotos!);
       setPhotoDescription(initialPhotoDescription ?? "");
       if (id === "carousel") {
-        setCarouselSubMode("mix");
+        setCarouselSubMode(opts?.keepCarouselSubMode ?? "mix");
         setPhotoMode(false);
       } else if (formatAcceptsSinglePhoto(id)) {
         setCarouselSubMode(null);
@@ -144,9 +144,12 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
         setPhotoMode(false);
       }
     } else {
-      setCarouselSubMode(null);
-      setUploadedPhotos([]);
-      setPhotoDescription("");
+      setCarouselSubMode(opts?.keepCarouselSubMode ?? null);
+      // Préserver les photos uploadées si on entre en mode carousel mix/photo
+      if (!(id === "carousel" && (opts?.keepCarouselSubMode === "mix" || opts?.keepCarouselSubMode === "photo"))) {
+        setUploadedPhotos([]);
+        setPhotoDescription("");
+      }
       setPhotoMode(false);
       setPostPhoto([]);
       setPostPhotoDescription("");
