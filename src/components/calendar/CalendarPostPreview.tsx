@@ -172,6 +172,16 @@ export function CalendarPostPreview({
                   downloadingPng={downloadingPng}
                   downloadingPptx={downloadingHybrid}
                   count={(visualUrls?.length ?? visualHtml?.length ?? 1)}
+                  pptxDisabledReason={
+                    !visualHtml || visualHtml.length === 0
+                      ? "HTML source non conservé pour ce post. Régénère le carrousel pour activer l'export éditable."
+                      : undefined
+                  }
+                  onPptxRegenerate={
+                    (!visualHtml || visualHtml.length === 0)
+                      ? onNavigateToGenerator
+                      : undefined
+                  }
                 />
               </DropdownMenuContent>
             </DropdownMenu>
