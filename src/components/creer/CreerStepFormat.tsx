@@ -242,6 +242,11 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
 
   const handleNext = () => {
     if (!selectedFormat) return;
+    // Guard: carousel requires explicit sub-mode (text/photo/mix) — sinon on tombait silencieusement sur "text"
+    if (selectedFormat === "carousel" && !carouselSubMode) {
+      toast.error("Choisis le type de carrousel (Texte, Photo ou Mixte) avant de continuer.");
+      return;
+    }
     // Guard: photo/mix mode requires at least one photo
     if (selectedFormat === "carousel" && (carouselSubMode === "photo" || carouselSubMode === "mix") && uploadedPhotos.length === 0) {
       setPhotoWarning(true);
