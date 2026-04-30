@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { toast } from "sonner";
 
 const CHANNELS = [
   { id: "instagram" as const, emoji: "📸", label: "Instagram", desc: "Carrousel, Reel, Story, Post" },
@@ -120,7 +121,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
       )
     : { recommended: [], others: [] };
 
-  const handleFormatSelect = (id: string) => {
+  const handleFormatSelect = (id: string, opts?: { keepCarouselSubMode?: "text" | "photo" | "mix" }) => {
     if (CONTENT_TYPE_SPECS[id]?.comingSoon) return;
     const isFirstSelectionWithPhotos = !hasUserChangedFormat.current && (initialPhotos?.length ?? 0) > 0;
     hasUserChangedFormat.current = true;
@@ -131,7 +132,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
       setUploadedPhotos(initialPhotos!);
       setPhotoDescription(initialPhotoDescription ?? "");
       if (id === "carousel") {
-        setCarouselSubMode("mix");
+        setCarouselSubMode(opts?.keepCarouselSubMode ?? "mix");
         setPhotoMode(false);
       } else if (formatAcceptsSinglePhoto(id)) {
         setCarouselSubMode(null);
@@ -143,9 +144,12 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
         setPhotoMode(false);
       }
     } else {
-      setCarouselSubMode(null);
-      setUploadedPhotos([]);
-      setPhotoDescription("");
+      setCarouselSubMode(opts?.keepCarouselSubMode ?? null);
+      // Préserver les photos uploadées si on entre en mode carousel mix/photo
+      if (!(id === "carousel" && (opts?.keepCarouselSubMode === "mix" || opts?.keepCarouselSubMode === "photo"))) {
+        setUploadedPhotos([]);
+        setPhotoDescription("");
+      }
       setPhotoMode(false);
       setPostPhoto([]);
       setPostPhotoDescription("");
@@ -238,6 +242,11 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
 
   const handleNext = () => {
     if (!selectedFormat) return;
+    // Guard: carousel requires explicit sub-mode (text/photo/mix) — sinon on tombait silencieusement sur "text"
+    if (selectedFormat === "carousel" && !carouselSubMode) {
+      toast.error("Choisis le type de carrousel (Texte, Photo ou Mixte) avant de continuer.");
+      return;
+    }
     // Guard: photo/mix mode requires at least one photo
     if (selectedFormat === "carousel" && (carouselSubMode === "photo" || carouselSubMode === "mix") && uploadedPhotos.length === 0) {
       setPhotoWarning(true);
@@ -339,7 +348,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
               <p className="text-[10px] text-muted-foreground mt-0.5">1300-2000 caractères</p>
             </button>
             <button
-              onClick={() => { setLinkedinSubMode("carousel"); setCarouselSubMode("text"); handleFormatSelect("carousel"); }}
+              onClick={() => { setLinkedinSubMode("carousel"); handleFormatSelect("carousel", { keepCarouselSubMode: "text" }); }}
               className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
             >
               <span className="text-2xl block mb-1">🎠</span>
@@ -347,7 +356,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
               <p className="text-[10px] text-muted-foreground mt-0.5">8-10 slides téléchargeables</p>
             </button>
             <button
-              onClick={() => { setLinkedinSubMode("carousel"); setCarouselSubMode("mix"); handleFormatSelect("carousel"); }}
+              onClick={() => { setLinkedinSubMode("carousel"); handleFormatSelect("carousel", { keepCarouselSubMode: "mix" }); }}
               className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
             >
               <span className="text-2xl block mb-1">✨</span>
