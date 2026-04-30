@@ -343,7 +343,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
               <p className="text-[10px] text-muted-foreground mt-0.5">1300-2000 caractères</p>
             </button>
             <button
-              onClick={() => { setLinkedinSubMode("carousel"); setCarouselSubMode("text"); handleFormatSelect("carousel"); }}
+              onClick={() => { setLinkedinSubMode("carousel"); handleFormatSelect("carousel", { keepCarouselSubMode: "text" }); }}
               className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
             >
               <span className="text-2xl block mb-1">🎠</span>
@@ -351,7 +351,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
               <p className="text-[10px] text-muted-foreground mt-0.5">8-10 slides téléchargeables</p>
             </button>
             <button
-              onClick={() => { setLinkedinSubMode("carousel"); setCarouselSubMode("mix"); handleFormatSelect("carousel"); }}
+              onClick={() => { setLinkedinSubMode("carousel"); handleFormatSelect("carousel", { keepCarouselSubMode: "mix" }); }}
               className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
             >
               <span className="text-2xl block mb-1">✨</span>
