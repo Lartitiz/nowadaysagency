@@ -1,99 +1,102 @@
-## Diagnostic
+## Plan — Fix masquage cascade enfants (export PPTX hybride)
 
-### Trace réelle (logs réseau du 13:34)
+### (a) Demande utilisateur
 
-1. `POST creative-flow { step:"questions", contentType:"linkedin_post" }` → questions textuelles MDB
-2. `POST creative-flow { step:"generate", contentType:"post_linkedin" }` → post LinkedIn classique généré
+**Fichier** : `src/lib/export-carousel-hybrid-pptx.ts` (bloc `<style>` dans `mountIframe`, ligne ~57)
 
-→ Côté backend : c'est bien un **post LinkedIn classique** qui a été demandé, pas un carousel mix. Aucun champ `carouselType`, `photos`, `slides` n'a été envoyé.
+**Modification unique** : étendre le sélecteur de masquage aux enfants.
 
-→ Côté front : `selectedFormat === "linkedin"` (pas `"carousel"`), sinon le hook `generateQuestions` aurait routé vers `carousel-ai` (use-content-generator.ts ligne 468).
+```css
+/* AVANT */
+[data-pptx-hide="true"] {
+  color: transparent !important;
+  text-shadow: none !important;
+  -webkit-text-fill-color: transparent !important;
+}
 
-### Cause : bug d'état dans CreerStepFormat.tsx
-
-Quand on clique sur **"Carrousel mixte" LinkedIn** (ligne 350), trois `setState` sont enchaînés :
-
-```ts
-setLinkedinSubMode("carousel");
-setCarouselSubMode("mix");      // ← (A)
-handleFormatSelect("carousel"); // ← appelle setCarouselSubMode(null) ligne 146
-```
-
-React batch ces updates. Le `setCarouselSubMode(null)` à l'intérieur de `handleFormatSelect` **écrase** le `setCarouselSubMode("mix")` de l'étape (A). Résultat :
-- `selectedFormat = "carousel"` ✓
-- `carouselSubMode = null` ❌ (au lieu de `"mix"`)
-- `uploadedPhotos = []` (réinitialisé ligne 147)
-- `photoDescription = ""` (réinitialisé ligne 148)
-
-Le panneau "Quel type de carrousel ?" (lignes 540-585) réapparaît alors **sans présélection**, et la zone d'upload photos disparaît. L'utilisateur doit re-cliquer "Mixte" et re-uploader ses photos.
-
-### Pourquoi ça finit en "Post texte LinkedIn"
-
-Hypothèse forte : l'utilisateur, voyant le panneau se réinitialiser, a soit :
-- cliqué sur **"Post texte"** (premier bouton, ligne 334) en pensant que c'est ce qu'il fallait, soit
-- simplement utilisé le retour arrière et reselectionné un format différent.
-
-Le bouton "Post texte" est le premier de la grille, juste à gauche de "Carrousel mixte" — la confusion visuelle est plausible quand la sélection précédente a "disparu".
-
-### Bugs annexes identifiés
-
-1. **`linkedinSubMode` jamais lu après initialisation** — l'état est défini mais aucun rendu ne s'en sert. Code mort qui complique la lecture.
-2. **Pas de feedback visuel** que la sélection LinkedIn → Carrousel mixte a été partiellement perdue. L'utilisateur ne reçoit aucun toast ni rien.
-3. **Validation muette ligne 242** : si `carouselSubMode === null` quand `selectedFormat === "carousel"`, le guard photo n'est pas déclenché et le bouton Suivant active le flow texte par défaut (fallback ligne 259). Pas d'erreur, pas d'avertissement.
-4. **Photos perdues** dans `handleFormatSelect` quand on rentre via le tile LinkedIn : ligne 147 vide `uploadedPhotos` même si l'intention est "mixte" qui en a besoin.
-
-## Solution
-
-### 1. Corriger l'écrasement de `carouselSubMode` (bug principal)
-
-Dans `src/components/creer/CreerStepFormat.tsx`, ajouter à `handleFormatSelect` un paramètre optionnel pour préserver le sous-mode souhaité :
-
-```ts
-const handleFormatSelect = (id: string, opts?: { keepCarouselSubMode?: "text" | "photo" | "mix" }) => {
-  // ...
-  } else {
-    setCarouselSubMode(opts?.keepCarouselSubMode ?? null);
-    setUploadedPhotos([]);
-    setPhotoDescription("");
-    // ...
-  }
-};
-```
-
-Puis, dans les boutons LinkedIn (lignes 342, 350) :
-```ts
-onClick={() => { setLinkedinSubMode("carousel"); handleFormatSelect("carousel", { keepCarouselSubMode: "text" }); }}
-onClick={() => { setLinkedinSubMode("carousel"); handleFormatSelect("carousel", { keepCarouselSubMode: "mix" }); }}
-```
-
-(et supprimer les `setCarouselSubMode(...)` redondants avant `handleFormatSelect`).
-
-### 2. Sécuriser la validation `handleNext`
-
-Ajouter un guard explicite : si `selectedFormat === "carousel"` et `carouselSubMode === null`, **bloquer** avec un message clair plutôt que tomber silencieusement sur `"text"`.
-
-```ts
-if (selectedFormat === "carousel" && !carouselSubMode) {
-  toast.error("Choisis le type de carrousel (Texte, Photo ou Mixte) avant de continuer.");
-  return;
+/* APRÈS */
+[data-pptx-hide="true"],
+[data-pptx-hide="true"] * {
+  color: transparent !important;
+  text-shadow: none !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+  -webkit-background-clip: text !important;
 }
 ```
 
-(Optionnel : forcer le scroll vers le panneau sub-mode.)
+Aucune autre logique touchée. Aucun autre fichier modifié.
 
-### 3. Nettoyer `linkedinSubMode` mort
+### (b) Propositions d'amélioration (à valider/refuser individuellement)
 
-Soit l'utiliser pour pré-sélectionner visuellement la bonne tuile au retour, soit le supprimer. Plus simple : le supprimer puisqu'il n'apporte rien.
+J'ai relu `mountIframe` et identifié 3 cas de fuite résiduelle possibles. Chacun est indépendant et peut être validé séparément.
 
-### 4. Préserver l'intention "Mixte" au retour arrière
+**Proposition #1 — Neutraliser les pseudo-éléments `::before` / `::after**`
+Si un span enfant utilise `::before { content: "→"; color: #FB3D80; }` pour décorer, le contenu décoratif restera visible dans la rasterisation. Ajout proposé :
 
-Si l'utilisateur a déjà uploadé des photos pour un carrousel mixte LinkedIn et revient à l'étape format, ne pas wiper `uploadedPhotos` quand il re-clique sur le tile carrousel mixte (déjà géré pour `initialPhotos` mais pas pour la session courante).
+```css
+[data-pptx-hide="true"]::before,
+[data-pptx-hide="true"]::after,
+[data-pptx-hide="true"] *::before,
+[data-pptx-hide="true"] *::after {
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  text-shadow: none !important;
+}
+```
 
-## Hors-scope
+Risque : nul (uniquement masquage de couleur, pas de `content: none`).
 
-- Refonte du `CreerStepFormat` en wizard à 2 étapes (canal puis format).
-- Tests automatisés du flow complet — à envisager après les corrections.
+**Proposition #2 — Neutraliser les `background-image` de type gradient texte**
+Pattern courant chez les designers : `background: linear-gradient(...); -webkit-background-clip: text; color: transparent;` pour un texte dégradé. Mon `background-clip: text !important` du fix principal force le clip mais le gradient reste appliqué au remplissage. Pour être sûr :
 
-## Fichiers à modifier
+```css
+[data-pptx-hide="true"],
+[data-pptx-hide="true"] * {
+  background-image: none !important;
+}
+```
 
-- `src/components/creer/CreerStepFormat.tsx` — fix principal + cleanup `linkedinSubMode` + guard validation.
+Risque : faible. Limite : si un span enfant a un `background-image` décoratif (icône SVG inline en background), elle disparaîtra aussi. Acceptable car ces éléments doivent passer par la rasterisation initiale, pas être masqués.
+
+**Proposition #3 — Ne pas toucher aux enfants `position: absolute` qui débordent**
+Cas inverse : un enfant en `position: absolute` ancré dans un bloc body annoté pourrait être un élément décoratif (badge, sticker) qu'on veut garder visible. Le sélecteur `[data-pptx-hide="true"] *` les masquerait aussi.
+
+**Recommandation** : ne RIEN faire de spécial pour ce cas tant qu'il n'est pas observé en production. Documenter le comportement dans un commentaire au-dessus du bloc CSS :
+
+```ts
+// NB: tous les descendants d'un bloc annoté sont masqués pour éviter le double-rendu.
+// Si un descendant doit rester visible (badge, sticker), ne pas annoter le parent
+// en data-pptx-editable — annoter chaque sous-bloc texte individuellement.
+```
+
+Risque : nul (pure documentation).
+
+### Hors scope confirmé
+
+Pinterest exports, export classique, export PNG, edge functions, logique d'extraction, addBlockToSlide, dispatcher de stratégie — tous intacts.
+
+### Validation
+
+- `tsc --noEmit` (lancé automatiquement par le harness Lovable, je ne le déclenche pas manuellement).
+- Test visuel à ta charge : régénérer un carrousel avec span coloré inline et exporter PPTX hybride.
+
+### Décisions à prendre avant exec
+
+- Proposition #1 (pseudo-éléments) : ✅ / ❌
+- Proposition #2 (background-image none) : ✅ / ❌
+- Proposition #3 (commentaire doc) : ✅ / ❌
+
+Réponds avec tes choix ou « approve » pour appliquer uniquement le fix demandé sans les propositions.
+
+&nbsp;
+
+✅ Validé pour exec, avec les 3 propositions intégrées :
+
+- Proposition #1 (pseudo-éléments ::before / ::after) : ✅ APPROUVÉ
+
+- Proposition #2 (background-image: none sur les blocs masqués) : ✅ APPROUVÉ
+
+- Proposition #3 (commentaire de documentation) : ✅ APPROUVÉ
+
+Tu peux passer en Exec sur cette base.

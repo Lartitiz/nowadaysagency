@@ -53,11 +53,32 @@ async function mountIframe(html: string): Promise<HTMLIFrameElement> {
     .map((l) => l.outerHTML)
     .join("\n");
 
+  // NB: tous les descendants d'un bloc annoté sont masqués pour éviter le double-rendu
+  // dans la rasterisation html2canvas (sinon les spans avec couleur explicite restent visibles
+  // sous le bloc éditable PPTX rajouté par-dessus).
+  // Si un descendant doit rester visible (badge, sticker, illustration), ne pas annoter le
+  // parent en data-pptx-editable — annoter chaque sous-bloc texte individuellement.
   iframe.srcdoc = `<!doctype html><html><head><meta charset="utf-8" />${fontLinks}
 <style>
   html, body { margin:0; padding:0; width:${SLIDE_W_PX}px; height:${SLIDE_H_PX}px; overflow:hidden; background:transparent; }
   *, *::before, *::after { box-sizing: border-box; }
-  [data-pptx-hide="true"] { color: transparent !important; text-shadow: none !important; -webkit-text-fill-color: transparent !important; }
+  [data-pptx-hide="true"],
+  [data-pptx-hide="true"] * {
+    color: transparent !important;
+    text-shadow: none !important;
+    -webkit-text-fill-color: transparent !important;
+    background-clip: text !important;
+    -webkit-background-clip: text !important;
+    background-image: none !important;
+  }
+  [data-pptx-hide="true"]::before,
+  [data-pptx-hide="true"]::after,
+  [data-pptx-hide="true"] *::before,
+  [data-pptx-hide="true"] *::after {
+    color: transparent !important;
+    -webkit-text-fill-color: transparent !important;
+    text-shadow: none !important;
+  }
 </style></head><body>${html}</body></html>`;
 
   document.body.appendChild(iframe);
