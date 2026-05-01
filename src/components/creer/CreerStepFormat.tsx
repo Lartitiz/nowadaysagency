@@ -92,6 +92,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
   const [pinterestSubMode, setPinterestSubMode] = useState<"text" | "visual" | "inspiration" | null>(null);
   const [inspirationPhotos, setInspirationPhotos] = useState<PhotoItem[]>([]);
   const [photoWarning, setPhotoWarning] = useState(false);
+  const [expandAngles, setExpandAngles] = useState(false);
 
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
