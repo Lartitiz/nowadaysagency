@@ -21,9 +21,9 @@ import { toast } from "sonner";
 
 const CHANNELS = [
   { id: "instagram" as const, emoji: "📸", label: "Instagram", desc: "Carrousel, Reel, Story, Post" },
-  { id: "linkedin" as const, emoji: "💼", label: "LinkedIn", desc: "Post texte professionnel" },
-  { id: "pinterest" as const, emoji: "📌", label: "Pinterest", desc: "Épingle texte ou visuelle" },
-  { id: "newsletter" as const, emoji: "📧", label: "Newsletter", desc: "Email long format" },
+  { id: "linkedin" as const, emoji: "💼", label: "LinkedIn", desc: "Post ou carrousel" },
+  { id: "pinterest" as const, emoji: "📌", label: "Pinterest", desc: "Épingle texte, visuelle ou inspirée" },
+  { id: "newsletter" as const, emoji: "📧", label: "Newsletter", desc: "Email 1500-2500 mots" },
 ];
 
 type ChannelId = "instagram" | "linkedin" | "pinterest" | "newsletter";
@@ -390,8 +390,8 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
               className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
             >
               <span className="text-2xl block mb-1">📝</span>
-              <span className="text-xs font-semibold text-foreground">Post texte</span>
-              <p className="text-[10px] text-muted-foreground mt-0.5">1300-2000 caractères</p>
+              <span className="text-xs font-semibold text-foreground">Post</span>
+              <p className="text-[10px] text-muted-foreground mt-0.5">1300-2000 caractères, photo en option</p>
             </button>
             {!hasPreloadedPhotos && (
               <button
@@ -400,7 +400,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
               >
                 <span className="text-2xl block mb-1">🎠</span>
                 <span className="text-xs font-semibold text-foreground">Carrousel texte</span>
-                <p className="text-[10px] text-muted-foreground mt-0.5">8-10 slides téléchargeables</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">8-10 slides, design auto, .pptx téléchargeable</p>
               </button>
             )}
             <button
@@ -426,7 +426,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
                 className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
               >
                 <span className="text-2xl block mb-1">📝</span>
-                <span className="text-xs font-semibold text-foreground">Texte</span>
+                <span className="text-xs font-semibold text-foreground">Texte SEO</span>
                 <p className="text-[10px] text-muted-foreground mt-0.5">Titre + description SEO</p>
               </button>
             )}
@@ -581,7 +581,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
                 >
                   <span className="text-2xl block mb-1">📝</span>
                   <span className="text-xs font-semibold text-foreground">Texte</span>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">L'IA rédige et designe</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">8-10 slides, design auto, .pptx téléchargeable</p>
                 </button>
               )}
               <button

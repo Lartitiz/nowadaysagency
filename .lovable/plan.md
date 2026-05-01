@@ -1,66 +1,56 @@
-## Contexte
+## Audit des incohérences de libellés
 
-Quand l'utilisateur entre par "Partir de photos" (`initialPhotos.length > 0`), l'écran Format propose actuellement **tous les formats**, y compris ceux qui ne savent pas exploiter les photos (carrousel texte, pinterest texte, etc.). On affiche juste un avertissement amber a posteriori. Décision : masquer complètement les formats incompatibles dans ce mode.
+Tour des écrans Idée → Format → sous-modes. Voici ce qui doit être recalibré pour éviter de promettre/cacher des choses.
 
-## Inventaire (in/out)
+### 1. Descriptions des canaux — `CreerStepFormat.tsx` lignes 22-27
 
-**Compatibles photos** (gardés) :
+| Canal | Avant | Après |
+|---|---|---|
+| Instagram | "Carrousel, Reel, Story, Post" | inchangé |
+| **LinkedIn** | "Post texte professionnel" | **"Post ou carrousel"** |
+| **Pinterest** | "Épingle texte ou visuelle" | **"Épingle texte, visuelle ou inspirée"** |
+| **Newsletter** | "Email long format" | **"Email 1500-2500 mots"** |
 
-| Canal | Formats |
-|---|---|
-| Instagram | post, reel, story, carousel (sous-modes photo/mix forcés) |
-| LinkedIn | post texte (avec image), carrousel mixte |
-| Pinterest | visuel, inspiration |
-| Newsletter | newsletter (image d'en-tête) |
+**Pourquoi** : LinkedIn propose 3 sous-modes (Post texte, Carrousel texte, Carrousel mixte) — la desc actuelle est mensongère. Pinterest a 3 sous-modes (Texte, Visuel, Inspiration) — "Inspiration" est oubliée. Newsletter "long format" est vague.
 
-**Incompatibles** (masqués si photos préchargées) :
+### 2. Sous-mode LinkedIn "Post texte" — ligne 393
 
-- LinkedIn → carrousel **texte**
-- Pinterest → **texte** (SEO seul)
-- Carrousel Instagram → sous-mode **texte**
+- **Label** : `"Post texte"` → **`"Post"`** (l'utilisateur peut y attacher une photo via le toggle plus loin → "texte" est trompeur)
+- **Desc** : `"1300-2000 caractères"` → **`"1300-2000 caractères, photo en option"`**
 
-**Canaux** : tous conservés (chacun a au moins un format compatible). Filtrer au niveau canal ferait perdre des cas légitimes (ex : post LinkedIn avec photo de chantier).
+### 3. Sous-mode LinkedIn "Carrousel texte" — ligne 402
 
-## Implémentation
+- **Desc** : `"8-10 slides téléchargeables"` → **"8-10 slides, design auto, .pptx téléchargeable"** (préciser que c'est l'IA qui designe, comme pour le carrousel Instagram)
 
-Tout se passe dans `src/components/creer/CreerStepFormat.tsx`. On dérive un booléen `hasPreloadedPhotos = (initialPhotos?.length ?? 0) > 0` en haut du composant.
+### 4. Sous-mode Pinterest "Texte" — ligne 429
 
-### 1. Sous-grille Instagram (lignes 419-451)
+- **Label** : `"Texte"` → **`"Texte SEO"`** (clarifie l'intention, distingue du "Visuel" qui a aussi du texte)
 
-Filtrer la liste : si `hasPreloadedPhotos`, ne montrer que les formats dont `formatAcceptsSinglePhoto(id)` est vrai **ou** `id === "carousel"`.
+### 5. Sous-mode carrousel Instagram "Texte" — ligne 583
 
-### 2. Sous-mode LinkedIn (lignes 353-383)
+- **Desc** : `"L'IA rédige et designe"` → **"8-10 slides, design auto, .pptx téléchargeable"** (alignement avec LinkedIn carrousel texte, livrable explicite)
 
-Si `hasPreloadedPhotos`, masquer la carte "Carrousel texte" (garder "Post texte" et "Carrousel mixte").
+### 6. CONTENT_TYPE_SPECS.linkedin — `src/lib/content-structures.ts` ligne 521
 
-### 3. Sous-mode Pinterest (lignes 386-416)
+- **`label`** : `"LinkedIn"` → **`"Post LinkedIn"`** (cohérence : c'est un format, pas un canal — `pinterest_visual` s'appelle "Épingle visuelle", pas "Pinterest")
+- **`specs`** : `"1300-2000 caractères, ton professionnel"` → **`"1300-2000 caractères, ton incarné"`**
+  - "Ton professionnel" contredit la voix LinkedIn de la mémoire projet (`preference/linkedin` : raw, sensoriel, anti-corporate). Champ utilisé en interne pour l'affichage des specs.
 
-Si `hasPreloadedPhotos`, masquer la carte "Texte" (garder "Visuel" et "Inspiration").
+### 7. CONTENT_TYPE_SPECS.pinterest — ligne 535
 
-### 4. Sous-mode carrousel Instagram (lignes 538-567)
+- **`label`** : `"Pinterest"` → **`"Épingle texte"`** (alignement avec "Épingle visuelle" et "Inspiration Pinterest")
 
-Si `hasPreloadedPhotos`, masquer la carte "📝 Texte" du choix de sous-mode carrousel (ne montrer que Photo et Mixte). Idéalement, pré-sélectionner Mixte par défaut comme sous-mode.
+### Hors scope
 
-### 5. Avertissement amber existant (lignes 456-470)
+- Pas de modification des `edgeFunction`, des `angles`, des structures éditoriales.
+- Pas de changement du toggle photo des formats Instagram/LinkedIn/Newsletter (déjà cohérent).
+- Le sous-mode `pinterest_inspiration` label = "Inspiration Pinterest" reste.
 
-Devient quasi inatteignable une fois le filtre appliqué — on le garde tel quel comme garde-fou (ex : preload async).
+### Validation
 
-### 6. Hint discret en haut
-
-Sous le titre "Quel format ?", ajouter une petite note : *"Quelques formats ont été masqués car ils n'utilisent pas tes photos."* + lien *"Tout afficher quand même"* qui force `hasPreloadedPhotos = false` localement (état `forceShowAll`). Filet de sécurité pour les cas où l'utilisateur veut un texte pur malgré ses photos.
-
-## Hors scope
-
-- Pas de changement dans `CreerStepIdea.tsx` (entrée).
-- Pas de changement dans `use-content-generator.ts` ni dans la logique de génération.
-- Le warning ref preexistant `Function components cannot be given refs` reste à traiter ailleurs.
-
-## Validation
-
-- Entrer par "Partir de photos", uploader 3 photos, Suivant → écran Format.
-- Instagram : la grille ne montre que post/reel/story/carrousel.
-- LinkedIn : 2 cartes (Post texte, Carrousel mixte).
-- Pinterest : 2 cartes (Visuel, Inspiration).
-- Carrousel Instagram : sous-modes Photo + Mixte uniquement.
-- Cliquer "Tout afficher quand même" → tous les formats reviennent, l'avertissement amber s'affiche si on choisit un format texte.
-- Entrer sans photos → tout est affiché normalement (régression check).
+- Écran de choix de canal : LinkedIn affiche "Post ou carrousel", Pinterest mentionne "inspirée", Newsletter précise les mots.
+- Sous-mode LinkedIn : 3 cartes cohérentes (Post / Carrousel texte / Carrousel mixte) avec descriptions précises.
+- Sous-mode Pinterest : "Texte SEO" / "Visuel" / "Inspiration".
+- Sous-mode carrousel Instagram : descriptions des 3 modes (texte/photo/mixte) symétriques en niveau de détail.
+- L'historique d'un contenu généré "linkedin" affiche désormais "Post LinkedIn" et non plus "LinkedIn" tout court.
+- Carrousel chip replié (ligne 552 `Carrousel {label}`) reste cohérent : "Carrousel Texte / Photo / Mixte".
