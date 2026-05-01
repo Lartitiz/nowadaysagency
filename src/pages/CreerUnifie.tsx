@@ -702,7 +702,9 @@ export default function CreerUnifie() {
     await doGenerate({});
   };
 
-  const doGenerate = async (ans: Record<string, string>) => {
+  const doGenerate = async (ans: Record<string, string>, opts?: { editorialAngleOverride?: string | null }) => {
+    // Allow runtime override of editorialAngle without waiting for setState (used by handleChangeAngle)
+    const editorialAngle = opts && "editorialAngleOverride" in opts ? opts.editorialAngleOverride : editorialAngleState;
     if (!selectedFormat) return;
 
     // Auriana demo account: instant pre-built result
