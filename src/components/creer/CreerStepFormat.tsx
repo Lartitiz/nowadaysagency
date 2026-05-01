@@ -351,6 +351,35 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
         );
       })()}
 
+      {/* Photos preloaded: discreet hint that some formats are filtered out */}
+      {selectedChannel && (initialPhotos?.length ?? 0) > 0 && !selectedFormat && (
+        <p className="text-xs text-muted-foreground -mt-1">
+          {hasPreloadedPhotos ? (
+            <>
+              Quelques formats sont masqués car ils n'utilisent pas tes photos.{" "}
+              <button
+                type="button"
+                onClick={() => setForceShowAll(true)}
+                className="text-primary hover:underline"
+              >
+                Tout afficher quand même
+              </button>
+            </>
+          ) : (
+            <>
+              Tous les formats sont affichés.{" "}
+              <button
+                type="button"
+                onClick={() => setForceShowAll(false)}
+                className="text-primary hover:underline"
+              >
+                Masquer ceux qui n'utilisent pas mes photos
+              </button>
+            </>
+          )}
+        </p>
+      )}
+
       {/* LinkedIn sub-mode selection */}
       {selectedChannel === "linkedin" && !selectedFormat && (
         <div className="space-y-3 animate-fade-in">
