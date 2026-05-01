@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
-import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Sparkles, HelpCircle, Newspaper, Camera, ArrowLeft, Repeat } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import ContentCoachingDialog from "@/components/dashboard/ContentCoachingDialog";
@@ -87,7 +86,7 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
 
       {!showNewsjacking && !showPhotosMode && (
         <>
-          {/* Subject textarea */}
+          {/* Subject textarea — primary path */}
           <div className="space-y-2">
             <Textarea
               value={idea}
@@ -96,53 +95,80 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
               rows={4}
               className="resize-none"
             />
-            <p className="text-xs text-muted-foreground">Pas besoin d'être précise : un mot-clé, une phrase, une envie. L'outil te guide ensuite.</p>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gap-1.5 text-muted-foreground"
+            <div className="flex items-start justify-between gap-3 flex-wrap">
+              <p className="text-xs text-muted-foreground flex-1 min-w-0">
+                Pas besoin d'être précise : un mot-clé, une phrase, une envie.
+              </p>
+              <button
+                type="button"
                 onClick={() => setCoachOpen(true)}
+                className="text-xs text-primary hover:underline inline-flex items-center gap-1 shrink-0"
               >
-                <HelpCircle className="h-3.5 w-3.5" /> Aide-moi à trouver une idée
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gap-1.5 text-muted-foreground"
-                onClick={() => setShowNewsjacking(true)}
-              >
-                <Newspaper className="h-3.5 w-3.5" /> Surfer sur l'actu
-              </Button>
-              {onPhotosNext && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="gap-1.5 text-muted-foreground"
-                  onClick={() => setShowPhotosMode(true)}
-                >
-                  <Camera className="h-3.5 w-3.5" /> Partir de photos
-                </Button>
-              )}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gap-1.5 text-muted-foreground"
-                onClick={() => setShowTransform(true)}
-              >
-                <Repeat className="h-3.5 w-3.5" /> Transformer un contenu
-              </Button>
+                <HelpCircle className="h-3 w-3" /> Pas d'idée ? Laisse-toi guider
+              </button>
             </div>
           </div>
 
-          {/* Next button */}
+          {/* Primary CTA */}
           <Button
             onClick={() => onNext(idea.trim())}
             disabled={!idea.trim()}
             className="w-full gap-2"
+            size="lg"
           >
             Suivant <ArrowRight className="h-4 w-4" />
           </Button>
+          <p className="text-[11px] text-muted-foreground text-center -mt-3">
+            On choisira ensemble le format à l'étape suivante.
+          </p>
+
+          {/* Alternative entry points — clearly visually separated */}
+          <div className="pt-4">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="h-px bg-border flex-1" />
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
+                ou pars d'autre chose
+              </p>
+              <div className="h-px bg-border flex-1" />
+            </div>
+            <div className="grid sm:grid-cols-3 gap-2">
+              {onPhotosNext && (
+                <button
+                  type="button"
+                  onClick={() => setShowPhotosMode(true)}
+                  className="text-left rounded-xl border border-border bg-card hover:border-primary/40 hover:bg-muted/30 p-3 transition-all group"
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Camera className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-semibold text-foreground">Partir de photos</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">J'ai des photos, on construit autour.</p>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowNewsjacking(true)}
+                className="text-left rounded-xl border border-border bg-card hover:border-primary/40 hover:bg-muted/30 p-3 transition-all group"
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <Newspaper className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-semibold text-foreground">Surfer sur l'actu</span>
+                </div>
+                <p className="text-[11px] text-muted-foreground">Réagir à une news fraîche.</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowTransform(true)}
+                className="text-left rounded-xl border border-border bg-card hover:border-primary/40 hover:bg-muted/30 p-3 transition-all group"
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <Repeat className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-semibold text-foreground">Transformer un contenu</span>
+                </div>
+                <p className="text-[11px] text-muted-foreground">Recycler un post existant.</p>
+              </button>
+            </div>
+          </div>
         </>
       )}
 

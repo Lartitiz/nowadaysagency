@@ -326,17 +326,30 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
         </div>
       )}
 
-      {/* LinkedIn sub-mode selection */}
-      {selectedChannel === "linkedin" && !selectedFormat && (
-        <div className="space-y-3 animate-fade-in">
-          <div className="flex items-center gap-2">
+      {/* Persistent channel chip — visible once channel is chosen */}
+      {selectedChannel && (() => {
+        const ch = CHANNELS.find((c) => c.id === selectedChannel);
+        if (!ch) return null;
+        return (
+          <div className="flex items-center justify-between gap-3 rounded-xl bg-muted/30 border border-border px-3 py-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-lg">{ch.emoji}</span>
+              <span className="text-sm font-semibold text-foreground truncate">{ch.label}</span>
+            </div>
             <button
+              type="button"
               onClick={handleChangeChannel}
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+              className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1 shrink-0"
             >
               <ArrowLeft className="h-3 w-3" /> Changer de canal
             </button>
           </div>
+        );
+      })()}
+
+      {/* LinkedIn sub-mode selection */}
+      {selectedChannel === "linkedin" && !selectedFormat && (
+        <div className="space-y-3 animate-fade-in">
           <p className="text-sm font-semibold text-foreground">Quel format LinkedIn ?</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             <button
@@ -370,14 +383,6 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
       {/* Pinterest sub-mode selection */}
       {selectedChannel === "pinterest" && !selectedFormat && (
         <div className="space-y-3 animate-fade-in">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleChangeChannel}
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-            >
-              <ArrowLeft className="h-3 w-3" /> Changer de canal
-            </button>
-          </div>
           <p className="text-sm font-semibold text-foreground">Quel format d'épingle ?</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             <button
@@ -411,14 +416,6 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
       {/* Format selection (Instagram sub-grid) */}
       {selectedChannel === "instagram" && !selectedFormat && (
         <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleChangeChannel}
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-            >
-              <ArrowLeft className="h-3 w-3" /> Changer de canal
-            </button>
-          </div>
           <p className="text-sm font-semibold text-foreground">Quel format Instagram ?</p>
           <div className="grid grid-cols-2 gap-2">
             {typeEntries
@@ -451,17 +448,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
         </div>
       )}
 
-      {/* Channel back button when format is selected */}
-      {selectedChannel && selectedFormat && (
-        <div>
-          <button
-            onClick={handleChangeChannel}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-          >
-            <ArrowLeft className="h-3 w-3" /> Changer de canal
-          </button>
-        </div>
-      )}
+      {/* Channel back button removed — chip at the top now handles it */}
 
       {/* Preloaded photos: incompatible format warning */}
       {(initialPhotos?.length ?? 0) > 0 && selectedFormat &&
@@ -731,19 +718,52 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
         </div>
       )}
 
+      {/* Live recap of choices — shown once a format is picked */}
+      {selectedFormat && (() => {
+        const fmtSpec = CONTENT_TYPE_SPECS[selectedFormat];
+        const ch = CHANNELS.find((c) => c.id === selectedChannel);
+        const angleObj = [...recommended, ...others].find((a) => a.id === selectedAngle);
+        const subModeLabel = (() => {
+          if (selectedFormat !== "carousel") return null;
+          if (carouselSubMode === "text") return "texte";
+          if (carouselSubMode === "photo") return "photo";
+          if (carouselSubMode === "mix") return "mixte";
+          return null;
+        })();
+        const parts = [
+          ch ? `${ch.emoji} ${ch.label}` : null,
+          fmtSpec ? `${fmtSpec.label}${subModeLabel ? ` (${subModeLabel})` : ""}` : selectedFormat,
+          angleObj ? `${angleObj.emoji} ${angleObj.label}` : null,
+        ].filter(Boolean);
+        return (
+          <div className="rounded-xl bg-primary/5 border border-primary/15 px-3 py-2 text-xs text-foreground animate-fade-in">
+            <span className="font-medium text-muted-foreground">Tu vas créer :</span>{" "}
+            {parts.join(" · ")}
+            {!selectedAngle && showAngles && (
+              <span className="text-muted-foreground"> · <span className="italic">angle à choisir (ou laisse l'IA décider)</span></span>
+            )}
+          </div>
+        );
+      })()}
+
       {/* Navigation */}
-      <div className="flex justify-between">
-        <Button variant="ghost" size="sm" onClick={onBack} className="gap-1">
-          <ArrowLeft className="h-3.5 w-3.5" /> Retour
-        </Button>
+      <div className="space-y-2 pt-2">
         <Button
-          size="sm"
           disabled={!selectedFormat || (selectedFormat === "pinterest_inspiration" && inspirationPhotos.length === 0)}
           onClick={handleNext}
-          className="gap-1"
+          className="w-full gap-2"
+          size="lg"
         >
-          Suivant <ArrowRight className="h-3.5 w-3.5" />
+          Suivant <ArrowRight className="h-4 w-4" />
         </Button>
+        <p className="text-[11px] text-muted-foreground text-center">
+          On affinera ensuite ton brief avec quelques questions rapides.
+        </p>
+        <div className="flex justify-center">
+          <Button variant="ghost" size="sm" onClick={onBack} className="gap-1 text-muted-foreground">
+            <ArrowLeft className="h-3.5 w-3.5" /> Retour
+          </Button>
+        </div>
       </div>
     </div>
   );

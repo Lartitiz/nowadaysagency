@@ -27,6 +27,7 @@ import CreerStepFormat from "@/components/creer/CreerStepFormat";
 import CreerStepQuestions from "@/components/creer/CreerStepQuestions";
 import CreerStepResult from "@/components/creer/CreerStepResult";
 import CreerStepEdit from "@/components/creer/CreerStepEdit";
+import CreerStepper, { type StepperKey } from "@/components/creer/CreerStepper";
 import PinterestInspirationStep from "@/components/creer/PinterestInspirationStep";
 import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
 import StructureReviewStep from "@/components/creer/StructureReviewStep";
@@ -2212,15 +2213,8 @@ export default function CreerUnifie() {
     setLaunchGenerating(false);
   };
 
-  // ── Progress bar ──
+  // ── Progress bar moved into <CreerStepper /> below ──
 
-  const stepOrder: Step[] = (() => {
-    if (selectedFormat === "pinterest_inspiration") {
-      return ["idea", "format", "inspiration_proposals", "result", "edit"];
-    }
-    return ["idea", "format", "questions", "result", "edit"];
-  })();
-  const stepIndex = stepOrder.indexOf(step);
 
   // ── Launch mode rendering ──
 
@@ -2253,33 +2247,41 @@ export default function CreerUnifie() {
         <BrandingStatusBanner />
 
         <div className="mt-4">
-          {/* Progress bar (from step 2+) */}
-            {step !== "idea" && (
-              <div className="flex gap-1 mb-5">
-                {stepOrder.map((s, i) => (
-                  <div
-                    key={s}
-                    className={`h-1.5 rounded-full flex-1 transition-colors ${
-                      i < stepIndex
-                        ? "bg-primary"
-                        : i === stepIndex
-                        ? "bg-primary/60"
-                        : "bg-muted"
-                    }`}
-                  />
-                ))}
-              </div>
-            )}
+          {/* Unified stepper — visible from step 1, hidden on result/edit screens to give content full focus */}
+          {(() => {
+            const stepperKey: StepperKey | null = (() => {
+              if (step === "idea") return "idea";
+              if (step === "format") return "format";
+              if (step === "questions" || step === "structure_review" || step === "inspiration_proposals") return "brief";
+              if (step === "result" || step === "edit") return "result";
+              return null;
+            })();
+            if (!stepperKey) return null;
+            const handleStepClick = (key: StepperKey) => {
+              // Allow jumping back only — never forward
+              if (key === "idea") setStep("idea");
+              else if (key === "format" && step !== "idea") setStep("format");
+              else if (key === "brief" && (step === "result" || step === "edit")) setStep("questions");
+            };
+            const credits =
+              !planLoading && remainingTotal() < 9000 ? (
+                <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+                  ✨ {remainingTotal()} restantes
+                </span>
+              ) : null;
+            return (
+              <CreerStepper
+                current={stepperKey}
+                onStepClick={handleStepClick}
+                rightSlot={credits}
+              />
+            );
+          })()}
 
             {/* Steps */}
             {step === "idea" && (
               <>
                 <LowCreditsBanner remaining={remainingTotal()} plan={plan} />
-                {!planLoading && remainingTotal() < 9000 && (
-                  <p className="text-xs text-muted-foreground text-right mb-2">
-                    ✨ {remainingTotal()} générations restantes ce mois
-                  </p>
-                )}
                 <CreerStepIdea onNext={handleIdeaNext} onCoachingSelect={handleCoachingSelect} onNewsjackingSelect={handleNewsjackingSelect} onPhotosNext={handlePhotosNext} workspaceId={workspaceId} activite={activityText} initialIdea={ideaText} autoOpenTransform={autoOpenTransform} />
               </>
             )}
