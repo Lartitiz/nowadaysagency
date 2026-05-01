@@ -983,6 +983,20 @@ export default function CreerUnifie() {
     await doGenerate(answers);
   };
 
+  // Drapeau qui force une régénération une fois que le nouveau editorialAngle a été commité dans le state.
+  // (setState étant async, on ne peut pas appeler doGenerate juste après setEditorialAngle.)
+  const [pendingAngleRegen, setPendingAngleRegen] = useState(false);
+  const handleChangeAngle = (newAngle: string | null) => {
+    setEditorialAngle(newAngle);
+    setPendingAngleRegen(true);
+  };
+  useEffect(() => {
+    if (!pendingAngleRegen) return;
+    setPendingAngleRegen(false);
+    doGenerate(answers);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingAngleRegen, editorialAngle]);
+
   // ── LinkedIn carousel caption: appel dédié à linkedin-ai/caption-for-carousel ──
   // Le prompt carousel-ai (mix/photo) laisse volontairement la légende vide pour
   // qu'elle soit générée par ce prompt LinkedIn dédié (anti-broetry, hashtags pro).
@@ -2444,6 +2458,13 @@ export default function CreerUnifie() {
                   isLinkedInCarousel && (carouselSubMode === "mix" || carouselSubMode === "photo")
                     ? () => { captionAutoTriggeredRef.current = null; generateLinkedInCarouselCaption(); }
                     : undefined
+                }
+                onChangeAngle={handleChangeAngle}
+                currentAngle={editorialAngle}
+                currentChannel={
+                  selectedFormat === "linkedin" || isLinkedInCarousel ? "linkedin"
+                  : selectedFormat?.startsWith("pinterest") ? "pinterest"
+                  : "instagram"
                 }
               />
             )}

@@ -1,139 +1,96 @@
-
-# Plan — Refonte sous-flux carrousel dans `CreerStepFormat`
+# Plan — Alléger la sélection d'angle éditorial
 
 ## Contexte
 
-Sur `/creer`, quand l'utilisatrice choisit **Instagram → Carrousel → Mixte (avec photos)**, l'écran empile aujourd'hui jusqu'à 5 zones qui répètent la même information :
+Aujourd'hui, après avoir choisi un canal et un format, l'utilisatrice voit **8 cartes d'angle éditorial** (Décryptage expert, Storytelling pro, Étude de cas, Coulisses, Conseil contre-courant…) plus un bouton "L'outil choisit pour moi". C'est lourd : titre, sous-titre, gros bouton IA, section "Recommandées pour ton objectif", section "Autres approches", chaque carte avec emoji + titre + description longue.
 
-1. Bandeau "X photos déjà prêtes" (haut)
-2. Chip canal "📸 Instagram"
-3. Section "Quel type de carrousel ?" avec 3 grosses cartes Texte / Photo / Mixte
-4. Bandeau "📸 X photos chargées — Carrousel mixte" (avec lien "Choisir un autre mode")
-5. Titre interne "Vos photos (X)" dans la `PhotoUploadZone`
-6. Encart en bas "Tu vas créer : 📸 Instagram · Carrousel (mixte) · …"
+Or, dans 95 % des cas, le bon angle peut être **inféré par l'IA** à partir de l'idée + l'objectif + l'identité de marque. Mais on veut garder un contrôle pour les expertes qui veulent forcer un ton précis (ex. "prise de position" sur un sujet sensible), et un filet de sécurité après génération.
 
-Résultat : l'utilisatrice scrolle, voit la même info 3 fois, ne sait plus où cliquer pour avancer.
+## Ce que ça change pour l'utilisatrice
 
-Périmètre choisi : **tout le sous-flux carrousel** (les 3 sous-modes, Instagram + LinkedIn). Aucune logique métier modifiée — uniquement la présentation et la condition d'affichage de blocs déjà existants.
+**Avant** (bloc qui prend ~600 px de hauteur) :
+```text
+Comment tu veux en parler ?
+Chaque approche donne un ton et une structure différente…
 
----
+[ ✨ L'outil choisit pour moi ]
 
-## Mes recommandations sur les 3 questions ouvertes
+📌 Recommandées pour ton objectif
+[ Carte angle 1 ]
+[ Carte angle 2 ]
+[ Carte angle 3 ]
 
-### 1. Sous-mode carrousel — je recommande "Replier dès qu'on a choisi" (option 3)
+Autres approches
+[ Carte angle 4 ]
+[ Carte angle 5 ]
+[ Carte angle 6 ]
+[ Carte angle 7 ]
+[ Carte angle 8 ]
+```
 
-**Pourquoi pas fusionner Photo+Mixte (option 2) :** les deux modes produisent des sorties très différentes (10 slides photo plein écran vs 6-8 slides où tes photos sont entrelacées avec des slides de texte design). Si on fusionne, il faut quand même trancher après → on déplace juste le choix ailleurs. Et ton public cible (qui n'est pas tech) risque d'être déçu de découvrir ce choix après l'upload.
+**Après** (par défaut, ~80 px) :
+```text
+✨ L'IA va choisir l'angle parfait
+   Selon ton idée, ton objectif et ta voix de marque.
+   ▸ Choisir mon angle moi-même
+```
 
-**Ce que je propose :** garder les 3 cartes Texte / Photo / Mixte tant qu'**aucun choix n'est fait**, puis remplacer tout le bloc par une **chip secondaire** ("✨ Mixte · Photos + slides texte" + petit lien "Changer") sous la chip canal. Une seule ligne, on voit l'état, on peut revenir si besoin.
+Si elle clique sur "Choisir mon angle moi-même", les 8 cartes apparaissent (même UI qu'aujourd'hui, mais sans la section "📌 Recommandées" qui devient inutile puisqu'on délègue à l'IA — on liste juste les 8 angles dans l'ordre). Un bouton "Revenir au choix automatique" permet de replier.
 
-### 2. Bandeaux photos — je recommande "Tout intégrer dans la PhotoUploadZone" (option 2)
+**Sur l'écran résultat**, ajout d'un bouton discret à côté de "Régénérer" :
+```text
+[ 🔄 Régénérer ]   [ 🎨 Changer l'angle ▾ ]
+```
+Le menu déroulant liste les 8 angles. Clic = relance la génération avec ce nouvel angle (réutilise le `handleRegenerate` existant en surchargeant `editorialAngle`).
 
-**Pourquoi :** la `PhotoUploadZone` est déjà l'endroit où l'utilisatrice agit (upload, retire, légende). Y mettre l'état évite l'effet "je lis 3 fois la même phrase avant d'arriver à la zone d'action". Le bandeau "X photos déjà prêtes" en haut disparaît dès qu'un format compatible est choisi (il a juste servi à signaler "tes photos vont être utilisées" au moment du choix de format — son job est fini).
+## Architecture (technique)
 
-**Garde-fous :** pour le cas "format incompatible" (ex. user avec photos préchargées choisit "Story"), on garde le **bandeau d'avertissement ambré** existant (lignes 454-468) — c'est la seule alerte vraiment utile.
+### Fichiers touchés
 
-### 3. Encart "Tu vas créer : …" — je recommande "Le coller au CTA" (option 2)
+1. **`src/components/creer/CreerStepFormat.tsx`** (modif principale, lignes 606-639)
+   - Nouvel état local `expandAngles: boolean` (default `false`).
+   - Quand `showAngles && !expandAngles` → afficher la nouvelle carte compacte "L'IA va choisir l'angle parfait" + lien "Choisir mon angle moi-même".
+   - Quand `expandAngles === true` → afficher les 8 cartes (sans la section "Recommandées pour ton objectif"), précédées d'un lien "← Revenir au choix automatique".
+   - Le bouton compact appelle `handleNext()` directement (= comportement actuel "L'outil choisit pour moi").
+   - Supprimer la mention "📌 Recommandées pour ton objectif" et fusionner `recommended` + `others` en une seule liste ordonnée (recommended d'abord pour garder l'ordre par pertinence, mais sans le label séparateur).
+   - Mettre à jour le mini-recap (ligne 729-731) : `"angle à choisir (ou laisse l'IA décider)"` → `"l'IA choisira l'angle"`.
 
-**Pourquoi :** une fois qu'on a une chip canal + une chip sous-mode + une carte d'angle sélectionnée, l'utilisatrice voit déjà ses 3 choix dans la page. Mais juste avant d'appuyer "Suivant", **un récap explicite réduit l'angoisse "est-ce que j'ai bien tout choisi ?"** — surtout pour le persona "guidée". Le promouvoir en haut (option 3) ferait doublon avec la chip canal qui est déjà là.
+2. **`src/components/creer/CreerStepResult.tsx`**
+   - Nouvelle prop optionnelle `onChangeAngle?: (angleId: string) => void` et `currentChannel?: string` (pour piocher la bonne liste d'angles : Instagram/post → `EDITORIAL_ANGLES`, LinkedIn → `LINKEDIN_EDITORIAL_ANGLES`, Pinterest → `PINTEREST_EDITORIAL_ANGLES`).
+   - À côté du bouton "Régénérer" déjà câblé, ajout d'un `DropdownMenu` shadcn avec 8 items + un item "✨ Laisser l'IA choisir" (= passe `null`).
+   - Si `onChangeAngle` n'est pas fourni, le bouton ne s'affiche pas (rétro-compat sécurisée pour les autres usages du composant).
 
----
+3. **`src/pages/CreerUnifie.tsx`**
+   - Nouveau handler `handleChangeAngle(newAngle: string | null)` qui :
+     1. `setEditorialAngle(newAngle)`
+     2. Appelle `handleRegenerate()` (déjà existant, ligne 2412)
+   - Passé en prop à `<CreerStepResult onChangeAngle={handleChangeAngle} currentChannel={selectedChannel} />`.
 
-## Changements concrets
+### Logique IA (backend)
 
-### Fichier unique modifié : `src/components/creer/CreerStepFormat.tsx`
+**Aucun changement nécessaire côté Edge Functions.** La logique "si pas d'angle → l'IA choisit" existe déjà dans `carousel-ai`, `linkedin-ai` et `creative-flow` (lignes 174, 195, 238, 260 de `carousel-ai/index.ts` : `${body.editorial_angle ? \`Angle éditorial : \${body.editorial_angle}\` : "L'IA choisit le meilleur angle."}`).
 
-#### A. Bandeau "X photos déjà prêtes" en haut (lignes 280-287)
+**On ne touche pas non plus au prompt IA pour "renforcer" le choix d'angle.** L'utilisatrice a explicitement choisi de tout déléguer à l'IA sans biais d'objectif. Le prompt actuel suffit : il connaît l'idée, l'objectif, l'identité de marque, et il choisit librement.
 
-**Comportement actuel :** affiché tant que `!hasUserChangedFormat.current`.
+### Logique "objectif → angles recommandés"
 
-**Nouveau comportement :** affiché uniquement quand **aucun canal n'est encore choisi** (`!selectedChannel`). Dès que le canal est choisi, le statut des photos vit dans la `PhotoUploadZone`. Évite la répétition.
+La fonction `getAnglesForType(contentType, objective)` continue d'exister (utilisée pour ordonner les cartes quand l'utilisatrice déplie). Mais elle ne sert plus à filtrer ou prioriser côté IA — l'IA choisit librement. La constante `OBJECTIVE_RECOMMENDATIONS` reste en place pour ne rien casser, mais devient purement un détail d'affichage (ordre par défaut dans la liste dépliée).
 
-#### B. Section "Quel type de carrousel ?" (lignes 537-581)
+## Périmètre confirmé
 
-**Comportement actuel :** 3 cartes pleine largeur (Texte / Photo / Mixte), affichées tant que `carouselSubMode` n'est pas validé avec photos préchargées.
+- ✅ **Tous les formats** : carrousel Instagram/LinkedIn, post photo, story, reel, post LinkedIn, newsletter, Pinterest, Pinterest visuel. Tout passe par le même `CreerStepFormat.tsx` → un seul changement couvre tout.
+- ✅ **Filet post-génération** : bouton "Changer l'angle" sur l'écran résultat.
+- ❌ **Pas touché** : Pinterest inspiration (pas de sélecteur d'angle, on uploade une capture).
 
-**Nouveau comportement :**
-- **Tant que `carouselSubMode === null`** → affichage des 3 cartes (inchangé visuellement).
-- **Dès que `carouselSubMode` est défini** → repli en **chip compacte** sous la chip canal :
-  ```
-  [✨ Mixte · Photos + slides texte    Changer]
-  ```
-  avec emoji + label court + sous-label + bouton "Changer" qui réinitialise `carouselSubMode` à `null`.
+## Hors-scope (pour rester focus)
 
-Cas spécial photos préchargées : la logique actuelle (lignes 515-534) qui auto-set `mix` est conservée, mais le bandeau "📸 X photos chargées — Carrousel mixte" est supprimé (l'info est dans la chip + dans la zone photos).
+- Refonte des cartes d'angle elles-mêmes (descriptions, emojis, libellés).
+- Modification des prompts Edge Functions pour mieux choisir l'angle.
+- Refonte de la logique `OBJECTIVE_RECOMMENDATIONS`.
+- Ajout d'un mode "ton" (Équilibré/Tranché/Narratif) — c'était une alternative explorée puis écartée.
 
-#### C. Bandeau de confirmation lignes 515-534 → supprimé
+## Risques / points de vigilance
 
-Sa fonction (montrer "tes photos sont prises en compte") est reprise par :
-- la nouvelle chip sous-mode (qui dit "Mixte"),
-- la `PhotoUploadZone` qui affiche elle-même "Vos photos (X)".
-
-Le lien "Choisir un autre mode" est repris par le bouton "Changer" de la chip.
-
-#### D. Confirmation single-photo lignes 482-498 → même traitement
-
-Pour les formats `post / reel / story / linkedin / newsletter` avec photo préchargée + `photoMode === true`, on supprime le bandeau de confirmation et on s'appuie sur :
-- le **toggle "📸 J'accompagne une photo"** déjà présent (lignes 471-479) qui reste affiché et indique l'état (la `Switch` est `checked`),
-- la `PhotoUploadZone` en dessous qui affiche les photos.
-
-Cohérence assurée entre carrousel et single-photo formats.
-
-#### E. Encart "Tu vas créer : …" (lignes 738-746) → repositionné
-
-**Comportement actuel :** rendu après tous les autres blocs, donc loin du CTA selon la longueur de la page.
-
-**Nouveau comportement :** déplacé juste **au-dessus** du bouton "Suivant" (lignes 750-758). C'est déjà presque le cas — il faut juste s'assurer qu'aucun bloc ne s'intercale et faire un peu de breathing room (espacement vertical réduit).
-
-#### F. PhotoUploadZone — propriété `compact` utilisée plus largement
-
-Aujourd'hui `compact` est passé à `true` uniquement quand `(initialPhotos?.length ?? 0) > 0`. On élargit : `compact={true}` dès qu'un statut/chip est déjà visible plus haut dans la page (canal + sous-mode = chip déjà chargée → on évite un titre redondant).
-
----
-
-## Ce qui ne change PAS
-
-- Tous les handlers (`handleFormatSelect`, `handleChannelSelect`, `handleChangeChannel`, `handleNext`).
-- Toute la logique de validation (guards `carouselSubMode required`, photos requises pour photo/mix, etc.).
-- L'API du composant (`onNext` signature inchangée).
-- Le composant `PhotoUploadZone` lui-même (aucune nouvelle prop).
-- Les CONTENT_TYPE_SPECS et tout `lib/content-structures.ts`.
-- Le parcours Pinterest, le bandeau "Newsjacking suggère X", le sélecteur d'angle éditorial.
-- Tous les autres composants (`CreerStepIdea`, `CreerStepQuestions`, `CreerStepResult`, `CreerStepper`).
-- Aucun changement backend / Edge Function.
-
----
-
-## Critères de validation
-
-1. Compte démo Auriana (carrousel mixte) :
-   - Choisir Instagram → Carrousel → Mixte → uploader 3 photos.
-   - **Vérifier** : la section "Quel type de carrousel ?" se replie en chip compacte dès le clic sur Mixte.
-   - **Vérifier** : aucun bandeau "X photos chargées" ne s'affiche au-dessus de la zone photos.
-   - **Vérifier** : on peut toujours revenir au choix Texte/Photo/Mixte via "Changer".
-   - **Vérifier** : l'encart "Tu vas créer : …" est juste au-dessus du bouton "Suivant".
-
-2. Compte démo Auriana scénario "auriana-carousel" (photos préchargées) :
-   - Arriver sur l'étape Format avec 5 photos préchargées.
-   - **Vérifier** : le bandeau "5 photos déjà prêtes" disparaît dès qu'Instagram → Carrousel est choisi.
-   - **Vérifier** : la `PhotoUploadZone` s'affiche en mode compact.
-
-3. Cas single-photo (Post + photo) :
-   - Choisir Instagram → Post, activer le toggle "📸 J'accompagne une photo".
-   - **Vérifier** : aucun bandeau redondant, la zone photo apparaît directement.
-
-4. Cas LinkedIn carrousel mixte :
-   - LinkedIn → Carrousel mixte → 4 photos.
-   - **Vérifier** : même comportement, chip "✨ Mixte" visible, pas de bandeau "X photos chargées".
-
-5. Cas non-régression : carrousel Texte (sans photos) → flow inchangé jusqu'au choix de l'angle.
-
-6. `npx tsc --noEmit --skipLibCheck` passe.
-
----
-
-## Hors scope
-
-- Refonte visuelle des cartes d'angle éditorial (recommandées vs autres).
-- Ajout d'animations / transitions entre les états repliés/dépliés.
-- Audit du parcours `CreerStepQuestions` (étape 3) qui présente d'autres redites — plan séparé.
-- Modification de `PhotoUploadZone` (autre composant, autre PR).
+- **Régression Pinterest** : sur `pinterest_visual`, l'angle pilote le `pin_type` (cf. `CreerUnifie.tsx` ligne 815 : `editorialAngle || "infographie"`). Si l'utilisatrice ne déplie pas, l'IA passe `null` → fallback sur `"infographie"`. À vérifier que ce fallback est acceptable, sinon forcer le dépliage automatique pour Pinterest visuel.
+- **Mode Lancement** : `editorialAngle === "lancement"` active un mode spécial (`isLaunchMode`, ligne 2221). Ce mode est déclenché par un autre chemin (séries de lancement) et ne passe pas par la sélection manuelle ici → pas de régression attendue, mais à reconfirmer en testant.
+- **Persistance** : le store sessionStorage (`use-flow-persistence`) sérialise déjà `editorialAngle`. Le changement post-génération via `handleChangeAngle` doit déclencher la sauvegarde — c'est automatique car `editorialAngle` est dans les deps du `useEffect` de persistance (ligne 366).

@@ -92,6 +92,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
   const [pinterestSubMode, setPinterestSubMode] = useState<"text" | "visual" | "inspiration" | null>(null);
   const [inspirationPhotos, setInspirationPhotos] = useState<PhotoItem[]>([]);
   const [photoWarning, setPhotoWarning] = useState(false);
+  const [expandAngles, setExpandAngles] = useState(false);
 
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
@@ -603,38 +604,47 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
         </div>
       )}
 
-      {/* Angle selection */}
-      {showAngles && (
+      {/* Angle selection — collapsed by default, expert override available */}
+      {showAngles && !expandAngles && (
+        <div className="space-y-2 animate-fade-in">
+          <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-3.5">
+            <div className="flex items-start gap-2.5">
+              <Wand2 className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-primary">L'IA va choisir l'angle parfait</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Selon ton idée, ton objectif et ta voix de marque.</p>
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setExpandAngles(true)}
+            className="text-xs text-muted-foreground hover:text-primary underline underline-offset-2 transition-colors"
+          >
+            Choisir mon angle moi-même
+          </button>
+        </div>
+      )}
+
+      {showAngles && expandAngles && (
         <div className="space-y-3 animate-fade-in">
-          <div>
-            <p className="text-sm font-semibold text-foreground">Comment tu veux en parler ?</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Chaque approche donne un ton et une structure différente à ton contenu. Pas sûre ? Laisse l'outil choisir.</p>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-foreground">Comment tu veux en parler ?</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Chaque approche donne un ton et une structure différente.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => { setExpandAngles(false); setSelectedAngle(undefined); }}
+              className="text-xs text-muted-foreground hover:text-primary underline underline-offset-2 transition-colors shrink-0"
+            >
+              ← Choix auto
+            </button>
           </div>
 
-          <button
-            className="w-full rounded-xl border-2 border-primary/30 bg-primary/5 p-3 text-center transition-all hover:border-primary/50 hover:bg-primary/10"
-            onClick={handleNext}
-          >
-            <div className="flex items-center justify-center gap-2">
-              <Wand2 className="h-4 w-4 text-primary" />
-              <span className="text-sm font-semibold text-primary">L'outil choisit pour moi</span>
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">L'IA sélectionne la meilleure approche selon ton idée et ton objectif</p>
-          </button>
-
-          {recommended.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-xs font-medium text-primary">📌 Recommandées pour ton objectif</p>
-              {recommended.map((a) => renderAngleCard(a, true))}
-            </div>
-          )}
-
-          {others.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-xs font-medium text-muted-foreground">Autres approches</p>
-              {others.map((a) => renderAngleCard(a, false))}
-            </div>
-          )}
+          <div className="space-y-2">
+            {[...recommended, ...others].map((a) => renderAngleCard(a, true))}
+          </div>
         </div>
       )}
 
@@ -727,7 +737,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
             <span className="font-medium text-muted-foreground">Tu vas créer :</span>{" "}
             {parts.join(" · ")}
             {!selectedAngle && showAngles && (
-              <span className="text-muted-foreground"> · <span className="italic">angle à choisir (ou laisse l'IA décider)</span></span>
+              <span className="text-muted-foreground"> · <span className="italic">l'IA choisira l'angle</span></span>
             )}
           </div>
         );

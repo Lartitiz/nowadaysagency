@@ -1,4 +1,4 @@
-import { Loader2, Pencil, CalendarDays, Copy, Download, RefreshCw, RotateCcw, Palette, ChevronDown, Lightbulb } from "lucide-react";
+import { Loader2, Pencil, CalendarDays, Copy, Download, RefreshCw, RotateCcw, Palette, ChevronDown, Lightbulb, Sparkles } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import CarouselResult from "@/components/creer/formatRenderers/CarouselResult";
@@ -11,8 +11,9 @@ import NewsletterResult from "@/components/creer/formatRenderers/NewsletterResul
 import PinterestVisualResult from "@/components/creer/formatRenderers/PinterestVisualResult";
 import PinterestPhotoBriefResult from "@/components/creer/formatRenderers/PinterestPhotoBriefResult";
 
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { DownloadMenuItems } from "@/components/exports/DownloadMenuItems";
+import { EDITORIAL_ANGLES, LINKEDIN_EDITORIAL_ANGLES, PINTEREST_EDITORIAL_ANGLES, type EditorialAngle } from "@/lib/content-structures";
 
 /**
  * Nettoie le contenu streamé en temps réel.
@@ -180,6 +181,9 @@ interface Props {
   channel?: "linkedin" | "instagram";
   captionLoading?: boolean;
   onRegenerateCaption?: () => void;
+  onChangeAngle?: (angleId: string | null) => void;
+  currentAngle?: string | null;
+  currentChannel?: string;
 }
 
 export default function CreerStepResult({
@@ -210,6 +214,9 @@ export default function CreerStepResult({
   channel,
   captionLoading,
   onRegenerateCaption,
+  onChangeAngle,
+  currentAngle,
+  currentChannel,
 }: Props) {
   // ── Rotation des messages et tips pendant le loading ──
   const messages = PROGRESS_MESSAGES[format] || PROGRESS_MESSAGES.default;
@@ -489,6 +496,51 @@ export default function CreerStepResult({
             <Download className="h-3.5 w-3.5" /> Télécharger PNG
           </Button>
         )}
+        {onChangeAngle && !generating && result && (() => {
+          const angleList: EditorialAngle[] =
+            currentChannel === "linkedin" ? LINKEDIN_EDITORIAL_ANGLES :
+            currentChannel === "pinterest" ? PINTEREST_EDITORIAL_ANGLES :
+            EDITORIAL_ANGLES;
+          const currentLabel = currentAngle ? angleList.find(a => a.id === currentAngle)?.label : null;
+          return (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground">
+                  <Palette className="h-3.5 w-3.5" /> Changer d'angle <ChevronDown className="h-3 w-3 ml-0.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-72 max-h-96 overflow-y-auto">
+                {currentLabel && (
+                  <DropdownMenuLabel className="text-[10px] text-muted-foreground font-normal">
+                    Actuel : {currentLabel}
+                  </DropdownMenuLabel>
+                )}
+                <DropdownMenuItem onClick={() => onChangeAngle(null)} className="gap-2">
+                  <Sparkles className="h-4 w-4 text-primary shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold">Laisser l'IA choisir</p>
+                    <p className="text-[10px] text-muted-foreground">Selon ton idée et ta voix</p>
+                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                {angleList.map((a) => (
+                  <DropdownMenuItem
+                    key={a.id}
+                    onClick={() => onChangeAngle(a.id)}
+                    disabled={a.id === currentAngle}
+                    className="gap-2"
+                  >
+                    <span className="text-base shrink-0">{a.emoji}</span>
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold">{a.label}</p>
+                      <p className="text-[10px] text-muted-foreground line-clamp-2">{a.principle}</p>
+                    </div>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          );
+        })()}
         <Button variant="ghost" size="sm" onClick={onReset} className="gap-1.5 text-xs text-muted-foreground">
           <RotateCcw className="h-3.5 w-3.5" /> Nouveau contenu
         </Button>
