@@ -27,6 +27,7 @@ import CreerStepFormat from "@/components/creer/CreerStepFormat";
 import CreerStepQuestions from "@/components/creer/CreerStepQuestions";
 import CreerStepResult from "@/components/creer/CreerStepResult";
 import CreerStepEdit from "@/components/creer/CreerStepEdit";
+import CreerStepper, { type StepperKey } from "@/components/creer/CreerStepper";
 import PinterestInspirationStep from "@/components/creer/PinterestInspirationStep";
 import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
 import StructureReviewStep from "@/components/creer/StructureReviewStep";
