@@ -1,135 +1,112 @@
+# Plan — Refonte coach idées : 4 registres + filtre anti-déjà-vu
 
-# Audit & refonte douce du parcours "Créer un contenu"
-
-## Diagnostic
-
-### Étape 1 — "Idée" (`CreerStepIdea`)
-Aujourd'hui on présente, dans cet ordre vertical :
-- un titre + sous-titre,
-- un gros textarea,
-- 4 boutons ghost à hiérarchie identique (`Aide-moi à trouver une idée`, `Surfer sur l'actu`, `Partir de photos`, `Transformer un contenu`),
-- un bouton "Suivant" plein largeur.
-
-Problèmes :
-- Les 4 boutons sont des **points d'entrée alternatifs** (pas des aides au textarea), mais visuellement ils ressemblent à des liens secondaires. → On ne sait pas qu'ils ouvrent un parcours différent.
-- L'utilisatrice qui *a déjà une idée* doit quand même les scanner pour s'assurer qu'elle ne rate rien.
-- Aucune indication de *ce qui va se passer après* (pas de fil rouge "Idée → Format → Brief → Génération").
-
-### Étape 2 — "Format" (`CreerStepFormat`)
-La cascade actuelle est : **Canal → (sous-mode si LinkedIn/Pinterest) → Format → (sous-mode carrousel) → Toggle photo → Angle → Récap structure**.
-
-Problèmes :
-- Trop d'écrans intermédiaires conditionnels (jusqu'à 4-5 paliers) avant d'arriver au bouton "Suivant".
-- Les "sous-modes" (LinkedIn texte/carrousel/mixte ; Pinterest texte/visuel/inspiration ; Carrousel texte/photo/mix) ressemblent visuellement aux choix de canal → on a l'impression de faire **3 fois le même choix**.
-- Le bloc "Structure : X (5 étapes)" en bas est utile mais visuellement noyé.
-- Le bouton "Suivant" est petit (`size="sm"`) et en bas, sans rappel de ce qu'on a choisi.
-- Pas de récap visuel persistant ("Tu fais : Carrousel Instagram, angle storytelling").
-
-### Transitions globales
-- La barre de progression (4 segments) n'a pas de label → on ne sait pas où on est.
-- Pas d'indication "il reste X étapes / ~Y minutes".
+Périmètre strict : un seul fichier modifié — `supabase/functions/content-coaching/index.ts`. Aucun changement frontend (le composant `src/components/dashboard/ContentCoachingDialog.tsx` mappe déjà dynamiquement `result.ideas`, vérifié lignes 24, 218, 396-400 — il affichera 4 cards sans modification).
 
 ---
 
-## Principes directeurs
+## (a) Ce que tu m'as demandé — à implémenter
 
-1. **Un seul écran = une seule décision principale.** Tout le reste devient secondaire visuellement.
-2. **Toujours montrer le fil rouge** (Idée → Format → Brief → Génération) en haut, avec l'étape courante nommée.
-3. **Raccourcis pour les rapides, guidance pour les nouvelles**, *sans* mode adaptatif : on offre **la valeur par défaut la plus simple en gros**, et les options avancées en plus petit / repliées.
-4. **Aucun changement de logique métier** : on garde tous les handlers (`handleIdeaNext`, `handleFormatNext`, sous-modes, photos, newsjacking, transform). On change uniquement la présentation et l'ordre d'apparition des contrôles.
+### 1. Remplacement de la section "MÉTHODE" (lignes 290-300)
 
----
+Suppression du système actuel "3 idées dans 3 catégories parmi A→F". Remplacement par 4 registres **obligatoires et ordonnés** :
 
-## Changements proposés
+- **Idée 1 — EXPERTISE PRATIQUE** : le "comment" du métier ancré terrain. Détail technique précis, savoir-faire, mécanique opérationnelle de l'activité de l'utilisatrice.
+- **Idée 2 — CONVICTION / CONTRE-PIED** : opinion tranchée du métier qui dérange aussi les pairs du secteur (pas seulement l'audience). Voir la note spécifique dans le test de singularité.
+- **Idée 3 — PERSPECTIVE ÉLARGIE** : regard sur le secteur, mécanisme nommé (biais cognitif, dynamique de marché), mise en tension culturelle/sociétale autour du métier.
+- **Idée 4 — ANALOGIE INATTENDUE** : parallèle entre une mécanique du métier et un univers totalement différent (cuisine, sport, artisanat, mécanique, art, science, jeu d'échecs, etc.) qui fait voir le métier autrement.
 
-### A. Header de parcours unifié (nouveau composant `CreerStepper`)
-À afficher **dès l'étape 1** (pas seulement à partir de l'étape 2 comme aujourd'hui), au-dessus du contenu :
+Les **CREATIVE_SEEDS** et leur tirage `seed1`/`seed2` (lignes ~200-216) restent inchangés ; ils sont juste reformulés dans le prompt comme "contraintes créatives optionnelles à appliquer si pertinent à l'un des 4 registres".
 
-```text
-[●]──[○]──[○]──[○]
-Idée  Format Brief Résultat
+### 2. Ajout du bloc "TEST DE SINGULARITÉ" (avant le TEST DE VALIDITÉ existant ligne 313)
+
+Insertion d'un nouveau bloc encadré, à appliquer aux 4 idées :
+
+> **TEST DE SINGULARITÉ — applique-le sur CHAQUE idée AVANT le test de validité**
+>
+> Si quelqu'un qui suit 5 comptes du même secteur sur Insta/LinkedIn aurait déjà vu cette idée formulée à peu près comme ça → invalide, recommence.
+>
+> Pour passer, l'idée doit avoir AU MOINS UN de ces caractères :
+> - Un détail technique trop précis pour être générique
+> - Un angle qu'aucun·e influenceur·euse du secteur ne prendrait (parce que ça ne flatte pas, parce que c'est trop nuancé pour Insta, parce que ça contredit la doxa du secteur lui-même)
+> - Une formulation qui surprend par sa concrétude ou sa franchise
+>
+> **Note spécifique CONTRE-PIED (Idée 2)** : si le contre-pied dit "tout le monde fait X mal, en vrai il faut Y", c'est probablement déjà vu. Cherche un contre-pied qui dérange les pairs du secteur, pas un contre-pied qui flatte l'audience contre les pairs.
+
+Le bloc TEST DE VALIDITÉ existant (lignes 313-321) reste **strictement intact**, juste après ce nouveau bloc.
+
+### 3. Ajustement de l'instruction utilisateur (ligne 339)
+
+Passage de `"Génère 3 idées..."` à `"Génère 4 idées (1 par registre dans l'ordre : expertise / contre-pied / perspective / analogie)..."`. Ajout du test de singularité dans la liste des règles, qui devient :
+
+```
+Applique successivement : (1) AUDIENCE vs UTILISATRICE, (2) RÈGLE DE VÉRITÉ,
+(3) RÈGLE D'OR métier, (4) TEST DE SINGULARITÉ, (5) TEST DE VALIDITÉ.
 ```
 
-- Étape courante en `primary`, étapes futures en `muted`, étapes passées en `primary/40` cliquables (retour).
-- Sous le stepper : une ligne courte "Étape 1 sur 4 — Dis-moi ton idée".
-- Reste sticky en haut du `max-w-2xl` (sans header global).
+### 4. `max_tokens` : 800 → 1200 (ligne 341)
 
-### B. Étape 1 — clarifier les points d'entrée (`CreerStepIdea`)
+Pour absorber la 4e idée + le test de singularité ajouté au prompt sans risque de troncature JSON.
 
-Refonte visuelle, **mêmes handlers**, même logique :
+### 5. Phrase conditionnelle (ligne 305)
 
-1. **Garder en évidence** : titre, textarea, bouton Suivant (CTA principal grand format avec icône).
-2. **Regrouper les 3 alternatives** sous un bloc séparé visuellement (séparateur "ou pars d'autre chose"), en *cartes* compactes avec icône + libellé + 1 ligne de description, plutôt qu'en boutons ghost alignés :
-   - `Camera` — "Partir de photos" — *J'ai des photos, on construit autour*
-   - `Newspaper` — "Surfer sur l'actu" — *Réagir à une news fraîche*
-   - `Repeat` — "Transformer un contenu" — *Recycler un post existant*
-3. **Déplacer "Aide-moi à trouver une idée"** : devenir un petit lien d'aide *à l'intérieur* du textarea (placeholder + petit "💬 Pas d'idée ? Laisse-toi guider" sous le textarea, à droite). Ce n'est pas une voie alternative, c'est une assistance.
-4. **Afficher le compteur de générations** (déjà là) en plus discret, à côté du stepper plutôt qu'au-dessus du titre.
+- Version "sujet absent" : remplacer "Les 3 idées couvrent" par "Les 4 idées couvrent" et adapter la formulation pour qu'elle se combine naturellement avec la contrainte de 4 registres ordonnés (les registres priment, la diversité d'objectifs reste un bonus).
+- Version "sujet présent" : remplacer "3 variations" par "4 variations" et préciser que les 4 idées sont 4 angles RADICALEMENT différents traitant le même sujet sous les 4 registres.
 
-Résultat attendu : on voit en 2 secondes "tape ton idée et clique Suivant", et les 3 voies alternatives sont *clairement* identifiées comme des entrées différentes.
+### 6. Mention "3 idées" résiduelle ligne 283
 
-### C. Étape 2 — réduire la cascade (`CreerStepFormat`)
-
-Sans changer la data model, on regroupe l'écran en **2 zones visibles à la fois** :
-
-1. **Zone "Où publier ?"** (toujours visible, en haut)
-   - 4 vignettes canal (déjà là).
-   - Une fois choisi → l'icône + label restent affichés en *chip* avec "✏ Changer", au lieu de disparaître/réapparaître.
-
-2. **Zone "Quel format ?"** (apparaît sous la zone canal)
-   - Affiche directement les formats du canal sélectionné (avec sous-modes traités comme des formats normaux dans la même grille). Aujourd'hui on a un écran intermédiaire pour LinkedIn et Pinterest → on le **fusionne** : pour LinkedIn, on montre directement [Post texte] [Carrousel texte] [Carrousel mixte] dans la grille format.
-   - Pour Instagram-carrousel, garder les 3 sous-modes (texte / photo / mix) **dans la même grille**, avec un séparateur visuel "Carrousel — choisir le rendu".
-
-3. **Zone "Détails"** (zone optionnelle apparaissant selon le format)
-   - Toggle photo, upload, lien Pinterest, board → tous ici, repliés dans un panneau "Détails" si non requis, dépliés sinon.
-
-4. **Zone "Angle éditorial"** : garder le bouton "L'outil choisit pour moi" très en évidence (déjà bien) ; le rendre **CTA primaire alternatif** au "Suivant" pour les pressées.
-
-5. **Récap + CTA fixes en bas** :
-   - Petit récap inline : "📸 Carrousel Instagram · Storytelling" (mis à jour live).
-   - Bouton "Suivant" passe en `size="default"` plein largeur (cohérent avec étape 1).
-
-### D. Micro-copy & feedback
-- Titres d'étape uniformes : "Étape X — verbe à l'infinitif" (`Dis-moi ton idée`, `Choisis le format`, `Affine le brief`).
-- Sous chaque CTA Suivant, indiquer ce qui se passe : *"Suivant — l'IA te posera 3 questions rapides"* / *"Générer maintenant"*.
-- Bouton "Retour" toujours en haut à gauche du contenu (pas en bas), comme dans l'onboarding.
-
-### E. Pas touché (volontairement, pour ne rien casser)
-- `CreerStepQuestions`, `StructureReviewStep`, `CreerStepResult`, `CreerStepEdit` : intacts (utilisateur n'a pas signalé de friction là).
-- Tous les handlers, hooks, persistance flow, URL params, demo mode : intacts.
-- Logique conditionnelle (`carouselSubMode`, `photoMode`, `pinterestSubMode`…) : intacte, on ne change que l'arborescence visuelle d'apparition.
+`PAS DE SUJET → propose 3 idées concrètes et surprenantes` → `propose 4 idées concrètes et surprenantes`.
 
 ---
 
-## Détails techniques
+## Ce qui NE BOUGE PAS (verrouillé)
 
-### Fichiers modifiés
-- **`src/components/creer/CreerStepIdea.tsx`** : refonte du layout (cards alternatives, helper "Aide-moi" intégré au textarea).
-- **`src/components/creer/CreerStepFormat.tsx`** : fusion des écrans intermédiaires LinkedIn/Pinterest dans la grille format ; persistant chip "canal sélectionné" ; récap live ; CTA Suivant agrandi.
-- **`src/pages/CreerUnifie.tsx`** : remontée du stepper à l'étape "idea" + label d'étape ; déplacement du compteur de générations.
-- **Nouveau** : `src/components/creer/CreerStepper.tsx` (composant présentation pure, props `currentStep`, `stepOrder`).
+- Toutes les sections du système prompt en amont de "MÉTHODE" : RÈGLE DE VÉRITÉ, AUDIENCE vs UTILISATRICE, ALIGNEMENT D'ÉCHELLE, EXIGENCE DE PROFONDEUR, CONTEXTE BRANDING, PILIERS, DATE, HISTORIQUE, DEMANDE, RÈGLE D'OR ANCRAGE MÉTIER, RÈGLE ANTI-TU, ROUTES.
+- `CREATIVE_SEEDS` (lignes 200-216) et tirage `seed1`/`seed2`.
+- `formatBlock` spécifiques par format (lignes 219-226).
+- Bloc TEST DE VALIDITÉ existant (lignes 313-321).
+- Structure JSON de sortie (champs `subject`, `angle`, `objective_tag`, `why_it_works`, `recommended_format`, `redirect_route`). Seul `ideas` passe de 3 à 4 entrées.
+- Modèle `getModelForAction("coaching")` (= Opus), temperature 0.8.
+- Toute la logique aval : parsing JSON 3 niveaux (jsonrepair inclus), backwards compatibility (`recommended_subject` / `subject_alternatives` / `quick_brief`), `logUsage`.
+- Toutes les requêtes DB et le bloc auth/CORS/rate-limit/quota.
 
-### Fichiers non touchés
-- `CreerStepQuestions.tsx`, `CreerStepResult.tsx`, `CreerStepEdit.tsx`, `StructureReviewStep.tsx`, `PinterestInspirationStep.tsx`, `NewsjackingPanel.tsx`, `PhotoUploadZone.tsx`, `CreerTransformTab.tsx`, `ContentCoachingDialog.tsx`.
-- Aucune modif des handlers ni du `stepOrder` dans `CreerUnifie.tsx`.
-- Aucune modif côté backend / edge functions / DB.
+Aucune autre Edge Function modifiée. Aucun fichier frontend modifié.
 
-### Risques de régression
-- Faibles : on bouge de la présentation, pas de la logique. À vérifier visuellement après implémentation :
-  - Démarrage avec params URL (`?format=carousel&sujet=...`) → sauter directement à l'étape 2 avec le bon canal pré-sélectionné.
-  - Démarrage depuis le calendrier (`fromCalendar`).
-  - Démo Auriana (force step + format + sub-mode).
-  - Newsjacking → applique format suggéré.
-  - Photo flow → préchargement de photos depuis l'étape 1 vers l'étape 2.
+---
 
-### Ordre d'exécution proposé
-1. Créer `CreerStepper` + intégrer dans `CreerUnifie.tsx` à toutes les étapes (≈30 min, zéro risque).
-2. Refondre `CreerStepIdea` (≈1 h).
-3. Refondre `CreerStepFormat` — phase 1 : fusion des sous-modes LinkedIn/Pinterest dans la grille format + chip canal persistant (≈1,5 h).
-4. Phase 2 : récap live + CTA agrandi + micro-copy "Suivant — …" (≈45 min).
-5. QA manuel sur les 5 scénarios listés ci-dessus.
+## Critères de validation
 
-## Hors scope (à proposer plus tard si besoin)
-- Refonte profonde du `StructureReviewStep` ou du parcours questions.
-- Refonte de `CreerStepResult` (édition, exports).
-- Mode adaptatif "débutante / experte" — explicitement exclu par toi.
+1. `npx tsc --noEmit --skipLibCheck` passe sans erreur.
+2. **Test compte démo Auriana (marchande de biens)** : ouvrir "Aide-moi à trouver une idée" dans `/creer`, choisir objectif + Insta carrousel → vérifier 4 cards, 4 registres visiblement différents, au moins une analogie reconnaissable (parallèle inter-univers), pas de contre-pied "déjà vu" du secteur.
+3. **Test compte démo Léa (photographe)** : même procédure, vérifier la diversité des 4 registres et la singularité de chacun.
+4. Logs Edge Function : pas de fallback `jsonrepair` qui se déclenche (pas de troncature liée au passage à 1200 tokens).
+
+---
+
+## (b) Mes propositions d'amélioration — à valider/refuser séparément
+
+### P1 — Ajouter `register` au schéma JSON de sortie (recommandé)
+
+Ajouter un champ `register: "expertise" | "contre-pied" | "perspective" | "analogie"` dans chaque objet `ideas[i]`. Coût : 1 ligne dans le JSON example du prompt + une mention dans l'instruction. Bénéfice : (1) garantit que le LLM tient l'ordre/registre demandé (auto-vérification), (2) permet plus tard un codage couleur ou un tri par registre côté UI sans re-parser. Aucun impact frontend immédiat (champ ignoré si absent du type).
+
+### P2 — Log structuré du registre généré (faible coût, gros bénéfice debug)
+
+Si P1 est validé : ajouter un `console.log("content-coaching registers:", result.ideas?.map(i => i.register))` juste avant le `logUsage`. Permet de monitorer en prod si Opus respecte bien la contrainte des 4 registres distincts. Aucun coût utilisateur.
+
+### P3 — Garde-fou côté serveur si moins de 4 idées renvoyées
+
+Si Opus renvoie moins de 4 idées (rare mais possible avec un sujet contraignant + historique chargé), le frontend affichera silencieusement 2 ou 3 cards. Proposition : si `result.ideas.length < 4` après parsing, on log un `console.warn` (sans bloquer la réponse). Permet de détecter en prod un drift du modèle sans impacter l'UX. ~3 lignes.
+
+### P4 — Renforcer la diversité vs `recentPosts` (optionnel, plus risqué)
+
+L'historique injecté (`calendarPosts` + `generatedContent`) est déjà cité "NE PAS REPROPOSER". On pourrait pousser plus loin : "et même les ANGLES déjà couverts (expertise / contre-pied / etc.) sont à éviter en priorité". Risque : si l'historique contient déjà 1 contre-pied, Opus pourrait skipper le registre 2 alors qu'on le demande explicitement. **Mon avis : à NE PAS faire pour cette itération**, on verra après prod si l'anti-répétition pose vraiment problème.
+
+---
+
+## Hors scope (rappel — plans séparés à venir)
+
+- Injection de la matière `content_briefs` dans le prompt
+- Alignement sur les 4 véhicules d'EMBEDDED_EDUCATION
+- Rattachement de chaque idée à un pilier éditorial
+- Mode "Surprise" (canal+format auto)
+- Refonte UI des cards (codes couleur par registre)
+- Audit `calendar-coaching`
