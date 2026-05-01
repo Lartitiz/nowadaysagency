@@ -737,7 +737,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
             <span className="font-medium text-muted-foreground">Tu vas créer :</span>{" "}
             {parts.join(" · ")}
             {!selectedAngle && showAngles && (
-              <span className="text-muted-foreground"> · <span className="italic">angle à choisir (ou laisse l'IA décider)</span></span>
+              <span className="text-muted-foreground"> · <span className="italic">l'IA choisira l'angle</span></span>
             )}
           </div>
         );
