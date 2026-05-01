@@ -214,6 +214,9 @@ export default function CreerStepResult({
   channel,
   captionLoading,
   onRegenerateCaption,
+  onChangeAngle,
+  currentAngle,
+  currentChannel,
 }: Props) {
   // ── Rotation des messages et tips pendant le loading ──
   const messages = PROGRESS_MESSAGES[format] || PROGRESS_MESSAGES.default;
