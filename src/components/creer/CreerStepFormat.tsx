@@ -276,8 +276,9 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Preloaded photos banner — visible until user picks a format */}
-      {(initialPhotos?.length ?? 0) > 0 && !hasUserChangedFormat.current && (
+      {/* Preloaded photos banner — visible only before a channel is picked.
+          Once a channel is chosen, the photo state lives in the PhotoUploadZone (no duplication). */}
+      {(initialPhotos?.length ?? 0) > 0 && !hasUserChangedFormat.current && !selectedChannel && (
         <div className="rounded-2xl bg-primary/5 border border-primary/10 p-3 flex items-center gap-3">
           <span className="text-lg">📸</span>
           <p className="text-sm font-medium text-foreground">
@@ -478,24 +479,8 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
         </div>
       )}
 
-      {/* Single-photo formats — preloaded photo confirmation banner */}
-      {formatAcceptsSinglePhoto(selectedFormat) && (initialPhotos?.length ?? 0) > 0 && photoMode && postPhoto.length > 0 && (
-        <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 flex items-center justify-between gap-3 animate-fade-in">
-          <p className="text-sm text-foreground">
-            📸 <span className="font-medium">{CONTENT_TYPE_SPECS[selectedFormat!]?.label || "Contenu"} avec photo</span> — {postPhoto.length} photo{postPhoto.length > 1 ? "s" : ""} chargée{postPhoto.length > 1 ? "s" : ""}
-          </p>
-          <button
-            onClick={() => {
-              setPhotoMode(false);
-              setPostPhoto([]);
-              setPostPhotoDescription("");
-            }}
-            className="text-xs text-muted-foreground hover:text-foreground underline whitespace-nowrap"
-          >
-            Retirer les photos
-          </button>
-        </div>
-      )}
+      {/* Single-photo formats — preloaded photo confirmation banner — REMOVED.
+          The toggle "📸 J'accompagne une photo" + the PhotoUploadZone below already convey the state. */}
 
       {/* Single-photo upload zone */}
       {formatAcceptsSinglePhoto(selectedFormat) && photoMode && (
@@ -507,77 +492,79 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
             onPhotosChange={setPostPhoto}
             onDescriptionChange={setPostPhotoDescription}
             title={postPhoto.length > 0 ? `Vos photos (${postPhoto.length})` : undefined}
-            compact={(initialPhotos?.length ?? 0) > 0}
+            compact
           />
         </div>
       )}
 
-      {/* Carousel — preloaded photo confirmation banner (replaces sub-mode selector) */}
+      {/* Carousel sub-mode — collapsed chip once chosen, full picker otherwise */}
       {selectedFormat === "carousel" &&
-        (selectedChannel === "instagram" || selectedChannel === "linkedin") &&
-        (initialPhotos?.length ?? 0) > 0 &&
-        carouselSubMode === "mix" &&
-        uploadedPhotos.length > 0 && (
-          <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 flex items-center justify-between gap-3 animate-fade-in">
-            <p className="text-sm text-foreground">
-              📸 <span className="font-medium">{uploadedPhotos.length} photo{uploadedPhotos.length > 1 ? "s" : ""} chargée{uploadedPhotos.length > 1 ? "s" : ""}</span> — Carrousel mixte {selectedChannel === "linkedin" ? "LinkedIn (PDF, photos + slides texte)" : "Instagram (photos + slides texte)"}
-            </p>
-            <button
-              onClick={() => {
-                setCarouselSubMode(null);
-              }}
-              className="text-xs text-muted-foreground hover:text-foreground underline whitespace-nowrap"
-            >
-              Choisir un autre mode
-            </button>
+        (selectedChannel === "instagram" || selectedChannel === "linkedin") && (
+        carouselSubMode ? (
+          // Collapsed chip — replaces the full picker once a sub-mode is selected
+          (() => {
+            const subModeMeta = {
+              text: { emoji: "📝", label: "Texte", desc: "L'IA rédige et designe" },
+              photo: { emoji: "📸", label: "Photo", desc: "Tes photos en plein écran" },
+              mix: { emoji: "✨", label: "Mixte", desc: "Photos + slides texte" },
+            }[carouselSubMode];
+            return (
+              <div className="flex items-center justify-between gap-3 rounded-xl bg-muted/30 border border-border px-3 py-2 animate-fade-in">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-lg">{subModeMeta.emoji}</span>
+                  <span className="text-sm font-semibold text-foreground truncate">
+                    Carrousel {subModeMeta.label}
+                  </span>
+                  <span className="text-xs text-muted-foreground hidden sm:inline truncate">
+                    · {subModeMeta.desc}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCarouselSubMode(null);
+                    setUploadedPhotos([]);
+                    setPhotoDescription("");
+                    setPhotoWarning(false);
+                  }}
+                  className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1 shrink-0"
+                >
+                  Changer
+                </button>
+              </div>
+            );
+          })()
+        ) : (
+          <div className="space-y-3 animate-fade-in">
+            <p className="text-sm font-semibold text-foreground">Quel type de carrousel ?</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <button
+                onClick={() => { setCarouselSubMode("text"); setUploadedPhotos([]); setPhotoDescription(""); }}
+                className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
+              >
+                <span className="text-2xl block mb-1">📝</span>
+                <span className="text-xs font-semibold text-foreground">Texte</span>
+                <p className="text-[10px] text-muted-foreground mt-0.5">L'IA rédige et designe</p>
+              </button>
+              <button
+                onClick={() => setCarouselSubMode("photo")}
+                className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
+              >
+                <span className="text-2xl block mb-1">📸</span>
+                <span className="text-xs font-semibold text-foreground">Photo</span>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Tes photos en plein écran</p>
+              </button>
+              <button
+                onClick={() => setCarouselSubMode("mix")}
+                className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
+              >
+                <span className="text-2xl block mb-1">✨</span>
+                <span className="text-xs font-semibold text-foreground">Mixte</span>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Photos + slides texte</p>
+              </button>
+            </div>
           </div>
-        )}
-
-      {/* Carousel sub-mode (Instagram + LinkedIn) — hidden when preloaded photos auto-set mix */}
-      {selectedFormat === "carousel" &&
-        (selectedChannel === "instagram" || selectedChannel === "linkedin") &&
-        !((initialPhotos?.length ?? 0) > 0 && carouselSubMode === "mix" && uploadedPhotos.length > 0) && (
-        <div className="space-y-3 animate-fade-in">
-          <p className="text-sm font-semibold text-foreground">Quel type de carrousel ?</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            <button
-              onClick={() => { setCarouselSubMode("text"); setUploadedPhotos([]); setPhotoDescription(""); }}
-              className={`rounded-xl border-2 p-3 text-center transition-all ${
-                carouselSubMode === "text"
-                  ? "border-primary bg-primary/5 shadow-sm"
-                  : "border-border bg-card hover:border-primary/40"
-              }`}
-            >
-              <span className="text-2xl block mb-1">📝</span>
-              <span className="text-xs font-semibold text-foreground">Texte</span>
-              <p className="text-[10px] text-muted-foreground mt-0.5">L'IA rédige et designe</p>
-            </button>
-            <button
-              onClick={() => setCarouselSubMode("photo")}
-              className={`rounded-xl border-2 p-3 text-center transition-all ${
-                carouselSubMode === "photo"
-                  ? "border-primary bg-primary/5 shadow-sm"
-                  : "border-border bg-card hover:border-primary/40"
-              }`}
-            >
-              <span className="text-2xl block mb-1">📸</span>
-              <span className="text-xs font-semibold text-foreground">Photo</span>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Tes photos en plein écran</p>
-            </button>
-            <button
-              onClick={() => setCarouselSubMode("mix")}
-              className={`rounded-xl border-2 p-3 text-center transition-all ${
-                carouselSubMode === "mix"
-                  ? "border-primary bg-primary/5 shadow-sm"
-                  : "border-border bg-card hover:border-primary/40"
-              }`}
-            >
-              <span className="text-2xl block mb-1">✨</span>
-              <span className="text-xs font-semibold text-foreground">Mixte</span>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Photos intégrées + slides texte</p>
-            </button>
-          </div>
-        </div>
+        )
       )}
 
       {/* Photo upload zone (carousel photo mode) */}
@@ -593,7 +580,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
             }}
             onDescriptionChange={setPhotoDescription}
             title={uploadedPhotos.length > 0 ? `Vos photos (${uploadedPhotos.length})` : undefined}
-            compact={(initialPhotos?.length ?? 0) > 0}
+            compact
           />
           {photoWarning && (
             <div className="mt-3 p-3 rounded-lg bg-amber-50 border border-amber-200 space-y-2 animate-fade-in">
