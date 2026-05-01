@@ -1,112 +1,139 @@
-# Plan — Refonte coach idées : 4 registres + filtre anti-déjà-vu
 
-Périmètre strict : un seul fichier modifié — `supabase/functions/content-coaching/index.ts`. Aucun changement frontend (le composant `src/components/dashboard/ContentCoachingDialog.tsx` mappe déjà dynamiquement `result.ideas`, vérifié lignes 24, 218, 396-400 — il affichera 4 cards sans modification).
+# Plan — Refonte sous-flux carrousel dans `CreerStepFormat`
 
----
+## Contexte
 
-## (a) Ce que tu m'as demandé — à implémenter
+Sur `/creer`, quand l'utilisatrice choisit **Instagram → Carrousel → Mixte (avec photos)**, l'écran empile aujourd'hui jusqu'à 5 zones qui répètent la même information :
 
-### 1. Remplacement de la section "MÉTHODE" (lignes 290-300)
+1. Bandeau "X photos déjà prêtes" (haut)
+2. Chip canal "📸 Instagram"
+3. Section "Quel type de carrousel ?" avec 3 grosses cartes Texte / Photo / Mixte
+4. Bandeau "📸 X photos chargées — Carrousel mixte" (avec lien "Choisir un autre mode")
+5. Titre interne "Vos photos (X)" dans la `PhotoUploadZone`
+6. Encart en bas "Tu vas créer : 📸 Instagram · Carrousel (mixte) · …"
 
-Suppression du système actuel "3 idées dans 3 catégories parmi A→F". Remplacement par 4 registres **obligatoires et ordonnés** :
+Résultat : l'utilisatrice scrolle, voit la même info 3 fois, ne sait plus où cliquer pour avancer.
 
-- **Idée 1 — EXPERTISE PRATIQUE** : le "comment" du métier ancré terrain. Détail technique précis, savoir-faire, mécanique opérationnelle de l'activité de l'utilisatrice.
-- **Idée 2 — CONVICTION / CONTRE-PIED** : opinion tranchée du métier qui dérange aussi les pairs du secteur (pas seulement l'audience). Voir la note spécifique dans le test de singularité.
-- **Idée 3 — PERSPECTIVE ÉLARGIE** : regard sur le secteur, mécanisme nommé (biais cognitif, dynamique de marché), mise en tension culturelle/sociétale autour du métier.
-- **Idée 4 — ANALOGIE INATTENDUE** : parallèle entre une mécanique du métier et un univers totalement différent (cuisine, sport, artisanat, mécanique, art, science, jeu d'échecs, etc.) qui fait voir le métier autrement.
-
-Les **CREATIVE_SEEDS** et leur tirage `seed1`/`seed2` (lignes ~200-216) restent inchangés ; ils sont juste reformulés dans le prompt comme "contraintes créatives optionnelles à appliquer si pertinent à l'un des 4 registres".
-
-### 2. Ajout du bloc "TEST DE SINGULARITÉ" (avant le TEST DE VALIDITÉ existant ligne 313)
-
-Insertion d'un nouveau bloc encadré, à appliquer aux 4 idées :
-
-> **TEST DE SINGULARITÉ — applique-le sur CHAQUE idée AVANT le test de validité**
->
-> Si quelqu'un qui suit 5 comptes du même secteur sur Insta/LinkedIn aurait déjà vu cette idée formulée à peu près comme ça → invalide, recommence.
->
-> Pour passer, l'idée doit avoir AU MOINS UN de ces caractères :
-> - Un détail technique trop précis pour être générique
-> - Un angle qu'aucun·e influenceur·euse du secteur ne prendrait (parce que ça ne flatte pas, parce que c'est trop nuancé pour Insta, parce que ça contredit la doxa du secteur lui-même)
-> - Une formulation qui surprend par sa concrétude ou sa franchise
->
-> **Note spécifique CONTRE-PIED (Idée 2)** : si le contre-pied dit "tout le monde fait X mal, en vrai il faut Y", c'est probablement déjà vu. Cherche un contre-pied qui dérange les pairs du secteur, pas un contre-pied qui flatte l'audience contre les pairs.
-
-Le bloc TEST DE VALIDITÉ existant (lignes 313-321) reste **strictement intact**, juste après ce nouveau bloc.
-
-### 3. Ajustement de l'instruction utilisateur (ligne 339)
-
-Passage de `"Génère 3 idées..."` à `"Génère 4 idées (1 par registre dans l'ordre : expertise / contre-pied / perspective / analogie)..."`. Ajout du test de singularité dans la liste des règles, qui devient :
-
-```
-Applique successivement : (1) AUDIENCE vs UTILISATRICE, (2) RÈGLE DE VÉRITÉ,
-(3) RÈGLE D'OR métier, (4) TEST DE SINGULARITÉ, (5) TEST DE VALIDITÉ.
-```
-
-### 4. `max_tokens` : 800 → 1200 (ligne 341)
-
-Pour absorber la 4e idée + le test de singularité ajouté au prompt sans risque de troncature JSON.
-
-### 5. Phrase conditionnelle (ligne 305)
-
-- Version "sujet absent" : remplacer "Les 3 idées couvrent" par "Les 4 idées couvrent" et adapter la formulation pour qu'elle se combine naturellement avec la contrainte de 4 registres ordonnés (les registres priment, la diversité d'objectifs reste un bonus).
-- Version "sujet présent" : remplacer "3 variations" par "4 variations" et préciser que les 4 idées sont 4 angles RADICALEMENT différents traitant le même sujet sous les 4 registres.
-
-### 6. Mention "3 idées" résiduelle ligne 283
-
-`PAS DE SUJET → propose 3 idées concrètes et surprenantes` → `propose 4 idées concrètes et surprenantes`.
+Périmètre choisi : **tout le sous-flux carrousel** (les 3 sous-modes, Instagram + LinkedIn). Aucune logique métier modifiée — uniquement la présentation et la condition d'affichage de blocs déjà existants.
 
 ---
 
-## Ce qui NE BOUGE PAS (verrouillé)
+## Mes recommandations sur les 3 questions ouvertes
 
-- Toutes les sections du système prompt en amont de "MÉTHODE" : RÈGLE DE VÉRITÉ, AUDIENCE vs UTILISATRICE, ALIGNEMENT D'ÉCHELLE, EXIGENCE DE PROFONDEUR, CONTEXTE BRANDING, PILIERS, DATE, HISTORIQUE, DEMANDE, RÈGLE D'OR ANCRAGE MÉTIER, RÈGLE ANTI-TU, ROUTES.
-- `CREATIVE_SEEDS` (lignes 200-216) et tirage `seed1`/`seed2`.
-- `formatBlock` spécifiques par format (lignes 219-226).
-- Bloc TEST DE VALIDITÉ existant (lignes 313-321).
-- Structure JSON de sortie (champs `subject`, `angle`, `objective_tag`, `why_it_works`, `recommended_format`, `redirect_route`). Seul `ideas` passe de 3 à 4 entrées.
-- Modèle `getModelForAction("coaching")` (= Opus), temperature 0.8.
-- Toute la logique aval : parsing JSON 3 niveaux (jsonrepair inclus), backwards compatibility (`recommended_subject` / `subject_alternatives` / `quick_brief`), `logUsage`.
-- Toutes les requêtes DB et le bloc auth/CORS/rate-limit/quota.
+### 1. Sous-mode carrousel — je recommande "Replier dès qu'on a choisi" (option 3)
 
-Aucune autre Edge Function modifiée. Aucun fichier frontend modifié.
+**Pourquoi pas fusionner Photo+Mixte (option 2) :** les deux modes produisent des sorties très différentes (10 slides photo plein écran vs 6-8 slides où tes photos sont entrelacées avec des slides de texte design). Si on fusionne, il faut quand même trancher après → on déplace juste le choix ailleurs. Et ton public cible (qui n'est pas tech) risque d'être déçu de découvrir ce choix après l'upload.
+
+**Ce que je propose :** garder les 3 cartes Texte / Photo / Mixte tant qu'**aucun choix n'est fait**, puis remplacer tout le bloc par une **chip secondaire** ("✨ Mixte · Photos + slides texte" + petit lien "Changer") sous la chip canal. Une seule ligne, on voit l'état, on peut revenir si besoin.
+
+### 2. Bandeaux photos — je recommande "Tout intégrer dans la PhotoUploadZone" (option 2)
+
+**Pourquoi :** la `PhotoUploadZone` est déjà l'endroit où l'utilisatrice agit (upload, retire, légende). Y mettre l'état évite l'effet "je lis 3 fois la même phrase avant d'arriver à la zone d'action". Le bandeau "X photos déjà prêtes" en haut disparaît dès qu'un format compatible est choisi (il a juste servi à signaler "tes photos vont être utilisées" au moment du choix de format — son job est fini).
+
+**Garde-fous :** pour le cas "format incompatible" (ex. user avec photos préchargées choisit "Story"), on garde le **bandeau d'avertissement ambré** existant (lignes 454-468) — c'est la seule alerte vraiment utile.
+
+### 3. Encart "Tu vas créer : …" — je recommande "Le coller au CTA" (option 2)
+
+**Pourquoi :** une fois qu'on a une chip canal + une chip sous-mode + une carte d'angle sélectionnée, l'utilisatrice voit déjà ses 3 choix dans la page. Mais juste avant d'appuyer "Suivant", **un récap explicite réduit l'angoisse "est-ce que j'ai bien tout choisi ?"** — surtout pour le persona "guidée". Le promouvoir en haut (option 3) ferait doublon avec la chip canal qui est déjà là.
+
+---
+
+## Changements concrets
+
+### Fichier unique modifié : `src/components/creer/CreerStepFormat.tsx`
+
+#### A. Bandeau "X photos déjà prêtes" en haut (lignes 280-287)
+
+**Comportement actuel :** affiché tant que `!hasUserChangedFormat.current`.
+
+**Nouveau comportement :** affiché uniquement quand **aucun canal n'est encore choisi** (`!selectedChannel`). Dès que le canal est choisi, le statut des photos vit dans la `PhotoUploadZone`. Évite la répétition.
+
+#### B. Section "Quel type de carrousel ?" (lignes 537-581)
+
+**Comportement actuel :** 3 cartes pleine largeur (Texte / Photo / Mixte), affichées tant que `carouselSubMode` n'est pas validé avec photos préchargées.
+
+**Nouveau comportement :**
+- **Tant que `carouselSubMode === null`** → affichage des 3 cartes (inchangé visuellement).
+- **Dès que `carouselSubMode` est défini** → repli en **chip compacte** sous la chip canal :
+  ```
+  [✨ Mixte · Photos + slides texte    Changer]
+  ```
+  avec emoji + label court + sous-label + bouton "Changer" qui réinitialise `carouselSubMode` à `null`.
+
+Cas spécial photos préchargées : la logique actuelle (lignes 515-534) qui auto-set `mix` est conservée, mais le bandeau "📸 X photos chargées — Carrousel mixte" est supprimé (l'info est dans la chip + dans la zone photos).
+
+#### C. Bandeau de confirmation lignes 515-534 → supprimé
+
+Sa fonction (montrer "tes photos sont prises en compte") est reprise par :
+- la nouvelle chip sous-mode (qui dit "Mixte"),
+- la `PhotoUploadZone` qui affiche elle-même "Vos photos (X)".
+
+Le lien "Choisir un autre mode" est repris par le bouton "Changer" de la chip.
+
+#### D. Confirmation single-photo lignes 482-498 → même traitement
+
+Pour les formats `post / reel / story / linkedin / newsletter` avec photo préchargée + `photoMode === true`, on supprime le bandeau de confirmation et on s'appuie sur :
+- le **toggle "📸 J'accompagne une photo"** déjà présent (lignes 471-479) qui reste affiché et indique l'état (la `Switch` est `checked`),
+- la `PhotoUploadZone` en dessous qui affiche les photos.
+
+Cohérence assurée entre carrousel et single-photo formats.
+
+#### E. Encart "Tu vas créer : …" (lignes 738-746) → repositionné
+
+**Comportement actuel :** rendu après tous les autres blocs, donc loin du CTA selon la longueur de la page.
+
+**Nouveau comportement :** déplacé juste **au-dessus** du bouton "Suivant" (lignes 750-758). C'est déjà presque le cas — il faut juste s'assurer qu'aucun bloc ne s'intercale et faire un peu de breathing room (espacement vertical réduit).
+
+#### F. PhotoUploadZone — propriété `compact` utilisée plus largement
+
+Aujourd'hui `compact` est passé à `true` uniquement quand `(initialPhotos?.length ?? 0) > 0`. On élargit : `compact={true}` dès qu'un statut/chip est déjà visible plus haut dans la page (canal + sous-mode = chip déjà chargée → on évite un titre redondant).
+
+---
+
+## Ce qui ne change PAS
+
+- Tous les handlers (`handleFormatSelect`, `handleChannelSelect`, `handleChangeChannel`, `handleNext`).
+- Toute la logique de validation (guards `carouselSubMode required`, photos requises pour photo/mix, etc.).
+- L'API du composant (`onNext` signature inchangée).
+- Le composant `PhotoUploadZone` lui-même (aucune nouvelle prop).
+- Les CONTENT_TYPE_SPECS et tout `lib/content-structures.ts`.
+- Le parcours Pinterest, le bandeau "Newsjacking suggère X", le sélecteur d'angle éditorial.
+- Tous les autres composants (`CreerStepIdea`, `CreerStepQuestions`, `CreerStepResult`, `CreerStepper`).
+- Aucun changement backend / Edge Function.
 
 ---
 
 ## Critères de validation
 
-1. `npx tsc --noEmit --skipLibCheck` passe sans erreur.
-2. **Test compte démo Auriana (marchande de biens)** : ouvrir "Aide-moi à trouver une idée" dans `/creer`, choisir objectif + Insta carrousel → vérifier 4 cards, 4 registres visiblement différents, au moins une analogie reconnaissable (parallèle inter-univers), pas de contre-pied "déjà vu" du secteur.
-3. **Test compte démo Léa (photographe)** : même procédure, vérifier la diversité des 4 registres et la singularité de chacun.
-4. Logs Edge Function : pas de fallback `jsonrepair` qui se déclenche (pas de troncature liée au passage à 1200 tokens).
+1. Compte démo Auriana (carrousel mixte) :
+   - Choisir Instagram → Carrousel → Mixte → uploader 3 photos.
+   - **Vérifier** : la section "Quel type de carrousel ?" se replie en chip compacte dès le clic sur Mixte.
+   - **Vérifier** : aucun bandeau "X photos chargées" ne s'affiche au-dessus de la zone photos.
+   - **Vérifier** : on peut toujours revenir au choix Texte/Photo/Mixte via "Changer".
+   - **Vérifier** : l'encart "Tu vas créer : …" est juste au-dessus du bouton "Suivant".
+
+2. Compte démo Auriana scénario "auriana-carousel" (photos préchargées) :
+   - Arriver sur l'étape Format avec 5 photos préchargées.
+   - **Vérifier** : le bandeau "5 photos déjà prêtes" disparaît dès qu'Instagram → Carrousel est choisi.
+   - **Vérifier** : la `PhotoUploadZone` s'affiche en mode compact.
+
+3. Cas single-photo (Post + photo) :
+   - Choisir Instagram → Post, activer le toggle "📸 J'accompagne une photo".
+   - **Vérifier** : aucun bandeau redondant, la zone photo apparaît directement.
+
+4. Cas LinkedIn carrousel mixte :
+   - LinkedIn → Carrousel mixte → 4 photos.
+   - **Vérifier** : même comportement, chip "✨ Mixte" visible, pas de bandeau "X photos chargées".
+
+5. Cas non-régression : carrousel Texte (sans photos) → flow inchangé jusqu'au choix de l'angle.
+
+6. `npx tsc --noEmit --skipLibCheck` passe.
 
 ---
 
-## (b) Mes propositions d'amélioration — à valider/refuser séparément
+## Hors scope
 
-### P1 — Ajouter `register` au schéma JSON de sortie (recommandé)
-
-Ajouter un champ `register: "expertise" | "contre-pied" | "perspective" | "analogie"` dans chaque objet `ideas[i]`. Coût : 1 ligne dans le JSON example du prompt + une mention dans l'instruction. Bénéfice : (1) garantit que le LLM tient l'ordre/registre demandé (auto-vérification), (2) permet plus tard un codage couleur ou un tri par registre côté UI sans re-parser. Aucun impact frontend immédiat (champ ignoré si absent du type).
-
-### P2 — Log structuré du registre généré (faible coût, gros bénéfice debug)
-
-Si P1 est validé : ajouter un `console.log("content-coaching registers:", result.ideas?.map(i => i.register))` juste avant le `logUsage`. Permet de monitorer en prod si Opus respecte bien la contrainte des 4 registres distincts. Aucun coût utilisateur.
-
-### P3 — Garde-fou côté serveur si moins de 4 idées renvoyées
-
-Si Opus renvoie moins de 4 idées (rare mais possible avec un sujet contraignant + historique chargé), le frontend affichera silencieusement 2 ou 3 cards. Proposition : si `result.ideas.length < 4` après parsing, on log un `console.warn` (sans bloquer la réponse). Permet de détecter en prod un drift du modèle sans impacter l'UX. ~3 lignes.
-
-### P4 — Renforcer la diversité vs `recentPosts` (optionnel, plus risqué)
-
-L'historique injecté (`calendarPosts` + `generatedContent`) est déjà cité "NE PAS REPROPOSER". On pourrait pousser plus loin : "et même les ANGLES déjà couverts (expertise / contre-pied / etc.) sont à éviter en priorité". Risque : si l'historique contient déjà 1 contre-pied, Opus pourrait skipper le registre 2 alors qu'on le demande explicitement. **Mon avis : à NE PAS faire pour cette itération**, on verra après prod si l'anti-répétition pose vraiment problème.
-
----
-
-## Hors scope (rappel — plans séparés à venir)
-
-- Injection de la matière `content_briefs` dans le prompt
-- Alignement sur les 4 véhicules d'EMBEDDED_EDUCATION
-- Rattachement de chaque idée à un pilier éditorial
-- Mode "Surprise" (canal+format auto)
-- Refonte UI des cards (codes couleur par registre)
-- Audit `calendar-coaching`
+- Refonte visuelle des cartes d'angle éditorial (recommandées vs autres).
+- Ajout d'animations / transitions entre les états repliés/dépliés.
+- Audit du parcours `CreerStepQuestions` (étape 3) qui présente d'autres redites — plan séparé.
+- Modification de `PhotoUploadZone` (autre composant, autre PR).
