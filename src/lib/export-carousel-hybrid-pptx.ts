@@ -1,5 +1,6 @@
 import PptxGenJS from "pptxgenjs";
 import html2canvas from "html2canvas-pro";
+import * as Sentry from "@sentry/react";
 import {
   mapFontToPptx,
   normalizeHex,
