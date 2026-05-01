@@ -448,17 +448,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
         </div>
       )}
 
-      {/* Channel back button when format is selected */}
-      {selectedChannel && selectedFormat && (
-        <div>
-          <button
-            onClick={handleChangeChannel}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-          >
-            <ArrowLeft className="h-3 w-3" /> Changer de canal
-          </button>
-        </div>
-      )}
+      {/* Channel back button removed — chip at the top now handles it */}
 
       {/* Preloaded photos: incompatible format warning */}
       {(initialPhotos?.length ?? 0) > 0 && selectedFormat &&
