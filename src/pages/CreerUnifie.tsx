@@ -983,6 +983,12 @@ export default function CreerUnifie() {
     await doGenerate(answers);
   };
 
+  const handleChangeAngle = async (newAngle: string | null) => {
+    setEditorialAngle(newAngle);
+    // doGenerate lit editorialAngle depuis la closure ; on lui passe l'override
+    await doGenerate(answers, { editorialAngleOverride: newAngle });
+  };
+
   // ── LinkedIn carousel caption: appel dédié à linkedin-ai/caption-for-carousel ──
   // Le prompt carousel-ai (mix/photo) laisse volontairement la légende vide pour
   // qu'elle soit générée par ce prompt LinkedIn dédié (anti-broetry, hashtags pro).
