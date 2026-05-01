@@ -353,7 +353,7 @@ export function PhotoUploadZone({
           <p className="text-xs text-muted-foreground text-center">
             {photos.length} / {maxPhotos} photos
           </p>
-        </>
+        </div>
       )}
 
       {/* ── Text description (hidden in compact mode) ─────── */}
