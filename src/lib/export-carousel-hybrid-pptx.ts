@@ -1,5 +1,6 @@
 import PptxGenJS from "pptxgenjs";
 import html2canvas from "html2canvas-pro";
+import * as Sentry from "@sentry/react";
 import {
   mapFontToPptx,
   normalizeHex,
@@ -16,6 +17,11 @@ interface VisualSlide {
   html: string;
 }
 
+/**
+ * Photo native fournie à l'export hybride pour insertion couche bottom (non-rasterisée).
+ * `base64` DOIT être une data URL complète (préfixée `data:image/<mime>;base64,...`).
+ * pptxgenjs `addImage({ data })` attend ce format.
+ */
 export interface OriginalPhoto {
   base64: string;
   mimeType?: string;
@@ -244,6 +250,31 @@ function applyTextTransform(text: string, transform: string): string {
 }
 
 /**
+ * Retire les `url(data:image/...)` d'un `background-image` CSS tout en conservant
+ * les autres couches (gradients linear/radial/conic, autres URLs non-data).
+ * Split sur les virgules **top-level** uniquement (les virgules dans les
+ * parenthèses des gradients ne séparent pas les couches).
+ * Retourne `"none"` si plus aucune couche ne reste.
+ */
+function stripDataUrlsFromBackground(bgImage: string): string {
+  const parts: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < bgImage.length; i++) {
+    const c = bgImage[i];
+    if (c === "(") depth++;
+    else if (c === ")") depth--;
+    else if (c === "," && depth === 0) {
+      parts.push(bgImage.slice(start, i).trim());
+      start = i + 1;
+    }
+  }
+  parts.push(bgImage.slice(start).trim());
+  const kept = parts.filter((p) => p && !/^url\(\s*["']?data:image\//i.test(p));
+  return kept.length > 0 ? kept.join(", ") : "none";
+}
+
+/**
  * Détecte les zones photo dans le HTML d'une slide.
  *
  * Strategy A (priorité) : éléments annotés [data-pptx-photo="N"] par Sonnet.
@@ -384,6 +415,7 @@ export async function exportCarouselHybridPptx(
   slidesData: SlideData[] | null | undefined,
   charter: HybridCharter | null | undefined,
   fileName = "carrousel-editable",
+  originalPhotos?: OriginalPhoto[],
 ) {
   const pptx = new PptxGenJS();
   pptx.defineLayout({ name: "INSTAGRAM", width: PPTX_W_IN, height: PPTX_H_IN });
@@ -441,11 +473,85 @@ export async function exportCarouselHybridPptx(
         }
       }
 
-      // Force layout flush after hiding
+      // ---- Photo zones extraction + filtering on availability
+      // Si originalPhotos n'est pas fourni → usableZones vide → fallback total :
+      // les photos restent visibles dans le rasterisé (comportement legacy).
+      const allZones = extractPhotoZones(doc);
+      const usableZones: PhotoZone[] = [];
+      for (const zone of allZones) {
+        const photo = originalPhotos?.[zone.photoIndex - 1];
+        if (!photo?.base64) {
+          // Pas de photo native dispo : on warn (P4) seulement si l'appelant a tenté
+          // de fournir des photos (sinon c'est juste le mode legacy).
+          if (originalPhotos && originalPhotos.length > 0) {
+            try {
+              Sentry.captureMessage("[hybrid] photo native introuvable", {
+                level: "warning",
+                extra: {
+                  photoIndex: zone.photoIndex,
+                  slideNumber: vs.slide_number,
+                  providedCount: originalPhotos.length,
+                },
+              });
+            } catch {
+              /* Sentry non initialisé : noop */
+            }
+          }
+          continue;
+        }
+        usableZones.push(zone);
+      }
+
+      // ---- Mask usable zones in iframe so captureBody produit du transparent dessus
+      for (const zone of usableZones) {
+        if (zone.type === "img") {
+          const target = zone.el.parentElement || zone.el;
+          target.setAttribute("data-pptx-photo-hide", "true");
+        } else {
+          // background : retirer l'url(data:...) inline tout en conservant gradients
+          const cs = win.getComputedStyle(zone.el);
+          const cleaned = stripDataUrlsFromBackground(cs.backgroundImage || "");
+          // !important via setProperty pour battre les classes Tailwind / CSS overlay
+          zone.el.style.setProperty("background-image", cleaned, "important");
+        }
+      }
+
+      // Force layout flush après masquage texte + photos
       void win.document.body.offsetHeight;
       await new Promise((r) => setTimeout(r, 50));
 
       const bg = await captureBody(doc);
+
+      // ---- Z-ORDER (bottom → top) :
+      // 1. Photos natives (couche bottom)
+      // 2. Fond rasterisé transparent sur zones photo (couche middle)
+      // 3. Blocs texte éditables (couche top)
+      for (const zone of usableZones) {
+        const photo = originalPhotos![zone.photoIndex - 1]; // garanti par filtre ci-dessus
+        // Clamp dans les limites de la slide pour éviter les coordonnées négatives
+        const xRaw = pxToInches(zone.rect.x, PX_PER_IN);
+        const yRaw = pxToInches(zone.rect.y, PX_PER_IN);
+        const wRaw = pxToInches(zone.rect.w, PX_PER_IN);
+        const hRaw = pxToInches(zone.rect.h, PX_PER_IN);
+        const x = Math.max(0, xRaw);
+        const y = Math.max(0, yRaw);
+        const w = Math.min(PPTX_W_IN - x, wRaw - (x - xRaw));
+        const h = Math.min(PPTX_H_IN - y, hRaw - (y - yRaw));
+        if (w <= 0 || h <= 0) continue;
+        try {
+          slide.addImage({
+            data: photo.base64,
+            x,
+            y,
+            w,
+            h,
+            sizing: { type: "cover", w, h },
+          });
+        } catch (e) {
+          console.warn("[hybrid] addImage(originalPhoto) failed", e);
+        }
+      }
+
       slide.addImage({ data: bg, x: 0, y: 0, w: PPTX_W_IN, h: PPTX_H_IN });
 
       for (const b of blocks) {

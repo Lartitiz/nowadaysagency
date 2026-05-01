@@ -1,96 +1,163 @@
-# Plan — Alléger la sélection d'angle éditorial
+# Étape 2 — Boucle slide hybride : photos natives + fond rasterisé transparent
 
-## Contexte
+## Confirmation
 
-Aujourd'hui, après avoir choisi un canal et un format, l'utilisatrice voit **8 cartes d'angle éditorial** (Décryptage expert, Storytelling pro, Étude de cas, Coulisses, Conseil contre-courant…) plus un bouton "L'outil choisit pour moi". C'est lourd : titre, sous-titre, gros bouton IA, section "Recommandées pour ton objectif", section "Autres approches", chaque carte avec emoji + titre + description longue.
+État repo vérifié :
+- ✅ Étape 1 OK : `OriginalPhoto`, `PhotoZone`, `extractPhotoZones` (Strategy A + B + garde-fou P3), CSS `data-pptx-photo-hide`
+- ❌ Étape 2 absente : signature à 4 paramètres, pas d'inversion d'ordre Z
+- ❌ Étape 3 absente (hors scope ici)
 
-Or, dans 95 % des cas, le bon angle peut être **inféré par l'IA** à partir de l'idée + l'objectif + l'identité de marque. Mais on veut garder un contrôle pour les expertes qui veulent forcer un ton précis (ex. "prise de position" sur un sujet sensible), et un filet de sécurité après génération.
+Étape 2 ne touche QUE `src/lib/export-carousel-hybrid-pptx.ts`. Pas de câblage CreerUnifie, pas de prompt Sonnet (Étape 3).
 
-## Ce que ça change pour l'utilisatrice
+## Changements
 
-**Avant** (bloc qui prend ~600 px de hauteur) :
-```text
-Comment tu veux en parler ?
-Chaque approche donne un ton et une structure différente…
+### 1. Imports
 
-[ ✨ L'outil choisit pour moi ]
-
-📌 Recommandées pour ton objectif
-[ Carte angle 1 ]
-[ Carte angle 2 ]
-[ Carte angle 3 ]
-
-Autres approches
-[ Carte angle 4 ]
-[ Carte angle 5 ]
-[ Carte angle 6 ]
-[ Carte angle 7 ]
-[ Carte angle 8 ]
+Ajouter en tête de fichier :
+```ts
+import * as Sentry from "@sentry/react";
 ```
 
-**Après** (par défaut, ~80 px) :
-```text
-✨ L'IA va choisir l'angle parfait
-   Selon ton idée, ton objectif et ta voix de marque.
-   ▸ Choisir mon angle moi-même
+### 2. Signature de `exportCarouselHybridPptx`
+
+Ajouter 5e paramètre optionnel :
+```ts
+export async function exportCarouselHybridPptx(
+  visualSlides: VisualSlide[],
+  slidesData: SlideData[] | null | undefined,
+  charter: HybridCharter | null | undefined,
+  fileName = "carrousel-editable",
+  originalPhotos?: OriginalPhoto[],
+)
 ```
 
-Si elle clique sur "Choisir mon angle moi-même", les 8 cartes apparaissent (même UI qu'aujourd'hui, mais sans la section "📌 Recommandées" qui devient inutile puisqu'on délègue à l'IA — on liste juste les 8 angles dans l'ordre). Un bouton "Revenir au choix automatique" permet de replier.
+Rétro-compat garantie : `CalendarPostPreview.tsx` ligne 116 appelle avec 4 args → `originalPhotos = undefined` → fallback total (comportement actuel inchangé).
 
-**Sur l'écran résultat**, ajout d'un bouton discret à côté de "Régénérer" :
+### 3. Boucle slide — nouvelle séquence
+
+Dans le `try` (lignes 399-457), réorganiser ainsi :
+
 ```text
-[ 🔄 Régénérer ]   [ 🎨 Changer l'angle ▾ ]
+1. waitReady(iframe)
+2. extractAnnotatedBlocks → blocks[] + setAttribute data-pptx-hide  ┐
+3. (idem strategies B/C texte)                                      │  inchangé
+                                                                    ┘
+4. NOUVEAU : extractPhotoZones(doc) → allZones
+   filter usableZones = zones où originalPhotos?.[zone.photoIndex - 1]?.base64 existe
+   pour zones NON usables : Sentry.captureMessage P4 + (laisser visible : pas de masquage)
+   pour zones usables :
+     - type "img" : zone.el.parentElement.setAttribute("data-pptx-photo-hide", "true")
+                   (le CSS Étape 1 cible "[data-pptx-photo-hide=true] img" → masque l'IMG via visibility:hidden)
+                   Si pas de parent (cas tordu) : annoter l'élément lui-même
+     - type "background" : reconstruire backgroundImage inline en retirant
+                           UNIQUEMENT les "url(data:image/...)" et conservant
+                           gradients (linear-gradient, radial-gradient,
+                           conic-gradient). Implémentation : split sur virgules
+                           top-level (pas dans parenthèses) puis filter.
+
+5. Force layout flush : void doc.body.offsetHeight + await setTimeout(30ms)
+   (déjà présent à 50ms après les blocs texte → on garde, pas de duplication)
+
+6. captureBody(doc) → bg PNG transparent sur les zones photo
+   (backgroundColor:null déjà set + visibility:hidden = transparence)
+
+7. NOUVEAU : INVERSION ORDRE Z — couche bottom = photos natives
+   Pour chaque zone usable, AVANT addImage(bg) :
+     const photo = originalPhotos[zone.photoIndex - 1];
+     slide.addImage({
+       data: photo.base64,            // déjà préfixé "data:image/..." par convention upstream
+       x: pxToInches(zone.rect.x, PX_PER_IN),
+       y: pxToInches(zone.rect.y, PX_PER_IN),
+       w: pxToInches(zone.rect.w, PX_PER_IN),
+       h: pxToInches(zone.rect.h, PX_PER_IN),
+       sizing: { type: "cover", w: ..., h: ... },  // cover dans la zone
+     });
+
+8. addImage(bg) — fond rasterisé par-dessus les photos (zones photo transparentes)
+
+9. addText des blocks (couche top, inchangée)
 ```
-Le menu déroulant liste les 8 angles. Clic = relance la génération avec ce nouvel angle (réutilise le `handleRegenerate` existant en surchargeant `editorialAngle`).
 
-## Architecture (technique)
+### 4. Helper privé `stripDataUrlsFromBackground`
 
-### Fichiers touchés
+Petit utilitaire local, testable mentalement :
 
-1. **`src/components/creer/CreerStepFormat.tsx`** (modif principale, lignes 606-639)
-   - Nouvel état local `expandAngles: boolean` (default `false`).
-   - Quand `showAngles && !expandAngles` → afficher la nouvelle carte compacte "L'IA va choisir l'angle parfait" + lien "Choisir mon angle moi-même".
-   - Quand `expandAngles === true` → afficher les 8 cartes (sans la section "Recommandées pour ton objectif"), précédées d'un lien "← Revenir au choix automatique".
-   - Le bouton compact appelle `handleNext()` directement (= comportement actuel "L'outil choisit pour moi").
-   - Supprimer la mention "📌 Recommandées pour ton objectif" et fusionner `recommended` + `others` en une seule liste ordonnée (recommended d'abord pour garder l'ordre par pertinence, mais sans le label séparateur).
-   - Mettre à jour le mini-recap (ligne 729-731) : `"angle à choisir (ou laisse l'IA décider)"` → `"l'IA choisira l'angle"`.
+```ts
+function stripDataUrlsFromBackground(bgImage: string): string {
+  // Split sur virgules top-level uniquement (pas dans parenthèses)
+  const parts: string[] = [];
+  let depth = 0, start = 0;
+  for (let i = 0; i < bgImage.length; i++) {
+    const c = bgImage[i];
+    if (c === "(") depth++;
+    else if (c === ")") depth--;
+    else if (c === "," && depth === 0) {
+      parts.push(bgImage.slice(start, i).trim());
+      start = i + 1;
+    }
+  }
+  parts.push(bgImage.slice(start).trim());
+  // Garder ce qui n'est PAS un url(data:image/...)
+  const kept = parts.filter((p) => !/^url\(["']?data:image\//i.test(p));
+  return kept.length > 0 ? kept.join(", ") : "none";
+}
+```
 
-2. **`src/components/creer/CreerStepResult.tsx`**
-   - Nouvelle prop optionnelle `onChangeAngle?: (angleId: string) => void` et `currentChannel?: string` (pour piocher la bonne liste d'angles : Instagram/post → `EDITORIAL_ANGLES`, LinkedIn → `LINKEDIN_EDITORIAL_ANGLES`, Pinterest → `PINTEREST_EDITORIAL_ANGLES`).
-   - À côté du bouton "Régénérer" déjà câblé, ajout d'un `DropdownMenu` shadcn avec 8 items + un item "✨ Laisser l'IA choisir" (= passe `null`).
-   - Si `onChangeAngle` n'est pas fourni, le bouton ne s'affiche pas (rétro-compat sécurisée pour les autres usages du composant).
+### 5. Fallback Sentry P4
 
-3. **`src/pages/CreerUnifie.tsx`**
-   - Nouveau handler `handleChangeAngle(newAngle: string | null)` qui :
-     1. `setEditorialAngle(newAngle)`
-     2. Appelle `handleRegenerate()` (déjà existant, ligne 2412)
-   - Passé en prop à `<CreerStepResult onChangeAngle={handleChangeAngle} currentChannel={selectedChannel} />`.
+```ts
+for (const zone of allZones) {
+  const photo = originalPhotos?.[zone.photoIndex - 1];
+  if (!photo?.base64) {
+    Sentry.captureMessage("[hybrid] photo native introuvable", {
+      level: "warning",
+      extra: { photoIndex: zone.photoIndex, slideNumber: vs.slide_number },
+    });
+    continue; // zone non usable : on laisse visible dans le rasterisé
+  }
+  usableZones.push(zone);
+}
+```
 
-### Logique IA (backend)
+## Architecture finale (pseudo-code)
 
-**Aucun changement nécessaire côté Edge Functions.** La logique "si pas d'angle → l'IA choisit" existe déjà dans `carousel-ai`, `linkedin-ai` et `creative-flow` (lignes 174, 195, 238, 260 de `carousel-ai/index.ts` : `${body.editorial_angle ? \`Angle éditorial : \${body.editorial_angle}\` : "L'IA choisit le meilleur angle."}`).
+```text
+for each slide:
+  mountIframe + waitReady
+  blocks ← extract texte (inchangé)
+  cacher blocks texte (inchangé)
 
-**On ne touche pas non plus au prompt IA pour "renforcer" le choix d'angle.** L'utilisatrice a explicitement choisi de tout déléguer à l'IA sans biais d'objectif. Le prompt actuel suffit : il connaît l'idée, l'objectif, l'identité de marque, et il choisit librement.
+  zones ← extractPhotoZones
+  usable ← zones filtrées sur originalPhotos disponibles
+  Sentry.warning sur chaque zone non usable
+  pour chaque usable : masquer img / nettoyer backgroundImage
+  flush layout
 
-### Logique "objectif → angles recommandés"
+  bg ← captureBody (transparent sur zones)
 
-La fonction `getAnglesForType(contentType, objective)` continue d'exister (utilisée pour ordonner les cartes quand l'utilisatrice déplie). Mais elle ne sert plus à filtrer ou prioriser côté IA — l'IA choisit librement. La constante `OBJECTIVE_RECOMMENDATIONS` reste en place pour ne rien casser, mais devient purement un détail d'affichage (ordre par défaut dans la liste dépliée).
+  // ORDRE Z (de bottom à top) :
+  pour chaque usable : slide.addImage(originalPhoto)   ← couche 1
+  slide.addImage(bg, full slide)                        ← couche 2
+  pour chaque block : slide.addText                     ← couche 3
+```
 
-## Périmètre confirmé
+## Critères de validation
 
-- ✅ **Tous les formats** : carrousel Instagram/LinkedIn, post photo, story, reel, post LinkedIn, newsletter, Pinterest, Pinterest visuel. Tout passe par le même `CreerStepFormat.tsx` → un seul changement couvre tout.
-- ✅ **Filet post-génération** : bouton "Changer l'angle" sur l'écran résultat.
-- ❌ **Pas touché** : Pinterest inspiration (pas de sélecteur d'angle, on uploade une capture).
+1. **Compile clean** : `bunx tsc --noEmit` sans erreur.
+2. **Régression text_only** : un carrousel texte appelé avec `originalPhotos = undefined` (4 args via CalendarPostPreview) doit produire exactement le même PPTX qu'avant.
+3. **Carrousel avec photos + originalPhotos undefined** : pas de crash, fallback total = comportement actuel (photos rasterisées dans le fond).
+4. **Carrousel avec photos + originalPhotos fourni** : photos natives en couche bottom, fond transparent dessus, texte éditable au-dessus.
 
-## Hors-scope (pour rester focus)
+Pas de test runtime exécuté ici (pas de fixtures sous la main) — la validation visuelle se fera lors de l'Étape 3 quand le câblage CreerUnifie sera en place.
 
-- Refonte des cartes d'angle elles-mêmes (descriptions, emojis, libellés).
-- Modification des prompts Edge Functions pour mieux choisir l'angle.
-- Refonte de la logique `OBJECTIVE_RECOMMENDATIONS`.
-- Ajout d'un mode "ton" (Équilibré/Tranché/Narratif) — c'était une alternative explorée puis écartée.
+## Hors-scope (Étape 3)
 
-## Risques / points de vigilance
+- Câblage `originalPhotos = generatedWithPhotos` dans `CreerUnifie.tsx` ligne 2143.
+- Instruction Sonnet pour `data-pptx-photo="N"` dans `supabase/functions/carousel-visual/index.ts`.
+- Test E2E de bout en bout.
 
-- **Régression Pinterest** : sur `pinterest_visual`, l'angle pilote le `pin_type` (cf. `CreerUnifie.tsx` ligne 815 : `editorialAngle || "infographie"`). Si l'utilisatrice ne déplie pas, l'IA passe `null` → fallback sur `"infographie"`. À vérifier que ce fallback est acceptable, sinon forcer le dépliage automatique pour Pinterest visuel.
-- **Mode Lancement** : `editorialAngle === "lancement"` active un mode spécial (`isLaunchMode`, ligne 2221). Ce mode est déclenché par un autre chemin (séries de lancement) et ne passe pas par la sélection manuelle ici → pas de régression attendue, mais à reconfirmer en testant.
-- **Persistance** : le store sessionStorage (`use-flow-persistence`) sérialise déjà `editorialAngle`. Le changement post-génération via `handleChangeAngle` doit déclencher la sauvegarde — c'est automatique car `editorialAngle` est dans les deps du `useEffect` de persistance (ligne 366).
+## Risques résiduels
+
+- **`photo.base64` format** : on suppose que la string contient déjà le préfixe `data:image/...` (convention upstream PhotoUploadZone). Si ce n'est pas le cas, addImage de pptxgenjs échouera silencieusement. À documenter dans le JSDoc de `OriginalPhoto`.
+- **Élément `img` sans parent direct dans body** : très rare, fallback géré (annoter l'IMG lui-même au lieu du parent).
+- **Zone qui dépasse la slide** : `extractPhotoZones` filtre déjà les zones hors-slide, mais `pxToInches` peut produire des x/y négatifs si la zone est partiellement sortie. À clamper avec `Math.max(0, ...)` pour x/y et `Math.min(PPTX_W_IN - x, ...)` pour w/h.
