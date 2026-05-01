@@ -1,50 +1,66 @@
-## Problème
+## Contexte
 
-Sur l'étape Format → Carrousel "Photo" ou "Mixte", la zone d'upload des photos est invisible : aucune drop zone, aucun bouton "+ Ajouter", rien.
+Quand l'utilisateur entre par "Partir de photos" (`initialPhotos.length > 0`), l'écran Format propose actuellement **tous les formats**, y compris ceux qui ne savent pas exploiter les photos (carrousel texte, pinterest texte, etc.). On affiche juste un avertissement amber a posteriori. Décision : masquer complètement les formats incompatibles dans ce mode.
 
-## Cause
+## Inventaire (in/out)
 
-`CreerStepFormat.tsx` (ligne 584) passe `compact` en dur à `<PhotoUploadZone>`. Or, en mode compact, `PhotoUploadZone` :
+**Compatibles photos** (gardés) :
 
-- masque la grande drop zone (`!compact`)
-- n'affiche le bouton "+ Ajouter d'autres photos" et les vignettes que **si `photos.length > 0`**
-- masque aussi la textarea de description
+| Canal | Formats |
+|---|---|
+| Instagram | post, reel, story, carousel (sous-modes photo/mix forcés) |
+| LinkedIn | post texte (avec image), carrousel mixte |
+| Pinterest | visuel, inspiration |
+| Newsletter | newsletter (image d'en-tête) |
 
-Conséquence : tant que l'utilisateur n'a aucune photo, le composant ne rend rien d'actionnable. Le mode `compact` est conçu pour les étapes où des photos ont déjà été importées en amont — ce qui n'est pas le cas du carrousel Photo/Mix (c'est la première occasion d'uploader).
+**Incompatibles** (masqués si photos préchargées) :
 
-## Correctif
+- LinkedIn → carrousel **texte**
+- Pinterest → **texte** (SEO seul)
+- Carrousel Instagram → sous-mode **texte**
 
-Dans `src/components/creer/CreerStepFormat.tsx` (ligne 572-605), passer `PhotoUploadZone` en mode **non-compact uniquement quand aucune photo n'est encore présente**, puis basculer en compact dès qu'au moins une photo est uploadée :
+**Canaux** : tous conservés (chacun a au moins un format compatible). Filtrer au niveau canal ferait perdre des cas légitimes (ex : post LinkedIn avec photo de chantier).
 
-```tsx
-<PhotoUploadZone
-  maxPhotos={10}
-  initialPhotos={uploadedPhotos.length > 0 ? uploadedPhotos : undefined}
-  initialDescription={photoDescription}
-  onPhotosChange={(photos) => {
-    setUploadedPhotos(photos);
-    if (photos.length > 0) setPhotoWarning(false);
-  }}
-  onDescriptionChange={setPhotoDescription}
-  title={uploadedPhotos.length > 0 ? `Vos photos (${uploadedPhotos.length})` : undefined}
-  compact={uploadedPhotos.length > 0}   {/* ← seul changement */}
-/>
-```
+## Implémentation
 
-### Pourquoi cette approche
+Tout se passe dans `src/components/creer/CreerStepFormat.tsx`. On dérive un booléen `hasPreloadedPhotos = (initialPhotos?.length ?? 0) > 0` en haut du composant.
 
-- **Premier upload** : drop zone large + textarea description visibles → l'utilisateur voit clairement où importer.
-- **Photos déjà présentes** : passage automatique en compact → vignettes + bouton discret "+ Ajouter d'autres photos", sans la grosse drop zone redondante.
-- Aucun changement nécessaire dans `PhotoUploadZone.tsx` : on respecte sa sémantique existante.
+### 1. Sous-grille Instagram (lignes 419-451)
+
+Filtrer la liste : si `hasPreloadedPhotos`, ne montrer que les formats dont `formatAcceptsSinglePhoto(id)` est vrai **ou** `id === "carousel"`.
+
+### 2. Sous-mode LinkedIn (lignes 353-383)
+
+Si `hasPreloadedPhotos`, masquer la carte "Carrousel texte" (garder "Post texte" et "Carrousel mixte").
+
+### 3. Sous-mode Pinterest (lignes 386-416)
+
+Si `hasPreloadedPhotos`, masquer la carte "Texte" (garder "Visuel" et "Inspiration").
+
+### 4. Sous-mode carrousel Instagram (lignes 538-567)
+
+Si `hasPreloadedPhotos`, masquer la carte "📝 Texte" du choix de sous-mode carrousel (ne montrer que Photo et Mixte). Idéalement, pré-sélectionner Mixte par défaut comme sous-mode.
+
+### 5. Avertissement amber existant (lignes 456-470)
+
+Devient quasi inatteignable une fois le filtre appliqué — on le garde tel quel comme garde-fou (ex : preload async).
+
+### 6. Hint discret en haut
+
+Sous le titre "Quel format ?", ajouter une petite note : *"Quelques formats ont été masqués car ils n'utilisent pas tes photos."* + lien *"Tout afficher quand même"* qui force `hasPreloadedPhotos = false` localement (état `forceShowAll`). Filet de sécurité pour les cas où l'utilisateur veut un texte pur malgré ses photos.
 
 ## Hors scope
 
-- Le warning console `Function components cannot be given refs` sur `PhotoUploadZone` / `CreerStepQuestions` est un autre sujet (préexistant, non bloquant). À traiter séparément si tu veux nettoyer.
-- Pas de modification du flow Étape 2/3 PPTX hybride en cours.
+- Pas de changement dans `CreerStepIdea.tsx` (entrée).
+- Pas de changement dans `use-content-generator.ts` ni dans la logique de génération.
+- Le warning ref preexistant `Function components cannot be given refs` reste à traiter ailleurs.
 
 ## Validation
 
-- Aller sur Créer → choisir Instagram → Carrousel → Photo (ou Mixte).
-- Vérifier que la grande drop zone "Glisse tes photos ici" + textarea description sont visibles immédiatement.
-- Importer une photo → la drop zone disparaît, remplacée par la vignette + le bouton "+ Ajouter d'autres photos".
-- Supprimer toutes les photos → la drop zone réapparaît.
+- Entrer par "Partir de photos", uploader 3 photos, Suivant → écran Format.
+- Instagram : la grille ne montre que post/reel/story/carrousel.
+- LinkedIn : 2 cartes (Post texte, Carrousel mixte).
+- Pinterest : 2 cartes (Visuel, Inspiration).
+- Carrousel Instagram : sous-modes Photo + Mixte uniquement.
+- Cliquer "Tout afficher quand même" → tous les formats reviennent, l'avertissement amber s'affiche si on choisit un format texte.
+- Entrer sans photos → tout est affiché normalement (régression check).

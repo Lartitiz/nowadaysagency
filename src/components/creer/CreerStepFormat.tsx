@@ -93,6 +93,8 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
   const [inspirationPhotos, setInspirationPhotos] = useState<PhotoItem[]>([]);
   const [photoWarning, setPhotoWarning] = useState(false);
   const [expandAngles, setExpandAngles] = useState(false);
+  const [forceShowAll, setForceShowAll] = useState(false);
+  const hasPreloadedPhotos = (initialPhotos?.length ?? 0) > 0 && !forceShowAll;
 
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
