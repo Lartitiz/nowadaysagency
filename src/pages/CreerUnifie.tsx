@@ -2213,15 +2213,8 @@ export default function CreerUnifie() {
     setLaunchGenerating(false);
   };
 
-  // ── Progress bar ──
+  // ── Progress bar moved into <CreerStepper /> below ──
 
-  const stepOrder: Step[] = (() => {
-    if (selectedFormat === "pinterest_inspiration") {
-      return ["idea", "format", "inspiration_proposals", "result", "edit"];
-    }
-    return ["idea", "format", "questions", "result", "edit"];
-  })();
-  const stepIndex = stepOrder.indexOf(step);
 
   // ── Launch mode rendering ──
 
