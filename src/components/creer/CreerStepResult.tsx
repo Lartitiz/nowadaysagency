@@ -181,6 +181,9 @@ interface Props {
   channel?: "linkedin" | "instagram";
   captionLoading?: boolean;
   onRegenerateCaption?: () => void;
+  onChangeAngle?: (angleId: string | null) => void;
+  currentAngle?: string | null;
+  currentChannel?: string;
 }
 
 export default function CreerStepResult({
