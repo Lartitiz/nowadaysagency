@@ -518,11 +518,11 @@ export const CONTENT_TYPE_SPECS: Record<string, ContentTypeSpec> = {
     specs: "800-1500 caractères, accroche + CTA",
   },
   linkedin: {
-    label: "LinkedIn",
+    label: "Post LinkedIn",
     emoji: "💼",
     channel: "linkedin",
     edgeFunction: "linkedin-ai",
-    specs: "1300-2000 caractères, ton professionnel",
+    specs: "1300-2000 caractères, ton incarné",
   },
   newsletter: {
     label: "Newsletter",
@@ -532,7 +532,7 @@ export const CONTENT_TYPE_SPECS: Record<string, ContentTypeSpec> = {
     specs: "1500-2500 mots, storytelling + valeur",
   },
   pinterest: {
-    label: "Pinterest",
+    label: "Épingle texte",
     emoji: "📌",
     channel: "pinterest",
     edgeFunction: "pinterest-ai",
