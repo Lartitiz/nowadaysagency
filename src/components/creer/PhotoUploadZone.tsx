@@ -159,10 +159,24 @@ export function PhotoUploadZone({
   );
 
   // ── Drop zone events ──────────────────────────────
-  const onDragEnter = (e: ReactDragEvent) => { e.preventDefault(); if (!isFull) setIsDragOver(true); };
-  const onDragLeave = (e: ReactDragEvent) => { e.preventDefault(); setIsDragOver(false); };
-  const onDragOverZone = (e: ReactDragEvent) => { e.preventDefault(); };
+  const isFileDrag = (e: ReactDragEvent) =>
+    Array.from(e.dataTransfer.types || []).includes("Files");
+  const onDragEnter = (e: ReactDragEvent) => {
+    if (!isFileDrag(e)) return;
+    e.preventDefault();
+    if (!isFull) setIsDragOver(true);
+  };
+  const onDragLeave = (e: ReactDragEvent) => {
+    if (!isFileDrag(e)) return;
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+  const onDragOverZone = (e: ReactDragEvent) => {
+    if (!isFileDrag(e)) return;
+    e.preventDefault();
+  };
   const onDrop = (e: ReactDragEvent) => {
+    if (!isFileDrag(e)) return;
     e.preventDefault();
     setIsDragOver(false);
     if (isFull) return;
