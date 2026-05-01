@@ -280,35 +280,50 @@ ${recentPosts}
 
 DEMANDE :
 - Canal : ${canalLabel} | Format : ${formatLabel} | Objectif : ${objectifLabel}
-- Sujet : ${sujet || "PAS DE SUJET → propose 3 idées concrètes et surprenantes"}
+- Sujet : ${sujet || "PAS DE SUJET → propose 4 idées concrètes et surprenantes"}
 - Ton : ${tonLabel}${contentTypeLabel ? ` | Angle demandé : ${contentTypeLabel}` : ""}
 ${formatBlock}${bugCreatifBlock}
 RÈGLE D'OR — ANCRAGE MÉTIER (la plus importante) :
 Les idées parlent du MÉTIER de l'utilisatrice (photographie si photographe, céramique si céramiste, transformations accompagnées si coach, etc.), PAS de communication en général. NE JAMAIS proposer d'idées sur "comment communiquer", "l'authenticité sur Instagram", "oser se montrer", SAUF si elle travaille elle-même dans la communication/marketing.
 Test de spécificité : si l'idée pourrait fonctionner pour quelqu'un d'un autre secteur, elle est trop vague.
 
-MÉTHODE :
-Les 3 idées DOIVENT piocher dans 3 catégories DIFFÉRENTES parmi :
-   A. Observation de terrain ancrée (vu chez ses clientes / dans son secteur de cible)
-   B. Mécanisme/biais nommé et décortiqué
-   C. Contre-pied factuel d'un conseil mainstream PRÉCIS et VÉRIFIABLEMENT répandu
-   D. Micro-scène / archive personnelle (un moment, un détail concret)
-   E. Question ouverte sans réponse (qui invite la cible à formuler la sienne)
-   F. Décryptage d'un mot/concept galvaudé du secteur de la cible
-Applique au moins 1 CONTRAINTE CRÉATIVE si elle s'y prête naturellement :
+MÉTHODE — 4 REGISTRES OBLIGATOIRES ET ORDONNÉS :
+Tu produis EXACTEMENT 4 idées, une par registre, dans cet ordre :
+
+   1. EXPERTISE PRATIQUE — le "comment" du métier ancré terrain. Détail technique précis, savoir-faire opérationnel, mécanique concrète de l'activité de l'utilisatrice. C'est le registre "métier vu de l'intérieur" : ce que seule quelqu'un qui exerce vraiment ${activiteTxt} peut formuler avec cette précision.
+
+   2. CONVICTION / CONTRE-PIED — opinion tranchée du métier qui dérange aussi les PAIRS du secteur (pas seulement l'audience). Pas un contre-pied qui flatte l'audience contre les pairs (ex : "les autres vous mentent, voilà la vérité") — un contre-pied qui met mal à l'aise les confrères / consœurs parce qu'il touche à une pratique commune du métier. Voir TEST DE SINGULARITÉ ci-dessous.
+
+   3. PERSPECTIVE ÉLARGIE — regard sur le SECTEUR (pas sur le geste métier individuel). Mécanisme nommé (biais cognitif, dynamique de marché, ressort psychologique précis), ou mise en tension culturelle/sociétale autour du métier. On prend de la hauteur, on décortique une dynamique invisible.
+
+   4. ANALOGIE INATTENDUE — parallèle entre une mécanique précise du métier de l'utilisatrice et un univers totalement différent (cuisine, sport, artisanat, mécanique, art, science, jeu d'échecs, jardinage, musique, architecture, etc.). L'analogie doit RÉELLEMENT TENIR (pas un parallèle décoratif) et faire voir le métier autrement. Pas la peine de forcer un univers tendance — choisis celui qui éclaire vraiment.
+
+CONTRAINTES CRÉATIVES OPTIONNELLES (à appliquer si pertinent à l'un des 4 registres, sinon ignore) :
    🎲 ${seed1}
    🎲 ${seed2}
 
 RÈGLE ANTI-TU :
 Le SUBJECT est rédigé en JE narratif ou IMPERSONNEL (3e personne, on, nominalisations). INTERDIT par défaut : "tu", "te", "t'", "toi", "ton", "ta", "tes", "vous", "votre", "vos".
 
-${sujet ? `Toutes les idées sont liées au sujet "${sujet}" mais avec des angles RADICALEMENT différents (pas 3 variations).` : `Les 3 idées couvrent au moins 2 objectifs différents parmi : visibilite, engagement, vente, credibilite, et touchent des facettes différentes du métier.`}
+${sujet ? `Les 4 idées traitent toutes du sujet "${sujet}" mais sous les 4 registres ci-dessus, donc 4 angles RADICALEMENT différents (pas 4 variations du même angle).` : `Les 4 registres priment sur tout le reste. En bonus, vise une diversité d'objectifs parmi : visibilite, engagement, vente, credibilite, et touche des facettes différentes du métier.`}
 
 ROUTES :
 Instagram : Post → /creer | Carrousel → /creer?format=carousel | Reel → /creer?format=reel | Story → /creer?format=story
 LinkedIn : Post/Carrousel → /creer?format=linkedin
 Pinterest : Texte → /creer?canal=pinterest | Visuelle → /creer?canal=pinterest&format=pinterest_visual
 Newsletter → /creer?format=newsletter
+
+═══════════════════════════════════════════════
+TEST DE SINGULARITÉ — applique-le sur CHAQUE idée AVANT le test de validité
+═══════════════════════════════════════════════
+Si quelqu'un qui suit 5 comptes du même secteur sur Insta/LinkedIn aurait déjà vu cette idée formulée à peu près comme ça → invalide, recommence.
+
+Pour passer, l'idée doit avoir AU MOINS UN de ces caractères :
+- Un détail technique trop précis pour être générique
+- Un angle qu'aucun·e influenceur·euse du secteur ne prendrait (parce que ça ne flatte pas, parce que c'est trop nuancé pour Insta, parce que ça contredit la doxa du secteur lui-même)
+- Une formulation qui surprend par sa concrétude ou sa franchise
+
+Note spécifique CONTRE-PIED (Idée 2) : si le contre-pied dit "tout le monde fait X mal, en vrai il faut Y", c'est probablement déjà vu. Cherche un contre-pied qui dérange les PAIRS du secteur, pas un contre-pied qui flatte l'audience contre les pairs.
 
 ═══════════════════════════════════════════════
 TEST DE VALIDITÉ — applique-le sur CHAQUE idée AVANT de la sortir
@@ -336,9 +351,9 @@ Retourne UNIQUEMENT ce JSON (pas de markdown, pas de commentaires, pas de prose 
     const raw = await callAnthropicSimple(
       getModelForAction("coaching"),
       systemPrompt,
-      "Génère 3 idées de contenu (sujet + angle uniquement, PAS de hook ni de brief). Applique successivement : (1) AUDIENCE vs UTILISATRICE, (2) RÈGLE DE VÉRITÉ, (3) RÈGLE D'OR métier, (4) TEST DE VALIDITÉ. Réponds UNIQUEMENT avec le JSON demandé.",
+      "Génère 4 idées de contenu (sujet + angle uniquement, PAS de hook ni de brief), une par registre dans l'ordre : 1.expertise pratique / 2.contre-pied / 3.perspective élargie / 4.analogie inattendue. Applique successivement : (1) AUDIENCE vs UTILISATRICE, (2) RÈGLE DE VÉRITÉ, (3) RÈGLE D'OR métier, (4) TEST DE SINGULARITÉ, (5) TEST DE VALIDITÉ. Réponds UNIQUEMENT avec le JSON demandé.",
       0.8,
-      800,
+      1200,
     );
 
     let result: any;
