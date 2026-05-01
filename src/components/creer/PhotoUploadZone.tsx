@@ -159,10 +159,24 @@ export function PhotoUploadZone({
   );
 
   // ── Drop zone events ──────────────────────────────
-  const onDragEnter = (e: ReactDragEvent) => { e.preventDefault(); if (!isFull) setIsDragOver(true); };
-  const onDragLeave = (e: ReactDragEvent) => { e.preventDefault(); setIsDragOver(false); };
-  const onDragOverZone = (e: ReactDragEvent) => { e.preventDefault(); };
+  const isFileDrag = (e: ReactDragEvent) =>
+    Array.from(e.dataTransfer.types || []).includes("Files");
+  const onDragEnter = (e: ReactDragEvent) => {
+    if (!isFileDrag(e)) return;
+    e.preventDefault();
+    if (!isFull) setIsDragOver(true);
+  };
+  const onDragLeave = (e: ReactDragEvent) => {
+    if (!isFileDrag(e)) return;
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+  const onDragOverZone = (e: ReactDragEvent) => {
+    if (!isFileDrag(e)) return;
+    e.preventDefault();
+  };
   const onDrop = (e: ReactDragEvent) => {
+    if (!isFileDrag(e)) return;
     e.preventDefault();
     setIsDragOver(false);
     if (isFull) return;
@@ -231,7 +245,25 @@ export function PhotoUploadZone({
 
       {/* ── Thumbnails grid ───────────────────── */}
       {photos.length > 0 && (
-        <>
+        <div
+          onDragEnter={compact ? onDragEnter : undefined}
+          onDragLeave={compact ? onDragLeave : undefined}
+          onDragOver={compact ? onDragOverZone : undefined}
+          onDrop={compact ? onDrop : undefined}
+          className={cn(
+            "relative space-y-2 rounded-xl transition-colors",
+            compact && !isFull && "border border-dashed border-transparent hover:border-border p-2 -m-2",
+            compact && isDragOver && "border-primary bg-primary/5",
+          )}
+        >
+          {compact && isDragOver && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-primary/10 border-2 border-dashed border-primary pointer-events-none">
+              <div className="flex items-center gap-2 text-primary font-medium text-sm">
+                <Upload className="h-4 w-4" />
+                Dépose tes photos ici
+              </div>
+            </div>
+          )}
           <div className="flex justify-between items-center gap-2">
             {compact && !isFull ? (
               <button
@@ -321,7 +353,7 @@ export function PhotoUploadZone({
           <p className="text-xs text-muted-foreground text-center">
             {photos.length} / {maxPhotos} photos
           </p>
-        </>
+        </div>
       )}
 
       {/* ── Text description (hidden in compact mode) ─────── */}
