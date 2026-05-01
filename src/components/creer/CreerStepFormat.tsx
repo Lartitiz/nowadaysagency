@@ -93,6 +93,8 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
   const [inspirationPhotos, setInspirationPhotos] = useState<PhotoItem[]>([]);
   const [photoWarning, setPhotoWarning] = useState(false);
   const [expandAngles, setExpandAngles] = useState(false);
+  const [forceShowAll, setForceShowAll] = useState(false);
+  const hasPreloadedPhotos = (initialPhotos?.length ?? 0) > 0 && !forceShowAll;
 
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
@@ -349,6 +351,35 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
         );
       })()}
 
+      {/* Photos preloaded: discreet hint that some formats are filtered out */}
+      {selectedChannel && (initialPhotos?.length ?? 0) > 0 && !selectedFormat && (
+        <p className="text-xs text-muted-foreground -mt-1">
+          {hasPreloadedPhotos ? (
+            <>
+              Quelques formats sont masqués car ils n'utilisent pas tes photos.{" "}
+              <button
+                type="button"
+                onClick={() => setForceShowAll(true)}
+                className="text-primary hover:underline"
+              >
+                Tout afficher quand même
+              </button>
+            </>
+          ) : (
+            <>
+              Tous les formats sont affichés.{" "}
+              <button
+                type="button"
+                onClick={() => setForceShowAll(false)}
+                className="text-primary hover:underline"
+              >
+                Masquer ceux qui n'utilisent pas mes photos
+              </button>
+            </>
+          )}
+        </p>
+      )}
+
       {/* LinkedIn sub-mode selection */}
       {selectedChannel === "linkedin" && !selectedFormat && (
         <div className="space-y-3 animate-fade-in">
@@ -362,14 +393,16 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
               <span className="text-xs font-semibold text-foreground">Post texte</span>
               <p className="text-[10px] text-muted-foreground mt-0.5">1300-2000 caractères</p>
             </button>
-            <button
-              onClick={() => { setLinkedinSubMode("carousel"); handleFormatSelect("carousel", { keepCarouselSubMode: "text" }); }}
-              className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
-            >
-              <span className="text-2xl block mb-1">🎠</span>
-              <span className="text-xs font-semibold text-foreground">Carrousel texte</span>
-              <p className="text-[10px] text-muted-foreground mt-0.5">8-10 slides téléchargeables</p>
-            </button>
+            {!hasPreloadedPhotos && (
+              <button
+                onClick={() => { setLinkedinSubMode("carousel"); handleFormatSelect("carousel", { keepCarouselSubMode: "text" }); }}
+                className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
+              >
+                <span className="text-2xl block mb-1">🎠</span>
+                <span className="text-xs font-semibold text-foreground">Carrousel texte</span>
+                <p className="text-[10px] text-muted-foreground mt-0.5">8-10 slides téléchargeables</p>
+              </button>
+            )}
             <button
               onClick={() => { setLinkedinSubMode("carousel"); handleFormatSelect("carousel", { keepCarouselSubMode: "mix" }); }}
               className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
@@ -387,14 +420,16 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
         <div className="space-y-3 animate-fade-in">
           <p className="text-sm font-semibold text-foreground">Quel format d'épingle ?</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            <button
-              onClick={() => { setPinterestSubMode("text"); handleFormatSelect("pinterest"); }}
-              className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
-            >
-              <span className="text-2xl block mb-1">📝</span>
-              <span className="text-xs font-semibold text-foreground">Texte</span>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Titre + description SEO</p>
-            </button>
+            {!hasPreloadedPhotos && (
+              <button
+                onClick={() => { setPinterestSubMode("text"); handleFormatSelect("pinterest"); }}
+                className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
+              >
+                <span className="text-2xl block mb-1">📝</span>
+                <span className="text-xs font-semibold text-foreground">Texte</span>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Titre + description SEO</p>
+              </button>
+            )}
             <button
               onClick={() => { setPinterestSubMode("visual"); handleFormatSelect("pinterest_visual"); }}
               className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
@@ -421,7 +456,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
           <p className="text-sm font-semibold text-foreground">Quel format Instagram ?</p>
           <div className="grid grid-cols-2 gap-2">
             {typeEntries
-              .filter(([, spec]) => spec.channel === "instagram")
+              .filter(([id, spec]) => spec.channel === "instagram" && (!hasPreloadedPhotos || formatAcceptsSinglePhoto(id) || id === "carousel"))
               .map(([id, spec]) => {
                 const isRecommended = priorityTypes.includes(id);
                 return (
@@ -539,14 +574,16 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
           <div className="space-y-3 animate-fade-in">
             <p className="text-sm font-semibold text-foreground">Quel type de carrousel ?</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              <button
-                onClick={() => { setCarouselSubMode("text"); setUploadedPhotos([]); setPhotoDescription(""); }}
-                className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
-              >
-                <span className="text-2xl block mb-1">📝</span>
-                <span className="text-xs font-semibold text-foreground">Texte</span>
-                <p className="text-[10px] text-muted-foreground mt-0.5">L'IA rédige et designe</p>
-              </button>
+              {!hasPreloadedPhotos && (
+                <button
+                  onClick={() => { setCarouselSubMode("text"); setUploadedPhotos([]); setPhotoDescription(""); }}
+                  className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
+                >
+                  <span className="text-2xl block mb-1">📝</span>
+                  <span className="text-xs font-semibold text-foreground">Texte</span>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">L'IA rédige et designe</p>
+                </button>
+              )}
               <button
                 onClick={() => setCarouselSubMode("photo")}
                 className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
