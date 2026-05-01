@@ -17,6 +17,11 @@ interface VisualSlide {
   html: string;
 }
 
+/**
+ * Photo native fournie à l'export hybride pour insertion couche bottom (non-rasterisée).
+ * `base64` DOIT être une data URL complète (préfixée `data:image/<mime>;base64,...`).
+ * pptxgenjs `addImage({ data })` attend ce format.
+ */
 export interface OriginalPhoto {
   base64: string;
   mimeType?: string;
