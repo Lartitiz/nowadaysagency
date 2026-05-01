@@ -702,15 +702,7 @@ export default function CreerUnifie() {
     await doGenerate({});
   };
 
-  // Override d'angle ponctuel (utilisé par "Changer d'angle" sur l'écran résultat)
-  // pour éviter d'attendre setState avant de re-déclencher doGenerate.
-  const editorialAngleOverrideRef = useRef<{ value: string | null } | null>(null);
-
   const doGenerate = async (ans: Record<string, string>) => {
-    // Consume override if set, else fallback to state
-    const angleOverride = editorialAngleOverrideRef.current;
-    editorialAngleOverrideRef.current = null;
-    const editorialAngle = angleOverride ? angleOverride.value : editorialAngleState;
     if (!selectedFormat) return;
 
     // Auriana demo account: instant pre-built result
