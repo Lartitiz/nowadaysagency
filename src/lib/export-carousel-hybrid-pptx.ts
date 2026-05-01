@@ -16,6 +16,18 @@ interface VisualSlide {
   html: string;
 }
 
+export interface OriginalPhoto {
+  base64: string;
+  mimeType?: string;
+}
+
+interface PhotoZone {
+  el: HTMLElement;
+  photoIndex: number; // 1-indexé
+  rect: { x: number; y: number; w: number; h: number };
+  type: "img" | "background";
+}
+
 interface SlideData {
   slide_number: number;
   overlay_text?: string | null;
