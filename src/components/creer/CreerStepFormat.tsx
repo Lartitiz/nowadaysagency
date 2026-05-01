@@ -326,6 +326,27 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
         </div>
       )}
 
+      {/* Persistent channel chip — visible once channel is chosen */}
+      {selectedChannel && (() => {
+        const ch = CHANNELS.find((c) => c.id === selectedChannel);
+        if (!ch) return null;
+        return (
+          <div className="flex items-center justify-between gap-3 rounded-xl bg-muted/30 border border-border px-3 py-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-lg">{ch.emoji}</span>
+              <span className="text-sm font-semibold text-foreground truncate">{ch.label}</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleChangeChannel}
+              className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1 shrink-0"
+            >
+              <ArrowLeft className="h-3 w-3" /> Changer de canal
+            </button>
+          </div>
+        );
+      })()}
+
       {/* LinkedIn sub-mode selection */}
       {selectedChannel === "linkedin" && !selectedFormat && (
         <div className="space-y-3 animate-fade-in">
