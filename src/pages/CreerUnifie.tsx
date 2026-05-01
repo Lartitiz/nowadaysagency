@@ -2461,7 +2461,11 @@ export default function CreerUnifie() {
                 }
                 onChangeAngle={handleChangeAngle}
                 currentAngle={editorialAngle}
-                currentChannel={selectedChannel || undefined}
+                currentChannel={
+                  selectedFormat === "linkedin" || isLinkedInCarousel ? "linkedin"
+                  : selectedFormat?.startsWith("pinterest") ? "pinterest"
+                  : "instagram"
+                }
               />
             )}
 
