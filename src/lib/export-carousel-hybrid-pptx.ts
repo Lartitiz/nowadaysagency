@@ -79,6 +79,14 @@ async function mountIframe(html: string): Promise<HTMLIFrameElement> {
     -webkit-text-fill-color: transparent !important;
     text-shadow: none !important;
   }
+  /* Masquage des zones photo : visibility (pas display) pour préserver le layout
+     et garder getBoundingClientRect valide. Le background-image est traité
+     en JS pour conserver les gradients overlay (cf. extractPhotoZones). */
+  [data-pptx-photo-hide="true"] img,
+  [data-pptx-photo-hide="true"] picture,
+  [data-pptx-photo-hide="true"] svg image {
+    visibility: hidden !important;
+  }
 </style></head><body>${html}</body></html>`;
 
   document.body.appendChild(iframe);
