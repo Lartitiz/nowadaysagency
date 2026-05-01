@@ -416,14 +416,6 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
       {/* Format selection (Instagram sub-grid) */}
       {selectedChannel === "instagram" && !selectedFormat && (
         <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleChangeChannel}
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-            >
-              <ArrowLeft className="h-3 w-3" /> Changer de canal
-            </button>
-          </div>
           <p className="text-sm font-semibold text-foreground">Quel format Instagram ?</p>
           <div className="grid grid-cols-2 gap-2">
             {typeEntries
