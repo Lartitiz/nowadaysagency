@@ -250,6 +250,31 @@ function applyTextTransform(text: string, transform: string): string {
 }
 
 /**
+ * Retire les `url(data:image/...)` d'un `background-image` CSS tout en conservant
+ * les autres couches (gradients linear/radial/conic, autres URLs non-data).
+ * Split sur les virgules **top-level** uniquement (les virgules dans les
+ * parenthèses des gradients ne séparent pas les couches).
+ * Retourne `"none"` si plus aucune couche ne reste.
+ */
+function stripDataUrlsFromBackground(bgImage: string): string {
+  const parts: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < bgImage.length; i++) {
+    const c = bgImage[i];
+    if (c === "(") depth++;
+    else if (c === ")") depth--;
+    else if (c === "," && depth === 0) {
+      parts.push(bgImage.slice(start, i).trim());
+      start = i + 1;
+    }
+  }
+  parts.push(bgImage.slice(start).trim());
+  const kept = parts.filter((p) => p && !/^url\(\s*["']?data:image\//i.test(p));
+  return kept.length > 0 ? kept.join(", ") : "none";
+}
+
+/**
  * Détecte les zones photo dans le HTML d'une slide.
  *
  * Strategy A (priorité) : éléments annotés [data-pptx-photo="N"] par Sonnet.
