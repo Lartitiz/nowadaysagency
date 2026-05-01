@@ -2459,6 +2459,9 @@ export default function CreerUnifie() {
                     ? () => { captionAutoTriggeredRef.current = null; generateLinkedInCarouselCaption(); }
                     : undefined
                 }
+                onChangeAngle={handleChangeAngle}
+                currentAngle={editorialAngle}
+                currentChannel={selectedChannel || undefined}
               />
             )}
 
