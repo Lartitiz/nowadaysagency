@@ -383,14 +383,6 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
       {/* Pinterest sub-mode selection */}
       {selectedChannel === "pinterest" && !selectedFormat && (
         <div className="space-y-3 animate-fade-in">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleChangeChannel}
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-            >
-              <ArrowLeft className="h-3 w-3" /> Changer de canal
-            </button>
-          </div>
           <p className="text-sm font-semibold text-foreground">Quel format d'épingle ?</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             <button
