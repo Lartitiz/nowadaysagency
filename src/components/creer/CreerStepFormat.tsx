@@ -718,19 +718,52 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
         </div>
       )}
 
+      {/* Live recap of choices — shown once a format is picked */}
+      {selectedFormat && (() => {
+        const fmtSpec = CONTENT_TYPE_SPECS[selectedFormat];
+        const ch = CHANNELS.find((c) => c.id === selectedChannel);
+        const angleObj = [...recommended, ...others].find((a) => a.id === selectedAngle);
+        const subModeLabel = (() => {
+          if (selectedFormat !== "carousel") return null;
+          if (carouselSubMode === "text") return "texte";
+          if (carouselSubMode === "photo") return "photo";
+          if (carouselSubMode === "mix") return "mixte";
+          return null;
+        })();
+        const parts = [
+          ch ? `${ch.emoji} ${ch.label}` : null,
+          fmtSpec ? `${fmtSpec.label}${subModeLabel ? ` (${subModeLabel})` : ""}` : selectedFormat,
+          angleObj ? `${angleObj.emoji} ${angleObj.label}` : null,
+        ].filter(Boolean);
+        return (
+          <div className="rounded-xl bg-primary/5 border border-primary/15 px-3 py-2 text-xs text-foreground animate-fade-in">
+            <span className="font-medium text-muted-foreground">Tu vas créer :</span>{" "}
+            {parts.join(" · ")}
+            {!selectedAngle && showAngles && (
+              <span className="text-muted-foreground"> · <span className="italic">angle à choisir (ou laisse l'IA décider)</span></span>
+            )}
+          </div>
+        );
+      })()}
+
       {/* Navigation */}
-      <div className="flex justify-between">
-        <Button variant="ghost" size="sm" onClick={onBack} className="gap-1">
-          <ArrowLeft className="h-3.5 w-3.5" /> Retour
-        </Button>
+      <div className="space-y-2 pt-2">
         <Button
-          size="sm"
           disabled={!selectedFormat || (selectedFormat === "pinterest_inspiration" && inspirationPhotos.length === 0)}
           onClick={handleNext}
-          className="gap-1"
+          className="w-full gap-2"
+          size="lg"
         >
-          Suivant <ArrowRight className="h-3.5 w-3.5" />
+          Suivant <ArrowRight className="h-4 w-4" />
         </Button>
+        <p className="text-[11px] text-muted-foreground text-center">
+          On affinera ensuite ton brief avec quelques questions rapides.
+        </p>
+        <div className="flex justify-center">
+          <Button variant="ghost" size="sm" onClick={onBack} className="gap-1 text-muted-foreground">
+            <ArrowLeft className="h-3.5 w-3.5" /> Retour
+          </Button>
+        </div>
       </div>
     </div>
   );
