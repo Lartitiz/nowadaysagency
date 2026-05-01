@@ -456,7 +456,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
           <p className="text-sm font-semibold text-foreground">Quel format Instagram ?</p>
           <div className="grid grid-cols-2 gap-2">
             {typeEntries
-              .filter(([, spec]) => spec.channel === "instagram")
+              .filter(([id, spec]) => spec.channel === "instagram" && (!hasPreloadedPhotos || formatAcceptsSinglePhoto(id) || id === "carousel"))
               .map(([id, spec]) => {
                 const isRecommended = priorityTypes.includes(id);
                 return (
