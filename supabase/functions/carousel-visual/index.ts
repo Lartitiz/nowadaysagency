@@ -641,6 +641,17 @@ Pour chaque slide qui utilise une photo :
 N = le photo_index de la slide (1, 2, 3...)
 N'essaie PAS d'écrire le base64. Le placeholder sera remplacé automatiquement.
 
+═══ ANNOTATION POUR EXPORT PPTX ═══
+Sur l'élément qui PORTE la photo (le div avec background-image OU la balise <img>), ajoute l'attribut data-pptx-photo="N" où N est le photo_index de la slide.
+
+Exemples :
+- photo_full : <div data-pptx-photo="1" style="background-image: url({{PHOTO_1}}); background-size: cover; ...">
+- photo_integrated : <img data-pptx-photo="2" src="{{PHOTO_2}}" style="...">
+
+Cette annotation permet à l'export PPTX éditable d'extraire la photo en qualité d'origine (sans recompression) et de la rendre manipulable individuellement dans PowerPoint.
+
+N'ajoute JAMAIS data-pptx-photo sur un élément sans photo réelle (icône SVG, illustration vectorielle, etc.).
+
 ═══ ANTI-PATTERNS ═══
 - ❌ Texte illisible sur photo (TOUJOURS un traitement : gradient, bandeau, ombre)
 - ❌ Photo déformée (TOUJOURS object-fit: cover)
