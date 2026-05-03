@@ -1885,8 +1885,12 @@ export default function CreerUnifie() {
     if (!result?.raw?.slides || visualLoading) return;
     setVisualLoading(true);
 
-    // ═══ Demo bypass: return pre-built visuals instantly ═══
-    if (aurianaDemoActive) {
+    // ═══ Demo bypass: return pre-built visuals only when user follows the script ═══
+    const isAurianaScript = aurianaDemoActive
+      && ideaText === AURIANA_DEMO_SUBJECT
+      && carouselSubMode === "text"
+      && uploadedPhotos.length === 0;
+    if (isAurianaScript) {
       const { getAurianaDemoVisualSlides } = await import("@/lib/demo-auriana-data");
       await new Promise(r => setTimeout(r, 1500));
       setVisualSlides(getAurianaDemoVisualSlides());
