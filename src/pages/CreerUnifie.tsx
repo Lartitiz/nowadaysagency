@@ -2327,7 +2327,7 @@ export default function CreerUnifie() {
                   if (pintData) setPinterestData(pintData);
                   if (linkedinCar) setIsLinkedInCarousel(true);
                   else setIsLinkedInCarousel(false);
-                  handleFormatNext(fmt, angle, { carouselSubMode: sub || (linkedinCar ? "text" : undefined), photos, photoDescription: desc, photoMode: pm, linkedinCarousel: !!linkedinCar });
+                  handleFormatNext(fmt, angle, { carouselSubMode: sub, photos, photoDescription: desc, photoMode: pm, linkedinCarousel: !!linkedinCar });
                 }}
                 onBack={() => { setStep("idea"); setNewsjackingContext(null); }}
               />
