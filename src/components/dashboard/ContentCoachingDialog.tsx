@@ -89,7 +89,7 @@ function LoadingMessage() {
   const messages = [
     "Je fouille ton univers…",
     "Je cherche des angles…",
-    "Je formule 3 idées…",
+    "Je formule 4 idées…",
     "Derniers ajustements…",
   ];
   const [index, setIndex] = useState(0);
@@ -376,7 +376,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
         {step === "loading" && (
           <div className="space-y-3 animate-fade-in py-3">
             <div className="space-y-1.5">
-              {[1, 2, 3].map((i) => (
+              {[1, 2, 3, 4].map((i) => (
                 <div
                   key={i}
                   className="rounded-lg border border-border bg-muted/30 p-2.5 animate-pulse"
@@ -395,7 +395,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
           <div className="space-y-4 animate-fade-in">
             {result.ideas?.length ? (
               <>
-                <p className="text-sm font-medium text-foreground">3 idées pour toi. Choisis celle qui te fait vibrer :</p>
+                <p className="text-sm font-medium text-foreground">4 idées pour toi. Choisis celle qui te fait vibrer :</p>
                 <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-1">
                   {result.ideas.map((idea, i) => {
                     const isSelected = selectedIdea === idea;
