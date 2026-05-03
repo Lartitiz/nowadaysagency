@@ -1,56 +1,59 @@
-## Audit des incohérences de libellés
+# Audit — pourquoi un carrousel texte alors que tu avais mis des photos
 
-Tour des écrans Idée → Format → sous-modes. Voici ce qui doit être recalibré pour éviter de promettre/cacher des choses.
+## Diagnostic
 
-### 1. Descriptions des canaux — `CreerStepFormat.tsx` lignes 22-27
+Tu étais sur le **compte démo Auriana** (sujet « la découpe d'immeuble crée de la valeur » = `AURIANA_DEMO_SUBJECT`). Ce compte fonctionne en **mode démo verrouillé** : tout le flow est court-circuité pour servir instantanément un résultat pré-construit, défini dans `src/lib/demo-auriana-data.ts` :
 
-| Canal | Avant | Après |
-|---|---|---|
-| Instagram | "Carrousel, Reel, Story, Post" | inchangé |
-| **LinkedIn** | "Post texte professionnel" | **"Post ou carrousel"** |
-| **Pinterest** | "Épingle texte ou visuelle" | **"Épingle texte, visuelle ou inspirée"** |
-| **Newsletter** | "Email long format" | **"Email 1500-2500 mots"** |
+```ts
+selectedFormat: "carousel",
+carouselSubMode: "text" as const,   // ← verrouillé
+```
 
-**Pourquoi** : LinkedIn propose 3 sous-modes (Post texte, Carrousel texte, Carrousel mixte) — la desc actuelle est mensongère. Pinterest a 3 sous-modes (Texte, Visuel, Inspiration) — "Inspiration" est oubliée. Newsletter "long format" est vague.
+Conséquences observées dans `src/pages/CreerUnifie.tsx` :
 
-### 2. Sous-mode LinkedIn "Post texte" — ligne 393
+1. **Le sous-mode est forcé à "text"** dès le chargement, peu importe ce que tu cliques (mix / photo).
+2. **Les questions sont remplacées** par `AURIANA_DEMO_FLOW.questions` (ligne 629) → tes vraies réponses ne servent à rien.
+3. **`doGenerate` court-circuite l'IA** (ligne 709) : il sert directement `AURIANA_DEMO_FLOW.result`, qui est un **carrousel texte pré-écrit** (les 7 slides "découpe d'immeuble" que tu as vues).
+4. **Tes photos uploadées (`uploadedPhotos`) ne sont jamais lues** dans cette branche : pas d'appel à `carousel-ai` en mode `mix`/`photo`, pas de génération de visuels à partir de tes images.
 
-- **Label** : `"Post texte"` → **`"Post"`** (l'utilisateur peut y attacher une photo via le toggle plus loin → "texte" est trompeur)
-- **Desc** : `"1300-2000 caractères"` → **`"1300-2000 caractères, photo en option"`**
+Donc le bug n'est pas dans le pipeline carrousel mixte (qui fonctionne en dehors de la démo) : c'est le **bypass démo qui ignore ton choix** dès qu'on est sur le sujet Auriana pré-rempli.
 
-### 3. Sous-mode LinkedIn "Carrousel texte" — ligne 402
+Bonus repéré (à corriger en passant) : `CreerStepFormat` envoie bien `carouselSubMode = "mix"` au parent, mais `CreerUnifie` ligne 2315 contient un fallback douteux : `sub || (linkedinCar ? "text" : undefined)`. Ça ne pose pas problème ici (tu avais bien cliqué "mix"), mais c'est un piège pour LinkedIn carrousel sans sous-mode explicite.
 
-- **Desc** : `"8-10 slides téléchargeables"` → **"8-10 slides, design auto, .pptx téléchargeable"** (préciser que c'est l'IA qui designe, comme pour le carrousel Instagram)
+## Correctif proposé
 
-### 4. Sous-mode Pinterest "Texte" — ligne 429
+Objectif : **respecter le choix de l'utilisateur·rice** dès qu'il s'écarte du scénario pré-écrit, même en démo Auriana. La démo doit rester instantanée *uniquement* quand on suit exactement le script (carrousel texte, sans photos).
 
-- **Label** : `"Texte"` → **`"Texte SEO"`** (clarifie l'intention, distingue du "Visuel" qui a aussi du texte)
+### Changements dans `src/pages/CreerUnifie.tsx`
 
-### 5. Sous-mode carrousel Instagram "Texte" — ligne 583
+1. **Sortir du bypass démo dès qu'il y a divergence**. Dans `handleFormatNext`, `doGenerate` et la branche questions, remplacer `if (aurianaDemoActive)` par :
+   ```ts
+   const isAurianaScript =
+     aurianaDemoActive
+     && ideaText === AURIANA_DEMO_SUBJECT
+     && carouselSubMode === "text"
+     && uploadedPhotos.length === 0;
+   if (isAurianaScript) { /* bypass pré-construit */ }
+   ```
+   → si tu cliques "Carrousel mixte" ou si tu charges des photos, le flow normal reprend (vraie génération IA via `carousel-ai`, en mode `mix` ou `photo`).
 
-- **Desc** : `"L'IA rédige et designe"` → **"8-10 slides, design auto, .pptx téléchargeable"** (alignement avec LinkedIn carrousel texte, livrable explicite)
+2. **Idem pour les questions** (ligne 628) : ne préremplir `AURIANA_DEMO_FLOW.questions` que si `isAurianaScript`.
 
-### 6. CONTENT_TYPE_SPECS.linkedin — `src/lib/content-structures.ts` ligne 521
+3. **Idem pour les visuels démo** (ligne 1878) : ne charger les slides pré-construits que dans le scénario script.
 
-- **`label`** : `"LinkedIn"` → **`"Post LinkedIn"`** (cohérence : c'est un format, pas un canal — `pinterest_visual` s'appelle "Épingle visuelle", pas "Pinterest")
-- **`specs`** : `"1300-2000 caractères, ton professionnel"` → **`"1300-2000 caractères, ton incarné"`**
-  - "Ton professionnel" contredit la voix LinkedIn de la mémoire projet (`preference/linkedin` : raw, sensoriel, anti-corporate). Champ utilisé en interne pour l'affichage des specs.
+4. **Bonus — corriger le fallback LinkedIn** ligne 2315 :
+   ```ts
+   carouselSubMode: sub  // pas de fallback "text" silencieux
+   ```
+   Le guard ligne 249 de `CreerStepFormat` empêche déjà de continuer sans sous-mode, donc ce fallback est mort.
 
-### 7. CONTENT_TYPE_SPECS.pinterest — ligne 535
+### Test de non-régression
 
-- **`label`** : `"Pinterest"` → **`"Épingle texte"`** (alignement avec "Épingle visuelle" et "Inspiration Pinterest")
+- Compte Auriana, sujet par défaut, cliquer "Carrousel texte" → résultat pré-construit instantané (comportement actuel préservé).
+- Compte Auriana, sujet par défaut, cliquer "Carrousel mixte" + uploader des photos → vraie génération IA `carousel-ai` en mode `mix`, avec analyse visuelle des photos.
+- Compte Auriana, modifier le sujet → vraie génération IA (déjà OK, mais on confirme).
 
-### Hors scope
+## Hors-scope
 
-- Pas de modification des `edgeFunction`, des `angles`, des structures éditoriales.
-- Pas de changement du toggle photo des formats Instagram/LinkedIn/Newsletter (déjà cohérent).
-- Le sous-mode `pinterest_inspiration` label = "Inspiration Pinterest" reste.
-
-### Validation
-
-- Écran de choix de canal : LinkedIn affiche "Post ou carrousel", Pinterest mentionne "inspirée", Newsletter précise les mots.
-- Sous-mode LinkedIn : 3 cartes cohérentes (Post / Carrousel texte / Carrousel mixte) avec descriptions précises.
-- Sous-mode Pinterest : "Texte SEO" / "Visuel" / "Inspiration".
-- Sous-mode carrousel Instagram : descriptions des 3 modes (texte/photo/mixte) symétriques en niveau de détail.
-- L'historique d'un contenu généré "linkedin" affiche désormais "Post LinkedIn" et non plus "LinkedIn" tout court.
-- Carrousel chip replié (ligne 552 `Carrousel {label}`) reste cohérent : "Carrousel Texte / Photo / Mixte".
+- On ne touche pas à `src/lib/demo-auriana-data.ts` : le contenu pré-construit reste dispo pour le pitch.
+- On ne change pas la pipeline `carousel-ai` ni les prompts IA.
