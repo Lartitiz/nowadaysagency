@@ -376,7 +376,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
         {step === "loading" && (
           <div className="space-y-3 animate-fade-in py-3">
             <div className="space-y-1.5">
-              {[1, 2, 3].map((i) => (
+              {[1, 2, 3, 4].map((i) => (
                 <div
                   key={i}
                   className="rounded-lg border border-border bg-muted/30 p-2.5 animate-pulse"
