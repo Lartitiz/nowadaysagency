@@ -395,7 +395,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
           <div className="space-y-4 animate-fade-in">
             {result.ideas?.length ? (
               <>
-                <p className="text-sm font-medium text-foreground">3 idées pour toi. Choisis celle qui te fait vibrer :</p>
+                <p className="text-sm font-medium text-foreground">4 idées pour toi. Choisis celle qui te fait vibrer :</p>
                 <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-1">
                   {result.ideas.map((idea, i) => {
                     const isSelected = selectedIdea === idea;
