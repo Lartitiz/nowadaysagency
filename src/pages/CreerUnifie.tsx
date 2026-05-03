@@ -2344,7 +2344,7 @@ export default function CreerUnifie() {
                 onSkip={handleSkipQuestions}
                 onBack={() => setStep("format")}
                 previousBriefsCount={briefsCount}
-                initialAnswers={aurianaDemoActive ? AURIANA_DEMO_FLOW.answers : undefined}
+                initialAnswers={aurianaDemoActive && ideaText === AURIANA_DEMO_SUBJECT && carouselSubMode === "text" && uploadedPhotos.length === 0 ? AURIANA_DEMO_FLOW.answers : undefined}
                 onRequestFollowUp={async (currentAnswers) => {
                   return await generateFollowUp({
                     subject: ideaText,
