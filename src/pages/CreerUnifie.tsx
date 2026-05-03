@@ -2161,6 +2161,7 @@ export default function CreerUnifie() {
         result?.raw?.slides || null,
         charterData || null,
         ideaText || "carrousel-editable",
+        generatedWithPhotos.length > 0 ? generatedWithPhotos : uploadedPhotos,
       );
       toast.success("PowerPoint éditable téléchargé !");
     } catch (e: any) {
