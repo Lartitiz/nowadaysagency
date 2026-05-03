@@ -624,8 +624,14 @@ export default function CreerUnifie() {
     resetGenerator();
     setStep("questions");
 
-    // Auriana demo: inject pre-built questions instead of calling AI
-    if (aurianaDemoActive) {
+    // Auriana demo: inject pre-built questions ONLY if user follows the scripted scenario
+    // (carrousel texte, sujet pré-rempli, aucune photo). Sinon → vraie génération IA.
+    const isAurianaScript = aurianaDemoActive
+      && ideaText === AURIANA_DEMO_SUBJECT
+      && (sub || carouselSubMode) === "text"
+      && (!photos || photos.length === 0)
+      && uploadedPhotos.length === 0;
+    if (isAurianaScript) {
       setQuestions(AURIANA_DEMO_FLOW.questions);
       return;
     }
