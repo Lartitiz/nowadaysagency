@@ -624,8 +624,14 @@ export default function CreerUnifie() {
     resetGenerator();
     setStep("questions");
 
-    // Auriana demo: inject pre-built questions instead of calling AI
-    if (aurianaDemoActive) {
+    // Auriana demo: inject pre-built questions ONLY if user follows the scripted scenario
+    // (carrousel texte, sujet pré-rempli, aucune photo). Sinon → vraie génération IA.
+    const isAurianaScript = aurianaDemoActive
+      && ideaText === AURIANA_DEMO_SUBJECT
+      && (sub || carouselSubMode) === "text"
+      && (!photos || photos.length === 0)
+      && uploadedPhotos.length === 0;
+    if (isAurianaScript) {
       setQuestions(AURIANA_DEMO_FLOW.questions);
       return;
     }
@@ -705,8 +711,13 @@ export default function CreerUnifie() {
   const doGenerate = async (ans: Record<string, string>) => {
     if (!selectedFormat) return;
 
-    // Auriana demo account: instant pre-built result
-    if (aurianaDemoActive) {
+    // Auriana demo account: instant pre-built result ONLY if user followed the scripted path
+    // (carrousel texte sur sujet pré-rempli, sans photos). Sinon → vraie génération IA.
+    const isAurianaScript = aurianaDemoActive
+      && ideaText === AURIANA_DEMO_SUBJECT
+      && carouselSubMode === "text"
+      && uploadedPhotos.length === 0;
+    if (isAurianaScript) {
       setDemoGenerating(true);
       setStep("result");
       const { type: _t, ...demoRest } = AURIANA_DEMO_FLOW.result;
@@ -1874,8 +1885,12 @@ export default function CreerUnifie() {
     if (!result?.raw?.slides || visualLoading) return;
     setVisualLoading(true);
 
-    // ═══ Demo bypass: return pre-built visuals instantly ═══
-    if (aurianaDemoActive) {
+    // ═══ Demo bypass: return pre-built visuals only when user follows the script ═══
+    const isAurianaScript = aurianaDemoActive
+      && ideaText === AURIANA_DEMO_SUBJECT
+      && carouselSubMode === "text"
+      && uploadedPhotos.length === 0;
+    if (isAurianaScript) {
       const { getAurianaDemoVisualSlides } = await import("@/lib/demo-auriana-data");
       await new Promise(r => setTimeout(r, 1500));
       setVisualSlides(getAurianaDemoVisualSlides());
@@ -2312,7 +2327,7 @@ export default function CreerUnifie() {
                   if (pintData) setPinterestData(pintData);
                   if (linkedinCar) setIsLinkedInCarousel(true);
                   else setIsLinkedInCarousel(false);
-                  handleFormatNext(fmt, angle, { carouselSubMode: sub || (linkedinCar ? "text" : undefined), photos, photoDescription: desc, photoMode: pm, linkedinCarousel: !!linkedinCar });
+                  handleFormatNext(fmt, angle, { carouselSubMode: sub, photos, photoDescription: desc, photoMode: pm, linkedinCarousel: !!linkedinCar });
                 }}
                 onBack={() => { setStep("idea"); setNewsjackingContext(null); }}
               />
@@ -2329,7 +2344,7 @@ export default function CreerUnifie() {
                 onSkip={handleSkipQuestions}
                 onBack={() => setStep("format")}
                 previousBriefsCount={briefsCount}
-                initialAnswers={aurianaDemoActive ? AURIANA_DEMO_FLOW.answers : undefined}
+                initialAnswers={aurianaDemoActive && ideaText === AURIANA_DEMO_SUBJECT && carouselSubMode === "text" && uploadedPhotos.length === 0 ? AURIANA_DEMO_FLOW.answers : undefined}
                 onRequestFollowUp={async (currentAnswers) => {
                   return await generateFollowUp({
                     subject: ideaText,
