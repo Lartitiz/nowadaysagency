@@ -89,7 +89,7 @@ function LoadingMessage() {
   const messages = [
     "Je fouille ton univers…",
     "Je cherche des angles…",
-    "Je formule 3 idées…",
+    "Je formule 4 idées…",
     "Derniers ajustements…",
   ];
   const [index, setIndex] = useState(0);
