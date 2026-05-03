@@ -711,8 +711,13 @@ export default function CreerUnifie() {
   const doGenerate = async (ans: Record<string, string>) => {
     if (!selectedFormat) return;
 
-    // Auriana demo account: instant pre-built result
-    if (aurianaDemoActive) {
+    // Auriana demo account: instant pre-built result ONLY if user followed the scripted path
+    // (carrousel texte sur sujet pré-rempli, sans photos). Sinon → vraie génération IA.
+    const isAurianaScript = aurianaDemoActive
+      && ideaText === AURIANA_DEMO_SUBJECT
+      && carouselSubMode === "text"
+      && uploadedPhotos.length === 0;
+    if (isAurianaScript) {
       setDemoGenerating(true);
       setStep("result");
       const { type: _t, ...demoRest } = AURIANA_DEMO_FLOW.result;
