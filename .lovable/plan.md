@@ -1,81 +1,216 @@
 
-# Plus de profondeur, zéro storytelling fabriqué
+# 4 nouveaux schémas visuels narratifs
 
-## Objectif
-Quand tu génères un carrousel (surtout en mode actu), le texte doit parler du **fond du sujet**, pas inventer ta vie ni diagnostiquer ta lectrice. Trois leviers :
+## Périmètre confirmé (a — ce que tu m'as demandé)
 
-1. Interdiction totale d'inventer une scène vécue datée.
-2. Profondeur recentrée : 1 slide de fond sectoriel/factuel + 1 slide de prise de position personnelle, obligatoires.
-3. Quand Perplexity a fourni un contexte, l'IA est fortement incitée à s'en servir.
+Ajouter 4 schémas (`story_arc`, `quote_big`, `objection_response`, `process_visible`) dans le système visual_schema, alignés sur les véhicules narratifs du framework "Éducation embarquée".
 
----
+**Fichiers touchés :**
+- `supabase/functions/carousel-ai/index.ts` (déclaration des types + cas d'usage, lignes 884-936)
+- `supabase/functions/carousel-visual/index.ts` (templates HTML/CSS dans `buildVisualSchemaBlock`, lignes 16-106)
 
-## Ce qui change concrètement
-
-### 1. Anti-fabrication de scène vécue (nouveau bloc global)
-
-Ajouter un bloc `ANTI_FABRICATED_STORYTELLING` injecté dans tous les prompts carrousel, qui :
-
-- Bannit explicitement les marqueurs de scène vécue datée non fournie : "hier", "la semaine dernière", "ce matin", "j'ai reçu un message", "une cliente m'a dit", "j'ai vu passer", "lundi 7h", "il y a 3 jours", + toute date/jour précis.
-- Règle : ces formules ne sont autorisées QUE si l'utilisatrice a fourni cet élément dans `deepening_answers.anecdote` ET que cet élément n'est PAS marqué `(élément tiré du branding)`.
-- Si pas d'anecdote vécue fournie → l'IA généralise : "ce qui circule en ce moment", "ce que je vois passer dans ce milieu", "on entend souvent que", "il y a un truc qui revient", "dans ma pratique" (présent intemporel, pas de date).
-
-### 2. Neutraliser le fallback "branding → anecdote"
-
-Dans `carousel-ai/index.ts` (lignes 123-133), le fallback transforme actuellement ton storytelling de marque en `anecdote` à intégrer "mot pour mot". C'est ce qui force l'IA à fabriquer des scènes.
-
-Changement : le fallback ne remplit plus `anecdote`. Il ne garde que `emotion` et `conviction` (qui sont des tonalités, pas des faits). L'anecdote reste vide → l'IA bascule automatiquement en mode "généralisation" décrit ci-dessus.
-
-### 3. Nettoyer les exemples-piège dans les prompts
-
-Trois exemples explicites poussent actuellement l'IA à inventer des scènes datées. Les réécrire en versions généralisantes :
-
-- `copywriting-prompts.ts` ligne 86 : remplacer "La semaine dernière, une cliente m'a montré son calendrier éditorial. 45 posts en 2 mois…" par un exemple sans date ("Ce que je vois revenir : des calendriers de 45 posts sur 2 mois sans aucun lien avec l'offre.").
-- `copywriting-prompts.ts` ligne 152 : enlever le template "La semaine dernière, une cliente m'a dit : '[verbatim]'".
-- `carousel-ai/index.ts` ligne 1496 : remplacer "Et puis un jour, une cliente m'a dit quelque chose qui a tout changé" par un exemple narratif sans scène fabriquée.
-- `copywriting-prompts.ts` ligne 390 : modifier "Pas d'exemples concrets → en inventer un crédible" en "Pas d'exemples concrets → généraliser sans inventer de scène vécue datée".
-
-### 4. Profondeur double obligatoire (mode actu surtout)
-
-Étendre le bloc `DEPTH_LAYER` avec une nouvelle exigence pour les carrousels mode actu, et l'incorporer aussi dans `buildMixCarouselNewsReactionPrompt` :
-
-**Slide "fond du sujet" (obligatoire, 1 slide minimum)** : analyse du sujet lui-même — pas de la lectrice. Au moins une de ces dimensions :
-- Mécanisme économique (qui gagne quoi, modèle d'affaires sous-jacent)
-- Mécanisme sectoriel/historique (précédent, évolution, comparaison)
-- Donnée factuelle vérifiable (chiffre, étude, cas connu)
-- Acteur identifié (qui agit, quel intérêt)
-
-Bannir explicitement comme angle de profondeur dans cette slide : biais cognitifs de la lectrice, syndrome de l'imposteur, peur du jugement, conditionnements personnels.
-
-**Slide "prise de position incarnée" (obligatoire, 1 slide minimum)** : ton opinion tranchée sur le sujet — "moi je trouve que", "ce qui me dérange dans cette lecture", "la question qu'on évite", "je ne suis pas d'accord avec X parce que Y". Pas un diagnostic de la lectrice, une position d'autrice.
-
-### 5. Exploitation favorisée du contexte Perplexity
-
-Quand `news_context` est présent dans le payload du carousel-ai, ajouter au prompt une instruction explicite :
-
-> "Le contexte actu fourni contient des faits, chiffres et acteurs identifiés. Tu es FORTEMENT encouragée à t'appuyer sur AU MOINS UN fait précis du contexte (chiffre, nom d'acteur, date d'événement, mécanisme évoqué) dans ta slide de fond. Tu NE PEUX PAS inventer un chiffre ou un fait absent du contexte. Si le contexte ne contient pas de fait exploitable, dis-le honnêtement par une formulation prudente plutôt que d'inventer."
-
-### 6. Quality check enrichi
-
-Ajouter au JSON de sortie 3 nouveaux flags :
-- `fabricated_scene_detected: boolean` (true si une formule "hier/lundi/cette semaine/une cliente m'a dit" apparaît sans anecdote vécue fournie)
-- `subject_depth_present: boolean` (true si au moins 1 slide analyse le fond du sujet et pas la psyché de la lectrice)
-- `personal_stance_present: boolean` (true si au moins 1 slide exprime une opinion incarnée)
-
-Si les deux derniers sont `false`, le correction-pass régénère les slides concernées.
+**Pas touchés :** les 11 schémas existants, le pipeline export PPTX schema-native (`supportedSchemaTypes` ligne 204 de `export-carousel-pptx.ts`), le pipeline hybride C2, les modes photo/mix de carousel-visual, le routing `slides.filter(s => s.visual_schema)` (ligne 463).
 
 ---
 
-## Détails techniques
+## Détail des 4 schémas
 
-**Fichiers modifiés :**
-- `supabase/functions/_shared/copywriting-prompts.ts` : nouveau bloc `ANTI_FABRICATED_STORYTELLING`, extension de `DEPTH_LAYER` avec section "fond sectoriel + prise de position", nettoyage des 4 exemples-piège.
-- `supabase/functions/_shared/user-context.ts` : `buildPreGenFallback` ne renvoie plus `anecdote` (juste `emotion` et `conviction`).
-- `supabase/functions/carousel-ai/index.ts` : injection du nouveau bloc dans `buildSystemPrompt`, instruction Perplexity conditionnelle quand `news_context` présent, extension du `quality_check`, exemple ligne 1496 réécrit, intégration dans `buildMixCarouselNewsReactionPrompt`.
-- `supabase/functions/_shared/correction-pass.ts` : déclencher une régénération des slides si `fabricated_scene_detected: true` ou si les flags profondeur sont `false`.
+### 1. STORY_ARC — récit en 3-5 étapes
 
-**Mémoire à mettre à jour après implémentation :**
-- `mem://preference/carousels` : ajouter règle "zéro scène vécue datée fabriquée + double profondeur sujet/opinion obligatoire".
-- `mem://preference/brand-voice` : renforcer "anti-storytelling fabriqué" comme règle globale.
+**Données (carousel-ai) :**
+```json
+{ "type": "story_arc", "steps": [
+  { "label": "Au départ", "desc": "..." },
+  { "label": "Le déclic", "desc": "..." },
+  { "label": "Le tournant", "desc": "..." },
+  { "label": "Aujourd'hui", "desc": "..." }
+] }
+```
+3-5 étapes (4 idéal). Cas d'usage prompt : récit personnel, parcours client, transformation, évolution d'une vision.
 
-**Pas d'impact sur :** newsletters, reels, posts simples (pour l'instant — on peut l'étendre dans un 2e temps si tu valides l'effet sur les carrousels).
+**Template HTML/CSS (carousel-visual) :**
+```html
+<div style="display:flex;flex-direction:column;gap:0">
+  <!-- Pour chaque step (i = index 0-based) : -->
+  <div style="display:flex;gap:24px;align-items:flex-start;position:relative">
+    <div style="flex-shrink:0;width:64px;text-align:right">
+      <span data-pptx-editable="caption" style="font-size:36px;font-weight:700;color:${ch.color_primary};opacity:0.4;font-family:${ch.font_title}">0{i+1}</span>
+    </div>
+    <div style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:24px 28px;box-shadow:0 2px 12px rgba(0,0,0,0.05);margin-bottom:16px">
+      <h3 data-pptx-editable="title" style="font-size:24px;font-weight:600;color:${ch.color_primary};margin:0 0 8px 0;font-family:${ch.font_title}">LABEL</h3>
+      <p data-pptx-editable="body" style="font-size:20px;color:${ch.color_text};line-height:1.4;margin:0;font-family:${ch.font_body}">DESC</p>
+    </div>
+  </div>
+  <!-- Filet pointillé entre steps (sauf après le dernier) :
+       <div style="margin-left:88px;width:2px;height:20px;border-left:2px dotted ${ch.color_secondary};opacity:0.4"></div> -->
+</div>
+```
+
+### 2. QUOTE_BIG — citation typographique
+
+**Données :**
+```json
+{ "type": "quote_big",
+  "quote": "Texte de la citation, 1-3 lignes max",
+  "attribution": "— Prénom, contexte (optionnel)",
+  "context": "Phrase d'introduction (optionnelle)" }
+```
+Cas d'usage prompt : témoignage, retour terrain, citation auto-portée forte.
+
+**Template :**
+```html
+<div style="position:relative;padding:80px 60px;display:flex;flex-direction:column;justify-content:center;height:100%">
+  <!-- Si context présent : -->
+  <p data-pptx-editable="caption" style="font-size:22px;color:${ch.color_secondary};margin-bottom:24px;font-family:${ch.font_body}">CONTEXT</p>
+  <!-- Guillemet décoratif -->
+  <span aria-hidden="true" style="position:absolute;top:20px;left:40px;font-size:140px;line-height:1;color:${ch.color_primary};opacity:0.2;font-family:Georgia,serif">"</span>
+  <p data-pptx-editable="title" style="font-size:48px;font-style:italic;line-height:1.3;color:${ch.color_text};margin:0;font-family:${ch.font_title};font-weight:normal">QUOTE</p>
+  <!-- Si attribution présente : -->
+  <p data-pptx-editable="body" style="font-size:22px;color:${ch.color_secondary};margin-top:32px;font-family:${ch.font_body}">ATTRIBUTION</p>
+</div>
+```
+Taille de la citation : 48px par défaut, 40px si > 120 chars, 56px si < 60 chars (la consigne le précise dans le prompt).
+
+### 3. OBJECTION_RESPONSE — déconstruction verticale
+
+**Données :**
+```json
+{ "type": "objection_response",
+  "objection": "Ce qu'on dit / la croyance",
+  "response": "Ma position / la réalité" }
+```
+Cas d'usage prompt : prise de position, déconstruction d'idée reçue, "mythe vs réalité" en format vertical narratif (à la différence de `comparison` côte à côte).
+
+**Template :**
+```html
+<div style="display:flex;flex-direction:column;gap:32px">
+  <div style="background:${ch.color_secondary}15;border-radius:${ch.border_radius || 12}px;padding:32px;position:relative">
+    <span aria-hidden="true" style="position:absolute;top:16px;right:24px;font-size:32px;color:${ch.color_primary};opacity:0.5">❝</span>
+    <p data-pptx-editable="caption" style="font-size:18px;font-weight:600;color:${ch.color_secondary};text-transform:uppercase;letter-spacing:1px;margin:0 0 12px 0;font-family:${ch.font_body}">CE QU'ON DIT</p>
+    <p data-pptx-editable="body" style="font-size:24px;color:${ch.color_text};line-height:1.4;margin:0;font-style:italic;font-family:${ch.font_body}">OBJECTION</p>
+  </div>
+  <div style="background:#FFF;border-left:4px solid ${ch.color_primary};border-radius:${ch.border_radius || 12}px;padding:32px;box-shadow:0 4px 16px rgba(0,0,0,0.06)">
+    <p data-pptx-editable="caption" style="font-size:18px;font-weight:600;color:${ch.color_primary};text-transform:uppercase;letter-spacing:1px;margin:0 0 12px 0;font-family:${ch.font_body}">MA POSITION</p>
+    <p data-pptx-editable="title" style="font-size:30px;color:${ch.color_text};line-height:1.4;margin:0;font-weight:500;font-family:${ch.font_title}">RESPONSE</p>
+  </div>
+</div>
+```
+Hiérarchie visuelle : la response est plus grande (30px vs 24px) — elle domine.
+
+### 4. PROCESS_VISIBLE — 3 colonnes Avant/Pendant/Après
+
+**Données :**
+```json
+{ "type": "process_visible", "stages": [
+  { "label": "Avant", "desc": "..." },
+  { "label": "Pendant", "desc": "..." },
+  { "label": "Après", "desc": "..." }
+] }
+```
+**Toujours exactement 3 stages.** Labels libres ("Le brief / Le travail / Le rendu", "Le matin / La journée / Le soir"…). Si l'IA donne 2 ou 4 stages → fallback (cf. proposition d'amélioration #3 ci-dessous).
+
+**Template :**
+```html
+<div style="display:flex;align-items:stretch;gap:16px">
+  <!-- Pour chaque stage : -->
+  <div style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:28px 20px;box-shadow:0 2px 12px rgba(0,0,0,0.05);position:relative">
+    <span data-pptx-editable="caption" style="font-size:64px;font-weight:700;color:${ch.color_primary};opacity:0.25;line-height:1;font-family:${ch.font_title};display:block;margin-bottom:8px">0{i+1}</span>
+    <h3 data-pptx-editable="title" style="font-size:24px;font-weight:600;color:${ch.color_secondary};margin:0 0 12px 0;font-family:${ch.font_title}">LABEL</h3>
+    <p data-pptx-editable="body" style="font-size:18px;color:${ch.color_text};line-height:1.4;margin:0;font-family:${ch.font_body}">DESC</p>
+  </div>
+  <!-- Flèche entre colonnes (sauf après la dernière) : -->
+  <div style="display:flex;align-items:center;flex-shrink:0">
+    <span aria-hidden="true" style="font-size:32px;color:${ch.color_primary};font-weight:300">→</span>
+  </div>
+</div>
+```
+
+---
+
+## Mises à jour de la section "QUAND utiliser un schéma" (carousel-ai ligne 924-929)
+
+Ajouter sous la liste actuelle :
+- `Slide récit / parcours / transformation → story_arc`
+- `Slide témoignage / parole donnée / citation forte → quote_big`
+- `Slide qui déconstruit une idée / prise de position en mode mythe-vs-vision → objection_response (en complément de comparison qui reste valide pour 2 colonnes côte à côte)`
+- `Slide qui montre un travail invisible en 3 temps → process_visible`
+
+Section "QUAND NE PAS utiliser de schéma" (ligne 931) : **inchangée**. Le hook reste toujours du texte pur même quand le carrousel est narratif.
+
+---
+
+## (b) Propositions d'amélioration — à valider individuellement
+
+### Proposition #1 — Cap mots dans `story_arc.steps[].desc`
+
+**Pourquoi :** sans cap, Opus écrit parfois 30 mots dans `desc`, ce qui déborde la carte (24px line-height 1.4 dans une carte de ~600px de large = max ~15 mots avant retour à la ligne moche). Risque de slide visuellement cassée.
+
+**Quoi :** ajouter dans le prompt carousel-ai à côté de la définition du type : *"chaque `desc` : 8-15 mots MAX, 1 phrase courte. Le LABEL fait le travail de signalisation, le DESC précise."*
+
+**Coût :** 1 phrase ajoutée. **Risque régression :** zéro.
+
+### Proposition #2 — Variations selon `ch.mood_keywords`
+
+**Pourquoi :** les templates actuels (before_after, etc.) ne s'adaptent pas au mood (minimal/maximaliste/éditorial). Les nouveaux schémas hériteraient du même problème.
+
+**Recommandation : NON, à exclure de ce sprint.** Risque de fragmentation, debug compliqué (chaque mood × chaque schéma = matrice exponentielle), inconsistance avec les 11 schémas existants. Si ça doit se faire, ça doit être un sprint dédié qui couvre TOUS les schémas, pas seulement les 4 nouveaux.
+
+### Proposition #3 — Fallback si données incomplètes
+
+**Pourquoi :** Opus peut générer un `process_visible` avec 2 stages au lieu de 3, ou un `story_arc` à 1 step, ou un `quote_big` sans `quote`. Aujourd'hui le template HTML aurait un trou.
+
+**Quoi :** dans le prompt `buildVisualSchemaBlock` du carousel-visual, ajouter une instruction de tolérance : *"Si `process_visible.stages.length !== 3` → rends quand même proprement (2 colonnes au lieu de 3, ou ajoute un placeholder neutre). Si `quote_big.quote` est absent → utilise `slide.title` à la place. Si `story_arc.steps.length < 3` → rends comme une simple liste verticale."*
+
+**Coût :** 4 lignes ajoutées au prompt. **Risque régression :** zéro. **Recommandé.**
+
+### Proposition #4 — Parsing strict côté carousel-ai
+
+**Pourquoi :** au lieu de gérer les fallbacks côté visual, on peut imposer la validité côté ai (refuser de retourner un schéma incomplet).
+
+**Quoi :** dans la définition des types ligne 891-922, ajouter une mention "RÈGLE : si tu ne peux pas remplir toutes les clés requises, n'utilise PAS ce schéma — préfère un autre type ou du texte pur."
+
+**Coût :** 1 ligne. **Combinable avec #3 (ceinture + bretelles).** **Recommandé.**
+
+### Proposition #5 — Annoter `data-pptx-editable` partout
+
+**Pourquoi :** confirmé dans le brief. Sans ces annotations, le pipeline hybride C2 (`extractAnnotatedBlocks`) ne récupère pas les textes.
+
+**Quoi :** déjà inclus dans les 4 templates ci-dessus (`title` pour le texte principal, `body` pour les descriptions, `caption` pour les numéros/labels secondaires). **Inclus dans le périmètre (a), pas optionnel.**
+
+---
+
+## Critères de validation
+
+1. **Compilation Deno OK** : déploiement de `carousel-ai` et `carousel-visual` sans erreur de syntaxe.
+
+2. **Test fonctionnel — 4 carrousels test :**
+   - Sujet "Mon parcours en 4 temps" → ≥1 slide `story_arc`
+   - Sujet "Le retour client qui m'a marquée" → ≥1 slide `quote_big`
+   - Sujet "Ce qu'on dit du SEO vs ma vision" → ≥1 slide `objection_response`
+   - Sujet "À quoi ressemble une journée chez moi" → ≥1 slide `process_visible`
+
+3. **Rendu PNG vérifié** : couleurs charte appliquées, padding cohérent, pas de cercle décoratif (règle anti-pattern ligne 425), texte lisible.
+
+4. **Non-régression** : générer un carrousel "data-driven" et confirmer que les 11 schémas existants apparaissent toujours quand pertinent.
+
+5. **Annotations PPTX** : grep `data-pptx-editable` dans le HTML rendu pour les 4 nouveaux schémas — au moins `title` et `body` présents par slide.
+
+---
+
+## Hors scope confirmé
+
+- Pas de `buildStoryArcSchema` / etc. dans `export-carousel-pptx.ts` (fallback pptxgenjs natif). Si export schema-native est tenté, retombe sur le rendu texte standard — comportement acceptable.
+- Pas de Phase 2 (typo expressive systématique), Phase 3 (motif signature), pas d'auto-routing programmatique.
+- Pas de fix `extractAnnotatedBlocks` rich text inline (Phase 0 séparée).
+
+---
+
+## Décision attendue
+
+Confirme :
+- ✅ Périmètre (a) tel quel
+- ✅/❌ Proposition #1 (cap mots story_arc)
+- ❌ Proposition #2 (variations mood) — recommandation : refuser
+- ✅/❌ Proposition #3 (fallback prompt visual)
+- ✅/❌ Proposition #4 (validation côté ai)
+- ✅ Proposition #5 (annotations) — déjà dans le périmètre
