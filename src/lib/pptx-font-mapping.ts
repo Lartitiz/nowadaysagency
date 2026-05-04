@@ -181,9 +181,25 @@ export function pxToInches(px: number, pxPerInch: number): number {
   return Math.max(0, px / pxPerInch);
 }
 
+export interface TextRun {
+  text: string;
+  bold?: boolean;
+  italic?: boolean;
+  /** Hex 6 chars sans `#` (déjà normalisé). Undefined = hérite du frame. */
+  color?: string;
+  /** Poids brut (info / debug). pptxgenjs utilise `bold`. */
+  fontWeight?: number;
+}
+
 export interface EditableBlock {
   el: Element;
   text: string;
+  /**
+   * Runs typographiques inline (italic/bold/color via <span>, <em>, <strong>...).
+   * Présent UNIQUEMENT si le bloc contient au moins un override par rapport au
+   * style du frame. Sinon undefined → l'exporter utilise le chemin "texte plat".
+   */
+  runs?: TextRun[];
   rect: { x: number; y: number; w: number; h: number };
   style: {
     color: string;
@@ -313,15 +329,28 @@ export function extractAnnotatedBlocks(doc: Document): EditableBlock[] {
     const rawKind = (el.getAttribute("data-pptx-editable") || "body").toLowerCase();
     const kind: EditableBlock["kind"] =
       rawKind === "title" || rawKind === "overlay" || rawKind === "caption" ? rawKind : "body";
+
+    const frameColor = normalizeHex(cs.color, "FFFFFF");
+    const frameWeight = parseFontWeight(cs.fontWeight);
+    const frameItalic = (cs.fontStyle || "normal") === "italic";
+    const frameBold = frameWeight >= 600;
+
+    const runs = extractRunsFromElement(el, win, {
+      frameColor,
+      frameBold,
+      frameItalic,
+    });
+
     blocks.push({
       el,
       text,
+      runs,
       rect: { x: r.left, y: r.top, w: r.width, h: r.height },
       style: {
         color: cs.color || "#FFFFFF",
         fontFamily: cs.fontFamily || "",
         fontSizePx,
-        fontWeight: parseFontWeight(cs.fontWeight),
+        fontWeight: frameWeight,
         fontStyle: cs.fontStyle || "normal",
         textAlign: parseAlign(cs.textAlign || "left"),
         textTransform: cs.textTransform || "none",
@@ -337,6 +366,132 @@ export function extractAnnotatedBlocks(doc: Document): EditableBlock[] {
   );
 }
 
+const MAX_RUNS_PER_BLOCK = 12;
+
+interface FrameStyle {
+  frameColor: string;
+  frameBold: boolean;
+  frameItalic: boolean;
+}
+
+/**
+ * Walk all text descendants of `root` and produce typographic runs.
+ * Returns `undefined` if all runs are uniform with the frame style
+ * (so the exporter can keep its fast "flat text" path) or if the
+ * extraction safety cap is hit.
+ */
+function extractRunsFromElement(
+  root: HTMLElement,
+  win: Window,
+  frame: FrameStyle,
+): TextRun[] | undefined {
+  const walker = doc_treeWalker(root);
+  if (!walker) return undefined;
+
+  const raw: TextRun[] = [];
+  let node: Node | null = walker.nextNode();
+  while (node) {
+    const txt = node.nodeValue || "";
+    if (txt.length > 0) {
+      const parent = node.parentElement;
+      if (parent) {
+        const cs = win.getComputedStyle(parent);
+        // Skip hidden parents
+        if (cs.visibility !== "hidden" && cs.display !== "none") {
+          const weight = parseFontWeight(cs.fontWeight);
+          const isBold =
+            weight >= 600 ||
+            !!parent.closest("strong,b");
+          const isItalic =
+            (cs.fontStyle || "normal") === "italic" ||
+            !!parent.closest("em,i");
+          const color = normalizeHex(cs.color, frame.frameColor);
+
+          raw.push({
+            text: txt,
+            bold: isBold,
+            italic: isItalic,
+            color,
+            fontWeight: weight,
+          });
+        }
+      }
+    }
+    node = walker.nextNode();
+  }
+
+  if (raw.length === 0) return undefined;
+
+  // 1. Trim leading/trailing whitespace-only runs
+  while (raw.length > 0 && raw[0].text.trim() === "") raw.shift();
+  while (raw.length > 0 && raw[raw.length - 1].text.trim() === "") raw.pop();
+  if (raw.length === 0) return undefined;
+
+  // 2. Normalize internal whitespace runs: merge whitespace-only run with
+  //    its previous neighbor (so its style doesn't matter visually).
+  const cleaned: TextRun[] = [];
+  for (const r of raw) {
+    if (r.text.trim() === "" && cleaned.length > 0) {
+      cleaned[cleaned.length - 1] = {
+        ...cleaned[cleaned.length - 1],
+        text: cleaned[cleaned.length - 1].text + r.text,
+      };
+    } else {
+      cleaned.push(r);
+    }
+  }
+
+  // 3. Coalesce adjacent runs with identical style
+  const coalesced: TextRun[] = [];
+  for (const r of cleaned) {
+    const prev = coalesced[coalesced.length - 1];
+    if (
+      prev &&
+      !!prev.bold === !!r.bold &&
+      !!prev.italic === !!r.italic &&
+      (prev.color || "") === (r.color || "")
+    ) {
+      prev.text += r.text;
+    } else {
+      coalesced.push({ ...r });
+    }
+  }
+
+  // 4. Safety cap → fallback to flat text path
+  if (coalesced.length > MAX_RUNS_PER_BLOCK) {
+    console.warn(
+      `[pptx] extractRunsFromElement: ${coalesced.length} runs (>${MAX_RUNS_PER_BLOCK}), fallback to flat text`,
+    );
+    return undefined;
+  }
+
+  // 5. If everything matches the frame style → no runs needed
+  const allMatchFrame = coalesced.every(
+    (r) =>
+      !!r.bold === frame.frameBold &&
+      !!r.italic === frame.frameItalic &&
+      (r.color || "") === frame.frameColor,
+  );
+  if (allMatchFrame) return undefined;
+
+  // 6. Strip redundant attrs vs frame so addText only overrides what differs
+  return coalesced.map((r) => {
+    const out: TextRun = { text: r.text };
+    if (!!r.bold !== frame.frameBold) out.bold = !!r.bold;
+    if (!!r.italic !== frame.frameItalic) out.italic = !!r.italic;
+    if ((r.color || "") !== frame.frameColor) out.color = r.color;
+    if (r.fontWeight !== undefined) out.fontWeight = r.fontWeight;
+    return out;
+  });
+}
+
+function doc_treeWalker(root: HTMLElement): TreeWalker | null {
+  const ownerDoc = root.ownerDocument;
+  if (!ownerDoc || typeof ownerDoc.createTreeWalker !== "function") return null;
+  // NodeFilter.SHOW_TEXT = 4
+  return ownerDoc.createTreeWalker(root, 4);
+}
+
 /** Convert CSS px font-size into PPTX point size for a 1080px wide -> 7.5in slide. */
 export function fontSizePxToPt(px: number, pxPerInch: number): number {
   // PPTX uses 72pt/inch. 0.94 factor matches the visual size of the captured background.
@@ -350,4 +505,5 @@ export function letterSpacingPxToCharSpacing(px: number, pxPerInch: number): num
   const points = (px / pxPerInch) * 72;
   return Math.round(points);
 }
+
 

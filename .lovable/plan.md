@@ -1,116 +1,131 @@
-# Profondeur : carrousel TEXTE vs carrousel MIXTE — analyse comparative
+# Préserver le rich text inline à l'export PPTX éditable
 
-## Verdict en 1 phrase
+## (a) Ce que tu m'as demandé — périmètre validé
 
-Le carrousel **texte** est construit pour **provoquer une bascule mentale** ("ah merde, j'avais jamais vu ça comme ça"). Le carrousel **mixte** est construit pour **raconter joliment une scène avec des photos**. Ce sont deux philosophies différentes — et c'est pour ça que tu sens la profondeur dans l'un mais pas dans l'autre.
-
-## Ce que le mode TEXTE fait que le MIXTE ne fait pas
-
-### 1. Un bloc "PROFONDEUR INTELLECTUELLE" obligatoire en amont
-
-Le mode texte (via `buildExpressFullPrompt`, lignes 1195-1202) impose à l'IA d'analyser EN INTERNE 5 questions avant d'écrire la moindre slide :
-
-```text
-- Quel est le MESSAGE CENTRAL en 1 phrase ?
-- Quel MÉCANISME INVISIBLE est en jeu ? (biais cognitif, conditionnement…)
-- Quelle CROYANCE SOUS-JACENTE alimente le problème ?
-- Quel RETOURNEMENT DE PERSPECTIVE ferait dire "j'avais jamais vu ça comme ça" ?
-- Quelle DONNÉE ou RÉFÉRENCE crédibilise le propos ?
+### Problème
+Quand Opus génère un titre type :
+```html
+<h2 data-pptx-editable="title">Le <span style="font-style:italic;color:#FB3D80">vrai</span> secret</h2>
 ```
+- Preview HTML : "vrai" apparaît italic + accent.
+- PPTX exporté : "Le vrai secret" en un seul style (couleur du `<h2>` parent), le mot accent est perdu.
 
-Et en plus, il importe le bloc partagé `DEPTH_LAYER` (`copywriting-prompts.ts` ligne 440) qui détaille comment ces 4 couches doivent apparaître DANS les slides finales.
+### Cause confirmée
+- `extractAnnotatedBlocks` (`src/lib/pptx-font-mapping.ts`, ligne ~306) appelle `el.textContent` → string aplatie.
+- `addBlockToSlide` (`src/lib/export-carousel-hybrid-pptx.ts`, ligne 390) appelle `slide.addText(string, {style global})` → un seul style.
 
-→ **Le mixte n'a NI ce bloc d'analyse interne, NI le DEPTH_LAYER importé.** Il a un "ARC NARRATIF" générique (situation → tension → développement → résolution) mais aucune injonction à nommer un mécanisme, une croyance, ou un retournement.
+### Modifications
 
-### 2. Une exigence de DENSITÉ avec exemple concret
+**1. `src/lib/pptx-font-mapping.ts`**
 
-Mode texte (lignes 1296-1309) :
+- Ajouter type exporté :
+  ```ts
+  export interface TextRun {
+    text: string;
+    bold?: boolean;
+    italic?: boolean;
+    color?: string;       // hex 6 chars sans `#` (déjà normalisé via normalizeHex)
+    fontWeight?: number;  // poids brut pour info, addText utilise `bold`
+  }
+  ```
+- Étendre `EditableBlock` avec un champ optionnel `runs?: TextRun[]`. Le champ `text: string` reste (rétrocompat + fallback).
+- Refondre `extractAnnotatedBlocks` :
+  - Pour chaque bloc annoté, walker les descendants (TreeWalker `NodeFilter.SHOW_TEXT`).
+  - Pour chaque text node non vide : récupérer `getComputedStyle(parentElement)`, en extraire `fontStyle`, `fontWeight`, `color` (normalisés), comparer au style "frame" (celui du bloc lui-même).
+  - Construire un `TextRun` par text node. Coalescer les runs adjacents qui partagent exactement les mêmes overrides (bold/italic/color identiques au frame ou identiques entre eux) pour éviter la fragmentation.
+  - Si tous les runs sont strictement identiques au style frame → ne pas peupler `runs` (laisser `undefined`) pour garder le chemin actuel.
+  - `block.text` reste le `textContent` concaténé (rétrocompat).
+- `extractEditableBlocks` : NON touché.
+- `mapFontToPptx`, `normalizeHex`, `fontSizePxToPt`, `letterSpacingPxToCharSpacing`, `pxToInches` : NON touchés.
 
-```text
-Chaque slide doit contenir AU MOINS 1 de ces éléments :
-- Une DONNÉE chiffrée sourcée
-- Une ANALOGIE originale
-- Un EXEMPLE CONCRET et spécifique
-- Un MÉCANISME NOMMÉ (concept psycho/socio + auteur)
-- Un VERBATIM réel ou vraisemblable
+**2. `src/lib/export-carousel-hybrid-pptx.ts`**
 
-Exemple DENSE : "73% des comptes actifs publient 2-3 fois/semaine 
-(Later 2024). Pas parce que la quantité compte. Parce que la régularité 
-entraîne l'algorithme. C'est le biais de simple exposition (Zajonc)…"
+- Étendre l'interface locale `BlockRender` :
+  ```ts
+  interface BlockRender {
+    text: string;
+    runs?: TextRun[];     // nouveau
+    rect: ...;
+    style: ...;
+    kind: ...;
+  }
+  ```
+- Propager `runs` depuis `extractAnnotatedBlocks` (ligne 444) : `blocks.push({ text: ab.text, runs: ab.runs, rect, style, kind })`. Les chemins B et C n'ont pas de runs (inchangés).
+- Refondre `addBlockToSlide` (ligne 390) :
+  - Calculer `frameOptions` (toutes les options actuelles : x, y, w, h, fontFace, fontSize, bold, italic, color, align, valign, wrap, margin, charSpacing, lineSpacingMultiple) — INCHANGÉ.
+  - Si `block.runs && block.runs.length > 1` :
+    - Construire `pptxRuns: PptxGenJS.TextProps[]` :
+      ```ts
+      block.runs.map(r => ({
+        text: applyTextTransform(r.text, block.style.textTransform),
+        options: {
+          bold: r.bold,
+          italic: r.italic,
+          color: r.color,
+        },
+      }))
+      ```
+    - `slide.addText(pptxRuns, frameOptions)` (signature multi-runs de pptxgenjs : 1er param = array d'objets `{text, options}`).
+    - Les options de niveau frame (fontFace, fontSize de base, color de base, align, etc.) restent dans `frameOptions` ; les options de niveau run n'overrident QUE bold/italic/color.
+  - Sinon → comportement actuel strictement inchangé.
 
-Exemple GÉNÉRIQUE (refusé) : "La régularité est plus importante que 
-la quantité. Publie quand tu as quelque chose à dire."
-```
+### Garanties de non-régression
 
-→ **Le mixte demande seulement** "1 exemple concret OU 1 analogie du quotidien dans le carrousel" (ligne 1658). Pas par slide. Pas de mécanisme. Pas d'auteur. Pas d'exemple contre-exemple pour calibrer.
+- `extractEditableBlocks` (chemin C fallback) inchangé → blocs sans `runs` → ancien chemin `slide.addText(string, options)`.
+- Path B (overlay_text) inchangé → pas de runs → ancien chemin.
+- Bloc annoté 100% uniforme → `runs` undefined → ancien chemin (zéro impact visuel).
+- `applyTextTransform` appliqué AU TEXTE de chaque run (pas au frame), comme demandé.
 
-### 3. Un TEST DE PROFONDEUR auto-appliqué par l'IA
+### Critères de validation
 
-Mode texte (`buildSlidesPrompt`, lignes 847-851) :
+1. `npx tsc --noEmit` passe.
+2. Test manuel :
+   - Générer un carrousel, exporter PowerPoint éditable, ouvrir dans PowerPoint.
+   - Slide avec `<span italic+color>` inline → mot apparaît italic + dans la couleur accent du span.
+   - Slide titre uniforme sans span → identique à avant.
+   - Frame style (alignement, taille, fontFace, charSpacing, lineSpacing) préservé.
+3. Aucune erreur console nouvelle pendant l'export.
+4. Heuristique fallback (carrousels anciens sans annotations) fonctionne comme avant.
 
-```text
-TEST DE PROFONDEUR à appliquer à chaque slide AVANT de retourner le JSON :
-- Si on peut remplacer le sujet par un autre et que la slide fonctionne 
-  encore → GÉNÉRIQUE → RÉÉCRIS
-- Si la slide dit ce que tout le monde sait déjà → RÉÉCRIS
-- Si la slide pourrait être écrite sans expertise sur le sujet → RÉÉCRIS
-```
+## (b) Mes propositions d'amélioration connexes (à valider individuellement)
 
-→ **Le mixte n'a aucun test équivalent.** Le seul "test" qu'il applique (ligne 1684) c'est "les slides text_only ont toutes un body d'au moins 30 mots". C'est un test de quantité, pas de profondeur.
+Je les liste pour que tu puisses **dire oui/non à chacune** avant exec :
 
-### 4. Un quality_check final qui mesure la densité
+### B1. Détection sémantique `<strong>`/`<b>` et `<em>`/`<i>` ✅ recommandé
+Pourquoi : Opus utilise parfois `<em>vrai</em>` au lieu de `style="font-style:italic"`. Sans ça on rate ces cas.
+Implémentation : dans le walker, vérifier `parentElement.closest("strong,b")` → force `bold:true`, `closest("em,i")` → force `italic:true`. En complément (pas remplacement) du `getComputedStyle` qui devrait déjà les attraper, mais ceinture+bretelles.
+Risque : nul.
 
-Mode texte (lignes 1407-1408) inclut dans le JSON de retour :
-`"density_check": "chaque slide a au moins 1 élément de densité"`
+### B2. Trimming intelligent des espaces ✅ recommandé
+Pourquoi : un walker de text nodes peut produire des runs `" "` purs ou `"\n  "` issus de l'indentation HTML. Sans gestion → runs parasites visibles dans PowerPoint avec un style bizarre.
+Implémentation : si `run.text.trim() === ""` ET il est entre deux runs de même style → fusionner avec le voisin. Si en début/fin → drop (sauf espace significatif entre deux mots).
+Risque : faible si bien testé. Sans ça, risque de runs vides exportés.
 
-→ Le mixte a un quality_check (lignes 1755-1766) qui compte le nombre de slides photo/texte, mais aucune dimension qualitative.
+### B3. Cap du nombre de runs par bloc ✅ recommandé
+Pourquoi : protection défensive contre HTML malformé qui exploserait en 50 runs.
+Implémentation : `MAX_RUNS = 12`. Si dépassé → fallback vers chemin actuel (text plat). Log warn.
+Risque : nul.
 
-## Le résultat dans les sorties générées
+### B4. Coalescing agressif des runs adjacents identiques ✅ recommandé
+Pourquoi : `<h2>Le <span style="italic;color:X">vrai</span> <span style="italic;color:X">secret</span></h2>` → 2 runs italic+X côte à côte → mieux fusionner en 1.
+Implémentation : pass de réduction sur le tableau final, fusionner runs N et N+1 si bold/italic/color identiques.
+Risque : nul, juste plus propre dans le XML PPTX.
 
-| Critère | Mode TEXTE | Mode MIXTE |
-|---|---|---|
-| Mécanisme nommé (biais, concept) | Exigé ≥1× | Pas évoqué |
-| Croyance sous-jacente formulée | Exigée explicitement | Pas évoquée |
-| Retournement de perspective | "Moment fort du milieu" | Pas évoqué |
-| Donnée chiffrée sourcée | Encouragée | Optionnelle |
-| Exemple hyper-spécifique | Exigé par slide | "Au moins 1 dans tout le carrousel" |
-| Test anti-générique | Oui, par slide | Non |
-| Quality check de densité | Oui | Non |
+### B5. Préserver `text-decoration: underline` inline ⚠️ optionnel
+Pourquoi : si un span a `text-decoration:underline`, on le perd. Mais Opus ne semble pas l'utiliser souvent dans le design system actuel.
+Implémentation : ajouter `underline?: boolean` au TextRun + `cs.textDecorationLine.includes("underline")`.
+Risque : nul. Skip si tu veux rester minimal.
 
-## Pourquoi cette divergence existe
+### B6. NE PAS faire (signalé pour transparence)
+- Ne pas changer `applyTextTransform` (reste appliqué par run, comme demandé).
+- Ne pas toucher au prompt `carousel-visual` (hors scope).
+- Ne pas toucher `extractEditableBlocks` (hors scope).
+- Ne pas toucher exports Pinterest / PNG / pptx visual (hors scope).
 
-Historiquement, `buildMixCarouselPrompt` a été pensé comme un **carrousel photo enrichi de quelques slides texte**, avec une posture "directrice artistique éditoriale" (ligne 1593) — orienté composition visuelle, overlay, layouts. Toute l'attention va à la qualité formelle et à la cohérence photo↔texte.
+## Recommandation
 
-`buildExpressFullPrompt` (le mode texte, ligne 1157) est lui pensé comme un **carrousel intellectuel** : posture analyste, sujet creusé, mécanique cognitive. Quand on a corrigé récemment la profondeur du mixte (ajout de DEPTH_LAYER dans `photoInstruction` de `structure_proposal`, ligne 330), on a modifié le prompt **de la phase structure** mais PAS le prompt **de la phase génération de contenu** (`buildMixCarouselPrompt`). Donc la structure proposée mentionne le mécanisme mais le contenu généré l'ignore.
+Approche minimale stricte = (a) seul.
+Approche recommandée = (a) + B1 + B2 + B3 + B4 (tous à risque nul, gain robustesse net).
+B5 = à ton choix.
 
-## Recommandations
-
-### 1. Importer le bloc d'analyse interne dans `buildMixCarouselPrompt`
-Recopier le bloc "AVANT D'ÉCRIRE, analyse ce sujet en interne" (lignes 1195-1202) au début du prompt mixte, juste après le `channelBlock`. Coût : ~7 lignes de prompt. Bénéfice : l'IA arrive en zone d'écriture avec le mécanisme/croyance/retournement déjà identifiés.
-
-### 2. Importer `DEPTH_LAYER` dans le mode mixte
-Ajouter `${DEPTH_LAYER}` dans le prompt mixte (comme dans le mode texte ligne 658). Le bloc précise comment les 4 couches doivent apparaître DANS les slides finales — c'est l'injonction qui transforme l'analyse interne en sortie visible.
-
-### 3. Renforcer la règle "QUAND UNE SLIDE TEXTE EST INDISPENSABLE"
-Aujourd'hui (lignes 1619-1620) le mode mixte dit juste que les slides texte servent au "développement narratif, tips, prise de position, contexte, CTA". À enrichir : "elles doivent porter le mécanisme nommé, la croyance retournée, ou le moment de bascule. Si une slide texte n'est qu'un commentaire de la photo précédente, elle ne sert à rien — supprime-la ou réécris-la."
-
-### 4. Ajouter le TEST DE PROFONDEUR par slide texte
-Importer le test "si on peut remplacer le sujet par un autre…" (lignes 847-851) en l'appliquant spécifiquement aux slides `text_only` du mixte.
-
-### 5. Étendre le quality_check du mixte
-Ajouter dans le JSON de retour mixte :
-- `mecanisme_nomme: true/false`
-- `croyance_retournee: true/false`
-- `slide_pivot_identifiee: numero_de_slide`
-
-Force l'IA à vérifier que ces éléments existent avant de répondre.
-
-## Hors scope (mais à noter)
-
-- Le mode `photo` pur (`buildPhotoCarouselPrompt`) souffre du même angle "directrice artistique" sans profondeur — mais c'est cohérent avec l'usage (carrousel sensoriel/lifestyle). On ne le touche pas.
-- Le mode "structure_proposal" pour le mixte (lignes 315-341) mentionne déjà DEPTH_LAYER → l'écart vient bien de la phase de génération de contenu.
-
-## Fichiers à modifier (plan d'implémentation, pas exécuté)
-
-- `supabase/functions/carousel-ai/index.ts` — `buildMixCarouselPrompt` (lignes 1533-1768) : ajouter bloc analyse interne + import DEPTH_LAYER + test de profondeur + quality_check étendu.
-- `mem://preference/carousels` — noter que le mode mixte applique désormais DEPTH_LAYER au même niveau que le mode texte.
+Dis-moi quelles propositions tu valides et je passe à l'exec.

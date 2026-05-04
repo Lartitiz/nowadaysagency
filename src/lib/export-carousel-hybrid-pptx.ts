@@ -10,6 +10,7 @@ import {
   extractEditableBlocks,
   extractAnnotatedBlocks,
   type EditableBlock,
+  type TextRun,
 } from "./pptx-font-mapping";
 
 interface VisualSlide {
@@ -202,6 +203,8 @@ function findOverlayElement(doc: Document, overlayText: string): HTMLElement | n
 
 interface BlockRender {
   text: string;
+  /** Runs typographiques inline. Si présent + length >= 2 → exporté en multi-runs. */
+  runs?: TextRun[];
   rect: { x: number; y: number; w: number; h: number };
   style: EditableBlock["style"];
   kind: EditableBlock["kind"];
@@ -387,7 +390,7 @@ function addBlockToSlide(
   const color = normalizeHex(block.style.color, charterTextFallback);
   const charSpacing = letterSpacingPxToCharSpacing(block.style.letterSpacingPx, PX_PER_IN);
 
-  slide.addText(applyTextTransform(block.text, block.style.textTransform), {
+  const frameOptions: PptxGenJS.TextPropsOptions = {
     x,
     y,
     w,
@@ -403,7 +406,24 @@ function addBlockToSlide(
     margin: 0,
     charSpacing: charSpacing || undefined,
     lineSpacingMultiple: Math.max(0.9, Math.min(1.6, block.style.lineHeight / Math.max(1, block.style.fontSizePx))),
-  });
+  };
+
+  // Multi-runs path: preserve inline italic/bold/color from <span>/<em>/<strong>.
+  if (block.runs && block.runs.length >= 2) {
+    const pptxRuns = block.runs.map((r) => ({
+      text: applyTextTransform(r.text, block.style.textTransform),
+      options: {
+        bold: r.bold,
+        italic: r.italic,
+        color: r.color,
+      },
+    }));
+    slide.addText(pptxRuns, frameOptions);
+    return;
+  }
+
+  // Flat text path (unchanged behavior).
+  slide.addText(applyTextTransform(block.text, block.style.textTransform), frameOptions);
 }
 
 // ---------------------------------------------------------------------------
@@ -441,7 +461,7 @@ export async function exportCarouselHybridPptx(
         for (const ab of annotated) {
           if (ab.rect.y > SLIDE_H_PX || ab.rect.x > SLIDE_W_PX) continue;
           if (ab.rect.y + ab.rect.h < 0) continue;
-          blocks.push({ text: ab.text, rect: ab.rect, style: ab.style, kind: ab.kind });
+          blocks.push({ text: ab.text, runs: ab.runs, rect: ab.rect, style: ab.style, kind: ab.kind });
           (ab.el as HTMLElement).setAttribute("data-pptx-hide", "true");
         }
       } else {
