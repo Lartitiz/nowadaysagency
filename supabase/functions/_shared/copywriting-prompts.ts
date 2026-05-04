@@ -149,7 +149,7 @@ OBJECTIF ENGAGEMENT (lien, communauté) :
 → Formats : Carrousel + Stories + Caption longue
 → Accroches : Suspense, émotionnelle, question ouverte, confession
 → Exemples d'accroches à adapter :
-  • "La semaine dernière, une cliente m'a dit : '[verbatim spécifique]'. Ça m'a fait réfléchir."
+  • "Ce qui m'a frappée cette semaine en parcourant [secteur/feed/sujet] : [constat précis sans date fabriquée]."
   • "J'ai longtemps cru que [croyance spécifique au métier]. En fait, [constat opposé]."
   • "Dis-moi si tu te reconnais : [situation concrète que vit l'audience au quotidien]."
 
@@ -387,7 +387,7 @@ PATTERNS STRUCTURELS BANNIS :
 - Conclusion qui résume tout → phrase de fin qui OUVRE (question, invitation)
 - Ton uniformément poli sans aspérités → ajouter de la franchise
 - Pas d'opinion → en proposer une
-- Pas d'exemples concrets → en inventer un crédible ou en demander un
+- Pas d'exemples concrets → généraliser sans inventer de scène vécue datée ("ce qui revient", "ce qu'on voit passer", "le cas typique") OU demander un vrai vécu à l'utilisatrice. JAMAIS fabriquer un "hier", "la semaine dernière", "une cliente m'a dit".
 - Intro longue avant d'arriver au sujet → démarrer dans le vif
 - Répétition de la consigne en début de réponse → NON
 
