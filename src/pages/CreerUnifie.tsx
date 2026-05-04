@@ -910,6 +910,7 @@ export default function CreerUnifie() {
           deepening_answers: Object.keys(ans).length > 0 ? ans : undefined,
           workspace_id: workspaceId !== session.user.id ? workspaceId : undefined,
           photo_description: photoDescription || undefined,
+          ...(newsjackingContext ? { news_context: newsjackingContext.slice(0, 3800) } : {}),
         };
         // En mode photo/mix, envoyer les photos pour analyse visuelle
         if ((carouselSubMode === "photo" || carouselSubMode === "mix") && uploadedPhotos.length > 0) {
