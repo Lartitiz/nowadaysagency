@@ -83,8 +83,8 @@ Ces exemples montrent EXACTEMENT ce que tu dois corriger avant de retourner.
 EXEMPLE 1 — LISTICLE DÉGUISÉ EN CARROUSEL :
 ❌ "📌 SLIDE 2 : Erreur n°1 : Ne pas avoir de stratégie
 Tu postes au hasard sans savoir pourquoi."
-✅ "📌 SLIDE 2 : La semaine dernière, une cliente m'a montré son calendrier éditorial. 45 posts en 2 mois. Aucun n'avait de lien avec son offre. Elle postait pour poster. Et l'algorithme le voyait."
-→ POURQUOI : le numéro + titre générique = listicle classique. La version corrigée RACONTE un cas concret dont on tire la leçon sans la nommer.
+✅ "📌 SLIDE 2 : Ce que je vois revenir : des calendriers de 45 posts sur 2 mois sans aucun lien avec l'offre. On poste pour poster. Et l'algorithme le voit."
+→ POURQUOI : le numéro + titre générique = listicle classique. La version corrigée FAIT UN CONSTAT GÉNÉRAL incarné, sans inventer une scène vécue datée ("la semaine dernière une cliente m'a montré…" est INTERDIT si ce n'est pas un vrai vécu fourni — voir ANTI_FABRICATED_STORYTELLING).
 
 EXEMPLE 2 — ACCROCHE CLICKBAIT :
 ❌ "Tu fais sûrement cette erreur sur Instagram (et elle te coûte des clients)"
