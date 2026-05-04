@@ -9,7 +9,9 @@ import {
   letterSpacingPxToCharSpacing,
   extractEditableBlocks,
   extractAnnotatedBlocks,
+  extractShapeBlocks,
   type EditableBlock,
+  type ShapeBlock,
   type TextRun,
 } from "./pptx-font-mapping";
 
