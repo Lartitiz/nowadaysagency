@@ -655,6 +655,7 @@ export function useContentGenerator() {
         deepResearch,
         pinterestLink,
         pinterestBoard,
+        newsContext,
       } = params;
 
       streamReset();
