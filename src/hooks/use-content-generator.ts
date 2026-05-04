@@ -49,6 +49,8 @@ export interface GenerateParams {
     photo_index?: number;
     slide_type?: "photo_full" | "photo_integrated" | "text_only";
   }>;
+  // Newsjacking — separate field to avoid bloating `subject`
+  newsContext?: string;
 }
 
 export interface GenerateQuestionsParams {
@@ -63,6 +65,8 @@ export interface GenerateQuestionsParams {
   photoDescription?: string;
   carouselSubMode?: "text" | "photo" | "mix";
   photoMode?: boolean;
+  // Newsjacking — anchors the questions in the actu instead of generic subject
+  newsContext?: string;
 }
 
 export interface Question {
