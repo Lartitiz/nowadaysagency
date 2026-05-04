@@ -25,6 +25,8 @@ interface CarouselPhotoResultProps {
   onRetry?: () => void;
   captionLoading?: boolean;
   onRegenerateCaption?: () => void;
+  onRegenerateVisuals?: () => void;
+  visualLoading?: boolean;
 }
 
 // ─── VisualSlidesCarousel (unchanged) ───
