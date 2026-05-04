@@ -409,29 +409,51 @@ Propose la structure optimale.`;
           ? `carrousel ${channelLabel} MIXTE (slides photo + slides texte alternées)`
           : `carrousel photo ${channelLabel}`;
 
+        // Détecte si l'utilisatrice a vraiment écrit un sujet, ou si c'est juste un fallback automatique
+        const rawSubject = (body.subject || "").trim();
+        const isFallbackSubject = !rawSubject || rawSubject === "Carrousel basé sur les photos uploadées";
+        const hasWrittenIntent = !isFallbackSubject || !!(body.photo_description && body.photo_description.trim().length > 0);
+
         const messageContent: any[] = [];
         body.photos.slice(0, 10).forEach((photo: any, idx: number) => {
           pushPhotoWithContext(messageContent, photo, idx);
         });
         const photoCtxRecap = buildPhotoContextRecap(body.photos);
+
+        // Bloc "intention écrite" : présenté comme un fil narratif de même importance que les photos, pas comme une métadonnée
+        const writtenIntentBlock = hasWrittenIntent
+          ? `\n\nCE QU'ELLE A DÉJÀ EN TÊTE À RACONTER (à mettre AU MÊME NIVEAU que les photos) :
+${!isFallbackSubject ? `Sujet/angle qu'elle a écrit : "${rawSubject}"` : ""}
+${body.photo_description && body.photo_description.trim() ? `Ce qu'elle dit de ses photos : "${body.photo_description}"` : ""}`
+          : `\n\nElle n'a pas (encore) écrit de sujet précis : appuie-toi à 100 % sur les photos pour faire émerger son intention.`;
+
+        const crossingRules = hasWrittenIntent
+          ? `\n- CROISER ce qu'elle a écrit (sujet/description) avec ce que tu vois dans les photos : où est-ce que les deux se rencontrent ? Où est-ce qu'il y a un écart, une tension, un non-dit, un détail visuel qui prolonge ou contredit son texte ?
+- ${isMix ? "Au moins 2 questions sur 3" : "Au moins 1 question sur 3"} doivent faire ce pont EXPLICITE entre son intention écrite et ce que les photos montrent réellement (cite un bout de son texte ET un élément visuel précis dans la même question).`
+          : "";
+
+        const crossingExamples = hasWrittenIntent
+          ? `
+- "Tu écris '${rawSubject ? rawSubject.slice(0, 60) : "[bout de son sujet]"}…' et sur la photo [N] on voit [élément précis] — c'est exactement la scène que tu veux montrer, ou il y a autre chose derrière ce moment-là ?"
+- "Ton sujet parle de [thème écrit], mais les photos montrent surtout [observation visuelle qui détonne ou prolonge]. Lequel des deux veux-tu mettre en avant — ou comment tu veux les faire dialoguer dans le carrousel ?"`
+          : "";
+
         messageContent.push({
           type: "text",
           text: `Voici ${body.photos.length} photo(s) que l'utilisatrice veut utiliser pour un ${formatLabel}.
 
-Sujet : "${body.subject || "non précisé"}"
-Objectif : ${body.objective || "engagement"}
-${body.photo_description ? `Description complémentaire fournie en amont : "${body.photo_description}"` : ""}${photoCtxRecap}
+Objectif : ${body.objective || "engagement"}${writtenIntentBlock}${photoCtxRecap}
 
-Tu es une coach com' spécialisée en contenu visuel. Analyse les photos et pose exactement 3 questions d'approfondissement.
+Tu es une coach com' spécialisée en contenu visuel. Tu as DEUX matières à croiser : ses photos ET ce qu'elle a déjà écrit en amont. Pose exactement 3 questions d'approfondissement.
 
 Tes questions doivent :
-- MENTIONNER ce que tu VOIS RÉELLEMENT dans les photos (éléments concrets, ambiance, couleurs, scène, geste, lieu)
-- Aider l'utilisatrice à définir l'histoire que ces photos racontent ensemble${isMix ? "\n- Identifier QUELLES photos méritent d'être au cœur du carrousel ET QUELS PASSAGES TEXTUELS viennent les accompagner (slides texte intercalées)" : ""}
+- MENTIONNER ce que tu VOIS RÉELLEMENT dans les photos (éléments concrets, ambiance, couleurs, scène, geste, lieu)${crossingRules}
+- Aider l'utilisatrice à définir l'histoire que ces photos racontent ensemble${isMix ? ", ET QUELS PASSAGES TEXTUELS viennent s'intercaler entre les slides photo (réflexion, chiffre, conviction)" : ""}
 - Extraire le contexte INVISIBLE : pourquoi ce moment, quelle émotion, quel message, quel hors-champ
-- Être SPÉCIFIQUES à CES photos (pas génériques, pas interchangeables avec un autre brief)
+- Être SPÉCIFIQUES à CE brief (pas génériques, pas interchangeables avec un autre sujet ou d'autres photos)
 ${isLinkedIn ? "- Garder un ton PRO (apprentissage business, prise de position, résultat concret derrière l'image)" : "- Garder un ton ÉMOTION/SCÈNE VÉCUE (ressenti, coulisses, instant)"}
 
-Exemples de bonnes questions${isMix ? " (carrousel mixte)" : ""} :
+Exemples de bonnes questions${isMix ? " (carrousel mixte)" : ""} :${crossingExamples}
 - "Je vois [élément précis]. C'était dans quel contexte ? Qu'est-ce que ce moment représente pour toi ?"
 - "L'ambiance sur la photo [N] est [observation]. C'est volontaire ? Quel message tu veux faire passer ?"
 ${isMix
@@ -440,7 +462,8 @@ ${isMix
 
 INTERDIT :
 - Questions génériques qui pourraient s'appliquer à n'importe quel sujet ou n'importe quelles photos
-- Questions sans aucune référence visuelle aux photos analysées
+- Questions sans aucune référence visuelle aux photos analysées${hasWrittenIntent ? `
+- Questions qui IGNORENT complètement ce qu'elle a écrit dans son sujet/description et ne parlent que des photos (le pont entre texte et image est OBLIGATOIRE${isMix ? " sur au moins 2 questions" : ""})` : ""}
 
 Réponds UNIQUEMENT en JSON valide :
 {
