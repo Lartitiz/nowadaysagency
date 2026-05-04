@@ -10,6 +10,7 @@ import {
   extractEditableBlocks,
   extractAnnotatedBlocks,
   type EditableBlock,
+  type TextRun,
 } from "./pptx-font-mapping";
 
 interface VisualSlide {
