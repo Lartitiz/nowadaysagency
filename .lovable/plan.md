@@ -1,70 +1,81 @@
-## Le problème observé
 
-Tu pars d'une actu → tu choisis un carrousel mix. Résultat :
+# Plus de profondeur, zéro storytelling fabriqué
 
-1. **Texte slide-par-slide, pas connecté** : chaque slide explique un point comme un cours. Pas de fil narratif, pas de "moi, voilà ce que j'en pense". On dirait un résumé d'article, pas une prise de parole.
-2. **Angle dévalorisant** : le carrousel finit toujours par dire à l'audience "tu attends la permission", "tu es bloquée par X". L'audience est victimisée. Toi, tu veux parler d'elle SANS appuyer sur ses douleurs — surtout quand on parle d'un sujet plus large que sa vie perso.
+## Objectif
+Quand tu génères un carrousel (surtout en mode actu), le texte doit parler du **fond du sujet**, pas inventer ta vie ni diagnostiquer ta lectrice. Trois leviers :
 
-## D'où ça vient (diagnostic technique court)
+1. Interdiction totale d'inventer une scène vécue datée.
+2. Profondeur recentrée : 1 slide de fond sectoriel/factuel + 1 slide de prise de position personnelle, obligatoires.
+3. Quand Perplexity a fourni un contexte, l'IA est fortement incitée à s'en servir.
 
-Dans `buildMixCarouselPrompt` + `buildSystemPrompt` (`carousel-ai/index.ts`) :
+---
 
-- Quand le `news_context` est injecté, la consigne dit "le hook part de l'actu, puis pont vers ton expertise" — mais **rien ne garantit que TA voix/opinion porte tout le reste du carrousel**. L'IA retombe dans le réflexe "j'explique l'actu en 5 points".
-- Les règles "DEPTH_LAYER" demandent de nommer un mécanisme/biais cognitif. Sur un sujet d'actu globale, l'IA choisit par défaut le mécanisme **"mes lectrices subissent X"** (estime de soi conditionnelle, attente de permission, syndrome de l'imposteur…) → ça produit le ton paternaliste que tu détestes.
-- Le bloc ANTI-BIAIS interdit déjà "tu as le droit de prendre de la place" mais ne couvre pas la version subtile ("elle attend la permission", "on a intériorisé qu'on devait…"). 
-- Pas de mode dédié "carrousel d'opinion sur une actu" : on traite ça comme un carrousel mix classique avec une actu greffée en intro.
+## Ce qui change concrètement
 
-## Ce que je propose
+### 1. Anti-fabrication de scène vécue (nouveau bloc global)
 
-### A. Un mode narratif "réaction d'autrice" pour les carrousels mix issus d'une actu
+Ajouter un bloc `ANTI_FABRICATED_STORYTELLING` injecté dans tous les prompts carrousel, qui :
 
-Quand `news_context` est présent ET `carousel_type === "mix"`, on bascule sur un **prompt dédié** qui :
+- Bannit explicitement les marqueurs de scène vécue datée non fournie : "hier", "la semaine dernière", "ce matin", "j'ai reçu un message", "une cliente m'a dit", "j'ai vu passer", "lundi 7h", "il y a 3 jours", + toute date/jour précis.
+- Règle : ces formules ne sont autorisées QUE si l'utilisatrice a fourni cet élément dans `deepening_answers.anecdote` ET que cet élément n'est PAS marqué `(élément tiré du branding)`.
+- Si pas d'anecdote vécue fournie → l'IA généralise : "ce qui circule en ce moment", "ce que je vois passer dans ce milieu", "on entend souvent que", "il y a un truc qui revient", "dans ma pratique" (présent intemporel, pas de date).
 
-- **Voix dominante = JE qui réagit**. Pas "voilà ce qui se passe + 5 points" mais "voilà ce que je vois passer / ce que ça me fait / pourquoi je trouve que c'est plus profond que ce qu'on dit".
-- **Arc narratif unique** imposé : actu déclencheuse → ce qui m'a frappée précisément → là où je décale (où je ne suis pas d'accord avec la lecture commune / où je vois autre chose) → ce que ça révèle de plus large → ce que je propose comme regard, sans donner d'ordre.
-- **Continuité explicite slide-à-slide** : chaque slide est une étape de MA pensée, pas un point de liste. Test ajouté en quality_check : "si je lis les `body` à la suite, est-ce que ça forme un monologue cohérent ?"
-- **Le "vous/tu" disparaît presque** : 0 slide d'interpellation directe sauf le CTA final. L'audience est convoquée par ricochet ("on" inclusif au sens "nous toutes qui regardons ça"), jamais désignée comme problème.
+### 2. Neutraliser le fallback "branding → anecdote"
 
-### B. Garde-fous anti-victimisation de l'audience
+Dans `carousel-ai/index.ts` (lignes 123-133), le fallback transforme actuellement ton storytelling de marque en `anecdote` à intégrer "mot pour mot". C'est ce qui force l'IA à fabriquer des scènes.
 
-Nouvelle section dans le system prompt, active dès qu'il y a un `news_context` (et utile aussi hors news) : oui faire hors news aussi
+Changement : le fallback ne remplit plus `anecdote`. Il ne garde que `emotion` et `conviction` (qui sont des tonalités, pas des faits). L'anecdote reste vide → l'IA bascule automatiquement en mode "généralisation" décrit ci-dessus.
 
-- **Interdiction de positionner l'audience en victime/en attente** : pas de "elle attend la permission", "elle a peur de", "elle s'auto-sabote", "elle a intériorisé que…", "tu n'oses pas", "tu te dévalorises", "tu te compares". Liste explicite de patterns interdits.
-- **Le mécanisme nommé doit porter sur LE SUJET, pas sur la psyché de la lectrice** : si l'actu c'est "machin", le mécanisme c'est un truc systémique/culturel/économique du sujet, pas "le syndrome de l'imposteur de mes lectrices".
-- **Règle "miroir vs projecteur"** : sur un sujet large, le carrousel est un PROJECTEUR (on regarde le sujet ensemble), pas un MIROIR (qui te renvoie tes failles). Reformulation possible : au lieu de "tu n'oses pas X", dire "X est rendu difficile par Y" ou "moi je pense que X mérite mieux que ce qu'on en dit".
+### 3. Nettoyer les exemples-piège dans les prompts
 
-### C. Profondeur via opinion incarnée, pas via diagnostic psy
+Trois exemples explicites poussent actuellement l'IA à inventer des scènes datées. Les réécrire en versions généralisantes :
 
-Adapter la définition de "slide pivot" pour ce mode :
+- `copywriting-prompts.ts` ligne 86 : remplacer "La semaine dernière, une cliente m'a montré son calendrier éditorial. 45 posts en 2 mois…" par un exemple sans date ("Ce que je vois revenir : des calendriers de 45 posts sur 2 mois sans aucun lien avec l'offre.").
+- `copywriting-prompts.ts` ligne 152 : enlever le template "La semaine dernière, une cliente m'a dit : '[verbatim]'".
+- `carousel-ai/index.ts` ligne 1496 : remplacer "Et puis un jour, une cliente m'a dit quelque chose qui a tout changé" par un exemple narratif sans scène fabriquée.
+- `copywriting-prompts.ts` ligne 390 : modifier "Pas d'exemples concrets → en inventer un crédible" en "Pas d'exemples concrets → généraliser sans inventer de scène vécue datée".
 
-- La slide pivot n'est plus "la croyance retournée de la lectrice" mais **"la prise de position personnelle qui décale"** : un truc que toi tu vois et que la lecture dominante de l'actu rate.
-- Les slides text_only doivent porter : un fait précis sur l'actu, une opinion tranchée signée, une nuance qu'on entend pas ailleurs, un parallèle avec ton métier — **jamais** un diagnostic sur la lectrice.
-- Quality_check enrichi : `audience_as_victim: false`, `je_voice_dominant: true`, `opinion_visible_in_at_least_2_slides: true`.
+### 4. Profondeur double obligatoire (mode actu surtout)
 
-### D. Effet sur le pont actu → métier
+Étendre le bloc `DEPTH_LAYER` avec une nouvelle exigence pour les carrousels mode actu, et l'incorporer aussi dans `buildMixCarouselNewsReactionPrompt` :
 
-Garder l'idée du "pont" actuelle, mais le formuler autrement : pas "voilà ce que cette actu dit de TON business" mais "voilà ce que cette actu touche dans MON terrain / MA pratique". L'audience entend "elle parle vraiment, donc je m'identifie", au lieu de "elle me fait la leçon".
+**Slide "fond du sujet" (obligatoire, 1 slide minimum)** : analyse du sujet lui-même — pas de la lectrice. Au moins une de ces dimensions :
+- Mécanisme économique (qui gagne quoi, modèle d'affaires sous-jacent)
+- Mécanisme sectoriel/historique (précédent, évolution, comparaison)
+- Donnée factuelle vérifiable (chiffre, étude, cas connu)
+- Acteur identifié (qui agit, quel intérêt)
 
-## Périmètre du changement (technique)
+Bannir explicitement comme angle de profondeur dans cette slide : biais cognitifs de la lectrice, syndrome de l'imposteur, peur du jugement, conditionnements personnels.
 
-- 1 fichier modifié : `supabase/functions/carousel-ai/index.ts`
-  - Nouvelle fonction `buildMixCarouselNewsReactionPrompt()` utilisée quand `news_context` + `carousel_type === "mix"`.
-  - Ajout d'un bloc `ANTI_AUDIENCE_VICTIMIZATION` (réutilisable plus tard pour d'autres formats si tu veux).
-  - Champs `quality_check` enrichis.
-- Aucune migration DB, aucun changement front, aucun changement d'autres formats (LinkedIn, reels, posts simples, carrousel mix sans actu = inchangés).
-- Déploiement : 1 edge function (`carousel-ai`).
+**Slide "prise de position incarnée" (obligatoire, 1 slide minimum)** : ton opinion tranchée sur le sujet — "moi je trouve que", "ce qui me dérange dans cette lecture", "la question qu'on évite", "je ne suis pas d'accord avec X parce que Y". Pas un diagnostic de la lectrice, une position d'autrice.
 
-## Ce qui ne change PAS (pour rassurer)
+### 5. Exploitation favorisée du contexte Perplexity
 
-- Carrousel mix **sans actu** = comportement actuel inchangé (toute la philo profondeur reste).
-- Newsjacking côté recherche (Perplexity + 6 axes) = inchangé, on travaille uniquement la GÉNÉRATION du carrousel après que tu aies cliqué sur une actu.
-- Ton de marque, anti-slop, écriture inclusive, anti-em-dash = tout reste.
-- Les règles anti-TU existantes ne sont pas supprimées, elles sont durcies sur ce mode précis.
+Quand `news_context` est présent dans le payload du carousel-ai, ajouter au prompt une instruction explicite :
 
-## Ce que je veux valider avec toi avant de coder
+> "Le contexte actu fourni contient des faits, chiffres et acteurs identifiés. Tu es FORTEMENT encouragée à t'appuyer sur AU MOINS UN fait précis du contexte (chiffre, nom d'acteur, date d'événement, mécanisme évoqué) dans ta slide de fond. Tu NE PEUX PAS inventer un chiffre ou un fait absent du contexte. Si le contexte ne contient pas de fait exploitable, dis-le honnêtement par une formulation prudente plutôt que d'inventer."
 
-Trois points pour être sûre de pas dériver :
+### 6. Quality check enrichi
 
-1. **Le "vous/tu" dans ce mode** : on supprime totalement (sauf CTA), ou on garde 1 slide max d'interpellation douce ?
-2. **L'opinion personnelle** : je peux pousser jusqu'à des prises de position un peu tranchées ("moi je trouve que…", "ça me gonfle que…"), ou tu veux rester dans la nuance posée ?
-3. **Hors mode actu** : la garde anti-victimisation, on l'applique seulement aux carrousels mix avec actu, ou on l'étend à TOUS les carrousels (texte + mix + sans actu) parce que le problème existe sûrement ailleurs aussi ?
+Ajouter au JSON de sortie 3 nouveaux flags :
+- `fabricated_scene_detected: boolean` (true si une formule "hier/lundi/cette semaine/une cliente m'a dit" apparaît sans anecdote vécue fournie)
+- `subject_depth_present: boolean` (true si au moins 1 slide analyse le fond du sujet et pas la psyché de la lectrice)
+- `personal_stance_present: boolean` (true si au moins 1 slide exprime une opinion incarnée)
+
+Si les deux derniers sont `false`, le correction-pass régénère les slides concernées.
+
+---
+
+## Détails techniques
+
+**Fichiers modifiés :**
+- `supabase/functions/_shared/copywriting-prompts.ts` : nouveau bloc `ANTI_FABRICATED_STORYTELLING`, extension de `DEPTH_LAYER` avec section "fond sectoriel + prise de position", nettoyage des 4 exemples-piège.
+- `supabase/functions/_shared/user-context.ts` : `buildPreGenFallback` ne renvoie plus `anecdote` (juste `emotion` et `conviction`).
+- `supabase/functions/carousel-ai/index.ts` : injection du nouveau bloc dans `buildSystemPrompt`, instruction Perplexity conditionnelle quand `news_context` présent, extension du `quality_check`, exemple ligne 1496 réécrit, intégration dans `buildMixCarouselNewsReactionPrompt`.
+- `supabase/functions/_shared/correction-pass.ts` : déclencher une régénération des slides si `fabricated_scene_detected: true` ou si les flags profondeur sont `false`.
+
+**Mémoire à mettre à jour après implémentation :**
+- `mem://preference/carousels` : ajouter règle "zéro scène vécue datée fabriquée + double profondeur sujet/opinion obligatoire".
+- `mem://preference/brand-voice` : renforcer "anti-storytelling fabriqué" comme règle globale.
+
+**Pas d'impact sur :** newsletters, reels, posts simples (pour l'instant — on peut l'étendre dans un 2e temps si tu valides l'effet sur les carrousels).
