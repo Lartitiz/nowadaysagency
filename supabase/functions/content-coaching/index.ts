@@ -315,19 +315,22 @@ ALIGNEMENT D'ÉCHELLE ET DE POSTURE
 - Ne JAMAIS contredire la posture de l'utilisatrice : si elle utilise les réseaux sociaux pour vivre de son activité, ne pas pondre des angles type "les vraies marques ne postent pas" ou "le luxe méprise Instagram".
 
 ═══════════════════════════════════════════════
-EXIGENCE DE PROFONDEUR — anti-tiède
+EXIGENCE DE PROFONDEUR — anti-tiède (OBLIGATOIRE)
 ═══════════════════════════════════════════════
 INTERDIT (sujets de surface qui n'apprennent rien) :
 - "Les 3 erreurs que…", "Top 3 / Top 5", "Voici pourquoi X marche", "La vérité sur Y", "Ce que personne ne dit sur Z", "Le piège du…", "Le mythe du…" sans angle réellement nouveau.
 
-Chaque sujet doit ouvrir sur AU MOINS UN de ces 3 éléments (à révéler ensuite à la rédaction) :
-1. Une TENSION précise et localisée (pas "le marché change" → flou).
-2. Un MÉCANISME nommable (biais cognitif, dynamique de marché, ressort psychologique précis).
-3. Une OBSERVATION DE TERRAIN ancrée dans le secteur de la cible.
+CHAQUE idée DOIT cocher EXPLICITEMENT (en raisonnement interne, NE PAS afficher) ces 3 cases avant d'être validée :
+1. TENSION : un conflit / paradoxe / dilemme nommable en une phrase courte ("liberté vs structure", "transparence vs prix", "lenteur vs marché"…). Pas "le marché change" — flou.
+2. ENJEU PERSONNEL pour la lectrice : ce qui change concrètement pour elle si elle adopte ou refuse l'idée (un comportement, une croyance, un choix business).
+3. PREUVE D'ANCRAGE : un détail qui prouve que ce n'est pas une idée hors-sol. Au choix : (a) un détail technique du métier, (b) une scène précise, (c) une observation terrain, (d) un chiffre FACTUEL (jamais inventé), (e) un élément tiré de la MATIÈRE VIVANTE (persona, storytelling, offre).
+
+⚠ Si l'idée ne peut pas cocher les 3 cases, elle est INVALIDE. Reformule.
+Tu N'AFFICHES PAS ces 3 cases dans le JSON — elles sont ton chain-of-thought.
 
 CONTEXTE BRANDING :
 ${contextText}
-
+${livingMatterBlock}
 PILIERS : ${pillars}
 DATE : ${dayOfWeek} ${now.getDate()} ${currentMonth} ${currentYear}
 
@@ -343,26 +346,29 @@ RÈGLE D'OR — ANCRAGE MÉTIER (la plus importante) :
 Les idées parlent du MÉTIER de l'utilisatrice (photographie si photographe, céramique si céramiste, transformations accompagnées si coach, etc.), PAS de communication en général. NE JAMAIS proposer d'idées sur "comment communiquer", "l'authenticité sur Instagram", "oser se montrer", SAUF si elle travaille elle-même dans la communication/marketing.
 Test de spécificité : si l'idée pourrait fonctionner pour quelqu'un d'un autre secteur, elle est trop vague.
 
-MÉTHODE — 4 REGISTRES OBLIGATOIRES ET ORDONNÉS :
-Tu produis EXACTEMENT 4 idées, une par registre, dans cet ordre :
+═══════════════════════════════════════════════
+MÉTHODE — 4 LENTILLES NARRATIVES (tirées pour CETTE session)
+═══════════════════════════════════════════════
+Tu produis EXACTEMENT 4 idées, UNE par lentille, dans l'ordre ci-dessous.
+Chaque lentille est un angle d'attaque DIFFÉRENT sur le métier ou le sujet.
+Si tu sens qu'une lentille ne tient PAS pour ce métier précis, tu peux
+exceptionnellement la remplacer par EXPERTISE PRATIQUE — mais explique-le
+discrètement dans le champ "lens" (ex: "expertise_pratique (fallback)").
 
-   1. EXPERTISE PRATIQUE — le "comment" du métier ancré terrain. Détail technique précis, savoir-faire opérationnel, mécanique concrète de l'activité de l'utilisatrice. C'est le registre "métier vu de l'intérieur" : ce que seule quelqu'un qui exerce vraiment ${activiteTxt} peut formuler avec cette précision.
+${lensesBlock}
 
-   2. CONVICTION / CONTRE-PIED — opinion tranchée du métier qui dérange aussi les PAIRS du secteur (pas seulement l'audience). Pas un contre-pied qui flatte l'audience contre les pairs (ex : "les autres vous mentent, voilà la vérité") — un contre-pied qui met mal à l'aise les confrères / consœurs parce qu'il touche à une pratique commune du métier. Voir TEST DE SINGULARITÉ ci-dessous.
-
-   3. PERSPECTIVE ÉLARGIE — regard sur le SECTEUR (pas sur le geste métier individuel). Mécanisme nommé (biais cognitif, dynamique de marché, ressort psychologique précis), ou mise en tension culturelle/sociétale autour du métier. On prend de la hauteur, on décortique une dynamique invisible.
-
-   4. ANALOGIE INATTENDUE — parallèle entre une mécanique précise du métier de l'utilisatrice et un univers totalement différent (cuisine, sport, artisanat, mécanique, art, science, jeu d'échecs, jardinage, musique, architecture, etc.). L'analogie doit RÉELLEMENT TENIR (pas un parallèle décoratif) et faire voir le métier autrement. Pas la peine de forcer un univers tendance — choisis celui qui éclaire vraiment.
-
-CONTRAINTES CRÉATIVES OPTIONNELLES (à appliquer si pertinent à l'un des 4 registres, sinon ignore) :
+CONTRAINTES CRÉATIVES OPTIONNELLES (à appliquer si pertinent à l'une des 4 lentilles, sinon ignore) :
    🎲 ${seed1}
    🎲 ${seed2}
+
+${WOW_IDEA_EXAMPLES}
 
 RÈGLE ANTI-TU :
 Le SUBJECT est rédigé en JE narratif ou IMPERSONNEL (3e personne, on, nominalisations). INTERDIT par défaut : "tu", "te", "t'", "toi", "ton", "ta", "tes", "vous", "votre", "vos".
 
-${sujet ? `Les 4 idées traitent toutes du sujet "${sujet}" mais sous les 4 registres ci-dessus, donc 4 angles RADICALEMENT différents (pas 4 variations du même angle).` : `Les 4 registres priment sur tout le reste. En bonus, vise une diversité d'objectifs parmi : visibilite, engagement, vente, credibilite, et touche des facettes différentes du métier.`}
+${sujet ? `Les 4 idées traitent toutes du sujet "${sujet}" mais sous les 4 lentilles ci-dessus, donc 4 angles RADICALEMENT différents (pas 4 variations du même angle).` : `Les 4 lentilles priment sur tout le reste. En bonus, vise une diversité d'objectifs parmi : visibilite, engagement, vente, credibilite, et touche des facettes différentes du métier.`}
 
+${boldBlock}
 ROUTES :
 Instagram : Post → /creer | Carrousel → /creer?format=carousel | Reel → /creer?format=reel | Story → /creer?format=story
 LinkedIn : Post/Carrousel → /creer?format=linkedin
@@ -379,16 +385,20 @@ Pour passer, l'idée doit avoir AU MOINS UN de ces caractères :
 - Un angle qu'aucun·e influenceur·euse du secteur ne prendrait (parce que ça ne flatte pas, parce que c'est trop nuancé pour Insta, parce que ça contredit la doxa du secteur lui-même)
 - Une formulation qui surprend par sa concrétude ou sa franchise
 
-Note spécifique CONTRE-PIED (Idée 2) : si le contre-pied dit "tout le monde fait X mal, en vrai il faut Y", c'est probablement déjà vu. Cherche un contre-pied qui dérange les PAIRS du secteur, pas un contre-pied qui flatte l'audience contre les pairs.
+Note spécifique CONTRE-PIED : si le contre-pied dit "tout le monde fait X mal, en vrai il faut Y", c'est probablement déjà vu. Cherche un contre-pied qui dérange les PAIRS du secteur, pas un contre-pied qui flatte l'audience contre les pairs.
 
 ═══════════════════════════════════════════════
 TEST DE VALIDITÉ — applique-le sur CHAQUE idée AVANT de la sortir
 ═══════════════════════════════════════════════
-1. ANALOGIE : si l'idée en contient une, vérifie qu'elle tient vraiment. Sinon, change.
-2. CONTRE-PIED : la croyance citée doit être vraiment répandue ET le contre-pied factuellement vrai.
-3. CHIFFRE : aucun chiffre inventé (RÈGLE DE VÉRITÉ).
-4. RETEX en JE : cohérent avec le parcours réel visible dans le contexte branding.
-5. MARQUE citée : alignement d'échelle, pas de géants.
+1. PROFONDEUR 3-AXES : tension + enjeu personnel + preuve d'ancrage cochés.
+2. ANALOGIE : si l'idée en contient une, vérifie qu'elle tient vraiment. Sinon, change.
+3. CONTRE-PIED : la croyance citée doit être vraiment répandue ET le contre-pied factuellement vrai.
+4. CHIFFRE : aucun chiffre inventé (RÈGLE DE VÉRITÉ).
+5. RETEX en JE : cohérent avec le parcours réel visible dans le contexte branding.
+6. MARQUE citée : alignement d'échelle, pas de géants.
+
+CHAMP "lens" : utilise EXACTEMENT l'un de ces identifiants : ${IDEA_LENSES.map(l => l.id).join(", ")}.
+CHAMP "boldness" : "safe" (idée engageante mais consensuelle), "bold" (sort des sentiers battus, demande un peu de courage), "provoc" (assume une position qui dérange, vulnérabilité forte ou contre-pied frontal).
 
 Retourne UNIQUEMENT ce JSON (pas de markdown, pas de commentaires, pas de prose avant) :
 {
@@ -396,8 +406,10 @@ Retourne UNIQUEMENT ce JSON (pas de markdown, pas de commentaires, pas de prose 
     {
       "subject": "Sujet ultra-concret, ancré dans le métier, prêt à écrire (1 phrase claire)",
       "angle": "Nom court de l'angle éditorial (ex: Contre-pied factuel, Micro-scène, Décryptage de concept)",
+      "lens": "expertise_pratique|contre_pied_pairs|...",
+      "boldness": "safe|bold|provoc",
       "objective_tag": "visibilite|engagement|vente|credibilite",
-      "why_it_works": "1 phrase : pourquoi ça résonne avec SA cible spécifique"
+      "why_it_works": "1 phrase : pourquoi ça résonne avec SA cible spécifique (cite un persona ou une matière vivante quand applicable)"
     }
   ],
   "recommended_format": "${formatLabel}",
