@@ -1710,6 +1710,9 @@ ${deepeningCtx}${angleBlock}
 - Les slides text_only ont TOUTES un body d'au moins 30 mots
 - Le concept du sujet ("${body.subject || ""}") est visible dans le hook ET structure l'ensemble
 - Il y a un arc narratif clair (pas des slides indépendantes)
+- TEST DE PROFONDEUR par slide text_only : si on peut remplacer le sujet par un autre et que la slide fonctionne encore → GÉNÉRIQUE → RÉÉCRIS. Si la slide dit ce que tout le monde sait déjà → RÉÉCRIS. Si elle pourrait être écrite sans expertise sur le sujet → RÉÉCRIS.
+- Au moins UNE slide text_only nomme explicitement le MÉCANISME identifié dans l'analyse interne (biais, concept, dynamique).
+- Au moins UNE slide formule la CROYANCE retournée ("on croit X, en fait Y") OU porte le RETOURNEMENT de perspective (le moment "j'avais jamais vu ça comme ça"). Cette slide est le PIVOT du carrousel — pas le hook, pas le CTA, le milieu.
 ${isLinkedIn ? `- Pour LinkedIn mix : la légende (caption) est OPTIONNELLE — concentre-toi à 100% sur la qualité des slides PDF. Si tu inclus une caption, ne la bâcle pas, sinon laisse-la vide (elle sera générée par un appel dédié).` : `- Le bloc "caption" complet (hook, body, cta, hashtags) est OBLIGATOIRE dans le JSON — ne JAMAIS l'omettre, ne JAMAIS le laisser vide.`}
 
 ${isLinkedIn ? `═══ LÉGENDE LINKEDIN (OPTIONNELLE — peut être vide) ═══
