@@ -384,6 +384,12 @@ export default function CreerUnifie() {
     if (obj) setObjective(obj);
     if (locState?.existingContent) setExistingCalendarContent(locState.existingContent);
 
+    // Newsjacking context arriving from "Créer depuis cette actu" (IdeaDetailSheet)
+    // — preserves the actu block so the generated content stays a real newsjacking.
+    if (locState?.context && typeof locState.context === "string" && locState.context.trim()) {
+      setNewsjackingContext(locState.context.trim().slice(0, 3800));
+    }
+
     const fmtRaw = paramFormat || locState?.format;
     const paramCarouselSubMode = searchParams.get("carouselSubMode") as "text" | "photo" | "mix" | null;
 
