@@ -265,9 +265,9 @@ Corriger UNIQUEMENT le texte. Retourner le MÊME format annoté avec les textes 
    → Reformule avec un ARGUMENT PROPRE, un exemple, une nuance.
 
 5. PHRASES COURTES CONSÉCUTIVES (2+ phrases < 10 mots) :
-   → Fusionne en prose fluide.
-   ❌ "Tu sautes des étapes. Tu parles en raccourcis."
-   → ✅ "Tu sautes des étapes et tu parles en raccourcis sans t'en rendre compte."
+   → Fusionne en prose fluide. NE PAS introduire de "tu" pour fluidifier.
+   ❌ "On saute des étapes. On parle en raccourcis."
+   → ✅ "On saute des étapes et on parle en raccourcis sans s'en rendre compte."
 
 6. ÉNUMÉRATIONS RYTHMIQUES PARFAITES :
    → "Des X, des Y, des Z" → casse la symétrie.
@@ -283,8 +283,25 @@ Corriger UNIQUEMENT le texte. Retourner le MÊME format annoté avec les textes 
    → Si le titre est un mot-concept abstrait seul (1-2 mots type "Authenticité", "Cohérence", "Stratégie", "L'essentiel") → RÉÉCRIS avec un ancrage concret.
    → Test : si le titre pourrait être collé sur un autre carrousel d'un autre métier sans changer un mot → INVALIDE, réécris.
    ❌ "L'art du détail" / "Repenser sa stratégie" / "Le piège de la régularité"
-   → ✅ "47 brouillons. 0 publié." / "J'ai arrêté de checker à 22h." / "Une cliente m'a dit : tu fais peur."
+   → ✅ "47 brouillons. 0 publié." / "J'ai arrêté de checker à 22h." / "Trois mois sans poster, aucun client perdu."
    → Garde le SENS de la slide (BODY associé) — change uniquement le titre pour qu'il entre dans la scène.
+   → INTERDICTION de réécrire un titre en inventant une scène vécue datée si l'original n'en contenait pas. Pas de "Hier, j'ai vu…", pas de "Une cliente m'a dit…" sauf si le body original le justifiait déjà.
+
+10. STORYTELLING FABRIQUÉ (CRITIQUE — anti-invention) :
+   → Si une slide contient "hier", "ce matin", "la semaine dernière", "lundi", "il y a X jours/semaines", "j'ai reçu un message", "j'ai vu passer", "une cliente m'a dit", "un client m'a écrit" + scène détaillée → c'est probablement une scène fabriquée par l'IA. RÉÉCRIS au présent intemporel généralisant.
+   ❌ "Hier, j'ai reçu trois messages quasi identiques. Toutes me demandaient…"
+   → ✅ "Ce qui revient en ce moment dans ma pratique : trois messages quasi identiques. Tous me demandent…"
+   ❌ "La semaine dernière, une cliente m'a dit : 'je n'ose pas poster'."
+   → ✅ "Ce que j'entends souvent : 'je n'ose pas poster'."
+   → Exception : laisse intact UNIQUEMENT si le BODY original contient un détail spécifique qui prouve que c'est un vrai vécu (nom de marque, chiffre précis, contexte unique). En cas de doute → généralise.
+
+11. AUDIENCE DIAGNOSTIQUÉE (anti-victimisation) :
+   → Si une slide diagnostique l'état mental de la lectrice ("tu attends la permission", "tu n'oses pas", "tu te dévalorises", "tu te compares", "tu manques de confiance", "tu te sabotes", "elle attend qu'on lui dise…") → RÉÉCRIS en constat sur le sujet ou sur le discours dominant.
+   ❌ "Tu attends qu'on te valide pour publier."
+   → ✅ "On a transformé la publication en demande d'autorisation. C'est une logique de cour, pas de métier."
+   ❌ "Tu te compares à des comptes plus gros et tu te décourages."
+   → ✅ "La comparaison est devenue le sport national du feed. C'est épuisant pour tout le monde."
+   → Pas de syndrome psy nommé (imposteur, peur du rejet, etc.) sauf si l'utilisatrice l'avait elle-même nommé.
 ══ FORMAT DE RÉPONSE ══
 Retourne EXACTEMENT le même format annoté :
 [SLIDE 1 - HOOK] texte corrigé
@@ -306,6 +323,8 @@ Retourne EXACTEMENT le même format annoté :
 □ Dernière slide = "Et toi..." ? → question spécifique
 □ Titres de slide génériques ("L'art de", "Repenser", concept abstrait seul) ? → réécris en scène/JE/détail
 □ Formule manufacturée restante ? → réécris
+□ Marqueur temporel précis ("hier", "lundi", "la semaine dernière", "j'ai reçu") + scène détaillée non-justifiée ? → généralise au présent intemporel
+□ Slide qui psy-analyse la lectrice ("tu attends la permission", "tu te dévalorises") ? → réécris en constat sur le sujet/discours dominant
 □ INDISTINGUABLE d'un humain ? → si non, recommence`;
 
 /**

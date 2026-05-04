@@ -3,7 +3,7 @@ import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallbac
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropic, getModelForAction, getModelForRichContent } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { ANTI_SLOP, EDITORIAL_ANGLES_REFERENCE, CHAIN_OF_THOUGHT, DEPTH_LAYER, PREGEN_INJECTION_RULES, EMBEDDED_EDUCATION, SLIDE_TITLE_RULES } from "../_shared/copywriting-prompts.ts";
+import { ANTI_SLOP, EDITORIAL_ANGLES_REFERENCE, CHAIN_OF_THOUGHT, DEPTH_LAYER, PREGEN_INJECTION_RULES, EMBEDDED_EDUCATION, SLIDE_TITLE_RULES, ANTI_FABRICATED_STORYTELLING, DEPTH_LAYER_DUAL } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
@@ -155,7 +155,7 @@ serve(async (req) => {
 
     // Inject newsjacking context if present (separate field — not in `subject` to avoid 15k cap)
     const newsContextBlock = (typeof newsContext === "string" && newsContext.trim().length > 0)
-      ? `\n\n══════════════════════════════════════\nCONTEXTE ACTUALITÉ (NEWSJACKING)\n══════════════════════════════════════\n${newsContext.trim()}\n\nCONSIGNE NEWSJACKING : ce contenu rebondit sur cette actualité. Le HOOK / ACCROCHE (slide 1, première phrase) DOIT partir de l'actualité elle-même — c'est elle qui capte l'attention car elle est dans l'air du temps. Ensuite seulement, fais le pont vers l'expertise, le vécu ou le positionnement de l'utilisatrice. L'actu n'est pas un prétexte en arrière-plan : c'est le point d'entrée visible du carrousel.`
+      ? `\n\n══════════════════════════════════════\nCONTEXTE ACTUALITÉ (NEWSJACKING)\n══════════════════════════════════════\n${newsContext.trim()}\n\nCONSIGNE NEWSJACKING : ce contenu rebondit sur cette actualité. Le HOOK / ACCROCHE (slide 1, première phrase) DOIT partir de l'actualité elle-même — c'est elle qui capte l'attention car elle est dans l'air du temps. Ensuite seulement, fais le pont vers l'expertise, le vécu ou le positionnement de l'utilisatrice. L'actu n'est pas un prétexte en arrière-plan : c'est le point d'entrée visible du carrousel.\n\n══ EXPLOITATION DU CONTEXTE FACTUEL (FORTEMENT ENCOURAGÉE) ══\nLe contexte actu ci-dessus contient potentiellement des FAITS PRÉCIS : chiffres, noms d'acteurs, dates d'événements, mécanismes évoqués, citations publiques. Tu es FORTEMENT encouragée à t'appuyer sur AU MOINS UN fait précis du contexte dans la slide "fond du sujet" (cf. DEPTH_LAYER_DUAL). Ça ancre le carrousel dans le réel et empêche le glissement vers du commentaire psychologisant.\n\nINTERDIT ABSOLU : inventer un chiffre, une statistique, une citation, un nom d'entreprise/personne, ou un événement qui n'est PAS dans le contexte fourni. Si le contexte ne contient pas de fait exploitable précis, formule-le honnêtement avec une tournure prudente ("ce qui se dessine", "la tendance qu'on voit", "ce que ce mouvement révèle") plutôt que d'inventer un fait. Mieux vaut une généralisation honnête qu'un faux chiffre.\n\nEt rappel : ANTI_FABRICATED_STORYTELLING s'applique aussi ici. Tu n'inventes pas de scène vécue datée même si tu rebondis sur une actu. Tu peux dire "je vois passer cette histoire et ce qui me frappe c'est X" — pas "hier en lisant ça j'ai pensé à une cliente qui m'a dit Y".`
       : "";
     if (newsContextBlock) {
       systemPrompt += newsContextBlock;
@@ -660,7 +660,11 @@ ${CHAIN_OF_THOUGHT}
 
 ${DEPTH_LAYER}
 
-IMPORTANT SUR LA PROFONDEUR : Le travail interne de DEPTH_LAYER (mécanisme, croyance, retournement) doit être VISIBLE dans les slides finales. Ce n'est PAS juste un exercice de réflexion interne : le mécanisme doit être EXPLIQUÉ dans au moins 1 slide, la croyance NOMMÉE, le retournement FORMULÉ. Si aucune slide ne fait dire "ah, j'avais jamais vu ça comme ça", le carrousel est trop superficiel.
+${DEPTH_LAYER_DUAL}
+
+${ANTI_FABRICATED_STORYTELLING}
+
+IMPORTANT SUR LA PROFONDEUR : Le travail interne de DEPTH_LAYER (mécanisme, croyance, retournement) doit être VISIBLE dans les slides finales. Ce n'est PAS juste un exercice de réflexion interne : le mécanisme doit être EXPLIQUÉ dans au moins 1 slide, la croyance NOMMÉE, le retournement FORMULÉ. Si aucune slide ne fait dire "ah, j'avais jamais vu ça comme ça", le carrousel est trop superficiel. EN PLUS : DEPTH_LAYER_DUAL impose une slide "fond du sujet" + une slide "prise de position incarnée". Les deux sont obligatoires.
 
 ANTI-BIAIS — TU NE REPRODUIS JAMAIS :
 - Ton paternaliste → Permission : "Tu as le droit de prendre de la place"
@@ -958,6 +962,9 @@ Retourne ce JSON exact :
     "single_cta": true,
     "caption_different_from_hook": true,
     "slide_2_works_as_standalone_hook": true,
+    "fabricated_scene_detected": false,
+    "subject_depth_present": true,
+    "personal_stance_present": true,
     "score": 92
   },
   "publishing_tip": "Meilleur moment pour publier ce type de carrousel..."
@@ -1431,6 +1438,9 @@ Retourne ce JSON exact :
     "slide_2_works_as_standalone_hook": true,
     "narrative_arc": true,
     "slides_connected": true,
+    "fabricated_scene_detected": false,
+    "subject_depth_present": true,
+    "personal_stance_present": true,
     "density_check": "chaque slide a au moins 1 élément de densité (donnée/analogie/exemple/mécanisme)",
     "score": 90
   },
@@ -1493,7 +1503,7 @@ Ton rôle : transformer des photos en carrousel éditorial qui RACONTE UNE HISTO
 - Le texte COMPLÈTE l'image : il raconte ce qu'on ne voit pas, il donne du contexte, il fait avancer l'histoire.
 - Styles d'overlay :
   · "sensoriel" : phrase évocatrice qui fait ressentir ("Ce matin-là, tout sentait la cire d'abeille et le bois chaud.")
-  · "narratif" : phrase qui fait avancer l'histoire ("Et puis un jour, une cliente m'a dit quelque chose qui a tout changé.")
+  · "narratif" : phrase qui fait avancer l'histoire ("Ce qu'on voit dans cette série de gestes, c'est tout sauf un détail." ou tout autre formulation NON datée — interdiction d'inventer "un jour, une cliente m'a dit", voir ANTI_FABRICATED_STORYTELLING)
   · "minimal" : phrase courte percutante pour les moments forts ("Trois mois. Zéro regret.")
   · "technique" : détail concret qui crédibilise ("100% lin français, teint à la main dans notre atelier.")
 - Positions : "bottom_left", "bottom_center", "top_left", "top_center", "center"
@@ -1820,6 +1830,9 @@ RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
     "text_slides_min_30_words": true,
     "mecanisme_nomme": true,
     "croyance_retournee": true,
+    "fabricated_scene_detected": false,
+    "subject_depth_present": true,
+    "personal_stance_present": true,
     "slide_pivot_number": 4,
     "depth_check": "chaque slide text_only porte un mécanisme, une croyance retournée, une donnée, un exemple ou une prise de position",
     "score": 85
@@ -2031,6 +2044,9 @@ RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
     "monologue_continuity": true,
     "je_voice_dominant": true,
     "audience_as_victim": false,
+    "fabricated_scene_detected": false,
+    "subject_depth_present": true,
+    "personal_stance_present": true,
     "opinion_visible_in_at_least_2_slides": true,
     "decalage_pivot_slide_number": 3,
     "tu_vous_count_outside_cta": 0,
