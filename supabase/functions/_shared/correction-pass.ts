@@ -123,6 +123,9 @@ Si oui → réécris.
 10. ÉNUMÉRATIONS RYTHMIQUES PARFAITES :
     → "Des X, des Y, des Z" → casse la symétrie.
 
+11. OVERLAYS PHOTO (carrousels mixtes — marqueur [SLIDE N - OVERLAY]) :
+    → Si l'overlay est une formule chic ou pourrait s'appliquer à n'importe quelle photo ("Quand la magie opère", "Un instant suspendu", "L'art du détail"), réécris-le en phrase ANCRÉE dans CE moment précis : un fait sensoriel (ce qu'on voit/entend/sent), un détail concret, ou une parole captée. 5-15 mots max. Pas d'abstraction décorative.
+
 ══ RÈGLES ABSOLUES ══
 - Garde l'ARC NARRATIF du carrousel.
 - Chaque slide corrigée : 2-4 phrases (sauf slide 1 : 1-2 max).
