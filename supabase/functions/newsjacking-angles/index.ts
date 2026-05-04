@@ -174,6 +174,13 @@ RÈGLES ABSOLUES :
 - Pour "recit_experience", la description DOIT préciser à la personne quoi raconter de son propre vécu (pas inventer à sa place)
 
 ══════════════════════════════════════════════
+CHECK FINAL — pour CHAQUE angle, avant de l'écrire :
+══════════════════════════════════════════════
+Demande-toi : "Quel élément précis du profil cet angle utilise-t-il ?" (cible / activité / combat / pilier / valeur)
+- Si tu ne peux pas nommer l'élément → l'angle dérive, REFORMULE-le pour qu'il s'ancre dans la pertinence donnée plus haut.
+- Si l'angle ramène à un autre sujet plus lointain que celui de la pertinence → REFORMULE.
+
+══════════════════════════════════════════════
 FORMAT DE RÉPONSE — JSON STRICT (pas de markdown)
 ══════════════════════════════════════════════
 
