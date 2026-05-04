@@ -425,6 +425,15 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
                           <span className="text-[10px] font-semibold uppercase tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded-full">
                             {idea.angle}
                           </span>
+                          {idea.boldness && (
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                              idea.boldness === "provoc" ? "bg-rose-pale text-primary" :
+                              idea.boldness === "bold" ? "bg-[#FFF9DB] text-[#92400E]" :
+                              "bg-muted text-muted-foreground"
+                            }`}>
+                              {idea.boldness === "provoc" ? "💥 Provoc" : idea.boldness === "bold" ? "🔥 Audacieux" : "🌱 Sûr"}
+                            </span>
+                          )}
                           <span className="text-[10px] text-muted-foreground">
                             {objectiveEmojis[idea.objective_tag] || "✨"} {idea.objective_tag}
                           </span>
