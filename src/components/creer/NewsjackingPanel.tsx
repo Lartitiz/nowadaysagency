@@ -321,7 +321,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
         <div className="flex flex-col items-center justify-center py-16 gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <p className="text-sm text-muted-foreground animate-pulse">
-            L'IA explore l'actu de ta niche…
+            L'IA explore l'univers de ta marque et l'actu…
           </p>
         </div>
       )}
