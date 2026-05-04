@@ -1,131 +1,120 @@
-# Préserver le rich text inline à l'export PPTX éditable
+# Surfer sur l'actu — passer à Perplexity + ré-autoriser l'actu chaude
 
-## (a) Ce que tu m'as demandé — périmètre validé
+## Diagnostic
 
-### Problème
-Quand Opus génère un titre type :
-```html
-<h2 data-pptx-editable="title">Le <span style="font-style:italic;color:#FB3D80">vrai</span> secret</h2>
+Aujourd'hui le sourcing s'appuie sur `**web_search` natif d'Anthropic** dans `newsjacking-ai`. Trois biais qui produisent des sujets fades :
+
+1. **Outil de recherche faible**. Le `web_search` Anthropic est un outil utilitaire, pas un moteur d'actu. Il rate les vraies polémiques, sorties et déclarations qui font le buzz. Perplexity est conçu pour ça (synthèse + sources datées + filtre de récence natif).
+2. **Filtre trop défensif**. Le prompt blackliste politique partisane, lois, élections, faits divers, communiqués tech mainstream, "IA"/"ChatGPT". Résultat : on ne propose que des micro-phénomènes culturels mous (un mot qui revient, une obsession collective). On loupe les sujets vraiment chauds qui font débat.
+3. **Requêtes sur-pilotées**. Les 6 axes "micro-phénomènes" sont des requêtes très étroites ("expression mot concept qui revient conversations 2026 France"). Perplexity, lui, retourne mieux quand on lui demande directement "quelles sont les actus qui font débat cette semaine en France".
+
+L'utilisatrice a raison : la solution = brancher une vraie liaison de recherche.
+
+## Choix de la liaison : Perplexity
+
+**Pourquoi Perplexity vs alternatives** :
+
+- Connecteur officiel (gateway Lovable). Pas de gestion manuelle de clé.
+- Modèle `sonar` retourne réponses synthétisées + tableau `citations` (URLs sources).
+- Filtre `search_recency_filter` natif (`day` / `week` / `month`) → on cible vraiment l'actu chaude.
+- Filtre `search_domain_filter` → on peut prioriser presse FR (lemonde.fr, telerama.fr, slate.fr, lesinrocks.com…).
+- Réponses structurées via `response_format: json_schema` → fini le parsing fragile actuel.
+
+Coût : ~équivalent à un appel Claude classique. Latence : 5-15s par requête.
+
+## Périmètre
+
+Modification **uniquement** de `supabase/functions/newsjacking-ai/index.ts` (sourcing).
+**Pas touche** à `newsjacking-angles` (génération d'angles) — l'utilisatrice a confirmé.
+**Pas touche** au composant UI `NewsjackingPanel.tsx` — la shape de réponse reste identique.
+
+## Architecture cible
+
+```text
+Utilisateur clique "Surfer sur l'actu"
+        │
+        ▼
+newsjacking-ai (edge function) ─── inchangé : auth, quota, brand_universe
+        │
+        ▼
+3 appels Perplexity en parallèle (Promise.allSettled) :
+  1. Actu chaude globale qui fait débat (recency: week, domain: presse FR)
+  2. Sujet de l'univers de marque niveau 1 (valeurs/combats)
+  3. Sujet de l'univers de marque niveau 2 (univers émotionnel) OU phénomène culturel
+        │
+        ▼
+Compilation : ~6-10 sujets bruts avec sources datées et citations
+        │
+        ▼
+Passe Claude (haiku/sonnet) — JOB UNIQUE : filtrer + tagger + écrire le pont
+  - Reçoit les sujets bruts + citations + le brand_universe
+  - Garde 3-6 sujets connectables, écrit le champ "pertinence" pour chacun
+  - Auto-évalue force_pont + tag axe + ton (logique actuelle conservée)
+        │
+        ▼
+Réponse JSON identique au contrat actuel : { actus: [...] }
 ```
-- Preview HTML : "vrai" apparaît italic + accent.
-- PPTX exporté : "Le vrai secret" en un seul style (couleur du `<h2>` parent), le mot accent est perdu.
 
-### Cause confirmée
-- `extractAnnotatedBlocks` (`src/lib/pptx-font-mapping.ts`, ligne ~306) appelle `el.textContent` → string aplatie.
-- `addBlockToSlide` (`src/lib/export-carousel-hybrid-pptx.ts`, ligne 390) appelle `slide.addText(string, {style global})` → un seul style.
+Cette double passe (Perplexity = matière fraîche / Claude = pont éditorial) sépare proprement les deux jobs aujourd'hui mélangés en un seul appel Claude+web_search.
 
-### Modifications
+## Changements éditoriaux dans le prompt
 
-**1. `src/lib/pptx-font-mapping.ts`**
+### Axes de recherche refondus
 
-- Ajouter type exporté :
-  ```ts
-  export interface TextRun {
-    text: string;
-    bold?: boolean;
-    italic?: boolean;
-    color?: string;       // hex 6 chars sans `#` (déjà normalisé via normalizeHex)
-    fontWeight?: number;  // poids brut pour info, addText utilise `bold`
-  }
-  ```
-- Étendre `EditableBlock` avec un champ optionnel `runs?: TextRun[]`. Le champ `text: string` reste (rétrocompat + fallback).
-- Refondre `extractAnnotatedBlocks` :
-  - Pour chaque bloc annoté, walker les descendants (TreeWalker `NodeFilter.SHOW_TEXT`).
-  - Pour chaque text node non vide : récupérer `getComputedStyle(parentElement)`, en extraire `fontStyle`, `fontWeight`, `color` (normalisés), comparer au style "frame" (celui du bloc lui-même).
-  - Construire un `TextRun` par text node. Coalescer les runs adjacents qui partagent exactement les mêmes overrides (bold/italic/color identiques au frame ou identiques entre eux) pour éviter la fragmentation.
-  - Si tous les runs sont strictement identiques au style frame → ne pas peupler `runs` (laisser `undefined`) pour garder le chemin actuel.
-  - `block.text` reste le `textContent` concaténé (rétrocompat).
-- `extractEditableBlocks` : NON touché.
-- `mapFontToPptx`, `normalizeHex`, `fontSizePxToPt`, `letterSpacingPxToCharSpacing`, `pxToInches` : NON touchés.
+Les 6 axes actuels sont remplacés par 3 buckets envoyés à Perplexity : ok mais j'ai pas envie de tout casser ce qu'on a fait ? 
 
-**2. `src/lib/export-carousel-hybrid-pptx.ts`**
 
-- Étendre l'interface locale `BlockRender` :
-  ```ts
-  interface BlockRender {
-    text: string;
-    runs?: TextRun[];     // nouveau
-    rect: ...;
-    style: ...;
-    kind: ...;
-  }
-  ```
-- Propager `runs` depuis `extractAnnotatedBlocks` (ligne 444) : `blocks.push({ text: ab.text, runs: ab.runs, rect, style, kind })`. Les chemins B et C n'ont pas de runs (inchangés).
-- Refondre `addBlockToSlide` (ligne 390) :
-  - Calculer `frameOptions` (toutes les options actuelles : x, y, w, h, fontFace, fontSize, bold, italic, color, align, valign, wrap, margin, charSpacing, lineSpacingMultiple) — INCHANGÉ.
-  - Si `block.runs && block.runs.length > 1` :
-    - Construire `pptxRuns: PptxGenJS.TextProps[]` :
-      ```ts
-      block.runs.map(r => ({
-        text: applyTextTransform(r.text, block.style.textTransform),
-        options: {
-          bold: r.bold,
-          italic: r.italic,
-          color: r.color,
-        },
-      }))
-      ```
-    - `slide.addText(pptxRuns, frameOptions)` (signature multi-runs de pptxgenjs : 1er param = array d'objets `{text, options}`).
-    - Les options de niveau frame (fontFace, fontSize de base, color de base, align, etc.) restent dans `frameOptions` ; les options de niveau run n'overrident QUE bold/italic/color.
-  - Sinon → comportement actuel strictement inchangé.
+| Bucket                         | Recency | Domaines prioritaires                       | Question type                                                                                                                                     |
+| ------------------------------ | ------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Actu chaude qui fait débat** | `week`  | Presse FR généraliste + Twitter trending    | "Quelles 2-3 actus de cette semaine en France font le plus débat sur les réseaux ? Inclure polémiques, sorties marquantes, déclarations virales." |
+| **Sujet ancré niveau 1**       | `month` | Mix presse + médias spé                     | "Quelles actus récentes touchent à : `{valeurs_combat[0..2]}`, `{moments_de_vie[0..2]}` ?"                                                        |
+| **Sujet niveau 2 / culturel**  | `month` | Médias culturels (telerama, slate, inrocks) | "Quelle sortie culturelle ou phénomène culturel récent connecte avec : `{univers_emotionnel[0..2]}` ?"                                            |
 
-### Garanties de non-régression
 
-- `extractEditableBlocks` (chemin C fallback) inchangé → blocs sans `runs` → ancien chemin `slide.addText(string, options)`.
-- Path B (overlay_text) inchangé → pas de runs → ancien chemin.
-- Bloc annoté 100% uniforme → `runs` undefined → ancien chemin (zéro impact visuel).
-- `applyTextTransform` appliqué AU TEXTE de chaque run (pas au frame), comme demandé.
+Ré-autoriser explicitement dans le prompt Perplexity : polémiques, déclarations virales, sorties produit/film/livre/série discutées, débats société. **Toujours blacklisté** : faits divers tragiques, propagande partisane explicite (qui décrédibiliserait la cliente).
 
-### Critères de validation
+### Filtre Claude (passe 2)
 
-1. `npx tsc --noEmit` passe.
-2. Test manuel :
-   - Générer un carrousel, exporter PowerPoint éditable, ouvrir dans PowerPoint.
-   - Slide avec `<span italic+color>` inline → mot apparaît italic + dans la couleur accent du span.
-   - Slide titre uniforme sans span → identique à avant.
-   - Frame style (alignement, taille, fontFace, charSpacing, lineSpacing) préservé.
-3. Aucune erreur console nouvelle pendant l'export.
-4. Heuristique fallback (carrousels anciens sans annotations) fonctionne comme avant.
+Reprend les garde-fous existants qui marchent bien (force_pont fort/moyen/fragile, ⌈N/3⌉ décalants, pont explicite citant un élément du profil), mais s'applique à des sujets déjà sourcés et chauds — donc ne génère plus dans le vide.
 
-## (b) Mes propositions d'amélioration connexes (à valider individuellement)
+## Garde-fous & qualité
 
-Je les liste pour que tu puisses **dire oui/non à chacune** avant exec :
+- **Cache 90 minutes** sur la réponse Perplexity (même userId + workspaceId) pour éviter de re-payer si la cliente clique 2× en peu de temps. Stockage : table existante `ai_cache` si elle existe, sinon Map en mémoire de l'edge function.
+- **Fallback** : si Perplexity tombe (timeout, 5xx, 402 credits) → on retombe sur le pipeline Claude+web_search actuel pour ne pas casser l'expérience. Code actuel = code de secours.
+- **Citations préservées** : on remonte `source` (média) ET `source_url` (lien direct) jusqu'au front. Petite addition à la shape de l'objet `Actu` dans le panel (champ optionnel `source_url`).
+- **Quota** : reste sur `deep_research` (1 appel = 3 Perplexity + 1 Claude ≈ 1 deep research).
+- **Timeout** : 60s (Perplexity en parallèle ~15s + Claude ~10s + marge).
 
-### B1. Détection sémantique `<strong>`/`<b>` et `<em>`/`<i>` ✅ recommandé
-Pourquoi : Opus utilise parfois `<em>vrai</em>` au lieu de `style="font-style:italic"`. Sans ça on rate ces cas.
-Implémentation : dans le walker, vérifier `parentElement.closest("strong,b")` → force `bold:true`, `closest("em,i")` → force `italic:true`. En complément (pas remplacement) du `getComputedStyle` qui devrait déjà les attraper, mais ceinture+bretelles.
-Risque : nul.
+## Setup utilisateur — étape unique
 
-### B2. Trimming intelligent des espaces ✅ recommandé
-Pourquoi : un walker de text nodes peut produire des runs `" "` purs ou `"\n  "` issus de l'indentation HTML. Sans gestion → runs parasites visibles dans PowerPoint avec un style bizarre.
-Implémentation : si `run.text.trim() === ""` ET il est entre deux runs de même style → fusionner avec le voisin. Si en début/fin → drop (sauf espace significatif entre deux mots).
-Risque : faible si bien testé. Sans ça, risque de runs vides exportés.
+L'utilisatrice doit cliquer **Connecter Perplexity** (action en sortie de plan). Le connecteur Perplexity passe par le gateway Lovable, donc :
 
-### B3. Cap du nombre de runs par bloc ✅ recommandé
-Pourquoi : protection défensive contre HTML malformé qui exploserait en 50 runs.
-Implémentation : `MAX_RUNS = 12`. Si dépassé → fallback vers chemin actuel (text plat). Log warn.
-Risque : nul.
+- Pas de clé API à coller manuellement
+- Compte Perplexity Pro requis (≈20€/mois) pour un quota suffisant — à confirmer avec l'utilisatrice si elle en a déjà un
+- Une fois connecté, `PERPLEXITY_API_KEY` est injectée auto dans les edge functions
 
-### B4. Coalescing agressif des runs adjacents identiques ✅ recommandé
-Pourquoi : `<h2>Le <span style="italic;color:X">vrai</span> <span style="italic;color:X">secret</span></h2>` → 2 runs italic+X côte à côte → mieux fusionner en 1.
-Implémentation : pass de réduction sur le tableau final, fusionner runs N et N+1 si bold/italic/color identiques.
-Risque : nul, juste plus propre dans le XML PPTX.
+## Fichiers modifiés
 
-### B5. Préserver `text-decoration: underline` inline ⚠️ optionnel
-Pourquoi : si un span a `text-decoration:underline`, on le perd. Mais Opus ne semble pas l'utiliser souvent dans le design system actuel.
-Implémentation : ajouter `underline?: boolean` au TextRun + `cs.textDecorationLine.includes("underline")`.
-Risque : nul. Skip si tu veux rester minimal.
+- `supabase/functions/newsjacking-ai/index.ts` — refonte du cœur de la fonction (sourcing Perplexity + 2e passe Claude de filtre/pont)
+- `src/components/creer/NewsjackingPanel.tsx` — ajout du champ optionnel `source_url` sur l'interface `Actu` + mini lien "voir la source" sous chaque sujet
+- (aucun changement DB, aucune nouvelle table)
 
-### B6. NE PAS faire (signalé pour transparence)
-- Ne pas changer `applyTextTransform` (reste appliqué par run, comme demandé).
-- Ne pas toucher au prompt `carousel-visual` (hors scope).
-- Ne pas toucher `extractEditableBlocks` (hors scope).
-- Ne pas toucher exports Pinterest / PNG / pptx visual (hors scope).
+## Critères de validation
 
-## Recommandation
+1. La cliente reconnaît au moins 1 sujet "ah oui j'en ai entendu parler cette semaine" sur les 3-6 retournés.
+2. Au moins 1 sujet a un `source_url` cliquable qui mène à un article daté de moins de 7 jours.
+3. Tous les sujets ont un `pertinence` qui cite un élément concret du profil (cible / activité / combat / pilier ou terme univers niveau 1).
+4. Si Perplexity tombe → la fonction retourne quand même des résultats (fallback Claude actuel).
+5. La latence end-to-end reste < 30s (90% des appels).
 
-Approche minimale stricte = (a) seul.
-Approche recommandée = (a) + B1 + B2 + B3 + B4 (tous à risque nul, gain robustesse net).
-B5 = à ton choix.
+## Ce qui n'est PAS dans ce plan
 
-Dis-moi quelles propositions tu valides et je passe à l'exec.
+- Refonte de `newsjacking-angles` (l'utilisatrice a explicitement dit non)
+- Changement du flow UI (panel reste tel quel sauf le mini lien source)
+- Cache long terme / table dédiée (on commence avec 90min en mémoire)
+
+## Action utilisateur attendue après ce plan
+
+1. Approuver le plan
+2. Cliquer le bouton "Connecter Perplexity" (apparaîtra après approbation)
+3. Tester sur un cas réel et me dire si la profondeur est au rendez-vous
