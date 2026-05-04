@@ -1438,6 +1438,9 @@ Retourne ce JSON exact :
     "slide_2_works_as_standalone_hook": true,
     "narrative_arc": true,
     "slides_connected": true,
+    "fabricated_scene_detected": false,
+    "subject_depth_present": true,
+    "personal_stance_present": true,
     "density_check": "chaque slide a au moins 1 élément de densité (donnée/analogie/exemple/mécanisme)",
     "score": 90
   },
