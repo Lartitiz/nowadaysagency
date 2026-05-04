@@ -284,7 +284,7 @@ export function PhotoUploadZone({
       <input
         ref={inputRef}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
         multiple
         className="hidden"
         onChange={(e) => { if (e.target.files) processFiles(e.target.files); e.target.value = ""; }}
