@@ -1666,6 +1666,8 @@ STRUCTURE attendue (REMPLIS chaque champ avec du contenu ORIGINAL, ancré dans C
 }`}
 
 
+⚠️ Les valeurs ci-dessous sont là pour montrer la STRUCTURE JSON attendue, PAS le ton ni le contenu. Ne copie ni les formulations ("placeholder…"), ni le sujet, ni le rythme. Tout doit être 100% ancré dans le brief réel et les photos réelles.
+
 RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
 {
   "carousel_type": "mix",
@@ -1676,18 +1678,18 @@ RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
       "slide_type": "photo_full",
       "photo_index": 1,
       "role": "hook_visuel",
-      "overlay_text": "Une vraie phrase courte qui complète l'image",
+      "overlay_text": "placeholder — phrase courte ancrée dans CETTE photo",
       "overlay_position": "bottom_center",
       "overlay_style": "sensoriel",
-      "note": "Note de direction artistique"
+      "note": "placeholder — note DA"
     },
     {
       "slide_number": 2,
       "slide_type": "text_only",
       "photo_index": null,
       "role": "context",
-      "title": "Le vrai problème, c'est pas l'algo",
-      "body": "En vrai, le problème c'est pas l'algorithme. C'est qu'on poste en espérant que les gens vont deviner ce qu'on fait. Sauf que personne ne devine. Les comptes qui marchent, c'est ceux qui ont quelque chose à dire. (Et oui, toi aussi t'as des choses à dire.)",
+      "title": "placeholder — titre de slide",
+      "body": "placeholder — body de 30-50 mots, écrit en JE, qui pose UN point précis lié au brief, sans ouvrir par 'En vrai/Sauf que/Le vrai X', sans amplification dramatique, avec un détail concret ou une scène vécue.",
       "visual_schema": null
     },
     {
@@ -1696,9 +1698,9 @@ RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
       "photo_index": 2,
       "photo_layout": "top_photo",
       "role": "detail",
-      "title": "Titre au-dessus ou à côté de la photo",
-      "body": "Texte qui accompagne la photo dans le layout",
-      "note": "Note DA"
+      "title": "placeholder — titre",
+      "body": "placeholder — texte qui accompagne la photo dans le layout",
+      "note": "placeholder — note DA"
     }
   ],
   "caption": {
