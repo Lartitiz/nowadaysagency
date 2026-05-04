@@ -962,6 +962,9 @@ Retourne ce JSON exact :
     "single_cta": true,
     "caption_different_from_hook": true,
     "slide_2_works_as_standalone_hook": true,
+    "fabricated_scene_detected": false,
+    "subject_depth_present": true,
+    "personal_stance_present": true,
     "score": 92
   },
   "publishing_tip": "Meilleur moment pour publier ce type de carrousel..."
