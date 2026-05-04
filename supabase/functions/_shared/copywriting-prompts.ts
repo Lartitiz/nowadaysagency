@@ -1312,3 +1312,25 @@ Quand des réponses de coaching sont fournies (anecdote, émotion, conviction), 
 
 Le contenu doit sonner INCARNÉ. Si on enlève le nom de l'utilisatrice et qu'on ne peut plus savoir qui l'a écrit, c'est raté.
 `;
+
+export const SLIDE_TITLE_RULES = `
+═══ TITRES DES SLIDES (slides 2 à N-1) — CRITIQUE ═══
+
+Les titres de slides ne sont PAS des têtes de chapitre. Ils entrent DIRECTEMENT dans la scène ou la pensée.
+
+RÈGLES :
+- Voix par défaut : JE (cohérent avec les hooks). Le TU est réservé aux 1-2 slides d'interpellation max.
+- Longueur : 4-9 mots (pas de phrase qui s'étire).
+- Doit pouvoir se lire seul comme un mini-hook : un fait, un détail, une bascule, une scène, une phrase entendue, un chiffre.
+- Bannir absolument les titres "annonce de sujet" : "L'importance de X", "Repenser Y", "Le vrai problème", "L'art du détail", "Une nouvelle approche", "Le piège de Z", "Pourquoi c'est crucial", "Ce qui change tout", "Mieux comprendre…", "Au cœur de…".
+- Bannir les titres-concepts abstraits sans ancrage ("Authenticité", "Cohérence", "Stratégie gagnante", "L'essentiel").
+- Bannir les titres qui commencent par "L'art de", "L'importance de", "Repenser", "Le vrai", "Le piège de", "Une nouvelle", "Ce qui", "Pourquoi c'est" (sauf si suivi d'un ancrage concret immédiat).
+- Préférer :
+  · Une scène brute : "Lundi 7h, je relisais ma bio."
+  · Une phrase entendue : "Une cliente m'a dit : tu fais peur."
+  · Un détail concret chiffré : "47 brouillons. 0 publié."
+  · Une bascule en JE : "J'ai arrêté de checker à 22h."
+  · Une question directe : "Pourquoi je postais sans y croire ?"
+  · Un fait sec : "Trois mois sans poster. Aucun client perdu."
+- Test final : si le titre pourrait être collé sur un autre carrousel d'un autre métier sans changer un mot → INVALIDE, réécrire avec un ancrage scène/JE/détail.
+`;
