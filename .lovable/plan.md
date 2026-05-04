@@ -1,125 +1,81 @@
-## Audit visuel — Carrousels mixtes
+## Problème
 
-J'ai inspecté les 3 maillons du rendu : structure proposée (`carousel-ai/index.ts buildMixCarouselPrompt`), HTML rendu (`carousel-visual/index.ts` branche `isMixCarousel`) et l'éditeur front (`CarouselPhotoResult.tsx`). Voici les **6 problèmes visuels concrets** trouvés, classés par impact, puis le plan correctif.
+Sur les carrousels (mixte ET texte), les **titres de slides intermédiaires** (`title`, 4-7 mots) sont trop souvent génériques type "Le piège de la régularité", "L'art du détail", "Repenser sa stratégie", "Une nouvelle approche". Ils annoncent un sujet au lieu d'**entrer dans la scène/l'histoire**.
 
-## Problèmes identifiés
+Les hooks (slide 1) sont bien cadrés avec exemples en JE et anti-listicles. Le problème se situe sur :
+- les **titres des slides 2 à N-1** (text_only et photo_integrated)
+- les **`title_suggestion`** générés à l'étape `structure_proposal` (qui sont ensuite réinjectés tels quels dans la génération via `confirmed_structure`)
 
-### P1 — Les schémas visuels (visual_schema) ne sont PAS définis pour le mixte (impact #1)
+## Diagnostic technique
 
-Dans `carousel-visual/index.ts`, le bloc complet "═══ SCHÉMAS VISUELS — TEMPLATES HTML/CSS ═══" (lignes 333-421) qui définit les templates BEFORE_AFTER, TIMELINE, STATS, CHECKLIST, MATRIX_2X2, PYRAMID, EQUATION, FLOWCHART, SCALE, ICON_GRID est **uniquement présent dans la branche du carrousel texte pur**. Le prompt `isMixCarousel` (lignes 583-685) ne contient ni les templates, ni `visualBlock`, ni `schemaInstructions`.
+Trois endroits dans `supabase/functions/carousel-ai/index.ts` définissent la règle "titre court 4-7 mots" sans contrainte anti-générique ni voix JE :
 
-→ Conséquence : quand une slide texte du mixte a `visual_schema: { type: "before_after", ... }`, le LLM doit l'inventer → rendu pauvre, layout incohérent, parfois ignoré et remplacé par un mur de texte. C'est exactement le sentiment de "schémas plats" sur les slides texte du mixte.
+1. **Ligne 336** (`structure_proposal`) : `"Propose des titres courts (4-7 mots), percutants, en français"` — aucune règle de voix ni d'ancrage scène.
+2. **Ligne 690 et 1279** (text carousel) : `"Mini-headlines (title) : 4-7 mots, percutant."` — pareil.
+3. **Ligne 1614-1620** (mix carousel) : aucune règle dédiée aux titres des slides texte/intégrées du milieu.
 
-### P2 — Pas de directive de qualité photo (lisibilité, contraste, focal area)
+Les titres de l'étape structure sont ensuite **réutilisés** par la génération (lignes 1124, 1381, 1516 : `"Utilise les titres proposés comme base"`), donc un titre générique à l'étape structure se propage dans le rendu final.
 
-Le prompt mixte donne 3 styles d'overlay (sensoriel/narratif/minimal) mais ne contient **aucune règle adaptative** :
-- pas de détection de zone claire/sombre de la photo pour choisir la position de l'overlay,
-- pas de fallback si la photo n'a pas la luminosité attendue (ex: forcer un bandeau si gradient illisible),
-- pas de règle sur la "safe zone" Instagram (les 80px du haut et du bas masqués par l'UI),
-- pas de règle d'éviter de poser l'overlay sur un visage/sujet principal (alors que c'est mentionné en demi-teinte dans le prompt mais sans procédure).
+## Plan
 
-→ Conséquence : overlays parfois illisibles, ou collés sur le visage du sujet.
+### 1. Définir une règle partagée "Titres de slides"
 
-### P3 — Layouts `photo_integrated` peu différenciés visuellement
+Créer une constante `SLIDE_TITLE_RULES` (en haut de `carousel-ai/index.ts`, à côté de `PREGEN_INJECTION_RULES`) qui sera injectée dans les 3 endroits :
 
-Les 5 layouts proposés (top_photo / left_photo / right_photo / card_photo / banner_photo) sont décrits en 1 phrase chacun, sans :
-- ratio précis (top_photo dit "55-60%", banner_photo dit "400px" → ratios incohérents),
-- gestion du rythme (rien n'oblige à varier les layouts ; le LLM peut faire 4 `top_photo` à la suite),
-- éléments de design qui les distinguent (pas d'instruction sur les éléments décoratifs spécifiques à chaque layout : barre latérale colorée pour left_photo, badge numéro pour card_photo, etc.).
+```text
+═══ TITRES DES SLIDES (slides 2 à N-1) — CRITIQUE ═══
 
-→ Conséquence : les slides photo_integrated se ressemblent, perte du "rythme visuel" promis.
+Les titres de slides ne sont PAS des têtes de chapitre. Ils entrent DIRECTEMENT dans la scène ou la pensée.
 
-### P4 — Continuité visuelle entre photo et texte non outillée
-
-Le prompt dit "crée une continuité visuelle entre les trois types" mais ne précise rien :
-- pas de règle pour reprendre une couleur dominante de la photo précédente sur la slide texte suivante,
-- pas de règle pour répéter un élément graphique (badge pilule, soulignement) entre photo_integrated et text_only,
-- pas de gestion du rythme (alternance, transitions).
-
-→ Conséquence : l'œil perçoit un patchwork (slide photo très visuelle, puis slide texte très Canva, puis re-photo) au lieu d'un carrousel cohérent.
-
-### P5 — Pas de regénération visuelle après édition
-
-Si l'utilisatrice édite un `overlay_text` ou un `body` après la première génération visuelle, **rien ne re-déclenche `carousel-visual`**. Les `visualSlides` (HTML rendu) restent figés avec l'ancien texte. Vu côté `CarouselPhotoResult.tsx` lignes 472-514, l'édition n'a aucun effet sur le rendu.
-
-→ Conséquence : décalage entre la slide visuelle affichée et le texte édité (l'utilisatrice corrige, le visuel ne reflète pas, elle exporte → mauvaise surprise).
-
-### P6 — Pas de guidance "safe zones" / format Instagram
-
-Le HTML est généré en 1080×1350, mais le prompt mixte ne mentionne pas :
-- les 220px du bas (zone qui sera tronquée dans le feed et où Instagram pose l'icône carrousel),
-- les 60px du haut (zone tronquée dans certains crops),
-- le besoin d'avoir des éléments importants centrés verticalement.
-
-→ Conséquence : overlays critiques parfois coupés sur mobile.
-
-## Plan correctif
-
-### Étape 1 — Injecter les visual_schema dans le prompt mixte (impact #1)
-
-Refactoriser `supabase/functions/carousel-visual/index.ts` :
-- Extraire le bloc "═══ SCHÉMAS VISUELS — TEMPLATES HTML/CSS ═══" (lignes 333-421) dans une **constante partagée** `VISUAL_SCHEMA_TEMPLATES_BLOCK`.
-- L'injecter à la fois dans `isTextCarousel` (déjà fait) ET dans `isMixCarousel` (nouveau), juste avant la section "═══ DESIGN PAR TYPE DE SLIDE ═══".
-- Construire et passer `schemaInstructions` + `visualHints` aussi dans le `finalUserPrompt` du mode mixte (actuellement seulement dans le mode texte).
-
-### Étape 2 — Renforcer les règles photo (lisibilité, sujet, safe zone)
-
-Dans la section `TYPE "photo_full"` du prompt mixte (lignes 607-613), ajouter :
-
-```
-RÈGLES DE LISIBILITÉ (analyse VISUELLE de chaque photo fournie) :
-- Identifie la zone CLAIRE et la zone SOMBRE de la photo. Pose l'overlay sur la zone qui maximise le contraste avec ton style :
-  · Texte clair (blanc) → zone sombre, ou sur gradient sombre
-  · Texte foncé → zone claire, ou sur bandeau blanc
-- Identifie le SUJET PRINCIPAL (visage, produit, élément central). N'écris JAMAIS dessus. Décale l'overlay vers le 1/3 opposé.
-- Si la photo est globalement texturée/floue, IMPOSE un bandeau opaque (rgba 0.92) — pas de simple gradient.
-- Safe zones : laisse 80px de marge en haut, 200px en bas (zone tronquée par l'UI Instagram). Aucun texte dans ces zones.
+RÈGLES :
+- Voix par défaut : JE (cohérent avec les hooks). Le TU est réservé aux 1-2 slides d'interpellation max.
+- Longueur : 4-9 mots (pas de phrase qui s'étire).
+- Doit pouvoir se lire seul comme un mini-hook : un fait, un détail, une bascule, une scène, une phrase entendue, un chiffre.
+- Bannir absolument les titres "annonce de sujet" : "L'importance de X", "Repenser Y", "Le vrai problème", "L'art du détail", "Une nouvelle approche", "Le piège de Z", "Pourquoi c'est crucial", "Ce qui change tout".
+- Bannir les titres-concepts abstraits sans ancrage ("Authenticité", "Cohérence", "Stratégie gagnante").
+- Préférer : 
+  · Une scène brute : "Lundi 7h, je relisais ma bio."
+  · Une phrase entendue : "Une cliente m'a dit : 'tu fais peur'."
+  · Un détail concret : "47 brouillons. 0 publié."
+  · Une bascule en JE : "J'ai arrêté de checker à 22h."
+  · Une question directe : "Pourquoi je postais sans y croire ?"
+- Test : si le titre pourrait être collé sur un autre carrousel d'un autre métier sans changer un mot → INVALIDE, réécrire.
 ```
 
-### Étape 3 — Différencier les layouts photo_integrated
+### 2. Injecter cette règle aux 3 endroits
 
-Dans la section `TYPE "photo_integrated"` (lignes 615-623), enrichir chaque layout avec un élément distinctif :
+- **`structureSystemPrompt`** (vers ligne 336) : remplacer la ligne unique par `SLIDE_TITLE_RULES`. Les `title_suggestion` proposés à l'étape structure seront déjà scène-first.
+- **`buildExpressFullPrompt`** (vers ligne 690 et 1279) : ajouter `SLIDE_TITLE_RULES` dans le bloc règles, en remplacement de `"Mini-headlines (title) : 4-7 mots, percutant"`.
+- **`buildMixCarouselPrompt`** (après le bloc "INTERDICTION CASCADE", vers ligne 1631) : ajouter `SLIDE_TITLE_RULES`. Particulièrement important pour les `photo_integrated` où le `title` accompagne la photo et tombe vite dans le générique ("L'art du détail").
 
+### 3. Mettre à jour les placeholders JSON
+
+Dans les exemples JSON des prompts (lignes 1691, 1701 du mix prompt notamment), remplacer `"placeholder — titre de slide"` par un placeholder plus directif :
 ```
-· "top_photo" : photo 55%, badge pilule numéroté en haut à gauche du bloc texte, soulignement coloré sous le titre.
-· "left_photo" : photo 40%, barre verticale color_accent (4px) entre photo et texte, titre en color_secondary, body avec retrait à gauche.
-· "right_photo" : symétrique, barre à gauche du texte, badge "→" décoratif.
-· "card_photo" : photo 50% en haut de la carte (carte ~85% largeur, blanche, ombre douce), padding intérieur 48px, accent décoratif (filet ou point) sous le titre.
-· "banner_photo" : photo 380px en bandeau, titre LARGE en dessous, body en 2 colonnes.
-
-RÈGLE DE RYTHME : sur 3 slides photo_integrated d'un même carrousel, utilise 3 layouts DIFFÉRENTS. Ne répète jamais le même layout 2 fois de suite.
-```
-
-### Étape 4 — Outiller la continuité visuelle
-
-Ajouter une section dans le prompt mixte :
-
-```
-═══ CONTINUITÉ VISUELLE ═══
-- Reprends UN élément graphique de transition entre une slide photo et la slide texte suivante (même couleur de badge, même style de soulignement, même typo de titre).
-- Les slides text_only entre deux slides photo doivent utiliser un fond color_background (pas blanc pur) pour adoucir la transition.
-- Le numéro de slide (badge pilule en coin) DOIT être présent sur toutes les slides — c'est l'élément qui unifie le carrousel.
+"title": "placeholder — entrée scène/JE en 4-9 mots, PAS un titre-annonce"
 ```
 
-### Étape 5 — Bouton "Mettre à jour les visuels" après édition
+### 4. Étendre la passe de correction (anti-slop)
 
-Dans `src/components/creer/formatRenderers/CarouselPhotoResult.tsx` :
-- Détecter quand le contenu d'une slide a été édité depuis la dernière génération visuelle (comparer `slides` vs snapshot au moment de la génération).
-- Afficher un nudge discret au-dessus de `<VisualSlidesCarousel>` : *"Tu as édité des slides depuis le dernier rendu visuel. Mettre à jour ?"* avec un bouton qui rappelle `carousel-visual`.
-- Exposer un callback `onRegenerateVisuals` géré dans `CreerUnifie.tsx` qui réutilise la fonction existante de génération visuelle.
+Dans `supabase/functions/_shared/correction-pass.ts`, ajouter une règle dédiée aux titres :
 
-### Étape 6 — Vérification
+> **Règle Titres** : Si un `title` de slide (≠ slide 1, ≠ dernière) commence par "L'art de", "L'importance de", "Repenser", "Pourquoi", "Le vrai", "Le piège de", "Une nouvelle", "Ce qui", ou est un mot-concept seul (1-2 mots abstraits) → réécrire en scène/JE/détail concret en respectant le sens.
 
-- Générer un carrousel mixte 5 photos avec un sujet narratif. Vérifier :
-  - Les slides texte avec `visual_schema` rendent un vrai schéma (timeline, stats, before/after) et pas un mur de texte.
-  - Sur 3 slides `photo_integrated`, au moins 3 layouts distincts.
-  - Les overlays photo n'écrasent pas le sujet visible.
-  - Après édition d'un body, le bouton "mettre à jour les visuels" apparaît et fonctionne.
-- Tester l'export PPTX/PNG après regénération pour confirmer la propagation.
+Les fonctions `extractCarouselTexts` / `reinjectCarouselTexts` traitent déjà `title` (vérifier rapidement avant édition), il s'agit d'ajouter une règle dans le prompt de correction.
 
-## Hors-scope
+### 5. Pas de changement frontend
 
-- Pas de refonte de l'export PPTX (déjà séparé).
-- Pas de changement du flow upload photos.
-- Pas de modification de l'IA de génération de **texte** (déjà traité dans la passe précédente sur le slop).
-- Pas de modification du carrousel photo pur ni du carrousel texte pur.
+Le rendu visuel (`CarouselPhotoResult.tsx`) ne change pas : il continue d'afficher `slide.title`. Seule la qualité du contenu généré change.
+
+## Fichiers concernés
+
+- `supabase/functions/carousel-ai/index.ts` (constante + 3 injections + placeholders)
+- `supabase/functions/_shared/correction-pass.ts` (règle Titres dans le prompt de correction)
+- Redéploiement : `carousel-ai`
+
+## Résultat attendu
+
+- Étape "structure" : les `title_suggestion` proposés sont déjà des entrées de scène en JE, pas des têtes de chapitre.
+- Génération mixte et texte : les slides 2 à N-1 portent des titres qui font avancer l'histoire (scène, détail, bascule, phrase entendue).
+- Cohérence avec les hooks (déjà cadrés en JE).
+- Passe de correction filtre les rares cas où le LLM retombe dans le générique.
