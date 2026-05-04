@@ -289,6 +289,7 @@ export function useContentGenerator() {
               time_available: timeAvailable || "flexible",
               pre_gen_answers: preGenAnswers || null,
               workspace_id: workspaceId || null,
+              ...(newsContext && newsContext.trim() ? { news_context: newsContext.slice(0, 3800) } : {}),
             },
           }, 120000);
           data = res.data;
