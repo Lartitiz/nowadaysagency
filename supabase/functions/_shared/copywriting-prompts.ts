@@ -1440,3 +1440,114 @@ VÉRIFICATION : si je supprime mentalement les deux slides ci-dessus, le
 carrousel se réduit à des constats généraux + un CTA. Ces deux slides
 sont ce qui fait que le carrousel a quelque chose à dire.
 `;
+
+// ═══════════════════════════════════════════════════════════════════════
+// IDEA LENSES — pool de lentilles narratives pour la génération d'idées
+// Utilisé par content-coaching. 4 lentilles tirées par session pour
+// éviter la monotonie des "4 registres fixes".
+// ═══════════════════════════════════════════════════════════════════════
+export const IDEA_LENSES: Array<{ id: string; label: string; def: string }> = [
+  { id: "expertise_pratique", label: "EXPERTISE PRATIQUE",
+    def: "Le 'comment' du métier ancré terrain. Détail technique précis, geste opérationnel, mécanique concrète que seule quelqu'un qui exerce vraiment peut formuler avec cette précision." },
+  { id: "contre_pied_pairs", label: "CONTRE-PIED INTRA-MÉTIER",
+    def: "Opinion tranchée qui dérange aussi les PAIRS du secteur (pas seulement l'audience). Touche à une pratique commune du métier qu'on critique de l'intérieur." },
+  { id: "perspective_elargie", label: "PERSPECTIVE ÉLARGIE",
+    def: "Regard sur le SECTEUR (pas le geste individuel). Mécanisme nommé : biais cognitif, dynamique de marché, ressort psychologique précis, tension culturelle." },
+  { id: "analogie_inattendue", label: "ANALOGIE INATTENDUE",
+    def: "Parallèle entre une mécanique précise du métier et un univers totalement différent (cuisine, sport, artisanat, mécanique, art, science, jardinage, musique, architecture). L'analogie doit RÉELLEMENT TENIR." },
+  { id: "confession_couteuse", label: "CONFESSION COÛTEUSE",
+    def: "Ce que le métier lui a vraiment coûté (financier, relationnel, identitaire). Pas du storytelling héroïque — l'addition réelle, sans morale rapide." },
+  { id: "observation_silencieuse", label: "OBSERVATION SILENCIEUSE",
+    def: "Ce qu'elle remarque dans son secteur depuis longtemps mais que personne ne nomme. Une régularité invisible qu'on voit après 100 clients/projets." },
+  { id: "micro_scene", label: "MICRO-SCÈNE",
+    def: "Un moment de 30 secondes ultra-précis et sensoriel (lieu, geste, phrase entendue). Pas une grande histoire — un instant qui condense tout." },
+  { id: "question_taboue", label: "QUESTION TABOUE",
+    def: "La question que la cible se pose en secret mais n'ose pas formuler à voix haute. La question qui touche à l'argent, au statut, à la honte ou au désir caché." },
+  { id: "archive_retour", label: "ARCHIVE / RETOUR EN ARRIÈRE",
+    def: "Comparaison avec un état passé du métier (il y a 5 ans, à ses débuts, avant un événement). Ce qui a changé, ce qu'on a perdu, ce qu'on a gagné sans s'en rendre compte." },
+  { id: "inversion", label: "INVERSION",
+    def: "Et si on faisait exactement l'inverse de la pratique dominante ? Renverser une règle non-questionnée du métier et regarder ce que ça révèle." },
+  { id: "coulisses_brutes", label: "RÉVÉLATION DE COULISSES",
+    def: "Ce qui se passe AVANT ou APRÈS l'image polie publiée. La friction, le brouillon, les essais ratés, la conversation client honnête." },
+  { id: "intersection_angles", label: "INTERSECTION D'ANGLES",
+    def: "Combinaison explicite de DEUX angles éditoriaux différents (ex : Build in public × Mythe à déconstruire). L'idée naît du frottement entre les deux." },
+];
+
+export function pickLenses(seed: string, count = 4): typeof IDEA_LENSES {
+  // Hash stable sur seed pour varier par jour/user mais rester reproductible
+  // dans une même session.
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    h = (h ^ seed.charCodeAt(i)) >>> 0;
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  const pool = [...IDEA_LENSES];
+  const out: typeof IDEA_LENSES = [];
+  // Pioche déterministe sans remise
+  while (out.length < Math.min(count, pool.length)) {
+    h = Math.imul(h ^ (out.length + 1), 2654435761) >>> 0;
+    const idx = h % pool.length;
+    out.push(pool[idx]);
+    pool.splice(idx, 1);
+  }
+  return out;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// WOW IDEA EXAMPLES — few-shot d'idées waouh annotées (tiède vs waouh).
+// Couvre 6 secteurs pour permettre l'extrapolation par le LLM.
+// ═══════════════════════════════════════════════════════════════════════
+export const WOW_IDEA_EXAMPLES = `
+═══════════════════════════════════════════════════
+EXEMPLES — IDÉE TIÈDE vs IDÉE WAOUH
+═══════════════════════════════════════════════════
+Ces exemples montrent la différence concrète entre une idée plate (qu'on
+voit partout) et une idée qui fait dire "ah merde, c'est exactement ça".
+Tu n'imites pas le SUJET, tu imites la STRUCTURE de profondeur.
+
+— CÉRAMISTE (cible : femmes 30-45 sensibles à l'artisanat)
+Tiède : "3 erreurs quand on choisit sa vaisselle"
+Waouh : "Le bol qui m'a fait pleurer à 2h du mat — pourquoi je ne fais
+plus de pièces 'parfaites'"
+Pourquoi : tension nommée (perfection vs vivant) + scène précise (2h du
+mat) + position métier qui dérange les pairs (rejet de la pièce parfaite).
+
+— COACH BUSINESS (cible : freelances en transition)
+Tiède : "Comment fixer ses prix quand on débute"
+Waouh : "Le jour où j'ai facturé 3000€ et où ma cliente m'a dit 'c'est
+trop peu'"
+Pourquoi : confession contre-intuitive (la cliente corrige à la HAUSSE)
++ remet en cause le réflexe 'bas prix = plus accessible' du secteur.
+
+— AGENT IMMOBILIER (cible : primo-accédants Paris/banlieue)
+Tiède : "Les pièges à éviter à l'achat"
+Waouh : "Pourquoi j'ai déconseillé à 4 clients d'acheter cette année
+(et ce que mon agence en a pensé)"
+Pourquoi : contre-pied intra-métier (déconseiller dans un métier de
+commission) + tension professionnelle assumée + observation terrain.
+
+— CONSULTANTE MARKETING (cible : petites marques ≤ 10 personnes)
+Tiède : "L'authenticité, le nouveau marketing"
+Waouh : "La marque qui m'a payé pour ne RIEN poster pendant 3 mois —
+ce qu'on a observé"
+Pourquoi : inversion radicale (silence comme stratégie) + observation
+chiffrable + dérange la doxa 'il faut poster'.
+
+— PRATICIENNE BIEN-ÊTRE (cible : femmes en burn-out latent)
+Tiède : "5 rituels matin pour bien commencer la journée"
+Waouh : "La cliente qui dort 9h, médite, mange clean — et qui craque
+quand même. Ce que j'ai compris."
+Pourquoi : micro-scène + démolition d'une promesse mainstream du
+secteur + ouvre sur un mécanisme plus profond (sur-contrôle).
+
+— CRÉATRICE DE MODE ÉTHIQUE (cible : 25-40 conscience écolo)
+Tiède : "Pourquoi le slow fashion est l'avenir"
+Waouh : "Pourquoi je refuse de dire que mes pièces 'durent toute la vie'
+(et ce que ça change pour mes prix)"
+Pourquoi : contre-pied honnête sur un argument marketing du secteur +
+tension business assumée + révèle un mécanisme caché du métier.
+
+RÈGLE D'EXTRAPOLATION : tes idées doivent atteindre ce niveau de
+spécificité et de tension. Si tu n'arrives pas à formuler une scène
+ou une position aussi précise, l'idée n'est pas prête — reformule.
+`;
