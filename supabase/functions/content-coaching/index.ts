@@ -5,6 +5,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildIdentityBlock } from "../_shared/user-context.ts";
+import { IDEA_LENSES, pickLenses, WOW_IDEA_EXAMPLES } from "../_shared/copywriting-prompts.ts";
 
 
 Deno.serve(async (req) => {
@@ -44,7 +45,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { answers, workspace_id } = body;
+    const { answers, workspace_id, intensity, regenerate_lens } = body;
     const { objectif, sujet, canal, format, content_type, ton_envie } = answers || {};
 
     if (!objectif || !ton_envie) {
@@ -52,6 +53,8 @@ Deno.serve(async (req) => {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const isBold = intensity === "bold" || intensity === "provoc";
 
     // Map raw IDs to human-readable labels for better AI output
     const OBJECTIF_LABELS: Record<string, string> = {
@@ -134,8 +137,8 @@ Deno.serve(async (req) => {
     const filterCol = workspace_id ? "workspace_id" : "user_id";
     const filterVal = workspace_id || user.id;
 
-    // Fetch context, recent posts, generated content, and strategy in parallel
-    const [ctx, recentPostsRes, strategyRes, generatedRes] = await Promise.all([
+    // Fetch context, recent posts, generated content, strategy + LIVING MATTER (persona, storytelling, offers) in parallel
+    const [ctx, recentPostsRes, strategyRes, generatedRes, personaRes, storytellingRes, offersRes] = await Promise.all([
       getUserContext(sbService, user.id, workspace_id),
       sbService.from("calendar_posts")
         .select("theme, accroche, date, canal, format")
@@ -151,9 +154,62 @@ Deno.serve(async (req) => {
         .eq(filterCol === "workspace_id" ? "workspace_id" : "user_id", filterCol === "workspace_id" ? filterVal : user.id)
         .order("created_at", { ascending: false })
         .limit(8),
+      sbService.from("persona")
+        .select("portrait_prenom, description, step_1_frustrations, step_2_transformation, step_3a_objections, frustrations_detail, desires, objections, pitch_short")
+        .eq(filterCol, filterVal)
+        .order("is_primary", { ascending: false })
+        .order("updated_at", { ascending: false })
+        .limit(2),
+      sbService.from("storytelling")
+        .select("title, story_type, pitch_short, step_1_raw, step_6_full_story, is_primary")
+        .eq(filterCol, filterVal)
+        .order("is_primary", { ascending: false })
+        .order("updated_at", { ascending: false })
+        .limit(5),
+      sbService.from("offers")
+        .select("name, offer_type, problem_surface, problem_deep, promise, sales_line, price_text")
+        .eq(filterCol, filterVal)
+        .order("updated_at", { ascending: false })
+        .limit(3),
     ]);
 
     const contextText = formatContextForAI(ctx, CONTEXT_PRESETS.content);
+
+    // ─── Build LIVING MATTER block ───
+    const livingMatterParts: string[] = [];
+    const personas = (personaRes.data || []).filter((p: any) => p && (p.description || p.step_1_frustrations || p.pitch_short));
+    if (personas.length > 0) {
+      const lines = personas.map((p: any, i: number) => {
+        const name = p.portrait_prenom ? `"${p.portrait_prenom}"` : `Persona ${i + 1}`;
+        const frust = (p.step_1_frustrations || "").trim().slice(0, 220);
+        const trans = (p.step_2_transformation || "").trim().slice(0, 180);
+        const objs = (p.step_3a_objections || "").trim().slice(0, 180);
+        const desc = (p.description || p.pitch_short || "").trim().slice(0, 180);
+        return `  • ${name}${desc ? ` — ${desc}` : ""}${frust ? `\n      Frustrations : ${frust}` : ""}${trans ? `\n      Transformation visée : ${trans}` : ""}${objs ? `\n      Objections : ${objs}` : ""}`;
+      }).join("\n");
+      livingMatterParts.push(`PERSONAS (cibles précises) :\n${lines}`);
+    }
+    const stories = (storytellingRes.data || []).filter((s: any) => s && (s.title || s.pitch_short || s.step_6_full_story || s.step_1_raw));
+    if (stories.length > 0) {
+      const lines = stories.map((s: any, i: number) => {
+        const title = s.title ? `"${s.title}"` : `Récit ${i + 1}`;
+        const teaser = (s.pitch_short || s.step_6_full_story || s.step_1_raw || "").trim().slice(0, 200);
+        return `  • ${title} (${s.story_type || "récit"})${teaser ? ` — ${teaser}` : ""}`;
+      }).join("\n");
+      livingMatterParts.push(`STORYTELLINGS DISPONIBLES (anecdotes vécues réutilisables) :\n${lines}`);
+    }
+    const offers = (offersRes.data || []).filter((o: any) => o && o.name);
+    if (offers.length > 0) {
+      const lines = offers.map((o: any) => {
+        const promise = (o.promise || o.sales_line || "").trim().slice(0, 160);
+        const problem = (o.problem_deep || o.problem_surface || "").trim().slice(0, 160);
+        return `  • "${o.name}" (${o.offer_type || "offre"})${promise ? ` — promet : ${promise}` : ""}${problem ? ` | résout : ${problem}` : ""}`;
+      }).join("\n");
+      livingMatterParts.push(`OFFRES (transformations promises) :\n${lines}`);
+    }
+    const livingMatterBlock = livingMatterParts.length > 0
+      ? `\n══════════════════════════════════════\nMATIÈRE VIVANTE DE L'UTILISATRICE\n══════════════════════════════════════\n${livingMatterParts.join("\n\n")}\n\nRÈGLE D'ANCRAGE : au moins 2 idées sur 4 doivent s'ancrer EXPLICITEMENT dans cette matière (citer un persona précis par son prénom OU rebondir sur une anecdote nommée OU servir une offre listée). Une idée trop générique qui ignore cette matière est invalide.\n`
+      : "";
 
     // Guard: if branding is too sparse, return helpful guidance instead of generic ideas
     if (!ctx.profile?.activite && !ctx.profile?.mission && !ctx.profile?.cible) {
@@ -229,6 +285,28 @@ Deno.serve(async (req) => {
 
     const cibleTxt = ctx?.profile?.cible || "non renseignée";
     const activiteTxt = ctx?.profile?.activite || ctx?.profile?.type_activite || "non renseignée";
+
+    // ─── LENSES (4 tirées par session, déterministe sur user+jour) ───
+    const lensSeed = `${user.id}|${now.toISOString().slice(0, 10)}|${sujet || ""}|${objectif}`;
+    const chosenLenses = pickLenses(lensSeed, 4);
+    const lensesBlock = chosenLenses
+      .map((l, i) => `   ${i + 1}. ${l.label} — ${l.def}`)
+      .join("\n");
+
+    // ─── BOLD MODE (mode "Pousse plus loin") ───
+    const boldBlock = isBold ? `
+═══════════════════════════════════════════════
+🔥 MODE "POUSSE PLUS LOIN" ACTIVÉ — sors des sentiers battus
+═══════════════════════════════════════════════
+Les 4 idées doivent monter d'un cran en audace. Vise le niveau "boldness: bold" ou "provoc" pour AU MOINS 3 idées sur 4 :
+- Au moins 1 idée doit contredire FRONTALEMENT une opinion mainstream du secteur (pas un demi-désaccord poli — une position claire, argumentée).
+- Au moins 1 idée doit assumer une VULNÉRABILITÉ réelle (échec, doute, prix payé, erreur coûteuse) — sans pathos ni surenchère.
+- Au moins 1 idée doit prendre POSITION sur un sujet politique/éthique du métier (rapport au prix, à la diversité, à l'écologie, au pouvoir, à la transparence).
+- Tu peux utiliser plus librement la lentille "intersection_angles" pour combiner deux angles éditoriaux qui frottent.
+
+⚠ ETHICAL_GUARDRAILS reste prioritaire : pas de manipulation, pas de honte forcée, pas de discours qui blesse une cible. "Bold" ≠ "méchant" — c'est de la franchise utile, pas de la provocation gratuite.
+` : "";
+
     const systemPrompt = `Tu es la meilleure directrice éditoriale du monde. Tu trouves THE idée qui fait dire "c'est exactement ça que je veux poster". Surprenante MAIS juste. Une idée surprenante mais fausse, malhonnête ou bancale est PIRE qu'une idée tiède : elle décrédibilise. Vise la justesse d'abord, la surprise ensuite.
 Tu ne dis JAMAIS de gros mots ni de langage vulgaire.
 
@@ -259,19 +337,22 @@ ALIGNEMENT D'ÉCHELLE ET DE POSTURE
 - Ne JAMAIS contredire la posture de l'utilisatrice : si elle utilise les réseaux sociaux pour vivre de son activité, ne pas pondre des angles type "les vraies marques ne postent pas" ou "le luxe méprise Instagram".
 
 ═══════════════════════════════════════════════
-EXIGENCE DE PROFONDEUR — anti-tiède
+EXIGENCE DE PROFONDEUR — anti-tiède (OBLIGATOIRE)
 ═══════════════════════════════════════════════
 INTERDIT (sujets de surface qui n'apprennent rien) :
 - "Les 3 erreurs que…", "Top 3 / Top 5", "Voici pourquoi X marche", "La vérité sur Y", "Ce que personne ne dit sur Z", "Le piège du…", "Le mythe du…" sans angle réellement nouveau.
 
-Chaque sujet doit ouvrir sur AU MOINS UN de ces 3 éléments (à révéler ensuite à la rédaction) :
-1. Une TENSION précise et localisée (pas "le marché change" → flou).
-2. Un MÉCANISME nommable (biais cognitif, dynamique de marché, ressort psychologique précis).
-3. Une OBSERVATION DE TERRAIN ancrée dans le secteur de la cible.
+CHAQUE idée DOIT cocher EXPLICITEMENT (en raisonnement interne, NE PAS afficher) ces 3 cases avant d'être validée :
+1. TENSION : un conflit / paradoxe / dilemme nommable en une phrase courte ("liberté vs structure", "transparence vs prix", "lenteur vs marché"…). Pas "le marché change" — flou.
+2. ENJEU PERSONNEL pour la lectrice : ce qui change concrètement pour elle si elle adopte ou refuse l'idée (un comportement, une croyance, un choix business).
+3. PREUVE D'ANCRAGE : un détail qui prouve que ce n'est pas une idée hors-sol. Au choix : (a) un détail technique du métier, (b) une scène précise, (c) une observation terrain, (d) un chiffre FACTUEL (jamais inventé), (e) un élément tiré de la MATIÈRE VIVANTE (persona, storytelling, offre).
+
+⚠ Si l'idée ne peut pas cocher les 3 cases, elle est INVALIDE. Reformule.
+Tu N'AFFICHES PAS ces 3 cases dans le JSON — elles sont ton chain-of-thought.
 
 CONTEXTE BRANDING :
 ${contextText}
-
+${livingMatterBlock}
 PILIERS : ${pillars}
 DATE : ${dayOfWeek} ${now.getDate()} ${currentMonth} ${currentYear}
 
@@ -287,26 +368,29 @@ RÈGLE D'OR — ANCRAGE MÉTIER (la plus importante) :
 Les idées parlent du MÉTIER de l'utilisatrice (photographie si photographe, céramique si céramiste, transformations accompagnées si coach, etc.), PAS de communication en général. NE JAMAIS proposer d'idées sur "comment communiquer", "l'authenticité sur Instagram", "oser se montrer", SAUF si elle travaille elle-même dans la communication/marketing.
 Test de spécificité : si l'idée pourrait fonctionner pour quelqu'un d'un autre secteur, elle est trop vague.
 
-MÉTHODE — 4 REGISTRES OBLIGATOIRES ET ORDONNÉS :
-Tu produis EXACTEMENT 4 idées, une par registre, dans cet ordre :
+═══════════════════════════════════════════════
+MÉTHODE — 4 LENTILLES NARRATIVES (tirées pour CETTE session)
+═══════════════════════════════════════════════
+Tu produis EXACTEMENT 4 idées, UNE par lentille, dans l'ordre ci-dessous.
+Chaque lentille est un angle d'attaque DIFFÉRENT sur le métier ou le sujet.
+Si tu sens qu'une lentille ne tient PAS pour ce métier précis, tu peux
+exceptionnellement la remplacer par EXPERTISE PRATIQUE — mais explique-le
+discrètement dans le champ "lens" (ex: "expertise_pratique (fallback)").
 
-   1. EXPERTISE PRATIQUE — le "comment" du métier ancré terrain. Détail technique précis, savoir-faire opérationnel, mécanique concrète de l'activité de l'utilisatrice. C'est le registre "métier vu de l'intérieur" : ce que seule quelqu'un qui exerce vraiment ${activiteTxt} peut formuler avec cette précision.
+${lensesBlock}
 
-   2. CONVICTION / CONTRE-PIED — opinion tranchée du métier qui dérange aussi les PAIRS du secteur (pas seulement l'audience). Pas un contre-pied qui flatte l'audience contre les pairs (ex : "les autres vous mentent, voilà la vérité") — un contre-pied qui met mal à l'aise les confrères / consœurs parce qu'il touche à une pratique commune du métier. Voir TEST DE SINGULARITÉ ci-dessous.
-
-   3. PERSPECTIVE ÉLARGIE — regard sur le SECTEUR (pas sur le geste métier individuel). Mécanisme nommé (biais cognitif, dynamique de marché, ressort psychologique précis), ou mise en tension culturelle/sociétale autour du métier. On prend de la hauteur, on décortique une dynamique invisible.
-
-   4. ANALOGIE INATTENDUE — parallèle entre une mécanique précise du métier de l'utilisatrice et un univers totalement différent (cuisine, sport, artisanat, mécanique, art, science, jeu d'échecs, jardinage, musique, architecture, etc.). L'analogie doit RÉELLEMENT TENIR (pas un parallèle décoratif) et faire voir le métier autrement. Pas la peine de forcer un univers tendance — choisis celui qui éclaire vraiment.
-
-CONTRAINTES CRÉATIVES OPTIONNELLES (à appliquer si pertinent à l'un des 4 registres, sinon ignore) :
+CONTRAINTES CRÉATIVES OPTIONNELLES (à appliquer si pertinent à l'une des 4 lentilles, sinon ignore) :
    🎲 ${seed1}
    🎲 ${seed2}
+
+${WOW_IDEA_EXAMPLES}
 
 RÈGLE ANTI-TU :
 Le SUBJECT est rédigé en JE narratif ou IMPERSONNEL (3e personne, on, nominalisations). INTERDIT par défaut : "tu", "te", "t'", "toi", "ton", "ta", "tes", "vous", "votre", "vos".
 
-${sujet ? `Les 4 idées traitent toutes du sujet "${sujet}" mais sous les 4 registres ci-dessus, donc 4 angles RADICALEMENT différents (pas 4 variations du même angle).` : `Les 4 registres priment sur tout le reste. En bonus, vise une diversité d'objectifs parmi : visibilite, engagement, vente, credibilite, et touche des facettes différentes du métier.`}
+${sujet ? `Les 4 idées traitent toutes du sujet "${sujet}" mais sous les 4 lentilles ci-dessus, donc 4 angles RADICALEMENT différents (pas 4 variations du même angle).` : `Les 4 lentilles priment sur tout le reste. En bonus, vise une diversité d'objectifs parmi : visibilite, engagement, vente, credibilite, et touche des facettes différentes du métier.`}
 
+${boldBlock}
 ROUTES :
 Instagram : Post → /creer | Carrousel → /creer?format=carousel | Reel → /creer?format=reel | Story → /creer?format=story
 LinkedIn : Post/Carrousel → /creer?format=linkedin
@@ -323,16 +407,20 @@ Pour passer, l'idée doit avoir AU MOINS UN de ces caractères :
 - Un angle qu'aucun·e influenceur·euse du secteur ne prendrait (parce que ça ne flatte pas, parce que c'est trop nuancé pour Insta, parce que ça contredit la doxa du secteur lui-même)
 - Une formulation qui surprend par sa concrétude ou sa franchise
 
-Note spécifique CONTRE-PIED (Idée 2) : si le contre-pied dit "tout le monde fait X mal, en vrai il faut Y", c'est probablement déjà vu. Cherche un contre-pied qui dérange les PAIRS du secteur, pas un contre-pied qui flatte l'audience contre les pairs.
+Note spécifique CONTRE-PIED : si le contre-pied dit "tout le monde fait X mal, en vrai il faut Y", c'est probablement déjà vu. Cherche un contre-pied qui dérange les PAIRS du secteur, pas un contre-pied qui flatte l'audience contre les pairs.
 
 ═══════════════════════════════════════════════
 TEST DE VALIDITÉ — applique-le sur CHAQUE idée AVANT de la sortir
 ═══════════════════════════════════════════════
-1. ANALOGIE : si l'idée en contient une, vérifie qu'elle tient vraiment. Sinon, change.
-2. CONTRE-PIED : la croyance citée doit être vraiment répandue ET le contre-pied factuellement vrai.
-3. CHIFFRE : aucun chiffre inventé (RÈGLE DE VÉRITÉ).
-4. RETEX en JE : cohérent avec le parcours réel visible dans le contexte branding.
-5. MARQUE citée : alignement d'échelle, pas de géants.
+1. PROFONDEUR 3-AXES : tension + enjeu personnel + preuve d'ancrage cochés.
+2. ANALOGIE : si l'idée en contient une, vérifie qu'elle tient vraiment. Sinon, change.
+3. CONTRE-PIED : la croyance citée doit être vraiment répandue ET le contre-pied factuellement vrai.
+4. CHIFFRE : aucun chiffre inventé (RÈGLE DE VÉRITÉ).
+5. RETEX en JE : cohérent avec le parcours réel visible dans le contexte branding.
+6. MARQUE citée : alignement d'échelle, pas de géants.
+
+CHAMP "lens" : utilise EXACTEMENT l'un de ces identifiants : ${IDEA_LENSES.map(l => l.id).join(", ")}.
+CHAMP "boldness" : "safe" (idée engageante mais consensuelle), "bold" (sort des sentiers battus, demande un peu de courage), "provoc" (assume une position qui dérange, vulnérabilité forte ou contre-pied frontal).
 
 Retourne UNIQUEMENT ce JSON (pas de markdown, pas de commentaires, pas de prose avant) :
 {
@@ -340,8 +428,10 @@ Retourne UNIQUEMENT ce JSON (pas de markdown, pas de commentaires, pas de prose 
     {
       "subject": "Sujet ultra-concret, ancré dans le métier, prêt à écrire (1 phrase claire)",
       "angle": "Nom court de l'angle éditorial (ex: Contre-pied factuel, Micro-scène, Décryptage de concept)",
+      "lens": "expertise_pratique|contre_pied_pairs|...",
+      "boldness": "safe|bold|provoc",
       "objective_tag": "visibilite|engagement|vente|credibilite",
-      "why_it_works": "1 phrase : pourquoi ça résonne avec SA cible spécifique"
+      "why_it_works": "1 phrase : pourquoi ça résonne avec SA cible spécifique (cite un persona ou une matière vivante quand applicable)"
     }
   ],
   "recommended_format": "${formatLabel}",
@@ -351,7 +441,7 @@ Retourne UNIQUEMENT ce JSON (pas de markdown, pas de commentaires, pas de prose 
     const raw = await callAnthropicSimple(
       getModelForAction("coaching"),
       systemPrompt,
-      "Génère 4 idées de contenu (sujet + angle uniquement, PAS de hook ni de brief), une par registre dans l'ordre : 1.expertise pratique / 2.contre-pied / 3.perspective élargie / 4.analogie inattendue. Applique successivement : (1) AUDIENCE vs UTILISATRICE, (2) RÈGLE DE VÉRITÉ, (3) RÈGLE D'OR métier, (4) TEST DE SINGULARITÉ, (5) TEST DE VALIDITÉ. Réponds UNIQUEMENT avec le JSON demandé.",
+      `Génère ${regenerate_lens ? "1" : "4"} idée(s) de contenu (sujet + angle uniquement, PAS de hook ni de brief)${regenerate_lens ? ` pour la lentille "${regenerate_lens}" uniquement, en plus radical que la version précédente` : `, UNE PAR LENTILLE dans l'ordre des 4 lentilles fournies (chaque idée renseigne le champ "lens" avec l'identifiant correspondant)`}. Applique successivement : (1) AUDIENCE vs UTILISATRICE, (2) RÈGLE DE VÉRITÉ, (3) RÈGLE D'OR métier, (4) PROFONDEUR 3-AXES (tension + enjeu + ancrage), (5) TEST DE SINGULARITÉ, (6) TEST DE VALIDITÉ. Si la MATIÈRE VIVANTE est fournie, au moins 2 idées sur 4 doivent l'utiliser explicitement. Réponds UNIQUEMENT avec le JSON demandé.${isBold ? " MODE BOLD ACTIF — vise l'audace utile sans manipulation." : ""}`,
       0.8,
       1200,
     );

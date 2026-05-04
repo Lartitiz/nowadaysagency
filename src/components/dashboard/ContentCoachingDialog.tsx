@@ -14,6 +14,8 @@ type Step = 1 | 2 | "loading" | "result";
 interface ContentIdea {
   subject: string;
   angle: string;
+  lens?: string;
+  boldness?: "safe" | "bold" | "provoc";
   objective_tag: string;
   why_it_works: string;
   hook?: string;
@@ -171,7 +173,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
     generateIdeas({ objectif, canal, format: "carousel", sujet });
   };
 
-  const generateIdeas = async (params?: { objectif: string; canal: string; format: string; sujet: string }) => {
+  const generateIdeas = async (params?: { objectif: string; canal: string; format: string; sujet: string; intensity?: "bold" }) => {
     const p = params || { objectif, canal, format, sujet };
     setStep("loading");
     setResult(null);
@@ -189,6 +191,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
             content_type: "auto",
             ton_envie: "auto",
           },
+          intensity: p.intensity,
           workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
         },
       }, 120000);
@@ -422,6 +425,15 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
                           <span className="text-[10px] font-semibold uppercase tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded-full">
                             {idea.angle}
                           </span>
+                          {idea.boldness && (
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                              idea.boldness === "provoc" ? "bg-rose-pale text-primary" :
+                              idea.boldness === "bold" ? "bg-[#FFF9DB] text-[#92400E]" :
+                              "bg-muted text-muted-foreground"
+                            }`}>
+                              {idea.boldness === "provoc" ? "💥 Provoc" : idea.boldness === "bold" ? "🔥 Audacieux" : "🌱 Sûr"}
+                            </span>
+                          )}
                           <span className="text-[10px] text-muted-foreground">
                             {objectiveEmojis[idea.objective_tag] || "✨"} {idea.objective_tag}
                           </span>
@@ -478,7 +490,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
               <p className="text-xs text-muted-foreground italic">{result.format_reason}</p>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <Button
                 variant="outline"
                 onClick={() => generateIdeas()}
@@ -486,6 +498,16 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
               >
                 <RefreshCw className="h-4 w-4" /> Autres idées
               </Button>
+              {result.ideas?.length ? (
+                <Button
+                  variant="outline"
+                  onClick={() => generateIdeas({ objectif, canal, format, sujet, intensity: "bold" })}
+                  className="gap-1.5"
+                  title="Sors des sentiers battus — idées plus audacieuses"
+                >
+                  🔥 Pousse plus loin
+                </Button>
+              ) : null}
               <Button
                 onClick={handleGo}
                 disabled={!!(result.ideas?.length && !selectedIdea)}
