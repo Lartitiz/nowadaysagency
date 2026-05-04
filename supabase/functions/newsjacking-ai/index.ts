@@ -250,18 +250,33 @@ serve(async (req) => {
     const shuffled = [...AXES].sort(() => Math.random() - 0.5);
     const pickedAxes = shuffled.slice(0, 3);
 
+    const universeBlock = (universe.univers_emotionnel.length || universe.moments_de_vie_cible.length)
+      ? `\n══════════════════════════════════════════════
+UNIVERS DE MARQUE ÉLARGI — utilise-le pour aller AU-DELÀ du métier littéral
+══════════════════════════════════════════════
+
+Cette personne ne vend pas SEULEMENT "${nicheLabel}". Elle vend une transformation. Voici son univers étendu :
+
+- Univers émotionnel : ${universe.univers_emotionnel.join(", ") || "—"}
+- Moments de vie de la cible : ${universe.moments_de_vie_cible.join(", ") || "—"}
+- Valeurs / combats adjacents : ${universe.valeurs_combat.join(", ") || "—"}
+- Lifestyle / esthétiques : ${universe.themes_lifestyle.join(", ") || "—"}
+
+EXEMPLE DE RAISONNEMENT : si la personne vend de la lingerie, ne lui propose pas QUE des actus mode. Cherche aussi des actus sur le plaisir, la féminité, l'estime de soi, les rituels du soir, les fêtes des amoureux. C'est ÇA qui fait du newsjacking utile.\n`
+      : "";
+
     const systemPrompt = `Tu es une assistante de veille culturelle pour créateur·ices de contenu et entrepreneur·es (tous secteurs, pas que les réseaux sociaux).
 
 PROFIL DE L'UTILISATEUR·ICE :
 ${brandingContext}
-
+${universeBlock}
 ══════════════════════════════════════════════
 PHILOSOPHIE — LIRE EN PREMIER
 ══════════════════════════════════════════════
 
 On NE cherche PAS l'actu chaude (politique, éco, faits divers). On cherche des MICRO-PHÉNOMÈNES CULTURELS : un mot qui sature les conversations, une obsession collective, un nouveau comportement, un débat qui ressort, un objet culturel (film/livre/série) dont on parle. Une vraie actu est acceptée UNIQUEMENT si elle se connecte naturellement au profil de la personne.
 
-Le critère central : chaque sujet doit avoir un PONT EXPLICITE vers cette personne. Pas un pont forcé du genre "et ça nous rappelle que la communication...". Un vrai pont qui cite quelque chose de précis du profil (sa cible, son activité, son combat, ses piliers).
+Le critère central : chaque sujet doit avoir un PONT EXPLICITE vers cette personne. Pas un pont forcé du genre "et ça nous rappelle que la communication...". Un vrai pont qui cite quelque chose de précis du profil (sa cible, son activité, son combat, ses piliers, OU un terme de son univers élargi).
 
 ══════════════════════════════════════════════
 RECHERCHES À EFFECTUER
@@ -272,9 +287,11 @@ Pour chaque axe ci-dessous, fais une recherche web et trouve 1 phénomène. Jama
 
 ${pickedAxes.map((a, i) => `  ${i + 1}. axe="${a.id}" → cherche : "${a.query}"`).join("\n")}
 
-▶ RECHERCHES NICHE — connectées au métier de "${nicheLabel}" (obligatoire) :
+▶ RECHERCHES NICHE — connectées à l'univers de "${nicheLabel}" (obligatoire) :
 Fais ces 3 recherches DIFFÉRENTES (pas une seule, les 3) :
 ${nicheQueries.map((q, i) => `  ${i + 1}. "${q}"`).join("\n")}
+
+${universeBlock ? `RÈGLE D'ÉLARGISSEMENT (importante) : sur les 3 sujets niche, MAXIMUM 1 doit parler du métier littéral ("${nicheLabel}"). Les 2 autres doivent venir de l'UNIVERS ÉLARGI ci-dessus (émotion / moments de vie / valeurs / lifestyle). Si une recherche niche ne donne rien d'élargi, refais-la avec d'autres termes de l'univers de marque.\n` : ""}
 
 ══════════════════════════════════════════════
 RÈGLE DU PONT EXPLICITE — GARDE-FOU N°1
