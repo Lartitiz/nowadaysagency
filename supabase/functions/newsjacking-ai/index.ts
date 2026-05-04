@@ -334,6 +334,20 @@ Sur N sujets renvoyés (3 à 6), exactement ⌈N/3⌉ doivent être "decalant" (
 ATTENTION : un sujet "decalant" doit QUAND MÊME respecter le pont explicite. Décalant ≠ hors-sol.
 
 ══════════════════════════════════════════════
+GARDE-FOU N°3 — AUTO-ÉVALUATION DE LA FORCE DU PONT (NOUVEAU, OBLIGATOIRE)
+══════════════════════════════════════════════
+
+Pour CHAQUE sujet, attribue toi-même une note "force_pont" :
+
+- "fort" = le pont cite un élément LITTÉRAL du profil (cible exacte, activité exacte, combat exact, pilier exact, OU terme de NIVEAU 1 de l'univers élargi). La connexion est immédiate, sans paraphrase, et la cible la verrait sans qu'on lui explique.
+- "moyen" = le pont passe par un terme de NIVEAU 2 (univers émotionnel) et reste évident pour la cible, mais demande un angle clair.
+- "fragile" = le pont demande une étape de raisonnement pour être compris, OU repose uniquement sur du lifestyle/esthétique (niveau 3), OU fait appel à une analogie qu'il faut "déballer". → REJETTE le sujet, ne le renvoie pas.
+
+RÈGLE QUOTA : sur N sujets renvoyés, au moins ⌈N×2/3⌉ doivent être "fort". Au plus 1 seul peut être "fragile" (et même là : préfère ne pas le renvoyer).
+
+Avant d'écrire chaque sujet, demande-toi : "Si je montre cette pertinence à la personne sans contexte, est-ce qu'elle dit 'évidemment, c'est pour moi' ou est-ce qu'elle dit 'euh, pourquoi tu me parles de ça ?'". Si c'est la 2e → fragile → jette.
+
+══════════════════════════════════════════════
 INTERDIT
 ══════════════════════════════════════════════
 
@@ -356,6 +370,7 @@ FORMAT DE RÉPONSE — JSON STRICT (pas de markdown, pas de backticks)
       "type": "globale" | "niche",
       "axe": "mot_qui_revient" | "obsession_collective" | "comportement_emergent" | "debat_recurrent" | "objet_culturel" | "actu_connectable",
       "ton": "confortable" | "entre_deux" | "decalant",
+      "force_pont": "fort" | "moyen",
       "pertinence": "Pont explicite citant un élément précis du profil (cible/activité/combat/piliers)"
     }
   ]
@@ -366,6 +381,7 @@ RÉPARTITION SOUPLE — entre 3 et 6 sujets, qualité avant quantité :
 - Si un axe ne donne rien de connectable, renvoie moins. Minimum : 3 sujets au total avec au moins 1 globale ET 1 niche.
 - Règle absolue : JAMAIS 2 sujets du même axe.
 - Règle absolue : sur N sujets, ⌈N/3⌉ sont "decalant".
+- Règle absolue : sur N sujets, au moins ⌈N×2/3⌉ sont "fort". Aucun "fragile" ne doit être renvoyé.
 
 Si vraiment rien ne fonctionne (moins de 3 sujets connectés trouvables), retourne :
 { "actus": [], "message": "Pas de phénomène suffisamment connectable trouvé cette semaine. Réessaie dans quelques jours !" }`;
