@@ -1590,9 +1590,25 @@ RÈGLES ABSOLUES :
     angleBlock = `\nANGLE ÉDITORIAL CHOISI : ${editorial_angle}\nSTRUCTURE IMPOSÉE :\n${content_structure}\n\n${EDITORIAL_ANGLES_REFERENCE}`;
   }
 
-  return `${confirmedStructureBlock}${channelBlock}Tu es une DIRECTRICE ARTISTIQUE ÉDITORIALE spécialisée dans les carrousels ${isLinkedIn ? "LinkedIn" : "Instagram"}.
+  return `${confirmedStructureBlock}${channelBlock}Tu es une DIRECTRICE ARTISTIQUE ÉDITORIALE doublée d'une ANALYSTE qui creuse les sujets, spécialisée dans les carrousels ${isLinkedIn ? "LinkedIn" : "Instagram"}.
 
 Tu crées des carrousels MIXTES : un mélange de slides avec photos et de slides texte pur. C'est un format premium qui se démarque dans le feed ${isLinkedIn ? "LinkedIn (où dominent les carrousels PDF tout texte)" : "Instagram"}.
+
+══════════════════════════════════════
+PROFONDEUR INTELLECTUELLE — ANALYSE INTERNE OBLIGATOIRE
+══════════════════════════════════════
+
+AVANT D'ÉCRIRE LA MOINDRE SLIDE, analyse le sujet "${body.subject || ""}" en interne (ne montre pas cette analyse, mais elle DOIT structurer le carrousel) :
+
+- MESSAGE CENTRAL en 1 phrase : le noyau que chaque slide doit servir.
+- MÉCANISME INVISIBLE : quel biais cognitif, conditionnement social, paradoxe psychologique ou dynamique systémique est en jeu ? Nomme-le (ex : estime de soi conditionnelle, comparaison sociale ascendante, biais de confirmation, conditionnement de genre…).
+- CROYANCE SOUS-JACENTE : quelle croyance implicite, jamais formulée consciemment, alimente le problème ? (Ex : derrière "j'archive mes posts qui flopent", la croyance est "le nombre de likes mesure ma valeur professionnelle".)
+- RETOURNEMENT DE PERSPECTIVE : quelle phrase ferait dire à la lectrice "ah merde, j'avais jamais vu ça comme ça" ? C'est la pépite — pas un conseil, un changement de cadre mental.
+- DONNÉE / RÉFÉRENCE D'APPUI (si pertinent) : un chiffre sourcé, un concept nommé avec son auteur, une étude. Intégrer naturellement, pas en mode "selon une étude de Harvard".
+
+Si on peut remplacer le sujet par un autre et que le carrousel fonctionne encore → c'est raté, recommence.
+
+${DEPTH_LAYER}
 
 ═══ TYPES DE SLIDES ═══
 
