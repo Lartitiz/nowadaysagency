@@ -1,73 +1,80 @@
-## Problème observé
+## Diagnostic du "slop en cascade" sur le carrousel mixte
 
-Dans le carrousel **mixte**, l'IA propose une structure qui :
+J'ai disséqué le pipeline. La sensation de **cascade** (texte qui descend en escalier, une slide qui en redit une autre en plus dramatique, montée en tension manufacturée) vient de **4 causes cumulées** dans `supabase/functions/carousel-ai/index.ts` et `supabase/functions/_shared/correction-pass.ts`.
 
-- N'utilise pas toutes les photos uploadées (certaines restent orphelines)
-- Penche fortement vers les **slides texte** (résultat : carrousel "trop texte" qui perd l'intérêt du format mixte)
+### Cause 1 — La pass anti-slop ignore les overlays photo (LE plus gros impact mixte)
 
-L'utilisatrice voit bien ses photos non utilisées dans le bandeau (avec un warning orange) mais doit cliquer manuellement pour les ajouter — ce qui n'est pas évident, et beaucoup ne le font pas.
+`extractCarouselTexts` (correction-pass.ts ligne 302) extrait pour correction uniquement `title`, `body`, `punchline`. Mais le format mixte a deux champs spécifiques jamais extraits :
+- `overlay_text` (texte des slides `photo_full` — ~50 % du carrousel mixte)
+- `note` (briefs DA visibles côté front sur certains rendus)
 
-## Cause racine
+→ **Toutes les slides photo échappent à la correction anti-slop.** Les overlays restent en mode "phrase chic d'IA" pendant que les slides texte sont nettoyées. L'écart de qualité entre les deux types de slides crée justement cet effet de cascade artificielle.
 
-Dans `supabase/functions/carousel-ai/index.ts`, **deux endroits** permettent à l'IA d'écarter des photos et de pousser vers du texte :
+### Cause 2 — L'exemple inline dans le prompt est lui-même du slop (et il est copié)
 
-### 1. Étape `structure_proposal` (ligne 303 — la cause principale)
+Ligne 1679, le prompt montre comme exemple :
+> *"En vrai, le problème c'est pas l'algorithme. C'est qu'on poste en espérant que les gens vont deviner ce qu'on fait. Sauf que personne ne devine. Les comptes qui marchent, c'est ceux qui ont quelque chose à dire. (Et oui, toi aussi t'as des choses à dire.)"*
 
-L'instruction envoyée à Claude pour le mode mixte contient **textuellement** :
+Problèmes : voix "ON/TU" (viole la règle anti-TU), structure "Le vrai problème c'est pas X, c'est Y" (formule manufacturée bannie), sujet générique Insta/algo qui n'a rien à voir avec le brief de l'utilisatrice. **Claude copie ce ton et cette structure** dans les slides texte → cascade de phrases qui s'amplifient ("En vrai…", "Sauf que…", "Et oui…").
 
-> *"Tu n'es PAS obligé·e d'utiliser toutes les photos."*
+### Cause 3 — Empilement de structures narratives qui force la redondance
 
-Cette phrase autorise explicitement l'IA à laisser des photos sur la touche. Combinée à l'absence de contrainte minimale sur la proportion photo/texte, l'IA tend à produire ~30-40 % de slides photo et ~60-70 % de slides texte.
+Pour chaque carrousel mixte, l'IA reçoit jusqu'à **trois arcs narratifs simultanés** :
+- L'arc générique imposé : `situation → tension → développement → résolution → ouverture` (ligne 1613)
+- L'arc de l'angle éditorial choisi (`content_structure` injecté ligne 1549)
+- La structure validée par l'utilisatrice (`confirmed_structure` ligne 1513-1535) avec des rôles type `hook → context → tip → tip → tip → cta`
 
-### 2. Étape `mix_carousel` (ligne 1585 — règle ignorée car écrasée)
+→ L'IA empile une slide texte par "étape". Comme ces étapes sont sémantiquement proches, chaque slide **paraphrase la précédente en montant d'un cran émotionnel** — c'est exactement la cascade. Pire, il n'y a aucune règle anti-redondance entre slides texte consécutives.
 
-La règle inverse existe ici : *"CHAQUE photo uploadée doit être utilisée AU MOINS une fois"*. Mais elle arrive **trop tard** dans le flow : la `structure_proposal` a déjà fixé le nombre de slides photo en amont, et `mix_carousel` génère le contenu sur cette structure figée. La règle ne sert donc à rien dans le flow réel.
+### Cause 4 — Rien n'interdit la "rampe rhétorique"
 
-### 3. UX (mineur)
+Le prompt interdit plein de choses (formules manufacturées, anti-TU, etc.) mais **n'interdit jamais explicitement** :
+- Ouvrir 2 slides texte de suite par un connecteur d'amplification ("En vrai…", "Et là…", "Sauf que…", "Sauf qu'en fait…")
+- Reprendre le mot-clé de la slide précédente pour le redéfinir ("…l'algorithme. ─ slide suivante ─ L'algorithme, c'est…")
+- Faire monter artificiellement les enjeux à chaque slide ("c'est important → c'est crucial → c'est vital")
 
-Le warning "X photos non utilisées" est visible mais discret (orange clair, pas de friction au clic "Continuer"). On peut valider la structure même avec des photos orphelines.
+## Plan correctif
 
-## Plan
+### Étape 1 — Étendre la pass anti-slop aux overlays mixtes (impact #1)
 
-### Étape 1 — Réécrire l'instruction `structure_proposal` mode mixte (impact principal)
+Modifier `supabase/functions/_shared/correction-pass.ts` :
 
-Modifier `supabase/functions/carousel-ai/index.ts` ligne 303 (`photoInstruction` pour `isMixMode`) :
+- **`extractCarouselTexts`** : ajouter l'extraction de `slide.overlay_text` sous le marqueur `[SLIDE N - OVERLAY]`.
+- **`reinjectCarouselTexts`** : réinjecter ces corrections dans `slides[i].overlay_text`.
+- **Prompt `carousel`** : ajouter une règle "11. OVERLAYS PHOTO : si l'overlay est une formule chic ou pourrait s'appliquer à n'importe quelle photo, le réécrire en phrase ancrée dans CE moment précis (5-15 mots, fait sensoriel ou détail concret)."
 
-- **Supprimer** la phrase "Tu n'es PAS obligé·e d'utiliser toutes les photos."
-- **Ajouter** des règles fortes :
-  - "CHAQUE photo fournie DOIT être utilisée au moins une fois" (sauf si 8+ photos pour 7 slides — auquel cas dédoublonner les photos faibles, ne pas en supprimer) ça c'est pas obligatoire
-  - "Cible : au minimum **50 % de slides photo** (photo_full ou photo_integrated). Le format mixte n'est pas un carrousel texte avec quelques photos décoratives — c'est un dialogue équilibré entre image et mot." alors ici relancer un plan pour qu'il y'ait des designs mieux avec des schémas etc. faut voir ce qui peut se faire mieux
-  - &nbsp;
-  - "Pour N photos, propose entre N et N+2 slides au total (pas plus). Le sweet spot : N photos + 1-2 slides texte clés (réflexion charnière, CTA)."
-  - "Une slide texte se justifie SEULEMENT si elle apporte un contenu impossible à porter par une photo : chiffre/donnée, prise de position tranchée, transition narrative, CTA. Pas de slide texte 'parce qu'il en faut'."
+### Étape 2 — Remplacer l'exemple toxique du prompt mixte
 
-### Étape 2 — Aligner les règles de composition `mix_carousel` (cohérence)
+Modifier `supabase/functions/carousel-ai/index.ts` ligne 1679 (et l'autre exemple ligne 1689 si même problème) :
 
-Modifier `supabase/functions/carousel-ai/index.ts` lignes 1582-1588 :
+- Remplacer l'exemple "En vrai, le problème c'est pas l'algorithme…" par un exemple **en JE**, sans formule "Le vrai X c'est pas Y c'est Z", ancré dans un sujet plausible mais varié, et avec un body court et descriptif (pour ne pas servir de modèle de cascade).
+- Marquer explicitement dans le prompt : *"Les exemples ci-dessous sont là pour montrer la STRUCTURE JSON, pas le ton ni le contenu. Ne copie ni les formulations ni le sujet."*
 
-- Ajuster la fourchette : "Un carrousel de N photos devrait avoir N à N+2 slides au total" (au lieu de N à N+3 actuellement).
-- Renforcer : "Au moins **50 % des slides** doivent être de type photo_full ou photo_integrated."
-- Garder la règle existante "CHAQUE photo uploadée doit être utilisée AU MOINS une fois".
+### Étape 3 — Ajouter une section anti-cascade dans `buildMixCarouselPrompt`
 
-### Étape 3 — Friction UX douce sur photos orphelines
+Modifier `supabase/functions/carousel-ai/index.ts` lignes 1611-1620 (RÈGLES SPÉCIFIQUES MIX). Ajouter un bloc :
 
-Modifier `src/components/creer/StructureReviewStep.tsx` :
+```
+═══ INTERDICTION CASCADE / ESCALIER ═══
+- Aucune slide texte ne doit ouvrir par un connecteur d'amplification ("En vrai", "Et là", "Sauf que", "Sauf qu'en fait", "Le vrai X c'est…", "C'est pour ça que…").
+- Deux slides texte consécutives ne doivent JAMAIS répéter le même mot-clé central (si slide N parle de "visibilité", slide N+1 doit changer d'angle, pas redéfinir "visibilité").
+- Pas de rampe émotionnelle artificielle ("c'est important" → "c'est crucial" → "c'est vital"). Une seule tension, posée une fois, puis on développe par EXEMPLES, pas par escalade.
+- Chaque slide texte doit pouvoir tenir SEULE (test : si on la lit hors contexte, elle a un message clair). Si elle a besoin de la précédente pour faire sens → c'est une cascade, fusionne ou supprime.
+```
 
-- Quand `unusedPhotoIndices.length > 0` ET `carouselSubMode === "mix"` : à côté du bouton principal "Valider la structure", afficher une **micro-confirmation inline** ("Tu as N photo(s) non utilisée(s). Continuer quand même ?") avec deux options :
-  - "Ajouter une slide pour chaque photo restante" (action préférée, en avant)
-  - "Continuer sans ces photos" (action secondaire)
-- Pas de modale bloquante — juste un nudge visible.
+### Étape 4 — Garde-fou anti-redondance dans la pass de correction
 
-### Étape 4 — Vérification
+Modifier `supabase/functions/_shared/correction-pass.ts` prompt `carousel` (règle 3 actuelle "SLIDES REDONDANTES") :
+
+- Renforcer : "3. SLIDES REDONDANTES OU EN CASCADE : si deux slides consécutives traitent la même idée avec une intensité montante, ou si l'une paraphrase l'autre, FUSIONNE-les en une seule slide qui pose le point une fois, ou remplace la plus faible par un nouvel angle (exemple, contre-exemple, chiffre, scène)."
+
+### Étape 5 — Vérification
 
 - `tsc --noEmit` passe.
-- Tester dans le preview avec un carrousel mixte 5 photos :
-  - **Avant le fix** : structure proposée ~3 photo + 5 texte, 2 photos orphelines.
-  - **Après le fix** : structure ~5 photo + 1-2 texte, 0 photo orpheline.
-- Régression : carrousel mixte avec 10 photos → l'IA dédoublonne (utilise les meilleures 2x) plutôt que d'en écarter, on reste à 7-9 slides max.
+- Test preview : générer un carrousel mixte 5 photos sur un sujet narratif → vérifier qu'aucune slide texte n'ouvre par "En vrai/Sauf que/Le vrai X", que les overlays photo sont concrets (pas génériques), et qu'on ne peut pas regrouper deux slides texte consécutives sous le même mot-clé.
 
 ## Hors-scope
 
-- Pas de modification du flow `deepening_questions` (déjà traité au tour précédent).
-- Pas de changement du mode "photo pur" ni du mode "texte pur".
-- Pas de migration DB ni de changement de modèle.
+- Pas de modification du flow upload photos / structure_proposal.
+- Pas de changement du prompt photo pur ni du carrousel texte pur.
+- Pas de changement de modèle IA.
