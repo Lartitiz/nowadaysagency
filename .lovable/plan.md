@@ -1,92 +1,49 @@
-## Bug : "erreur de format" lors de la génération depuis une idée actualité
+# Fix : carrousel mixte trop court (4 slides au lieu de 7+)
 
-### Diagnostic
+## Diagnostic
 
-**Le bug ne vient pas de la sauvegarde**, il vient de la **taille du payload** envoyé à la génération quand un contexte d'actualité est en jeu.
+Dans `supabase/functions/carousel-ai/index.ts` (étape `structure_proposal`, mode mixte), la consigne envoyée à l'IA cale **mécaniquement** le nombre de slides sur le nombre de photos uploadées :
 
-#### Chaîne actuelle (newsjacking → questions → génération)
+> "Pour N photos : vise entre N et N+2 slides au total (**pas plus**). Sweet spot : N slides photo + 1-2 slides texte clés."
 
-1. L'utilisateur sélectionne un angle d'actualité dans `NewsjackingPanel`.
-2. `handleNewsjackingSelect` (CreerUnifie:484) stocke le bloc actu complet dans le state `newsjackingContext` (titre + source + résumé + pertinence + véhicule + hook + description + format suggéré).
-3. L'utilisateur passe l'étape format → questions (le `newsjackingContext` n'est PAS injecté ici, donc les questions ne sont pas teintées par l'actu — sous-bug séparé).
-4. L'utilisateur répond → `doGenerate` (CreerUnifie:761) construit `enrichedSubject` :
-   ```
-   <ideaText>
-   --- CONTEXTE ACTUALITÉ ---
-   <bloc actu complet>
-   --- FIN CONTEXTE ACTUALITÉ ---
-   IMPORTANT : Ce contenu est un newsjacking. Le HOOK / ACCROCHE (slide 1...) DOIT partir de l'actualité elle-même... [≈640 chars d'instruction]
-   ```
-5. Ce `enrichedSubject` est envoyé tel quel comme `context` à l'edge function de génération.
+Avec 3 photos → 3 à 5 slides maximum. L'IA choisit 4. Le `slide_count: 7` envoyé par le front est ignoré, et toute la mécanique de profondeur (DEPTH_LAYER : mécanisme + croyance + retournement) est étouffée.
 
-#### Ce qui casse
+C'est aussi en contradiction avec la règle juste au-dessus dans le même prompt :
+> "Le nombre de slides doit être entre `slide_count` et `slide_count + 2`" (= 7 à 9 par défaut)
 
-| Edge function | Champ | Cap Zod | Risque |
-|---|---|---|---|
-| `creative-flow` (post / linkedin / newsletter / pinterest) | `context` | **8000 chars** | **BLOQUANT** — facile à dépasser car le bloc actu (titre + 2 phrases résumé + pertinence + véhicule + hook + description + format suggéré + 640 chars d'instruction) peut peser 1500-2500 chars, et le `ideaText` déjà long (= `angle.hook` ou `actu.titre`). Avec un sujet/contenu existant ajouté, on dépasse. |
-| `carousel-ai` `express_full` | `subject` | 15000 chars | Marge plus large mais dépassable sur actu très détaillée + contenu calendrier existant. |
+Les deux règles se contredisent et celle des photos gagne.
 
-`creative-flow/index.ts:39` : `context: z.string().max(8000).optional().nullable()` → quand on dépasse, `validateInput` lève une `ValidationError` :
-```
-"Données invalides: context: String must contain at most 8000 character(s)"
-```
-Cette erreur remonte dans le toast comme "erreur de format" (« Données invalides: ... »).
+## Principe du fix
 
-#### Pourquoi ce n'est pas attrapé pour le calendrier
+**Le nombre de slides suit la richesse du sujet, pas le nombre de photos.** Une même photo peut nourrir plusieurs slides (full puis integrated sous un autre angle), et les slides texte d'approfondissement (mécanisme expliqué, croyance nommée, retournement formulé) sont essentielles, pas accessoires.
 
-Pour le contenu calendrier existant, il existe déjà un mécanisme de split (CALENDAR_MARKER + truncation à 7800 chars dans `use-content-generator.ts:527-541`) — mais **uniquement pour l'étape questions**, et **uniquement pour le bloc calendrier**, **pas pour le bloc actualité**. L'étape `generate` passe `subject` raw (line 693).
+## Changements
 
-#### Sous-bugs détectés au passage
+### 1. `supabase/functions/carousel-ai/index.ts` — bloc `photoInstruction` mode MIXTE (lignes ~315-335)
 
-1. **`handleCreateFromActu`** (IdeaDetailSheet:175-184) passe `context` dans `navigate state`, mais CreerUnifie **ne lit jamais `locState.context`**. → l'utilisateur·ice qui clique "Créer depuis cette actu" depuis la fiche idée perd tout le contexte newsjacking : le contenu généré ne sera pas un newsjacking du tout.
-2. **Les questions d'approfondissement** ne reçoivent pas le `newsjackingContext` → questions hors-sujet sur un brief actu (perte de qualité, pas un crash).
+Réécrire la cible de répartition :
 
-### Plan de correction
+- **Supprimer** la cible "N à N+2 slides max" calée sur le nombre de photos.
+- **Garder** comme cible le `slide_count` demandé par le front (7 à 9 par défaut), aligné sur la règle générale ligne 350.
+- **Reformuler** l'équilibre photo/texte en proportion (≥50% photo) sans plafonner le total.
+- **Autoriser explicitement** qu'une même photo serve 2 slides différentes (ex: photo_full en hook, puis photo_integrated plus loin avec un cadrage analytique différent) si le récit le justifie.
+- **Revaloriser** les slides texte d'approfondissement : le mécanisme, la croyance retournée, la prise de position, la donnée chiffrée méritent chacun leur slide propre — ce ne sont pas "1-2 slides texte clés" maximum mais autant que la profondeur du sujet l'exige.
+- **Ajouter** un garde-fou explicite : "Si le sujet porte une vraie profondeur (vécu, conviction, mécanisme à expliquer), ne te contente pas de 4 slides parce qu'il n'y a que 3 photos. Étire à 7-9 slides en intercalant des slides texte d'approfondissement."
 
-#### Fix #1 (PRIORITAIRE — résout l'erreur format) : externaliser le contexte actu
+### 2. Vérifier la cohérence avec l'étape de génération finale
 
-Plutôt que de stuffer le bloc actu dans `subject`/`context`, le faire voyager dans un champ dédié `launch_context` ou un nouveau champ `news_context` qui a son propre cap Zod.
+Une fois la structure validée à 7-9 slides, l'étape `slides`/`express_full` doit honorer ce nombre. Vérifier `buildSlidesPrompt` et `buildExpressFullPrompt` pour s'assurer qu'ils ne re-cappent pas le compte sur `photos.length`. Ajuster si besoin (même principe : photo réutilisable, slides texte légitimes).
 
-- **Frontend** : dans `doGenerate` (`CreerUnifie.tsx:756-762`), arrêter d'injecter le bloc dans `enrichedSubject`. À la place, passer un nouveau paramètre `newsContext` à `generateStream` / `generate`.
-- **`use-content-generator.ts`** : étendre `GenerateStreamParams` et `GenerateOnceParams` pour accepter `newsContext?: string`. Le passer à `creative-flow` et `carousel-ai` sous une clé dédiée (ex: `news_context`).
-- **Edge functions** :
-  - `creative-flow/index.ts` schema : ajouter `news_context: z.string().max(4000).optional().nullable()` (cap large mais borné).
-  - `carousel-ai/index.ts` schema : pareil.
-  - Côté prompt : injecter le `news_context` comme bloc séparé (avec l'instruction "le hook DOIT partir de l'actualité…") au lieu de le faire en suffixe du subject.
-- **Truncation défensive frontend** : si `newsjackingContext` dépasse 3500 chars, le tronquer (peu probable vu la structure mais ceinture+bretelles).
+### 3. Pas de changement front
 
-#### Fix #2 : injecter `newsjackingContext` aussi à l'étape questions
+Le front envoie déjà `slide_count: 7` ligne 915 — il sera enfin respecté.
 
-Pour que les questions soient ancrées dans l'actu (sinon : génériques) :
-- `generateQuestions` reçoit `newsContext` optionnel.
-- Côté edge `carousel-ai` `deepening_questions` et `creative-flow` `questions` : si `news_context` présent, l'ajouter au bloc de prompt avec instruction "tes 3 questions doivent aider à faire le pont entre cette actualité et le vécu / l'opinion / l'expertise de l'utilisateur·ice".
+## Hors scope
 
-#### Fix #3 : réparer `handleCreateFromActu` (IdeaDetailSheet)
+- Pas de modif UI (pas de slider visible pour le user — `slide_count: 7` reste le défaut).
+- Pas de touche au mode photo pur (où 1 photo = 1 slide est la bonne règle).
+- Pas de touche au mode texte pur (déjà OK).
 
-Aujourd'hui, l'entrée "Créer depuis cette actu" depuis Mes Idées passe `state.context` mais CreerUnifie l'ignore.
+## Validation
 
-Deux options :
-- (a) Ajouter dans CreerUnifie l'init `if (locState.context && locState.subject) setNewsjackingContext(locState.context)` dans le `useEffect` de prefill (vers ligne 380).
-- (b) Plus propre : passer aussi `state.fromNewsjacking: true` + `state.actuPayload` et reconstruire le contexte côté CreerUnifie.
-
-Option (a) est plus simple et suffit.
-
-#### Fix #4 : robustesse côté error handling
-
-Quand `validateInput` échoue, le toast affiche "Données invalides: …". C'est cryptique pour l'utilisateur·ice. Côté edge functions, retourner un `error.code = "payload_too_large"` quand un champ texte dépasse, et côté frontend afficher un message clair "Le contexte est trop long pour cette actualité, on le tronque automatiquement et on relance" + retry auto avec troncature.
-
-(Optionnel — le Fix #1 supprime la cause racine.)
-
-### Fichiers concernés
-
-- `src/pages/CreerUnifie.tsx` (doGenerate ligne 756, useEffect prefill ligne 370)
-- `src/hooks/use-content-generator.ts` (GenerateStreamParams, GenerateOnceParams, GenerateQuestionsParams)
-- `src/components/calendar/IdeaDetailSheet.tsx` (handleCreateFromActu)
-- `supabase/functions/creative-flow/index.ts` (schema + prompt builder)
-- `supabase/functions/carousel-ai/index.ts` (schema + prompt builders : `express_full`, `deepening_questions`)
-
-### Résultat attendu
-
-- Plus de "Données invalides: context: String must contain at most 8000 character(s)" sur les briefs actu.
-- Les questions d'approfondissement deviennent ancrées dans l'actualité (qualité).
-- L'entrée "Créer depuis cette actu sauvegardée" depuis Mes Idées fonctionne enfin comme un newsjacking complet.
+Re-tester le cas de l'utilisatrice (carrousel mixte, sujet à forte profondeur, 3 photos) → attendu : 7-9 slides, dont au moins 50% photo (avec réutilisation possible) et 2-4 slides texte d'approfondissement (mécanisme / croyance / retournement / chiffre).
