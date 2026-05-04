@@ -6,6 +6,7 @@ import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { isDemoUser } from "../_shared/guard-demo.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { getModelForAction, callAnthropicSimple } from "../_shared/anthropic.ts";
+import { fetchHotNews, type PerplexityActu } from "../_shared/perplexity.ts";
 
 // Brand universe cache TTL — regenerate after 30 days or when branding changes
 const BRAND_UNIVERSE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -224,6 +225,44 @@ serve(async (req) => {
     ].filter(Boolean);
 
 
+    // ─────────────────────────────────────────────────────────────
+    // Perplexity sourcing — récupère 2-3 actus chaudes du moment
+    // qui font débat, à injecter comme MATIÈRE PREMIÈRE pour Claude.
+    // Optionnel : si Perplexity tombe / pas de clé → on continue
+    // sans bloquer (le pipeline web_search Claude reste opérationnel).
+    // ─────────────────────────────────────────────────────────────
+    let hotNews: PerplexityActu[] = [];
+    const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
+    if (PERPLEXITY_API_KEY) {
+      try {
+        const universKeywords = [
+          ...universe.valeurs_combat.slice(0, 2),
+          ...universe.moments_de_vie_cible.slice(0, 2),
+          ...universe.univers_emotionnel.slice(0, 2),
+        ].filter(Boolean);
+
+        const ppxController = new AbortController();
+        const ppxTimeout = setTimeout(() => ppxController.abort(), 25000);
+        try {
+          const ppxResult = await fetchHotNews({
+            niche: nicheLabel,
+            universKeywords,
+            recency: "week",
+            apiKey: PERPLEXITY_API_KEY,
+            signal: ppxController.signal,
+          });
+          hotNews = ppxResult.actus.slice(0, 3);
+          console.log(`Perplexity: ${hotNews.length} actu(s) chaude(s) récupérée(s)`);
+        } finally {
+          clearTimeout(ppxTimeout);
+        }
+      } catch (e) {
+        console.warn("Perplexity sourcing failed (non-blocking):", (e as Error).message);
+      }
+    } else {
+      console.log("PERPLEXITY_API_KEY absente — sourcing actu chaude désactivé");
+    }
+
     // Claude call with web search
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
     if (!ANTHROPIC_API_KEY) {
@@ -273,16 +312,35 @@ Cette personne ne vend pas SEULEMENT "${nicheLabel}". Mais TOUS les éléments d
 RÈGLE : si tu hésites entre un sujet niveau 1 et un sujet niveau 2/3, choisis TOUJOURS le niveau 1.\n`
       : "";
 
+    // Bloc "matière première" : actus chaudes pré-sourcées par Perplexity.
+    // Ces actus contournent le filtre anti-actu-chaude habituel CAR elles sont
+    // déjà passées au tamis Perplexity (faits divers tragiques exclus, etc.).
+    // Claude doit les traiter comme une OPTION supplémentaire, pas une obligation :
+    // il les garde uniquement si elles ont un vrai pont vers le profil.
+    const hotNewsBlock = hotNews.length > 0
+      ? `\n══════════════════════════════════════════════
+ACTUS CHAUDES PRÉ-SOURCÉES (cette semaine en France)
+══════════════════════════════════════════════
+
+Voici ${hotNews.length} actu(s) chaude(s) qui font débat actuellement, déjà filtrées (pas de fait divers tragique, pas de propagande partisane). Tu peux PUISER 1 ou 2 sujets ici si — et SEULEMENT si — tu peux écrire un pont fort vers le profil. Si aucune ne se connecte vraiment, IGNORE-LES et reste sur les recherches micro-phénomènes ci-dessous.
+
+${hotNews.map((a, i) => `  ${i + 1}. "${a.titre}"
+     → ${a.resume}
+     → Source : ${a.source}${a.source_url ? ` (${a.source_url})` : ""}${a.date_publication ? ` — ${a.date_publication}` : ""}`).join("\n\n")}
+
+Si tu reprends une de ces actus chaudes, conserve EXACTEMENT son titre, son résumé, sa source ET son source_url dans ta réponse — c'est important pour la traçabilité. Tag-la avec axe="actu_connectable" et type="globale".\n`
+      : "";
+
     const systemPrompt = `Tu es une assistante de veille culturelle pour créateur·ices de contenu et entrepreneur·es (tous secteurs, pas que les réseaux sociaux).
 
 PROFIL DE L'UTILISATEUR·ICE :
 ${brandingContext}
 ${universeBlock}
-══════════════════════════════════════════════
+${hotNewsBlock}══════════════════════════════════════════════
 PHILOSOPHIE — LIRE EN PREMIER
 ══════════════════════════════════════════════
 
-On NE cherche PAS l'actu chaude (politique, éco, faits divers). On cherche des MICRO-PHÉNOMÈNES CULTURELS : un mot qui sature les conversations, une obsession collective, un nouveau comportement, un débat qui ressort, un objet culturel (film/livre/série) dont on parle. Une vraie actu est acceptée UNIQUEMENT si elle se connecte naturellement au profil de la personne.
+On cherche en priorité des MICRO-PHÉNOMÈNES CULTURELS : un mot qui sature les conversations, une obsession collective, un nouveau comportement, un débat qui ressort, un objet culturel (film/livre/série) dont on parle. ${hotNews.length > 0 ? `EXCEPTION : tu as reçu ci-dessus ${hotNews.length} actu(s) chaude(s) déjà filtrée(s). Tu peux en reprendre 1 ou 2 si elles ont un vrai pont, en complément des micro-phénomènes.` : "Une vraie actu chaude n'est acceptée QUE si elle se connecte naturellement au profil de la personne."}
 
 Le critère central : chaque sujet doit avoir un PONT EXPLICITE vers cette personne. Pas un pont forcé du genre "et ça nous rappelle que la communication...". Un vrai pont qui cite quelque chose de précis du profil (sa cible, son activité, son combat, ses piliers, OU un terme de son univers élargi).
 
@@ -367,6 +425,7 @@ FORMAT DE RÉPONSE — JSON STRICT (pas de markdown, pas de backticks)
       "titre": "Titre court du phénomène (max 80 caractères)",
       "resume": "Résumé factuel en 2 phrases courtes du phénomène et pourquoi on en parle",
       "source": "Nom du média ou de la source",
+      "source_url": "URL de l'article source si disponible (sinon omettre)",
       "type": "globale" | "niche",
       "axe": "mot_qui_revient" | "obsession_collective" | "comportement_emergent" | "debat_recurrent" | "objet_culturel" | "actu_connectable",
       "ton": "confortable" | "entre_deux" | "decalant",
@@ -375,6 +434,8 @@ FORMAT DE RÉPONSE — JSON STRICT (pas de markdown, pas de backticks)
     }
   ]
 }
+
+IMPORTANT : si tu reprends une actu chaude pré-sourcée (bloc plus haut), recopie son source_url tel quel.
 
 RÉPARTITION SOUPLE — entre 3 et 6 sujets, qualité avant quantité :
 - Idéalement 3 globales (1 par axe imposé) + 3 niche
