@@ -558,6 +558,7 @@ export function useContentGenerator() {
                 ? [{ base64: params.photos![0].base64, mimeType: params.photos![0].mimeType || "image/jpeg", context: params.photos![0].context }]
                 : undefined,
               photo_description: photoModeCF ? params.photoDescription || undefined : undefined,
+              ...(params.newsContext && params.newsContext.trim() ? { news_context: params.newsContext.slice(0, 3800) } : {}),
             },
           }, photoModeCF ? 90000 : 60000);
           data = res.data;
