@@ -323,6 +323,8 @@ Retourne EXACTEMENT le même format annoté :
 □ Dernière slide = "Et toi..." ? → question spécifique
 □ Titres de slide génériques ("L'art de", "Repenser", concept abstrait seul) ? → réécris en scène/JE/détail
 □ Formule manufacturée restante ? → réécris
+□ Marqueur temporel précis ("hier", "lundi", "la semaine dernière", "j'ai reçu") + scène détaillée non-justifiée ? → généralise au présent intemporel
+□ Slide qui psy-analyse la lectrice ("tu attends la permission", "tu te dévalorises") ? → réécris en constat sur le sujet/discours dominant
 □ INDISTINGUABLE d'un humain ? → si non, recommence`;
 
 /**
