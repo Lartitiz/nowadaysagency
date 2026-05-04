@@ -506,6 +506,33 @@ export async function exportCarouselHybridPptx(
         }
       }
 
+      // ---- Strategy D : extract structural shapes (background, card, pill, highlight)
+      // Doit s'exécuter APRÈS extractAnnotatedBlocks (qui pose data-pptx-hide sur les
+      // textes — sans impact sur la géométrie des shapes parents) et AVANT captureBody.
+      // Le CSS [data-pptx-hide="true"] *  ne touche PAS aux background-color, donc lire
+      // cs.backgroundColor sur un parent shape reste valide.
+      const SHAPE_CAP_PER_SLIDE = 20;
+      const allShapes = extractShapeBlocks(doc);
+      const usableShapes: ShapeBlock[] = [];
+      for (const sb of allShapes) {
+        if (sb.type !== "background") {
+          if (sb.rect.y > SLIDE_H_PX || sb.rect.x > SLIDE_W_PX) continue;
+          if (sb.rect.y + sb.rect.h < 0 || sb.rect.x + sb.rect.w < 0) continue;
+        }
+        usableShapes.push(sb);
+        (sb.el as HTMLElement).setAttribute("data-pptx-shape-hide", "true");
+      }
+      if (usableShapes.length > SHAPE_CAP_PER_SLIDE) {
+        console.warn(`[hybrid] ${usableShapes.length} shapes annotés sur slide ${vs.slide_number}, capé à ${SHAPE_CAP_PER_SLIDE}`);
+        // On garde priorité à background + plus grands shapes (les plus visibles)
+        usableShapes.sort((a, b) => {
+          if (a.type === "background") return -1;
+          if (b.type === "background") return 1;
+          return b.rect.w * b.rect.h - a.rect.w * a.rect.h;
+        });
+        usableShapes.length = SHAPE_CAP_PER_SLIDE;
+      }
+
       // ---- Photo zones extraction + filtering on availability
       // Si originalPhotos n'est pas fourni → usableZones vide → fallback total :
       // les photos restent visibles dans le rasterisé (comportement legacy).
