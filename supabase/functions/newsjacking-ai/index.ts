@@ -160,12 +160,69 @@ serve(async (req) => {
     const months = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
     const monthLabel = `${months[now.getMonth()]} ${now.getFullYear()}`;
 
-    // Build 3 distinct niche queries
+    // ─────────────────────────────────────────────────────────────
+    // Brand universe — cached on brand_profile, regenerated every 30 days
+    // Goal: "lingerie" → ["plaisir", "féminité", "self-love"…] so the web
+    // searches go beyond the literal job description.
+    // ─────────────────────────────────────────────────────────────
+    let universe: BrandUniverse = EMPTY_UNIVERSE;
+    try {
+      // Resolve the brand_profile owner (workspace owner if shared, else current user)
+      let bpUserId = user.id;
+      if (workspace_id) {
+        const { data: ownerRow } = await sbService
+          .from("workspace_members")
+          .select("user_id")
+          .eq("workspace_id", workspace_id)
+          .eq("role", "owner")
+          .maybeSingle();
+        if (ownerRow?.user_id) bpUserId = ownerRow.user_id;
+      }
+
+      const { data: bpRow } = await sbService
+        .from("brand_profile")
+        .select("id, brand_universe, brand_universe_updated_at")
+        .eq("user_id", bpUserId)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (bpRow && isUniverseUsable(bpRow.brand_universe) && isUniverseFresh(bpRow.brand_universe_updated_at)) {
+        universe = bpRow.brand_universe as BrandUniverse;
+        console.log("Brand universe: cache hit");
+      } else if (bpRow) {
+        console.log("Brand universe: cache miss/stale, regenerating");
+        const generated = await generateBrandUniverse(brandingContext);
+        if (isUniverseUsable(generated)) {
+          universe = generated;
+          await sbService
+            .from("brand_profile")
+            .update({
+              brand_universe: generated,
+              brand_universe_updated_at: new Date().toISOString(),
+            })
+            .eq("id", bpRow.id);
+        }
+      }
+    } catch (e) {
+      console.error("Brand universe lookup failed (non-blocking):", (e as Error).message);
+    }
+
+    // Build niche queries — mix literal job + emotional universe + life moments
+    const pickFirst = (arr: string[], n: number) => arr.slice(0, n).join(" ");
+    const universeQuery = universe.univers_emotionnel.length
+      ? `${pickFirst(universe.univers_emotionnel, 3)} société débat ${now.getFullYear()}`
+      : "";
+    const momentsQuery = universe.moments_de_vie_cible.length
+      ? `${pickFirst(universe.moments_de_vie_cible, 3)} ${cibleRaw || "femmes"} ${now.getFullYear()}`
+      : "";
+
     const nicheQueries = [
       activityRaw ? `${activityRaw} actualité ${monthLabel}` : "",
-      cibleRaw ? `${cibleRaw} préoccupations ${now.getFullYear()}` : (pillarsRaw ? `${pillarsRaw} actualité` : ""),
-      combatCause ? `${combatCause} débat actualité ${now.getFullYear()}` : (activityRaw ? `${activityRaw} tendance secteur` : ""),
+      universeQuery || (cibleRaw ? `${cibleRaw} préoccupations ${now.getFullYear()}` : (pillarsRaw ? `${pillarsRaw} actualité` : "")),
+      momentsQuery || (combatCause ? `${combatCause} débat actualité ${now.getFullYear()}` : (activityRaw ? `${activityRaw} tendance secteur` : "")),
     ].filter(Boolean);
+
 
     // Claude call with web search
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
