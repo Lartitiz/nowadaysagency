@@ -181,6 +181,7 @@ export function useContentGenerator() {
       preGenAnswers,
       slideCount,
       carouselType,
+      newsContext,
     } = params;
 
     setGenerating(true);
