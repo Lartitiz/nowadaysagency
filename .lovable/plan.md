@@ -1,88 +1,116 @@
-# Resserrer la pertinence du newsjacking ("Surfer sur l'actu")
+# Profondeur : carrousel TEXTE vs carrousel MIXTE — analyse comparative
 
-## Diagnostic
+## Verdict en 1 phrase
 
-Trois mécaniques cumulent leurs effets et font partir les sujets trop loin :
+Le carrousel **texte** est construit pour **provoquer une bascule mentale** ("ah merde, j'avais jamais vu ça comme ça"). Le carrousel **mixte** est construit pour **raconter joliment une scène avec des photos**. Ce sont deux philosophies différentes — et c'est pour ça que tu sens la profondeur dans l'un mais pas dans l'autre.
 
-### 1. Quota inversé sur la niche (newsjacking-ai)
-Aujourd'hui, sur les 3 sujets "niche", la consigne impose **MAXIMUM 1 sujet du métier littéral**, donc **2 sur 3 viennent forcément de l'univers élargi** (émotion, moments de vie, lifestyle). Cumulé aux 3 sujets globaux (axes culturels), on se retrouve avec ~5 sujets sur 6 hors métier — l'élargissement initial conçu comme un garde-fou anti-monomanie est devenu un facteur de dérive.
+## Ce que le mode TEXTE fait que le MIXTE ne fait pas
 
-### 2. `themes_lifestyle` est un crochet trop faible
-Dans le `brand_universe`, les 4 listes ne sont pas équivalentes en force narrative :
-- `valeurs_combat` et `moments_de_vie_cible` → ponts forts (la cible est nommément concernée)
-- `univers_emotionnel` → pont moyen
-- `themes_lifestyle` → pont faible (esthétique/ambiance, pas de levier commercial direct)
+### 1. Un bloc "PROFONDEUR INTELLECTUELLE" obligatoire en amont
 
-Tout est mis sur un pied d'égalité, donc l'IA pioche autant dans le faible que dans le fort.
+Le mode texte (via `buildExpressFullPrompt`, lignes 1195-1202) impose à l'IA d'analyser EN INTERNE 5 questions avant d'écrire la moindre slide :
 
-### 3. Génération d'angles qui pousse au "parallèle absurde"
-Dans `newsjacking-angles`, pour les actus globales, la consigne dit explicitement "Privilégie `parallele_absurde` ou `declencheur_externe`". Or `parallele_absurde` est par nature le véhicule le plus fragile. Pire : le "pont explicite" exigé à la recherche n'est pas re-vérifié à la génération d'angles, donc l'IA peut dériver.
+```text
+- Quel est le MESSAGE CENTRAL en 1 phrase ?
+- Quel MÉCANISME INVISIBLE est en jeu ? (biais cognitif, conditionnement…)
+- Quelle CROYANCE SOUS-JACENTE alimente le problème ?
+- Quel RETOURNEMENT DE PERSPECTIVE ferait dire "j'avais jamais vu ça comme ça" ?
+- Quelle DONNÉE ou RÉFÉRENCE crédibilise le propos ?
+```
 
-### 4. Pas de signal de force de pont côté front
-L'utilisatrice voit 6 sujets sur le même plan, sans indicateur de "pont fort vs pont fragile" pour zapper en un coup d'œil.
+Et en plus, il importe le bloc partagé `DEPTH_LAYER` (`copywriting-prompts.ts` ligne 440) qui détaille comment ces 4 couches doivent apparaître DANS les slides finales.
 
-## Règles à mettre en place
+→ **Le mixte n'a NI ce bloc d'analyse interne, NI le DEPTH_LAYER importé.** Il a un "ARC NARRATIF" générique (situation → tension → développement → résolution) mais aucune injonction à nommer un mécanisme, une croyance, ou un retournement.
 
-### A. Inverser le quota d'élargissement (newsjacking-ai/index.ts)
+### 2. Une exigence de DENSITÉ avec exemple concret
 
-**Avant** : "Sur 3 sujets niche, MAX 1 du métier littéral, les 2 autres en élargi."
-**Après** : "Sur 3 sujets niche, **MINIMUM 2 doivent rester ancrés dans le métier ou son extension directe** (cible nommément concernée, valeur de combat partagée, moment de vie où la cible utilise réellement le produit/service). MAXIMUM 1 sujet peut venir de l'univers émotionnel/lifestyle pur."
+Mode texte (lignes 1296-1309) :
 
-Effet : on garde l'ouverture (1 sujet/6 reste "élargi") mais on rebascule la majorité dans la zone à pont fort.
+```text
+Chaque slide doit contenir AU MOINS 1 de ces éléments :
+- Une DONNÉE chiffrée sourcée
+- Une ANALOGIE originale
+- Un EXEMPLE CONCRET et spécifique
+- Un MÉCANISME NOMMÉ (concept psycho/socio + auteur)
+- Un VERBATIM réel ou vraisemblable
 
-### B. Hiérarchiser le brand_universe par force de pont (newsjacking-ai)
+Exemple DENSE : "73% des comptes actifs publient 2-3 fois/semaine 
+(Later 2024). Pas parce que la quantité compte. Parce que la régularité 
+entraîne l'algorithme. C'est le biais de simple exposition (Zajonc)…"
 
-Dans le `universeBlock`, ajouter un classement explicite :
-- **Niveau 1 (pont fort, à privilégier)** : `valeurs_combat`, `moments_de_vie_cible`
-- **Niveau 2 (pont moyen)** : `univers_emotionnel`
-- **Niveau 3 (pont faible, max 1 sujet sur l'ensemble)** : `themes_lifestyle`
+Exemple GÉNÉRIQUE (refusé) : "La régularité est plus importante que 
+la quantité. Publie quand tu as quelque chose à dire."
+```
 
-Demander à l'IA de toujours préférer un sujet niveau 1 si elle a le choix.
+→ **Le mixte demande seulement** "1 exemple concret OU 1 analogie du quotidien dans le carrousel" (ligne 1658). Pas par slide. Pas de mécanisme. Pas d'auteur. Pas d'exemple contre-exemple pour calibrer.
 
-### C. Ajouter un test de pertinence chiffré (newsjacking-ai)
+### 3. Un TEST DE PROFONDEUR auto-appliqué par l'IA
 
-Demander à l'IA d'auto-évaluer chaque sujet avec un nouveau champ `force_pont` ∈ {`fort`, `moyen`, `fragile`} basé sur des critères explicites :
-- **fort** = le pont cite un élément littéral du profil (cible exacte, activité exacte, combat exact, pilier exact) et la connexion est immédiate, sans paraphrase
-- **moyen** = le pont passe par l'univers élargi mais reste évident pour la cible
-- **fragile** = le pont demande une étape de raisonnement pour comprendre la connexion → **rejeté**
+Mode texte (`buildSlidesPrompt`, lignes 847-851) :
 
-Règle absolue : `fragile` → ne renvoie pas le sujet. Sur N sujets renvoyés, **au moins ⌈N×2/3⌉ doivent être `fort`**.
+```text
+TEST DE PROFONDEUR à appliquer à chaque slide AVANT de retourner le JSON :
+- Si on peut remplacer le sujet par un autre et que la slide fonctionne 
+  encore → GÉNÉRIQUE → RÉÉCRIS
+- Si la slide dit ce que tout le monde sait déjà → RÉÉCRIS
+- Si la slide pourrait être écrite sans expertise sur le sujet → RÉÉCRIS
+```
 
-### D. Resserrer la génération d'angles (newsjacking-angles/index.ts)
+→ **Le mixte n'a aucun test équivalent.** Le seul "test" qu'il applique (ligne 1684) c'est "les slides text_only ont toutes un body d'au moins 30 mots". C'est un test de quantité, pas de profondeur.
 
-- **Supprimer** "Privilégie parallele_absurde ou declencheur_externe" pour les globales. Remplacer par : "Privilégie `declencheur_externe`, `constat_decale` ou `recit_experience`. `parallele_absurde` est autorisé MAX 1 angle sur 3, et seulement si le parallèle est immédiatement lisible — pas un parallèle qu'il faut déballer."
-- **Re-rappeler le pont** : reprendre le champ `pertinence` de l'actu en tête du prompt et exiger que CHAQUE angle s'appuie dessus, sans dériver vers une autre connexion plus lointaine.
-- **Ajouter un check final** : pour chaque angle, l'IA doit pouvoir nommer l'élément du profil utilisé (cible / activité / combat / pilier / valeur). Sinon → reformuler.
+### 4. Un quality_check final qui mesure la densité
 
-### E. Signal visuel de force de pont (NewsjackingPanel.tsx)
+Mode texte (lignes 1407-1408) inclut dans le JSON de retour :
+`"density_check": "chaque slide a au moins 1 élément de densité"`
 
-Ajouter un petit badge sur chaque carte d'actu :
-- `fort` → badge discret vert "pont direct"
-- `moyen` → badge neutre "pont élargi"
-- (les `fragile` ne devraient plus arriver, mais en sécurité afficher en gris)
+→ Le mixte a un quality_check (lignes 1755-1766) qui compte le nombre de slides photo/texte, mais aucune dimension qualitative.
 
-L'utilisatrice peut filtrer/scanner en un coup d'œil.
+## Le résultat dans les sorties générées
 
-### F. Compatibilité
+| Critère | Mode TEXTE | Mode MIXTE |
+|---|---|---|
+| Mécanisme nommé (biais, concept) | Exigé ≥1× | Pas évoqué |
+| Croyance sous-jacente formulée | Exigée explicitement | Pas évoquée |
+| Retournement de perspective | "Moment fort du milieu" | Pas évoqué |
+| Donnée chiffrée sourcée | Encouragée | Optionnelle |
+| Exemple hyper-spécifique | Exigé par slide | "Au moins 1 dans tout le carrousel" |
+| Test anti-générique | Oui, par slide | Non |
+| Quality check de densité | Oui | Non |
 
-- Les anciennes réponses en cache (sans `force_pont`) restent affichables — fallback à "moyen" + pas de badge.
-- Les noms de champs existants (`axe`, `ton`, `pertinence`) sont conservés.
+## Pourquoi cette divergence existe
 
-## Fichiers à modifier
+Historiquement, `buildMixCarouselPrompt` a été pensé comme un **carrousel photo enrichi de quelques slides texte**, avec une posture "directrice artistique éditoriale" (ligne 1593) — orienté composition visuelle, overlay, layouts. Toute l'attention va à la qualité formelle et à la cohérence photo↔texte.
 
-- `supabase/functions/newsjacking-ai/index.ts` — règles A, B, C
-- `supabase/functions/newsjacking-angles/index.ts` — règle D
-- `src/components/creer/NewsjackingPanel.tsx` — règle E (UI)
-- `mem://features/newsjacking` — mise à jour mémoire (quota inversé + force_pont + hiérarchie univers)
+`buildExpressFullPrompt` (le mode texte, ligne 1157) est lui pensé comme un **carrousel intellectuel** : posture analyste, sujet creusé, mécanique cognitive. Quand on a corrigé récemment la profondeur du mixte (ajout de DEPTH_LAYER dans `photoInstruction` de `structure_proposal`, ligne 330), on a modifié le prompt **de la phase structure** mais PAS le prompt **de la phase génération de contenu** (`buildMixCarouselPrompt`). Donc la structure proposée mentionne le mécanisme mais le contenu généré l'ignore.
 
-## Validation
+## Recommandations
 
-Re-tester sur le profil utilisé (lingerie ou autre) :
-- Attendu : 4-6 sujets dont 2/3 minimum à pont fort, et au plus 1 sujet purement lifestyle
-- Aucun angle ne doit ressembler à "cette actu n'a rien à voir mais quand même…"
-- Le badge "pont direct" doit apparaître sur la majorité des cartes
+### 1. Importer le bloc d'analyse interne dans `buildMixCarouselPrompt`
+Recopier le bloc "AVANT D'ÉCRIRE, analyse ce sujet en interne" (lignes 1195-1202) au début du prompt mixte, juste après le `channelBlock`. Coût : ~7 lignes de prompt. Bénéfice : l'IA arrive en zone d'écriture avec le mécanisme/croyance/retournement déjà identifiés.
 
-## Hors scope
+### 2. Importer `DEPTH_LAYER` dans le mode mixte
+Ajouter `${DEPTH_LAYER}` dans le prompt mixte (comme dans le mode texte ligne 658). Le bloc précise comment les 4 couches doivent apparaître DANS les slides finales — c'est l'injonction qui transforme l'analyse interne en sortie visible.
 
-- Pas de touche à la régénération du `brand_universe` (cache 30j conservé)
-- Pas de touche aux 6 axes culturels globaux (la dérive vient de la branche niche, pas des axes)
+### 3. Renforcer la règle "QUAND UNE SLIDE TEXTE EST INDISPENSABLE"
+Aujourd'hui (lignes 1619-1620) le mode mixte dit juste que les slides texte servent au "développement narratif, tips, prise de position, contexte, CTA". À enrichir : "elles doivent porter le mécanisme nommé, la croyance retournée, ou le moment de bascule. Si une slide texte n'est qu'un commentaire de la photo précédente, elle ne sert à rien — supprime-la ou réécris-la."
+
+### 4. Ajouter le TEST DE PROFONDEUR par slide texte
+Importer le test "si on peut remplacer le sujet par un autre…" (lignes 847-851) en l'appliquant spécifiquement aux slides `text_only` du mixte.
+
+### 5. Étendre le quality_check du mixte
+Ajouter dans le JSON de retour mixte :
+- `mecanisme_nomme: true/false`
+- `croyance_retournee: true/false`
+- `slide_pivot_identifiee: numero_de_slide`
+
+Force l'IA à vérifier que ces éléments existent avant de répondre.
+
+## Hors scope (mais à noter)
+
+- Le mode `photo` pur (`buildPhotoCarouselPrompt`) souffre du même angle "directrice artistique" sans profondeur — mais c'est cohérent avec l'usage (carrousel sensoriel/lifestyle). On ne le touche pas.
+- Le mode "structure_proposal" pour le mixte (lignes 315-341) mentionne déjà DEPTH_LAYER → l'écart vient bien de la phase de génération de contenu.
+
+## Fichiers à modifier (plan d'implémentation, pas exécuté)
+
+- `supabase/functions/carousel-ai/index.ts` — `buildMixCarouselPrompt` (lignes 1533-1768) : ajouter bloc analyse interne + import DEPTH_LAYER + test de profondeur + quality_check étendu.
+- `mem://preference/carousels` — noter que le mode mixte applique désormais DEPTH_LAYER au même niveau que le mode texte.
