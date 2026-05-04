@@ -660,7 +660,11 @@ ${CHAIN_OF_THOUGHT}
 
 ${DEPTH_LAYER}
 
-IMPORTANT SUR LA PROFONDEUR : Le travail interne de DEPTH_LAYER (mécanisme, croyance, retournement) doit être VISIBLE dans les slides finales. Ce n'est PAS juste un exercice de réflexion interne : le mécanisme doit être EXPLIQUÉ dans au moins 1 slide, la croyance NOMMÉE, le retournement FORMULÉ. Si aucune slide ne fait dire "ah, j'avais jamais vu ça comme ça", le carrousel est trop superficiel.
+${DEPTH_LAYER_DUAL}
+
+${ANTI_FABRICATED_STORYTELLING}
+
+IMPORTANT SUR LA PROFONDEUR : Le travail interne de DEPTH_LAYER (mécanisme, croyance, retournement) doit être VISIBLE dans les slides finales. Ce n'est PAS juste un exercice de réflexion interne : le mécanisme doit être EXPLIQUÉ dans au moins 1 slide, la croyance NOMMÉE, le retournement FORMULÉ. Si aucune slide ne fait dire "ah, j'avais jamais vu ça comme ça", le carrousel est trop superficiel. EN PLUS : DEPTH_LAYER_DUAL impose une slide "fond du sujet" + une slide "prise de position incarnée". Les deux sont obligatoires.
 
 ANTI-BIAIS — TU NE REPRODUIS JAMAIS :
 - Ton paternaliste → Permission : "Tu as le droit de prendre de la place"
