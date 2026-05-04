@@ -784,6 +784,7 @@ export default function CreerUnifie() {
             : undefined,
           photoDescription: photoMode ? photoDescription : undefined,
           deepResearch: !!newsjackingContext,
+          newsContext: newsjackingContext || undefined,
           pinterestLink: selectedFormat === "pinterest" ? pinterestData?.link : undefined,
           pinterestBoard: selectedFormat === "pinterest" ? pinterestData?.boardName : undefined,
         });
