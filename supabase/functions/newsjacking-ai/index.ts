@@ -5,7 +5,89 @@ import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limit
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { isDemoUser } from "../_shared/guard-demo.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
-import { getModelForAction } from "../_shared/anthropic.ts";
+import { getModelForAction, callAnthropicSimple } from "../_shared/anthropic.ts";
+
+// Brand universe cache TTL — regenerate after 30 days or when branding changes
+const BRAND_UNIVERSE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+interface BrandUniverse {
+  univers_emotionnel: string[];
+  moments_de_vie_cible: string[];
+  valeurs_combat: string[];
+  themes_lifestyle: string[];
+}
+
+const EMPTY_UNIVERSE: BrandUniverse = {
+  univers_emotionnel: [],
+  moments_de_vie_cible: [],
+  valeurs_combat: [],
+  themes_lifestyle: [],
+};
+
+function isUniverseFresh(updatedAt: string | null): boolean {
+  if (!updatedAt) return false;
+  const ts = new Date(updatedAt).getTime();
+  if (isNaN(ts)) return false;
+  return Date.now() - ts < BRAND_UNIVERSE_TTL_MS;
+}
+
+function isUniverseUsable(u: any): u is BrandUniverse {
+  if (!u || typeof u !== "object") return false;
+  const total = (Array.isArray(u.univers_emotionnel) ? u.univers_emotionnel.length : 0)
+    + (Array.isArray(u.moments_de_vie_cible) ? u.moments_de_vie_cible.length : 0)
+    + (Array.isArray(u.valeurs_combat) ? u.valeurs_combat.length : 0)
+    + (Array.isArray(u.themes_lifestyle) ? u.themes_lifestyle.length : 0);
+  return total >= 3;
+}
+
+async function generateBrandUniverse(brandingContext: string): Promise<BrandUniverse> {
+  const system = `Tu aides un·e créateur·ice de contenu à élargir l'univers sémantique de sa marque AU-DELÀ de son métier littéral.
+
+Exemple : pour une marque de LINGERIE, tu ne dois PAS répéter "lingerie, soutien-gorge, dentelle". Tu dois trouver l'UNIVERS ÉMOTIONNEL vendu : plaisir, sensualité, féminité, intimité, self-love, body positive, rituel du soir, confiance en soi…
+
+À partir du profil de marque ci-dessous, renvoie 4 listes courtes (5 termes chacune) qui décrivent l'univers ÉLARGI de cette marque. Chaque terme doit être un mot ou une expression de 1 à 4 mots, évocateur, recherchable sur le web.
+
+PROFIL :
+${brandingContext}
+
+Renvoie UNIQUEMENT ce JSON (pas de markdown, pas de backticks, pas de commentaire) :
+{
+  "univers_emotionnel": ["...", "...", "...", "...", "..."],
+  "moments_de_vie_cible": ["...", "...", "...", "...", "..."],
+  "valeurs_combat": ["...", "...", "...", "...", "..."],
+  "themes_lifestyle": ["...", "...", "...", "...", "..."]
+}
+
+Règles :
+- "univers_emotionnel" : émotion / transformation / promesse profonde vendue (PAS le produit)
+- "moments_de_vie_cible" : situations, étapes, rendez-vous où la cliente vit ce besoin
+- "valeurs_combat" : ce que la marque défend ou refuse, les causes adjacentes
+- "themes_lifestyle" : esthétiques, rituels, ambiances connexes au mode de vie de la cible
+- Évite les termes ultra-génériques ("vie", "bonheur", "amour" seul). Préfère "amour de soi", "rituel matinal".
+- Pas de hashtags, pas de #, pas de majuscules sauf noms propres.`;
+
+  try {
+    const raw = await callAnthropicSimple(getModelForAction("strategy"), system, "Génère le JSON maintenant.", 0.7);
+    let parsed: any;
+    try {
+      parsed = JSON.parse(raw.trim());
+    } catch {
+      const m = raw.match(/\{[\s\S]*\}/);
+      if (m) parsed = JSON.parse(m[0]);
+    }
+    if (isUniverseUsable(parsed)) {
+      return {
+        univers_emotionnel: (parsed.univers_emotionnel || []).slice(0, 8),
+        moments_de_vie_cible: (parsed.moments_de_vie_cible || []).slice(0, 8),
+        valeurs_combat: (parsed.valeurs_combat || []).slice(0, 8),
+        themes_lifestyle: (parsed.themes_lifestyle || []).slice(0, 8),
+      };
+    }
+  } catch (e) {
+    console.error("Brand universe generation failed:", (e as Error).message);
+  }
+  return EMPTY_UNIVERSE;
+}
 
 
 serve(async (req) => {
