@@ -314,24 +314,30 @@ serve(async (req) => {
         } else {
           photoInstruction = `\nMODE MIXTE — ${photos.length} photo(s) fournies.
 
-OBJECTIF DU FORMAT MIXTE : un dialogue ÉQUILIBRÉ entre image et mot. Ce N'EST PAS un carrousel texte avec quelques photos décoratives. Si tu produis 70% de slides texte, tu rates le format.
+OBJECTIF DU FORMAT MIXTE : un dialogue ÉQUILIBRÉ entre image et mot. Ce N'EST PAS un carrousel texte avec quelques photos décoratives. Si tu produis 70% de slides texte, tu rates le format. Ce n'est PAS non plus un diaporama photo : si le sujet a de la profondeur, il faut des slides texte d'approfondissement.
 
-CIBLE DE RÉPARTITION (TRÈS IMPORTANT) :
-- Au minimum 50% de slides photo (photo_full ou photo_integrated)
-- Préférer utiliser TOUTES les photos uploadées au moins une fois (les écarter doit être l'exception, pas le réflexe — si tu en écartes une, c'est qu'elle est vraiment hors-sujet par rapport au brief)
-- Pour ${photos.length} photos : vise entre ${photos.length} et ${photos.length + 2} slides au total (pas plus). Sweet spot : ${photos.length} slides photo + 1-2 slides texte clés.
+NOMBRE DE SLIDES — RÈGLE D'OR :
+Le nombre de slides suit la RICHESSE NARRATIVE du sujet, PAS le nombre de photos. Cible : ${slide_count || 7} à ${(slide_count || 7) + 2} slides. Ne descends JAMAIS sous ${slide_count || 7} slides sous prétexte qu'il n'y a que ${photos.length} photo(s).
 
-QUAND UNE SLIDE TEXTE SE JUSTIFIE (sinon, mets une photo) :
+Si le sujet porte une vraie profondeur (vécu, conviction, mécanisme à expliquer, retournement de croyance, prise de position), ÉTIRE à ${slide_count || 7}-${(slide_count || 7) + 2} slides en intercalant des slides texte d'approfondissement entre les slides photo. Une photo peut être réutilisée 2 fois sous des cadrages/rôles différents (ex: photo_full en hook, puis photo_integrated plus loin avec un angle analytique) si le récit le justifie — c'est même recommandé quand il y a peu de photos pour un sujet riche.
+
+ÉQUILIBRE PHOTO / TEXTE :
+- Au minimum 50% de slides photo (photo_full ou photo_integrated) — réutilisation autorisée
+- Utiliser CHAQUE photo uploadée au moins une fois (les écarter doit être l'exception)
+- Les slides texte d'approfondissement (mécanisme, croyance retournée, prise de position, chiffre, transition charnière, CTA) sont LÉGITIMES et essentielles à la profondeur — pas un "bonus" de 1-2 slides max. Mets-en autant que la profondeur du sujet l'exige.
+
+QUAND UNE SLIDE TEXTE EST INDISPENSABLE :
+- Elle nomme le mécanisme caché derrière le sujet (DEPTH_LAYER)
+- Elle formule la croyance retournée ("on croit X, en fait Y")
+- Elle pose une prise de position tranchée qui mérite son propre espace
 - Elle apporte un chiffre, une donnée, une statistique impossibles à porter par une image
-- Elle pose une prise de position tranchée / une réflexion charnière qui mérite son propre espace
 - C'est une transition narrative entre deux blocs photo
 - C'est le CTA final
-→ Sinon, défaut = slide photo.
 
-Pour les slides avec photo : "photo_index" (1-based) + "slide_type" = "photo_full" ou "photo_integrated".
-Pour les slides texte : "slide_type" = "text_only", pas de photo_index. Indique aussi dans "strategic_note" pourquoi cette slide DOIT être texte (chiffre, transition, prise de position…) — et si elle gagnerait à porter un schéma visuel (comparaison, timeline, opposition, liste structurée).
+Pour les slides avec photo : "photo_index" (1-based, peut se répéter entre slides) + "slide_type" = "photo_full" ou "photo_integrated".
+Pour les slides texte : "slide_type" = "text_only", pas de photo_index. Indique dans "strategic_note" pourquoi cette slide DOIT être texte (mécanisme, croyance, chiffre, transition, prise de position…) — et si elle gagnerait à porter un schéma visuel (comparaison, timeline, opposition, liste structurée).
 
-Répartis les photos intelligemment : la plus impactante en hook (slide 1) ou conclusion, les autres selon leur contenu narratif.
+Répartis les photos intelligemment : la plus impactante en hook (slide 1) ou conclusion, les autres selon leur contenu narratif. Si une photo est réutilisée, change son rôle/cadrage entre les deux occurrences.
 ${photo_description ? `Description complémentaire des photos : "${photo_description}"` : ""}`;
         }
       }
