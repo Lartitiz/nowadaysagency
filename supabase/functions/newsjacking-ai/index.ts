@@ -400,7 +400,7 @@ Si vraiment rien ne fonctionne (moins de 3 sujets connectés trouvables), retour
         model,
         max_tokens: 4096,
         tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 10 }],
-        messages: [{ role: "user", content: systemPrompt + `\n\nFais les recherches maintenant. Pour chaque sujet candidat, applique les 2 garde-fous : (1) pont explicite concret citant le profil, (2) registre tagué + ⌈N/3⌉ décalants. Si tu ne peux pas écrire un vrai pont concret, jette le sujet. Mieux vaut 3 sujets ultra-connectés que 6 hors-sol.` }],
+        messages: [{ role: "user", content: systemPrompt + `\n\nFais les recherches maintenant. Pour chaque sujet candidat, applique les 3 garde-fous : (1) pont explicite concret citant le profil, (2) registre tagué + ⌈N/3⌉ décalants, (3) auto-évalue "force_pont" — si "fragile", jette. Au moins 2/3 des sujets renvoyés doivent être "fort". Mieux vaut 3 sujets ultra-connectés que 6 hors-sol.` }],
       }),
       signal: controller.signal,
     });
