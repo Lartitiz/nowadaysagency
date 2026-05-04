@@ -421,10 +421,16 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
                         <p className={`text-sm font-bold leading-snug ${isSelected ? "text-primary" : "text-foreground"}`}>
                           {idea.subject}
                         </p>
-                        <div className="flex items-center gap-2 mt-2 flex-wrap">
-                          <span className="text-[10px] font-semibold uppercase tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                        {idea.angle && (
+                          <p
+                            className={`mt-2 text-[11px] leading-relaxed text-muted-foreground border-l-2 border-primary/40 pl-2 ${
+                              isSelected ? "" : "line-clamp-3"
+                            }`}
+                          >
                             {idea.angle}
-                          </span>
+                          </p>
+                        )}
+                        <div className="flex items-center gap-2 mt-2 flex-wrap">
                           {idea.boldness && (
                             <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
                               idea.boldness === "provoc" ? "bg-rose-pale text-primary" :
