@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { answers, workspace_id } = body;
+    const { answers, workspace_id, intensity, regenerate_lens } = body;
     const { objectif, sujet, canal, format, content_type, ton_envie } = answers || {};
 
     if (!objectif || !ton_envie) {
@@ -53,6 +53,8 @@ Deno.serve(async (req) => {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const isBold = intensity === "bold" || intensity === "provoc";
 
     // Map raw IDs to human-readable labels for better AI output
     const OBJECTIF_LABELS: Record<string, string> = {
