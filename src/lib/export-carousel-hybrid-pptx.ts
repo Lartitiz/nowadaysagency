@@ -612,6 +612,41 @@ export async function exportCarouselHybridPptx(
         }
       }
 
+      // ---- Pose des shapes natifs (couche middle-bas) entre photos (bottom)
+      // et PNG de fond (middle-haut). Le PNG sera transparent là où les shapes
+      // ont été masqués via data-pptx-shape-hide → les shapes natifs restent visibles.
+      // Le texte ENFANT non annoté reste rendu dans le PNG (pas masqué) → il s'affiche
+      // par-dessus le shape natif visuellement (PNG posé après).
+      for (const sb of usableShapes) {
+        if (sb.type === "background") {
+          // Fond unique : on l'applique directement à slide.background plutôt
+          // qu'un addShape pleine slide (plus léger + édition "Format de l'arrière-plan").
+          slide.background = { color: sb.fill };
+          continue;
+        }
+        const xRaw = pxToInches(sb.rect.x, PX_PER_IN);
+        const yRaw = pxToInches(sb.rect.y, PX_PER_IN);
+        const wRaw = pxToInches(sb.rect.w, PX_PER_IN);
+        const hRaw = pxToInches(sb.rect.h, PX_PER_IN);
+        const x = Math.max(0, xRaw);
+        const y = Math.max(0, yRaw);
+        const w = Math.min(PPTX_W_IN - x, wRaw - (x - xRaw));
+        const h = Math.min(PPTX_H_IN - y, hRaw - (y - yRaw));
+        if (w <= 0 || h <= 0) continue;
+        const radiusInches = pxToInches(sb.borderRadiusPx, PX_PER_IN);
+        const cappedRadius = Math.min(radiusInches, Math.min(w, h) / 2);
+        try {
+          slide.addShape("roundRect", {
+            x, y, w, h,
+            fill: { color: sb.fill },
+            line: { type: "none" },
+            rectRadius: cappedRadius,
+          });
+        } catch (e) {
+          console.warn("[hybrid] addShape failed for shape type", sb.type, e);
+        }
+      }
+
       slide.addImage({ data: bg, x: 0, y: 0, w: PPTX_W_IN, h: PPTX_H_IN });
 
       for (const b of blocks) {
