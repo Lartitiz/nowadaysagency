@@ -1,9 +1,28 @@
 import { useState, useRef, useCallback, useEffect, DragEvent as ReactDragEvent } from "react";
 import { Upload, X, GripVertical, Wand2, Undo2 } from "lucide-react";
+import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { PhotoEditDialog } from "./PhotoEditDialog";
+
+const MAX_FILE_SIZE_MB = 25;
+
+function isHeic(file: File): boolean {
+  const name = file.name.toLowerCase();
+  const type = (file.type || "").toLowerCase();
+  return type === "image/heic" || type === "image/heif" || name.endsWith(".heic") || name.endsWith(".heif");
+}
+
+async function convertHeicIfNeeded(file: File): Promise<File> {
+  if (!isHeic(file)) return file;
+  // Dynamic import — heic2any only loads when actually needed (~80kb)
+  const heic2any = (await import("heic2any")).default;
+  const blob = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.85 });
+  const out = Array.isArray(blob) ? blob[0] : blob;
+  const newName = file.name.replace(/\.(heic|heif)$/i, ".jpg");
+  return new File([out], newName, { type: "image/jpeg" });
+}
 
 export interface PhotoItem {
   base64: string;
@@ -92,13 +111,41 @@ export function PhotoUploadZone({
     async (files: FileList | File[]) => {
       const remaining = maxPhotos - photos.length;
       if (remaining <= 0) return;
-      const batch = Array.from(files).filter(f => f.type.startsWith("image/")).slice(0, remaining);
-      const items: PhotoItem[] = await Promise.all(
-        batch.map(async (f) => {
-          const { base64, preview } = await resizeAndEncode(f);
-          return { base64, preview, name: f.name };
+      const all = Array.from(files);
+      const rejectedType = all.filter(f => !f.type.startsWith("image/") && !isHeic(f));
+      rejectedType.forEach(f => toast.error(`"${f.name}" n'est pas une image.`));
+      const candidates = all.filter(f => f.type.startsWith("image/") || isHeic(f)).slice(0, remaining);
+
+      const results = await Promise.allSettled(
+        candidates.map(async (f) => {
+          if (f.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+            throw new Error(`trop lourde (${(f.size / 1024 / 1024).toFixed(1)} Mo, max ${MAX_FILE_SIZE_MB} Mo)`);
+          }
+          const converted = await convertHeicIfNeeded(f);
+          const { base64, preview } = await resizeAndEncode(converted);
+          return { base64, preview, name: converted.name } as PhotoItem;
         }),
       );
+
+      const items: PhotoItem[] = [];
+      results.forEach((r, i) => {
+        if (r.status === "fulfilled") {
+          items.push(r.value);
+        } else {
+          const f = candidates[i];
+          const reason = r.reason instanceof Error ? r.reason.message : String(r.reason);
+          console.warn("[photo-upload] failed", f.name, f.type, f.size, r.reason);
+          if (reason.startsWith("trop lourde")) {
+            toast.error(`"${f.name}" est ${reason}.`);
+          } else if (isHeic(f)) {
+            toast.error(`Impossible de convertir "${f.name}". Réessaie ou exporte-la en JPEG depuis ton iPhone.`);
+          } else {
+            toast.error(`Impossible de lire "${f.name}". Format non supporté ou fichier corrompu.`);
+          }
+        }
+      });
+
+      if (items.length === 0) return;
       const next = [...photos, ...items];
       updatePhotos(next);
     },
@@ -229,7 +276,7 @@ export function PhotoUploadZone({
             Glisse tes photos ici ou clique pour sélectionner
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            JPG, PNG • Max {maxPhotos} photos
+            JPG, PNG, HEIC (iPhone) • Max {maxPhotos} photos • {MAX_FILE_SIZE_MB} Mo / photo
           </p>
         </div>
       )}
@@ -237,7 +284,7 @@ export function PhotoUploadZone({
       <input
         ref={inputRef}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
         multiple
         className="hidden"
         onChange={(e) => { if (e.target.files) processFiles(e.target.files); e.target.value = ""; }}
