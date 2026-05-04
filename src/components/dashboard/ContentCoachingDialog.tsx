@@ -173,7 +173,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
     generateIdeas({ objectif, canal, format: "carousel", sujet });
   };
 
-  const generateIdeas = async (params?: { objectif: string; canal: string; format: string; sujet: string }) => {
+  const generateIdeas = async (params?: { objectif: string; canal: string; format: string; sujet: string; intensity?: "bold" }) => {
     const p = params || { objectif, canal, format, sujet };
     setStep("loading");
     setResult(null);
@@ -191,6 +191,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
             content_type: "auto",
             ton_envie: "auto",
           },
+          intensity: p.intensity,
           workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
         },
       }, 120000);
