@@ -300,7 +300,27 @@ serve(async (req) => {
         if (isPhotoMode) {
           photoInstruction = `\nMODE PHOTO — ${photos.length} photo(s) fournies.\nAnalyse chaque photo et propose une structure où CHAQUE slide utilise une photo.\nPour chaque slide, indique "photo_index" (1-based, correspondant à l'ordre des photos fournies) et "slide_type": "photo_full".\nAssigne les photos aux slides en fonction de leur contenu visuel et du rôle narratif de la slide.\n${photo_description ? `Description complémentaire des photos : "${photo_description}"` : ""}`;
         } else {
-          photoInstruction = `\nMODE MIXTE — ${photos.length} photo(s) fournies.\nPropose une structure qui MÉLANGE slides photo et slides texte.\nPour les slides avec photo, indique "photo_index" (1-based) et "slide_type": "photo_full" ou "photo_integrated".\nPour les slides sans photo, indique "slide_type": "text_only" et pas de photo_index.\nRépartis les photos intelligemment : la plus impactante en hook ou conclusion, les autres selon leur contenu.\nTu n'es PAS obligé·e d'utiliser toutes les photos.\n${photo_description ? `Description complémentaire des photos : "${photo_description}"` : ""}`;
+          photoInstruction = `\nMODE MIXTE — ${photos.length} photo(s) fournies.
+
+OBJECTIF DU FORMAT MIXTE : un dialogue ÉQUILIBRÉ entre image et mot. Ce N'EST PAS un carrousel texte avec quelques photos décoratives. Si tu produis 70% de slides texte, tu rates le format.
+
+CIBLE DE RÉPARTITION (TRÈS IMPORTANT) :
+- Au minimum 50% de slides photo (photo_full ou photo_integrated)
+- Préférer utiliser TOUTES les photos uploadées au moins une fois (les écarter doit être l'exception, pas le réflexe — si tu en écartes une, c'est qu'elle est vraiment hors-sujet par rapport au brief)
+- Pour ${photos.length} photos : vise entre ${photos.length} et ${photos.length + 2} slides au total (pas plus). Sweet spot : ${photos.length} slides photo + 1-2 slides texte clés.
+
+QUAND UNE SLIDE TEXTE SE JUSTIFIE (sinon, mets une photo) :
+- Elle apporte un chiffre, une donnée, une statistique impossibles à porter par une image
+- Elle pose une prise de position tranchée / une réflexion charnière qui mérite son propre espace
+- C'est une transition narrative entre deux blocs photo
+- C'est le CTA final
+→ Sinon, défaut = slide photo.
+
+Pour les slides avec photo : "photo_index" (1-based) + "slide_type" = "photo_full" ou "photo_integrated".
+Pour les slides texte : "slide_type" = "text_only", pas de photo_index. Indique aussi dans "strategic_note" pourquoi cette slide DOIT être texte (chiffre, transition, prise de position…) — et si elle gagnerait à porter un schéma visuel (comparaison, timeline, opposition, liste structurée).
+
+Répartis les photos intelligemment : la plus impactante en hook (slide 1) ou conclusion, les autres selon leur contenu narratif.
+${photo_description ? `Description complémentaire des photos : "${photo_description}"` : ""}`;
         }
       }
 
