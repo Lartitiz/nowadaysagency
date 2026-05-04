@@ -225,6 +225,44 @@ serve(async (req) => {
     ].filter(Boolean);
 
 
+    // ─────────────────────────────────────────────────────────────
+    // Perplexity sourcing — récupère 2-3 actus chaudes du moment
+    // qui font débat, à injecter comme MATIÈRE PREMIÈRE pour Claude.
+    // Optionnel : si Perplexity tombe / pas de clé → on continue
+    // sans bloquer (le pipeline web_search Claude reste opérationnel).
+    // ─────────────────────────────────────────────────────────────
+    let hotNews: PerplexityActu[] = [];
+    const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
+    if (PERPLEXITY_API_KEY) {
+      try {
+        const universKeywords = [
+          ...universe.valeurs_combat.slice(0, 2),
+          ...universe.moments_de_vie_cible.slice(0, 2),
+          ...universe.univers_emotionnel.slice(0, 2),
+        ].filter(Boolean);
+
+        const ppxController = new AbortController();
+        const ppxTimeout = setTimeout(() => ppxController.abort(), 25000);
+        try {
+          const ppxResult = await fetchHotNews({
+            niche: nicheLabel,
+            universKeywords,
+            recency: "week",
+            apiKey: PERPLEXITY_API_KEY,
+            signal: ppxController.signal,
+          });
+          hotNews = ppxResult.actus.slice(0, 3);
+          console.log(`Perplexity: ${hotNews.length} actu(s) chaude(s) récupérée(s)`);
+        } finally {
+          clearTimeout(ppxTimeout);
+        }
+      } catch (e) {
+        console.warn("Perplexity sourcing failed (non-blocking):", (e as Error).message);
+      }
+    } else {
+      console.log("PERPLEXITY_API_KEY absente — sourcing actu chaude désactivé");
+    }
+
     // Claude call with web search
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
     if (!ANTHROPIC_API_KEY) {
