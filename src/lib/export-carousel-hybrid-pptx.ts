@@ -9,7 +9,9 @@ import {
   letterSpacingPxToCharSpacing,
   extractEditableBlocks,
   extractAnnotatedBlocks,
+  extractShapeBlocks,
   type EditableBlock,
+  type ShapeBlock,
   type TextRun,
 } from "./pptx-font-mapping";
 
@@ -105,6 +107,17 @@ async function mountIframe(html: string): Promise<HTMLIFrameElement> {
   [data-pptx-photo-hide="true"] picture,
   [data-pptx-photo-hide="true"] svg image {
     visibility: hidden !important;
+  }
+  /* Masquage des shapes structurels rendus en pptxgenjs natif :
+     on retire UNIQUEMENT le fond/ombre du shape lui-même, JAMAIS celui des descendants
+     (le texte enfant doit rester visible dans le PNG si non annoté éditable).
+     PAS de sélecteur descendant ici, contrairement à data-pptx-hide. */
+  [data-pptx-shape-hide="true"] {
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    border-color: transparent !important;
   }
 </style></head><body>${html}</body></html>`;
 
@@ -493,6 +506,33 @@ export async function exportCarouselHybridPptx(
         }
       }
 
+      // ---- Strategy D : extract structural shapes (background, card, pill, highlight)
+      // Doit s'exécuter APRÈS extractAnnotatedBlocks (qui pose data-pptx-hide sur les
+      // textes — sans impact sur la géométrie des shapes parents) et AVANT captureBody.
+      // Le CSS [data-pptx-hide="true"] *  ne touche PAS aux background-color, donc lire
+      // cs.backgroundColor sur un parent shape reste valide.
+      const SHAPE_CAP_PER_SLIDE = 20;
+      const allShapes = extractShapeBlocks(doc);
+      const usableShapes: ShapeBlock[] = [];
+      for (const sb of allShapes) {
+        if (sb.type !== "background") {
+          if (sb.rect.y > SLIDE_H_PX || sb.rect.x > SLIDE_W_PX) continue;
+          if (sb.rect.y + sb.rect.h < 0 || sb.rect.x + sb.rect.w < 0) continue;
+        }
+        usableShapes.push(sb);
+        (sb.el as HTMLElement).setAttribute("data-pptx-shape-hide", "true");
+      }
+      if (usableShapes.length > SHAPE_CAP_PER_SLIDE) {
+        console.warn(`[hybrid] ${usableShapes.length} shapes annotés sur slide ${vs.slide_number}, capé à ${SHAPE_CAP_PER_SLIDE}`);
+        // On garde priorité à background + plus grands shapes (les plus visibles)
+        usableShapes.sort((a, b) => {
+          if (a.type === "background") return -1;
+          if (b.type === "background") return 1;
+          return b.rect.w * b.rect.h - a.rect.w * a.rect.h;
+        });
+        usableShapes.length = SHAPE_CAP_PER_SLIDE;
+      }
+
       // ---- Photo zones extraction + filtering on availability
       // Si originalPhotos n'est pas fourni → usableZones vide → fallback total :
       // les photos restent visibles dans le rasterisé (comportement legacy).
@@ -569,6 +609,41 @@ export async function exportCarouselHybridPptx(
           });
         } catch (e) {
           console.warn("[hybrid] addImage(originalPhoto) failed", e);
+        }
+      }
+
+      // ---- Pose des shapes natifs (couche middle-bas) entre photos (bottom)
+      // et PNG de fond (middle-haut). Le PNG sera transparent là où les shapes
+      // ont été masqués via data-pptx-shape-hide → les shapes natifs restent visibles.
+      // Le texte ENFANT non annoté reste rendu dans le PNG (pas masqué) → il s'affiche
+      // par-dessus le shape natif visuellement (PNG posé après).
+      for (const sb of usableShapes) {
+        if (sb.type === "background") {
+          // Fond unique : on l'applique directement à slide.background plutôt
+          // qu'un addShape pleine slide (plus léger + édition "Format de l'arrière-plan").
+          slide.background = { color: sb.fill };
+          continue;
+        }
+        const xRaw = pxToInches(sb.rect.x, PX_PER_IN);
+        const yRaw = pxToInches(sb.rect.y, PX_PER_IN);
+        const wRaw = pxToInches(sb.rect.w, PX_PER_IN);
+        const hRaw = pxToInches(sb.rect.h, PX_PER_IN);
+        const x = Math.max(0, xRaw);
+        const y = Math.max(0, yRaw);
+        const w = Math.min(PPTX_W_IN - x, wRaw - (x - xRaw));
+        const h = Math.min(PPTX_H_IN - y, hRaw - (y - yRaw));
+        if (w <= 0 || h <= 0) continue;
+        const radiusInches = pxToInches(sb.borderRadiusPx, PX_PER_IN);
+        const cappedRadius = Math.min(radiusInches, Math.min(w, h) / 2);
+        try {
+          slide.addShape("roundRect", {
+            x, y, w, h,
+            fill: { color: sb.fill },
+            line: { type: "none" },
+            rectRadius: cappedRadius,
+          });
+        } catch (e) {
+          console.warn("[hybrid] addShape failed for shape type", sb.type, e);
         }
       }
 

@@ -879,6 +879,35 @@ Exemple :
 <div style="...carte..."><h2 data-pptx-editable="title" style="...">Mon titre</h2><p data-pptx-editable="body" style="...">Mon paragraphe</p></div>
 <span data-pptx-editable="caption" style="...badge...">01 / 05</span>
 
+═══ SHAPES STRUCTURELS — POUR ÉDITABILITÉ MAXIMALE PPTX (RECOMMANDÉ) ═══
+
+En complément des annotations \`data-pptx-editable\` sur les TEXTES, annote les éléments visuels STRUCTURELS avec \`data-pptx-shape\` pour qu'ils deviennent des shapes natifs éditables dans PowerPoint :
+
+- \`data-pptx-shape="background"\` → le <div> 1080×1350 racine de la slide (couleur de fond unie). UN SEUL par slide.
+- \`data-pptx-shape="card"\` → un bloc rectangulaire avec un fill uni + border-radius qui contient du texte
+- \`data-pptx-shape="pill"\` → un badge très arrondi (border-radius >= 100px ou >= 50% de la hauteur) contenant un label court
+- \`data-pptx-shape="highlight"\` → un fond coloré derrière un mot pour le mettre en valeur (style "marker")
+
+CONDITIONS D'ANNOTATION (NE PAS annoter si UNE de ces conditions est vraie — l'élément reste alors figé dans le PNG, ce qui est ACCEPTABLE) :
+- L'élément utilise un gradient (linear-gradient, radial-gradient, conic-gradient)
+- L'élément a une box-shadow (les shapes natifs perdent l'ombre — préfère le PNG)
+- L'élément a un backdrop-filter, mask, mix-blend-mode, filter, clip-path
+- L'élément a un transform autre que none (rotate, scale ≠ 1, skew, matrix)
+- L'élément a une bordure visible (les shapes natifs ne la restituent pas dans ce sprint)
+- Le fill n'est pas un aplat opaque (rgba avec alpha < 1 → ne pas annoter)
+- L'élément CONTIENT un descendant \`data-pptx-photo\` (le shape natif recouvrirait la photo native)
+- Un même élément ne porte JAMAIS à la fois \`data-pptx-editable\` et \`data-pptx-shape\` — un texte est un texte, un shape est un shape. Le texte vit DANS le shape comme enfant.
+
+EXEMPLE :
+<div style="width:1080px;height:1350px;background:#FB3D80" data-pptx-shape="background">
+  <div style="background:#FFA7C6;border-radius:32px;padding:48px" data-pptx-shape="card">
+    <span style="background:#FFE561;border-radius:100px;padding:8px 24px" data-pptx-shape="pill">
+      <span data-pptx-editable="caption">CONSEIL #1</span>
+    </span>
+    <h2 data-pptx-editable="title">Mon titre avec un <span style="background:#FFE561" data-pptx-shape="highlight">mot surligné</span></h2>
+  </div>
+</div>
+
 ═══ FORMAT DE RÉPONSE — JSON enrichi ═══
 
 Le JSON DOIT inclure deux champs au top-level :

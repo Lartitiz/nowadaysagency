@@ -506,4 +506,78 @@ export function letterSpacingPxToCharSpacing(px: number, pxPerInch: number): num
   return Math.round(points);
 }
 
+// ---------------------------------------------------------------------------
+// Structural shapes extraction (Strategy D — for editable PPTX shapes)
+// ---------------------------------------------------------------------------
+
+/**
+ * Bloc structurel à rendre comme shape pptxgenjs natif (roundRect)
+ * dans le pipeline hybride C2. Annoté par Sonnet via data-pptx-shape="...".
+ */
+export interface ShapeBlock {
+  el: Element;
+  type: "background" | "card" | "pill" | "highlight";
+  rect: { x: number; y: number; w: number; h: number };
+  /** Hex 6 chars normalisé sans `#`. */
+  fill: string;
+  /** Border-radius en px (top-left si shorthand asymétrique). */
+  borderRadiusPx: number;
+}
+
+/**
+ * Extrait les éléments annotés `data-pptx-shape` du document iframe rendu.
+ * Skip silencieusement les cas non supportés par les shapes natifs (gradient,
+ * box-shadow, transform, fond transparent, élément trop petit).
+ *
+ * Console.debug en cas de skip pour diagnostiquer le respect des règles par Opus.
+ */
+export function extractShapeBlocks(doc: Document): ShapeBlock[] {
+  const win = doc.defaultView;
+  if (!win) return [];
+  const nodes = Array.from(doc.body.querySelectorAll<HTMLElement>("[data-pptx-shape]"));
+  const blocks: ShapeBlock[] = [];
+  for (const el of nodes) {
+    const cs = win.getComputedStyle(el);
+    if (cs.visibility === "hidden" || cs.display === "none") continue;
+    const r = el.getBoundingClientRect();
+    if (r.width < 5 || r.height < 5) continue;
+
+    const rawType = (el.getAttribute("data-pptx-shape") || "card").toLowerCase();
+    const type: ShapeBlock["type"] =
+      rawType === "background" || rawType === "card" ||
+      rawType === "pill" || rawType === "highlight" ? rawType : "card";
+
+    // Skip défensif : conditions interdites par le prompt mais on ne fait pas confiance.
+    const bgImage = cs.backgroundImage || "none";
+    const hasGradient = /gradient\(/i.test(bgImage);
+    const hasShadow = (cs.boxShadow || "none") !== "none";
+    const hasTransform = (cs.transform || "none") !== "none";
+    if (hasGradient || hasShadow || hasTransform) {
+      console.debug("[hybrid] shape skipped (unsupported style)", {
+        type,
+        reason: hasGradient ? "gradient" : hasShadow ? "shadow" : "transform",
+      });
+      continue;
+    }
+
+    const bgColor = cs.backgroundColor || "transparent";
+    if (bgColor === "transparent" || bgColor === "rgba(0, 0, 0, 0)") {
+      console.debug("[hybrid] shape skipped (transparent fill)", { type });
+      continue;
+    }
+
+    // borderTopLeftRadius est toujours défini en computed style (même si shorthand asymétrique).
+    const borderRadiusStr = cs.borderTopLeftRadius || cs.borderRadius || "0px";
+    const borderRadiusPx = parseFloat(borderRadiusStr) || 0;
+
+    blocks.push({
+      el,
+      type,
+      rect: { x: r.left, y: r.top, w: r.width, h: r.height },
+      fill: normalizeHex(bgColor, "FFFFFF"),
+      borderRadiusPx,
+    });
+  }
+  return blocks;
+}
 
