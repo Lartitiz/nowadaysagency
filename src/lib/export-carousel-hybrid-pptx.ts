@@ -390,7 +390,7 @@ function addBlockToSlide(
   const color = normalizeHex(block.style.color, charterTextFallback);
   const charSpacing = letterSpacingPxToCharSpacing(block.style.letterSpacingPx, PX_PER_IN);
 
-  slide.addText(applyTextTransform(block.text, block.style.textTransform), {
+  const frameOptions: PptxGenJS.TextPropsOptions = {
     x,
     y,
     w,
@@ -406,7 +406,24 @@ function addBlockToSlide(
     margin: 0,
     charSpacing: charSpacing || undefined,
     lineSpacingMultiple: Math.max(0.9, Math.min(1.6, block.style.lineHeight / Math.max(1, block.style.fontSizePx))),
-  });
+  };
+
+  // Multi-runs path: preserve inline italic/bold/color from <span>/<em>/<strong>.
+  if (block.runs && block.runs.length >= 2) {
+    const pptxRuns = block.runs.map((r) => ({
+      text: applyTextTransform(r.text, block.style.textTransform),
+      options: {
+        bold: r.bold,
+        italic: r.italic,
+        color: r.color,
+      },
+    }));
+    slide.addText(pptxRuns, frameOptions);
+    return;
+  }
+
+  // Flat text path (unchanged behavior).
+  slide.addText(applyTextTransform(block.text, block.style.textTransform), frameOptions);
 }
 
 // ---------------------------------------------------------------------------
