@@ -1334,3 +1334,109 @@ RÈGLES :
   · Un fait sec : "Trois mois sans poster. Aucun client perdu."
 - Test final : si le titre pourrait être collé sur un autre carrousel d'un autre métier sans changer un mot → INVALIDE, réécrire avec un ancrage scène/JE/détail.
 `;
+
+// ═══════════════════════════════════════════════════
+// SECTION : ANTI-STORYTELLING FABRIQUÉ (s'applique à tous les carrousels)
+// ═══════════════════════════════════════════════════
+
+export const ANTI_FABRICATED_STORYTELLING = `
+══════════════════════════════════════
+ANTI-STORYTELLING FABRIQUÉ (CRITIQUE — tous formats)
+══════════════════════════════════════
+
+Tu n'as PAS le droit d'inventer une scène vécue datée. Une scène vécue datée
+est une affirmation qui se présente comme un fait personnel arrivé à
+l'utilisatrice à un moment précis : "hier", "ce matin", "la semaine
+dernière", "lundi 7h", "il y a 3 jours", "j'ai reçu trois messages",
+"une cliente m'a dit", "je viens de voir passer", "j'ai discuté avec",
+"j'ai analysé X comptes cette semaine", "j'ai vu un post qui…", etc.
+
+Ces formules ne sont autorisées QUE si l'utilisatrice a fourni cet élément
+explicitement dans \`deepening_answers.anecdote\` (sans la mention "(élément
+tiré du branding)" qui signale un fallback non-vécu) OU dans son contexte
+storytelling personnel cité explicitement.
+
+SI AUCUNE ANECDOTE VÉCUE N'EST FOURNIE : tu généralises au présent
+intemporel, sans date, sans personne nommée fictive. Formulations
+acceptables :
+- "Ce qui circule en ce moment : …"
+- "Ce que je vois passer dans ce milieu : …"
+- "On entend souvent que…"
+- "Il y a un truc qui revient : …"
+- "Dans ma pratique, je vois régulièrement…"
+- "Le cas typique : …" / "Prends l'exemple de…"
+- "Ce qu'on raconte sur X passe à côté de Y."
+
+INTERDITS ABSOLUS sans anecdote fournie :
+- "Hier", "ce matin", "ce soir", "la semaine dernière", "lundi", "mardi…"
+- "J'ai reçu", "j'ai vu", "j'ai entendu", "j'ai discuté", "j'ai analysé",
+  "j'ai compté", "j'ai croisé" + complément circonstanciel daté.
+- "Une cliente m'a dit", "un client m'a écrit", "quelqu'un m'a demandé"
+  comme amorce de scène fabriquée.
+- "Le jour où", "ce jour-là", "à l'époque", "il y a X mois/semaines".
+- Verbatims fictifs entre guillemets attribués à un tiers ("elle m'a dit :
+  '…'") sans source réelle fournie.
+
+CAS LIMITES :
+- Citer une statistique réelle d'une étude connue → OK si vérifiable.
+- Citer un fait public (lancement d'un produit, discours, post viral)
+  fourni dans le contexte actu → OK, c'est public.
+- Renvoyer à "des cas que j'accompagne" sans détailler une scène précise
+  → OK ("dans les accompagnements, je vois souvent…").
+- Décrire un mécanisme général → OK.
+
+VÉRIFICATION FINALE : avant de retourner le texte, relis chaque slide.
+Pour chaque marqueur temporel précis ("hier", "lundi", "la semaine
+dernière") ou phrase qui se présente comme un événement vécu, demande-toi :
+"Est-ce que c'était dans les réponses de l'utilisatrice ?" Si non →
+RÉÉCRIS au présent intemporel généralisant.
+`;
+
+// ═══════════════════════════════════════════════════
+// SECTION : DOUBLE PROFONDEUR (sujet + opinion incarnée)
+// ═══════════════════════════════════════════════════
+
+export const DEPTH_LAYER_DUAL = `
+══════════════════════════════════════
+DOUBLE PROFONDEUR OBLIGATOIRE — FOND DU SUJET + PRISE DE POSITION
+══════════════════════════════════════
+
+En complément de DEPTH_LAYER (mécanisme/croyance/retournement), le carrousel
+DOIT contenir AU MINIMUM ces deux slides distinctes :
+
+1. SLIDE "FOND DU SUJET" (au moins 1) — analyse du SUJET, pas de la lectrice.
+   Cette slide porte au moins UNE de ces dimensions :
+   - Mécanisme économique : qui gagne quoi, modèle d'affaires sous-jacent,
+     incitation systémique.
+   - Mécanisme sectoriel/historique : précédent, évolution, comparaison
+     entre époques ou contextes.
+   - Donnée factuelle vérifiable : chiffre identifiable, étude, cas connu,
+     pourcentage source-able. Si tu n'as pas de chiffre fiable, tu ne
+     l'inventes pas — tu cites une tendance qualitative.
+   - Acteur identifié : qui agit, dans quel intérêt, quelle conséquence.
+
+   INTERDIT comme angle de cette slide : biais cognitifs de la lectrice,
+   syndrome de l'imposteur, peur du jugement, conditionnements personnels.
+   On parle DU SUJET, pas DE LA PERSONNE qui lit.
+
+2. SLIDE "PRISE DE POSITION INCARNÉE" (au moins 1) — l'opinion tranchée
+   de l'autrice. Ouvre par une marque de subjectivité explicite :
+   - "Moi je trouve que…"
+   - "Ce qui me dérange dans cette lecture…"
+   - "La question qu'on évite, c'est…"
+   - "Je ne suis pas d'accord avec X parce que Y."
+   - "Ce qu'on raconte là-dessus passe à côté de…"
+
+   Cette slide N'EST PAS un diagnostic de la lectrice. C'est une POSITION
+   D'AUTRICE sur le sujet. Elle décale la lecture dominante.
+
+DISTINCTION CRITIQUE :
+- "Profondeur fond du sujet" ≠ "profondeur psy de la lectrice".
+- Si toutes les slides "profondes" du carrousel parlent de ce qui se passe
+  dans la tête de la lectrice (sa peur, ses blocages, ses croyances) →
+  ÉCHEC. La lectrice veut comprendre LE SUJET, pas se faire psy-analyser.
+
+VÉRIFICATION : si je supprime mentalement les deux slides ci-dessus, le
+carrousel se réduit à des constats généraux + un CTA. Ces deux slides
+sont ce qui fait que le carrousel a quelque chose à dire.
+`;
