@@ -616,32 +616,51 @@ Border-radius : ${ch.border_radius}${ch.photo_style ? `\nStyle photo : ${ch.phot
 TYPE "photo_full" — Photo plein écran + overlay
 - Le div principal a : background-image: url({{PHOTO_N}}); background-size: cover; background-position: center
 - Le texte overlay est posé dessus avec un traitement de lisibilité :
-  · Style "sensoriel" : gradient sombre en bas (linear-gradient transparent → rgba(0,0,0,0.7)), texte blanc italic en ${ch.font_title}
-  · Style "narratif" : bandeau blanc semi-transparent (rgba(255,255,255,0.92), backdrop-filter blur), texte en ${ch.font_body}
-  · Style "minimal" : badge pilule ${ch.color_primary} ou texte blanc grand avec ombre forte
-- Position selon overlay_position (mais adapter si le sujet principal de la photo est à cet endroit)
+  · Style "sensoriel" : gradient sombre en bas (linear-gradient transparent → rgba(0,0,0,0.7) sur 40% de la hauteur), texte blanc italic en ${ch.font_title}
+  · Style "narratif" : bandeau blanc semi-transparent (rgba(255,255,255,0.92), backdrop-filter blur(8px)), texte en ${ch.font_body}, padding 32px
+  · Style "minimal" : badge pilule ${ch.color_primary} ou texte blanc grand avec text-shadow: 0 4px 16px rgba(0,0,0,0.6)
+
+RÈGLES DE LISIBILITÉ (analyse VISUELLE de chaque photo fournie) :
+- Identifie la zone CLAIRE et la zone SOMBRE de la photo. Pose l'overlay sur la zone qui maximise le contraste avec ton style :
+  · Texte clair (blanc) → zone sombre, ou ajoute un gradient/bandeau sombre.
+  · Texte foncé → zone claire, ou ajoute un bandeau blanc.
+- Identifie le SUJET PRINCIPAL (visage, produit, élément central). N'écris JAMAIS dessus. Décale l'overlay vers le 1/3 opposé de la photo.
+- Si la photo est globalement texturée, floue ou multicolore, IMPOSE un bandeau opaque (rgba 0.92) — pas un simple gradient.
+- Position selon overlay_position MAIS adapte si le sujet principal y est, ou si le contraste y est insuffisant.
+
+SAFE ZONES Instagram (impératif) :
+- Laisse 80px de marge en haut (zone tronquée par certains crops feed).
+- Laisse 200px de marge en bas (zone où Instagram pose l'icône carrousel et où le bas est tronqué sur mobile).
+- Aucun texte critique (overlay, titre, CTA) dans ces zones. Les éléments décoratifs (gradient, photo qui dépasse) sont OK.
 
 TYPE "photo_integrated" — Photo intégrée dans un layout design
-- La photo est une balise <img src="{{PHOTO_N}}" style="width:100%;height:auto;object-fit:cover;border-radius:${ch.border_radius}">
-- Layouts selon photo_layout :
-  · "top_photo" : photo en haut (55-60% de la hauteur), texte en bas sur fond ${ch.color_background} ou blanc. La photo a des coins arrondis en haut, le texte est dans une zone avec padding 40px.
-  · "left_photo" : 2 colonnes flex. Photo à gauche (40%), texte à droite (60%) avec padding. Hauteur complète.
-  · "right_photo" : inverse. Texte à gauche, photo à droite.
-  · "card_photo" : fond ${ch.color_background}. Carte blanche centrée avec la photo en haut (border-radius haut) et le texte en bas. La carte fait ~85% de la largeur.
-  · "banner_photo" : photo en bandeau horizontal (height: 400px, object-fit cover) + titre et body en dessous avec padding.
-- Le texte utilise le design system : ${ch.font_title} pour les titres, ${ch.font_body} pour le corps, badges pilules, barres latérales colorées.
+- La photo est une balise <img src="{{PHOTO_N}}" style="object-fit:cover;border-radius:${ch.border_radius}">
+- Layouts selon photo_layout (chaque layout a un élément distinctif OBLIGATOIRE) :
+  · "top_photo" : photo height 740px (≈55%), texte en bas (610px) sur fond ${ch.color_background}. ÉLÉMENT DISTINCTIF : badge pilule numéroté en haut à gauche du bloc texte + soulignement coloré ${ch.color_accent} (4px, width 80px) sous le titre.
+  · "left_photo" : 2 colonnes flex, photo 432px (40%) à gauche, texte 648px (60%) à droite. ÉLÉMENT DISTINCTIF : barre verticale ${ch.color_accent} (4px) entre photo et texte, titre en ${ch.color_secondary}, body avec retrait à gauche de 16px.
+  · "right_photo" : symétrique de left_photo, photo à droite. ÉLÉMENT DISTINCTIF : barre verticale ${ch.color_accent} à gauche du texte + petit badge "→" décoratif avant le titre.
+  · "card_photo" : fond ${ch.color_background}. Carte blanche centrée 920px × 1190px, ombre douce (0 8px 32px rgba(0,0,0,0.08)). Photo en haut de la carte (660px, border-radius haut), texte en bas (530px, padding 48px). ÉLÉMENT DISTINCTIF : filet horizontal ${ch.color_primary} (3px, width 60px) sous le titre.
+  · "banner_photo" : photo 380px en bandeau horizontal en haut, texte en dessous (970px, padding 80px). ÉLÉMENT DISTINCTIF : titre LARGE (font-size 56-64px) sur 2 lignes max, body en 2 colonnes (column-count: 2, column-gap: 40px).
+
+RÈGLE DE RYTHME (impérative) :
+- Sur 3 slides photo_integrated d'un même carrousel, utilise au moins 3 layouts DIFFÉRENTS.
+- Ne répète JAMAIS le même photo_layout sur 2 slides consécutives.
 
 TYPE "text_only" — Slide texte pure
-- Design system Nowadays classique (identique aux carrousels texte).
-- Fond ${ch.color_background} ou blanc.
-- Cartes blanches, badges pilules, barres latérales, soulignements colorés.
-- Si visual_schema est fourni, rendre le schéma en HTML/CSS.
+- Design system Nowadays classique (identique aux carrousels texte) : cartes blanches, badges pilules, barres latérales, soulignements colorés.
+- Fond ${ch.color_background} si la slide précédente est une photo (transition douce). Fond blanc sinon.
+- Si visual_schema est fourni, rendre OBLIGATOIREMENT le schéma en HTML/CSS (voir la section SCHÉMAS VISUELS ci-dessous).
 
-═══ COHÉRENCE ENTRE LES TYPES ═══
-- TOUTES les slides (quel que soit le type) utilisent les mêmes fonts, la même palette, les mêmes badges
-- Le padding latéral est constant (80px pour text_only et photo_integrated, adapté pour photo_full)
-- L'alternance des types crée un rythme visuel agréable
-- Les slides photo_integrated font la TRANSITION entre les slides photo_full et text_only
+${buildVisualSchemaBlock(ch)}
+
+═══ COHÉRENCE ET CONTINUITÉ VISUELLE ═══
+- TOUTES les slides utilisent les mêmes fonts (${ch.font_title} pour les titres, ${ch.font_body} pour le corps) et la même palette.
+- Le padding latéral est constant (80px pour text_only et photo_integrated ; pour photo_full, le padding s'applique au bloc d'overlay, pas au div).
+- Le NUMÉRO DE SLIDE (badge pilule discret en coin, ex: "01/08", ${ch.color_primary} ou semi-transparent blanc sur photo_full) DOIT figurer sur TOUTES les slides — c'est l'élément qui unifie le carrousel.
+- Continuité photo→texte : entre une slide photo_full/photo_integrated et une slide text_only suivante, REPRENDS un élément graphique commun (même couleur de badge, même style de soulignement, même typographie de titre).
+- Les slides text_only encadrées par deux slides photo doivent utiliser un fond ${ch.color_background} (jamais blanc pur) pour adoucir la transition visuelle.
+- L'alternance des types crée le rythme : photo → texte → photo → texte. Une slide photo_integrated peut servir de transition entre photo_full et text_only.
+- Les slides photo_integrated font la TRANSITION entre les slides photo_full et text_only.
 
 ═══ PLACEHOLDERS PHOTOS ═══
 Pour chaque slide qui utilise une photo :
