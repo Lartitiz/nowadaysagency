@@ -707,7 +707,7 @@ Pour les slides de type "photo_full", utilise background-image: url({{PHOTO_N}})
 Pour les slides de type "photo_integrated", utilise <img src="{{PHOTO_N}}">.
 Pour les slides de type "text_only", pas de photo.
 
-Adapte le design de CHAQUE slide à son type. Crée une continuité visuelle entre les trois types.
+Adapte le design de CHAQUE slide à son type. Crée une continuité visuelle entre les trois types.${visualBlock}
 
 Retourne UNIQUEMENT le JSON.`;
     }
