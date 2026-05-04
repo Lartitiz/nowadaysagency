@@ -14,6 +14,8 @@ type Step = 1 | 2 | "loading" | "result";
 interface ContentIdea {
   subject: string;
   angle: string;
+  lens?: string;
+  boldness?: "safe" | "bold" | "provoc";
   objective_tag: string;
   why_it_works: string;
   hook?: string;
