@@ -425,6 +425,7 @@ FORMAT DE RÉPONSE — JSON STRICT (pas de markdown, pas de backticks)
       "titre": "Titre court du phénomène (max 80 caractères)",
       "resume": "Résumé factuel en 2 phrases courtes du phénomène et pourquoi on en parle",
       "source": "Nom du média ou de la source",
+      "source_url": "URL de l'article source si disponible (sinon omettre)",
       "type": "globale" | "niche",
       "axe": "mot_qui_revient" | "obsession_collective" | "comportement_emergent" | "debat_recurrent" | "objet_culturel" | "actu_connectable",
       "ton": "confortable" | "entre_deux" | "decalant",
@@ -433,6 +434,8 @@ FORMAT DE RÉPONSE — JSON STRICT (pas de markdown, pas de backticks)
     }
   ]
 }
+
+IMPORTANT : si tu reprends une actu chaude pré-sourcée (bloc plus haut), recopie son source_url tel quel.
 
 RÉPARTITION SOUPLE — entre 3 et 6 sujets, qualité avant quantité :
 - Idéalement 3 globales (1 par axe imposé) + 3 niche
