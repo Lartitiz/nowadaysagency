@@ -532,20 +532,24 @@ export function buildProfileBlock(profile: any): string {
  * also empty (new user).
  */
 export function buildPreGenFallback(ctx: any): { anecdote?: string; emotion?: string; conviction?: string; _fromBranding: true } | null {
-  const story = ctx.storytelling?.step_7_polished;
   const tone = ctx.tone;
   const profile = ctx.profile;
   const proposition = ctx.proposition;
 
-  const anecdote = story || undefined;
+  // IMPORTANT : on ne renvoie PLUS d'anecdote depuis le branding.
+  // Le storytelling de marque (step_7_polished) est une bio générale, PAS un vécu daté.
+  // L'utiliser comme "anecdote à intégrer mot pour mot" forçait l'IA à fabriquer
+  // des scènes datées ("hier j'ai reçu un message…"). Sans anecdote fournie,
+  // l'IA bascule en mode généralisation (cf. ANTI_FABRICATED_STORYTELLING).
+  const anecdote = undefined;
 
-  // Emotion: derive from tone/mission
+  // Emotion: derive from tone/mission (tonalité, pas un fait)
   let emotion: string | undefined;
   if (tone?.tone_style) emotion = tone.tone_style;
   else if (profile?.tons?.length) emotion = Array.isArray(profile.tons) ? profile.tons.join(", ") : profile.tons;
   else if (profile?.mission) emotion = profile.mission;
 
-  // Conviction: derive from combat/proposition
+  // Conviction: derive from combat/proposition (position, pas un vécu)
   let conviction: string | undefined;
   if (tone?.combat_cause) conviction = tone.combat_cause;
   else if (tone?.combat_fights) conviction = tone.combat_fights;
