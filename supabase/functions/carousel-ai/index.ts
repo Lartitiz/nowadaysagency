@@ -1280,7 +1280,7 @@ STRUCTURE :
 - Slide 2 = DOIT fonctionner comme hook autonome (seconde chance algorithmique).
 - Chaque slide : max ${isLinkedIn ? "80" : "50"} mots, 1 idée principale. Des PHRASES COMPLÈTES ET FLUIDES : 2-3 phrases qui développent l'idée, pas des fragments hachés ni des rafales de 3-4 mots.
 - Dernière slide = 1 SEUL CTA. Pas 2. Pas 3.
-- Headlines (title) : 4-7 mots, verbe d'action ou déclencheur émotionnel.
+- Headlines (title) : 4-9 mots, scène-first / JE — voir RÈGLES TITRES système. Pas de "L'art de", "L'importance de", "Repenser", "Le piège de".
 
 NARRATION :
 - ARC NARRATIF OBLIGATOIRE : situation → tension → développement → résolution → ouverture. Même un carrousel "tips" a un fil conducteur, pas juste une liste.
