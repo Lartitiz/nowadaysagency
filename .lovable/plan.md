@@ -1,49 +1,88 @@
-# Fix : carrousel mixte trop court (4 slides au lieu de 7+)
+# Resserrer la pertinence du newsjacking ("Surfer sur l'actu")
 
 ## Diagnostic
 
-Dans `supabase/functions/carousel-ai/index.ts` (étape `structure_proposal`, mode mixte), la consigne envoyée à l'IA cale **mécaniquement** le nombre de slides sur le nombre de photos uploadées :
+Trois mécaniques cumulent leurs effets et font partir les sujets trop loin :
 
-> "Pour N photos : vise entre N et N+2 slides au total (**pas plus**). Sweet spot : N slides photo + 1-2 slides texte clés."
+### 1. Quota inversé sur la niche (newsjacking-ai)
+Aujourd'hui, sur les 3 sujets "niche", la consigne impose **MAXIMUM 1 sujet du métier littéral**, donc **2 sur 3 viennent forcément de l'univers élargi** (émotion, moments de vie, lifestyle). Cumulé aux 3 sujets globaux (axes culturels), on se retrouve avec ~5 sujets sur 6 hors métier — l'élargissement initial conçu comme un garde-fou anti-monomanie est devenu un facteur de dérive.
 
-Avec 3 photos → 3 à 5 slides maximum. L'IA choisit 4. Le `slide_count: 7` envoyé par le front est ignoré, et toute la mécanique de profondeur (DEPTH_LAYER : mécanisme + croyance + retournement) est étouffée.
+### 2. `themes_lifestyle` est un crochet trop faible
+Dans le `brand_universe`, les 4 listes ne sont pas équivalentes en force narrative :
+- `valeurs_combat` et `moments_de_vie_cible` → ponts forts (la cible est nommément concernée)
+- `univers_emotionnel` → pont moyen
+- `themes_lifestyle` → pont faible (esthétique/ambiance, pas de levier commercial direct)
 
-C'est aussi en contradiction avec la règle juste au-dessus dans le même prompt :
-> "Le nombre de slides doit être entre `slide_count` et `slide_count + 2`" (= 7 à 9 par défaut)
+Tout est mis sur un pied d'égalité, donc l'IA pioche autant dans le faible que dans le fort.
 
-Les deux règles se contredisent et celle des photos gagne.
+### 3. Génération d'angles qui pousse au "parallèle absurde"
+Dans `newsjacking-angles`, pour les actus globales, la consigne dit explicitement "Privilégie `parallele_absurde` ou `declencheur_externe`". Or `parallele_absurde` est par nature le véhicule le plus fragile. Pire : le "pont explicite" exigé à la recherche n'est pas re-vérifié à la génération d'angles, donc l'IA peut dériver.
 
-## Principe du fix
+### 4. Pas de signal de force de pont côté front
+L'utilisatrice voit 6 sujets sur le même plan, sans indicateur de "pont fort vs pont fragile" pour zapper en un coup d'œil.
 
-**Le nombre de slides suit la richesse du sujet, pas le nombre de photos.** Une même photo peut nourrir plusieurs slides (full puis integrated sous un autre angle), et les slides texte d'approfondissement (mécanisme expliqué, croyance nommée, retournement formulé) sont essentielles, pas accessoires.
+## Règles à mettre en place
 
-## Changements
+### A. Inverser le quota d'élargissement (newsjacking-ai/index.ts)
 
-### 1. `supabase/functions/carousel-ai/index.ts` — bloc `photoInstruction` mode MIXTE (lignes ~315-335)
+**Avant** : "Sur 3 sujets niche, MAX 1 du métier littéral, les 2 autres en élargi."
+**Après** : "Sur 3 sujets niche, **MINIMUM 2 doivent rester ancrés dans le métier ou son extension directe** (cible nommément concernée, valeur de combat partagée, moment de vie où la cible utilise réellement le produit/service). MAXIMUM 1 sujet peut venir de l'univers émotionnel/lifestyle pur."
 
-Réécrire la cible de répartition :
+Effet : on garde l'ouverture (1 sujet/6 reste "élargi") mais on rebascule la majorité dans la zone à pont fort.
 
-- **Supprimer** la cible "N à N+2 slides max" calée sur le nombre de photos.
-- **Garder** comme cible le `slide_count` demandé par le front (7 à 9 par défaut), aligné sur la règle générale ligne 350.
-- **Reformuler** l'équilibre photo/texte en proportion (≥50% photo) sans plafonner le total.
-- **Autoriser explicitement** qu'une même photo serve 2 slides différentes (ex: photo_full en hook, puis photo_integrated plus loin avec un cadrage analytique différent) si le récit le justifie.
-- **Revaloriser** les slides texte d'approfondissement : le mécanisme, la croyance retournée, la prise de position, la donnée chiffrée méritent chacun leur slide propre — ce ne sont pas "1-2 slides texte clés" maximum mais autant que la profondeur du sujet l'exige.
-- **Ajouter** un garde-fou explicite : "Si le sujet porte une vraie profondeur (vécu, conviction, mécanisme à expliquer), ne te contente pas de 4 slides parce qu'il n'y a que 3 photos. Étire à 7-9 slides en intercalant des slides texte d'approfondissement."
+### B. Hiérarchiser le brand_universe par force de pont (newsjacking-ai)
 
-### 2. Vérifier la cohérence avec l'étape de génération finale
+Dans le `universeBlock`, ajouter un classement explicite :
+- **Niveau 1 (pont fort, à privilégier)** : `valeurs_combat`, `moments_de_vie_cible`
+- **Niveau 2 (pont moyen)** : `univers_emotionnel`
+- **Niveau 3 (pont faible, max 1 sujet sur l'ensemble)** : `themes_lifestyle`
 
-Une fois la structure validée à 7-9 slides, l'étape `slides`/`express_full` doit honorer ce nombre. Vérifier `buildSlidesPrompt` et `buildExpressFullPrompt` pour s'assurer qu'ils ne re-cappent pas le compte sur `photos.length`. Ajuster si besoin (même principe : photo réutilisable, slides texte légitimes).
+Demander à l'IA de toujours préférer un sujet niveau 1 si elle a le choix.
 
-### 3. Pas de changement front
+### C. Ajouter un test de pertinence chiffré (newsjacking-ai)
 
-Le front envoie déjà `slide_count: 7` ligne 915 — il sera enfin respecté.
+Demander à l'IA d'auto-évaluer chaque sujet avec un nouveau champ `force_pont` ∈ {`fort`, `moyen`, `fragile`} basé sur des critères explicites :
+- **fort** = le pont cite un élément littéral du profil (cible exacte, activité exacte, combat exact, pilier exact) et la connexion est immédiate, sans paraphrase
+- **moyen** = le pont passe par l'univers élargi mais reste évident pour la cible
+- **fragile** = le pont demande une étape de raisonnement pour comprendre la connexion → **rejeté**
 
-## Hors scope
+Règle absolue : `fragile` → ne renvoie pas le sujet. Sur N sujets renvoyés, **au moins ⌈N×2/3⌉ doivent être `fort`**.
 
-- Pas de modif UI (pas de slider visible pour le user — `slide_count: 7` reste le défaut).
-- Pas de touche au mode photo pur (où 1 photo = 1 slide est la bonne règle).
-- Pas de touche au mode texte pur (déjà OK).
+### D. Resserrer la génération d'angles (newsjacking-angles/index.ts)
+
+- **Supprimer** "Privilégie parallele_absurde ou declencheur_externe" pour les globales. Remplacer par : "Privilégie `declencheur_externe`, `constat_decale` ou `recit_experience`. `parallele_absurde` est autorisé MAX 1 angle sur 3, et seulement si le parallèle est immédiatement lisible — pas un parallèle qu'il faut déballer."
+- **Re-rappeler le pont** : reprendre le champ `pertinence` de l'actu en tête du prompt et exiger que CHAQUE angle s'appuie dessus, sans dériver vers une autre connexion plus lointaine.
+- **Ajouter un check final** : pour chaque angle, l'IA doit pouvoir nommer l'élément du profil utilisé (cible / activité / combat / pilier / valeur). Sinon → reformuler.
+
+### E. Signal visuel de force de pont (NewsjackingPanel.tsx)
+
+Ajouter un petit badge sur chaque carte d'actu :
+- `fort` → badge discret vert "pont direct"
+- `moyen` → badge neutre "pont élargi"
+- (les `fragile` ne devraient plus arriver, mais en sécurité afficher en gris)
+
+L'utilisatrice peut filtrer/scanner en un coup d'œil.
+
+### F. Compatibilité
+
+- Les anciennes réponses en cache (sans `force_pont`) restent affichables — fallback à "moyen" + pas de badge.
+- Les noms de champs existants (`axe`, `ton`, `pertinence`) sont conservés.
+
+## Fichiers à modifier
+
+- `supabase/functions/newsjacking-ai/index.ts` — règles A, B, C
+- `supabase/functions/newsjacking-angles/index.ts` — règle D
+- `src/components/creer/NewsjackingPanel.tsx` — règle E (UI)
+- `mem://features/newsjacking` — mise à jour mémoire (quota inversé + force_pont + hiérarchie univers)
 
 ## Validation
 
-Re-tester le cas de l'utilisatrice (carrousel mixte, sujet à forte profondeur, 3 photos) → attendu : 7-9 slides, dont au moins 50% photo (avec réutilisation possible) et 2-4 slides texte d'approfondissement (mécanisme / croyance / retournement / chiffre).
+Re-tester sur le profil utilisé (lingerie ou autre) :
+- Attendu : 4-6 sujets dont 2/3 minimum à pont fort, et au plus 1 sujet purement lifestyle
+- Aucun angle ne doit ressembler à "cette actu n'a rien à voir mais quand même…"
+- Le badge "pont direct" doit apparaître sur la majorité des cartes
+
+## Hors scope
+
+- Pas de touche à la régénération du `brand_universe` (cache 30j conservé)
+- Pas de touche aux 6 axes culturels globaux (la dérive vient de la branche niche, pas des axes)

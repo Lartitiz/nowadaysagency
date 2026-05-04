@@ -117,11 +117,12 @@ serve(async (req) => {
     const isGlobale = actu.type === "globale";
     const pontRule = isGlobale
       ? `▶ ACTU GLOBALE — RÈGLE DU PONT (impérative) :
-Cette actu n'est PAS dans le secteur de la personne. Chaque angle DOIT construire un pont :
+Cette actu n'est PAS dans le secteur de la personne. Chaque angle DOIT s'appuyer sur le PONT déjà identifié ci-dessus (champ "Pertinence") — ne dérive PAS vers une autre connexion plus lointaine.
 - Le hook part de l'actu (ce que tout le monde a vu/entendu)
-- Le pivot ramène à l'expertise métier de "${nicheLabel}" (ce que seul·e cette personne peut dire)
-- Privilégie les véhicules "parallele_absurde" ou "declencheur_externe"`
-      : `▶ ACTU NICHE — l'angle doit valoriser l'expertise unique de la personne sur cette actu de son secteur. Privilégie "constat_decale", "recit_experience" ou "declencheur_externe".`;
+- Le pivot ramène à l'expertise métier de "${nicheLabel}" via l'élément précis cité dans la pertinence
+- Privilégie "declencheur_externe", "constat_decale" ou "recit_experience"
+- "parallele_absurde" : MAX 1 angle sur 3, et UNIQUEMENT si le parallèle est immédiatement lisible (pas un parallèle qu'il faut "déballer" en 2 phrases)`
+      : `▶ ACTU NICHE — l'angle doit valoriser l'expertise unique de la personne sur cette actu de son secteur. Privilégie "constat_decale", "recit_experience" ou "declencheur_externe". Reste branché sur le pont déjà identifié dans "Pertinence".`;
 
     const systemPrompt = `Tu es une copywriter senior spécialisée en newsjacking pour créateur·ices de contenu.
 
@@ -171,6 +172,13 @@ RÈGLES ABSOLUES :
 - Hook = max 20 mots, percutant, évite les questions rhétoriques mollasses
 - Description = 2-3 phrases maximum, concrète, avec un point de vue
 - Pour "recit_experience", la description DOIT préciser à la personne quoi raconter de son propre vécu (pas inventer à sa place)
+
+══════════════════════════════════════════════
+CHECK FINAL — pour CHAQUE angle, avant de l'écrire :
+══════════════════════════════════════════════
+Demande-toi : "Quel élément précis du profil cet angle utilise-t-il ?" (cible / activité / combat / pilier / valeur)
+- Si tu ne peux pas nommer l'élément → l'angle dérive, REFORMULE-le pour qu'il s'ancre dans la pertinence donnée plus haut.
+- Si l'angle ramène à un autre sujet plus lointain que celui de la pertinence → REFORMULE.
 
 ══════════════════════════════════════════════
 FORMAT DE RÉPONSE — JSON STRICT (pas de markdown)

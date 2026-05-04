@@ -23,6 +23,7 @@ interface Actu {
   type: "globale" | "niche";
   axe?: string;
   ton?: string;
+  force_pont?: "fort" | "moyen" | "fragile";
   pertinence: string;
   // angles are now generated on demand
 }
@@ -75,6 +76,12 @@ const TON_CONFIG: Record<string, { emoji: string; label: string; className: stri
   serieux_marquant: { emoji: "💭", label: "Marquant", className: "bg-secondary/40 text-secondary-foreground" },
   drole_decale: { emoji: "😏", label: "Drôle", className: "bg-[hsl(var(--accent))]/30 text-[hsl(var(--accent-foreground))]" },
   surprenant_contre_intuitif: { emoji: "⚡", label: "Surprenant", className: "bg-primary/10 text-primary" },
+};
+
+const PONT_CONFIG: Record<string, { emoji: string; label: string; className: string }> = {
+  fort: { emoji: "🟢", label: "Pont direct", className: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" },
+  moyen: { emoji: "🟡", label: "Pont élargi", className: "bg-amber-500/15 text-amber-700 dark:text-amber-400" },
+  fragile: { emoji: "🔴", label: "Pont fragile", className: "bg-muted text-muted-foreground" },
 };
 
 interface AnglesState {
@@ -367,6 +374,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
                   const anglesState = anglesByIdx[idx];
                   const axe = actu.axe ? AXE_CONFIG[actu.axe] : null;
                   const ton = actu.ton ? TON_CONFIG[actu.ton] : null;
+                  const pont = actu.force_pont ? PONT_CONFIG[actu.force_pont] : null;
                   return (
                     <motion.div
                       key={`${filter}-${idx}`}
@@ -396,6 +404,11 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
                             {ton && (
                               <span className={cn("text-[10px] px-2 py-0.5 rounded-full", ton.className)}>
                                 {ton.emoji} {ton.label}
+                              </span>
+                            )}
+                            {pont && (
+                              <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium", pont.className)} title="Force du lien entre l'actu et ton univers de marque">
+                                {pont.emoji} {pont.label}
                               </span>
                             )}
                             <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{actu.source}</span>

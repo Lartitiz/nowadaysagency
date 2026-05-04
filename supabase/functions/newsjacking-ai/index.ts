@@ -252,17 +252,25 @@ serve(async (req) => {
 
     const universeBlock = (universe.univers_emotionnel.length || universe.moments_de_vie_cible.length)
       ? `\n══════════════════════════════════════════════
-UNIVERS DE MARQUE ÉLARGI — utilise-le pour aller AU-DELÀ du métier littéral
+UNIVERS DE MARQUE ÉLARGI — hiérarchisé par FORCE DE PONT
 ══════════════════════════════════════════════
 
-Cette personne ne vend pas SEULEMENT "${nicheLabel}". Elle vend une transformation. Voici son univers étendu :
+Cette personne ne vend pas SEULEMENT "${nicheLabel}". Mais TOUS les éléments de son univers ne se valent PAS pour faire un pont solide. Classement obligatoire :
 
-- Univers émotionnel : ${universe.univers_emotionnel.join(", ") || "—"}
-- Moments de vie de la cible : ${universe.moments_de_vie_cible.join(", ") || "—"}
+🟢 NIVEAU 1 — PONTS FORTS (à privilégier massivement) :
 - Valeurs / combats adjacents : ${universe.valeurs_combat.join(", ") || "—"}
-- Lifestyle / esthétiques : ${universe.themes_lifestyle.join(", ") || "—"}
+- Moments de vie de la cible : ${universe.moments_de_vie_cible.join(", ") || "—"}
+→ Ces éléments concernent DIRECTEMENT la cible dans sa vie quotidienne ou dans ses convictions. Un sujet branché ici est immédiatement légitime.
 
-EXEMPLE DE RAISONNEMENT : si la personne vend de la lingerie, ne lui propose pas QUE des actus mode. Cherche aussi des actus sur le plaisir, la féminité, l'estime de soi, les rituels du soir, les fêtes des amoureux. C'est ÇA qui fait du newsjacking utile.\n`
+🟡 NIVEAU 2 — PONTS MOYENS (ok, mais avec un vrai angle) :
+- Univers émotionnel : ${universe.univers_emotionnel.join(", ") || "—"}
+→ Connectable, mais demande un angle clair pour ne pas tomber dans le "feel-good" générique.
+
+🔴 NIVEAU 3 — PONT FAIBLE (MAX 1 sujet sur l'ensemble) :
+- Lifestyle / esthétiques : ${universe.themes_lifestyle.join(", ") || "—"}
+→ Ces éléments sont décoratifs. Ils ne créent PAS de pont commercial. Utilise-les avec parcimonie.
+
+RÈGLE : si tu hésites entre un sujet niveau 1 et un sujet niveau 2/3, choisis TOUJOURS le niveau 1.\n`
       : "";
 
     const systemPrompt = `Tu es une assistante de veille culturelle pour créateur·ices de contenu et entrepreneur·es (tous secteurs, pas que les réseaux sociaux).
@@ -291,7 +299,7 @@ ${pickedAxes.map((a, i) => `  ${i + 1}. axe="${a.id}" → cherche : "${a.query}"
 Fais ces 3 recherches DIFFÉRENTES (pas une seule, les 3) :
 ${nicheQueries.map((q, i) => `  ${i + 1}. "${q}"`).join("\n")}
 
-${universeBlock ? `RÈGLE D'ÉLARGISSEMENT (importante) : sur les 3 sujets niche, MAXIMUM 1 doit parler du métier littéral ("${nicheLabel}"). Les 2 autres doivent venir de l'UNIVERS ÉLARGI ci-dessus (émotion / moments de vie / valeurs / lifestyle). Si une recherche niche ne donne rien d'élargi, refais-la avec d'autres termes de l'univers de marque.\n` : ""}
+${universeBlock ? `RÈGLE D'ANCRAGE NICHE (impérative) : sur les 3 sujets niche, MINIMUM 2 doivent rester ANCRÉS dans le métier littéral OU son extension directe (= sujets connectés à un terme de niveau 1 : valeurs/combats ou moments de vie où la cible vit RÉELLEMENT le besoin du produit/service). MAXIMUM 1 sujet niche peut venir d'un terme de niveau 2 (univers émotionnel). Sur l'ensemble des sujets renvoyés (globaux + niche), MAXIMUM 1 SEUL peut venir d'un terme de niveau 3 (lifestyle/esthétiques). Si une recherche niche te donne du lifestyle pur, jette-la et refais-la avec un terme de niveau 1.\n` : ""}
 
 ══════════════════════════════════════════════
 RÈGLE DU PONT EXPLICITE — GARDE-FOU N°1
@@ -326,6 +334,20 @@ Sur N sujets renvoyés (3 à 6), exactement ⌈N/3⌉ doivent être "decalant" (
 ATTENTION : un sujet "decalant" doit QUAND MÊME respecter le pont explicite. Décalant ≠ hors-sol.
 
 ══════════════════════════════════════════════
+GARDE-FOU N°3 — AUTO-ÉVALUATION DE LA FORCE DU PONT (NOUVEAU, OBLIGATOIRE)
+══════════════════════════════════════════════
+
+Pour CHAQUE sujet, attribue toi-même une note "force_pont" :
+
+- "fort" = le pont cite un élément LITTÉRAL du profil (cible exacte, activité exacte, combat exact, pilier exact, OU terme de NIVEAU 1 de l'univers élargi). La connexion est immédiate, sans paraphrase, et la cible la verrait sans qu'on lui explique.
+- "moyen" = le pont passe par un terme de NIVEAU 2 (univers émotionnel) et reste évident pour la cible, mais demande un angle clair.
+- "fragile" = le pont demande une étape de raisonnement pour être compris, OU repose uniquement sur du lifestyle/esthétique (niveau 3), OU fait appel à une analogie qu'il faut "déballer". → REJETTE le sujet, ne le renvoie pas.
+
+RÈGLE QUOTA : sur N sujets renvoyés, au moins ⌈N×2/3⌉ doivent être "fort". Au plus 1 seul peut être "fragile" (et même là : préfère ne pas le renvoyer).
+
+Avant d'écrire chaque sujet, demande-toi : "Si je montre cette pertinence à la personne sans contexte, est-ce qu'elle dit 'évidemment, c'est pour moi' ou est-ce qu'elle dit 'euh, pourquoi tu me parles de ça ?'". Si c'est la 2e → fragile → jette.
+
+══════════════════════════════════════════════
 INTERDIT
 ══════════════════════════════════════════════
 
@@ -348,6 +370,7 @@ FORMAT DE RÉPONSE — JSON STRICT (pas de markdown, pas de backticks)
       "type": "globale" | "niche",
       "axe": "mot_qui_revient" | "obsession_collective" | "comportement_emergent" | "debat_recurrent" | "objet_culturel" | "actu_connectable",
       "ton": "confortable" | "entre_deux" | "decalant",
+      "force_pont": "fort" | "moyen",
       "pertinence": "Pont explicite citant un élément précis du profil (cible/activité/combat/piliers)"
     }
   ]
@@ -358,6 +381,7 @@ RÉPARTITION SOUPLE — entre 3 et 6 sujets, qualité avant quantité :
 - Si un axe ne donne rien de connectable, renvoie moins. Minimum : 3 sujets au total avec au moins 1 globale ET 1 niche.
 - Règle absolue : JAMAIS 2 sujets du même axe.
 - Règle absolue : sur N sujets, ⌈N/3⌉ sont "decalant".
+- Règle absolue : sur N sujets, au moins ⌈N×2/3⌉ sont "fort". Aucun "fragile" ne doit être renvoyé.
 
 Si vraiment rien ne fonctionne (moins de 3 sujets connectés trouvables), retourne :
 { "actus": [], "message": "Pas de phénomène suffisamment connectable trouvé cette semaine. Réessaie dans quelques jours !" }`;
@@ -376,7 +400,7 @@ Si vraiment rien ne fonctionne (moins de 3 sujets connectés trouvables), retour
         model,
         max_tokens: 4096,
         tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 10 }],
-        messages: [{ role: "user", content: systemPrompt + `\n\nFais les recherches maintenant. Pour chaque sujet candidat, applique les 2 garde-fous : (1) pont explicite concret citant le profil, (2) registre tagué + ⌈N/3⌉ décalants. Si tu ne peux pas écrire un vrai pont concret, jette le sujet. Mieux vaut 3 sujets ultra-connectés que 6 hors-sol.` }],
+        messages: [{ role: "user", content: systemPrompt + `\n\nFais les recherches maintenant. Pour chaque sujet candidat, applique les 3 garde-fous : (1) pont explicite concret citant le profil, (2) registre tagué + ⌈N/3⌉ décalants, (3) auto-évalue "force_pont" — si "fragile", jette. Au moins 2/3 des sujets renvoyés doivent être "fort". Mieux vaut 3 sujets ultra-connectés que 6 hors-sol.` }],
       }),
       signal: controller.signal,
     });
