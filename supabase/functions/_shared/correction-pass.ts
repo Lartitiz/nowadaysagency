@@ -384,6 +384,12 @@ function reinjectCarouselTexts(parsed: any, correctedBlock: string): any {
     if (corrections.has(punchKey)) {
       slides[i].punchline = corrections.get(punchKey)!;
     }
+
+    // Overlay text (mixte / photo_full)
+    const overlayKey = `SLIDE ${num} - OVERLAY`;
+    if (corrections.has(overlayKey)) {
+      slides[i].overlay_text = corrections.get(overlayKey)!;
+    }
   }
 
   // Caption
