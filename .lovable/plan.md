@@ -1,61 +1,47 @@
-# Plan — Fiabiliser l'upload photo (carousel Instagram)
+## Problème
 
-## Diagnostic
+Dans `ContentCoachingDialog.tsx` (lignes 424-427), le champ `idea.angle` est rendu comme un **pill rose en majuscules, tracking étendu, `rounded-full`**. Comme l'IA renvoie en réalité un paragraphe descriptif long (la "tension" complète), on obtient un énorme blob rose qui occupe la moitié de la carte et devient illisible.
 
-Les erreurs visibles dans la console de la cliente :
 ```
-Unhandled rejection: Error: load
-  at d.onerror (CreerUnifie-…js:21:22175)
+┌──────────────────────────────┐
+│ Titre de l'idée              │
+│                              │
+│ ╭──── PILL ROSE GÉANT ─────╮ │
+│ │ DANS LE MILIEU DE LA COM'│ │
+│ │ ÉTHIQUE, ON RÉPÈTE...    │ │  ← problème
+│ │ ...TENSION : LIVRER DU.. │ │
+│ ╰──────────────────────────╯ │
+│ 🔥 Audacieux  👀 visibilite  │
+└──────────────────────────────┘
 ```
-…proviennent de `src/components/creer/PhotoUploadZone.tsx`, fonction `resizeAndEncode` :
 
-```ts
-img.onerror = () => reject(new Error("load"));
+## Solution (UI uniquement, frontend)
+
+Traiter `idea.angle` comme **du texte descriptif**, pas comme un tag :
+
+1. Le sortir de la rangée de pills (lignes 424-443).
+2. L'afficher juste sous le titre, dans un petit bloc de texte :
+   - Casse normale (pas d'`uppercase`, pas de `tracking-wider`)
+   - Couleur `text-muted-foreground`
+   - Taille `text-xs` ou `text-[11px]`, `leading-relaxed`
+   - `line-clamp-3` quand la carte n'est pas sélectionnée → expansion complète quand `isSelected`
+   - Pas de fond rose plein : soit aucun fond, soit un `border-l-2 border-primary/40 pl-2` discret pour garder une touche de couleur sans dominer la carte.
+3. Garder uniquement les vraies pills courtes dans la rangée du bas : `boldness` (🔥/💥/🌱) + `objective_tag` (👀/🤝/💰/🎓) + le lien "Voir le détail →".
+4. `why_it_works` (visible quand sélectionné) reste tel quel.
+
+## Résultat attendu
+
+```
+┌──────────────────────────────┐
+│ Titre de l'idée              │
+│ │ Dans le milieu de la com'  │
+│ │ éthique, on répète... (3l) │  ← texte sobre, line-clamp
+│                              │
+│ 🔥 Audacieux  👀 visibilité  │
+│                Voir le détail│
+└──────────────────────────────┘
 ```
 
-### Cause racine
+## Fichier touché
 
-1. **Format non décodable par le navigateur** — quasi-certain : la cliente est probablement sur iPhone, ses photos sont en **HEIC/HEIF**. L'`<input accept="image/*">` les accepte, mais Chrome/Firefox/Safari desktop ne savent pas les rendre via `<img>` → `onerror` "load".
-2. **Aucun try/catch autour de `processFiles`** : `Promise.all` rejette, l'erreur remonte en `unhandledrejection`, **aucun toast ne s'affiche**, la cliente voit juste "rien ne se passe".
-3. **Pas de garde-fou de taille** : un fichier 50 Mo finit aussi en échec silencieux.
-
-Les autres erreurs visibles (Invalid Refresh Token, PostHog token manquant) sont **indépendantes** de ce bug et n'empêchent pas l'upload.
-
-## Correctifs
-
-### 1. Convertir le HEIC à la volée (priorité 1)
-Dans `PhotoUploadZone.tsx` :
-- Ajouter dépendance `heic2any` (lib client, ~80 Ko, fonctionne dans le navigateur).
-- Dans `processFiles`, détecter `file.type === "image/heic" | "image/heif"` ou extension `.heic/.heif` (Safari iOS envoie parfois un type vide), et convertir en JPEG **avant** `resizeAndEncode`.
-- Limiter à 25 Mo / fichier.
-
-### 2. Gérer les erreurs proprement
-- Wrapper chaque conversion dans un `Promise.allSettled` au lieu de `Promise.all`.
-- Pour chaque rejet : afficher un `toast.error` clair, ex :
-  - « Impossible de lire `IMG_1234.HEIC`. Convertis-la en JPEG ou réessaie. »
-  - « `photo.png` est trop lourde (32 Mo). Compresse-la avant upload. »
-- Garder les photos qui ont réussi.
-
-### 3. Améliorer l'UX du `<input>`
-- Restreindre `accept` : `image/jpeg,image/png,image/webp,image/heic,image/heif` (évite PDF / vidéos déposés par erreur).
-- Sous le drop-zone, ajouter une note : « Les photos iPhone (HEIC) sont converties automatiquement. »
-
-### 4. Logs de debug
-- En cas d'erreur de conversion, log `console.warn("[photo-upload] failed", file.name, file.type, file.size, err)` pour diagnostiquer les futurs cas.
-
-## Fichiers touchés
-
-- `src/components/creer/PhotoUploadZone.tsx` — conversion HEIC + gestion d'erreurs + toasts
-- `package.json` — ajout `heic2any`
-
-## Hors scope
-
-- Erreur Refresh Token Supabase (souvent un onglet resté ouvert trop longtemps — à traiter séparément si récurrent).
-- Avertissement PostHog (config indépendante, pas bloquant).
-- Autres `PhotoUploadZone` du flow (`CreerStepFormat.tsx`) bénéficient automatiquement du fix puisqu'on patche le composant partagé.
-
-## Test de validation
-
-1. Uploader une photo `.HEIC` exportée d'un iPhone → doit apparaître dans la grille comme JPEG.
-2. Uploader un fichier `.mp4` → toast d'erreur clair, pas de crash.
-3. Uploader un mix (1 HEIC + 1 JPEG) → les deux apparaissent.
+- `src/components/dashboard/ContentCoachingDialog.tsx` — uniquement le bloc de rendu d'une `idea` (≈ lignes 411-450). Aucun changement backend, prompt ou typage.
