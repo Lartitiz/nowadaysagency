@@ -252,17 +252,25 @@ serve(async (req) => {
 
     const universeBlock = (universe.univers_emotionnel.length || universe.moments_de_vie_cible.length)
       ? `\n══════════════════════════════════════════════
-UNIVERS DE MARQUE ÉLARGI — utilise-le pour aller AU-DELÀ du métier littéral
+UNIVERS DE MARQUE ÉLARGI — hiérarchisé par FORCE DE PONT
 ══════════════════════════════════════════════
 
-Cette personne ne vend pas SEULEMENT "${nicheLabel}". Elle vend une transformation. Voici son univers étendu :
+Cette personne ne vend pas SEULEMENT "${nicheLabel}". Mais TOUS les éléments de son univers ne se valent PAS pour faire un pont solide. Classement obligatoire :
 
-- Univers émotionnel : ${universe.univers_emotionnel.join(", ") || "—"}
-- Moments de vie de la cible : ${universe.moments_de_vie_cible.join(", ") || "—"}
+🟢 NIVEAU 1 — PONTS FORTS (à privilégier massivement) :
 - Valeurs / combats adjacents : ${universe.valeurs_combat.join(", ") || "—"}
-- Lifestyle / esthétiques : ${universe.themes_lifestyle.join(", ") || "—"}
+- Moments de vie de la cible : ${universe.moments_de_vie_cible.join(", ") || "—"}
+→ Ces éléments concernent DIRECTEMENT la cible dans sa vie quotidienne ou dans ses convictions. Un sujet branché ici est immédiatement légitime.
 
-EXEMPLE DE RAISONNEMENT : si la personne vend de la lingerie, ne lui propose pas QUE des actus mode. Cherche aussi des actus sur le plaisir, la féminité, l'estime de soi, les rituels du soir, les fêtes des amoureux. C'est ÇA qui fait du newsjacking utile.\n`
+🟡 NIVEAU 2 — PONTS MOYENS (ok, mais avec un vrai angle) :
+- Univers émotionnel : ${universe.univers_emotionnel.join(", ") || "—"}
+→ Connectable, mais demande un angle clair pour ne pas tomber dans le "feel-good" générique.
+
+🔴 NIVEAU 3 — PONT FAIBLE (MAX 1 sujet sur l'ensemble) :
+- Lifestyle / esthétiques : ${universe.themes_lifestyle.join(", ") || "—"}
+→ Ces éléments sont décoratifs. Ils ne créent PAS de pont commercial. Utilise-les avec parcimonie.
+
+RÈGLE : si tu hésites entre un sujet niveau 1 et un sujet niveau 2/3, choisis TOUJOURS le niveau 1.\n`
       : "";
 
     const systemPrompt = `Tu es une assistante de veille culturelle pour créateur·ices de contenu et entrepreneur·es (tous secteurs, pas que les réseaux sociaux).
