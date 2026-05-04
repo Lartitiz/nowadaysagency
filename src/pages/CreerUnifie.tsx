@@ -757,10 +757,8 @@ export default function CreerUnifie() {
       ? ideaText + "\n\n[Contenu existant à approfondir]\n" + existingCalendarContent
       : ideaText;
 
-    // Newsjacking : injecter le contexte actualité dans le sujet pour TOUS les formats
-    if (newsjackingContext) {
-      enrichedSubject = `${enrichedSubject}\n\n--- CONTEXTE ACTUALITÉ ---\n${newsjackingContext}\n--- FIN CONTEXTE ACTUALITÉ ---\n\nIMPORTANT : Ce contenu est un newsjacking. Le HOOK / ACCROCHE (slide 1, première phrase) DOIT partir de l'actualité elle-même — c'est elle qui capte l'attention car elle est dans l'air du temps. Ensuite seulement, fais le pont vers l'expertise, le vécu ou le positionnement de l'utilisateur·ice. L'actu n'est pas un prétexte en arrière-plan : c'est le point d'entrée visible du contenu.`;
-    }
+    // Newsjacking : ne PAS injecter le bloc actu dans le subject (cap creative-flow.context = 8000).
+    // Il voyage dans le champ dédié `newsContext` qui a son propre cap côté edge.
 
     // Formats texte : utiliser le streaming SSE
     const textFormats = ["post", "linkedin", "newsletter", "pinterest"];
