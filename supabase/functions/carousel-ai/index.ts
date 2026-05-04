@@ -1632,6 +1632,8 @@ La "cascade" est le défaut #1 des carrousels mixtes IA : chaque slide texte par
 - Test slide-seule : chaque slide texte doit pouvoir être lue HORS contexte et garder un message clair. Si elle a besoin de la précédente pour faire sens → c'est une cascade : fusionne ou supprime.
 - Anti-TU : voix principale = JE (expérience partagée). Le TU est limité à 2 slides max d'interpellation ponctuelle, jamais comme voix narrative.
 
+${SLIDE_TITLE_RULES}
+
 
 ═══ ASSIGNATION DES PHOTOS ═══
 
