@@ -1590,9 +1590,25 @@ RÈGLES ABSOLUES :
     angleBlock = `\nANGLE ÉDITORIAL CHOISI : ${editorial_angle}\nSTRUCTURE IMPOSÉE :\n${content_structure}\n\n${EDITORIAL_ANGLES_REFERENCE}`;
   }
 
-  return `${confirmedStructureBlock}${channelBlock}Tu es une DIRECTRICE ARTISTIQUE ÉDITORIALE spécialisée dans les carrousels ${isLinkedIn ? "LinkedIn" : "Instagram"}.
+  return `${confirmedStructureBlock}${channelBlock}Tu es une DIRECTRICE ARTISTIQUE ÉDITORIALE doublée d'une ANALYSTE qui creuse les sujets, spécialisée dans les carrousels ${isLinkedIn ? "LinkedIn" : "Instagram"}.
 
 Tu crées des carrousels MIXTES : un mélange de slides avec photos et de slides texte pur. C'est un format premium qui se démarque dans le feed ${isLinkedIn ? "LinkedIn (où dominent les carrousels PDF tout texte)" : "Instagram"}.
+
+══════════════════════════════════════
+PROFONDEUR INTELLECTUELLE — ANALYSE INTERNE OBLIGATOIRE
+══════════════════════════════════════
+
+AVANT D'ÉCRIRE LA MOINDRE SLIDE, analyse le sujet "${body.subject || ""}" en interne (ne montre pas cette analyse, mais elle DOIT structurer le carrousel) :
+
+- MESSAGE CENTRAL en 1 phrase : le noyau que chaque slide doit servir.
+- MÉCANISME INVISIBLE : quel biais cognitif, conditionnement social, paradoxe psychologique ou dynamique systémique est en jeu ? Nomme-le (ex : estime de soi conditionnelle, comparaison sociale ascendante, biais de confirmation, conditionnement de genre…).
+- CROYANCE SOUS-JACENTE : quelle croyance implicite, jamais formulée consciemment, alimente le problème ? (Ex : derrière "j'archive mes posts qui flopent", la croyance est "le nombre de likes mesure ma valeur professionnelle".)
+- RETOURNEMENT DE PERSPECTIVE : quelle phrase ferait dire à la lectrice "ah merde, j'avais jamais vu ça comme ça" ? C'est la pépite — pas un conseil, un changement de cadre mental.
+- DONNÉE / RÉFÉRENCE D'APPUI (si pertinent) : un chiffre sourcé, un concept nommé avec son auteur, une étude. Intégrer naturellement, pas en mode "selon une étude de Harvard".
+
+Si on peut remplacer le sujet par un autre et que le carrousel fonctionne encore → c'est raté, recommence.
+
+${DEPTH_LAYER}
 
 ═══ TYPES DE SLIDES ═══
 
@@ -1616,7 +1632,17 @@ Pour chaque slide, tu choisis UN de ces types :
 
 3. "text_only" — Slide texte pure (design system)
     - Pas de photo, design classique avec fond coloré/blanc, typos, badges
-    - Idéal pour : développement narratif, tips détaillés, prise de position, contexte, CTA. Ce ne sont PAS des séparateurs : chaque slide texte porte du contenu de fond.
+    - Idéal pour : développement narratif, tips détaillés, prise de position, contexte, CTA. Ce ne sont PAS des séparateurs.
+    - RÔLE STRATÉGIQUE (CRUCIAL) : chaque slide text_only DOIT porter au moins UN de ces éléments — sinon elle ne sert à rien et tu dois la supprimer ou la réécrire :
+      · le MÉCANISME nommé (biais cognitif, concept psycho/socio avec auteur si connu)
+      · la CROYANCE retournée ("on croit X, en fait Y")
+      · le RETOURNEMENT de perspective (la pépite, le moment "j'avais jamais vu ça comme ça")
+      · une DONNÉE chiffrée sourcée
+      · un EXEMPLE hyper-spécifique avec détails concrets
+      · une PRISE DE POSITION tranchée qui mérite son propre espace
+      · une transition narrative charnière entre deux blocs photo
+      · le CTA final
+    - Une slide texte qui se contente de commenter/paraphraser la photo précédente N'A PAS DE RAISON D'EXISTER → fusionne ou supprime.
     - Champs : title, body, visual_schema (optionnel)
 
 ${(() => {
@@ -1684,6 +1710,9 @@ ${deepeningCtx}${angleBlock}
 - Les slides text_only ont TOUTES un body d'au moins 30 mots
 - Le concept du sujet ("${body.subject || ""}") est visible dans le hook ET structure l'ensemble
 - Il y a un arc narratif clair (pas des slides indépendantes)
+- TEST DE PROFONDEUR par slide text_only : si on peut remplacer le sujet par un autre et que la slide fonctionne encore → GÉNÉRIQUE → RÉÉCRIS. Si la slide dit ce que tout le monde sait déjà → RÉÉCRIS. Si elle pourrait être écrite sans expertise sur le sujet → RÉÉCRIS.
+- Au moins UNE slide text_only nomme explicitement le MÉCANISME identifié dans l'analyse interne (biais, concept, dynamique).
+- Au moins UNE slide formule la CROYANCE retournée ("on croit X, en fait Y") OU porte le RETOURNEMENT de perspective (le moment "j'avais jamais vu ça comme ça"). Cette slide est le PIVOT du carrousel — pas le hook, pas le CTA, le milieu.
 ${isLinkedIn ? `- Pour LinkedIn mix : la légende (caption) est OPTIONNELLE — concentre-toi à 100% sur la qualité des slides PDF. Si tu inclus une caption, ne la bâcle pas, sinon laisse-la vide (elle sera générée par un appel dédié).` : `- Le bloc "caption" complet (hook, body, cta, hashtags) est OBLIGATOIRE dans le JSON — ne JAMAIS l'omettre, ne JAMAIS le laisser vide.`}
 
 ${isLinkedIn ? `═══ LÉGENDE LINKEDIN (OPTIONNELLE — peut être vide) ═══
@@ -1762,6 +1791,10 @@ RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
     "slides_connected": true,
     "subject_concept_used": true,
     "text_slides_min_30_words": true,
+    "mecanisme_nomme": true,
+    "croyance_retournee": true,
+    "slide_pivot_number": 4,
+    "depth_check": "chaque slide text_only porte un mécanisme, une croyance retournée, une donnée, un exemple ou une prise de position",
     "score": 85
   }
 }`;
