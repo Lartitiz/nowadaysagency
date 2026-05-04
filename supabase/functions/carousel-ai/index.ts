@@ -1632,7 +1632,17 @@ Pour chaque slide, tu choisis UN de ces types :
 
 3. "text_only" — Slide texte pure (design system)
     - Pas de photo, design classique avec fond coloré/blanc, typos, badges
-    - Idéal pour : développement narratif, tips détaillés, prise de position, contexte, CTA. Ce ne sont PAS des séparateurs : chaque slide texte porte du contenu de fond.
+    - Idéal pour : développement narratif, tips détaillés, prise de position, contexte, CTA. Ce ne sont PAS des séparateurs.
+    - RÔLE STRATÉGIQUE (CRUCIAL) : chaque slide text_only DOIT porter au moins UN de ces éléments — sinon elle ne sert à rien et tu dois la supprimer ou la réécrire :
+      · le MÉCANISME nommé (biais cognitif, concept psycho/socio avec auteur si connu)
+      · la CROYANCE retournée ("on croit X, en fait Y")
+      · le RETOURNEMENT de perspective (la pépite, le moment "j'avais jamais vu ça comme ça")
+      · une DONNÉE chiffrée sourcée
+      · un EXEMPLE hyper-spécifique avec détails concrets
+      · une PRISE DE POSITION tranchée qui mérite son propre espace
+      · une transition narrative charnière entre deux blocs photo
+      · le CTA final
+    - Une slide texte qui se contente de commenter/paraphraser la photo précédente N'A PAS DE RAISON D'EXISTER → fusionne ou supprime.
     - Champs : title, body, visual_schema (optionnel)
 
 ${(() => {
