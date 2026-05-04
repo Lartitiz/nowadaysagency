@@ -1694,7 +1694,7 @@ RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
       "slide_type": "text_only",
       "photo_index": null,
       "role": "context",
-      "title": "placeholder — titre de slide",
+      "title": "placeholder — entrée scène/JE en 4-9 mots, PAS un titre-annonce",
       "body": "placeholder — body de 30-50 mots, écrit en JE, qui pose UN point précis lié au brief, sans ouvrir par 'En vrai/Sauf que/Le vrai X', sans amplification dramatique, avec un détail concret ou une scène vécue.",
       "visual_schema": null
     },
