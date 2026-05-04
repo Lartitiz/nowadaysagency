@@ -498,6 +498,7 @@ export function useContentGenerator() {
                 ? params.photos!.map((p) => ({ base64: p.base64, context: p.context }))
                 : undefined,
               photo_description: visionMode ? params.photoDescription || undefined : undefined,
+              ...(params.newsContext && params.newsContext.trim() ? { news_context: params.newsContext.slice(0, 3800) } : {}),
             },
           }, visionMode ? 90000 : 60000);
           data = res.data;
