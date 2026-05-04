@@ -1,11 +1,20 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
-import { callAnthropic, getModelForAction } from "../_shared/anthropic.ts";
+import { AnthropicError, callAnthropic, getModelForAction } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildIdentityBlock } from "../_shared/user-context.ts";
 import { IDEA_LENSES, pickLenses, WOW_IDEA_EXAMPLES } from "../_shared/copywriting-prompts.ts";
+
+const MAX_CONTEXT_CHARS = 12000;
+const MAX_LIVING_MATTER_CHARS = 4500;
+const MAX_HISTORY_CHARS = 2200;
+
+function truncateForPrompt(text: string, maxChars: number): string {
+  if (!text || text.length <= maxChars) return text;
+  return `${text.slice(0, maxChars).trim()}\n[… contexte tronqué pour garder la génération stable …]`;
+}
 
 
 Deno.serve(async (req) => {
@@ -173,7 +182,18 @@ Deno.serve(async (req) => {
         .limit(3),
     ]);
 
-    const contextText = formatContextForAI(ctx, CONTEXT_PRESETS.content);
+    const contextText = truncateForPrompt(
+      formatContextForAI(ctx, {
+        ...CONTEXT_PRESETS.content,
+        includeStory: false,
+        includePersona: false,
+        includeOffers: false,
+        includeEditorial: false,
+        includeCharter: false,
+        includeMirror: false,
+      }),
+      MAX_CONTEXT_CHARS,
+    );
 
     // ─── Build LIVING MATTER block ───
     const livingMatterParts: string[] = [];
@@ -234,10 +254,10 @@ Deno.serve(async (req) => {
     const generatedContent = (generatedRes.data || [])
       .map((g: any) => `- "${g.subject}"${g.hook_text ? ` → hook: "${g.hook_text}"` : ""} (${g.carousel_type}, ${g.objective || "?"})`)
       .join("\n");
-    const recentPosts = [
+    const recentPosts = truncateForPrompt([
       calendarPosts ? `Posts planifiés :\n${calendarPosts}` : "",
       generatedContent ? `Contenus générés :\n${generatedContent}` : "",
-    ].filter(Boolean).join("\n\n") || "Aucun historique";
+    ].filter(Boolean).join("\n\n") || "Aucun historique", MAX_HISTORY_CHARS);
 
     const strategy = strategyRes.data;
     const pillars = strategy
@@ -440,7 +460,7 @@ Retourne UNIQUEMENT ce JSON (pas de markdown, pas de commentaires, pas de prose 
 
     const raw = await callAnthropic({
       model: getModelForAction("coaching"),
-      system: systemPrompt,
+      system: truncateForPrompt(systemPrompt, MAX_CONTEXT_CHARS + MAX_LIVING_MATTER_CHARS + 12000),
       messages: [
         {
           role: "user",
@@ -505,6 +525,12 @@ Retourne UNIQUEMENT ce JSON (pas de markdown, pas de commentaires, pas de prose 
     });
   } catch (e) {
     console.error("content-coaching error:", e);
+    if (e instanceof AnthropicError) {
+      return new Response(JSON.stringify({ error: e.message }), {
+        status: e.status >= 400 && e.status < 600 ? e.status : 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     return new Response(JSON.stringify({ error: "Erreur interne du serveur" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
