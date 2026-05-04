@@ -299,7 +299,7 @@ ${pickedAxes.map((a, i) => `  ${i + 1}. axe="${a.id}" → cherche : "${a.query}"
 Fais ces 3 recherches DIFFÉRENTES (pas une seule, les 3) :
 ${nicheQueries.map((q, i) => `  ${i + 1}. "${q}"`).join("\n")}
 
-${universeBlock ? `RÈGLE D'ÉLARGISSEMENT (importante) : sur les 3 sujets niche, MAXIMUM 1 doit parler du métier littéral ("${nicheLabel}"). Les 2 autres doivent venir de l'UNIVERS ÉLARGI ci-dessus (émotion / moments de vie / valeurs / lifestyle). Si une recherche niche ne donne rien d'élargi, refais-la avec d'autres termes de l'univers de marque.\n` : ""}
+${universeBlock ? `RÈGLE D'ANCRAGE NICHE (impérative) : sur les 3 sujets niche, MINIMUM 2 doivent rester ANCRÉS dans le métier littéral OU son extension directe (= sujets connectés à un terme de niveau 1 : valeurs/combats ou moments de vie où la cible vit RÉELLEMENT le besoin du produit/service). MAXIMUM 1 sujet niche peut venir d'un terme de niveau 2 (univers émotionnel). Sur l'ensemble des sujets renvoyés (globaux + niche), MAXIMUM 1 SEUL peut venir d'un terme de niveau 3 (lifestyle/esthétiques). Si une recherche niche te donne du lifestyle pur, jette-la et refais-la avec un terme de niveau 1.\n` : ""}
 
 ══════════════════════════════════════════════
 RÈGLE DU PONT EXPLICITE — GARDE-FOU N°1
