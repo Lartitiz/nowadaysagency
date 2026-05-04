@@ -314,7 +314,7 @@ export default function CreerStepResult({
     const r = result?.raw || result;
     if (format === "carousel" && (r?.carousel_type === "photo" || r?.carousel_type === "mix") && photos && photos.length > 0) {
       return (
-        <CarouselPhotoResult result={result} photos={photos} onSlidesUpdate={onSlidesUpdate} visualSlides={visualSlides} channel={channel} onRetry={onRegenerate} captionLoading={captionLoading} onRegenerateCaption={onRegenerateCaption} />
+        <CarouselPhotoResult result={result} photos={photos} onSlidesUpdate={onSlidesUpdate} visualSlides={visualSlides} channel={channel} onRetry={onRegenerate} captionLoading={captionLoading} onRegenerateCaption={onRegenerateCaption} onRegenerateVisuals={onGenerateVisuals} visualLoading={visualLoading} />
       );
     }
 
