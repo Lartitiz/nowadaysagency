@@ -278,6 +278,13 @@ Corriger UNIQUEMENT le texte. Retourner le MÊME format annoté avec les textes 
 8. ANAPHORES (3+ phrases qui démarrent pareil) :
    → Varie les structures.
 
+9. TITRES DE SLIDE GÉNÉRIQUES (CRITIQUE — slides 2 à N-1, marqueur [SLIDE N - TITLE]) :
+   → Si le titre commence par "L'art de", "L'importance de", "Repenser", "Le vrai", "Le piège de", "Une nouvelle", "Ce qui change", "Pourquoi c'est", "Mieux comprendre", "Au cœur de" → RÉÉCRIS en entrée scène/JE/détail concret (4-9 mots).
+   → Si le titre est un mot-concept abstrait seul (1-2 mots type "Authenticité", "Cohérence", "Stratégie", "L'essentiel") → RÉÉCRIS avec un ancrage concret.
+   → Test : si le titre pourrait être collé sur un autre carrousel d'un autre métier sans changer un mot → INVALIDE, réécris.
+   ❌ "L'art du détail" / "Repenser sa stratégie" / "Le piège de la régularité"
+   → ✅ "47 brouillons. 0 publié." / "J'ai arrêté de checker à 22h." / "Une cliente m'a dit : tu fais peur."
+   → Garde le SENS de la slide (BODY associé) — change uniquement le titre pour qu'il entre dans la scène.
 ══ FORMAT DE RÉPONSE ══
 Retourne EXACTEMENT le même format annoté :
 [SLIDE 1 - HOOK] texte corrigé
@@ -297,6 +304,7 @@ Retourne EXACTEMENT le même format annoté :
 □ Slides en mode TU > 2 ? → réécris en JE/NOUS
 □ Slide 1 = "X sans Y, c'est Z" ? → réécris avec fait concret
 □ Dernière slide = "Et toi..." ? → question spécifique
+□ Titres de slide génériques ("L'art de", "Repenser", concept abstrait seul) ? → réécris en scène/JE/détail
 □ Formule manufacturée restante ? → réécris
 □ INDISTINGUABLE d'un humain ? → si non, recommence`;
 

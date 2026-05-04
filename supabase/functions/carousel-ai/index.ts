@@ -3,7 +3,7 @@ import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallbac
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropic, getModelForAction, getModelForRichContent } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { ANTI_SLOP, EDITORIAL_ANGLES_REFERENCE, CHAIN_OF_THOUGHT, DEPTH_LAYER, PREGEN_INJECTION_RULES, EMBEDDED_EDUCATION } from "../_shared/copywriting-prompts.ts";
+import { ANTI_SLOP, EDITORIAL_ANGLES_REFERENCE, CHAIN_OF_THOUGHT, DEPTH_LAYER, PREGEN_INJECTION_RULES, EMBEDDED_EDUCATION, SLIDE_TITLE_RULES } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
@@ -333,10 +333,12 @@ MISSION : Propose une structure narrative optimale pour un carrousel. Tu ne gén
 RÈGLES :
 - Chaque slide a un rôle narratif clair (hook, problème, mythe, exemple, solution, transformation, CTA…)
 - Justifie chaque choix de position en 1 phrase max
-- Propose des titres courts (4-7 mots), percutants, en français
+- Propose des titres scène-first en 4-9 mots (voir RÈGLES TITRES ci-dessous), en français
 - Sois concise et actionnable, pas théorique
 - Le nombre de slides doit être entre ${slide_count || 7} et ${(slide_count || 7) + 2}
 ${photoInstruction}
+
+${SLIDE_TITLE_RULES}
 
 CONTEXTE BRANDING :
 ${brandingContext}
@@ -684,10 +686,12 @@ Si des réponses d'approfondissement sont fournies, elles sont PLUS IMPORTANTES 
 
 ${PREGEN_INJECTION_RULES}
 
+${SLIDE_TITLE_RULES}
+
 RÈGLES ABSOLUES DES CARROUSELS :
 - Slide 1 (hook) : MAXIMUM 12 mots. Règle stricte.
 - Chaque slide : MAXIMUM 50 mots. 1 idée par slide. Mais ces 50 mots doivent être des PHRASES COMPLÈTES ET FLUIDES, pas des fragments hachés. Écris 2-3 phrases qui coulent, pas 6 bouts de phrases de 5 mots. Le rythme oral s'applique aussi dans les slides.
-- Mini-headlines (title) : 4-7 mots, percutant.
+- Mini-headlines (title) : 4-9 mots, scène-first / JE — voir RÈGLES TITRES injectées ci-dessus. JAMAIS de tête de chapitre générique ("L'art de…", "L'importance de…", "Repenser…").
 - Le body de chaque slide : prose fluide, pas de liste, pas de rafale "Phrase courte. Phrase courte. Phrase courte."
 - Dernière slide : 1 seul CTA. Pas 2, pas 3. Un seul.
 - La slide 2 doit fonctionner comme hook autonome (seconde chance algorithmique).
@@ -784,7 +788,7 @@ RÈGLES :
 - Chaque slide : max 50 mots, 1 idée, mais en PHRASES COMPLÈTES. Pas de fragments. Pas de rafales "Phrase. Phrase. Phrase." Le body est de la prose fluide : 2-3 phrases qui développent l'idée.
 - Slide 2 = DOIT fonctionner comme hook autonome (seconde chance algo)
 - Dernière slide = 1 SEUL CTA
-- Headlines (title) : 4-7 mots, percutant
+- Headlines (title) : 4-9 mots, scène-first / JE (voir RÈGLES TITRES système). Pas de tête de chapitre.
 - Caption différente du hook slide 1
 - Hashtags : 3-8, mix large + niche${extraRules}
 
@@ -1276,7 +1280,7 @@ STRUCTURE :
 - Slide 2 = DOIT fonctionner comme hook autonome (seconde chance algorithmique).
 - Chaque slide : max ${isLinkedIn ? "80" : "50"} mots, 1 idée principale. Des PHRASES COMPLÈTES ET FLUIDES : 2-3 phrases qui développent l'idée, pas des fragments hachés ni des rafales de 3-4 mots.
 - Dernière slide = 1 SEUL CTA. Pas 2. Pas 3.
-- Headlines (title) : 4-7 mots, verbe d'action ou déclencheur émotionnel.
+- Headlines (title) : 4-9 mots, scène-first / JE — voir RÈGLES TITRES système. Pas de "L'art de", "L'importance de", "Repenser", "Le piège de".
 
 NARRATION :
 - ARC NARRATIF OBLIGATOIRE : situation → tension → développement → résolution → ouverture. Même un carrousel "tips" a un fil conducteur, pas juste une liste.
@@ -1628,6 +1632,8 @@ La "cascade" est le défaut #1 des carrousels mixtes IA : chaque slide texte par
 - Test slide-seule : chaque slide texte doit pouvoir être lue HORS contexte et garder un message clair. Si elle a besoin de la précédente pour faire sens → c'est une cascade : fusionne ou supprime.
 - Anti-TU : voix principale = JE (expérience partagée). Le TU est limité à 2 slides max d'interpellation ponctuelle, jamais comme voix narrative.
 
+${SLIDE_TITLE_RULES}
+
 
 ═══ ASSIGNATION DES PHOTOS ═══
 
@@ -1688,7 +1694,7 @@ RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
       "slide_type": "text_only",
       "photo_index": null,
       "role": "context",
-      "title": "placeholder — titre de slide",
+      "title": "placeholder — entrée scène/JE en 4-9 mots, PAS un titre-annonce",
       "body": "placeholder — body de 30-50 mots, écrit en JE, qui pose UN point précis lié au brief, sans ouvrir par 'En vrai/Sauf que/Le vrai X', sans amplification dramatique, avec un détail concret ou une scène vécue.",
       "visual_schema": null
     },
@@ -1698,7 +1704,7 @@ RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
       "photo_index": 2,
       "photo_layout": "top_photo",
       "role": "detail",
-      "title": "placeholder — titre",
+      "title": "placeholder — entrée scène/JE en 4-9 mots, PAS un titre-annonce",
       "body": "placeholder — texte qui accompagne la photo dans le layout",
       "note": "placeholder — note DA"
     }
