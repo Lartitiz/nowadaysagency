@@ -971,6 +971,7 @@ export default function CreerUnifie() {
         ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context })), photoDescription } : {}),
         ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context })), photoDescription } : {}),
         ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? [{ base64: uploadedPhotos[0]?.base64, context: uploadedPhotos[0]?.context }] : undefined, photoDescription } : {}),
+        ...(newsjackingContext ? { newsContext: newsjackingContext } : {}),
       });
       return;
     }
