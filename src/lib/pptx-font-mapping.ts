@@ -181,9 +181,25 @@ export function pxToInches(px: number, pxPerInch: number): number {
   return Math.max(0, px / pxPerInch);
 }
 
+export interface TextRun {
+  text: string;
+  bold?: boolean;
+  italic?: boolean;
+  /** Hex 6 chars sans `#` (déjà normalisé). Undefined = hérite du frame. */
+  color?: string;
+  /** Poids brut (info / debug). pptxgenjs utilise `bold`. */
+  fontWeight?: number;
+}
+
 export interface EditableBlock {
   el: Element;
   text: string;
+  /**
+   * Runs typographiques inline (italic/bold/color via <span>, <em>, <strong>...).
+   * Présent UNIQUEMENT si le bloc contient au moins un override par rapport au
+   * style du frame. Sinon undefined → l'exporter utilise le chemin "texte plat".
+   */
+  runs?: TextRun[];
   rect: { x: number; y: number; w: number; h: number };
   style: {
     color: string;
