@@ -137,8 +137,8 @@ Deno.serve(async (req) => {
     const filterCol = workspace_id ? "workspace_id" : "user_id";
     const filterVal = workspace_id || user.id;
 
-    // Fetch context, recent posts, generated content, and strategy in parallel
-    const [ctx, recentPostsRes, strategyRes, generatedRes] = await Promise.all([
+    // Fetch context, recent posts, generated content, strategy + LIVING MATTER (persona, storytelling, offers) in parallel
+    const [ctx, recentPostsRes, strategyRes, generatedRes, personaRes, storytellingRes, offersRes] = await Promise.all([
       getUserContext(sbService, user.id, workspace_id),
       sbService.from("calendar_posts")
         .select("theme, accroche, date, canal, format")
@@ -154,9 +154,62 @@ Deno.serve(async (req) => {
         .eq(filterCol === "workspace_id" ? "workspace_id" : "user_id", filterCol === "workspace_id" ? filterVal : user.id)
         .order("created_at", { ascending: false })
         .limit(8),
+      sbService.from("persona")
+        .select("portrait_prenom, description, step_1_frustrations, step_2_transformation, step_3a_objections, frustrations_detail, desires, objections, pitch_short")
+        .eq(filterCol, filterVal)
+        .order("is_primary", { ascending: false })
+        .order("updated_at", { ascending: false })
+        .limit(2),
+      sbService.from("storytelling")
+        .select("title, story_type, pitch_short, step_1_raw, step_6_full_story, is_primary")
+        .eq(filterCol, filterVal)
+        .order("is_primary", { ascending: false })
+        .order("updated_at", { ascending: false })
+        .limit(5),
+      sbService.from("offers")
+        .select("name, offer_type, problem_surface, problem_deep, promise, sales_line, price_text")
+        .eq(filterCol, filterVal)
+        .order("updated_at", { ascending: false })
+        .limit(3),
     ]);
 
     const contextText = formatContextForAI(ctx, CONTEXT_PRESETS.content);
+
+    // ─── Build LIVING MATTER block ───
+    const livingMatterParts: string[] = [];
+    const personas = (personaRes.data || []).filter((p: any) => p && (p.description || p.step_1_frustrations || p.pitch_short));
+    if (personas.length > 0) {
+      const lines = personas.map((p: any, i: number) => {
+        const name = p.portrait_prenom ? `"${p.portrait_prenom}"` : `Persona ${i + 1}`;
+        const frust = (p.step_1_frustrations || "").trim().slice(0, 220);
+        const trans = (p.step_2_transformation || "").trim().slice(0, 180);
+        const objs = (p.step_3a_objections || "").trim().slice(0, 180);
+        const desc = (p.description || p.pitch_short || "").trim().slice(0, 180);
+        return `  • ${name}${desc ? ` — ${desc}` : ""}${frust ? `\n      Frustrations : ${frust}` : ""}${trans ? `\n      Transformation visée : ${trans}` : ""}${objs ? `\n      Objections : ${objs}` : ""}`;
+      }).join("\n");
+      livingMatterParts.push(`PERSONAS (cibles précises) :\n${lines}`);
+    }
+    const stories = (storytellingRes.data || []).filter((s: any) => s && (s.title || s.pitch_short || s.step_6_full_story || s.step_1_raw));
+    if (stories.length > 0) {
+      const lines = stories.map((s: any, i: number) => {
+        const title = s.title ? `"${s.title}"` : `Récit ${i + 1}`;
+        const teaser = (s.pitch_short || s.step_6_full_story || s.step_1_raw || "").trim().slice(0, 200);
+        return `  • ${title} (${s.story_type || "récit"})${teaser ? ` — ${teaser}` : ""}`;
+      }).join("\n");
+      livingMatterParts.push(`STORYTELLINGS DISPONIBLES (anecdotes vécues réutilisables) :\n${lines}`);
+    }
+    const offers = (offersRes.data || []).filter((o: any) => o && o.name);
+    if (offers.length > 0) {
+      const lines = offers.map((o: any) => {
+        const promise = (o.promise || o.sales_line || "").trim().slice(0, 160);
+        const problem = (o.problem_deep || o.problem_surface || "").trim().slice(0, 160);
+        return `  • "${o.name}" (${o.offer_type || "offre"})${promise ? ` — promet : ${promise}` : ""}${problem ? ` | résout : ${problem}` : ""}`;
+      }).join("\n");
+      livingMatterParts.push(`OFFRES (transformations promises) :\n${lines}`);
+    }
+    const livingMatterBlock = livingMatterParts.length > 0
+      ? `\n══════════════════════════════════════\nMATIÈRE VIVANTE DE L'UTILISATRICE\n══════════════════════════════════════\n${livingMatterParts.join("\n\n")}\n\nRÈGLE D'ANCRAGE : au moins 2 idées sur 4 doivent s'ancrer EXPLICITEMENT dans cette matière (citer un persona précis par son prénom OU rebondir sur une anecdote nommée OU servir une offre listée). Une idée trop générique qui ignore cette matière est invalide.\n`
+      : "";
 
     // Guard: if branding is too sparse, return helpful guidance instead of generic ideas
     if (!ctx.profile?.activite && !ctx.profile?.mission && !ctx.profile?.cible) {
