@@ -118,18 +118,14 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
           >
             Suivant <ArrowRight className="h-4 w-4" />
           </Button>
-          <p className="text-[11px] text-muted-foreground text-center -mt-3">
-            On choisira ensemble le format à l'étape suivante.
-          </p>
-
           {/* Alternative entry points — clearly visually separated */}
-          <div className="pt-4">
+          <div className="pt-2">
             <div className="flex items-center gap-3 mb-3">
-              <div className="h-px bg-border flex-1" />
-              <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
+              <div className="h-px bg-foreground/20 flex-1" />
+              <p className="text-xs uppercase tracking-wider text-foreground font-semibold">
                 ou pars d'autre chose
               </p>
-              <div className="h-px bg-border flex-1" />
+              <div className="h-px bg-foreground/20 flex-1" />
             </div>
             <div className="grid sm:grid-cols-3 gap-2">
               {onPhotosNext && (
