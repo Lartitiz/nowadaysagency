@@ -406,6 +406,11 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
                                 {ton.emoji} {ton.label}
                               </span>
                             )}
+                            {pont && (
+                              <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium", pont.className)} title="Force du lien entre l'actu et ton univers de marque">
+                                {pont.emoji} {pont.label}
+                              </span>
+                            )}
                             <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{actu.source}</span>
                           </div>
                           <p className="text-xs text-muted-foreground mt-2 italic">💡 {actu.pertinence}</p>
