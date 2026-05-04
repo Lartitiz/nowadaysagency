@@ -689,7 +689,7 @@ ${PREGEN_INJECTION_RULES}
 RÈGLES ABSOLUES DES CARROUSELS :
 - Slide 1 (hook) : MAXIMUM 12 mots. Règle stricte.
 - Chaque slide : MAXIMUM 50 mots. 1 idée par slide. Mais ces 50 mots doivent être des PHRASES COMPLÈTES ET FLUIDES, pas des fragments hachés. Écris 2-3 phrases qui coulent, pas 6 bouts de phrases de 5 mots. Le rythme oral s'applique aussi dans les slides.
-- Mini-headlines (title) : 4-7 mots, percutant.
+- Mini-headlines (title) : 4-9 mots, scène-first / JE — voir RÈGLES TITRES injectées ci-dessus. JAMAIS de tête de chapitre générique ("L'art de…", "L'importance de…", "Repenser…").
 - Le body de chaque slide : prose fluide, pas de liste, pas de rafale "Phrase courte. Phrase courte. Phrase courte."
 - Dernière slide : 1 seul CTA. Pas 2, pas 3. Un seul.
 - La slide 2 doit fonctionner comme hook autonome (seconde chance algorithmique).
