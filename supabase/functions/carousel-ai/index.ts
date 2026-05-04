@@ -686,6 +686,8 @@ Si des réponses d'approfondissement sont fournies, elles sont PLUS IMPORTANTES 
 
 ${PREGEN_INJECTION_RULES}
 
+${SLIDE_TITLE_RULES}
+
 RÈGLES ABSOLUES DES CARROUSELS :
 - Slide 1 (hook) : MAXIMUM 12 mots. Règle stricte.
 - Chaque slide : MAXIMUM 50 mots. 1 idée par slide. Mais ces 50 mots doivent être des PHRASES COMPLÈTES ET FLUIDES, pas des fragments hachés. Écris 2-3 phrases qui coulent, pas 6 bouts de phrases de 5 mots. Le rythme oral s'applique aussi dans les slides.
