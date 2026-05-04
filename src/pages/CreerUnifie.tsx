@@ -668,6 +668,7 @@ export default function CreerUnifie() {
       photoDescription: descForQuestions || undefined,
       carouselSubMode: subModeForQuestions || undefined,
       photoMode: photoModeForQuestions || undefined,
+      newsContext: newsjackingContext || undefined,
     });
   };
 
