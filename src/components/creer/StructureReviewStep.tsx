@@ -190,6 +190,28 @@ export default function StructureReviewStep({
     setEditableSlides((prev) => [...prev, newSlide]);
   };
 
+  // Ajoute une slide photo_full pour CHAQUE photo orpheline en une seule action
+  const addSlidesForAllOrphans = () => {
+    if (unusedPhotoIndices.length === 0) return;
+    const room = 15 - editableSlides.length;
+    const toAdd = unusedPhotoIndices.slice(0, Math.max(0, room));
+    if (toAdd.length === 0) return;
+    setEditableSlides((prev) => {
+      const next = [...prev];
+      toAdd.forEach((photoIdx) => {
+        next.push({
+          slide_number: next.length + 1,
+          role: "visual",
+          title_suggestion: "",
+          strategic_note: `Slide ajoutée pour utiliser la photo ${photoIdx}`,
+          slide_type: "photo_full",
+          photo_index: photoIdx,
+        });
+      });
+      return next;
+    });
+  };
+
   const renumberedSlides = renumber(editableSlides);
 
   return (
