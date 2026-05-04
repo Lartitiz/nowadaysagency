@@ -729,6 +729,7 @@ export function useContentGenerator() {
             }
           : {}),
         ...(deepResearch ? { deepResearch: true } : {}),
+        ...(newsContext && newsContext.trim().length > 0 ? { news_context: newsContext.slice(0, 3800) } : {}),
         ...(format === "pinterest" && (pinterestLink || pinterestBoard)
           ? { pinterest_link: pinterestLink, pinterest_board: pinterestBoard }
           : {}),
