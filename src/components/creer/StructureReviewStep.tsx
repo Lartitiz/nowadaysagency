@@ -427,9 +427,40 @@ export default function StructureReviewStep({
         </Button>
       </div>
 
+      {/* ───── NUDGE PHOTOS ORPHELINES (mode mix uniquement) ───── */}
+      {carouselSubMode === "mix" && unusedPhotoIndices.length > 0 && (
+        <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex items-start gap-2 flex-1">
+            <AlertTriangle size={16} className="text-orange-500 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-orange-800">
+              {unusedPhotoIndices.length === 1
+                ? "1 photo n'est pas utilisée dans cette structure. "
+                : `${unusedPhotoIndices.length} photos ne sont pas utilisées dans cette structure. `}
+              Tu veux les ajouter ?
+            </p>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            onClick={addSlidesForAllOrphans}
+            disabled={editableSlides.length >= 15}
+            className="text-white hover:opacity-90 flex-shrink-0"
+            style={{ backgroundColor: "#FB3D80" }}
+          >
+            <Plus size={14} className="mr-1" />
+            {unusedPhotoIndices.length === 1
+              ? "Ajouter une slide"
+              : `Ajouter ${unusedPhotoIndices.length} slides`}
+          </Button>
+        </div>
+      )}
+
       {/* ───── ZONE 4 : FOOTER ───── */}
       <div className="flex flex-col sm:flex-row gap-3 justify-between items-center mt-8">
         <Button variant="outline" onClick={onBack} disabled={isLoading}>
+          ← Modifier mes réponses
+        </Button>
+
           ← Modifier mes réponses
         </Button>
 
