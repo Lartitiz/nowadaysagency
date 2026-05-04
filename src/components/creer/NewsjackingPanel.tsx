@@ -412,7 +412,20 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
                                 {pont.emoji} {pont.label}
                               </span>
                             )}
-                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{actu.source}</span>
+                            {actu.source_url ? (
+                              <a
+                                href={actu.source_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors underline-offset-2 hover:underline"
+                                title="Voir l'article source"
+                              >
+                                {actu.source} ↗
+                              </a>
+                            ) : (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{actu.source}</span>
+                            )}
                           </div>
                           <p className="text-xs text-muted-foreground mt-2 italic">💡 {actu.pertinence}</p>
                         </div>
