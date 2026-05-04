@@ -349,6 +349,7 @@ export function useContentGenerator() {
               objective: objective || null,
               editorialFormat: editorialAngle || null,
               workspace_id: workspaceId || null,
+              ...(newsContext && newsContext.trim() ? { news_context: newsContext.slice(0, 3800) } : {}),
             },
           }, 120000);
           data = res.data;
