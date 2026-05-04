@@ -1327,7 +1327,7 @@ RÈGLES :
 - Bannir les titres qui commencent par "L'art de", "L'importance de", "Repenser", "Le vrai", "Le piège de", "Une nouvelle", "Ce qui", "Pourquoi c'est" (sauf si suivi d'un ancrage concret immédiat).
 - Préférer :
   · Une scène brute : "Lundi 7h, je relisais ma bio."
-  · Une phrase entendue : "Une cliente m'a dit : tu fais peur."
+  · Une phrase entendue (UNIQUEMENT si fournie par l'utilisatrice dans ses réponses) : "Une cliente m'a dit : tu fais peur." — sinon préférer un constat général ("Ce qu'on m'a répété ce trimestre : tu fais peur.")
   · Un détail concret chiffré : "47 brouillons. 0 publié."
   · Une bascule en JE : "J'ai arrêté de checker à 22h."
   · Une question directe : "Pourquoi je postais sans y croire ?"
