@@ -203,6 +203,8 @@ function findOverlayElement(doc: Document, overlayText: string): HTMLElement | n
 
 interface BlockRender {
   text: string;
+  /** Runs typographiques inline. Si présent + length >= 2 → exporté en multi-runs. */
+  runs?: TextRun[];
   rect: { x: number; y: number; w: number; h: number };
   style: EditableBlock["style"];
   kind: EditableBlock["kind"];
