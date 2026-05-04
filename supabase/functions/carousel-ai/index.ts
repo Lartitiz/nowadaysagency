@@ -333,7 +333,7 @@ MISSION : Propose une structure narrative optimale pour un carrousel. Tu ne gén
 RÈGLES :
 - Chaque slide a un rôle narratif clair (hook, problème, mythe, exemple, solution, transformation, CTA…)
 - Justifie chaque choix de position en 1 phrase max
-- Propose des titres courts (4-7 mots), percutants, en français
+- Propose des titres scène-first en 4-9 mots (voir RÈGLES TITRES ci-dessous), en français
 - Sois concise et actionnable, pas théorique
 - Le nombre de slides doit être entre ${slide_count || 7} et ${(slide_count || 7) + 2}
 ${photoInstruction}
