@@ -1704,7 +1704,7 @@ RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
       "photo_index": 2,
       "photo_layout": "top_photo",
       "role": "detail",
-      "title": "placeholder — titre",
+      "title": "placeholder — entrée scène/JE en 4-9 mots, PAS un titre-annonce",
       "body": "placeholder — texte qui accompagne la photo dans le layout",
       "note": "placeholder — note DA"
     }
