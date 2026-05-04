@@ -487,7 +487,7 @@ ${depthMandate}
 RÉPONSES DE L'UTILISATRICE :
 ${answersBlock}
 ${followUpBlock}
-${calendarBlock}${objectiveBlock}
+${calendarBlock}${objectiveBlock}${newsContextBlock}
 ${preGenBlock}
 
 RÈGLE ANTI-FABRICATION :
