@@ -438,13 +438,25 @@ Retourne UNIQUEMENT ce JSON (pas de markdown, pas de commentaires, pas de prose 
   "redirect_route": "route correspondant au format et canal choisis"
 }`;
 
-    const raw = await callAnthropicSimple(
-      getModelForAction("coaching"),
-      systemPrompt,
-      `Génère ${regenerate_lens ? "1" : "4"} idée(s) de contenu (sujet + angle uniquement, PAS de hook ni de brief)${regenerate_lens ? ` pour la lentille "${regenerate_lens}" uniquement, en plus radical que la version précédente` : `, UNE PAR LENTILLE dans l'ordre des 4 lentilles fournies (chaque idée renseigne le champ "lens" avec l'identifiant correspondant)`}. Applique successivement : (1) AUDIENCE vs UTILISATRICE, (2) RÈGLE DE VÉRITÉ, (3) RÈGLE D'OR métier, (4) PROFONDEUR 3-AXES (tension + enjeu + ancrage), (5) TEST DE SINGULARITÉ, (6) TEST DE VALIDITÉ. Si la MATIÈRE VIVANTE est fournie, au moins 2 idées sur 4 doivent l'utiliser explicitement. Réponds UNIQUEMENT avec le JSON demandé.${isBold ? " MODE BOLD ACTIF — vise l'audace utile sans manipulation." : ""}`,
-      0.8,
-      1200,
-    );
+    // Force le JSON dès le 1er token via un message assistant pré-rempli "{"
+    // (technique Anthropic standard pour empêcher le chain-of-thought avant la réponse).
+    const { callAnthropic } = await import("../_shared/anthropic.ts");
+    const rawBody = await callAnthropic({
+      model: getModelForAction("coaching"),
+      system: systemPrompt,
+      messages: [
+        {
+          role: "user",
+          content: `Génère ${regenerate_lens ? "1" : "4"} idée(s) de contenu (sujet + angle uniquement, PAS de hook ni de brief)${regenerate_lens ? ` pour la lentille "${regenerate_lens}" uniquement, en plus radical que la version précédente` : `, UNE PAR LENTILLE dans l'ordre des 4 lentilles fournies (chaque idée renseigne le champ "lens" avec l'identifiant correspondant)`}. Applique successivement : (1) AUDIENCE vs UTILISATRICE, (2) RÈGLE DE VÉRITÉ, (3) RÈGLE D'OR métier, (4) PROFONDEUR 3-AXES (tension + enjeu + ancrage), (5) TEST DE SINGULARITÉ, (6) TEST DE VALIDITÉ. Si la MATIÈRE VIVANTE est fournie, au moins 2 idées sur 4 doivent l'utiliser explicitement. Réponds UNIQUEMENT avec le JSON demandé, SANS aucune prose ni raisonnement avant.${isBold ? " MODE BOLD ACTIF — vise l'audace utile sans manipulation." : ""}`,
+        },
+        { role: "assistant", content: "{" },
+      ],
+      temperature: 0.8,
+      max_tokens: 4000,
+    });
+    // Re-préfixer le "{" qu'on a mis dans le message assistant
+    const raw = "{" + (rawBody || "");
+
 
     let result: any;
     try {
