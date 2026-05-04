@@ -265,9 +265,9 @@ Corriger UNIQUEMENT le texte. Retourner le MÊME format annoté avec les textes 
    → Reformule avec un ARGUMENT PROPRE, un exemple, une nuance.
 
 5. PHRASES COURTES CONSÉCUTIVES (2+ phrases < 10 mots) :
-   → Fusionne en prose fluide.
-   ❌ "Tu sautes des étapes. Tu parles en raccourcis."
-   → ✅ "Tu sautes des étapes et tu parles en raccourcis sans t'en rendre compte."
+   → Fusionne en prose fluide. NE PAS introduire de "tu" pour fluidifier.
+   ❌ "On saute des étapes. On parle en raccourcis."
+   → ✅ "On saute des étapes et on parle en raccourcis sans s'en rendre compte."
 
 6. ÉNUMÉRATIONS RYTHMIQUES PARFAITES :
    → "Des X, des Y, des Z" → casse la symétrie.
