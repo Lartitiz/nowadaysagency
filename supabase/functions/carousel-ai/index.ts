@@ -1613,10 +1613,21 @@ RÈGLE ABSOLUE : le JSON retourné doit avoir EXACTEMENT ${slide_structure.lengt
 - ARC NARRATIF : situation → tension → développement → résolution → ouverture. Fil conducteur clair entre slides photo et texte.
 - Les slides text_only doivent avoir un body de 30-50 mots MINIMUM (phrases complètes, pas des fragments).
 - QUALITÉ VISUELLE des slides texte (CRUCIAL) : une slide text_only n'est PAS un mur de texte. Quand le contenu s'y prête, ajoute un "visual_schema" pour porter le message visuellement (comparaison avant/après, opposition deux colonnes, timeline, liste numérotée structurée, citation mise en avant, chiffre-clé géant). Vise au moins 1 slide texte sur 2 avec un visual_schema. Si la slide est juste du texte, alors le body doit être PERCUTANT (formule, prise de position, micro-récit) — pas un paragraphe descriptif.
-- Les overlay_text sur photo_full sont COURTS (5-20 mots) : ils complètent l'image, ils ne la décrivent pas.
+- Les overlay_text sur photo_full sont COURTS (5-20 mots) : ils complètent l'image, ils ne la décrivent pas. Ils doivent être ANCRÉS dans CE moment précis (fait sensoriel, détail concret, parole captée), pas une formule chic transposable ("Quand la magie opère", "Un instant suspendu" → INTERDIT).
 - Au moins 1 exemple concret OU 1 analogie du quotidien dans le carrousel.
 - Le sujet "${body.subject || ""}" est un BRIEF CRÉATIF : si c'est un concept (VS, avant/après, métaphore), il structure l'ensemble. Le titre apparaît (ou est amélioré) sur la slide 1.
 - Les autres règles d'écriture (ton oral incarné, anti-jargon, anti-formules vides, écriture inclusive, pas de tirets cadratins) sont déjà définies dans le contexte système.
+
+═══ INTERDICTION CASCADE / ESCALIER (CRITIQUE) ═══
+
+La "cascade" est le défaut #1 des carrousels mixtes IA : chaque slide texte paraphrase la précédente en montant d'un cran émotionnel. C'est INTERDIT.
+
+- Aucune slide texte ne doit ouvrir par un connecteur d'amplification : "En vrai", "Et là", "Sauf que", "Sauf qu'en fait", "Le vrai X c'est…", "C'est pour ça que…", "Et oui…", "Sauf que personne…". Ouvre par un fait, une scène, une question directe, ou un détail concret.
+- Deux slides texte consécutives ne doivent JAMAIS répéter le même mot-clé central. Si slide N parle de "visibilité", slide N+1 doit changer d'angle (exemple, contre-exemple, scène), pas redéfinir "visibilité".
+- Pas de rampe émotionnelle artificielle ("c'est important" → "c'est crucial" → "c'est vital"). Une seule tension, posée une fois, puis on développe par EXEMPLES, pas par escalade rhétorique.
+- Test slide-seule : chaque slide texte doit pouvoir être lue HORS contexte et garder un message clair. Si elle a besoin de la précédente pour faire sens → c'est une cascade : fusionne ou supprime.
+- Anti-TU : voix principale = JE (expérience partagée). Le TU est limité à 2 slides max d'interpellation ponctuelle, jamais comme voix narrative.
+
 
 ═══ ASSIGNATION DES PHOTOS ═══
 
@@ -1655,6 +1666,8 @@ STRUCTURE attendue (REMPLIS chaque champ avec du contenu ORIGINAL, ancré dans C
 }`}
 
 
+⚠️ Les valeurs ci-dessous sont là pour montrer la STRUCTURE JSON attendue, PAS le ton ni le contenu. Ne copie ni les formulations ("placeholder…"), ni le sujet, ni le rythme. Tout doit être 100% ancré dans le brief réel et les photos réelles.
+
 RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
 {
   "carousel_type": "mix",
@@ -1665,18 +1678,18 @@ RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
       "slide_type": "photo_full",
       "photo_index": 1,
       "role": "hook_visuel",
-      "overlay_text": "Une vraie phrase courte qui complète l'image",
+      "overlay_text": "placeholder — phrase courte ancrée dans CETTE photo",
       "overlay_position": "bottom_center",
       "overlay_style": "sensoriel",
-      "note": "Note de direction artistique"
+      "note": "placeholder — note DA"
     },
     {
       "slide_number": 2,
       "slide_type": "text_only",
       "photo_index": null,
       "role": "context",
-      "title": "Le vrai problème, c'est pas l'algo",
-      "body": "En vrai, le problème c'est pas l'algorithme. C'est qu'on poste en espérant que les gens vont deviner ce qu'on fait. Sauf que personne ne devine. Les comptes qui marchent, c'est ceux qui ont quelque chose à dire. (Et oui, toi aussi t'as des choses à dire.)",
+      "title": "placeholder — titre de slide",
+      "body": "placeholder — body de 30-50 mots, écrit en JE, qui pose UN point précis lié au brief, sans ouvrir par 'En vrai/Sauf que/Le vrai X', sans amplification dramatique, avec un détail concret ou une scène vécue.",
       "visual_schema": null
     },
     {
@@ -1685,9 +1698,9 @@ RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
       "photo_index": 2,
       "photo_layout": "top_photo",
       "role": "detail",
-      "title": "Titre au-dessus ou à côté de la photo",
-      "body": "Texte qui accompagne la photo dans le layout",
-      "note": "Note DA"
+      "title": "placeholder — titre",
+      "body": "placeholder — texte qui accompagne la photo dans le layout",
+      "note": "placeholder — note DA"
     }
   ],
   "caption": {

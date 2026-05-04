@@ -94,8 +94,9 @@ Si oui → réécris.
 2. NUMÉROTATION DE CONSEILS ("Conseil 1", "Erreur n°2", "Étape 3") :
    → Reformuler comme moment dans un arc narratif.
 
-3. SLIDES REDONDANTES :
-   → Fusionner ou remplacer la plus faible par un nouvel angle.
+3. SLIDES REDONDANTES OU EN CASCADE :
+   → Si deux slides consécutives traitent la même idée avec une intensité montante ("c'est important" → "c'est crucial" → "c'est vital"), ou si l'une paraphrase l'autre en reprenant le même mot-clé central, FUSIONNE-les en une seule slide qui pose le point une fois, ou remplace la plus faible par un nouvel angle (exemple, contre-exemple, chiffre, scène concrète).
+   → Aucune slide texte ne doit ouvrir par un connecteur d'amplification : "En vrai", "Et là", "Sauf que", "Sauf qu'en fait", "Le vrai X c'est…", "C'est pour ça que…". Réécris l'ouverture par un fait, une scène, ou une question directe.
 
 4. RAFALES DE PHRASES COURTES (2+ phrases < 10 mots dans une slide) :
    → Fusionne en prose fluide.
@@ -121,6 +122,9 @@ Si oui → réécris.
 
 10. ÉNUMÉRATIONS RYTHMIQUES PARFAITES :
     → "Des X, des Y, des Z" → casse la symétrie.
+
+11. OVERLAYS PHOTO (carrousels mixtes — marqueur [SLIDE N - OVERLAY]) :
+    → Si l'overlay est une formule chic ou pourrait s'appliquer à n'importe quelle photo ("Quand la magie opère", "Un instant suspendu", "L'art du détail"), réécris-le en phrase ANCRÉE dans CE moment précis : un fait sensoriel (ce qu'on voit/entend/sent), un détail concret, ou une parole captée. 5-15 mots max. Pas d'abstraction décorative.
 
 ══ RÈGLES ABSOLUES ══
 - Garde l'ARC NARRATIF du carrousel.
@@ -324,6 +328,12 @@ function extractCarouselTexts(parsed: any): string {
     if (punchline) {
       lines.push(`[SLIDE ${num} - PUNCHLINE] ${punchline}`);
     }
+
+    // Overlay text (slides photo_full du carrousel mixte)
+    const overlay = slide.overlay_text || "";
+    if (overlay) {
+      lines.push(`[SLIDE ${num} - OVERLAY] ${overlay}`);
+    }
   }
 
   // Caption
@@ -377,6 +387,12 @@ function reinjectCarouselTexts(parsed: any, correctedBlock: string): any {
     const punchKey = `SLIDE ${num} - PUNCHLINE`;
     if (corrections.has(punchKey)) {
       slides[i].punchline = corrections.get(punchKey)!;
+    }
+
+    // Overlay text (mixte / photo_full)
+    const overlayKey = `SLIDE ${num} - OVERLAY`;
+    if (corrections.has(overlayKey)) {
+      slides[i].overlay_text = corrections.get(overlayKey)!;
     }
   }
 
