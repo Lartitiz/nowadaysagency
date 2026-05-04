@@ -304,6 +304,7 @@ Retourne EXACTEMENT le même format annoté :
 □ Slides en mode TU > 2 ? → réécris en JE/NOUS
 □ Slide 1 = "X sans Y, c'est Z" ? → réécris avec fait concret
 □ Dernière slide = "Et toi..." ? → question spécifique
+□ Titres de slide génériques ("L'art de", "Repenser", concept abstrait seul) ? → réécris en scène/JE/détail
 □ Formule manufacturée restante ? → réécris
 □ INDISTINGUABLE d'un humain ? → si non, recommence`;
 
