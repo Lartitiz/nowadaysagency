@@ -1,81 +1,80 @@
-## Problème
+## Audit : profondeur des questions d'approfondissement — Mixte vs Texte
 
-Sur les carrousels (mixte ET texte), les **titres de slides intermédiaires** (`title`, 4-7 mots) sont trop souvent génériques type "Le piège de la régularité", "L'art du détail", "Repenser sa stratégie", "Une nouvelle approche". Ils annoncent un sujet au lieu d'**entrer dans la scène/l'histoire**.
+Aucune modif de code dans ce plan : c'est un audit de la **logique actuelle** et un **plan d'alignement** à valider.
 
-Les hooks (slide 1) sont bien cadrés avec exemples en JE et anti-listicles. Le problème se situe sur :
-- les **titres des slides 2 à N-1** (text_only et photo_integrated)
-- les **`title_suggestion`** générés à l'étape `structure_proposal` (qui sont ensuite réinjectés tels quels dans la génération via `confirmed_structure`)
+## Où sont définies les questions
 
-## Diagnostic technique
+Deux chemins distincts dans `supabase/functions/carousel-ai/index.ts`, branche `type === "deepening_questions"` :
 
-Trois endroits dans `supabase/functions/carousel-ai/index.ts` définissent la règle "titre court 4-7 mots" sans contrainte anti-générique ni voix JE :
+1. **Branche photo/mix AVEC photos uploadées** (lignes 427-511) → prompt **inline vision** (envoie les photos à Claude).
+2. **Branche texte (et photo/mix sans photos)** (lignes 513-518) → fonction `buildDeepeningQuestionsPrompt` (lignes 1044-1118).
 
-1. **Ligne 336** (`structure_proposal`) : `"Propose des titres courts (4-7 mots), percutants, en français"` — aucune règle de voix ni d'ancrage scène.
-2. **Ligne 690 et 1279** (text carousel) : `"Mini-headlines (title) : 4-7 mots, percutant."` — pareil.
-3. **Ligne 1614-1620** (mix carousel) : aucune règle dédiée aux titres des slides texte/intégrées du milieu.
+Résultat : un carrousel mixte avec photos passe par un prompt **complètement différent** de celui d'un carrousel texte. C'est là que naît le déséquilibre.
 
-Les titres de l'étape structure sont ensuite **réutilisés** par la génération (lignes 1124, 1381, 1516 : `"Utilise les titres proposés comme base"`), donc un titre générique à l'étape structure se propage dans le rendu final.
+## Comparatif structurel
 
-## Plan
+| Dimension | Carrousel TEXTE (`buildDeepeningQuestionsPrompt`) | Carrousel MIXTE avec photos (prompt inline) |
+|---|---|---|
+| Ancrage sujet | Bloc "SUJET COURANT — PRIORITÉ ABSOLUE" très fort + règle "ANCRAGE SUJET non négociable" | Sujet présenté comme "ce qu'elle a en tête" parmi d'autres matières |
+| Branding context | Injecté (`brandingBlock`) avec instruction "mentionne son domaine, sa cible, ses offres" | **Absent** du prompt inline |
+| Vocabulaire métier | `brandVocabBlock` injecté | **Absent** |
+| Mémoire anti-répétition | `recentBriefsContext` injecté + règle dédiée | **Absent** |
+| Angle éditorial | `angleBlock` injecté si présent | **Absent** |
+| Raisonnement interne pré-questions | Bloc "AVANT DE POSER — RAISONNEMENT INTERNE" en 3 étapes | **Absent** |
+| Profondeur exigée | "AU MOINS 1 question sur 3 doit creuser le POURQUOI PROFOND" + "vécu, anecdotes, opinions tranchées, exemples concrets" | "extraire le contexte INVISIBLE : pourquoi ce moment, quelle émotion, quel hors-champ" — plus mou, plus descriptif |
+| Format LinkedIn | Instructions pro spécifiques (données, leçons métier, expertise) | Mention courte ("ton PRO, apprentissage business") |
+| Anti-générique | Règle ferme "interchangeable d'un user à l'autre = invalide" | Règle équivalente présente |
+| Spécificité mixte | N/A | Demande "quels passages textuels viennent s'intercaler" — bien |
+| Pont texte/photo | N/A | Bien traité (2/3 questions doivent croiser) |
 
-### 1. Définir une règle partagée "Titres de slides"
+## Diagnostic
 
-Créer une constante `SLIDE_TITLE_RULES` (en haut de `carousel-ai/index.ts`, à côté de `PREGEN_INJECTION_RULES`) qui sera injectée dans les 3 endroits :
+**Le mixte avec photos perd 5 leviers de profondeur** que le texte a :
 
-```text
-═══ TITRES DES SLIDES (slides 2 à N-1) — CRITIQUE ═══
+1. **Pas de branding/vocabulaire métier injecté** → questions moins ancrées dans son activité, plus génériques côté business.
+2. **Pas de mémoire anti-répétition** → risque de reposer une question déjà traitée sur un autre brief récent.
+3. **Pas d'angle éditorial** → si l'utilisatrice a choisi un angle, les questions du mixte l'ignorent.
+4. **Pas de raisonnement interne pré-questions** (les 3 étapes silencieuses du texte) → la qualité d'extraction est moins systématique.
+5. **Profondeur formulée mollement** : "extraire le contexte invisible" vs la règle texte "creuser le POURQUOI PROFOND + vécu/opinions tranchées/exemples concrets".
 
-Les titres de slides ne sont PAS des têtes de chapitre. Ils entrent DIRECTEMENT dans la scène ou la pensée.
+À l'inverse, le mixte gagne 1 levier : **le pont texte/photo** (croiser sujet écrit + élément visuel précis), ce qui est unique et bon.
 
-RÈGLES :
-- Voix par défaut : JE (cohérent avec les hooks). Le TU est réservé aux 1-2 slides d'interpellation max.
-- Longueur : 4-9 mots (pas de phrase qui s'étire).
-- Doit pouvoir se lire seul comme un mini-hook : un fait, un détail, une bascule, une scène, une phrase entendue, un chiffre.
-- Bannir absolument les titres "annonce de sujet" : "L'importance de X", "Repenser Y", "Le vrai problème", "L'art du détail", "Une nouvelle approche", "Le piège de Z", "Pourquoi c'est crucial", "Ce qui change tout".
-- Bannir les titres-concepts abstraits sans ancrage ("Authenticité", "Cohérence", "Stratégie gagnante").
-- Préférer : 
-  · Une scène brute : "Lundi 7h, je relisais ma bio."
-  · Une phrase entendue : "Une cliente m'a dit : 'tu fais peur'."
-  · Un détail concret : "47 brouillons. 0 publié."
-  · Une bascule en JE : "J'ai arrêté de checker à 22h."
-  · Une question directe : "Pourquoi je postais sans y croire ?"
-- Test : si le titre pourrait être collé sur un autre carrousel d'un autre métier sans changer un mot → INVALIDE, réécrire.
-```
+**Conséquence concrète** : sur un mixte, les questions tendent à être **descriptives sur les photos** ("c'était dans quel contexte ?", "quelle émotion ?") plutôt qu'**extractives sur le vécu/l'opinion/l'expertise** comme le texte.
 
-### 2. Injecter cette règle aux 3 endroits
+## Plan d'alignement (à valider)
 
-- **`structureSystemPrompt`** (vers ligne 336) : remplacer la ligne unique par `SLIDE_TITLE_RULES`. Les `title_suggestion` proposés à l'étape structure seront déjà scène-first.
-- **`buildExpressFullPrompt`** (vers ligne 690 et 1279) : ajouter `SLIDE_TITLE_RULES` dans le bloc règles, en remplacement de `"Mini-headlines (title) : 4-7 mots, percutant"`.
-- **`buildMixCarouselPrompt`** (après le bloc "INTERDICTION CASCADE", vers ligne 1631) : ajouter `SLIDE_TITLE_RULES`. Particulièrement important pour les `photo_integrated` où le `title` accompagne la photo et tombe vite dans le générique ("L'art du détail").
+Garder les **deux prompts séparés** (le mixte a besoin de la vision et du pont texte/photo), mais **transférer les 5 leviers manquants** dans le prompt inline mixte.
 
-### 3. Mettre à jour les placeholders JSON
+### 1. Injecter `brandingContext` et `brandVocabBlock` dans le prompt mixte
+Les deux variables sont déjà calculées en amont (lignes ~96-104, à vérifier). Les passer au bloc `messageContent` du mixte avec la même instruction que le texte : "mentionne son domaine d'activité, sa cible, ses offres ou son positionnement quand c'est pertinent".
 
-Dans les exemples JSON des prompts (lignes 1691, 1701 du mix prompt notamment), remplacer `"placeholder — titre de slide"` par un placeholder plus directif :
-```
-"title": "placeholder — entrée scène/JE en 4-9 mots, PAS un titre-annonce"
-```
+### 2. Injecter `recentBriefsContext` (mémoire anti-répétition)
+Ajouter le bloc + la règle "n'importe JAMAIS leur contenu, vocabulaire ou scènes dans tes questions".
 
-### 4. Étendre la passe de correction (anti-slop)
+### 3. Injecter l'angle éditorial s'il est présent
+Reprendre le `angleBlock` du texte : "ANGLE ÉDITORIAL : X — Les questions doivent aider l'utilisatrice à remplir les étapes de cette structure avec son vécu personnel."
 
-Dans `supabase/functions/_shared/correction-pass.ts`, ajouter une règle dédiée aux titres :
+### 4. Ajouter le bloc "RAISONNEMENT INTERNE" pré-questions
+Adapter les 3 étapes au contexte mixte :
+1. Quel est le SUJET COURANT ? (re-extraire 1 mot-clé)
+2. Quel vocabulaire métier puis-je intégrer ?
+3. Quels DÉTAILS VISUELS PRÉCIS sur les photos puis-je nommer (pas "l'ambiance", mais le geste, l'objet, la couleur exacte) ?
+4. Y a-t-il un sujet identique dans l'historique récent ? Quelle question NE PAS reposer ?
 
-> **Règle Titres** : Si un `title` de slide (≠ slide 1, ≠ dernière) commence par "L'art de", "L'importance de", "Repenser", "Pourquoi", "Le vrai", "Le piège de", "Une nouvelle", "Ce qui", ou est un mot-concept seul (1-2 mots abstraits) → réécrire en scène/JE/détail concret en respectant le sens.
+### 5. Renforcer la règle de profondeur
+Remplacer "extraire le contexte invisible" par la formulation forte du texte :
+> "AU MOINS 1 question sur 3 doit creuser le POURQUOI PROFOND (vécu, conviction, opinion tranchée). Pas seulement décrire ce que les photos montrent ou évoquer une émotion floue."
 
-Les fonctions `extractCarouselTexts` / `reinjectCarouselTexts` traitent déjà `title` (vérifier rapidement avant édition), il s'agit d'ajouter une règle dans le prompt de correction.
+Et ajouter explicitement l'objectif d'extraction du **vécu / des anecdotes / des opinions tranchées / des exemples concrets** — pas juste du sensoriel.
 
-### 5. Pas de changement frontend
-
-Le rendu visuel (`CarouselPhotoResult.tsx`) ne change pas : il continue d'afficher `slide.title`. Seule la qualité du contenu généré change.
+### 6. Mutualiser ce qui peut l'être
+Extraire les blocs partagés (raisonnement interne, règle profondeur, anti-générique, branding/vocab/historique) dans une constante locale au fichier (ex: `SHARED_DEEPENING_RULES`) injectée dans les deux prompts. Évite que les deux re-divergent à chaque future modif.
 
 ## Fichiers concernés
-
-- `supabase/functions/carousel-ai/index.ts` (constante + 3 injections + placeholders)
-- `supabase/functions/_shared/correction-pass.ts` (règle Titres dans le prompt de correction)
-- Redéploiement : `carousel-ai`
+- `supabase/functions/carousel-ai/index.ts` (uniquement la branche `deepening_questions` lignes 425-520, et éventuellement extraction d'une constante partagée)
+- Aucun changement frontend, aucun changement DB
 
 ## Résultat attendu
-
-- Étape "structure" : les `title_suggestion` proposés sont déjà des entrées de scène en JE, pas des têtes de chapitre.
-- Génération mixte et texte : les slides 2 à N-1 portent des titres qui font avancer l'histoire (scène, détail, bascule, phrase entendue).
-- Cohérence avec les hooks (déjà cadrés en JE).
-- Passe de correction filtre les rares cas où le LLM retombe dans le générique.
+- Sur un mixte, les questions deviennent aussi **profondes et ancrées-business** que sur un texte (branding, vocabulaire, mémoire, angle, POURQUOI profond).
+- Le pont texte/photo et l'analyse vision restent l'avantage unique du mixte.
+- Une seule source de vérité pour les règles partagées → moins de drift à l'avenir.

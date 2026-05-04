@@ -460,20 +460,37 @@ ${body.photo_description && body.photo_description.trim() ? `Ce qu'elle dit de s
 - "Ton sujet parle de [thème écrit], mais les photos montrent surtout [observation visuelle qui détonne ou prolonge]. Lequel des deux veux-tu mettre en avant — ou comment tu veux les faire dialoguer dans le carrousel ?"`
           : "";
 
+        // ── Blocs de profondeur (alignés sur le prompt texte) ──
+        const brandingDepthBlock = brandingContext
+          ? `\n\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}\n\nUtilise ce contexte pour personnaliser tes questions : mentionne son domaine d'activité, sa cible, ses offres ou son positionnement quand c'est pertinent. Les questions doivent montrer que tu connais son univers.`
+          : "";
+
+        const angleDepthBlock = (body.editorial_angle && body.content_structure)
+          ? `\n\nANGLE ÉDITORIAL : ${body.editorial_angle}\nSTRUCTURE DU CARROUSEL :\n${body.content_structure}\n\nLes questions doivent aider l'utilisatrice à remplir les étapes de cette structure avec son vécu personnel ET ses photos.`
+          : "";
+
+        const reasoningBlock = `\n\n══ AVANT DE POSER LES QUESTIONS — RAISONNEMENT INTERNE (ne PAS afficher) ══
+Réfléchis silencieusement à :
+1. Quel est le SUJET COURANT ? (ré-extraire 1 mot-clé)
+2. Quel vocabulaire métier puis-je intégrer (activité, cible, expressions clés) ?
+3. Quels DÉTAILS VISUELS PRÉCIS sur les photos puis-je nommer (pas "l'ambiance", mais le geste, l'objet, la couleur exacte, la posture) ?
+4. Y a-t-il un sujet identique dans l'historique récent ? Quelle question NE PAS reposer ?`;
+
         messageContent.push({
           type: "text",
           text: `Voici ${body.photos.length} photo(s) que l'utilisatrice veut utiliser pour un ${formatLabel}.
 
-Objectif : ${body.objective || "engagement"}${writtenIntentBlock}${photoCtxRecap}
+Objectif : ${body.objective || "engagement"}${writtenIntentBlock}${photoCtxRecap}${brandingDepthBlock}${brandVocabBlock}${recentBriefsContext || ""}${angleDepthBlock}${reasoningBlock}
 
 Tu es une coach com' spécialisée en contenu visuel. Tu as DEUX matières à croiser : ses photos ET ce qu'elle a déjà écrit en amont. Pose exactement 3 questions d'approfondissement.
 
 Tes questions doivent :
 - MENTIONNER ce que tu VOIS RÉELLEMENT dans les photos (éléments concrets, ambiance, couleurs, scène, geste, lieu)${crossingRules}
 - Aider l'utilisatrice à définir l'histoire que ces photos racontent ensemble${isMix ? ", ET QUELS PASSAGES TEXTUELS viennent s'intercaler entre les slides photo (réflexion, chiffre, conviction)" : ""}
-- Extraire le contexte INVISIBLE : pourquoi ce moment, quelle émotion, quel message, quel hors-champ
+- AU MOINS 1 question sur 3 doit creuser le POURQUOI PROFOND (vécu, conviction, opinion tranchée, leçon métier). Pas seulement décrire ce que les photos montrent ni évoquer une émotion floue : extraire du vécu, des anecdotes, des opinions, des exemples concrets.
 - Être SPÉCIFIQUES à CE brief (pas génériques, pas interchangeables avec un autre sujet ou d'autres photos)
-${isLinkedIn ? "- Garder un ton PRO (apprentissage business, prise de position, résultat concret derrière l'image)" : "- Garder un ton ÉMOTION/SCÈNE VÉCUE (ressenti, coulisses, instant)"}
+${isLinkedIn ? "- Garder un ton PRO : demander des données, des résultats concrets, des leçons métier, l'expertise spécifique derrière l'image (pas juste l'émotion)" : "- Garder un ton ÉMOTION/SCÈNE VÉCUE (ressenti, coulisses, instant) tout en allant chercher la conviction derrière"}
+${recentBriefsContext ? "- MÉMOIRE ANTI-RÉPÉTITION : l'historique liste des sujets DIFFÉRENTS déjà traités. N'importe JAMAIS leur contenu, vocabulaire ou scènes dans tes questions sur le sujet courant." : ""}
 
 Exemples de bonnes questions${isMix ? " (carrousel mixte)" : ""} :${crossingExamples}
 - "Je vois [élément précis]. C'était dans quel contexte ? Qu'est-ce que ce moment représente pour toi ?"
@@ -483,9 +500,11 @@ ${isMix
   : "- \"Quelle est l'histoire entre la première et la dernière photo ? Il y a une progression ?\""}
 
 INTERDIT :
-- Questions génériques qui pourraient s'appliquer à n'importe quel sujet ou n'importe quelles photos
-- Questions sans aucune référence visuelle aux photos analysées${hasWrittenIntent ? `
+- Questions génériques qui pourraient s'appliquer à n'importe quel sujet ou n'importe quelles photos (sans vocabulaire métier)
+- Questions sans aucune référence visuelle aux photos analysées
+- Questions purement descriptives ("c'était dans quel contexte ?") sans aller chercher le POURQUOI / la conviction / le vécu${hasWrittenIntent ? `
 - Questions qui IGNORENT complètement ce qu'elle a écrit dans son sujet/description et ne parlent que des photos (le pont entre texte et image est OBLIGATOIRE${isMix ? " sur au moins 2 questions" : ""})` : ""}
+- Questions qui réutilisent une scène, un lieu, un personnage venu de l'historique des briefs précédents
 
 Réponds UNIQUEMENT en JSON valide :
 {
