@@ -117,11 +117,12 @@ serve(async (req) => {
     const isGlobale = actu.type === "globale";
     const pontRule = isGlobale
       ? `▶ ACTU GLOBALE — RÈGLE DU PONT (impérative) :
-Cette actu n'est PAS dans le secteur de la personne. Chaque angle DOIT construire un pont :
+Cette actu n'est PAS dans le secteur de la personne. Chaque angle DOIT s'appuyer sur le PONT déjà identifié ci-dessus (champ "Pertinence") — ne dérive PAS vers une autre connexion plus lointaine.
 - Le hook part de l'actu (ce que tout le monde a vu/entendu)
-- Le pivot ramène à l'expertise métier de "${nicheLabel}" (ce que seul·e cette personne peut dire)
-- Privilégie les véhicules "parallele_absurde" ou "declencheur_externe"`
-      : `▶ ACTU NICHE — l'angle doit valoriser l'expertise unique de la personne sur cette actu de son secteur. Privilégie "constat_decale", "recit_experience" ou "declencheur_externe".`;
+- Le pivot ramène à l'expertise métier de "${nicheLabel}" via l'élément précis cité dans la pertinence
+- Privilégie "declencheur_externe", "constat_decale" ou "recit_experience"
+- "parallele_absurde" : MAX 1 angle sur 3, et UNIQUEMENT si le parallèle est immédiatement lisible (pas un parallèle qu'il faut "déballer" en 2 phrases)`
+      : `▶ ACTU NICHE — l'angle doit valoriser l'expertise unique de la personne sur cette actu de son secteur. Privilégie "constat_decale", "recit_experience" ou "declencheur_externe". Reste branché sur le pont déjà identifié dans "Pertinence".`;
 
     const systemPrompt = `Tu es une copywriter senior spécialisée en newsjacking pour créateur·ices de contenu.
 
