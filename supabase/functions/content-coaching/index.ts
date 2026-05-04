@@ -285,6 +285,28 @@ Deno.serve(async (req) => {
 
     const cibleTxt = ctx?.profile?.cible || "non renseignée";
     const activiteTxt = ctx?.profile?.activite || ctx?.profile?.type_activite || "non renseignée";
+
+    // ─── LENSES (4 tirées par session, déterministe sur user+jour) ───
+    const lensSeed = `${user.id}|${now.toISOString().slice(0, 10)}|${sujet || ""}|${objectif}`;
+    const chosenLenses = pickLenses(lensSeed, 4);
+    const lensesBlock = chosenLenses
+      .map((l, i) => `   ${i + 1}. ${l.label} — ${l.def}`)
+      .join("\n");
+
+    // ─── BOLD MODE (mode "Pousse plus loin") ───
+    const boldBlock = isBold ? `
+═══════════════════════════════════════════════
+🔥 MODE "POUSSE PLUS LOIN" ACTIVÉ — sors des sentiers battus
+═══════════════════════════════════════════════
+Les 4 idées doivent monter d'un cran en audace. Vise le niveau "boldness: bold" ou "provoc" pour AU MOINS 3 idées sur 4 :
+- Au moins 1 idée doit contredire FRONTALEMENT une opinion mainstream du secteur (pas un demi-désaccord poli — une position claire, argumentée).
+- Au moins 1 idée doit assumer une VULNÉRABILITÉ réelle (échec, doute, prix payé, erreur coûteuse) — sans pathos ni surenchère.
+- Au moins 1 idée doit prendre POSITION sur un sujet politique/éthique du métier (rapport au prix, à la diversité, à l'écologie, au pouvoir, à la transparence).
+- Tu peux utiliser plus librement la lentille "intersection_angles" pour combiner deux angles éditoriaux qui frottent.
+
+⚠ ETHICAL_GUARDRAILS reste prioritaire : pas de manipulation, pas de honte forcée, pas de discours qui blesse une cible. "Bold" ≠ "méchant" — c'est de la franchise utile, pas de la provocation gratuite.
+` : "";
+
     const systemPrompt = `Tu es la meilleure directrice éditoriale du monde. Tu trouves THE idée qui fait dire "c'est exactement ça que je veux poster". Surprenante MAIS juste. Une idée surprenante mais fausse, malhonnête ou bancale est PIRE qu'une idée tiède : elle décrédibilise. Vise la justesse d'abord, la surprise ensuite.
 Tu ne dis JAMAIS de gros mots ni de langage vulgaire.
 
