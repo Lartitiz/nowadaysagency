@@ -1791,6 +1791,10 @@ RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
     "slides_connected": true,
     "subject_concept_used": true,
     "text_slides_min_30_words": true,
+    "mecanisme_nomme": true,
+    "croyance_retournee": true,
+    "slide_pivot_number": 4,
+    "depth_check": "chaque slide text_only porte un mécanisme, une croyance retournée, une donnée, un exemple ou une prise de position",
     "score": 85
   }
 }`;
