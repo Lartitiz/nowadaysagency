@@ -1824,6 +1824,9 @@ RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
     "text_slides_min_30_words": true,
     "mecanisme_nomme": true,
     "croyance_retournee": true,
+    "fabricated_scene_detected": false,
+    "subject_depth_present": true,
+    "personal_stance_present": true,
     "slide_pivot_number": 4,
     "depth_check": "chaque slide text_only porte un mécanisme, une croyance retournée, une donnée, un exemple ou une prise de position",
     "score": 85
