@@ -1599,10 +1599,11 @@ RÈGLE ABSOLUE : le JSON retourné doit avoir EXACTEMENT ${slide_structure.lengt
     return structureConstraint;
   })()}═══ RÈGLES DE COMPOSITION ═══
 
-- Un carrousel de ${body.photos?.length || "N"} photos devrait avoir ${body.photos?.length || "N"} à ${(body.photos?.length || 6) + 3} slides au total
+- Un carrousel de ${body.photos?.length || "N"} photos devrait avoir ${body.photos?.length || "N"} à ${(body.photos?.length || 6) + 2} slides au total (pas plus — un mixte trop long dilue l'impact)
+- Au moins 50% des slides DOIVENT être de type photo_full ou photo_integrated. C'est un format mixte, pas un carrousel texte.
 - Commence TOUJOURS par une slide "photo_full" (hook visuel)
 - Termine par une slide "text_only" (CTA)
-- CHAQUE photo uploadée doit être utilisée AU MOINS une fois
+- Préfère utiliser CHAQUE photo uploadée au moins une fois — n'en écarter une que si elle est vraiment hors-sujet par rapport au brief
 - Une même photo peut être utilisée dans plusieurs slides (ex: full + detail crop)
 - Alterne les types pour créer du rythme : photo → texte → photo → texte
 - Ne fais JAMAIS 3 slides du même type à la suite
@@ -1611,6 +1612,7 @@ RÈGLE ABSOLUE : le JSON retourné doit avoir EXACTEMENT ${slide_structure.lengt
 
 - ARC NARRATIF : situation → tension → développement → résolution → ouverture. Fil conducteur clair entre slides photo et texte.
 - Les slides text_only doivent avoir un body de 30-50 mots MINIMUM (phrases complètes, pas des fragments).
+- QUALITÉ VISUELLE des slides texte (CRUCIAL) : une slide text_only n'est PAS un mur de texte. Quand le contenu s'y prête, ajoute un "visual_schema" pour porter le message visuellement (comparaison avant/après, opposition deux colonnes, timeline, liste numérotée structurée, citation mise en avant, chiffre-clé géant). Vise au moins 1 slide texte sur 2 avec un visual_schema. Si la slide est juste du texte, alors le body doit être PERCUTANT (formule, prise de position, micro-récit) — pas un paragraphe descriptif.
 - Les overlay_text sur photo_full sont COURTS (5-20 mots) : ils complètent l'image, ils ne la décrivent pas.
 - Au moins 1 exemple concret OU 1 analogie du quotidien dans le carrousel.
 - Le sujet "${body.subject || ""}" est un BRIEF CRÉATIF : si c'est un concept (VS, avant/après, métaphore), il structure l'ensemble. Le titre apparaît (ou est amélioré) sur la slide 1.
