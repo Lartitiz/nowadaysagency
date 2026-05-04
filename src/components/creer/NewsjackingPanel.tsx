@@ -20,6 +20,7 @@ interface Actu {
   titre: string;
   resume: string;
   source: string;
+  source_url?: string;
   type: "globale" | "niche";
   axe?: string;
   ton?: string;
