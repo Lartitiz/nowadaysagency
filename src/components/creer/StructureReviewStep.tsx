@@ -190,6 +190,28 @@ export default function StructureReviewStep({
     setEditableSlides((prev) => [...prev, newSlide]);
   };
 
+  // Ajoute une slide photo_full pour CHAQUE photo orpheline en une seule action
+  const addSlidesForAllOrphans = () => {
+    if (unusedPhotoIndices.length === 0) return;
+    const room = 15 - editableSlides.length;
+    const toAdd = unusedPhotoIndices.slice(0, Math.max(0, room));
+    if (toAdd.length === 0) return;
+    setEditableSlides((prev) => {
+      const next = [...prev];
+      toAdd.forEach((photoIdx) => {
+        next.push({
+          slide_number: next.length + 1,
+          role: "visual",
+          title_suggestion: "",
+          strategic_note: `Slide ajoutée pour utiliser la photo ${photoIdx}`,
+          slide_type: "photo_full",
+          photo_index: photoIdx,
+        });
+      });
+      return next;
+    });
+  };
+
   const renumberedSlides = renumber(editableSlides);
 
   return (
@@ -405,11 +427,40 @@ export default function StructureReviewStep({
         </Button>
       </div>
 
+      {/* ───── NUDGE PHOTOS ORPHELINES (mode mix uniquement) ───── */}
+      {carouselSubMode === "mix" && unusedPhotoIndices.length > 0 && (
+        <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex items-start gap-2 flex-1">
+            <AlertTriangle size={16} className="text-orange-500 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-orange-800">
+              {unusedPhotoIndices.length === 1
+                ? "1 photo n'est pas utilisée dans cette structure. "
+                : `${unusedPhotoIndices.length} photos ne sont pas utilisées dans cette structure. `}
+              Tu veux les ajouter ?
+            </p>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            onClick={addSlidesForAllOrphans}
+            disabled={editableSlides.length >= 15}
+            className="text-white hover:opacity-90 flex-shrink-0"
+            style={{ backgroundColor: "#FB3D80" }}
+          >
+            <Plus size={14} className="mr-1" />
+            {unusedPhotoIndices.length === 1
+              ? "Ajouter une slide"
+              : `Ajouter ${unusedPhotoIndices.length} slides`}
+          </Button>
+        </div>
+      )}
+
       {/* ───── ZONE 4 : FOOTER ───── */}
       <div className="flex flex-col sm:flex-row gap-3 justify-between items-center mt-8">
         <Button variant="outline" onClick={onBack} disabled={isLoading}>
           ← Modifier mes réponses
         </Button>
+
 
         <div className="flex gap-2">
           <Button

@@ -300,7 +300,27 @@ serve(async (req) => {
         if (isPhotoMode) {
           photoInstruction = `\nMODE PHOTO — ${photos.length} photo(s) fournies.\nAnalyse chaque photo et propose une structure où CHAQUE slide utilise une photo.\nPour chaque slide, indique "photo_index" (1-based, correspondant à l'ordre des photos fournies) et "slide_type": "photo_full".\nAssigne les photos aux slides en fonction de leur contenu visuel et du rôle narratif de la slide.\n${photo_description ? `Description complémentaire des photos : "${photo_description}"` : ""}`;
         } else {
-          photoInstruction = `\nMODE MIXTE — ${photos.length} photo(s) fournies.\nPropose une structure qui MÉLANGE slides photo et slides texte.\nPour les slides avec photo, indique "photo_index" (1-based) et "slide_type": "photo_full" ou "photo_integrated".\nPour les slides sans photo, indique "slide_type": "text_only" et pas de photo_index.\nRépartis les photos intelligemment : la plus impactante en hook ou conclusion, les autres selon leur contenu.\nTu n'es PAS obligé·e d'utiliser toutes les photos.\n${photo_description ? `Description complémentaire des photos : "${photo_description}"` : ""}`;
+          photoInstruction = `\nMODE MIXTE — ${photos.length} photo(s) fournies.
+
+OBJECTIF DU FORMAT MIXTE : un dialogue ÉQUILIBRÉ entre image et mot. Ce N'EST PAS un carrousel texte avec quelques photos décoratives. Si tu produis 70% de slides texte, tu rates le format.
+
+CIBLE DE RÉPARTITION (TRÈS IMPORTANT) :
+- Au minimum 50% de slides photo (photo_full ou photo_integrated)
+- Préférer utiliser TOUTES les photos uploadées au moins une fois (les écarter doit être l'exception, pas le réflexe — si tu en écartes une, c'est qu'elle est vraiment hors-sujet par rapport au brief)
+- Pour ${photos.length} photos : vise entre ${photos.length} et ${photos.length + 2} slides au total (pas plus). Sweet spot : ${photos.length} slides photo + 1-2 slides texte clés.
+
+QUAND UNE SLIDE TEXTE SE JUSTIFIE (sinon, mets une photo) :
+- Elle apporte un chiffre, une donnée, une statistique impossibles à porter par une image
+- Elle pose une prise de position tranchée / une réflexion charnière qui mérite son propre espace
+- C'est une transition narrative entre deux blocs photo
+- C'est le CTA final
+→ Sinon, défaut = slide photo.
+
+Pour les slides avec photo : "photo_index" (1-based) + "slide_type" = "photo_full" ou "photo_integrated".
+Pour les slides texte : "slide_type" = "text_only", pas de photo_index. Indique aussi dans "strategic_note" pourquoi cette slide DOIT être texte (chiffre, transition, prise de position…) — et si elle gagnerait à porter un schéma visuel (comparaison, timeline, opposition, liste structurée).
+
+Répartis les photos intelligemment : la plus impactante en hook (slide 1) ou conclusion, les autres selon leur contenu narratif.
+${photo_description ? `Description complémentaire des photos : "${photo_description}"` : ""}`;
         }
       }
 
@@ -1579,10 +1599,11 @@ RÈGLE ABSOLUE : le JSON retourné doit avoir EXACTEMENT ${slide_structure.lengt
     return structureConstraint;
   })()}═══ RÈGLES DE COMPOSITION ═══
 
-- Un carrousel de ${body.photos?.length || "N"} photos devrait avoir ${body.photos?.length || "N"} à ${(body.photos?.length || 6) + 3} slides au total
+- Un carrousel de ${body.photos?.length || "N"} photos devrait avoir ${body.photos?.length || "N"} à ${(body.photos?.length || 6) + 2} slides au total (pas plus — un mixte trop long dilue l'impact)
+- Au moins 50% des slides DOIVENT être de type photo_full ou photo_integrated. C'est un format mixte, pas un carrousel texte.
 - Commence TOUJOURS par une slide "photo_full" (hook visuel)
 - Termine par une slide "text_only" (CTA)
-- CHAQUE photo uploadée doit être utilisée AU MOINS une fois
+- Préfère utiliser CHAQUE photo uploadée au moins une fois — n'en écarter une que si elle est vraiment hors-sujet par rapport au brief
 - Une même photo peut être utilisée dans plusieurs slides (ex: full + detail crop)
 - Alterne les types pour créer du rythme : photo → texte → photo → texte
 - Ne fais JAMAIS 3 slides du même type à la suite
@@ -1591,6 +1612,7 @@ RÈGLE ABSOLUE : le JSON retourné doit avoir EXACTEMENT ${slide_structure.lengt
 
 - ARC NARRATIF : situation → tension → développement → résolution → ouverture. Fil conducteur clair entre slides photo et texte.
 - Les slides text_only doivent avoir un body de 30-50 mots MINIMUM (phrases complètes, pas des fragments).
+- QUALITÉ VISUELLE des slides texte (CRUCIAL) : une slide text_only n'est PAS un mur de texte. Quand le contenu s'y prête, ajoute un "visual_schema" pour porter le message visuellement (comparaison avant/après, opposition deux colonnes, timeline, liste numérotée structurée, citation mise en avant, chiffre-clé géant). Vise au moins 1 slide texte sur 2 avec un visual_schema. Si la slide est juste du texte, alors le body doit être PERCUTANT (formule, prise de position, micro-récit) — pas un paragraphe descriptif.
 - Les overlay_text sur photo_full sont COURTS (5-20 mots) : ils complètent l'image, ils ne la décrivent pas.
 - Au moins 1 exemple concret OU 1 analogie du quotidien dans le carrousel.
 - Le sujet "${body.subject || ""}" est un BRIEF CRÉATIF : si c'est un concept (VS, avant/après, métaphore), il structure l'ensemble. Le titre apparaît (ou est amélioré) sur la slide 1.
