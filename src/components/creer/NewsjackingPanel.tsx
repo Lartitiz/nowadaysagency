@@ -374,6 +374,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
                   const anglesState = anglesByIdx[idx];
                   const axe = actu.axe ? AXE_CONFIG[actu.axe] : null;
                   const ton = actu.ton ? TON_CONFIG[actu.ton] : null;
+                  const pont = actu.force_pont ? PONT_CONFIG[actu.force_pont] : null;
                   return (
                     <motion.div
                       key={`${filter}-${idx}`}
