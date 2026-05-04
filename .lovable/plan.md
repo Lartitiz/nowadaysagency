@@ -1,80 +1,92 @@
-## Audit : profondeur des questions d'approfondissement — Mixte vs Texte
+## Bug : "erreur de format" lors de la génération depuis une idée actualité
 
-Aucune modif de code dans ce plan : c'est un audit de la **logique actuelle** et un **plan d'alignement** à valider.
+### Diagnostic
 
-## Où sont définies les questions
+**Le bug ne vient pas de la sauvegarde**, il vient de la **taille du payload** envoyé à la génération quand un contexte d'actualité est en jeu.
 
-Deux chemins distincts dans `supabase/functions/carousel-ai/index.ts`, branche `type === "deepening_questions"` :
+#### Chaîne actuelle (newsjacking → questions → génération)
 
-1. **Branche photo/mix AVEC photos uploadées** (lignes 427-511) → prompt **inline vision** (envoie les photos à Claude).
-2. **Branche texte (et photo/mix sans photos)** (lignes 513-518) → fonction `buildDeepeningQuestionsPrompt` (lignes 1044-1118).
+1. L'utilisateur sélectionne un angle d'actualité dans `NewsjackingPanel`.
+2. `handleNewsjackingSelect` (CreerUnifie:484) stocke le bloc actu complet dans le state `newsjackingContext` (titre + source + résumé + pertinence + véhicule + hook + description + format suggéré).
+3. L'utilisateur passe l'étape format → questions (le `newsjackingContext` n'est PAS injecté ici, donc les questions ne sont pas teintées par l'actu — sous-bug séparé).
+4. L'utilisateur répond → `doGenerate` (CreerUnifie:761) construit `enrichedSubject` :
+   ```
+   <ideaText>
+   --- CONTEXTE ACTUALITÉ ---
+   <bloc actu complet>
+   --- FIN CONTEXTE ACTUALITÉ ---
+   IMPORTANT : Ce contenu est un newsjacking. Le HOOK / ACCROCHE (slide 1...) DOIT partir de l'actualité elle-même... [≈640 chars d'instruction]
+   ```
+5. Ce `enrichedSubject` est envoyé tel quel comme `context` à l'edge function de génération.
 
-Résultat : un carrousel mixte avec photos passe par un prompt **complètement différent** de celui d'un carrousel texte. C'est là que naît le déséquilibre.
+#### Ce qui casse
 
-## Comparatif structurel
+| Edge function | Champ | Cap Zod | Risque |
+|---|---|---|---|
+| `creative-flow` (post / linkedin / newsletter / pinterest) | `context` | **8000 chars** | **BLOQUANT** — facile à dépasser car le bloc actu (titre + 2 phrases résumé + pertinence + véhicule + hook + description + format suggéré + 640 chars d'instruction) peut peser 1500-2500 chars, et le `ideaText` déjà long (= `angle.hook` ou `actu.titre`). Avec un sujet/contenu existant ajouté, on dépasse. |
+| `carousel-ai` `express_full` | `subject` | 15000 chars | Marge plus large mais dépassable sur actu très détaillée + contenu calendrier existant. |
 
-| Dimension | Carrousel TEXTE (`buildDeepeningQuestionsPrompt`) | Carrousel MIXTE avec photos (prompt inline) |
-|---|---|---|
-| Ancrage sujet | Bloc "SUJET COURANT — PRIORITÉ ABSOLUE" très fort + règle "ANCRAGE SUJET non négociable" | Sujet présenté comme "ce qu'elle a en tête" parmi d'autres matières |
-| Branding context | Injecté (`brandingBlock`) avec instruction "mentionne son domaine, sa cible, ses offres" | **Absent** du prompt inline |
-| Vocabulaire métier | `brandVocabBlock` injecté | **Absent** |
-| Mémoire anti-répétition | `recentBriefsContext` injecté + règle dédiée | **Absent** |
-| Angle éditorial | `angleBlock` injecté si présent | **Absent** |
-| Raisonnement interne pré-questions | Bloc "AVANT DE POSER — RAISONNEMENT INTERNE" en 3 étapes | **Absent** |
-| Profondeur exigée | "AU MOINS 1 question sur 3 doit creuser le POURQUOI PROFOND" + "vécu, anecdotes, opinions tranchées, exemples concrets" | "extraire le contexte INVISIBLE : pourquoi ce moment, quelle émotion, quel hors-champ" — plus mou, plus descriptif |
-| Format LinkedIn | Instructions pro spécifiques (données, leçons métier, expertise) | Mention courte ("ton PRO, apprentissage business") |
-| Anti-générique | Règle ferme "interchangeable d'un user à l'autre = invalide" | Règle équivalente présente |
-| Spécificité mixte | N/A | Demande "quels passages textuels viennent s'intercaler" — bien |
-| Pont texte/photo | N/A | Bien traité (2/3 questions doivent croiser) |
+`creative-flow/index.ts:39` : `context: z.string().max(8000).optional().nullable()` → quand on dépasse, `validateInput` lève une `ValidationError` :
+```
+"Données invalides: context: String must contain at most 8000 character(s)"
+```
+Cette erreur remonte dans le toast comme "erreur de format" (« Données invalides: ... »).
 
-## Diagnostic
+#### Pourquoi ce n'est pas attrapé pour le calendrier
 
-**Le mixte avec photos perd 5 leviers de profondeur** que le texte a :
+Pour le contenu calendrier existant, il existe déjà un mécanisme de split (CALENDAR_MARKER + truncation à 7800 chars dans `use-content-generator.ts:527-541`) — mais **uniquement pour l'étape questions**, et **uniquement pour le bloc calendrier**, **pas pour le bloc actualité**. L'étape `generate` passe `subject` raw (line 693).
 
-1. **Pas de branding/vocabulaire métier injecté** → questions moins ancrées dans son activité, plus génériques côté business.
-2. **Pas de mémoire anti-répétition** → risque de reposer une question déjà traitée sur un autre brief récent.
-3. **Pas d'angle éditorial** → si l'utilisatrice a choisi un angle, les questions du mixte l'ignorent.
-4. **Pas de raisonnement interne pré-questions** (les 3 étapes silencieuses du texte) → la qualité d'extraction est moins systématique.
-5. **Profondeur formulée mollement** : "extraire le contexte invisible" vs la règle texte "creuser le POURQUOI PROFOND + vécu/opinions tranchées/exemples concrets".
+#### Sous-bugs détectés au passage
 
-À l'inverse, le mixte gagne 1 levier : **le pont texte/photo** (croiser sujet écrit + élément visuel précis), ce qui est unique et bon.
+1. **`handleCreateFromActu`** (IdeaDetailSheet:175-184) passe `context` dans `navigate state`, mais CreerUnifie **ne lit jamais `locState.context`**. → l'utilisateur·ice qui clique "Créer depuis cette actu" depuis la fiche idée perd tout le contexte newsjacking : le contenu généré ne sera pas un newsjacking du tout.
+2. **Les questions d'approfondissement** ne reçoivent pas le `newsjackingContext` → questions hors-sujet sur un brief actu (perte de qualité, pas un crash).
 
-**Conséquence concrète** : sur un mixte, les questions tendent à être **descriptives sur les photos** ("c'était dans quel contexte ?", "quelle émotion ?") plutôt qu'**extractives sur le vécu/l'opinion/l'expertise** comme le texte.
+### Plan de correction
 
-## Plan d'alignement (à valider)
+#### Fix #1 (PRIORITAIRE — résout l'erreur format) : externaliser le contexte actu
 
-Garder les **deux prompts séparés** (le mixte a besoin de la vision et du pont texte/photo), mais **transférer les 5 leviers manquants** dans le prompt inline mixte.
+Plutôt que de stuffer le bloc actu dans `subject`/`context`, le faire voyager dans un champ dédié `launch_context` ou un nouveau champ `news_context` qui a son propre cap Zod.
 
-### 1. Injecter `brandingContext` et `brandVocabBlock` dans le prompt mixte
-Les deux variables sont déjà calculées en amont (lignes ~96-104, à vérifier). Les passer au bloc `messageContent` du mixte avec la même instruction que le texte : "mentionne son domaine d'activité, sa cible, ses offres ou son positionnement quand c'est pertinent".
+- **Frontend** : dans `doGenerate` (`CreerUnifie.tsx:756-762`), arrêter d'injecter le bloc dans `enrichedSubject`. À la place, passer un nouveau paramètre `newsContext` à `generateStream` / `generate`.
+- **`use-content-generator.ts`** : étendre `GenerateStreamParams` et `GenerateOnceParams` pour accepter `newsContext?: string`. Le passer à `creative-flow` et `carousel-ai` sous une clé dédiée (ex: `news_context`).
+- **Edge functions** :
+  - `creative-flow/index.ts` schema : ajouter `news_context: z.string().max(4000).optional().nullable()` (cap large mais borné).
+  - `carousel-ai/index.ts` schema : pareil.
+  - Côté prompt : injecter le `news_context` comme bloc séparé (avec l'instruction "le hook DOIT partir de l'actualité…") au lieu de le faire en suffixe du subject.
+- **Truncation défensive frontend** : si `newsjackingContext` dépasse 3500 chars, le tronquer (peu probable vu la structure mais ceinture+bretelles).
 
-### 2. Injecter `recentBriefsContext` (mémoire anti-répétition)
-Ajouter le bloc + la règle "n'importe JAMAIS leur contenu, vocabulaire ou scènes dans tes questions".
+#### Fix #2 : injecter `newsjackingContext` aussi à l'étape questions
 
-### 3. Injecter l'angle éditorial s'il est présent
-Reprendre le `angleBlock` du texte : "ANGLE ÉDITORIAL : X — Les questions doivent aider l'utilisatrice à remplir les étapes de cette structure avec son vécu personnel."
+Pour que les questions soient ancrées dans l'actu (sinon : génériques) :
+- `generateQuestions` reçoit `newsContext` optionnel.
+- Côté edge `carousel-ai` `deepening_questions` et `creative-flow` `questions` : si `news_context` présent, l'ajouter au bloc de prompt avec instruction "tes 3 questions doivent aider à faire le pont entre cette actualité et le vécu / l'opinion / l'expertise de l'utilisateur·ice".
 
-### 4. Ajouter le bloc "RAISONNEMENT INTERNE" pré-questions
-Adapter les 3 étapes au contexte mixte :
-1. Quel est le SUJET COURANT ? (re-extraire 1 mot-clé)
-2. Quel vocabulaire métier puis-je intégrer ?
-3. Quels DÉTAILS VISUELS PRÉCIS sur les photos puis-je nommer (pas "l'ambiance", mais le geste, l'objet, la couleur exacte) ?
-4. Y a-t-il un sujet identique dans l'historique récent ? Quelle question NE PAS reposer ?
+#### Fix #3 : réparer `handleCreateFromActu` (IdeaDetailSheet)
 
-### 5. Renforcer la règle de profondeur
-Remplacer "extraire le contexte invisible" par la formulation forte du texte :
-> "AU MOINS 1 question sur 3 doit creuser le POURQUOI PROFOND (vécu, conviction, opinion tranchée). Pas seulement décrire ce que les photos montrent ou évoquer une émotion floue."
+Aujourd'hui, l'entrée "Créer depuis cette actu" depuis Mes Idées passe `state.context` mais CreerUnifie l'ignore.
 
-Et ajouter explicitement l'objectif d'extraction du **vécu / des anecdotes / des opinions tranchées / des exemples concrets** — pas juste du sensoriel.
+Deux options :
+- (a) Ajouter dans CreerUnifie l'init `if (locState.context && locState.subject) setNewsjackingContext(locState.context)` dans le `useEffect` de prefill (vers ligne 380).
+- (b) Plus propre : passer aussi `state.fromNewsjacking: true` + `state.actuPayload` et reconstruire le contexte côté CreerUnifie.
 
-### 6. Mutualiser ce qui peut l'être
-Extraire les blocs partagés (raisonnement interne, règle profondeur, anti-générique, branding/vocab/historique) dans une constante locale au fichier (ex: `SHARED_DEEPENING_RULES`) injectée dans les deux prompts. Évite que les deux re-divergent à chaque future modif.
+Option (a) est plus simple et suffit.
 
-## Fichiers concernés
-- `supabase/functions/carousel-ai/index.ts` (uniquement la branche `deepening_questions` lignes 425-520, et éventuellement extraction d'une constante partagée)
-- Aucun changement frontend, aucun changement DB
+#### Fix #4 : robustesse côté error handling
 
-## Résultat attendu
-- Sur un mixte, les questions deviennent aussi **profondes et ancrées-business** que sur un texte (branding, vocabulaire, mémoire, angle, POURQUOI profond).
-- Le pont texte/photo et l'analyse vision restent l'avantage unique du mixte.
-- Une seule source de vérité pour les règles partagées → moins de drift à l'avenir.
+Quand `validateInput` échoue, le toast affiche "Données invalides: …". C'est cryptique pour l'utilisateur·ice. Côté edge functions, retourner un `error.code = "payload_too_large"` quand un champ texte dépasse, et côté frontend afficher un message clair "Le contexte est trop long pour cette actualité, on le tronque automatiquement et on relance" + retry auto avec troncature.
+
+(Optionnel — le Fix #1 supprime la cause racine.)
+
+### Fichiers concernés
+
+- `src/pages/CreerUnifie.tsx` (doGenerate ligne 756, useEffect prefill ligne 370)
+- `src/hooks/use-content-generator.ts` (GenerateStreamParams, GenerateOnceParams, GenerateQuestionsParams)
+- `src/components/calendar/IdeaDetailSheet.tsx` (handleCreateFromActu)
+- `supabase/functions/creative-flow/index.ts` (schema + prompt builder)
+- `supabase/functions/carousel-ai/index.ts` (schema + prompt builders : `express_full`, `deepening_questions`)
+
+### Résultat attendu
+
+- Plus de "Données invalides: context: String must contain at most 8000 character(s)" sur les briefs actu.
+- Les questions d'approfondissement deviennent ancrées dans l'actualité (qualité).
+- L'entrée "Créer depuis cette actu sauvegardée" depuis Mes Idées fonctionne enfin comme un newsjacking complet.

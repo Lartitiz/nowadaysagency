@@ -384,6 +384,12 @@ export default function CreerUnifie() {
     if (obj) setObjective(obj);
     if (locState?.existingContent) setExistingCalendarContent(locState.existingContent);
 
+    // Newsjacking context arriving from "Créer depuis cette actu" (IdeaDetailSheet)
+    // — preserves the actu block so the generated content stays a real newsjacking.
+    if (locState?.context && typeof locState.context === "string" && locState.context.trim()) {
+      setNewsjackingContext(locState.context.trim().slice(0, 3800));
+    }
+
     const fmtRaw = paramFormat || locState?.format;
     const paramCarouselSubMode = searchParams.get("carouselSubMode") as "text" | "photo" | "mix" | null;
 
@@ -668,6 +674,7 @@ export default function CreerUnifie() {
       photoDescription: descForQuestions || undefined,
       carouselSubMode: subModeForQuestions || undefined,
       photoMode: photoModeForQuestions || undefined,
+      newsContext: newsjackingContext || undefined,
     });
   };
 
@@ -757,10 +764,8 @@ export default function CreerUnifie() {
       ? ideaText + "\n\n[Contenu existant à approfondir]\n" + existingCalendarContent
       : ideaText;
 
-    // Newsjacking : injecter le contexte actualité dans le sujet pour TOUS les formats
-    if (newsjackingContext) {
-      enrichedSubject = `${enrichedSubject}\n\n--- CONTEXTE ACTUALITÉ ---\n${newsjackingContext}\n--- FIN CONTEXTE ACTUALITÉ ---\n\nIMPORTANT : Ce contenu est un newsjacking. Le HOOK / ACCROCHE (slide 1, première phrase) DOIT partir de l'actualité elle-même — c'est elle qui capte l'attention car elle est dans l'air du temps. Ensuite seulement, fais le pont vers l'expertise, le vécu ou le positionnement de l'utilisateur·ice. L'actu n'est pas un prétexte en arrière-plan : c'est le point d'entrée visible du contenu.`;
-    }
+    // Newsjacking : ne PAS injecter le bloc actu dans le subject (cap creative-flow.context = 8000).
+    // Il voyage dans le champ dédié `newsContext` qui a son propre cap côté edge.
 
     // Formats texte : utiliser le streaming SSE
     const textFormats = ["post", "linkedin", "newsletter", "pinterest"];
@@ -786,6 +791,7 @@ export default function CreerUnifie() {
             : undefined,
           photoDescription: photoMode ? photoDescription : undefined,
           deepResearch: !!newsjackingContext,
+          newsContext: newsjackingContext || undefined,
           pinterestLink: selectedFormat === "pinterest" ? pinterestData?.link : undefined,
           pinterestBoard: selectedFormat === "pinterest" ? pinterestData?.boardName : undefined,
         });
@@ -911,6 +917,7 @@ export default function CreerUnifie() {
           deepening_answers: Object.keys(ans).length > 0 ? ans : undefined,
           workspace_id: workspaceId !== session.user.id ? workspaceId : undefined,
           photo_description: photoDescription || undefined,
+          ...(newsjackingContext ? { news_context: newsjackingContext.slice(0, 3800) } : {}),
         };
         // En mode photo/mix, envoyer les photos pour analyse visuelle
         if ((carouselSubMode === "photo" || carouselSubMode === "mix") && uploadedPhotos.length > 0) {
@@ -948,6 +955,7 @@ export default function CreerUnifie() {
             ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context })), photoDescription } : {}),
             ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context })), photoDescription } : {}),
             ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? [{ base64: uploadedPhotos[0]?.base64, context: uploadedPhotos[0]?.context }] : undefined, photoDescription } : {}),
+            ...(newsjackingContext ? { newsContext: newsjackingContext } : {}),
           });
         }
       } finally {
@@ -970,6 +978,7 @@ export default function CreerUnifie() {
         ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context })), photoDescription } : {}),
         ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context })), photoDescription } : {}),
         ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? [{ base64: uploadedPhotos[0]?.base64, context: uploadedPhotos[0]?.context }] : undefined, photoDescription } : {}),
+        ...(newsjackingContext ? { newsContext: newsjackingContext } : {}),
       });
       return;
     }
@@ -987,6 +996,7 @@ export default function CreerUnifie() {
       ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context })), photoDescription } : {}),
       ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context })), photoDescription } : {}),
       ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? [{ base64: uploadedPhotos[0]?.base64, context: uploadedPhotos[0]?.context }] : undefined, photoDescription } : {}),
+      ...(newsjackingContext ? { newsContext: newsjackingContext } : {}),
     });
   };
 
@@ -1130,6 +1140,7 @@ export default function CreerUnifie() {
       ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context })), photoDescription } : {}),
       ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context })), photoDescription } : {}),
       ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? [{ base64: uploadedPhotos[0]?.base64, context: uploadedPhotos[0]?.context }] : undefined, photoDescription } : {}),
+      ...(newsjackingContext ? { newsContext: newsjackingContext } : {}),
     });
   };
 

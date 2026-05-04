@@ -49,6 +49,8 @@ export interface GenerateParams {
     photo_index?: number;
     slide_type?: "photo_full" | "photo_integrated" | "text_only";
   }>;
+  // Newsjacking — separate field to avoid bloating `subject`
+  newsContext?: string;
 }
 
 export interface GenerateQuestionsParams {
@@ -63,6 +65,8 @@ export interface GenerateQuestionsParams {
   photoDescription?: string;
   carouselSubMode?: "text" | "photo" | "mix";
   photoMode?: boolean;
+  // Newsjacking — anchors the questions in the actu instead of generic subject
+  newsContext?: string;
 }
 
 export interface Question {
@@ -177,6 +181,7 @@ export function useContentGenerator() {
       preGenAnswers,
       slideCount,
       carouselType,
+      newsContext,
     } = params;
 
     setGenerating(true);
@@ -232,6 +237,7 @@ export function useContentGenerator() {
               photo_description: (params.carouselType === "photo" || params.carouselType === "mix") ? params.photoDescription : undefined,
               slide_structure: params.slideStructure || null,
               confirmed_structure: params.confirmedStructure || null,
+              ...(newsContext && newsContext.trim() ? { news_context: newsContext.slice(0, 3800) } : {}),
             },
           }, 120000);
           data = res.data;
@@ -264,6 +270,7 @@ export function useContentGenerator() {
               editorial_angle: editorialAngle || null,
               content_structure: structurePrompt || null,
               workspace_id: workspaceId || null,
+              ...(newsContext && newsContext.trim() ? { news_context: newsContext.slice(0, 3800) } : {}),
             },
           }, 120000);
           data = res.data;
@@ -282,6 +289,7 @@ export function useContentGenerator() {
               time_available: timeAvailable || "flexible",
               pre_gen_answers: preGenAnswers || null,
               workspace_id: workspaceId || null,
+              ...(newsContext && newsContext.trim() ? { news_context: newsContext.slice(0, 3800) } : {}),
             },
           }, 120000);
           data = res.data;
@@ -315,6 +323,7 @@ export function useContentGenerator() {
               photo_mode: params.photoMode || undefined,
               photos: params.photoMode && params.photos?.length ? [{ base64: params.photos[0].base64, mimeType: params.photos[0].mimeType || "image/jpeg", context: params.photos[0].context }] : undefined,
               photo_description: params.photoMode ? params.photoDescription : undefined,
+              ...(newsContext && newsContext.trim() ? { news_context: newsContext.slice(0, 3800) } : {}),
             },
           }, 120000);
           data = res.data;
@@ -340,6 +349,7 @@ export function useContentGenerator() {
               objective: objective || null,
               editorialFormat: editorialAngle || null,
               workspace_id: workspaceId || null,
+              ...(newsContext && newsContext.trim() ? { news_context: newsContext.slice(0, 3800) } : {}),
             },
           }, 120000);
           data = res.data;
@@ -488,6 +498,7 @@ export function useContentGenerator() {
                 ? params.photos!.map((p) => ({ base64: p.base64, context: p.context }))
                 : undefined,
               photo_description: visionMode ? params.photoDescription || undefined : undefined,
+              ...(params.newsContext && params.newsContext.trim() ? { news_context: params.newsContext.slice(0, 3800) } : {}),
             },
           }, visionMode ? 90000 : 60000);
           data = res.data;
@@ -547,6 +558,7 @@ export function useContentGenerator() {
                 ? [{ base64: params.photos![0].base64, mimeType: params.photos![0].mimeType || "image/jpeg", context: params.photos![0].context }]
                 : undefined,
               photo_description: photoModeCF ? params.photoDescription || undefined : undefined,
+              ...(params.newsContext && params.newsContext.trim() ? { news_context: params.newsContext.slice(0, 3800) } : {}),
             },
           }, photoModeCF ? 90000 : 60000);
           data = res.data;
@@ -651,6 +663,7 @@ export function useContentGenerator() {
         deepResearch,
         pinterestLink,
         pinterestBoard,
+        newsContext,
       } = params;
 
       streamReset();
@@ -724,6 +737,7 @@ export function useContentGenerator() {
             }
           : {}),
         ...(deepResearch ? { deepResearch: true } : {}),
+        ...(newsContext && newsContext.trim().length > 0 ? { news_context: newsContext.slice(0, 3800) } : {}),
         ...(format === "pinterest" && (pinterestLink || pinterestBoard)
           ? { pinterest_link: pinterestLink, pinterest_board: pinterestBoard }
           : {}),
@@ -802,4 +816,6 @@ export interface GenerateStreamParams {
   deepResearch?: boolean;
   pinterestLink?: string;
   pinterestBoard?: string;
+  // Newsjacking — separate field, not stuffed into `subject`
+  newsContext?: string;
 }

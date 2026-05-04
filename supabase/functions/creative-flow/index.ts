@@ -57,11 +57,18 @@ serve(async (req) => {
       editorial_angle: z.string().max(200).optional().nullable(),
       content_structure: z.string().max(5000).optional().nullable(),
       launch_context: z.any().optional().nullable(),
+      news_context: z.string().max(4000).optional().nullable(),
       price_range: z.string().max(50).optional().nullable(),
       series_id: z.string().uuid().optional().nullable(),
       episode_number: z.number().int().min(1).optional().nullable(),
     }).passthrough());
-    const { step, contentType, context, profile, angle, answers, followUpAnswers, content: currentContent, adjustment, calendarContext, preGenAnswers, sourceText, formats, targetFormat, workspace_id, deepResearch, objective, editorialFormat, editorialFormatLabel, variation, previousContent, pinterest_link, pinterest_board, recent_briefs_context: recentBriefsFromBody, series_id, episode_number } = body;
+    const { step, contentType, context, profile, angle, answers, followUpAnswers, content: currentContent, adjustment, calendarContext, preGenAnswers, sourceText, formats, targetFormat, workspace_id, deepResearch, objective, editorialFormat, editorialFormatLabel, variation, previousContent, pinterest_link, pinterest_board, recent_briefs_context: recentBriefsFromBody, series_id, episode_number, news_context: newsContext } = body;
+
+    // Reusable newsjacking block — injected into prompts when present.
+    // Kept separate from `context` to avoid blowing the 8000-char cap on subjects.
+    const newsContextBlock = (typeof newsContext === "string" && newsContext.trim().length > 0)
+      ? `\n\n══════════════════════════════════════\nCONTEXTE ACTUALITÉ (NEWSJACKING)\n══════════════════════════════════════\n${newsContext.trim()}\n\nCONSIGNE NEWSJACKING : ce contenu rebondit sur cette actualité. Le HOOK / ACCROCHE doit partir de l'actualité elle-même (c'est elle qui capte l'attention car elle est dans l'air du temps). Ensuite seulement, fais le pont vers l'expertise, le vécu ou le positionnement de l'utilisatrice. L'actu n'est pas un prétexte en arrière-plan : c'est le point d'entrée visible du contenu.\n`
+      : "";
 
     // Determine channel from contentType for persona selection
     const channelFromType = contentType?.includes("linkedin") ? "linkedin" : contentType?.includes("instagram") || contentType?.includes("carousel") || contentType?.includes("reel") || contentType?.includes("stories") ? "instagram" : undefined;
@@ -285,8 +292,9 @@ ${editorialFormatLabel ? `- Format éditorial : ${editorialFormatLabel}` : ""}
 - Structure : ${(angle.structure || []).join(" → ")}
 - Ton : ${angle.tone}
 ${angle.format_livraison ? `- Format de livraison recommandé : ${angle.format_livraison}` : ""}
-${calendarBlock}${objectiveBlock}
+${calendarBlock}${objectiveBlock}${newsContextBlock}
 ${recentBriefsContext}
+${newsContextBlock ? "\n⚠️ NEWSJACKING ACTIF : au moins 1 question sur 3 doit aider à faire le pont entre cette actualité et le vécu / l'opinion / l'expertise de l'utilisatrice (pas une question générique sur le sujet).\n" : ""}
 
 ══ AVANT DE POSER LES QUESTIONS — RAISONNEMENT INTERNE (ne PAS afficher) ══
 
@@ -479,7 +487,7 @@ ${depthMandate}
 RÉPONSES DE L'UTILISATRICE :
 ${answersBlock}
 ${followUpBlock}
-${calendarBlock}${objectiveBlock}
+${calendarBlock}${objectiveBlock}${newsContextBlock}
 ${preGenBlock}
 
 RÈGLE ANTI-FABRICATION :

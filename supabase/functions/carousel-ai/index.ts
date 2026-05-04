@@ -84,10 +84,11 @@ serve(async (req) => {
         slide_type: z.enum(["photo_full", "photo_integrated", "text_only"]).optional(),
       })).optional().nullable(),
       recent_briefs_context: z.string().max(6000).optional().nullable(),
+      news_context: z.string().max(4000).optional().nullable(),
       series_id: z.string().uuid().optional().nullable(),
       episode_number: z.number().int().min(1).optional().nullable(),
     }).passthrough());
-    const { type, workspace_id, launch_context, series_id, episode_number } = body;
+    const { type, workspace_id, launch_context, series_id, episode_number, news_context: newsContext } = body;
     const isLinkedIn = body.channel === "linkedin";
 
     const category = (type === "suggest_topics" || type === "suggest_angles" || type === "deepening_questions" || type === "structure_proposal") ? "suggestion" : "content";
@@ -150,6 +151,17 @@ serve(async (req) => {
     if (launch_context && (type === "express_full" || type === "hooks" || type === "slides")) {
       const lc = launch_context;
       systemPrompt += `\n\nCONTEXTE LANCEMENT :\n- Phase : ${lc.phase || "?"}\n- Chapitre : ${lc.chapter_label || "?"}\n- Phase mentale audience : ${lc.audience_phase || "?"}\n- Objectif du slot : ${lc.objective || "?"}\n- Angle suggéré : ${lc.angle_suggestion || "?"}\nCONSIGNE : adapte le contenu à cette phase du lancement. Un contenu de phase "vente" n'a pas le même ton qu'un contenu de phase "teasing".`;
+    }
+
+    // Inject newsjacking context if present (separate field — not in `subject` to avoid 15k cap)
+    const newsContextBlock = (typeof newsContext === "string" && newsContext.trim().length > 0)
+      ? `\n\n══════════════════════════════════════\nCONTEXTE ACTUALITÉ (NEWSJACKING)\n══════════════════════════════════════\n${newsContext.trim()}\n\nCONSIGNE NEWSJACKING : ce contenu rebondit sur cette actualité. Le HOOK / ACCROCHE (slide 1, première phrase) DOIT partir de l'actualité elle-même — c'est elle qui capte l'attention car elle est dans l'air du temps. Ensuite seulement, fais le pont vers l'expertise, le vécu ou le positionnement de l'utilisatrice. L'actu n'est pas un prétexte en arrière-plan : c'est le point d'entrée visible du carrousel.`
+      : "";
+    if (newsContextBlock) {
+      systemPrompt += newsContextBlock;
+      if (type === "deepening_questions") {
+        systemPrompt += `\n\n⚠️ NEWSJACKING ACTIF : au moins 1 question sur 3 doit aider à faire le pont entre cette actualité et le vécu / l'opinion / l'expertise de l'utilisatrice (pas une question générique sur le sujet).`;
+      }
     }
 
     let userPrompt = "";
