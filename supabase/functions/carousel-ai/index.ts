@@ -1826,3 +1826,215 @@ RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
   }
 }`;
 }
+
+// ════════════════════════════════════════════════════════════════════
+// MODE RÉACTION D'AUTRICE — carrousel mix déclenché par une actualité
+// ════════════════════════════════════════════════════════════════════
+function buildMixCarouselNewsReactionPrompt(body: any, isLinkedIn: boolean = false): string {
+  const { editorial_angle, content_structure, deepening_answers, slide_structure, confirmed_structure, subject } = body;
+
+  // Structure imposée (si présente) — réutilise le même bloc que le mode classique
+  let confirmedStructureBlock = "";
+  if (confirmed_structure && Array.isArray(confirmed_structure) && confirmed_structure.length > 0) {
+    const structureList = confirmed_structure
+      .map((s: any) => {
+        let line = `  Slide ${s.slide_number} — Rôle : ${s.role} — Titre : "${s.title_suggestion}"`;
+        if (s.photo_index) line += ` — Photo n°${s.photo_index}${s.slide_type ? ` (${s.slide_type})` : ""}`;
+        line += ` — ${s.strategic_note}`;
+        return line;
+      })
+      .join("\n");
+    confirmedStructureBlock = `══════════════════════════════════════
+STRUCTURE IMPOSÉE PAR L'UTILISATEUR·ICE — OBLIGATOIRE
+══════════════════════════════════════
+Tu DOIS générer le contenu pour EXACTEMENT ces slides dans cet ordre :
+${structureList}
+
+RÈGLES ABSOLUES :
+- Ne change NI l'ordre NI les rôles NI le nombre de slides
+- Utilise les titres proposés comme base (tu peux les affiner légèrement)
+- Génère uniquement le contenu (body, visual_schema, caption) pour chaque slide
+- Le JSON retourné doit contenir exactement ${confirmed_structure.length} slides
+- Si une slide a un photo_index, le champ photo_index doit être présent dans le JSON de sortie
+
+`;
+  }
+
+  let deepeningCtx = "";
+  if (deepening_answers) {
+    const answers = Object.entries(deepening_answers)
+      .filter(([, v]) => v && (v as string).trim())
+      .map(([k, v]) => `- ${k}: ${v}`)
+      .join("\n");
+    if (answers) deepeningCtx = `\nRÉPONSES DE L'UTILISATRICE (intègre son vécu et ses mots) :\n${answers}\n`;
+  }
+
+  let angleBlock = "";
+  if (editorial_angle && content_structure) {
+    angleBlock = `\nANGLE ÉDITORIAL CHOISI : ${editorial_angle}\nSTRUCTURE IMPOSÉE :\n${content_structure}\n`;
+  }
+
+  // Structure-imposée slides (front-side)
+  let structureConstraint = "";
+  if (slide_structure && slide_structure.length > 0) {
+    const lines = slide_structure.map((s: any) => {
+      let line = `- Slide ${s.slide_number} : type="${s.type}"`;
+      if (s.photo_index) line += `, photo_index=${s.photo_index}`;
+      if (s.photo_layout) line += `, photo_layout="${s.photo_layout}"`;
+      return line;
+    }).join("\n");
+    structureConstraint = `═══ STRUCTURE IMPOSÉE PAR L'UTILISATEUR·ICE (OBLIGATOIRE) ═══
+${lines}
+
+Nombre total de slides : ${slide_structure.length}
+RÈGLE ABSOLUE : le JSON retourné doit avoir EXACTEMENT ${slide_structure.length} slides dans le même ordre.
+
+`;
+  }
+
+  return `${confirmedStructureBlock}Tu es l'AUTRICE qui réagit à une actualité dans un carrousel ${isLinkedIn ? "LinkedIn" : "Instagram"} mixte (photos + texte).
+
+Ce N'EST PAS un résumé d'actu. Ce N'EST PAS une explication slide-par-slide. C'est UNE PRISE DE PAROLE PERSONNELLE qui rebondit sur cette actu.
+
+══════════════════════════════════════
+MODE "RÉACTION D'AUTRICE" — RÈGLES NON NÉGOCIABLES
+══════════════════════════════════════
+
+1. VOIX = JE qui réagit
+   - L'autrice REGARDE l'actu et PARTAGE ce qu'elle en pense, ce que ça lui fait, ce qu'elle voit que les autres ne voient pas.
+   - Pas de "voilà ce qui s'est passé + 3 leçons à en tirer". Pas de "pour mieux comprendre, voici 5 points".
+   - À la place : "voilà ce que je vois passer / ce que ça me fait / pourquoi je trouve que c'est plus profond que ce qu'on raconte / ce que ça touche dans MON terrain".
+
+2. ARC NARRATIF UNIQUE (obligatoire)
+   - Slide 1 (hook visuel) : entrée scène — l'actu déclencheuse, mais pas comme un résumé : un détail, une phrase, une image qui m'a frappée.
+   - Slides 2-3 : ce qui m'a vraiment frappée (précis, sensoriel, daté). C'est MON regard, pas le résumé.
+   - Slide PIVOT (vers le milieu) : LE DÉCALAGE. Là où je ne suis pas d'accord avec la lecture commune. Là où je vois autre chose. C'est la pépite. Pas un diagnostic sur la lectrice — une PRISE DE POSITION sur le sujet.
+   - Slides suivantes : ce que ça révèle de plus large (systémique, culturel, sectoriel). Lien avec mon terrain/métier formulé en JE ("dans mon métier je vois", "ce que ça touche chez moi").
+   - Dernière slide : ouverture — pas une leçon, pas un conseil, une question ou un constat qui invite à la conversation.
+
+3. CONTINUITÉ SLIDE-À-SLIDE (test obligatoire)
+   - Si on lit les "body" des slides text_only à la suite, ça doit former UN MONOLOGUE COHÉRENT — la pensée d'une personne qui se déroule, pas 5 paragraphes indépendants.
+   - Chaque slide REPREND quelque chose de la précédente (un mot, une image, une tension) et la fait AVANCER. Pas de slides parallèles qui pourraient être interverties.
+   - INTERDIT : ouvrir une slide texte par "Premièrement", "Ensuite", "Pour finir", "1.", "2.", ou par un titre-annonce générique.
+
+4. AUDIENCE = TÉMOIN, PAS PATIENTE
+   - Le "tu/vous" est INTERDIT dans ce mode (sauf 1 fois dans le CTA final).
+   - Pas de "tu attends la permission", "tu n'oses pas", "tu te compares", "on a intériorisé que…" formulé comme diagnostic. Voir bloc ANTI-VICTIMISATION dans le system prompt — il s'applique à 100% ici.
+   - L'audience est convoquée par RICOCHET via "on" inclusif au sens "nous toutes qui regardons ça passer" — jamais désignée comme problème.
+   - Si une slide pourrait être lue comme "elle me fait la leçon sur ce qui ne va pas chez moi" → RÉÉCRIS en constat sur le sujet ou le discours dominant.
+
+5. PROFONDEUR = OPINION INCARNÉE, PAS DIAGNOSTIC PSY
+   - La slide pivot porte UNE PRISE DE POSITION PERSONNELLE qui décale (ce que toi tu vois et que la lecture dominante rate). Pas "la croyance retournée de la lectrice".
+   - Les slides text_only doivent porter au moins UN parmi : un fait précis sur l'actu (chiffre vérifiable, citation, date), une opinion tranchée signée JE, une nuance qu'on entend pas ailleurs, un parallèle concret avec ton terrain/métier.
+   - Tranchée OK ("moi je trouve que…", "ça me gonfle que…", "je ne suis pas d'accord avec…"). Pas de vulgarité, pas d'attaque ad hominem.
+
+6. PONT ACTU → MÉTIER (formulation obligatoire)
+   - Pas "voilà ce que cette actu dit de TON business".
+   - À la place : "voilà ce que cette actu touche dans MON terrain / dans MA pratique / dans ce que je vois passer chez les gens que j'accompagne".
+
+══════════════════════════════════════
+ACTU DÉCLENCHEUSE (rappel — détaillée dans le system prompt)
+══════════════════════════════════════
+Brief créatif personnel : "${subject || ""}"
+Cette actu est le POINT D'ENTRÉE visible (slide 1). Le reste du carrousel = TA réaction, pas un résumé prolongé.
+
+═══ TYPES DE SLIDES (identique au mode mix classique) ═══
+
+1. "photo_full" — Photo plein écran + overlay court (5-20 mots, ancré dans CETTE photo, pas une formule chic).
+2. "photo_integrated" — Photo intégrée dans un layout (top_photo, left_photo, right_photo, card_photo, banner_photo).
+3. "text_only" — Slide texte pure. body 30-50 mots MIN, prose fluide écrite en JE, qui FAIT AVANCER le monologue.
+
+═══ COMPOSITION ═══
+- Carrousel de ${body.photos?.length || "N"} photos → ${body.photos?.length || "N"} à ${(body.photos?.length || 6) + 2} slides.
+- Au moins 50% des slides en photo_full ou photo_integrated.
+- Slide 1 = photo_full (entrée scène). Dernière slide = text_only (ouverture/CTA).
+- Jamais 3 slides du même type à la suite. Alterne.
+
+${structureConstraint}═══ INTERDICTION CASCADE / ESCALIER ═══
+- Pas d'ouvertures par "En vrai", "Et là", "Sauf que", "Sauf qu'en fait", "Le vrai X c'est…", "Et oui…".
+- Pas de rampe émotionnelle artificielle ("important" → "crucial" → "vital").
+- Test slide-seule : chaque text_only doit pouvoir être lue hors contexte ET garder un message clair (même si elle s'inscrit dans le monologue).
+
+${SLIDE_TITLE_RULES}
+
+═══ ASSIGNATION DES PHOTOS ═══
+Photos fournies dans l'ordre : photo 1, photo 2... Pour chaque slide photo, indique photo_index.
+
+${deepeningCtx}${angleBlock}
+
+═══ VÉRIFICATION FINALE (avant de retourner le JSON) ═══
+- Voix JE dominante : au moins 70% des slides text_only ouvrent ou pivotent sur "je", "moi", "ma/mon".
+- Aucune slide ne contient "tu/vous" (sauf 1 max dans le CTA final).
+- Aucune slide ne diagnostique l'audience (cf. ANTI-VICTIMISATION du system prompt).
+- Au moins 2 slides portent une OPINION SIGNÉE ("moi je…", "je trouve que…", "je ne crois pas que…").
+- Slide pivot identifiée : c'est une PRISE DE POSITION qui décale, pas un diagnostic.
+- Test monologue : si je lis les body text_only à la suite → ça forme UNE pensée qui se déroule, pas 5 points indépendants.
+- Le pont actu → métier est formulé en "ce que ça touche dans MON terrain", pas "ce que ça dit de TON business".
+
+${isLinkedIn ? `═══ LÉGENDE LINKEDIN (OPTIONNELLE) ═══
+Caption gérée par appel dédié. Tu peux mettre {"hook":"","body":"","cta":"","hashtags":[]} ou l'omettre.` : `═══ LÉGENDE INSTAGRAM (OBLIGATOIRE) ═══
+Objet "caption" avec :
+- "hook" (1-2 phrases, DIFFÉRENT du texte slide 1, ancré dans TA réaction)
+- "body" (300-700 caractères : l'envers de TA réaction, ce que les slides ne disent pas, formulé en JE)
+- "cta" (invitation à la conversation — UNE seule, pas de liste)
+- "hashtags" (5-10 hashtags pertinents au sujet, sans le #)`}
+
+⚠️ Les valeurs ci-dessous montrent la STRUCTURE JSON, PAS le ton. Tout doit être 100% ancré dans l'actu réelle et la voix JE.
+
+RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
+{
+  "carousel_type": "mix",
+  "chosen_angle": { "title": "Titre court de l'angle (3-5 mots)", "description": "Pourquoi cet angle / quel décalage je propose" },
+  "slides": [
+    {
+      "slide_number": 1,
+      "slide_type": "photo_full",
+      "photo_index": 1,
+      "role": "hook_visuel_actu",
+      "overlay_text": "placeholder — détail/phrase/image qui m'a frappée dans cette actu (5-20 mots)",
+      "overlay_position": "bottom_center",
+      "overlay_style": "sensoriel",
+      "note": "placeholder — note DA"
+    },
+    {
+      "slide_number": 2,
+      "slide_type": "text_only",
+      "photo_index": null,
+      "role": "ce_qui_m_a_frappee",
+      "title": "placeholder — entrée scène en JE, 4-9 mots",
+      "body": "placeholder — 30-50 mots en JE, ce qui m'a vraiment touchée dans cette actu, précis et sensoriel, AUCUN tu/vous, aucune leçon à l'audience",
+      "visual_schema": null
+    },
+    {
+      "slide_number": 3,
+      "slide_type": "text_only",
+      "photo_index": null,
+      "role": "decalage_pivot",
+      "title": "placeholder — ma prise de position, 4-9 mots",
+      "body": "placeholder — 30-50 mots : LE DÉCALAGE. Là où je ne suis pas d'accord avec la lecture commune. Opinion signée JE. Pas un diagnostic sur l'audience.",
+      "visual_schema": null
+    }
+  ],
+  "caption": {
+    "hook": "Accroche personnelle, différente de la slide 1",
+    "body": "Corps de la légende en JE",
+    "cta": "Invitation à la conversation (1 seule)",
+    "hashtags": ["hashtag1", "hashtag2"]
+  },
+  "quality_check": {
+    "total_slides": 8,
+    "photo_full_count": 3,
+    "photo_integrated_count": 2,
+    "text_only_count": 3,
+    "all_photos_used": true,
+    "narrative_arc": true,
+    "monologue_continuity": true,
+    "je_voice_dominant": true,
+    "audience_as_victim": false,
+    "opinion_visible_in_at_least_2_slides": true,
+    "decalage_pivot_slide_number": 3,
+    "tu_vous_count_outside_cta": 0,
+    "score": 85
+  }
+}`;
+}
