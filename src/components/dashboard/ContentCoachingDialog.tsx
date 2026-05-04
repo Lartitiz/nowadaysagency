@@ -490,7 +490,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
               <p className="text-xs text-muted-foreground italic">{result.format_reason}</p>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <Button
                 variant="outline"
                 onClick={() => generateIdeas()}
@@ -498,6 +498,16 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
               >
                 <RefreshCw className="h-4 w-4" /> Autres idées
               </Button>
+              {result.ideas?.length ? (
+                <Button
+                  variant="outline"
+                  onClick={() => generateIdeas({ objectif, canal, format, sujet, intensity: "bold" })}
+                  className="gap-1.5"
+                  title="Sors des sentiers battus — idées plus audacieuses"
+                >
+                  🔥 Pousse plus loin
+                </Button>
+              ) : null}
               <Button
                 onClick={handleGo}
                 disabled={!!(result.ideas?.length && !selectedIdea)}
