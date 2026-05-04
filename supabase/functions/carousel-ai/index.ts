@@ -84,10 +84,11 @@ serve(async (req) => {
         slide_type: z.enum(["photo_full", "photo_integrated", "text_only"]).optional(),
       })).optional().nullable(),
       recent_briefs_context: z.string().max(6000).optional().nullable(),
+      news_context: z.string().max(4000).optional().nullable(),
       series_id: z.string().uuid().optional().nullable(),
       episode_number: z.number().int().min(1).optional().nullable(),
     }).passthrough());
-    const { type, workspace_id, launch_context, series_id, episode_number } = body;
+    const { type, workspace_id, launch_context, series_id, episode_number, news_context: newsContext } = body;
     const isLinkedIn = body.channel === "linkedin";
 
     const category = (type === "suggest_topics" || type === "suggest_angles" || type === "deepening_questions" || type === "structure_proposal") ? "suggestion" : "content";
