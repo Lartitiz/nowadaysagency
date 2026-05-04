@@ -276,7 +276,7 @@ export function PhotoUploadZone({
             Glisse tes photos ici ou clique pour sélectionner
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            JPG, PNG • Max {maxPhotos} photos
+            JPG, PNG, HEIC (iPhone) • Max {maxPhotos} photos • {MAX_FILE_SIZE_MB} Mo / photo
           </p>
         </div>
       )}
