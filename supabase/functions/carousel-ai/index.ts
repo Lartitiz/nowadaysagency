@@ -173,7 +173,10 @@ serve(async (req) => {
     } else if (type === "express_full") {
       // ── Mix carousel mode ──
       if (body.carousel_type === "mix") {
-        const mixPrompt = buildMixCarouselPrompt(body, isLinkedIn);
+        const hasNews = typeof newsContext === "string" && newsContext.trim().length > 0;
+        const mixPrompt = hasNews
+          ? buildMixCarouselNewsReactionPrompt(body, isLinkedIn)
+          : buildMixCarouselPrompt(body, isLinkedIn);
         let content: string;
 
         if (body.photos && body.photos.length > 0) {
