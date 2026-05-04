@@ -441,7 +441,7 @@ Retourne UNIQUEMENT ce JSON (pas de markdown, pas de commentaires, pas de prose 
     const raw = await callAnthropicSimple(
       getModelForAction("coaching"),
       systemPrompt,
-      "Génère 4 idées de contenu (sujet + angle uniquement, PAS de hook ni de brief), une par registre dans l'ordre : 1.expertise pratique / 2.contre-pied / 3.perspective élargie / 4.analogie inattendue. Applique successivement : (1) AUDIENCE vs UTILISATRICE, (2) RÈGLE DE VÉRITÉ, (3) RÈGLE D'OR métier, (4) TEST DE SINGULARITÉ, (5) TEST DE VALIDITÉ. Réponds UNIQUEMENT avec le JSON demandé.",
+      `Génère ${regenerate_lens ? "1" : "4"} idée(s) de contenu (sujet + angle uniquement, PAS de hook ni de brief)${regenerate_lens ? ` pour la lentille "${regenerate_lens}" uniquement, en plus radical que la version précédente` : `, UNE PAR LENTILLE dans l'ordre des 4 lentilles fournies (chaque idée renseigne le champ "lens" avec l'identifiant correspondant)`}. Applique successivement : (1) AUDIENCE vs UTILISATRICE, (2) RÈGLE DE VÉRITÉ, (3) RÈGLE D'OR métier, (4) PROFONDEUR 3-AXES (tension + enjeu + ancrage), (5) TEST DE SINGULARITÉ, (6) TEST DE VALIDITÉ. Si la MATIÈRE VIVANTE est fournie, au moins 2 idées sur 4 doivent l'utiliser explicitement. Réponds UNIQUEMENT avec le JSON demandé.${isBold ? " MODE BOLD ACTIF — vise l'audace utile sans manipulation." : ""}`,
       0.8,
       1200,
     );
