@@ -108,6 +108,17 @@ async function mountIframe(html: string): Promise<HTMLIFrameElement> {
   [data-pptx-photo-hide="true"] svg image {
     visibility: hidden !important;
   }
+  /* Masquage des shapes structurels rendus en pptxgenjs natif :
+     on retire UNIQUEMENT le fond/ombre du shape lui-même, JAMAIS celui des descendants
+     (le texte enfant doit rester visible dans le PNG si non annoté éditable).
+     PAS de sélecteur descendant ici, contrairement à data-pptx-hide. */
+  [data-pptx-shape-hide="true"] {
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    border-color: transparent !important;
+  }
 </style></head><body>${html}</body></html>`;
 
   document.body.appendChild(iframe);
