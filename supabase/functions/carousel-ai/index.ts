@@ -338,6 +338,8 @@ RÈGLES :
 - Le nombre de slides doit être entre ${slide_count || 7} et ${(slide_count || 7) + 2}
 ${photoInstruction}
 
+${SLIDE_TITLE_RULES}
+
 CONTEXTE BRANDING :
 ${brandingContext}
 
