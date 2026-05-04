@@ -324,6 +324,12 @@ function extractCarouselTexts(parsed: any): string {
     if (punchline) {
       lines.push(`[SLIDE ${num} - PUNCHLINE] ${punchline}`);
     }
+
+    // Overlay text (slides photo_full du carrousel mixte)
+    const overlay = slide.overlay_text || "";
+    if (overlay) {
+      lines.push(`[SLIDE ${num} - OVERLAY] ${overlay}`);
+    }
   }
 
   // Caption
