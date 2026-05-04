@@ -788,7 +788,7 @@ RÈGLES :
 - Chaque slide : max 50 mots, 1 idée, mais en PHRASES COMPLÈTES. Pas de fragments. Pas de rafales "Phrase. Phrase. Phrase." Le body est de la prose fluide : 2-3 phrases qui développent l'idée.
 - Slide 2 = DOIT fonctionner comme hook autonome (seconde chance algo)
 - Dernière slide = 1 SEUL CTA
-- Headlines (title) : 4-7 mots, percutant
+- Headlines (title) : 4-9 mots, scène-first / JE (voir RÈGLES TITRES système). Pas de tête de chapitre.
 - Caption différente du hook slide 1
 - Hashtags : 3-8, mix large + niche${extraRules}
 
