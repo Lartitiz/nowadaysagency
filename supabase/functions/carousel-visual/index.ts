@@ -93,16 +93,75 @@ Question en pilule ${ch.color_primary}, branches avec lignes verticales, résult
 <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:24px">
   <div style="text-align:center;background:#FFF;border-radius:12px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
     <span style="font-size:48px;display:block;margin-bottom:8px">EMOJI</span>
-    <p style="font-size:20px;font-weight:600;color:${ch.color_secondary}">LABEL</p>
+    <p data-pptx-editable="body" style="font-size:20px;font-weight:600;color:${ch.color_secondary}">LABEL</p>
   </div>
 </div>
+
+█ STORY_ARC — Récit en 3-5 étapes verticales (numéros décoratifs + cartes connectées par filet pointillé)
+<div style="display:flex;flex-direction:column;gap:0">
+  <!-- Pour chaque step (i = index 0-based, formate "01", "02"…) : -->
+  <div style="display:flex;gap:24px;align-items:flex-start">
+    <div style="flex-shrink:0;width:64px;text-align:right;padding-top:8px">
+      <span data-pptx-editable="caption" style="font-size:36px;font-weight:700;color:${ch.color_primary};opacity:0.4;font-family:${ch.font_title};line-height:1">01</span>
+    </div>
+    <div style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:24px 28px;box-shadow:0 2px 12px rgba(0,0,0,0.05)">
+      <h3 data-pptx-editable="title" style="font-size:24px;font-weight:600;color:${ch.color_primary};margin:0 0 8px 0;font-family:${ch.font_title}">LABEL</h3>
+      <p data-pptx-editable="body" style="font-size:20px;color:${ch.color_text};line-height:1.4;margin:0;font-family:${ch.font_body}">DESC</p>
+    </div>
+  </div>
+  <!-- Filet pointillé entre steps (PAS après le dernier) : -->
+  <div style="margin-left:88px;width:2px;height:20px;border-left:2px dotted ${ch.color_secondary};opacity:0.4"></div>
+</div>
+Si story_arc.steps.length < 3 → rends comme une simple liste verticale sans filet (peu probable, mais tolère).
+
+█ QUOTE_BIG — Citation typographique (guillemet décoratif XL + citation italique + attribution discrète)
+<div style="position:relative;padding:60px;display:flex;flex-direction:column;justify-content:center;height:100%">
+  <!-- Si "context" présent — sinon omettre ce bloc : -->
+  <p data-pptx-editable="caption" style="font-size:22px;color:${ch.color_secondary};margin:0 0 24px 0;font-family:${ch.font_body}">CONTEXT</p>
+  <span aria-hidden="true" style="position:absolute;top:20px;left:30px;font-size:140px;line-height:1;color:${ch.color_primary};opacity:0.2;font-family:Georgia,serif">"</span>
+  <p data-pptx-editable="title" style="font-size:48px;font-style:italic;line-height:1.3;color:${ch.color_text};margin:0;font-family:${ch.font_title};font-weight:normal">QUOTE</p>
+  <!-- Si "attribution" présente — sinon omettre : -->
+  <p data-pptx-editable="body" style="font-size:22px;color:${ch.color_secondary};margin:32px 0 0 0;font-family:${ch.font_body}">ATTRIBUTION</p>
+</div>
+RÈGLE TAILLE QUOTE : 56px si quote < 60 chars, 48px par défaut (60-120 chars), 40px si > 120 chars.
+RÈGLE FALLBACK : si quote_big.quote est absent → utilise slide.title à la place.
+
+█ OBJECTION_RESPONSE — Déconstruction verticale (objection en haut grisé, response en bas dominante)
+<div style="display:flex;flex-direction:column;gap:32px">
+  <div style="background:${ch.color_secondary}15;border-radius:${ch.border_radius || 12}px;padding:32px;position:relative">
+    <span aria-hidden="true" style="position:absolute;top:16px;right:24px;font-size:32px;color:${ch.color_primary};opacity:0.5">❝</span>
+    <p data-pptx-editable="caption" style="font-size:18px;font-weight:600;color:${ch.color_secondary};text-transform:uppercase;letter-spacing:1px;margin:0 0 12px 0;font-family:${ch.font_body}">CE QU'ON DIT</p>
+    <p data-pptx-editable="body" style="font-size:24px;color:${ch.color_text};line-height:1.4;margin:0;font-style:italic;font-family:${ch.font_body}">OBJECTION</p>
+  </div>
+  <div style="background:#FFF;border-left:4px solid ${ch.color_primary};border-radius:${ch.border_radius || 12}px;padding:32px;box-shadow:0 4px 16px rgba(0,0,0,0.06)">
+    <p data-pptx-editable="caption" style="font-size:18px;font-weight:600;color:${ch.color_primary};text-transform:uppercase;letter-spacing:1px;margin:0 0 12px 0;font-family:${ch.font_body}">MA POSITION</p>
+    <p data-pptx-editable="title" style="font-size:30px;color:${ch.color_text};line-height:1.4;margin:0;font-weight:500;font-family:${ch.font_title}">RESPONSE</p>
+  </div>
+</div>
+La RESPONSE est typographiquement plus grande que l'OBJECTION — elle domine.
+
+█ PROCESS_VISIBLE — 3 colonnes égales (Avant/Pendant/Après) reliées par flèches
+<div style="display:flex;align-items:stretch;gap:16px">
+  <!-- Pour chaque stage (i = 0..2, formate "01", "02", "03") : -->
+  <div style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:28px 20px;box-shadow:0 2px 12px rgba(0,0,0,0.05)">
+    <span data-pptx-editable="caption" style="font-size:64px;font-weight:700;color:${ch.color_primary};opacity:0.25;line-height:1;font-family:${ch.font_title};display:block;margin-bottom:8px">01</span>
+    <h3 data-pptx-editable="title" style="font-size:24px;font-weight:600;color:${ch.color_secondary};margin:0 0 12px 0;font-family:${ch.font_title}">LABEL</h3>
+    <p data-pptx-editable="body" style="font-size:18px;color:${ch.color_text};line-height:1.4;margin:0;font-family:${ch.font_body}">DESC</p>
+  </div>
+  <!-- Flèche entre colonnes (PAS après la dernière) : -->
+  <div style="display:flex;align-items:center;flex-shrink:0">
+    <span aria-hidden="true" style="font-size:32px;color:${ch.color_primary};font-weight:300">→</span>
+  </div>
+</div>
+RÈGLE FALLBACK : si process_visible.stages.length !== 3, rends quand même proprement (2 ou 4 colonnes au lieu de 3, garde la même structure de carte).
 
 IMPORTANT pour les schémas :
 - Utilise les vraies couleurs de la charte (${ch.color_primary}, ${ch.color_secondary}, ${ch.color_accent}, ${ch.color_text})
 - Les schémas doivent être CENTRÉS verticalement dans la slide
 - Le titre de la slide (s'il existe) reste AU-DESSUS du schéma
 - Les schémas doivent respirer : pas de texte trop petit, pas de schéma qui remplit 100% de la slide
-- Si une slide a un visual_schema, le design du schéma est PRIORITAIRE sur le design par rôle`;
+- Si une slide a un visual_schema, le design du schéma est PRIORITAIRE sur le design par rôle
+- N'INVENTE PAS de cercles décoratifs (règle dure du design system)`;
 }
 
 serve(async (req) => {

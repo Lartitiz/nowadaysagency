@@ -921,17 +921,38 @@ Types disponibles et QUAND les utiliser :
 11. "icon_grid" — Grille d'icônes avec labels (2-6 items)
     { "type": "icon_grid", "items": [ { "emoji": "🎯", "label": "Clarté" }, { "emoji": "💬", "label": "Dialogue" }, { "emoji": "❤️", "label": "Care" } ] }
 
+12. "story_arc" — Récit en 3-5 étapes (4 idéal). Pour parcours personnel, transformation, évolution d'une vision sur un sujet.
+    { "type": "story_arc", "steps": [ { "label": "Au départ", "desc": "..." }, { "label": "Le déclic", "desc": "..." }, { "label": "Le tournant", "desc": "..." }, { "label": "Aujourd'hui", "desc": "..." } ] }
+    RÈGLE : chaque "desc" = 8-15 mots MAX, 1 phrase courte. Le LABEL signale, le DESC précise.
+
+13. "quote_big" — Citation typographique forte (témoignage, parole donnée, déclaration de positionnement auto-portée).
+    { "type": "quote_big", "quote": "Le texte de la citation, 1-3 lignes max", "attribution": "— Prénom, contexte (optionnel)", "context": "Phrase d'introduction (optionnelle, ex: 'Ce qu'une cliente m'a dit :')" }
+    RÈGLE : "attribution" et "context" sont optionnels — omets-les si tu n'en as pas. "quote" est OBLIGATOIRE.
+
+14. "objection_response" — Déconstruction verticale d'une idée reçue / prise de position (mythe-vs-vision en format narratif, complémentaire de "comparison" qui reste pour les 2 colonnes côte à côte).
+    { "type": "objection_response", "objection": "Ce qu'on dit / la croyance", "response": "Ma position / la réalité — domine visuellement" }
+
+15. "process_visible" — 3 colonnes Avant/Pendant/Après pour montrer un travail invisible, une journée type, une transformation visible.
+    { "type": "process_visible", "stages": [ { "label": "Avant", "desc": "..." }, { "label": "Pendant", "desc": "..." }, { "label": "Après", "desc": "..." } ] }
+    RÈGLE : EXACTEMENT 3 stages (sinon utilise "timeline"). Labels libres ("Le brief / Le travail / Le rendu", "Le matin / La journée / Le soir", "Au reçu / En séance / À la livraison"…).
+
+RÈGLE DE VALIDITÉ (tous schémas) : si tu ne peux pas remplir toutes les clés requises avec du contenu utile, N'UTILISE PAS ce schéma — préfère un autre type ou du texte pur. Pas de schéma à moitié rempli.
+
 QUAND utiliser un schéma :
 - Slide de comparaison (avant/après, bon/mauvais) → before_after ou comparison
 - Slide avec des chiffres → stats
 - Slide qui explique un process ou une évolution → timeline, flowchart, pyramid
 - Slide récap ou synthèse → checklist, icon_grid, matrix_2x2
 - Slide qui positionne un concept → scale, equation
+- Slide récit / parcours / transformation → story_arc
+- Slide témoignage / parole donnée / citation forte → quote_big
+- Slide qui déconstruit une idée / prise de position en mode mythe-vs-vision → objection_response
+- Slide qui montre un travail invisible ou un process en 3 temps (Avant / Pendant / Après) → process_visible
 
 QUAND NE PAS utiliser de schéma :
 - Slide hook (slide 1) → toujours du texte pur avec un titre percutant
 - Slide CTA (dernière) → toujours du texte avec appel à l'action
-- Slide storytelling personnel → le texte suffit
+- Slide storytelling personnel libre (différent d'un story_arc structuré) → le texte suffit
 - Si le texte est plus fort seul → pas besoin d'un schéma forcé
 
 Quand une slide a un visual_schema, le body peut être plus court ou vide — le schéma porte le message visuel.
