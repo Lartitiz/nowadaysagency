@@ -1497,7 +1497,7 @@ Ton rôle : transformer des photos en carrousel éditorial qui RACONTE UNE HISTO
 - Le texte COMPLÈTE l'image : il raconte ce qu'on ne voit pas, il donne du contexte, il fait avancer l'histoire.
 - Styles d'overlay :
   · "sensoriel" : phrase évocatrice qui fait ressentir ("Ce matin-là, tout sentait la cire d'abeille et le bois chaud.")
-  · "narratif" : phrase qui fait avancer l'histoire ("Et puis un jour, une cliente m'a dit quelque chose qui a tout changé.")
+  · "narratif" : phrase qui fait avancer l'histoire ("Ce qu'on voit dans cette série de gestes, c'est tout sauf un détail." ou tout autre formulation NON datée — interdiction d'inventer "un jour, une cliente m'a dit", voir ANTI_FABRICATED_STORYTELLING)
   · "minimal" : phrase courte percutante pour les moments forts ("Trois mois. Zéro regret.")
   · "technique" : détail concret qui crédibilise ("100% lin français, teint à la main dans notre atelier.")
 - Positions : "bottom_left", "bottom_center", "top_left", "top_center", "center"
