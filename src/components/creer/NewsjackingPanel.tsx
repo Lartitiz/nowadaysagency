@@ -23,6 +23,7 @@ interface Actu {
   type: "globale" | "niche";
   axe?: string;
   ton?: string;
+  force_pont?: "fort" | "moyen" | "fragile";
   pertinence: string;
   // angles are now generated on demand
 }
