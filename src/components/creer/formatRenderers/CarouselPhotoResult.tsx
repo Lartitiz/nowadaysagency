@@ -25,6 +25,8 @@ interface CarouselPhotoResultProps {
   onRetry?: () => void;
   captionLoading?: boolean;
   onRegenerateCaption?: () => void;
+  onRegenerateVisuals?: () => void;
+  visualLoading?: boolean;
 }
 
 // ─── VisualSlidesCarousel (unchanged) ───
@@ -171,7 +173,7 @@ const OVERLAY_STYLE_CLASS: Record<string, string> = {
   technique: "text-sm font-mono",
 };
 
-export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, visualSlides, channel = "instagram", onRetry, captionLoading = false, onRegenerateCaption }: CarouselPhotoResultProps) {
+export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, visualSlides, channel = "instagram", onRetry, captionLoading = false, onRegenerateCaption, onRegenerateVisuals, visualLoading = false }: CarouselPhotoResultProps) {
   const r = result?.raw || result;
 
   // Construit la version "fullText" mono-bloc à partir des sous-champs
@@ -607,9 +609,47 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
         </div>
       )}
 
-      {visualSlides && visualSlides.length > 0 && (
-        <VisualSlidesCarousel slides={visualSlides} />
-      )}
+      {visualSlides && visualSlides.length > 0 && (() => {
+        // Hash du contenu textuel actuel des slides (overlay_text + title + body)
+        const currentHash = JSON.stringify(
+          slides.map((s: any) => [s.overlay_text || "", s.title || "", s.body || ""])
+        );
+        const lastRenderedHash = JSON.stringify(
+          visualSlides.map((vs: any) => {
+            const s = slides[vs.slide_number - 1] || {};
+            return [s.overlay_text || "", s.title || "", s.body || ""];
+          })
+        );
+        const isStale = currentHash !== lastRenderedHash;
+        return (
+          <>
+            {isStale && onRegenerateVisuals && (
+              <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 p-3 flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                <div className="flex-1 space-y-1.5">
+                  <p className="text-xs font-medium text-amber-900 dark:text-amber-200">
+                    Tu as édité des slides depuis le dernier rendu visuel.
+                  </p>
+                  <p className="text-[11px] text-amber-800 dark:text-amber-300">
+                    Mets à jour les visuels pour que l'aperçu et l'export reflètent tes modifications.
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs border-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40"
+                    onClick={onRegenerateVisuals}
+                    disabled={visualLoading}
+                  >
+                    <RefreshCw className={`h-3 w-3 mr-1 ${visualLoading ? "animate-spin" : ""}`} />
+                    {visualLoading ? "Mise à jour…" : "Mettre à jour les visuels"}
+                  </Button>
+                </div>
+              </div>
+            )}
+            <VisualSlidesCarousel slides={visualSlides} />
+          </>
+        );
+      })()}
 
       <AiGeneratedMention />
     </div>
