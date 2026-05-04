@@ -5,7 +5,89 @@ import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limit
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { isDemoUser } from "../_shared/guard-demo.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
-import { getModelForAction } from "../_shared/anthropic.ts";
+import { getModelForAction, callAnthropicSimple } from "../_shared/anthropic.ts";
+
+// Brand universe cache TTL — regenerate after 30 days or when branding changes
+const BRAND_UNIVERSE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+interface BrandUniverse {
+  univers_emotionnel: string[];
+  moments_de_vie_cible: string[];
+  valeurs_combat: string[];
+  themes_lifestyle: string[];
+}
+
+const EMPTY_UNIVERSE: BrandUniverse = {
+  univers_emotionnel: [],
+  moments_de_vie_cible: [],
+  valeurs_combat: [],
+  themes_lifestyle: [],
+};
+
+function isUniverseFresh(updatedAt: string | null): boolean {
+  if (!updatedAt) return false;
+  const ts = new Date(updatedAt).getTime();
+  if (isNaN(ts)) return false;
+  return Date.now() - ts < BRAND_UNIVERSE_TTL_MS;
+}
+
+function isUniverseUsable(u: any): u is BrandUniverse {
+  if (!u || typeof u !== "object") return false;
+  const total = (Array.isArray(u.univers_emotionnel) ? u.univers_emotionnel.length : 0)
+    + (Array.isArray(u.moments_de_vie_cible) ? u.moments_de_vie_cible.length : 0)
+    + (Array.isArray(u.valeurs_combat) ? u.valeurs_combat.length : 0)
+    + (Array.isArray(u.themes_lifestyle) ? u.themes_lifestyle.length : 0);
+  return total >= 3;
+}
+
+async function generateBrandUniverse(brandingContext: string): Promise<BrandUniverse> {
+  const system = `Tu aides un·e créateur·ice de contenu à élargir l'univers sémantique de sa marque AU-DELÀ de son métier littéral.
+
+Exemple : pour une marque de LINGERIE, tu ne dois PAS répéter "lingerie, soutien-gorge, dentelle". Tu dois trouver l'UNIVERS ÉMOTIONNEL vendu : plaisir, sensualité, féminité, intimité, self-love, body positive, rituel du soir, confiance en soi…
+
+À partir du profil de marque ci-dessous, renvoie 4 listes courtes (5 termes chacune) qui décrivent l'univers ÉLARGI de cette marque. Chaque terme doit être un mot ou une expression de 1 à 4 mots, évocateur, recherchable sur le web.
+
+PROFIL :
+${brandingContext}
+
+Renvoie UNIQUEMENT ce JSON (pas de markdown, pas de backticks, pas de commentaire) :
+{
+  "univers_emotionnel": ["...", "...", "...", "...", "..."],
+  "moments_de_vie_cible": ["...", "...", "...", "...", "..."],
+  "valeurs_combat": ["...", "...", "...", "...", "..."],
+  "themes_lifestyle": ["...", "...", "...", "...", "..."]
+}
+
+Règles :
+- "univers_emotionnel" : émotion / transformation / promesse profonde vendue (PAS le produit)
+- "moments_de_vie_cible" : situations, étapes, rendez-vous où la cliente vit ce besoin
+- "valeurs_combat" : ce que la marque défend ou refuse, les causes adjacentes
+- "themes_lifestyle" : esthétiques, rituels, ambiances connexes au mode de vie de la cible
+- Évite les termes ultra-génériques ("vie", "bonheur", "amour" seul). Préfère "amour de soi", "rituel matinal".
+- Pas de hashtags, pas de #, pas de majuscules sauf noms propres.`;
+
+  try {
+    const raw = await callAnthropicSimple(getModelForAction("strategy"), system, "Génère le JSON maintenant.", 0.7);
+    let parsed: any;
+    try {
+      parsed = JSON.parse(raw.trim());
+    } catch {
+      const m = raw.match(/\{[\s\S]*\}/);
+      if (m) parsed = JSON.parse(m[0]);
+    }
+    if (isUniverseUsable(parsed)) {
+      return {
+        univers_emotionnel: (parsed.univers_emotionnel || []).slice(0, 8),
+        moments_de_vie_cible: (parsed.moments_de_vie_cible || []).slice(0, 8),
+        valeurs_combat: (parsed.valeurs_combat || []).slice(0, 8),
+        themes_lifestyle: (parsed.themes_lifestyle || []).slice(0, 8),
+      };
+    }
+  } catch (e) {
+    console.error("Brand universe generation failed:", (e as Error).message);
+  }
+  return EMPTY_UNIVERSE;
+}
 
 
 serve(async (req) => {
@@ -78,12 +160,69 @@ serve(async (req) => {
     const months = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
     const monthLabel = `${months[now.getMonth()]} ${now.getFullYear()}`;
 
-    // Build 3 distinct niche queries
+    // ─────────────────────────────────────────────────────────────
+    // Brand universe — cached on brand_profile, regenerated every 30 days
+    // Goal: "lingerie" → ["plaisir", "féminité", "self-love"…] so the web
+    // searches go beyond the literal job description.
+    // ─────────────────────────────────────────────────────────────
+    let universe: BrandUniverse = EMPTY_UNIVERSE;
+    try {
+      // Resolve the brand_profile owner (workspace owner if shared, else current user)
+      let bpUserId = user.id;
+      if (workspace_id) {
+        const { data: ownerRow } = await sbService
+          .from("workspace_members")
+          .select("user_id")
+          .eq("workspace_id", workspace_id)
+          .eq("role", "owner")
+          .maybeSingle();
+        if (ownerRow?.user_id) bpUserId = ownerRow.user_id;
+      }
+
+      const { data: bpRow } = await sbService
+        .from("brand_profile")
+        .select("id, brand_universe, brand_universe_updated_at")
+        .eq("user_id", bpUserId)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (bpRow && isUniverseUsable(bpRow.brand_universe) && isUniverseFresh(bpRow.brand_universe_updated_at)) {
+        universe = bpRow.brand_universe as BrandUniverse;
+        console.log("Brand universe: cache hit");
+      } else if (bpRow) {
+        console.log("Brand universe: cache miss/stale, regenerating");
+        const generated = await generateBrandUniverse(brandingContext);
+        if (isUniverseUsable(generated)) {
+          universe = generated;
+          await sbService
+            .from("brand_profile")
+            .update({
+              brand_universe: generated,
+              brand_universe_updated_at: new Date().toISOString(),
+            })
+            .eq("id", bpRow.id);
+        }
+      }
+    } catch (e) {
+      console.error("Brand universe lookup failed (non-blocking):", (e as Error).message);
+    }
+
+    // Build niche queries — mix literal job + emotional universe + life moments
+    const pickFirst = (arr: string[], n: number) => arr.slice(0, n).join(" ");
+    const universeQuery = universe.univers_emotionnel.length
+      ? `${pickFirst(universe.univers_emotionnel, 3)} société débat ${now.getFullYear()}`
+      : "";
+    const momentsQuery = universe.moments_de_vie_cible.length
+      ? `${pickFirst(universe.moments_de_vie_cible, 3)} ${cibleRaw || "femmes"} ${now.getFullYear()}`
+      : "";
+
     const nicheQueries = [
       activityRaw ? `${activityRaw} actualité ${monthLabel}` : "",
-      cibleRaw ? `${cibleRaw} préoccupations ${now.getFullYear()}` : (pillarsRaw ? `${pillarsRaw} actualité` : ""),
-      combatCause ? `${combatCause} débat actualité ${now.getFullYear()}` : (activityRaw ? `${activityRaw} tendance secteur` : ""),
+      universeQuery || (cibleRaw ? `${cibleRaw} préoccupations ${now.getFullYear()}` : (pillarsRaw ? `${pillarsRaw} actualité` : "")),
+      momentsQuery || (combatCause ? `${combatCause} débat actualité ${now.getFullYear()}` : (activityRaw ? `${activityRaw} tendance secteur` : "")),
     ].filter(Boolean);
+
 
     // Claude call with web search
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
@@ -111,18 +250,33 @@ serve(async (req) => {
     const shuffled = [...AXES].sort(() => Math.random() - 0.5);
     const pickedAxes = shuffled.slice(0, 3);
 
+    const universeBlock = (universe.univers_emotionnel.length || universe.moments_de_vie_cible.length)
+      ? `\n══════════════════════════════════════════════
+UNIVERS DE MARQUE ÉLARGI — utilise-le pour aller AU-DELÀ du métier littéral
+══════════════════════════════════════════════
+
+Cette personne ne vend pas SEULEMENT "${nicheLabel}". Elle vend une transformation. Voici son univers étendu :
+
+- Univers émotionnel : ${universe.univers_emotionnel.join(", ") || "—"}
+- Moments de vie de la cible : ${universe.moments_de_vie_cible.join(", ") || "—"}
+- Valeurs / combats adjacents : ${universe.valeurs_combat.join(", ") || "—"}
+- Lifestyle / esthétiques : ${universe.themes_lifestyle.join(", ") || "—"}
+
+EXEMPLE DE RAISONNEMENT : si la personne vend de la lingerie, ne lui propose pas QUE des actus mode. Cherche aussi des actus sur le plaisir, la féminité, l'estime de soi, les rituels du soir, les fêtes des amoureux. C'est ÇA qui fait du newsjacking utile.\n`
+      : "";
+
     const systemPrompt = `Tu es une assistante de veille culturelle pour créateur·ices de contenu et entrepreneur·es (tous secteurs, pas que les réseaux sociaux).
 
 PROFIL DE L'UTILISATEUR·ICE :
 ${brandingContext}
-
+${universeBlock}
 ══════════════════════════════════════════════
 PHILOSOPHIE — LIRE EN PREMIER
 ══════════════════════════════════════════════
 
 On NE cherche PAS l'actu chaude (politique, éco, faits divers). On cherche des MICRO-PHÉNOMÈNES CULTURELS : un mot qui sature les conversations, une obsession collective, un nouveau comportement, un débat qui ressort, un objet culturel (film/livre/série) dont on parle. Une vraie actu est acceptée UNIQUEMENT si elle se connecte naturellement au profil de la personne.
 
-Le critère central : chaque sujet doit avoir un PONT EXPLICITE vers cette personne. Pas un pont forcé du genre "et ça nous rappelle que la communication...". Un vrai pont qui cite quelque chose de précis du profil (sa cible, son activité, son combat, ses piliers).
+Le critère central : chaque sujet doit avoir un PONT EXPLICITE vers cette personne. Pas un pont forcé du genre "et ça nous rappelle que la communication...". Un vrai pont qui cite quelque chose de précis du profil (sa cible, son activité, son combat, ses piliers, OU un terme de son univers élargi).
 
 ══════════════════════════════════════════════
 RECHERCHES À EFFECTUER
@@ -133,9 +287,11 @@ Pour chaque axe ci-dessous, fais une recherche web et trouve 1 phénomène. Jama
 
 ${pickedAxes.map((a, i) => `  ${i + 1}. axe="${a.id}" → cherche : "${a.query}"`).join("\n")}
 
-▶ RECHERCHES NICHE — connectées au métier de "${nicheLabel}" (obligatoire) :
+▶ RECHERCHES NICHE — connectées à l'univers de "${nicheLabel}" (obligatoire) :
 Fais ces 3 recherches DIFFÉRENTES (pas une seule, les 3) :
 ${nicheQueries.map((q, i) => `  ${i + 1}. "${q}"`).join("\n")}
+
+${universeBlock ? `RÈGLE D'ÉLARGISSEMENT (importante) : sur les 3 sujets niche, MAXIMUM 1 doit parler du métier littéral ("${nicheLabel}"). Les 2 autres doivent venir de l'UNIVERS ÉLARGI ci-dessus (émotion / moments de vie / valeurs / lifestyle). Si une recherche niche ne donne rien d'élargi, refais-la avec d'autres termes de l'univers de marque.\n` : ""}
 
 ══════════════════════════════════════════════
 RÈGLE DU PONT EXPLICITE — GARDE-FOU N°1
