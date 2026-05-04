@@ -111,13 +111,41 @@ export function PhotoUploadZone({
     async (files: FileList | File[]) => {
       const remaining = maxPhotos - photos.length;
       if (remaining <= 0) return;
-      const batch = Array.from(files).filter(f => f.type.startsWith("image/")).slice(0, remaining);
-      const items: PhotoItem[] = await Promise.all(
-        batch.map(async (f) => {
-          const { base64, preview } = await resizeAndEncode(f);
-          return { base64, preview, name: f.name };
+      const all = Array.from(files);
+      const rejectedType = all.filter(f => !f.type.startsWith("image/") && !isHeic(f));
+      rejectedType.forEach(f => toast.error(`"${f.name}" n'est pas une image.`));
+      const candidates = all.filter(f => f.type.startsWith("image/") || isHeic(f)).slice(0, remaining);
+
+      const results = await Promise.allSettled(
+        candidates.map(async (f) => {
+          if (f.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+            throw new Error(`trop lourde (${(f.size / 1024 / 1024).toFixed(1)} Mo, max ${MAX_FILE_SIZE_MB} Mo)`);
+          }
+          const converted = await convertHeicIfNeeded(f);
+          const { base64, preview } = await resizeAndEncode(converted);
+          return { base64, preview, name: converted.name } as PhotoItem;
         }),
       );
+
+      const items: PhotoItem[] = [];
+      results.forEach((r, i) => {
+        if (r.status === "fulfilled") {
+          items.push(r.value);
+        } else {
+          const f = candidates[i];
+          const reason = r.reason instanceof Error ? r.reason.message : String(r.reason);
+          console.warn("[photo-upload] failed", f.name, f.type, f.size, r.reason);
+          if (reason.startsWith("trop lourde")) {
+            toast.error(`"${f.name}" est ${reason}.`);
+          } else if (isHeic(f)) {
+            toast.error(`Impossible de convertir "${f.name}". Réessaie ou exporte-la en JPEG depuis ton iPhone.`);
+          } else {
+            toast.error(`Impossible de lire "${f.name}". Format non supporté ou fichier corrompu.`);
+          }
+        }
+      });
+
+      if (items.length === 0) return;
       const next = [...photos, ...items];
       updatePhotos(next);
     },
