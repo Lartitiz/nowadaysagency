@@ -78,6 +78,12 @@ const TON_CONFIG: Record<string, { emoji: string; label: string; className: stri
   surprenant_contre_intuitif: { emoji: "⚡", label: "Surprenant", className: "bg-primary/10 text-primary" },
 };
 
+const PONT_CONFIG: Record<string, { emoji: string; label: string; className: string }> = {
+  fort: { emoji: "🟢", label: "Pont direct", className: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" },
+  moyen: { emoji: "🟡", label: "Pont élargi", className: "bg-amber-500/15 text-amber-700 dark:text-amber-400" },
+  fragile: { emoji: "🔴", label: "Pont fragile", className: "bg-muted text-muted-foreground" },
+};
+
 interface AnglesState {
   loading: boolean;
   data?: ActuAngle[];
