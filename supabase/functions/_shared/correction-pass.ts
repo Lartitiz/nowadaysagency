@@ -94,8 +94,9 @@ Si oui → réécris.
 2. NUMÉROTATION DE CONSEILS ("Conseil 1", "Erreur n°2", "Étape 3") :
    → Reformuler comme moment dans un arc narratif.
 
-3. SLIDES REDONDANTES :
-   → Fusionner ou remplacer la plus faible par un nouvel angle.
+3. SLIDES REDONDANTES OU EN CASCADE :
+   → Si deux slides consécutives traitent la même idée avec une intensité montante ("c'est important" → "c'est crucial" → "c'est vital"), ou si l'une paraphrase l'autre en reprenant le même mot-clé central, FUSIONNE-les en une seule slide qui pose le point une fois, ou remplace la plus faible par un nouvel angle (exemple, contre-exemple, chiffre, scène concrète).
+   → Aucune slide texte ne doit ouvrir par un connecteur d'amplification : "En vrai", "Et là", "Sauf que", "Sauf qu'en fait", "Le vrai X c'est…", "C'est pour ça que…". Réécris l'ouverture par un fait, une scène, ou une question directe.
 
 4. RAFALES DE PHRASES COURTES (2+ phrases < 10 mots dans une slide) :
    → Fusionne en prose fluide.
