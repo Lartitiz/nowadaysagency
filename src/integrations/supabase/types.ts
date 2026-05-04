@@ -399,6 +399,8 @@ export type Database = {
       }
       brand_profile: {
         Row: {
+          brand_universe: Json | null
+          brand_universe_updated_at: string | null
           channels: string[] | null
           combat_alternative: string | null
           combat_cause: string | null
@@ -450,6 +452,8 @@ export type Database = {
           workspace_id: string | null
         }
         Insert: {
+          brand_universe?: Json | null
+          brand_universe_updated_at?: string | null
           channels?: string[] | null
           combat_alternative?: string | null
           combat_cause?: string | null
@@ -501,6 +505,8 @@ export type Database = {
           workspace_id?: string | null
         }
         Update: {
+          brand_universe?: Json | null
+          brand_universe_updated_at?: string | null
           channels?: string[] | null
           combat_alternative?: string | null
           combat_cause?: string | null
