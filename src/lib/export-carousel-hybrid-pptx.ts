@@ -461,7 +461,7 @@ export async function exportCarouselHybridPptx(
         for (const ab of annotated) {
           if (ab.rect.y > SLIDE_H_PX || ab.rect.x > SLIDE_W_PX) continue;
           if (ab.rect.y + ab.rect.h < 0) continue;
-          blocks.push({ text: ab.text, rect: ab.rect, style: ab.style, kind: ab.kind });
+          blocks.push({ text: ab.text, runs: ab.runs, rect: ab.rect, style: ab.style, kind: ab.kind });
           (ab.el as HTMLElement).setAttribute("data-pptx-hide", "true");
         }
       } else {
