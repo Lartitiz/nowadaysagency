@@ -312,16 +312,35 @@ Cette personne ne vend pas SEULEMENT "${nicheLabel}". Mais TOUS les éléments d
 RÈGLE : si tu hésites entre un sujet niveau 1 et un sujet niveau 2/3, choisis TOUJOURS le niveau 1.\n`
       : "";
 
+    // Bloc "matière première" : actus chaudes pré-sourcées par Perplexity.
+    // Ces actus contournent le filtre anti-actu-chaude habituel CAR elles sont
+    // déjà passées au tamis Perplexity (faits divers tragiques exclus, etc.).
+    // Claude doit les traiter comme une OPTION supplémentaire, pas une obligation :
+    // il les garde uniquement si elles ont un vrai pont vers le profil.
+    const hotNewsBlock = hotNews.length > 0
+      ? `\n══════════════════════════════════════════════
+ACTUS CHAUDES PRÉ-SOURCÉES (cette semaine en France)
+══════════════════════════════════════════════
+
+Voici ${hotNews.length} actu(s) chaude(s) qui font débat actuellement, déjà filtrées (pas de fait divers tragique, pas de propagande partisane). Tu peux PUISER 1 ou 2 sujets ici si — et SEULEMENT si — tu peux écrire un pont fort vers le profil. Si aucune ne se connecte vraiment, IGNORE-LES et reste sur les recherches micro-phénomènes ci-dessous.
+
+${hotNews.map((a, i) => `  ${i + 1}. "${a.titre}"
+     → ${a.resume}
+     → Source : ${a.source}${a.source_url ? ` (${a.source_url})` : ""}${a.date_publication ? ` — ${a.date_publication}` : ""}`).join("\n\n")}
+
+Si tu reprends une de ces actus chaudes, conserve EXACTEMENT son titre, son résumé, sa source ET son source_url dans ta réponse — c'est important pour la traçabilité. Tag-la avec axe="actu_connectable" et type="globale".\n`
+      : "";
+
     const systemPrompt = `Tu es une assistante de veille culturelle pour créateur·ices de contenu et entrepreneur·es (tous secteurs, pas que les réseaux sociaux).
 
 PROFIL DE L'UTILISATEUR·ICE :
 ${brandingContext}
 ${universeBlock}
-══════════════════════════════════════════════
+${hotNewsBlock}══════════════════════════════════════════════
 PHILOSOPHIE — LIRE EN PREMIER
 ══════════════════════════════════════════════
 
-On NE cherche PAS l'actu chaude (politique, éco, faits divers). On cherche des MICRO-PHÉNOMÈNES CULTURELS : un mot qui sature les conversations, une obsession collective, un nouveau comportement, un débat qui ressort, un objet culturel (film/livre/série) dont on parle. Une vraie actu est acceptée UNIQUEMENT si elle se connecte naturellement au profil de la personne.
+On cherche en priorité des MICRO-PHÉNOMÈNES CULTURELS : un mot qui sature les conversations, une obsession collective, un nouveau comportement, un débat qui ressort, un objet culturel (film/livre/série) dont on parle. ${hotNews.length > 0 ? `EXCEPTION : tu as reçu ci-dessus ${hotNews.length} actu(s) chaude(s) déjà filtrée(s). Tu peux en reprendre 1 ou 2 si elles ont un vrai pont, en complément des micro-phénomènes.` : "Une vraie actu chaude n'est acceptée QUE si elle se connecte naturellement au profil de la personne."}
 
 Le critère central : chaque sujet doit avoir un PONT EXPLICITE vers cette personne. Pas un pont forcé du genre "et ça nous rappelle que la communication...". Un vrai pont qui cite quelque chose de précis du profil (sa cible, son activité, son combat, ses piliers, OU un terme de son univers élargi).
 
