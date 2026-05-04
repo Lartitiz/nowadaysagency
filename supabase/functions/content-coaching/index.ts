@@ -5,6 +5,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildIdentityBlock } from "../_shared/user-context.ts";
+import { IDEA_LENSES, pickLenses, WOW_IDEA_EXAMPLES } from "../_shared/copywriting-prompts.ts";
 
 
 Deno.serve(async (req) => {
