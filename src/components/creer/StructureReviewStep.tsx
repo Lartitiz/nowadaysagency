@@ -461,8 +461,6 @@ export default function StructureReviewStep({
           ← Modifier mes réponses
         </Button>
 
-          ← Modifier mes réponses
-        </Button>
 
         <div className="flex gap-2">
           <Button
