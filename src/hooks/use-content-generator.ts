@@ -806,4 +806,6 @@ export interface GenerateStreamParams {
   deepResearch?: boolean;
   pinterestLink?: string;
   pinterestBoard?: string;
+  // Newsjacking — separate field, not stuffed into `subject`
+  newsContext?: string;
 }
