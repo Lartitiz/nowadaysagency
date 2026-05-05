@@ -34,6 +34,7 @@ import StructureReviewStep from "@/components/creer/StructureReviewStep";
 import type { SlideProposal, StructureProposal } from "@/components/creer/StructureReviewStep";
 
 import { useContentGenerator } from "@/hooks/use-content-generator";
+import { normalizeFormat } from "@/lib/format-normalizer";
 import { CONTENT_STRUCTURES, EDITORIAL_ANGLES, LINKEDIN_EDITORIAL_ANGLES, PINTEREST_EDITORIAL_ANGLES, PINTEREST_VISUAL_ANGLES, getStructureForCombo } from "@/lib/content-structures";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
@@ -474,16 +475,27 @@ export default function CreerUnifie() {
 
     setIdeaText(data.subject);
     if (data.objective) setObjective(data.objective);
-    setSelectedFormat(data.format);
+
+    // Defensive: if the coach returned an unknown/auto format, send the user
+    // to the format picker instead of triggering a "Format non supporté" crash.
+    const safeFormat = normalizeFormat(data.format);
+    if (!safeFormat) {
+      setSelectedFormat(null);
+      setStep("format");
+      toast.info("Choisis un format pour continuer.");
+      return;
+    }
+
+    setSelectedFormat(safeFormat);
     if (data.carouselSubMode) setCarouselSubMode(data.carouselSubMode);
 
     // Coaching dialog already handles sub-mode choice, go directly to questions
     setStep("questions");
-    generateQuestions({ 
-      format: data.format, 
-      subject: data.subject, 
-      editorialAngle: undefined, 
-      objective: data.objective || undefined 
+    generateQuestions({
+      format: safeFormat,
+      subject: data.subject,
+      editorialAngle: undefined,
+      objective: data.objective || undefined,
     });
   }, [generateQuestions]);
 

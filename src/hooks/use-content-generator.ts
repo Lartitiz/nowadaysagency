@@ -188,6 +188,15 @@ export function useContentGenerator() {
     setError(null);
     setResult(null);
 
+    // Defensive: bail early on non-canonical formats (e.g. "auto") so the user
+    // gets a clear toast instead of a half-broken request.
+    const SUPPORTED = ["carousel", "reel", "story", "post", "linkedin", "newsletter"] as const;
+    if (!format || !(SUPPORTED as readonly string[]).includes(format)) {
+      setGenerating(false);
+      setError("Choisis un format valide pour générer ton contenu.");
+      return null;
+    }
+
     // Compute structure if editorial angle provided
     let structurePrompt: string | null = null;
     let structureId: string | null = null;

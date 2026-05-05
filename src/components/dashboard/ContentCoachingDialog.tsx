@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { ArrowLeft, Rocket, RefreshCw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { normalizeFormat } from "@/lib/format-normalizer";
 
 type Step = 1 | 2 | "loading" | "result";
 
@@ -226,23 +227,50 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
       finalObjective = result.redirect_params?.objective || objectif;
     }
 
-    let finalFormat = format || "";
-    if (result.redirect_route) {
-      const routeMatch = result.redirect_route.match(/format=(\w+)/);
-      if (routeMatch) finalFormat = routeMatch[1];
+    // Resolve format from (in priority order): user-picked format, redirect_route hint,
+    // recommended_format. Then normalize to a canonical value. If we can't, send
+    // the user to the format step instead of crashing later with "Format non supporté".
+    let rawFormat: string = format || "";
+    if (!rawFormat || rawFormat === "auto") {
+      if (result.redirect_route) {
+        const routeMatch = result.redirect_route.match(/format=(\w+)/);
+        if (routeMatch) rawFormat = routeMatch[1];
+      }
     }
+    if (!rawFormat || rawFormat === "auto") {
+      rawFormat = (result.recommended_format || "").toLowerCase();
+    }
+    const finalFormat = normalizeFormat(rawFormat);
 
     if (onSelect) {
-      onSelect({ subject: finalSubject, format: finalFormat, objective: finalObjective, carouselSubMode: finalFormat === "carousel" ? (carouselSubMode || "text") : undefined });
+      if (!finalFormat) {
+        // Unknown format: bounce to /creer with subject/objective so the user
+        // can pick the format manually instead of triggering a generation crash.
+        onOpenChange(false);
+        const params = new URLSearchParams();
+        if (finalSubject) params.set("sujet", finalSubject);
+        if (finalObjective) params.set("objectif", finalObjective);
+        navigate(`/creer${params.toString() ? `?${params}` : ""}`);
+        toast.info("Choisis un format pour continuer.");
+        return;
+      }
+      onSelect({
+        subject: finalSubject,
+        format: finalFormat,
+        objective: finalObjective,
+        carouselSubMode: finalFormat === "carousel" ? (carouselSubMode || "text") : undefined,
+      });
       onOpenChange(false);
     } else {
       onOpenChange(false);
-      const baseRoute = result.redirect_route?.split("?")[0] || "/creer";
-      const existingParams = new URLSearchParams(result.redirect_route?.split("?")[1] || "");
-      existingParams.set("subject", finalSubject);
-      existingParams.set("objective", finalObjective);
-      if (carouselSubMode) existingParams.set("carouselSubMode", carouselSubMode);
+      const baseRoute = "/creer";
+      const existingParams = new URLSearchParams();
+      if (finalFormat) existingParams.set("format", finalFormat);
+      if (finalSubject) existingParams.set("sujet", finalSubject);
+      if (finalObjective) existingParams.set("objectif", finalObjective);
+      if (finalFormat === "carousel" && carouselSubMode) existingParams.set("carouselSubMode", carouselSubMode);
       navigate(`${baseRoute}?${existingParams.toString()}`);
+      if (!finalFormat) toast.info("Choisis un format pour continuer.");
     }
   };
 
