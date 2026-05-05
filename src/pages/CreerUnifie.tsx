@@ -474,16 +474,27 @@ export default function CreerUnifie() {
 
     setIdeaText(data.subject);
     if (data.objective) setObjective(data.objective);
-    setSelectedFormat(data.format);
+
+    // Defensive: if the coach returned an unknown/auto format, send the user
+    // to the format picker instead of triggering a "Format non supporté" crash.
+    const safeFormat = normalizeFormat(data.format);
+    if (!safeFormat) {
+      setSelectedFormat(null);
+      setStep("format");
+      toast.info("Choisis un format pour continuer.");
+      return;
+    }
+
+    setSelectedFormat(safeFormat);
     if (data.carouselSubMode) setCarouselSubMode(data.carouselSubMode);
 
     // Coaching dialog already handles sub-mode choice, go directly to questions
     setStep("questions");
-    generateQuestions({ 
-      format: data.format, 
-      subject: data.subject, 
-      editorialAngle: undefined, 
-      objective: data.objective || undefined 
+    generateQuestions({
+      format: safeFormat,
+      subject: data.subject,
+      editorialAngle: undefined,
+      objective: data.objective || undefined,
     });
   }, [generateQuestions]);
 
