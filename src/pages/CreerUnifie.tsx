@@ -34,6 +34,7 @@ import StructureReviewStep from "@/components/creer/StructureReviewStep";
 import type { SlideProposal, StructureProposal } from "@/components/creer/StructureReviewStep";
 
 import { useContentGenerator } from "@/hooks/use-content-generator";
+import { normalizeFormat } from "@/lib/format-normalizer";
 import { CONTENT_STRUCTURES, EDITORIAL_ANGLES, LINKEDIN_EDITORIAL_ANGLES, PINTEREST_EDITORIAL_ANGLES, PINTEREST_VISUAL_ANGLES, getStructureForCombo } from "@/lib/content-structures";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
