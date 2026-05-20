@@ -320,7 +320,7 @@ export default function LandingPage() {
           <div className="hidden md:flex items-center gap-6">
             <a href="#features" onClick={scrollTo("features")} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Fonctionnalités</a>
             <Link to="/pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Pricing</Link>
-            <Link to="/binome" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Accompagnement</Link>
+            <a href="https://www.nowadaysagency.com/accompagnement-communication" target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Accompagnement</a>
           </div>
           <div className="hidden md:flex items-center gap-3">
             <Link to="/login" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Se connecter</Link>
@@ -336,7 +336,7 @@ export default function LandingPage() {
           <div className="md:hidden border-t border-border bg-card px-4 py-4 space-y-3 animate-fade-in">
             <a href="#features" onClick={scrollTo("features")} className="block text-sm font-medium">Fonctionnalités</a>
             <Link to="/pricing" className="block text-sm font-medium">Pricing</Link>
-            <Link to="/binome" className="block text-sm font-medium">Accompagnement</Link>
+            <a href="https://www.nowadaysagency.com/accompagnement-communication" target="_blank" rel="noopener noreferrer" className="block text-sm font-medium">Accompagnement</a>
             <Link to="/login" className="block text-sm font-medium text-muted-foreground">Se connecter</Link>
             <a href="#signup-section" onClick={scrollTo("signup-section")} className="block text-center rounded-pill bg-primary text-primary-foreground py-2.5 text-sm font-medium shadow-cta">
               Commencer gratuitement
