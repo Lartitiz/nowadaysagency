@@ -358,12 +358,12 @@ export default function LandingPage() {
               🚀 Gratuit · Sans carte bancaire · En 30 secondes
             </span>
             <h1 className="font-display text-[28px] sm:text-[40px] lg:text-[52px] font-bold leading-[1.12] text-foreground">
-              Gère toute ta com' au même endroit.
+              Tous tes contenus social media du mois.
               <br />
-              <span className="text-primary">Et récupère tes soirées.</span>
+              <span className="text-primary">En une heure.</span>
             </h1>
             <p className="mt-6 text-base sm:text-lg text-muted-foreground max-w-xl leading-relaxed">
-              Branding, création de contenu, calendrier éditorial, audits Instagram et SEO : l'outil structure ta stratégie et crée tes contenus.
+              Trouve tes idées, organise ta stratégie social media, génère posts, stories et reels, sans page blanche ni copier les autres.
               <br className="hidden sm:block" />
               <strong className="text-foreground">Une IA qui connaît ta marque et écrit avec ta voix.</strong>
             </p>
