@@ -60,11 +60,11 @@ export default function EngagementCoachingDialog({ open, onOpenChange, platform 
   const workspaceId = useWorkspaceId();
   const { user } = useAuth();
 
-  const generate = async () => {
+  const generate = async (tonValue: string) => {
     setLoading(true);
     try {
       const { data, error } = await invokeWithTimeout("engagement-coaching", {
-        body: { post_text: postText, objectif, ton_envie: ton, platform, workspace_id: workspaceId !== user?.id ? workspaceId : undefined },
+        body: { post_text: postText, objectif, ton_envie: tonValue, platform, workspace_id: workspaceId !== user?.id ? workspaceId : undefined },
       }, 60000);
       if (error) throw new Error(error.message);
       setResult(data);
@@ -77,7 +77,7 @@ export default function EngagementCoachingDialog({ open, onOpenChange, platform 
 
   const handleTonSelect = (t: string) => {
     setTon(t);
-    generate();
+    generate(t);
   };
 
   const copyComment = (text: string, idx: number) => {
