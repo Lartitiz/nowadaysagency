@@ -331,7 +331,7 @@ export default function CreerStepResult({
       case "post":
         return <PostResult result={result} />;
       case "linkedin":
-        return <LinkedInResult result={result} />;
+        return <LinkedInResult result={result} photos={photos} />;
       case "newsletter":
         return <NewsletterResult result={result} />;
       case "pinterest_photo":
