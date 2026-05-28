@@ -358,6 +358,9 @@ export function useContentGenerator() {
               objective: objective || null,
               editorialFormat: editorialAngle || null,
               workspace_id: workspaceId || null,
+              photo_mode: params.photoMode || undefined,
+              photos: params.photoMode && params.photos?.length ? [{ base64: params.photos[0].base64, mimeType: params.photos[0].mimeType || "image/jpeg", context: params.photos[0].context }] : undefined,
+              photo_description: params.photoMode ? params.photoDescription : undefined,
               ...(newsContext && newsContext.trim() ? { news_context: newsContext.slice(0, 3800) } : {}),
             },
           }, 120000);
