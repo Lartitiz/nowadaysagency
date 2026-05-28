@@ -353,8 +353,14 @@ export default function CreerStepResult({
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/5 border border-primary/20 text-xs text-foreground animate-fade-in">
           <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
           <span>
-            <strong>Généré à partir de {usedPhotoCount === 2 ? "tes 2 photos" : "ta photo"}</strong>
-            {usedPhotoCount === 2 ? " (mode avant / après)" : ""} — l'IA s'est appuyée sur {usedPhotoCount === 2 ? "les visuels" : "le visuel"} pour rédiger le texte.
+            <strong>
+              Généré à partir de {usedPhotoCount === 1 ? "ta photo" : `tes ${usedPhotoCount} photos`}
+            </strong>
+            {usedPhotoCount === 2
+              ? " (mode avant / après)"
+              : usedPhotoCount >= 3
+              ? " (mode série / reportage)"
+              : ""} — l'IA s'est appuyée sur {usedPhotoCount === 1 ? "le visuel" : "les visuels"} pour rédiger le texte.
           </span>
         </div>
       )}
