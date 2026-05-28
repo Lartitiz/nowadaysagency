@@ -128,6 +128,13 @@ serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const workspace_id = body?.workspace_id || undefined;
+    const rawIntent = body?.intent || {};
+    const intentVibes: string[] = Array.isArray(rawIntent.vibes)
+      ? rawIntent.vibes.filter((v: unknown) => typeof v === "string").slice(0, 3)
+      : [];
+    const intentCustom: string = typeof rawIntent.custom === "string"
+      ? rawIntent.custom.trim().slice(0, 200)
+      : "";
 
     // Rate limit
     const rl = checkRateLimit(user.id, 5, 60_000);
