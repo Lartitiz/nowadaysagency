@@ -367,11 +367,24 @@ ${hotNews.map((a, i) => `  ${i + 1}. "${a.titre}"
 Si tu reprends une de ces actus chaudes, conserve EXACTEMENT son titre, son résumé, sa source ET son source_url dans ta réponse — c'est important pour la traçabilité. Tag-la avec axe="actu_connectable" et type="globale".\n`
       : "";
 
+    // Bloc "intention" — uniquement si l'utilisatrice a précisé des vibes ou un texte libre.
+    const intentBlock = (intentVibeLabels.length > 0 || intentCustom)
+      ? `\n══════════════════════════════════════════════
+DEMANDE EXPLICITE DE LA CRÉATRICE — PRIORITÉ ABSOLUE
+══════════════════════════════════════════════
+
+${intentVibeLabels.length > 0 ? `Vibes recherchés : ${intentVibeLabels.join(", ")}` : ""}${intentVibeLabels.length > 0 && intentCustom ? "\n" : ""}${intentCustom ? `Précision libre : "${intentCustom}"` : ""}
+
+→ Les actus que tu proposes DOIVENT correspondre à cette demande, en plus de respecter le pont vers le profil.
+→ Si tu ne trouves rien d'aligné après recherche, dis-le franchement (renvoie moins de sujets, ou la sortie vide avec message) plutôt que de forcer des sujets hors-sujet.\n`
+      : "";
+
     const systemPrompt = `Tu es une assistante de veille culturelle pour créateur·ices de contenu et entrepreneur·es (tous secteurs, pas que les réseaux sociaux).
 
 PROFIL DE L'UTILISATEUR·ICE :
 ${brandingContext}
 ${universeBlock}
+${intentBlock}
 ${hotNewsBlock}══════════════════════════════════════════════
 PHILOSOPHIE — LIRE EN PREMIER
 ══════════════════════════════════════════════
