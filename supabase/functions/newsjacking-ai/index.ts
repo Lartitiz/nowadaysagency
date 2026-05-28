@@ -128,6 +128,7 @@ serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const workspace_id = body?.workspace_id || undefined;
+    const forceMacroFromClient: boolean = body?.force_macro === true;
     const rawIntent = body?.intent || {};
     const intentVibes: string[] = Array.isArray(rawIntent.vibes)
       ? rawIntent.vibes.filter((v: unknown) => typeof v === "string").slice(0, 3)
@@ -135,6 +136,12 @@ serve(async (req) => {
     const intentCustom: string = typeof rawIntent.custom === "string"
       ? rawIntent.custom.trim().slice(0, 200)
       : "";
+
+    // Détection "intent macro" : la créatrice cherche explicitement des
+    // actus grand public / hors de sa niche.
+    const MACRO_REGEX = /\b(globa\w+|grand\s?public|fait\s+parler|tout\s+le\s+monde\s+(en\s+)?parle|hors\s+(de\s+)?(ma\s+|mon\s+)?(secteur|niche|m[ée]tier)|large(ment)?|soci[ée]t[ée]|monde|cette\s+semaine|actu(s|alit[ée]s?)?\s+(de\s+la\s+)?semaine|macro)\b/i;
+    const macroFromIntent = !!intentCustom && MACRO_REGEX.test(intentCustom);
+    const macroMode = forceMacroFromClient || macroFromIntent;
 
     // Rate limit
     const rl = checkRateLimit(user.id, 5, 60_000);
@@ -260,26 +267,30 @@ serve(async (req) => {
         const customWords = intentCustom
           ? intentCustom.split(/\s+/).filter((w) => w.length > 2).slice(0, 6).join(" ")
           : "";
-        const universKeywords = [
-          ...intentVibeHints,
-          customWords,
-          ...universe.valeurs_combat.slice(0, 2),
-          ...universe.moments_de_vie_cible.slice(0, 2),
-          ...universe.univers_emotionnel.slice(0, 2),
-        ].filter(Boolean);
+        // En mode macro, on coupe le biais niche pour récupérer de l'actu
+        // vraiment grand public ; sinon on garde l'orientation univers.
+        const universKeywords = macroMode
+          ? []
+          : [
+              ...intentVibeHints,
+              customWords,
+              ...universe.valeurs_combat.slice(0, 2),
+              ...universe.moments_de_vie_cible.slice(0, 2),
+              ...universe.univers_emotionnel.slice(0, 2),
+            ].filter(Boolean);
 
         const ppxController = new AbortController();
         const ppxTimeout = setTimeout(() => ppxController.abort(), 25000);
         try {
           const ppxResult = await fetchHotNews({
-            niche: nicheLabel,
+            niche: macroMode ? undefined : nicheLabel,
             universKeywords,
             recency: "week",
             apiKey: PERPLEXITY_API_KEY,
             signal: ppxController.signal,
           });
-          hotNews = ppxResult.actus.slice(0, 3);
-          console.log(`Perplexity: ${hotNews.length} actu(s) chaude(s) récupérée(s)`);
+          hotNews = ppxResult.actus.slice(0, macroMode ? 5 : 3);
+          console.log(`Perplexity (${macroMode ? "macro" : "niche"}): ${hotNews.length} actu(s) chaude(s) récupérée(s)`);
         } finally {
           clearTimeout(ppxTimeout);
         }
@@ -379,12 +390,33 @@ ${intentVibeLabels.length > 0 ? `Vibes recherchés : ${intentVibeLabels.join(", 
 → Si tu ne trouves rien d'aligné après recherche, dis-le franchement (renvoie moins de sujets, ou la sortie vide avec message) plutôt que de forcer des sujets hors-sujet.\n`
       : "";
 
+    // Bloc "mode macro" — la créatrice veut explicitement de l'actu grand public,
+    // pas de l'actu connectée à sa niche. On détend le pont, on bumpe le ratio globale,
+    // on force l'exclusion des sujets méta réseaux sociaux même si c'est son métier.
+    const macroBlock = macroMode
+      ? `\n══════════════════════════════════════════════
+MODE "ACTU GRAND PUBLIC" — ACTIVÉ (PRIORITÉ MAXIMALE)
+══════════════════════════════════════════════
+
+La créatrice cherche EXPLICITEMENT des actus dont parle le grand public cette semaine, PAS des actus liées à son secteur "${nicheLabel}". C'est un acte délibéré de prendre du recul par rapport à sa niche.
+
+Conséquences IMPÉRATIVES pour cette requête :
+- VISE ~5 actus de type="globale" + 1 seule actu de type="niche" (au lieu de 3+3).
+- Les actus globales sont choisies pour leur RÉSONANCE GRAND PUBLIC (ce dont parlent les gens en discussion, dîners, médias mainstream), PAS pour leur pont avec le profil.
+- Pour les actus globales, le champ "pertinence" devient une PISTE DE RÉACTION : "voici un angle que cette personne pourrait prendre", PAS un pont littéral citant son activité ou sa cible. Une phrase, sobre, qui ouvre une porte sans forcer.
+- Pour les actus globales : la règle "force_pont fort à 2/3" est REMPLACÉE par "force_pont fort à 1/3 minimum". "fragile" reste interdit. "moyen" est la valeur attendue par défaut.
+- EXCLUSION ABSOLUE (même si "${nicheLabel}" est en lien avec la com') : les actus globales qui parlent de réseaux sociaux, publication de contenu, Meta / Instagram / TikTok / LinkedIn / X / YouTube, algorithmes, créateur·ices de contenu, marketing digital, IA générative pour le contenu. Si une actu chaude pré-sourcée tombe dans cette catégorie, IGNORE-LA pour le bucket globale. Tu peux la replacer dans le bucket niche si pertinente.
+- L'unique actu niche autorisée peut, elle, parler de ce qu'elle veut dans le métier de la personne.\n`
+      : "";
+
+
     const systemPrompt = `Tu es une assistante de veille culturelle pour créateur·ices de contenu et entrepreneur·es (tous secteurs, pas que les réseaux sociaux).
 
 PROFIL DE L'UTILISATEUR·ICE :
 ${brandingContext}
 ${universeBlock}
 ${intentBlock}
+${macroBlock}
 ${hotNewsBlock}══════════════════════════════════════════════
 PHILOSOPHIE — LIRE EN PREMIER
 ══════════════════════════════════════════════
