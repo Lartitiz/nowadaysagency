@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, RefreshCw, Loader2, Sparkles, EyeOff, ChevronDown, Bookmark, BookmarkCheck } from "lucide-react";
+import { ArrowLeft, RefreshCw, Loader2, Sparkles, EyeOff, ChevronDown, Bookmark, BookmarkCheck, Newspaper } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -93,6 +93,7 @@ interface AnglesState {
 
 export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: NewsjackingPanelProps) {
   const [loading, setLoading] = useState(false);
+  const [started, setStarted] = useState(false);
   const [actus, setActus] = useState<Actu[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [expandedActu, setExpandedActu] = useState<number | null>(null);
@@ -107,6 +108,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
   const { user } = useAuth();
 
   const fetchActus = useCallback(async () => {
+    setStarted(true);
     setLoading(true);
     setError(null);
     setActus(null);
@@ -160,15 +162,21 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
     }
   }, [workspaceId]);
 
-  useEffect(() => {
-    fetchActus();
-  }, [fetchActus]);
+  // NOTE: pas d'auto-fetch au montage. L'utilisatrice déclenche la recherche
+  // explicitement via le CTA "Lancer la recherche" pour éviter de consommer
+  // un crédit par erreur et pour ne pas relancer si workspaceId arrive en async.
 
   const fetchAngles = useCallback(async (idx: number, actu: Actu) => {
-    // Don't refetch if already loaded
-    if (anglesByIdx[idx]?.data) return;
-
-    setAnglesByIdx((prev) => ({ ...prev, [idx]: { loading: true } }));
+    // Atomic gate (B3) : on ne lance le fetch que si pas déjà data/loading.
+    // Lecture via setAnglesByIdx pour avoir l'état le plus récent et éviter
+    // les doubles appels lors de clics rapides. (B4) deps = [workspaceId] uniquement.
+    let shouldFetch = false;
+    setAnglesByIdx((prev) => {
+      if (prev[idx]?.data || prev[idx]?.loading) return prev;
+      shouldFetch = true;
+      return { ...prev, [idx]: { loading: true } };
+    });
+    if (!shouldFetch) return;
 
     try {
       const { data, error: fnError } = await invokeWithTimeout("newsjacking-angles", {
@@ -198,7 +206,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
     } catch {
       setAnglesByIdx((prev) => ({ ...prev, [idx]: { loading: false, error: "Génération échouée, réessaie." } }));
     }
-  }, [anglesByIdx, workspaceId]);
+  }, [workspaceId]);
 
   const handleToggleActu = (idx: number, actu: Actu) => {
     if (expandedActu === idx) {
@@ -285,12 +293,32 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
         <Button variant="ghost" size="sm" onClick={onClose} className="gap-1.5 text-muted-foreground">
           <ArrowLeft className="h-4 w-4" /> Retour
         </Button>
-        {!loading && (
+        {started && !loading && (
           <Button variant="outline" size="sm" onClick={fetchActus} className="gap-1.5">
             <RefreshCw className="h-3.5 w-3.5" /> Relancer
           </Button>
         )}
       </div>
+
+      {/* Idle — CTA explicite pour déclencher la recherche (consomme 1 crédit) */}
+      {!started && !loading && (
+        <div className="rounded-2xl border border-dashed border-primary/30 bg-card p-6 text-center space-y-4">
+          <div className="flex justify-center">
+            <div className="rounded-full bg-primary/10 p-3">
+              <Newspaper className="h-6 w-6 text-primary" />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-sm font-semibold text-foreground">Trouver des actus à surfer pour ta marque</h3>
+            <p className="text-xs text-muted-foreground max-w-md mx-auto">
+              L'IA explore l'actu fraîche et croise avec l'univers de ta marque pour te proposer des angles. La recherche prend 30 à 60 secondes et consomme 1 crédit de recherche.
+            </p>
+          </div>
+          <Button size="sm" onClick={fetchActus} className="gap-1.5">
+            <Sparkles className="h-3.5 w-3.5" /> Lancer la recherche
+          </Button>
+        </div>
+      )}
 
       {/* Filter tabs */}
       {actus && actus.length > 0 && !loading && (
