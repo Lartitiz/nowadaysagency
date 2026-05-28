@@ -1241,10 +1241,11 @@ Réponds UNIQUEMENT en JSON :
         max_tokens: 1500,
       });
     } else if (step === "generate" && body.photo_mode && body.photos?.[0]?.base64) {
-      // Photo mode with vision: send 1 or 2 images to Claude — format-aware prompt.
-      // 2 images = "avant/après" framing (typique LinkedIn transformation, before/after chantier, etc.)
-      const validPhotos = body.photos.filter((p: any) => p?.base64).slice(0, 2);
+      // Photo mode with vision: send 1 to 10 images to Claude — format-aware prompt.
+      // 1 = scène unique. 2 = "avant / après" (transformation). 3+ = "série / reportage".
+      const validPhotos = body.photos.filter((p: any) => p?.base64).slice(0, 10);
       const isBeforeAfter = validPhotos.length === 2;
+      const isSeries = validPhotos.length >= 3;
 
       const { formatBrief, jsonShape } = buildVisionGenerateBrief(contentType);
 
@@ -1255,26 +1256,35 @@ Réponds UNIQUEMENT en JSON :
           type: "image",
           source: { type: "base64", media_type: p.mimeType || "image/jpeg", data: cleanB64 },
         });
+        let label = "";
         if (isBeforeAfter) {
-          photoContent.push({
-            type: "text",
-            text: `↑ Photo ${idx === 0 ? "1 (AVANT)" : "2 (APRÈS)"}${p.context?.trim() ? ` — contexte : "${p.context.trim()}"` : ""}`,
-          });
+          label = `↑ Photo ${idx === 0 ? "1 (AVANT)" : "2 (APRÈS)"}`;
+        } else if (isSeries) {
+          label = `↑ Photo ${idx + 1}/${validPhotos.length}`;
         } else if (p.context?.trim()) {
-          photoContent.push({
-            type: "text",
-            text: `↑ Contexte précis sur cette photo : "${p.context.trim()}"`,
-          });
+          label = "↑ Contexte précis sur cette photo";
+        }
+        if (label) {
+          const ctx = p.context?.trim() ? ` — contexte : "${p.context.trim()}"` : "";
+          photoContent.push({ type: "text", text: `${label}${ctx}` });
         }
       });
 
-      const beforeAfterInstr = isBeforeAfter
+      const modeInstr = isBeforeAfter
         ? `\n\n🔄 MODE AVANT / APRÈS : tu reçois 2 photos. La 1ère = état AVANT, la 2nde = état APRÈS. Construis le contenu autour de cette transformation : ce qui a changé, le geste/process, l'émotion du résultat. Ne décris pas chaque photo séparément — raconte LA transformation comme un récit.`
+        : isSeries
+        ? `\n\n📸 MODE SÉRIE / REPORTAGE : tu reçois ${validPhotos.length} photos qui appartiennent à une même séquence (chantier, événement, coulisses, étapes d'un process, série produit, journée…). 
+
+Avant d'écrire :
+1. Identifie le fil narratif commun aux ${validPhotos.length} images (chronologie ? étapes d'un même geste ? angles d'un même moment ? progression d'un projet ?).
+2. Choisis la structure narrative la plus juste : récit chronologique ("J1, J2, J3…" / "étape 1, 2, 3…"), coulisses en plusieurs temps, série thématique, ou angles complémentaires d'un même sujet.
+
+Écris ensuite UN SEUL post qui s'appuie sur l'ensemble de la série (pas une description photo par photo). LinkedIn affichera les ${validPhotos.length} images en carrousel d'images natif sous le texte — ton post doit donner envie de swiper, sans nécessairement numéroter chaque image. Évite "photo 1 : ... photo 2 : ..." — raconte l'histoire que les photos racontent ensemble.`
         : "";
 
       photoContent.push({
         type: "text",
-        text: `${formatBrief}${body.photo_description ? `\nDescription globale de l'utilisatrice : "${body.photo_description}"` : ""}${beforeAfterInstr}\n\n⚠️ INTERDICTION ABSOLUE de recopier un exemple textuel. Génère du contenu ORIGINAL ancré dans CES image(s) et CE sujet.\n\nRéponds UNIQUEMENT en JSON :\n${jsonShape}`,
+        text: `${formatBrief}${body.photo_description ? `\nDescription globale de l'utilisatrice : "${body.photo_description}"` : ""}${modeInstr}\n\n⚠️ INTERDICTION ABSOLUE de recopier un exemple textuel. Génère du contenu ORIGINAL ancré dans CES image(s) et CE sujet.\n\nRéponds UNIQUEMENT en JSON :\n${jsonShape}`,
       });
 
       rawContent = await callAnthropic({
