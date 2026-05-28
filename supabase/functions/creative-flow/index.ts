@@ -46,7 +46,7 @@ serve(async (req) => {
       editorialFormatLabel: z.string().max(200).optional().nullable(),
       photo_mode: z.boolean().optional(),
       photo_description: z.string().max(2000).optional().nullable(),
-      photos: z.array(z.object({ base64: z.string(), mimeType: z.string().optional(), context: z.string().max(200).optional() })).max(2).optional(),
+      photos: z.array(z.object({ base64: z.string(), mimeType: z.string().optional(), context: z.string().max(200).optional() })).max(10).optional(),
       recent_briefs_context: z.string().max(6000).optional().nullable(),
       face_cam: z.string().max(50).optional().nullable(),
       time_available: z.string().max(50).optional().nullable(),
