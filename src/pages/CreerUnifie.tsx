@@ -795,11 +795,11 @@ export default function CreerUnifie() {
           workspaceId: workspaceId !== session.user.id ? workspaceId : undefined,
           photoMode: photoMode || undefined,
           photos: photoMode && uploadedPhotos.length > 0 && uploadedPhotos[0]?.base64
-            ? [{
-                base64: uploadedPhotos[0].base64,
-                mimeType: (uploadedPhotos[0] as any).mimeType || "image/jpeg",
-                context: uploadedPhotos[0].context,
-              }]
+            ? uploadedPhotos.slice(0, 2).map((p) => ({
+                base64: p.base64,
+                mimeType: (p as any).mimeType || "image/jpeg",
+                context: p.context,
+              }))
             : undefined,
           photoDescription: photoMode ? photoDescription : undefined,
           deepResearch: !!newsjackingContext,
