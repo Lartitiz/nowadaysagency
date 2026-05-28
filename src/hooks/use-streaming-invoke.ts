@@ -44,8 +44,8 @@ export function useStreamingInvoke(): UseStreamingInvokeReturn {
       const controller = new AbortController();
       abortRef.current = controller;
 
-      // Timeout de 90s pour le streaming — les newsletters et le deep research peuvent être longs
-      const timeout = setTimeout(() => controller.abort(), 90000);
+      // Timeout de 180s — couvre LinkedIn vision multi-photos, newsletters et deep research
+      const timeout = setTimeout(() => controller.abort(), 180000);
 
       const resp = await fetch(`${supabaseUrl}/functions/v1/${functionName}`, {
         method: "POST",
