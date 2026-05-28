@@ -139,6 +139,9 @@ Réponds UNIQUEMENT avec ce JSON, sans markdown, sans backticks :
   ]
 }`;
 
+  // Note : Perplexity refuse `search_recency_filter` + `search_after_date_filter`
+  // ensemble (erreur 400 invalid_date_filter_combination). On garde uniquement
+  // `search_after_date_filter` qui est plus strict et fiable.
   const body = {
     model: "sonar-pro",
     messages: [
@@ -149,7 +152,6 @@ Réponds UNIQUEMENT avec ce JSON, sans markdown, sans backticks :
       },
       { role: "user", content: userPrompt },
     ],
-    search_recency_filter: recency,
     search_after_date_filter: formatDateUS(afterDate),
     temperature: 0.2,
     max_tokens: 1500,
