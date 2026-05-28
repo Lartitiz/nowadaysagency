@@ -390,6 +390,26 @@ ${intentVibeLabels.length > 0 ? `Vibes recherchés : ${intentVibeLabels.join(", 
 → Si tu ne trouves rien d'aligné après recherche, dis-le franchement (renvoie moins de sujets, ou la sortie vide avec message) plutôt que de forcer des sujets hors-sujet.\n`
       : "";
 
+    // Bloc "mode macro" — la créatrice veut explicitement de l'actu grand public,
+    // pas de l'actu connectée à sa niche. On détend le pont, on bumpe le ratio globale,
+    // on force l'exclusion des sujets méta réseaux sociaux même si c'est son métier.
+    const macroBlock = macroMode
+      ? `\n══════════════════════════════════════════════
+MODE "ACTU GRAND PUBLIC" — ACTIVÉ (PRIORITÉ MAXIMALE)
+══════════════════════════════════════════════
+
+La créatrice cherche EXPLICITEMENT des actus dont parle le grand public cette semaine, PAS des actus liées à son secteur "${nicheLabel}". C'est un acte délibéré de prendre du recul par rapport à sa niche.
+
+Conséquences IMPÉRATIVES pour cette requête :
+- VISE ~5 actus de type="globale" + 1 seule actu de type="niche" (au lieu de 3+3).
+- Les actus globales sont choisies pour leur RÉSONANCE GRAND PUBLIC (ce dont parlent les gens en discussion, dîners, médias mainstream), PAS pour leur pont avec le profil.
+- Pour les actus globales, le champ "pertinence" devient une PISTE DE RÉACTION : "voici un angle que cette personne pourrait prendre", PAS un pont littéral citant son activité ou sa cible. Une phrase, sobre, qui ouvre une porte sans forcer.
+- Pour les actus globales : la règle "force_pont fort à 2/3" est REMPLACÉE par "force_pont fort à 1/3 minimum". "fragile" reste interdit. "moyen" est la valeur attendue par défaut.
+- EXCLUSION ABSOLUE (même si "${nicheLabel}" est en lien avec la com') : les actus globales qui parlent de réseaux sociaux, publication de contenu, Meta / Instagram / TikTok / LinkedIn / X / YouTube, algorithmes, créateur·ices de contenu, marketing digital, IA générative pour le contenu. Si une actu chaude pré-sourcée tombe dans cette catégorie, IGNORE-LA pour le bucket globale. Tu peux la replacer dans le bucket niche si pertinente.
+- L'unique actu niche autorisée peut, elle, parler de ce qu'elle veut dans le métier de la personne.\n`
+      : "";
+
+
     const systemPrompt = `Tu es une assistante de veille culturelle pour créateur·ices de contenu et entrepreneur·es (tous secteurs, pas que les réseaux sociaux).
 
 PROFIL DE L'UTILISATEUR·ICE :
