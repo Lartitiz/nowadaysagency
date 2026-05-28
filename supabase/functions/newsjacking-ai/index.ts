@@ -136,6 +136,9 @@ serve(async (req) => {
     const intentCustom: string = typeof rawIntent.custom === "string"
       ? rawIntent.custom.trim().slice(0, 200)
       : "";
+    const excludedUrls: string[] = Array.isArray(body?.excluded_urls)
+      ? body.excluded_urls.filter((u: unknown) => typeof u === "string").slice(0, 50)
+      : [];
 
     // Détection "intent macro" : la créatrice cherche explicitement des
     // actus grand public / hors de sa niche.
@@ -286,6 +289,7 @@ serve(async (req) => {
             niche: macroMode ? undefined : nicheLabel,
             universKeywords,
             recency: "week",
+            excludedUrls,
             apiKey: PERPLEXITY_API_KEY,
             signal: ppxController.signal,
           });
