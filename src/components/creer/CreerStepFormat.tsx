@@ -82,7 +82,9 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
   const [photoDescription, setPhotoDescription] = useState(initialPhotoDescription ?? "");
   const [photoMode, setPhotoMode] = useState(false);
   const [postPhoto, setPostPhoto] = useState<PhotoItem[]>(
-    initialPhotos?.slice(0, 1) ?? []
+    // On garde toutes les photos par défaut — handleFormatSelect slicera
+    // selon le format choisi (LinkedIn = 10, autres = 1).
+    initialPhotos ?? []
   );
   const [postPhotoDescription, setPostPhotoDescription] = useState(initialPhotoDescription ?? "");
   const hasUserChangedFormat = useRef(false);
@@ -120,6 +122,19 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
       setPhotoMode(true);
     }
   }, [selectedFormat, postPhoto.length]);
+
+  // Garde-fou : si LinkedIn est déjà sélectionné et que de nouvelles initialPhotos
+  // arrivent (ou qu'on a perdu des photos en chemin), on rehydrate postPhoto
+  // selon la règle du format (10 pour LinkedIn, 1 pour les autres formats mono-photo).
+  useEffect(() => {
+    if (!initialPhotos || initialPhotos.length === 0) return;
+    if (!formatAcceptsSinglePhoto(selectedFormat)) return;
+    const cap = selectedFormat === "linkedin" ? 10 : 1;
+    const target = initialPhotos.slice(0, cap);
+    if (target.length > postPhoto.length) {
+      setPostPhoto(target);
+    }
+  }, [initialPhotos, selectedFormat]);
 
   const typeEntries = Object.entries(CONTENT_TYPE_SPECS).filter(
     ([, spec]) => selectedChannel === "instagram" ? spec.channel === "instagram" : true
