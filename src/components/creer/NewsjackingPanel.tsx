@@ -330,23 +330,83 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
 
       {/* Idle — CTA explicite pour déclencher la recherche (consomme 1 crédit) */}
       {!started && !loading && (
-        <div className="rounded-2xl border border-dashed border-primary/30 bg-card p-6 text-center space-y-4">
-          <div className="flex justify-center">
-            <div className="rounded-full bg-primary/10 p-3">
-              <Newspaper className="h-6 w-6 text-primary" />
+        <div className="rounded-2xl border border-dashed border-primary/30 bg-card p-6 space-y-5">
+          <div className="text-center space-y-3">
+            <div className="flex justify-center">
+              <div className="rounded-full bg-primary/10 p-3">
+                <Newspaper className="h-6 w-6 text-primary" />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-sm font-semibold text-foreground">Trouver des actus à surfer pour ta marque</h3>
+              <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                L'IA explore l'actu fraîche et croise avec l'univers de ta marque. La recherche prend 30 à 60 secondes et consomme 1 crédit.
+              </p>
             </div>
           </div>
-          <div className="space-y-1">
-            <h3 className="text-sm font-semibold text-foreground">Trouver des actus à surfer pour ta marque</h3>
-            <p className="text-xs text-muted-foreground max-w-md mx-auto">
-              L'IA explore l'actu fraîche et croise avec l'univers de ta marque pour te proposer des angles. La recherche prend 30 à 60 secondes et consomme 1 crédit de recherche.
-            </p>
+
+          {/* Intention (optionnelle) */}
+          <div className="space-y-3 rounded-xl bg-muted/30 p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium text-foreground">
+                Quel type d'actu tu cherches&nbsp;? <span className="text-muted-foreground font-normal">(optionnel)</span>
+              </p>
+              {selectedVibes.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedVibes([])}
+                  className="text-[10px] text-muted-foreground hover:text-foreground underline underline-offset-2"
+                >
+                  Réinitialiser
+                </button>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {VIBES.map((v) => {
+                const active = selectedVibes.includes(v.id);
+                const disabled = !active && selectedVibes.length >= MAX_VIBES;
+                return (
+                  <button
+                    key={v.id}
+                    type="button"
+                    onClick={() => toggleVibe(v.id)}
+                    disabled={disabled}
+                    className={cn(
+                      "text-xs px-2.5 py-1.5 rounded-full border transition-colors flex items-center gap-1",
+                      active
+                        ? "bg-primary/15 border-primary/30 text-primary font-medium"
+                        : "bg-background border-border text-muted-foreground hover:border-primary/30 hover:text-foreground",
+                      disabled && "opacity-40 cursor-not-allowed hover:border-border hover:text-muted-foreground"
+                    )}
+                  >
+                    <span>{v.emoji}</span> {v.label}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="space-y-1">
+              <label className="text-[11px] text-muted-foreground">Ou précise toi-même :</label>
+              <textarea
+                value={customIntent}
+                onChange={(e) => setCustomIntent(e.target.value.slice(0, MAX_INTENT_CHARS))}
+                placeholder="ex : une actu qui touche les mamans solos, un truc qui a fait jaser cette semaine…"
+                rows={2}
+                className="w-full text-xs rounded-lg border border-border bg-background px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+              <div className="flex justify-end">
+                <span className="text-[10px] text-muted-foreground">{customIntent.length}/{MAX_INTENT_CHARS}</span>
+              </div>
+            </div>
           </div>
-          <Button size="sm" onClick={fetchActus} className="gap-1.5">
-            <Sparkles className="h-3.5 w-3.5" /> Lancer la recherche
-          </Button>
+
+          <div className="flex justify-center">
+            <Button size="sm" onClick={fetchActus} className="gap-1.5">
+              <Sparkles className="h-3.5 w-3.5" /> Lancer la recherche
+            </Button>
+          </div>
         </div>
       )}
+
 
       {/* Filter tabs */}
       {actus && actus.length > 0 && !loading && (
