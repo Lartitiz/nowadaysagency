@@ -1818,7 +1818,7 @@ export default function CreerUnifie() {
         const updates: any = {};
         
         // Upload photos originales dans Storage
-        if ((carouselSubMode === "photo" || carouselSubMode === "mix") && uploadedPhotos.length > 0) {
+        if ((carouselSubMode === "photo" || carouselSubMode === "mix" || photoMode) && uploadedPhotos.length > 0) {
           try {
             const photoUrls = await uploadPhotosToStorage(postId);
             if (photoUrls.length > 0) {
