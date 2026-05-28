@@ -104,7 +104,7 @@ export default function PinterestEpingles() {
         {/* Generator */}
         <section className="rounded-xl border border-border bg-card p-5 space-y-4 mb-8">
           <h3 className="font-display text-base font-bold">✨ Créer une épingle optimisée</h3>
-          <Input value={subject} onChange={e => setSubject(e.target.value)} placeholder="Ex : Mon tote bag en lin fait main" />
+          <Input value={subject} onChange={e => setSubject(e.target.value)} placeholder="Ex : le sujet de ton épingle (produit, conseil, inspiration…)" />
           {boards.length > 0 && (
             <Select value={boardId} onValueChange={setBoardId}>
               <SelectTrigger><SelectValue placeholder="Tableau de destination" /></SelectTrigger>
