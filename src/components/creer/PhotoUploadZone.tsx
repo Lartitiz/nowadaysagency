@@ -94,10 +94,12 @@ export function PhotoUploadZone({
   const inputRef = useRef<HTMLInputElement>(null);
   const isFull = photos.length >= maxPhotos;
 
-  // Sync initial values on mount only
+  // Resync quand le parent fournit de nouvelles initialPhotos (changement de format,
+  // rehydratation après "Partir de photos", etc.). Comparaison par identité de
+  // référence : le parent passe un état React stable tant qu'il ne change pas.
   useEffect(() => {
     if (initialPhotos) setPhotos(initialPhotos);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [initialPhotos]);
 
   const updatePhotos = useCallback(
     (next: PhotoItem[]) => {
