@@ -1,55 +1,67 @@
-## Audit du bouton "Surfer sur l'actu" et du `NewsjackingPanel`
+# Audit des stats Instagram
 
-Tu n'as pas précisé le symptôme, donc voici un audit complet du flux avec les bugs trouvés, classés par probabilité. Je propose des fixes ciblés que tu peux valider un par un.
+## Ce que j'ai trouvé
 
-### Flux global (rappel)
+### 🔴 Bug confirmé : le taux d'engagement est faux
 
-```text
-clic "Surfer sur l'actu"
-  → setShowNewsjacking(true)  (CreerStepIdea ligne 146)
-  → <NewsjackingPanel> monte
-  → useEffect → fetchActus() automatique (NewsjackingPanel ligne 163-165)
-  → appel edge function newsjacking-ai (jusqu'à 90s, consomme un crédit)
-```
+Deux problèmes dans `InstagramStats.tsx` + `StatsForm.tsx` + `StatsCharts.tsx` :
 
-### Bugs identifiés (ranking par criticité)
+**1. Mauvaise formule.** Aujourd'hui : `interactions / reach × 100`.
+- C'est un mix bizarre : `interactions` compte les actions totales (likes + commentaires + saves + partages, donc plusieurs par personne), pendant que `reach` compte des comptes uniques. Le ratio peut dépasser 100% et ne veut pas dire grand-chose.
+- La convention Instagram propre c'est : `accounts_engaged / reach` (taux d'engagement par portée) — et tu as déjà le champ `accounts_engaged` dans le formulaire, on ne l'utilise nulle part dans le KPI.
 
-**B1 — Auto-fetch agressif au montage (très probablement ton bug)**
-Au clic, le panneau lance instantanément `newsjacking-ai` (90s timeout) **sans confirmation de l'utilisateur**, et **consomme un crédit** dès l'ouverture. Si tu cliques par erreur, tu paies. Si tu retournes en arrière puis re-cliques, double appel.
+**2. Moyenne des moyennes.** Sur une période (3 mois, 6 mois), le KPI fait la moyenne des % mensuels — un mois à 50 de reach pèse autant qu'un mois à 50 000. Il faut une moyenne pondérée : `Σ accounts_engaged / Σ reach`.
 
-**B2 — Re-fetch involontaire si `workspaceId` charge en async**
-`fetchActus` est memoizé sur `[workspaceId]` (ligne 161) et déclenché par `useEffect([fetchActus])` (ligne 163). Si `workspaceId` arrive d'AuthContext après le premier render (undefined → "abc"), le panneau **relance la recherche** et **double-consomme un crédit**.
+### 🟠 Autres trucs à nettoyer
 
-**B3 — Pas de garde "loading" dans `fetchAngles**`
-Ligne 169 : `if (anglesByIdx[idx]?.data) return;` ne couvre PAS le cas `loading: true`. Si l'utilisatrice clique vite plusieurs fois sur "Voir les angles", on déclenche N appels parallèles à `newsjacking-angles`.
+- **CA et clients partout** : carte KPI "💰 CA", chart "CA et clients", lignes "CA" + "Clients" dans la table de comparaison, étapes "Clients" dans le funnel. À retirer de la vue Instagram.
+- **Funnel** : la dernière étape "Clients/Achat/Projet" mélange business et social → à raccourcir à un funnel purement Instagram → site.
+- **"Followers en +"** : la donnée est saisie mais n'apparaît dans aucun graphique de tendance.
+- **Stats sous-exploitées** : `profile_visits`, `website_clicks`, `accounts_engaged`, `followers_engaged`, `views` existent mais on n'a aucun graphique dessus.
 
-**B4 — `fetchAngles` se recrée sur chaque update de `anglesByIdx**`
-Ligne 201 : la dépendance `[anglesByIdx, workspaceId]` fait que `fetchAngles` change de référence à chaque setState. Pas un bug visible mais bruit de re-render dans toutes les cartes.
+## Ce que je propose de faire
 
-**B5 — Pas d'AbortController**
-Si l'utilisatrice clique "Retour" pendant le fetch (90s), la requête continue, consomme le quota, et déclenche un `setState` après démontage (warning React).
+### 1. Corriger le taux d'engagement
 
-**B6 — `onClose` ne réinitialise rien côté parent**
-`onClose` ne fait que `setShowNewsjacking(false)` — le crédit consommé est perdu et l'état interne du panneau est rejeté (nouveau fetch au prochain clic).
+- Formule : `accounts_engaged / reach × 100` (fallback `interactions / reach` si `accounts_engaged` vide pour ne pas casser l'historique).
+- Sur une période : moyenne pondérée `Σ engaged / Σ reach`, pas la moyenne des %.
+- Petit label "?" sur la carte qui explique la formule en clair.
+- Bonus : afficher aussi le **taux d'engagement par abonné·es** (`interactions / followers`) en sous-ligne — c'est la métrique que beaucoup d'outils externes utilisent, ça évite la confusion.
 
-### Fixes proposés
+### 2. Retirer toute la partie CA / clients
 
-1. **B1 — Ajouter un écran d'accueil "Lancer la recherche"**
-  Remplacer le `useEffect(() => fetchActus())` par un état initial `idle` qui affiche un CTA explicite ("Trouver des actus pertinentes pour ma marque" + estimation de 30-60s + mention du crédit consommé). Au clic uniquement → `fetchActus`. Élimine B1 et B2 d'un coup.
-2. **B3 — Garde anti double-clic dans `fetchAngles**`
-  `if (anglesByIdx[idx]?.data || anglesByIdx[idx]?.loading) return;`
-3. **B4 — Retirer `anglesByIdx` des deps de `fetchAngles**`
-  Utiliser le pattern `setAnglesByIdx((prev) => ...)` partout (déjà fait) et lire l'état via la fonction `setAnglesByIdx` callback ou un ref pour le early-return. Dep finale : `[workspaceId]`.
-4. **B5 — AbortController**
-  Créer un `controller = new AbortController()` dans `fetchActus`/`fetchAngles`, le passer à `invokeWithTimeout`, et l'abort dans le cleanup du `useEffect` + sur `onClose`.
+- KPI card "CA" → retirée (on passe à 3 cartes, ou on en ajoute une nouvelle, voir §3).
+- Chart "CA et clients" → supprimé.
+- Lignes "CA" + "Clients" dans la table de comparaison → supprimées.
+- Funnel : on garde Reach → Visites profil → Clics site → Pages vente (ou Inscrits email). Plus de "Clients signés".
+- Le formulaire de saisie garde les champs business (utile pour la page Lancement / pour l'IA), mais la vue Instagram ne les affiche plus.
 
-### Hors scope (déjà OK)
+### 3. Nouvelles visualisations (à valider avec toi)
 
-- Authentification & RLS sur `saved_ideas` ligne 232-244 : conforme à la règle workspace_id.
-- Bandeau quota (B7 fictif) : déjà géré ligne 99 + 341.
+Propositions, dis-moi lesquelles tu gardes :
 
-### Question
+- **A. Carte KPI "Croissance nette"** : `followers_gained − followers_lost` du mois, avec mini-tendance. Remplace la carte CA.
+- **B. Graphique "Acquisition de followers"** : barres mensuelles `+gained / −lost` avec ligne de croissance nette. Très lisible pour voir les bons/mauvais mois.
+- **C. Graphique "Du contenu au profil"** : ligne combo `Reach`, `Profile visits`, `Website clicks` sur la même période → on voit le taux de conversion descendre étape par étape.
+- **D. Graphique "Qualité de l'audience"** : taux d'engagement (%) + % de followers qui interagissent, sur la durée.
+- **E. Mini-comparatif "Ce mois vs mois précédent"** : 4-6 petites stats avec flèches, en haut, en plus des KPI (lecture express).
 
-Tu confirmes que c'est B1/B2 (panneau qui repart / crédit consommé) ou c'est plutôt un autre symptôme (panneau qui ne s'ouvre pas, erreur visible…) ? Si oui, je peux commencer par le fix B1 seul (le plus impactant et le moins risqué). oui cest bien ça
+Mon recommandé : **A + B + C + D**. E si tu veux un coup d'œil "qu'est-ce qui a bougé ce mois".
 
-&nbsp;
+## Détails techniques
+
+Fichiers touchés :
+- `src/components/stats/stats-types.ts` — `DashboardKPIs` : retirer `totalRevenue`/`changeRevenue`, ajouter `netGrowth`/`changeNetGrowth` + `engagementByFollowers`.
+- `src/pages/InstagramStats.tsx` — recalcul `dashboardKPIs` (moyenne pondérée, nouvelle formule, growth), `chartData` (ajouter `gained`, `lost`, `net`, `profile_visits`, `website_clicks`).
+- `src/components/stats/StatsOverview.tsx` — remplacer carte CA par Croissance nette, ajouter tooltip formule sur Engagement.
+- `src/components/stats/StatsCharts.tsx` — supprimer chart `RevenueChart`, ajouter "Acquisition followers" + "Du contenu au profil", retirer lignes CA/Clients de `ComparisonTable`, retirer étape Clients du `FunnelChart`.
+- `src/components/stats/StatsForm.tsx` — mettre à jour le `ComputedField` "Taux d'engagement" pour matcher la nouvelle formule + ajouter "Taux d'engagement par abonnés".
+- `src/components/stats/RevenueChart.tsx` — supprimé (plus utilisé côté Instagram).
+
+Pas de migration DB. Le schéma `monthly_stats` reste identique : on cache juste l'usage CA dans la vue stats Instagram.
+
+## Questions avant que je code
+
+1. Tu valides la nouvelle formule du taux d'engagement (`accounts_engaged / reach` pondéré sur la période) ?
+2. Pour les nouveaux graphiques : je pars sur A + B + C + D, ou tu veux ajuster ?
+3. Le formulaire de saisie : je laisse les champs CA/clients (utiles à l'IA et à la page Lancement) ou je les retire aussi ?
