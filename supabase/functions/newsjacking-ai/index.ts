@@ -634,6 +634,26 @@ Si vraiment rien ne fonctionne (moins de 3 sujets connectés trouvables), retour
       });
     }
 
+    // Post-validation : on retire tout sujet qui ressemble à un événement /
+    // webinaire / replay / page evergreen, même si Claude l'a fait passer.
+    // Ces patterns sont les mêmes que côté Perplexity pour cohérence.
+    const beforeCount = parsed.actus.length;
+    parsed.actus = parsed.actus.filter((a: any) => {
+      const blob = `${a?.titre || ""} ${a?.resume || ""} ${a?.pertinence || ""}`;
+      const isEvergreen = EVERGREEN_PATTERNS.some((rx) => rx.test(blob));
+      if (isEvergreen) {
+        console.log(`[newsjacking] dropped (evergreen): "${String(a?.titre || "").slice(0, 80)}"`);
+        return false;
+      }
+      return true;
+    });
+    if (parsed.actus.length < beforeCount) {
+      console.log(`[newsjacking] filtered ${beforeCount - parsed.actus.length}/${beforeCount} actus (evergreen)`);
+    }
+    if (parsed.actus.length === 0) {
+      parsed.message = parsed.message || "Pas d'actu vraiment fraîche cette fois. Réessaie dans quelques jours.";
+    }
+
     // Log usage
     await logUsage(user.id, "deep_research", "newsjacking", undefined, model, workspace_id);
 
