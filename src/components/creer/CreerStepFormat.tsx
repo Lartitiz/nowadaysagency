@@ -150,7 +150,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
       } else if (formatAcceptsSinglePhoto(id)) {
         setCarouselSubMode(null);
         setPhotoMode(true);
-        setPostPhoto(initialPhotos!.slice(0, 1));
+        setPostPhoto(initialPhotos!.slice(0, id === "linkedin" ? 10 : 1));
         setPostPhotoDescription(initialPhotoDescription ?? "");
       } else {
         setCarouselSubMode(null);
