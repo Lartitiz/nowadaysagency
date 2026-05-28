@@ -1,67 +1,107 @@
-# Audit des stats Instagram
+# Préciser le type d'actu avant la recherche
 
-## Ce que j'ai trouvé
+## Idée
 
-### 🔴 Bug confirmé : le taux d'engagement est faux
+Au lieu de lancer la recherche à l'aveugle, on ajoute une **étape d'intention** sur l'écran "Lancer la recherche". L'utilisatrice peut :
+- soit choisir un ou plusieurs **vibes** prédéfinis (chips),
+- soit taper une **demande libre** ("J'aimerais une actu scoop qui fait réagir"),
+- soit les deux, soit rien (= comportement actuel).
 
-Deux problèmes dans `InstagramStats.tsx` + `StatsForm.tsx` + `StatsCharts.tsx` :
+L'intention est passée au backend qui l'injecte dans le prompt + la requête Perplexity.
 
-**1. Mauvaise formule.** Aujourd'hui : `interactions / reach × 100`.
-- C'est un mix bizarre : `interactions` compte les actions totales (likes + commentaires + saves + partages, donc plusieurs par personne), pendant que `reach` compte des comptes uniques. Le ratio peut dépasser 100% et ne veut pas dire grand-chose.
-- La convention Instagram propre c'est : `accounts_engaged / reach` (taux d'engagement par portée) — et tu as déjà le champ `accounts_engaged` dans le formulaire, on ne l'utilise nulle part dans le KPI.
+## UX (NewsjackingPanel.tsx)
 
-**2. Moyenne des moyennes.** Sur une période (3 mois, 6 mois), le KPI fait la moyenne des % mensuels — un mois à 50 de reach pèse autant qu'un mois à 50 000. Il faut une moyenne pondérée : `Σ accounts_engaged / Σ reach`.
+L'écran idle devient :
 
-### 🟠 Autres trucs à nettoyer
+```text
+📰 Trouver des actus à surfer pour ta marque
 
-- **CA et clients partout** : carte KPI "💰 CA", chart "CA et clients", lignes "CA" + "Clients" dans la table de comparaison, étapes "Clients" dans le funnel. À retirer de la vue Instagram.
-- **Funnel** : la dernière étape "Clients/Achat/Projet" mélange business et social → à raccourcir à un funnel purement Instagram → site.
-- **"Followers en +"** : la donnée est saisie mais n'apparaît dans aucun graphique de tendance.
-- **Stats sous-exploitées** : `profile_visits`, `website_clicks`, `accounts_engaged`, `followers_engaged`, `views` existent mais on n'a aucun graphique dessus.
+(L'IA explore l'actu fraîche…)
 
-## Ce que je propose de faire
+┌────────────────────────────────────────────┐
+│ Quel type d'actu tu cherches ? (optionnel) │
+│                                            │
+│ [💥 Scoop qui fait réagir]                 │
+│ [🌀 Phénomène culturel du moment]          │
+│ [⚖️ Débat clivant]                         │
+│ [📊 Stat ou étude étonnante]               │
+│ [🌱 Tendance émergente]                    │
+│ [🎬 Sortie culturelle]                     │
+│ [🧭 Sur mon combat : {combat_cause}]       │  ← affiché seulement si dispo
+│                                            │
+│ Ou précise toi-même :                      │
+│ [______________________________________]   │
+│  "ex: une actu qui touche les mamans…"     │
+└────────────────────────────────────────────┘
 
-### 1. Corriger le taux d'engagement
+[✨ Lancer la recherche]
+```
 
-- Formule : `accounts_engaged / reach × 100` (fallback `interactions / reach` si `accounts_engaged` vide pour ne pas casser l'historique).
-- Sur une période : moyenne pondérée `Σ engaged / Σ reach`, pas la moyenne des %.
-- Petit label "?" sur la carte qui explique la formule en clair.
-- Bonus : afficher aussi le **taux d'engagement par abonné·es** (`interactions / followers`) en sous-ligne — c'est la métrique que beaucoup d'outils externes utilisent, ça évite la confusion.
+- Chips multi-sélection (max 3 pour éviter le bruit).
+- Le chip "Sur mon combat" n'apparaît que si `brand_profile.combat_cause` est défini.
+- Textarea libre, max 200 caractères.
+- Tout est **optionnel** : sans sélection, on garde le comportement actuel.
 
-### 2. Retirer toute la partie CA / clients
+État local : `selectedVibes: string[]`, `customIntent: string`.
 
-- KPI card "CA" → retirée (on passe à 3 cartes, ou on en ajoute une nouvelle, voir §3).
-- Chart "CA et clients" → supprimé.
-- Lignes "CA" + "Clients" dans la table de comparaison → supprimées.
-- Funnel : on garde Reach → Visites profil → Clics site → Pages vente (ou Inscrits email). Plus de "Clients signés".
-- Le formulaire de saisie garde les champs business (utile pour la page Lancement / pour l'IA), mais la vue Instagram ne les affiche plus.
+Le body de l'invoke devient :
+```ts
+{ workspace_id, intent: { vibes: selectedVibes, custom: customIntent.trim() || undefined } }
+```
 
-### 3. Nouvelles visualisations (à valider avec toi)
+## Backend (`supabase/functions/newsjacking-ai/index.ts`)
 
-Propositions, dis-moi lesquelles tu gardes :
+### 1. Mapping des vibes → axes + ton attendu
 
-- **A. Carte KPI "Croissance nette"** : `followers_gained − followers_lost` du mois, avec mini-tendance. Remplace la carte CA.
-- **B. Graphique "Acquisition de followers"** : barres mensuelles `+gained / −lost` avec ligne de croissance nette. Très lisible pour voir les bons/mauvais mois.
-- **C. Graphique "Du contenu au profil"** : ligne combo `Reach`, `Profile visits`, `Website clicks` sur la même période → on voit le taux de conversion descendre étape par étape.
-- **D. Graphique "Qualité de l'audience"** : taux d'engagement (%) + % de followers qui interagissent, sur la durée.
-- **E. Mini-comparatif "Ce mois vs mois précédent"** : 4-6 petites stats avec flèches, en haut, en plus des KPI (lecture express).
+Table interne :
+```ts
+const VIBES = {
+  scoop:      { axe: "actu_connectable",      ton: "decalant",   query_hint: "scoop révélation qui fait réagir" },
+  phenomene:  { axe: "obsession_collective",  ton: "entre_deux", query_hint: "phénomène culturel viral du moment" },
+  debat:      { axe: "debat_recurrent",       ton: "entre_deux", query_hint: "débat clivant société polémique" },
+  stat:       { axe: "comportement_emergent", ton: "confortable", query_hint: "étude statistique chiffre étonnant" },
+  tendance:   { axe: "mot_qui_revient",       ton: "confortable", query_hint: "tendance émergente nouvelle pratique" },
+  culture:    { axe: "objet_culturel",        ton: "decalant",    query_hint: "film série livre sortie récente" },
+  combat:     { axe: null /* dynamique */,    ton: "entre_deux",  query_hint: "<combat_cause> débat actualité" },
+};
+```
 
-Mon recommandé : **A + B + C + D**. E si tu veux un coup d'œil "qu'est-ce qui a bougé ce mois".
+### 2. Sélection des axes
 
-## Détails techniques
+Si `intent.vibes` non vide :
+- `pickedAxes` ← axes correspondants (au lieu du shuffle aléatoire actuel).
+- Si moins de 3 vibes, on complète avec des axes aléatoires pour garder la diversité.
 
-Fichiers touchés :
-- `src/components/stats/stats-types.ts` — `DashboardKPIs` : retirer `totalRevenue`/`changeRevenue`, ajouter `netGrowth`/`changeNetGrowth` + `engagementByFollowers`.
-- `src/pages/InstagramStats.tsx` — recalcul `dashboardKPIs` (moyenne pondérée, nouvelle formule, growth), `chartData` (ajouter `gained`, `lost`, `net`, `profile_visits`, `website_clicks`).
-- `src/components/stats/StatsOverview.tsx` — remplacer carte CA par Croissance nette, ajouter tooltip formule sur Engagement.
-- `src/components/stats/StatsCharts.tsx` — supprimer chart `RevenueChart`, ajouter "Acquisition followers" + "Du contenu au profil", retirer lignes CA/Clients de `ComparisonTable`, retirer étape Clients du `FunnelChart`.
-- `src/components/stats/StatsForm.tsx` — mettre à jour le `ComputedField` "Taux d'engagement" pour matcher la nouvelle formule + ajouter "Taux d'engagement par abonnés".
-- `src/components/stats/RevenueChart.tsx` — supprimé (plus utilisé côté Instagram).
+### 3. Bloc "intention" dans le prompt système
 
-Pas de migration DB. Le schéma `monthly_stats` reste identique : on cache juste l'usage CA dans la vue stats Instagram.
+Ajout d'un bloc clairement marqué :
+```text
+══════════════════════════════════════════════
+DEMANDE EXPLICITE DE LA CRÉATRICE
+══════════════════════════════════════════════
+Vibes recherchés : Scoop qui fait réagir, Débat clivant
+Précision libre : "une actu qui touche les mamans solos"
 
-## Questions avant que je code
+→ Les actus proposées DOIVENT correspondre à cette demande.
+→ Si tu ne trouves rien d'aligné, dis-le franchement plutôt que de
+   forcer des sujets hors-sujet.
+```
 
-1. Tu valides la nouvelle formule du taux d'engagement (`accounts_engaged / reach` pondéré sur la période) ?
-2. Pour les nouveaux graphiques : je pars sur A + B + C + D, ou tu veux ajuster ?
-3. Le formulaire de saisie : je laisse les champs CA/clients (utiles à l'IA et à la page Lancement) ou je les retire aussi ?
+### 4. Requêtes Perplexity adaptées
+
+`universKeywords` est complété par `query_hint` des vibes choisies + 3-5 premiers mots du `custom`. Ça réoriente la recherche fraîche vers ce qu'elle a demandé.
+
+### 5. Rétro-compat
+
+Si `intent` absent (ancien client), comportement actuel inchangé.
+
+## Fichiers touchés
+
+- `src/components/creer/NewsjackingPanel.tsx` — écran idle enrichi (chips + textarea), state local, body de l'invoke.
+- `supabase/functions/newsjacking-ai/index.ts` — lecture de `intent`, table `VIBES`, sélection d'axes contrainte, bloc prompt, hint Perplexity.
+- Pas de migration DB. Pas de table à créer.
+
+## À valider avant que je code
+
+1. Tu valides la liste de vibes (scoop / phénomène / débat / stat / tendance / culture + combat dynamique) ou tu veux qu'on remplace/ajoute des intitulés ?
+2. Le chip "combat" : OK pour afficher le libellé brut de `combat_cause` (genre "Sur mon combat : démocratiser le marketing éthique") ou tu préfères un libellé fixe ?
