@@ -1,49 +1,71 @@
-# Questions multi-photos pour LinkedIn (et autres formats vision)
+# Stopper les inventions du post LinkedIn en mode photo
 
-## Problème
+## Diagnostic (cause racine)
 
-Dans `supabase/functions/creative-flow/index.ts` ligne 1216-1242, à l'étape `questions` en mode photo, on n'envoie que `body.photos[0]` à Claude — même quand l'utilisatrice a uploadé 2 à 10 photos (cas typique LinkedIn carrousel d'images natif).
+Dans `supabase/functions/creative-flow/index.ts` lignes 1254-1307, la branche `generate` en mode photo construit le prompt avec **uniquement** :
+- les images
+- `formatBrief` (texte générique du format)
+- `body.photo_description` (description globale)
+- `modeInstr` (avant/après ou série)
 
-Conséquences :
-- Les 3 questions générées sont ancrées sur **une seule** image
-- Aucune question ne porte sur la séquence, la transformation (avant/après), le fil rouge du reportage
-- L'étape `generate` (ligne 1243+) gère bien le multi-photos (slice 0-10, modes "avant/après" / "série"), mais le brief des questions ne reflète pas cette richesse
+→ **Les `answers` de l'étape questions ne sont JAMAIS injectées** dans ce prompt. Le modèle ne voit donc que les photos + le sujet, sans la matière concrète fournie par l'utilisatrice. Résultat : Claude comble en inventant prénoms, scènes, chiffres, citations.
+
+À l'inverse, la branche `generate` non-photo (ligne 395) injecte bien un `answersBlock`.
+
+Secondaire : aucune garde explicite "n'invente pas" n'est présente dans le prompt vision.
 
 ## Correctif (1 fichier)
 
-### `supabase/functions/creative-flow/index.ts` lignes 1216-1242
+### `supabase/functions/creative-flow/index.ts` lignes 1296-1299
 
-Étendre la logique vision-questions pour accepter 1 à N photos, en miroir de ce que fait déjà l'étape `generate` :
+Avant le bloc texte final, construire un `answersBlock` à partir de `body.answers` (déjà déstructuré en haut du fichier) :
 
-1. Filtrer `body.photos` valides + `slice(0, 10)` → `validPhotosQ`
-2. Construire un `content[]` qui contient :
-   - 1 bloc `image` par photo (jusqu'à 10)
-   - Un petit label texte avant chaque image si `photo.context` est renseigné ("↑ Contexte photo N : …")
-   - Le prompt texte final (`visionQuestionsPrompt`) en dernier
-3. Passer au prompt builder le **nombre de photos** + l'info "mode série / avant-après / scène unique" pour qu'il adapte ses 3 questions (ex. 1 question sur le fil rouge, 1 sur un moment clé, 1 sur la prise de position pro)
+```ts
+const answersBlock = (answers && answers.length > 0)
+  ? answers.map((a: any, i: number) =>
+      `Q${i + 1} : "${a.question}"\n→ "${a.answer}"`
+    ).join("\n\n")
+  : "";
+```
 
-### `supabase/functions/_shared/vision-prompts.ts` — `buildVisionQuestionsPrompt`
+Puis l'injecter dans le `text` final, avec une **garde anti-fabrication** explicite :
 
-Ajouter 2 paramètres optionnels : `photo_count: number` et `series_mode: "single" | "before_after" | "series"`.
+```
+${formatBrief}
+${body.photo_description ? `\nDescription globale de l'utilisatrice : "${body.photo_description}"` : ""}
+${answersBlock ? `\n\n══ RÉPONSES DE L'UTILISATRICE (matière SOURCE — utilise-les) ══\n${answersBlock}` : ""}
+${modeInstr}
 
-Adapter les RÈGLES du prompt :
-- Si `photo_count === 1` → comportement actuel inchangé
-- Si `photo_count === 2` → "Tu vois 2 photos qui forment un AVANT/APRÈS. Tes 3 questions doivent creuser la transformation : le déclic, le geste qui a fait basculer, le ressenti du résultat."
-- Si `photo_count >= 3` → "Tu vois N photos d'une même séquence/reportage. Tes 3 questions doivent couvrir : (1) le fil rouge / pourquoi cette série, (2) un détail marquant visible sur UNE photo précise (mentionne laquelle), (3) la prise de position / l'apprentissage pro qui ressort de l'ensemble."
-- Garder la règle "MENTIONNE ce que tu VOIS RÉELLEMENT" en l'étendant à toutes les images
+══ RÈGLE ANTI-FABRICATION (CRITIQUE) ══
+- N'invente AUCUN détail non vérifiable : prénom, chiffre, citation, lieu, date, nom de client/projet, sentiment précis, dialogue.
+- Tu peux UNIQUEMENT utiliser : (1) ce que tu VOIS sur les photos, (2) la description globale, (3) les réponses ci-dessus.
+- Si une info manque pour étoffer, reste sur du registre méta / observation / réflexion plutôt que d'inventer une anecdote.
+- Préfère "on voit", "il y a", "ça raconte", "ce que ça dit de…" à "ce jour-là, Marie m'a dit…" si la scène n'est pas dans les réponses.
+- Si l'utilisatrice n'a pas donné d'anecdote précise, fais un post RÉFLEXIF / méta sur ce que les photos évoquent, pas un récit fictif.
+
+⚠️ INTERDICTION ABSOLUE de recopier un exemple textuel. Génère du contenu ORIGINAL ancré dans CES image(s), CE sujet, ET les réponses fournies.
+
+Réponds UNIQUEMENT en JSON :
+${jsonShape}
+```
+
+### Bonus : pass de correction LinkedIn
+
+Si `supabase/functions/_shared/correction-pass.ts` est appliquée au mode photo LinkedIn, ajouter une règle "détecte les prénoms / chiffres / citations qui n'apparaissent ni dans les réponses ni dans la description → les retirer ou les remplacer par du méta". À vérifier en lisant le fichier ; si la passe n'est pas branchée sur le mode photo, on n'y touche pas dans ce ticket.
 
 ## Hors scope
 
-- Pas de changement frontend (`PhotoUploadZone`, `CreerStepQuestions`, `use-content-generator`) — le payload `photos[]` est déjà envoyé complet
-- Pas de changement à l'étape `generate` (déjà multi-photos OK)
-- Pas de migration DB, pas de modif Zod (limite `.max(10)` déjà alignée)
-- Pas de changement des autres formats (Instagram caption, reel, story, newsletter) — même logique appliquée puisque le builder est partagé, mais l'effet est surtout visible sur LinkedIn (cas multi-photos le plus fréquent)
+- Pas de changement frontend (les `answers` sont déjà envoyées via `streamBody.answers` dans `use-content-generator.ts` ligne 722)
+- Pas de changement à l'étape `questions` (déjà ancrée vision)
+- Pas de migration DB, pas de Zod (`answers` déjà accepté)
+- Pas de changement de modèle Claude
 
 ## Test après correction
 
-1. Créer un contenu → Partir de photos → 4 photos → Post LinkedIn
-2. Vérifier que les 3 questions :
-   - mentionnent des détails de **plusieurs** photos différentes
-   - portent au moins sur le fil rouge / la séquence (pas uniquement sur la 1ère image)
-3. Tester aussi avec 2 photos → questions orientées avant/après
-4. Tester avec 1 photo → comportement inchangé
+1. Créer un contenu → Partir de photos → 3-4 photos → Post LinkedIn
+2. Répondre aux questions avec des phrases courtes / vagues
+3. Vérifier que le post généré :
+   - ne contient AUCUN prénom inventé qui n'est ni dans les réponses ni visible sur la photo
+   - ne contient AUCUN chiffre / citation / scène fictive
+   - bascule en ton méta-réflexif si les réponses sont pauvres, au lieu d'inventer un récit
+4. Tester avec des réponses riches → le post doit reprendre fidèlement la matière fournie
