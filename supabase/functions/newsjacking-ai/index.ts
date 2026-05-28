@@ -289,6 +289,7 @@ serve(async (req) => {
             niche: macroMode ? undefined : nicheLabel,
             universKeywords,
             recency: "week",
+            excludedUrls,
             apiKey: PERPLEXITY_API_KEY,
             signal: ppxController.signal,
           });
