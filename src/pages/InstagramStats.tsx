@@ -179,22 +179,33 @@ export default function InstagramStats() {
   const activeConfig = config || draftConfig;
 
   const chartData = useMemo(() =>
-    periodStats.map(s => ({
-      month: monthLabelShort(s.month_date),
-      followers: s.followers ?? 0,
-      reach: s.reach ?? 0,
-      engagement: safeDivPct(s.interactions, s.reach) ?? 0,
-      revenue: s.revenue ?? 0,
-      clients: s.clients_signed ?? 0,
-      ...(activeConfig.traffic_sources || ["search", "social", "pinterest", "instagram"]).reduce((acc, src) => {
-        if (s.website_data && typeof s.website_data === "object" && s.website_data.sources) {
-          acc[`traffic_${src}`] = s.website_data.sources[src] ?? (s as any)[`traffic_${src}`] ?? 0;
-        } else {
-          acc[`traffic_${src}`] = (s as any)[`traffic_${src}`] ?? 0;
-        }
-        return acc;
-      }, {} as Record<string, number>),
-    }))
+    periodStats.map(s => {
+      const engaged = s.accounts_engaged ?? s.interactions ?? 0;
+      const eng = s.reach && s.reach > 0 ? (engaged / s.reach) * 100 : 0;
+      const engFollowers = s.followers && s.followers > 0 && s.interactions != null
+        ? (s.interactions / s.followers) * 100
+        : 0;
+      return {
+        month: monthLabelShort(s.month_date),
+        followers: s.followers ?? 0,
+        reach: s.reach ?? 0,
+        engagement: eng,
+        engagement_followers: engFollowers,
+        profile_visits: s.profile_visits ?? 0,
+        website_clicks: s.website_clicks ?? 0,
+        gained: s.followers_gained ?? 0,
+        lost: -(s.followers_lost ?? 0),
+        net: (s.followers_gained ?? 0) - (s.followers_lost ?? 0),
+        ...(activeConfig.traffic_sources || ["search", "social", "pinterest", "instagram"]).reduce((acc, src) => {
+          if (s.website_data && typeof s.website_data === "object" && s.website_data.sources) {
+            acc[`traffic_${src}`] = s.website_data.sources[src] ?? (s as any)[`traffic_${src}`] ?? 0;
+          } else {
+            acc[`traffic_${src}`] = (s as any)[`traffic_${src}`] ?? 0;
+          }
+          return acc;
+        }, {} as Record<string, number>),
+      };
+    })
   , [periodStats, config]);
 
   const monthOptions = useMemo(() => {
