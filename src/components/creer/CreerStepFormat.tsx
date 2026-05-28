@@ -111,6 +111,15 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
     loadBoards();
   }, [selectedChannel, user?.id]);
 
+  // Auto-active photoMode dès qu'une photo est présente sur un format compatible.
+  // Sinon, l'utilisateur·rice voit sa photo affichée mais le `photo_mode: true`
+  // n'est jamais envoyé à l'IA → texte généré "à l'aveugle".
+  useEffect(() => {
+    if (formatAcceptsSinglePhoto(selectedFormat) && postPhoto.length > 0 && !photoMode) {
+      setPhotoMode(true);
+    }
+  }, [selectedFormat, postPhoto.length]);
+
   const typeEntries = Object.entries(CONTENT_TYPE_SPECS).filter(
     ([, spec]) => selectedChannel === "instagram" ? spec.channel === "instagram" : true
   );
