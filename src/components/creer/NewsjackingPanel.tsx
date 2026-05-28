@@ -145,8 +145,12 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
     setAnglesByIdx({});
 
     try {
+      const intent = {
+        vibes: selectedVibes,
+        custom: customIntent.trim() || undefined,
+      };
       const { data, error: fnError } = await invokeWithTimeout("newsjacking-ai", {
-        body: { workspace_id: workspaceId || undefined },
+        body: { workspace_id: workspaceId || undefined, intent },
       }, 90000);
 
       if (fnError) {
