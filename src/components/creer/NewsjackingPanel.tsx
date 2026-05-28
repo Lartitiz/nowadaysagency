@@ -149,8 +149,11 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
         vibes: selectedVibes,
         custom: customIntent.trim() || undefined,
       };
+      // Si on est explicitement sur l'onglet "Globale" au moment de relancer,
+      // on demande au serveur de désancrer la recherche de la niche.
+      const force_macro = filter === "globale";
       const { data, error: fnError } = await invokeWithTimeout("newsjacking-ai", {
-        body: { workspace_id: workspaceId || undefined, intent },
+        body: { workspace_id: workspaceId || undefined, intent, force_macro },
       }, 90000);
 
       if (fnError) {
