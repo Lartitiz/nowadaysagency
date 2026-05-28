@@ -569,7 +569,11 @@ export function useContentGenerator() {
               recent_briefs_context: recentBriefsContext || undefined,
               photo_mode: photoModeCF || undefined,
               photos: photoModeCF
-                ? [{ base64: params.photos![0].base64, mimeType: params.photos![0].mimeType || "image/jpeg", context: params.photos![0].context }]
+                ? params.photos!.slice(0, 10).map(p => ({
+                    base64: p.base64,
+                    mimeType: p.mimeType || "image/jpeg",
+                    context: p.context,
+                  }))
                 : undefined,
               photo_description: photoModeCF ? params.photoDescription || undefined : undefined,
               ...(params.newsContext && params.newsContext.trim() ? { news_context: params.newsContext.slice(0, 3800) } : {}),
