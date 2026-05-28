@@ -111,6 +111,15 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
     loadBoards();
   }, [selectedChannel, user?.id]);
 
+  // Auto-active photoMode dès qu'une photo est présente sur un format compatible.
+  // Sinon, l'utilisateur·rice voit sa photo affichée mais le `photo_mode: true`
+  // n'est jamais envoyé à l'IA → texte généré "à l'aveugle".
+  useEffect(() => {
+    if (formatAcceptsSinglePhoto(selectedFormat) && postPhoto.length > 0 && !photoMode) {
+      setPhotoMode(true);
+    }
+  }, [selectedFormat, postPhoto.length]);
+
   const typeEntries = Object.entries(CONTENT_TYPE_SPECS).filter(
     ([, spec]) => selectedChannel === "instagram" ? spec.channel === "instagram" : true
   );
@@ -511,6 +520,16 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
           <div>
             <p className="text-sm font-medium text-foreground">{getPhotoToggleCopy(selectedFormat!).title}</p>
             <p className="text-xs text-muted-foreground">{getPhotoToggleCopy(selectedFormat!).subtitle}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Avertissement explicite : photo chargée mais toggle OFF → l'IA ne la verra pas */}
+      {formatAcceptsSinglePhoto(selectedFormat) && postPhoto.length > 0 && !photoMode && (
+        <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 flex items-start gap-2 animate-fade-in">
+          <span className="text-base leading-tight">⚠️</span>
+          <div className="flex-1 text-sm text-amber-800">
+            Ta photo est chargée mais l'IA <strong>ne la regardera pas</strong>. Active le mode photo ci-dessus pour qu'elle s'en serve.
           </div>
         </div>
       )}
