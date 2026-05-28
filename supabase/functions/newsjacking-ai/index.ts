@@ -6,7 +6,7 @@ import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { isDemoUser } from "../_shared/guard-demo.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { getModelForAction, callAnthropicSimple } from "../_shared/anthropic.ts";
-import { fetchHotNews, type PerplexityActu } from "../_shared/perplexity.ts";
+import { fetchHotNews, EVERGREEN_PATTERNS, type PerplexityActu } from "../_shared/perplexity.ts";
 
 // Brand universe cache TTL — regenerate after 30 days or when branding changes
 const BRAND_UNIVERSE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
