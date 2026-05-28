@@ -128,6 +128,7 @@ serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const workspace_id = body?.workspace_id || undefined;
+    const forceMacroFromClient: boolean = body?.force_macro === true;
     const rawIntent = body?.intent || {};
     const intentVibes: string[] = Array.isArray(rawIntent.vibes)
       ? rawIntent.vibes.filter((v: unknown) => typeof v === "string").slice(0, 3)
@@ -135,6 +136,12 @@ serve(async (req) => {
     const intentCustom: string = typeof rawIntent.custom === "string"
       ? rawIntent.custom.trim().slice(0, 200)
       : "";
+
+    // Détection "intent macro" : la créatrice cherche explicitement des
+    // actus grand public / hors de sa niche.
+    const MACRO_REGEX = /\b(globa\w+|grand\s?public|fait\s+parler|tout\s+le\s+monde\s+(en\s+)?parle|hors\s+(de\s+)?(ma\s+|mon\s+)?(secteur|niche|m[ée]tier)|large(ment)?|soci[ée]t[ée]|monde|cette\s+semaine|actu(s|alit[ée]s?)?\s+(de\s+la\s+)?semaine|macro)\b/i;
+    const macroFromIntent = !!intentCustom && MACRO_REGEX.test(intentCustom);
+    const macroMode = forceMacroFromClient || macroFromIntent;
 
     // Rate limit
     const rl = checkRateLimit(user.id, 5, 60_000);
