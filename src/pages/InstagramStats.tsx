@@ -126,8 +126,26 @@ export default function InstagramStats() {
     const last = periodStats[periodStats.length - 1];
     const followers = last.followers;
     const avgReach = periodStats.reduce((s, r) => s + (r.reach || 0), 0) / periodStats.length;
-    const avgEngagement = periodStats.reduce((s, r) => s + (safeDivPct(r.interactions, r.reach) || 0), 0) / periodStats.length;
-    const totalRevenue = periodStats.reduce((s, r) => s + (r.revenue || 0), 0);
+
+    // Weighted engagement rate by reach: Σ(accounts_engaged) / Σ(reach).
+    // Fallback to interactions if accounts_engaged isn't filled in (legacy data).
+    const totalReach = periodStats.reduce((s, r) => s + (r.reach || 0), 0);
+    const totalEngaged = periodStats.reduce(
+      (s, r) => s + (r.accounts_engaged ?? r.interactions ?? 0),
+      0,
+    );
+    const avgEngagement = totalReach > 0 ? (totalEngaged / totalReach) * 100 : 0;
+
+    // Engagement by followers (Σ interactions / followers du dernier mois × 100, moyenné).
+    const totalInteractions = periodStats.reduce((s, r) => s + (r.interactions || 0), 0);
+    const engagementByFollowers = followers && followers > 0
+      ? (totalInteractions / periodStats.length / followers) * 100
+      : null;
+
+    // Net growth: somme des followers_gained − followers_lost sur la période.
+    const totalGained = periodStats.reduce((s, r) => s + (r.followers_gained || 0), 0);
+    const totalLost = periodStats.reduce((s, r) => s + (r.followers_lost || 0), 0);
+    const netGrowth = totalGained - totalLost;
 
     const periodMonths = periodStats.length;
     const prevStats = allStats
@@ -137,15 +155,23 @@ export default function InstagramStats() {
 
     const prevFollowers = prevStats.length > 0 ? prevStats[prevStats.length - 1]?.followers : null;
     const prevAvgReach = prevStats.length > 0 ? prevStats.reduce((s, r) => s + (r.reach || 0), 0) / prevStats.length : null;
-    const prevAvgEngagement = prevStats.length > 0 ? prevStats.reduce((s, r) => s + (safeDivPct(r.interactions, r.reach) || 0), 0) / prevStats.length : null;
-    const prevTotalRevenue = prevStats.length > 0 ? prevStats.reduce((s, r) => s + (r.revenue || 0), 0) : null;
+
+    const prevTotalReach = prevStats.reduce((s, r) => s + (r.reach || 0), 0);
+    const prevTotalEngaged = prevStats.reduce((s, r) => s + (r.accounts_engaged ?? r.interactions ?? 0), 0);
+    const prevAvgEngagement = prevStats.length > 0 && prevTotalReach > 0
+      ? (prevTotalEngaged / prevTotalReach) * 100
+      : null;
+
+    const prevNetGrowth = prevStats.length > 0
+      ? prevStats.reduce((s, r) => s + (r.followers_gained || 0) - (r.followers_lost || 0), 0)
+      : null;
 
     return {
-      followers, avgReach: Math.round(avgReach), avgEngagement, totalRevenue,
+      followers, avgReach: Math.round(avgReach), avgEngagement, engagementByFollowers, netGrowth,
       changeFollowers: pctChange(followers, prevFollowers),
       changeReach: pctChange(avgReach, prevAvgReach),
       changeEngagement: pctChange(avgEngagement, prevAvgEngagement),
-      changeRevenue: pctChange(totalRevenue, prevTotalRevenue),
+      changeNetGrowth: pctChange(netGrowth, prevNetGrowth),
       followersGained: isSingleMonth ? last.followers_gained : null,
     };
   }, [periodStats, allStats, periodRange, isSingleMonth]);
