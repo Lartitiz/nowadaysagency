@@ -364,7 +364,7 @@ export function CalendarPostPreview({
             displayName={displayName || ""}
             caption={theme}
             slides={slides}
-            mediaUrls={mediaUrls}
+            mediaUrls={effectiveMediaUrls}
             showComments={false}
             readonly
             hideFollowButton
@@ -391,7 +391,7 @@ export function CalendarPostPreview({
         username={username || "mon_compte"}
         displayName={displayName || ""}
         caption={caption}
-        mediaUrls={mediaUrls}
+        mediaUrls={effectiveMediaUrls}
         showComments={false}
         readonly
         hideFollowButton
