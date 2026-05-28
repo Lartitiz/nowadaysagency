@@ -35,6 +35,10 @@ export function CalendarPostPreview({
   mediaUrls, visualHtml, visualUrls, onNavigateToGenerator, hasAngle, hasTheme,
   slidesData, photoUrls, compact = false, onFullscreen, syncStatus,
 }: Props) {
+  // Fallback : si pas de mediaUrls fournis, utiliser les photos uploadées par l'utilisateur
+  const effectiveMediaUrls = (mediaUrls && mediaUrls.length > 0)
+    ? mediaUrls
+    : (photoUrls && photoUrls.length > 0 ? photoUrls : undefined);
   const { toast } = useToast();
   const { data: charterData } = useBrandCharter();
   const [downloadingPng, setDownloadingPng] = useState(false);
