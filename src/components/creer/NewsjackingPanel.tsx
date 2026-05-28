@@ -120,6 +120,9 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
   const [customIntent, setCustomIntent] = useState("");
   // angles cache, keyed by actu index
   const [anglesByIdx, setAnglesByIdx] = useState<Record<number, AnglesState>>({});
+  // URLs déjà retournées dans cette session — passées à Perplexity pour
+  // éviter qu'une même actu remonte à chaque "Relancer".
+  const seenUrlsRef = useRef<Set<string>>(new Set());
   const navigate = useNavigate();
   const { user } = useAuth();
 
