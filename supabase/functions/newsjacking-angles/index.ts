@@ -199,25 +199,33 @@ FORMAT DE RÉPONSE — JSON STRICT (pas de markdown)
 
 Renvoie EXACTEMENT 3 angles, avec 3 véhicules différents.`;
 
+    const t0 = Date.now();
+    console.log(`[newsjacking-angles] start — user=${user.id.slice(0,8)} actu="${String(actu.titre).slice(0,60)}"`);
+
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 45000);
+    const timeout = setTimeout(() => controller.abort(), 90000);
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: 1500,
-        messages: [{ role: "user", content: systemPrompt }],
-      }),
-      signal: controller.signal,
-    });
+    let response: Response;
+    try {
+      response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model,
+          max_tokens: 1500,
+          messages: [{ role: "user", content: systemPrompt }],
+        }),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
 
-    clearTimeout(timeout);
+    console.log(`[newsjacking-angles] claude responded in ${Date.now() - t0}ms — status=${response.status}`);
 
     if (!response.ok) {
       const errText = await response.text();
@@ -233,6 +241,7 @@ Renvoie EXACTEMENT 3 angles, avec 3 véhicules différents.`;
     const data = await response.json();
     const textBlocks = (data.content || []).filter((b: any) => b.type === "text").map((b: any) => b.text);
     const fullText = textBlocks.join("\n");
+    console.log(`[newsjacking-angles] text length=${fullText.length}`);
 
     // Parse JSON
     let parsed: any;
