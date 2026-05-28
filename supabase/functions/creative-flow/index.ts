@@ -1293,9 +1293,13 @@ Avant d'écrire :
 Écris ensuite UN SEUL post qui s'appuie sur l'ensemble de la série (pas une description photo par photo). LinkedIn affichera les ${validPhotos.length} images en carrousel d'images natif sous le texte — ton post doit donner envie de swiper, sans nécessairement numéroter chaque image. Évite "photo 1 : ... photo 2 : ..." — raconte l'histoire que les photos racontent ensemble.`
         : "";
 
+      const answersBlockPhoto = (answers && Array.isArray(answers) && answers.length > 0)
+        ? answers.map((a: any, i: number) => `Q${i + 1} : "${a.question}"\n→ "${a.answer}"`).join("\n\n")
+        : "";
+
       photoContent.push({
         type: "text",
-        text: `${formatBrief}${body.photo_description ? `\nDescription globale de l'utilisatrice : "${body.photo_description}"` : ""}${modeInstr}\n\n⚠️ INTERDICTION ABSOLUE de recopier un exemple textuel. Génère du contenu ORIGINAL ancré dans CES image(s) et CE sujet.\n\nRéponds UNIQUEMENT en JSON :\n${jsonShape}`,
+        text: `${formatBrief}${body.photo_description ? `\nDescription globale de l'utilisatrice : "${body.photo_description}"` : ""}${answersBlockPhoto ? `\n\n══ RÉPONSES DE L'UTILISATRICE (matière SOURCE — utilise-les en priorité) ══\n${answersBlockPhoto}` : ""}${modeInstr}\n\n══ RÈGLE ANTI-FABRICATION (CRITIQUE) ══\n- N'invente AUCUN détail non vérifiable : prénom, chiffre, citation, lieu, date, nom de client/projet, dialogue, sentiment précis.\n- Tu peux UNIQUEMENT t'appuyer sur : (1) ce que tu VOIS littéralement sur les photos, (2) la description globale, (3) les réponses ci-dessus.\n- Si la matière manque pour étoffer, RESTE sur un registre méta / observation / réflexion ("ce que ça raconte", "ce que ça dit de…", "on voit", "il y a") plutôt que d'inventer une anecdote.\n${answersBlockPhoto ? "" : "- Aucune réponse n'a été fournie : écris un post RÉFLEXIF / méta sur ce que les photos évoquent, surtout PAS un récit fictif avec des personnages ou des scènes inventées.\n"}- Évite absolument les formulations type "ce jour-là, X m'a dit…", "je me souviens quand…", "il y a 3 ans…" si ces éléments ne sont PAS explicitement dans les réponses.\n\n⚠️ INTERDICTION ABSOLUE de recopier un exemple textuel. Génère du contenu ORIGINAL ancré dans CES image(s), CE sujet ET les réponses fournies.\n\nRéponds UNIQUEMENT en JSON :\n${jsonShape}`,
       });
 
       rawContent = await callAnthropic({
