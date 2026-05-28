@@ -188,7 +188,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
     } finally {
       setLoading(false);
     }
-  }, [workspaceId]);
+  }, [workspaceId, selectedVibes, customIntent]);
 
   // NOTE: pas d'auto-fetch au montage. L'utilisatrice déclenche la recherche
   // explicitement via le CTA "Lancer la recherche" pour éviter de consommer
