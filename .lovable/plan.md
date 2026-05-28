@@ -1,44 +1,44 @@
-# Nettoyer les exemples codés en dur hors-sujet
+# Plus de photos pour les posts LinkedIn
 
-## Le problème
+## Contexte
 
-Quand tu as écrit "décris tes photos en quelques mots", le placeholder affiche `Ex : 6 photos d'un soutien-gorge en dentelle ivoire, ambiance boudoir, lumière dorée`. C'est un exemple codé en dur qui ne tient pas compte de ton activité. Pareil pour d'autres champs : `chantier Acacias, J2 démolition`, `Mon tote bag en lin fait main`, etc.
+Aujourd'hui le format LinkedIn dans "Créer un contenu → Partir des photos" est plafonné à **2 photos** parce qu'on a câblé le flux autour du cas "avant / après". Du coup quand tu uploades 6 photos d'un chantier, d'un événement ou d'une série, l'IA n'en voit que 2 et le post n'en parle pas.
 
-Tant qu'on ne branche pas ces placeholders sur ton activité réelle (profile.activite), la règle saine c'est : **placeholders neutres et universels**, pas d'univers sectoriel imposé.
+LinkedIn accepte nativement jusqu'à **20 images** dans un post (mode "document/carrousel d'images"). On peut largement monter la limite côté outil.
 
-## Ce que je vais faire
+## Ce que je propose
 
-### 1. Remplacer les placeholders sectoriels par des formulations neutres
+**Passer la limite LinkedIn à 10 photos** (sweet spot : ça couvre 99 % des usages réels — chantier, événement, série produit, avant/après — sans noyer l'IA dans 20 images à analyser, ce qui rallongerait beaucoup la génération et la facture tokens). On peut monter à 20 plus tard si besoin.
 
-| Fichier | Avant | Après (proposé) |
-|---|---|---|
-| `src/components/creer/PhotoUploadZone.tsx:418` | "6 photos d'un soutien-gorge en dentelle ivoire, ambiance boudoir, lumière dorée" | "Ex : 3 photos prises ce matin, ambiance lumineuse, ce que je voulais montrer en une phrase" |
-| `src/components/creer/PhotoUploadZone.tsx:392` (contexte par photo) | "chantier Acacias, J2 démolition" | "Ex : le moment, le lieu ou le détail à retenir" |
-| `src/components/creer/PhotoEditDialog.tsx:239` | "plage au coucher du soleil, bokeh chaleureux, ombre douce" | "Ex : ambiance, lumière, décor souhaité" |
-| `src/pages/PinterestEpingles.tsx:107` | "Mon tote bag en lin fait main" | "Ex : le sujet de ton épingle (produit, conseil, inspiration…)" |
-| `src/pages/PinterestTableaux.tsx:116` | "Bijoux artisanaux minimalistes" | "Ex : le thème de ton tableau" |
-| `src/components/bio/BioGeneratorView.tsx:207` | "J'enseigne la com' en écoles de mode, j'ai cofondé un éco-lieu…" | "Ex : ce que tu fais, ce qui te rend unique, pour qui" |
-| `src/components/prospection/DmGenerator.tsx:352` | "atelier Instagram, rebondir sur sa story d'hier…" | "Ex : l'intention du message (proposer un échange, rebondir sur un contenu…)" |
+**Adapter automatiquement le ton du post selon le nombre de photos :**
 
-### 2. Garder tels quels (déjà neutres ou déjà personnalisés)
+| Nb photos | Mode narratif détecté |
+|-----------|----------------------|
+| 1 | Post mono-photo classique (scène unique) |
+| 2 | Mode "avant / après" (déjà en place) |
+| 3 à 10 | Mode "série / reportage" — l'IA structure le post comme un récit en plusieurs étapes, ou un carrousel narré (ex : "J1, J2, J3" pour un chantier, ou "les coulisses en 5 temps") |
 
-- `CreerStepIdea.tsx` : les exemples sont déjà indexés par activité (`deco_interieur`, etc.) → OK.
-- `activity-examples.ts` : c'est le mécanisme propre qui adapte par métier → OK.
-- `LandingPage.tsx` : la liste "bijoux, céramique, mode…" est une **énumération volontaire** pour montrer la diversité d'activités cibles → OK.
-- Placeholders génériques type `Ex : photographe, coach, artisane…` : OK, c'est une liste neutre.
+## Détails techniques
 
-### 3. Hors scope (à traiter dans un autre passage si tu veux)
+1. **`CreerStepFormat.tsx`** : passer `maxPhotos={2}` à `maxPhotos={10}` pour le format `linkedin`. Mettre à jour le hint d'aide ("1 photo = scène, 2 = avant/après, 3+ = série/reportage").
 
-- `src/lib/content-structures.ts` (`exampleSubjects`) contient ~40 exemples de sujets codés en dur dont certains sont sectoriels ("colliers en velours", "tote bag en lin"). Ils ne s'affichent que dans certains modules de coaching contenu. Si tu veux je peux les neutraliser ou les rendre dynamiques dans un second passage, mais ça touche plus de surface.
-- Les prompts internes côté edge functions (`newsjacking-ai` mentionne "lingerie" comme exemple pédagogique pour l'IA, pas visible utilisatrice) → à laisser, c'est de l'instruction pour le modèle.
+2. **`use-content-generator.ts` + `CreerUnifie.tsx`** : retirer la troncature à 2 photos, envoyer jusqu'à 10 photos (base64 + contexte) à l'edge function.
 
-## Fichiers modifiés
+3. **`supabase/functions/creative-flow/index.ts`** : étendre la logique du prompt vision LinkedIn :
+   - 1 photo → prompt actuel mono-photo
+   - 2 photos → prompt "avant/après" actuel
+   - 3+ photos → nouveau prompt "série/reportage" qui demande à l'IA d'identifier le fil narratif commun et de structurer le post en conséquence (chronologie, étapes, angles complémentaires…)
 
-- `src/components/creer/PhotoUploadZone.tsx`
-- `src/components/creer/PhotoEditDialog.tsx`
-- `src/pages/PinterestEpingles.tsx`
-- `src/pages/PinterestTableaux.tsx`
-- `src/components/bio/BioGeneratorView.tsx`
-- `src/components/prospection/DmGenerator.tsx`
+4. **`CreerStepResult.tsx`** : adapter le badge Sparkles pour refléter le mode détecté :
+   - "Généré à partir de ta photo"
+   - "Généré à partir de tes 2 photos (mode avant / après)"
+   - "Généré à partir de tes N photos (mode série)"
 
-Aucune migration, aucun changement de logique : uniquement des chaînes de placeholder.
+## Hors scope
+
+- Le **publishing réel** vers LinkedIn (avec upload multi-images via l'API) reste hors scope ici — on touche uniquement à la génération du texte du post à partir des photos.
+- Les autres formats (Instagram, carrousel, story…) gardent leurs limites actuelles.
+
+## Question rapide avant de coder
+
+10 photos max, ça te va ? Ou tu préfères qu'on monte direct à 20 (= la limite LinkedIn réelle) quitte à ce que la génération soit un peu plus lente sur les gros uploads ?

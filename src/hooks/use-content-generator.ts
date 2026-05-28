@@ -360,7 +360,7 @@ export function useContentGenerator() {
               workspace_id: workspaceId || null,
               photo_mode: params.photoMode || undefined,
               photos: params.photoMode && params.photos?.length
-                ? params.photos.slice(0, 2).map((p) => ({ base64: p.base64, mimeType: p.mimeType || "image/jpeg", context: p.context }))
+                ? params.photos.slice(0, 10).map((p) => ({ base64: p.base64, mimeType: p.mimeType || "image/jpeg", context: p.context }))
                 : undefined,
               photo_description: params.photoMode ? params.photoDescription : undefined,
               ...(newsContext && newsContext.trim() ? { news_context: newsContext.slice(0, 3800) } : {}),
@@ -739,7 +739,7 @@ export function useContentGenerator() {
               photo_description: photoDescription,
               ...(photos && photos.length > 0 && photos[0]?.base64
                 ? {
-                    photos: photos.slice(0, 2).map((p) => ({
+                    photos: photos.slice(0, 10).map((p) => ({
                       base64: p.base64,
                       mimeType: p.mimeType || "image/jpeg",
                       context: p.context,
