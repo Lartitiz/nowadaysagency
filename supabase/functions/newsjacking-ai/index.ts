@@ -499,6 +499,7 @@ INTERDIT
 🚫 Marronniers vides ("tendances 2026", "comment bien commencer l'année")
 🚫 Sujets qui parlent UNIQUEMENT de réseaux sociaux ou de création de contenu, sauf si c'est le métier de "${nicheLabel}"
 🚫 Sujets génériques sur "l'IA" ou "ChatGPT"
+🚫 INTERDIT ABSOLU — événements datés (passés OU à venir) : webinaires, conférences, masterclass, colloques, séminaires, salons, tables rondes, journées professionnelles, pages d'inscription, replays, "save the date". Même si l'événement est récent ou "fait encore parler", il ne compte pas comme actu chaude. Date du jour : ${monthLabel}. Toute mention d'une date d'événement passé (ex : "le 7 mai", "édition 2025") → JETTE le sujet immédiatement.
 
 ══════════════════════════════════════════════
 FORMAT DE RÉPONSE — JSON STRICT (pas de markdown, pas de backticks)
