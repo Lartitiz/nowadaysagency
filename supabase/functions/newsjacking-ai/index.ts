@@ -238,11 +238,31 @@ serve(async (req) => {
     // Optionnel : si Perplexity tombe / pas de clé → on continue
     // sans bloquer (le pipeline web_search Claude reste opérationnel).
     // ─────────────────────────────────────────────────────────────
+    // Mapping VIBES → axes + hints (alimenté par l'intention utilisateur)
+    // ─────────────────────────────────────────────────────────────
+    const VIBES_MAP: Record<string, { axe: string | null; label: string; query_hint: string }> = {
+      scoop:     { axe: "actu_connectable",      label: "Scoop qui fait réagir",      query_hint: "scoop révélation qui fait réagir" },
+      phenomene: { axe: "obsession_collective",  label: "Phénomène culturel",         query_hint: "phénomène culturel viral du moment" },
+      debat:     { axe: "debat_recurrent",       label: "Débat clivant",              query_hint: "débat clivant société polémique" },
+      stat:      { axe: "comportement_emergent", label: "Stat ou étude étonnante",    query_hint: "étude statistique chiffre étonnant" },
+      tendance:  { axe: "mot_qui_revient",       label: "Tendance émergente",         query_hint: "tendance émergente nouvelle pratique" },
+      culture:   { axe: "objet_culturel",        label: "Sortie culturelle",          query_hint: "film série livre album sortie récente" },
+      combat:    { axe: null,                    label: "Sur mon combat",             query_hint: combatCause ? `${combatCause} débat actualité` : "engagement combat société" },
+    };
+    const intentVibesValid = intentVibes.filter((v) => VIBES_MAP[v]);
+    const intentVibeHints = intentVibesValid.map((v) => VIBES_MAP[v].query_hint);
+    const intentVibeLabels = intentVibesValid.map((v) => VIBES_MAP[v].label);
+
     let hotNews: PerplexityActu[] = [];
     const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
     if (PERPLEXITY_API_KEY) {
       try {
+        const customWords = intentCustom
+          ? intentCustom.split(/\s+/).filter((w) => w.length > 2).slice(0, 6).join(" ")
+          : "";
         const universKeywords = [
+          ...intentVibeHints,
+          customWords,
           ...universe.valeurs_combat.slice(0, 2),
           ...universe.moments_de_vie_cible.slice(0, 2),
           ...universe.univers_emotionnel.slice(0, 2),
@@ -282,7 +302,6 @@ serve(async (req) => {
     const model = getModelForAction("content");
 
     // 6 axes orientés micro-phénomènes culturels et comportementaux
-    // (plus de politique/éco pure, plus de "réseaux sociaux" — tout le monde n'est pas créateur)
     const AXES = [
       { id: "mot_qui_revient", query: "expression mot concept qui revient conversations 2026 France" },
       { id: "obsession_collective", query: "phénomène culturel dont tout le monde parle France 2026" },
@@ -292,9 +311,19 @@ serve(async (req) => {
       { id: "actu_connectable", query: "actualité société qui touche au quotidien et aux choix de vie France 2026" },
     ];
 
-    // Pick 3 distinct axes for the 3 global items
-    const shuffled = [...AXES].sort(() => Math.random() - 0.5);
-    const pickedAxes = shuffled.slice(0, 3);
+    // Si l'utilisatrice a précisé des vibes → axes contraints, sinon shuffle.
+    let pickedAxes: typeof AXES;
+    if (intentVibesValid.length > 0) {
+      const wantedIds = new Set(
+        intentVibesValid.map((v) => VIBES_MAP[v].axe).filter((a): a is string => !!a)
+      );
+      const matched = AXES.filter((a) => wantedIds.has(a.id));
+      const remaining = AXES.filter((a) => !wantedIds.has(a.id)).sort(() => Math.random() - 0.5);
+      pickedAxes = [...matched, ...remaining].slice(0, Math.max(3, matched.length));
+    } else {
+      pickedAxes = [...AXES].sort(() => Math.random() - 0.5).slice(0, 3);
+    }
+
 
     const universeBlock = (universe.univers_emotionnel.length || universe.moments_de_vie_cible.length)
       ? `\n══════════════════════════════════════════════
