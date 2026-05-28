@@ -7,9 +7,10 @@ import { useState } from "react";
 
 interface Props {
   result: any;
+  photos?: { preview: string; base64?: string; name?: string }[];
 }
 
-export default function LinkedInResult({ result }: Props) {
+export default function LinkedInResult({ result, photos }: Props) {
   const hook = result?.hook || result?.accroche || "";
   const body = result?.body || result?.content || result?.text || "";
   const cta = result?.cta || result?.call_to_action || "";
