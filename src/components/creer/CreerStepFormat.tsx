@@ -18,6 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 const CHANNELS = [
   { id: "instagram" as const, emoji: "📸", label: "Instagram", desc: "Carrousel, Reel, Story, Post" },
@@ -515,13 +516,23 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
 
       {/* Single-photo formats toggle (post, reel, story, linkedin, newsletter) — hidden if photos preloaded & user hasn't changed format */}
       {formatAcceptsSinglePhoto(selectedFormat) && !((initialPhotos?.length ?? 0) > 0 && photoMode && postPhoto.length > 0) && (
-        <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border animate-fade-in">
-          <Switch checked={photoMode} onCheckedChange={setPhotoMode} />
-          <div>
+        <button
+          type="button"
+          onClick={() => setPhotoMode(!photoMode)}
+          className={cn(
+            "w-full flex items-center gap-3 p-4 rounded-lg border transition-all animate-fade-in text-left",
+            photoMode
+              ? "bg-primary/5 border-primary/40 ring-1 ring-primary/20"
+              : "bg-muted/30 border-border hover:border-primary/30"
+          )}
+          aria-pressed={photoMode}
+        >
+          <Switch checked={photoMode} onCheckedChange={setPhotoMode} className="pointer-events-none flex-shrink-0" />
+          <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-foreground">{getPhotoToggleCopy(selectedFormat!).title}</p>
-            <p className="text-xs text-muted-foreground">{getPhotoToggleCopy(selectedFormat!).subtitle}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{getPhotoToggleCopy(selectedFormat!).subtitle}</p>
           </div>
-        </div>
+        </button>
       )}
 
       {/* Avertissement explicite : photo chargée mais toggle OFF → l'IA ne la verra pas */}
@@ -537,11 +548,11 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
       {/* Single-photo formats — preloaded photo confirmation banner — REMOVED.
           The toggle "📸 J'accompagne une photo" + the PhotoUploadZone below already convey the state. */}
 
-      {/* Single-photo upload zone */}
+      {/* Single-photo upload zone — LinkedIn accepte 2 photos (avant/après) */}
       {formatAcceptsSinglePhoto(selectedFormat) && photoMode && (
-        <div className="animate-fade-in">
+        <div className="animate-fade-in space-y-2">
           <PhotoUploadZone
-            maxPhotos={1}
+            maxPhotos={selectedFormat === "linkedin" ? 2 : 1}
             initialPhotos={postPhoto.length > 0 ? postPhoto : undefined}
             initialDescription={postPhotoDescription}
             onPhotosChange={setPostPhoto}
@@ -549,6 +560,11 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
             title={postPhoto.length > 0 ? `Vos photos (${postPhoto.length})` : undefined}
             compact
           />
+          {selectedFormat === "linkedin" && (
+            <p className="text-xs text-muted-foreground pl-1">
+              💡 Tu peux charger jusqu'à <strong>2 photos</strong> pour un effet <strong>avant / après</strong> (la 1ʳᵉ = avant, la 2ᵉ = après). L'IA construira le post autour de la transformation.
+            </p>
+          )}
         </div>
       )}
 

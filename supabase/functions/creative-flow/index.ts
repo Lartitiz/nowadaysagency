@@ -46,7 +46,7 @@ serve(async (req) => {
       editorialFormatLabel: z.string().max(200).optional().nullable(),
       photo_mode: z.boolean().optional(),
       photo_description: z.string().max(2000).optional().nullable(),
-      photos: z.array(z.object({ base64: z.string(), mimeType: z.string().optional(), context: z.string().max(200).optional() })).max(1).optional(),
+      photos: z.array(z.object({ base64: z.string(), mimeType: z.string().optional(), context: z.string().max(200).optional() })).max(2).optional(),
       recent_briefs_context: z.string().max(6000).optional().nullable(),
       face_cam: z.string().max(50).optional().nullable(),
       time_available: z.string().max(50).optional().nullable(),
@@ -1241,23 +1241,41 @@ Réponds UNIQUEMENT en JSON :
         max_tokens: 1500,
       });
     } else if (step === "generate" && body.photo_mode && body.photos?.[0]?.base64) {
-      // Photo mode with vision: send the image to Claude — format-aware prompt
-      const photoBase64 = body.photos[0].base64.replace(/^data:image\/[a-z]+;base64,/, "");
-      const photoMimeType = body.photos[0].mimeType || "image/jpeg";
-      const perPhotoCtx = body.photos[0].context?.trim();
+      // Photo mode with vision: send 1 or 2 images to Claude — format-aware prompt.
+      // 2 images = "avant/après" framing (typique LinkedIn transformation, before/after chantier, etc.)
+      const validPhotos = body.photos.filter((p: any) => p?.base64).slice(0, 2);
+      const isBeforeAfter = validPhotos.length === 2;
 
       const { formatBrief, jsonShape } = buildVisionGenerateBrief(contentType);
 
-      const photoContent: any[] = [
-        {
+      const photoContent: any[] = [];
+      validPhotos.forEach((p: any, idx: number) => {
+        const cleanB64 = p.base64.replace(/^data:image\/[a-z]+;base64,/, "");
+        photoContent.push({
           type: "image",
-          source: { type: "base64", media_type: photoMimeType, data: photoBase64 },
-        },
-        {
-          type: "text",
-          text: `${formatBrief}${perPhotoCtx ? `\nContexte précis fourni par l'utilisatrice sur cette photo : "${perPhotoCtx}" (utilise-le pour identifier les éléments visuels, pas pour le recopier).` : ""}${body.photo_description ? `\nDescription globale de l'utilisatrice : "${body.photo_description}"` : ""}\n\n⚠️ INTERDICTION ABSOLUE de recopier un exemple textuel. Génère du contenu ORIGINAL ancré dans CETTE image et CE sujet.\n\nRéponds UNIQUEMENT en JSON :\n${jsonShape}`,
-        },
-      ];
+          source: { type: "base64", media_type: p.mimeType || "image/jpeg", data: cleanB64 },
+        });
+        if (isBeforeAfter) {
+          photoContent.push({
+            type: "text",
+            text: `↑ Photo ${idx === 0 ? "1 (AVANT)" : "2 (APRÈS)"}${p.context?.trim() ? ` — contexte : "${p.context.trim()}"` : ""}`,
+          });
+        } else if (p.context?.trim()) {
+          photoContent.push({
+            type: "text",
+            text: `↑ Contexte précis sur cette photo : "${p.context.trim()}"`,
+          });
+        }
+      });
+
+      const beforeAfterInstr = isBeforeAfter
+        ? `\n\n🔄 MODE AVANT / APRÈS : tu reçois 2 photos. La 1ère = état AVANT, la 2nde = état APRÈS. Construis le contenu autour de cette transformation : ce qui a changé, le geste/process, l'émotion du résultat. Ne décris pas chaque photo séparément — raconte LA transformation comme un récit.`
+        : "";
+
+      photoContent.push({
+        type: "text",
+        text: `${formatBrief}${body.photo_description ? `\nDescription globale de l'utilisatrice : "${body.photo_description}"` : ""}${beforeAfterInstr}\n\n⚠️ INTERDICTION ABSOLUE de recopier un exemple textuel. Génère du contenu ORIGINAL ancré dans CES image(s) et CE sujet.\n\nRéponds UNIQUEMENT en JSON :\n${jsonShape}`,
+      });
 
       rawContent = await callAnthropic({
         model: getModelForAction("content"),

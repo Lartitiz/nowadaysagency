@@ -359,7 +359,9 @@ export function useContentGenerator() {
               editorialFormat: editorialAngle || null,
               workspace_id: workspaceId || null,
               photo_mode: params.photoMode || undefined,
-              photos: params.photoMode && params.photos?.length ? [{ base64: params.photos[0].base64, mimeType: params.photos[0].mimeType || "image/jpeg", context: params.photos[0].context }] : undefined,
+              photos: params.photoMode && params.photos?.length
+                ? params.photos.slice(0, 2).map((p) => ({ base64: p.base64, mimeType: p.mimeType || "image/jpeg", context: p.context }))
+                : undefined,
               photo_description: params.photoMode ? params.photoDescription : undefined,
               ...(newsContext && newsContext.trim() ? { news_context: newsContext.slice(0, 3800) } : {}),
             },
@@ -737,13 +739,11 @@ export function useContentGenerator() {
               photo_description: photoDescription,
               ...(photos && photos.length > 0 && photos[0]?.base64
                 ? {
-                    photos: [
-                      {
-                        base64: photos[0].base64,
-                        mimeType: photos[0].mimeType || "image/jpeg",
-                        context: photos[0].context,
-                      },
-                    ],
+                    photos: photos.slice(0, 2).map((p) => ({
+                      base64: p.base64,
+                      mimeType: p.mimeType || "image/jpeg",
+                      context: p.context,
+                    })),
                   }
                 : {}),
             }

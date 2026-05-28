@@ -795,11 +795,11 @@ export default function CreerUnifie() {
           workspaceId: workspaceId !== session.user.id ? workspaceId : undefined,
           photoMode: photoMode || undefined,
           photos: photoMode && uploadedPhotos.length > 0 && uploadedPhotos[0]?.base64
-            ? [{
-                base64: uploadedPhotos[0].base64,
-                mimeType: (uploadedPhotos[0] as any).mimeType || "image/jpeg",
-                context: uploadedPhotos[0].context,
-              }]
+            ? uploadedPhotos.slice(0, 2).map((p) => ({
+                base64: p.base64,
+                mimeType: (p as any).mimeType || "image/jpeg",
+                context: p.context,
+              }))
             : undefined,
           photoDescription: photoMode ? photoDescription : undefined,
           deepResearch: !!newsjackingContext,
@@ -966,7 +966,7 @@ export default function CreerUnifie() {
             channel: isLinkedInCarousel ? "linkedin" : undefined,
             ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context })), photoDescription } : {}),
             ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context })), photoDescription } : {}),
-            ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? [{ base64: uploadedPhotos[0]?.base64, context: uploadedPhotos[0]?.context }] : undefined, photoDescription } : {}),
+            ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 2).map((p) => ({ base64: p.base64, context: p.context })) : undefined, photoDescription } : {}),
             ...(newsjackingContext ? { newsContext: newsjackingContext } : {}),
           });
         }
@@ -989,7 +989,7 @@ export default function CreerUnifie() {
         confirmedStructure: lastConfirmedStructure,
         ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context })), photoDescription } : {}),
         ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context })), photoDescription } : {}),
-        ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? [{ base64: uploadedPhotos[0]?.base64, context: uploadedPhotos[0]?.context }] : undefined, photoDescription } : {}),
+        ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 2).map((p) => ({ base64: p.base64, context: p.context })) : undefined, photoDescription } : {}),
         ...(newsjackingContext ? { newsContext: newsjackingContext } : {}),
       });
       return;
@@ -1007,7 +1007,7 @@ export default function CreerUnifie() {
       channel: isLinkedInCarousel ? "linkedin" : undefined,
       ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context })), photoDescription } : {}),
       ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context })), photoDescription } : {}),
-      ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? [{ base64: uploadedPhotos[0]?.base64, context: uploadedPhotos[0]?.context }] : undefined, photoDescription } : {}),
+      ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 2).map((p) => ({ base64: p.base64, context: p.context })) : undefined, photoDescription } : {}),
       ...(newsjackingContext ? { newsContext: newsjackingContext } : {}),
     });
   };
@@ -1151,7 +1151,7 @@ export default function CreerUnifie() {
       confirmedStructure: confirmedSlides,
       ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context })), photoDescription } : {}),
       ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context })), photoDescription } : {}),
-      ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? [{ base64: uploadedPhotos[0]?.base64, context: uploadedPhotos[0]?.context }] : undefined, photoDescription } : {}),
+      ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 2).map((p) => ({ base64: p.base64, context: p.context })) : undefined, photoDescription } : {}),
       ...(newsjackingContext ? { newsContext: newsjackingContext } : {}),
     });
   };
@@ -2460,6 +2460,7 @@ export default function CreerUnifie() {
                 generating={generating || demoGenerating || streaming || pinterestVisualGenerating}
                 streamingContent={streaming ? streamingContent : undefined}
                 photos={(carouselSubMode === "photo" || carouselSubMode === "mix") ? uploadedPhotos : undefined}
+                usedPhotoCount={photoMode && uploadedPhotos.length > 0 ? Math.min(uploadedPhotos.length, 2) : undefined}
                 onEdit={handleEdit}
                 onReset={handleReset}
                 onRegenerate={handleRegenerate}
@@ -2558,6 +2559,7 @@ export default function CreerUnifie() {
                           onReset={handleReset}
                           onRegenerate={handleRegenerate}
                           onCopy={handleCopy}
+                          usedPhotoCount={photoMode && uploadedPhotos.length > 0 ? Math.min(uploadedPhotos.length, 2) : undefined}
                         />
                       </TabsContent>
                     ))}

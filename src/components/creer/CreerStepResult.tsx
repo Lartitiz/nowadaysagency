@@ -184,6 +184,8 @@ interface Props {
   onChangeAngle?: (angleId: string | null) => void;
   currentAngle?: string | null;
   currentChannel?: string;
+  /** Nombre de photos qui ont été envoyées à l'IA en vision (photo_mode). 0/undefined = pas de vision. */
+  usedPhotoCount?: number;
 }
 
 export default function CreerStepResult({
@@ -217,6 +219,7 @@ export default function CreerStepResult({
   onChangeAngle,
   currentAngle,
   currentChannel,
+  usedPhotoCount,
 }: Props) {
   // ── Rotation des messages et tips pendant le loading ──
   const messages = PROGRESS_MESSAGES[format] || PROGRESS_MESSAGES.default;
@@ -345,6 +348,17 @@ export default function CreerStepResult({
 
   return (
     <div className="space-y-4 animate-fade-in">
+      {/* Badge : confirme que la photo a bien été utilisée par l'IA */}
+      {usedPhotoCount && usedPhotoCount > 0 && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/5 border border-primary/20 text-xs text-foreground animate-fade-in">
+          <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
+          <span>
+            <strong>Généré à partir de {usedPhotoCount === 2 ? "tes 2 photos" : "ta photo"}</strong>
+            {usedPhotoCount === 2 ? " (mode avant / après)" : ""} — l'IA s'est appuyée sur {usedPhotoCount === 2 ? "les visuels" : "le visuel"} pour rédiger le texte.
+          </span>
+        </div>
+      )}
+
       {/* 1. Contenu (slides, caption, visuels, etc.) */}
       {renderResult()}
 
