@@ -1,47 +1,49 @@
-# Correction du bug "session expirée / contenu indisponible" — LinkedIn + photos
+# Questions multi-photos pour LinkedIn (et autres formats vision)
 
-## Diagnostic
+## Problème
 
-Quand tu fais **Partir de photos → 4 photos → Post LinkedIn → réponses aux questions → générer**, deux problèmes se cumulent :
+Dans `supabase/functions/creative-flow/index.ts` ligne 1216-1242, à l'étape `questions` en mode photo, on n'envoie que `body.photos[0]` à Claude — même quand l'utilisatrice a uploadé 2 à 10 photos (cas typique LinkedIn carrousel d'images natif).
 
-### Cause 1 — Validation Zod côté serveur bloque > 2 photos
-Dans `supabase/functions/creative-flow/index.ts` ligne 49 :
-```ts
-photos: z.array(...).max(2).optional()
-```
-→ Le serveur **rejette** toute requête avec plus de 2 photos avec une erreur 400. Le code de génération en aval (`photos.slice(0, 10)` ligne 1246) n'est jamais atteint. Le frontend affiche un message générique type "contenu indisponible".
+Conséquences :
+- Les 3 questions générées sont ancrées sur **une seule** image
+- Aucune question ne porte sur la séquence, la transformation (avant/après), le fil rouge du reportage
+- L'étape `generate` (ligne 1243+) gère bien le multi-photos (slice 0-10, modes "avant/après" / "série"), mais le brief des questions ne reflète pas cette richesse
 
-### Cause 2 — Timeout client de 90 s sur le streaming
-Dans `src/hooks/use-streaming-invoke.ts` ligne 49 : `setTimeout(() => controller.abort(), 90000)`.
-La génération LinkedIn en mode photo enchaîne vision Claude sur N images + génération en 2 étapes + passe de correction. Avec plusieurs photos lourdes, ça dépasse 90 s → l'`AbortController` coupe et l'erreur ressemble à une session expirée.
+## Correctif (1 fichier)
 
-## Correctifs (3 fichiers, frontend + edge function)
+### `supabase/functions/creative-flow/index.ts` lignes 1216-1242
 
-### 1. `supabase/functions/creative-flow/index.ts` ligne 49
-Passer la limite Zod de 2 à 10 photos, alignée avec le `slice(0, 10)` déjà présent en aval :
-```ts
-photos: z.array(z.object({ base64: z.string(), mimeType: z.string().optional(), context: z.string().max(200).optional() })).max(10).optional(),
-```
+Étendre la logique vision-questions pour accepter 1 à N photos, en miroir de ce que fait déjà l'étape `generate` :
 
-### 2. `src/hooks/use-streaming-invoke.ts` ligne 49
-Allonger le timeout à 180 s (3 min) pour couvrir LinkedIn vision multi-photos :
-```ts
-const timeout = setTimeout(() => controller.abort(), 180000);
-```
-Et mettre à jour le commentaire ("multi-photo vision peut être long").
+1. Filtrer `body.photos` valides + `slice(0, 10)` → `validPhotosQ`
+2. Construire un `content[]` qui contient :
+   - 1 bloc `image` par photo (jusqu'à 10)
+   - Un petit label texte avant chaque image si `photo.context` est renseigné ("↑ Contexte photo N : …")
+   - Le prompt texte final (`visionQuestionsPrompt`) en dernier
+3. Passer au prompt builder le **nombre de photos** + l'info "mode série / avant-après / scène unique" pour qu'il adapte ses 3 questions (ex. 1 question sur le fil rouge, 1 sur un moment clé, 1 sur la prise de position pro)
 
-### 3. Message d'erreur plus clair
-Toujours dans `use-streaming-invoke.ts`, si l'erreur abort survient encore, garder le message "La génération a pris trop de temps. Réessaie." (déjà en place) — pas de changement supplémentaire nécessaire.
+### `supabase/functions/_shared/vision-prompts.ts` — `buildVisionQuestionsPrompt`
+
+Ajouter 2 paramètres optionnels : `photo_count: number` et `series_mode: "single" | "before_after" | "series"`.
+
+Adapter les RÈGLES du prompt :
+- Si `photo_count === 1` → comportement actuel inchangé
+- Si `photo_count === 2` → "Tu vois 2 photos qui forment un AVANT/APRÈS. Tes 3 questions doivent creuser la transformation : le déclic, le geste qui a fait basculer, le ressenti du résultat."
+- Si `photo_count >= 3` → "Tu vois N photos d'une même séquence/reportage. Tes 3 questions doivent couvrir : (1) le fil rouge / pourquoi cette série, (2) un détail marquant visible sur UNE photo précise (mentionne laquelle), (3) la prise de position / l'apprentissage pro qui ressort de l'ensemble."
+- Garder la règle "MENTIONNE ce que tu VOIS RÉELLEMENT" en l'étendant à toutes les images
 
 ## Hors scope
 
-- Pas de migration DB
-- Pas de changement de logique métier (le `slice(0,10)` et le mode "série / reportage" sont déjà en place dans la edge function lignes 1246–1283)
-- Pas de refactor du flow `CreerUnifie`
+- Pas de changement frontend (`PhotoUploadZone`, `CreerStepQuestions`, `use-content-generator`) — le payload `photos[]` est déjà envoyé complet
+- Pas de changement à l'étape `generate` (déjà multi-photos OK)
+- Pas de migration DB, pas de modif Zod (limite `.max(10)` déjà alignée)
+- Pas de changement des autres formats (Instagram caption, reel, story, newsletter) — même logique appliquée puisque le builder est partagé, mais l'effet est surtout visible sur LinkedIn (cas multi-photos le plus fréquent)
 
 ## Test après correction
 
-1. Créer un contenu → Partir de photos → uploader 4 photos
-2. Choisir Post LinkedIn → répondre aux questions → générer
-3. Vérifier que le post est généré avec les 4 photos en contexte (mode "série / reportage" déclenché à partir de 3 photos)
-4. Republier pour propager sur `nowadays-assistant.fr`
+1. Créer un contenu → Partir de photos → 4 photos → Post LinkedIn
+2. Vérifier que les 3 questions :
+   - mentionnent des détails de **plusieurs** photos différentes
+   - portent au moins sur le fil rouge / la séquence (pas uniquement sur la 1ère image)
+3. Tester aussi avec 2 photos → questions orientées avant/après
+4. Tester avec 1 photo → comportement inchangé
