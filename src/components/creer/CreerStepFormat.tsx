@@ -537,11 +537,11 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
       {/* Single-photo formats — preloaded photo confirmation banner — REMOVED.
           The toggle "📸 J'accompagne une photo" + the PhotoUploadZone below already convey the state. */}
 
-      {/* Single-photo upload zone */}
+      {/* Single-photo upload zone — LinkedIn accepte 2 photos (avant/après) */}
       {formatAcceptsSinglePhoto(selectedFormat) && photoMode && (
-        <div className="animate-fade-in">
+        <div className="animate-fade-in space-y-2">
           <PhotoUploadZone
-            maxPhotos={1}
+            maxPhotos={selectedFormat === "linkedin" ? 2 : 1}
             initialPhotos={postPhoto.length > 0 ? postPhoto : undefined}
             initialDescription={postPhotoDescription}
             onPhotosChange={setPostPhoto}
@@ -549,6 +549,11 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
             title={postPhoto.length > 0 ? `Vos photos (${postPhoto.length})` : undefined}
             compact
           />
+          {selectedFormat === "linkedin" && (
+            <p className="text-xs text-muted-foreground pl-1">
+              💡 Tu peux charger jusqu'à <strong>2 photos</strong> pour un effet <strong>avant / après</strong> (la 1ʳᵉ = avant, la 2ᵉ = après). L'IA construira le post autour de la transformation.
+            </p>
+          )}
         </div>
       )}
 
