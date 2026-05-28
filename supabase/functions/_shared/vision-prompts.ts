@@ -8,6 +8,9 @@ export interface VisionQuestionsParams {
   objective: string | null | undefined;
   photo_description: string | null | undefined;
   per_photo_context: string | null | undefined;
+  photo_count?: number;
+  series_mode?: "single" | "before_after" | "series";
+  per_photo_contexts?: Array<string | null | undefined>;
 }
 
 export function buildVisionQuestionsPrompt(p: VisionQuestionsParams): string {
@@ -28,19 +31,48 @@ export function buildVisionQuestionsPrompt(p: VisionQuestionsParams): string {
     channelGuidanceQ = "Ton ÉDITORIAL / INTIME : l'image est en ouverture, le texte prolonge l'ambiance. Questions sur : ce que l'image évoque, le fil narratif qu'elle ouvre, l'angle perso à creuser.";
   }
 
+  const photoCount = Math.max(1, p.photo_count || 1);
+  const seriesMode = p.series_mode || (photoCount === 1 ? "single" : photoCount === 2 ? "before_after" : "series");
+
+  // Per-photo contexts block (if any photos have a precise context)
+  let perPhotoBlock = "";
+  if (p.per_photo_contexts && p.per_photo_contexts.length > 0) {
+    const lines = p.per_photo_contexts
+      .map((c, i) => (c && c.trim() ? `- Photo ${i + 1} : "${c.trim()}"` : null))
+      .filter(Boolean);
+    if (lines.length > 0) {
+      perPhotoBlock = `\nContextes précis fournis par photo :\n${lines.join("\n")}`;
+    }
+  } else if (p.per_photo_context) {
+    perPhotoBlock = `\nContexte précis sur cette photo : "${p.per_photo_context}"`;
+  }
+
+  // Mode-specific intro + question guidance
+  let photoIntro: string;
+  let questionGuidance: string;
+  if (seriesMode === "single" || photoCount === 1) {
+    photoIntro = `Voici la photo qu'elle veut utiliser pour un contenu ${channelLabelQ}.`;
+    questionGuidance = `Pose exactement 3 questions d'approfondissement ANCRÉES dans la photo et adaptées au format ${channelLabelQ}.`;
+  } else if (seriesMode === "before_after") {
+    photoIntro = `Voici les 2 photos qu'elle veut utiliser pour un contenu ${channelLabelQ}. Elles forment un AVANT (photo 1) / APRÈS (photo 2).`;
+    questionGuidance = `Pose exactement 3 questions ANCRÉES dans la transformation visible entre les 2 photos, adaptées au format ${channelLabelQ}. Chaque question doit faire référence à un élément concret VU sur la photo 1 OU la photo 2 (mentionne laquelle). Couvre : (1) le déclic ou la bascule, (2) le geste / process qui a fait changer les choses, (3) le ressenti / l'apprentissage du résultat.`;
+  } else {
+    photoIntro = `Voici les ${photoCount} photos qu'elle veut utiliser pour un contenu ${channelLabelQ}. Elles appartiennent à UNE MÊME SÉQUENCE / reportage (chantier, événement, coulisses, étapes d'un process, journée…).`;
+    questionGuidance = `Pose exactement 3 questions ANCRÉES dans l'ENSEMBLE de la série (pas uniquement la 1ère photo), adaptées au format ${channelLabelQ}. Chaque question doit citer un détail concret VU sur une photo PRÉCISE (mentionne le numéro de la photo). Couvre : (1) le fil rouge / pourquoi cette séquence dans son ensemble, (2) un moment ou détail marquant visible sur UNE photo spécifique (ex. "sur la photo 3, on voit…"), (3) la prise de position / l'apprentissage pro qui ressort de la série entière. INTERDIT de poser les 3 questions sur la même photo.`;
+  }
+
   return `Tu es une coach com' qui prépare un brief avec l'utilisatrice.
 
-Voici la photo qu'elle veut utiliser pour un contenu ${channelLabelQ}.
+${photoIntro}
 Sujet : "${p.context || "non précisé"}"
 ${p.objective ? `Objectif : ${p.objective}` : ""}
-${p.photo_description ? `Description globale fournie en amont : "${p.photo_description}"` : ""}
-${p.per_photo_context ? `Contexte précis sur cette photo : "${p.per_photo_context}"` : ""}
+${p.photo_description ? `Description globale fournie en amont : "${p.photo_description}"` : ""}${perPhotoBlock}
 
-Pose exactement 3 questions d'approfondissement ANCRÉES dans la photo et adaptées au format ${channelLabelQ}.
+${questionGuidance}
 
 RÈGLES :
-- MENTIONNE ce que tu VOIS RÉELLEMENT (élément concret, geste, lumière, lieu, ambiance)
-- Chaque question doit être SPÉCIFIQUE à CETTE photo (impossible à reposer pour une autre image)
+- MENTIONNE ce que tu VOIS RÉELLEMENT sur ${photoCount > 1 ? `les ${photoCount} photos (cite leur numéro)` : "la photo"} (élément concret, geste, lumière, lieu, ambiance)
+- Chaque question doit être SPÉCIFIQUE à ${photoCount > 1 ? "CES images précises" : "CETTE photo"} (impossible à reposer pour d'autres images)
 - ${channelGuidanceQ}
 - VARIÉTÉ obligatoire : 1 anecdote/scène, 1 opinion/conviction, 1 process/observation (pas 3 "raconte-moi")
 - Questions OUVERTES, ton chaleureux et curieux
