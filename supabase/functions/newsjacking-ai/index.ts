@@ -247,7 +247,7 @@ serve(async (req) => {
       stat:      { axe: "comportement_emergent", label: "Stat ou étude étonnante",    query_hint: "étude statistique chiffre étonnant" },
       tendance:  { axe: "mot_qui_revient",       label: "Tendance émergente",         query_hint: "tendance émergente nouvelle pratique" },
       culture:   { axe: "objet_culturel",        label: "Sortie culturelle",          query_hint: "film série livre album sortie récente" },
-      combat:    { axe: null,                    label: "Sur mon combat",             query_hint: combatCause ? `${combatCause} débat actualité` : "engagement combat société" },
+      combat:    { axe: null,                    label: "Combat / cause de société",  query_hint: combatCause ? `${combatCause} débat actualité` : "engagement combat société" },
     };
     const intentVibesValid = intentVibes.filter((v) => VIBES_MAP[v]);
     const intentVibeHints = intentVibesValid.map((v) => VIBES_MAP[v].query_hint);
