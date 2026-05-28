@@ -408,6 +408,36 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
       )}
 
 
+      {/* Récap intention — visible dès qu'une recherche a été lancée avec une intention */}
+      {started && !loading && actus && (selectedVibes.length > 0 || customIntent.trim()) && (
+        <div className="rounded-xl bg-muted/30 border border-border px-3 py-2 flex items-start gap-2 flex-wrap">
+          <span className="text-[11px] text-muted-foreground shrink-0 mt-0.5">🎯 Intention :</span>
+          <div className="flex flex-wrap gap-1 flex-1 min-w-0">
+            {selectedVibes.map((id) => {
+              const v = VIBES.find((x) => x.id === id);
+              if (!v) return null;
+              return (
+                <span key={id} className="text-[11px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                  {v.emoji} {v.label}
+                </span>
+              );
+            })}
+            {customIntent.trim() && (
+              <span className="text-[11px] px-2 py-0.5 rounded-full bg-background border border-border text-foreground/80 truncate max-w-full">
+                "{customIntent.trim()}"
+              </span>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => setStarted(false)}
+            className="text-[11px] text-muted-foreground hover:text-foreground underline underline-offset-2 shrink-0"
+          >
+            Modifier
+          </button>
+        </div>
+      )}
+
       {/* Filter tabs */}
       {actus && actus.length > 0 && !loading && (
         <div className="flex gap-2">
