@@ -33,7 +33,7 @@ export interface PerplexityResult {
 
 // Mots/phrases qui signalent un contenu evergreen ou un événement
 // (passé OU à venir) plutôt qu'une vraie actu chaude.
-const EVERGREEN_PATTERNS: RegExp[] = [
+export const EVERGREEN_PATTERNS: RegExp[] = [
   /\bwebinaires?\b/i,
   /\bwebinars?\b/i,
   /\breplays?\b/i,
