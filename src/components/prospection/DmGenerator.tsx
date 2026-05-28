@@ -349,7 +349,7 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
           <Textarea
             value={messageContext}
             onChange={e => setMessageContext(e.target.value)}
-            placeholder="Ex : Je veux lui parler de mon atelier Instagram, rebondir sur sa story d'hier, lui proposer un café virtuel..."
+            placeholder="Ex : l'intention du message (proposer un échange, rebondir sur un contenu…)"
             className="text-xs min-h-[60px]"
           />
         </div>

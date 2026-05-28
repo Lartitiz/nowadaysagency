@@ -236,7 +236,7 @@ export function PhotoEditDialog({
               // If user types a custom prompt, deselect "transparent" preset
               if (selectedPreset === "transparent") setSelectedPreset(null);
             }}
-            placeholder="Ex : plage au coucher du soleil, bokeh chaleureux, ombre douce"
+            placeholder="Ex : ambiance, lumière, décor souhaité"
             maxLength={300}
             disabled={isGenerating || selectedPreset === "transparent"}
             className="min-h-[60px] resize-none text-sm"

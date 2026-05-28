@@ -389,7 +389,7 @@ export function PhotoUploadZone({
                   <Input
                     value={p.context ?? ""}
                     onChange={(e) => updateContext(idx, e.target.value)}
-                    placeholder="Ex : chantier Acacias, J2 démolition"
+                    placeholder="Ex : le moment, le lieu ou le détail à retenir"
                     maxLength={200}
                     className="h-8 text-xs px-2"
                   />
@@ -415,7 +415,7 @@ export function PhotoUploadZone({
           <Textarea
             value={description}
             onChange={(e) => handleDesc(e.target.value)}
-            placeholder="Ex : 6 photos d'un soutien-gorge en dentelle ivoire, ambiance boudoir, lumière dorée"
+            placeholder="Ex : 3 photos prises ce matin, ambiance lumineuse, ce que je voulais montrer en une phrase"
             className="min-h-[72px] resize-none"
           />
         </div>
