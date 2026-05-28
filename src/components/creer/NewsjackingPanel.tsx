@@ -155,8 +155,9 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
       // Si on est explicitement sur l'onglet "Globale" au moment de relancer,
       // on demande au serveur de désancrer la recherche de la niche.
       const force_macro = filter === "globale";
+      const excluded_urls = Array.from(seenUrlsRef.current).slice(-50);
       const { data, error: fnError } = await invokeWithTimeout("newsjacking-ai", {
-        body: { workspace_id: workspaceId || undefined, intent, force_macro },
+        body: { workspace_id: workspaceId || undefined, intent, force_macro, excluded_urls },
       }, 90000);
 
       if (fnError) {
@@ -183,6 +184,12 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
       if (!data?.actus || !Array.isArray(data.actus)) {
         setError("Résultats inattendus, réessaie.");
         return;
+      }
+
+      // Mémorise les URLs retournées pour les exclure des prochaines relances
+      for (const a of data.actus as Actu[]) {
+        const url = (a as any).source_url;
+        if (typeof url === "string" && url) seenUrlsRef.current.add(url);
       }
 
       setActus(data.actus);
