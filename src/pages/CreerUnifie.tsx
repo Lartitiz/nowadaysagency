@@ -2460,6 +2460,7 @@ export default function CreerUnifie() {
                 generating={generating || demoGenerating || streaming || pinterestVisualGenerating}
                 streamingContent={streaming ? streamingContent : undefined}
                 photos={(carouselSubMode === "photo" || carouselSubMode === "mix") ? uploadedPhotos : undefined}
+                usedPhotoCount={photoMode && uploadedPhotos.length > 0 ? Math.min(uploadedPhotos.length, 2) : undefined}
                 onEdit={handleEdit}
                 onReset={handleReset}
                 onRegenerate={handleRegenerate}
@@ -2558,6 +2559,7 @@ export default function CreerUnifie() {
                           onReset={handleReset}
                           onRegenerate={handleRegenerate}
                           onCopy={handleCopy}
+                          usedPhotoCount={photoMode && uploadedPhotos.length > 0 ? Math.min(uploadedPhotos.length, 2) : undefined}
                         />
                       </TabsContent>
                     ))}
