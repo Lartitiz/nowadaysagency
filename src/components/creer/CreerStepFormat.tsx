@@ -524,6 +524,16 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
         </div>
       )}
 
+      {/* Avertissement explicite : photo chargée mais toggle OFF → l'IA ne la verra pas */}
+      {formatAcceptsSinglePhoto(selectedFormat) && postPhoto.length > 0 && !photoMode && (
+        <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 flex items-start gap-2 animate-fade-in">
+          <span className="text-base leading-tight">⚠️</span>
+          <div className="flex-1 text-sm text-amber-800">
+            Ta photo est chargée mais l'IA <strong>ne la regardera pas</strong>. Active le mode photo ci-dessus pour qu'elle s'en serve.
+          </div>
+        </div>
+      )}
+
       {/* Single-photo formats — preloaded photo confirmation banner — REMOVED.
           The toggle "📸 J'accompagne une photo" + the PhotoUploadZone below already convey the state. */}
 
