@@ -293,12 +293,32 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
         <Button variant="ghost" size="sm" onClick={onClose} className="gap-1.5 text-muted-foreground">
           <ArrowLeft className="h-4 w-4" /> Retour
         </Button>
-        {!loading && (
+        {started && !loading && (
           <Button variant="outline" size="sm" onClick={fetchActus} className="gap-1.5">
             <RefreshCw className="h-3.5 w-3.5" /> Relancer
           </Button>
         )}
       </div>
+
+      {/* Idle — CTA explicite pour déclencher la recherche (consomme 1 crédit) */}
+      {!started && !loading && (
+        <div className="rounded-2xl border border-dashed border-primary/30 bg-card p-6 text-center space-y-4">
+          <div className="flex justify-center">
+            <div className="rounded-full bg-primary/10 p-3">
+              <Newspaper className="h-6 w-6 text-primary" />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-sm font-semibold text-foreground">Trouver des actus à surfer pour ta marque</h3>
+            <p className="text-xs text-muted-foreground max-w-md mx-auto">
+              L'IA explore l'actu fraîche et croise avec l'univers de ta marque pour te proposer des angles. La recherche prend 30 à 60 secondes et consomme 1 crédit de recherche.
+            </p>
+          </div>
+          <Button size="sm" onClick={fetchActus} className="gap-1.5">
+            <Sparkles className="h-3.5 w-3.5" /> Lancer la recherche
+          </Button>
+        </div>
+      )}
 
       {/* Filter tabs */}
       {actus && actus.length > 0 && !loading && (
