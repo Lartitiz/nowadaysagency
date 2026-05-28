@@ -6,7 +6,7 @@ import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { isDemoUser } from "../_shared/guard-demo.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { getModelForAction, callAnthropicSimple } from "../_shared/anthropic.ts";
-import { fetchHotNews, type PerplexityActu } from "../_shared/perplexity.ts";
+import { fetchHotNews, EVERGREEN_PATTERNS, type PerplexityActu } from "../_shared/perplexity.ts";
 
 // Brand universe cache TTL — regenerate after 30 days or when branding changes
 const BRAND_UNIVERSE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -499,6 +499,7 @@ INTERDIT
 🚫 Marronniers vides ("tendances 2026", "comment bien commencer l'année")
 🚫 Sujets qui parlent UNIQUEMENT de réseaux sociaux ou de création de contenu, sauf si c'est le métier de "${nicheLabel}"
 🚫 Sujets génériques sur "l'IA" ou "ChatGPT"
+🚫 INTERDIT ABSOLU — événements datés (passés OU à venir) : webinaires, conférences, masterclass, colloques, séminaires, salons, tables rondes, journées professionnelles, pages d'inscription, replays, "save the date". Même si l'événement est récent ou "fait encore parler", il ne compte pas comme actu chaude. Date du jour : ${monthLabel}. Toute mention d'une date d'événement passé (ex : "le 7 mai", "édition 2025") → JETTE le sujet immédiatement.
 
 ══════════════════════════════════════════════
 FORMAT DE RÉPONSE — JSON STRICT (pas de markdown, pas de backticks)
@@ -632,6 +633,26 @@ Si vraiment rien ne fonctionne (moins de 3 sujets connectés trouvables), retour
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Post-validation : on retire tout sujet qui ressemble à un événement /
+    // webinaire / replay / page evergreen, même si Claude l'a fait passer.
+    // Ces patterns sont les mêmes que côté Perplexity pour cohérence.
+    const beforeCount = parsed.actus.length;
+    parsed.actus = parsed.actus.filter((a: any) => {
+      const blob = `${a?.titre || ""} ${a?.resume || ""} ${a?.pertinence || ""}`;
+      const isEvergreen = EVERGREEN_PATTERNS.some((rx) => rx.test(blob));
+      if (isEvergreen) {
+        console.log(`[newsjacking] dropped (evergreen): "${String(a?.titre || "").slice(0, 80)}"`);
+        return false;
+      }
+      return true;
+    });
+    if (parsed.actus.length < beforeCount) {
+      console.log(`[newsjacking] filtered ${beforeCount - parsed.actus.length}/${beforeCount} actus (evergreen)`);
+    }
+    if (parsed.actus.length === 0) {
+      parsed.message = parsed.message || "Pas d'actu vraiment fraîche cette fois. Réessaie dans quelques jours.";
     }
 
     // Log usage

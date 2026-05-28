@@ -33,18 +33,24 @@ export interface PerplexityResult {
 
 // Mots/phrases qui signalent un contenu evergreen ou un événement
 // (passé OU à venir) plutôt qu'une vraie actu chaude.
-const EVERGREEN_PATTERNS: RegExp[] = [
+export const EVERGREEN_PATTERNS: RegExp[] = [
   /\bwebinaires?\b/i,
   /\bwebinars?\b/i,
   /\breplays?\b/i,
-  /\binscription[s]?\s+(ouverte|gratuite)/i,
+  /\binscription[s]?\s+(ouverte|gratuite|en\s+ligne)/i,
   /\bs[''']inscrire\b/i,
   /\bsave\s+the\s+date\b/i,
   /\blive\s+le\s+\d/i,
-  /\bconf[ée]rence\s+du\s+\d/i,
-  /\bmasterclass\s+(du|le)\s+\d/i,
+  /\bconf[ée]rence\b/i,
+  /\bmasterclass\b/i,
+  /\bsalon\s+(du|de\s+la|professionnel)/i,
+  /\bcolloque\b/i,
+  /\bs[ée]minaire\b/i,
   /\bbillets?\s+(en\s+vente|disponibles)/i,
-  /\b[ée]v[ée]nement\s+(\dème|annuel|de\s+l)/i,
+  /\b[ée]v[ée]nement\s+(\dème|annuel|de\s+l|du)/i,
+  /\borganise\s+(un|une|le|la)\s+(webinaire|conf|masterclass|colloque|s[ée]minaire|[ée]v[ée]nement|table)/i,
+  /\bjourn[ée]es?\s+(nationales?|d['ée]tude|professionnelles?)/i,
+  /\btable\s+ronde\b/i,
   /\bpalmar[èe]s\s+(annuel|\d{4})/i,
   /\bbarom[èe]tre\s+\d{4}/i,
 ];
@@ -139,6 +145,9 @@ Réponds UNIQUEMENT avec ce JSON, sans markdown, sans backticks :
   ]
 }`;
 
+  // Note : Perplexity refuse `search_recency_filter` + `search_after_date_filter`
+  // ensemble (erreur 400 invalid_date_filter_combination). On garde uniquement
+  // `search_after_date_filter` qui est plus strict et fiable.
   const body = {
     model: "sonar-pro",
     messages: [
@@ -149,7 +158,6 @@ Réponds UNIQUEMENT avec ce JSON, sans markdown, sans backticks :
       },
       { role: "user", content: userPrompt },
     ],
-    search_recency_filter: recency,
     search_after_date_filter: formatDateUS(afterDate),
     temperature: 0.2,
     max_tokens: 1500,
