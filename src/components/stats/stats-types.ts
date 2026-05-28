@@ -21,11 +21,12 @@ export type DashboardKPIs = {
   followers: number | null;
   avgReach: number;
   avgEngagement: number;
-  totalRevenue: number;
+  engagementByFollowers: number | null;
+  netGrowth: number | null;
   changeFollowers: { val: number; dir: "up" | "down" | "flat" } | null;
   changeReach: { val: number; dir: "up" | "down" | "flat" } | null;
   changeEngagement: { val: number; dir: "up" | "down" | "flat" } | null;
-  changeRevenue: { val: number; dir: "up" | "down" | "flat" } | null;
+  changeNetGrowth: { val: number; dir: "up" | "down" | "flat" } | null;
   followersGained: number | null;
 };
 

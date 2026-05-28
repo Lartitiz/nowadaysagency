@@ -1,14 +1,13 @@
 import {
   BarChart, Bar, XAxis, YAxis,
-  Tooltip, ResponsiveContainer, CartesianGrid, Legend,
+  Tooltip, ResponsiveContainer, CartesianGrid, Legend, Line, ComposedChart, ReferenceLine,
 } from "recharts";
 import EmptyState from "@/components/EmptyState";
 import { MESSAGES } from "@/lib/messages";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import FollowersChart from "./FollowersChart";
 import EngagementChart from "./EngagementChart";
-import RevenueChart from "./RevenueChart";
-import { fmt, fmtEur, pctChange, monthLabel } from "@/lib/stats-helpers";
+import { fmt, pctChange, monthLabel } from "@/lib/stats-helpers";
 import { type StatsRow, type StatsConfig, ALL_TRAFFIC_SOURCES } from "./stats-types";
 
 interface StatsChartsProps {
@@ -47,7 +46,50 @@ export default function StatsCharts({
             <FollowersChart data={chartData as any} />
           </ChartCard>
 
-          <ChartCard title="Portée et engagement">
+          <ChartCard
+            title="Acquisition de followers"
+            subtitle="Gagnés vs perdus chaque mois, avec la croissance nette."
+          >
+            <ResponsiveContainer width="100%" height={260}>
+              <ComposedChart data={chartData} stackOffset="sign">
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="month" fontSize={11} stroke="hsl(var(--muted-foreground))" />
+                <YAxis fontSize={11} stroke="hsl(var(--muted-foreground))" />
+                <Tooltip
+                  formatter={(val: any) => fmt(Math.abs(Number(val)))}
+                  contentStyle={{ borderRadius: 12, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))" }}
+                />
+                <Legend />
+                <ReferenceLine y={0} stroke="hsl(var(--border))" />
+                <Bar dataKey="gained" stackId="g" fill="#34D399" name="Gagnés" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="lost" stackId="g" fill="#fb3d80" name="Perdus" radius={[0, 0, 4, 4]} />
+                <Line type="monotone" dataKey="net" stroke="#8B5CF6" name="Net" strokeWidth={2.5} dot={{ r: 3 }} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </ChartCard>
+
+          <ChartCard
+            title="Du contenu au profil"
+            subtitle="Portée → visites profil → clics site. Plus les courbes restent proches, mieux ton funnel convertit."
+          >
+            <ResponsiveContainer width="100%" height={260}>
+              <ComposedChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="month" fontSize={11} stroke="hsl(var(--muted-foreground))" />
+                <YAxis fontSize={11} stroke="hsl(var(--muted-foreground))" />
+                <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))" }} />
+                <Legend />
+                <Line type="monotone" dataKey="reach" stroke="#fb3d80" name="Portée" strokeWidth={2.5} dot={{ r: 3 }} />
+                <Line type="monotone" dataKey="profile_visits" stroke="#8B5CF6" name="Visites profil" strokeWidth={2} dot={{ r: 3 }} />
+                <Line type="monotone" dataKey="website_clicks" stroke="#FFE561" name="Clics site" strokeWidth={2} dot={{ r: 3 }} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </ChartCard>
+
+          <ChartCard
+            title="Qualité de l'engagement"
+            subtitle="Taux d'engagement (par portée) et engagement par abonné·es."
+          >
             <EngagementChart data={chartData as any} />
           </ChartCard>
 
@@ -70,15 +112,11 @@ export default function StatsCharts({
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
-
-          <ChartCard title="CA et clients">
-            <RevenueChart data={chartData as any} />
-          </ChartCard>
         </>
       )}
 
-      <ChartCard title="Funnel de conversion">
-        <FunnelChart data={periodStats.length > 0 ? periodStats[periodStats.length - 1] : undefined} businessType={activeConfig.business_type} />
+      <ChartCard title="Funnel Instagram → site">
+        <FunnelChart data={periodStats.length > 0 ? periodStats[periodStats.length - 1] : undefined} />
       </ChartCard>
 
       {allStats.length >= 2 && (
@@ -91,60 +129,27 @@ export default function StatsCharts({
 
 /* ── Sub-components ── */
 
-function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
+function ChartCard({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
   return (
     <div className="rounded-xl border border-border bg-card p-4 sm:p-5 space-y-3">
-      <h3 className="font-display text-sm font-bold text-foreground">{title}</h3>
+      <div className="space-y-0.5">
+        <h3 className="font-display text-sm font-bold text-foreground">{title}</h3>
+        {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+      </div>
       {children}
     </div>
   );
 }
 
-function FunnelChart({ data, businessType }: { data: StatsRow | undefined; businessType?: string | null }) {
+function FunnelChart({ data }: { data: StatsRow | undefined }) {
   if (!data) return <EmptyState {...MESSAGES.empty.stats} />;
 
-  const totalPageViews = (data.page_views_plan || 0) + (data.page_views_academy || 0) + (data.page_views_agency || 0);
-
-  let steps: { label: string; value: number }[];
-  switch (businessType) {
-    case "ecommerce":
-      steps = [
-        { label: "Comptes touchés", value: data.reach || 0 },
-        { label: "Visites profil", value: data.profile_visits || 0 },
-        { label: "Boutique", value: data.website_visitors || 0 },
-        { label: "Panier", value: (data.business_data as any)?.orders || data.clients_signed || 0 },
-        { label: "Commande", value: (data.business_data as any)?.orders || data.clients_signed || 0 },
-      ];
-      break;
-    case "formations":
-      steps = [
-        { label: "Comptes touchés", value: data.reach || 0 },
-        { label: "Visites profil", value: data.profile_visits || 0 },
-        { label: "Page vente", value: totalPageViews || data.website_clicks || 0 },
-        { label: "Inscription", value: (data.business_data as any)?.signups || 0 },
-        { label: "Achat", value: (data.business_data as any)?.conversions || data.clients_signed || 0 },
-      ];
-      break;
-    case "freelance":
-      steps = [
-        { label: "Comptes touchés", value: data.reach || 0 },
-        { label: "Visites profil", value: data.profile_visits || 0 },
-        { label: "Site", value: data.website_clicks || 0 },
-        { label: "Demande", value: (data.business_data as any)?.requests_received || 0 },
-        { label: "Devis", value: (data.business_data as any)?.proposals_sent || 0 },
-        { label: "Projet", value: (data.business_data as any)?.projects_signed || data.clients_signed || 0 },
-      ];
-      break;
-    default:
-      steps = [
-        { label: "Comptes touchés", value: data.reach || 0 },
-        { label: "Visites profil", value: data.profile_visits || 0 },
-        { label: "Clics site", value: data.website_clicks || 0 },
-        { label: "Pages vente", value: totalPageViews },
-        { label: "Appels", value: data.discovery_calls || 0 },
-        { label: "Clients", value: data.clients_signed || 0 },
-      ];
-  }
+  const steps: { label: string; value: number }[] = [
+    { label: "Comptes touchés", value: data.reach || 0 },
+    { label: "Comptes engagés", value: data.accounts_engaged || 0 },
+    { label: "Visites profil", value: data.profile_visits || 0 },
+    { label: "Clics site", value: data.website_clicks || 0 },
+  ];
 
   const maxVal = Math.max(...steps.map(s => s.value), 1);
 
@@ -184,13 +189,12 @@ function ComparisonTable({ allStats, compareA, compareB, setCompareA, setCompare
   const metrics = [
     { label: "Followers", key: "followers" },
     { label: "Portée", key: "reach" },
+    { label: "Comptes engagés", key: "accounts_engaged" },
     { label: "Interactions", key: "interactions" },
     { label: "Visites profil", key: "profile_visits" },
     { label: "Clics site", key: "website_clicks" },
+    { label: "Followers gagnés", key: "followers_gained" },
     { label: "Inscrits email", key: "email_signups" },
-    { label: "Visiteurs site", key: "website_visitors" },
-    { label: "CA", key: "revenue", format: fmtEur },
-    { label: "Clients", key: "clients_signed" },
   ];
 
   return (
@@ -226,13 +230,12 @@ function ComparisonTable({ allStats, compareA, compareB, setCompareA, setCompare
               {metrics.map(m => {
                 const valA = a[m.key];
                 const valB = b[m.key];
-                const f = (m as any).format || fmt;
                 const change = pctChange(valA, valB);
                 return (
                   <tr key={m.key} className="border-b border-border/50">
                     <td className="py-2 pr-4 text-muted-foreground">{m.label}</td>
-                    <td className="py-2 pr-4 font-medium">{f(valB)}</td>
-                    <td className="py-2 pr-4 font-medium">{f(valA)}</td>
+                    <td className="py-2 pr-4 font-medium">{fmt(valB)}</td>
+                    <td className="py-2 pr-4 font-medium">{fmt(valA)}</td>
                     <td className="py-2">
                       {change ? (
                         <span className={`inline-flex items-center gap-0.5 text-xs font-medium ${
