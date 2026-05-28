@@ -91,6 +91,19 @@ interface AnglesState {
   error?: string;
 }
 
+const VIBES: { id: string; emoji: string; label: string }[] = [
+  { id: "scoop", emoji: "💥", label: "Scoop qui fait réagir" },
+  { id: "phenomene", emoji: "🌀", label: "Phénomène culturel" },
+  { id: "debat", emoji: "⚖️", label: "Débat clivant" },
+  { id: "stat", emoji: "📊", label: "Stat ou étude étonnante" },
+  { id: "tendance", emoji: "🌱", label: "Tendance émergente" },
+  { id: "culture", emoji: "🎬", label: "Sortie culturelle" },
+  { id: "combat", emoji: "🧭", label: "Sur mon combat" },
+];
+
+const MAX_VIBES = 3;
+const MAX_INTENT_CHARS = 200;
+
 export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: NewsjackingPanelProps) {
   const [loading, setLoading] = useState(false);
   const [started, setStarted] = useState(false);
@@ -102,10 +115,21 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
   const [hidden, setHidden] = useState<Set<number>>(new Set());
   const [savedIdx, setSavedIdx] = useState<Set<number>>(new Set());
   const [savingIdx, setSavingIdx] = useState<Set<number>>(new Set());
+  // Intention de recherche (optionnelle)
+  const [selectedVibes, setSelectedVibes] = useState<string[]>([]);
+  const [customIntent, setCustomIntent] = useState("");
   // angles cache, keyed by actu index
   const [anglesByIdx, setAnglesByIdx] = useState<Record<number, AnglesState>>({});
   const navigate = useNavigate();
   const { user } = useAuth();
+
+  const toggleVibe = (id: string) => {
+    setSelectedVibes((prev) => {
+      if (prev.includes(id)) return prev.filter((v) => v !== id);
+      if (prev.length >= MAX_VIBES) return prev;
+      return [...prev, id];
+    });
+  };
 
   const fetchActus = useCallback(async () => {
     setStarted(true);
