@@ -156,7 +156,10 @@ export function useStreamingInvoke(): UseStreamingInvokeReturn {
         : err?.message || "Erreur de génération";
       setError(msg);
       setStreaming(false);
-      return "";
+      if (err?._isQuota) throw err;
+      const wrapped = new Error(msg);
+      (wrapped as any).cause = err;
+      throw wrapped;
     }
   }, [reset]);
 
