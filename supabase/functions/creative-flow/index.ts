@@ -1214,29 +1214,40 @@ Réponds UNIQUEMENT en JSON :
         max_tokens: 4096,
       });
     } else if (step === "questions" && body.photo_mode && body.photos?.[0]?.base64) {
-      // Vision-anchored questions: let Claude SEE the photo to ask grounded questions
-      const photoBase64Q = body.photos[0].base64.replace(/^data:image\/[a-z]+;base64,/, "");
-      const photoMimeQ = body.photos[0].mimeType || "image/jpeg";
-      const perPhotoCtxQ = body.photos[0].context?.trim();
+      // Vision-anchored questions: let Claude SEE ALL photos (1..10) to ask grounded questions.
+      const validPhotosQ = body.photos.filter((p: any) => p?.base64).slice(0, 10);
+      const photoCountQ = validPhotosQ.length;
+      const seriesModeQ: "single" | "before_after" | "series" =
+        photoCountQ === 1 ? "single" : photoCountQ === 2 ? "before_after" : "series";
+
+      const perPhotoContextsQ = validPhotosQ.map((p: any) => p?.context?.trim() || null);
 
       const visionQuestionsPrompt = buildVisionQuestionsPrompt({
         contentType,
         context,
         objective,
         photo_description: body.photo_description,
-        per_photo_context: perPhotoCtxQ,
+        per_photo_context: perPhotoContextsQ[0] || null,
+        per_photo_contexts: perPhotoContextsQ,
+        photo_count: photoCountQ,
+        series_mode: seriesModeQ,
       });
+
+      const questionsContent: any[] = [];
+      validPhotosQ.forEach((p: any, i: number) => {
+        const b64 = String(p.base64).replace(/^data:image\/[a-z]+;base64,/, "");
+        const mime = p.mimeType || "image/jpeg";
+        if (photoCountQ > 1) {
+          questionsContent.push({ type: "text", text: `Photo ${i + 1}/${photoCountQ}${p?.context?.trim() ? ` — contexte : "${p.context.trim()}"` : ""} :` });
+        }
+        questionsContent.push({ type: "image", source: { type: "base64", media_type: mime, data: b64 } });
+      });
+      questionsContent.push({ type: "text", text: visionQuestionsPrompt });
 
       rawContent = await callAnthropic({
         model: getModelForAction("content"),
         system: systemPrompt,
-        messages: [{
-          role: "user",
-          content: [
-            { type: "image", source: { type: "base64", media_type: photoMimeQ, data: photoBase64Q } },
-            { type: "text", text: visionQuestionsPrompt },
-          ],
-        }],
+        messages: [{ role: "user", content: questionsContent }],
         temperature: 0.8,
         max_tokens: 1500,
       });
