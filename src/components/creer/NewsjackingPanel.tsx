@@ -167,10 +167,16 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
   // un crédit par erreur et pour ne pas relancer si workspaceId arrive en async.
 
   const fetchAngles = useCallback(async (idx: number, actu: Actu) => {
-    // Don't refetch if already loaded
-    if (anglesByIdx[idx]?.data) return;
-
-    setAnglesByIdx((prev) => ({ ...prev, [idx]: { loading: true } }));
+    // Atomic gate (B3) : on ne lance le fetch que si pas déjà data/loading.
+    // Lecture via setAnglesByIdx pour avoir l'état le plus récent et éviter
+    // les doubles appels lors de clics rapides. (B4) deps = [workspaceId] uniquement.
+    let shouldFetch = false;
+    setAnglesByIdx((prev) => {
+      if (prev[idx]?.data || prev[idx]?.loading) return prev;
+      shouldFetch = true;
+      return { ...prev, [idx]: { loading: true } };
+    });
+    if (!shouldFetch) return;
 
     try {
       const { data, error: fnError } = await invokeWithTimeout("newsjacking-angles", {
@@ -200,7 +206,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
     } catch {
       setAnglesByIdx((prev) => ({ ...prev, [idx]: { loading: false, error: "Génération échouée, réessaie." } }));
     }
-  }, [anglesByIdx, workspaceId]);
+  }, [workspaceId]);
 
   const handleToggleActu = (idx: number, actu: Actu) => {
     if (expandedActu === idx) {
