@@ -416,6 +416,7 @@ PROFIL DE L'UTILISATEUR·ICE :
 ${brandingContext}
 ${universeBlock}
 ${intentBlock}
+${macroBlock}
 ${hotNewsBlock}══════════════════════════════════════════════
 PHILOSOPHIE — LIRE EN PREMIER
 ══════════════════════════════════════════════
