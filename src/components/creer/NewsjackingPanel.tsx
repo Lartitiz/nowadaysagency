@@ -222,7 +222,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
     try {
       const { data, error: fnError } = await invokeWithTimeout("newsjacking-angles", {
         body: { actu, workspace_id: workspaceId || undefined },
-      }, 50000);
+      }, 100000);
 
       if (fnError) {
         const msg = fnError.message || "";
