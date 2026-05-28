@@ -31,7 +31,8 @@ export default function StatsForm({
   formData, onFieldChange, onFormDataUpdate,
   onSave, saving, onImportClick, onConfigClick, activeConfig,
 }: StatsFormProps) {
-  const engagementRate = safeDivPct(formData.interactions, formData.reach);
+  const engagementRate = safeDivPct(formData.accounts_engaged ?? formData.interactions, formData.reach);
+  const engagementByFollowers = safeDivPct(formData.interactions, formData.followers);
   const followersEngagedPct = safeDivPct(formData.followers_engaged, formData.followers);
   const profileConversionRate = safeDivPct(formData.followers_gained, formData.profile_visits);
   const totalPageViews = (formData.page_views_plan || 0) + (formData.page_views_academy || 0) + (formData.page_views_agency || 0);
