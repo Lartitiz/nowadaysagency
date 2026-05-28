@@ -2459,7 +2459,7 @@ export default function CreerUnifie() {
                 format={selectedFormat || "post"}
                 generating={generating || demoGenerating || streaming || pinterestVisualGenerating}
                 streamingContent={streaming ? streamingContent : undefined}
-                photos={(carouselSubMode === "photo" || carouselSubMode === "mix") ? uploadedPhotos : undefined}
+                photos={(carouselSubMode === "photo" || carouselSubMode === "mix" || (photoMode && uploadedPhotos.length > 0)) ? uploadedPhotos : undefined}
                 usedPhotoCount={photoMode && uploadedPhotos.length > 0 ? uploadedPhotos.length : undefined}
                 onEdit={handleEdit}
                 onReset={handleReset}
