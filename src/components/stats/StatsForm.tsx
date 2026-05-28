@@ -76,8 +76,9 @@ export default function StatsForm({
               <NumInput label="Followers en +" value={formData.followers_gained} onChange={v => onFieldChange("followers_gained", v)} />
               <NumInput label="Followers en -" value={formData.followers_lost} onChange={v => onFieldChange("followers_lost", v)} />
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <ComputedField label="Taux d'engagement" value={fmtPct(engagementRate)} />
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <ComputedField label="Engagement / portée" value={fmtPct(engagementRate)} />
+              <ComputedField label="Engagement / abonné·es" value={fmtPct(engagementByFollowers)} />
               <ComputedField label="% followers interagi" value={fmtPct(followersEngagedPct)} />
               <ComputedField label="Conversion profil" value={fmtPct(profileConversionRate)} />
             </div>
