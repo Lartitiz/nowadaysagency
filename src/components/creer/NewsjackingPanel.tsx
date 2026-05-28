@@ -93,6 +93,7 @@ interface AnglesState {
 
 export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: NewsjackingPanelProps) {
   const [loading, setLoading] = useState(false);
+  const [started, setStarted] = useState(false);
   const [actus, setActus] = useState<Actu[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [expandedActu, setExpandedActu] = useState<number | null>(null);
@@ -107,6 +108,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
   const { user } = useAuth();
 
   const fetchActus = useCallback(async () => {
+    setStarted(true);
     setLoading(true);
     setError(null);
     setActus(null);
@@ -160,9 +162,9 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
     }
   }, [workspaceId]);
 
-  useEffect(() => {
-    fetchActus();
-  }, [fetchActus]);
+  // NOTE: pas d'auto-fetch au montage. L'utilisatrice déclenche la recherche
+  // explicitement via le CTA "Lancer la recherche" pour éviter de consommer
+  // un crédit par erreur et pour ne pas relancer si workspaceId arrive en async.
 
   const fetchAngles = useCallback(async (idx: number, actu: Actu) => {
     // Don't refetch if already loaded
