@@ -1,107 +1,61 @@
-# Préciser le type d'actu avant la recherche
+# Audit des co-occurrences — ajout de l'intention sur le Newsjacking
 
-## Idée
+## Périmètre vérifié
 
-Au lieu de lancer la recherche à l'aveugle, on ajoute une **étape d'intention** sur l'écran "Lancer la recherche". L'utilisatrice peut :
-- soit choisir un ou plusieurs **vibes** prédéfinis (chips),
-- soit taper une **demande libre** ("J'aimerais une actu scoop qui fait réagir"),
-- soit les deux, soit rien (= comportement actuel).
+| Co-occurrence | Statut | Détail |
+|---|---|---|
+| Autres appelants de `newsjacking-ai` | ✅ RAS | Un seul caller : `NewsjackingPanel.tsx`. Aucun edge function ne réinvoque cette fonction. |
+| Autres consommateurs de `NewsjackingPanel` | ✅ RAS | Un seul : `CreerStepIdea.tsx` (ligne 211). Props (`onSelect`, `onClose`, `workspaceId`) inchangées. |
+| Rétro-compat backend | ✅ OK | `body.intent` lu avec fallback `{}`. Anciens clients fonctionnent sans changement. |
+| Double validation taille `custom` | ✅ OK | Frontend `slice(0, 200)` + backend `slice(0, 200)`. |
+| `useCallback(fetchActus)` deps | ✅ OK | Ajout de `selectedVibes`/`customIntent` recrée la fonction à chaque toggle, mais elle n'est passée qu'à des `onClick` → pas de cascade de re-renders. |
+| Format prompt Claude | ✅ OK | Saut de ligne supplémentaire entre `intentBlock` et `hotNewsBlock`, bénin pour le parsing. |
+| Régression B1/B3/B4 (audit précédent) | ✅ OK | Pas d'auto-fetch, gate atomique sur `fetchAngles`, deps inchangées. |
 
-L'intention est passée au backend qui l'injecte dans le prompt + la requête Perplexity.
+## Bugs / dettes détectés
 
-## UX (NewsjackingPanel.tsx)
+### 🟠 Bug UX 1 — "Relancer" verrouille l'intention
 
-L'écran idle devient :
+Après le premier search, le bloc chips + textarea n'est plus visible (gated par `!started && !loading` ligne 358). Si l'utilisatrice clique **Relancer** :
+- la recherche repart avec **les mêmes vibes** qu'elle a choisis au départ ;
+- elle ne peut **pas** changer son intention sans recharger la page ou fermer/rouvrir le panneau.
 
-```text
-📰 Trouver des actus à surfer pour ta marque
+Silencieux et frustrant.
 
-(L'IA explore l'actu fraîche…)
+**Fix proposé** (au choix) :
+- **A. Lecture + édition** : afficher au-dessus des résultats un petit récap "🎯 Intention : Scoop, Débat — modifier" qui rebascule l'UI éditable.
+- **B. Reset complet** : le bouton "Relancer" remet `started=false` (retour à l'écran idle avec les vibes pré-cochées) au lieu de relancer directement.
 
-┌────────────────────────────────────────────┐
-│ Quel type d'actu tu cherches ? (optionnel) │
-│                                            │
-│ [💥 Scoop qui fait réagir]                 │
-│ [🌀 Phénomène culturel du moment]          │
-│ [⚖️ Débat clivant]                         │
-│ [📊 Stat ou étude étonnante]               │
-│ [🌱 Tendance émergente]                    │
-│ [🎬 Sortie culturelle]                     │
-│ [🧭 Sur mon combat : {combat_cause}]       │  ← affiché seulement si dispo
-│                                            │
-│ Ou précise toi-même :                      │
-│ [______________________________________]   │
-│  "ex: une actu qui touche les mamans…"     │
-└────────────────────────────────────────────┘
+Recommandation : **A**, plus fluide.
 
-[✨ Lancer la recherche]
-```
+### 🟠 Bug UX 2 — Chip "Sur mon combat" mensongère
 
-- Chips multi-sélection (max 3 pour éviter le bruit).
-- Le chip "Sur mon combat" n'apparaît que si `brand_profile.combat_cause` est défini.
-- Textarea libre, max 200 caractères.
-- Tout est **optionnel** : sans sélection, on garde le comportement actuel.
+Le chip "🧭 Sur mon combat" est affiché **en dur**, même si l'utilisatrice n'a jamais rempli `brand_profile.combat_cause`. Backend, on tombe sur un fallback générique "engagement combat société" → l'IA cherche quelque chose, mais le label promettait "MON combat" et le résultat est hors-sol.
 
-État local : `selectedVibes: string[]`, `customIntent: string`.
+**Fix proposé** : soit
+- **A.** Récupérer `combat_cause` côté frontend (rapide query supabase au montage) et masquer le chip si vide.
+- **B.** Renommer le chip "🧭 Combat / cause de société" (libellé honnête, pas de masquage nécessaire).
 
-Le body de l'invoke devient :
-```ts
-{ workspace_id, intent: { vibes: selectedVibes, custom: customIntent.trim() || undefined } }
-```
+Recommandation : **B** (zéro requête supplémentaire, label honnête).
 
-## Backend (`supabase/functions/newsjacking-ai/index.ts`)
+### 🟡 Petit point — vibe "combat" seul
 
-### 1. Mapping des vibes → axes + ton attendu
+Si l'utilisatrice ne sélectionne **que** "combat" (axe mappé à `null`), `pickedAxes` repart sur du shuffle aléatoire (3 axes au hasard). Le combat n'oriente alors **que** la requête Perplexity + le bloc intention dans le prompt, pas la liste d'axes. C'est cohérent, mais à savoir pour le futur.
 
-Table interne :
-```ts
-const VIBES = {
-  scoop:      { axe: "actu_connectable",      ton: "decalant",   query_hint: "scoop révélation qui fait réagir" },
-  phenomene:  { axe: "obsession_collective",  ton: "entre_deux", query_hint: "phénomène culturel viral du moment" },
-  debat:      { axe: "debat_recurrent",       ton: "entre_deux", query_hint: "débat clivant société polémique" },
-  stat:       { axe: "comportement_emergent", ton: "confortable", query_hint: "étude statistique chiffre étonnant" },
-  tendance:   { axe: "mot_qui_revient",       ton: "confortable", query_hint: "tendance émergente nouvelle pratique" },
-  culture:    { axe: "objet_culturel",        ton: "decalant",    query_hint: "film série livre sortie récente" },
-  combat:     { axe: null /* dynamique */,    ton: "entre_deux",  query_hint: "<combat_cause> débat actualité" },
-};
-```
+**Pas de fix nécessaire**, juste documenté ici.
 
-### 2. Sélection des axes
+### 🟡 Petit point — sélections >3 silencieusement bloquées
 
-Si `intent.vibes` non vide :
-- `pickedAxes` ← axes correspondants (au lieu du shuffle aléatoire actuel).
-- Si moins de 3 vibes, on complète avec des axes aléatoires pour garder la diversité.
+Côté frontend, les chips non sélectionnés deviennent `disabled` à partir de 3. Côté backend, on `slice(0, 3)` aussi. Cohérent, mais aucun feedback visuel "tu as atteint le max". Mineur.
 
-### 3. Bloc "intention" dans le prompt système
+**Pas de fix nécessaire.**
 
-Ajout d'un bloc clairement marqué :
-```text
-══════════════════════════════════════════════
-DEMANDE EXPLICITE DE LA CRÉATRICE
-══════════════════════════════════════════════
-Vibes recherchés : Scoop qui fait réagir, Débat clivant
-Précision libre : "une actu qui touche les mamans solos"
+## Plan d'action proposé
 
-→ Les actus proposées DOIVENT correspondre à cette demande.
-→ Si tu ne trouves rien d'aligné, dis-le franchement plutôt que de
-   forcer des sujets hors-sujet.
-```
+Si tu valides, j'applique :
+1. **Bug UX 1** → option A (récap éditable au-dessus des résultats).
+2. **Bug UX 2** → option B (renommage du chip en "🧭 Combat / cause de société").
 
-### 4. Requêtes Perplexity adaptées
+Reste 2 petits points en "documenté, pas de fix".
 
-`universKeywords` est complété par `query_hint` des vibes choisies + 3-5 premiers mots du `custom`. Ça réoriente la recherche fraîche vers ce qu'elle a demandé.
-
-### 5. Rétro-compat
-
-Si `intent` absent (ancien client), comportement actuel inchangé.
-
-## Fichiers touchés
-
-- `src/components/creer/NewsjackingPanel.tsx` — écran idle enrichi (chips + textarea), state local, body de l'invoke.
-- `supabase/functions/newsjacking-ai/index.ts` — lecture de `intent`, table `VIBES`, sélection d'axes contrainte, bloc prompt, hint Perplexity.
-- Pas de migration DB. Pas de table à créer.
-
-## À valider avant que je code
-
-1. Tu valides la liste de vibes (scoop / phénomène / débat / stat / tendance / culture + combat dynamique) ou tu veux qu'on remplace/ajoute des intitulés ?
-2. Le chip "combat" : OK pour afficher le libellé brut de `combat_cause` (genre "Sur mon combat : démocratiser le marketing éthique") ou tu préfères un libellé fixe ?
+Tu veux que je code ces deux fixes, ou tu préfères trancher autrement ?

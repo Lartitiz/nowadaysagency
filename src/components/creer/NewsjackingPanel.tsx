@@ -98,7 +98,7 @@ const VIBES: { id: string; emoji: string; label: string }[] = [
   { id: "stat", emoji: "📊", label: "Stat ou étude étonnante" },
   { id: "tendance", emoji: "🌱", label: "Tendance émergente" },
   { id: "culture", emoji: "🎬", label: "Sortie culturelle" },
-  { id: "combat", emoji: "🧭", label: "Sur mon combat" },
+  { id: "combat", emoji: "🧭", label: "Combat / cause de société" },
 ];
 
 const MAX_VIBES = 3;
