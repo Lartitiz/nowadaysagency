@@ -809,6 +809,9 @@ export default function CreerUnifie() {
             setStep("format");
             return;
           }
+          toast.error(streamError || "La génération a échoué. Réessaie.");
+          setStep("format");
+          return;
         }
       } catch (e: any) {
         // Defensive — generateStream catches its own errors, but keep parity.
