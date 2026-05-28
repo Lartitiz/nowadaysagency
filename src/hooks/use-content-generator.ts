@@ -578,7 +578,7 @@ export function useContentGenerator() {
               photo_description: photoModeCF ? params.photoDescription || undefined : undefined,
               ...(params.newsContext && params.newsContext.trim() ? { news_context: params.newsContext.slice(0, 3800) } : {}),
             },
-          }, photoModeCF ? 90000 : 60000);
+          }, photoModeCF ? 180000 : 60000);
           data = res.data;
           invokeError = res.error;
         }
