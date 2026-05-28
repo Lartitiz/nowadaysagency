@@ -2371,6 +2371,11 @@ export default function CreerUnifie() {
                     questions,
                     contentType: selectedFormat || "instagram_post",
                     objective: objective || undefined,
+                    photos: photoMode && uploadedPhotos.length > 0
+                      ? uploadedPhotos.slice(0, 10).map((p) => ({ base64: p.base64, mimeType: p.mimeType, context: p.context }))
+                      : undefined,
+                    photoMode: photoMode || undefined,
+                    photoDescription: photoMode ? photoDescription : undefined,
                   });
                 }}
               />

@@ -578,7 +578,7 @@ export function useContentGenerator() {
               photo_description: photoModeCF ? params.photoDescription || undefined : undefined,
               ...(params.newsContext && params.newsContext.trim() ? { news_context: params.newsContext.slice(0, 3800) } : {}),
             },
-          }, photoModeCF ? 90000 : 60000);
+          }, photoModeCF ? 180000 : 60000);
           data = res.data;
           invokeError = res.error;
         }
@@ -624,6 +624,9 @@ export function useContentGenerator() {
       questions: Question[];
       contentType?: string;
       objective?: string;
+      photos?: { base64: string; mimeType?: string; context?: string }[];
+      photoMode?: boolean;
+      photoDescription?: string;
     }): Promise<Question[]> => {
       try {
         const answersArray = params.questions.map((q) => ({
@@ -633,6 +636,9 @@ export function useContentGenerator() {
 
         if (answersArray.length === 0) return [];
 
+        const hasPhotosFU = (params.photos?.length ?? 0) > 0 && !!params.photos?.[0]?.base64;
+        const photoModeFU = hasPhotosFU && params.photoMode === true;
+
         const res = await invokeWithTimeout("creative-flow", {
           body: {
             step: "follow-up",
@@ -640,8 +646,17 @@ export function useContentGenerator() {
             context: params.subject,
             answers: answersArray,
             objective: params.objective || null,
+            photo_mode: photoModeFU || undefined,
+            photos: photoModeFU
+              ? params.photos!.slice(0, 10).map(p => ({
+                  base64: p.base64,
+                  mimeType: p.mimeType || "image/jpeg",
+                  context: p.context,
+                }))
+              : undefined,
+            photo_description: photoModeFU ? params.photoDescription || undefined : undefined,
           },
-        }, 45000);
+        }, photoModeFU ? 120000 : 45000);
 
         if (res.error) throw new Error(res.error.message || "Erreur follow-up");
         const rawContent = res.data?.content ?? res.data;
