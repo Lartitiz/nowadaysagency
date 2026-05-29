@@ -126,32 +126,43 @@ async function callSonar(opts: {
   const userPrompt = mode === "scoop"
     ? `📅 DATE DU JOUR : ${todayLabel}.
 
-Quelles sont les 4 à 6 actualités CHOC de cette semaine en France qui font RÉAGIR le grand public — sur lesquelles n'importe quelle créatrice de contenu aurait envie de rebondir publiquement ?
+Donne-moi 6 actualités CHOC de cette semaine en France dont parle vraiment le grand public — celles qu'on entend en dîner, sur lesquelles tout le monde a un avis, qui circulent sur les réseaux. Du VRAI newsjacking.
 
-🎯 ON CHERCHE DU NEWSJACKING : polémique virale en cours, chiffre choc révélé, déclaration publique qui fait débat, affaire qui éclate, fuite/exposé, retournement d'enquête, sortie culturelle qui fait parler, dérive systémique nommée, classement/baromètre qui dérange, prise de parole d'une perso publique/marque/institution qui scandalise ou interpelle.
+🎯 QUOTA DE DIVERSITÉ OBLIGATOIRE — vise idéalement 1 actu par catégorie (au minimum 4 catégories couvertes) :
+  (a) Scandale / accusation visant une PERSONNALITÉ PUBLIQUE connue (témoignage MeToo nommé, enquête sur figure publique, mise en examen médiatisée, sortie d'un livre/doc qui accuse, prise de parole de victimes)
+  (b) Événement culturel EN COURS ou qui vient de s'achever (festival type Cannes/Avignon, cérémonie type César/Victoires, sortie marquante film/série/album, polémique tapis rouge, discours qui buzz)
+  (c) Polémique société / débat viral (sujet qui clive en ce moment sur les réseaux français)
+  (d) Chiffre / rapport / enquête qui choque (étude, baromètre récent qui dérange, données révélées)
+  (e) Déclaration publique virale (interview, plateau TV, post viral d'une personnalité/institution/marque qui fait réagir)
+  (f) Affaire judiciaire / économique / institutionnelle grand public (procès médiatisé, faillite retentissante, décision qui scandalise)
+
+⚠️ Ne renvoie JAMAIS 3 sujets du même registre. Si tu as déjà 2 "rapports/enquêtes", la 3e actu DOIT venir d'une autre catégorie.
 
 🚨 FRAÎCHEUR :
-- Cible des actus PUBLIÉES depuis le ${afterLabel}.
-- Si la date de publication est incertaine mais que le sujet fait clairement débat CETTE semaine sur les réseaux/médias français, garde-le quand même et mets une date approximative.
+- Cible des actus actives/discutées depuis le ${afterLabel}.
+- Si la date exacte est floue mais que le sujet fait clairement débat CETTE semaine sur médias/réseaux français, garde-le et mets une date approximative.
 
-🚫 INTERDIT STRICT :
-- Faits divers tragiques (accidents, meurtres, violences personnelles, drames intimes)
-- Politique partisane (élections, partis nommés, attaques entre partis)
+🚫 INTERDIT STRICT (et seulement ça) :
+- Faits divers LOCAUX anonymes (accident de la route, drame familial sans portée publique)
+- Propagande partisane (élections en cours, attaques entre partis nommés)
 - Pages d'inscription/replay de webinaires, save the date, billets en vente
-- Marketing pur, communiqués de presse promotionnels
+- Communiqués marketing purs, lancements produits sans dimension polémique
 - Marronniers annuels sans actu nouvelle ("tendances 2026" générique)
 
-✅ AUTORISÉ (et recherché) : déclarations publiques, polémiques de prise de parole, conférences/colloques avec déclarations qui font débat, sorties médiatiques.
+✅ EXPLICITEMENT AUTORISÉ (et recherché) :
+- Accusations publiques nommant des personnalités connues (MeToo, mises en cause médiatisées, témoignages de victimes contre figures publiques) — c'est du débat public, PAS du fait divers
+- Festivals, cérémonies, sorties culturelles en cours, polémiques tapis rouge
+- Déclarations en interview/plateau/conférence/post qui font réagir
+- Affaires judiciaires impliquant des personnalités, marques, institutions
 
-${niche ? `Profil de la personne qui va potentiellement réagir : ${niche}. Mais ne te restreins pas à son secteur — on cherche des actus GRAND PUBLIC.` : ""}
 ${universLine}${excludedLine}
 
 Pour CHAQUE actu :
-- titre court (max 90 caractères) qui doit déjà faire "oh wow"
+- titre court (max 90 caractères) qui doit déjà faire "oh wow" / "attends quoi ?"
 - résumé en 2 phrases : ce qui s'est passé + pourquoi ça fait réagir
 - nom du média source
 - URL de l'article (obligatoire)
-- date_publication YYYY-MM-DD (mets ta meilleure estimation si tu n'es pas sûre)
+- date_publication YYYY-MM-DD (meilleure estimation si tu n'es pas sûre)
 
 Réponds UNIQUEMENT avec ce JSON, sans markdown :
 {
