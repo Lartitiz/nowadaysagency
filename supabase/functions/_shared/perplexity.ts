@@ -227,7 +227,7 @@ Réponds UNIQUEMENT avec ce JSON, sans markdown, sans backticks :
     ],
     search_after_date_filter: formatDateUS(afterDate),
     temperature: mode === "scoop" ? 0.4 : 0.2,
-    max_tokens: mode === "scoop" ? 2200 : 1500,
+    max_tokens: mode === "scoop" ? 2800 : 1500,
   };
 
 
