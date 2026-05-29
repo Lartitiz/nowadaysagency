@@ -683,9 +683,16 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
                           >
                             <div className="mt-4 space-y-3 pl-8">
                               {anglesState?.loading && (
-                                <div className="flex items-center gap-2 py-4 text-xs text-muted-foreground">
-                                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                                  <span className="animate-pulse">Génération des angles…</span>
+                                <div className="flex flex-col gap-1 py-4 text-xs text-muted-foreground">
+                                  <div className="flex items-center gap-2">
+                                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                                    <span className="animate-pulse">Génération des angles…</span>
+                                  </div>
+                                  {anglesState.slow && (
+                                    <p className="pl-6 text-[11px] text-muted-foreground/80">
+                                      L'IA met plus de temps que prévu (jusqu'à 60 s parfois). Tu peux attendre encore un peu.
+                                    </p>
+                                  )}
                                 </div>
                               )}
 
