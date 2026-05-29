@@ -76,10 +76,29 @@ function isFreshEnough(dateStr: string | undefined, maxAgeDays: number): boolean
   return ageDays >= -1 && ageDays <= maxAgeDays; // tolère +1j de décalage tz
 }
 
-function looksEvergreen(a: PerplexityActu): boolean {
+// Patterns evergreen retirés en mode scoop : conférence/masterclass/colloque/
+// table ronde/événement/journées nationales sont autorisés car beaucoup
+// d'actus chocs viennent de prises de parole publiques.
+const SCOOP_EVERGREEN_WHITELIST = new Set<RegExp>([
+  /\bconf[ée]rence\b/i,
+  /\bmasterclass\b/i,
+  /\bcolloque\b/i,
+  /\bs[ée]minaire\b/i,
+  /\btable\s+ronde\b/i,
+  /\bjourn[ée]es?\s+(nationales?|d['ée]tude|professionnelles?)/i,
+  /\b[ée]v[ée]nement\s+(\dème|annuel|de\s+l|du)/i,
+  /\borganise\s+(un|une|le|la)\s+(webinaire|conf|masterclass|colloque|s[ée]minaire|[ée]v[ée]nement|table)/i,
+  /\bsalon\s+(du|de\s+la|professionnel)/i,
+]);
+
+function looksEvergreen(a: PerplexityActu, mode: "default" | "scoop" = "default"): boolean {
   const blob = `${a.titre} ${a.resume}`;
-  return EVERGREEN_PATTERNS.some((rx) => rx.test(blob));
+  const patterns = mode === "scoop"
+    ? EVERGREEN_PATTERNS.filter((rx) => !SCOOP_EVERGREEN_WHITELIST.has(rx))
+    : EVERGREEN_PATTERNS;
+  return patterns.some((rx) => rx.test(blob));
 }
+
 
 async function callSonar(opts: {
   niche?: string;
@@ -90,8 +109,9 @@ async function callSonar(opts: {
   todayLabel: string;
   apiKey: string;
   signal?: AbortSignal;
+  mode?: "default" | "scoop";
 }): Promise<{ actus: PerplexityActu[]; citations: string[]; raw: string }> {
-  const { niche, universKeywords, excludedUrls, recency, afterDate, todayLabel, apiKey, signal } = opts;
+  const { niche, universKeywords, excludedUrls, recency, afterDate, todayLabel, apiKey, signal, mode = "default" } = opts;
 
   const universLine = universKeywords.length
     ? `Centres d'intérêt de cette personne (pour aiguiller la sélection, pas pour restreindre) : ${universKeywords.slice(0, 6).join(", ")}.`
@@ -103,7 +123,43 @@ async function callSonar(opts: {
 
   const afterLabel = afterDate.toISOString().slice(0, 10);
 
-  const userPrompt = `📅 DATE DU JOUR : ${todayLabel}.
+  const userPrompt = mode === "scoop"
+    ? `📅 DATE DU JOUR : ${todayLabel}.
+
+Quelles sont les 4 à 6 actualités CHOC de cette semaine en France qui font RÉAGIR le grand public — sur lesquelles n'importe quelle créatrice de contenu aurait envie de rebondir publiquement ?
+
+🎯 ON CHERCHE DU NEWSJACKING : polémique virale en cours, chiffre choc révélé, déclaration publique qui fait débat, affaire qui éclate, fuite/exposé, retournement d'enquête, sortie culturelle qui fait parler, dérive systémique nommée, classement/baromètre qui dérange, prise de parole d'une perso publique/marque/institution qui scandalise ou interpelle.
+
+🚨 FRAÎCHEUR :
+- Cible des actus PUBLIÉES depuis le ${afterLabel}.
+- Si la date de publication est incertaine mais que le sujet fait clairement débat CETTE semaine sur les réseaux/médias français, garde-le quand même et mets une date approximative.
+
+🚫 INTERDIT STRICT :
+- Faits divers tragiques (accidents, meurtres, violences personnelles, drames intimes)
+- Politique partisane (élections, partis nommés, attaques entre partis)
+- Pages d'inscription/replay de webinaires, save the date, billets en vente
+- Marketing pur, communiqués de presse promotionnels
+- Marronniers annuels sans actu nouvelle ("tendances 2026" générique)
+
+✅ AUTORISÉ (et recherché) : déclarations publiques, polémiques de prise de parole, conférences/colloques avec déclarations qui font débat, sorties médiatiques.
+
+${niche ? `Profil de la personne qui va potentiellement réagir : ${niche}. Mais ne te restreins pas à son secteur — on cherche des actus GRAND PUBLIC.` : ""}
+${universLine}${excludedLine}
+
+Pour CHAQUE actu :
+- titre court (max 90 caractères) qui doit déjà faire "oh wow"
+- résumé en 2 phrases : ce qui s'est passé + pourquoi ça fait réagir
+- nom du média source
+- URL de l'article (obligatoire)
+- date_publication YYYY-MM-DD (mets ta meilleure estimation si tu n'es pas sûre)
+
+Réponds UNIQUEMENT avec ce JSON, sans markdown :
+{
+  "actus": [
+    { "titre": "...", "resume": "...", "source": "...", "source_url": "https://...", "date_publication": "YYYY-MM-DD" }
+  ]
+}`
+    : `📅 DATE DU JOUR : ${todayLabel}.
 
 Quelles sont les 2-3 actualités CHAUDES de cette ${recency === "day" ? "journée" : recency === "week" ? "semaine" : "période"} en France qui font le plus DÉBAT, dont les gens parlent vraiment sur les réseaux ou en discussion ?
 
@@ -145,23 +201,24 @@ Réponds UNIQUEMENT avec ce JSON, sans markdown, sans backticks :
   ]
 }`;
 
+  const systemContent = mode === "scoop"
+    ? "Tu es une assistante de veille newsjacking pour créateur·ices. Tu cherches des actus CHOC, virales, qui font réagir le grand public français cette semaine — celles dont tout le monde parle. Tu réponds en JSON strict. Tu acceptes les sujets même si la date exacte est floue, du moment qu'ils font clairement débat en ce moment."
+    : "Tu es une assistante de veille pour créateur·ices de contenu. Tu cherches des actus FRAÎCHES qui alimentent la discussion publique cette semaine, pas des marronniers, pas des événements/webinaires/replays. Tu réponds en JSON strict. Si une source n'a pas de date de publication claire, tu ne la cites pas.";
+
   // Note : Perplexity refuse `search_recency_filter` + `search_after_date_filter`
   // ensemble (erreur 400 invalid_date_filter_combination). On garde uniquement
-  // `search_after_date_filter` qui est plus strict et fiable.
+  // `search_after_date_filter`.
   const body = {
     model: "sonar-pro",
     messages: [
-      {
-        role: "system",
-        content:
-          "Tu es une assistante de veille pour créateur·ices de contenu. Tu cherches des actus FRAÎCHES qui alimentent la discussion publique cette semaine, pas des marronniers, pas des événements/webinaires/replays. Tu réponds en JSON strict. Si une source n'a pas de date de publication claire, tu ne la cites pas.",
-      },
+      { role: "system", content: systemContent },
       { role: "user", content: userPrompt },
     ],
     search_after_date_filter: formatDateUS(afterDate),
-    temperature: 0.2,
-    max_tokens: 1500,
+    temperature: mode === "scoop" ? 0.4 : 0.2,
+    max_tokens: mode === "scoop" ? 2200 : 1500,
   };
+
 
   const response = await fetch(PERPLEXITY_URL, {
     method: "POST",
@@ -218,23 +275,31 @@ export async function fetchHotNews(opts: {
   excludedUrls?: string[];
   apiKey: string;
   signal?: AbortSignal;
+  mode?: "default" | "scoop";
 }): Promise<PerplexityResult> {
-  const { niche, universKeywords = [], recency = "week", excludedUrls = [], apiKey, signal } = opts;
+  const { niche, universKeywords = [], recency = "week", excludedUrls = [], apiKey, signal, mode = "default" } = opts;
 
   const today = new Date();
   const todayLabel = todayISO();
-  const after10 = new Date(today.getTime() - 10 * 86_400_000);
 
-  // Premier appel — fenêtre 10 j
+  // En mode scoop, on évite "day" (trop étroit) et on prend une fenêtre plus
+  // large pour ne pas étrangler Perplexity ; le filtre côté code reste serré.
+  const effectiveRecency: "day" | "week" | "month" =
+    mode === "scoop" ? (recency === "day" ? "week" : recency) : recency;
+  const firstWindowDays = mode === "scoop" ? 14 : 10;
+  const firstAfter = new Date(today.getTime() - firstWindowDays * 86_400_000);
+
+  // Premier appel
   const first = await callSonar({
     niche,
     universKeywords,
     excludedUrls,
-    recency,
-    afterDate: after10,
+    recency: effectiveRecency,
+    afterDate: firstAfter,
     todayLabel,
     apiKey,
     signal,
+    mode,
   });
 
   const excludedSet = new Set(excludedUrls.map((u) => u.trim().toLowerCase()));
@@ -243,37 +308,45 @@ export async function fetchHotNews(opts: {
     return list.filter((a) => {
       if (!a.titre || !a.resume) return false;
       if (a.source_url && excludedSet.has(a.source_url.trim().toLowerCase())) return false;
-      if (!isFreshEnough(a.date_publication, maxAgeDays)) {
-        console.log(`[perplexity] dropped (date): "${a.titre?.slice(0, 60)}" → ${a.date_publication}`);
-        return false;
+      // En mode scoop : tolère date manquante/illisible si on a une URL source.
+      const dateOk = isFreshEnough(a.date_publication, maxAgeDays);
+      if (!dateOk) {
+        if (mode === "scoop" && a.source_url) {
+          console.log(`[perplexity:scoop] kept (date floue): "${a.titre?.slice(0, 60)}" → ${a.date_publication ?? "none"}`);
+        } else {
+          console.log(`[perplexity] dropped (date): "${a.titre?.slice(0, 60)}" → ${a.date_publication}`);
+          return false;
+        }
       }
-      if (looksEvergreen(a)) {
-        console.log(`[perplexity] dropped (evergreen): "${a.titre?.slice(0, 60)}"`);
+      if (looksEvergreen(a, mode)) {
+        console.log(`[perplexity${mode === "scoop" ? ":scoop" : ""}] dropped (evergreen): "${a.titre?.slice(0, 60)}"`);
         return false;
       }
       return true;
     });
   };
 
-  let kept = filterPipeline(first.actus, 14);
+  let kept = filterPipeline(first.actus, mode === "scoop" ? 21 : 14);
 
-  // Si trop peu, on retente avec une fenêtre serrée à 5 j
+  // Retry si trop peu d'actus survivent
   if (kept.length < 2) {
-    console.log(`[perplexity] only ${kept.length} actu(s) après filtre, retry serré -5j`);
+    const retryDays = mode === "scoop" ? 21 : 5;
+    const retryRecency: "day" | "week" | "month" = mode === "scoop" ? "month" : "week";
+    console.log(`[perplexity${mode === "scoop" ? ":scoop" : ""}] only ${kept.length} actu(s) après filtre, retry élargi (-${retryDays}j, ${retryRecency})`);
     try {
-      const after5 = new Date(today.getTime() - 5 * 86_400_000);
+      const retryAfter = new Date(today.getTime() - retryDays * 86_400_000);
       const second = await callSonar({
         niche,
         universKeywords,
         excludedUrls,
-        recency: "week",
-        afterDate: after5,
+        recency: retryRecency,
+        afterDate: retryAfter,
         todayLabel,
         apiKey,
         signal,
+        mode,
       });
-      const keptSecond = filterPipeline(second.actus, 10);
-      // dédoublonne par URL
+      const keptSecond = filterPipeline(second.actus, mode === "scoop" ? 28 : 10);
       const urls = new Set(kept.map((a) => (a.source_url || "").toLowerCase()));
       for (const a of keptSecond) {
         const u = (a.source_url || "").toLowerCase();
@@ -293,3 +366,4 @@ export async function fetchHotNews(opts: {
     raw_response: first.raw,
   };
 }
+

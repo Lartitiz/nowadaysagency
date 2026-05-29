@@ -285,22 +285,27 @@ serve(async (req) => {
             ].filter(Boolean);
 
         const ppxController = new AbortController();
-        const ppxTimeout = setTimeout(() => ppxController.abort(), 25000);
+        const ppxTimeout = setTimeout(() => ppxController.abort(), scoopMode ? 40000 : 25000);
         try {
           const ppxResult = await fetchHotNews({
             niche: wideMode ? undefined : nicheLabel,
             universKeywords,
-            recency: scoopMode ? "day" : "week",
+            recency: scoopMode ? "week" : "week",
             excludedUrls,
             apiKey: PERPLEXITY_API_KEY,
             signal: ppxController.signal,
+            mode: scoopMode ? "scoop" : "default",
           });
           const cap = scoopMode ? 6 : macroMode ? 5 : 3;
           hotNews = ppxResult.actus.slice(0, cap);
           console.log(`Perplexity (${scoopMode ? "scoop" : macroMode ? "macro" : "niche"}): ${hotNews.length} actu(s) chaude(s) récupérée(s)`);
+          if (scoopMode && hotNews.length === 0) {
+            console.log("[scoop] sourcing vide après 2 tentatives — fallback Claude web search");
+          }
         } finally {
           clearTimeout(ppxTimeout);
         }
+
       } catch (e) {
         console.warn("Perplexity sourcing failed (non-blocking):", (e as Error).message);
       }
@@ -431,7 +436,8 @@ La créatrice veut faire du VRAI NEWSJACKING : rebondir sur des actus CHAUDES, v
 
 ▶ SOURCES PRIORITAIRES (utilise web_search avec ces sites) :
 lemonde.fr, liberation.fr, lefigaro.fr, nouvelobs.fr, slate.fr, mediapart.fr, huffingtonpost.fr, franceinfo.fr, francetvinfo.fr, bfmtv.com, 20minutes.fr, lesinrocks.com, konbini.com, numerama.com, lesechos.fr.
-Reprends aussi les actus chaudes pré-sourcées ci-dessus si elles passent le test "oh wow".
+${hotNews.length > 0 ? `Reprends aussi les ${hotNews.length} actus chaudes pré-sourcées ci-dessus si elles passent le test "oh wow".` : `⚠️ AUCUNE actu pré-sourcée disponible cette fois → tu DOIS faire 4 à 6 recherches web sur les sites ci-dessus pour trouver toi-même les actus chocs des derniers jours. Ne renvoie JAMAIS une réponse vide ou un message d'excuse : si après tes recherches tu n'as rien, élargis à des sujets culturels ou société qui font débat ce mois-ci.`}
+
 
 ▶ TEST "OH WOW" OBLIGATOIRE — pour chaque sujet, à la lecture du titre seul, la cible doit avoir une réaction physique : sourcils qui se lèvent, "attends, quoi ?", envie immédiate de partager ou de réagir. Au moins UN de ces marqueurs DOIT être présent :
   - chiffre contre-intuitif ou choc (révélé cette semaine)
