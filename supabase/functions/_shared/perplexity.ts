@@ -76,10 +76,29 @@ function isFreshEnough(dateStr: string | undefined, maxAgeDays: number): boolean
   return ageDays >= -1 && ageDays <= maxAgeDays; // tolère +1j de décalage tz
 }
 
-function looksEvergreen(a: PerplexityActu): boolean {
+// Patterns evergreen retirés en mode scoop : conférence/masterclass/colloque/
+// table ronde/événement/journées nationales sont autorisés car beaucoup
+// d'actus chocs viennent de prises de parole publiques.
+const SCOOP_EVERGREEN_WHITELIST = new Set<RegExp>([
+  /\bconf[ée]rence\b/i,
+  /\bmasterclass\b/i,
+  /\bcolloque\b/i,
+  /\bs[ée]minaire\b/i,
+  /\btable\s+ronde\b/i,
+  /\bjourn[ée]es?\s+(nationales?|d['ée]tude|professionnelles?)/i,
+  /\b[ée]v[ée]nement\s+(\dème|annuel|de\s+l|du)/i,
+  /\borganise\s+(un|une|le|la)\s+(webinaire|conf|masterclass|colloque|s[ée]minaire|[ée]v[ée]nement|table)/i,
+  /\bsalon\s+(du|de\s+la|professionnel)/i,
+]);
+
+function looksEvergreen(a: PerplexityActu, mode: "default" | "scoop" = "default"): boolean {
   const blob = `${a.titre} ${a.resume}`;
-  return EVERGREEN_PATTERNS.some((rx) => rx.test(blob));
+  const patterns = mode === "scoop"
+    ? EVERGREEN_PATTERNS.filter((rx) => !SCOOP_EVERGREEN_WHITELIST.has(rx))
+    : EVERGREEN_PATTERNS;
+  return patterns.some((rx) => rx.test(blob));
 }
+
 
 async function callSonar(opts: {
   niche?: string;
