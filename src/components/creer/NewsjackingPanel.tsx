@@ -95,7 +95,7 @@ interface AnglesState {
 }
 
 const VIBES: { id: string; emoji: string; label: string }[] = [
-  { id: "scoop", emoji: "💥", label: "Scoop qui fait réagir" },
+  { id: "scoop", emoji: "💥", label: "Actu choc à rebondir" },
   { id: "phenomene", emoji: "🌀", label: "Phénomène culturel" },
   { id: "debat", emoji: "⚖️", label: "Débat clivant" },
   { id: "stat", emoji: "📊", label: "Stat ou étude étonnante" },
