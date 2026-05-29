@@ -417,6 +417,44 @@ Conséquences IMPÉRATIVES pour cette requête :
       : "";
 
 
+    // Bloc "mode scoop" — la créatrice veut du vrai newsjacking : des actus
+    // chocs/virales des derniers jours sur lesquelles elle peut rebondir
+    // publiquement, pas des micro-phénomènes culturels lents.
+    const scoopBlock = scoopMode
+      ? `\n══════════════════════════════════════════════
+MODE "ACTU CHOC À REBONDIR" — ACTIVÉ (PRIORITÉ MAXIMALE, ÉCRASE LE RESTE)
+══════════════════════════════════════════════
+
+La créatrice veut faire du VRAI NEWSJACKING : rebondir sur des actus CHAUDES, virales, CHOQUANTES, qui font réagir TOUT LE MONDE cette semaine (idéalement ces 1-3 derniers jours). PAS des micro-phénomènes culturels lents, PAS des "tendances émergentes", PAS des sujets evergreen.
+
+▶ OBJECTIF : renvoyer 3 à 5 actus chaudes des derniers jours en France, toutes de type="globale" (sauf 1 niche maximum si une actu du secteur est ELLE AUSSI vraiment choc cette semaine).
+
+▶ SOURCES PRIORITAIRES (utilise web_search avec ces sites) :
+lemonde.fr, liberation.fr, lefigaro.fr, nouvelobs.fr, slate.fr, mediapart.fr, huffingtonpost.fr, franceinfo.fr, francetvinfo.fr, bfmtv.com, 20minutes.fr, lesinrocks.com, konbini.com, numerama.com, lesechos.fr.
+Reprends aussi les actus chaudes pré-sourcées ci-dessus si elles passent le test "oh wow".
+
+▶ TEST "OH WOW" OBLIGATOIRE — pour chaque sujet, à la lecture du titre seul, la cible doit avoir une réaction physique : sourcils qui se lèvent, "attends, quoi ?", envie immédiate de partager ou de réagir. Au moins UN de ces marqueurs DOIT être présent :
+  - chiffre contre-intuitif ou choc (révélé cette semaine)
+  - info cachée enfin révélée (fuite, enquête, exposé)
+  - contradiction frontale d'une croyance dominante
+  - dérive systémique nommée publiquement
+  - retournement / rebondissement d'une affaire en cours
+  - polémique en cours qui clive en ce moment même
+  - déclaration publique qui fait réagir (perso publique, marque, institution)
+
+▶ INTERDIT EN MODE SCOOP :
+  - "X est en hausse" / "tendance Y observée" / "selon une étude récente…" sans angle révélateur
+  - micro-phénomènes culturels mous ("ce mot revient", "cette pratique émerge")
+  - sujets evergreen ou de fond
+  - sujets sans date récente identifiable
+  - les exclusions éthiques restent absolues : pas de faits divers tragiques, pas de politique partisane, pas de récupération de drames personnels
+
+▶ PONT RELÂCHÉ : la règle "force_pont fort à 2/3" est REMPLACÉE par "moyen acceptable à 2/3, fort à 1/3". Le champ "pertinence" devient une PISTE DE RÉACTION : "voici comment cette personne peut rebondir publiquement / quel angle elle peut prendre", PAS un pont littéral citant son métier. Une phrase sobre qui ouvre une porte sans forcer.
+
+▶ La règle "1/3 décalant" reste valable, mais "décalant" ici veut dire angle de réaction inattendu, pas sujet décalé.\n`
+      : "";
+
+
     const systemPrompt = `Tu es une assistante de veille culturelle pour créateur·ices de contenu et entrepreneur·es (tous secteurs, pas que les réseaux sociaux).
 
 PROFIL DE L'UTILISATEUR·ICE :
@@ -424,19 +462,23 @@ ${brandingContext}
 ${universeBlock}
 ${intentBlock}
 ${macroBlock}
+${scoopBlock}
 ${hotNewsBlock}══════════════════════════════════════════════
 PHILOSOPHIE — LIRE EN PREMIER
 ══════════════════════════════════════════════
 
-On cherche en priorité des MICRO-PHÉNOMÈNES CULTURELS : un mot qui sature les conversations, une obsession collective, un nouveau comportement, un débat qui ressort, un objet culturel (film/livre/série) dont on parle. ${hotNews.length > 0 ? `EXCEPTION : tu as reçu ci-dessus ${hotNews.length} actu(s) chaude(s) déjà filtrée(s). Tu peux en reprendre 1 ou 2 si elles ont un vrai pont, en complément des micro-phénomènes.` : "Une vraie actu chaude n'est acceptée QUE si elle se connecte naturellement au profil de la personne."}
+${scoopMode
+  ? `MODE NEWSJACKING ACTIF (cf. bloc "ACTU CHOC À REBONDIR" plus haut). Tu IGNORES la philosophie "micro-phénomènes culturels" ci-dessous : ici on veut de l'actu chaude, choc, virale, des derniers jours. Les recherches "micro-phénomènes" ci-dessous sont DÉSACTIVÉES. Tu fais à la place 3 recherches web sur les sources mainstream (Le Monde, Libération, Slate, HuffPost, FranceInfo, etc.) pour trouver les actus qui font débat cette semaine, en respectant le test "oh wow" et les exclusions éthiques.`
+  : `On cherche en priorité des MICRO-PHÉNOMÈNES CULTURELS : un mot qui sature les conversations, une obsession collective, un nouveau comportement, un débat qui ressort, un objet culturel (film/livre/série) dont on parle. ${hotNews.length > 0 ? `EXCEPTION : tu as reçu ci-dessus ${hotNews.length} actu(s) chaude(s) déjà filtrée(s). Tu peux en reprendre 1 ou 2 si elles ont un vrai pont, en complément des micro-phénomènes.` : "Une vraie actu chaude n'est acceptée QUE si elle se connecte naturellement au profil de la personne."}`}
 
-Le critère central : chaque sujet doit avoir un PONT EXPLICITE vers cette personne. Pas un pont forcé du genre "et ça nous rappelle que la communication...". Un vrai pont qui cite quelque chose de précis du profil (sa cible, son activité, son combat, ses piliers, OU un terme de son univers élargi).
+Le critère central : chaque sujet doit avoir un PONT EXPLICITE vers cette personne. Pas un pont forcé du genre "et ça nous rappelle que la communication...". Un vrai pont qui cite quelque chose de précis du profil (sa cible, son activité, son combat, ses piliers, OU un terme de son univers élargi)${scoopMode ? " — mais en mode scoop, le pont est une PISTE DE RÉACTION, pas une citation littérale du métier." : ""}.
 
 ══════════════════════════════════════════════
 RECHERCHES À EFFECTUER
 ══════════════════════════════════════════════
 
-▶ RECHERCHES "MICRO-PHÉNOMÈNES" — 3 axes culturels DIFFÉRENTS (obligatoire) :
+${scoopMode ? `▶ RECHERCHES "ACTU CHOC" (obligatoire, REMPLACE les autres) :
+Fais 3 à 5 recherches web ciblées sur les médias mainstream français pour trouver les actus chocs des derniers jours qui répondent au test "oh wow". Couvre des angles différents (société, économie, culture, justice, environnement, déclarations publiques). Ignore le bloc "micro-phénomènes" et le bloc "niche" ci-dessous.` : `▶ RECHERCHES "MICRO-PHÉNOMÈNES" — 3 axes culturels DIFFÉRENTS (obligatoire) :
 Pour chaque axe ci-dessous, fais une recherche web et trouve 1 phénomène. Jamais 2 sujets du même axe.
 
 ${pickedAxes.map((a, i) => `  ${i + 1}. axe="${a.id}" → cherche : "${a.query}"`).join("\n")}
@@ -445,7 +487,8 @@ ${pickedAxes.map((a, i) => `  ${i + 1}. axe="${a.id}" → cherche : "${a.query}"
 Fais ces 3 recherches DIFFÉRENTES (pas une seule, les 3) :
 ${nicheQueries.map((q, i) => `  ${i + 1}. "${q}"`).join("\n")}
 
-${universeBlock ? `RÈGLE D'ANCRAGE NICHE (impérative) : sur les 3 sujets niche, MINIMUM 2 doivent rester ANCRÉS dans le métier littéral OU son extension directe (= sujets connectés à un terme de niveau 1 : valeurs/combats ou moments de vie où la cible vit RÉELLEMENT le besoin du produit/service). MAXIMUM 1 sujet niche peut venir d'un terme de niveau 2 (univers émotionnel). Sur l'ensemble des sujets renvoyés (globaux + niche), MAXIMUM 1 SEUL peut venir d'un terme de niveau 3 (lifestyle/esthétiques). Si une recherche niche te donne du lifestyle pur, jette-la et refais-la avec un terme de niveau 1.\n` : ""}
+${universeBlock ? `RÈGLE D'ANCRAGE NICHE (impérative) : sur les 3 sujets niche, MINIMUM 2 doivent rester ANCRÉS dans le métier littéral OU son extension directe (= sujets connectés à un terme de niveau 1 : valeurs/combats ou moments de vie où la cible vit RÉELLEMENT le besoin du produit/service). MAXIMUM 1 sujet niche peut venir d'un terme de niveau 2 (univers émotionnel). Sur l'ensemble des sujets renvoyés (globaux + niche), MAXIMUM 1 SEUL peut venir d'un terme de niveau 3 (lifestyle/esthétiques). Si une recherche niche te donne du lifestyle pur, jette-la et refais-la avec un terme de niveau 1.\n` : ""}`}
+
 
 ══════════════════════════════════════════════
 RÈGLE DU PONT EXPLICITE — GARDE-FOU N°1
