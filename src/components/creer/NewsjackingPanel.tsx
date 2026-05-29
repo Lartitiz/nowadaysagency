@@ -89,6 +89,9 @@ interface AnglesState {
   loading: boolean;
   data?: ActuAngle[];
   error?: string;
+  errorCode?: "TIMEOUT" | "AUTH" | "NETWORK" | "RATE_LIMIT" | "SERVER" | "UNKNOWN";
+  startedAt?: number;
+  slow?: boolean; // true after 15s without response
 }
 
 const VIBES: { id: string; emoji: string; label: string }[] = [
