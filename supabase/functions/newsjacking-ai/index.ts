@@ -285,22 +285,27 @@ serve(async (req) => {
             ].filter(Boolean);
 
         const ppxController = new AbortController();
-        const ppxTimeout = setTimeout(() => ppxController.abort(), 25000);
+        const ppxTimeout = setTimeout(() => ppxController.abort(), scoopMode ? 40000 : 25000);
         try {
           const ppxResult = await fetchHotNews({
             niche: wideMode ? undefined : nicheLabel,
             universKeywords,
-            recency: scoopMode ? "day" : "week",
+            recency: scoopMode ? "week" : "week",
             excludedUrls,
             apiKey: PERPLEXITY_API_KEY,
             signal: ppxController.signal,
+            mode: scoopMode ? "scoop" : "default",
           });
           const cap = scoopMode ? 6 : macroMode ? 5 : 3;
           hotNews = ppxResult.actus.slice(0, cap);
           console.log(`Perplexity (${scoopMode ? "scoop" : macroMode ? "macro" : "niche"}): ${hotNews.length} actu(s) chaude(s) récupérée(s)`);
+          if (scoopMode && hotNews.length === 0) {
+            console.log("[scoop] sourcing vide après 2 tentatives — fallback Claude web search");
+          }
         } finally {
           clearTimeout(ppxTimeout);
         }
+
       } catch (e) {
         console.warn("Perplexity sourcing failed (non-blocking):", (e as Error).message);
       }
