@@ -109,8 +109,9 @@ async function callSonar(opts: {
   todayLabel: string;
   apiKey: string;
   signal?: AbortSignal;
+  mode?: "default" | "scoop";
 }): Promise<{ actus: PerplexityActu[]; citations: string[]; raw: string }> {
-  const { niche, universKeywords, excludedUrls, recency, afterDate, todayLabel, apiKey, signal } = opts;
+  const { niche, universKeywords, excludedUrls, recency, afterDate, todayLabel, apiKey, signal, mode = "default" } = opts;
 
   const universLine = universKeywords.length
     ? `Centres d'intérêt de cette personne (pour aiguiller la sélection, pas pour restreindre) : ${universKeywords.slice(0, 6).join(", ")}.`
@@ -122,7 +123,43 @@ async function callSonar(opts: {
 
   const afterLabel = afterDate.toISOString().slice(0, 10);
 
-  const userPrompt = `📅 DATE DU JOUR : ${todayLabel}.
+  const userPrompt = mode === "scoop"
+    ? `📅 DATE DU JOUR : ${todayLabel}.
+
+Quelles sont les 4 à 6 actualités CHOC de cette semaine en France qui font RÉAGIR le grand public — sur lesquelles n'importe quelle créatrice de contenu aurait envie de rebondir publiquement ?
+
+🎯 ON CHERCHE DU NEWSJACKING : polémique virale en cours, chiffre choc révélé, déclaration publique qui fait débat, affaire qui éclate, fuite/exposé, retournement d'enquête, sortie culturelle qui fait parler, dérive systémique nommée, classement/baromètre qui dérange, prise de parole d'une perso publique/marque/institution qui scandalise ou interpelle.
+
+🚨 FRAÎCHEUR :
+- Cible des actus PUBLIÉES depuis le ${afterLabel}.
+- Si la date de publication est incertaine mais que le sujet fait clairement débat CETTE semaine sur les réseaux/médias français, garde-le quand même et mets une date approximative.
+
+🚫 INTERDIT STRICT :
+- Faits divers tragiques (accidents, meurtres, violences personnelles, drames intimes)
+- Politique partisane (élections, partis nommés, attaques entre partis)
+- Pages d'inscription/replay de webinaires, save the date, billets en vente
+- Marketing pur, communiqués de presse promotionnels
+- Marronniers annuels sans actu nouvelle ("tendances 2026" générique)
+
+✅ AUTORISÉ (et recherché) : déclarations publiques, polémiques de prise de parole, conférences/colloques avec déclarations qui font débat, sorties médiatiques.
+
+${niche ? `Profil de la personne qui va potentiellement réagir : ${niche}. Mais ne te restreins pas à son secteur — on cherche des actus GRAND PUBLIC.` : ""}
+${universLine}${excludedLine}
+
+Pour CHAQUE actu :
+- titre court (max 90 caractères) qui doit déjà faire "oh wow"
+- résumé en 2 phrases : ce qui s'est passé + pourquoi ça fait réagir
+- nom du média source
+- URL de l'article (obligatoire)
+- date_publication YYYY-MM-DD (mets ta meilleure estimation si tu n'es pas sûre)
+
+Réponds UNIQUEMENT avec ce JSON, sans markdown :
+{
+  "actus": [
+    { "titre": "...", "resume": "...", "source": "...", "source_url": "https://...", "date_publication": "YYYY-MM-DD" }
+  ]
+}`
+    : `📅 DATE DU JOUR : ${todayLabel}.
 
 Quelles sont les 2-3 actualités CHAUDES de cette ${recency === "day" ? "journée" : recency === "week" ? "semaine" : "période"} en France qui font le plus DÉBAT, dont les gens parlent vraiment sur les réseaux ou en discussion ?
 
@@ -164,23 +201,24 @@ Réponds UNIQUEMENT avec ce JSON, sans markdown, sans backticks :
   ]
 }`;
 
+  const systemContent = mode === "scoop"
+    ? "Tu es une assistante de veille newsjacking pour créateur·ices. Tu cherches des actus CHOC, virales, qui font réagir le grand public français cette semaine — celles dont tout le monde parle. Tu réponds en JSON strict. Tu acceptes les sujets même si la date exacte est floue, du moment qu'ils font clairement débat en ce moment."
+    : "Tu es une assistante de veille pour créateur·ices de contenu. Tu cherches des actus FRAÎCHES qui alimentent la discussion publique cette semaine, pas des marronniers, pas des événements/webinaires/replays. Tu réponds en JSON strict. Si une source n'a pas de date de publication claire, tu ne la cites pas.";
+
   // Note : Perplexity refuse `search_recency_filter` + `search_after_date_filter`
   // ensemble (erreur 400 invalid_date_filter_combination). On garde uniquement
-  // `search_after_date_filter` qui est plus strict et fiable.
+  // `search_after_date_filter`.
   const body = {
     model: "sonar-pro",
     messages: [
-      {
-        role: "system",
-        content:
-          "Tu es une assistante de veille pour créateur·ices de contenu. Tu cherches des actus FRAÎCHES qui alimentent la discussion publique cette semaine, pas des marronniers, pas des événements/webinaires/replays. Tu réponds en JSON strict. Si une source n'a pas de date de publication claire, tu ne la cites pas.",
-      },
+      { role: "system", content: systemContent },
       { role: "user", content: userPrompt },
     ],
     search_after_date_filter: formatDateUS(afterDate),
-    temperature: 0.2,
-    max_tokens: 1500,
+    temperature: mode === "scoop" ? 0.4 : 0.2,
+    max_tokens: mode === "scoop" ? 2200 : 1500,
   };
+
 
   const response = await fetch(PERPLEXITY_URL, {
     method: "POST",
