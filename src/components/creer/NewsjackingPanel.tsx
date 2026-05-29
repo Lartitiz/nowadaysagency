@@ -211,16 +211,32 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
   // un crédit par erreur et pour ne pas relancer si workspaceId arrive en async.
 
   const fetchAngles = useCallback(async (idx: number, actu: Actu) => {
-    // Atomic gate (B3) : on ne lance le fetch que si pas déjà data/loading.
-    // Lecture via setAnglesByIdx pour avoir l'état le plus récent et éviter
-    // les doubles appels lors de clics rapides. (B4) deps = [workspaceId] uniquement.
+    // Atomic gate : ne lance que si pas déjà data/loading.
     let shouldFetch = false;
     setAnglesByIdx((prev) => {
       if (prev[idx]?.data || prev[idx]?.loading) return prev;
       shouldFetch = true;
-      return { ...prev, [idx]: { loading: true } };
+      return { ...prev, [idx]: { loading: true, startedAt: Date.now(), slow: false } };
     });
     if (!shouldFetch) return;
+
+    const t0 = Date.now();
+    console.log(`[newsjacking-angles] click idx=${idx} title="${String(actu.titre).slice(0, 60)}"`);
+
+    // Marqueur "lent" après 15s (UI uniquement)
+    const slowTimer = setTimeout(() => {
+      setAnglesByIdx((prev) => {
+        const s = prev[idx];
+        if (!s?.loading) return prev;
+        return { ...prev, [idx]: { ...s, slow: true } };
+      });
+    }, 15000);
+
+    const finish = (next: Partial<AnglesState>) => {
+      clearTimeout(slowTimer);
+      console.log(`[newsjacking-angles] done idx=${idx} in ${Date.now() - t0}ms`, next.errorCode || "ok");
+      setAnglesByIdx((prev) => ({ ...prev, [idx]: { loading: false, ...next } }));
+    };
 
     try {
       const { data, error: fnError } = await invokeWithTimeout("newsjacking-angles", {
@@ -229,26 +245,39 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
 
       if (fnError) {
         const msg = fnError.message || "";
-        const errMsg = fnError.isRateLimit || msg.includes("limit_reached")
-          ? "Tu as atteint ta limite de générations."
-          : "Génération échouée, réessaie.";
-        setAnglesByIdx((prev) => ({ ...prev, [idx]: { loading: false, error: errMsg } }));
+        let errorCode: AnglesState["errorCode"] = "SERVER";
+        let errMsg = "Génération échouée, réessaie.";
+        if (fnError.isRateLimit || msg.includes("limit_reached")) {
+          errorCode = "RATE_LIMIT";
+          errMsg = "Tu as atteint ta limite de générations.";
+        } else if (fnError.isTimeout) {
+          errorCode = "TIMEOUT";
+          errMsg = "L'IA met trop de temps à répondre. Réessaie dans un instant.";
+        } else if (fnError.isAuth) {
+          errorCode = "AUTH";
+          errMsg = "Ta session a expiré. Recharge la page et reconnecte-toi.";
+        } else if (fnError.isNetwork) {
+          errorCode = "NETWORK";
+          errMsg = "Connexion instable. Vérifie ton internet et réessaie.";
+        }
+        finish({ error: errMsg, errorCode });
         return;
       }
 
       if (data?.error) {
-        setAnglesByIdx((prev) => ({ ...prev, [idx]: { loading: false, error: data.message || data.error } }));
+        finish({ error: data.message || data.error, errorCode: "SERVER" });
         return;
       }
 
       if (!data?.angles || !Array.isArray(data.angles)) {
-        setAnglesByIdx((prev) => ({ ...prev, [idx]: { loading: false, error: "Format inattendu, réessaie." } }));
+        finish({ error: "Format inattendu, réessaie.", errorCode: "SERVER" });
         return;
       }
 
-      setAnglesByIdx((prev) => ({ ...prev, [idx]: { loading: false, data: data.angles } }));
-    } catch {
-      setAnglesByIdx((prev) => ({ ...prev, [idx]: { loading: false, error: "Génération échouée, réessaie." } }));
+      finish({ data: data.angles });
+    } catch (e) {
+      console.error("[newsjacking-angles] unexpected throw", e);
+      finish({ error: "Génération échouée, réessaie.", errorCode: "UNKNOWN" });
     }
   }, [workspaceId]);
 
