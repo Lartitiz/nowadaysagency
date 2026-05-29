@@ -251,7 +251,7 @@ serve(async (req) => {
     // Mapping VIBES → axes + hints (alimenté par l'intention utilisateur)
     // ─────────────────────────────────────────────────────────────
     const VIBES_MAP: Record<string, { axe: string | null; label: string; query_hint: string }> = {
-      scoop:     { axe: "actu_connectable",      label: "Scoop qui fait réagir",      query_hint: "scoop révélation qui fait réagir" },
+      scoop:     { axe: "actu_connectable",      label: "Actu choc à rebondir",       query_hint: "actualité choc cette semaine France polémique virale révélation qui sort affaire qui éclate chiffre qui choque scandale du moment enquête déclaration publique qui fait réagir" },
       phenomene: { axe: "obsession_collective",  label: "Phénomène culturel",         query_hint: "phénomène culturel viral du moment" },
       debat:     { axe: "debat_recurrent",       label: "Débat clivant",              query_hint: "débat clivant société polémique" },
       stat:      { axe: "comportement_emergent", label: "Stat ou étude étonnante",    query_hint: "étude statistique chiffre étonnant" },
