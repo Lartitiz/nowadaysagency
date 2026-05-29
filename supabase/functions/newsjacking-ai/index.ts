@@ -271,10 +271,11 @@ serve(async (req) => {
         const customWords = intentCustom
           ? intentCustom.split(/\s+/).filter((w) => w.length > 2).slice(0, 6).join(" ")
           : "";
-        // En mode macro, on coupe le biais niche pour récupérer de l'actu
-        // vraiment grand public ; sinon on garde l'orientation univers.
-        const universKeywords = macroMode
-          ? []
+        // En mode macro OU scoop, on coupe le biais niche pour récupérer de l'actu
+        // vraiment grand public / chaude ; sinon on garde l'orientation univers.
+        const wideMode = macroMode || scoopMode;
+        const universKeywords = wideMode
+          ? [...intentVibeHints, customWords].filter(Boolean)
           : [
               ...intentVibeHints,
               customWords,
@@ -287,15 +288,16 @@ serve(async (req) => {
         const ppxTimeout = setTimeout(() => ppxController.abort(), 25000);
         try {
           const ppxResult = await fetchHotNews({
-            niche: macroMode ? undefined : nicheLabel,
+            niche: wideMode ? undefined : nicheLabel,
             universKeywords,
-            recency: "week",
+            recency: scoopMode ? "day" : "week",
             excludedUrls,
             apiKey: PERPLEXITY_API_KEY,
             signal: ppxController.signal,
           });
-          hotNews = ppxResult.actus.slice(0, macroMode ? 5 : 3);
-          console.log(`Perplexity (${macroMode ? "macro" : "niche"}): ${hotNews.length} actu(s) chaude(s) récupérée(s)`);
+          const cap = scoopMode ? 6 : macroMode ? 5 : 3;
+          hotNews = ppxResult.actus.slice(0, cap);
+          console.log(`Perplexity (${scoopMode ? "scoop" : macroMode ? "macro" : "niche"}): ${hotNews.length} actu(s) chaude(s) récupérée(s)`);
         } finally {
           clearTimeout(ppxTimeout);
         }
