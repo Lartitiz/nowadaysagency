@@ -458,7 +458,11 @@ ${hotNews.length > 0 ? `Reprends aussi les ${hotNews.length} actus chaudes pré-
   - sujets sans date récente identifiable
   - les exclusions éthiques restent absolues : pas de faits divers tragiques, pas de politique partisane, pas de récupération de drames personnels
 
-▶ PONT RELÂCHÉ : la règle "force_pont fort à 2/3" est REMPLACÉE par "moyen acceptable à 2/3, fort à 1/3". Le champ "pertinence" devient une PISTE DE RÉACTION : "voici comment cette personne peut rebondir publiquement / quel angle elle peut prendre", PAS un pont littéral citant son métier. Une phrase sobre qui ouvre une porte sans forcer.
+▶ PONT TRÈS RELÂCHÉ — la priorité absolue est le test "oh wow", PAS la force du pont. La règle "force_pont fort à 2/3" est REMPLACÉE par : "moyen acceptable partout, fort optionnel". Le champ "pertinence" devient une PISTE D'ANGLE OUVERTE — une phrase qui suggère sur quoi cette personne pourrait rebondir (réagir comme citoyenne, partager son ressenti de spectatrice, ouvrir le débat sans prendre parti, raconter ce que ça lui évoque), SANS obligation de citer son métier, sa cible ou son combat.
+
+▶ RÈGLE DE CONSERVATION (impérative) : si ${hotNews.length > 0 ? `tu as reçu ${hotNews.length} actu(s) pré-sourcée(s) ci-dessus, tu DOIS en conserver AU MOINS ${Math.min(4, hotNews.length)}` : "tu trouves des actus via web_search, tu DOIS en conserver au moins 4"} dès lors qu'elles passent le test "oh wow" et qu'elles ne tombent pas dans les exclusions éthiques (faits divers locaux anonymes, propagande partisane). Ne jette PAS une actu choc juste parce que tu ne vois pas de pont littéral vers le profil — écris une piste d'angle ouverte à la place.
+
+▶ EXCLUSION MÉTA-RÉSEAUX-SOCIAUX DÉSACTIVÉE en mode scoop seul : les actus type "TikTok ban", "Meta licencie 10000 personnes", "Musk rachète…" sont AUTORISÉES si elles font débat grand public.
 
 ▶ La règle "1/3 décalant" reste valable, mais "décalant" ici veut dire angle de réaction inattendu, pas sujet décalé.\n`
       : "";
