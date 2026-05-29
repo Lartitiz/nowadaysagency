@@ -271,18 +271,21 @@ serve(async (req) => {
         const customWords = intentCustom
           ? intentCustom.split(/\s+/).filter((w) => w.length > 2).slice(0, 6).join(" ")
           : "";
-        // En mode macro OU scoop, on coupe le biais niche pour récupérer de l'actu
-        // vraiment grand public / chaude ; sinon on garde l'orientation univers.
+        // En mode scoop : on coupe TOTALEMENT le biais niche (les hints sont déjà
+        // dans le prompt Perplexity). En mode macro : pas de niche mais on garde
+        // les hints vibes. En mode default : on garde l'orientation univers.
+        const universKeywords = scoopMode
+          ? []
+          : macroMode
+            ? [...intentVibeHints, customWords].filter(Boolean)
+            : [
+                ...intentVibeHints,
+                customWords,
+                ...universe.valeurs_combat.slice(0, 2),
+                ...universe.moments_de_vie_cible.slice(0, 2),
+                ...universe.univers_emotionnel.slice(0, 2),
+              ].filter(Boolean);
         const wideMode = macroMode || scoopMode;
-        const universKeywords = wideMode
-          ? [...intentVibeHints, customWords].filter(Boolean)
-          : [
-              ...intentVibeHints,
-              customWords,
-              ...universe.valeurs_combat.slice(0, 2),
-              ...universe.moments_de_vie_cible.slice(0, 2),
-              ...universe.univers_emotionnel.slice(0, 2),
-            ].filter(Boolean);
 
         const ppxController = new AbortController();
         const ppxTimeout = setTimeout(() => ppxController.abort(), scoopMode ? 40000 : 25000);
