@@ -40,6 +40,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+  console.log(`[newsjacking-angles] request received method=${req.method}`);
 
   try {
     const authHeader = req.headers.get("Authorization");
