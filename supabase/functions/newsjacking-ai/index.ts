@@ -262,6 +262,7 @@ serve(async (req) => {
     const intentVibesValid = intentVibes.filter((v) => VIBES_MAP[v]);
     const intentVibeHints = intentVibesValid.map((v) => VIBES_MAP[v].query_hint);
     const intentVibeLabels = intentVibesValid.map((v) => VIBES_MAP[v].label);
+    const scoopMode = intentVibesValid.includes("scoop");
 
     let hotNews: PerplexityActu[] = [];
     const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
