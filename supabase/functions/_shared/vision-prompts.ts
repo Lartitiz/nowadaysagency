@@ -97,26 +97,45 @@ export function buildVisionGenerateBrief(contentType: string | null | undefined)
 
   if (ctype.includes("linkedin")) {
     return {
-      // Longueur 900-1400 (plus court que les posts texte purs 1300-1700 :
-      // l'image porte déjà une partie de la charge sémantique).
+      // Longueur 700-1100 (raccourci : l'image porte déjà une partie de la charge
+      // sémantique, et plus court = moins de remplissage / slop).
       formatBrief: `Rédige un POST LINKEDIN ancré dans la/les photo(s).
 
-LONGUEUR : 900-1400 caractères. Plus court = mieux ; coupe tout ce qui n'apporte rien.
+LONGUEUR : 700-1100 caractères. Plus court = mieux ; coupe tout ce qui n'apporte rien.
 
 ADRESSE : VOUS (vouvoiement). Jamais "tu", jamais "toi", jamais "ton/ta/tes".
 
 STRUCTURE EN 3 TEMPS (sans titres, sans bullet, sans emoji-puce) :
 1. ACCROCHE (1-2 lignes) : une phrase qui se tient SEULE, lisible même sans voir l'image, qui crée une tension, un contraste ou une surprise. Pas de "Aujourd'hui, je voulais vous parler de…". Pas de question rhétorique fermée ("Vous saviez que… ?").
-2. PONT IMAGE↔TEXTE (1 ligne, max 2) : une phrase qui fait un lien CONCRET avec ce qu'on voit, SANS paraphraser l'image. Interdit : "Sur cette photo…", "Comme vous pouvez le voir…", "Cette image montre…". Préférer l'oblique : "Ce détail, c'est…", "Ce moment dit quelque chose de…", "Derrière ce qu'on voit, il y a…".
+2. PONT IMAGE↔TEXTE (1 ligne, max 2) : une phrase qui fait un lien CONCRET avec ce qu'on voit, SANS paraphraser l'image. Préférer l'oblique : "Ce détail dit quelque chose de…", "Derrière ce qu'on voit, il y a…".
 3. MESSAGE (le reste) : UNE seule idée pro, prise de position assumée, ou apprentissage concret. Pas de liste à puces, pas de "3 leçons", pas de structure énumérative. Une pensée qui se déroule.
 
-FIN : pas de CTA fabriqué type "Et vous, qu'en pensez-vous ?". Soit une phrase ouverte qui invite naturellement à réagir, soit on coupe net.
+FIN : pas de CTA fabriqué. Soit une phrase ouverte qui invite naturellement à réagir, soit on coupe net.
 
-INTERDITS ABSOLUS :
+══ INTERDIT — DÉSIGNER LES IMAGES (même sans les numéroter) ══
+Le contournement le plus fréquent : remplacer "Photo 1" par une désignation visuelle ("ce flyer X", "ce comptoir Y"). C'est la MÊME erreur.
+❌ "Ce flyer orange et jaune, c'est l'événement Aire You Ready."
+❌ "Ce comptoir bleu avec ses illustrations de tartines, c'est l'intérieur des Petits Pâtis."
+❌ "Sur la première, on voit… sur la seconde…"
+✅ NOMMER directement le sujet sans le présenter comme une image : "Aire You Ready, c'est…", "Aux Petits Pâtis, on…".
+Règle simple : si tu retires la phrase, le lecteur ne doit PAS perdre une info — sinon c'est une légende, pas un post.
+
+══ INTERDIT — CASCADES / PHRASES-LISTES PARALLÈLES ══
+Même déguisées en "oral" ou "rythme", elles sonnent IA.
+❌ "Pas un musée à cocher. Un verre au comptoir. Une conversation qui s'étire."
+❌ "Pas pour faire joli. Pour créer du lien."
+❌ "Pas X. Pas Y. C'est Z."
+✅ Une seule pensée qui se déroule en phrases complètes, avec des connecteurs réels.
+
+══ INTERDIT — CTA FABRIQUÉ ══
+❌ « Ici, il se passe quelque chose. Venez. »
+❌ "Et vous, qu'en pensez-vous ?"
+❌ "Spoiler :", "Plot twist :", "Et si je vous disais que…"
+✅ Couper net sur la dernière phrase du message, OU une phrase ouverte non-injonctive.
+
+AUTRES INTERDITS :
 - Écrire "Photo 1", "Photo 2", "la première photo", "la seconde image", etc.
 - Décrire les photos une par une / faire une légende multi-images
-- Punchlines marketing fabriquées ("Et si je vous disais que…", "Spoiler :", "Plot twist :")
-- Phrases-listes parallèles ("Pas X. Pas Y. C'est Z.")
 - Hashtags en fin (sauf si dans les réponses utilisatrice)`,
       jsonShape: `{\n  "content": "...",\n  "accroche": "...",\n  "format": "post_linkedin",\n  "pillar": "...",\n  "objectif": "..."\n}`,
     };
