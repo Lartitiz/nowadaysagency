@@ -520,9 +520,12 @@ export default function CreerUnifie() {
     setStep("format");
   };
 
-  const handlePhotosNext = (photos: PhotoItem[], description: string) => {
+  const handlePhotosNext = (photos: PhotoItem[], description: string, subject?: string) => {
     setUploadedPhotos(photos);
     setPhotoDescription(description);
+    if (subject && subject.trim()) {
+      setIdeaText(subject.trim());
+    }
     setNewsjackingContext(null);
     setNewsjackingSuggestedFormat(null);
     setSelectedFormat(null);
