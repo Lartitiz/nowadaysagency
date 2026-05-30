@@ -13,7 +13,12 @@ interface Props {
   onNext: (idea: string) => void;
   onCoachingSelect?: (data: { subject: string; format: string; objective: string; carouselSubMode?: "text" | "photo" }) => void;
   onNewsjackingSelect?: (data: { subject: string; context: string; format?: string; vehicule?: string }) => void;
-  onPhotosNext?: (photos: PhotoItem[], description: string) => void;
+  onPhotosNext?: (photos: PhotoItem[], description: string, subject: string) => void;
+  workspaceId?: string;
+  activite?: string;
+  initialIdea?: string;
+  autoOpenTransform?: boolean;
+}
   workspaceId?: string;
   activite?: string;
   initialIdea?: string;
