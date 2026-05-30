@@ -1334,7 +1334,7 @@ Réponds UNIQUEMENT en JSON :
         model: getModelForAction("content"),
         system: systemPrompt,
         messages: [{ role: "user", content: photoContent }],
-        temperature: 0.85,
+        temperature: isLinkedInPhoto ? 0.7 : 0.85,
         max_tokens: 4096,
       });
     } else {
