@@ -123,103 +123,80 @@ async function callSonar(opts: {
 
   const afterLabel = afterDate.toISOString().slice(0, 10);
 
+  // Prompts épurés : règles stables dans le system, requête de recherche dans le user.
+  // Sonar utilise le user message comme base de sa requête web → on le garde court.
   const userPrompt = mode === "scoop"
-    ? `📅 DATE DU JOUR : ${todayLabel}.
+    ? `Date du jour : ${todayLabel}. Actus actives depuis le ${afterLabel}.
 
-Donne-moi 6 actualités CHOC de cette semaine en France dont parle vraiment le grand public — celles qu'on entend en dîner, sur lesquelles tout le monde a un avis, qui circulent sur les réseaux. Du VRAI newsjacking.
+Trouve 6 actus CHOC de la semaine en France qui font débat grand public — celles dont tout le monde parle en ce moment (dîners, réseaux, médias).
 
-🎯 QUOTA DE DIVERSITÉ OBLIGATOIRE — vise idéalement 1 actu par catégorie (au minimum 4 catégories couvertes) :
-  (a) Scandale / accusation visant une PERSONNALITÉ PUBLIQUE connue (témoignage MeToo nommé, enquête sur figure publique, mise en examen médiatisée, sortie d'un livre/doc qui accuse, prise de parole de victimes)
-  (b) Événement culturel EN COURS ou qui vient de s'achever (festival type Cannes/Avignon, cérémonie type César/Victoires, sortie marquante film/série/album, polémique tapis rouge, discours qui buzz)
-  (c) Polémique société / débat viral (sujet qui clive en ce moment sur les réseaux français)
-  (d) Chiffre / rapport / enquête qui choque (étude, baromètre récent qui dérange, données révélées)
-  (e) Déclaration publique virale (interview, plateau TV, post viral d'une personnalité/institution/marque qui fait réagir)
-  (f) Affaire judiciaire / économique / institutionnelle grand public (procès médiatisé, faillite retentissante, décision qui scandalise)
+Couvre AU MOINS 4 des 6 catégories suivantes (1 par catégorie idéalement, jamais 3 du même registre) :
+  (a) Scandale / accusation visant une personnalité publique connue (MeToo nommé, mise en examen médiatisée, témoignage de victimes)
+  (b) Événement culturel en cours ou qui vient de s'achever (festival type Cannes/Avignon, cérémonie, sortie marquante film/série/album, polémique tapis rouge)
+  (c) Polémique société / débat viral qui clive
+  (d) Chiffre / rapport / enquête qui choque
+  (e) Déclaration publique virale (interview, plateau TV, post)
+  (f) Affaire judiciaire / économique / institutionnelle médiatisée
+${universLine ? `\n${universLine}` : ""}${excludedLine}`
+    : `Date du jour : ${todayLabel}. Actus publiées entre le ${afterLabel} et aujourd'hui.
 
-⚠️ Ne renvoie JAMAIS 3 sujets du même registre. Si tu as déjà 2 "rapports/enquêtes", la 3e actu DOIT venir d'une autre catégorie.
+Trouve 2-3 actualités françaises de cette ${recency === "day" ? "journée" : recency === "week" ? "semaine" : "période"} qui font vraiment débat sur les réseaux ou en discussion publique : polémiques fraîches, déclarations virales, sorties marquantes (film, livre, série, album), phénomènes culturels qui montent, mouvements sociaux.
+${niche ? `\nProfil de la personne qui va potentiellement réagir : ${niche}.` : ""}${universLine ? `\n${universLine}` : ""}${excludedLine}`;
 
-🚨 FRAÎCHEUR :
-- Cible des actus actives/discutées depuis le ${afterLabel}.
-- Si la date exacte est floue mais que le sujet fait clairement débat CETTE semaine sur médias/réseaux français, garde-le et mets une date approximative.
-
-🚫 INTERDIT STRICT (et seulement ça) :
-- Faits divers LOCAUX anonymes (accident de la route, drame familial sans portée publique)
-- Propagande partisane (élections en cours, attaques entre partis nommés)
-- Pages d'inscription/replay de webinaires, save the date, billets en vente
-- Communiqués marketing purs, lancements produits sans dimension polémique
-- Marronniers annuels sans actu nouvelle ("tendances 2026" générique)
-
-✅ EXPLICITEMENT AUTORISÉ (et recherché) :
-- Accusations publiques nommant des personnalités connues (MeToo, mises en cause médiatisées, témoignages de victimes contre figures publiques) — c'est du débat public, PAS du fait divers
-- Festivals, cérémonies, sorties culturelles en cours, polémiques tapis rouge
-- Déclarations en interview/plateau/conférence/post qui font réagir
-- Affaires judiciaires impliquant des personnalités, marques, institutions
-
-${universLine}${excludedLine}
-
-Pour CHAQUE actu :
-- titre court (max 90 caractères) qui doit déjà faire "oh wow" / "attends quoi ?"
-- résumé en 2 phrases : ce qui s'est passé + pourquoi ça fait réagir
-- nom du média source
-- URL de l'article (obligatoire)
-- date_publication YYYY-MM-DD (meilleure estimation si tu n'es pas sûre)
-
-Réponds UNIQUEMENT avec ce JSON, sans markdown :
-{
-  "actus": [
-    { "titre": "...", "resume": "...", "source": "...", "source_url": "https://...", "date_publication": "YYYY-MM-DD" }
-  ]
-}`
-    : `📅 DATE DU JOUR : ${todayLabel}.
-
-Quelles sont les 2-3 actualités CHAUDES de cette ${recency === "day" ? "journée" : recency === "week" ? "semaine" : "période"} en France qui font le plus DÉBAT, dont les gens parlent vraiment sur les réseaux ou en discussion ?
-
-🚨 RÈGLE FRAÎCHEUR ABSOLUE :
-- Tu ne renvoies QUE des actus PUBLIÉES entre le ${afterLabel} et ${todayLabel}.
-- Si tu n'es pas SÛRE de la date de publication réelle (date affichée sur l'article, pas date de crawl), JETTE le sujet.
-- Si la "date" trouvée est en réalité la date d'un événement passé ou à venir, JETTE.
-
-🚫 INTERDIT (toujours) :
-- Webinaires, conférences, masterclass, lives, événements (passés OU à venir) — même s'ils sont récents
-- Pages de "replay" ou d'inscription, pages institutionnelles evergreen (Bpifrance, ministères, syndicats)
-- Marronniers (palmarès annuels, baromètres récurrents, "tendances 2026")
-- Faits divers tragiques (accidents, meurtres, violences personnelles)
-- Propagande partisane (élections, partis nommés)
-- Résultats sportifs purs, communiqués marketing
-
-✅ INCLURE : polémiques publiques fraîches, déclarations virales, sorties marquantes (film, livre, série, album) de la fenêtre, phénomènes culturels qui montent CETTE SEMAINE, débats société qui ressortent CETTE SEMAINE, mouvements sociaux discutés CETTE SEMAINE.
-
-${niche ? `Profil de la personne qui va potentiellement réagir à ces actus : ${niche}.` : ""}
-${universLine}${excludedLine}
-
-Pour CHAQUE actu, fournis OBLIGATOIREMENT :
-- titre court (max 90 caractères)
-- résumé factuel en 2 phrases (ce qui s'est passé + pourquoi ça fait débat)
-- nom du média source principal
-- URL de l'article source (obligatoire)
-- date_publication au format ISO strict YYYY-MM-DD (obligatoire — c'est la date affichée sur l'article, PAS la date du jour, PAS la date d'un événement annoncé)
-
-Réponds UNIQUEMENT avec ce JSON, sans markdown, sans backticks :
-{
-  "actus": [
-    {
-      "titre": "...",
-      "resume": "...",
-      "source": "...",
-      "source_url": "https://...",
-      "date_publication": "YYYY-MM-DD"
-    }
-  ]
-}`;
-
+  // Systems riches et stables (cachables côté Perplexity).
   const systemContent = mode === "scoop"
-    ? "Tu es une assistante de veille newsjacking pour créateur·ices. Tu cherches des actus CHOC, virales, qui font réagir le grand public français cette semaine — celles dont tout le monde parle. Tu réponds en JSON strict. Tu acceptes les sujets même si la date exacte est floue, du moment qu'ils font clairement débat en ce moment."
-    : "Tu es une assistante de veille pour créateur·ices de contenu. Tu cherches des actus FRAÎCHES qui alimentent la discussion publique cette semaine, pas des marronniers, pas des événements/webinaires/replays. Tu réponds en JSON strict. Si une source n'a pas de date de publication claire, tu ne la cites pas.";
+    ? `Tu es une assistante de veille newsjacking pour créateur·ices francophones, focus France.
+
+Mission : remonter les actus CHOC grand public de la semaine — celles dont tout le monde parle.
+
+Règles de tri permanentes :
+- AUTORISÉ et recherché : accusations publiques nommant des personnalités connues (MeToo, mises en cause médiatisées, témoignages de victimes contre figures publiques), festivals/cérémonies/sorties culturelles, polémiques tapis rouge, déclarations en interview/plateau/post qui font réagir, affaires judiciaires impliquant personnalités/marques/institutions, débats société viraux, chiffres/rapports qui dérangent.
+- INTERDIT : faits divers locaux anonymes (accident de la route, drame familial sans portée publique), propagande partisane (élections en cours, attaques entre partis nommés), pages d'inscription/replay de webinaires, save the date, billets en vente, communiqués marketing purs, marronniers annuels sans actu nouvelle ("tendances 2026" générique).
+- Tu acceptes les sujets même si la date exacte est floue, du moment qu'ils font clairement débat cette semaine et que tu as une URL source.
+
+Pour chaque actu : titre court (<90 caractères) qui déjà fait "oh wow", résumé en 2 phrases (ce qui s'est passé + pourquoi ça fait réagir), nom du média, URL de l'article (obligatoire), date_publication YYYY-MM-DD (meilleure estimation si floue).`
+    : `Tu es une assistante de veille pour créateur·ices de contenu francophones.
+
+Mission : remonter les actus FRAÎCHES qui alimentent la discussion publique cette semaine — pas des marronniers, pas des événements/webinaires/replays.
+
+Règles de tri permanentes :
+- AUTORISÉ : polémiques publiques fraîches, déclarations virales, sorties marquantes (film, livre, série, album), phénomènes culturels qui montent, débats société qui ressortent cette semaine, mouvements sociaux discutés.
+- INTERDIT : webinaires, conférences, masterclass, lives, événements (passés ou à venir) — même récents ; pages de replay ou d'inscription ; pages institutionnelles evergreen ; marronniers (palmarès annuels, baromètres récurrents, "tendances 2026") ; faits divers tragiques anonymes ; propagande partisane ; résultats sportifs purs ; communiqués marketing.
+- Si tu n'es pas sûre de la date réelle de publication, ne cite pas la source.
+
+Pour chaque actu : titre court (<90 caractères), résumé factuel en 2 phrases, nom du média source principal, URL de l'article (obligatoire), date_publication YYYY-MM-DD (date affichée sur l'article, pas date du jour, pas date d'un événement annoncé).`;
+
+  // Schéma JSON strict pour fiabiliser le parsing (remplace "réponds en JSON" en prose).
+  const responseFormat = {
+    type: "json_schema",
+    json_schema: {
+      schema: {
+        type: "object",
+        properties: {
+          actus: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                titre: { type: "string" },
+                resume: { type: "string" },
+                source: { type: "string" },
+                source_url: { type: "string" },
+                date_publication: { type: "string" },
+              },
+              required: ["titre", "resume", "source", "source_url"],
+            },
+          },
+        },
+        required: ["actus"],
+      },
+    },
+  };
 
   // Note : Perplexity refuse `search_recency_filter` + `search_after_date_filter`
   // ensemble (erreur 400 invalid_date_filter_combination). On garde uniquement
   // `search_after_date_filter`.
-  const body = {
+  const body: Record<string, unknown> = {
     model: "sonar-pro",
     messages: [
       { role: "system", content: systemContent },
@@ -227,8 +204,14 @@ Réponds UNIQUEMENT avec ce JSON, sans markdown, sans backticks :
     ],
     search_after_date_filter: formatDateUS(afterDate),
     temperature: mode === "scoop" ? 0.4 : 0.2,
-    max_tokens: mode === "scoop" ? 2800 : 1500,
+    max_tokens: mode === "scoop" ? 2000 : 1000,
+    response_format: responseFormat,
   };
+
+  if (mode === "scoop") {
+    body.web_search_options = { search_context_size: "high" };
+  }
+
 
 
   const response = await fetch(PERPLEXITY_URL, {
