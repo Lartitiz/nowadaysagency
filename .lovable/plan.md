@@ -1,134 +1,104 @@
-## Audit des prompts Perplexity
+## Audit des posts LinkedIn générés depuis photo(s)
 
 ### Constats
 
-**1. Confusion system / user.** Sonar utilise le `user message` comme base de la requête de recherche. Aujourd'hui notre user prompt fait ~45 lignes (mode scoop) : titres emoji, listes INTERDIT/AUTORISÉ, exemples, format JSON, date du jour, profil… Tout ça pollue le signal de recherche. Sonar fait sa recherche web sur du bruit au lieu d'une question claire.
+**1. Le modèle écrit "Photo 1", "Photo 2"… dans le post final.**
+Cause : dans `creative-flow/index.ts` (l.1264-1282), on injecte un label texte `↑ Photo 1/4`, `↑ Photo 2/4`… juste après chaque image envoyée à Claude. Le modèle apprend de ce qu'il voit dans le prompt et reproduit ce phrasé dans la sortie. La contre-instruction "évite 'photo 1 : photo 2 :'" arrive 30 lignes plus bas, noyée. Elle perd contre l'amorçage visuel.
 
-**2. Le system message est sous-exploité.** Il fait 1 phrase. Or c'est là qu'on devrait mettre les règles stables (éthique, format, garde-fous) que Sonar applique à toutes les requêtes sans les ré-encoder côté recherche.
+**2. Le post tutoie ("tu") au lieu de vouvoyer ("vous").**
+Cause : le brief LinkedIn (`vision-prompts.ts:100`) dit juste "Ton pro mais incarné" sans imposer le vouvoiement. Le system prompt global et le ton par défaut du projet sont en "tu" (Instagram, coach). LinkedIn FR pro = "vous" par défaut → il faut le préciser explicitement.
 
-**3. JSON demandé en prose.** "Réponds UNIQUEMENT avec ce JSON, sans markdown" → fragile. Sonar supporte `response_format: { type: "json_schema", ... }` qui force la structure et fiabilise le parsing. On en bénéficierait gratuitement (suppression de la moitié du try/catch dans `callSonar`).
+**3. Trop de texte, pont image↔texte faible, peu de profondeur.**
 
-**4. Redondances dans le user prompt scoop :**
-   - Les 6 catégories (a-f) sont utiles → on garde.
-   - Le bloc INTERDIT répète des choses déjà dans le bloc AUTORISÉ ("PAS du fait divers" déjà dit dans AUTORISÉ).
-   - Le bloc FRAÎCHEUR redit ce que fait déjà `search_after_date_filter`.
-   - Les consignes de format des champs (titre <90 caractères, etc.) sont mieux dans le json_schema.
+- Brief actuel : "1300-2000 caractères" → trop long, conflit avec la mémoire projet (1300-1700).
+- Le pont est décrit en une demi-phrase floue : "L'image illustre un point précis du texte (ne pas la paraphraser)". Pas de règle concrète sur OÙ et COMMENT le pont apparaît.
+- Structure "hook → apprentissage → invitation à réagir" très convenue, pousse vers le post LinkedIn générique.
 
-**5. Mode default : prompt trop défensif.** "Si tu n'es pas SÛRE → JETTE" combiné à `search_after_date_filter` strict produit souvent 0 actus. Notre filtre code refait déjà ce travail (`isFreshEnough`, `looksEvergreen`). Doubler la défense côté prompt = perte sèche.
+**4. Multi-photos : le post devient un photo-by-photo descriptif.**
 
-**6. `web_search_options` non utilisé.** Sonar-pro accepte `web_search_options: { search_context_size: "high" }` qui élargit la fenêtre de contexte de recherche. Utile en mode scoop où on veut de la diversité.
+- En mode série, on injecte `↑ Photo 1/4`, `↑ Photo 2/4`… ce qui pousse au listing.
+- Le `modeInstr` série suggère trop de structures narratives ("J1, J2, J3", "étape 1, 2, 3") qui mènent à l'énumération.
+- Le brief ne dit pas clairement : **un seul fil thématique commun, un seul message, les photos sont des angles d'un même sujet**.
 
 ---
 
 ## Plan
 
-Un seul fichier : `supabase/functions/_shared/perplexity.ts`. Pas de changement DB, pas de changement UI, pas de changement contractuel pour `newsjacking-ai/index.ts`.
+Deux fichiers touchés. Aucune modif DB, aucune modif UI.
 
-### 1. Réécrire les system prompts (stables, riches)
+### 1. `supabase/functions/_shared/vision-prompts.ts` — refondre le brief LinkedIn
 
-Deux systems courts mais denses, contenant TOUTES les règles éthiques et de format. Ils ne changent jamais entre les requêtes → cachables côté Perplexity.
+Réécrire l'entrée `if (ctype.includes("linkedin"))` de `buildVisionGenerateBrief` :
 
-**System scoop** (~10 lignes) :
-- Rôle : assistante de veille newsjacking, audience francophone, focus France.
-- Mission : sujets CHOC grand public de la semaine.
-- Règles éthiques permanentes : autorise accusations publiques nommées (MeToo, mises en cause médiatisées), interdit faits divers locaux anonymes + propagande partisane + webinaires/marketing.
-- Règle de format : titre <90 car., résumé 2 phrases, source nommée, URL obligatoire, date estimée OK si floue.
-- Règle de diversité : jamais 3 sujets du même registre.
-
-**System default** (~8 lignes) : équivalent pour le mode niche, sans la partie diversité.
-
-### 2. Réécrire les user prompts (courts, ciblés)
-
-**User scoop** (~12 lignes au lieu de 45) :
 ```
-Date du jour : {today}. Actus actives depuis le {afterDate}.
+Rédige un POST LINKEDIN ancré dans la/les photo(s).
 
-Trouve 6 actus CHOC de la semaine en France qui font débat grand public.
-Couvre AU MOINS 4 des 6 catégories suivantes (1 par catégorie idéalement) :
-  (a) Scandale / accusation visant une personnalité publique connue
-  (b) Événement culturel en cours (festival, cérémonie, sortie marquante)
-  (c) Polémique société / débat viral
-  (d) Chiffre / rapport / enquête qui choque
-  (e) Déclaration publique virale (interview, post, plateau)
-  (f) Affaire judiciaire / économique / institutionnelle
+LONGUEUR : 900-1400 caractères (plus court = mieux ; on coupe ce qui n'apporte rien).
 
-{universLine si présente}
-{excludedLine si présente}
-```
+ADRESSE : VOUS (vouvoiement). Jamais "tu", jamais "toi".
 
-**User default** (~8 lignes) : version équivalente compacte, sans les catégories.
+STRUCTURE EN 3 TEMPS (sans titres, sans bullet) :
+1. ACCROCHE (1-2 lignes) : une phrase qui se tient SEULE, lisible sans voir l'image,
+   qui crée la tension ou la surprise. Pas de question rhétorique. Pas de "Aujourd'hui,
+   je voulais vous parler de…".
+2. PONT IMAGE↔TEXTE (1 ligne, max 2) : une phrase qui fait un lien CONCRET avec ce
+   qu'on voit, sans paraphraser ("Sur cette photo, X" est interdit). 
+3. MESSAGE (le reste) : UNE seule idée pro, prise de position assumée, ou
+   apprentissage concret. Pas de liste, pas de "3 leçons", pas de bullets.
 
-Les listes INTERDIT/AUTORISÉ disparaissent du user prompt (elles sont dans le system). Le format JSON disparaît aussi (il est dans `response_format`).
+INTERDITS :
+- "Photo 1", "Photo 2", "sur la première photo", "comme vous pouvez le voir"
+- Décrire les photos une par une
+- Punchline marketing fabriquée ("Et si je vous disais que…", "Spoiler :")
+- Phrases-listes parallèles ("Pas X. Pas Y. C'est Z.")
+- Hook question fermée ("Vous saviez que… ?")
 
-### 3. Activer `response_format: json_schema`
-
-Définir un schéma strict :
-```ts
-{
-  type: "json_schema",
-  json_schema: {
-    name: "actus_chaudes",
-    schema: {
-      type: "object",
-      properties: {
-        actus: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              titre: { type: "string", maxLength: 90 },
-              resume: { type: "string" },
-              source: { type: "string" },
-              source_url: { type: "string" },
-              date_publication: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
-            },
-            required: ["titre", "resume", "source", "source_url"]
-          }
-        }
-      },
-      required: ["actus"]
-    }
-  }
-}
+FIN : pas de CTA explicite type "Et vous, qu'en pensez-vous ?". Laisser une phrase
+ouverte qui invite naturellement à réagir, ou couper net.
 ```
 
-Conséquence : le bloc try/catch fallback (recherche manuelle de `{` / `}`) peut rester en filet de sécurité mais ne servira plus en pratique.
+### 2. `supabase/functions/creative-flow/index.ts` — supprimer la pollution "Photo X/N"
 
-### 4. Activer `web_search_options` en mode scoop
+Réécrire le bloc l.1263-1294 :
 
-```ts
-web_search_options: { search_context_size: "high" }
-```
+- **Single (1 photo)** : ne pas injecter de label texte du tout (juste l'image, et le contexte par photo s'il existe).
+- **Before/after (2 photos)** : garder le label car c'est sémantique (`↑ AVANT` / `↑ APRÈS`, sans "Photo 1/2").
+- **Série (3+ photos)** : **ne plus injecter de label numéroté**. Juste les images les unes après les autres. Le contexte par photo s'affiche uniquement s'il a été fourni (sans numéro).
+- Réécrire `modeInstr` série en une consigne courte et tranchée :
+  ```
+  Ces N photos traitent d'UN MÊME sujet. Trouve le fil thématique commun
+  et écris UN SEUL message qui s'appuie sur l'ensemble. NE liste PAS les
+  photos. NE numérote PAS. Si tu n'identifies pas de fil commun clair,
+  reste sur l'observation la plus universelle qui les relie.
+  ```
+- Réécrire `modeInstr` before/after sans changement de fond, juste plus concis.
 
-Donne à Sonar plus de contexte pour ramener une vraie diversité de sources. Coût marginal (~10% tokens), gain net pour le scoop.
+### 3. Aligner la longueur sur la mémoire projet
 
-### 5. Garder `sonar-pro`
-
-Aucun changement de modèle. Documenter en commentaire pourquoi (déjà le bon choix pour notre cas : multi-step search + diversité de citations + tokens raisonnables).
-
-### 6. Réduire `max_tokens`
-
-Avec un schéma JSON strict et des prompts épurés, on peut redescendre :
-- scoop : 2800 → 2000
-- default : 1500 → 1000
-
-Économie directe sur la facture, latence légèrement réduite.
+Brief LinkedIn aligné sur 900-1400 caractères (la mémoire dit 1300-1700 pour LinkedIn en général, mais les posts photo gagnent à être plus courts car l'image porte une partie de la charge). On documente l'écart dans un commentaire pour ne pas se contredire.
 
 ---
 
 ## Ce qu'on ne touche PAS
 
-- `newsjacking-ai/index.ts` : aucune modif. Le contrat de `fetchHotNews` reste identique.
-- Les filtres code (`isFreshEnough`, `looksEvergreen`, retry) restent — ce sont eux qui assurent la qualité finale.
-- Le bloc Claude (`scoopBlock`, `hotNewsBlock`) reste tel qu'on l'a refondé au tour précédent.
+- `vision-prompts.ts` → `buildVisionQuestionsPrompt` : il garde "Photo 1, Photo 2" car c'est utile pour les **questions** posées à l'utilisatrice ("sur la photo 3, on voit…"). Le problème n'existe que côté **génération**.
+- Les autres formats (Instagram, Reel, Stories, Newsletter) : pas touchés.
+- L'UI, la DB, le contrat de l'edge function : inchangés.
 
 ## Fichiers touchés
 
-- `supabase/functions/_shared/perplexity.ts` (callSonar : prompts + response_format + web_search_options + max_tokens)
+- `supabase/functions/_shared/vision-prompts.ts` (brief LinkedIn dans `buildVisionGenerateBrief`)
+- `supabase/functions/creative-flow/index.ts` (l.1263-1294 : suppression labels + réécriture `modeInstr`)
 
 ## Vérification
 
-Après déploiement :
-1. Tester "Actu choc à rebondir" → vérifier dans les logs qu'on a toujours 4-6 actus.
-2. Vérifier dans les logs qu'on n'a plus de `[perplexity] JSON parse failed` (le schema force la structure).
-3. Vérifier la diversité catégorielle dans la liste affichée.
+1. Générer un post LinkedIn depuis 1 photo → vérifier "vous", longueur 900-1400, pas de "Sur cette photo".
+2. Générer depuis 3-4 photos → vérifier un seul message thématique, aucun "Photo 1/2/3", pas d'énumération.
+3. Générer un avant/après (2 photos) → vérifier que la transformation est racontée comme un récit, pas comme deux descriptions.
+
+## Mémoire à mettre à jour après validation
+
+Ajouter dans `mem://preference/linkedin` :
+
+- Posts photo : 900-1400 caractères (vs 1300-1700 texte pur).
+- LinkedIn = "vous" (à confirmer avec l'utilisatrice, défaut projet aujourd'hui = "tu").

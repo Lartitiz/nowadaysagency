@@ -1267,31 +1267,26 @@ Réponds UNIQUEMENT en JSON :
           type: "image",
           source: { type: "base64", media_type: p.mimeType || "image/jpeg", data: cleanB64 },
         });
-        let label = "";
+        // IMPORTANT : ne JAMAIS injecter "Photo 1/N" en texte — le modèle l'imite
+        // dans sa sortie. On garde un label uniquement pour le mode AVANT/APRÈS
+        // (sémantique nécessaire) et pour le contexte par photo s'il existe.
+        const ctx = p.context?.trim();
         if (isBeforeAfter) {
-          label = `↑ Photo ${idx === 0 ? "1 (AVANT)" : "2 (APRÈS)"}`;
-        } else if (isSeries) {
-          label = `↑ Photo ${idx + 1}/${validPhotos.length}`;
-        } else if (p.context?.trim()) {
-          label = "↑ Contexte précis sur cette photo";
-        }
-        if (label) {
-          const ctx = p.context?.trim() ? ` — contexte : "${p.context.trim()}"` : "";
-          photoContent.push({ type: "text", text: `${label}${ctx}` });
+          const label = idx === 0 ? "↑ AVANT" : "↑ APRÈS";
+          photoContent.push({ type: "text", text: ctx ? `${label} — contexte : "${ctx}"` : label });
+        } else if (ctx) {
+          // Série ou single : on attache le contexte directement à l'image
+          // précédente, sans numéro, pour ne pas amorcer un phrasé "Photo X".
+          photoContent.push({ type: "text", text: `↑ Contexte sur l'image ci-dessus : "${ctx}"` });
         }
       });
 
       const modeInstr = isBeforeAfter
-        ? `\n\n🔄 MODE AVANT / APRÈS : tu reçois 2 photos. La 1ère = état AVANT, la 2nde = état APRÈS. Construis le contenu autour de cette transformation : ce qui a changé, le geste/process, l'émotion du résultat. Ne décris pas chaque photo séparément — raconte LA transformation comme un récit.`
+        ? `\n\n🔄 MODE AVANT / APRÈS : la 1ère image = état AVANT, la 2nde = état APRÈS. Raconte LA transformation comme un récit unique (le déclic, le geste, le résultat). Ne décris pas chaque image séparément.`
         : isSeries
-        ? `\n\n📸 MODE SÉRIE / REPORTAGE : tu reçois ${validPhotos.length} photos qui appartiennent à une même séquence (chantier, événement, coulisses, étapes d'un process, série produit, journée…). 
-
-Avant d'écrire :
-1. Identifie le fil narratif commun aux ${validPhotos.length} images (chronologie ? étapes d'un même geste ? angles d'un même moment ? progression d'un projet ?).
-2. Choisis la structure narrative la plus juste : récit chronologique ("J1, J2, J3…" / "étape 1, 2, 3…"), coulisses en plusieurs temps, série thématique, ou angles complémentaires d'un même sujet.
-
-Écris ensuite UN SEUL post qui s'appuie sur l'ensemble de la série (pas une description photo par photo). LinkedIn affichera les ${validPhotos.length} images en carrousel d'images natif sous le texte — ton post doit donner envie de swiper, sans nécessairement numéroter chaque image. Évite "photo 1 : ... photo 2 : ..." — raconte l'histoire que les photos racontent ensemble.`
+        ? `\n\n📸 MODE SÉRIE (${validPhotos.length} images) : ces images traitent d'UN MÊME sujet. Trouve le fil thématique commun et écris UN SEUL message qui s'appuie sur l'ensemble. NE liste PAS les images. NE numérote PAS ("photo 1, photo 2" est interdit). Pas de structure "étape 1, étape 2". Si tu n'identifies pas de fil commun évident, reste sur l'observation la plus universelle qui les relie — n'invente pas une chronologie ou un récit qui ne tient pas.`
         : "";
+
 
       const answersBlockPhoto = (answers && Array.isArray(answers) && answers.length > 0)
         ? answers.map((a: any, i: number) => `Q${i + 1} : "${a.question}"\n→ "${a.answer}"`).join("\n\n")
