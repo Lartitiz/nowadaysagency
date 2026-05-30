@@ -1263,6 +1263,37 @@ Réponds UNIQUEMENT en JSON :
       const isLinkedInPhoto = !!contentType?.includes("linkedin");
 
       const photoContent: any[] = [];
+      const photoContent: any[] = [];
+
+      // RÈGLES CRITIQUES placées AVANT les images (LinkedIn) : Claude lit les
+      // interdits avant de "voir" les photos, ce qui réduit l'amorçage descriptif.
+      if (isLinkedInPhoto) {
+        photoContent.push({
+          type: "text",
+          text: `══ RÈGLES CRITIQUES À LIRE AVANT DE REGARDER LES IMAGES ══
+
+1. ANTI-PARAPHRASE VISUELLE : tu n'as PAS le droit d'écrire "Ce [adjectif] [objet], c'est…" pour désigner ce que tu vois.
+   ❌ "Ce flyer orange et jaune, c'est l'événement Aire You Ready."
+   ❌ "Cette affiche colorée, c'est…"
+   ✅ Tu peux NOMMER le sujet directement : "Aire You Ready, c'est…" / "Vendredi soir, on était…"
+
+2. ANTI-CASCADE : pas de rafale de phrases courtes pour faire "punchy".
+   ❌ "Pas un musée à cocher. Un verre au comptoir. Une conversation qui s'étire."
+   ✅ Une seule pensée qui se déroule : "C'était pas un musée à cocher mais un verre au comptoir, une conversation qui s'étire."
+
+3. ANTI-CTA FABRIQUÉ : pas de slogan-invitation en italique ou guillemets.
+   ❌ « Ici, il se passe quelque chose. Venez. »
+   ✅ Une phrase qui coupe net, ou une question concrète liée au sujet.
+
+4. CHIFFRES / NUMÉROS / DATES / NOMS VISIBLES : recopie EXACTEMENT. Si tu vois "#3", écris "#3", jamais "#8".
+
+5. TU PARLES À "TU", pas "vous". Une amie au café, pas une audience.
+
+══ MAINTENANT, REGARDE LES IMAGES ══
+`,
+        });
+      }
+
       validPhotos.forEach((p: any, idx: number) => {
         const cleanB64 = p.base64.replace(/^data:image\/[a-z]+;base64,/, "");
         photoContent.push({
