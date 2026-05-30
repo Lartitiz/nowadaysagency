@@ -72,6 +72,7 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
     setShowPhotosMode(false);
     setLocalPhotos([]);
     setLocalDescription("");
+    setLocalPhotoSubject("");
   };
 
   return (
