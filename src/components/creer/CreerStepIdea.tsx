@@ -53,6 +53,7 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
   const [showTransform, setShowTransform] = useState(!!autoOpenTransform);
   const [localPhotos, setLocalPhotos] = useState<PhotoItem[]>([]);
   const [localDescription, setLocalDescription] = useState("");
+  const [localPhotoSubject, setLocalPhotoSubject] = useState("");
   const { toast } = useToast();
 
   // Si on arrive via un legacy redirect (?mode=transform), nettoyer le param
