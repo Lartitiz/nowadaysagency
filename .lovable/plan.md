@@ -1,73 +1,36 @@
-Objectif : faire respecter les règles anti-slop déjà écrites en les rendant **concrètes** (exemples ❌/✅) et en bouchant les contournements observés sur le post analysé.
+Trois corrections, par ordre d'impact attendu :
 
-Aucun changement de logique ni de UI. Uniquement des ajustements de prompts dans 2 fichiers edge function.
+## 1. (Impact 80%) Brancher la passe de correction LinkedIn sur `creative-flow`
 
-## 1. `supabase/functions/_shared/vision-prompts.ts` — `buildVisionGenerateBrief` (branche LinkedIn)
+`supabase/functions/_shared/correction-pass.ts` contient déjà `CORRECTION_PROMPTS.linkedin` qui traque cascades, énumérations parfaites, formules manufacturées, anaphores, CTA génériques. Il est utilisé par `carousel-ai` mais **PAS** par `creative-flow`.
 
-Renforcer le `formatBrief` LinkedIn avec :
+Dans `supabase/functions/creative-flow/index.ts`, après la génération photo→LinkedIn (autour de la ligne 1306, après `callAnthropic`) :
+- Importer `applyCorrection` depuis `../_shared/correction-pass.ts`
+- Parser `rawContent`, extraire `content`, appeler `applyCorrection({ format: "linkedin", content, ... })`
+- Réinjecter le résultat corrigé dans la réponse
+- Faire pareil pour le mode texte pur (step=generate sans photo, branche `else`) quand `contentType === post_linkedin`
 
-**a) Règle anti-paraphrase élargie** (le contournement "ce flyer", "ce comptoir" n'est pas couvert) :
+Coût : 1 appel Claude Sonnet supplémentaire (~3-5s, <0.01€). Le gain est massif : c'est une 2ᵉ passe spécialisée qui ne fait QUE chasser le slop.
 
+## 2. (Impact 15%) Réordonner le user prompt photo
+
+Dans `creative-flow/index.ts:1263-1298`, l'ordre actuel est `[images..., texte brief]`. Changer pour :
 ```
-INTERDIT DE DÉSIGNER LES IMAGES, même sans les numéroter :
-❌ "Ce flyer orange et jaune, c'est…"
-❌ "Ce comptoir bleu avec ses illustrations…"
-❌ "Sur la première, on voit… sur la seconde…"
-✅ Tu peux NOMMER ce qui est sur les images (l'événement, le lieu, l'objet) sans
-   les introduire comme images
+[bloc "RÈGLES CRITIQUES" (anti-paraphrase + anti-cascade, ~15 lignes max),
+ images...,
+ brief format + anti-fabrication + jsonShape]
 ```
+Claude lit l'interdit AVANT de traiter visuellement les images. Les patterns "ce flyer…" sont moins amorcés.
 
-**b) Few-shot négatif ciblé sur la cascade** (interdit déjà énoncé mais ignoré) :
+## 3. (Impact 5%) Baisser la temperature pour LinkedIn
 
-```
-INTERDIT — phrases-listes parallèles, même déguisées en oral :
-❌ "Pas un musée à cocher. Un verre au comptoir. Une conversation qui s'étire."
-❌ "Pas pour faire joli. Pour créer du lien."
-✅ Une seule pensée qui se déroule en phrases complètes.
-```
+Dans `creative-flow/index.ts:1304`, passer `temperature: 0.85` → `0.7` **uniquement quand `contentType` contient "linkedin"**. Garder 0.85 pour caption Instagram / reel / stories où la créativité aide.
 
-**c) Anti-CTA fabriqué** avec exemple :
-
-```
-❌ « Ici, il se passe quelque chose. Venez. »
-❌ "Et vous, vous en pensez quoi ?"
-✅ Couper net sur la dernière phrase du message, OU une phrase ouverte non-injonctive.
-```
-
-**d) Réduire la longueur cible** : passer `900-1400` → `700-1100`. Le post analysé fait ~1400 et c'est trop long pour la matière réelle. Plus court = moins de remplissage = moins de slop.
-
-## 2. `supabase/functions/creative-flow/index.ts` — bloc anti-fabrication (ligne 1297)
-
-Ajouter une ligne explicite sur les **chiffres et mentions textuelles visibles** :
-
-```
-- Si un chiffre, une édition (#3), une date, un nom propre est VISIBLE sur une
-  image, recopie-le EXACTEMENT. N'invente jamais un numéro d'édition, une date
-  ou un nom que tu n'as pas lu littéralement.
-```
-
-(Évite le bug "#3 devient #8".)
-
-Et renforcer `modeInstr` série pour interdire les **transitions descriptives** :
-
-```
-INTERDIT d'enchaîner "Ce X visible sur une image, c'est… Ce Y visible sur une autre, c'est…".
-Le post doit parler du SUJET, pas faire le tour des images.
-```
-
-## Hors scope (volontairement)
-
-- Pas de refonte structurelle des prompts
-- Pas de changement sur `buildVisionQuestionsPrompt` (les questions générées sont OK)
+## Ce qu'on NE fait PAS
+- Pas de refonte d'`ANTI_SLOP` (déjà tenté, ça ne résout pas le vrai problème : pas de passe aval)
+- Pas de changement sur les autres formats (newsletter, reel, story, caption) tant qu'on n'a pas validé l'effet sur LinkedIn
 - Pas de changement frontend
-- Pas de changement sur les autres canaux (reel/story/newsletter/IG caption)
-- Pas de redéploiement nécessaire côté DB / migration
 
 ## Vérification après build
-
-Re-générer un post avec les 3 mêmes photos + sujet "tiers-lieu rural / slow tourisme" et vérifier :
-
-- Aucune phrase "Ce [adjectif visuel] [objet], c'est…"
-- Aucune cascade "Pas X. Pas Y."
-- Si "#3" apparaît, c'est bien #3 et pas #8
-- Longueur ≤ 1100
+- Logs `[correction-pass:linkedin]` doivent apparaître dans `creative-flow` logs
+- Re-générer le post sur les 3 mêmes photos. Critères : zéro "Ce [adjectif] [objet], c'est…", zéro cascade, longueur ≤ 1100, chiffres visibles exacts.
