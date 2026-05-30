@@ -1,48 +1,134 @@
-## Diagnostic
+## Audit des prompts Perplexity
 
-Les derniers logs montrent que Perplexity a bien ramené **6 actus chaudes** en mode scoop, mais l'utilisatrice n'en voit qu'une (le rapport sur les dérives des influenceurs — un sujet qui colle parfaitement à son combat "marketing de la manipulation"). Cannes 2026 et l'affaire Patrick Bruel n'apparaissent pas. Trois causes additionnées :
+### Constats
 
-1. **Perplexity exclut explicitement les "drames intimes" et "violences personnelles"** dans son prompt scoop. Or l'affaire Bruel = accusations publiques contre une personnalité = MeToo. Le système le range dans "fait divers tragique" et le jette à la source.
-2. **Pas de quota de diversité catégorielle** côté Perplexity : la requête est très ouverte ("polémique virale, chiffre choc, déclaration publique…") mais sans imposer 1 actu par grande catégorie, Sonar tend à ramener 6 sujets du même registre (rapports/scandales systémiques) — ce qui matche bien le profil de la personne mais rate Cannes (culture/événement en cours) et les MeToo (scandale personnalité).
-3. **Biais niche encore présent en scoop** : on passe `intentVibeHints` + `customWords` dans `universKeywords`, et le bloc `scoopBlock` de Claude continue d'imposer un pont vers le profil. Du coup, même quand Perplexity ramène Cannes ou Bruel, Claude les rejette à la curation s'il ne sait pas écrire de pont littéral vers "l'Assistant Com'".
+**1. Confusion system / user.** Sonar utilise le `user message` comme base de la requête de recherche. Aujourd'hui notre user prompt fait ~45 lignes (mode scoop) : titres emoji, listes INTERDIT/AUTORISÉ, exemples, format JSON, date du jour, profil… Tout ça pollue le signal de recherche. Sonar fait sa recherche web sur du bruit au lieu d'une question claire.
+
+**2. Le system message est sous-exploité.** Il fait 1 phrase. Or c'est là qu'on devrait mettre les règles stables (éthique, format, garde-fous) que Sonar applique à toutes les requêtes sans les ré-encoder côté recherche.
+
+**3. JSON demandé en prose.** "Réponds UNIQUEMENT avec ce JSON, sans markdown" → fragile. Sonar supporte `response_format: { type: "json_schema", ... }` qui force la structure et fiabilise le parsing. On en bénéficierait gratuitement (suppression de la moitié du try/catch dans `callSonar`).
+
+**4. Redondances dans le user prompt scoop :**
+   - Les 6 catégories (a-f) sont utiles → on garde.
+   - Le bloc INTERDIT répète des choses déjà dans le bloc AUTORISÉ ("PAS du fait divers" déjà dit dans AUTORISÉ).
+   - Le bloc FRAÎCHEUR redit ce que fait déjà `search_after_date_filter`.
+   - Les consignes de format des champs (titre <90 caractères, etc.) sont mieux dans le json_schema.
+
+**5. Mode default : prompt trop défensif.** "Si tu n'es pas SÛRE → JETTE" combiné à `search_after_date_filter` strict produit souvent 0 actus. Notre filtre code refait déjà ce travail (`isFreshEnough`, `looksEvergreen`). Doubler la défense côté prompt = perte sèche.
+
+**6. `web_search_options` non utilisé.** Sonar-pro accepte `web_search_options: { search_context_size: "high" }` qui élargit la fenêtre de contexte de recherche. Utile en mode scoop où on veut de la diversité.
+
+---
 
 ## Plan
 
-Tout reste backend, deux fichiers.
+Un seul fichier : `supabase/functions/_shared/perplexity.ts`. Pas de changement DB, pas de changement UI, pas de changement contractuel pour `newsjacking-ai/index.ts`.
 
-### 1. `supabase/functions/_shared/perplexity.ts` — prompt scoop refondé
+### 1. Réécrire les system prompts (stables, riches)
 
-- **Réécrire la section "INTERDIT STRICT"** pour autoriser explicitement :
-  - Accusations / mises en cause publiques de personnalités connues (témoignages MeToo nommés, enquêtes journalistiques sur figures publiques, mises en examen médiatisées)
-  - Grands événements culturels en cours (festivals, cérémonies, sorties film/album marquantes, retours/scandales sur tapis rouge)
-  - Polémiques de prise de parole publique (interviews, plateaux, posts viraux d'une personnalité)
-  
-  Ne garder en exclusion stricte que : faits divers locaux anonymes, drames intimes sans dimension publique, propagande partisane (élections/partis nommés), webinaires/inscriptions, marketing pur.
+Deux systems courts mais denses, contenant TOUTES les règles éthiques et de format. Ils ne changent jamais entre les requêtes → cachables côté Perplexity.
 
-- **Ajouter un quota de diversité explicite** dans le user prompt : demander à Sonar de renvoyer **6 actus, idéalement 1 par catégorie** parmi (a) scandale/accusation visant une personnalité publique, (b) événement culturel en cours (festival, cérémonie, sortie marquante), (c) polémique société/débat viral, (d) chiffre/rapport/enquête choc, (e) déclaration publique qui fait réagir, (f) affaire judiciaire/économique grand public. "Ne renvoie jamais 3 sujets du même registre."
+**System scoop** (~10 lignes) :
+- Rôle : assistante de veille newsjacking, audience francophone, focus France.
+- Mission : sujets CHOC grand public de la semaine.
+- Règles éthiques permanentes : autorise accusations publiques nommées (MeToo, mises en cause médiatisées), interdit faits divers locaux anonymes + propagande partisane + webinaires/marketing.
+- Règle de format : titre <90 car., résumé 2 phrases, source nommée, URL obligatoire, date estimée OK si floue.
+- Règle de diversité : jamais 3 sujets du même registre.
 
-- **Bumper `max_tokens`** à 2800 en mode scoop pour laisser la place aux 6 actus + résumés.
+**System default** (~8 lignes) : équivalent pour le mode niche, sans la partie diversité.
 
-### 2. `supabase/functions/newsjacking-ai/index.ts` — découpler scoop du profil
+### 2. Réécrire les user prompts (courts, ciblés)
 
-- **Couper totalement le biais niche en scoop** : passer `universKeywords: []` (au lieu de `[...intentVibeHints, customWords]`) et garder `niche: undefined`. Les hints scoop sont déjà dans le prompt Perplexity, pas besoin de les rebiaiser.
+**User scoop** (~12 lignes au lieu de 45) :
+```
+Date du jour : {today}. Actus actives depuis le {afterDate}.
 
-- **Relâcher la curation Claude dans `scoopBlock`** :
-  - Remplacer "force_pont fort à 1/3 minimum" par "moyen acceptable partout, fort optionnel — la priorité est le test 'oh wow', pas la force du pont".
-  - Ajouter une règle explicite : "Tu DOIS conserver au moins 4 des actus pré-sourcées si elles passent le test 'oh wow', même si tu ne vois pas de pont littéral vers le profil. Pour ces actus, le champ pertinence devient simplement une PISTE D'ANGLE ouverte (1 phrase qui suggère sur quoi la personne pourrait rebondir), sans citer son métier ni sa cible."
-  - Ajouter dans les exemples de "pistes d'angle scoop" valides : "réagir comme citoyenne", "partager son ressenti de spectatrice", "ouvrir le débat sans prendre position pro/contre" — pour dégonfler l'obligation de pont métier.
+Trouve 6 actus CHOC de la semaine en France qui font débat grand public.
+Couvre AU MOINS 4 des 6 catégories suivantes (1 par catégorie idéalement) :
+  (a) Scandale / accusation visant une personnalité publique connue
+  (b) Événement culturel en cours (festival, cérémonie, sortie marquante)
+  (c) Polémique société / débat viral
+  (d) Chiffre / rapport / enquête qui choque
+  (e) Déclaration publique virale (interview, post, plateau)
+  (f) Affaire judiciaire / économique / institutionnelle
 
-- **Désactiver l'anti-méta-réseaux-sociaux en scoop** : la règle d'exclusion "Meta/Instagram/TikTok/…" du `macroBlock` ne doit pas s'appliquer si scoopMode est seul actif (sinon on perd des affaires type "TikTok ban", "Meta licencie" qui sont du vrai grand public).
+{universLine si présente}
+{excludedLine si présente}
+```
 
-### 3. Vérification
+**User default** (~8 lignes) : version équivalente compacte, sans les catégories.
 
-- Tester "Actu choc à rebondir" sur le compte demo.
-- Vérifier que la liste affichée contient au moins 1 sujet culture/événement (Cannes, sortie, festival) ET 1 scandale personnalité, en plus des sujets profil-aligned.
-- Logs `newsjacking-ai` : on doit voir 6 actus Perplexity, dont la majorité survit à la curation Claude.
+Les listes INTERDIT/AUTORISÉ disparaissent du user prompt (elles sont dans le system). Le format JSON disparaît aussi (il est dans `response_format`).
+
+### 3. Activer `response_format: json_schema`
+
+Définir un schéma strict :
+```ts
+{
+  type: "json_schema",
+  json_schema: {
+    name: "actus_chaudes",
+    schema: {
+      type: "object",
+      properties: {
+        actus: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              titre: { type: "string", maxLength: 90 },
+              resume: { type: "string" },
+              source: { type: "string" },
+              source_url: { type: "string" },
+              date_publication: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+            },
+            required: ["titre", "resume", "source", "source_url"]
+          }
+        }
+      },
+      required: ["actus"]
+    }
+  }
+}
+```
+
+Conséquence : le bloc try/catch fallback (recherche manuelle de `{` / `}`) peut rester en filet de sécurité mais ne servira plus en pratique.
+
+### 4. Activer `web_search_options` en mode scoop
+
+```ts
+web_search_options: { search_context_size: "high" }
+```
+
+Donne à Sonar plus de contexte pour ramener une vraie diversité de sources. Coût marginal (~10% tokens), gain net pour le scoop.
+
+### 5. Garder `sonar-pro`
+
+Aucun changement de modèle. Documenter en commentaire pourquoi (déjà le bon choix pour notre cas : multi-step search + diversité de citations + tokens raisonnables).
+
+### 6. Réduire `max_tokens`
+
+Avec un schéma JSON strict et des prompts épurés, on peut redescendre :
+- scoop : 2800 → 2000
+- default : 1500 → 1000
+
+Économie directe sur la facture, latence légèrement réduite.
+
+---
+
+## Ce qu'on ne touche PAS
+
+- `newsjacking-ai/index.ts` : aucune modif. Le contrat de `fetchHotNews` reste identique.
+- Les filtres code (`isFreshEnough`, `looksEvergreen`, retry) restent — ce sont eux qui assurent la qualité finale.
+- Le bloc Claude (`scoopBlock`, `hotNewsBlock`) reste tel qu'on l'a refondé au tour précédent.
 
 ## Fichiers touchés
 
-- `supabase/functions/_shared/perplexity.ts` (prompt scoop refondé, quota catégoriel, max_tokens)
-- `supabase/functions/newsjacking-ai/index.ts` (universKeywords vidé en scoop, `scoopBlock` relâché, exclusion méta-RS désactivée en scoop pur)
+- `supabase/functions/_shared/perplexity.ts` (callSonar : prompts + response_format + web_search_options + max_tokens)
 
-Aucun changement DB, aucun changement UI.
+## Vérification
+
+Après déploiement :
+1. Tester "Actu choc à rebondir" → vérifier dans les logs qu'on a toujours 4-6 actus.
+2. Vérifier dans les logs qu'on n'a plus de `[perplexity] JSON parse failed` (le schema force la structure).
+3. Vérifier la diversité catégorielle dans la liste affichée.
