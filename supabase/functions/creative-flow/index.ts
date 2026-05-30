@@ -1260,6 +1260,7 @@ Réponds UNIQUEMENT en JSON :
       const isSeries = validPhotos.length >= 3;
 
       const { formatBrief, jsonShape } = buildVisionGenerateBrief(contentType);
+      const isLinkedInPhoto = !!contentType?.includes("linkedin");
 
       const photoContent: any[] = [];
       validPhotos.forEach((p: any, idx: number) => {
