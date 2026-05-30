@@ -19,11 +19,6 @@ interface Props {
   initialIdea?: string;
   autoOpenTransform?: boolean;
 }
-  workspaceId?: string;
-  activite?: string;
-  initialIdea?: string;
-  autoOpenTransform?: boolean;
-}
 
 const ACTIVITY_PLACEHOLDERS: Record<string, string> = {
   immobilier: "Ex : je veux montrer un bien que je viens d'acquérir / je voudrais parler de pourquoi j'ai choisi le portage / j'ai envie de réagir à une actu immo...",
