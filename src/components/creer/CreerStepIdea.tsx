@@ -13,7 +13,7 @@ interface Props {
   onNext: (idea: string) => void;
   onCoachingSelect?: (data: { subject: string; format: string; objective: string; carouselSubMode?: "text" | "photo" }) => void;
   onNewsjackingSelect?: (data: { subject: string; context: string; format?: string; vehicule?: string }) => void;
-  onPhotosNext?: (photos: PhotoItem[], description: string) => void;
+  onPhotosNext?: (photos: PhotoItem[], description: string, subject: string) => void;
   workspaceId?: string;
   activite?: string;
   initialIdea?: string;
@@ -53,6 +53,7 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
   const [showTransform, setShowTransform] = useState(!!autoOpenTransform);
   const [localPhotos, setLocalPhotos] = useState<PhotoItem[]>([]);
   const [localDescription, setLocalDescription] = useState("");
+  const [localPhotoSubject, setLocalPhotoSubject] = useState("");
   const { toast } = useToast();
 
   // Si on arrive via un legacy redirect (?mode=transform), nettoyer le param
@@ -71,6 +72,7 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
     setShowPhotosMode(false);
     setLocalPhotos([]);
     setLocalDescription("");
+    setLocalPhotoSubject("");
   };
 
   return (
@@ -184,7 +186,23 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
               <Camera className="h-4 w-4 text-primary" /> Pars de tes photos
             </h3>
             <p className="text-sm text-muted-foreground mt-1">
-              Uploade tes photos et leur contexte. On choisira ensuite le format ensemble.
+              Uploade tes photos, dis-nous de quoi tu veux parler. On choisira ensuite le format ensemble.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground">
+              De quoi veux-tu parler ?
+            </label>
+            <Textarea
+              value={localPhotoSubject}
+              onChange={(e) => setLocalPhotoSubject(e.target.value)}
+              placeholder={getPlaceholder(activite)}
+              rows={3}
+              className="resize-none"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Le message ou l'angle du post. Les questions et la rédaction s'appuieront dessus.
             </p>
           </div>
 
@@ -197,8 +215,8 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
           />
 
           <Button
-            onClick={() => onPhotosNext?.(localPhotos, localDescription)}
-            disabled={localPhotos.length === 0}
+            onClick={() => onPhotosNext?.(localPhotos, localDescription, localPhotoSubject.trim())}
+            disabled={localPhotos.length === 0 || !localPhotoSubject.trim()}
             className="w-full gap-2"
           >
             Suivant <ArrowRight className="h-4 w-4" />
