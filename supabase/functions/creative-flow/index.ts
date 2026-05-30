@@ -1339,7 +1339,9 @@ Réponds UNIQUEMENT en JSON :
       });
     } else {
       const maxTokens = step === "questions" ? 800 : undefined;
-      rawContent = await callAnthropicSimple(getModelForAction("content"), systemPrompt, userPrompt!, 0.85, maxTokens);
+      const isLinkedInText = !!contentType?.includes("linkedin") && step !== "questions";
+      const tempText = isLinkedInText ? 0.7 : 0.85;
+      rawContent = await callAnthropicSimple(getModelForAction("content"), systemPrompt, userPrompt!, tempText, maxTokens);
     }
 
     let parsed;
@@ -1351,6 +1353,28 @@ Réponds UNIQUEMENT en JSON :
         try { parsed = JSON.parse(match[0]); } catch { parsed = { raw: rawContent }; }
       } else {
         parsed = { raw: rawContent };
+      }
+    }
+
+    // ═══ PASSE DE CORRECTION LinkedIn ═══
+    // Pour TOUT post LinkedIn généré (photo ou texte), on rejoue une 2ᵉ passe
+    // spécialisée qui chasse cascades, anaphores, formules manufacturées, CTA génériques.
+    if (
+      step === "generate" &&
+      contentType?.includes("linkedin") &&
+      parsed && typeof parsed === "object" &&
+      typeof parsed.content === "string" &&
+      parsed.content.length >= 200
+    ) {
+      try {
+        const corrected = await applyCorrectionPass(parsed.content, "linkedin", {
+          logger: (msg) => console.log(msg),
+        });
+        if (corrected && corrected.length >= 100) {
+          parsed.content = corrected;
+        }
+      } catch (corrErr) {
+        console.error("[creative-flow] correction-pass linkedin failed:", corrErr);
       }
     }
 
