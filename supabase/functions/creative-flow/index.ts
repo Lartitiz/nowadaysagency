@@ -13,6 +13,7 @@ import { carouselBrief, reelBrief, storiesBrief, linkedinBrief, pinterestBrief, 
 import { buildVisionQuestionsPrompt, buildVisionGenerateBrief } from "../_shared/vision-prompts.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
+import { applyCorrectionPass } from "../_shared/correction-pass.ts";
 
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
 
