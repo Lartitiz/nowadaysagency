@@ -8,6 +8,7 @@ import { isDemoUser } from "../_shared/guard-demo.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { validateInput, ValidationError, GenerateContentSchema } from "../_shared/input-validators.ts";
+import { applyCorrectionPass } from "../_shared/correction-pass.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
 
