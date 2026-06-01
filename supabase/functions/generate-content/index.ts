@@ -685,53 +685,12 @@ FORMAT :
     const modelAction = auditTypes.includes(type) ? "audit" : "content";
     let content = await callAnthropicSimple(getModelForAction(modelAction), systemPrompt, userPrompt, 0.8, maxTokens);
 
-    // LinkedIn correction pass (same as creative-flow)
+    // LinkedIn correction pass — shared CORRECTION_PROMPTS.linkedin (richer than the previous inline prompt)
     if (isLinkedinGeneration) {
-      const correctionPrompt = `Tu es un éditeur LinkedIn exigeant. Tu reçois un post et tu dois le CORRIGER phrase par phrase.
-
-CORRECTIONS OBLIGATOIRES :
-
-1. PHRASE ISOLÉE SUR UNE LIGNE (moins de 10 mots seule entre 2 sauts de ligne) :
-   → Intègre-la dans le paragraphe précédent ou suivant. Développe-la.
-
-2. RAFALE DE PHRASES COURTES (2+ phrases de moins de 10 mots d'affilée) :
-   → Fusionner en une seule phrase fluide avec des connecteurs.
-
-3. ANAPHORE (3+ phrases qui commencent par le même mot/groupe) :
-   → Réécrire en variant les structures de phrase.
-
-4. EMPILEMENT INSPIRATIONNEL (2+ phrases-valeurs abstraites sans exemple concret) :
-   → Remplacer par UN exemple concret qui incarne la même idée.
-
-5. REDONDANCE (2+ paragraphes qui expriment la même idée) :
-   → Garder le plus CONCRET, supprimer ou fusionner les autres.
-
-6. LONGUEUR EXCESSIVE (post > 1900 caractères) :
-   → Supprimer le paragraphe le plus faible. Cible : 1300-1700 caractères.
-
-7. PUNCHLINES-FORMULES MANUFACTURÉES (phrases trop bien tournées qui sentent le copywriting) :
-   → Détecte ces patterns :
-   - Constructions parallèles trop propres ("X c'est pas Y. C'est Z." ou "Pas X. Pas Y. C'est Z.")
-   - Mots-valises marketing ("bruit joli", "vitrine sans produit", "maison aux fondations bancales")
-   - Antithèses trop parfaites (impeccable/confus, beau/vide)
-   - Métaphores empruntées aux manuels (fondations, vitrine, squelette, ADN, pilier, socle)
-   → Réécris en plus brut, plus parlé, moins "punchline".
-   Exemple : "Un visuel impeccable avec un message confus, c'est juste du bruit joli."
-   → "Un visuel parfait avec un message flou, ça reste flou. Le beau ne sauve pas le confus."
-
-RÈGLES :
-- Garde le SENS et la CONVICTION. Tu corriges la FORME, pas le FOND.
-- Le post corrigé fait entre 1300 et 1700 caractères.
-- Retourne UNIQUEMENT le post corrigé, rien d'autre. Pas de JSON, pas d'explication.`;
-
       try {
-        const corrected = await callAnthropicSimple(
-          getModelForAction("content"),
-          correctionPrompt,
-          `Voici le post LinkedIn à corriger :\n\n"""\n${content}\n"""`,
-          0.3,
-          4096
-        );
+        const corrected = await applyCorrectionPass(content, "linkedin", {
+          logger: (m) => console.log(`[generate-content] ${m}`),
+        });
         if (corrected && corrected.length > 200) {
           content = corrected;
         }
@@ -739,6 +698,7 @@ RÈGLES :
         console.error("LinkedIn correction pass failed, using original:", correctionError);
       }
     }
+
 
     await logUsage(user.id, usageCategory, type, undefined, undefined, workspace_id);
     return new Response(
