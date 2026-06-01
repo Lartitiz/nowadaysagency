@@ -185,13 +185,15 @@ serve(async (req) => {
         });
 
         systemPrompt = BASE_SYSTEM_RULES + "\n\n" + VOICE_PRIORITY + crosspostSystemPrompt;
-        const content = await callAnthropic({
+        let content = await callAnthropic({
           model: getModelForAction("linkedin_post"),
           system: systemPrompt,
           messages: [{ role: "user", content: userContent }],
           temperature: 0.8,
           max_tokens: 4096,
         });
+
+        content = await correctCrosspostJson(content);
 
         await logUsage(user.id, category, `linkedin_crosspost_files`, undefined, undefined, workspace_id);
 
