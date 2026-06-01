@@ -293,7 +293,16 @@ serve(async (req) => {
       }
     }
 
-    const content = await callAnthropicSimple(getModelForAction("linkedin_post"), systemPrompt, userPrompt, 0.8);
+    let content = await callAnthropicSimple(getModelForAction("linkedin_post"), systemPrompt, userPrompt, 0.8);
+
+    // LinkedIn correction pass — applied per action with awareness of output shape
+    if (action === "caption-for-carousel") {
+      content = await correctJsonField(content, "body");
+    } else if (action === "improve-post") {
+      content = await correctJsonField(content, "improved_version");
+    } else if (action === "crosspost") {
+      content = await correctCrosspostJson(content);
+    }
 
     await logUsage(user.id, category, `linkedin_${action}`, undefined, undefined, workspace_id);
 
