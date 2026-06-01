@@ -1263,7 +1263,6 @@ Réponds UNIQUEMENT en JSON :
       const isLinkedInPhoto = !!contentType?.includes("linkedin");
 
       const photoContent: any[] = [];
-      const photoContent: any[] = [];
 
       // RÈGLES CRITIQUES placées AVANT les images (LinkedIn) : Claude lit les
       // interdits avant de "voir" les photos, ce qui réduit l'amorçage descriptif.
