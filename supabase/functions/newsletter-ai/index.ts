@@ -7,6 +7,7 @@ import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
+import { applyCorrectionPass } from "../_shared/correction-pass.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 
 const NEWSLETTER_SYSTEM_PROMPT = `
@@ -200,6 +201,21 @@ ${template ? `FORMAT DEMANDÉ : ${template}` : ""}`;
       return new Response(JSON.stringify({ error: "Erreur lors de la génération. Réessaie." }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Newsletter correction pass — chasse cascade, formules manufacturées, slop
+    if (result && typeof result.body === "string" && result.body.length >= 200) {
+      try {
+        const corrected = await applyCorrectionPass(result.body, "newsletter", {
+          logger: (m) => console.log(`[newsletter-ai] ${m}`),
+        });
+        if (corrected && corrected.length >= 200) {
+          result.body = corrected;
+          result.word_count = corrected.split(/\s+/).filter(Boolean).length;
+        }
+      } catch (e) {
+        console.error("[newsletter-ai] correction-pass failed:", e);
+      }
     }
 
     await logUsage(userId, "content", "newsletter");
