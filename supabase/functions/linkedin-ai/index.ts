@@ -5,6 +5,50 @@ import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallback } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
+import { applyCorrectionPass } from "../_shared/correction-pass.ts";
+
+// JSON-aware correction: extract a long-text field, run correction-pass, reinject.
+async function correctJsonField(rawJson: string, field: string): Promise<string> {
+  try {
+    const match = rawJson.match(/\{[\s\S]*\}/);
+    if (!match) return rawJson;
+    const parsed = JSON.parse(match[0]);
+    const original = parsed?.[field];
+    if (typeof original !== "string" || original.length < 200) return rawJson;
+    const corrected = await applyCorrectionPass(original, "linkedin", {
+      logger: (m) => console.log(`[linkedin-ai] ${m}`),
+    });
+    if (!corrected || corrected === original) return rawJson;
+    parsed[field] = corrected;
+    return JSON.stringify(parsed);
+  } catch (e) {
+    console.error(`[linkedin-ai] correctJsonField(${field}) failed:`, e);
+    return rawJson;
+  }
+}
+
+// Crosspost-aware: correct versions.linkedin.full_text if present
+async function correctCrosspostJson(rawJson: string): Promise<string> {
+  try {
+    const match = rawJson.match(/\{[\s\S]*\}/);
+    if (!match) return rawJson;
+    const parsed = JSON.parse(match[0]);
+    const liText = parsed?.versions?.linkedin?.full_text;
+    if (typeof liText !== "string" || liText.length < 200) return rawJson;
+    const corrected = await applyCorrectionPass(liText, "linkedin", {
+      logger: (m) => console.log(`[linkedin-ai:crosspost] ${m}`),
+    });
+    if (!corrected || corrected === liText) return rawJson;
+    parsed.versions.linkedin.full_text = corrected;
+    if (typeof parsed.versions.linkedin.character_count === "number") {
+      parsed.versions.linkedin.character_count = corrected.length;
+    }
+    return JSON.stringify(parsed);
+  } catch (e) {
+    console.error(`[linkedin-ai] correctCrosspostJson failed:`, e);
+    return rawJson;
+  }
+}
 import { corsHeaders } from "../_shared/cors.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
