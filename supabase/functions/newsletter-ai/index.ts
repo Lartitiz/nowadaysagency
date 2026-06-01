@@ -203,6 +203,21 @@ ${template ? `FORMAT DEMANDÉ : ${template}` : ""}`;
       });
     }
 
+    // Newsletter correction pass — chasse cascade, formules manufacturées, slop
+    if (result && typeof result.body === "string" && result.body.length >= 200) {
+      try {
+        const corrected = await applyCorrectionPass(result.body, "newsletter", {
+          logger: (m) => console.log(`[newsletter-ai] ${m}`),
+        });
+        if (corrected && corrected.length >= 200) {
+          result.body = corrected;
+          result.word_count = corrected.split(/\s+/).filter(Boolean).length;
+        }
+      } catch (e) {
+        console.error("[newsletter-ai] correction-pass failed:", e);
+      }
+    }
+
     await logUsage(userId, "content", "newsletter");
 
     return new Response(JSON.stringify(result), {
