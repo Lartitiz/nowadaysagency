@@ -7,6 +7,7 @@ import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
+import { applyCorrectionPass } from "../_shared/correction-pass.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 
 const NEWSLETTER_SYSTEM_PROMPT = `
