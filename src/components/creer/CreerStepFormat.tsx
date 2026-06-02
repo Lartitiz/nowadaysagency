@@ -266,7 +266,9 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
   const selectedStructureId = selectedFormat && selectedAngle ? getStructureForCombo(selectedFormat, selectedAngle) : null;
   const selectedStructure = selectedStructureId ? CONTENT_STRUCTURES[selectedStructureId] : null;
 
-  const showAngles = selectedFormat && selectedFormat !== "pinterest_inspiration" && (selectedFormat !== "carousel" || carouselSubMode !== null || selectedChannel === "linkedin");
+  // LinkedIn post en mode photo : on saute la sélection d'angle, l'IA choisit toute seule.
+  const isLinkedInPhotoPost = selectedFormat === "linkedin" && photoMode;
+  const showAngles = selectedFormat && selectedFormat !== "pinterest_inspiration" && !isLinkedInPhotoPost && (selectedFormat !== "carousel" || carouselSubMode !== null || selectedChannel === "linkedin");
 
   const handleNext = () => {
     if (!selectedFormat) return;
