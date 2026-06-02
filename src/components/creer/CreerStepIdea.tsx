@@ -190,6 +190,15 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
             </p>
           </div>
 
+          <PhotoUploadZone
+            maxPhotos={10}
+            onPhotosChange={setLocalPhotos}
+            onDescriptionChange={setLocalDescription}
+            initialPhotos={localPhotos}
+            initialDescription={localDescription}
+            hideDescription
+          />
+
           <div className="space-y-2">
             <label className="text-sm font-medium text-foreground">
               De quoi veux-tu parler ?
@@ -205,14 +214,6 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
               Le message ou l'angle du post. Les questions et la rédaction s'appuieront dessus.
             </p>
           </div>
-
-          <PhotoUploadZone
-            maxPhotos={10}
-            onPhotosChange={setLocalPhotos}
-            onDescriptionChange={setLocalDescription}
-            initialPhotos={localPhotos}
-            initialDescription={localDescription}
-          />
 
           <Button
             onClick={() => onPhotosNext?.(localPhotos, localDescription, localPhotoSubject.trim())}
