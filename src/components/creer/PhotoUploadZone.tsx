@@ -49,6 +49,8 @@ export interface PhotoUploadZoneProps {
    * have already been provided in a previous step.
    */
   compact?: boolean;
+  /** Hide the "Ou décris tes photos en quelques mots" textarea. */
+  hideDescription?: boolean;
 }
 
 function resizeAndEncode(file: File, maxWidth = 1024, quality = 0.8): Promise<{ base64: string; preview: string }> {
