@@ -51,29 +51,39 @@ export function buildVisionQuestionsPrompt(p: VisionQuestionsParams): string {
   let photoIntro: string;
   let questionGuidance: string;
   if (seriesMode === "single" || photoCount === 1) {
-    photoIntro = `Voici la photo qu'elle veut utiliser pour un contenu ${channelLabelQ}.`;
-    questionGuidance = `Pose exactement 3 questions d'approfondissement ANCRÉES dans la photo et adaptées au format ${channelLabelQ}.`;
+    photoIntro = `Voici la photo qu'elle veut utiliser pour ILLUSTRER son contenu ${channelLabelQ}.`;
+    questionGuidance = `Pose exactement 3 questions d'approfondissement sur LE SUJET qu'elle a déclaré (voir bloc PRIORITAIRE ci-dessus), adaptées au format ${channelLabelQ}. Au moins 1 des 3 questions PEUT s'appuyer sur un détail visible dans la photo ; les autres approfondissent le sujet déclaré (vision, rôle, conviction, contexte pro).`;
   } else if (seriesMode === "before_after") {
-    photoIntro = `Voici les 2 photos qu'elle veut utiliser pour un contenu ${channelLabelQ}. Elles forment un AVANT (photo 1) / APRÈS (photo 2).`;
-    questionGuidance = `Pose exactement 3 questions ANCRÉES dans la transformation visible entre les 2 photos, adaptées au format ${channelLabelQ}. Chaque question doit faire référence à un élément concret VU sur la photo 1 OU la photo 2 (mentionne laquelle). Couvre : (1) le déclic ou la bascule, (2) le geste / process qui a fait changer les choses, (3) le ressenti / l'apprentissage du résultat.`;
+    photoIntro = `Voici les 2 photos qu'elle veut utiliser pour ILLUSTRER son contenu ${channelLabelQ}. Elles forment un AVANT (photo 1) / APRÈS (photo 2).`;
+    questionGuidance = `Pose exactement 3 questions ANCRÉES dans LE SUJET qu'elle a déclaré (voir bloc PRIORITAIRE), adaptées au format ${channelLabelQ}. Au moins 1 des 3 questions peut s'appuyer sur la transformation visible entre les 2 photos ; les autres creusent le sujet déclaré (déclic, geste, apprentissage liés à SON sujet).`;
   } else {
-    photoIntro = `Voici les ${photoCount} photos qu'elle veut utiliser pour un contenu ${channelLabelQ}. Elles appartiennent à UNE MÊME SÉQUENCE / reportage (chantier, événement, coulisses, étapes d'un process, journée…).`;
-    questionGuidance = `Pose exactement 3 questions ANCRÉES dans l'ENSEMBLE de la série (pas uniquement la 1ère photo), adaptées au format ${channelLabelQ}. Chaque question doit citer un détail concret VU sur une photo PRÉCISE (mentionne le numéro de la photo). Couvre : (1) le fil rouge / pourquoi cette séquence dans son ensemble, (2) un moment ou détail marquant visible sur UNE photo spécifique (ex. "sur la photo 3, on voit…"), (3) la prise de position / l'apprentissage pro qui ressort de la série entière. INTERDIT de poser les 3 questions sur la même photo.`;
+    photoIntro = `Voici les ${photoCount} photos qu'elle veut utiliser pour ILLUSTRER son contenu ${channelLabelQ}. Elles appartiennent à UNE MÊME SÉQUENCE (chantier, événement, coulisses, étapes…).`;
+    questionGuidance = `Pose exactement 3 questions ANCRÉES dans LE SUJET qu'elle a déclaré (voir bloc PRIORITAIRE ci-dessus), adaptées au format ${channelLabelQ}. Au moins 1 des 3 questions peut s'appuyer sur un détail visible dans une photo (cite-la) ; les autres approfondissent le sujet déclaré (pourquoi ce sujet, sa vision, son rôle, sa prise de position).`;
   }
+
+  const subjectBlock = p.context && p.context.trim()
+    ? `══ SUJET PRIORITAIRE DE L'UTILISATRICE (BOUSSOLE) ══
+"${p.context.trim()}"
+
+C'est CE sujet qu'elle veut traiter. Les photos sont des ILLUSTRATIONS, pas le sujet.
+Tes 3 questions doivent l'aider à creuser CE sujet — pas à décrire les photos.
+Si les photos évoquent un autre angle, ignore-le : reste sur le sujet déclaré.
+
+`
+    : "";
 
   return `Tu es une coach com' qui prépare un brief avec l'utilisatrice.
 
-${photoIntro}
-Sujet : "${p.context || "non précisé"}"
+${subjectBlock}${photoIntro}
 ${p.objective ? `Objectif : ${p.objective}` : ""}
-${p.photo_description ? `Description globale fournie en amont : "${p.photo_description}"` : ""}${perPhotoBlock}
+${p.photo_description ? `Description complémentaire des photos (secondaire) : "${p.photo_description}"` : ""}${perPhotoBlock}
 
 ${questionGuidance}
 
 RÈGLES :
-- MENTIONNE ce que tu VOIS RÉELLEMENT sur ${photoCount > 1 ? `les ${photoCount} photos (cite leur numéro)` : "la photo"} (élément concret, geste, lumière, lieu, ambiance)
-- Chaque question doit être SPÉCIFIQUE à ${photoCount > 1 ? "CES images précises" : "CETTE photo"} (impossible à reposer pour d'autres images)
-- ${channelGuidanceQ}
+- PRIORITÉ ABSOLUE au sujet déclaré ci-dessus. Les photos servent à enrichir, pas à dicter l'angle.
+- Tu peux mentionner ce que tu VOIS sur ${photoCount > 1 ? "les photos (cite leur numéro si pertinent)" : "la photo"} quand c'est pertinent pour le sujet
+- ${channelGuidanceQ.replace("derrière l'image", "sur LE sujet qu'elle veut traiter")}
 - VARIÉTÉ obligatoire : 1 anecdote/scène, 1 opinion/conviction, 1 process/observation (pas 3 "raconte-moi")
 - Questions OUVERTES, ton chaleureux et curieux
 
