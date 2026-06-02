@@ -408,8 +408,8 @@ export function PhotoUploadZone({
         </div>
       )}
 
-      {/* ── Text description (hidden in compact mode) ─────── */}
-      {!compact && (
+      {/* ── Text description (hidden in compact mode or when explicitly hidden) ─────── */}
+      {!compact && !hideDescription && (
         <div className="space-y-1.5">
           <label className="text-sm font-medium text-foreground">
             Ou décris tes photos en quelques mots
