@@ -49,6 +49,8 @@ export interface PhotoUploadZoneProps {
    * have already been provided in a previous step.
    */
   compact?: boolean;
+  /** Hide the "Ou décris tes photos en quelques mots" textarea. */
+  hideDescription?: boolean;
 }
 
 function resizeAndEncode(file: File, maxWidth = 1024, quality = 0.8): Promise<{ base64: string; preview: string }> {
@@ -84,6 +86,7 @@ export function PhotoUploadZone({
   initialDescription,
   title,
   compact = false,
+  hideDescription = false,
 }: PhotoUploadZoneProps) {
   const [photos, setPhotos] = useState<PhotoItem[]>(initialPhotos ?? []);
   const [description, setDescription] = useState(initialDescription ?? "");
@@ -405,8 +408,8 @@ export function PhotoUploadZone({
         </div>
       )}
 
-      {/* ── Text description (hidden in compact mode) ─────── */}
-      {!compact && (
+      {/* ── Text description (hidden in compact mode or when explicitly hidden) ─────── */}
+      {!compact && !hideDescription && (
         <div className="space-y-1.5">
           <label className="text-sm font-medium text-foreground">
             Ou décris tes photos en quelques mots
