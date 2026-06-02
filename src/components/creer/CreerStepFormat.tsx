@@ -804,33 +804,6 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
         </div>
       )}
 
-      {/* Live recap of choices — shown once a format is picked */}
-      {selectedFormat && (() => {
-        const fmtSpec = CONTENT_TYPE_SPECS[selectedFormat];
-        const ch = CHANNELS.find((c) => c.id === selectedChannel);
-        const angleObj = [...recommended, ...others].find((a) => a.id === selectedAngle);
-        const subModeLabel = (() => {
-          if (selectedFormat !== "carousel") return null;
-          if (carouselSubMode === "text") return "texte";
-          if (carouselSubMode === "photo") return "photo";
-          if (carouselSubMode === "mix") return "mixte";
-          return null;
-        })();
-        const parts = [
-          ch ? `${ch.emoji} ${ch.label}` : null,
-          fmtSpec ? `${fmtSpec.label}${subModeLabel ? ` (${subModeLabel})` : ""}` : selectedFormat,
-          angleObj ? `${angleObj.emoji} ${angleObj.label}` : null,
-        ].filter(Boolean);
-        return (
-          <div className="rounded-xl bg-primary/5 border border-primary/15 px-3 py-2 text-xs text-foreground animate-fade-in">
-            <span className="font-medium text-muted-foreground">Tu vas créer :</span>{" "}
-            {parts.join(" · ")}
-            {!selectedAngle && showAngles && (
-              <span className="text-muted-foreground"> · <span className="italic">l'IA choisira l'angle</span></span>
-            )}
-          </div>
-        );
-      })()}
 
       {/* Navigation */}
       <div className="space-y-2 pt-2">
