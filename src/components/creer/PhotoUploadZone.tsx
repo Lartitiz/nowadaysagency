@@ -86,6 +86,7 @@ export function PhotoUploadZone({
   initialDescription,
   title,
   compact = false,
+  hideDescription = false,
 }: PhotoUploadZoneProps) {
   const [photos, setPhotos] = useState<PhotoItem[]>(initialPhotos ?? []);
   const [description, setDescription] = useState(initialDescription ?? "");
