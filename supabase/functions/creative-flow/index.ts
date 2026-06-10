@@ -853,13 +853,82 @@ Privilégie les sources françaises et européennes quand elles existent.`,
       await logUsage(userId, "deep_research", "web_search", undefined, "claude-sonnet-4-5-20250929", workspace_id);
     }
 
-    // ── Streaming SSE (generate step only, no photo/deepResearch) ──
+    // ── Streaming SSE (generate step) ──
+    // Activé pour : texte pur, ET pour LinkedIn photo (sinon la socket casse pendant la vision).
     const wantsStream = req.headers.get("Accept") === "text/event-stream";
-    if (wantsStream && step === "generate" && !body.photo_mode && !deepResearch && !isStories && !isReel) {
+    const isLinkedInPhotoStream = !!body.photo_mode && isLinkedIn && !!body.photos?.[0]?.base64;
+    const canStreamPhoto = isLinkedInPhotoStream && !deepResearch;
+    if (wantsStream && step === "generate" && !deepResearch && !isStories && !isReel && (!body.photo_mode || canStreamPhoto)) {
       const apiKey = Deno.env.get("ANTHROPIC_API_KEY")!;
       const model = getModelForAction("content");
 
-      // LinkedIn: disable streaming, use 2-step generation + correction
+      // ── LinkedIn + photos : streaming vision (évite la coupure de socket
+      //    pendant la latence vision). On émet immédiatement les tokens dès
+      //    qu'Anthropic les renvoie : la socket reste vivante.
+      if (canStreamPhoto) {
+        const validPhotos = body.photos!.filter((p: any) => p?.base64).slice(0, 10);
+        const isBeforeAfter = validPhotos.length === 2;
+        const isSeries = validPhotos.length >= 3;
+        const { formatBrief, jsonShape } = buildVisionGenerateBrief(contentType);
+
+        const photoContent: any[] = [];
+        photoContent.push({
+          type: "text",
+          text: `══ RÈGLES CRITIQUES À LIRE AVANT DE REGARDER LES IMAGES ══
+
+1. ANTI-PARAPHRASE VISUELLE : tu n'as PAS le droit d'écrire "Ce [adjectif] [objet], c'est…" pour désigner ce que tu vois.
+2. ANTI-CASCADE : pas de rafale de phrases courtes pour faire "punchy". Une seule pensée qui se déroule.
+3. ANTI-CTA FABRIQUÉ : pas de slogan-invitation en italique ou guillemets.
+4. CHIFFRES / NUMÉROS / DATES / NOMS VISIBLES : recopie EXACTEMENT.
+5. TU PARLES À "TU", pas "vous".
+
+══ MAINTENANT, REGARDE LES IMAGES ══
+`,
+        });
+        validPhotos.forEach((p: any, idx: number) => {
+          const cleanB64 = p.base64.replace(/^data:image\/[a-z]+;base64,/, "");
+          photoContent.push({
+            type: "image",
+            source: { type: "base64", media_type: p.mimeType || "image/jpeg", data: cleanB64 },
+          });
+          const ctx = p.context?.trim();
+          if (isBeforeAfter) {
+            const label = idx === 0 ? "↑ AVANT" : "↑ APRÈS";
+            photoContent.push({ type: "text", text: ctx ? `${label} — contexte : "${ctx}"` : label });
+          } else if (ctx) {
+            photoContent.push({ type: "text", text: `↑ Contexte sur l'image ci-dessus : "${ctx}"` });
+          }
+        });
+        const modeInstr = isBeforeAfter
+          ? `\n\n🔄 MODE AVANT / APRÈS : raconte LA transformation comme un récit unique.`
+          : isSeries
+          ? `\n\n📸 MODE SÉRIE (${validPhotos.length} images) : trouve le fil thématique commun. NE liste/NE numérote PAS.`
+          : "";
+        const answersBlockPhoto = (answers && Array.isArray(answers) && answers.length > 0)
+          ? answers.map((a: any, i: number) => `Q${i + 1} : "${a.question}"\n→ "${a.answer}"`).join("\n\n")
+          : "";
+        const userSubjectBlock = (context && String(context).trim())
+          ? `══ SUJET DÉCLARÉ PAR L'UTILISATRICE (PRIORITÉ ABSOLUE) ══\n"${String(context).trim()}"\n\nC'est CE sujet que le post doit traiter. Les photos ILLUSTRENT, elles ne dictent PAS l'angle.\n\n`
+          : "";
+        photoContent.push({
+          type: "text",
+          text: `${userSubjectBlock}${formatBrief}${body.photo_description ? `\nDescription complémentaire : "${body.photo_description}"` : ""}${answersBlockPhoto ? `\n\n══ RÉPONSES DE L'UTILISATRICE ══\n${answersBlockPhoto}` : ""}${modeInstr}\n\nRègle anti-fabrication : n'invente AUCUN détail non vérifiable. Si la matière manque, bascule sur registre RÉFLEXIF/MÉTA ancré sur LE SUJET DÉCLARÉ.\n\nRéponds UNIQUEMENT en JSON :\n${jsonShape}`,
+        });
+
+        const anthropicStream = await streamAnthropicSSE(
+          apiKey,
+          model,
+          systemPrompt,
+          [{ role: "user", content: photoContent }],
+          0.7,
+          4096,
+        );
+        return createClientSSEStream(anthropicStream, corsHeaders, async () => {
+          await logUsage(userId, "content", "creative_flow", undefined, undefined, workspace_id);
+        });
+      }
+
+      // LinkedIn (texte): disable streaming, use 2-step generation + correction
       if (isLinkedIn) {
         console.log("[CORRECTION DEBUG] LinkedIn correction pass STARTED");
         const rawContent = await callAnthropicSimple(model, systemPrompt, userPrompt!, 0.85, 4096);
@@ -1362,9 +1431,13 @@ Réponds UNIQUEMENT en JSON :
     // ═══ PASSE DE CORRECTION LinkedIn ═══
     // Pour TOUT post LinkedIn généré (photo ou texte), on rejoue une 2ᵉ passe
     // spécialisée qui chasse cascades, anaphores, formules manufacturées, CTA génériques.
+    // En photo_mode, on SKIP la 2ᵉ passe pour éviter le double appel Anthropic
+    // (vision déjà coûteuse en wall-time). Les règles anti-broetry sont déjà
+    // injectées AVANT les images dans le prompt photo LinkedIn (lignes 1272+).
     if (
       step === "generate" &&
       contentType?.includes("linkedin") &&
+      !body.photo_mode &&
       parsed && typeof parsed === "object" &&
       typeof parsed.content === "string" &&
       parsed.content.length >= 200
