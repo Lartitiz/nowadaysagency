@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import { invokeWithHeartbeat } from "@/lib/invoke-with-heartbeat";
 import { supabase } from "@/integrations/supabase/client";
 import { handleQuotaError } from "@/lib/quota-error-handler";
 import { useStreamingInvoke } from "@/hooks/use-streaming-invoke";
