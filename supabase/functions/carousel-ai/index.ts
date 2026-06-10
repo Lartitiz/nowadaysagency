@@ -606,7 +606,12 @@ Réponds UNIQUEMENT en JSON valide :
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
+  };
+
+  if (wantsSSE) return runWithHeartbeatSSE(corsHeaders, handle);
+  return handle();
 });
+
 
 function buildSystemPrompt(brandingContext: string, isLinkedIn: boolean = false, profile?: any): string {
   return `${BASE_SYSTEM_RULES}
