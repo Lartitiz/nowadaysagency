@@ -853,9 +853,12 @@ Privilégie les sources françaises et européennes quand elles existent.`,
       await logUsage(userId, "deep_research", "web_search", undefined, "claude-sonnet-4-5-20250929", workspace_id);
     }
 
-    // ── Streaming SSE (generate step only, no photo/deepResearch) ──
+    // ── Streaming SSE (generate step) ──
+    // Activé pour : texte pur, ET pour LinkedIn photo (sinon la socket casse pendant la vision).
     const wantsStream = req.headers.get("Accept") === "text/event-stream";
-    if (wantsStream && step === "generate" && !body.photo_mode && !deepResearch && !isStories && !isReel) {
+    const isLinkedInPhotoStream = !!body.photo_mode && isLinkedIn && !!body.photos?.[0]?.base64;
+    const canStreamPhoto = isLinkedInPhotoStream && !deepResearch;
+    if (wantsStream && step === "generate" && !deepResearch && !isStories && !isReel && (!body.photo_mode || canStreamPhoto)) {
       const apiKey = Deno.env.get("ANTHROPIC_API_KEY")!;
       const model = getModelForAction("content");
 
