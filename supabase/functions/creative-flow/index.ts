@@ -1362,9 +1362,13 @@ Réponds UNIQUEMENT en JSON :
     // ═══ PASSE DE CORRECTION LinkedIn ═══
     // Pour TOUT post LinkedIn généré (photo ou texte), on rejoue une 2ᵉ passe
     // spécialisée qui chasse cascades, anaphores, formules manufacturées, CTA génériques.
+    // En photo_mode, on SKIP la 2ᵉ passe pour éviter le double appel Anthropic
+    // (vision déjà coûteuse en wall-time). Les règles anti-broetry sont déjà
+    // injectées AVANT les images dans le prompt photo LinkedIn (lignes 1272+).
     if (
       step === "generate" &&
       contentType?.includes("linkedin") &&
+      !body.photo_mode &&
       parsed && typeof parsed === "object" &&
       typeof parsed.content === "string" &&
       parsed.content.length >= 200

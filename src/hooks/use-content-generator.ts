@@ -636,6 +636,9 @@ export function useContentGenerator() {
 
         if (answersArray.length === 0) return [];
 
+        // Follow-up ne fait PAS d'appel vision côté serveur (cf. creative-flow step="follow-up").
+        // On évite donc de retransmettre les base64 (jusqu'à 10 × ~250 KB), qui ne servent à rien
+        // et fragilisent la requête réseau. On garde photo_description comme contexte texte.
         const hasPhotosFU = (params.photos?.length ?? 0) > 0 && !!params.photos?.[0]?.base64;
         const photoModeFU = hasPhotosFU && params.photoMode === true;
 
@@ -647,16 +650,9 @@ export function useContentGenerator() {
             answers: answersArray,
             objective: params.objective || null,
             photo_mode: photoModeFU || undefined,
-            photos: photoModeFU
-              ? params.photos!.slice(0, 10).map(p => ({
-                  base64: p.base64,
-                  mimeType: p.mimeType || "image/jpeg",
-                  context: p.context,
-                }))
-              : undefined,
             photo_description: photoModeFU ? params.photoDescription || undefined : undefined,
           },
-        }, photoModeFU ? 120000 : 45000);
+        }, 45000);
 
         if (res.error) throw new Error(res.error.message || "Erreur follow-up");
         const rawContent = res.data?.content ?? res.data;

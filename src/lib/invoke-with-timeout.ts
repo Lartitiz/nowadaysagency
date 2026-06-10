@@ -289,10 +289,15 @@ export async function invokeWithTimeout(
           }
         }
 
+        const isPhotoCall =
+          (options as any)?.body?.photo_mode === true ||
+          Array.isArray((options as any)?.body?.photos);
         resolve({
           data: null,
           error: {
-            message: "Connexion perdue ou session expirée. Reconnecte-toi pour continuer.",
+            message: isPhotoCall
+              ? "Génération longue interrompue. Réessaie avec moins de photos (3-5 max) ou vérifie ta connexion."
+              : "Connexion perdue ou session expirée. Reconnecte-toi pour continuer.",
             code: "NETWORK",
             isNetwork: true,
             originalError: err,
