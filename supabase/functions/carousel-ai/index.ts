@@ -8,6 +8,7 @@ import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { applyCorrectionPassCarousel } from "../_shared/correction-pass.ts";
+import { runWithHeartbeatSSE } from "../_shared/anthropic-stream.ts";
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
@@ -42,6 +43,9 @@ function pushPhotoWithContext(messageContent: any[], photo: { base64: string; co
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
+  const wantsSSE = (req.headers.get("accept") || "").includes("text/event-stream");
+
+  const handle = async (): Promise<Response> => {
 
   try {
     // Parse body first to extract workspace_id
@@ -602,7 +606,12 @@ Réponds UNIQUEMENT en JSON valide :
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
+  };
+
+  if (wantsSSE) return runWithHeartbeatSSE(corsHeaders, handle);
+  return handle();
 });
+
 
 function buildSystemPrompt(brandingContext: string, isLinkedIn: boolean = false, profile?: any): string {
   return `${BASE_SYSTEM_RULES}

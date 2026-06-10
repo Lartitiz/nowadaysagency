@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import { invokeWithHeartbeat } from "@/lib/invoke-with-heartbeat";
 import { supabase } from "@/integrations/supabase/client";
 import { handleQuotaError } from "@/lib/quota-error-handler";
 import { useStreamingInvoke } from "@/hooks/use-streaming-invoke";
@@ -229,7 +230,7 @@ export function useContentGenerator() {
             effectiveCarouselType = null;
           }
 
-          const res = await invokeWithTimeout("carousel-ai", {
+          const res = await invokeWithHeartbeat("carousel-ai", {
             body: {
               type: "express_full",
               channel: params.channel || "instagram",
@@ -248,7 +249,7 @@ export function useContentGenerator() {
               confirmed_structure: params.confirmedStructure || null,
               ...(newsContext && newsContext.trim() ? { news_context: newsContext.slice(0, 3800) } : {}),
             },
-          }, 120000);
+          }, 180000);
           data = res.data;
           invokeError = res.error;
           break;
