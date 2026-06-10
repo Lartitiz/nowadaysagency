@@ -42,6 +42,9 @@ function pushPhotoWithContext(messageContent: any[], photo: { base64: string; co
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
+  const wantsSSE = (req.headers.get("accept") || "").includes("text/event-stream");
+
+  const handle = async (): Promise<Response> => {
 
   try {
     // Parse body first to extract workspace_id
