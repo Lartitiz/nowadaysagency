@@ -1,65 +1,77 @@
 ## Diagnostic
 
-J'ai tracé le flux exact pour un post LinkedIn avec photos.
+L'erreur "Failed to send a request to Edge Function" arrive systématiquement sur le scénario **LinkedIn + photos** après les questions. C'est un `FunctionsFetchError` côté SDK Supabase = la connexion HTTP s'est coupée avant que la fonction renvoie une réponse. En auditant `creative-flow`, le hook `useStreamingInvoke` et `invokeWithTimeout`, j'identifie **4 causes cumulées**.
 
-**Ce qui est envoyé au modèle** (depuis `CreerUnifie.tsx`) :
-- `context` = ton texte "De quoi tu veux parler ?" (ex : *"j'ai co-créé La Prochaine Aire et je m'occupe de la com"*)
-- `photo_description` = le bloc "décris tes photos en quelques mots" (souvent vide maintenant qu'on l'a caché)
-- `photos[]` = les 4 images + leur contexte par photo
+### 1. La génération photo LinkedIn ne stream PAS (cause principale)
+Dans `supabase/functions/creative-flow/index.ts` ligne 858, le SSE est explicitement désactivé dès que `body.photo_mode === true`. Sans streaming :
+- Pas de keep-alive sur la connexion → l'infra (gateway Lovable Cloud + Deno edge) peut couper après ~60-150 s d'inactivité.
+- Le client attend un seul gros JSON final → si le backend met 100 s+, le fetch tombe en `FunctionsFetchError` avant la fin.
 
-**Étape `questions`** (`supabase/functions/_shared/vision-prompts.ts`) :
-- Ton sujet est injecté comme une simple ligne : `Sujet : "${context}"`
-- Mais les **consignes dominantes** forcent l'ancrage image : *"Chaque question doit citer un détail concret VU sur une photo PRÉCISE"*, *"INTERDIT de poser les 3 questions sur la même photo"*, *"Ton PRO : ce qu'on apprend pro derrière l'image"*.
-- Résultat : les 3 questions partent des photos, pas de ton sujet. Ton "je veux parler de co-création + récits désirables" est noyé.
+### 2. LinkedIn photo = DEUX appels Anthropic en série
+Toujours dans `creative-flow` :
+- Appel #1 (ligne 1336) : vision multi-photos, `max_tokens=4096`, modèle Sonnet/Opus → 30 à 90 s avec 3-10 photos.
+- Appel #2 (ligne 1373) : `applyCorrectionPass` LinkedIn obligatoire dès que le post fait ≥200 chars → +15 à 40 s.
 
-**Étape `generate`** (`supabase/functions/creative-flow/index.ts` ligne 1327) :
-- Le prompt n'injecte **QUE** `photo_description` — pas `context`.
-- Donc ton sujet déclaré au tout début disparaît littéralement du prompt de rédaction. Le modèle se rabat sur les photos + tes réponses aux 3 questions (elles-mêmes biaisées photo).
-- C'est pour ça qu'il sort un post centré sur "Aire You Ready / récits désirables / com pas austère" (ce qu'il voit sur le flyer) au lieu de "j'ai co-créé ce lieu et j'en fais la com".
+Total wall-time régulier = **60-140 s**, parfois plus. Sans streaming pour tenir la socket, c'est exactement la fenêtre où la connexion casse.
 
-## Plan
+### 3. La phase "follow-up" renvoie toutes les photos
+Dans `src/hooks/use-content-generator.ts` ligne 642, l'appel `creative-flow step="follow-up"` en mode photo retransmet la totalité des base64 (jusqu'à 10 × ~250 KB) ET refait un appel vision. Résultat :
+- Payload répété (latence réseau mobile).
+- Deuxième vision facturée → ralentit toute la chaîne avant le "generate" final.
 
-Deux fichiers à modifier, uniquement sur le chemin **photo + LinkedIn** (pour ne rien casser ailleurs).
+### 4. Timeout client incohérent
+- `useStreamingInvoke` : 180 s (OK).
+- `invokeWithTimeout` follow-up photo : 120 s (limite).
+- Le timeout serveur Lovable Cloud est plus court que 180 s sur certains scénarios → le client n'a pas le temps de voir un AbortError "propre", il reçoit le `FunctionsFetchError` brut, mal mappé en UX ("Failed to send a request…").
 
-### 1. `supabase/functions/_shared/vision-prompts.ts` — `buildVisionQuestionsPrompt`
+---
 
-Repositionner le sujet utilisatrice comme **boussole prioritaire** des questions :
+## Plan de correction
 
-- Ajouter un bloc en tête de prompt (avant les règles d'ancrage image) :
-  ```
-  ══ SUJET PRIORITAIRE DE L'UTILISATRICE ══
-  "${context}"
-  C'est CE sujet qu'elle veut traiter. Les photos sont des illustrations, pas le sujet.
-  Tes 3 questions doivent l'aider à creuser CE sujet — pas à décrire les photos.
-  ```
-- Assouplir la règle d'ancrage : les questions peuvent (mais ne doivent plus obligatoirement) citer une photo précise. Remplacer *"Chaque question doit citer un détail concret VU sur une photo précise"* par *"Au moins 1 des 3 questions peut s'appuyer sur un détail visible. Les autres approfondissent le sujet déclaré."*
-- Retirer le *"INTERDIT de poser les 3 questions sur la même photo"* (qui force la dispersion).
-- Garder la consigne canal LinkedIn mais la subordonner au sujet : *"Angle PRO sur LE sujet qu'elle veut traiter, pas sur ce qu'on voit."*
+### Étape 1 — Activer le streaming SSE pour photo_mode LinkedIn (fix principal)
+Fichier : `supabase/functions/creative-flow/index.ts`
 
-### 2. `supabase/functions/creative-flow/index.ts` — branche `step === "generate" && photo_mode` (lignes 1255-1338)
+- Retirer la condition `!body.photo_mode` ligne 858 **uniquement pour LinkedIn photo** (les autres formats photo restent en JSON pour l'instant pour ne pas casser le parsing carousel).
+- Lorsque streaming activé en photo LinkedIn :
+  - Envoyer la requête vision Anthropic en mode `stream: true`.
+  - Pipe les deltas vers le client via `createClientSSEStream`.
+  - Émettre périodiquement (toutes les 10 s) un event SSE `heartbeat` pendant le pré-traitement vision pour tenir la socket.
 
-Injecter `context` dans le prompt de génération, avec **priorité maximale** :
+### Étape 2 — Rendre la passe de correction LinkedIn non-bloquante en photo_mode
+Même fichier, lignes 1362-1382.
 
-- Construire en tête du dernier `text` block (avant `formatBrief`) :
-  ```
-  ══ SUJET DÉCLARÉ PAR L'UTILISATRICE (PRIORITÉ ABSOLUE) ══
-  "${context}"
-  
-  C'est CE sujet que le post doit traiter. Les photos illustrent / appuient, elles ne dictent PAS l'angle.
-  Si une photo te suggère un angle différent de ce sujet, ignore-le et reste sur le sujet déclaré.
-  ```
-- Garder `photo_description` ensuite, mais le requalifier : *"Description complémentaire des photos (contexte secondaire)"*.
-- Garder le bloc `answersBlockPhoto` mais ajouter : *"Ces réponses servent à enrichir LE sujet ci-dessus, pas à le remplacer."*
-- Conserver toutes les règles anti-fabrication, anti-cascade, anti-désignation d'image existantes.
+- En photo_mode : appliquer la correction directement **dans le prompt** plutôt qu'en 2ᵉ passe (les règles anti-broetry sont déjà dans le bloc "RÈGLES CRITIQUES" ligne 1272). Supprime l'appel #2 → -15 à 40 s.
+- En texte pur : on garde la 2ᵉ passe comme aujourd'hui.
 
-### Ce qui ne change pas
+### Étape 3 — Cesser de renvoyer les photos au step "follow-up"
+Fichier : `src/hooks/use-content-generator.ts` ligne 620-678.
 
-- Le flux UI (ordre photos → sujet) reste inchangé.
-- Le chemin texte (non-photo), Instagram, Reels, Stories, Newsletter, carrousels : aucun changement.
-- Les règles anti-slop et la passe de correction LinkedIn restent identiques.
+- Pour le follow-up, n'envoyer **que** le `photo_description` + les réponses déjà fournies (pas les base64). Le serveur (`creative-flow` step="follow-up") doit accepter ce mode "texte seul même si photo_mode=true" et générer les questions de relance à partir du texte.
+- Côté serveur : ligne 1217, ajouter une garde "si photos vides en follow-up → bascule sur prompt texte".
 
-## Effet attendu
+### Étape 4 — UX d'erreur réseau plus claire
+Fichier : `src/lib/invoke-with-timeout.ts` + `src/hooks/use-streaming-invoke.ts`.
 
-Avec ton input *"j'ai co-créé La Prochaine Aire et je m'occupe de la com / récits désirables"* + tes 4 photos :
-- **Questions** : 1 sur la co-création (pourquoi ce lieu, ton rôle), 1 sur ta vision des récits désirables, 1 qui peut s'appuyer sur une photo (ex. l'événement Aire You Ready) — au lieu des 3 actuelles sur photos.
-- **Post généré** : centré sur ton histoire (co-créatrice + responsable com), les photos servent d'illustration, plus de dérive vers "communication pas austère" si ce n'est pas ton angle.
+- Détecter `FunctionsFetchError` pendant un appel photo et afficher un message explicite : "Génération longue — vérifie ta connexion et réessaie avec moins de photos." plutôt que le générique actuel.
+- Aligner les timeouts : `useStreamingInvoke` à 150 s (cohérent avec la limite edge), `invokeWithTimeout` photo à 90 s puisque les photos ne servent plus au follow-up.
+
+### Étape 5 — Garde-fou côté UI
+Fichier : `src/components/creer/PhotoUploadZone.tsx` (déjà max 10).
+
+- Pour LinkedIn photo, capper à **5 photos** (au lieu de 10) avec message : "LinkedIn photo : 5 max pour rester rapide." Réduit drastiquement la fenêtre de timeout.
+
+---
+
+## Détails techniques
+
+- Pas de changement de schéma DB ni d'edge function supplémentaire.
+- Pas de mode polling/jobs asynchrones (overkill pour gagner 30 s ; le streaming SSE suffit).
+- La sécurité reste inchangée : pipeline auth + quota déjà appliqué en haut de `creative-flow`.
+- Aucun impact sur les autres flux (Instagram carousel photo, newsletter, etc.) parce que les changements sont gardés derrière `contentType?.includes("linkedin") && photo_mode`.
+
+## Critères de validation
+
+1. Générer un post LinkedIn avec 3 photos → la réponse arrive en streaming, plus de `FunctionsFetchError`.
+2. Générer avec 5 photos → reste sous 90 s perçues côté client.
+3. Le follow-up post-questions ne déclenche plus de second appel vision (vérifiable dans les logs `creative-flow`).
+4. Si la connexion casse vraiment, le toast affiche le message explicite, pas "Failed to send a request to Edge Function".
