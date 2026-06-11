@@ -27,7 +27,12 @@ export default function NewsletterResult({ result }: Props) {
   };
 
   const copyAll = () => {
-    const text = `Objet : ${subject}\n\n${body}${ctaSuggestion ? `\n\n---\n${ctaSuggestion}` : ""}`;
+    const text = [
+      subject ? `Objet : ${subject}` : null,
+      previewText ? `Preview : ${previewText}` : null,
+      body,
+      ctaSuggestion ? `---\n${ctaSuggestion}` : null,
+    ].filter(Boolean).join("\n\n");
     navigator.clipboard.writeText(text);
     toast.success("Newsletter copiée !");
   };

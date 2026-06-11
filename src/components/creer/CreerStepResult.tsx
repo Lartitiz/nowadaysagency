@@ -90,6 +90,13 @@ const PROGRESS_MESSAGES: Record<string, string[]> = {
     "Vérification du rythme et des accroches…",
     "Derniers ajustements…",
   ],
+  newsletter: [
+    "Rédaction de l'objet d'email…",
+    "Construction du storytelling…",
+    "Développement de la réflexion en profondeur…",
+    "Relecture et correction du style…",
+    "Dernières retouches…",
+  ],
   default: [
     "L'IA rédige ton contenu…",
     "Personnalisation avec ta voix…",
