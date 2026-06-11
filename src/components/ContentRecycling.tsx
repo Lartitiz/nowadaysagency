@@ -49,6 +49,7 @@ export default function ContentRecycling() {
   );
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<Record<string, string>>({});
+  const [topics, setTopics] = useState<Record<string, string>>({});
   const [activeTab, setActiveTab] = useState<string>("");
   const [showCalendarDialog, setShowCalendarDialog] = useState(false);
   const [showIdeasDialog, setShowIdeasDialog] = useState(false);
@@ -166,6 +167,7 @@ export default function ContentRecycling() {
         return;
       }
       setResults(r);
+      setTopics(data?.topics || {});
       setActiveTab(formats[0] || "");
 
       if (user) {
@@ -225,6 +227,8 @@ export default function ContentRecycling() {
     }
   };
 
+  const getTopicFor = (id: string) => topics[id]?.trim() || (results[id] || "").split("\n").find(l => l.trim())?.slice(0, 80) || `Recyclage ${getFormatShortLabel(id)}`;
+
   const activeText = activeTab ? (results[activeTab] || "") : "";
   const canExport = activeText.trim().length > 0;
 
@@ -234,7 +238,7 @@ export default function ContentRecycling() {
     const insertData: any = {
       user_id: user.id,
       date: dateStr,
-      theme: `Recyclage ${getFormatShortLabel(activeTab)}`,
+      theme: getTopicFor(activeTab),
       canal: getCanal(activeTab),
       format: getCalendarFormat(activeTab),
       content_draft: text,
@@ -416,7 +420,7 @@ export default function ContentRecycling() {
                 <Button variant="outline" size="sm" disabled={!canExport} onClick={() => setShowIdeasDialog(true)} className="rounded-pill gap-1.5">
                   <Lightbulb className="h-3.5 w-3.5" /> Sauvegarder en idée
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => { setResults({}); setActiveTab(""); setFiles([]); }} className="rounded-pill gap-1.5">
+                <Button variant="ghost" size="sm" onClick={() => { setResults({}); setTopics({}); setActiveTab(""); setFiles([]); }} className="rounded-pill gap-1.5">
                   <RefreshCw className="h-3.5 w-3.5" /> Nouveau recyclage
                 </Button>
               </div>
@@ -434,7 +438,7 @@ export default function ContentRecycling() {
                 open={showIdeasDialog}
                 onOpenChange={setShowIdeasDialog}
                 contentType={getContentType(activeTab)}
-                subject={`Recyclage : ${getFormatShortLabel(activeTab)}`}
+                subject={getTopicFor(activeTab)}
                 contentData={{ type: "recycling", format: activeTab, text: activeText }}
                 sourceModule="recycling"
                 format={getCalendarFormat(activeTab)}
