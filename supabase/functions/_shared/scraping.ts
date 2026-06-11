@@ -378,6 +378,8 @@ export async function scrapeWebsite(url: string, signal: AbortSignal): Promise<s
   let formattedUrl = url.trim();
   if (!formattedUrl.startsWith("http")) formattedUrl = `https://${formattedUrl}`;
 
+  if (!isSafePublicUrl(formattedUrl)) return null;
+
   let mainText: string | null = null;
   let secondaryUrls: string[] = [];
   let jinaCallsUsed = 0;
@@ -531,6 +533,8 @@ export async function scrapeInstagram(handle: string, signal: AbortSignal): Prom
 
 export async function scrapeLinkedin(url: string, signal: AbortSignal): Promise<string | null> {
   try {
+    if (!isSafePublicUrl(url)) return null;
+
     const resp = await fetch(url, {
       signal,
       headers: {
