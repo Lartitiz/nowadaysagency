@@ -934,7 +934,9 @@ export default function CreerUnifie() {
     // Formats structurés : appel classique (pas de streaming)
     // Carrousels photo/mix : proposer la structure d'abord (sauf si déjà validée)
     // Les carrousels texte vont directement à la génération (pas de structure_review)
-    const isPhotoOrMixCarousel = carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo";
+    // pure_photo : pas de structure review non plus — le nombre de slides est forcé
+    // au nombre de photos uploadées dans le post-process (effet plus bas).
+    const isPhotoOrMixCarousel = carouselSubMode === "photo" || carouselSubMode === "mix";
     if (selectedFormat === "carousel" && isPhotoOrMixCarousel && !structureProposal && !lastConfirmedStructure) {
       setStructureLoading(true);
       try {
@@ -1153,28 +1155,38 @@ export default function CreerUnifie() {
   }, [result, isLinkedInCarousel, carouselSubMode, generating, captionLoading, generateLinkedInCarouselCaption]);
 
   // ── Carrousel "juste photo" : on supprime tout overlay/title/body sur les slides
-  // pour que le rendu affiche uniquement les photos. La légende reste générée.
+  // ET on tronque le nombre de slides au nombre de photos uploadées (1 photo = 1 slide).
+  // La légende reste générée par l'IA.
   const purePhotoStrippedRef = useRef<any>(null);
   useEffect(() => {
     if (carouselSubMode !== "pure_photo") return;
     const r: any = (result as any)?.raw;
     if (!r?.slides || !Array.isArray(r.slides) || r.slides.length === 0) return;
     if (purePhotoStrippedRef.current === r) return;
+    // Source de vérité : snapshot pris au moment de la génération, sinon état UI courant.
+    const photoCount = generatedWithPhotos.length || uploadedPhotos.length;
+    if (photoCount === 0) return;
     purePhotoStrippedRef.current = r;
-    const cleaned = r.slides.map((s: any, i: number) => ({
+    const baseSlides = r.slides.slice(0, photoCount);
+    // Si l'IA a produit moins de slides que de photos, on complète avec des slides vides.
+    while (baseSlides.length < photoCount) {
+      baseSlides.push({ slide_number: baseSlides.length + 1, role: "body" });
+    }
+    const cleaned = baseSlides.map((s: any, i: number) => ({
       ...s,
+      slide_number: i + 1,
       slide_type: "photo_full",
       overlay_text: null,
       title: "",
       body: "",
-      photo_index: Number.isInteger(s.photo_index) && s.photo_index >= 1 ? s.photo_index : i + 1,
+      photo_index: i + 1,
     }));
     setResult((prev: any) => {
       if (!prev) return prev;
       const nextRaw = { ...(prev.raw || {}), slides: cleaned, no_overlay: true, carousel_type: "photo" };
       return { ...prev, raw: nextRaw };
     });
-  }, [result, carouselSubMode]);
+  }, [result, carouselSubMode, generatedWithPhotos.length, uploadedPhotos.length]);
 
 
   const handleConfirmStructure = async (confirmedSlides: SlideProposal[]) => {
