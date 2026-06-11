@@ -76,6 +76,11 @@ export function PhotoLibraryPickerDialog({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [urlMap, setUrlMap] = useState<Map<string, string>>(new Map());
 
+  const readyPhotos = useMemo(
+    () => (photos ?? []).filter((p) => p.status === "ready"),
+    [photos],
+  );
+
   // Reset selection on every open
   useEffect(() => {
     if (open) setSelectedIds([]);
@@ -95,11 +100,6 @@ export function PhotoLibraryPickerDialog({
       cancelled = true;
     };
   }, [open, readyPhotos]);
-
-  const readyPhotos = useMemo(
-    () => (photos ?? []).filter((p) => p.status === "ready"),
-    [photos],
-  );
 
   const atMax = selectedIds.length >= maxSelectable;
 
