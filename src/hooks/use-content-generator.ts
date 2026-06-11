@@ -64,7 +64,7 @@ export interface GenerateQuestionsParams {
   // Photo-related — when present, ask vision-anchored questions
   photos?: Array<{ base64: string; context?: string; mimeType?: string }>;
   photoDescription?: string;
-  carouselSubMode?: "text" | "photo" | "mix";
+  carouselSubMode?: "text" | "photo" | "mix" | "pure_photo";
   photoMode?: boolean;
   // Newsjacking — anchors the questions in the actu instead of generic subject
   newsContext?: string;
@@ -500,7 +500,11 @@ export function useContentGenerator() {
             : null;
 
           const hasPhotos = (params.photos?.length ?? 0) > 0;
-          const visionMode = hasPhotos && (params.carouselSubMode === "photo" || params.carouselSubMode === "mix");
+          const isPhotoLikeMode = params.carouselSubMode === "photo" || params.carouselSubMode === "mix" || params.carouselSubMode === "pure_photo";
+          const visionMode = hasPhotos && isPhotoLikeMode;
+          // pure_photo réutilise la pipeline "photo" côté backend (le post-process
+          // côté client supprimera ensuite tout overlay_text/title/body).
+          const effectiveSubMode = params.carouselSubMode === "pure_photo" ? "photo" : params.carouselSubMode;
 
           const res = await invokeWithTimeout("carousel-ai", {
             body: {
@@ -512,7 +516,7 @@ export function useContentGenerator() {
               editorial_angle: editorialAngle || null,
               content_structure: structurePrompt || null,
               recent_briefs_context: recentBriefsContext || undefined,
-              carousel_type: visionMode ? params.carouselSubMode : undefined,
+              carousel_type: visionMode ? effectiveSubMode : undefined,
               photos: visionMode
                 ? params.photos!.map((p) => ({ base64: p.base64, context: p.context }))
                 : undefined,

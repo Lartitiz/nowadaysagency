@@ -145,7 +145,7 @@ export default function CreerUnifie() {
   const fromCalendar = !!(locState?.fromCalendar && calendarPostId);
 
   // Photo states (carousel photo + post photo)
-  const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | "mix" | null>(null);
+  const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | "mix" | "pure_photo" | null>(null);
   const [uploadedPhotos, setUploadedPhotos] = useState<any[]>([]);
   // Snapshot des photos au moment de la génération du carrousel.
   // Sert de source de vérité pour handleGenerateVisuals si le state UI est reset.
@@ -326,7 +326,7 @@ export default function CreerUnifie() {
     if (!demo) return;
     setIdeaText(demo.subject);
     setSelectedFormat("carousel");
-    setCarouselSubMode((demo.carousel_type as "text" | "photo" | "mix") || "text");
+    setCarouselSubMode((demo.carousel_type as "text" | "photo" | "mix" | "pure_photo") || "text");
     setObjective(demo.objective);
     setStep("format");
     setResult(null);
@@ -384,7 +384,7 @@ export default function CreerUnifie() {
     }
 
     const fmtRaw = paramFormat || locState?.format;
-    const paramCarouselSubMode = searchParams.get("carouselSubMode") as "text" | "photo" | "mix" | null;
+    const paramCarouselSubMode = searchParams.get("carouselSubMode") as "text" | "photo" | "mix" | "pure_photo" | null;
 
     // Mapping vers les formats canoniques de CreerUnifie/use-content-generator
     // Couvre les valeurs venues du calendrier ET de saved_ideas (boîte à idées).
@@ -459,7 +459,7 @@ export default function CreerUnifie() {
 
   // ── Step handlers ──
 
-  const handleCoachingSelect = useCallback((data: { subject: string; format: string; objective: string; carouselSubMode?: "text" | "photo" | "mix" }) => {
+  const handleCoachingSelect = useCallback((data: { subject: string; format: string; objective: string; carouselSubMode?: "text" | "photo" | "mix" | "pure_photo" }) => {
     setAnswers({});
     setEditorialAngle(null);
     setEditContent("");
@@ -547,7 +547,7 @@ export default function CreerUnifie() {
     setStep("format");
   };
 
-  const handleFormatNext = async (format: string, angle?: string, options?: { carouselSubMode?: "text" | "photo" | "mix"; photos?: any[]; photoDescription?: string; photoMode?: boolean; overrideSubject?: string; linkedinCarousel?: boolean }) => {
+  const handleFormatNext = async (format: string, angle?: string, options?: { carouselSubMode?: "text" | "photo" | "mix" | "pure_photo"; photos?: any[]; photoDescription?: string; photoMode?: boolean; overrideSubject?: string; linkedinCarousel?: boolean }) => {
     const { carouselSubMode: sub, photos, photoDescription: desc, photoMode: pm, overrideSubject, linkedinCarousel: linkedinCarLocal } = options || {};
 
     // Auriana demo account: let the flow continue through all steps (no bypass)

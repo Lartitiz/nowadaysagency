@@ -38,7 +38,7 @@ interface ContentResult {
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSelect?: (data: { subject: string; format: string; objective: string; carouselSubMode?: "text" | "photo" | "mix" }) => void;
+  onSelect?: (data: { subject: string; format: string; objective: string; carouselSubMode?: "text" | "photo" | "mix" | "pure_photo" }) => void;
   onNewsjackingRedirect?: () => void;
 }
 
@@ -124,7 +124,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
   const [result, setResult] = useState<ContentResult | null>(null);
   const [selectedIdea, setSelectedIdea] = useState<ContentIdea | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
-  const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | "mix" | null>(null);
+  const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | "mix" | "pure_photo" | null>(null);
   const [savedIdeas, setSavedIdeas] = useState<Set<number>>(new Set());
   const createIdea = useCreateIdea();
 
@@ -405,11 +405,12 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
             {format === "carousel" && carouselSubMode === null && (
               <div className="space-y-2 animate-fade-in rounded-xl border border-primary/20 bg-primary/5 p-3">
                 <p className="text-xs font-semibold text-foreground">Quel type de carrousel ?</p>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {([
                     { id: "text" as const, emoji: "📝", label: "Texte", desc: "L'IA rédige tes slides" },
-                    { id: "photo" as const, emoji: "📸", label: "Photo", desc: "Photos + texte par-dessus" },
+                    { id: "photo" as const, emoji: "📸", label: "Full photo", desc: "Photos + texte par-dessus" },
                     { id: "mix" as const, emoji: "✨", label: "Mixte", desc: "Photos + slides texte" },
+                    { id: "pure_photo" as const, emoji: "🖼️", label: "Juste photo", desc: "Photos seules, aucun texte" },
                   ]).map(sub => (
                     <button
                       key={sub.id}
