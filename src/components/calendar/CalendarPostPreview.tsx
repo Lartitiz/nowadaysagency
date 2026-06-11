@@ -9,6 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/compon
 import { DownloadMenuItems } from "@/components/exports/DownloadMenuItems";
 import { useToast } from "@/hooks/use-toast";
 import { useBrandCharter } from "@/hooks/use-branding";
+import { getIncludeLogoPref, setIncludeLogoPref } from "@/lib/export-logo";
 
 interface Props {
   canal: string;
