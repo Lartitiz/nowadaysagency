@@ -192,6 +192,17 @@ export default function CharterTypographySection({ data, onDataChange, toneKeywo
         />
       </div>
 
+      {data.font_rationale && (
+        <div className="mt-4 rounded-xl bg-primary/5 border border-primary/15 px-3 py-2.5 flex items-start gap-2">
+          <Sparkles className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
+          <p className="text-xs text-foreground/80 leading-snug">
+            <span className="font-medium text-primary">Pourquoi ce duo ? </span>
+            {data.font_rationale}
+          </p>
+        </div>
+      )}
+
+
       {suggestions.length > 0 && (
         <div className="mt-6 pt-5 border-t border-border">
           <p className="text-xs font-medium text-muted-foreground mb-3">
