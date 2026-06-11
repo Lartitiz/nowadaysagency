@@ -7,6 +7,7 @@ import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voi
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Loader2, ArrowRight, ArrowLeft, Check, Lightbulb, Sparkles, RotateCcw, Copy } from "lucide-react";
 import { toast } from "sonner";
+import { handleQuotaError } from "@/lib/quota-error-handler";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useNavigate } from "react-router-dom";
 
@@ -93,6 +94,9 @@ export default function LinkedInCoaching({ open, onOpenChange, initialModule, au
       const { data, error } = await invokeWithTimeout("linkedin-coaching", {
         body: { phase: "questions", module: mod, workspace_id: wsId },
       }, 60000);
+      if (error?.isRateLimit || data?.error === "limit_reached") {
+        if (handleQuotaError({ message: error?.message || data?.message, data })) return;
+      }
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
       setQuestions(data.questions || []);
@@ -123,6 +127,12 @@ export default function LinkedInCoaching({ open, onOpenChange, initialModule, au
       const { data, error } = await invokeWithTimeout("linkedin-coaching", {
         body: { phase: "diagnostic", module: activeModule, answers: answersPayload, workspace_id: wsId },
       }, 90000);
+      if (error?.isRateLimit || data?.error === "limit_reached") {
+        if (handleQuotaError({ message: error?.message || data?.message, data })) {
+          setPhase("questions");
+          return;
+        }
+      }
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
       setDiagnostic(data);

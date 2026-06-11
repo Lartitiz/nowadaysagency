@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import { handleQuotaError } from "@/lib/quota-error-handler";
 import { useProfile } from "@/hooks/use-profile";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
@@ -111,6 +112,9 @@ ${prenom || "[Ton prénom]"}`;
     setGeneratingMsg(true);
     try {
       const res = await invokeWithTimeout("linkedin-ai", { body: { action: "personalize-message", workspace_id: workspaceId !== user?.id ? workspaceId : undefined } }, 60000);
+      if (res.error?.isRateLimit || res.data?.error === "limit_reached") {
+        if (handleQuotaError({ message: res.error?.message || res.data?.message, data: res.data })) return;
+      }
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
       let parsed: string[];
@@ -129,6 +133,9 @@ ${prenom || "[Ton prénom]"}`;
       const res = await invokeWithTimeout("linkedin-ai", {
         body: { action: "draft-recommendation", person_name: draftName, collab_type: draftType, highlights: draftHighlights, workspace_id: workspaceId !== user?.id ? workspaceId : undefined },
       }, 60000);
+      if (res.error?.isRateLimit || res.data?.error === "limit_reached") {
+        if (handleQuotaError({ message: res.error?.message || res.data?.message, data: res.data })) return;
+      }
       if (res.error) throw new Error(res.error.message);
       setDraftResult(res.data?.content || "");
     } catch (e: any) {

@@ -11,6 +11,7 @@ import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voi
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { friendlyError } from "@/lib/error-messages";
+import { handleQuotaError } from "@/lib/quota-error-handler";
 import { Sparkles, Copy, Check, Plus, Trash2, Lightbulb } from "lucide-react";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -82,6 +83,9 @@ export default function LinkedInParcours() {
       const res = await invokeWithTimeout("linkedin-ai", {
         body: { action: "optimize-experience", job_title: exp.job_title, company: exp.company, description: exp.description_raw, workspace_id: workspaceId !== user?.id ? workspaceId : undefined },
       }, 60000);
+      if (res.error?.isRateLimit || res.data?.error === "limit_reached") {
+        if (handleQuotaError({ message: res.error?.message || res.data?.message, data: res.data })) return;
+      }
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
       updateExp(idx, "description_optimized", content);
@@ -117,6 +121,9 @@ export default function LinkedInParcours() {
     setGeneratingSkills(true);
     try {
       const res = await invokeWithTimeout("linkedin-ai", { body: { action: "suggest-skills", workspace_id: workspaceId !== user?.id ? workspaceId : undefined } }, 60000);
+      if (res.error?.isRateLimit || res.data?.error === "limit_reached") {
+        if (handleQuotaError({ message: res.error?.message || res.data?.message, data: res.data })) return;
+      }
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
       let parsed: any;

@@ -122,7 +122,7 @@ export default function CrosspostFlow() {
     workspace_id: workspaceId,
         },
       }, 120000);
-      if (cpError?.isRateLimit || cpData?.error === "limit_reached") {
+      if (cpError || cpData?.error) {
         if (handleQuotaError({ message: cpError?.message || cpData?.message, data: cpData })) {
           return;
         }

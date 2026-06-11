@@ -1,154 +1,72 @@
-# Plan — Helper `workspace-guard` + application sur `assistant-chat`
+# Plan — Brancher QuotaWallModal sur le module LinkedIn
 
-Périmètre strict : Vague 1 uniquement. Backend, deux fichiers.
+## (a) Demande utilisateur — périmètre exact
 
----
+Brancher `handleQuotaError` (depuis `@/lib/quota-error-handler`) sur tous les call sites `invokeWithTimeout` vers `linkedin-ai` / `linkedin-coaching` du module LinkedIn, pour que les erreurs quota déclenchent QuotaWallModal au lieu d'un toast "Erreur" destructif.
 
-## (a) Ce que tu m'as demandé
+### Pattern unique appliqué partout
 
-### 1. Nouveau fichier `supabase/functions/_shared/workspace-guard.ts`
-
-Deux exports, pas de client Supabase créé en interne, pas de dépendance autre que `./cors.ts` pour le typage des headers.
+Aujourd'hui chaque page fait :
 
 ```ts
-// supabase/functions/_shared/workspace-guard.ts
-
-export type WorkspaceGuardResult =
-  | { ok: true; role: string }
-  | { ok: false; status: number };
-
-/**
- * Vérifie que `userId` est membre de `workspaceId`.
- * - workspaceId null/undefined  -> { ok: true, role: "legacy" }  (mode mono-user préservé)
- * - membre trouvé               -> { ok: true, role: <role DB> }
- * - non membre / erreur lecture -> { ok: false, status: 403 }
- *
- * `sb` doit être un client SERVICE_ROLE déjà instancié par l'appelant.
- */
-export async function assertWorkspaceMembership(
-  sb: any,
-  userId: string,
-  workspaceId: string | null | undefined,
-): Promise<WorkspaceGuardResult> {
-  if (!workspaceId) return { ok: true, role: "legacy" };
-
-  const { data, error } = await sb
-    .from("workspace_members")
-    .select("role")
-    .eq("workspace_id", workspaceId)
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (error || !data) return { ok: false, status: 403 };
-  return { ok: true, role: data.role };
-}
-
-export function workspaceDeniedResponse(
-  corsHeaders: Record<string, string>,
-): Response {
-  return new Response(
-    JSON.stringify({
-      error: "workspace_access_denied",
-      message: "Tu n'as pas accès à cet espace.",
-    }),
-    {
-      status: 403,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    },
-  );
-}
+const res = await invokeWithTimeout("linkedin-ai", { body: {...} }, 60000);
+if (res.error) throw new Error(res.error.message);
+const content = res.data?.content || "";
 ```
 
-Notes :
-
-- Retour `{ ok: true, role }` conforme à ta décision. `assistant-chat` ignorera `role`.
-- En mode legacy (pas de `workspace_id`), `role: "legacy"` sert de marqueur explicite sans casser le typage et sans introduire de nouveau type.
-- Aucune logique de branchement par rôle dans le helper — strictement binaire.
-
-### 2. Patch `supabase/functions/assistant-chat/index.ts`
-
-Deux changements minimaux :
-
-**a. Imports (en tête de fichier, après les imports existants)**
+Après modification :
 
 ```ts
-import {
-  assertWorkspaceMembership,
-  workspaceDeniedResponse,
-} from "../_shared/workspace-guard.ts";
-```
-
-**b. Insertion du garde juste après `const sb = getServiceClient();` (ligne 326), AVANT la résolution de `profileUserId**`
-
-```ts
-const sb = getServiceClient();
-
-const membership = await assertWorkspaceMembership(sb, userId, workspace_id);
-if (!membership.ok) {
-  return workspaceDeniedResponse(cors);
+const res = await invokeWithTimeout("linkedin-ai", { body: {...} }, 60000);
+if (res.error?.isRateLimit || res.data?.error === "limit_reached") {
+  if (handleQuotaError({ message: res.error?.message || res.data?.message, data: res.data })) {
+    return;
+  }
 }
-
-// Resolve workspace owner's user_id for profile-scoped tables
-let profileUserId = userId;
-...
+if (res.error) throw new Error(res.error.message);
+const content = res.data?.content || "";
 ```
 
-Tout le reste du handler (résolution `profileUserId`, `undo`, `confirmed_actions`, quota, `getUserContext`, prompt système, `executeActions`, rate limiting) reste **strictement identique**.
+Le `return` à l'intérieur du `try` saute proprement au `finally` qui reset le `setLoading(false)`. Le `catch` n'est pas traversé donc aucun toast "Erreur" parasite. Les erreurs non-quota tombent dans `throw` → `catch` existant inchangé.
+
+### Fichiers et points d'insertion
+
+1. **src/pages/LinkedInPostGenerator.tsx** — 1 call site (ligne ~56). Ajouter import `handleQuotaError`.
+2. **src/pages/LinkedInProfil.tsx** — 1 call site (ligne ~99). Ajouter import.
+3. **src/pages/LinkedInResume.tsx** — 2 call sites (lignes ~146 et ~181). Ajouter import.
+4. **src/pages/LinkedInParcours.tsx** — 2 call sites (lignes ~82 et ~119). Ajouter import.
+5. **src/pages/LinkedInRecommandations.tsx** — 2 call sites (lignes ~113 et ~129). Ajouter import.
+6. **src/pages/LinkedInCrosspost.tsx** — 1 call site (ligne ~102). Ajouter import. (NB : ce fichier semble être un ancien doublon de `CrosspostFlow.tsx` qui, lui, gère déjà le quota. Je l'aligne quand même car il est listé dans le périmètre.)
+7. **src/components/linkedin/LinkedInCoaching.tsx** — 2 call sites (lignes ~93 et ~123). Pattern adapté : la destructuration utilise déjà `{ data, error }`, et le test actuel est `if (data?.error) throw new Error(data.error)`. Je remplace par le pattern unifié ci-dessus en utilisant `data` / `error` au lieu de `res.data` / `res.error`. Ajouter import.
+8. **src/components/CrosspostFlow.tsx** — déjà branché (lignes 125-129). **Amélioration mineure** : aligner sur le pattern unifié (cf. section (b)) ou laisser tel quel. Voir (b).
+
+### Critères de validation
+
+- `npx tsc --noEmit --skipLibCheck` passe sans erreur.
+- Les imports sont ajoutés une seule fois par fichier, regroupés avec les autres imports `@/lib/...`.
+- Aucune modification dans : `LinkedInAudit.tsx`, `quota-error-handler.ts`, `invoke-with-timeout.ts`, edge functions, payloads, parsing, setState métier, messages des toasts non-quota.
 
 ---
 
-## (b) Mes propositions d'amélioration (à valider individuellement)
+## (b) Propositions d'amélioration (à valider/refuser séparément)
 
-### P1 — Mutualiser la résolution de `profileUserId` dans le helper
+### B1. Aligner `CrosspostFlow.tsx` sur le pattern unifié
 
-**Refusé par défaut.** Le plan dit explicitement « on AJOUTE un garde en amont, on ne refactore rien ». Mutualiser ferait deux choses dans un seul helper et sortirait du périmètre. Je ne le propose que pour mémoire — à traiter dans un plan dédié si tu le souhaites un jour.
+Actuellement la condition `if (cpError?.isRateLimit || cpData?.error === "limit_reached")` est correcte mais elle a un défaut subtil : si `handleQuotaError` retourne `false` (cas improbable mais possible si la détection échoue), on tombe ensuite dans `if (cpError) throw` → toast destructif. C'est cohérent avec le reste, mais on peut le simplifier en supprimant le pré-filtre `isRateLimit/limit_reached` et en appelant directement `handleQuotaError` sur toute erreur. **Risque** : trivial. **Bénéfice** : un seul pattern dans toute la base. ok
 
-### P2 — Log console des refus
+### B2. Factoriser le pattern dans un helper
 
-Ajouter, dans `workspaceDeniedResponse` ou côté appelant, un `console.warn("[workspace-guard] denied", { userId, workspaceId })` pour tracer les tentatives suspectes dans les logs Edge.
+Créer `src/lib/handle-ai-response.ts` exportant par ex. `checkQuotaOrThrow(res): boolean` qui encapsule les 4 lignes répétées 11 fois. **Risque** : élargit le périmètre, touche aux 8 fichiers avec une nouvelle abstraction. **Bénéfice** : DRY, futurs call sites protégés par défaut. À faire dans un plan séparé si validé. non
 
-- **Coût** : 1 ligne.
-- **Bénéfice** : audit a posteriori, détection d'abus.
-- **Risque** : log de `userId` (UUID, déjà partout dans nos logs Edge) — pas de donnée sensible.
+### B3. Uniformiser `useToast` vs `sonner` dans le module LinkedIn
 
-Si tu acceptes, je place le `console.warn` dans `assistant-chat` au moment du `return`, pas dans le helper (le helper reste pur, sans effet de bord).
-
-### P3 — Distinguer `403` (non-membre) et `404` (workspace inexistant)
-
-Aujourd'hui, on renvoie `403` dans les deux cas. C'est volontaire pour éviter l'énumération d'IDs (pattern sécu standard). **Je recommande de garder 403 dans tous les cas** et ne propose pas de changement — juste à acter.
-
-### P4 — Petit test Deno pour le helper
-
-Créer `supabase/functions/_shared/workspace-guard_test.ts` avec un mock `sb` (objet qui retourne `{ data, error }` selon la chaîne `.from().select().eq().eq().maybeSingle()`).
-
-- **Coût** : ~40 lignes.
-- **Bénéfice** : régression évitée quand les 16 autres fonctions s'y brancheront.
-- **Risque** : aucun.
+`LinkedInPostGenerator/Profil/Resume/Parcours/Recommandations` utilisent `useToast` (shadcn), `LinkedInCrosspost/Coaching/CrosspostFlow` utilisent `sonner`. Hors périmètre quota, mais source de friction visuelle. À traiter dans un plan dédié si pertinent. non
 
 ---
 
-## Critères de validation (rappel)
+## Hors scope confirmé
 
-1. `npx tsc --noEmit --skipLibCheck` passe.
-2. Utilisateur·ice sur son propre workspace : assistant identique à aujourd'hui.
-3. Appel sans `workspace_id` : identique à aujourd'hui.
-4. Appel avec `workspace_id` d'un autre user : `403 workspace_access_denied`, aucune écriture.
-
----
-
-## Hors scope (rappel)
-
-Vagues 2/3/4 traitées dans des plans ultérieurs. Aucune autre Edge Function, aucun fichier frontend touché ici.
-
----
-
-**Avant d'exécuter, dis-moi pour P2 et P4 : oui / non / l'un seulement.** P1 et P3 sont déjà tranchés (non / garder 403). Plan validé, tu peux passer en Exec.
-
-Décisions sur tes propositions :
-
-- **P2 : oui.** Place le `console.warn("[workspace-guard] denied", { userId, workspaceId })` côté assistant-chat au moment du `return`, pas dans le helper (helper pur).
-- **P4 : oui.** Crée le test. Il sera intégré à ma routine de validation via `deno test`.
-- **P1 : non** (hors périmètre, plan dédié plus tard).
-- **P3 : garder 403 dans tous les cas** (acté, anti-énumération).
-
-Exécute les deux fichiers + le test. Rappel des contraintes : tout le reste du handler assistant-chat reste strictement identique, aucune autre Edge Function touchée, aucun fichier frontend.
+- `LinkedInAudit.tsx` (gestion quota dédiée)
+- Backend / edge functions
+- Refonte `QuotaExhaustedCard`
+- Harmonisation `workspace_id`
