@@ -65,7 +65,7 @@ export interface PhotoUploadZoneProps {
   hideDescription?: boolean;
 }
 
-function resizeAndEncode(file: File, maxWidth = 1024, quality = 0.8): Promise<{ base64: string; preview: string }> {
+function resizeAndEncode(file: File, maxWidth = 1600, quality = 0.8): Promise<{ base64: string; preview: string }> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     const objectUrl = URL.createObjectURL(file);
