@@ -444,6 +444,13 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
             </div>
           </div>
 
+          <div className="flex items-start gap-2 rounded-xl bg-primary/5 px-3.5 py-2.5">
+            <Lightbulb className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              <span className="font-medium text-foreground">Petit secret :</span> pas besoin que l'actu soit "dans ton secteur". Ce qui compte, c'est le lien que tu crées. Et souvent, c'est l'angle inattendu qui marque le plus.
+            </p>
+          </div>
+
           <div className="flex justify-center">
             <Button size="sm" onClick={fetchActus} className="gap-1.5">
               <Sparkles className="h-3.5 w-3.5" /> Lancer la recherche
