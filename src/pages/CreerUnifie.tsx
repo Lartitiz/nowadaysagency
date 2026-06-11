@@ -1142,6 +1142,31 @@ export default function CreerUnifie() {
     generateLinkedInCarouselCaption();
   }, [result, isLinkedInCarousel, carouselSubMode, generating, captionLoading, generateLinkedInCarouselCaption]);
 
+  // ── Carrousel "juste photo" : on supprime tout overlay/title/body sur les slides
+  // pour que le rendu affiche uniquement les photos. La légende reste générée.
+  const purePhotoStrippedRef = useRef<any>(null);
+  useEffect(() => {
+    if (carouselSubMode !== "pure_photo") return;
+    const r: any = (result as any)?.raw;
+    if (!r?.slides || !Array.isArray(r.slides) || r.slides.length === 0) return;
+    if (purePhotoStrippedRef.current === r) return;
+    purePhotoStrippedRef.current = r;
+    const cleaned = r.slides.map((s: any, i: number) => ({
+      ...s,
+      slide_type: "photo_full",
+      overlay_text: null,
+      title: "",
+      body: "",
+      photo_index: Number.isInteger(s.photo_index) && s.photo_index >= 1 ? s.photo_index : i + 1,
+    }));
+    setResult((prev: any) => {
+      if (!prev) return prev;
+      const nextRaw = { ...(prev.raw || {}), slides: cleaned, no_overlay: true, carousel_type: "photo" };
+      return { ...prev, raw: nextRaw };
+    });
+  }, [result, carouselSubMode]);
+
+
   const handleConfirmStructure = async (confirmedSlides: SlideProposal[]) => {
     const enrichedSubject = existingCalendarContent
       ? ideaText + "\n\n[Contenu existant à approfondir]\n" + existingCalendarContent
