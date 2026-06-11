@@ -90,7 +90,7 @@ export default function PinterestCompte() {
   const generateName = async () => {
     setGeneratingName(true);
     try {
-      const res = await invokeWithTimeout("pinterest-ai", { body: { action: "name" } }, 60000);
+      const res = await invokeWithTimeout("pinterest-ai", { body: { action: "name", workspace_id: workspaceId !== user?.id ? workspaceId : undefined } }, 60000);
       if (res.error) throw new Error(res.error.message);
       const c = res.data?.content || "";
       let parsed: string[];
@@ -103,7 +103,7 @@ export default function PinterestCompte() {
   const generateBio = async () => {
     setGeneratingBio(true);
     try {
-      const res = await invokeWithTimeout("pinterest-ai", { body: { action: "bio" } }, 60000);
+      const res = await invokeWithTimeout("pinterest-ai", { body: { action: "bio", workspace_id: workspaceId !== user?.id ? workspaceId : undefined } }, 60000);
       if (res.error) throw new Error(res.error.message);
       const c = res.data?.content || "";
       let parsed: string[];
