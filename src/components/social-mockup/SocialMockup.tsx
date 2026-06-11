@@ -191,7 +191,7 @@ function InstagramMockup({
 // ═══════════════════════════════════════
 
 function LinkedInMockup({
-  displayName, username, avatarUrl, caption,
+  displayName, username, avatarUrl, caption, mediaUrls,
   showComments, comments = [], onAddComment, readonly, compact,
 }: SocialMockupProps) {
   const [expanded, setExpanded] = useState(false);
@@ -227,7 +227,10 @@ function LinkedInMockup({
       </div>
 
       {compact ? (
-        <div className="h-1" />
+        <>
+          <LinkedInMedia mediaUrls={mediaUrls} compact />
+          <div className="h-1" />
+        </>
       ) : (
         <>
           {/* Caption */}
@@ -239,6 +242,9 @@ function LinkedInMockup({
               )}
             </p>
           </div>
+
+          <LinkedInMedia mediaUrls={mediaUrls} />
+
 
           {/* Reactions bar */}
           <div className="px-4 flex items-center justify-between pb-2">
@@ -315,8 +321,69 @@ function LinkedInMockup({
 }
 
 // ═══════════════════════════════════════
+// LINKEDIN MEDIA (1 / 2 / 3 / 4+ layouts)
+// ═══════════════════════════════════════
+
+function LinkedInMedia({ mediaUrls, compact }: { mediaUrls?: string[]; compact?: boolean }) {
+  if (!mediaUrls || mediaUrls.length === 0) return null;
+  const urls = mediaUrls;
+  const count = urls.length;
+  const heightCls = compact ? "max-h-56" : "max-h-[420px]";
+
+  if (count === 1) {
+    return (
+      <div className={`w-full overflow-hidden bg-gray-100 ${heightCls}`}>
+        <img src={urls[0]} alt="Visuel du post" className="w-full h-full object-cover" />
+      </div>
+    );
+  }
+
+  if (count === 2) {
+    return (
+      <div className="grid grid-cols-2 gap-0.5 bg-white">
+        {urls.slice(0, 2).map((u, i) => (
+          <img key={i} src={u} alt={`Visuel ${i + 1}`} className="w-full aspect-square object-cover" />
+        ))}
+      </div>
+    );
+  }
+
+  if (count === 3) {
+    return (
+      <div className="grid grid-cols-2 gap-0.5 bg-white" style={{ aspectRatio: "1 / 1" }}>
+        <img src={urls[0]} alt="Visuel 1" className="w-full h-full object-cover row-span-2" />
+        <img src={urls[1]} alt="Visuel 2" className="w-full h-full object-cover" />
+        <img src={urls[2]} alt="Visuel 3" className="w-full h-full object-cover" />
+      </div>
+    );
+  }
+
+  // 4+ : grille 2x2, overlay "+N" sur la dernière si plus de 4
+  const visible = urls.slice(0, 4);
+  const remaining = count - 4;
+  return (
+    <div className="grid grid-cols-2 gap-0.5 bg-white">
+      {visible.map((u, i) => {
+        const isLastWithMore = i === 3 && remaining > 0;
+        return (
+          <div key={i} className="relative w-full aspect-square overflow-hidden">
+            <img src={u} alt={`Visuel ${i + 1}`} className="w-full h-full object-cover" />
+            {isLastWithMore && (
+              <div className="absolute inset-0 bg-black/55 flex items-center justify-center">
+                <span className="text-white text-xl font-semibold">+{remaining}</span>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════
 // SHARED AVATAR
 // ═══════════════════════════════════════
+
 
 function AvatarCircle({ url, name, size = 36, gradient }: { url?: string; name: string; size?: number; gradient?: "instagram" }) {
   const initial = (name || "?").charAt(0).toUpperCase();
