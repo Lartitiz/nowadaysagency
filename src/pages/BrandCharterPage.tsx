@@ -709,9 +709,17 @@ export default function BrandCharterPage() {
             {data.logo_url ? (
               <div className="flex flex-col items-center gap-3">
                 <img src={data.logo_url} alt="Logo" className="max-h-32 max-w-full object-contain rounded-xl border border-border" />
-                <label className="cursor-pointer">
-                  <span className="text-xs text-primary hover:underline">Changer le logo</span>
-                  <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
+                <label className="cursor-pointer" aria-disabled={logoUploading}>
+                  <span className="text-xs text-primary hover:underline">
+                    {logoUploading ? "Upload en cours…" : "Changer le logo"}
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*,.heic,.heif,image/heic,image/heif"
+                    className="hidden"
+                    onChange={handleLogoUpload}
+                    disabled={logoUploading}
+                  />
                 </label>
               </div>
             ) : (
