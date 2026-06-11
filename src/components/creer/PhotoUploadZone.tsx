@@ -174,6 +174,41 @@ export function PhotoUploadZone({
     [photos, maxPhotos, updatePhotos],
   );
 
+  const importFromLibrary = useCallback(
+    async (selected: UserPhotoRow[]) => {
+      if (selected.length === 0) return;
+      const slice = selected.slice(0, Math.max(0, maxPhotos - photos.length));
+      if (slice.length === 0) return;
+      setImportingFromLibrary(true);
+      try {
+        const results = await Promise.allSettled(slice.map((p) => userPhotoToBase64(p)));
+        const items: PhotoItem[] = [];
+        results.forEach((r, i) => {
+          if (r.status === "fulfilled") {
+            items.push({
+              id: crypto.randomUUID(),
+              base64: r.value.base64,
+              preview: r.value.base64,
+              name: r.value.name,
+              mimeType: r.value.mimeType,
+              context: "",
+            });
+          } else {
+            const name = slice[i].name || "photo";
+            console.warn("[photo-library-import] failed", name, r.reason);
+            toast.error(`Impossible d'importer "${name}". Réessaie dans un instant.`);
+          }
+        });
+        if (items.length > 0) {
+          updatePhotos([...photos, ...items].slice(0, maxPhotos));
+        }
+      } finally {
+        setImportingFromLibrary(false);
+      }
+    },
+    [photos, maxPhotos, updatePhotos],
+  );
+
   const removePhoto = useCallback(
     (idx: number) => {
       const next = photos.filter((_, i) => i !== idx);
