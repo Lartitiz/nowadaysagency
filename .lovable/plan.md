@@ -1,37 +1,51 @@
-# Plan — Overlays du Carrousel photo Instagram : fragments au lieu de phrases narratives
+## Objectif
+
+Ajouter la possibilité, dans le dialog "Modifier le fond" (PhotoEditDialog), de fournir une **image** à utiliser comme arrière-plan — en plus des presets et du prompt texte.
 
 ## Diagnostic
 
-Sur le mode **Carrousel photo + texte superposé** (Instagram, `carousel_type: "photo"`), les overlays générés sont des séries de fragments nominaux ponctués par des points — ex : `"89 000€. Montluçon. Secteur prisé, actif invisible."`. Quatre groupes nominaux, aucun verbe, aucune liaison avec la slide précédente. On swipe sans rien lire, l'histoire ne se construit pas.
+Aujourd'hui PhotoEditDialog propose 3 modes via la même API `photoroom-edit` :
+- preset `transparent` → `mode: remove_bg`
+- preset `studio_white` / `golden_hour` → `mode: replace_bg` + prompt texte
+- prompt libre → `mode: replace_bg` + prompt texte
 
-Le prompt actuel (`buildPhotoCarouselPrompt` dans `supabase/functions/carousel-ai/index.ts`, lignes ~1561-1594) dit déjà "VRAIE PHRASE, pas juste un mot-clé" mais :
+L'edge function `photoroom-edit` appelle Photoroom v2 (`/v2/edit`) avec uniquement `background.prompt`. Or Photoroom v2 accepte aussi `background.imageFile` (image envoyée en multipart) pour utiliser une image comme fond, avec le sujet détouré par-dessus.
 
-- Il ne définit pas "vraie phrase" → le modèle considère qu'une phrase nominale ponctuée passe.
-- Il n'interdit pas explicitement le style "nom. nom. nom." (énumération de mots-clés).
-- Les exemples positifs ("Trois mois. Zéro regret.") légitiment justement le format minimal-fragmenté.
-- Le chaînage narratif est demandé sans contrainte de surface vérifiable.
+## Changements
 
-## Correctif
+### 1. Frontend — `src/components/creer/PhotoEditDialog.tsx`
 
-**Fichier unique** : `supabase/functions/carousel-ai/index.ts`, sections `═══ RÈGLES OVERLAY ═══` et `═══ CHAÎNAGE DES TEXTES ═══` de `buildPhotoCarouselPrompt`.
+- Ajouter un 3ᵉ bloc "Ou utilise ta propre image de fond" entre les presets et le prompt libre :
+  - Bouton "Choisir une image de fond" → ouvre un `<input type="file" accept="image/*">` masqué.
+  - Une fois choisie, afficher une vignette + bouton "Retirer".
+  - Convertir le fichier en base64 (data URL) côté client, stocker dans `bgImageBase64`.
+- Quand `bgImageBase64` est défini :
+  - Désélectionner tout preset, désactiver la textarea prompt (mêmes règles d'exclusivité que "transparent").
+  - `handleGenerate` envoie `mode: "replace_bg"` + `background_image_base64` (et pas de prompt).
+- Reset de `bgImageBase64` dans le `useEffect(open)`.
+- Validation côté client : taille max 5 Mo, types image, sinon toast d'erreur.
 
-1. **Règle "vraie phrase"** : exiger un **sujet + verbe conjugué** dans chaque overlay. Ajouter : "Une suite de groupes nominaux séparés par des points (`Mot. Mot. Adjectif, mot.`) n'est PAS une phrase et est INTERDITE."
-2. **Contre-exemple explicite** proche du cas réel : `"89 000€. Montluçon. Secteur prisé, actif invisible."` → marqué INTERDIT, avec réécriture conforme (`"À 89 000€ à Montluçon, ce secteur prisé cache un actif que personne ne voit passer."`).
-3. **Style "minimal"** : limiter à **1 slide max** sur tout le carrousel, et imposer un verbe même en minimal ("Trois mois ont suffi." plutôt que "Trois mois. Zéro regret."). Style "technique" : données chiffrées toujours insérées dans une phrase complète. ici je veux vraiment qu'il y ait une narration que ça raconte une histoire slide après slide 
-4. **Chaînage** : règle de surface — chaque overlay à partir de la slide 2 DOIT contenir soit un connecteur narratif (`Puis`, `Sauf que`, `C'est là que`, `Et`, `Mais`, `Alors`, `Du coup`, `Trois mois plus tard`…), soit reprendre un mot/groupe de la slide précédente. Au moins un des deux.
-5. **Quality_check** : ajouter `every_overlay_has_verb: true` et `no_nominal_fragment_lists: true` dans le JSON de sortie pour forcer l'auto-validation.
-6. La passe de correction existante bénéficie automatiquement du prompt durci. Pas d'autre changement.
+### 2. Backend — `supabase/functions/photoroom-edit/index.ts`
 
-## Validation
-
-- Re-générer un carrousel photo Instagram à partir des mêmes photos. Vérifier :
-  - Chaque overlay a un verbe conjugué.
-  - Aucun overlay n'est une énumération `Nom. Nom. Nom.`.
-  - À partir de la slide 2, un connecteur ou une reprise lexicale lie à la slide précédente.
-  - Lecture en continu comme un mini-récit.
+- Étendre `BodySchema` : ajouter `background_image_base64: z.string().min(100).optional()`.
+- Adapter le `.refine` : pour `replace_bg`, accepter **soit** un prompt ≥ 3 caractères **soit** un `background_image_base64`.
+- Dans `callPhotoroom`, si `background_image_base64` présent :
+  - Décoder en bytes + mime (réutiliser `decodeBase64Image`).
+  - `fd.append("background.imageFile", new Blob([bgBytes], { type: bgMime }), "bg." + ext)`.
+  - Ne pas envoyer `background.prompt`.
+- Sinon, comportement actuel inchangé.
+- Aucun changement de quota / catégorie / rate limit.
 
 ## Hors scope
 
-- Pas de modif des modes `pure_photo`, `mix`, ou des carrousels texte/storytelling.
-- Pas de changement frontend ni du renderer `CarouselPhotoResult.tsx` (textarea reste éditable).
-- Pas de changement de modèle ni de température.
+- Pas de stockage persistant de l'image de fond (purement en mémoire, comme la photo originale du dialog).
+- Pas de bibliothèque d'images de fond pré-fournie.
+- Pas de modification du flux `photo-background-replace` (variante persistante non utilisée ici).
+- Pas de changement UX sur les autres dialogs ou étapes.
+
+## Test manuel
+
+1. Ouvrir une photo → "Modifier le fond" → cliquer "Choisir une image de fond" → uploader un JPG/PNG.
+2. Lancer "Générer le nouveau fond" → l'aperçu montre le sujet détouré sur l'image fournie.
+3. "Retirer" l'image de fond → on peut revenir à un preset ou prompt texte.
+4. Tester aussi presets + prompt texte (régression : doivent toujours marcher).
