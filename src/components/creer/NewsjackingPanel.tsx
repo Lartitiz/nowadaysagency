@@ -823,9 +823,15 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
                           <h4 className="font-medium text-sm leading-snug">{actu.titre}</h4>
                           <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{actu.resume}</p>
                           <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                              {actu.type === "globale" ? "Globale" : "Niche"}
-                            </span>
+                            {actu.from_url ? (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/15 text-primary font-medium">
+                                🔗 D'après ton lien
+                              </span>
+                            ) : (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                                {actu.type === "globale" ? "Globale" : "Niche"}
+                              </span>
+                            )}
                             {axe && (
                               <span className="text-[10px] px-2 py-0.5 rounded-full bg-secondary/40 text-secondary-foreground">
                                 {axe.emoji} {axe.label}
