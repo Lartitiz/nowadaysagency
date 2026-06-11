@@ -203,6 +203,25 @@ function parseAlign(v: string): "left" | "center" | "right" {
   return "left";
 }
 
+/**
+ * Rect du content-box d'un élément (border-box moins le padding computed).
+ * C'est la zone réelle du texte dans le navigateur — l'utiliser pour les
+ * frames texte PPTX évite que le texte se cale dans le padding (pilules, badges).
+ */
+function contentBoxRect(el: HTMLElement, cs: CSSStyleDeclaration) {
+  const r = el.getBoundingClientRect();
+  const pl = parseFloat(cs.paddingLeft) || 0;
+  const pr = parseFloat(cs.paddingRight) || 0;
+  const pt = parseFloat(cs.paddingTop) || 0;
+  const pb = parseFloat(cs.paddingBottom) || 0;
+  return {
+    x: r.left + pl,
+    y: r.top + pt,
+    w: Math.max(1, r.width - pl - pr),
+    h: Math.max(1, r.height - pt - pb),
+  };
+}
+
 function parseFontWeight(v: string): number {
   const n = parseInt(v, 10);
   if (!isNaN(n)) return n;
