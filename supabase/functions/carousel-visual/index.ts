@@ -177,13 +177,12 @@ IMPORTANT pour les schémas :
 - Utilise les vraies couleurs de la charte (${ch.color_primary}, ${ch.color_secondary}, ${ch.color_accent}, ${ch.color_text})
 - Les cartes des templates sont blanches (#FFF) pour un fond de charte CLAIR. Si ${ch.color_background} est sombre, remplace le blanc des cartes par une teinte claire OPAQUE harmonisée avec la charte (jamais de rgba semi-transparent).
 - Couleurs sémantiques autorisées hors charte (les SEULES) : le rouge #E74C3C et le vert #27AE60 des oppositions ❌/✅ (before_after, checklist, scale) et le fond #1A1A1A de la DARK BOX. Tout autre accent vient de la charte.
-- COMPOSITION VERTICALE : la slide est une colonne flex pleine hauteur (display:flex;flex-direction:column;height:1350px). Le bloc titre+intro est en haut, le schéma occupe l'espace restant, centré dedans (wrapper avec flex:1;display:flex;flex-direction:column;justify-content:center). Résultat attendu : l'espace au-dessus du schéma ≈ l'espace en dessous, et JAMAIS plus de ~200px de vide sous le dernier élément de la slide.
-- Si le contenu est court (intro brève + petit schéma), AUGMENTE les tailles : padding des cartes, font-size du schéma, gaps — plutôt que de laisser du vide.
 - CARTES SŒURS = MÊME HAUTEUR : dans un schéma à cartes multiples (timeline, story_arc, process_visible, comparison…), toutes les cartes d'une même rangée ont la MÊME hauteur (le conteneur flex utilise align-items:stretch, jamais center ou flex-start) et le MÊME alignement vertical de leur contenu interne.
 - Le titre de la slide (s'il existe) reste AU-DESSUS du schéma
 - Les schémas doivent respirer : pas de texte trop petit, pas de schéma qui remplit 100% de la slide
 - Si une slide a un visual_schema, le design du schéma est PRIORITAIRE sur le design par rôle
-- N'INVENTE PAS de cercles décoratifs (règle dure du design system)`;
+- N'INVENTE PAS de cercles décoratifs (règle dure du design system). Les pastilles rondes numérotées des steps (border-radius:50% sur un carré contenant un numéro) sont FONCTIONNELLES, pas décoratives — elles restent autorisées.
+- Les attributs data-pptx-shape et data-pptx-editable présents dans les templates ci-dessus sont OBLIGATOIRES : recopie-les à l'identique. Annote de la même façon tout élément équivalent que tu ajoutes (carte → card, badge/pastille → pill).`;
 }
 
 serve(async (req) => {
