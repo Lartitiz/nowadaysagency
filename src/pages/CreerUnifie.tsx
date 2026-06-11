@@ -455,6 +455,74 @@ export default function CreerUnifie() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search]);
 
+  // ── Library photos → preload as if uploaded (chemin /photos → /creer) ──
+  // Capturé une seule fois au mount pour survivre au cleanup replaceState.
+  const libraryPhotoIdsRef = useRef<string[]>(
+    Array.isArray(locState?.libraryPhotoIds)
+      ? locState.libraryPhotoIds.filter((x: unknown): x is string => typeof x === "string")
+      : [],
+  );
+  const libraryLoadedRef = useRef(false);
+  useEffect(() => {
+    if (libraryLoadedRef.current) return;
+    const ids = libraryPhotoIdsRef.current;
+    if (ids.length === 0) return;
+    if (!workspaceId) return; // attend que le workspace soit prêt
+    libraryLoadedRef.current = true;
+
+    (async () => {
+      setIsLoadingLibraryPhotos(true);
+      setStep("format");
+      try {
+        const { data, error: qErr } = await supabase
+          .from("user_photos")
+          .select("*")
+          .in("id", ids)
+          .eq("workspace_id", workspaceId)
+          .eq("status", "ready");
+        if (qErr) throw qErr;
+        if (!data || data.length === 0) throw new Error("Photo introuvable dans ta photothèque.");
+
+        const ordered = ids
+          .map((id) => data.find((p) => p.id === id))
+          .filter(Boolean) as UserPhotoRow[];
+
+        const results = await Promise.allSettled(ordered.map((p) => userPhotoToBase64(p)));
+        const items: PhotoItem[] = [];
+        results.forEach((r, i) => {
+          if (r.status === "fulfilled") {
+            items.push({
+              id: crypto.randomUUID(),
+              base64: r.value.base64,
+              preview: r.value.base64,
+              name: r.value.name,
+              mimeType: r.value.mimeType,
+              context: "",
+              userPhotoId: ordered[i].id,
+            });
+          }
+        });
+        if (items.length === 0) throw new Error("Impossible de charger la photo.");
+        setUploadedPhotos(items);
+
+        // Préremplir ideaText avec photo.name si descriptif
+        const first = ordered[0];
+        const candidate = (first?.name ?? "").trim();
+        const looksLikeFilename = /^(img|dsc|dscn|photo|p)[\W_]?\d+/i.test(candidate);
+        if (!ideaText && candidate.length >= 8 && !looksLikeFilename) {
+          setIdeaText(candidate);
+        }
+      } catch (e: any) {
+        toast.error(e?.message || "Impossible de charger la photo de la photothèque.");
+        setStep("idea");
+      } finally {
+        setIsLoadingLibraryPhotos(false);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspaceId]);
+
+
   // Show error
   useEffect(() => {
     if (error) toast.error(error);
