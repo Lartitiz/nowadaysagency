@@ -26,6 +26,7 @@ import CreerStepIdea from "@/components/creer/CreerStepIdea";
 import CreerStepFormat from "@/components/creer/CreerStepFormat";
 import CreerStepQuestions from "@/components/creer/CreerStepQuestions";
 import CreerStepResult from "@/components/creer/CreerStepResult";
+import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import CreerStepEdit from "@/components/creer/CreerStepEdit";
 import CreerStepper, { type StepperKey } from "@/components/creer/CreerStepper";
 import PinterestInspirationStep from "@/components/creer/PinterestInspirationStep";
@@ -247,6 +248,7 @@ export default function CreerUnifie() {
 
   // Post-generation states
   const [saving, setSaving] = useState(false);
+  const [saveIdeaDialogOpen, setSaveIdeaDialogOpen] = useState(false);
   const [savedId, setSavedId] = useState<string | null>(ps?.savedId || null);
   const [calendarDialogOpen, setCalendarDialogOpen] = useState(false);
   const [calendarDate, setCalendarDate] = useState("");
@@ -1525,10 +1527,10 @@ export default function CreerUnifie() {
 
   const handleSave = async () => {
     if (!session?.user?.id || !result?.raw || saving) return;
-    setSaving(true);
-    try {
-      const r = result.raw;
-      if (selectedFormat === "carousel" && r?.slides) {
+    const r = result.raw;
+    if (selectedFormat === "carousel" && r?.slides) {
+      setSaving(true);
+      try {
         const hookText = r.slides?.[0]?.title || "";
         const captionText = [r.caption?.hook, r.caption?.body, r.caption?.cta].filter(Boolean).join("\n\n");
         const { data } = await supabase.from("generated_carousels" as any).insert({
@@ -1545,13 +1547,24 @@ export default function CreerUnifie() {
           quality_score: r.quality_check?.score || null,
         }).select("id").single();
         if (data) setSavedId((data as any).id);
+        toast.success("Contenu sauvegardé !");
+      } catch (e: any) {
+        toast.error(e?.message || "Erreur lors de la sauvegarde");
+      } finally {
+        setSaving(false);
       }
-      toast.success("Contenu sauvegardé !");
-    } catch (e: any) {
-      toast.error(e?.message || "Erreur lors de la sauvegarde");
-    } finally {
-      setSaving(false);
+      return;
     }
+    // Autres formats : ouvrir le dialog SaveToIdeasDialog (insertion réelle dans saved_ideas)
+    setSaveIdeaDialogOpen(true);
+  };
+
+  const mapFormatToContentType = (fmt: string | null): "story" | "reel" | "post_instagram" | "post_linkedin" | "newsletter" => {
+    if (fmt === "newsletter") return "newsletter";
+    if (fmt === "story") return "story";
+    if (fmt === "reel") return "reel";
+    if (fmt === "linkedin") return "post_linkedin";
+    return "post_instagram";
   };
 
   // Extract content draft from result for calendar save
