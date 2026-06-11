@@ -191,11 +191,14 @@ export function PhotoUploadZone({
         if (i !== idx) return p;
         // Keep the very first version as originalBase64 so we can revert.
         const originalBase64 = p.originalBase64 ?? p.base64;
+        const originalMimeType = p.originalMimeType ?? p.mimeType ?? mimeFromBase64(originalBase64);
         return {
           ...p,
           base64: newBase64,
           preview: newBase64, // data URL works directly as <img src>
+          mimeType: mimeFromBase64(newBase64, p.mimeType ?? "image/jpeg"),
           originalBase64,
+          originalMimeType,
           edited: true,
         };
       });
@@ -212,6 +215,7 @@ export function PhotoUploadZone({
           ...p,
           base64: p.originalBase64,
           preview: p.originalBase64,
+          mimeType: p.originalMimeType ?? mimeFromBase64(p.originalBase64),
           edited: false,
         };
       });
@@ -219,6 +223,7 @@ export function PhotoUploadZone({
     },
     [photos, updatePhotos],
   );
+
 
   // ── Drop zone events ──────────────────────────────
   const isFileDrag = (e: ReactDragEvent) =>
