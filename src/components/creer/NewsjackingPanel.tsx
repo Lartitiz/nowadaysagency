@@ -169,6 +169,8 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
     setSavedIdx(new Set());
     setSavingIdx(new Set());
     setAnglesByIdx({});
+    primaryStartedRef.current = new Set();
+    variantsStartedRef.current = new Set();
 
     try {
       const intent = {
