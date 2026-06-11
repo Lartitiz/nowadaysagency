@@ -1,88 +1,42 @@
-# Plan — Fix faux succès "Sauvegarder en idée" (non-carousel)
+## Fix — Régénérer une épingle photo Pinterest depuis le calendrier
 
-## (a) Demandé
+### Le bug
+`pinterest-photo-brief` exige `reference_image_base64` (zod min(1)). Quand on relance un post calendrier `pinterest_photo`, l'image d'origine n'existe plus → 400. En plus, `deduceChannel` retourne `instagram` pour `pinterest_photo` → mauvais canal affiché.
 
-### 1. `handleSave` — split carousel / autres formats
-Fichier : `src/pages/CreerUnifie.tsx` (~ligne 1526)
+### Changements
 
-- Garder STRICTEMENT le chemin carousel actuel (insert `generated_carousels`, `setSavedId`, `toast.success("Contenu sauvegardé !")`, `setSaving(false)`).
-- Pour `selectedFormat !== "carousel"` (ou carousel sans slides) : ouvrir le dialog `SaveToIdeasDialog` en mettant un nouvel état `saveIdeaDialogOpen` à `true`. Ne plus appeler `toast.success(...)` (le toast "💡 Idée sauvegardée !" est émis par le dialog après insertion réelle).
-- Pas de changement à `effectiveHandleSave` ni au mode démo.
+**1. `supabase/functions/pinterest-photo-brief/index.ts`**
+- Schéma zod : `reference_image_base64: z.string().max(10000000).optional().nullable()` (au lieu de `.min(1)` requis).
+- Construction du message Anthropic :
+  - Si `reference_image_base64` présent → comportement actuel (image + texte "Voici l'épingle Pinterest d'inspiration…").
+  - Sinon → message texte seul, userPrompt adapté (« Crée un brief photo + overlay depuis le sujet et la charte uniquement », sans mention « inspire-toi de l'image »).
+- Tout le reste inchangé : quota (déjà avant `callAnthropic` après fix précédent), `assertWorkspaceMembership`, `getUserContext`, `brand_charter`, format de réponse `{photo_brief, overlay_html, title, description}`, post-processing fonts.
 
-Pseudo-structure :
-
+**2. `src/pages/CreerUnifie.tsx` (~ligne 976)**
+Dans le body de l'appel `pinterest-photo-brief`, remplacer :
 ```ts
-const handleSave = async () => {
-  if (!session?.user?.id || !result?.raw || saving) return;
-  const r = result.raw;
-  if (selectedFormat === "carousel" && r?.slides) {
-    setSaving(true);
-    try {
-      // … insert generated_carousels (identique) …
-      toast.success("Contenu sauvegardé !");
-    } catch (e:any) { toast.error(...); }
-    finally { setSaving(false); }
-    return;
-  }
-  // Tous les autres formats : ouvrir le dialog SaveToIdeasDialog
-  setSaveIdeaDialogOpen(true);
-};
+reference_image_base64: inspirationImageBase64 || "",
 ```
-
-### 2. Nouvel état + mapping contentType
-Ajouter à côté des autres `useState` du composant :
-
+par un spread conditionnel (même pattern que le bloc `pinterest_visual`) :
 ```ts
-const [saveIdeaDialogOpen, setSaveIdeaDialogOpen] = useState(false);
+...(inspirationImageBase64 ? { reference_image_base64: inspirationImageBase64 } : {}),
 ```
 
-Mapping `selectedFormat` → `contentType` (valeurs exactes acceptées par le dialog : `"story" | "reel" | "post_instagram" | "post_linkedin" | "newsletter"`) :
-
-| selectedFormat | contentType |
-|---|---|
-| `"newsletter"` | `"newsletter"` |
-| `"story"` | `"story"` |
-| `"reel"` | `"reel"` |
-| `"linkedin"` | `"post_linkedin"` |
-| autres (`post`, `pinterest_*`, …) | `"post_instagram"` |
-
-### 3. Rendu du dialog
-Près du JSX existant (par ex. juste après `<CreerStepResult … />` au niveau ~ligne 2632), ajouter :
-
-```tsx
-<SaveToIdeasDialog
-  open={saveIdeaDialogOpen}
-  onOpenChange={setSaveIdeaDialogOpen}
-  contentType={mapFormatToContentType(selectedFormat)}
-  subject={ideaText}
-  contentData={result?.raw}
-  sourceModule="creer"
-  format={selectedFormat || undefined}
-  objectif={objective || undefined}
-/>
+**3. `src/components/creer/CreerStepFormat.tsx` (ligne 34)**
+Ajouter `pinterest_photo` à la liste :
+```ts
+if (format === "pinterest" || format === "pinterest_visual" || format === "pinterest_inspiration" || format === "pinterest_photo") return "pinterest";
 ```
 
-Import : `import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";`
+### Hors scope (strictement inchangé)
+- Flux inspiration complet (upload capture → proposition → brief AVEC image)
+- Pattern quota / logUsage / workspace guard
+- Bloc `pinterest_visual` de `CreerUnifie.tsx`
+- Autres formats dans `deduceChannel`
+- `PinterestPhotoBriefResult.tsx`
 
-Note : `SaveToIdeasDialog` utilise déjà `useWorkspaceId()` en interne et applique le pattern `workspace_id !== user.id` — donc on ne passe PAS `workspaceId` en prop (le composant ne l'accepte d'ailleurs pas). Conforme au "Le pattern workspace … : intouché".
-
-### 4. Préservé strictement
-- Branche carousel de `handleSave` (insert + `setSavedId` + toast)
-- `handleSaveBackToCalendar`, `extractContentForCalendar`
-- `SaveToIdeasDialog.tsx` (consommation uniquement, aucune modif)
-- `effectiveHandleSave` / mode démo (`demoToast` continue de s'afficher avant que `handleSave` ne soit appelé)
-
-## (b) Propositions connexes (à valider individuellement avant exec)
-
-1. **Désactiver "Sauvegarder en idée" quand `!result?.raw`** : aujourd'hui le bouton peut être cliqué sans contenu généré ; on pourrait le griser. → trivial mais hors fichier `handleSave`.
-2. **Re-fermer le dialog après save** : `SaveToIdeasDialog` appelle déjà `onOpenChange(false)` après succès (à vérifier dans le composant) — sinon ajouter un callback `onSaved`. À ne traiter QUE si le test manuel révèle un bug.
-3. **Toast d'erreur explicite si `!ideaText`** avant ouverture du dialog (pour éviter une idée vide).
-
-Aucune de ces propositions n'est appliquée sans validation.
-
-## Validation
-
+### Validation
 - `npx tsc --noEmit --skipLibCheck` OK
-- Newsletter générée → "Sauvegarder en idée" → dialog → enregistrer → ligne dans `saved_ideas` avec `content_type = newsletter`, visible dans IdeasPage.
-- Carousel généré → comportement identique (insert `generated_carousels`, toast actuel).
-- Démo : clic affiche `demoToast`, aucune insertion, aucun dialog.
+- Test 1 : flux inspiration (avec image) → inchangé
+- Test 2 : relance d'un post calendrier `pinterest_photo` (sans image) → brief + overlay + titre + description générés, pas de 400
+- Test 3 : depuis le calendrier, le canal affiché pour `pinterest_photo` est bien Pinterest
