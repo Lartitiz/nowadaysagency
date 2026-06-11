@@ -1,54 +1,58 @@
-# Fix bug "impossible de changer le logo"
+# Extraction des couleurs du logo → proposition de palette
 
-## Diagnostic
+## Objectif
 
-Dans `src/pages/BrandCharterPage.tsx` il y a **deux inputs file** pour le logo :
+Quand l'utilisateur upload (ou change) son logo dans `BrandCharterPage`, on **extrait les couleurs dominantes** et on lui propose (dialog de confirmation) de les appliquer à sa palette de marque — sans écraser silencieusement ce qu'il a déjà saisi.
 
-1. **Premier upload** (ligne 719, état vide) — `accept="image/*,.heic,.heif,..."`, `disabled={logoUploading}`. OK, modifié au tour précédent.
-2. **"Changer le logo"** (ligne 712, état avec logo existant) :
-   ```tsx
-   <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
-   ```
-   - `accept="image/*"` **n'inclut pas HEIC/HEIF** → sur Mac la boîte de dialogue grise les fichiers iPhone, donc impossible d'en sélectionner un.
-   - Pas de `disabled={logoUploading}` → on peut re-déclencher pendant un upload en cours et casser l'état.
-   - Pas de `key` → si on ré-sélectionne **le même fichier** que la dernière fois, le `onChange` ne se redéclenche pas (comportement natif des inputs file).
+## Comportement UX
 
-Et un point structurel sur `handleLogoUpload` :
-- Après conversion HEIC ou changement d'extension (ex. JPG → PNG), le nouveau fichier est écrit à un **path différent** (`logo.jpg` vs `logo.png`). Le `upsert: true` n'écrase que le même path → on accumule des vieux blobs morts dans le bucket et l'ancien `logo_url` peut rester servi en cache.
+1. Upload du logo → conversion HEIC + upload Supabase (déjà en place).
+2. Une fois l'image affichable, on lance l'extraction côté client (canvas).
+3. On ouvre un `Dialog` :
+   - Titre : « On a repéré ces couleurs dans ton logo »
+   - Aperçu des 5 swatches détectées (primary, secondary, accent, background, text) avec hex.
+   - Deux boutons : **« Appliquer à ma palette »** / **« Ignorer »**.
+   - Bonus : checkbox « Remplacer aussi mes couleurs custom » (off par défaut).
+4. Si on applique, on met à jour `color_primary`, `color_secondary`, `color_accent`, `color_background`, `color_text` via le même `onDataChange` que `applyPalette` (ligne 110 de `CharterColorsSection`) → `triggerSave` enchaîne automatiquement.
+5. Toast de confirmation.
 
-## Plan
+## Implémentation technique
 
-### 1. Aligner le second input sur le premier
-Remplacer ligne 712 par :
-```tsx
-<input
-  type="file"
-  accept="image/*,.heic,.heif,image/heic,image/heif"
-  className="hidden"
-  onChange={handleLogoUpload}
-  disabled={logoUploading}
-/>
-```
+### 1. Helper d'extraction `src/lib/extract-logo-palette.ts`
+- Fonction `extractLogoPalette(blob: Blob): Promise<{primary, secondary, accent, background, text}>`.
+- Pipeline :
+  - Charger le blob dans une `<img>` via `URL.createObjectURL`.
+  - Dessiner sur un canvas 200×200 (downscale pour perf).
+  - Quantization simple **maison** (median cut allégé sur ~40 buckets HSL) — **pas de dépendance externe** pour rester léger. Filtre les pixels quasi-transparents (alpha < 200).
+  - Trier par fréquence puis par saturation.
+  - Heuristiques :
+    - `primary` = couleur la plus fréquente non-neutre (sat > 0.15).
+    - `secondary` = 2e plus fréquente non-neutre, distance HSL > seuil.
+    - `accent` = couleur saturée minoritaire (la plus contrastée).
+    - `background` = couleur la plus claire (luminance > 0.85) sinon `#FFFFFF`.
+    - `text` = couleur la plus sombre (luminance < 0.2) sinon `#111111`.
+  - Fallback : si pas assez de couleurs distinctes, compléter avec gris neutres.
+- SVG : si `contentType === "image/svg+xml"`, on rasterise via un `Image` + canvas standard — fonctionne tant que le SVG est self-contained.
 
-### 2. Forcer un path unique stable
-Dans `handleLogoUpload`, écrire systématiquement sur **un seul path** quelle que soit l'extension :
-- Path = `${user.id}/logo/logo` (sans extension), avec `contentType` correct passé au `upload({ contentType })`.
-- `upsert: true` écrasera toujours le même blob → pas de fichiers orphelins, pas de logo fantôme.
-- L'URL publique reste stable, le cache-bust `?v=Date.now()` suffit à forcer le rafraîchissement.
+### 2. Wiring dans `BrandCharterPage`
+- Dans `handleLogoUpload`, après le `update("logo_url", …)` et avant le toast success :
+  - `const palette = await extractLogoPalette(uploadFile).catch(() => null);`
+  - Si `palette`, ouvrir un nouvel état `logoPaletteProposal` (state local) qui contient `{ colors, includeCustom }`.
+- Ajouter un composant `<LogoPaletteDialog>` (nouveau fichier `src/components/branding/charter/LogoPaletteDialog.tsx`) basé sur shadcn `Dialog`, contrôlé par cet état.
+- Apply → `setData(prev => ({ ...prev, color_primary, color_secondary, ... }))` + `triggerSave()`.
 
-### 3. Reset visuel pendant l'upload
-- L'input file est déjà reset (`inputEl.value = ""`) dans `finally`. Bon.
-- S'assurer que le `<label>` "Changer le logo" porte un attribut `aria-disabled` quand `logoUploading` est `true`, et affiche un état visuel (texte "Upload en cours…").
+### 3. Bouton manuel
+Ajouter un petit bouton **« 🎨 Extraire les couleurs du logo »** sous l'aperçu du logo (visible uniquement si `data.logo_url` existe). Permet de relancer l'extraction sans ré-uploader. Réutilise le même dialog.
 
-### 4. Logs de debug temporaires
-Ajouter un `console.log` au tout début de `handleLogoUpload` (`name`, `type`, `size`) pour confirmer que le picker renvoie bien le fichier sur les prochains essais. À retirer une fois validé.
+## Détails & garde-fous
 
-## Détails techniques
-
-- Aucun changement DB, RLS, ni edge function.
-- Bucket `brand-assets` inchangé.
-- Si on veut nettoyer les anciens blobs (`logo.heic`, `logo.png`…) déjà en storage, on peut ajouter un `supabase.storage.from("brand-assets").remove([...])` ciblé avant l'upsert — proposé en option, hors scope par défaut.
+- Tout est **client-side**, aucune edge function, aucune dépendance externe (canvas + algo maison ~80 lignes).
+- Pas d'écrasement sans confirmation explicite.
+- Si extraction échoue (canvas tainted CORS sur un logo déjà en CDN, par exemple), on `catch` et on n'affiche rien — pas d'erreur visible à l'user.
+- Pas de modif DB / RLS / schéma.
 
 ## Hors scope
 
-- Refonte de la section logo, gestion de plusieurs variantes (déjà demandée ailleurs), drag & drop.
+- Génération de palettes "intelligentes" via IA (Claude) à partir du logo — possible plus tard si l'extraction maison ne suffit pas.
+- Génération automatique de variantes de logo (déjà discutée ailleurs).
+- Application aux exports visuels — séparé.
