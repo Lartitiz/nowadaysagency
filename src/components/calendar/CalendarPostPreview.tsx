@@ -45,6 +45,9 @@ export function CalendarPostPreview({
   const [downloadingPng, setDownloadingPng] = useState(false);
   const [downloadingHybrid, setDownloadingHybrid] = useState(false);
   const [slideIndex, setSlideIndex] = useState(0);
+  const [includeLogo, setIncludeLogo] = useState(getIncludeLogoPref());
+  const logoUrl = (charterData as any)?.logo_url || null;
+  const handleIncludeLogoChange = (v: boolean) => { setIncludeLogo(v); setIncludeLogoPref(v); };
 
   const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9àâéèêëïîôùûüç\-_.]/g, "-");
 
