@@ -183,9 +183,9 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
           />
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">
-              De quoi veux-tu parler ?
-            </label>
+          <label className="text-sm font-medium text-foreground">
+            De quoi veux-tu parler ? <span className="font-normal text-muted-foreground">(optionnel)</span>
+          </label>
             <Textarea
               value={localPhotoSubject}
               onChange={(e) => setLocalPhotoSubject(e.target.value)}
@@ -194,13 +194,13 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
               className="resize-none"
             />
             <p className="text-[11px] text-muted-foreground">
-              Le message ou l'angle du post. Les questions et la rédaction s'appuieront dessus.
+              Pas d'idée précise ? Laisse vide : on te posera 2-3 questions à partir de tes photos pour faire émerger ton angle.
             </p>
           </div>
 
           <Button
             onClick={() => onPhotosNext?.(localPhotos, localDescription, localPhotoSubject.trim())}
-            disabled={localPhotos.length === 0 || !localPhotoSubject.trim()}
+            disabled={localPhotos.length === 0}
             className="w-full gap-2"
           >
             Suivant <ArrowRight className="h-4 w-4" />
