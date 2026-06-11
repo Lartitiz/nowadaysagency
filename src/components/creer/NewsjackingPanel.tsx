@@ -263,14 +263,14 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
 
   // Charge UN angle (mode "primary") — appel court, prompt allégé.
   const fetchPrimaryAngle = useCallback(async (idx: number, actu: Actu) => {
-    let shouldFetch = false;
+    // Garde synchrone : empêche les doubles lancements sans dépendre du
+    // flush différé de setAnglesByIdx.
+    if (primaryStartedRef.current.has(idx)) return;
+    primaryStartedRef.current.add(idx);
     setAnglesByIdx((prev) => {
-      // Skip si déjà en cours ou déjà chargé
       if (prev[idx]?.data || prev[idx]?.loading) return prev;
-      shouldFetch = true;
       return { ...prev, [idx]: { loading: true, startedAt: Date.now(), slow: false, primaryOnly: true } };
     });
-    if (!shouldFetch) return;
 
     const t0 = Date.now();
     console.log(`[newsjacking-angles] primary start idx=${idx} title="${String(actu.titre).slice(0, 60)}"`);
