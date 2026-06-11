@@ -431,7 +431,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
                 className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
               >
                 <span className="text-2xl block mb-1">🎠</span>
-                <span className="text-xs font-semibold text-foreground">Carrousel Texte</span>
+                <span className="text-xs font-semibold text-foreground">Texte design</span>
                 <p className="text-[10px] text-muted-foreground mt-0.5">8-10 slides, design auto, .pptx téléchargeable</p>
               </button>
             )}
@@ -440,8 +440,8 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
               className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
             >
               <span className="text-2xl block mb-1">✨</span>
-              <span className="text-xs font-semibold text-foreground">Carrousel mixte</span>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Photos + texte (6-8 slides)</p>
+              <span className="text-xs font-semibold text-foreground">Photos + slides design</span>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Alternance photos / slides texte (6-8 slides)</p>
             </button>
           </div>
         </div>
@@ -605,10 +605,10 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
           // Collapsed chip — replaces the full picker once a sub-mode is selected
           (() => {
             const subModeMeta = {
-              text: { emoji: "📝", label: "Carrousel Texte", desc: "L'IA écrit et designe les slides" },
-              photo: { emoji: "📸", label: "Carrousel photo + texte superposé", desc: "Photos plein écran + texte par-dessus" },
-              mix: { emoji: "✨", label: "Carrousel texte designé", desc: "Photos + slides texte design" },
-              pure_photo: { emoji: "🖼️", label: "Carrousel Photos brutes", desc: "Tes photos cadrées Insta, aucun texte par-dessus" },
+              text: { emoji: "📝", label: "Texte design", desc: "L'IA écrit et designe 8-10 slides" },
+              photo: { emoji: "📸", label: "Tes photos en fond", desc: "Photos plein écran + texte par-dessus" },
+              mix: { emoji: "✨", label: "Photos + slides design", desc: "Alternance photos et slides texte design" },
+              pure_photo: { emoji: "🖼️", label: "Photos brutes", desc: "Photos cadrées, aucun texte par-dessus" },
             }[carouselSubMode];
             return (
               <div className="flex items-center justify-between gap-3 rounded-xl bg-muted/30 border border-border px-3 py-2 animate-fade-in">
@@ -645,8 +645,24 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
                   onClick={() => { setCarouselSubMode("text"); setUploadedPhotos([]); setPhotoDescription(""); }}
                   className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-4 text-left transition-all flex flex-col gap-1.5"
                 >
-                  <span className="text-2xl">📝</span>
-                  <span className="text-sm font-semibold text-foreground">Carrousel Texte</span>
+                  <div className="flex gap-[3px] mb-1">
+                    <div className="w-[22px] h-[28px] rounded-[4px] bg-primary/15 flex flex-col justify-center gap-1 px-1">
+                      <div className="h-0.5 bg-primary/50 rounded-full" />
+                      <div className="h-0.5 bg-primary/50 rounded-full" />
+                    </div>
+                    <div className="w-[22px] h-[28px] rounded-[4px] bg-primary/15 flex flex-col justify-center gap-1 px-1">
+                      <div className="h-0.5 bg-primary/50 rounded-full" />
+                      <div className="h-0.5 bg-primary/50 rounded-full" />
+                    </div>
+                    <div className="w-[22px] h-[28px] rounded-[4px] bg-primary/15 flex flex-col justify-center gap-1 px-1">
+                      <div className="h-0.5 bg-primary/50 rounded-full" />
+                      <div className="h-0.5 bg-primary/50 rounded-full" />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xl">📝</span>
+                    <span className="text-sm font-semibold text-foreground">Texte design</span>
+                  </div>
                   <p className="text-[11px] leading-snug text-muted-foreground">L'IA écrit et designe 8-10 slides. .pptx téléchargeable.</p>
                 </button>
               )}
@@ -654,25 +670,59 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
                 onClick={() => setCarouselSubMode("photo")}
                 className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-4 text-left transition-all flex flex-col gap-1.5"
               >
-                <span className="text-2xl">📸</span>
-                <span className="text-sm font-semibold text-foreground">Carrousel photo + texte superposé</span>
-                <p className="text-[11px] leading-snug text-muted-foreground">Tes photos en plein écran, l'IA pose un texte court par-dessus chaque slide (+ légende).</p>
+                <div className="flex gap-[3px] mb-1">
+                  <div className="w-[22px] h-[28px] rounded-[4px] bg-muted-foreground/30 relative">
+                    <div className="absolute bottom-1 left-1 right-1 h-0.5 bg-background/70 rounded-full" />
+                  </div>
+                  <div className="w-[22px] h-[28px] rounded-[4px] bg-muted-foreground/30 relative">
+                    <div className="absolute bottom-1 left-1 right-1 h-0.5 bg-background/70 rounded-full" />
+                  </div>
+                  <div className="w-[22px] h-[28px] rounded-[4px] bg-muted-foreground/30 relative">
+                    <div className="absolute bottom-1 left-1 right-1 h-0.5 bg-background/70 rounded-full" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xl">📸</span>
+                  <span className="text-sm font-semibold text-foreground">Tes photos en fond</span>
+                </div>
+                <p className="text-[11px] leading-snug text-muted-foreground">Photos plein écran, un texte court posé par-dessus chaque slide.</p>
               </button>
               <button
                 onClick={() => setCarouselSubMode("mix")}
                 className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-4 text-left transition-all flex flex-col gap-1.5"
               >
-                <span className="text-2xl">✨</span>
-                <span className="text-sm font-semibold text-foreground">Carrousel texte designé</span>
-                <p className="text-[11px] leading-snug text-muted-foreground">Alterne tes photos et des slides texte design, avec de l'espace blanc.</p>
+                <div className="flex gap-[3px] mb-1">
+                  <div className="w-[22px] h-[28px] rounded-[4px] bg-muted-foreground/30 relative">
+                    <div className="absolute bottom-1 left-1 right-1 h-0.5 bg-background/70 rounded-full" />
+                  </div>
+                  <div className="w-[22px] h-[28px] rounded-[4px] bg-primary/15 flex flex-col justify-center gap-1 px-1">
+                    <div className="h-0.5 bg-primary/50 rounded-full" />
+                    <div className="h-0.5 bg-primary/50 rounded-full" />
+                  </div>
+                  <div className="w-[22px] h-[28px] rounded-[4px] bg-muted-foreground/30 relative">
+                    <div className="absolute bottom-1 left-1 right-1 h-0.5 bg-background/70 rounded-full" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xl">✨</span>
+                  <span className="text-sm font-semibold text-foreground">Photos + slides design</span>
+                </div>
+                <p className="text-[11px] leading-snug text-muted-foreground">Alternance de tes photos et de slides texte designées.</p>
               </button>
               <button
                 onClick={() => setCarouselSubMode("pure_photo")}
                 className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-4 text-left transition-all flex flex-col gap-1.5"
               >
-                <span className="text-2xl">🖼️</span>
-                <span className="text-sm font-semibold text-foreground">Carrousel Photos brutes</span>
-                <p className="text-[11px] leading-snug text-muted-foreground">Tes photos cadrées Insta, aucun texte par-dessus. L'IA écrit juste la légende.</p>
+                <div className="flex gap-[3px] mb-1">
+                  <div className="w-[22px] h-[28px] rounded-[4px] bg-muted-foreground/30" />
+                  <div className="w-[22px] h-[28px] rounded-[4px] bg-muted-foreground/30" />
+                  <div className="w-[22px] h-[28px] rounded-[4px] bg-muted-foreground/30" />
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xl">🖼️</span>
+                  <span className="text-sm font-semibold text-foreground">Photos brutes</span>
+                </div>
+                <p className="text-[11px] leading-snug text-muted-foreground">Tes photos cadrées au bon format, zéro texte dessus. L'IA écrit juste la légende.</p>
               </button>
             </div>
           </div>
