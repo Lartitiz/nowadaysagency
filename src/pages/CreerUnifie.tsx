@@ -481,7 +481,18 @@ export default function CreerUnifie() {
     setSelectedFormat(safeFormat);
     if (data.carouselSubMode) setCarouselSubMode(data.carouselSubMode);
 
-    // Coaching dialog already handles sub-mode choice, go directly to questions
+    // Même politique que l'init URL (chemin Dashboard → /creer?format=...) :
+    // carousel et post passent par l'étape format pour permettre le choix
+    // d'angle, le sous-mode et l'upload de photos. Sans ça, un "carrousel
+    // photo" choisi dans le coach partait en génération sans photos et
+    // était silencieusement dégradé en carrousel texte (visionMode=false).
+    if (safeFormat === "carousel" || safeFormat === "post") {
+      setStep("format");
+      return;
+    }
+
+    // Autres formats (reel, story, linkedin, newsletter, pinterest…) :
+    // pas de sous-choix ni de photos à cette étape, on garde le saut direct.
     setStep("questions");
     generateQuestions({
       format: safeFormat,
