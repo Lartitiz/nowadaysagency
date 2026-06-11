@@ -313,6 +313,23 @@ serve(async (req) => {
       }
     }
 
+    // Validation step 4 : normaliser font_title / font_body contre la liste autorisée,
+    // sinon retomber sur le fallback sectoriel pour éviter de sauvegarder une font qui ne charge pas
+    if (step === 4 && parsed?.extracted) {
+      const sectorFont = getSectorFontEntry(typeActivite);
+      const normalizedTitle = normalizeFont(parsed.extracted.font_title);
+      const normalizedBody = normalizeFont(parsed.extracted.font_body);
+      if (!normalizedTitle || !normalizedBody) {
+        console.warn("[charter-coaching step 4] invalid fonts from AI, falling back to sector default", {
+          received: { title: parsed.extracted.font_title, body: parsed.extracted.font_body },
+          fallback: sectorFont.fallback,
+        });
+      }
+      parsed.extracted.font_title = normalizedTitle || sectorFont.fallback.title;
+      parsed.extracted.font_body = normalizedBody || sectorFont.fallback.body;
+    }
+
+
     return new Response(JSON.stringify({ response: parsed }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
