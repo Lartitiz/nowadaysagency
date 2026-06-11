@@ -1,68 +1,80 @@
-# Newsjacking — analyse d'une URL d'actu fournie par l'utilisatrice
+# Plan — Robustesse `newsjacking-ai` (timeout, doublons, owner)
 
-## Idée et pertinence
+Périmètre : 2 fichiers backend uniquement. Aucun frontend, aucun changement de contrat client.
 
-Très bonne idée et naturelle dans ce panneau. Aujourd'hui le flow part toujours d'une recherche Perplexity ("vibes" + intention libre) qui ramène des actus. Permettre de **coller un lien d'article** et générer directement les angles sur CETTE actu couvre un cas d'usage très concret : « j'ai vu cet article ce matin, qu'est-ce que j'en fais ? ».
+## (a) Ce que tu m'as demandé
 
-Avantages :
-- Zéro hallucination sur le sujet (on lit l'article, on ne le devine pas).
-- Plus rapide qu'une recherche large (1 seul appel Anthropic, pas de Perplexity).
-- Plus économe : 1 crédit pour 1 actu ciblée vs. recherche large.
+### 1. Budget timeout cascadé — `supabase/functions/newsjacking-ai/index.ts`
 
-## UX proposée
+- Au tout début du handler `Deno.serve` (juste après le `try`), ajouter :
+  ```ts
+  const t0 = Date.now();
+  ```
+- Ligne ~596, remplacer :
+  ```ts
+  const timeout = setTimeout(() => controller.abort(), 170000);
+  ```
+  par :
+  ```ts
+  const remainingBudget = Math.max(60_000, 170_000 - (Date.now() - t0));
+  const timeout = setTimeout(() => controller.abort(), remainingBudget);
+  ```
+- Garantit que la fonction se termine (succès ou abort) avant le timeout frontend de 180s — plus de crédit consommé sur résultat non délivré.
 
-Ajouter dans le bloc d'intention un **3e champ** au-dessus (ou en dessous) des vibes :
+### 2. Exclusion des actus déjà vues dans le prompt Claude
 
-```
-🔗 Tu as déjà une actu en tête ?
-[ Colle le lien ici (article, vidéo YouTube, post LinkedIn…) ]
-[ Analyser ce lien ]   ← CTA séparé du "Lancer la recherche"
-```
+- `excludedUrls` est déjà parsé ligne ~139 (max 50).
+- Ligne ~609, avant la concaténation `+ "\n\nFais les recherches maintenant…"`, construire un bloc additionnel uniquement si `excludedUrls.length > 0` :
+  ```ts
+  const exclusionBlock = excludedUrls.length > 0
+    ? `\n\nSUJETS DÉJÀ PROPOSÉS À L'UTILISATRICE — ne reprends AUCUNE de ces sources, ni le même sujet reformulé depuis une autre source :\n` +
+      excludedUrls.map(u => `- ${u}`).join("\n")
+    : "";
+  ```
+- Insérer `exclusionBlock` dans le `content` du message user (avant le paragraphe "Fais les recherches maintenant…").
+- Si vide : message strictement identique à aujourd'hui.
 
-- Si l'utilisatrice colle une URL et clique sur "Analyser ce lien" → on bypasse Perplexity, on scrape l'URL, on construit UNE actu, on génère ses angles.
-- Si elle laisse vide et clique sur "Lancer la recherche" → flow actuel inchangé.
-- Les 2 modes cohabitent, pas de régression.
+### 3. Owner via `getUserContext` (2 fichiers, couplés)
 
-Résultat affiché : exactement comme aujourd'hui (carte actu + angles dépliables + bouton "Utiliser"). L'actu unique vient simplement avec un badge "📰 D'après ton lien" au lieu de venir de la recherche.
+**`supabase/functions/_shared/user-context.ts`** — additif uniquement :
+- Dans le `return` ligne ~110, ajouter en première clé :
+  ```ts
+  return {
+    profileUserId,
+    storytelling: stRes.data,
+    ...
+  };
+  ```
+- Aucune autre modification (formatContextForAI, presets, requêtes, types existants : inchangés).
 
-## Implémentation
+**`supabase/functions/newsjacking-ai/index.ts`** :
+- Supprimer le bloc lignes ~188-198 (résolution `bpUserId` via `workspace_members`).
+- Le remplacer par une seule ligne :
+  ```ts
+  const bpUserId = (ctx as any).profileUserId ?? user.id;
+  ```
+  (`ctx` est déjà disponible depuis ligne ~166.)
 
-### 1. Frontend — `src/components/creer/NewsjackingPanel.tsx`
-- Nouveau state `urlInput: string` + validation URL simple (http/https).
-- Nouveau bloc UI au-dessus des vibes (ou en bas, à valider) avec input + CTA.
-- Nouveau handler `fetchFromUrl()` qui appelle une nouvelle Edge Function `newsjacking-from-url` avec `{ url, workspace_id }`, reçoit `{ actus: [oneActu] }` au même format, puis enchaîne le pré-calcul d'angles existant (`fetchPrimaryAngle`).
+## (b) Propositions d'amélioration — à valider avant exec
 
-### 2. Backend — nouvelle Edge Function `supabase/functions/newsjacking-from-url/index.ts`
-Pipeline :
-1. Auth (`getUser`) + rate limit + workspace-guard (Vague 2 pattern) + `checkQuota("content")` (1 crédit, identique au flow recherche).
-2. Validation Zod : `url: z.string().url()`.
-3. **Scraping** via le helper existant `scrapeWebsite(url, signal)` de `_shared/scraping.ts` — pas besoin de Firecrawl, le helper est déjà utilisé partout (analyze-brand, deep-diagnostic).
-4. Si scraping vide / échec → 422 `{ error: "Impossible de lire ce lien" }`.
-5. Appel Anthropic Sonnet avec `getUserContext` (preset léger) + le texte scrapé, prompt qui extrait :
-   - `titre` (titre réel de l'article)
-   - `resume` (3-4 phrases neutres)
-   - `source` (nom du média déduit du domaine)
-   - `source_url` (URL fournie)
-   - `axe` + `ton` + `force_pont` + `pertinence` (même format que les actus Perplexity)
-6. `logUsage("content", 1)`.
-7. Retour : `{ actus: [actuObject] }` — strictement le même format que `newsjacking-ai`, le frontend n'a rien d'autre à changer.
+Aucune. Le périmètre est net et les 3 changements sont chirurgicaux. Je propose de m'en tenir strictement à la demande ; les chantiers connexes (titres en plus des URLs, pré-calcul angles, 403 démo) sont déjà identifiés comme hors scope.
 
-L'enrichissement angles continue d'utiliser `newsjacking-angles` existant (mode="primary" puis "variants"), aucun changement requis là.
+## Ce qui ne bouge pas
 
-### Choix techniques
+- Ordre `checkQuota` → IA → `logUsage`
+- Contenu du `systemPrompt` (garde-fous, registres, force_pont) hors injection du bloc exclusion
+- `_shared/perplexity.ts` et son appel
+- Stratégies de parsing JSON et filtrage EVERGREEN
+- Cache univers de marque (TTL 30j) et régénération
+- Rate limit, guard mode démo
+- Reste de `user-context.ts` (presets, formatContextForAI, requêtes)
+- Toutes les autres Edge Functions consommant `getUserContext` (ajout d'un champ au return = non-breaking)
+- Aucun fichier frontend
 
-- **Pas de Firecrawl** : le helper `scrapeWebsite` interne suffit, pas de nouveau secret/coût.
-- **Pas de cache** : on suit le pattern actuel (chaque recherche = 1 crédit), équitable.
-- **Pas de support multi-URLs** dans cette v1 (1 lien = 1 actu = 1 crédit).
+## Critères de validation
 
-## Hors scope (v2 possible)
-
-- Support vidéos YouTube (transcription) — autre helper.
-- Support posts LinkedIn (déjà `scrapeLinkedin`, mais auth requise).
-- Détection auto de plusieurs angles concurrents dans un long-format (article 5000 mots).
-
-## Questions à valider avant exec
-
-1. **Placement** : input URL **au-dessus** des vibes (= chemin prioritaire) ou **en dessous** (= alternative discrète au cas où) ?
-2. **Coût** : 1 crédit comme la recherche actuelle, OK ? (cohérent, on facture l'usage IA pas la recherche Perplexity en elle-même.)
-3. **Format accepté** v1 : uniquement HTTP/HTTPS d'articles web ? On exclut explicitement YouTube/LinkedIn/Twitter pour ne pas promettre ce qu'on tient mal.
+1. `npx tsc --noEmit --skipLibCheck` passe sans erreur
+2. Recherche scoop : réponse < 180s, ou abort propre côté Claude avant la limite, sans crédit consommé
+3. "Relancer" 2× : aucune URL de la liste précédente ne réapparaît
+4. Workspace partagé (CM) : univers de marque = celui du owner (comportement identique à avant)
+5. Autres consommateurs de `getUserContext` : compilent et fonctionnent à l'identique
