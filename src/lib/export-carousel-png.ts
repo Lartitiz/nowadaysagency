@@ -17,7 +17,7 @@ const sanitize = (s: string) =>
  * Google Fonts que la page parente. Évite les conflits Tailwind/box-sizing
  * qui faisaient mal calculer `background-size: cover` à html2canvas.
  */
-async function mountSlideIframe(html: string): Promise<HTMLIFrameElement> {
+async function mountSlideIframe(html: string, logoOverlayHtml: string): Promise<HTMLIFrameElement> {
   const iframe = document.createElement("iframe");
   iframe.style.cssText = `position:fixed;top:-99999px;left:-99999px;width:${SLIDE_W}px;height:${SLIDE_H}px;border:0;z-index:-1;pointer-events:none;`;
   iframe.setAttribute("aria-hidden", "true");
@@ -35,10 +35,10 @@ async function mountSlideIframe(html: string): Promise<HTMLIFrameElement> {
 <meta charset="utf-8" />
 ${fontLinks}
 <style>
-  html, body { margin:0; padding:0; width:${SLIDE_W}px; height:${SLIDE_H}px; overflow:hidden; background:transparent; }
+  html, body { margin:0; padding:0; width:${SLIDE_W}px; height:${SLIDE_H}px; overflow:hidden; background:transparent; position:relative; }
   *, *::before, *::after { box-sizing: border-box; }
 </style>
-</head><body>${html}</body></html>`;
+</head><body>${html}${logoOverlayHtml}</body></html>`;
 
   iframe.srcdoc = srcdoc;
   document.body.appendChild(iframe);
