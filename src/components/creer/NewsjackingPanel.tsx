@@ -2,7 +2,7 @@ import { useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, RefreshCw, Loader2, Sparkles, EyeOff, ChevronDown, Bookmark, BookmarkCheck, Newspaper } from "lucide-react";
+import { ArrowLeft, RefreshCw, Loader2, Sparkles, EyeOff, ChevronDown, Bookmark, BookmarkCheck, Newspaper, Lightbulb } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -442,6 +442,13 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
                 <span className="text-[10px] text-muted-foreground">{customIntent.length}/{MAX_INTENT_CHARS}</span>
               </div>
             </div>
+          </div>
+
+          <div className="flex items-start gap-2 rounded-xl bg-primary/5 px-3.5 py-2.5">
+            <Lightbulb className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              <span className="font-medium text-foreground">Petit secret :</span> pas besoin que l'actu soit "dans ton secteur". Ce qui compte, c'est le lien que tu crées. Et souvent, c'est l'angle inattendu qui marque le plus.
+            </p>
           </div>
 
           <div className="flex justify-center">
