@@ -83,6 +83,13 @@ const PROGRESS_MESSAGES: Record<string, string[]> = {
     "Recherche d'angles d'adaptation...",
     "Personnalisation à ton projet...",
   ],
+  linkedin: [
+    "Rédaction de ton post LinkedIn…",
+    "Personnalisation avec ta voix…",
+    "Passe de relecture : chasse aux tics d'écriture IA…",
+    "Vérification du rythme et des accroches…",
+    "Derniers ajustements…",
+  ],
   default: [
     "L'IA rédige ton contenu…",
     "Personnalisation avec ta voix…",
