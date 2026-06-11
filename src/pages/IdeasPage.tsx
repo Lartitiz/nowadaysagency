@@ -565,8 +565,8 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
                 </div>
               </div>
             )}
-          </SheetContent>
-        </Sheet>
+          </DialogContent>
+        </Dialog>
       </>
     );
 
