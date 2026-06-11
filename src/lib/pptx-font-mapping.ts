@@ -7,62 +7,43 @@
  *   (in inches, based on a 7.5 × 9.375 INSTAGRAM layout).
  */
 
-const SERIF_FONTS = [
-  "playfair display",
-  "playfair",
-  "lora",
-  "merriweather",
-  "libre baskerville",
-  "cormorant",
-  "cormorant garamond",
-  "eb garamond",
-  "garamond",
-  "crimson text",
-  "crimson pro",
-  "source serif pro",
-  "ptserif",
-  "pt serif",
-];
-
-const MONO_FONTS = [
-  "ibm plex mono",
-  "consolas",
-  "fira mono",
-  "fira code",
-  "jetbrains mono",
-  "source code pro",
-  "roboto mono",
-  "courier new",
-  "courier",
-  "menlo",
-];
-
-const VERDANA_FONTS = ["montserrat", "raleway", "oswald", "bebas neue"];
-const TREBUCHET_FONTS = ["poppins", "nunito", "quicksand", "comfortaa"];
+const GENERIC_FONT_MAP: Record<string, string> = {
+  "serif": "Georgia",
+  "sans-serif": "Calibri",
+  "system-ui": "Calibri",
+  "ui-sans-serif": "Calibri",
+  "monospace": "Consolas",
+  "ui-monospace": "Consolas",
+  "cursive": "Calibri",
+  "fantasy": "Calibri",
+};
 
 /**
- * Map a CSS font-family value to a PowerPoint-safe font name.
- * The input can be a font-family stack (e.g. `"Playfair Display", serif`) or a single name.
+ * Retourne le vrai nom de la première police de la stack CSS, casse préservée,
+ * pour que Canva le matche dans sa bibliothèque à l'import du PPTX (Canva
+ * contient quasi toutes les Google Fonts). PowerPoint desktop substituera
+ * silencieusement si la police n'est pas installée localement.
+ *
+ * - Stack vide / null → "Calibri" (fallback).
+ * - Mot-clé CSS générique (serif, sans-serif, monospace, …) → police système
+ *   équivalente, car un mot-clé générique n'est pas un nom de police PPTX valide.
+ * - Sinon → premier nom de la stack, quotes retirées, casse préservée.
  */
 export function mapFontToPptx(fontFamily?: string | null): string {
   if (!fontFamily) return "Calibri";
 
-  // Take only the first font in the stack
   const first = fontFamily
     .split(",")[0]
     .trim()
-    .replace(/['"]/g, "")
-    .toLowerCase();
+    .replace(/^['"]+|['"]+$/g, "")
+    .trim();
 
   if (!first) return "Calibri";
 
-  if (SERIF_FONTS.some((f) => first.includes(f))) return "Georgia";
-  if (MONO_FONTS.some((f) => first.includes(f))) return "Consolas";
-  if (VERDANA_FONTS.some((f) => first.includes(f))) return "Verdana";
-  if (TREBUCHET_FONTS.some((f) => first.includes(f))) return "Trebuchet MS";
+  const generic = GENERIC_FONT_MAP[first.toLowerCase()];
+  if (generic) return generic;
 
-  // Sans-serif default
-  return "Calibri";
+  return first;
 }
 
 export type OverlayPosition =
