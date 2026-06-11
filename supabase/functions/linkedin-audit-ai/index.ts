@@ -36,17 +36,6 @@ serve(async (req) => {
     const rateCheck = checkRateLimit(user.id);
     if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
 
-    // Anthropic API key checked in shared helper
-
-    // Check plan limits (audit type)
-    const quotaCheck = await checkQuota(user.id, "audit");
-    if (!quotaCheck.allowed) {
-      return new Response(
-        JSON.stringify({ error: "limit_reached", message: quotaCheck.message, remaining: 0, category: quotaCheck.reason }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     const body = await req.json();
     validateInput(body, z.object({
       workspace_id: z.string().uuid().optional().nullable(),
@@ -55,6 +44,18 @@ serve(async (req) => {
       screenshots: z.array(z.object({ url: z.string().url().max(2048) }).passthrough()).max(20).optional(),
     }).passthrough());
     const { workspace_id } = body;
+
+    // Anthropic API key checked in shared helper
+
+    // Check plan limits (audit type)
+    const quotaCheck = await checkQuota(user.id, "audit", workspace_id);
+    if (!quotaCheck.allowed) {
+      return new Response(
+        JSON.stringify({ error: "limit_reached", message: quotaCheck.message, remaining: 0, category: quotaCheck.reason }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const ctx = await getUserContext(supabase, user.id, workspace_id, "linkedin");
     const contextStr = formatContextForAI(ctx, CONTEXT_PRESETS.linkedinAudit);
 
@@ -229,7 +230,7 @@ Réponds UNIQUEMENT en JSON sans backticks :
       temperature: 0.7,
     });
 
-    await logUsage(user.id, "audit", "audit_linkedin");
+    await logUsage(user.id, "audit", "audit_linkedin", undefined, undefined, workspace_id);
 
     return new Response(JSON.stringify({ content }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
