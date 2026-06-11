@@ -50,12 +50,66 @@ const SECTOR_PALETTES: Record<string, string> = {
   default: "",
 };
 
+// Suggestions typo par secteur — base déterministe pour le prompt step 4 et fallback de validation
+const SECTOR_FONTS: Record<string, { advice: string; fallback: { title: string; body: string } }> = {
+  photographe: {
+    advice: "Pour une photographe : duo épuré qui ne vole pas la vedette aux images (Cormorant Garamond + Inter, ou Playfair Display + Work Sans).",
+    fallback: { title: "Cormorant Garamond", body: "Inter" },
+  },
+  "mode éthique": {
+    advice: "En mode éthique : serif artisanale + sans-serif douce (Cormorant Garamond + Raleway, ou Lora + Nunito).",
+    fallback: { title: "Cormorant Garamond", body: "Raleway" },
+  },
+  "coach bien-être": {
+    advice: "Pour le bien-être : serif douce + sans-serif arrondie (Lora + Nunito, ou Libre Baskerville + DM Sans).",
+    fallback: { title: "Lora", body: "Nunito" },
+  },
+  "coach business": {
+    advice: "Pour le coaching business : sans-serif affirmée (Space Grotesk + Inter, ou Montserrat + Open Sans).",
+    fallback: { title: "Space Grotesk", body: "Inter" },
+  },
+  artisan: {
+    advice: "Pour l'artisanat : serif élégante + sans-serif chaleureuse (Cormorant Garamond + Raleway, ou Playfair Display + Nunito).",
+    fallback: { title: "Cormorant Garamond", body: "Raleway" },
+  },
+  "food": {
+    advice: "En food : serif élégante + sans-serif lisible (Playfair Display + Lora, ou Libre Baskerville + Work Sans).",
+    fallback: { title: "Playfair Display", body: "Work Sans" },
+  },
+  default: {
+    advice: "",
+    fallback: { title: "DM Sans", body: "Inter" },
+  },
+};
+
+const ALLOWED_FONTS = [
+  "Inter", "Poppins", "Montserrat", "Playfair Display", "Libre Baskerville",
+  "Lora", "Raleway", "Open Sans", "Nunito", "DM Sans", "Space Grotesk",
+  "Outfit", "Cormorant Garamond", "Josefin Sans", "Work Sans",
+];
+
 function getSectorAdvice(typeActivite: string | null): string {
   if (!typeActivite) return "";
   const key = Object.keys(SECTOR_PALETTES).find(k => 
     typeActivite.toLowerCase().includes(k)
   );
   return SECTOR_PALETTES[key || "default"] || "";
+}
+
+function getSectorFontEntry(typeActivite: string | null) {
+  if (!typeActivite) return SECTOR_FONTS.default;
+  const key = Object.keys(SECTOR_FONTS).find(k =>
+    k !== "default" && typeActivite.toLowerCase().includes(k)
+  );
+  return SECTOR_FONTS[key || "default"] || SECTOR_FONTS.default;
+}
+
+function normalizeFont(name: unknown): string | null {
+  if (!name || typeof name !== "string") return null;
+  const cleaned = name.trim();
+  if (!cleaned) return null;
+  const match = ALLOWED_FONTS.find(f => f.toLowerCase() === cleaned.toLowerCase());
+  return match || null;
 }
 
 function buildPrompt(
