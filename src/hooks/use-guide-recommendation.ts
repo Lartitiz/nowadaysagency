@@ -66,7 +66,7 @@ function getNextEmptySection(bc: BrandingCompletion) {
 const FALLBACK: GuideRecommendation = {
   title: "Raconte-moi ton histoire",
   explanation:
-    "Bon, on part de zéro et c'est très bien. La première étape : raconter ton histoire. C'est la fondation de tout le reste. Sans ça, ta com' ressemblera à toutes les autres.",
+    "On part de zéro — première étape, raconter ton histoire. C'est la fondation de tout le reste.",
   ctaLabel: "C'est parti !",
   ctaRoute: "/branding/coaching?section=story",
   icon: "BookOpen",
