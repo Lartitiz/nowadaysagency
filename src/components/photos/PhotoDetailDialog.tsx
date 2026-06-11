@@ -4,7 +4,8 @@
  */
 
 import { useEffect, useState } from "react";
-import { Download, Loader2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Download, Loader2, Sparkles } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -38,6 +39,7 @@ function slugify(s: string): string {
 }
 
 export function PhotoDetailDialog({ photo, open, onOpenChange }: PhotoDetailDialogProps) {
+  const navigate = useNavigate();
   const [view, setView] = useState<"after" | "before">("after");
   const [afterUrl, setAfterUrl] = useState<string | null>(null);
   const [beforeUrl, setBeforeUrl] = useState<string | null>(null);
@@ -136,8 +138,18 @@ export function PhotoDetailDialog({ photo, open, onOpenChange }: PhotoDetailDial
           )}
         </div>
 
-        <div className="flex justify-end">
-          <Button onClick={handleDownload} disabled={downloading || !url}>
+        <div className="flex justify-end gap-2">
+          {photo.status === "ready" && (
+            <Button
+              onClick={() => {
+                navigate("/creer", { state: { libraryPhotoIds: [photo.id] } });
+                onOpenChange(false);
+              }}
+            >
+              <Sparkles className="h-4 w-4 mr-2" /> Créer un contenu
+            </Button>
+          )}
+          <Button variant="outline" onClick={handleDownload} disabled={downloading || !url}>
             {downloading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Téléchargement…
