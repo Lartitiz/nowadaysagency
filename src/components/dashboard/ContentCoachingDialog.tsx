@@ -197,7 +197,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
     }
   };
 
-  const handleCarouselSubSelect = (sub: "text" | "photo" | "mix") => {
+  const handleCarouselSubSelect = (sub: "text" | "photo" | "mix" | "pure_photo") => {
     setCarouselSubMode(sub);
     generateIdeas({ objectif, canal, format: "carousel", sujet });
   };
