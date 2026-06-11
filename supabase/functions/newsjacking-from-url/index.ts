@@ -208,7 +208,7 @@ Analyse maintenant.`;
 
     // 4. Log usage (1 crédit, même catégorie que la recherche)
     try {
-      await logUsage(user.id, "deep_research", workspace_id);
+      await logUsage(user.id, "deep_research", "newsjacking_from_url", undefined, model, workspace_id);
     } catch (e) {
       console.warn("[newsjacking-from-url] logUsage failed", (e as Error).message);
     }
