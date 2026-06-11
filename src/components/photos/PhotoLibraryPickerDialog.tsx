@@ -74,11 +74,27 @@ export function PhotoLibraryPickerDialog({
 }: PhotoLibraryPickerDialogProps) {
   const { data: photos, isLoading } = useUserPhotos();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [urlMap, setUrlMap] = useState<Map<string, string>>(new Map());
 
   // Reset selection on every open
   useEffect(() => {
     if (open) setSelectedIds([]);
   }, [open]);
+
+  // Batch-sign all ready photos when the dialog opens or photos change
+  useEffect(() => {
+    if (!open || readyPhotos.length === 0) {
+      setUrlMap(new Map());
+      return;
+    }
+    let cancelled = false;
+    getSignedPhotoUrls(readyPhotos.map((p) => p.storage_path)).then((map) => {
+      if (!cancelled) setUrlMap(map);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, readyPhotos]);
 
   const readyPhotos = useMemo(
     () => (photos ?? []).filter((p) => p.status === "ready"),
