@@ -74,6 +74,9 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const actu = body?.actu;
     const workspace_id = body?.workspace_id || undefined;
+    // mode : "primary" (1 angle, prompt court) | "variants" (2 angles évitant un véhicule) | défaut = 3 angles (legacy)
+    const mode: "primary" | "variants" | "full" = body?.mode === "primary" || body?.mode === "variants" ? body.mode : "full";
+    const excludeVehicules: string[] = Array.isArray(body?.exclude_vehicules) ? body.exclude_vehicules : [];
 
     if (!actu || typeof actu !== "object" || !actu.titre || !actu.resume) {
       return new Response(JSON.stringify({ error: "Actu invalide (titre + resume requis)" }), {
@@ -82,8 +85,11 @@ serve(async (req) => {
       });
     }
 
-    // Rate limit (plus permissif que la recherche)
-    const rl = checkRateLimit(user.id, 15, 60_000);
+    // Rate limit (plus permissif que la recherche). En mode "primary" (pré-calcul),
+    // on autorise des bursts plus élevés pour permettre le fan-out de 4 actus en parallèle.
+    const rl = mode === "primary"
+      ? checkRateLimit(user.id, 30, 60_000)
+      : checkRateLimit(user.id, 15, 60_000);
     if (!rl.allowed) {
       return rateLimitResponse(rl.retryAfterMs!, corsHeaders);
     }
@@ -94,13 +100,14 @@ serve(async (req) => {
       return quotaDeniedResponse(quota, corsHeaders);
     }
 
-    // Branding context
+    // Branding context — preset allégé pour "primary", complet pour "variants"/"full"
     const sbService = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
     const ctx = await getUserContext(sbService, user.id, workspace_id);
-    const brandingContext = formatContextForAI(ctx, CONTEXT_PRESETS.content);
+    const preset = mode === "primary" ? CONTEXT_PRESETS.newsjacking : CONTEXT_PRESETS.content;
+    const brandingContext = formatContextForAI(ctx, preset);
     const nicheLabel = ctx?.profile?.activite || ctx?.profile?.type_activite || "son secteur";
 
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
@@ -125,6 +132,51 @@ Cette actu n'est PAS dans le secteur de la personne. Chaque angle DOIT s'appuyer
 - "parallele_absurde" : MAX 1 angle sur 3, et UNIQUEMENT si le parallèle est immédiatement lisible (pas un parallèle qu'il faut "déballer" en 2 phrases)`
       : `▶ ACTU NICHE — l'angle doit valoriser l'expertise unique de la personne sur cette actu de son secteur. Privilégie "constat_decale", "recit_experience" ou "declencheur_externe". Reste branché sur le pont déjà identifié dans "Pertinence".`;
 
+    // Cadrage spécifique au mode (1 angle / 2 variantes / 3 complets)
+    let missionBlock: string;
+    let expectedCount: number;
+    let maxTokens: number;
+
+    if (mode === "primary") {
+      expectedCount = 1;
+      maxTokens = 700;
+      missionBlock = `TA MISSION : 1 SEUL ANGLE — le plus évident, le plus solide pour cette actu.
+
+Choisis LE véhicule qui s'impose naturellement parmi ces 5 :
+1. recit_experience — INVITE la personne à raconter une scène vécue (sans la fabriquer toi-même).
+2. declencheur_externe — "Cette actu m'a fait réaliser un truc sur mon métier…"
+3. constat_decale — "Ce que cette actu révèle sur [secteur], c'est que…"
+4. montrer_plutot_quexpliquer — avant/après, process visible, transformation
+5. parallele_absurde — "Cette actu n'a rien à voir avec mon métier… et pourtant ça illustre exactement…"`;
+    } else if (mode === "variants") {
+      expectedCount = 2;
+      maxTokens = 1200;
+      const excludedTxt = excludeVehicules.length
+        ? `\n\n⚠️ EXCLUS (déjà couvert) : ${excludeVehicules.join(", ")}. NE PROPOSE PAS ces véhicules. Choisis 2 autres véhicules DIFFÉRENTS entre eux et différents des exclus.`
+        : "";
+      missionBlock = `TA MISSION : 2 ANGLES COMPLÉMENTAIRES (variantes) pour cette actu.
+
+Choisis 2 véhicules DIFFÉRENTS entre eux parmi ces 5 :
+1. recit_experience — INVITE la personne à raconter une scène vécue (sans la fabriquer toi-même).
+2. declencheur_externe — "Cette actu m'a fait réaliser un truc sur mon métier…"
+3. constat_decale — "Ce que cette actu révèle sur [secteur], c'est que…"
+4. montrer_plutot_quexpliquer — avant/après, process visible, transformation
+5. parallele_absurde — "Cette actu n'a rien à voir avec mon métier… et pourtant ça illustre exactement…"${excludedTxt}`;
+    } else {
+      expectedCount = 3;
+      maxTokens = 1500;
+      missionBlock = `TA MISSION : 3 ANGLES DISTINCTS POUR CETTE ACTU
+
+CHAQUE angle doit utiliser UN véhicule différent parmi ces 5 :
+1. recit_experience — INVITE la personne à raconter une scène vécue (sans la fabriquer toi-même). Le hook doit être une AMORCE qui pose le décor d'un type de situation que la personne a probablement déjà vécue dans son métier — JAMAIS une anecdote inventée avec date, dialogue ou client fictif.
+2. declencheur_externe — "Cette actu m'a fait réaliser un truc sur mon métier…"
+3. constat_decale — "Ce que cette actu révèle sur [secteur], c'est que…"
+4. montrer_plutot_quexpliquer — avant/après, process visible, transformation
+5. parallele_absurde — "Cette actu n'a rien à voir avec mon métier… et pourtant ça illustre exactement…"
+
+⚠️ Les 3 angles doivent utiliser 3 véhicules DIFFÉRENTS.`;
+    }
+
     const systemPrompt = `Tu es une copywriter senior spécialisée en newsjacking pour créateur·ices de contenu.
 
 PROFIL DE LA PERSONNE :
@@ -142,19 +194,10 @@ Ton suggéré : ${tonLabel}
 Pertinence : ${actu.pertinence || "—"}
 
 ══════════════════════════════════════════════
-TA MISSION : 3 ANGLES DISTINCTS POUR CETTE ACTU
+${missionBlock}
 ══════════════════════════════════════════════
 
 ${pontRule}
-
-CHAQUE angle doit utiliser UN véhicule différent parmi ces 5 :
-1. recit_experience — INVITE la personne à raconter une scène vécue (sans la fabriquer toi-même). Le hook doit être une AMORCE qui pose le décor d'un type de situation que la personne a probablement déjà vécue dans son métier — JAMAIS une anecdote inventée avec date, dialogue ou client fictif.
-2. declencheur_externe — "Cette actu m'a fait réaliser un truc sur mon métier…"
-3. constat_decale — "Ce que cette actu révèle sur [secteur], c'est que…"
-4. montrer_plutot_quexpliquer — avant/après, process visible, transformation
-5. parallele_absurde — "Cette actu n'a rien à voir avec mon métier… et pourtant ça illustre exactement…"
-
-⚠️ Les 3 angles doivent utiliser 3 véhicules DIFFÉRENTS.
 
 ══════════════════════════════════════════════
 RÈGLE DE VÉRITÉ — INTERDICTION ABSOLUE D'INVENTER
@@ -192,16 +235,14 @@ FORMAT DE RÉPONSE — JSON STRICT (pas de markdown)
       "hook": "La première phrase du contenu (max 20 mots)",
       "description": "En 2-3 phrases, comment relier l'actu à l'expertise de la personne",
       "format_suggere": "post" | "carousel" | "reel" | "story" | "linkedin"
-    },
-    { ... },
-    { ... }
+    }
   ]
 }
 
-Renvoie EXACTEMENT 3 angles, avec 3 véhicules différents.`;
+Renvoie EXACTEMENT ${expectedCount} angle${expectedCount > 1 ? "s" : ""}${expectedCount > 1 ? ", avec des véhicules DIFFÉRENTS" : ""}.`;
 
     const t0 = Date.now();
-    console.log(`[newsjacking-angles] start — user=${user.id.slice(0,8)} actu="${String(actu.titre).slice(0,60)}"`);
+    console.log(`[newsjacking-angles] start mode=${mode} — user=${user.id.slice(0,8)} actu="${String(actu.titre).slice(0,60)}" promptLen=${systemPrompt.length}`);
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 90000);
@@ -217,7 +258,7 @@ Renvoie EXACTEMENT 3 angles, avec 3 véhicules différents.`;
         },
         body: JSON.stringify({
           model,
-          max_tokens: 1500,
+          max_tokens: maxTokens,
           messages: [{ role: "user", content: systemPrompt }],
         }),
         signal: controller.signal,
@@ -226,7 +267,7 @@ Renvoie EXACTEMENT 3 angles, avec 3 véhicules différents.`;
       clearTimeout(timeout);
     }
 
-    console.log(`[newsjacking-angles] claude responded in ${Date.now() - t0}ms — status=${response.status}`);
+    console.log(`[newsjacking-angles] mode=${mode} claude responded in ${Date.now() - t0}ms — status=${response.status}`);
 
     if (!response.ok) {
       const errText = await response.text();
