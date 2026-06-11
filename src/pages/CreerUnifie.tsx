@@ -2177,7 +2177,9 @@ export default function CreerUnifie() {
     try {
       toast.info("Export PNG en cours…");
       const { exportCarouselPng } = await import("@/lib/export-carousel-png");
-      await exportCarouselPng(visualSlides, ideaText || "carrousel");
+      const { getIncludeLogoPref } = await import("@/lib/export-logo");
+      const logoUrl = getIncludeLogoPref() ? (charterData as any)?.logo_url : null;
+      await exportCarouselPng(visualSlides, ideaText || "carrousel", logoUrl);
       toast.success(visualSlides.length > 1 ? "ZIP des images téléchargé !" : "PNG téléchargé !");
     } catch (e: any) {
       toast.error(e?.message || "Erreur lors de l'export");
@@ -2189,12 +2191,15 @@ export default function CreerUnifie() {
     try {
       toast.info("Export PowerPoint éditable en cours…");
       const { exportCarouselHybridPptx } = await import("@/lib/export-carousel-hybrid-pptx");
+      const { getIncludeLogoPref } = await import("@/lib/export-logo");
+      const logoUrl = getIncludeLogoPref() ? (charterData as any)?.logo_url : null;
       await exportCarouselHybridPptx(
         visualSlides,
         result?.raw?.slides || null,
         charterData || null,
         ideaText || "carrousel-editable",
         generatedWithPhotos.length > 0 ? generatedWithPhotos : uploadedPhotos,
+        logoUrl,
       );
       toast.success("PowerPoint éditable téléchargé !");
     } catch (e: any) {
@@ -2207,7 +2212,9 @@ export default function CreerUnifie() {
     try {
       toast.info("Export PNG en cours...");
       const { exportPinterestVisualPng } = await import("@/lib/export-pinterest-visual-pptx");
-      await exportPinterestVisualPng(pinterestPinHtml, ideaText || "epingle-pinterest");
+      const { getIncludeLogoPref } = await import("@/lib/export-logo");
+      const logoUrl = getIncludeLogoPref() ? (charterData as any)?.logo_url : null;
+      await exportPinterestVisualPng(pinterestPinHtml, ideaText || "epingle-pinterest", logoUrl);
       toast.success("PNG téléchargé !");
     } catch (e: any) {
       toast.error(e?.message || "Erreur lors de l'export");
@@ -2219,7 +2226,9 @@ export default function CreerUnifie() {
     try {
       toast.info("Export PNG en cours...");
       const { exportPinterestVisualPng } = await import("@/lib/export-pinterest-visual-pptx");
-      await exportPinterestVisualPng(photoBriefOverlayHtml, ideaText || "overlay-pinterest");
+      const { getIncludeLogoPref } = await import("@/lib/export-logo");
+      const logoUrl = getIncludeLogoPref() ? (charterData as any)?.logo_url : null;
+      await exportPinterestVisualPng(photoBriefOverlayHtml, ideaText || "overlay-pinterest", logoUrl);
       toast.success("PNG téléchargé !");
     } catch (e: any) {
       toast.error(e?.message || "Erreur lors de l'export");
