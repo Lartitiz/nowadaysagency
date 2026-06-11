@@ -585,7 +585,17 @@ Tu DOIS proposer une version SIGNIFICATIVEMENT DIFFÉRENTE :
 Rédige le contenu en suivant les INSTRUCTIONS DE RÉDACTION FINALE ci-dessus.
 Le contenu doit être PRÊT À POSTER (pas un brouillon).
 
-${isReel || isStories ? `` : `Réponds UNIQUEMENT en JSON :
+${isReel || isStories ? `` : isNewsletter ? `Réponds UNIQUEMENT en JSON :
+{
+  "subject": "objet de l'email (max 50 caractères, accrocheur, jamais 'Newsletter #N')",
+  "preview_text": "texte de preview (40-90 caractères, complète l'objet sans le répéter)",
+  "content": "corps complet de la newsletter (avec \\n\\n entre paragraphes)",
+  "accroche": "première phrase du corps",
+  "cta_suggestion": "suggestion de CTA doux si pertinent, sinon null",
+  "format": "newsletter",
+  "pillar": "...",
+  "objectif": "..."
+}` : `Réponds UNIQUEMENT en JSON :
 {
   "content": "...",
   "accroche": "...",
@@ -1134,6 +1144,52 @@ Réponds UNIQUEMENT en JSON :
 
         await logUsage(userId, "content", "creative_flow", undefined, undefined, workspace_id);
         return new Response(JSON.stringify(fallbackParsed), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Newsletter: disable streaming, use 2-step generation + correction (same pattern as LinkedIn)
+      if (isNewsletter) {
+        const rawContent = await callAnthropicSimple(model, systemPrompt, userPrompt!, 0.7, 4096);
+
+        let parsed: any;
+        try {
+          parsed = JSON.parse(rawContent);
+        } catch {
+          const match = rawContent.match(/\{[\s\S]*\}/);
+          if (match) {
+            try { parsed = JSON.parse(match[0]); } catch { parsed = { content: rawContent }; }
+          } else {
+            parsed = { content: rawContent };
+          }
+        }
+
+        console.log(
+          `[creative-flow newsletter] subject:`,
+          parsed.subject?.length,
+          "preview:",
+          parsed.preview_text?.length,
+        );
+
+        if (parsed.content && typeof parsed.content === "string" && parsed.content.length >= 200) {
+          try {
+            const corrected = await applyCorrectionPass(parsed.content, "newsletter", {
+              logger: (m) => console.log(`[creative-flow newsletter] ${m}`),
+            });
+            if (corrected && corrected.length >= 200) {
+              parsed.content = corrected;
+            }
+          } catch (e) {
+            console.error("[creative-flow newsletter] correction pass failed:", e);
+          }
+        }
+
+        if (parsed.content && typeof parsed.content === "string") {
+          parsed.word_count = parsed.content.split(/\s+/).filter(Boolean).length;
+        }
+
+        await logUsage(userId, "content", "creative_flow", undefined, undefined, workspace_id);
+        return new Response(JSON.stringify(parsed), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
