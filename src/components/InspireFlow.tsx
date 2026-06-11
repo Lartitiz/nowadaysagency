@@ -205,7 +205,7 @@ export default function InspireFlow() {
     } finally {
       setLoading(false);
     }
-  }, [user, sourceText, sourceUrl, tab, files, screenshotContext]);
+  }, [user, sourceText, sourceUrl, tab, files, screenshotContext, workspaceId]);
 
   const copyContent = () => { navigator.clipboard.writeText(editedContent); toast.success("Copié !"); };
 
