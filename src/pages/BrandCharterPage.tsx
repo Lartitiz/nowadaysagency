@@ -506,7 +506,9 @@ export default function BrandCharterPage() {
         throw new Error(`Format non supporté (.${ext}). Utilise JPG, PNG, WEBP ou SVG.`);
       }
 
-      const path = `${user.id}/logo/logo.${ext}`;
+      // Path stable (sans extension) → upsert écrase toujours le même blob, pas d'orphelins
+      const path = `${user.id}/logo/logo`;
+      console.log("[logo upload]", { name: file.name, type: file.type, size: file.size, ext, contentType, path });
       const { error } = await supabase.storage
         .from("brand-assets")
         .upload(path, uploadFile, { upsert: true, contentType });
