@@ -1,4 +1,4 @@
-import { Loader2, Pencil, CalendarDays, Copy, Download, RefreshCw, RotateCcw, Palette, ChevronDown, Lightbulb, Sparkles } from "lucide-react";
+import { Loader2, Pencil, CalendarDays, Copy, Download, RefreshCw, RotateCcw, Palette, ChevronDown, Lightbulb, Sparkles, ArrowUpRight } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import CarouselResult from "@/components/creer/formatRenderers/CarouselResult";
@@ -159,6 +159,18 @@ function SkeletonPreview({ format }: { format: string }) {
     </div>
   );
 }
+// Cibles possibles pour "Transformer en…" — utilisent les format IDs internes
+// (cf. CreerUnifie paramFormat).
+const TRANSFORM_TARGETS: { id: string; emoji: string; label: string }[] = [
+  { id: "carousel", emoji: "🎠", label: "Carrousel Instagram" },
+  { id: "post", emoji: "📸", label: "Post Instagram" },
+  { id: "reel", emoji: "🎬", label: "Reel" },
+  { id: "story", emoji: "📱", label: "Stories" },
+  { id: "linkedin", emoji: "💼", label: "Post LinkedIn" },
+  { id: "newsletter", emoji: "📧", label: "Newsletter" },
+  { id: "pinterest_visual", emoji: "📌", label: "Pinterest visuel" },
+  { id: "pinterest_photo", emoji: "📌", label: "Pinterest photo" },
+];
 
 interface Props {
   result: any;
@@ -193,6 +205,10 @@ interface Props {
   currentChannel?: string;
   /** Nombre de photos qui ont été envoyées à l'IA en vision (photo_mode). 0/undefined = pas de vision. */
   usedPhotoCount?: number;
+  /** Brief source pour pré-remplir une duplication "Transformer en…". */
+  sourceIdea?: string;
+  sourceObjective?: string;
+  sourceAngle?: string | null;
 }
 
 export default function CreerStepResult({
@@ -227,6 +243,9 @@ export default function CreerStepResult({
   currentAngle,
   currentChannel,
   usedPhotoCount,
+  sourceIdea,
+  sourceObjective,
+  sourceAngle,
 }: Props) {
   // ── Rotation des messages et tips pendant le loading ──
   const messages = PROGRESS_MESSAGES[format] || PROGRESS_MESSAGES.default;
@@ -476,6 +495,43 @@ export default function CreerStepResult({
         }} className="gap-1.5 text-xs text-muted-foreground">
           <Copy className="h-3.5 w-3.5" /> Copier
         </Button>
+        {sourceIdea && sourceIdea.trim().length > 0 && (() => {
+          const targets = TRANSFORM_TARGETS.filter((t) => t.id !== format);
+          return (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground">
+                  <ArrowUpRight className="h-3.5 w-3.5" /> Transformer en <ChevronDown className="h-3 w-3 ml-0.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64">
+                <DropdownMenuLabel className="text-[11px] font-normal text-muted-foreground">
+                  Ouvre un nouvel onglet pré-rempli
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {targets.map((t) => (
+                  <DropdownMenuItem
+                    key={t.id}
+                    onClick={() => {
+                      const params = new URLSearchParams({
+                        sujet: sourceIdea,
+                        ...(sourceObjective ? { objectif: sourceObjective } : {}),
+                        format: t.id,
+                        ...(sourceAngle ? { angle: sourceAngle } : {}),
+                        from: "transform",
+                      });
+                      window.open(`/creer?${params.toString()}`, "_blank", "noopener,noreferrer");
+                    }}
+                    className="gap-2 cursor-pointer"
+                  >
+                    <span className="text-base">{t.emoji}</span>
+                    <span className="text-sm">{t.label}</span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          );
+        })()}
         {isCarousel && hasVisuals && (onExportVisualPng || onExportHybridPptx) && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

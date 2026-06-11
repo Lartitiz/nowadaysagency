@@ -1,108 +1,77 @@
-## Bug
+## Objectif
 
-Quand on déplie une actu non pré-calculée, `fetchPrimaryAngle` (et `fetchVariants`) déclenchent un spinner infini. La déduplication s'appuie sur une variable locale `shouldFetch` mutée DANS l'updater de `setAnglesByIdx`, puis lue immédiatement après :
+Ajouter un bouton **"Transformer en…"** à côté de `Copier` sur l'écran de résultat (`CreerStepResult`). Il ouvre une nouvelle session de création dans un **nouvel onglet**, pré-remplie avec le même brief (sujet, objectif, angle) mais ciblant un autre format. Le résultat actuel reste intact : c'est de la duplication adaptative, pas un remplacement.
+
+## Pourquoi cette approche
+
+- Tu as déjà un module `CreerTransformTab` (recycle / crosspost / inspire) pour transformer un contenu *quelconque*. Le nouveau bouton n'écrase pas ça : il sert un autre besoin — partir d'un contenu *qu'on vient de générer* pour le décliner sans ressaisir le brief.
+- Le flow `CreerUnifie` lit déjà ces URL params : `format`, `canal`, `sujet`/`subject`, `objectif`/`objective`, `angle`, `mode`, `from` (lignes 98-110). Un nouvel onglet avec ces params boote propre, sans toucher au sessionStorage de l'onglet courant.
+- Pas de nouvelle Edge Function. Pas de nouvel état partagé. Pas de risque de régression sur le résultat affiché.
+
+## Fichiers impactés
+
+1. `src/components/creer/CreerStepResult.tsx` — ajouter le menu Transformer.
+2. `src/pages/CreerUnifie.tsx` — passer `ideaText`, `objective`, `editorialAngle` en props vers `CreerStepResult` (2 call sites lignes 2520 et 2617) + ajouter le support `autoStart` côté params.
+
+Aucun autre fichier touché.
+
+## Détail du menu
+
+À placer dans le bloc "Actions secondaires" (lignes 451-459), juste après le bouton `Copier` (ordre visuel : Sauvegarder · Copier · **Transformer en…** · Télécharger · Changer d'angle).
+
+```text
+[ ↗ Transformer en ▼ ]
+  ├─ 🎠 Carrousel Instagram
+  ├─ 📸 Post Instagram
+  ├─ 🎬 Reel
+  ├─ 📱 Stories
+  ├─ 💼 Post LinkedIn
+  ├─ 📧 Newsletter
+  ├─ 📌 Pinterest visuel
+  └─ 📌 Pinterest photo
+```
+
+Règle : on **filtre le format courant** de la liste (on ne propose pas "Transformer un carousel en carousel"). Si le format courant est `carousel` avec sous-mode photo, on garde "Carrousel Instagram" hors menu et on propose les autres.
+
+Au clic sur une entrée :
 
 ```ts
-let shouldFetch = false;
-setAnglesByIdx((prev) => {
-  if (prev[idx]?.data || prev[idx]?.loading) return prev;
-  shouldFetch = true;
-  return { ...prev, [idx]: { loading: true, ... } };
+const params = new URLSearchParams({
+  sujet: ideaText,
+  objectif: objective || "",
+  format: targetFormat,
+  ...(editorialAngle ? { angle: editorialAngle } : {}),
+  from: "transform",
 });
-if (!shouldFetch) return; // ← lu avant que l'updater ne tourne
+window.open(`/creer?${params.toString()}`, "_blank", "noopener");
 ```
 
-En React 18, les updaters fonctionnels passés à `setState` sont exécutés au prochain flush, pas synchrone. Quand le composant a déjà une update en attente (typiquement après le `setExpandedActu` du onClick), l'updater est différé → `shouldFetch` reste `false`, le `if (!shouldFetch) return` court-circuite la requête, MAIS le `setAnglesByIdx` finit par poser `loading: true` quand le flush arrive. Résultat : spinner perpétuel, aucun appel réseau, aucune erreur.
+`from=transform` est juste un marqueur analytique (pas de logique nouvelle requise dans `CreerUnifie`, mais utile pour tracer plus tard).
 
-## Fix (1 fichier : `src/components/creer/NewsjackingPanel.tsx`)
+## Comportement dans le nouvel onglet
 
-Remplacer la déduplication par des refs Set lues/écrites synchrones AVANT tout setState. L'updater devient pur (ne mute plus rien à l'extérieur).
+Aucune modification de logique requise : `CreerUnifie` lit déjà `paramFormat`/`paramCanal`/`paramSujet`/`paramObjectif`/`paramAngle` et pré-remplit l'état (lignes 396-432). L'utilisatrice atterrit sur l'étape **Format** avec sujet et objectif déjà saisis, format pré-coché et angle pré-sélectionné si applicable. Elle clique "Continuer" et le flow normal prend la suite (questions de brief, structure review pour carousel, etc.).
 
-### 1. Ajouter deux refs à côté de `anglesByIdx`
+On **n'auto-lance pas** la génération côté nouvel onglet : certains formats demandent des choix supplémentaires (sous-mode carousel texte/photo/mix, photos à uploader pour reel/story, etc.). Auto-skipper ces étapes mènerait à des résultats incohérents.
 
-```ts
-const primaryStartedRef = useRef<Set<number>>(new Set());
-const variantsStartedRef = useRef<Set<number>>(new Set());
-```
+## Edge cases à gérer
 
-### 2. Refondre `fetchPrimaryAngle`
-
-Garde synchrone avant tout :
-
-```ts
-const fetchPrimaryAngle = useCallback(async (idx: number, actu: Actu) => {
-  if (primaryStartedRef.current.has(idx)) return;
-  primaryStartedRef.current.add(idx);
-  setAnglesByIdx((prev) => {
-    if (prev[idx]?.data || prev[idx]?.loading) return prev; // safety net
-    return { ...prev, [idx]: { loading: true, startedAt: Date.now(), slow: false, primaryOnly: true } };
-  });
-  // ... reste identique
-}, [workspaceId]);
-```
-
-Dans `finish` (en cas d'erreur uniquement), retirer `idx` du Set pour que "Réessayer" puisse relancer :
-
-```ts
-const finish = (next: Partial<AnglesState>) => {
-  clearTimeout(slowTimer);
-  if (next.error) primaryStartedRef.current.delete(idx);
-  console.log(...);
-  setAnglesByIdx((prev) => ({ ...prev, [idx]: { ...prev[idx], loading: false, ...next } }));
-};
-```
-
-(catch final → idem : `primaryStartedRef.current.delete(idx)` avant `finish({error...})` — déjà couvert par la branche `if (next.error)`).
-
-### 3. Refondre `fetchVariants`
-
-Même schéma, et passer `primaryVehicule` en 3ᵉ paramètre depuis les boutons "Voir 2 autres angles" (lignes 866 et 896) au lieu de le lire dans l'updater :
-
-```ts
-const fetchVariants = useCallback(async (idx: number, actu: Actu, primaryVehicule?: string) => {
-  if (variantsStartedRef.current.has(idx)) return;
-  variantsStartedRef.current.add(idx);
-  setAnglesByIdx((prev) => {
-    const s = prev[idx];
-    if (!s?.data || !s.primaryOnly || s.variantsLoading) return prev;
-    return { ...prev, [idx]: { ...s, variantsLoading: true, variantsSlow: false, variantsError: undefined } };
-  });
-  // ... appel newsjacking-angles avec exclude_vehicules: primaryVehicule ? [primaryVehicule] : []
-}, [workspaceId]);
-```
-
-Dans `finishVariants`, si `next.error` → `variantsStartedRef.current.delete(idx)`.
-
-Aux deux call sites :
-
-```ts
-fetchVariants(idx, actu, anglesState.data?.[0]?.vehicule);
-```
-
-### 4. Réinitialiser les refs dans `fetchActus`
-
-À côté du `setAnglesByIdx({})` (ligne 167) :
-
-```ts
-setAnglesByIdx({});
-primaryStartedRef.current = new Set();
-variantsStartedRef.current = new Set();
-```
-
-### 5. Bouton "Réessayer"
-
-Le code actuel supprime déjà l'entrée d'`anglesByIdx` puis appelle `fetchAngles(idx, actu)`. Comme `finish` retire `idx` de la ref en cas d'erreur, ça fonctionne tel quel. À côté du `setAnglesByIdx((prev) => { delete next[idx]; return next; })`, ajouter par sécurité `primaryStartedRef.current.delete(idx);` (cas où l'utilisatrice clique Réessayer avant que l'erreur ne se commit).
-
-## Ce qui ne bouge pas
-
-- `PRECOMPUTE_COUNT`, délais de pré-calcul, `invokeWithTimeout`, `mapFnError`
-- JSX, états `slow` / `variantsSlow`, `handleSelectAngle`, `handleSaveActu`, `handleHide`
-- Edge functions, aucun autre fichier
-- La signature publique du composant
+1. **`ideaText` vide** (cas démo, ou résultat chargé depuis le calendrier) → désactiver le bouton avec tooltip "Disponible après une génération".
+2. **`pinterest_inspiration` et `pinterest_photo` source** → ces formats ont des prérequis (capture d'écran, photo) que le nouvel onglet ne peut pas hériter. On les exclut du `format courant` mais on les garde dans les *cibles* possibles (l'utilisatrice complétera dans le nouvel onglet).
+3. **Carousel photo (avec photos uploadées)** → on ne tente PAS de transférer les photos via URL. Si la cible est "Reel" ou "Story" qui peuvent les utiliser, l'utilisatrice ré-uploade dans le nouvel onglet. Acceptable pour un MVP.
+4. **Mobile** → menu dropdown standard shadcn, déjà responsive comme "Changer d'angle".
 
 ## Validation
 
-- `tsc --noEmit` clean
-- Déplier la 5ᵉ actu (hors pré-calcul) → log `[newsjacking-angles] primary start` puis `primary done` → angles affichés
-- Forcer une erreur (offline) → "Réessayer" relance bien un appel
-- "Voir 2 autres angles" → 2 angles complémentaires avec un véhicule différent du primary
+- Bouton "Transformer en…" visible dans la rangée Actions sur tous les formats.
+- Clic sur "Newsletter" depuis un résultat carousel ouvre `/creer?sujet=...&objectif=...&format=newsletter&from=transform` dans un nouvel onglet.
+- L'onglet d'origine n'est pas modifié (résultat carousel toujours affiché, sessionStorage intact).
+- Le nouvel onglet affiche l'étape Format avec Newsletter pré-sélectionnée et le sujet/objectif pré-remplis.
+- `tsc --noEmit --skipLibCheck` clean.
+
+## Hors scope
+
+- Persistance des photos uploadées entre onglets.
+- Génération automatique au chargement (déclencherait sur des formats incomplets).
+- Synchronisation cross-onglets si l'utilisatrice veut comparer côte à côte (les deux onglets sont indépendants, ce qui est exactement le comportement attendu pour de la duplication).
+- Modifier `CreerTransformTab` (recycle/crosspost/inspire) — il garde son rôle pour les contenus externes.
