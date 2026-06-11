@@ -657,6 +657,11 @@ export async function exportCarouselHybridPptx(
         }
 
       }
+      const shadowedCount = usableShapes.filter((s) => s.type !== "background" && s.shadow).length;
+      if (shadowedCount > 0) {
+        console.debug(`[hybrid] shapes natifs ombrés sur slide ${vs.slide_number} : ${shadowedCount}/${usableShapes.length}`);
+      }
+
 
       slide.addImage({ data: bg, x: 0, y: 0, w: PPTX_W_IN, h: PPTX_H_IN });
 
