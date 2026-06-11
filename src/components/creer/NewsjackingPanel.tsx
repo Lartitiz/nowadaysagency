@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Button } from "@/components/ui/button";
@@ -100,7 +100,7 @@ interface AnglesState {
 
 // Combien d'actus dont on pré-calcule l'angle "primary" en arrière-plan
 // dès que la recherche d'actus aboutit.
-const PRECOMPUTE_COUNT = 4;
+const PRECOMPUTE_COUNT = 2;
 
 const VIBES: { id: string; emoji: string; label: string }[] = [
   { id: "scoop", emoji: "💥", label: "Actu choc à rebondir" },
@@ -131,6 +131,14 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
   const [customIntent, setCustomIntent] = useState("");
   // angles cache, keyed by actu index
   const [anglesByIdx, setAnglesByIdx] = useState<Record<number, AnglesState>>({});
+  // Compteur écoulé pendant la recherche (rassure l'utilisatrice)
+  const [searchElapsed, setSearchElapsed] = useState(0);
+  useEffect(() => {
+    if (!loading) { setSearchElapsed(0); return; }
+    const t0 = Date.now();
+    const id = setInterval(() => setSearchElapsed(Math.floor((Date.now() - t0) / 1000)), 1000);
+    return () => clearInterval(id);
+  }, [loading]);
   // URLs déjà retournées dans cette session — passées à Perplexity pour
   // éviter qu'une même actu remonte à chaque "Relancer".
   const seenUrlsRef = useRef<Set<string>>(new Set());
@@ -169,7 +177,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
       const excluded_urls = Array.from(seenUrlsRef.current).slice(-50);
       const { data, error: fnError } = await invokeWithTimeout("newsjacking-ai", {
         body: { workspace_id: workspaceId || undefined, intent, force_macro, excluded_urls },
-      }, 90000);
+      }, 180000);
 
       if (fnError) {
         const msg = fnError.message || "";
@@ -214,7 +222,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
         const toPrefetch = (data.actus as Actu[]).slice(0, PRECOMPUTE_COUNT);
         toPrefetch.forEach((actu, idx) => {
           // Petit délai progressif pour éviter de saturer l'edge function
-          setTimeout(() => fetchPrimaryAngle(idx, actu), idx * 200);
+          setTimeout(() => fetchPrimaryAngle(idx, actu), idx * 600);
         });
       }
     } catch {
@@ -278,7 +286,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
     try {
       const { data, error: fnError } = await invokeWithTimeout("newsjacking-angles", {
         body: { actu, workspace_id: workspaceId || undefined, mode: "primary" },
-      }, 60000);
+      }, 120000);
 
       if (fnError) {
         const { errMsg, errorCode } = mapFnError(fnError);
@@ -346,7 +354,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
           mode: "variants",
           exclude_vehicules: primaryVehicule ? [primaryVehicule] : [],
         },
-      }, 100000);
+      }, 130000);
 
       if (fnError) {
         const { errMsg } = mapFnError(fnError);
@@ -614,10 +622,15 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
 
       {/* Loading */}
       {loading && (
-        <div className="flex flex-col items-center justify-center py-16 gap-4">
+        <div className="flex flex-col items-center justify-center py-16 gap-3">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <p className="text-sm text-muted-foreground animate-pulse">
             L'IA explore l'univers de ta marque et l'actu…
+          </p>
+          <p className="text-xs text-muted-foreground/80 tabular-nums">
+            {searchElapsed < 30
+              ? `Recherche en cours… ${searchElapsed}s`
+              : `L'IA fouille le web, ça peut prendre jusqu'à 2 min… ${searchElapsed}s`}
           </p>
         </div>
       )}
