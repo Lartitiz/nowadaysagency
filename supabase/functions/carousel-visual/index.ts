@@ -161,7 +161,7 @@ La RESPONSE est typographiquement plus grande que l'OBJECTION — elle domine.
 █ PROCESS_VISIBLE — 3 colonnes égales (Avant/Pendant/Après) reliées par flèches
 <div style="display:flex;align-items:stretch;gap:16px">
   <!-- Pour chaque stage (i = 0..2, formate "01", "02", "03") : -->
-  <div style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:28px 20px;box-shadow:0 2px 12px rgba(0,0,0,0.05)">
+  <div data-pptx-shape="card" style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:28px 20px;box-shadow:0 2px 12px rgba(0,0,0,0.05)">
     <span data-pptx-editable="caption" style="font-size:64px;font-weight:700;color:${ch.color_primary};opacity:0.25;line-height:1;font-family:${ch.font_title};display:block;margin-bottom:8px">01</span>
     <h3 data-pptx-editable="title" style="font-size:24px;font-weight:600;color:${ch.color_secondary};margin:0 0 12px 0;font-family:${ch.font_title}">LABEL</h3>
     <p data-pptx-editable="body" style="font-size:18px;color:${ch.color_text};line-height:1.4;margin:0;font-family:${ch.font_body}">DESC</p>
