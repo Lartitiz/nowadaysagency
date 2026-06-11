@@ -1,83 +1,88 @@
-# Plan — Newsletter côté frontend : sauvegarde calendrier avec objet, copie propre, messages de progression
+# Plan — Fix faux succès "Sauvegarder en idée" (non-carousel)
 
-## Contexte métier
+## (a) Demandé
 
-Le backend renvoie désormais un objet d'email (`subject`) et un preview text pour les newsletters. Ce plan couvre trois ajustements frontend pour exploiter proprement ces champs :
-- la sauvegarde vers le calendrier doit inclure l'objet et le preview text,
-- le bouton "Copier la newsletter complète" ne doit pas préfixer "Objet :" quand l'objet est vide,
-- l'écran d'attente doit avoir des messages dédiés newsletter (la génération n'est plus streamée).
+### 1. `handleSave` — split carousel / autres formats
+Fichier : `src/pages/CreerUnifie.tsx` (~ligne 1526)
 
-## Fichiers impactés et modifications
+- Garder STRICTEMENT le chemin carousel actuel (insert `generated_carousels`, `setSavedId`, `toast.success("Contenu sauvegardé !")`, `setSaving(false)`).
+- Pour `selectedFormat !== "carousel"` (ou carousel sans slides) : ouvrir le dialog `SaveToIdeasDialog` en mettant un nouvel état `saveIdeaDialogOpen` à `true`. Ne plus appeler `toast.success(...)` (le toast "💡 Idée sauvegardée !" est émis par le dialog après insertion réelle).
+- Pas de changement à `effectiveHandleSave` ni au mode démo.
 
-### 1. `src/pages/CreerUnifie.tsx` — `extractContentForCalendar()`
+Pseudo-structure :
 
-Ajouter une branche `else if` pour le format `newsletter`, **juste avant** le `else` générique final (ligne ~1614) :
-
-```typescript
-} else if (selectedFormat === "newsletter" && (r?.content || r?.body)) {
-  const nlBody = r.body || r.content || "";
-  accroche = (r.subject || r.accroche || nlBody.split("\n")[0] || "").slice(0, 200);
-  contentDraft = r.subject
-    ? `Objet : ${r.subject}\n${r.preview_text ? `Preview : ${r.preview_text}\n` : ""}\n${nlBody}`
-    : nlBody;
-```
-
-Le `else` générique final (`contentDraft = r.content || r.post || r.text || ""`) reste inchangé.
-Toutes les autres branches (carousel, linkedin, reel, story, pinterest_visual, pinterest_photo) restent strictement identiques.
-
-### 2. `src/components/creer/formatRenderers/NewsletterResult.tsx` — `copyAll()`
-
-Remplacer le corps de `copyAll` (ligne ~29) pour ne préfixer "Objet :" et "Preview :" que si les valeurs sont non vides :
-
-```typescript
-const copyAll = () => {
-  const text = [
-    subject ? `Objet : ${subject}` : null,
-    previewText ? `Preview : ${previewText}` : null,
-    body,
-    ctaSuggestion ? `---\n${ctaSuggestion}` : null,
-  ].filter(Boolean).join("\n\n");
-  navigator.clipboard.writeText(text);
-  toast.success("Newsletter copiée !");
+```ts
+const handleSave = async () => {
+  if (!session?.user?.id || !result?.raw || saving) return;
+  const r = result.raw;
+  if (selectedFormat === "carousel" && r?.slides) {
+    setSaving(true);
+    try {
+      // … insert generated_carousels (identique) …
+      toast.success("Contenu sauvegardé !");
+    } catch (e:any) { toast.error(...); }
+    finally { setSaving(false); }
+    return;
+  }
+  // Tous les autres formats : ouvrir le dialog SaveToIdeasDialog
+  setSaveIdeaDialogOpen(true);
 };
 ```
 
-Le reste du composant (cartes subject/preview/body/CTA, `copySubject`, `RedFlagsChecker`, `AiGeneratedMention`) reste inchangé.
+### 2. Nouvel état + mapping contentType
+Ajouter à côté des autres `useState` du composant :
 
-### 3. `src/components/creer/CreerStepResult.tsx` — `PROGRESS_MESSAGES`
-
-Ajouter une clé `newsletter` dans la constante `PROGRESS_MESSAGES` (après la clé `linkedin`, ligne ~92) :
-
-```typescript
-newsletter: [
-  "Rédaction de l'objet d'email…",
-  "Construction du storytelling…",
-  "Développement de la réflexion en profondeur…",
-  "Relecture et correction du style…",
-  "Dernières retouches…",
-],
+```ts
+const [saveIdeaDialogOpen, setSaveIdeaDialogOpen] = useState(false);
 ```
 
-Toutes les autres clés (`carousel`, `reel`, `story`, `pinterest_visual`, `pinterest_photo`, `pinterest_inspiration`, `linkedin`, `default`) et la constante `cleanStreamingContent` restent inchangées.
+Mapping `selectedFormat` → `contentType` (valeurs exactes acceptées par le dialog : `"story" | "reel" | "post_instagram" | "post_linkedin" | "newsletter"`) :
 
-## Ce qui ne bouge pas
+| selectedFormat | contentType |
+|---|---|
+| `"newsletter"` | `"newsletter"` |
+| `"story"` | `"story"` |
+| `"reel"` | `"reel"` |
+| `"linkedin"` | `"post_linkedin"` |
+| autres (`post`, `pinterest_*`, …) | `"post_instagram"` |
 
-- Signature et arguments de `onNext()` et `extractContentForCalendar()`.
-- Toutes les branches existantes d'`extractContentForCalendar` (carousel, linkedin, reel, story, pinterest_visual, pinterest_photo).
-- Le `else` générique final d'`extractContentForCalendar`.
-- Le reste de `NewsletterResult.tsx` (cartes, `copySubject`, `RedFlagsChecker`, `AiGeneratedMention`).
-- Les autres clés de `PROGRESS_MESSAGES` et la clé `default`.
-- `cleanStreamingContent`, `handleSaveBackToCalendar`, `handleSave`, `generateStream` dans `CreerStepResult.tsx`.
-- Tout code backend (Edge Functions).
+### 3. Rendu du dialog
+Près du JSX existant (par ex. juste après `<CreerStepResult … />` au niveau ~ligne 2632), ajouter :
 
-## Critères de validation
+```tsx
+<SaveToIdeasDialog
+  open={saveIdeaDialogOpen}
+  onOpenChange={setSaveIdeaDialogOpen}
+  contentType={mapFormatToContentType(selectedFormat)}
+  subject={ideaText}
+  contentData={result?.raw}
+  sourceModule="creer"
+  format={selectedFormat || undefined}
+  objectif={objective || undefined}
+/>
+```
 
-1. `npx tsc --noEmit --skipLibCheck` passe sans erreur.
-2. Test manuel : générer une newsletter depuis un post du calendrier → "Sauvegarder dans le calendrier" → rouvrir le post → le brouillon contient `Objet : ...` en première ligne, et `Preview : ...` si présent.
-3. Test manuel : "Copier la newsletter complète" → le presse-papier commence par `Objet : ...` (jamais par `Objet : ` vide) ; si subject vide, le presse-papier commence directement par le body.
-4. Test manuel : pendant la génération newsletter, les messages "Rédaction de l'objet d'email…", "Construction du storytelling…", etc. défilent à l'écran.
+Import : `import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";`
 
-## Hors scope (plans séparés)
+Note : `SaveToIdeasDialog` utilise déjà `useWorkspaceId()` en interne et applique le pattern `workspace_id !== user.id` — donc on ne passe PAS `workspaceId` en prop (le composant ne l'accepte d'ailleurs pas). Conforme au "Le pattern workspace … : intouché".
 
-- Le bouton "Sauvegarder en idée" (chantier séparé).
-- Toute modification des Edge Functions.
+### 4. Préservé strictement
+- Branche carousel de `handleSave` (insert + `setSavedId` + toast)
+- `handleSaveBackToCalendar`, `extractContentForCalendar`
+- `SaveToIdeasDialog.tsx` (consommation uniquement, aucune modif)
+- `effectiveHandleSave` / mode démo (`demoToast` continue de s'afficher avant que `handleSave` ne soit appelé)
+
+## (b) Propositions connexes (à valider individuellement avant exec)
+
+1. **Désactiver "Sauvegarder en idée" quand `!result?.raw`** : aujourd'hui le bouton peut être cliqué sans contenu généré ; on pourrait le griser. → trivial mais hors fichier `handleSave`.
+2. **Re-fermer le dialog après save** : `SaveToIdeasDialog` appelle déjà `onOpenChange(false)` après succès (à vérifier dans le composant) — sinon ajouter un callback `onSaved`. À ne traiter QUE si le test manuel révèle un bug.
+3. **Toast d'erreur explicite si `!ideaText`** avant ouverture du dialog (pour éviter une idée vide).
+
+Aucune de ces propositions n'est appliquée sans validation.
+
+## Validation
+
+- `npx tsc --noEmit --skipLibCheck` OK
+- Newsletter générée → "Sauvegarder en idée" → dialog → enregistrer → ligne dans `saved_ideas` avec `content_type = newsletter`, visible dans IdeasPage.
+- Carousel généré → comportement identique (insert `generated_carousels`, toast actuel).
+- Démo : clic affiche `demoToast`, aucune insertion, aucun dialog.
