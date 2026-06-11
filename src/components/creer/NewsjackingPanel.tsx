@@ -86,13 +86,21 @@ const PONT_CONFIG: Record<string, { emoji: string; label: string; className: str
 };
 
 interface AnglesState {
-  loading: boolean;
-  data?: ActuAngle[];
+  loading: boolean;           // chargement du primary (1er angle)
+  data?: ActuAngle[];         // angles actuellement affichés (1 si seulement primary, 3 après variants)
   error?: string;
   errorCode?: "TIMEOUT" | "AUTH" | "NETWORK" | "RATE_LIMIT" | "SERVER" | "UNKNOWN";
   startedAt?: number;
-  slow?: boolean; // true after 15s without response
+  slow?: boolean;             // true après 15s sans réponse
+  primaryOnly?: boolean;      // true si on a 1 angle (primary) sans variantes encore
+  variantsLoading?: boolean;  // chargement des 2 variantes à la demande
+  variantsError?: string;
+  variantsSlow?: boolean;
 }
+
+// Combien d'actus dont on pré-calcule l'angle "primary" en arrière-plan
+// dès que la recherche d'actus aboutit.
+const PRECOMPUTE_COUNT = 4;
 
 const VIBES: { id: string; emoji: string; label: string }[] = [
   { id: "scoop", emoji: "💥", label: "Actu choc à rebondir" },
