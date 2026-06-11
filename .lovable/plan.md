@@ -1,65 +1,108 @@
 ## Bug
 
-Sur l'étape 3 (Affine le brief = `step === "questions"`), si l'utilisatrice quitte la page puis revient :
-
-- `step` est restauré depuis `sessionStorage` → `"questions"`.
-- MAIS `questions[]` (le tableau de questions IA) vit dans le hook `useContentGenerator`, qui se ré-instancie vide. Idem pour `structureProposal`, `inspirationProposals[]`, `loadingQuestions`.
-- Résultat : `CreerStepQuestions` reçoit `questions=[]` et `loadingQuestions=false` → tombe sur la branche "Pas de questions pour ce format" avec un bouton "Générer directement" qui lance une génération sans contexte (d'où le "ça fait sauter") + bouton retour qui paraît cassé parce que l'écran lui-même est déjà dégradé.
-
-Le garde-fou actuel `src/pages/CreerUnifie.tsx:129` tombe sur `"idea"` pour `structure_review` et `inspiration_proposals`, mais **oublie `"questions"`**. Et il renvoie vers `"idea"` alors que `selectedFormat` est restauré — on perd le contexte alors qu'on aurait pu reprendre proprement à l'étape Format.
-
-## Fix (1 fichier : `src/pages/CreerUnifie.tsx`)
-
-### 1. Élargir `safeStep` (ligne 125-131)
-
-Ajouter `"questions"` à la liste des steps "fragiles" et faire retomber vers `"format"` si un `selectedFormat` est disponible, sinon `"idea"`.
+Quand on déplie une actu non pré-calculée, `fetchPrimaryAngle` (et `fetchVariants`) déclenchent un spinner infini. La déduplication s'appuie sur une variable locale `shouldFetch` mutée DANS l'updater de `setAnglesByIdx`, puis lue immédiatement après :
 
 ```ts
-const safeStep = (() => {
-  if (!ps?.step) return "idea";
-  if (ps.step === "result" && ps.result) return "result";
-  if (ps.step === "edit" && ps.editContent) return "edit";
-  // États avec données volatiles non persistées (questions, structure, propositions)
-  if (["questions", "structure_review", "inspiration_proposals", "result", "edit"].includes(ps.step)) {
-    return ps.selectedFormat ? "format" : "idea";
-  }
-  return ps.step as Step;
-})();
+let shouldFetch = false;
+setAnglesByIdx((prev) => {
+  if (prev[idx]?.data || prev[idx]?.loading) return prev;
+  shouldFetch = true;
+  return { ...prev, [idx]: { loading: true, ... } };
+});
+if (!shouldFetch) return; // ← lu avant que l'updater ne tourne
 ```
 
-### 2. Même garde-fou dans le callback `useFormPersist` (ligne 184-193)
+En React 18, les updaters fonctionnels passés à `setState` sont exécutés au prochain flush, pas synchrone. Quand le composant a déjà une update en attente (typiquement après le `setExpandedActu` du onClick), l'updater est différé → `shouldFetch` reste `false`, le `if (!shouldFetch) return` court-circuite la requête, MAIS le `setAnglesByIdx` finit par poser `loading: true` quand le flush arrive. Résultat : spinner perpétuel, aucun appel réseau, aucune erreur.
 
-Le callback `restoreFn` peut aussi appeler `setStep(saved.step)` directement, court-circuitant `safeStep`. Appliquer la même règle :
+## Fix (1 fichier : `src/components/creer/NewsjackingPanel.tsx`)
+
+Remplacer la déduplication par des refs Set lues/écrites synchrones AVANT tout setState. L'updater devient pur (ne mute plus rien à l'extérieur).
+
+### 1. Ajouter deux refs à côté de `anglesByIdx`
 
 ```ts
-(saved) => {
-  if (!shouldRestore) return;
-  if (searchParams.get("format") || searchParams.get("sujet")) return;
-  if (saved.step && saved.step !== "idea") {
-    const fragile = ["questions", "structure_review", "inspiration_proposals", "result", "edit"];
-    const safe = fragile.includes(saved.step)
-      ? (saved.selectedFormat ? "format" : "idea")
-      : saved.step;
-    // Ne pas écraser un step déjà "result"/"edit" valablement restauré par safeStep
-    setStep((prev) => (prev === "result" || prev === "edit" ? prev : (safe as Step)));
-  }
-  if (saved.ideaText) setIdeaText(saved.ideaText);
-  if (saved.objective) setObjective(saved.objective);
-  if (saved.selectedFormat) setSelectedFormat(saved.selectedFormat);
-  if (saved.editorialAngle) setEditorialAngle(saved.editorialAngle);
-  if (saved.answers && Object.keys(saved.answers).length) setAnswers(saved.answers);
-}
+const primaryStartedRef = useRef<Set<number>>(new Set());
+const variantsStartedRef = useRef<Set<number>>(new Set());
 ```
 
-## Conséquence UX
+### 2. Refondre `fetchPrimaryAngle`
 
-Après navigation aller-retour depuis l'étape 3 :
-- L'utilisatrice retombe sur l'étape 2 (Format) avec son format présélectionné, son sujet et son objectif restaurés.
-- Un clic sur "Suivant" relance proprement la génération des questions.
-- Les boutons retour/avant fonctionnent à nouveau.
+Garde synchrone avant tout :
 
-## Hors scope
+```ts
+const fetchPrimaryAngle = useCallback(async (idx: number, actu: Actu) => {
+  if (primaryStartedRef.current.has(idx)) return;
+  primaryStartedRef.current.add(idx);
+  setAnglesByIdx((prev) => {
+    if (prev[idx]?.data || prev[idx]?.loading) return prev; // safety net
+    return { ...prev, [idx]: { loading: true, startedAt: Date.now(), slow: false, primaryOnly: true } };
+  });
+  // ... reste identique
+}, [workspaceId]);
+```
 
-- Pas de persistance de `questions[]` / `structureProposal` (ça impliquerait des changements dans `useContentGenerator` et risquerait de servir des questions périmées).
-- Pas de changement visuel.
-- Pas de modification du stepper.
+Dans `finish` (en cas d'erreur uniquement), retirer `idx` du Set pour que "Réessayer" puisse relancer :
+
+```ts
+const finish = (next: Partial<AnglesState>) => {
+  clearTimeout(slowTimer);
+  if (next.error) primaryStartedRef.current.delete(idx);
+  console.log(...);
+  setAnglesByIdx((prev) => ({ ...prev, [idx]: { ...prev[idx], loading: false, ...next } }));
+};
+```
+
+(catch final → idem : `primaryStartedRef.current.delete(idx)` avant `finish({error...})` — déjà couvert par la branche `if (next.error)`).
+
+### 3. Refondre `fetchVariants`
+
+Même schéma, et passer `primaryVehicule` en 3ᵉ paramètre depuis les boutons "Voir 2 autres angles" (lignes 866 et 896) au lieu de le lire dans l'updater :
+
+```ts
+const fetchVariants = useCallback(async (idx: number, actu: Actu, primaryVehicule?: string) => {
+  if (variantsStartedRef.current.has(idx)) return;
+  variantsStartedRef.current.add(idx);
+  setAnglesByIdx((prev) => {
+    const s = prev[idx];
+    if (!s?.data || !s.primaryOnly || s.variantsLoading) return prev;
+    return { ...prev, [idx]: { ...s, variantsLoading: true, variantsSlow: false, variantsError: undefined } };
+  });
+  // ... appel newsjacking-angles avec exclude_vehicules: primaryVehicule ? [primaryVehicule] : []
+}, [workspaceId]);
+```
+
+Dans `finishVariants`, si `next.error` → `variantsStartedRef.current.delete(idx)`.
+
+Aux deux call sites :
+
+```ts
+fetchVariants(idx, actu, anglesState.data?.[0]?.vehicule);
+```
+
+### 4. Réinitialiser les refs dans `fetchActus`
+
+À côté du `setAnglesByIdx({})` (ligne 167) :
+
+```ts
+setAnglesByIdx({});
+primaryStartedRef.current = new Set();
+variantsStartedRef.current = new Set();
+```
+
+### 5. Bouton "Réessayer"
+
+Le code actuel supprime déjà l'entrée d'`anglesByIdx` puis appelle `fetchAngles(idx, actu)`. Comme `finish` retire `idx` de la ref en cas d'erreur, ça fonctionne tel quel. À côté du `setAnglesByIdx((prev) => { delete next[idx]; return next; })`, ajouter par sécurité `primaryStartedRef.current.delete(idx);` (cas où l'utilisatrice clique Réessayer avant que l'erreur ne se commit).
+
+## Ce qui ne bouge pas
+
+- `PRECOMPUTE_COUNT`, délais de pré-calcul, `invokeWithTimeout`, `mapFnError`
+- JSX, états `slow` / `variantsSlow`, `handleSelectAngle`, `handleSaveActu`, `handleHide`
+- Edge functions, aucun autre fichier
+- La signature publique du composant
+
+## Validation
+
+- `tsc --noEmit` clean
+- Déplier la 5ᵉ actu (hors pré-calcul) → log `[newsjacking-angles] primary start` puis `primary done` → angles affichés
+- Forcer une erreur (offline) → "Réessayer" relance bien un appel
+- "Voir 2 autres angles" → 2 angles complémentaires avec un véhicule différent du primary
