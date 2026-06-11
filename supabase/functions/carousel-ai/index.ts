@@ -12,6 +12,7 @@ import { runWithHeartbeatSSE } from "../_shared/anthropic-stream.ts";
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
+import { extractImagePayload } from "../_shared/image-utils.ts";
 
 // ── Helpers contexte par photo ──
 // L'ordre des photos correspond à l'ordre d'envoi côté front (post-reorder UX).
@@ -28,16 +29,16 @@ function buildPhotoContextRecap(photos: Array<{ base64: string; context?: string
   return `\n\nINDICES PRÉCIS PAR PHOTO (fournis par l'utilisatrice — utilise-les pour identifier ce qui est représenté) :\n${lines}${tail}\n`;
 }
 
-function pushPhotoWithContext(messageContent: any[], photo: { base64: string; context?: string }, index: number) {
+function pushPhotoWithContext(messageContent: any[], photo: { base64: string; context?: string; mimeType?: string }, index: number) {
   if (!photo.base64) return;
   const ctx = photo.context?.trim();
   if (ctx) {
     messageContent.push({ type: "text", text: `Photo ${index + 1} — contexte fourni par l'utilisatrice : "${ctx}"` });
   }
-  const raw = photo.base64.replace(/^data:image\/[a-z]+;base64,/, "");
+  const { media_type, data } = extractImagePayload(photo.base64, photo.mimeType);
   messageContent.push({
     type: "image",
-    source: { type: "base64", media_type: "image/jpeg", data: raw },
+    source: { type: "base64", media_type, data },
   });
 }
 
@@ -71,7 +72,7 @@ serve(async (req) => {
       workspace_id: z.string().uuid().optional().nullable(),
       editorial_angle: z.string().max(100).optional().nullable(),
       content_structure: z.string().max(5000).optional().nullable(),
-      photos: z.array(z.object({ base64: z.string(), context: z.string().max(200).optional() })).max(10).optional(),
+      photos: z.array(z.object({ base64: z.string(), context: z.string().max(200).optional(), mimeType: z.string().max(50).optional() })).max(10).optional(),
       photo_description: z.string().max(2000).optional().nullable(),
       slide_structure: z.array(z.object({
         slide_number: z.number(),
