@@ -7,6 +7,7 @@ import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voi
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceId } from "@/hooks/use-workspace-query";
 
 const TAG_OPTIONS = [
   { id: "education", label: "Éducation" },
