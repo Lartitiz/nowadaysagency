@@ -239,6 +239,56 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
     }
   };
 
+  const regenerateLens = async (idx: number, idea: ContentIdea, e: React.MouseEvent | React.KeyboardEvent) => {
+    e.stopPropagation();
+    if (!idea.lens || regeneratingIdx !== null) return;
+    const prevIdea = result?.ideas?.[idx];
+    if (!prevIdea) return;
+    setRegeneratingIdx(idx);
+    try {
+      const { data, error } = await invokeWithTimeout("content-coaching", {
+        body: {
+          answers: {
+            objectif,
+            sujet: sujet || null,
+            canal,
+            format,
+            content_type: "auto",
+            ton_envie: "auto",
+          },
+          workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
+          regenerate_lens: idea.lens,
+        },
+      }, 120000);
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const newIdea: ContentIdea | undefined = data?.ideas?.[0];
+      if (!newIdea) throw new Error("Réponse invalide");
+      setResult((prev) =>
+        prev && prev.ideas
+          ? { ...prev, ideas: prev.ideas.map((it, i) => (i === idx ? newIdea : it)) }
+          : prev,
+      );
+      setSelectedIdea((cur) => (cur === prevIdea ? null : cur));
+      setSavedIdeas((prev) => {
+        if (!prev.has(idx)) return prev;
+        const next = new Set(prev);
+        next.delete(idx);
+        return next;
+      });
+    } catch (err: any) {
+      console.error("[ContentCoaching] regenerateLens error:", err);
+      const msg = err?.isTimeout
+        ? "La régénération prend trop de temps. Réessaie."
+        : (typeof err?.message === "string" ? err.message : "Erreur lors de la régénération.");
+      toast.error(msg);
+    } finally {
+      setRegeneratingIdx(null);
+    }
+  };
+
+
+
   const handleGo = () => {
     if (!result) return;
 
