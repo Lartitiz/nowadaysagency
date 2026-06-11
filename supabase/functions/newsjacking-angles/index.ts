@@ -245,7 +245,7 @@ Renvoie EXACTEMENT ${expectedCount} angle${expectedCount > 1 ? "s" : ""}${expect
     console.log(`[newsjacking-angles] start mode=${mode} — user=${user.id.slice(0,8)} actu="${String(actu.titre).slice(0,60)}" promptLen=${systemPrompt.length}`);
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 90000);
+    const timeout = setTimeout(() => controller.abort(), 120000);
 
     let response: Response;
     try {
