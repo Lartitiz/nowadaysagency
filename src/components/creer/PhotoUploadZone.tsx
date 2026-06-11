@@ -537,6 +537,14 @@ export function PhotoUploadZone({
           onApply={(newBase64) => applyEditedPhoto(editIdx, newBase64)}
         />
       )}
+
+      {/* ── Photo library picker ─────────────────── */}
+      <PhotoLibraryPickerDialog
+        open={libraryOpen}
+        onOpenChange={setLibraryOpen}
+        maxSelectable={remainingSlots}
+        onConfirm={importFromLibrary}
+      />
     </div>
   );
 }
