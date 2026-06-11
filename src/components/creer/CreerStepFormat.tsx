@@ -284,6 +284,12 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
       setPhotoWarning(true);
       return;
     }
+    // Guard: single-photo mode requires a photo OR a description
+    if (formatAcceptsSinglePhoto(selectedFormat) && photoMode
+        && postPhoto.length === 0 && !postPhotoDescription.trim()) {
+      toast.error("Ajoute ta photo (ou décris-la en quelques mots), ou désactive le mode photo pour continuer.");
+      return;
+    }
     const isCarouselPhoto = selectedFormat === "carousel" && carouselSubMode === "photo";
     const isCarouselMix = selectedFormat === "carousel" && carouselSubMode === "mix";
     const isCarouselPurePhoto = selectedFormat === "carousel" && carouselSubMode === "pure_photo";
