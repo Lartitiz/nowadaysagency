@@ -121,7 +121,7 @@ export function CalendarPostPreview({
     setDownloadingHybrid(true);
     try {
       const fileName = sanitize(`editable-${theme || "carrousel"}`);
-      await exportCarouselHybridPptx(visualHtml, slidesData || null, charterData || null, fileName);
+      await exportCarouselHybridPptx(visualHtml, slidesData || null, charterData || null, fileName, undefined, includeLogo ? logoUrl : null);
       toast({ title: "PowerPoint éditable téléchargé" });
     } catch (err) {
       console.error("Hybrid PPTX error:", err);
@@ -129,7 +129,7 @@ export function CalendarPostPreview({
     } finally {
       setDownloadingHybrid(false);
     }
-  }, [visualHtml, slidesData, charterData, downloadingHybrid, theme, toast]);
+  }, [visualHtml, slidesData, charterData, downloadingHybrid, theme, toast, includeLogo, logoUrl]);
 
   const handleCopyCaption = useCallback(() => {
     if (!caption) return;
