@@ -5,6 +5,7 @@ import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { validateInput, ValidationError, AssistantChatSchema } from "../_shared/input-validators.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
 function getServiceClient() {
   return createClient(
@@ -324,6 +325,12 @@ Deno.serve(async (req) => {
 
     const { message, conversation_history, confirmed_actions, undo, workspace_id } = validateInput(await req.json(), AssistantChatSchema);
     const sb = getServiceClient();
+
+    const membership = await assertWorkspaceMembership(sb, userId, workspace_id);
+    if (!membership.ok) {
+      console.warn("[workspace-guard] denied", { userId, workspaceId: workspace_id });
+      return workspaceDeniedResponse(cors);
+    }
 
     // Resolve workspace owner's user_id for profile-scoped tables
     let profileUserId = userId;
