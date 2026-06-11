@@ -526,18 +526,20 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
                             : "border-border bg-card hover:border-primary/40"
                         }`}
                       >
-                        <p className={`text-sm font-bold leading-snug ${isSelected ? "text-primary" : "text-foreground"}`}>
-                          {idea.subject}
-                        </p>
-                        {idea.angle && (
-                          <p
-                            className={`mt-2 text-[11px] leading-relaxed text-muted-foreground border-l-2 border-primary/40 pl-2 ${
-                              isSelected ? "" : "line-clamp-3"
-                            }`}
-                          >
-                            {idea.angle}
+                        <div className={regeneratingIdx === i ? "opacity-60 transition-opacity" : "transition-opacity"}>
+                          <p className={`text-sm font-bold leading-snug ${isSelected ? "text-primary" : "text-foreground"}`}>
+                            {idea.subject}
                           </p>
-                        )}
+                          {idea.angle && (
+                            <p
+                              className={`mt-2 text-[11px] leading-relaxed text-muted-foreground border-l-2 border-primary/40 pl-2 ${
+                                isSelected ? "" : "line-clamp-3"
+                              }`}
+                            >
+                              {idea.angle}
+                            </p>
+                          )}
+                        </div>
                         <div className="flex items-center gap-2 mt-2 flex-wrap">
                           {idea.boldness && (
                             <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
