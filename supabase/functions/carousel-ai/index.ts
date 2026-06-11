@@ -567,11 +567,15 @@ Réponds UNIQUEMENT en JSON valide :
       });
     }
 
+    // L1 : Haiku pour les deepening_questions (tâche structurée et bornée).
+    const modelForCall = type === "deepening_questions"
+      ? getModelForAction("questions")
+      : getModelForAction("carousel");
     let content = await callAnthropic({
-      model: getModelForAction("carousel"),
+      model: modelForCall,
       system: systemPrompt,
       messages: [{ role: "user", content: userPrompt }],
-      max_tokens: 8192,
+      max_tokens: type === "deepening_questions" ? 1024 : 8192,
     });
 
     // JSON-aware correction pass for carousels
