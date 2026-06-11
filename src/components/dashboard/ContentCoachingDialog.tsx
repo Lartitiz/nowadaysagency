@@ -148,7 +148,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
     try {
       await createIdea.mutateAsync({
         user_id: user.id,
-        workspace_id: workspaceId,
+        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
         titre: idea.subject,
         angle: idea.angle || null,
         format: normalizeFormat(format) || format || null,
