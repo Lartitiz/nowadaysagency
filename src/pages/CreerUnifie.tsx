@@ -232,6 +232,13 @@ export default function CreerUnifie() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Remove ?new=1 from URL after a fresh start so reloads don't wipe the flow
+  useEffect(() => {
+    if (isFreshStart) {
+      setSearchParams({}, { replace: true });
+    }
+  }, [isFreshStart, setSearchParams]);
+
   // If canal param is set, pre-select the format
   useEffect(() => {
     if (paramCanal && !selectedFormat) {
