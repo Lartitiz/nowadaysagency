@@ -227,7 +227,10 @@ function LinkedInMockup({
       </div>
 
       {compact ? (
-        <div className="h-1" />
+        <>
+          <LinkedInMedia mediaUrls={mediaUrls} compact />
+          <div className="h-1" />
+        </>
       ) : (
         <>
           {/* Caption */}
@@ -239,6 +242,9 @@ function LinkedInMockup({
               )}
             </p>
           </div>
+
+          <LinkedInMedia mediaUrls={mediaUrls} />
+
 
           {/* Reactions bar */}
           <div className="px-4 flex items-center justify-between pb-2">
