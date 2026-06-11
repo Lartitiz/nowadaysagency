@@ -973,7 +973,7 @@ export default function CreerUnifie() {
         const { data, error: fnError } = await invokeWithTimeout("pinterest-photo-brief", {
           body: {
             subject: enrichedSubject,
-            reference_image_base64: inspirationImageBase64 || "",
+            ...(inspirationImageBase64 ? { reference_image_base64: inspirationImageBase64 } : {}),
             pin_type: chosenProposal?.pin_type || "photo_lifestyle",
             brief_hint: chosenProposal?.brief || "",
             pinterest_link: pinterestData?.link,
