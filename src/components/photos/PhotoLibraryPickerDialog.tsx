@@ -21,26 +21,17 @@ interface PhotoLibraryPickerDialogProps {
 
 function PickerThumb({
   photo,
+  url,
   selected,
   disabled,
   onToggle,
 }: {
   photo: UserPhotoRow;
+  url: string | null;
   selected: boolean;
   disabled: boolean;
   onToggle: () => void;
 }) {
-  const [url, setUrl] = useState<string | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    getSignedPhotoUrl(photo.storage_path).then((u) => {
-      if (!cancelled) setUrl(u);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [photo.storage_path]);
-
   return (
     <button
       type="button"
