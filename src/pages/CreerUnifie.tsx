@@ -657,7 +657,7 @@ export default function CreerUnifie() {
 
     setSelectedFormat(format);
     setEditorialAngle(angle || null);
-    if (format !== "pinterest") setPinterestData(null);
+    if (format !== "pinterest" && format !== "pinterest_visual") setPinterestData(null);
     if (sub) setCarouselSubMode(sub);
     if (photos) setUploadedPhotos(photos);
     if (desc) setPhotoDescription(desc);
