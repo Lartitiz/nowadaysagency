@@ -25,6 +25,8 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import BrandingCoachingFlow from "@/components/branding/BrandingCoachingFlow";
 import { ACTIVITY_TO_SECTOR, DEFAULT_SECTOR } from "@/lib/charter-palettes";
+import { extractLogoPalette, type LogoPalette } from "@/lib/extract-logo-palette";
+import LogoPaletteDialog from "@/components/branding/charter/LogoPaletteDialog";
 
 const MOOD_OPTIONS = [
   "Minimaliste", "Coloré", "Vintage", "Épuré", "Artisanal", "Pop",
@@ -336,6 +338,9 @@ export default function BrandCharterPage() {
   const [loading, setLoading] = useState(true);
   const [logoUploading, setLogoUploading] = useState(false);
   const [templatesUploading, setTemplatesUploading] = useState(false);
+  const [logoPalette, setLogoPalette] = useState<LogoPalette | null>(null);
+  const [logoPaletteOpen, setLogoPaletteOpen] = useState(false);
+  const [extractingPalette, setExtractingPalette] = useState(false);
   const dataRef = useRef(data);
   dataRef.current = data;
 
@@ -517,6 +522,15 @@ export default function BrandCharterPage() {
       // Cache-bust pour forcer le re-fetch après upsert
       update("logo_url", `${urlData.publicUrl}?v=${Date.now()}`);
       toast.success("Logo uploadé !");
+
+      // Extraction couleurs (silencieuse en cas d'échec)
+      try {
+        const palette = await extractLogoPalette(uploadFile);
+        setLogoPalette(palette);
+        setLogoPaletteOpen(true);
+      } catch (e) {
+        console.warn("[logo palette extraction skipped]", e);
+      }
     } catch (err: any) {
       toast.error(err?.message || "Erreur lors de l'upload du logo");
       console.error(err);
@@ -525,6 +539,35 @@ export default function BrandCharterPage() {
       inputEl.value = "";
     }
   };
+  const handleExtractFromExistingLogo = async () => {
+    if (!data.logo_url) return;
+    setExtractingPalette(true);
+    try {
+      const palette = await extractLogoPalette(data.logo_url);
+      setLogoPalette(palette);
+      setLogoPaletteOpen(true);
+    } catch (e: any) {
+      toast.error("Extraction impossible (logo inaccessible). Réessaie en réuploadant.");
+      console.error(e);
+    } finally {
+      setExtractingPalette(false);
+    }
+  };
+
+  const applyLogoPalette = (palette: LogoPalette) => {
+    setData(prev => ({
+      ...prev,
+      color_primary: palette.primary,
+      color_secondary: palette.secondary,
+      color_accent: palette.accent,
+      color_background: palette.background,
+      color_text: palette.text,
+    }));
+    triggerSave();
+    setLogoPaletteOpen(false);
+    toast.success("Palette mise à jour avec les couleurs du logo");
+  };
+
 
   const toggleMood = (keyword: string) => {
     const current = data.mood_keywords;
@@ -721,6 +764,14 @@ export default function BrandCharterPage() {
                     disabled={logoUploading}
                   />
                 </label>
+                <button
+                  type="button"
+                  onClick={handleExtractFromExistingLogo}
+                  disabled={extractingPalette}
+                  className="text-xs text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
+                >
+                  {extractingPalette ? "Extraction…" : "🎨 Extraire les couleurs du logo"}
+                </button>
               </div>
             ) : (
               <label className="flex flex-col items-center gap-2 cursor-pointer rounded-xl border-2 border-dashed border-border hover:border-primary/40 transition-colors p-8">
@@ -940,6 +991,13 @@ export default function BrandCharterPage() {
           </TabsContent>
         </Tabs>
       </main>
+
+      <LogoPaletteDialog
+        open={logoPaletteOpen}
+        palette={logoPalette}
+        onClose={() => setLogoPaletteOpen(false)}
+        onApply={applyLogoPalette}
+      />
     </div>
   );
 }
