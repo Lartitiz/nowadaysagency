@@ -278,7 +278,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
     try {
       const { data, error: fnError } = await invokeWithTimeout("newsjacking-angles", {
         body: { actu, workspace_id: workspaceId || undefined, mode: "primary" },
-      }, 60000);
+      }, 120000);
 
       if (fnError) {
         const { errMsg, errorCode } = mapFnError(fnError);
