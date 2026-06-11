@@ -346,7 +346,7 @@ export function extractAnnotatedBlocks(doc: Document): EditableBlock[] {
       el,
       text,
       runs,
-      rect: { x: r.left, y: r.top, w: r.width, h: r.height },
+      rect: contentBoxRect(el, cs),
       style: {
         color: cs.color || "#FFFFFF",
         fontFamily: cs.fontFamily || "",
