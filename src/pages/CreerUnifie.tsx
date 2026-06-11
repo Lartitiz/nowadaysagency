@@ -943,7 +943,7 @@ export default function CreerUnifie() {
         const structureBody: any = {
           type: "structure_proposal",
           subject: enrichedSubject,
-          carousel_type: carouselSubMode === "pure_photo" ? "photo" : (carouselSubMode || undefined),
+          carousel_type: carouselSubMode || undefined,
           objective: objective || undefined,
           slide_count: 7,
           editorial_angle: editorialAngle || undefined,
@@ -987,7 +987,6 @@ export default function CreerUnifie() {
             channel: isLinkedInCarousel ? "linkedin" : undefined,
             ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context })), photoDescription } : {}),
             ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context })), photoDescription } : {}),
-            ...(carouselSubMode === "pure_photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context })), photoDescription } : {}),
             ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context })) : undefined, photoDescription } : {}),
             ...(newsjackingContext ? { newsContext: newsjackingContext } : {}),
           });
