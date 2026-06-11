@@ -1,59 +1,50 @@
-# Audit — Idées sauvegardées qui disparaissent
+# Refonte modale détail d'idée — direction "Focus éditorial"
 
-## Diagnostic
+## Ce qui change visuellement
 
-J'ai audité tous les points d'insertion dans `saved_ideas` et la lecture côté `IdeasPage` / hook `useSavedIdeas`. La règle attendue (convention du projet) :
+Aujourd'hui le `DialogTitle` reçoit le champ `titre` qui peut être un paragraphe entier → il s'affiche en H1 énorme et écrase tout. La nouvelle hiérarchie traite l'idée comme **corps éditorial** et fait remonter le scan rapide (badges, méta) + isole les notes perso comme zone d'écriture distincte + colle les actions en footer.
 
-- À l'insert : `workspace_id: workspaceId !== user.id ? workspaceId : undefined` + `user_id: user.id`.
-- À la lecture : `useWorkspaceFilter()` filtre par `workspace_id = activeWorkspace.id` quand un workspace est actif, sinon par `user_id = user.id`.
+Ordre vertical dans la modale :
+1. **Header sticky-top** : ligne de badges (statut cliquable, canal, objectif, type) à gauche + bouton fermer à droite.
+2. **L'idée** (corps) : le champ `titre` rendu en `font-display`, taille `text-xl md:text-2xl`, `leading-relaxed`, sans label "MES NOTES"-style — c'est le focal point.
+3. **Accroche** (conditionnel) : si `accroche_short` ou `accroche_long`, sous-bloc avec label mono uppercase "ACCROCHE" + texte body, séparé par border-top léger.
+4. **Contenu** (conditionnel) : même pattern label mono uppercase "CONTENU", garde le `ContentPreview` existant dans son fond `bg-rose-pale rounded-xl`.
+5. **Méta** : grille 2 colonnes (Angle / Format / Format technique / Création / Modifiée / Planifiée), labels en `font-mono-ui text-[10px] uppercase tracking-wider text-muted-foreground`, valeurs en `text-sm text-foreground`.
+6. **Mes notes** : bloc tinté `bg-rose-pale/40 border-l-4 border-primary/40 rounded-r-lg p-5`, label mono uppercase à gauche, lien "Sauvegarder" mono uppercase à droite, textarea bg-transparent sans bord visible.
+7. **Footer sticky-bottom** (`border-t bg-background`) : "Continuer la rédaction" en bouton primary plein-largeur, puis ligne `flex gap-3` avec "Planifier" (outline flex-1) + icône poubelle (ghost, hover destructive) qui déclenche l'AlertDialog de suppression existant.
 
-**Quand un workspace est actif (cas par défaut dès qu'on a un workspace owner), la liste filtre par `workspace_id`. Toute idée insérée avec `workspace_id = NULL` est invisible.**
+## Fichier touché
 
-### Bugs trouvés
+- `src/pages/IdeasPage.tsx`, uniquement le bloc `<Dialog open={!!selectedIdea}>` (lignes ~441-575). Aucune autre page ni composant impacté.
 
-1. **`SaveToIdeasDialog`** (utilisé depuis les pages de contenu, source_module `content-actions`) — l'insert **ne passe pas du tout `workspace_id`** → la ligne est créée avec `workspace_id = NULL` → invisible dans `/idees`. **C'est la cause principale rapportée par ta cliente.**
+## Tokens utilisés (charte existante)
 
-2. **`ContentCoachingDialog`** — insère `workspace_id: workspaceId` sans le guard `!== user.id`. Fonctionnellement visible (parce que `useWorkspaceFilter` retombe sur `user_id` quand il n'y a pas de workspace), mais pollue les données (workspace_id = user.id, qui n'est pas un workspace réel). À aligner sur la convention.
+- Typo titre/idée : `font-display`
+- Labels uppercase : `font-mono-ui text-[10px] uppercase tracking-wider text-muted-foreground`
+- Fond notes : `bg-rose-pale/40` + `border-l-4 border-primary/40`
+- Bouton primary : `Button` shadcn variant par défaut (rose primary du projet) — pas de hex codé en dur
+- Bouton supprimer : `Button variant="ghost" size="icon"` avec `text-muted-foreground hover:text-destructive`
+- Aucune nouvelle couleur, aucune nouvelle police, aucune dépendance ajoutée
 
-3. **`AdaptiveHome` (compteur "Idées sauvegardées" sur le home)** — la requête fait `.eq("user_id", user.id).eq("workspace_id", workspaceId ?? user.id)`. Elle exige les **deux** colonnes simultanément, donc :
-   - les lignes `workspace_id = NULL` ne sont jamais comptées,
-   - une idée créée dans un workspace n'est pas comptée dans un autre workspace.
-   À aligner sur `useWorkspaceFilter` (un seul filtre, selon le mode).
+## Comportement / fonctionnalités
 
-4. **`IdeasPage.fetchIdeas`** — le `useEffect` dépend uniquement de `user?.id`, pas de `column`/`value`. Si le workspace actif change (ou se résout après le mount), la liste ne se refetch pas.
-
-### Confirmation côté DB
-
-Sur les 37 lignes existantes : **7 ont `workspace_id = NULL`** — 6 viennent de `source_module = content-actions` (ta cliente + 1 autre user), 1 d'une source legacy. Ce sont exactement les idées « perdues ».
-
-## Plan de correction
-
-### 1. Frontend — sauvegardes manquantes ou incohérentes
-- `src/components/SaveToIdeasDialog.tsx` : récupérer `workspaceId` via `useWorkspaceId()` et ajouter `workspace_id: workspaceId !== user.id ? workspaceId : undefined` à l'insert.
-- `src/components/dashboard/ContentCoachingDialog.tsx` : appliquer le même guard `!== user.id ? : undefined` dans `handleSaveIdea` au lieu de passer `workspaceId` brut.
-
-### 2. Frontend — lecture / comptage
-- `src/pages/AdaptiveHome.tsx` (requête `adaptive-home-ideas-count`) : remplacer le double `.eq("user_id").eq("workspace_id")` par un filtre unique cohérent avec `useWorkspaceFilter` (workspace_id si activeWorkspace, sinon user_id).
-- `src/pages/IdeasPage.tsx` : étendre les deps du `useEffect` à `[user?.id, column, value]` pour refetch quand le workspace résout/change.
-
-### 3. Backfill DB — récupérer les idées perdues de ta cliente
-Migration qui, pour chaque ligne `saved_ideas` avec `workspace_id IS NULL`, met `workspace_id = public.get_user_owner_workspace(user_id)` (uniquement quand un workspace owner existe). Cela rendra immédiatement visibles les 7 lignes orphelines dans `/idees` sans toucher au reste.
-
-```sql
-UPDATE public.saved_ideas si
-SET workspace_id = public.get_user_owner_workspace(si.user_id)
-WHERE si.workspace_id IS NULL
-  AND public.get_user_owner_workspace(si.user_id) IS NOT NULL;
-```
+Strictement identique :
+- `StatusDropdown` reste accroché au badge statut.
+- `PlanifierPopover` continue d'envelopper le bouton "Planifier".
+- L'`AlertDialog` de suppression reste branché sur l'icône poubelle.
+- Le textarea de notes garde `detailNotes` + `handleSaveNotes`.
+- `ContentPreview` éditable inchangé.
+- `DialogTitle` est conservé en `sr-only` (accessibilité) avec une string courte type "Détail de l'idée".
 
 ## Hors scope
 
-- Audit des autres tables avec patron similaire (`content_briefs`, etc.) — peut être un sprint séparé si tu veux un balayage global.
-- Refactor pour centraliser un helper `getWorkspaceInsertPayload()` partagé entre tous les call-sites (utile mais plus large).
+- Pas de modification des cartes d'idées dans la liste.
+- Pas de refonte de la `CalendarIdeasSidebar` ni du `IdeaDetailSheet` du calendrier (composants distincts).
+- Pas d'ajout de tabs / nouvelles actions / suggestions IA.
+- Pas de touche à la logique de sauvegarde, planification, suppression.
 
 ## Validation
 
 - `npx tsc --noEmit` clean.
-- Manuel : depuis une page de contenu, cliquer "Sauvegarder dans mes idées" (flow SaveToIdeasDialog) → ouvrir `/idees` → l'idée apparaît immédiatement.
-- DB : `SELECT count(*) FROM saved_ideas WHERE workspace_id IS NULL` = 0 (ou seulement les users sans workspace owner).
-- Côté ta cliente : ses 6 idées orphelines réapparaissent dans `/idees` après la migration.
+- Test manuel : ouvrir une idée longue → l'idée se lit comme un paragraphe éditorial, les badges sont en tête, les méta scannables en grille, notes isolées, footer toujours visible.
+- Test idée avec accroche + content_data (carrousel) : les sections Accroche / Contenu restent fonctionnelles dans le nouveau rythme.

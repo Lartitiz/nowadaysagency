@@ -439,131 +439,166 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
 
         {/* Detail Sheet */}
         <Dialog open={!!selectedIdea} onOpenChange={(open) => { if (!open) setSelectedIdea(null); }}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-6 sm:p-8">
+          <DialogContent className="max-w-2xl max-h-[90vh] p-0 gap-0 flex flex-col overflow-hidden">
             {selectedIdea && (
-              <div>
-                <DialogHeader>
-                  <DialogTitle className="font-display text-2xl text-left leading-tight">{selectedIdea.titre}</DialogTitle>
+              <>
+                <DialogHeader className="px-6 pt-6 pb-4 space-y-0">
+                  <DialogTitle className="sr-only">Détail de l'idée sauvegardée</DialogTitle>
                   <DialogDescription className="sr-only">Détails de l'idée sauvegardée</DialogDescription>
+                  <div className="flex gap-1.5 flex-wrap pr-8">
+                    {getStatusBadge(selectedIdea.status) && (() => {
+                      const sb = getStatusBadge(selectedIdea.status)!;
+                      return (
+                        <StatusDropdown ideaId={selectedIdea.id} current={selectedIdea.status || "to_explore"} onSelect={(id, s) => { handleStatusChange(id, s); setSelectedIdea((prev) => prev ? { ...prev, status: s } : null); }}>
+                          <span className={`font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill cursor-pointer ${sb.bg} ${sb.text}`}>{sb.label}</span>
+                        </StatusDropdown>
+                      );
+                    })()}
+                    {getObjectifBadge(selectedIdea.objectif) && (() => {
+                      const ob = getObjectifBadge(selectedIdea.objectif)!;
+                      return <span className={`font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill ${ob.bg} ${ob.text}`}>{ob.label}</span>;
+                    })()}
+                    <span className="font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-primary text-primary-foreground">📱 {selectedIdea.canal}</span>
+                    <span className="font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-rose-pale text-foreground">{(selectedIdea.type || "idea") === "idea" ? "💡 Idée" : (selectedIdea.type || "idea") === "draft" ? "✏️ Brouillon" : "🎣 Accroche"}</span>
+                  </div>
                 </DialogHeader>
 
-                <div className="flex gap-1.5 flex-wrap mt-3 mb-4">
-                  {getStatusBadge(selectedIdea.status) && (() => {
-                    const sb = getStatusBadge(selectedIdea.status)!;
-                    return (
-                      <StatusDropdown ideaId={selectedIdea.id} current={selectedIdea.status || "to_explore"} onSelect={(id, s) => { handleStatusChange(id, s); setSelectedIdea((prev) => prev ? { ...prev, status: s } : null); }}>
-                        <span className={`font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill cursor-pointer ${sb.bg} ${sb.text}`}>{sb.label}</span>
-                      </StatusDropdown>
-                    );
-                  })()}
-                  {getObjectifBadge(selectedIdea.objectif) && (() => {
-                    const ob = getObjectifBadge(selectedIdea.objectif)!;
-                    return <span className={`font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill ${ob.bg} ${ob.text}`}>{ob.label}</span>;
-                  })()}
-                  <span className="font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-primary text-primary-foreground">📱 {selectedIdea.canal}</span>
-                  <span className="font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-rose-pale text-foreground">{(selectedIdea.type || "idea") === "idea" ? "💡 Idée" : (selectedIdea.type || "idea") === "draft" ? "✏️ Brouillon" : "🎣 Accroche"}</span>
-                </div>
+                <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-8">
+                  {/* The Idea — focal point */}
+                  <p className="font-display text-xl md:text-2xl text-foreground leading-relaxed">
+                    {selectedIdea.titre}
+                  </p>
 
-                <div className="space-y-3 text-sm">
-                  <div><span className="font-medium text-foreground">Angle :</span> <span className="text-muted-foreground">{selectedIdea.angle}</span></div>
-                  <div><span className="font-medium text-foreground">Format :</span> <span className="text-muted-foreground">{selectedIdea.format}</span></div>
-                  {selectedIdea.format_technique && <div><span className="font-medium text-foreground">Format technique :</span> <span className="text-muted-foreground">{selectedIdea.format_technique}</span></div>}
-                </div>
+                  {/* Accroche */}
+                  {(selectedIdea.accroche_short || selectedIdea.accroche_long) && (
+                    <section className="pt-6 border-t border-border/60 space-y-2">
+                      <p className="font-mono-ui text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Accroche</p>
+                      {selectedIdea.accroche_short && <p className="text-sm text-foreground font-semibold">{selectedIdea.accroche_short}</p>}
+                      {selectedIdea.accroche_long && <p className="text-sm text-foreground/80 italic">{selectedIdea.accroche_long}</p>}
+                    </section>
+                  )}
 
-                {/* Accroche */}
-                {(selectedIdea.accroche_short || selectedIdea.accroche_long) && (
-                  <div className="mt-4">
-                    <p className="text-xs font-mono-ui font-semibold text-muted-foreground mb-1">ACCROCHE</p>
-                    {selectedIdea.accroche_short && <p className="text-sm text-foreground font-semibold mb-1">{selectedIdea.accroche_short}</p>}
-                    {selectedIdea.accroche_long && <p className="text-sm text-foreground/80 italic">{selectedIdea.accroche_long}</p>}
-                  </div>
-                )}
+                  {/* Draft / Content */}
+                  {(selectedIdea.content_data || selectedIdea.content_draft) && (
+                    <section className="pt-6 border-t border-border/60 space-y-2">
+                      <p className="font-mono-ui text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Contenu</p>
+                      <div className="rounded-xl bg-rose-pale p-3 max-h-[400px] overflow-y-auto">
+                        <ContentPreview
+                          contentData={selectedIdea.content_data}
+                          contentDraft={selectedIdea.content_draft}
+                          contentType={selectedIdea.format === "reel" ? "reel" : selectedIdea.format === "story_serie" ? "stories" : undefined}
+                          editable
+                          onContentChange={async (updatedData) => {
+                            const isJson = typeof updatedData === "object";
+                            const updatePayload = isJson
+                              ? { content_data: updatedData, updated_at: new Date().toISOString() }
+                              : { content_draft: updatedData, updated_at: new Date().toISOString() };
+                            if (selectedIdea.type !== "brief") {
+                              await supabase.from("saved_ideas").update(updatePayload as any).eq("id", selectedIdea.id);
+                              setIdeas((prev) => prev.map((i) => i.id === selectedIdea.id ? { ...i, ...(isJson ? { content_data: updatedData } : { content_draft: updatedData }) } : i));
+                            }
+                            setSelectedIdea((prev) => prev ? { ...prev, ...(isJson ? { content_data: updatedData } : { content_draft: updatedData }) } : null);
+                          }}
+                        />
+                      </div>
+                    </section>
+                  )}
 
-                {/* Draft / Content */}
-                {(selectedIdea.content_data || selectedIdea.content_draft) && (
-                  <div className="mt-4">
-                    <p className="text-xs font-mono-ui font-semibold text-muted-foreground mb-1">CONTENU</p>
-                    <div className="rounded-xl bg-rose-pale p-3 max-h-[400px] overflow-y-auto">
-                      <ContentPreview
-                        contentData={selectedIdea.content_data}
-                        contentDraft={selectedIdea.content_draft}
-                        contentType={selectedIdea.format === "reel" ? "reel" : selectedIdea.format === "story_serie" ? "stories" : undefined}
-                        editable
-                        onContentChange={async (updatedData) => {
-                          // Save to content_data or content_draft depending on type
-                          const isJson = typeof updatedData === "object";
-                          const updatePayload = isJson
-                            ? { content_data: updatedData, updated_at: new Date().toISOString() }
-                            : { content_draft: updatedData, updated_at: new Date().toISOString() };
-                          if (selectedIdea.type !== "brief") {
-                            await supabase.from("saved_ideas").update(updatePayload as any).eq("id", selectedIdea.id);
-                            setIdeas((prev) => prev.map((i) => i.id === selectedIdea.id ? { ...i, ...(isJson ? { content_data: updatedData } : { content_draft: updatedData }) } : i));
-                          }
-                          setSelectedIdea((prev) => prev ? { ...prev, ...(isJson ? { content_data: updatedData } : { content_draft: updatedData }) } : null);
-                        }}
-                      />
+                  {/* Metadata grid */}
+                  <section className="pt-6 border-t border-border/60 grid grid-cols-2 gap-y-4 gap-x-8">
+                    <div className="space-y-1">
+                      <p className="font-mono-ui text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Angle</p>
+                      <p className="text-sm text-foreground">{selectedIdea.angle}</p>
                     </div>
-                  </div>
-                )}
+                    <div className="space-y-1">
+                      <p className="font-mono-ui text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Format</p>
+                      <p className="text-sm text-foreground">{selectedIdea.format}</p>
+                    </div>
+                    {selectedIdea.format_technique && (
+                      <div className="space-y-1 col-span-2">
+                        <p className="font-mono-ui text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Format technique</p>
+                        <p className="text-sm text-foreground">{selectedIdea.format_technique}</p>
+                      </div>
+                    )}
+                    <div className="space-y-1">
+                      <p className="font-mono-ui text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Créée le</p>
+                      <p className="text-xs text-muted-foreground">{fnsFormat(new Date(selectedIdea.created_at), "d MMMM yyyy", { locale: fr })}</p>
+                    </div>
+                    {selectedIdea.updated_at && (
+                      <div className="space-y-1">
+                        <p className="font-mono-ui text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Modifiée le</p>
+                        <p className="text-xs text-muted-foreground">{fnsFormat(new Date(selectedIdea.updated_at), "d MMMM yyyy", { locale: fr })}</p>
+                      </div>
+                    )}
+                    {selectedIdea.planned_date && (
+                      <div className="space-y-1 col-span-2">
+                        <p className="font-mono-ui text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Planifiée le</p>
+                        <p className="text-xs text-[#2E7D32]">📅 {fnsFormat(new Date(selectedIdea.planned_date), "d MMMM yyyy", { locale: fr })}</p>
+                      </div>
+                    )}
+                  </section>
 
-                {/* Dates */}
-                <div className="mt-4 text-xs text-muted-foreground space-y-1">
-                  <p>Créée le {fnsFormat(new Date(selectedIdea.created_at), "d MMMM yyyy", { locale: fr })}</p>
-                  {selectedIdea.updated_at && <p>Modifiée le {fnsFormat(new Date(selectedIdea.updated_at), "d MMMM yyyy", { locale: fr })}</p>}
-                  {selectedIdea.planned_date && <p className="text-[#2E7D32]">📅 Planifiée le {fnsFormat(new Date(selectedIdea.planned_date), "d MMMM yyyy", { locale: fr })}</p>}
+                  {/* Notes — accented block */}
+                  <section className="bg-rose-pale/40 border-l-4 border-primary/40 rounded-r-lg p-5">
+                    <div className="flex justify-between items-center mb-3">
+                      <p className="font-mono-ui text-[10px] uppercase tracking-wider font-bold text-primary">Mes notes personnelles</p>
+                      <button
+                        type="button"
+                        onClick={() => handleSaveNotes(selectedIdea.id, detailNotes)}
+                        className="font-mono-ui text-[10px] uppercase tracking-wider font-bold text-primary hover:underline"
+                      >
+                        Sauvegarder
+                      </button>
+                    </div>
+                    <Textarea
+                      value={detailNotes}
+                      onChange={(e) => setDetailNotes(e.target.value)}
+                      placeholder="Ajoute tes notes personnelles ici..."
+                      className="bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none p-0 text-sm leading-relaxed text-foreground/90 min-h-[100px] resize-none"
+                    />
+                  </section>
                 </div>
 
-                {/* Notes */}
-                <div className="mt-4">
-                  <p className="text-xs font-mono-ui font-semibold text-muted-foreground mb-1">MES NOTES</p>
-                  <Textarea
-                    value={detailNotes}
-                    onChange={(e) => setDetailNotes(e.target.value)}
-                    placeholder="Ajoute tes notes personnelles ici..."
-                    className="rounded-xl text-sm min-h-[100px]"
-                  />
-                  <Button variant="outline" size="sm" className="rounded-pill text-xs mt-2"
-                    onClick={() => handleSaveNotes(selectedIdea.id, detailNotes)}>
-                    Sauvegarder les notes
-                  </Button>
-                </div>
-
-                {/* Actions */}
-                <div className="flex flex-col gap-2 mt-6">
+                {/* Sticky footer actions */}
+                <div className="px-6 py-4 border-t border-border bg-background flex flex-col gap-3">
                   <Button onClick={() => handleRediger(selectedIdea)} className="rounded-pill gap-2 w-full">
                     <PenLine className="h-4 w-4" /> Continuer la rédaction
                   </Button>
-                  <PlanifierPopover idea={selectedIdea} onPlan={handlePlan} fullWidth />
-                  {(selectedIdea.content_draft || selectedIdea.content_data) && !selectedIdea.content_data?.script && (
-                    <Button variant="outline" className="rounded-pill gap-2 w-full" onClick={async () => {
-                      const text = selectedIdea.content_draft && !selectedIdea.content_draft.startsWith("{")
-                        ? selectedIdea.content_draft
-                        : "Contenu copié depuis le composant de prévisualisation.";
-                      await navigator.clipboard.writeText(text);
-                      toast({ title: "Copié !" });
-                    }}>
-                      <Copy className="h-4 w-4" /> Copier le contenu
-                    </Button>
-                  )}
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="outline" className="rounded-pill gap-2 w-full text-muted-foreground hover:text-destructive">
-                        <Trash2 className="h-4 w-4" /> Supprimer
+                  <div className="flex gap-3">
+                    <div className="flex-1">
+                      <PlanifierPopover idea={selectedIdea} onPlan={handlePlan} fullWidth />
+                    </div>
+                    {(selectedIdea.content_draft || selectedIdea.content_data) && !selectedIdea.content_data?.script && (
+                      <Button variant="outline" size="sm" className="rounded-pill gap-1 text-xs" onClick={async () => {
+                        const text = selectedIdea.content_draft && !selectedIdea.content_draft.startsWith("{")
+                          ? selectedIdea.content_draft
+                          : "Contenu copié depuis le composant de prévisualisation.";
+                        await navigator.clipboard.writeText(text);
+                        toast({ title: "Copié !" });
+                      }}>
+                        <Copy className="h-3 w-3" /> Copier
                       </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Supprimer cette idée ?</AlertDialogTitle>
-                        <AlertDialogDescription>Cette action est irréversible.</AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Annuler</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => handleDelete(selectedIdea.id)}>Supprimer</AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                    )}
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="rounded-pill text-muted-foreground hover:text-destructive hover:bg-destructive/10" aria-label="Supprimer">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Supprimer cette idée ?</AlertDialogTitle>
+                          <AlertDialogDescription>Cette action est irréversible.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Annuler</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDelete(selectedIdea.id)}>Supprimer</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                 </div>
-              </div>
+              </>
             )}
           </DialogContent>
         </Dialog>
