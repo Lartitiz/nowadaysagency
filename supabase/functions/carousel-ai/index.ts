@@ -1639,6 +1639,9 @@ RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
     "max_overlay_words": 15,
     "caption_length": 520,
     "caption_complements_not_describes": true,
+    "text_chain_continuity": true,
+    "slide_count_matches_photo_richness": true,
+    "no_mechanical_photo_alternation": true,
     "score": 85
   }
 }`;
