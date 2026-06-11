@@ -592,16 +592,16 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
           // Collapsed chip — replaces the full picker once a sub-mode is selected
           (() => {
             const subModeMeta = {
-              text: { emoji: "📝", label: "Texte", desc: "L'IA rédige et designe" },
-              photo: { emoji: "📸", label: "Photo", desc: "Tes photos en plein écran" },
-              mix: { emoji: "✨", label: "Mixte", desc: "Photos + slides texte" },
+              text: { emoji: "📝", label: "Carrousel texte", desc: "L'IA écrit et designe les slides" },
+              photo: { emoji: "📸", label: "Carrousel photos seules", desc: "Tes photos brutes + légende générée" },
+              mix: { emoji: "✨", label: "Carrousel storytelling", desc: "Photos + slides texte design" },
             }[carouselSubMode];
             return (
               <div className="flex items-center justify-between gap-3 rounded-xl bg-muted/30 border border-border px-3 py-2 animate-fade-in">
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="text-lg">{subModeMeta.emoji}</span>
                   <span className="text-sm font-semibold text-foreground truncate">
-                    Carrousel {subModeMeta.label}
+                    {subModeMeta.label}
                   </span>
                   <span className="text-xs text-muted-foreground hidden sm:inline truncate">
                     · {subModeMeta.desc}
