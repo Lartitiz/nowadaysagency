@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useUserPhase } from "@/hooks/use-user-phase";
-import { X, ArrowLeft } from "lucide-react";
+import { X, ArrowLeft, Lightbulb } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useSession } from "@/contexts/SessionContext";
 import { toast } from "@/hooks/use-toast";
