@@ -285,6 +285,8 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
 
     const finish = (next: Partial<AnglesState>) => {
       clearTimeout(slowTimer);
+      // En cas d'erreur, libérer le verrou pour permettre un vrai "Réessayer".
+      if (next.error) primaryStartedRef.current.delete(idx);
       console.log(`[newsjacking-angles] primary done idx=${idx} in ${Date.now() - t0}ms`, next.errorCode || "ok");
       setAnglesByIdx((prev) => ({ ...prev, [idx]: { ...prev[idx], loading: false, ...next } }));
     };
