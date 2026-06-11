@@ -55,9 +55,15 @@ export async function invokeWithHeartbeat(
           error: { message: "La génération prend plus de temps que prévu. Réessaie.", code: "TIMEOUT", isTimeout: true },
         };
       }
+      // Si on est en ligne, ce n'est pas une vraie coupure réseau — c'est l'infra qui
+      // a coupé après un long traitement serveur (limite ~150 s côté Edge Functions).
+      const online = typeof navigator !== "undefined" ? navigator.onLine : true;
+      const message = online
+        ? "Le serveur a mis trop de temps à répondre. Réessaie avec moins de photos ou un sujet plus court."
+        : "Connexion perdue. Vérifie ta connexion internet et réessaie.";
       return {
         data: null,
-        error: { message: "Connexion perdue. Vérifie ta connexion et réessaie.", code: "NETWORK", isNetwork: true, originalError: err },
+        error: { message, code: "NETWORK", isNetwork: true, originalError: err },
       };
     }
 

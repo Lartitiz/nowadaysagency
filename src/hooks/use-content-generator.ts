@@ -243,7 +243,11 @@ export function useContentGenerator() {
               editorial_angle: editorialAngle || null,
               content_structure: structurePrompt || null,
               workspace_id: workspaceId || null,
-              photos: (params.carouselType === "photo" || params.carouselType === "mix") ? params.photos : undefined,
+              // Optimisation : si la structure a déjà été confirmée à l'étape précédente
+              // (structure_proposal), Claude a déjà analysé les photos en vision. Inutile
+              // de les renvoyer en base64 — la structure encode déjà photo_index + slide_type.
+              // Évite que Sonnet refasse une analyse vision (~3 min → ~40 s).
+              photos: (!params.confirmedStructure && (params.carouselType === "photo" || params.carouselType === "mix")) ? params.photos : undefined,
               photo_description: (params.carouselType === "photo" || params.carouselType === "mix") ? params.photoDescription : undefined,
               slide_structure: params.slideStructure || null,
               confirmed_structure: params.confirmedStructure || null,
