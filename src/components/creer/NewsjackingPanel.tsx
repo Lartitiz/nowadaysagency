@@ -169,7 +169,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
       const excluded_urls = Array.from(seenUrlsRef.current).slice(-50);
       const { data, error: fnError } = await invokeWithTimeout("newsjacking-ai", {
         body: { workspace_id: workspaceId || undefined, intent, force_macro, excluded_urls },
-      }, 90000);
+      }, 180000);
 
       if (fnError) {
         const msg = fnError.message || "";
