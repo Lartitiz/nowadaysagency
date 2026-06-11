@@ -901,7 +901,8 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
                                         variant="outline"
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          fetchVariants(idx, actu);
+                                          variantsStartedRef.current.delete(idx);
+                                          fetchVariants(idx, actu, anglesState.data?.[0]?.vehicule);
                                         }}
                                         className="gap-1.5"
                                       >
