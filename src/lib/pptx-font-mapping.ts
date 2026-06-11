@@ -707,6 +707,14 @@ export function extractShapeBlocks(doc: Document): ShapeBlock[] {
       shadow = parsed;
     }
 
+    // Bordure : tenter la conversion native uniforme. Skip si non convertible.
+    const borderParsed = parseUniformBorder(cs);
+    if (borderParsed === null) {
+      console.debug("[hybrid] shape skipped (unsupported border)", { type });
+      continue;
+    }
+    const border = borderParsed; // undefined si pas de bordure, sinon objet
+
     const bgColor = cs.backgroundColor || "transparent";
     if (bgColor === "transparent" || bgColor === "rgba(0, 0, 0, 0)") {
       console.debug("[hybrid] shape skipped (transparent fill)", { type });
@@ -724,7 +732,9 @@ export function extractShapeBlocks(doc: Document): ShapeBlock[] {
       fill: normalizeHex(bgColor, "FFFFFF"),
       borderRadiusPx,
       shadow,
+      border,
     });
+
   }
   return blocks;
 }
