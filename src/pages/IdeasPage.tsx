@@ -438,14 +438,14 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
         )}
 
         {/* Detail Sheet */}
-        <Sheet open={!!selectedIdea} onOpenChange={(open) => { if (!open) setSelectedIdea(null); }}>
-          <SheetContent className="w-full sm:max-w-[420px] overflow-y-auto">
+        <Dialog open={!!selectedIdea} onOpenChange={(open) => { if (!open) setSelectedIdea(null); }}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-6 sm:p-8">
             {selectedIdea && (
-              <div className="py-4">
-                <SheetHeader>
-                  <SheetTitle className="font-display text-xl text-left">{selectedIdea.titre}</SheetTitle>
-                  <SheetDescription className="sr-only">Détails de l'idée sauvegardée</SheetDescription>
-                </SheetHeader>
+              <div>
+                <DialogHeader>
+                  <DialogTitle className="font-display text-2xl text-left leading-tight">{selectedIdea.titre}</DialogTitle>
+                  <DialogDescription className="sr-only">Détails de l'idée sauvegardée</DialogDescription>
+                </DialogHeader>
 
                 <div className="flex gap-1.5 flex-wrap mt-3 mb-4">
                   {getStatusBadge(selectedIdea.status) && (() => {
