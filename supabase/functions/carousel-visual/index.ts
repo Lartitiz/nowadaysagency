@@ -119,7 +119,7 @@ Question en pilule ${ch.color_primary}, branches avec lignes verticales, résult
     <div style="flex-shrink:0;width:64px;text-align:right;padding-top:8px">
       <span data-pptx-editable="caption" style="font-size:36px;font-weight:700;color:${ch.color_primary};opacity:0.4;font-family:${ch.font_title};line-height:1">01</span>
     </div>
-    <div style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:24px 28px;box-shadow:0 2px 12px rgba(0,0,0,0.05)">
+    <div data-pptx-shape="card" style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:24px 28px;box-shadow:0 2px 12px rgba(0,0,0,0.05)">
       <h3 data-pptx-editable="title" style="font-size:24px;font-weight:600;color:${ch.color_primary};margin:0 0 8px 0;font-family:${ch.font_title}">LABEL</h3>
       <p data-pptx-editable="body" style="font-size:20px;color:${ch.color_text};line-height:1.4;margin:0;font-family:${ch.font_body}">DESC</p>
     </div>
