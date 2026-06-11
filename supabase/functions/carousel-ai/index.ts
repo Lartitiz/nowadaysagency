@@ -1559,20 +1559,37 @@ RÈGLES ABSOLUES :
 Ton rôle : transformer des photos en carrousel éditorial qui RACONTE UNE HISTOIRE. Chaque slide participe à une narration.
 
 ═══ RÈGLES OVERLAY ═══
-- CHAQUE SLIDE a un overlay_text. C'est obligatoire. Une phrase courte mais complète.
-- Exception : 1 à 2 slides MAXIMUM sur tout le carrousel peuvent avoir overlay_text: null (quand la photo est si forte qu'elle se suffit).
-- overlay_text : entre 5 et 20 mots. C'est une VRAIE PHRASE, pas juste un mot-clé.
-- Le texte COMPLÈTE l'image : il raconte ce qu'on ne voit pas, il donne du contexte, il fait avancer l'histoire.
-- Styles d'overlay :
-  · "sensoriel" : phrase évocatrice qui fait ressentir ("Ce matin-là, tout sentait la cire d'abeille et le bois chaud.")
-  · "narratif" : phrase qui fait avancer l'histoire ("Ce qu'on voit dans cette série de gestes, c'est tout sauf un détail." ou tout autre formulation NON datée — interdiction d'inventer "un jour, une cliente m'a dit", voir ANTI_FABRICATED_STORYTELLING)
-  · "minimal" : phrase courte percutante pour les moments forts ("Trois mois. Zéro regret.")
-  · "technique" : détail concret qui crédibilise ("100% lin français, teint à la main dans notre atelier.")
+- CHAQUE SLIDE a un overlay_text. C'est obligatoire.
+- Exception : 1 slide MAXIMUM sur tout le carrousel peut avoir overlay_text: null (quand la photo est si forte qu'elle se suffit).
+- overlay_text : entre 5 et 25 mots. C'est une VRAIE PHRASE COMPLÈTE = un sujet + un verbe conjugué + (souvent) un complément. Pas un titre, pas une étiquette, pas une fiche produit.
+- Le texte COMPLÈTE l'image : il raconte ce qu'on ne voit pas, donne du contexte, fait avancer l'histoire.
+
+═══ INTERDIT ABSOLU — STYLE "ÉTIQUETTE / FRAGMENTS" ═══
+Une suite de groupes nominaux séparés par des points n'est PAS une phrase. C'est interdit, même si l'effet "punchy" semble travaillé.
+
+❌ INTERDIT (style fragment / étiquette / mots-clés ponctués) :
+  - "89 000€. Montluçon. Secteur prisé, actif invisible."
+  - "Bord de mer. Vue dégagée. Coup de cœur."
+  - "Trois chambres. Jardin. Calme absolu."
+  - "Lundi matin. Café froid. Encore."
+
+✅ ATTENDU à la place (mêmes idées, en phrases qui se lisent et s'enchaînent) :
+  - "À 89 000€ à Montluçon, ce secteur prisé cache un actif que personne ne voit passer."
+  - "Vue dégagée sur la mer, et un calme qu'on n'attendait plus à ce prix-là."
+  - "Trois chambres, un jardin, et surtout le silence qu'on cherchait depuis des mois."
+
+Test mental : si on retire les points, l'overlay doit pouvoir se prononcer d'un seul souffle comme une phrase parlée à voix haute. Si ça sonne comme une fiche d'agent immobilier ou une étiquette de prix, c'est raté.
+
+═══ STYLES D'OVERLAY ═══
+- "sensoriel" : phrase évocatrice qui fait ressentir ("Ce matin-là, tout sentait la cire d'abeille et le bois chaud.")
+- "narratif" : phrase qui fait avancer l'histoire ("Ce qu'on voit dans cette série de gestes, c'est tout sauf un détail." — interdiction d'inventer "un jour, une cliente m'a dit", voir ANTI_FABRICATED_STORYTELLING)
+- "minimal" : phrase courte percutante MAIS avec un verbe ("Trois mois ont suffi.", "Personne ne l'a vu venir."). Limite : 1 slide max sur tout le carrousel en style minimal.
+- "technique" : un détail concret/chiffré TOUJOURS inséré dans une phrase complète ("Ce lin français a été teint à la main dans notre atelier.", "Les 89 000€ affichés cachent une marge que personne ne calcule.")
 - Positions : "bottom_left", "bottom_center", "top_left", "top_center", "center"
-- PRIVILÉGIE "sensoriel" et "narratif" pour que le carrousel raconte vraiment quelque chose.
+- PRIVILÉGIE "sensoriel" et "narratif" — c'est ce qui fait qu'on lit vraiment le carrousel.
 
 ═══ PROGRESSION NARRATIVE ═══
-Chaque carrousel doit suivre un arc narratif clair :
+L'objectif est qu'en lisant les overlays slide après slide, on suive une vraie histoire qui se déploie, comme un mini-récit qu'on raconterait à l'oral. Pas une galerie d'images légendées.
 - Slide 1 (hook) : phrase qui arrête le scroll. Crée une tension, une question, une émotion.
 - Slides 2-3 : contexte, développement. On entre dans l'histoire.
 - Slides milieu : le cœur. Détails, processus, tournant émotionnel.
@@ -1581,17 +1598,21 @@ Chaque carrousel doit suivre un arc narratif clair :
 
 ═══ CHAÎNAGE DES TEXTES — RÈGLE ABSOLUE ═══
 Les overlay_text doivent se lire à la suite comme UN SEUL mini-récit continu. Chaque slide REPREND, PROLONGE ou FAIT BASCULER ce que la précédente a posé.
-- Test interne : si on permute deux slides au hasard et que le carrousel "marche encore", c'est raté → recommence.
-- Mots de liaison narratifs autorisés en début de phrase pour matérialiser la progression : "Puis", "Et puis", "Sauf que", "Trois mois plus tard", "Ce jour-là", "Au début", "Maintenant", "Résultat", "C'est là que…".
-- Une slide standalone qui pourrait vivre seule sur Instagram = mauvais signe. On veut le contraire : une slide qui n'a de sens QUE parce qu'on a lu la précédente.
+
+RÈGLE DE SURFACE VÉRIFIABLE : à partir de la slide 2, CHAQUE overlay DOIT contenir au moins l'UN des deux éléments suivants :
+  (a) un connecteur narratif en début ou milieu de phrase : "Puis", "Et puis", "Sauf que", "C'est là que", "Alors", "Du coup", "Mais", "Sauf que", "Sauf qu'en vrai", "Trois mois plus tard", "Au début", "Maintenant", "Résultat", "Ce qu'on n'a pas vu venir", "Ce que personne ne dit".
+  (b) une reprise lexicale d'un mot/groupe-clé de la slide précédente (le même mot, ou un synonyme évident qui boucle la référence).
+
+Test interne : si on permute deux slides au hasard et que le carrousel "marche encore", c'est raté → recommence. Une slide qui pourrait vivre seule sur Instagram = mauvais signe. On veut une slide qui n'a de sens QUE parce qu'on a lu la précédente.
 
 ═══ CAS PARTICULIERS SELON LE NOMBRE DE PHOTOS ═══
-- 1 photo unique → elle apparaît sur toutes les slides. Tout repose sur les textes qui racontent l'histoire en plusieurs temps (contexte → tension → bascule → résolution → ouverture). Le nombre de slides cible est 4-6, pas 8.
+- 1 photo unique → elle apparaît sur toutes les slides. Tout repose sur les textes qui racontent l'histoire en plusieurs temps (contexte → tension → bascule → résolution → ouverture). Cible 4-6 slides, pas 8.
 - 2 photos (avant/après ou duo) → structure conseillée : 2-3 slides avec la photo "avant" (poser le contexte/problème) → 1 slide pivot (la bascule, le déclic) → 2-3 slides avec la photo "après" (résolution, nouveau regard). INTERDIT : alterner mécaniquement photo 1 / 2 / 1 / 2. Cible 5-7 slides.
 - 3-4 photos → chaque photo peut se répéter si son rôle narratif change. Une image-clé peut revenir en clôture pour boucler.
 - 5+ photos → comportement classique (≈ 1 photo par slide), le chaînage des textes reste obligatoire.
 
 Quand une même photo se répète sur 2-3 slides consécutives, les textes DOIVENT porter une vraie progression (zoom narratif, avancée temporelle, retournement) — JAMAIS trois variantes de la même idée.
+
 
 ═══ RÔLES DES SLIDES ═══
 - "hook_visuel" : la première photo + phrase qui arrête le scroll
@@ -1641,6 +1662,8 @@ RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
     "text_chain_continuity": true,
     "slide_count_matches_photo_richness": true,
     "no_mechanical_photo_alternation": true,
+    "every_overlay_has_verb": true,
+    "no_nominal_fragment_lists": true,
     "score": 85
   }
 }`;
