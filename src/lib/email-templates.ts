@@ -122,7 +122,7 @@ ${greeting(prenom)}
 ${p(`Tes 60 crédits gratuits sont épuisés — et franchement, bravo. Ça veut dire que tu as testé, exploré, et commencé à poser les bases de ta com'. C'est déjà beaucoup. 💪`)}
 ${p(`Si tu veux continuer à utiliser l'IA pour tes audits, tes contenus et ta stratégie, tu peux passer au plan <strong>Assistant Com'</strong> :`)}
 <ul style="margin:0 0 16px;padding-left:20px;font-size:15px;color:#1A1A1A;line-height:1.8;">
-<li>📊 <strong>Crédits IA illimités</strong> — audits, génération, coaching</li>
+<li>📊 <strong>300 crédits IA/mois</strong> — audits, génération, coaching</li>
 <li>📅 <strong>Calendrier éditorial</strong> avec génération de contenu</li>
 <li>🎯 <strong>CRM de prospection</strong> pour transformer tes abonné·es en client·es</li>
 </ul>
@@ -165,7 +165,7 @@ ${p(`Ça fait 2 semaines que tu utilises L'Assistant Com'. Tu as posé les bases
 ${p(`Mais imagine si tu pouvais aller plus loin, <strong>sans y passer plus de temps</strong> :`)}
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px;">
 <tr><td style="padding:12px 16px;border-bottom:1px solid #f5e8ee;">
-<span style="font-size:15px;color:#1A1A1A;">📊 <strong>Crédits IA illimités</strong></span>
+<span style="font-size:15px;color:#1A1A1A;">📊 <strong>300 crédits IA/mois</strong></span>
 <span style="font-size:13px;color:#999;display:block;margin-top:2px;">Audits, contenus, coaching — sans compter</span>
 </td></tr>
 <tr><td style="padding:12px 16px;border-bottom:1px solid #f5e8ee;">

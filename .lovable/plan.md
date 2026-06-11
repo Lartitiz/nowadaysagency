@@ -1,72 +1,81 @@
-# Plan — Brancher QuotaWallModal sur le module LinkedIn
+# Harmonisation textes crédits IA — fin de l'"illimité" Premium
 
-## (a) Demande utilisateur — périmètre exact
+Aucune logique modifiée. Uniquement des chaînes affichées. `plan-limiter.ts` non touché.
 
-Brancher `handleQuotaError` (depuis `@/lib/quota-error-handler`) sur tous les call sites `invokeWithTimeout` vers `linkedin-ai` / `linkedin-coaching` du module LinkedIn, pour que les erreurs quota déclenchent QuotaWallModal au lieu d'un toast "Erreur" destructif.
+## (a) Modifications demandées
 
-### Pattern unique appliqué partout
+### 1. `src/pages/AbonnementPage.tsx`
+- L.320 : `credits="25 crédits IA/mois"` → `credits="60 crédits IA/mois"` (carte Gratuit)
+- Reste inchangé (300 déjà OK partout ailleurs).
 
-Aujourd'hui chaque page fait :
+### 2. `src/pages/PricingPage.tsx`
+Tableau comparatif :
+- L.35 : ligne "Contenus IA par mois" → `outil: "300/mois", studio: "300/mois"`
+- L.47 : ligne "Audits IA par mois" → `outil: "300/mois", studio: "300/mois"`
 
-```ts
-const res = await invokeWithTimeout("linkedin-ai", { body: {...} }, 60000);
-if (res.error) throw new Error(res.error.message);
-const content = res.data?.content || "";
-```
+Bloc descriptif Premium :
+- L.241 : "Contenus IA illimités, audits illimités, communauté active." → "300 crédits IA/mois (générations + audits), communauté active."
+- L.247 : "Contenus IA illimités (posts, reels, stories, newsletters…)" → "300 crédits IA/mois (posts, reels, stories, newsletters, audits…)"
+- L.248 : supprimer la ligne "Audits IA illimités" (fusionnée dans la précédente) — **à confirmer**, alternative : la remplacer par "Audits IA inclus dans les 300 crédits". Voir question ci-dessous.
 
-Après modification :
+### 3. `src/lib/stripe-config.ts` (features plan outil, L.22-23)
+- Remplacer les 2 lignes `"Générations IA illimitées"` + `"Audits illimités"` par 1 seule : `"300 crédits IA / mois (générations + audits)"`
+- priceId, prix, mode, CREDIT_PACKS, STRIPE_PRODUCTS, ligne free L.10 → inchangés
 
-```ts
-const res = await invokeWithTimeout("linkedin-ai", { body: {...} }, 60000);
-if (res.error?.isRateLimit || res.data?.error === "limit_reached") {
-  if (handleQuotaError({ message: res.error?.message || res.data?.message, data: res.data })) {
-    return;
-  }
-}
-if (res.error) throw new Error(res.error.message);
-const content = res.data?.content || "";
-```
+### 4. `src/components/UpgradeGate.tsx`
+- L.15 : "…passer au Premium pour des crédits illimités." → "…passer au Premium pour 300 crédits IA/mois."
+- L.16 : "…passer au Premium pour des audits illimités." → "…passer au Premium pour 300 crédits IA/mois."
+- L.48 (fallback) : "…Passe au Premium pour des crédits illimités." → "…Passe au Premium pour 300 crédits IA/mois."
 
-Le `return` à l'intérieur du `try` saute proprement au `finally` qui reset le `setLoading(false)`. Le `catch` n'est pas traversé donc aucun toast "Erreur" parasite. Les erreurs non-quota tombent dans `throw` → `catch` existant inchangé.
+### 5. `src/components/QuotaWallModal.tsx`
+- L.129 : "Passer à L'Assistant Com' — crédits illimités" → "Passer à L'Assistant Com' — 300 crédits IA/mois"
 
-### Fichiers et points d'insertion
+### 6. `src/components/AiCreditsCounter.tsx`
+- L.127 : "Passer à L'Assistant Com' — crédits illimités" → "Passer à L'Assistant Com' — 300 crédits IA/mois"
 
-1. **src/pages/LinkedInPostGenerator.tsx** — 1 call site (ligne ~56). Ajouter import `handleQuotaError`.
-2. **src/pages/LinkedInProfil.tsx** — 1 call site (ligne ~99). Ajouter import.
-3. **src/pages/LinkedInResume.tsx** — 2 call sites (lignes ~146 et ~181). Ajouter import.
-4. **src/pages/LinkedInParcours.tsx** — 2 call sites (lignes ~82 et ~119). Ajouter import.
-5. **src/pages/LinkedInRecommandations.tsx** — 2 call sites (lignes ~113 et ~129). Ajouter import.
-6. **src/pages/LinkedInCrosspost.tsx** — 1 call site (ligne ~102). Ajouter import. (NB : ce fichier semble être un ancien doublon de `CrosspostFlow.tsx` qui, lui, gère déjà le quota. Je l'aligne quand même car il est listé dans le périmètre.)
-7. **src/components/linkedin/LinkedInCoaching.tsx** — 2 call sites (lignes ~93 et ~123). Pattern adapté : la destructuration utilise déjà `{ data, error }`, et le test actuel est `if (data?.error) throw new Error(data.error)`. Je remplace par le pattern unifié ci-dessus en utilisant `data` / `error` au lieu de `res.data` / `res.error`. Ajouter import.
-8. **src/components/CrosspostFlow.tsx** — déjà branché (lignes 125-129). **Amélioration mineure** : aligner sur le pattern unifié (cf. section (b)) ou laisser tel quel. Voir (b).
+### 7. `src/lib/email-templates.ts`
+- L.125 : "Crédits IA illimités" → "300 crédits IA/mois"
+- L.168 : "Crédits IA illimités" → "300 crédits IA/mois"
+- L.86, 120, 195 (60 crédits gratuit) inchangés
 
-### Critères de validation
+### 8. `src/pages/BinomeSalesPage.tsx`
+- L.43 : "Valeur 39€/mois : crédits IA illimités, audits illimités, tout débloqué" → "Valeur 39€/mois : 300 crédits IA/mois, tout débloqué"
 
-- `npx tsc --noEmit --skipLibCheck` passe sans erreur.
-- Les imports sont ajoutés une seule fois par fichier, regroupés avec les autres imports `@/lib/...`.
-- Aucune modification dans : `LinkedInAudit.tsx`, `quota-error-handler.ts`, `invoke-with-timeout.ts`, edge functions, payloads, parsing, setState métier, messages des toasts non-quota.
+### 9. `src/pages/AccompagnementPage.tsx`
+- L.245 : "Crédits IA illimités" → "300 crédits IA/mois"
+- L.281 : "Crédits IA illimités" → "300 crédits IA/mois"
 
----
+### 10. `src/pages/CguCgvPage.tsx`
+- L.99 : "25 crédits IA par mois" → "60 crédits IA par mois"
+- L.100 : remplacer par le paragraphe complet :
+  > Plan L'Assistant Com' Premium : 39€ TTC par mois, sans engagement. Inclut 300 crédits IA par mois (toutes actions IA confondues : génération de contenus, audits, suggestions, adaptations), tous les modules débloqués. Certaines actions spécifiques disposent de limites mensuelles propres, détaillées sur la page Tarifs : coaching IA (120), recherches approfondies (15), imports de statistiques (10), retouches photo (50). Les crédits non utilisés ne sont pas reportés. Des packs de crédits complémentaires sont disponibles à l'achat.
+- Section "13. Modification des CGU/CGV" : compléter avec le délai 30 jours et la phrase d'acceptation tacite (texte fourni dans la demande).
 
-## (b) Propositions d'amélioration (à valider/refuser séparément)
+## (b) Propositions hors liste explicite (à valider)
 
-### B1. Aligner `CrosspostFlow.tsx` sur le pattern unifié
+Le grep a trouvé d'autres mentions "illimité" liées aux crédits/IA dans des fichiers **non listés**. Elles contredisent l'harmonisation si on les laisse :
 
-Actuellement la condition `if (cpError?.isRateLimit || cpData?.error === "limit_reached")` est correcte mais elle a un défaut subtil : si `handleQuotaError` retourne `false` (cas improbable mais possible si la détection échoue), on tombe ensuite dans `if (cpError) throw` → toast destructif. C'est cohérent avec le reste, mais on peut le simplifier en supprimant le pré-filtre `isRateLimit/limit_reached` et en appelant directement `handleQuotaError` sur toute erreur. **Risque** : trivial. **Bénéfice** : un seul pattern dans toute la base. ok
+- **`src/pages/LandingPage.tsx`** (4 occurrences) :
+  - L.115 (FAQ) : "Le premium à 39€/mois débloque les contenus illimités, les audits, les stats…" → "Le premium à 39€/mois débloque 300 crédits IA/mois (contenus + audits), les stats…"
+  - L.701 : "Crée sans compter. L'IA en illimité." → "Crée régulièrement. 300 crédits IA/mois."
+  - L.707 : "Contenus IA illimités" → "300 crédits IA/mois (contenus + audits)"
+  - L.708 : "Audits IA illimités" → à supprimer (fusionnée) ou "Audits IA inclus"
 
-### B2. Factoriser le pattern dans un helper
+- **`src/pages/PricingPage.tsx`** L.100 (FAQ) et L.123 (meta description SEO) :
+  - "Le Premium, c'est l'IA en illimité pour créer tes contenus en autonomie." → "Le Premium, c'est 300 crédits IA/mois pour créer en autonomie."
+  - meta description : "…Premium à 39€/mois pour l'IA illimitée…" → "…Premium à 39€/mois avec 300 crédits IA/mois…"
 
-Créer `src/lib/handle-ai-response.ts` exportant par ex. `checkQuotaOrThrow(res): boolean` qui encapsule les 4 lignes répétées 11 fois. **Risque** : élargit le périmètre, touche aux 8 fichiers avec une nouvelle abstraction. **Bénéfice** : DRY, futurs call sites protégés par défaut. À faire dans un plan séparé si validé. non
+- **Non touchés** (légitimes, pas liés aux crédits IA) :
+  - `AbonnementPage.tsx` L.343 "WhatsApp illimité 6 mois" (binôme)
+  - `PromoCodeInput.tsx` L.42 (usages illimités d'un code promo)
 
-### B3. Uniformiser `useToast` vs `sonner` dans le module LinkedIn
+## Question avant exec
 
-`LinkedInPostGenerator/Profil/Resume/Parcours/Recommandations` utilisent `useToast` (shadcn), `LinkedInCrosspost/Coaching/CrosspostFlow` utilisent `sonner`. Hors périmètre quota, mais source de friction visuelle. À traiter dans un plan dédié si pertinent. non
+Pour les listes Premium qui affichaient 2 lignes séparées ("Contenus IA illimités" + "Audits IA illimités"), je propose de **fusionner en une seule ligne** "300 crédits IA/mois (générations + audits)" pour rester cohérent avec stripe-config. Confirme si tu préfères garder 2 lignes distinctes (ex : "300 crédits IA/mois — contenus" + "Audits inclus dans les 300 crédits").
 
----
+## Validation
 
-## Hors scope confirmé
-
-- `LinkedInAudit.tsx` (gestion quota dédiée)
-- Backend / edge functions
-- Refonte `QuotaExhaustedCard`
-- Harmonisation `workspace_id`
+- `npx tsc --noEmit --skipLibCheck` : 0 erreur
+- `grep -rn "illimité" src/` : plus aucune occurrence liée aux crédits/IA
+- `grep -rn "25 crédits" src/` : 0 résultat
+- Visuel : /tarifs, /abonnement, /cgu-cgv affichent 60 (free) et 300 (premium)

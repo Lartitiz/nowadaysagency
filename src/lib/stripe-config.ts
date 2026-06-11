@@ -19,8 +19,7 @@ export const STRIPE_PLANS = {
     productId: "prod_U66mTd9s81uGAY",
     mode: "subscription" as const,
     features: [
-      "Générations IA illimitées",
-      "Audits illimités",
+      "300 crédits IA / mois (générations + audits)",
       "Tous les modules Instagram, LinkedIn, Pinterest",
       "Calendrier éditorial",
       "Atelier de rédaction",
