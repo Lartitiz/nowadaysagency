@@ -113,7 +113,46 @@ interface CharterTypographySectionProps {
   toneKeywords: string[];
 }
 
+const UNIVERSAL_COMBO_NAMES = ["Moderne & Clean", "Chaleureux & Accessible", "Classique Élégant"];
+
+function pickSuggestedCombos(toneKeywords: string[]) {
+  const normalized = toneKeywords.map(k => k.toLowerCase().trim()).filter(Boolean);
+
+  if (normalized.length === 0) {
+    return FONT_COMBOS.filter(c => UNIVERSAL_COMBO_NAMES.includes(c.name)).slice(0, 3);
+  }
+
+  const scored = FONT_COMBOS.map(combo => {
+    const score = combo.tone_match.reduce(
+      (acc, m) => acc + (normalized.some(n => n.includes(m) || m.includes(n)) ? 1 : 0),
+      0,
+    );
+    return { combo, score };
+  });
+
+  const matched = scored.filter(s => s.score > 0).sort((a, b) => b.score - a.score).map(s => s.combo);
+  if (matched.length >= 3) return matched.slice(0, 3);
+
+  // Compléter avec les universels manquants
+  const remaining = FONT_COMBOS.filter(
+    c => UNIVERSAL_COMBO_NAMES.includes(c.name) && !matched.includes(c),
+  );
+  return [...matched, ...remaining].slice(0, 3);
+}
+
 export default function CharterTypographySection({ data, onDataChange, toneKeywords }: CharterTypographySectionProps) {
+  const suggestions = pickSuggestedCombos(toneKeywords || []);
+
+  const applyCombo = (combo: typeof FONT_COMBOS[number]) => {
+    loadGoogleFont(combo.title);
+    loadGoogleFont(combo.body);
+    onDataChange({ font_title: combo.title, font_body: combo.body });
+    toast.success(`Duo "${combo.name}" appliqué`);
+  };
+
+  const isActive = (combo: typeof FONT_COMBOS[number]) =>
+    data.font_title === combo.title && data.font_body === combo.body;
+
   return (
     <section className="rounded-2xl border border-border bg-card p-5">
       <h2 className="font-display text-base font-bold text-foreground mb-4">🔤 Mes typographies</h2>
@@ -137,6 +176,52 @@ export default function CharterTypographySection({ data, onDataChange, toneKeywo
         />
       </div>
 
+      {suggestions.length > 0 && (
+        <div className="mt-6 pt-5 border-t border-border">
+          <p className="text-xs font-medium text-muted-foreground mb-3">
+            💡 {toneKeywords?.length ? "Suggestions adaptées à ton ton" : "Duos qui marchent à tous les coups"}
+          </p>
+          <div className="grid gap-2.5">
+            {suggestions.map((combo) => {
+              const active = isActive(combo);
+              // Load fonts immédiatement pour que le preview s'affiche correctement
+              loadGoogleFont(combo.title);
+              loadGoogleFont(combo.body);
+              return (
+                <button
+                  key={combo.name}
+                  type="button"
+                  onClick={() => applyCombo(combo)}
+                  className={`text-left rounded-xl border p-3 transition-all hover:border-primary/40 hover:bg-muted/30 ${
+                    active ? "border-primary bg-primary/5" : "border-border"
+                  }`}
+                >
+                  <div className="flex items-baseline justify-between gap-3 mb-1">
+                    <span className="text-xs font-medium text-foreground">{combo.name}</span>
+                    {active && <span className="text-[10px] text-primary font-medium">Sélectionné</span>}
+                  </div>
+                  <div className="flex items-baseline gap-3 mb-1.5">
+                    <span
+                      className="text-lg text-foreground truncate"
+                      style={{ fontFamily: `'${combo.title}', serif`, fontWeight: 700 }}
+                    >
+                      {combo.title}
+                    </span>
+                    <span className="text-xs text-muted-foreground">+</span>
+                    <span
+                      className="text-sm text-muted-foreground truncate"
+                      style={{ fontFamily: `'${combo.body}', sans-serif` }}
+                    >
+                      {combo.body}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground/80 leading-snug">{combo.description}</p>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </section>
   );
 }
