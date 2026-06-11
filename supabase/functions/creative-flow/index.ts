@@ -1331,12 +1331,11 @@ Réponds UNIQUEMENT en JSON :
 
       const questionsContent: any[] = [];
       validPhotosQ.forEach((p: any, i: number) => {
-        const b64 = String(p.base64).replace(/^data:image\/[a-z]+;base64,/, "");
-        const mime = p.mimeType || "image/jpeg";
+        const { media_type, data } = extractImagePayload(String(p.base64), p.mimeType);
         if (photoCountQ > 1) {
           questionsContent.push({ type: "text", text: `Photo ${i + 1}/${photoCountQ}${p?.context?.trim() ? ` — contexte : "${p.context.trim()}"` : ""} :` });
         }
-        questionsContent.push({ type: "image", source: { type: "base64", media_type: mime, data: b64 } });
+        questionsContent.push({ type: "image", source: { type: "base64", media_type, data } });
       });
       questionsContent.push({ type: "text", text: visionQuestionsPrompt });
 
