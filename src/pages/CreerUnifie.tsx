@@ -2569,6 +2569,9 @@ export default function CreerUnifie() {
                   : selectedFormat?.startsWith("pinterest") ? "pinterest"
                   : "instagram"
                 }
+                sourceIdea={ideaText}
+                sourceObjective={objective}
+                sourceAngle={editorialAngle}
               />
             )}
 
