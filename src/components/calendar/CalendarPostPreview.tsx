@@ -56,14 +56,14 @@ export function CalendarPostPreview({
     if (!visualHtml || visualHtml.length === 0 || downloadingPng) return;
     setDownloadingPng(true);
     try {
-      await exportCarouselPng(visualHtml, theme || "carrousel");
+      await exportCarouselPng(visualHtml, theme || "carrousel", includeLogo ? logoUrl : null);
     } catch (err) {
       console.error("Download error:", err);
       toast({ title: "Erreur lors du téléchargement", variant: "destructive" });
     } finally {
       setDownloadingPng(false);
     }
-  }, [visualHtml, downloadingPng, theme, toast]);
+  }, [visualHtml, downloadingPng, theme, toast, includeLogo, logoUrl]);
 
   // ── PNG depuis Storage URLs (déjà rendus côté serveur) ──
   const handleDownloadFromUrls = useCallback(async () => {
