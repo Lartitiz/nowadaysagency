@@ -1,70 +1,59 @@
-# Phase 0.6 — Ombres ET bordures natives sur shapes PPTX
+# Audit — Idées sauvegardées qui disparaissent
 
-## Constat exploration
+## Diagnostic
 
-Le terrain confirme le plan :
-- `ShapeBlock` (pptx-font-mapping.ts l.518) a déjà `shadow?` ; il manque `border?`.
-- `parseSimpleBoxShadow` existe déjà (l.547) et fait exactement ce que le plan décrit pour l'ombre. **Aucune modif à apporter à l'ombre côté parsing** — seul l'ajout bordure est nouveau.
-- `extractShapeBlocks` (l.609) skippe déjà les shadows non convertibles. Il faut juste ajouter la détection bordure en miroir.
-- Le CSS de masquage `[data-pptx-shape-hide="true"]` neutralise déjà `border-color: transparent` (export-carousel-hybrid-pptx.ts l.120) — RAS.
-- `addShape` (l.639) pose déjà l'ombre native ; il faut juste injecter `line` quand `sb.border` est défini.
-- Le prompt (carousel-visual l.926-929) interdit toute bordure ; à libéraliser.
+J'ai audité tous les points d'insertion dans `saved_ideas` et la lecture côté `IdeasPage` / hook `useSavedIdeas`. La règle attendue (convention du projet) :
 
-Le plan tient. J'exécute tel quel.
+- À l'insert : `workspace_id: workspaceId !== user.id ? workspaceId : undefined` + `user_id: user.id`.
+- À la lecture : `useWorkspaceFilter()` filtre par `workspace_id = activeWorkspace.id` quand un workspace est actif, sinon par `user_id = user.id`.
 
-## Périmètre — ce qui est demandé (a)
+**Quand un workspace est actif (cas par défaut dès qu'on a un workspace owner), la liste filtre par `workspace_id`. Toute idée insérée avec `workspace_id = NULL` est invisible.**
 
-### 1. `src/lib/pptx-font-mapping.ts`
+### Bugs trouvés
 
-a. Étendre `ShapeBlock` avec :
-```ts
-border?: { widthPt: number; color: string; dashType: "solid" | "dash" | "sysDot" };
+1. **`SaveToIdeasDialog`** (utilisé depuis les pages de contenu, source_module `content-actions`) — l'insert **ne passe pas du tout `workspace_id`** → la ligne est créée avec `workspace_id = NULL` → invisible dans `/idees`. **C'est la cause principale rapportée par ta cliente.**
+
+2. **`ContentCoachingDialog`** — insère `workspace_id: workspaceId` sans le guard `!== user.id`. Fonctionnellement visible (parce que `useWorkspaceFilter` retombe sur `user_id` quand il n'y a pas de workspace), mais pollue les données (workspace_id = user.id, qui n'est pas un workspace réel). À aligner sur la convention.
+
+3. **`AdaptiveHome` (compteur "Idées sauvegardées" sur le home)** — la requête fait `.eq("user_id", user.id).eq("workspace_id", workspaceId ?? user.id)`. Elle exige les **deux** colonnes simultanément, donc :
+   - les lignes `workspace_id = NULL` ne sont jamais comptées,
+   - une idée créée dans un workspace n'est pas comptée dans un autre workspace.
+   À aligner sur `useWorkspaceFilter` (un seul filtre, selon le mode).
+
+4. **`IdeasPage.fetchIdeas`** — le `useEffect` dépend uniquement de `user?.id`, pas de `column`/`value`. Si le workspace actif change (ou se résout après le mount), la liste ne se refetch pas.
+
+### Confirmation côté DB
+
+Sur les 37 lignes existantes : **7 ont `workspace_id = NULL`** — 6 viennent de `source_module = content-actions` (ta cliente + 1 autre user), 1 d'une source legacy. Ce sont exactement les idées « perdues ».
+
+## Plan de correction
+
+### 1. Frontend — sauvegardes manquantes ou incohérentes
+- `src/components/SaveToIdeasDialog.tsx` : récupérer `workspaceId` via `useWorkspaceId()` et ajouter `workspace_id: workspaceId !== user.id ? workspaceId : undefined` à l'insert.
+- `src/components/dashboard/ContentCoachingDialog.tsx` : appliquer le même guard `!== user.id ? : undefined` dans `handleSaveIdea` au lieu de passer `workspaceId` brut.
+
+### 2. Frontend — lecture / comptage
+- `src/pages/AdaptiveHome.tsx` (requête `adaptive-home-ideas-count`) : remplacer le double `.eq("user_id").eq("workspace_id")` par un filtre unique cohérent avec `useWorkspaceFilter` (workspace_id si activeWorkspace, sinon user_id).
+- `src/pages/IdeasPage.tsx` : étendre les deps du `useEffect` à `[user?.id, column, value]` pour refetch quand le workspace résout/change.
+
+### 3. Backfill DB — récupérer les idées perdues de ta cliente
+Migration qui, pour chaque ligne `saved_ideas` avec `workspace_id IS NULL`, met `workspace_id = public.get_user_owner_workspace(user_id)` (uniquement quand un workspace owner existe). Cela rendra immédiatement visibles les 7 lignes orphelines dans `/idees` sans toucher au reste.
+
+```sql
+UPDATE public.saved_ideas si
+SET workspace_id = public.get_user_owner_workspace(si.user_id)
+WHERE si.workspace_id IS NULL
+  AND public.get_user_owner_workspace(si.user_id) IS NOT NULL;
 ```
 
-b. Ajouter `parseUniformBorder(cs)` qui retourne `ShapeBlock["border"] | null` :
-- Convertible si les 4 côtés ont mêmes `borderTop/Right/Bottom/LeftWidth`, `…Style`, `…Color` (computed).
-- Style ∈ {`solid`, `dashed`, `dotted`} → dashType `solid`/`dash`/`sysDot`.
-- Width > 0 sinon `null` (= pas de bordure, pas un skip).
-- Color non extractible ou style autre → `null` distinct → skip défensif.
+## Hors scope
 
-c. Dans `extractShapeBlocks`, après le bloc shadow :
-- Lire les 4 côtés. Si tous width = 0 → pas de bordure (border = undefined, continuer).
-- Sinon appeler `parseUniformBorder`. Si retour `null` → `console.debug("[hybrid] shape skipped (unsupported border)", …)` + `continue`.
-- Sinon `border = parsed`, pousser dans le `blocks.push({…, border})`.
-
-d. **Ne pas toucher** : ombre, skips gradient/transform/transparent/<5px, normalizeHex, autres exports.
-
-### 2. `src/lib/export-carousel-hybrid-pptx.ts`
-
-e. Dans la boucle `usableShapes` (l.620-655), modifier l'appel `addShape("roundRect", …)` :
-- Remplacer `line: { type: "none" }` par `line: sb.border ? { color: sb.border.color, width: sb.border.widthPt, dashType: sb.border.dashType } : { type: "none" }`.
-- Le bloc `shadow` reste inchangé.
-
-f. **Ne pas toucher** : CSS de masquage (déjà OK), z-order, cap, photos, background.
-
-### 3. `supabase/functions/carousel-visual/index.ts`
-
-g. Dans "CONDITIONS D'ANNOTATION" (l.924-929), réécrire les deux puces ombre + bordure pour exprimer ce qui est désormais AUTORISÉ :
-- Ombre : une seule externe simple `Xpx Ypx blur rgba(...)`, sans spread ni inset (inchangé — déjà à jour).
-- Bordure : autorisée si **uniforme sur les 4 côtés**, style `solid` / `dashed` / `dotted`.
-- Toujours interdits : ombres multiples, `inset`, `spread` ≠ 0, bordures partielles (`border-left` seul…), styles `double` / `groove` / `ridge` / `inset` / `outset`.
-
-h. **Ne pas toucher** : templates HTML, autres règles, branding, rythme.
-
-## Propositions hors-périmètre (b) — pour validation
-
-Aucune. Le plan couvre proprement le sujet ; toute extension (compression PNG, fix italique, autres prompts) est listée en hors-scope par toi.
+- Audit des autres tables avec patron similaire (`content_briefs`, etc.) — peut être un sprint séparé si tu veux un balayage global.
+- Refactor pour centraliser un helper `getWorkspaceInsertPayload()` partagé entre tous les call-sites (utile mais plus large).
 
 ## Validation
 
-1. `npx tsc --noEmit --skipLibCheck` → 0 erreur.
-2. Test manuel : un carrousel avec slide "schéma à cartes" (ombre légère) + slide Contexte à bordure pointillée.
-   - Ouvrir dans Canva ET PowerPoint.
-   - Cartes ombrées = shapes éditables, ombre visuellement proche.
-   - Bordure pointillée = shape éditable avec sa bordure.
-   - Aucune double ombre / double bordure.
-3. Non-régression : carrousel photo identique à avant.
-
-## Hors scope (rappel)
-
-- Prompts branding/rythme, fix italique, compression image, exports legacy, carousel-ai.
+- `npx tsc --noEmit` clean.
+- Manuel : depuis une page de contenu, cliquer "Sauvegarder dans mes idées" (flow SaveToIdeasDialog) → ouvrir `/idees` → l'idée apparaît immédiatement.
+- DB : `SELECT count(*) FROM saved_ideas WHERE workspace_id IS NULL` = 0 (ou seulement les users sans workspace owner).
+- Côté ta cliente : ses 6 idées orphelines réapparaissent dans `/idees` après la migration.
