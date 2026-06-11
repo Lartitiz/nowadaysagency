@@ -100,7 +100,7 @@ interface AnglesState {
 
 // Combien d'actus dont on pré-calcule l'angle "primary" en arrière-plan
 // dès que la recherche d'actus aboutit.
-const PRECOMPUTE_COUNT = 4;
+const PRECOMPUTE_COUNT = 2;
 
 const VIBES: { id: string; emoji: string; label: string }[] = [
   { id: "scoop", emoji: "💥", label: "Actu choc à rebondir" },
