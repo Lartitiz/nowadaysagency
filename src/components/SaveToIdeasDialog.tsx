@@ -66,8 +66,17 @@ export function SaveToIdeasDialog({
     if (!user) return;
     setSaving(true);
 
-    const contentEmoji = contentType === "story" ? "📱" : contentType === "reel" ? "🎬" : "📸";
-    const formatLabel = contentType === "story" ? "story_serie" : contentType === "reel" ? "reel" : format || "post";
+    const contentEmoji =
+      contentType === "newsletter" ? "📧" :
+      contentType === "story" ? "📱" :
+      contentType === "reel" ? "🎬" : "📸";
+    const formatLabel =
+      contentType === "newsletter" ? "newsletter" :
+      contentType === "story" ? "story_serie" :
+      contentType === "reel" ? "reel" : (format || "post");
+    const canalValue =
+      contentType === "newsletter" ? "newsletter" :
+      contentType === "post_linkedin" ? "linkedin" : "instagram";
 
     const { error } = await supabase.from("saved_ideas").insert({
       user_id: user.id,
@@ -75,7 +84,7 @@ export function SaveToIdeasDialog({
       titre: `${contentEmoji} ${subject || contentType}`,
       angle: selectedTags.length > 0 ? selectedTags.join(", ") : contentType,
       format: formatLabel,
-      canal: "instagram",
+      canal: canalValue,
       objectif: objectif || null,
       type: "draft",
       status: "to_explore",
