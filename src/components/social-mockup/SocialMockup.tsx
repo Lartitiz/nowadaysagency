@@ -191,7 +191,7 @@ function InstagramMockup({
 // ═══════════════════════════════════════
 
 function LinkedInMockup({
-  displayName, username, avatarUrl, caption,
+  displayName, username, avatarUrl, caption, mediaUrls,
   showComments, comments = [], onAddComment, readonly, compact,
 }: SocialMockupProps) {
   const [expanded, setExpanded] = useState(false);
