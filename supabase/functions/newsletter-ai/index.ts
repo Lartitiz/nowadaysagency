@@ -1,3 +1,9 @@
+// ⚠️ DEPRECATED (juin 2026) — Cette fonction n'est plus appelée par le flow principal.
+// La génération de newsletter passe désormais par creative-flow (contentType
+// "post_newsletter", génération 2-step + correction pass + schéma avec subject/preview_text).
+// Conservée temporairement comme rollback. Ne pas ajouter de nouvelles features ici.
+// Seul appelant résiduel : le case "newsletter" de use-content-generator.ts (fallback mort).
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { ANTI_SLOP, CHAIN_OF_THOUGHT, PREGEN_INJECTION_RULES, EMBEDDED_EDUCATION } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
