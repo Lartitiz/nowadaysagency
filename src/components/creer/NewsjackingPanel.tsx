@@ -346,7 +346,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
           mode: "variants",
           exclude_vehicules: primaryVehicule ? [primaryVehicule] : [],
         },
-      }, 100000);
+      }, 130000);
 
       if (fnError) {
         const { errMsg } = mapFnError(fnError);
