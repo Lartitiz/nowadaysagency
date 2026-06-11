@@ -1,83 +1,78 @@
-# Analyse du dashboard `/dashboard` (AdaptiveHome)
+# Bug "Connexion perdue" sur le carrousel Instagram avec photos
 
-## Le problème
+## Diagnostic
 
-Le hero actuel mélange deux niveaux d'information dans la même hiérarchie visuelle :
+Le message exact "Connexion perdue. Vérifie ta connexion et réessaie." vient de `src/lib/invoke-with-heartbeat.ts:60` — déclenché quand le `fetch` vers l'edge function `carousel-ai` **throw une erreur réseau qui n'est pas un AbortError** (donc pas un timeout client).
 
-```
-✨ TA PROCHAINE ÉTAPE       ← micro-header
-Continue sur ta lancée      ← titre énorme (display 26-30px)
-Tu publies, c'est déjà énorme. Le secret c'est la régularité…
-[ Créer un contenu → ]      ← CTA
-🤔 Je sais pas quoi poster ? · On en discute
-```
-
-Symptômes observés :
-
-1. **Le titre ne dit pas ce qu'on va faire.** "Continue sur ta lancée" est une phrase d'encouragement, pas une action. L'œil cherche "qu'est-ce que je dois faire ?" et ne le trouve qu'en bas, dans le bouton.
-2. **"Sur ta lancée" est une expression floue** et sonne un peu cliché coaching. Le sens ("tu as déjà publié, continue") n'est pas porté par les mots.
-3. **Incohérence entre variantes.** Selon l'état (`use-guide-recommendation.ts`), le titre est parfois une action claire ("Crée ton prochain contenu", P5/P7) et parfois une métaphore floue ("Continue sur ta lancée", P6 / "Pose les bases de ta com'" / "Active ton compte"…). L'utilisatrice ne sait jamais à quoi s'attendre.
-4. **Le CTA secondaire "Je sais pas quoi poster"** vient écraser visuellement le CTA principal — il est placé juste sous, avec un emoji qui attire l'œil.
-
-## Principe directeur
-
-L'appel à l'action principal du produit est **toujours le même : créer un contenu.** Le hero doit donc avoir un titre **stable, actionnable, identique d'une session à l'autre**. La recommandation contextuelle ("tu publies déjà, bravo" / "ton branding prend forme") devient une **sous-ligne motivationnelle**, pas le titre.
-
-## Proposition
-
-### 1. Restructurer la hiérarchie du hero
+### Timeline des logs edge `carousel-ai` (heure de ton clic)
 
 ```
-✨ ON CRÉE QUOI AUJOURD'HUI ?           ← eyebrow, stable
-Ton prochain contenu                     ← titre stable, court, clair
-Tu publies déjà, c'est énorme — on garde le rythme.
-                                         ← sous-ligne = phrase contextuelle
-                                           (ex-titre rétrogradé)
-[ Créer un contenu →  ]   ← CTA primaire, plein, dominant
-↘ 4-5 chips formats : Post · Carousel · Reel · LinkedIn · Article
-                                         ← raccourcis directs (déjà dans
-                                           /dashboard/complet, à reprendre ici)
-
-──────────────────────────────────────
-Pas d'idée ? Discutes-en avec ta coach →  ← lien tertiaire discret
+07:31:51  boot instance A
+07:31:53  appel Anthropic Haiku, system prompt = 41 717 chars  ← photos en base64 (vision)
+07:32:32  shutdown instance A          (≈ 40 s — structure_proposal OK)
+07:32:57  boot instance B
+07:32:58  appel Anthropic Sonnet, system prompt = 13 520 chars
+07:36:17  shutdown instance B          (≈ 3 min 20 s !)
 ```
 
-Concrètement dans `src/pages/AdaptiveHome.tsx` (lignes ~248-310) :
+### Ce qui s'est passé
 
-- Titre du hero : valeur **fixe** (`"Ton prochain contenu"` ou `"On crée ton prochain contenu ?"`), plus `recommendation.title`.
-- La sous-ligne reprend `recommendation.explanation` raccourcie (1 ligne, `line-clamp-1`).
-- Ajouter une rangée de **chips de format** (comme sur `/dashboard/complet` lignes 446-465) qui pré-remplit le format dans `/creer`. Ça donne immédiatement quoi cliquer.
-- Déplacer "Je sais pas quoi poster" **sous la séparation**, en lien plus discret (taille réduite, sans emoji proéminent), pour ne plus concurrencer le CTA.
+1. Tu cliques "carrousel" avec tes photos → 1ᵉʳ appel `carousel-ai type=structure_proposal` → Haiku analyse les photos (vision) en ~40 s. OK, tu vois la structure.
+2. Tu valides la structure → 2ᵉ appel `carousel-ai type=express_full` qui **renvoie encore les photos en base64** + tout le branding + structure confirmée → Sonnet tourne plus de **3 minutes**.
+3. L'infra Edge Functions coupe la connexion avant la fin (limite ≈ 150 s) → le `fetch` côté navigateur lève un `TypeError` → catch `invoke-with-heartbeat.ts` → "Connexion perdue".
 
-### 2. Nettoyer la copy des recommandations
+Ce **n'est pas** un problème de connexion internet, ni un timeout client (qui dirait "La génération prend plus de temps que prévu"). C'est l'infra qui coupe parce que le call serveur dépasse sa limite, principalement à cause des **photos repassées une 2ᵉ fois en vision** alors que l'analyse a déjà été faite.
 
-Dans `src/hooks/use-guide-recommendation.ts`, comme le titre n'est plus affiché en grand, on transforme l'objet pour qu'il porte uniquement la **phrase motivationnelle d'une ligne** (le `explanation` actuel, raccourci) et le **ctaLabel** stable. Suppression des titres flous type "Continue sur ta lancée", "Pose les bases", etc. — ils étaient le bug racine.
+## Correctif
 
-Nouvelle structure proposée :
+### 1. Ne pas re-envoyer les photos quand la structure est confirmée
+
+Fichier : `src/hooks/use-content-generator.ts`, `case "carousel"` (lignes 226-256).
+
+Quand `params.confirmedStructure` existe, **arrêter d'envoyer `photos: [...base64]` à l'edge function**. La structure confirmée contient déjà `photo_index` + `slide_type` pour chaque slide ; le rendu visuel se fait ailleurs (`carousel-visual`). Sonnet n'a plus besoin de "voir" les images pour rédiger les textes — il a la structure + `photo_description` + le contexte (`recap`) des photos.
+
+Pseudo-diff :
 
 ```ts
-{
-  motivation: "Tu publies déjà, c'est énorme — on garde le rythme.",
-  ctaLabel: "Créer un contenu",
-  ctaRoute: "/creer",
-  alternatives: [...]   // inchangé, sert aux mini-cards
-}
+photos: (!params.confirmedStructure &&
+         (params.carouselType === "photo" || params.carouselType === "mix"))
+        ? params.photos : undefined,
 ```
 
-Les 7 variantes de phase (P1-P7) gardent chacune leur `motivation` adaptée, mais plus de titre concurrent.
+Effet : payload réduit de plusieurs MB → 0 ; durée Sonnet : ~3 min → ~30-40 s.
 
-### 3. Cohérence avec `/dashboard/complet`
+### 2. Côté serveur, prendre le chemin texte quand `confirmed_structure` est présent
 
-Le dashboard complet (`Dashboard.tsx`) a déjà la bonne hiérarchie : titre fixe "Créer un contenu" + chips formats. On aligne `/dashboard` (AdaptiveHome) sur le même pattern, pour que l'expérience soit la même entre les deux vues.
+Fichier : `supabase/functions/carousel-ai/index.ts`, branche `type === "express_full"` (lignes 186-220 pour le mode mix, 249-285 pour le mode photo).
+
+Adapter la condition `if (body.photos && body.photos.length > 0)` pour qu'elle bascule sur le **mode texte** (sans vision) dès que `body.confirmed_structure` est fourni — Sonnet écrit alors les textes à partir de la structure + recap textuel des photos, sans rerunner d'analyse vision.
+
+### 3. Message d'erreur plus juste
+
+Fichier : `src/lib/invoke-with-heartbeat.ts:60`.
+
+Quand `navigator.onLine === true` et que le fetch throw, on n'est probablement pas en "connexion perdue" mais en "serveur a coupé après long traitement". Remplacer par :
+
+```
+"Le serveur a mis trop de temps à répondre. Réessaie avec moins de photos
+ou un sujet plus court."
+```
+
+Garder le message actuel uniquement si `navigator.onLine === false`.
+
+## Vérification après fix
+
+- Rejouer le scénario : photos → carrousel Instagram → structure → confirmer.
+- Attendu : la 2ᵉ génération doit finir en 30-60 s (au lieu de timeout).
+- Vérifier dans les logs edge : durée instance B < 90 s, pas de "shutdown" prématuré.
 
 ## Hors-scope
 
-- Pas de changement sur les mini-cards (C), Coach Card (E), missions (D).
-- Pas de refonte de couleurs / tokens — uniquement structure + copy du hero.
-- La logique de recommandation (quelle phase, quels alternatives) reste intacte ; seul le rendu change.
+- Ne pas toucher à la 1ᵉʳ étape (`structure_proposal`) — elle marche, ~40 s c'est acceptable. Si on veut l'accélérer plus tard : passer en mode SSE avec streaming partiel des slides.
+- Ne pas changer les modèles ni la qualité du contenu.
 
 ## Fichiers touchés
 
-- `src/pages/AdaptiveHome.tsx` — refonte du bloc hero (lignes ~248-310).
-- `src/hooks/use-guide-recommendation.ts` — simplification des objets retournés (titre → motivation 1 ligne).
-- Éventuellement `src/pages/ChatGuidePage.tsx` si une variante de titre y est réutilisée (à vérifier au moment de l'implémentation).
+- `src/hooks/use-content-generator.ts` (case carousel express_full)
+- `supabase/functions/carousel-ai/index.ts` (branche express_full avec confirmed_structure)
+- `src/lib/invoke-with-heartbeat.ts` (message d'erreur réseau)
