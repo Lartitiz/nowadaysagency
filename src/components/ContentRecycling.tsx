@@ -146,6 +146,11 @@ export default function ContentRecycling() {
       }
 
       const { data, error } = await invokeWithTimeout("creative-flow", { body }, 120000);
+      if (error?.isRateLimit || data?.error === "limit_reached") {
+        if (handleQuotaError({ message: error?.message || data?.message, data })) {
+          return;
+        }
+      }
       if (error) throw new Error(error.message);
       const r = data?.results || {};
       if (Object.keys(r).length === 0) {
