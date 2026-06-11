@@ -1,73 +1,83 @@
-## Objectif
-Réduire l'attente perçue sur "Voir les angles" du newsjacking **sans toucher au modèle** (on reste sur Claude Sonnet 4.5 partout pour préserver la qualité). On joue uniquement sur 3 leviers : pré-calcul en arrière-plan, prompt plus court sur la 1ʳᵉ passe, et UI à 2 étapes (1 angle instantané + bouton pour les 2 variantes).
+# Analyse du dashboard `/dashboard` (AdaptiveHome)
 
-## Principe — Flux cible
+## Le problème
 
-```text
-                ┌─ Perplexity (actus) ──┐
-Recherche ─────►│                       ├─► UI affiche actus
-                └─ Sonnet (1 angle ×N) ─┘     (pré-calcul en parallèle, non-bloquant)
+Le hero actuel mélange deux niveaux d'information dans la même hiérarchie visuelle :
 
-Click "Voir les angles" ────► angle déjà prêt = affichage instantané (0s)
-                              + bouton "Voir 2 autres angles"
-
-Click "Voir 2 autres angles" ► Sonnet (2 angles variantes) = 8-15s
+```
+✨ TA PROCHAINE ÉTAPE       ← micro-header
+Continue sur ta lancée      ← titre énorme (display 26-30px)
+Tu publies, c'est déjà énorme. Le secret c'est la régularité…
+[ Créer un contenu → ]      ← CTA
+🤔 Je sais pas quoi poster ? · On en discute
 ```
 
-## Détail technique
+Symptômes observés :
 
-### 1. Nouvelle edge function (ou paramètre `mode` sur l'existante)
-`supabase/functions/newsjacking-angles/index.ts` accepte un paramètre `mode`:
-- `mode: "primary"` → renvoie **1 seul angle** (best guess), prompt court (~2500 tokens system), `max_tokens: 600`. ~3-6s avec Sonnet.
-- `mode: "variants"` → renvoie **2 angles complémentaires** avec véhicules différents du primary (passé en input), prompt complet actuel, `max_tokens: 1100`. ~8-15s.
-- Pas de `mode` (rétro-compat) → comportement actuel (3 angles d'un coup).
+1. **Le titre ne dit pas ce qu'on va faire.** "Continue sur ta lancée" est une phrase d'encouragement, pas une action. L'œil cherche "qu'est-ce que je dois faire ?" et ne le trouve qu'en bas, dans le bouton.
+2. **"Sur ta lancée" est une expression floue** et sonne un peu cliché coaching. Le sens ("tu as déjà publié, continue") n'est pas porté par les mots.
+3. **Incohérence entre variantes.** Selon l'état (`use-guide-recommendation.ts`), le titre est parfois une action claire ("Crée ton prochain contenu", P5/P7) et parfois une métaphore floue ("Continue sur ta lancée", P6 / "Pose les bases de ta com'" / "Active ton compte"…). L'utilisatrice ne sait jamais à quoi s'attendre.
+4. **Le CTA secondaire "Je sais pas quoi poster"** vient écraser visuellement le CTA principal — il est placé juste sous, avec un emoji qui attire l'œil.
 
-### 2. Pré-calcul pendant la recherche initiale
-Dans `supabase/functions/newsjacking-ai/index.ts` (ou côté client juste après réception des actus) :
-- Après que Perplexity a renvoyé les actus, déclencher en parallèle `mode: "primary"` pour les **4 premières actus visibles** (par défaut filtre "Tout").
-- Lancement non-bloquant (l'utilisatrice voit déjà les actus pendant que les angles cuisent en fond).
-- Limite : 4 actus pour cadrer le coût (~4 × 600 tokens out vs 1 × 1500 aujourd'hui = légèrement + cher mais raisonnable).
-- Côté client : `Promise.all` qui hydrate `anglesByIdx[idx] = { data: [primaryAngle] }` au fur et à mesure.
+## Principe directeur
 
-**Choix d'implémentation à confirmer** : pré-calcul côté **client** (4 appels parallèles depuis le navigateur, plus simple, pas de changement serveur) ou **serveur** (1 seul appel serveur qui fan-out, mais alourdit la fonction de recherche). Je recommande **côté client** pour ne pas allonger l'attente initiale.
+L'appel à l'action principal du produit est **toujours le même : créer un contenu.** Le hero doit donc avoir un titre **stable, actionnable, identique d'une session à l'autre**. La recommandation contextuelle ("tu publies déjà, bravo" / "ton branding prend forme") devient une **sous-ligne motivationnelle**, pas le titre.
 
-### 3. Prompt allégé pour `mode: "primary"`
-Nouveau preset `CONTEXT_PRESETS.newsjacking` dans `supabase/functions/_shared/user-context.ts` :
-- ✅ Garde : `prenom`, `activite`, `cible`, `combat_cause`, `combat_fights`, top 3 `piliers`, `tons` (3 axes), `mission` courte.
-- ❌ Retire : `voice_description` détaillée, `key_expressions`, `persona.step_1_frustrations` longue, valeurs détaillées, `tone_style`/`tone_level` (gardés seulement comme labels courts).
-- Estimation : 7500 → 2500 tokens.
+## Proposition
 
-Le `mode: "variants"` garde le preset `content` actuel (qualité max sur les variantes que l'utilisatrice consulte vraiment quand elle veut creuser).
+### 1. Restructurer la hiérarchie du hero
 
-### 4. UI côté `NewsjackingPanel.tsx`
-- État `anglesByIdx[idx]` enrichi : `{ primary: Angle | null, variants: Angle[] | null, loadingPrimary, loadingVariants, ... }`.
-- À l'expand de l'actu :
-  - Si `primary` est déjà là (pré-calculé) → affichage immédiat + bouton **"Voir 2 autres angles"** (compact, sous l'angle primary).
-  - Si `primary` est en cours de pré-calcul → spinner discret "1ʳᵉ idée en route…" (généralement < 1s d'attente vu qu'on a déjà commencé pendant la recherche).
-  - Si `primary` n'a pas été pré-calculé (5ᵉ actu ou plus, ou hidden levée) → lancer `mode: "primary"` au clic.
-- Click sur **"Voir 2 autres angles"** → appel `mode: "variants"` en passant le `vehicule` du primary pour éviter les doublons + spinner ciblé. Streaming optionnel ici (V2, pas bloquant).
-- Click **"Choisir cet angle"** → comportement inchangé.
+```
+✨ ON CRÉE QUOI AUJOURD'HUI ?           ← eyebrow, stable
+Ton prochain contenu                     ← titre stable, court, clair
+Tu publies déjà, c'est énorme — on garde le rythme.
+                                         ← sous-ligne = phrase contextuelle
+                                           (ex-titre rétrogradé)
+[ Créer un contenu →  ]   ← CTA primaire, plein, dominant
+↘ 4-5 chips formats : Post · Carousel · Reel · LinkedIn · Article
+                                         ← raccourcis directs (déjà dans
+                                           /dashboard/complet, à reprendre ici)
 
-### 5. Garde-fous
-- Pré-calcul **désactivé** si l'utilisatrice arrive avec un cache d'actus déjà chargé (évite double facturation au refresh).
-- Quota `content` consommé **uniquement quand un angle est effectivement affiché** (les variantes au clic). Le primary pré-calculé compte aussi (sinon abus possible) mais on s'autorise un cap léger côté serveur.
-- Si pré-calcul échoue silencieusement → fallback au comportement actuel (1 seul appel 3-angles au clic). Aucune régression possible.
+──────────────────────────────────────
+Pas d'idée ? Discutes-en avec ta coach →  ← lien tertiaire discret
+```
 
-## Ce qu'on ne change PAS
-- Modèle : reste **Claude Sonnet 4.5** sur les 2 modes. Aucun risque qualité.
-- Recherche d'actus Perplexity + brand universe Opus : intactes.
-- Structure des angles, véhicules, anti-fabrication, format de réponse : intacts.
+Concrètement dans `src/pages/AdaptiveHome.tsx` (lignes ~248-310) :
 
-## Estimations
-| Étape | Avant | Après |
-|---|---|---|
-| Voir les angles (actu 1-4) | 15-45s | **0-2s** (pré-calculé) puis 8-15s si l'utilisatrice veut + |
-| Voir les angles (actu 5+) | 15-45s | 5-10s (mode primary, prompt court) puis 8-15s si + |
-| Coût tokens / recherche | 1 actu explorée = 1 appel Sonnet | 4 actus pré-cal + variantes à la demande ≈ 2-3× coût si l'utilisatrice explore plusieurs actus, ~4× si elle en ouvre qu'une (acceptable vu le gain UX) |
+- Titre du hero : valeur **fixe** (`"Ton prochain contenu"` ou `"On crée ton prochain contenu ?"`), plus `recommendation.title`.
+- La sous-ligne reprend `recommendation.explanation` raccourcie (1 ligne, `line-clamp-1`).
+- Ajouter une rangée de **chips de format** (comme sur `/dashboard/complet` lignes 446-465) qui pré-remplit le format dans `/creer`. Ça donne immédiatement quoi cliquer.
+- Déplacer "Je sais pas quoi poster" **sous la séparation**, en lien plus discret (taille réduite, sans emoji proéminent), pour ne plus concurrencer le CTA.
 
-## Plan de validation
-1. Vérifier qu'à la fin de la recherche, les 4 premières actus ont un angle primary sous 8-12s en arrière-plan (logs console).
-2. Vérifier qu'au clic sur actu 1 immédiatement après la recherche, l'angle s'affiche instantanément.
-3. Vérifier que "Voir 2 autres angles" ne re-génère pas le primary et donne 2 véhicules différents.
-4. Vérifier qu'une 5ᵉ actu ouverte tombe bien sur le fallback `mode: "primary"` (pas un timeout 3-angles).
-5. Vérifier qu'aucun crédit n'est consommé en double sur un re-expand.
+### 2. Nettoyer la copy des recommandations
+
+Dans `src/hooks/use-guide-recommendation.ts`, comme le titre n'est plus affiché en grand, on transforme l'objet pour qu'il porte uniquement la **phrase motivationnelle d'une ligne** (le `explanation` actuel, raccourci) et le **ctaLabel** stable. Suppression des titres flous type "Continue sur ta lancée", "Pose les bases", etc. — ils étaient le bug racine.
+
+Nouvelle structure proposée :
+
+```ts
+{
+  motivation: "Tu publies déjà, c'est énorme — on garde le rythme.",
+  ctaLabel: "Créer un contenu",
+  ctaRoute: "/creer",
+  alternatives: [...]   // inchangé, sert aux mini-cards
+}
+```
+
+Les 7 variantes de phase (P1-P7) gardent chacune leur `motivation` adaptée, mais plus de titre concurrent.
+
+### 3. Cohérence avec `/dashboard/complet`
+
+Le dashboard complet (`Dashboard.tsx`) a déjà la bonne hiérarchie : titre fixe "Créer un contenu" + chips formats. On aligne `/dashboard` (AdaptiveHome) sur le même pattern, pour que l'expérience soit la même entre les deux vues.
+
+## Hors-scope
+
+- Pas de changement sur les mini-cards (C), Coach Card (E), missions (D).
+- Pas de refonte de couleurs / tokens — uniquement structure + copy du hero.
+- La logique de recommandation (quelle phase, quels alternatives) reste intacte ; seul le rendu change.
+
+## Fichiers touchés
+
+- `src/pages/AdaptiveHome.tsx` — refonte du bloc hero (lignes ~248-310).
+- `src/hooks/use-guide-recommendation.ts` — simplification des objets retournés (titre → motivation 1 ligne).
+- Éventuellement `src/pages/ChatGuidePage.tsx` si une variante de titre y est réutilisée (à vérifier au moment de l'implémentation).
