@@ -50,6 +50,8 @@ export default function ContentRecycling() {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<Record<string, string>>({});
   const [activeTab, setActiveTab] = useState<string>("");
+  const [showCalendarDialog, setShowCalendarDialog] = useState(false);
+  const [showIdeasDialog, setShowIdeasDialog] = useState(false);
 
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
