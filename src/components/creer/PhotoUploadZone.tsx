@@ -37,6 +37,8 @@ export interface PhotoItem {
   originalMimeType?: string;
   /** True when the current base64 has been retouched via PhotoRoom. */
   edited?: boolean;
+  /** Identifiant stable généré à l'upload, utilisé comme clé React. */
+  id?: string;
 }
 
 function mimeFromBase64(input: string, fallback = "image/jpeg"): string {
