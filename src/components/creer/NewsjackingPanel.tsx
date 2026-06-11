@@ -568,7 +568,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
             <div className="space-y-1">
               <h3 className="text-sm font-semibold text-foreground">Trouver des actus à surfer pour ta marque</h3>
               <p className="text-xs text-muted-foreground max-w-md mx-auto">
-                L'IA explore l'actu fraîche et croise avec l'univers de ta marque. La recherche prend 30 à 60 secondes et consomme 1 crédit.
+                L'IA explore l'actu fraîche et croise avec l'univers de ta marque. La recherche prend 30 à 60 secondes et consomme 1 crédit, + 1 crédit par actu dont les angles sont générés (les 2 premières sont préparées automatiquement).
               </p>
             </div>
           </div>
@@ -717,7 +717,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
       )}
 
       {/* Filter tabs */}
-      {actus && actus.length > 0 && !loading && (
+      {started && actus && actus.length > 0 && !loading && (
         <div className="flex gap-2">
           {([
             { id: "all", label: "Tout", emoji: "✨" },
@@ -764,11 +764,11 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
       )}
 
       {/* Error */}
-      {!loading && error && (
+      {started && !loading && error && (
         <div className="text-center py-12 space-y-4">
           <p className="text-sm text-muted-foreground">{error}</p>
           {isQuotaError ? (
-            <Button variant="default" size="sm" onClick={() => window.location.href = "/pricing"}>
+            <Button variant="default" size="sm" onClick={() => navigate("/pricing")}>
               Voir les plans
             </Button>
           ) : (
@@ -780,7 +780,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
       )}
 
       {/* Results */}
-      {!loading && actus && actus.length > 0 && (
+      {started && !loading && actus && actus.length > 0 && (
         <>
           {visibleActus.length === 0 ? (
             <div className="text-center py-8 space-y-2">
