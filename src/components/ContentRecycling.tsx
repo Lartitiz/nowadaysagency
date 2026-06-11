@@ -12,8 +12,10 @@ import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import BaseReminder from "@/components/BaseReminder";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import AiLoadingIndicator from "@/components/AiLoadingIndicator";
-import { Mic, MicOff, Sparkles, Loader2, Copy, RefreshCw, Upload, X, Plus } from "lucide-react";
+import { Mic, MicOff, Sparkles, Loader2, Copy, RefreshCw, Upload, X, Plus, CalendarDays, Lightbulb } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { AddToCalendarDialog } from "@/components/calendar/AddToCalendarDialog";
+import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 
 const FORMATS = [
   { id: "carrousel", label: "📑 Carrousel Instagram (8 slides)", checked: true },
@@ -48,6 +50,8 @@ export default function ContentRecycling() {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<Record<string, string>>({});
   const [activeTab, setActiveTab] = useState<string>("");
+  const [showCalendarDialog, setShowCalendarDialog] = useState(false);
+  const [showIdeasDialog, setShowIdeasDialog] = useState(false);
 
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -188,6 +192,64 @@ export default function ContentRecycling() {
   };
 
   const formatLabel = (id: string) => FORMATS.find(f => f.id === id)?.label || id;
+
+  const getFormatShortLabel = (id: string) => {
+    switch (id) {
+      case "carrousel": return "Carrousel";
+      case "reel": return "Reel";
+      case "stories": return "Stories";
+      case "linkedin": return "Post LinkedIn";
+      case "newsletter": return "Newsletter";
+      default: return id;
+    }
+  };
+  const getCanal = (id: string) =>
+    id === "linkedin" ? "linkedin" : id === "newsletter" ? "newsletter" : "instagram";
+  const getCalendarFormat = (id: string) => {
+    switch (id) {
+      case "carrousel": return "carousel";
+      case "reel": return "reel";
+      case "stories": return "story_serie";
+      case "linkedin": return "post";
+      case "newsletter": return "newsletter";
+      default: return "post";
+    }
+  };
+  const getContentType = (id: string): "story" | "reel" | "post_instagram" | "post_linkedin" | "newsletter" => {
+    switch (id) {
+      case "reel": return "reel";
+      case "stories": return "story";
+      case "linkedin": return "post_linkedin";
+      case "newsletter": return "newsletter";
+      default: return "post_instagram";
+    }
+  };
+
+  const activeText = activeTab ? (results[activeTab] || "") : "";
+  const canExport = activeText.trim().length > 0;
+
+  const handleAddToCalendar = async (dateStr: string) => {
+    if (!user || !activeTab) return;
+    const text = results[activeTab] || "";
+    const insertData: any = {
+      user_id: user.id,
+      date: dateStr,
+      theme: `Recyclage ${getFormatShortLabel(activeTab)}`,
+      canal: getCanal(activeTab),
+      format: getCalendarFormat(activeTab),
+      content_draft: text,
+      accroche: text.split("\n")[0]?.slice(0, 200) || "",
+      status: "ready",
+    };
+    if (workspaceId && workspaceId !== user.id) insertData.workspace_id = workspaceId;
+    const { error } = await supabase.from("calendar_posts").insert(insertData);
+    setShowCalendarDialog(false);
+    if (error) {
+      toast({ title: "Erreur lors de la planification", variant: "destructive" });
+    } else {
+      toast({ title: "📅 Planifié dans ton calendrier !" });
+    }
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -348,12 +410,35 @@ export default function ContentRecycling() {
                 <Button variant="outline" size="sm" onClick={() => copyContent(results[activeTab])} className="rounded-pill gap-1.5">
                   <Copy className="h-3.5 w-3.5" /> Copier
                 </Button>
+                <Button variant="outline" size="sm" disabled={!canExport} onClick={() => setShowCalendarDialog(true)} className="rounded-pill gap-1.5">
+                  <CalendarDays className="h-3.5 w-3.5" /> Planifier
+                </Button>
+                <Button variant="outline" size="sm" disabled={!canExport} onClick={() => setShowIdeasDialog(true)} className="rounded-pill gap-1.5">
+                  <Lightbulb className="h-3.5 w-3.5" /> Sauvegarder en idée
+                </Button>
                 <Button variant="ghost" size="sm" onClick={() => { setResults({}); setActiveTab(""); setFiles([]); }} className="rounded-pill gap-1.5">
                   <RefreshCw className="h-3.5 w-3.5" /> Nouveau recyclage
                 </Button>
               </div>
 
               <BaseReminder variant="atelier" />
+
+              <AddToCalendarDialog
+                open={showCalendarDialog}
+                onOpenChange={setShowCalendarDialog}
+                onConfirm={handleAddToCalendar}
+                contentLabel={`♻️ Recyclage ${getFormatShortLabel(activeTab)}`}
+                contentEmoji="♻️"
+              />
+              <SaveToIdeasDialog
+                open={showIdeasDialog}
+                onOpenChange={setShowIdeasDialog}
+                contentType={getContentType(activeTab)}
+                subject={`Recyclage : ${getFormatShortLabel(activeTab)}`}
+                contentData={{ type: "recycling", format: activeTab, text: activeText }}
+                sourceModule="recycling"
+                format={getCalendarFormat(activeTab)}
+              />
             </div>
           )}
         </>
