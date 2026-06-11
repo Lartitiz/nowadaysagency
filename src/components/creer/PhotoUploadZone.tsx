@@ -1,10 +1,12 @@
 import { useState, useRef, useCallback, useEffect, DragEvent as ReactDragEvent } from "react";
-import { Upload, X, GripVertical, Wand2, Undo2 } from "lucide-react";
+import { Upload, X, GripVertical, Wand2, Undo2, Library, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { PhotoEditDialog } from "./PhotoEditDialog";
+import { PhotoLibraryPickerDialog } from "@/components/photos/PhotoLibraryPickerDialog";
+import { userPhotoToBase64, type UserPhotoRow } from "@/lib/photo-storage";
 
 const MAX_FILE_SIZE_MB = 25;
 
