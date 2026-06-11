@@ -450,11 +450,16 @@ export async function exportCarouselHybridPptx(
   charter: HybridCharter | null | undefined,
   fileName = "carrousel-editable",
   originalPhotos?: OriginalPhoto[],
+  logoUrl?: string | null,
 ) {
   const pptx = new PptxGenJS();
   pptx.defineLayout({ name: "INSTAGRAM", width: PPTX_W_IN, height: PPTX_H_IN });
   pptx.layout = "INSTAGRAM";
   pptx.author = "L'Assistant Com'";
+
+  // Pré-charge le logo une seule fois (sera ajouté en top layer sur chaque slide)
+  const logoBase64 = await fetchLogoAsBase64(logoUrl);
+
 
   for (let i = 0; i < visualSlides.length; i++) {
     const vs = visualSlides[i];
