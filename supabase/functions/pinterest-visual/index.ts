@@ -8,6 +8,7 @@ import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { buildPptxInvariants, formatInvariantsForPrompt } from "../_shared/pptx-invariants.ts";
+import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -60,6 +61,12 @@ serve(async (req) => {
       workspace_id: z.string().uuid().optional().nullable(),
       reference_image_base64: z.string().max(10000000).optional().nullable(),
     }).passthrough());
+
+    const membership = await assertWorkspaceMembership(sbAdmin, user.id, reqBody.workspace_id);
+    if (!membership.ok) {
+      console.warn("[workspace-guard] denied", { userId: user.id, workspaceId: reqBody.workspace_id });
+      return workspaceDeniedResponse(corsHeaders);
+    }
 
     const { subject, pin_type, pinterest_link, pinterest_board } = reqBody;
     const filterWs = reqBody.workspace_id || workspaceId;

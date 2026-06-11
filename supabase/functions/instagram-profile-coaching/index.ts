@@ -6,6 +6,7 @@ import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildIdentityBlock } from "../_shared/user-context.ts";
+import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
 const MODULE_QUESTIONS: Record<string, string[]> = {
   bio: [
@@ -91,6 +92,12 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
+
+    const membership = await assertWorkspaceMembership(sbService, user.id, workspace_id);
+    if (!membership.ok) {
+      console.warn("[workspace-guard] denied", { userId: user.id, workspaceId: workspace_id });
+      return workspaceDeniedResponse(corsHeaders);
+    }
 
     const filterCol = workspace_id ? "workspace_id" : "user_id";
     const filterVal = workspace_id || user.id;

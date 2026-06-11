@@ -6,6 +6,7 @@ import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts"
 import { CORE_PRINCIPLES } from "../_shared/copywriting-prompts.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -25,6 +26,16 @@ serve(async (req) => {
     if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
 
     const { posts_per_week, context_week, mix_or_focus, mode, existing_posts, workspace_id: bodyWorkspaceId } = await req.json();
+
+    const sbGuard = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+    const membership = await assertWorkspaceMembership(sbGuard, user.id, bodyWorkspaceId);
+    if (!membership.ok) {
+      console.warn("[workspace-guard] denied", { userId: user.id, workspaceId: bodyWorkspaceId });
+      return workspaceDeniedResponse(corsHeaders);
+    }
 
     // Get workspace
     const { data: wsMember } = await supabase
