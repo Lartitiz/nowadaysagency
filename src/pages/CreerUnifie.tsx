@@ -1402,6 +1402,7 @@ export default function CreerUnifie() {
         const captionText = [r.caption?.hook, r.caption?.body, r.caption?.cta].filter(Boolean).join("\n\n");
         const { data } = await supabase.from("generated_carousels" as any).insert({
           user_id: session.user.id,
+          ...(workspaceId && workspaceId !== session.user.id ? { workspace_id: workspaceId } : {}),
           carousel_type: r.carousel_type || "tips",
           subject: ideaText,
           objective: objective || null,
