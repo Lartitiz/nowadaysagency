@@ -18,6 +18,9 @@ interface Props {
   activite?: string;
   initialIdea?: string;
   autoOpenTransform?: boolean;
+  initialPhotos?: PhotoItem[];
+  initialPhotoDescription?: string;
+  initialPhotoSubject?: string;
 }
 
 const ACTIVITY_PLACEHOLDERS: Record<string, string> = {
@@ -45,15 +48,15 @@ function getPlaceholder(activite?: string): string {
   return "Ex : je veux montrer un projet récent / je voudrais parler de pourquoi je fais ce métier / j'ai envie de réagir à une actu...";
 }
 
-export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingSelect, onPhotosNext, workspaceId, activite, initialIdea, autoOpenTransform }: Props) {
+export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingSelect, onPhotosNext, workspaceId, activite, initialIdea, autoOpenTransform, initialPhotos, initialPhotoDescription, initialPhotoSubject }: Props) {
   const [idea, setIdea] = useState(initialIdea || "");
   const [coachOpen, setCoachOpen] = useState(false);
   const [showNewsjacking, setShowNewsjacking] = useState(false);
-  const [showPhotosMode, setShowPhotosMode] = useState(false);
+  const [showPhotosMode, setShowPhotosMode] = useState(!!(initialPhotos && initialPhotos.length > 0));
   const [showTransform, setShowTransform] = useState(!!autoOpenTransform);
-  const [localPhotos, setLocalPhotos] = useState<PhotoItem[]>([]);
-  const [localDescription, setLocalDescription] = useState("");
-  const [localPhotoSubject, setLocalPhotoSubject] = useState("");
+  const [localPhotos, setLocalPhotos] = useState<PhotoItem[]>(initialPhotos || []);
+  const [localDescription, setLocalDescription] = useState(initialPhotoDescription || "");
+  const [localPhotoSubject, setLocalPhotoSubject] = useState(initialPhotoSubject || "");
   const { toast } = useToast();
 
   // Si on arrive via un legacy redirect (?mode=transform), nettoyer le param
