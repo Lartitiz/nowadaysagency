@@ -14,6 +14,7 @@ import {
   type ShapeBlock,
   type TextRun,
 } from "./pptx-font-mapping";
+import { fetchLogoAsBase64, getPptxLogoRect } from "./export-logo";
 
 interface VisualSlide {
   slide_number: number;
