@@ -582,7 +582,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
       {formatAcceptsSinglePhoto(selectedFormat) && photoMode && (
         <div className="animate-fade-in space-y-2">
           <PhotoUploadZone
-            maxPhotos={selectedFormat === "linkedin" ? 5 : 1}
+            maxPhotos={selectedFormat === "linkedin" ? 10 : 1}
             initialPhotos={postPhoto.length > 0 ? postPhoto : undefined}
             initialDescription={postPhotoDescription}
             onPhotosChange={setPostPhoto}
