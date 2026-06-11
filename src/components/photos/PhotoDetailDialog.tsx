@@ -39,6 +39,7 @@ function slugify(s: string): string {
 }
 
 export function PhotoDetailDialog({ photo, open, onOpenChange }: PhotoDetailDialogProps) {
+  const navigate = useNavigate();
   const [view, setView] = useState<"after" | "before">("after");
   const [afterUrl, setAfterUrl] = useState<string | null>(null);
   const [beforeUrl, setBeforeUrl] = useState<string | null>(null);
