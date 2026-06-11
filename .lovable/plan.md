@@ -1,138 +1,154 @@
-## Objectif
+# Plan — Helper `workspace-guard` + application sur `assistant-chat`
 
-Aligner le mode Recycler sur Crosspost : chaque format recyclé peut être planifié dans le calendrier ou sauvegardé comme idée, via les mêmes dialogs (`AddToCalendarDialog`, `SaveToIdeasDialog`).
+Périmètre strict : Vague 1 uniquement. Backend, deux fichiers.
 
-## Fichiers modifiés
+---
 
-1. `**src/components/ContentRecycling.tsx**` — câblage des deux dialogs sur l'onglet actif.
-2. `**src/components/SaveToIdeasDialog.tsx**` — extension additive du type `contentType` pour accepter `"newsletter"`.
+## (a) Ce que tu m'as demandé
 
-## Détail des modifications
+### 1. Nouveau fichier `supabase/functions/_shared/workspace-guard.ts`
 
-### 1. `ContentRecycling.tsx`
-
-**Imports ajoutés** (au-dessus de l'existant) :
-
-- `CalendarDays`, `Lightbulb` depuis `lucide-react`
-- `AddToCalendarDialog` depuis `@/components/calendar/AddToCalendarDialog`
-- `SaveToIdeasDialog` depuis `@/components/SaveToIdeasDialog`
-
-**State ajouté** dans le composant :
-
-- `showCalendarDialog: boolean` (init `false`)
-- `showIdeasDialog: boolean` (init `false`)
-
-**Helpers de mapping** basés sur `activeTab` :
-
-- `getCanal(format)` : `linkedin → "linkedin"`, `newsletter → "newsletter"`, sinon `"instagram"`
-- `getCalendarFormat(format)` : `carrousel → "carousel"`, `reel → "reel"`, `stories → "story_serie"`, `linkedin → "post"`, `newsletter → "newsletter"`
-- `getContentType(format)` : `carrousel → "post_instagram"`, `reel → "reel"`, `stories → "story"`, `linkedin → "post_linkedin"`, `newsletter → "newsletter"`
-- `getFormatShortLabel(format)` : libellé court sans emoji pour les titres ("Carrousel", "Reel", "Stories", "Post LinkedIn", "Newsletter")
-
-`**handleAddToCalendar(dateStr)**` : copie fidèle du pattern Crosspost.
+Deux exports, pas de client Supabase créé en interne, pas de dépendance autre que `./cors.ts` pour le typage des headers.
 
 ```ts
-const text = results[activeTab] || "";
-const insertData: any = {
-  user_id: user.id,
-  date: dateStr,
-  theme: `Recyclage ${getFormatShortLabel(activeTab)}`,
-  canal: getCanal(activeTab),
-  format: getCalendarFormat(activeTab),
-  content_draft: text,
-  accroche: text.split("\n")[0]?.slice(0, 200) || "",
-  status: "ready",
-};
-if (workspaceId && workspaceId !== user.id) insertData.workspace_id = workspaceId;
-const { error } = await supabase.from("calendar_posts").insert(insertData);
-setShowCalendarDialog(false);
-error ? toast({ title: "Erreur lors de la planification", variant: "destructive" })
-      : toast({ title: "📅 Planifié dans ton calendrier !" });
+// supabase/functions/_shared/workspace-guard.ts
+
+export type WorkspaceGuardResult =
+  | { ok: true; role: string }
+  | { ok: false; status: number };
+
+/**
+ * Vérifie que `userId` est membre de `workspaceId`.
+ * - workspaceId null/undefined  -> { ok: true, role: "legacy" }  (mode mono-user préservé)
+ * - membre trouvé               -> { ok: true, role: <role DB> }
+ * - non membre / erreur lecture -> { ok: false, status: 403 }
+ *
+ * `sb` doit être un client SERVICE_ROLE déjà instancié par l'appelant.
+ */
+export async function assertWorkspaceMembership(
+  sb: any,
+  userId: string,
+  workspaceId: string | null | undefined,
+): Promise<WorkspaceGuardResult> {
+  if (!workspaceId) return { ok: true, role: "legacy" };
+
+  const { data, error } = await sb
+    .from("workspace_members")
+    .select("role")
+    .eq("workspace_id", workspaceId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error || !data) return { ok: false, status: 403 };
+  return { ok: true, role: data.role };
+}
+
+export function workspaceDeniedResponse(
+  corsHeaders: Record<string, string>,
+): Response {
+  return new Response(
+    JSON.stringify({
+      error: "workspace_access_denied",
+      message: "Tu n'as pas accès à cet espace.",
+    }),
+    {
+      status: 403,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    },
+  );
+}
 ```
 
-**Boutons dans la vue résultats** (juste après les boutons "Copier" et "Nouveau recyclage", dans le même flex `gap-2`) :
+Notes :
 
-```tsx
-<Button variant="outline" size="sm" onClick={() => setShowCalendarDialog(true)} className="rounded-pill gap-1.5">
-  <CalendarDays className="h-3.5 w-3.5" /> Planifier
-</Button>
-<Button variant="outline" size="sm" onClick={() => setShowIdeasDialog(true)} className="rounded-pill gap-1.5">
-  <Lightbulb className="h-3.5 w-3.5" /> Sauvegarder en idée
-</Button>
+- Retour `{ ok: true, role }` conforme à ta décision. `assistant-chat` ignorera `role`.
+- En mode legacy (pas de `workspace_id`), `role: "legacy"` sert de marqueur explicite sans casser le typage et sans introduire de nouveau type.
+- Aucune logique de branchement par rôle dans le helper — strictement binaire.
+
+### 2. Patch `supabase/functions/assistant-chat/index.ts`
+
+Deux changements minimaux :
+
+**a. Imports (en tête de fichier, après les imports existants)**
+
+```ts
+import {
+  assertWorkspaceMembership,
+  workspaceDeniedResponse,
+} from "../_shared/workspace-guard.ts";
 ```
 
-**Dialogs montés** en fin de bloc résultats (à côté de `<BaseReminder>`) :
+**b. Insertion du garde juste après `const sb = getServiceClient();` (ligne 326), AVANT la résolution de `profileUserId**`
 
-```tsx
-<AddToCalendarDialog
-  open={showCalendarDialog}
-  onOpenChange={setShowCalendarDialog}
-  onConfirm={handleAddToCalendar}
-  contentLabel={`♻️ Recyclage ${getFormatShortLabel(activeTab)}`}
-  contentEmoji="♻️"
-/>
-<SaveToIdeasDialog
-  open={showIdeasDialog}
-  onOpenChange={setShowIdeasDialog}
-  contentType={getContentType(activeTab)}
-  subject={`Recyclage : ${getFormatShortLabel(activeTab)}`}
-  contentData={{ type: "recycling", format: activeTab, text: results[activeTab] || "" }}
-  sourceModule="recycling"
-  format={getCalendarFormat(activeTab)}
-/>
+```ts
+const sb = getServiceClient();
+
+const membership = await assertWorkspaceMembership(sb, userId, workspace_id);
+if (!membership.ok) {
+  return workspaceDeniedResponse(cors);
+}
+
+// Resolve workspace owner's user_id for profile-scoped tables
+let profileUserId = userId;
+...
 ```
 
-### 2. `SaveToIdeasDialog.tsx` — extension additive
+Tout le reste du handler (résolution `profileUserId`, `undo`, `confirmed_actions`, quota, `getUserContext`, prompt système, `executeActions`, rate limiting) reste **strictement identique**.
 
-Une seule chose à faire : **autoriser `"newsletter"**` dans le type union, et le gérer dans les deux ternaires internes pour qu'il s'affiche correctement.
+---
 
-- **Interface Props** : `contentType: "story" | "reel" | "post_instagram" | "post_linkedin" | "newsletter"`.
-- **Calcul `contentEmoji**` (ligne 69) : ajouter le cas newsletter avant la chaîne actuelle :
-  ```ts
-  const contentEmoji =
-    contentType === "newsletter" ? "📧" :
-    contentType === "story" ? "📱" :
-    contentType === "reel" ? "🎬" : "📸";
-  ```
-- **Calcul `formatLabel**` (ligne 70) : ajouter le cas newsletter :
-  ```ts
-  const formatLabel =
-    contentType === "newsletter" ? "newsletter" :
-    contentType === "story" ? "story_serie" :
-    contentType === "reel" ? "reel" : (format || "post");
-  ```
-- **Canal** (ligne 78) : actuellement codé en dur `"instagram"`. Le rendre conditionnel uniquement pour les deux nouveaux cas LinkedIn/Newsletter, sans casser l'existant :
-  ```ts
-  canal:
-    contentType === "newsletter" ? "newsletter" :
-    contentType === "post_linkedin" ? "linkedin" : "instagram",
-  ```
-  Note : `post_linkedin` était jusqu'ici aussi écrit en `"instagram"`. **C'est un bug latent** (voir Propositions ci-dessous).
+## (b) Mes propositions d'amélioration (à valider individuellement)
 
-Aucun changement sur le reste du fichier. Les 4 contentType existants conservent leur emoji, leur formatLabel et — sauf pour `post_linkedin` voir ci-dessous — leur canal.
+### P1 — Mutualiser la résolution de `profileUserId` dans le helper
 
-## Critères de validation
+**Refusé par défaut.** Le plan dit explicitement « on AJOUTE un garde en amont, on ne refactore rien ». Mutualiser ferait deux choses dans un seul helper et sortirait du périmètre. Je ne le propose que pour mémoire — à traiter dans un plan dédié si tu le souhaites un jour.
 
-- `npx tsc --noEmit --skipLibCheck` passe.
-- Recycler en 5 formats → l'onglet actif expose "Planifier" + "Sauvegarder en idée".
-- Planifier le carrousel → ligne `calendar_posts` avec `canal="instagram"`, `format="carousel"`.
-- Planifier la newsletter → `canal="newsletter"`, `format="newsletter"`.
-- Sauvegarder la newsletter → carte `saved_ideas` avec emoji 📧.
-- CrosspostFlow inchangé fonctionnellement (mêmes dialogs, mêmes inserts).
+### P2 — Log console des refus
 
-## Propositions hors demande stricte (validation individuelle)
+Ajouter, dans `workspaceDeniedResponse` ou côté appelant, un `console.warn("[workspace-guard] denied", { userId, workspaceId })` pour tracer les tentatives suspectes dans les logs Edge.
 
-**(a) Demandé** — tout ce qui précède.
+- **Coût** : 1 ligne.
+- **Bénéfice** : audit a posteriori, détection d'abus.
+- **Risque** : log de `userId` (UUID, déjà partout dans nos logs Edge) — pas de donnée sensible.
 
-**(b) Propositions** :
+Si tu acceptes, je place le `console.warn` dans `assistant-chat` au moment du `return`, pas dans le helper (le helper reste pur, sans effet de bord).
 
-1. **Corriger le canal `post_linkedin` dans `SaveToIdeasDialog`.** Aujourd'hui `canal: "instagram"` est codé en dur, donc même une idée sauvegardée depuis Crosspost LinkedIn atterrit avec `canal="instagram"` dans `saved_ideas`. La modification du canal ci-dessus le règle au passage. Si tu préfères ne **pas** toucher ce comportement existant pour limiter le diff, je laisse `post_linkedin → "instagram"` et je ne change le canal que pour `newsletter`. Dis-moi. ok pour moi
-2. **Désactiver "Planifier" / "Sauvegarder" si** `!results[activeTab]?.trim()` (sécurité : un format peut être vide si la génération a partiellement échoué). Micro-ajout, zéro risque. ok
+### P3 — Distinguer `403` (non-membre) et `404` (workspace inexistant)
 
-Pas d'autres propositions hors périmètre.
+Aujourd'hui, on renvoie `403` dans les deux cas. C'est volontaire pour éviter l'énumération d'IDs (pattern sécu standard). **Je recommande de garder 403 dans tous les cas** et ne propose pas de changement — juste à acter.
+
+### P4 — Petit test Deno pour le helper
+
+Créer `supabase/functions/_shared/workspace-guard_test.ts` avec un mock `sb` (objet qui retourne `{ data, error }` selon la chaîne `.from().select().eq().eq().maybeSingle()`).
+
+- **Coût** : ~40 lignes.
+- **Bénéfice** : régression évitée quand les 16 autres fonctions s'y brancheront.
+- **Risque** : aucun.
+
+---
+
+## Critères de validation (rappel)
+
+1. `npx tsc --noEmit --skipLibCheck` passe.
+2. Utilisateur·ice sur son propre workspace : assistant identique à aujourd'hui.
+3. Appel sans `workspace_id` : identique à aujourd'hui.
+4. Appel avec `workspace_id` d'un autre user : `403 workspace_access_denied`, aucune écriture.
+
+---
 
 ## Hors scope (rappel)
 
-- Pas de modification de `handleRecycle`, de l'upload, du RedFlagsChecker, du bouton Copier.
-- Pas de modification de `CrosspostFlow.tsx`, `InspireFlow.tsx`, `AddToCalendarDialog.tsx`.
-- Pas de modification du calendrier ni de l'Atelier.
+Vagues 2/3/4 traitées dans des plans ultérieurs. Aucune autre Edge Function, aucun fichier frontend touché ici.
+
+---
+
+**Avant d'exécuter, dis-moi pour P2 et P4 : oui / non / l'un seulement.** P1 et P3 sont déjà tranchés (non / garder 403). Plan validé, tu peux passer en Exec.
+
+Décisions sur tes propositions :
+
+- **P2 : oui.** Place le `console.warn("[workspace-guard] denied", { userId, workspaceId })` côté assistant-chat au moment du `return`, pas dans le helper (helper pur).
+- **P4 : oui.** Crée le test. Il sera intégré à ma routine de validation via `deno test`.
+- **P1 : non** (hors périmètre, plan dédié plus tard).
+- **P3 : garder 403 dans tous les cas** (acté, anti-énumération).
+
+Exécute les deux fichiers + le test. Rappel des contraintes : tout le reste du handler assistant-chat reste strictement identique, aucune autre Edge Function touchée, aucun fichier frontend.
