@@ -46,17 +46,17 @@ function formatAcceptsSinglePhoto(format: string | null | undefined): boolean {
 function getPhotoToggleCopy(format: string): { title: string; subtitle: string } {
   switch (format) {
     case "post":
-      return { title: "📸 J'accompagne une photo", subtitle: "L'IA adapte ta légende à ton image" };
+      return { title: "📸 J'accompagne une photo", subtitle: "Ta photo illustre ton idée — le texte parle de ton sujet, pas de l'image" };
     case "reel":
-      return { title: "📸 Mon Reel s'appuie sur une image", subtitle: "Référence visuelle, vignette ou plan d'inspiration — l'IA s'en sert pour le hook et le script" };
+      return { title: "📸 Mon Reel s'appuie sur une image", subtitle: "Référence visuelle pour le hook et le script — ton idée reste le sujet" };
     case "story":
-      return { title: "📸 Mes stories tournent autour d'une photo", subtitle: "L'IA construit une séquence narrative à partir de l'image" };
+      return { title: "📸 Mes stories tournent autour d'une photo", subtitle: "L'IA construit la séquence autour de ton idée, ta photo sert de fil visuel" };
     case "linkedin":
-      return { title: "📸 J'attache une photo à mon post", subtitle: "L'IA ancre le texte sur un point précis du visuel" };
+      return { title: "📸 J'attache une photo à mon post", subtitle: "Ta photo appuie ton propos — l'IA écrit sur ton sujet, pas une description du visuel" };
     case "newsletter":
-      return { title: "📸 Image d'en-tête / illustration", subtitle: "L'IA prolonge l'ambiance de l'image dans le texte" };
+      return { title: "📸 Image d'en-tête / illustration", subtitle: "Ton image ouvre l'email — le texte déroule ton sujet" };
     default:
-      return { title: "📸 J'accompagne une photo", subtitle: "L'IA adapte ton contenu à ton image" };
+      return { title: "📸 J'accompagne une photo", subtitle: "Ta photo illustre ton contenu, elle ne le dicte pas" };
   }
 }
 
