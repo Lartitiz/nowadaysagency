@@ -1307,7 +1307,7 @@ Réponds UNIQUEMENT en JSON :
         system: systemPrompt,
         messages: [{ role: "user", content }],
         temperature: 0.8,
-        max_tokens: 4096,
+        max_tokens: 8192,
       });
     } else if (step === "questions" && body.photo_mode && body.photos?.[0]?.base64) {
       // Vision-anchored questions: let Claude SEE ALL photos (1..10) to ask grounded questions.
@@ -1435,7 +1435,7 @@ Réponds UNIQUEMENT en JSON :
         max_tokens: 4096,
       });
     } else {
-      const maxTokens = step === "questions" ? 800 : undefined;
+      const maxTokens = step === "questions" ? 800 : step === "recycle" ? 8192 : undefined;
       const isLinkedInText = !!contentType?.includes("linkedin") && step !== "questions";
       const tempText = isLinkedInText ? 0.7 : 0.85;
       // L1 : Haiku pour les steps `questions` et `follow-up` (3-5× plus rapide que Sonnet,
@@ -1457,6 +1457,23 @@ Réponds UNIQUEMENT en JSON :
         parsed = { raw: rawContent };
       }
     }
+
+    // Garde anti-échec silencieux : si la génération recycle renvoie un JSON
+    // tronqué / sans `results`, on retourne une 500 SANS logUsage (pas de
+    // crédit consommé sur une génération ratée).
+    if (step === "recycle") {
+      const hasResults = parsed && typeof parsed === "object"
+        && parsed.results && typeof parsed.results === "object"
+        && Object.keys(parsed.results).length > 0;
+      if (!hasResults) {
+        console.warn("[creative-flow] recycle returned empty results, raw=", String(rawContent || "").slice(0, 500));
+        return new Response(
+          JSON.stringify({ error: "La génération a échoué en cours de route. Réessaie, ou coche moins de formats à la fois." }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
 
     // ═══ PASSE DE CORRECTION LinkedIn ═══
     // Pour TOUT post LinkedIn généré (photo ou texte), on rejoue une 2ᵉ passe

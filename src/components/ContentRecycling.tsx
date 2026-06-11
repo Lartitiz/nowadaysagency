@@ -147,6 +147,14 @@ export default function ContentRecycling() {
       const { data, error } = await invokeWithTimeout("creative-flow", { body }, 120000);
       if (error) throw new Error(error.message);
       const r = data?.results || {};
+      if (Object.keys(r).length === 0) {
+        toast({
+          title: "Génération incomplète",
+          description: "La génération a échoué en cours de route. Réessaie, ou coche moins de formats à la fois.",
+          variant: "destructive",
+        });
+        return;
+      }
       setResults(r);
       setActiveTab(formats[0] || "");
 
@@ -163,8 +171,9 @@ export default function ContentRecycling() {
     } catch (e: any) {
       console.error("Erreur technique:", e);
       toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const copyContent = (text: string) => {
