@@ -6,9 +6,10 @@ import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import CoachingShell from "@/components/coaching/CoachingShell";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
-import { ArrowLeft, Rocket, RefreshCw, Sparkles } from "lucide-react";
+import { ArrowLeft, Rocket, RefreshCw, Sparkles, Bookmark, BookmarkCheck } from "lucide-react";
 import { toast } from "sonner";
 import { normalizeFormat } from "@/lib/format-normalizer";
+import { useCreateIdea } from "@/hooks/use-saved-ideas";
 
 type Step = 1 | 2 | "loading" | "result";
 
@@ -124,6 +125,8 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
   const [selectedIdea, setSelectedIdea] = useState<ContentIdea | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | "mix" | null>(null);
+  const [savedIdeas, setSavedIdeas] = useState<Set<number>>(new Set());
+  const createIdea = useCreateIdea();
 
   const reset = () => {
     setStep(1);
@@ -135,6 +138,31 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
     setSelectedIdea(null);
     setSelectedSubject(null);
     setCarouselSubMode(null);
+    setSavedIdeas(new Set());
+  };
+
+  const handleSaveIdea = async (idea: ContentIdea, index: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (savedIdeas.has(index)) return;
+    if (!user) return;
+    try {
+      await createIdea.mutateAsync({
+        user_id: user.id,
+        workspace_id: workspaceId,
+        titre: idea.subject,
+        angle: idea.angle || null,
+        format: normalizeFormat(format) || format || null,
+        canal: canal || null,
+        objectif: idea.objective_tag || objectif || null,
+        type: "idea",
+        status: "to_explore",
+        notes: idea.why_it_works || null,
+        source_module: "content_coaching",
+      });
+      setSavedIdeas((prev) => new Set(prev).add(index));
+    } catch (err) {
+      console.error("Save idea error:", err);
+    }
   };
 
   const handleOpenChange = (v: boolean) => {
@@ -474,6 +502,29 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
                           {!isSelected && (
                             <span className="ml-auto text-[10px] text-muted-foreground/70">Voir le détail →</span>
                           )}
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            onClick={(e) => handleSaveIdea(idea, i, e)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                handleSaveIdea(idea, i, e as any);
+                              }
+                            }}
+                            title={savedIdeas.has(i) ? "Idée sauvegardée" : "Sauvegarder dans Mes idées"}
+                            className={`${isSelected ? "" : ""} ${!isSelected ? "" : "ml-auto"} inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium transition-all ${
+                              savedIdeas.has(i)
+                                ? "border-primary bg-primary/10 text-primary"
+                                : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-primary"
+                            }`}
+                          >
+                            {savedIdeas.has(i) ? (
+                              <><BookmarkCheck className="h-3 w-3" /> Sauvegardée</>
+                            ) : (
+                              <><Bookmark className="h-3 w-3" /> Sauvegarder</>
+                            )}
+                          </span>
                         </div>
                         {isSelected && idea.why_it_works && (
                           <div className="mt-3 pt-3 border-t border-border/50 animate-fade-in">
