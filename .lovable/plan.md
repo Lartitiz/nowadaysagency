@@ -1,77 +1,63 @@
-## Objectif
+# Plan — Carrousel "Photos brutes" : 1 photo = 1 slide + légende dédiée
 
-Ajouter un bouton **"Transformer en…"** à côté de `Copier` sur l'écran de résultat (`CreerStepResult`). Il ouvre une nouvelle session de création dans un **nouvel onglet**, pré-remplie avec le même brief (sujet, objectif, angle) mais ciblant un autre format. Le résultat actuel reste intact : c'est de la duplication adaptative, pas un remplacement.
+## Problème
 
-## Pourquoi cette approche
+En mode `pure_photo` avec 2 photos uploadées, le résultat est un carrousel de 8 slides avec les 2 photos dupliquées en boucle. Le flow passe par `carousel-ai` (questions + structure 8 slides) puis "strippe" les overlays côté client — mais le nombre de slides reste celui imposé par l'IA, pas celui des photos.
 
-- Tu as déjà un module `CreerTransformTab` (recycle / crosspost / inspire) pour transformer un contenu *quelconque*. Le nouveau bouton n'écrase pas ça : il sert un autre besoin — partir d'un contenu *qu'on vient de générer* pour le décliner sans ressaisir le brief.
-- Le flow `CreerUnifie` lit déjà ces URL params : `format`, `canal`, `sujet`/`subject`, `objectif`/`objective`, `angle`, `mode`, `from` (lignes 98-110). Un nouvel onglet avec ces params boote propre, sans toucher au sessionStorage de l'onglet courant.
-- Pas de nouvelle Edge Function. Pas de nouvel état partagé. Pas de risque de régression sur le résultat affiché.
+Or `pure_photo` n'a pas besoin de structure narrative : c'est juste **N photos brutes + une légende qui les accompagne**.
 
-## Fichiers impactés
+## Comportement cible
 
-1. `src/components/creer/CreerStepResult.tsx` — ajouter le menu Transformer.
-2. `src/pages/CreerUnifie.tsx` — passer `ideaText`, `objective`, `editorialAngle` en props vers `CreerStepResult` (2 call sites lignes 2520 et 2617) + ajouter le support `autoStart` côté params.
+Pour `carouselSubMode === "pure_photo"` :
 
-Aucun autre fichier touché.
+1. **Bypass complet** des étapes "questions" et "structure_review" — rien à structurer. Alors, si, il faut bien poser des questions pour créer le texte derrière. 
+2. **Nombre de slides = nombre de photos uploadées** (2 photos → 2 slides, 5 → 5), dans l'ordre.
+3. Chaque slide = `slide_type: "photo_full"`, `photo_index: i+1`, aucun overlay/title/body.
+4. **Génération IA limitée à la légende** (Instagram ou LinkedIn selon le canal) : hook + corps + CTA + hashtags, basée sur sujet / objectif / angle / `photoDescription` / contextes par photo (`photos[i].context`).
+5. Rendu et export PPTX inchangés — `CarouselPhotoResult` sait déjà afficher des slides `photo_full` sans overlay.
 
-## Détail du menu
+## Implémentation
 
-À placer dans le bloc "Actions secondaires" (lignes 451-459), juste après le bouton `Copier` (ordre visuel : Sauvegarder · Copier · **Transformer en…** · Télécharger · Changer d'angle).
+### Branchement précoce du flow (`src/pages/CreerUnifie.tsx`)
 
-```text
-[ ↗ Transformer en ▼ ]
-  ├─ 🎠 Carrousel Instagram
-  ├─ 📸 Post Instagram
-  ├─ 🎬 Reel
-  ├─ 📱 Stories
-  ├─ 💼 Post LinkedIn
-  ├─ 📧 Newsletter
-  ├─ 📌 Pinterest visuel
-  └─ 📌 Pinterest photo
+- `handleFormatNext` quand `format === "carousel"` && `carouselSubMode === "pure_photo"` : passer directement à une nouvelle fonction `generatePurePhotoCarousel()` au lieu d'appeler `generateQuestions` / `generateStructure`.
+- Couvrir aussi les chemins d'entrée coach (`handleCoachingSelect`) et calendrier le cas échéant.
+- Le stepper passe directement de `format` → `result`.
+
+### Nouvelle fonction `generatePurePhotoCarousel()`
+
+Construit le `result` côté client :
+
+```
+raw.slides = uploadedPhotos.map((p, i) => ({
+  slide_number: i + 1,
+  slide_type: "photo_full",
+  photo_index: i + 1,
+  role: i === 0 ? "hook" : i === uploadedPhotos.length - 1 ? "cta" : "body",
+  overlay_text: null, title: "", body: "",
+}));
+raw.no_overlay = true;
+raw.carousel_type = "photo";
 ```
 
-Règle : on **filtre le format courant** de la liste (on ne propose pas "Transformer un carousel en carousel"). Si le format courant est `carousel` avec sous-mode photo, on garde "Carrousel Instagram" hors menu et on propose les autres.
+Puis appelle une edge function pour la **légende seule** :
 
-Au clic sur une entrée :
+- **LinkedIn carousel** : réutiliser `generateLinkedInCarouselCaption()` déjà présent (lignes 1140-1153).
+- **Instagram** : ajouter un type `caption_only` à `carousel-ai` côté edge qui prend `subject + objective + editorial_angle + photos[].context + photo_description` et renvoie `{ caption: { hook, body, cta, hashtags } }` — pas de slides. À défaut, déclencher un appel simple à `creative-flow` avec un contentType dédié.
 
-```ts
-const params = new URLSearchParams({
-  sujet: ideaText,
-  objectif: objective || "",
-  format: targetFormat,
-  ...(editorialAngle ? { angle: editorialAngle } : {}),
-  from: "transform",
-});
-window.open(`/creer?${params.toString()}`, "_blank", "noopener");
-```
+### Post-process existant
 
-`from=transform` est juste un marqueur analytique (pas de logique nouvelle requise dans `CreerUnifie`, mais utile pour tracer plus tard).
-
-## Comportement dans le nouvel onglet
-
-Aucune modification de logique requise : `CreerUnifie` lit déjà `paramFormat`/`paramCanal`/`paramSujet`/`paramObjectif`/`paramAngle` et pré-remplit l'état (lignes 396-432). L'utilisatrice atterrit sur l'étape **Format** avec sujet et objectif déjà saisis, format pré-coché et angle pré-sélectionné si applicable. Elle clique "Continuer" et le flow normal prend la suite (questions de brief, structure review pour carousel, etc.).
-
-On **n'auto-lance pas** la génération côté nouvel onglet : certains formats demandent des choix supplémentaires (sous-mode carousel texte/photo/mix, photos à uploader pour reel/story, etc.). Auto-skipper ces étapes mènerait à des résultats incohérents.
-
-## Edge cases à gérer
-
-1. **`ideaText` vide** (cas démo, ou résultat chargé depuis le calendrier) → désactiver le bouton avec tooltip "Disponible après une génération".
-2. **`pinterest_inspiration` et `pinterest_photo` source** → ces formats ont des prérequis (capture d'écran, photo) que le nouvel onglet ne peut pas hériter. On les exclut du `format courant` mais on les garde dans les *cibles* possibles (l'utilisatrice complétera dans le nouvel onglet).
-3. **Carousel photo (avec photos uploadées)** → on ne tente PAS de transférer les photos via URL. Si la cible est "Reel" ou "Story" qui peuvent les utiliser, l'utilisatrice ré-uploade dans le nouvel onglet. Acceptable pour un MVP.
-4. **Mobile** → menu dropdown standard shadcn, déjà responsive comme "Changer d'angle".
-
-## Validation
-
-- Bouton "Transformer en…" visible dans la rangée Actions sur tous les formats.
-- Clic sur "Newsletter" depuis un résultat carousel ouvre `/creer?sujet=...&objectif=...&format=newsletter&from=transform` dans un nouvel onglet.
-- L'onglet d'origine n'est pas modifié (résultat carousel toujours affiché, sessionStorage intact).
-- Le nouvel onglet affiche l'étape Format avec Newsletter pré-sélectionnée et le sujet/objectif pré-remplis.
-- `tsc --noEmit --skipLibCheck` clean.
+L'effect `purePhotoStrippedRef` (lignes 1157-1177) devient redondant pour les nouveaux résultats mais reste en place — il sert de filet de sécurité pour les résultats déjà persistés en sessionStorage.
 
 ## Hors scope
 
-- Persistance des photos uploadées entre onglets.
-- Génération automatique au chargement (déclencherait sur des formats incomplets).
-- Synchronisation cross-onglets si l'utilisatrice veut comparer côte à côte (les deux onglets sont indépendants, ce qui est exactement le comportement attendu pour de la duplication).
-- Modifier `CreerTransformTab` (recycle/crosspost/inspire) — il garde son rôle pour les contenus externes.
+- Modes `photo` (overlay texte) et `mix` : flow inchangé (questions + structure review).
+- Pas de changement sur la limite max photos (10).
+- Pas de retouche des libellés du picker.
+
+## Validation
+
+- `pure_photo` + 2 photos → exactement 2 slides, photo 1 puis photo 2, aucune duplication, légende cohérente avec les 2 photos.
+- 5 photos → 5 slides.
+- Export PPTX : N slides photo plein écran.
+- Régression : modes `photo` et `mix` génèrent toujours leurs 6-10 slides via la structure review.
