@@ -243,6 +243,9 @@ export default function CreerStepResult({
   currentAngle,
   currentChannel,
   usedPhotoCount,
+  sourceIdea,
+  sourceObjective,
+  sourceAngle,
 }: Props) {
   // ── Rotation des messages et tips pendant le loading ──
   const messages = PROGRESS_MESSAGES[format] || PROGRESS_MESSAGES.default;
