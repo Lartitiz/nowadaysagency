@@ -399,13 +399,33 @@ export function PhotoUploadZone({
           )}
           <div className="flex justify-between items-center gap-2">
             {compact && !isFull ? (
-              <button
-                type="button"
-                onClick={() => inputRef.current?.click()}
-                className="text-xs text-primary hover:underline font-medium"
-              >
-                + Ajouter d'autres photos
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => inputRef.current?.click()}
+                  className="text-xs text-primary hover:underline font-medium"
+                >
+                  + Ajouter d'autres photos
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLibraryOpen(true)}
+                  disabled={importingFromLibrary}
+                  className="inline-flex items-center gap-1 text-xs text-primary hover:underline font-medium disabled:opacity-50 disabled:no-underline"
+                >
+                  {importingFromLibrary ? (
+                    <>
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Import…
+                    </>
+                  ) : (
+                    <>
+                      <Library className="h-3 w-3" />
+                      Choisir dans mes photos
+                    </>
+                  )}
+                </button>
+              </div>
             ) : (
               <span />
             )}
