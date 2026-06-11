@@ -641,10 +641,21 @@ export async function exportCarouselHybridPptx(
             fill: { color: sb.fill },
             line: { type: "none" },
             rectRadius: cappedRadius,
+            ...(sb.shadow && {
+              shadow: {
+                type: "outer" as const,
+                blur: sb.shadow.blurPt,
+                offset: sb.shadow.offsetPt,
+                angle: sb.shadow.angle,
+                color: sb.shadow.color,
+                opacity: sb.shadow.opacity,
+              },
+            }),
           });
         } catch (e) {
           console.warn("[hybrid] addShape failed for shape type", sb.type, e);
         }
+
       }
 
       slide.addImage({ data: bg, x: 0, y: 0, w: PPTX_W_IN, h: PPTX_H_IN });
