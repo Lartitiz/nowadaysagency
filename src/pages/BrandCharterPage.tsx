@@ -119,6 +119,7 @@ interface CharterData {
   font_title: string | null;
   font_body: string | null;
   font_accent: string | null;
+  font_rationale: string | null;
   photo_style: string | null;
   photo_keywords: string[];
   mood_keywords: string[];
@@ -144,6 +145,7 @@ const INITIAL: CharterData = {
   font_title: null,
   font_body: null,
   font_accent: null,
+  font_rationale: null,
   photo_style: null,
   photo_keywords: [],
   mood_keywords: [],
@@ -421,6 +423,7 @@ export default function BrandCharterPage() {
       font_title: d.font_title,
       font_body: d.font_body,
       font_accent: d.font_accent,
+      font_rationale: d.font_rationale,
       photo_style: d.photo_style,
       photo_keywords: d.photo_keywords,
       mood_keywords: d.mood_keywords,

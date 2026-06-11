@@ -307,6 +307,7 @@ export type Database = {
           custom_colors: Json | null
           font_accent: string | null
           font_body: string | null
+          font_rationale: string | null
           font_title: string | null
           icon_style: string | null
           id: string
@@ -338,6 +339,7 @@ export type Database = {
           custom_colors?: Json | null
           font_accent?: string | null
           font_body?: string | null
+          font_rationale?: string | null
           font_title?: string | null
           icon_style?: string | null
           id?: string
@@ -369,6 +371,7 @@ export type Database = {
           custom_colors?: Json | null
           font_accent?: string | null
           font_body?: string | null
+          font_rationale?: string | null
           font_title?: string | null
           icon_style?: string | null
           id?: string

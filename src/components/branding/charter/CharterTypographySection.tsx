@@ -1,9 +1,16 @@
 import { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
-import { X } from "lucide-react";
+import { Sparkles, X } from "lucide-react";
 import { GOOGLE_FONTS_LIST } from "@/lib/google-fonts-list";
 import { FONT_COMBOS } from "@/lib/charter-fonts";
 import { toast } from "sonner";
+
+// Fonts validées par le coaching IA (cohérence visuelle garantie sur les exports)
+const AI_RECOMMENDED_FONTS = new Set([
+  "Inter", "Poppins", "Montserrat", "Playfair Display", "Libre Baskerville",
+  "Lora", "Raleway", "Open Sans", "Nunito", "DM Sans", "Space Grotesk",
+  "Outfit", "Cormorant Garamond", "Josefin Sans", "Work Sans",
+]);
 
 function loadGoogleFont(font: string) {
   const id = `gf-${font.replace(/\s+/g, "-")}`;
@@ -37,7 +44,10 @@ function FontAutocomplete({ label, value, onChange, allowEmpty }: {
 
   const filtered = GOOGLE_FONTS_LIST.filter(f =>
     f.toLowerCase().includes(query.toLowerCase())
-  ).slice(0, 12);
+  )
+    // AI-recommended remontées en premier
+    .sort((a, b) => Number(AI_RECOMMENDED_FONTS.has(b)) - Number(AI_RECOMMENDED_FONTS.has(a)))
+    .slice(0, 12);
 
   const selectFont = (font: string) => {
     loadGoogleFont(font);
@@ -75,7 +85,12 @@ function FontAutocomplete({ label, value, onChange, allowEmpty }: {
                 className="w-full text-left px-3 py-2.5 hover:bg-muted/50 transition-colors flex items-center justify-between gap-3"
               >
                 <div className="flex-1 min-w-0">
-                  <span className="text-xs font-medium text-foreground">{font}</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-medium text-foreground">{font}</span>
+                    {AI_RECOMMENDED_FONTS.has(font) && (
+                      <Sparkles className="h-3 w-3 text-primary" aria-label="Recommandée par l'IA" />
+                    )}
+                  </div>
                   <p
                     style={{ fontFamily: `'${font}', sans-serif`, fontWeight: 400 }}
                     className="text-sm text-muted-foreground truncate mt-0.5"
@@ -104,6 +119,7 @@ interface CharterData {
   font_title: string;
   font_body: string;
   font_accent: string | null;
+  font_rationale?: string | null;
   [key: string]: any;
 }
 
@@ -175,6 +191,17 @@ export default function CharterTypographySection({ data, onDataChange, toneKeywo
           allowEmpty
         />
       </div>
+
+      {data.font_rationale && (
+        <div className="mt-4 rounded-xl bg-primary/5 border border-primary/15 px-3 py-2.5 flex items-start gap-2">
+          <Sparkles className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
+          <p className="text-xs text-foreground/80 leading-snug">
+            <span className="font-medium text-primary">Pourquoi ce duo ? </span>
+            {data.font_rationale}
+          </p>
+        </div>
+      )}
+
 
       {suggestions.length > 0 && (
         <div className="mt-6 pt-5 border-t border-border">
