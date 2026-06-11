@@ -436,13 +436,20 @@ RYTHME DU CARROUSEL (obligatoire dès 5 slides) :
 ═══ DESIGN PAR RÔLE DE SLIDE ═══
 
 HOOK (slide 1) — Design le plus fort, stoppe le scroll :
-- Fond : ${ch.color_background} ou blanc
-- Grande carte blanche centrée avec ombre douce, coins arrondis
-- Titre très grand (60-68px) à l'intérieur de la carte
-- 1-2 mots-clés en ${ch.color_primary} italic pour créer le contraste
-- Petit badge pilule en haut de la carte avec le thème ou le numéro
-- Beaucoup d'espace vide autour de la carte (la carte ne prend que ~70% de la slide)
-- Optionnel : motif décoratif subtil en fond (lignes, zigzag, pas de ronds)
+
+- La TYPOGRAPHIE est l'élément visuel principal : titre en ${ch.font_title}, 64-84px, qui occupe la largeur (marges 80px) — PAS de petite carte flottant au centre.
+
+- Deux compositions au choix :
+
+  · Plein format clair : fond ${ch.color_background}, titre énorme aligné gauche ou centré, 1-2 mots-clés en ${ch.color_primary} italic
+
+  · Plein format inversé : fond ${ch.color_secondary}, titre en blanc/clair, 1 mot-clé en ${ch.color_accent}
+
+- Petit badge pilule (thème ou numéro) en haut, AU-DESSUS du titre.
+
+- Le titre est verticalement centré dans la slide (flex, justify-content:center), le badge en haut.
+
+- Optionnel : motif décoratif subtil en fond (lignes, zigzag — pas de ronds).
 
 CONTEXTE / STORYTELLING (slide 2) — Personnel, immersif :
 - Fond : blanc ou ${ch.color_background}
@@ -872,6 +879,20 @@ Retourne UNIQUEMENT le JSON.`;
     const pptxAnnotationRules = `
 
 ${invariantsBlock}
+
+═══ ÉQUILIBRE VERTICAL — TOUTES LES SLIDES ═══
+
+Chaque slide (texte, photo, schéma) est une colonne flex pleine hauteur :
+
+display:flex;flex-direction:column;height:1350px (+ justify-content adapté au contenu).
+
+- Le contenu se distribue sur la hauteur : JAMAIS plus de ~200px de vide consécutif en haut, au milieu ou en bas de la slide.
+
+- Contenu court → AUGMENTE les tailles (font-size, padding, gaps) plutôt que de laisser du vide.
+
+- Contenu dense → occupe la hauteur naturellement, garde les marges de respiration (~80px).
+
+Une slide dont le contenu flotte dans le tiers central avec les deux autres tiers vides est un DÉFAUT à corriger avant de répondre.
 
 ═══ ANNOTATIONS POUR EXPORT POWERPOINT ÉDITABLE — OBLIGATOIRE ═══
 
