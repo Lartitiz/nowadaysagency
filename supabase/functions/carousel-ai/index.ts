@@ -317,7 +317,36 @@ serve(async (req) => {
       let photoInstruction = "";
       if (hasPhotos && (isPhotoMode || isMixMode)) {
         if (isPhotoMode) {
-          photoInstruction = `\nMODE PHOTO — ${photos.length} photo(s) fournies.\nAnalyse chaque photo et propose une structure où CHAQUE slide utilise une photo.\nPour chaque slide, indique "photo_index" (1-based, correspondant à l'ordre des photos fournies) et "slide_type": "photo_full".\nAssigne les photos aux slides en fonction de leur contenu visuel et du rôle narratif de la slide.\n${photo_description ? `Description complémentaire des photos : "${photo_description}"` : ""}`;
+          const n = photos.length;
+          const slideTarget = n === 1 ? "4 à 6"
+            : n === 2 ? "5 à 7"
+            : n <= 4 ? "6 à 8"
+            : `${n} à ${n + 2}`;
+          const photoAssignmentRule = n === 1
+            ? `Une seule photo fournie → elle apparaît sur CHAQUE slide. Le récit se construit uniquement par les textes (overlay) qui s'enchaînent.`
+            : n === 2
+            ? `Deux photos fournies → traite-les comme un duo narratif (typiquement AVANT / APRÈS, ou DEUX FACES d'une même réalité).
+- N'alterne PAS mécaniquement photo 1 / photo 2 / photo 1 / photo 2. Cette alternance est INTERDITE sans justification narrative.
+- Structure conseillée : 2-3 slides successives avec photo 1 (poser le "avant" / contexte / problème) → 1 slide pivot (bascule, déclic) → 2-3 slides avec photo 2 ("après" / résolution / nouveau regard).
+- Variante acceptée : commencer par photo 2 en hook teaser, puis revenir à photo 1 pour raconter d'où on vient, puis ramener photo 2 pour boucler.
+- Dans tous les cas, le rythme des photos doit servir un ARC narratif clair, pas un effet de montage.`
+            : `${n} photos fournies → chaque photo peut se répéter si son rôle narratif change (ex: la même photo en hook puis en clôture avec un sens nouveau). Évite l'enchaînement plat "1 photo = 1 slide" si le récit gagne à insister sur une image-clé.`;
+
+          photoInstruction = `\nMODE PHOTO — ${n} photo(s) fournie(s).
+
+NOMBRE DE SLIDES : cible ${slideTarget} slides. Le nombre de slides s'ajuste à la richesse narrative du sujet ET au nombre de photos — il n'y a PAS de plancher rigide à 7-8 slides.
+
+RÉPARTITION DES PHOTOS :
+${photoAssignmentRule}
+
+Pour chaque slide, indique "photo_index" (1-based, peut se répéter d'une slide à l'autre) et "slide_type": "photo_full".
+
+CHAÎNAGE NARRATIF DES TEXTES (CRITIQUE) :
+Les overlay_text de chaque slide doivent se lire à la suite comme UN SEUL mini-récit. La slide N reprend, prolonge ou fait basculer ce que la slide N-1 a posé. Si on permute deux slides au hasard et que ça "marche encore", c'est raté — recommence.
+
+Quand une même photo se répète sur 2-3 slides consécutives, les textes DOIVENT porter une progression (zoom narratif, avancée temporelle, retournement) — pas trois variantes d'une même idée.
+${photo_description ? `Description complémentaire des photos : "${photo_description}"` : ""}`;
+        }
         } else {
           photoInstruction = `\nMODE MIXTE — ${photos.length} photo(s) fournies.
 
