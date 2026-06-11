@@ -664,9 +664,9 @@ Retourne un JSON :
   ]
 }
 
-IMPORTANT : Pour chaque slide, utilise le placeholder {{PHOTO_N}} (où N est le numéro de la slide) dans le background-image.
-Exemple pour la slide 1 : background-image: url({{PHOTO_1}})
-Exemple pour la slide 3 : background-image: url({{PHOTO_3}})
+IMPORTANT : Pour chaque slide, utilise le placeholder {{PHOTO_N}} dans le background-image, où N est le photo_index fourni dans le JSON de la slide (PAS son numéro de slide — une même photo peut être réutilisée sur plusieurs slides).
+Exemple : slide 1 avec photo_index 1 → background-image: url({{PHOTO_1}})
+Exemple : slide 5 avec photo_index 2 → background-image: url({{PHOTO_2}})
 N'essaie PAS d'écrire le base64 toi-même. Utilise UNIQUEMENT le placeholder {{PHOTO_N}}.
 Retourne UNIQUEMENT le JSON, pas de texte avant ou après.`;
 
@@ -675,8 +675,7 @@ Retourne UNIQUEMENT le JSON, pas de texte avant ou après.`;
 SLIDES (textes overlay à poser sur les photos) :
 ${JSON.stringify(slides, null, 2)}
 
-Les photos sont fournies dans l'ordre des slides (photo 1 → slide 1, etc.).
-Pour chaque slide, utilise le placeholder {{PHOTO_N}} dans le background-image (ex: slide 1 → {{PHOTO_1}}, slide 2 → {{PHOTO_2}}).
+Chaque slide du JSON ci-dessus contient son photo_index. Utilise {{PHOTO_N}} où N = ce photo_index (ex: photo_index 2 → {{PHOTO_2}}), jamais le numéro de slide.
 Le placeholder sera automatiquement remplacé par la vraie image.
 
 RAPPEL : Le texte doit être LISIBLE sur chaque photo. Adapte le style d'overlay (gradient sombre, bandeau blanc, badge pilule) selon le style demandé et la luminosité de la photo. Varie les traitements d'une slide à l'autre.
