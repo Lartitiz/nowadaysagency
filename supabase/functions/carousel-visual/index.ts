@@ -22,15 +22,22 @@ Voici le design pour chaque type :
 
 █ BEFORE_AFTER — Deux colonnes côte à côte
 <div style="display:flex;gap:24px;width:100%">
-  <div style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:32px;border-left:4px solid #E74C3C">
-    <p style="font-size:22px;font-weight:600;color:#E74C3C;margin-bottom:16px">❌ AVANT_LABEL</p>
-    <!-- items en <p> avec une puce rouge -->
+  <div style="flex:1;display:flex;gap:6px">
+    <div data-pptx-shape="card" style="width:8px;border-radius:4px;background:#E74C3C;flex-shrink:0"></div>
+    <div data-pptx-shape="card" style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:32px">
+      <p data-pptx-editable="caption" style="font-size:22px;font-weight:600;color:#E74C3C;margin-bottom:16px">❌ AVANT_LABEL</p>
+      <!-- items en <p data-pptx-editable="body"> avec une puce rouge -->
+    </div>
   </div>
-  <div style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:32px;border-left:4px solid #27AE60">
-    <p style="font-size:22px;font-weight:600;color:#27AE60;margin-bottom:16px">✅ APRÈS_LABEL</p>
-    <!-- items en <p> avec une puce verte -->
+  <div style="flex:1;display:flex;gap:6px">
+    <div data-pptx-shape="card" style="width:8px;border-radius:4px;background:#27AE60;flex-shrink:0"></div>
+    <div data-pptx-shape="card" style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:32px">
+      <p data-pptx-editable="caption" style="font-size:22px;font-weight:600;color:#27AE60;margin-bottom:16px">✅ APRÈS_LABEL</p>
+      <!-- items en <p data-pptx-editable="body"> avec une puce verte -->
+    </div>
   </div>
 </div>
+
 
 █ COMPARISON — Similaire mais avec les couleurs/labels du schema
 Même structure que before_after mais avec les labels et couleurs du champ left/right.
@@ -38,31 +45,39 @@ Même structure que before_after mais avec les labels et couleurs du champ left/
 █ TIMELINE — Ligne verticale avec des étapes
 <div style="position:relative;padding-left:60px">
   <div style="position:absolute;left:24px;top:0;bottom:0;width:3px;background:linear-gradient(to bottom, ${ch.color_primary}, ${ch.color_accent})"></div>
-  <!-- Pour chaque step : cercle numéroté + label + desc -->
+  <!-- Pour chaque step : -->
+  <div style="display:flex;gap:20px;margin-bottom:24px;align-items:flex-start">
+    <div data-pptx-shape="pill" style="width:44px;height:44px;border-radius:50%;background:${ch.color_secondary};color:#FFF;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:600;flex-shrink:0">01</div>
+    <div data-pptx-shape="card" style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
+      <p data-pptx-editable="subtitle" style="font-size:24px;color:${ch.color_secondary}">LABEL</p>
+      <p data-pptx-editable="body" style="font-size:20px;color:${ch.color_text};opacity:0.85;margin-top:6px">DESC</p>
+    </div>
+  </div>
 </div>
 
 █ CHECKLIST — Liste avec des badges ✅/❌
 Pour chaque item :
-<div style="display:flex;align-items:center;gap:16px;padding:16px 24px;background:#FFF;border-radius:${ch.border_radius || 12}px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
+<div data-pptx-shape="card" style="display:flex;align-items:center;gap:16px;padding:16px 24px;background:#FFF;border-radius:${ch.border_radius || 12}px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
   <span style="font-size:28px">✅ ou ❌</span>
-  <p style="font-size:24px;color:${ch.color_text}">TEXTE</p>
+  <p data-pptx-editable="body" style="font-size:24px;color:${ch.color_text}">TEXTE</p>
 </div>
 
 █ STATS — Gros chiffres avec labels
 Pour chaque stat :
 <div style="text-align:center;padding:24px">
-  <p style="font-size:80px;font-weight:700;color:${ch.color_primary};line-height:1">73%</p>
-  <p style="font-size:22px;color:${ch.color_text};margin-top:8px;opacity:0.8">description</p>
+  <p data-pptx-editable="title" style="font-size:80px;font-weight:700;color:${ch.color_primary};line-height:1">73%</p>
+  <p data-pptx-editable="body" style="font-size:22px;color:${ch.color_text};margin-top:8px;opacity:0.8">description</p>
 </div>
 Dispose 2-3 stats en flex row avec des séparateurs visuels.
 
 █ MATRIX_2X2 — Grille 2×2 avec axes
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-  <div style="background:${ch.color_primary}15;border-radius:${ch.border_radius || 12}px;padding:24px;text-align:center">
+  <div data-pptx-shape="card" style="background:${ch.color_primary}15;border-radius:${ch.border_radius || 12}px;padding:24px;text-align:center">
     <span style="font-size:40px">EMOJI</span>
-    <p style="font-size:22px;font-weight:600;margin-top:8px">LABEL</p>
+    <p data-pptx-editable="body" style="font-size:22px;font-weight:600;margin-top:8px">LABEL</p>
   </div>
 </div>
+
 Ajoute les labels d'axes autour de la grille.
 
 █ PYRAMID — Niveaux empilés (le plus large en bas)
@@ -91,7 +106,7 @@ Question en pilule ${ch.color_primary}, branches avec lignes verticales, résult
 
 █ ICON_GRID — Grille d'emojis avec labels
 <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:24px">
-  <div style="text-align:center;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
+  <div data-pptx-shape="card" style="text-align:center;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
     <span style="font-size:48px;display:block;margin-bottom:8px">EMOJI</span>
     <p data-pptx-editable="body" style="font-size:20px;font-weight:600;color:${ch.color_secondary}">LABEL</p>
   </div>
@@ -104,7 +119,7 @@ Question en pilule ${ch.color_primary}, branches avec lignes verticales, résult
     <div style="flex-shrink:0;width:64px;text-align:right;padding-top:8px">
       <span data-pptx-editable="caption" style="font-size:36px;font-weight:700;color:${ch.color_primary};opacity:0.4;font-family:${ch.font_title};line-height:1">01</span>
     </div>
-    <div style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:24px 28px;box-shadow:0 2px 12px rgba(0,0,0,0.05)">
+    <div data-pptx-shape="card" style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:24px 28px;box-shadow:0 2px 12px rgba(0,0,0,0.05)">
       <h3 data-pptx-editable="title" style="font-size:24px;font-weight:600;color:${ch.color_primary};margin:0 0 8px 0;font-family:${ch.font_title}">LABEL</h3>
       <p data-pptx-editable="body" style="font-size:20px;color:${ch.color_text};line-height:1.4;margin:0;font-family:${ch.font_body}">DESC</p>
     </div>
@@ -128,14 +143,17 @@ RÈGLE FALLBACK : si quote_big.quote est absent → utilise slide.title à la pl
 
 █ OBJECTION_RESPONSE — Déconstruction verticale (objection en haut grisé, response en bas dominante)
 <div style="display:flex;flex-direction:column;gap:32px">
-  <div style="background:${ch.color_secondary}15;border-radius:${ch.border_radius || 12}px;padding:32px;position:relative">
+  <div data-pptx-shape="card" style="background:${ch.color_secondary}15;border-radius:${ch.border_radius || 12}px;padding:32px;position:relative">
     <span aria-hidden="true" style="position:absolute;top:16px;right:24px;font-size:32px;color:${ch.color_primary};opacity:0.5">❝</span>
     <p data-pptx-editable="caption" style="font-size:18px;font-weight:600;color:${ch.color_secondary};text-transform:uppercase;letter-spacing:1px;margin:0 0 12px 0;font-family:${ch.font_body}">CE QU'ON DIT</p>
     <p data-pptx-editable="body" style="font-size:24px;color:${ch.color_text};line-height:1.4;margin:0;font-style:italic;font-family:${ch.font_body}">OBJECTION</p>
   </div>
-  <div style="background:#FFF;border-left:4px solid ${ch.color_primary};border-radius:${ch.border_radius || 12}px;padding:32px;box-shadow:0 4px 16px rgba(0,0,0,0.06)">
-    <p data-pptx-editable="caption" style="font-size:18px;font-weight:600;color:${ch.color_primary};text-transform:uppercase;letter-spacing:1px;margin:0 0 12px 0;font-family:${ch.font_body}">MA POSITION</p>
-    <p data-pptx-editable="title" style="font-size:30px;color:${ch.color_text};line-height:1.4;margin:0;font-weight:500;font-family:${ch.font_title}">RESPONSE</p>
+  <div style="display:flex;gap:6px">
+    <div data-pptx-shape="card" style="width:8px;border-radius:4px;background:${ch.color_primary};flex-shrink:0"></div>
+    <div data-pptx-shape="card" style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:32px;box-shadow:0 4px 16px rgba(0,0,0,0.06)">
+      <p data-pptx-editable="caption" style="font-size:18px;font-weight:600;color:${ch.color_primary};text-transform:uppercase;letter-spacing:1px;margin:0 0 12px 0;font-family:${ch.font_body}">MA POSITION</p>
+      <p data-pptx-editable="title" style="font-size:30px;color:${ch.color_text};line-height:1.4;margin:0;font-weight:500;font-family:${ch.font_title}">RESPONSE</p>
+    </div>
   </div>
 </div>
 La RESPONSE est typographiquement plus grande que l'OBJECTION — elle domine.
@@ -143,7 +161,7 @@ La RESPONSE est typographiquement plus grande que l'OBJECTION — elle domine.
 █ PROCESS_VISIBLE — 3 colonnes égales (Avant/Pendant/Après) reliées par flèches
 <div style="display:flex;align-items:stretch;gap:16px">
   <!-- Pour chaque stage (i = 0..2, formate "01", "02", "03") : -->
-  <div style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:28px 20px;box-shadow:0 2px 12px rgba(0,0,0,0.05)">
+  <div data-pptx-shape="card" style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:28px 20px;box-shadow:0 2px 12px rgba(0,0,0,0.05)">
     <span data-pptx-editable="caption" style="font-size:64px;font-weight:700;color:${ch.color_primary};opacity:0.25;line-height:1;font-family:${ch.font_title};display:block;margin-bottom:8px">01</span>
     <h3 data-pptx-editable="title" style="font-size:24px;font-weight:600;color:${ch.color_secondary};margin:0 0 12px 0;font-family:${ch.font_title}">LABEL</h3>
     <p data-pptx-editable="body" style="font-size:18px;color:${ch.color_text};line-height:1.4;margin:0;font-family:${ch.font_body}">DESC</p>
@@ -159,13 +177,12 @@ IMPORTANT pour les schémas :
 - Utilise les vraies couleurs de la charte (${ch.color_primary}, ${ch.color_secondary}, ${ch.color_accent}, ${ch.color_text})
 - Les cartes des templates sont blanches (#FFF) pour un fond de charte CLAIR. Si ${ch.color_background} est sombre, remplace le blanc des cartes par une teinte claire OPAQUE harmonisée avec la charte (jamais de rgba semi-transparent).
 - Couleurs sémantiques autorisées hors charte (les SEULES) : le rouge #E74C3C et le vert #27AE60 des oppositions ❌/✅ (before_after, checklist, scale) et le fond #1A1A1A de la DARK BOX. Tout autre accent vient de la charte.
-- COMPOSITION VERTICALE : la slide est une colonne flex pleine hauteur (display:flex;flex-direction:column;height:1350px). Le bloc titre+intro est en haut, le schéma occupe l'espace restant, centré dedans (wrapper avec flex:1;display:flex;flex-direction:column;justify-content:center). Résultat attendu : l'espace au-dessus du schéma ≈ l'espace en dessous, et JAMAIS plus de ~200px de vide sous le dernier élément de la slide.
-- Si le contenu est court (intro brève + petit schéma), AUGMENTE les tailles : padding des cartes, font-size du schéma, gaps — plutôt que de laisser du vide.
 - CARTES SŒURS = MÊME HAUTEUR : dans un schéma à cartes multiples (timeline, story_arc, process_visible, comparison…), toutes les cartes d'une même rangée ont la MÊME hauteur (le conteneur flex utilise align-items:stretch, jamais center ou flex-start) et le MÊME alignement vertical de leur contenu interne.
 - Le titre de la slide (s'il existe) reste AU-DESSUS du schéma
 - Les schémas doivent respirer : pas de texte trop petit, pas de schéma qui remplit 100% de la slide
 - Si une slide a un visual_schema, le design du schéma est PRIORITAIRE sur le design par rôle
-- N'INVENTE PAS de cercles décoratifs (règle dure du design system)`;
+- N'INVENTE PAS de cercles décoratifs (règle dure du design system). Les pastilles rondes numérotées des steps (border-radius:50% sur un carré contenant un numéro) sont FONCTIONNELLES, pas décoratives — elles restent autorisées.
+- Les attributs data-pptx-shape et data-pptx-editable présents dans les templates ci-dessus sont OBLIGATOIRES : recopie-les à l'identique. Annote de la même façon tout élément équivalent que tu ajoutes (carte → card, badge/pastille → pill).`;
 }
 
 serve(async (req) => {
@@ -399,7 +416,7 @@ CARTES BLANCHES (pour les blocs de contenu) :
 - Border-radius: ${ch.border_radius}
 - Box-shadow: 0 4px 24px rgba(0,0,0,0.06)
 - Padding: 40px
-- Optionnel : border-left: 4px solid [couleur accent] pour une barre latérale colorée
+- Optionnel : barre latérale colorée = un div séparé (width:8px;border-radius:4px;background:[couleur accent]) accolé à la carte dans un flex avec gap:6px — JAMAIS border-left sur la carte (non exportable en shape éditable).
 
 BORDURES POINTILLÉES (pour les encadrés, citations, analogies) :
 - Border: 2px dashed ${ch.color_primary}40 (avec transparence)
@@ -886,11 +903,7 @@ Chaque slide (texte, photo, schéma) est une colonne flex pleine hauteur :
 
 display:flex;flex-direction:column;height:1350px (+ justify-content adapté au contenu).
 
-- Le contenu se distribue sur la hauteur : JAMAIS plus de ~200px de vide consécutif en haut, au milieu ou en bas de la slide.
-
-- Contenu court → AUGMENTE les tailles (font-size, padding, gaps) plutôt que de laisser du vide.
-
-- Contenu dense → occupe la hauteur naturellement, garde les marges de respiration (~80px).
+- CONTRAINTE DE SORTIE VÉRIFIABLE : le dernier élément visible de chaque slide se termine entre 1010px et 1240px de hauteur (75-92% des 1350px). Si ton contenu finit plus haut, AUGMENTE font-sizes, paddings et gaps jusqu'à atteindre cette zone — n'ajoute pas de texte, agrandis l'existant.
 
 Une slide dont le contenu flotte dans le tiers central avec les deux autres tiers vides est un DÉFAUT à corriger avant de répondre.
 
@@ -964,7 +977,7 @@ Avant de répondre, vérifie :
 3. Le carrousel utilise au maximum 3-4 layouts différents (cohérence > variété).
 4. Aucune slide n'a de ligne décorative sous un titre.
 5. Aucune slide n'a un fond beige/crème par défaut.
-6. Aucune slide n'a plus de ~200px de vide sous son dernier élément (équilibre vertical).
+6. Le dernier élément de chaque slide se termine entre 1010px et 1240px de hauteur.
 7. Les cartes sœurs d'un même schéma ont toutes la même hauteur.
 Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de contenu cassé.
 `;
