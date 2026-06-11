@@ -534,7 +534,17 @@ export interface ShapeBlock {
     color: string;
     opacity: number;
   };
+  /**
+   * Bordure native pptxgenjs si la bordure CSS est uniforme sur les 4 côtés
+   * et de style solid/dashed/dotted. Absent → pas de bordure native.
+   */
+  border?: {
+    widthPt: number;
+    color: string;
+    dashType: "solid" | "dash" | "sysDot";
+  };
 }
+
 
 /**
  * Parse une box-shadow CSS simple en paramètres pptxgenjs.
