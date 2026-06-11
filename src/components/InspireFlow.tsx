@@ -173,6 +173,11 @@ export default function InspireFlow() {
         body = { source_text: sourceText.trim() };
       }
       const { data, error } = await invokeWithTimeout("inspire-ai", { body: { ...body, workspace_id: workspaceId } }, 90000);
+      if (error?.isRateLimit || data?.error === "limit_reached") {
+        if (handleQuotaError({ message: error?.message || data?.message, data })) {
+          return;
+        }
+      }
       if (error || data?.error) { toast.error(data?.error || "Erreur lors de l'analyse"); return; }
       const r = data as InspirationResult;
       setResult(r);
