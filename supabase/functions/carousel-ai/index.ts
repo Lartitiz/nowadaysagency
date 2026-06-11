@@ -1580,6 +1580,20 @@ Chaque carrousel doit suivre un arc narratif clair :
 - Avant-dernière : le climax ou la révélation.
 - Dernière (CTA) : phrase qui ouvre vers l'action ou la conversation.
 
+═══ CHAÎNAGE DES TEXTES — RÈGLE ABSOLUE ═══
+Les overlay_text doivent se lire à la suite comme UN SEUL mini-récit continu. Chaque slide REPREND, PROLONGE ou FAIT BASCULER ce que la précédente a posé.
+- Test interne : si on permute deux slides au hasard et que le carrousel "marche encore", c'est raté → recommence.
+- Mots de liaison narratifs autorisés en début de phrase pour matérialiser la progression : "Puis", "Et puis", "Sauf que", "Trois mois plus tard", "Ce jour-là", "Au début", "Maintenant", "Résultat", "C'est là que…".
+- Une slide standalone qui pourrait vivre seule sur Instagram = mauvais signe. On veut le contraire : une slide qui n'a de sens QUE parce qu'on a lu la précédente.
+
+═══ CAS PARTICULIERS SELON LE NOMBRE DE PHOTOS ═══
+- 1 photo unique → elle apparaît sur toutes les slides. Tout repose sur les textes qui racontent l'histoire en plusieurs temps (contexte → tension → bascule → résolution → ouverture). Le nombre de slides cible est 4-6, pas 8.
+- 2 photos (avant/après ou duo) → structure conseillée : 2-3 slides avec la photo "avant" (poser le contexte/problème) → 1 slide pivot (la bascule, le déclic) → 2-3 slides avec la photo "après" (résolution, nouveau regard). INTERDIT : alterner mécaniquement photo 1 / 2 / 1 / 2. Cible 5-7 slides.
+- 3-4 photos → chaque photo peut se répéter si son rôle narratif change. Une image-clé peut revenir en clôture pour boucler.
+- 5+ photos → comportement classique (≈ 1 photo par slide), le chaînage des textes reste obligatoire.
+
+Quand une même photo se répète sur 2-3 slides consécutives, les textes DOIVENT porter une vraie progression (zoom narratif, avancée temporelle, retournement) — JAMAIS trois variantes de la même idée.
+
 ═══ RÔLES DES SLIDES ═══
 - "hook_visuel" : la première photo + phrase qui arrête le scroll
 - "detail" : zoom sur un détail, enrichi d'une phrase sensorielle
