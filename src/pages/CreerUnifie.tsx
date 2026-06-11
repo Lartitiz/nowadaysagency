@@ -104,6 +104,9 @@ export default function CreerUnifie() {
   const paramFrom = searchParams.get("from");
   const paramAngle = searchParams.get("angle");
 
+  const isFreshStart = searchParams.get("new") === "1";
+  const clearedFreshStart = useRef(false);
+
   // Location state (from calendar, etc.)
   const locState = (location.state as any) || {};
 
@@ -115,7 +118,12 @@ export default function CreerUnifie() {
   // 1. We have URL params / location state (coming back from calendar, etc.)
   // 2. OR there is a recent session in storage (survives HMR / tab refresh)
   const hasSomeContext = hasUrlParams || !!location.state;
-  const existingFlowState = loadFlowState();
+
+  if (isFreshStart && !clearedFreshStart.current) {
+    clearFlowState();
+    clearedFreshStart.current = true;
+  }
+  const existingFlowState = isFreshStart ? null : loadFlowState();
   const aurianaDemoActive = locState?.demoScenario === "auriana-carousel" || existingFlowState?.demoScenario === "auriana-carousel";
   const shouldRestore = hasSomeContext || aurianaDemoActive || (existingFlowState !== null && existingFlowState.step !== "idea");
   const persistedState = useRef(shouldRestore ? (existingFlowState || null) : null);
