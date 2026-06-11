@@ -1,58 +1,43 @@
-# Extraction des couleurs du logo → proposition de palette
+# Pertinence des suggestions typo — étapes 1 à 4
 
-## Objectif
+Travail itératif. Chaque étape est livrable indépendamment, on valide après chaque tour.
 
-Quand l'utilisateur upload (ou change) son logo dans `BrandCharterPage`, on **extrait les couleurs dominantes** et on lui propose (dialog de confirmation) de les appliquer à sa palette de marque — sans écraser silencieusement ce qu'il a déjà saisi.
+## Étape 1 — Enrichir le prompt step 4 + mapping sectoriel typo + validation
 
-## Comportement UX
+**Fichier** : `supabase/functions/charter-coaching/index.ts`
 
-1. Upload du logo → conversion HEIC + upload Supabase (déjà en place).
-2. Une fois l'image affichable, on lance l'extraction côté client (canvas).
-3. On ouvre un `Dialog` :
-   - Titre : « On a repéré ces couleurs dans ton logo »
-   - Aperçu des 5 swatches détectées (primary, secondary, accent, background, text) avec hex.
-   - Deux boutons : **« Appliquer à ma palette »** / **« Ignorer »**.
-   - Bonus : checkbox « Remplacer aussi mes couleurs custom » (off par défaut).
-4. Si on applique, on met à jour `color_primary`, `color_secondary`, `color_accent`, `color_background`, `color_text` via le même `onDataChange` que `applyPalette` (ligne 110 de `CharterColorsSection`) → `triggerSave` enchaîne automatiquement.
-5. Toast de confirmation.
+1. Ajouter un dict `SECTOR_FONTS` (jumeau de `SECTOR_PALETTES`) : 7 secteurs → 1-2 duos typo recommandés. Exemples :
+   - photographe → Cormorant Garamond + Inter / Playfair + Work Sans (épuré, laisse parler les images)
+   - mode éthique → Cormorant + Raleway / Lora + Nunito (artisanal-doux)
+   - coach business → Space Grotesk + Inter / Montserrat + Open Sans (affirmé)
+   - bien-être, artisan, food, default…
+2. Helper `getSectorFontAdvice(typeActivite)` symétrique à `getSectorAdvice`.
+3. Constante `ALLOWED_FONTS` (les 15 fonts du prompt) + helper `normalizeFont(name)` qui retourne la version canonique si match case-insensitive, sinon `null`.
+4. **Récrire le prompt step 4** :
+   - Injecter le conseil sectoriel typo.
+   - Injecter `charterData.mood_keywords`, `charterData.photo_style`, `charterData.color_primary` si présents (récoltés aux steps 1-3 du même coaching).
+   - Conserver le bloc `fontAdvice` basé sur ton, mais l'enrichir : mentionner que les mood_keywords visuels prennent priorité sur les défauts sectoriels.
+   - Demander à Claude de **justifier son choix en 1 phrase** dans `extracted.font_rationale` (utile debug + futurement affichage UI).
+5. Après réception, dans le handler : `normalizeFont(extracted.font_title)` + `normalizeFont(extracted.font_body)` → si l'un est `null`, retomber sur le 1er duo de `SECTOR_FONTS[secteur]` plutôt que de sauvegarder une font qui ne chargera pas.
 
-## Implémentation technique
+**Aucun changement client ni DB.** Test : passer le coaching jusqu'au step 4 avec un compte photographe + mood "minimaliste épuré" → la suggestion doit être un duo épuré (Cormorant/Inter), pas un Playfair lourd.
 
-### 1. Helper d'extraction `src/lib/extract-logo-palette.ts`
-- Fonction `extractLogoPalette(blob: Blob): Promise<{primary, secondary, accent, background, text}>`.
-- Pipeline :
-  - Charger le blob dans une `<img>` via `URL.createObjectURL`.
-  - Dessiner sur un canvas 200×200 (downscale pour perf).
-  - Quantization simple **maison** (median cut allégé sur ~40 buckets HSL) — **pas de dépendance externe** pour rester léger. Filtre les pixels quasi-transparents (alpha < 200).
-  - Trier par fréquence puis par saturation.
-  - Heuristiques :
-    - `primary` = couleur la plus fréquente non-neutre (sat > 0.15).
-    - `secondary` = 2e plus fréquente non-neutre, distance HSL > seuil.
-    - `accent` = couleur saturée minoritaire (la plus contrastée).
-    - `background` = couleur la plus claire (luminance > 0.85) sinon `#FFFFFF`.
-    - `text` = couleur la plus sombre (luminance < 0.2) sinon `#111111`.
-  - Fallback : si pas assez de couleurs distinctes, compléter avec gris neutres.
-- SVG : si `contentType === "image/svg+xml"`, on rasterise via un `Image` + canvas standard — fonctionne tant que le SVG est self-contained.
+## Étape 2 — Brancher `FONT_COMBOS` dans la section typo
 
-### 2. Wiring dans `BrandCharterPage`
-- Dans `handleLogoUpload`, après le `update("logo_url", …)` et avant le toast success :
-  - `const palette = await extractLogoPalette(uploadFile).catch(() => null);`
-  - Si `palette`, ouvrir un nouvel état `logoPaletteProposal` (state local) qui contient `{ colors, includeCustom }`.
-- Ajouter un composant `<LogoPaletteDialog>` (nouveau fichier `src/components/branding/charter/LogoPaletteDialog.tsx`) basé sur shadcn `Dialog`, contrôlé par cet état.
-- Apply → `setData(prev => ({ ...prev, color_primary, color_secondary, ... }))` + `triggerSave()`.
+**Fichier** : `src/components/branding/charter/CharterTypographySection.tsx`
 
-### 3. Bouton manuel
-Ajouter un petit bouton **« 🎨 Extraire les couleurs du logo »** sous l'aperçu du logo (visible uniquement si `data.logo_url` existe). Permet de relancer l'extraction sans ré-uploader. Réutilise le même dialog.
+1. Utiliser la prop `toneKeywords` (déjà reçue, ignorée) pour filtrer `FONT_COMBOS` : matcher les `tone_match` ↔ keywords. Garder le top 3.
+2. Si aucun keyword (cas vide), afficher les 3 combos les plus universels (Moderne & Clean, Chaleureux & Accessible, Classique Élégant).
+3. Ajouter un bloc « 💡 Suggestions adaptées à ton ton » sous les inputs : 3 cards cliquables avec aperçu visuel (titre dans `font_title`, body dans `font_body`), description courte. Clic → `onDataChange({ font_title, font_body })` + `loadGoogleFont()`.
+4. Vérifier que `BrandCharterPage` passe bien `toneKeywords` (à confirmer ligne ~735).
 
-## Détails & garde-fous
+## Étape 3 (optionnelle, à valider après les 2 premières)
 
-- Tout est **client-side**, aucune edge function, aucune dépendance externe (canvas + algo maison ~80 lignes).
-- Pas d'écrasement sans confirmation explicite.
-- Si extraction échoue (canvas tainted CORS sur un logo déjà en CDN, par exemple), on `catch` et on n'affiche rien — pas d'erreur visible à l'user.
-- Pas de modif DB / RLS / schéma.
+- Synchroniser les 100 fonts de `GOOGLE_FONTS_LIST` avec les 15 du prompt edge — décider : soit étendre le prompt à 30+ fonts, soit restreindre l'autocomplete aux 15 sûres, soit ajouter une marque visuelle « recommandée par l'IA » sur les 15.
+- Afficher la `font_rationale` retournée par l'IA dans une mini-bulle sous le duo.
 
 ## Hors scope
 
-- Génération de palettes "intelligentes" via IA (Claude) à partir du logo — possible plus tard si l'extraction maison ne suffit pas.
-- Génération automatique de variantes de logo (déjà discutée ailleurs).
-- Application aux exports visuels — séparé.
+- Refonte du flow de coaching (ordre, nombre de steps).
+- Coaching audio/vocal.
+- Génération de specimens PDF de la typo.

@@ -50,12 +50,66 @@ const SECTOR_PALETTES: Record<string, string> = {
   default: "",
 };
 
+// Suggestions typo par secteur — base déterministe pour le prompt step 4 et fallback de validation
+const SECTOR_FONTS: Record<string, { advice: string; fallback: { title: string; body: string } }> = {
+  photographe: {
+    advice: "Pour une photographe : duo épuré qui ne vole pas la vedette aux images (Cormorant Garamond + Inter, ou Playfair Display + Work Sans).",
+    fallback: { title: "Cormorant Garamond", body: "Inter" },
+  },
+  "mode éthique": {
+    advice: "En mode éthique : serif artisanale + sans-serif douce (Cormorant Garamond + Raleway, ou Lora + Nunito).",
+    fallback: { title: "Cormorant Garamond", body: "Raleway" },
+  },
+  "coach bien-être": {
+    advice: "Pour le bien-être : serif douce + sans-serif arrondie (Lora + Nunito, ou Libre Baskerville + DM Sans).",
+    fallback: { title: "Lora", body: "Nunito" },
+  },
+  "coach business": {
+    advice: "Pour le coaching business : sans-serif affirmée (Space Grotesk + Inter, ou Montserrat + Open Sans).",
+    fallback: { title: "Space Grotesk", body: "Inter" },
+  },
+  artisan: {
+    advice: "Pour l'artisanat : serif élégante + sans-serif chaleureuse (Cormorant Garamond + Raleway, ou Playfair Display + Nunito).",
+    fallback: { title: "Cormorant Garamond", body: "Raleway" },
+  },
+  "food": {
+    advice: "En food : serif élégante + sans-serif lisible (Playfair Display + Lora, ou Libre Baskerville + Work Sans).",
+    fallback: { title: "Playfair Display", body: "Work Sans" },
+  },
+  default: {
+    advice: "",
+    fallback: { title: "DM Sans", body: "Inter" },
+  },
+};
+
+const ALLOWED_FONTS = [
+  "Inter", "Poppins", "Montserrat", "Playfair Display", "Libre Baskerville",
+  "Lora", "Raleway", "Open Sans", "Nunito", "DM Sans", "Space Grotesk",
+  "Outfit", "Cormorant Garamond", "Josefin Sans", "Work Sans",
+];
+
 function getSectorAdvice(typeActivite: string | null): string {
   if (!typeActivite) return "";
   const key = Object.keys(SECTOR_PALETTES).find(k => 
     typeActivite.toLowerCase().includes(k)
   );
   return SECTOR_PALETTES[key || "default"] || "";
+}
+
+function getSectorFontEntry(typeActivite: string | null) {
+  if (!typeActivite) return SECTOR_FONTS.default;
+  const key = Object.keys(SECTOR_FONTS).find(k =>
+    k !== "default" && typeActivite.toLowerCase().includes(k)
+  );
+  return SECTOR_FONTS[key || "default"] || SECTOR_FONTS.default;
+}
+
+function normalizeFont(name: unknown): string | null {
+  if (!name || typeof name !== "string") return null;
+  const cleaned = name.trim();
+  if (!cleaned) return null;
+  const match = ALLOWED_FONTS.find(f => f.toLowerCase() === cleaned.toLowerCase());
+  return match || null;
 }
 
 function buildPrompt(
@@ -93,12 +147,27 @@ function buildPrompt(
       stepInstruction = `L'utilisatrice décrit son style visuel en 3 mots. Déduis-en des mood_keywords et un photo_style. Retourne dans extracted : { mood_keywords: [...], photo_style: "..." }.`;
       break;
     case 4: {
-      let fontAdvice = "";
-      if (toneRegister || toneStyle) {
-        const toneDesc = [toneRegister, toneStyle].filter(Boolean).join(", ");
-        fontAdvice = `Son ton est "${toneDesc}". Adapte tes suggestions de polices en cohérence : un ton direct et punchy → sans-serif affirmée (Montserrat, Space Grotesk). Un ton doux et poétique → serif élégante (Playfair Display, Cormorant Garamond). Un ton professionnel → clean (DM Sans, Work Sans).`;
-      }
-      stepInstruction = `L'utilisatrice décrit ses préférences typographiques. ${fontAdvice} Suggère un duo titre/corps parmi : Inter, Poppins, Montserrat, Playfair Display, Libre Baskerville, Lora, Raleway, Open Sans, Nunito, DM Sans, Space Grotesk, Outfit, Cormorant Garamond, Josefin Sans, Work Sans. Retourne dans extracted : { font_title: "...", font_body: "..." }.`;
+      const sectorFont = getSectorFontEntry(typeActivite);
+      const toneDesc = [toneRegister, toneStyle].filter(Boolean).join(", ");
+      const moodKw: string[] = Array.isArray(charterData?.mood_keywords) ? charterData.mood_keywords : [];
+      const photoStyle: string | null = charterData?.photo_style || null;
+      const colorPrimary: string | null = charterData?.color_primary || null;
+
+      const contextBits: string[] = [];
+      if (sectorFont.advice) contextBits.push(`Secteur → ${sectorFont.advice}`);
+      if (toneDesc) contextBits.push(`Ton de marque : "${toneDesc}". Direct/punchy → sans-serif affirmée (Montserrat, Space Grotesk). Doux/poétique → serif élégante (Playfair Display, Cormorant Garamond). Pro/clean → DM Sans, Work Sans.`);
+      if (moodKw.length) contextBits.push(`Mood visuel déjà exprimé (PRIORITÉ sur les défauts sectoriels) : ${moodKw.join(", ")}.`);
+      if (photoStyle) contextBits.push(`Style photo : ${photoStyle}.`);
+      if (colorPrimary) contextBits.push(`Couleur principale choisie : ${colorPrimary}.`);
+
+      stepInstruction = `L'utilisatrice décrit ses préférences typographiques.
+
+${contextBits.join("\n")}
+
+Suggère UN duo titre/corps qui colle au mood visuel et au secteur. Liste autorisée STRICTE (n'invente rien hors liste) :
+Inter, Poppins, Montserrat, Playfair Display, Libre Baskerville, Lora, Raleway, Open Sans, Nunito, DM Sans, Space Grotesk, Outfit, Cormorant Garamond, Josefin Sans, Work Sans.
+
+Retourne dans extracted : { font_title: "<exact name>", font_body: "<exact name>", font_rationale: "<1 phrase qui explique pourquoi ce duo colle au mood et au secteur>" }.`;
       break;
     }
     case 5:
@@ -243,6 +312,23 @@ serve(async (req) => {
         parsed = { feedback: cleaned, suggestion: "", extracted: {} };
       }
     }
+
+    // Validation step 4 : normaliser font_title / font_body contre la liste autorisée,
+    // sinon retomber sur le fallback sectoriel pour éviter de sauvegarder une font qui ne charge pas
+    if (step === 4 && parsed?.extracted) {
+      const sectorFont = getSectorFontEntry(profileRes.data?.type_activite || null);
+      const normalizedTitle = normalizeFont(parsed.extracted.font_title);
+      const normalizedBody = normalizeFont(parsed.extracted.font_body);
+      if (!normalizedTitle || !normalizedBody) {
+        console.warn("[charter-coaching step 4] invalid fonts from AI, falling back to sector default", {
+          received: { title: parsed.extracted.font_title, body: parsed.extracted.font_body },
+          fallback: sectorFont.fallback,
+        });
+      }
+      parsed.extracted.font_title = normalizedTitle || sectorFont.fallback.title;
+      parsed.extracted.font_body = normalizedBody || sectorFont.fallback.body;
+    }
+
 
     return new Response(JSON.stringify({ response: parsed }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
