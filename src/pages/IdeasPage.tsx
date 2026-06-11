@@ -13,7 +13,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { format as fnsFormat } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { SkeletonCard } from "@/components/ui/skeleton-card";
 
