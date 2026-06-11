@@ -374,6 +374,11 @@ Pour les slides avec photo : "photo_index" (1-based, peut se répéter entre sli
 Pour les slides texte : "slide_type" = "text_only", pas de photo_index. Indique dans "strategic_note" pourquoi cette slide DOIT être texte (mécanisme, croyance, chiffre, transition, prise de position…) — et si elle gagnerait à porter un schéma visuel (comparaison, timeline, opposition, liste structurée).
 
 Répartis les photos intelligemment : la plus impactante en hook (slide 1) ou conclusion, les autres selon leur contenu narratif. Si une photo est réutilisée, change son rôle/cadrage entre les deux occurrences.
+
+CHAÎNAGE NARRATIF (CRITIQUE) :
+Les title_suggestion lus dans l'ordre doivent raconter UNE histoire qui progresse : situation → tension → bascule → résolution → ouverture. Pas une juxtaposition de slides indépendantes, qu'elles soient photo ou texte.
+Chaque strategic_note doit dire ce que la slide FAIT AVANCER dans le récit (ce qu'elle ajoute, retourne ou révèle par rapport à la précédente), pas seulement pourquoi elle est à cette position dans la structure.
+Test de permutation : si on échange deux slides au hasard et que la structure "marche encore", c'est raté — recommence.
 ${photo_description ? `Description complémentaire des photos : "${photo_description}"` : ""}`;
         }
       }
@@ -1825,14 +1830,31 @@ RÈGLE ABSOLUE : le JSON retourné doit avoir EXACTEMENT ${slide_structure.lengt
 - Le sujet "${body.subject || ""}" est un BRIEF CRÉATIF : si c'est un concept (VS, avant/après, métaphore), il structure l'ensemble. Le titre apparaît (ou est amélioré) sur la slide 1.
 - Les autres règles d'écriture (ton oral incarné, anti-jargon, anti-formules vides, écriture inclusive, pas de tirets cadratins) sont déjà définies dans le contexte système.
 
+═══ CHAÎNAGE NARRATIF DES OVERLAYS — RÈGLE ABSOLUE ═══
+
+Le carrousel mix doit se lire comme UN SEUL mini-récit continu, slides photo ET texte confondues. Chaque slide REPREND, PROLONGE ou FAIT BASCULER ce que la précédente a posé — peu importe que la précédente soit une photo_full, photo_integrated ou text_only.
+
+Sur les slides photo_full :
+- À partir de la slide 2, CHAQUE overlay_text DOIT contenir au moins l'UN des deux éléments suivants :
+  (a) un connecteur narratif en début ou milieu de phrase : "Puis", "Et puis", "Sauf que", "C'est là que", "Alors", "Du coup", "Trois mois plus tard", "Au début", "Maintenant", "Résultat", "Ce qu'on n'a pas vu venir".
+  (b) une reprise lexicale d'un mot/groupe-clé de la slide précédente (le même mot, ou un synonyme évident qui boucle la référence).
+- Les overlays lus à la suite (en ignorant les text_only entre eux) doivent former un fil narratif cohérent — pas une galerie de légendes interchangeables.
+
+Sur les slides text_only :
+- Elles s'OUVRENT sur ce que la slide photo précédente vient de poser (reprise lexicale, ou prolongement direct de l'image montrée).
+- Elles DÉVELOPPENT en profondeur (mécanisme, donnée, croyance retournée, prise de position).
+- Leur DERNIÈRE phrase TEND vers la slide suivante : elle ouvre la question, la tension ou l'image que la slide suivante va incarner.
+
+Test de permutation : si on échange deux slides au hasard et que le carrousel "marche encore", c'est raté → recommence.
+
 ═══ INTERDICTION CASCADE / ESCALIER (CRITIQUE) ═══
 
-La "cascade" est le défaut #1 des carrousels mixtes IA : chaque slide texte paraphrase la précédente en montant d'un cran émotionnel. C'est INTERDIT.
+La "cascade" est le défaut #1 des carrousels mixtes IA : chaque slide texte paraphrase la précédente en montant d'un cran émotionnel. C'est INTERDIT — à distinguer de la continuité narrative, qui elle est OBLIGATOIRE (voir bloc CHAÎNAGE ci-dessus).
 
-- Aucune slide texte ne doit ouvrir par un connecteur d'amplification : "En vrai", "Et là", "Sauf que", "Sauf qu'en fait", "Le vrai X c'est…", "C'est pour ça que…", "Et oui…", "Sauf que personne…". Ouvre par un fait, une scène, une question directe, ou un détail concret.
+- Test de progression : chaque slide texte DOIT APPORTER un élément nouveau (fait, scène, donnée, mécanisme, bascule, contre-exemple) par rapport à la précédente. Si elle reformule la même idée avec d'autres mots, ou avec une intensité supérieure → c'est une cascade : fusionne avec la précédente ou réécris-la autour d'un contenu neuf.
+- Connecteurs d'ouverture : un connecteur narratif en ouverture d'une slide texte est AUTORISÉ s'il introduit un contenu NOUVEAU (scène, fait, donnée, exemple). Il reste INTERDIT s'il introduit une simple reformulation amplifiée de la slide précédente ("En vrai…", "Sauf qu'en fait…", "Le vrai X c'est…" suivis d'une redite = cascade).
 - Deux slides texte consécutives ne doivent JAMAIS répéter le même mot-clé central. Si slide N parle de "visibilité", slide N+1 doit changer d'angle (exemple, contre-exemple, scène), pas redéfinir "visibilité".
 - Pas de rampe émotionnelle artificielle ("c'est important" → "c'est crucial" → "c'est vital"). Une seule tension, posée une fois, puis on développe par EXEMPLES, pas par escalade rhétorique.
-- Test slide-seule : chaque slide texte doit pouvoir être lue HORS contexte et garder un message clair. Si elle a besoin de la précédente pour faire sens → c'est une cascade : fusionne ou supprime.
 - Anti-TU : voix principale = JE (expérience partagée). Le TU est limité à 2 slides max d'interpellation ponctuelle, jamais comme voix narrative.
 
 ${SLIDE_TITLE_RULES}
@@ -1853,6 +1875,8 @@ ${deepeningCtx}${angleBlock}
 - TEST DE PROFONDEUR par slide text_only : si on peut remplacer le sujet par un autre et que la slide fonctionne encore → GÉNÉRIQUE → RÉÉCRIS. Si la slide dit ce que tout le monde sait déjà → RÉÉCRIS. Si elle pourrait être écrite sans expertise sur le sujet → RÉÉCRIS.
 - Au moins UNE slide text_only nomme explicitement le MÉCANISME identifié dans l'analyse interne (biais, concept, dynamique).
 - Au moins UNE slide formule la CROYANCE retournée ("on croit X, en fait Y") OU porte le RETOURNEMENT de perspective (le moment "j'avais jamais vu ça comme ça"). Cette slide est le PIVOT du carrousel — pas le hook, pas le CTA, le milieu.
+- Les overlay_text des slides photo_full, lus à la suite, forment un récit continu (reprise, prolongement ou bascule d'une slide à l'autre) — pas une galerie de légendes interchangeables.
+- Le test de permutation échoue : déplacer une slide au hasard (photo ou texte) casserait visiblement le récit. Si ce n'est pas le cas, le chaînage est trop faible — réécris.
 ${isLinkedIn ? `- Pour LinkedIn mix : la légende (caption) est OPTIONNELLE — concentre-toi à 100% sur la qualité des slides PDF. Si tu inclus une caption, ne la bâcle pas, sinon laisse-la vide (elle sera générée par un appel dédié).` : `- Le bloc "caption" complet (hook, body, cta, hashtags) est OBLIGATOIRE dans le JSON — ne JAMAIS l'omettre, ne JAMAIS le laisser vide.`}
 
 ${isLinkedIn ? `═══ LÉGENDE LINKEDIN (OPTIONNELLE — peut être vide) ═══

@@ -1,54 +1,38 @@
-# Plan — Fix toggle photo "Rien ne se passe" + audit zones d'upload
+# Plan — Chaînage narratif du carrousel MIX
 
-## Symptôme
-Tu cliques sur le toggle "📸 J'attache une photo à mon post" (LinkedIn, et probablement Reel) : visuellement rien ne change, donc la zone d'upload (qui dépend de `photoMode === true`) n'apparaît jamais. Code lu : `src/components/creer/CreerStepFormat.tsx` lignes 555–615, `src/components/creer/PhotoUploadZone.tsx`, `src/components/creer/CreerStepIdea.tsx`.
+Périmètre strict : `supabase/functions/carousel-ai/index.ts`, deux zones uniquement (buildMixCarouselPrompt + branche MIX de `photoInstruction` dans `structure_proposal`). Le mode photo, le news-reaction mix, le channelBlock LinkedIn, le schéma JSON, la composition (50% photos, photo_full en slide 1, text_only CTA, pas de 3 du même type), le DEPTH_LAYER, la correction pass et tout le frontend ne bougent pas.
 
-## Diagnostic
-Le pattern actuel (ligne 557) :
-```tsx
-<div role="button" onClick={() => setPhotoMode(!photoMode)} ...>
-  <Switch checked={photoMode} onCheckedChange={setPhotoMode}
-          className="pointer-events-none flex-shrink-0" />
-  ...
-</div>
-```
-empile **deux** mécanismes de toggle (wrapper `onClick` + Switch contrôlé) en neutralisant le second via `pointer-events-none`. C'est fragile : sur certains événements (touch, focus + clavier, libellé clic) la propagation peut soit ne pas atteindre le wrapper, soit déclencher le toggle puis l'annuler. Symptôme exact rapporté = "rien ne change visuellement", ce qui colle.
+## (a) Demandé
 
-L'idem pattern existe pour **chaque format mono-photo** (post, reel, story, linkedin, newsletter — `formatAcceptsSinglePhoto`), donc le même bug touche tous ces formats, pas seulement LinkedIn. C'est cohérent avec ton "je crois que c'était reel aussi".
+### 1. `buildMixCarouselPrompt` — nouveau bloc "CHAÎNAGE NARRATIF DES OVERLAYS"
+Insérer JUSTE APRÈS le bloc "═══ RÈGLES SPÉCIFIQUES MIX ═══" (avant l'actuel "INTERDICTION CASCADE", ligne ~1827), un bloc calqué sur celui du mode photo (ligne ~1600) mais adapté au mix :
+- Les `overlay_text` des slides `photo_full` lus à la suite = UN SEUL mini-récit (reprend / prolonge / fait basculer la slide précédente, qu'elle soit photo OU texte).
+- À partir de la slide 2, chaque overlay photo_full DOIT contenir soit (a) un connecteur narratif ("Puis", "Et puis", "Sauf que", "C'est là que", "Alors", "Trois mois plus tard", "Au début", "Maintenant", "Résultat"…), soit (b) une reprise lexicale d'un mot-clé de la slide précédente.
+- Les `text_only` participent au récit : ouverture qui reprend/prolonge la slide photo précédente, développement en profondeur, dernière phrase qui TEND vers la suivante (ouvre la question/tension que la photo suivante va incarner).
+- Test de permutation : si on échange deux slides au hasard et que ça marche encore → raté.
 
-## (a) Ce que je vais faire
+### 2. `buildMixCarouselPrompt` — réécrire "INTERDICTION CASCADE / ESCALIER" (ligne ~1828)
+- SUPPRIMER la puce "Test slide-seule : chaque slide texte doit pouvoir être lue HORS contexte…".
+- AJOUTER à la place un "Test de progression" : chaque slide texte APPORTE un élément nouveau (fait, scène, donnée, mécanisme, bascule) par rapport à la précédente. Si elle reformule la même idée avec d'autres mots ou plus d'intensité → cascade → fusionner ou réécrire.
+- ASSOUPLIR la puce sur les connecteurs d'ouverture : un connecteur narratif en ouverture d'une slide texte est AUTORISÉ s'il introduit un contenu nouveau (scène, fait, donnée). Il reste INTERDIT s'il introduit une reformulation amplifiée.
+- CONSERVER intactes : la puce "même mot-clé central interdit entre deux slides texte consécutives", la rampe émotionnelle ("important → crucial → vital") interdite, et la règle Anti-TU.
 
-### 1. Simplifier le toggle photo — `CreerStepFormat.tsx` (lignes ~556-582)
+### 3. `buildMixCarouselPrompt` — "VÉRIFICATION FINALE" (ligne ~1848)
+Ajouter deux puces à la fin de la checklist (avant la puce `isLinkedIn`) :
+- "Les overlays photo_full lus à la suite forment un récit continu (reprise / prolongement / bascule), pas une galerie de légendes."
+- "Le test de permutation échoue : déplacer une slide casserait le récit."
 
-Remplacer le double-mécanisme par un seul, sans wrapper `onClick`. Le `<Switch>` redevient pleinement interactif, et la zone cliquable (texte) appelle `setPhotoMode(!photoMode)` via un bouton explicite. Résultat : un seul handler, état toujours synchrone.
+### 4. `structure_proposal` — branche MIX de `photoInstruction` (ligne ~351-377)
+Ajouter à la fin du template literal MIX un bloc "CHAÎNAGE NARRATIF (CRITIQUE)" équivalent à celui de la branche PHOTO (ligne 345) :
+- Les `title_suggestion` lus dans l'ordre racontent une histoire qui progresse (situation → tension → bascule → résolution → ouverture).
+- Chaque `strategic_note` dit ce que la slide FAIT AVANCER dans le récit (pas seulement pourquoi elle est à cette position).
+- Test de permutation rappelé.
 
-Modification ciblée :
-- Retirer `pointer-events-none` du Switch
-- Retirer `role="button" tabIndex onClick onKeyDown` du wrapper
-- Garder le wrapper purement visuel (highlight selon `photoMode`)
-- Le `<Switch>` ET un `<button type="button" onClick={() => setPhotoMode(!photoMode)}>` autour du texte → 2 hit zones indépendantes, jamais en conflit
+## (b) Mes propositions (à valider individuellement)
 
-### 2. Garde-fou visibilité de la zone d'upload (ligne ~598)
+Aucune. La lecture des deux zones confirme que le plan demandé couvre exactement la cause identifiée (overlays sans règle de chaînage + "test slide-seule" qui interdit la continuité). Les autres blocs MIX (composition, profondeur, photo assignment, channelBlock LinkedIn) sont déjà cohérents et hors causalité — y toucher serait du scope creep.
 
-Aucun changement de condition (toujours `formatAcceptsSinglePhoto(selectedFormat) && photoMode`) mais ajout d'un `console.log` temporaire **non**, je préfère : pas de logs en prod. À la place : vérifier que `animate-fade-in` n'a pas un état initial `opacity-0` qui reste bloqué. Si oui, ajout d'un `key={photoMode ? "on" : "off"}` pour forcer le remount propre de l'animation à chaque flip.
-
-### 3. Audit des autres endroits avec PhotoUploadZone
-
-Inventaire complet pour vérifier qu'aucun autre toggle ne souffre du même pattern :
-- `CreerStepFormat.tsx` ligne 749 — carrousel sub-mode (photo/mix/pure_photo) : pas de toggle Switch, juste des boutons sub-mode → **OK, pas concerné**
-- `CreerStepIdea.tsx` ligne 176 — relire les 30 lignes autour pour vérifier qu'il n'y a pas un toggle équivalent qui cache la zone d'upload
-- Si je trouve la même cascade Switch+wrapper, appliquer le même fix
-
-### 4. Validation
-- `npx tsc --noEmit --skipLibCheck`
-- Test manuel à confirmer par toi : sur LinkedIn ET sur Reel Instagram, le clic sur le toggle révèle immédiatement la zone de drag/drop
-
-## (b) Propositions d'amélioration — à valider avant exec
-
-Aucune en plus. Je reste strictement sur le périmètre "le toggle ne s'active pas → la zone d'upload n'apparaît pas". Pas de refonte du PhotoUploadZone, pas de touche au flow carrousel, pas de modification backend.
-
-## Hors scope
-- Refonte du composant `Switch` (shadcn) lui-même
-- Modification du flow upload (validation, HEIC, library picker)
-- Mémoire / persistance des photos entre étapes
-- Toute modification backend
+## Validation
+- `npx tsc --noEmit --skipLibCheck` → 0 erreur.
+- Test manuel : générer un carrousel mix 2-3 photos, sujet narratif → overlays se lisent comme un récit ; slides texte enchaînées aux photos ; pas de paraphrase amplifiée ; densité texte préservée (mécanisme/donnée/bascule).
+- Test LinkedIn mix : channelBlock toujours appliqué (ton, CTA pro).
