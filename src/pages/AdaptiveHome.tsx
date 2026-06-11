@@ -167,11 +167,12 @@ export default function AdaptiveHome() {
     queryKey: ["adaptive-home-ideas-count", user?.id, workspaceId],
     queryFn: async () => {
       if (!user) return 0;
+      const filterCol = workspaceId ? "workspace_id" : "user_id";
+      const filterVal = workspaceId ?? user.id;
       const { count } = await supabase
         .from("saved_ideas")
         .select("*", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .eq("workspace_id", workspaceId ?? user.id);
+        .eq(filterCol, filterVal);
       return count ?? 0;
     },
     enabled: !!user,
