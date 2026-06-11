@@ -249,7 +249,7 @@ export function extractEditableBlocks(
   const all = Array.from(doc.body.querySelectorAll<HTMLElement>("*"));
 
   for (const el of all) {
-    const text = (el.textContent || "").trim();
+    const text = textContentWithBreaks(el).trim();
     if (text.length < minTextLen) continue;
 
     // Skip nodes already covered by an annotated ancestor (avoid double-render)
@@ -320,7 +320,7 @@ export function extractAnnotatedBlocks(doc: Document): EditableBlock[] {
   const nodes = Array.from(doc.body.querySelectorAll<HTMLElement>("[data-pptx-editable]"));
   const blocks: EditableBlock[] = [];
   for (const el of nodes) {
-    const text = (el.textContent || "").trim();
+    const text = textContentWithBreaks(el).trim();
     if (!text) continue;
     const cs = win.getComputedStyle(el);
     if (cs.visibility === "hidden" || cs.display === "none") continue;
