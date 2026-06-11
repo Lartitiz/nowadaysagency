@@ -625,32 +625,32 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
         ) : (
           <div className="space-y-3 animate-fade-in">
             <p className="text-sm font-semibold text-foreground">Quel type de carrousel ?</p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <div className={`grid grid-cols-1 ${hasPreloadedPhotos ? "sm:grid-cols-2" : "sm:grid-cols-3"} gap-2`}>
               {!hasPreloadedPhotos && (
                 <button
                   onClick={() => { setCarouselSubMode("text"); setUploadedPhotos([]); setPhotoDescription(""); }}
-                  className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
+                  className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-4 text-left transition-all flex flex-col gap-1.5"
                 >
-                  <span className="text-2xl block mb-1">📝</span>
-                  <span className="text-xs font-semibold text-foreground">Texte</span>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">8-10 slides, design auto, .pptx téléchargeable</p>
+                  <span className="text-2xl">📝</span>
+                  <span className="text-sm font-semibold text-foreground">Carrousel texte</span>
+                  <p className="text-[11px] leading-snug text-muted-foreground">L'IA écrit et designe 8-10 slides. .pptx téléchargeable.</p>
                 </button>
               )}
               <button
                 onClick={() => setCarouselSubMode("photo")}
-                className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
+                className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-4 text-left transition-all flex flex-col gap-1.5"
               >
-                <span className="text-2xl block mb-1">📸</span>
-                <span className="text-xs font-semibold text-foreground">Photo</span>
-                <p className="text-[10px] text-muted-foreground mt-0.5">Tes photos en plein écran</p>
+                <span className="text-2xl">📸</span>
+                <span className="text-sm font-semibold text-foreground">Carrousel photos seules</span>
+                <p className="text-[11px] leading-snug text-muted-foreground">Tes photos brutes en plein écran. L'IA rédige uniquement la légende qui accompagne le post.</p>
               </button>
               <button
                 onClick={() => setCarouselSubMode("mix")}
-                className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
+                className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-4 text-left transition-all flex flex-col gap-1.5"
               >
-                <span className="text-2xl block mb-1">✨</span>
-                <span className="text-xs font-semibold text-foreground">Mixte</span>
-                <p className="text-[10px] text-muted-foreground mt-0.5">Photos + slides texte</p>
+                <span className="text-2xl">✨</span>
+                <span className="text-sm font-semibold text-foreground">Carrousel storytelling</span>
+                <p className="text-[11px] leading-snug text-muted-foreground">Alterne tes photos et des slides design avec du texte construit par l'IA.</p>
               </button>
             </div>
           </div>
