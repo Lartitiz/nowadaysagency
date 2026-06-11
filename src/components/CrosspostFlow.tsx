@@ -92,7 +92,7 @@ export default function CrosspostFlow() {
           fileUrls.push({ url, type: f.type, name: f.name });
         }
       }
-      const res = await invokeWithTimeout("linkedin-ai", {
+      const { data: cpData, error: cpError } = await invokeWithTimeout("linkedin-ai", {
         body: {
     action: "crosspost",
     sourceContent: sourceContent || "",
@@ -102,8 +102,13 @@ export default function CrosspostFlow() {
     workspace_id: workspaceId,
         },
       }, 120000);
-      if (res.error) throw new Error(res.error.message);
-      let parsed: CrosspostResult = parseAIResponse(res.data?.content || "");
+      if (cpError?.isRateLimit || cpData?.error === "limit_reached") {
+        if (handleQuotaError({ message: cpError?.message || cpData?.message, data: cpData })) {
+          return;
+        }
+      }
+      if (cpError) throw new Error(cpError.message);
+      let parsed: CrosspostResult = parseAIResponse(cpData?.content || "");
       setResult(parsed);
       setActiveVersionKey(Object.keys(parsed.versions || {})[0] || "");
     } catch (e: any) {
