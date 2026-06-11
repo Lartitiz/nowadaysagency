@@ -6,6 +6,8 @@
  * receiving branding_context from the client.
  */
 
+import { assertWorkspaceMembership } from "./workspace-guard.ts";
+
 export interface ContextOptions {
   includeStory?: boolean;
   includePersona?: boolean;
@@ -38,16 +40,21 @@ const DEFAULT_OPTIONS: ContextOptions = {
  * If workspaceId is provided, queries filter by workspace_id instead of user_id.
  */
 export async function getUserContext(supabase: any, userId: string, workspaceId?: string, channel?: string) {
-  const col = workspaceId ? "workspace_id" : "user_id";
-  const val = workspaceId || userId;
+  // Fail-closed workspace membership guard: if caller is not a member of the
+  // requested workspace, silently degrade to user_id scope (no data leak).
+  const guard = await assertWorkspaceMembership(supabase, userId, workspaceId);
+  const effectiveWorkspaceId = guard.ok && workspaceId ? workspaceId : undefined;
+
+  const col = effectiveWorkspaceId ? "workspace_id" : "user_id";
+  const val = effectiveWorkspaceId || userId;
 
   // Resolve the owner's user_id for tables without workspace_id (profiles, voice_profile)
   let profileUserId = userId;
-  if (workspaceId) {
+  if (effectiveWorkspaceId) {
     const { data: ownerRow } = await supabase
       .from("workspace_members")
       .select("user_id")
-      .eq("workspace_id", workspaceId)
+      .eq("workspace_id", effectiveWorkspaceId)
       .eq("role", "owner")
       .maybeSingle();
     if (ownerRow?.user_id) {
