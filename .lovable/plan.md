@@ -1,23 +1,34 @@
-## Contexte
-Dans la page `/creer` (composant `CreerStepIdea.tsx`), le bouton **"Pas d'idée ? Laisse-toi guider"** est actuellement un simple lien texte sous le textarea. Les trois autres options de création (Photos, Actu, Transformer) sont des cartes visuelles dans une grille. L'utilisateur veut que le coaching rejoigne cette grille pour unifier le visuel.
+# Plan — Affichage centré et plus lisible des idées sauvegardées
+
+## Problèmes identifiés
+
+1. Le panneau de détail s'ouvre en `Sheet` latéral droit, étroit (`sm:max-w-[420px]`) — peu confortable pour lire un brief avec plusieurs champs.
+2. Pour les idées de type "data libre" (newsjacking : `axe`, `ton`, `titre`, `resume`, `source`, `pertinence`), le composant `FallbackPreview` aligne les labels en `text-xs` inline sans hiérarchie, ce qui produit l'effet de collage visible dans la sélection (`axe :debat_recurrentton :entre_deux…`).
 
 ## Changements
 
-### 1. Retirer le bouton texte actuel
-Supprimer le `<button>` "Pas d'idée ? Laisse-toi guider" situé sous le textarea (lignes ~104-110). Le paragraphe explicatif "Pas besoin d'être précise" reste en place.
+### 1. `src/pages/IdeasPage.tsx` — Sheet → Dialog centré
+- Remplacer l'import `Sheet*` par `Dialog*`.
+- Remplacer `<Sheet>` / `<SheetContent>` / `<SheetHeader>` / `<SheetTitle>` / `<SheetDescription>` par leurs équivalents Dialog.
+- `DialogContent` : largeur confortable (`max-w-2xl`), hauteur bornée (`max-h-[90vh]`), scroll interne (`overflow-y-auto`), padding généreux. Centré par défaut.
+- Conserver tout le contenu interne tel quel (badges statut/objectif/canal/type, sections Angle/Format, Accroche, Contenu, Dates, Notes, Actions).
 
-### 2. Ajouter une carte coaching dans la grille
-Dans la grille `sm:grid-cols-3 gap-2` (lignes ~132-168) qui contient les 3 options alternatives, ajouter une quatrième carte identique en style :
-- Icône `HelpCircle` (primary)
-- Titre : "Pas d'idée ?"
-- Sous-titre : "Laisse-toi guider par la coach."
-- Même classes CSS (rounded-xl, border, bg-card, hover states, p-3)
-- Au clic : ouvre le même `ContentCoachingDialog` via `setCoachOpen(true)`
+### 2. `src/components/ContentPreview.tsx` — `FallbackPreview` plus clair
+- Garder la même API (props et `onContentChange`).
+- Pour chaque entrée :
+  - Label en `text-[11px] font-mono-ui uppercase tracking-wide text-muted-foreground` au-dessus de la valeur (et non collé inline).
+  - Valeur en `text-sm text-foreground leading-relaxed` sur sa propre ligne.
+  - Bloc séparé par un `space-y-3` global et un `border-t border-border/40 pt-3` entre items (sauf le premier) pour aérer visuellement.
+- Mise en avant prioritaire : si la clé est `titre` ou `title`, l'afficher en `text-base font-semibold` sans label, en premier. Si `axe` et/ou `ton` existent, les afficher juste en dessous sous forme de petits chips `rounded-pill bg-muted px-2 py-0.5 text-[10px]`.
+- Conserver la limite `slice(0, 10)` et le filtre `length > 5`.
+- Conserver l'édition inline (`EditableText`).
 
-### 3. Adapter la grille
-Passer la grille de 3 à 4 colonnes sur desktop (`sm:grid-cols-4`) ou laisser en `sm:grid-cols-2` si 4 cartes passent mieux sur 2 lignes. À valider visuellement — comportement par défaut : `grid-cols-2` sur sm et au-dessus si 4 éléments.
+## Hors scope
+- Pas de refonte des autres previews (Reel, Stories, Carousel, Post).
+- Pas de changement de logique de sauvegarde, statuts, actions, notes.
+- Pas de changement de couleurs / tokens globaux.
 
-## Non-modifié
-- Le `ContentCoachingDialog` et son état `coachOpen`
-- Le textarea, le CTA principal, les autres modes (Photos, Newsjacking, Transform)
-- La logique des props `onCoachingSelect`
+## Validation
+- `npx tsc --noEmit --skipLibCheck` propre.
+- Visuel : ouvrir une idée newsjacking → modale centrée, titre en avant, axe/ton en chips, résumé/source/pertinence en sections lisibles.
+- Régression : ouvrir une idée carrousel / reel / post → preview existante intacte.
