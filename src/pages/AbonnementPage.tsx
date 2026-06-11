@@ -317,7 +317,7 @@ export default function AbonnementPage() {
             <PlanCard
               name="Gratuit"
               price="0€"
-              credits="25 crédits IA/mois"
+              credits="60 crédits IA/mois"
               active={plan === "free"}
               onSelect={() => {}}
               disabled

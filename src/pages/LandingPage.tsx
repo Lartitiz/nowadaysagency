@@ -112,7 +112,7 @@ const FAQ_DATA = [
   },
   {
     q: "Le plan gratuit, c'est vraiment gratuit ? C'est quoi le piège ?",
-    a: "Pas de piège. Le plan gratuit inclut l'onboarding complet, tout l'espace branding, le calendrier éditorial, les espaces par canal, et 60 contenus IA par mois. C'est déjà beaucoup. Le premium à 39€/mois débloque les contenus illimités, les audits, les stats et la communauté. Mais tu peux rester en gratuit aussi longtemps que tu veux."
+    a: "Pas de piège. Le plan gratuit inclut l'onboarding complet, tout l'espace branding, le calendrier éditorial, les espaces par canal, et 60 crédits IA par mois. C'est déjà beaucoup. Le premium à 39€/mois débloque 300 crédits IA/mois (contenus + audits), les stats et la communauté. Mais tu peux rester en gratuit aussi longtemps que tu veux."
   },
   {
     q: "Je peux annuler quand je veux ?",
@@ -698,14 +698,13 @@ export default function LandingPage() {
                 <span className="text-2xl mb-2">💎</span>
                 <h3 className="font-display text-lg font-bold">Premium</h3>
                 <p className="text-primary font-bold text-xl mt-1">39€<span className="text-sm font-normal text-muted-foreground">/mois</span></p>
-                <p className="text-sm text-muted-foreground mt-1 mb-4">Crée sans compter. L'IA en illimité.</p>
+                <p className="text-sm text-muted-foreground mt-1 mb-4">Crée régulièrement. 300 crédits IA/mois.</p>
                 <p className="text-xs text-muted-foreground mb-2 pb-2 border-b border-border">
                   Tout le plan gratuit, plus :
                 </p>
                 <ul className="space-y-2 mb-6 flex-1">
                   {[
-                    "Contenus IA illimités",
-                    "Audits IA illimités",
+                    "300 crédits IA/mois (contenus + audits)",
                     "Communauté active + lives mensuels",
                   ].map((item, idx) => (
                     <li key={idx} className="text-sm text-foreground flex items-start gap-2">

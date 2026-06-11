@@ -242,7 +242,7 @@ export default function AccompagnementPage() {
                    "WhatsApp jours ouvrés",
                    "Tous les outils débloqués",
                    "Plan de com' personnalisé",
-                   "Crédits IA illimités",
+                   "300 crédits IA/mois",
                  ].map((item) => (
                   <div key={item} className="flex items-start gap-2">
                     <span className="text-primary mt-0.5">✓</span>
@@ -278,7 +278,7 @@ export default function AccompagnementPage() {
                  "WhatsApp jours ouvrés",
                  "Tous les outils débloqués",
                  "Plan de com' personnalisé",
-                 "Crédits IA illimités",
+                 "300 crédits IA/mois",
                ].map((item) => (
                 <div key={item} className="flex items-start gap-2">
                   <span className="text-primary mt-0.5">✓</span>

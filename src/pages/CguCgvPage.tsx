@@ -96,8 +96,8 @@ export default function CguCgvPage() {
             <p className="font-semibold text-foreground mb-1">5. Offres et tarifs</p>
             <p className="text-muted-foreground">L'Outil propose plusieurs formules :</p>
             <ul className="list-disc pl-5 text-muted-foreground space-y-1 mt-1">
-              <li><strong>Plan Gratuit :</strong> accès à l'ensemble de l'outil avec 25 crédits IA par mois.</li>
-              <li><strong>Plan L'Assistant Com' Premium :</strong> 39€ TTC par mois, sans engagement. Crédits IA illimités, audits illimités, tous les modules débloqués.</li>
+              <li><strong>Plan Gratuit :</strong> accès à l'ensemble de l'outil avec 60 crédits IA par mois.</li>
+              <li><strong>Plan L'Assistant Com' Premium :</strong> 39€ TTC par mois, sans engagement. Inclut 300 crédits IA par mois (toutes actions IA confondues : génération de contenus, audits, suggestions, adaptations), tous les modules débloqués. Certaines actions spécifiques disposent de limites mensuelles propres, détaillées sur la page Tarifs : coaching IA (120), recherches approfondies (15), imports de statistiques (10), retouches photo (50). Les crédits non utilisés ne sont pas reportés. Des packs de crédits complémentaires sont disponibles à l'achat.</li>
               <li><strong>Programme "Ton binôme de com'" :</strong> 290€ TTC par mois, engagement de 6 mois (soit 1 740€ TTC au total). Inclut le plan Premium + accompagnement individuel avec Laetitia Mattioli (sessions visio 2h/mois, support WhatsApp jours ouvrés, stratégie personnalisée).</li>
               <li><strong>Paiement unique "Ton binôme de com'" :</strong> 1 740€ TTC en une fois.</li>
               <li><strong>Packs de crédits IA :</strong> 3,90€ (10 crédits), 8,90€ (30 crédits), 14,90€ (60 crédits).</li>
@@ -205,7 +205,7 @@ export default function CguCgvPage() {
           <div>
             <p className="font-semibold text-foreground mb-1">13. Modification des CGU/CGV</p>
             <p className="text-muted-foreground">
-              Nous nous réservons le droit de modifier les présentes CGU/CGV. Tu seras informé·e par email ou via l'Outil en cas de modification substantielle. La poursuite de l'utilisation de l'Outil après modification vaut acceptation.
+              Nous nous réservons le droit de modifier les présentes CGU/CGV. Tu seras informé·e par email ou via l'Outil au moins 30 jours avant l'entrée en vigueur de toute modification substantielle. La poursuite de l'utilisation de l'Outil après modification vaut acceptation.
             </p>
           </div>
 
