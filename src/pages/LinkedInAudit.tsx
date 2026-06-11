@@ -219,7 +219,7 @@ export default function LinkedInAudit() {
 
       const res = await invokeWithTimeout("linkedin-audit-ai", {
         body: {
-          workspace_id: workspaceId,
+          workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
           profileUrl,
           objective,
           currentRhythm: rhythm,

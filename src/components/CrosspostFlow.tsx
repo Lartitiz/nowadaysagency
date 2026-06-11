@@ -119,7 +119,7 @@ export default function CrosspostFlow() {
     sourceType,
     targetChannels: Array.from(targets),
     fileUrls,
-    workspace_id: workspaceId,
+    workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
         },
       }, 120000);
       if (cpError || cpData?.error) {
