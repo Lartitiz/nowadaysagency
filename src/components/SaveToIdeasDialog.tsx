@@ -21,7 +21,7 @@ const TAG_OPTIONS = [
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  contentType: "story" | "reel" | "post_instagram" | "post_linkedin";
+  contentType: "story" | "reel" | "post_instagram" | "post_linkedin" | "newsletter";
   subject: string;
   contentData: any;
   personalElements?: any;

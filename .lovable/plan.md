@@ -1,62 +1,138 @@
-## (a) Ce que tu m'as demandé
+## Objectif
 
-### Pattern commun (3 composants)
+Aligner le mode Recycler sur Crosspost : chaque format recyclé peut être planifié dans le calendrier ou sauvegardé comme idée, via les mêmes dialogs (`AddToCalendarDialog`, `SaveToIdeasDialog`).
 
-Import :
+## Fichiers modifiés
+
+1. `**src/components/ContentRecycling.tsx**` — câblage des deux dialogs sur l'onglet actif.
+2. `**src/components/SaveToIdeasDialog.tsx**` — extension additive du type `contentType` pour accepter `"newsletter"`.
+
+## Détail des modifications
+
+### 1. `ContentRecycling.tsx`
+
+**Imports ajoutés** (au-dessus de l'existant) :
+
+- `CalendarDays`, `Lightbulb` depuis `lucide-react`
+- `AddToCalendarDialog` depuis `@/components/calendar/AddToCalendarDialog`
+- `SaveToIdeasDialog` depuis `@/components/SaveToIdeasDialog`
+
+**State ajouté** dans le composant :
+
+- `showCalendarDialog: boolean` (init `false`)
+- `showIdeasDialog: boolean` (init `false`)
+
+**Helpers de mapping** basés sur `activeTab` :
+
+- `getCanal(format)` : `linkedin → "linkedin"`, `newsletter → "newsletter"`, sinon `"instagram"`
+- `getCalendarFormat(format)` : `carrousel → "carousel"`, `reel → "reel"`, `stories → "story_serie"`, `linkedin → "post"`, `newsletter → "newsletter"`
+- `getContentType(format)` : `carrousel → "post_instagram"`, `reel → "reel"`, `stories → "story"`, `linkedin → "post_linkedin"`, `newsletter → "newsletter"`
+- `getFormatShortLabel(format)` : libellé court sans emoji pour les titres ("Carrousel", "Reel", "Stories", "Post LinkedIn", "Newsletter")
+
+`**handleAddToCalendar(dateStr)**` : copie fidèle du pattern Crosspost.
+
 ```ts
-import { handleQuotaError } from "@/lib/quota-error-handler";
+const text = results[activeTab] || "";
+const insertData: any = {
+  user_id: user.id,
+  date: dateStr,
+  theme: `Recyclage ${getFormatShortLabel(activeTab)}`,
+  canal: getCanal(activeTab),
+  format: getCalendarFormat(activeTab),
+  content_draft: text,
+  accroche: text.split("\n")[0]?.slice(0, 200) || "",
+  status: "ready",
+};
+if (workspaceId && workspaceId !== user.id) insertData.workspace_id = workspaceId;
+const { error } = await supabase.from("calendar_posts").insert(insertData);
+setShowCalendarDialog(false);
+error ? toast({ title: "Erreur lors de la planification", variant: "destructive" })
+      : toast({ title: "📅 Planifié dans ton calendrier !" });
 ```
 
-Juste après l'appel `invokeWithTimeout` et AVANT le traitement d'erreur existant, insérer une garde quota :
-```ts
-if (error?.isRateLimit || data?.error === "limit_reached") {
-  if (handleQuotaError({ message: error?.message || data?.message, data })) {
-    return; // setLoading/setGenerating → géré par le finally
-  }
-}
+**Boutons dans la vue résultats** (juste après les boutons "Copier" et "Nouveau recyclage", dans le même flex `gap-2`) :
+
+```tsx
+<Button variant="outline" size="sm" onClick={() => setShowCalendarDialog(true)} className="rounded-pill gap-1.5">
+  <CalendarDays className="h-3.5 w-3.5" /> Planifier
+</Button>
+<Button variant="outline" size="sm" onClick={() => setShowIdeasDialog(true)} className="rounded-pill gap-1.5">
+  <Lightbulb className="h-3.5 w-3.5" /> Sauvegarder en idée
+</Button>
 ```
-→ Si `handleQuotaError` ouvre le QuotaWallModal (return true), on coupe net SANS afficher le toast générique. Sinon, le flow d'erreur actuel reprend la main inchangé.
 
-### 1. `src/components/ContentRecycling.tsx` — `handleRecycle`
-- Ajout import `handleQuotaError`.
-- Insertion de la garde quota juste après `const { data, error } = await invokeWithTimeout(...)` (ligne ~147), AVANT le `if (error) throw ...` et AVANT la garde "results vide" déjà en place.
-- Le `setLoading(false)` est déjà dans le `finally` (patch précédent) → `return` propre.
+**Dialogs montés** en fin de bloc résultats (à côté de `<BaseReminder>`) :
 
-### 2. `src/components/CrosspostFlow.tsx` — `generate`
-- Ajout import `handleQuotaError`.
-- L'appel actuel est `const res = await invokeWithTimeout("linkedin-ai", ...)`. On le destructure pour avoir accès séparé à `data`/`error` :
+```tsx
+<AddToCalendarDialog
+  open={showCalendarDialog}
+  onOpenChange={setShowCalendarDialog}
+  onConfirm={handleAddToCalendar}
+  contentLabel={`♻️ Recyclage ${getFormatShortLabel(activeTab)}`}
+  contentEmoji="♻️"
+/>
+<SaveToIdeasDialog
+  open={showIdeasDialog}
+  onOpenChange={setShowIdeasDialog}
+  contentType={getContentType(activeTab)}
+  subject={`Recyclage : ${getFormatShortLabel(activeTab)}`}
+  contentData={{ type: "recycling", format: activeTab, text: results[activeTab] || "" }}
+  sourceModule="recycling"
+  format={getCalendarFormat(activeTab)}
+/>
+```
+
+### 2. `SaveToIdeasDialog.tsx` — extension additive
+
+Une seule chose à faire : **autoriser `"newsletter"**` dans le type union, et le gérer dans les deux ternaires internes pour qu'il s'affiche correctement.
+
+- **Interface Props** : `contentType: "story" | "reel" | "post_instagram" | "post_linkedin" | "newsletter"`.
+- **Calcul `contentEmoji**` (ligne 69) : ajouter le cas newsletter avant la chaîne actuelle :
   ```ts
-  const { data: cpData, error: cpError } = await invokeWithTimeout("linkedin-ai", { body: {...} }, 120000);
-  if (cpError?.isRateLimit || cpData?.error === "limit_reached") {
-    if (handleQuotaError({ message: cpError?.message || cpData?.message, data: cpData })) {
-      return;
-    }
-  }
-  if (cpError) throw new Error(cpError.message);
-  let parsed: CrosspostResult = parseAIResponse(cpData?.content || "");
+  const contentEmoji =
+    contentType === "newsletter" ? "📧" :
+    contentType === "story" ? "📱" :
+    contentType === "reel" ? "🎬" : "📸";
   ```
-- Le `finally` existant gère `setGenerating(false)` + cleanup des fichiers uploadés. Le `return` passe par le `finally` → cleanup OK.
-
-### 3. `src/components/InspireFlow.tsx` — `analyze`
-- Ajout import `handleQuotaError`.
-- Insertion de la garde quota juste après la ligne 174 (`const { data, error } = await invokeWithTimeout("inspire-ai", ...)`), AVANT le `if (error || data?.error)` actuel.
-- **Bonus demandé** : corriger les deps du `useCallback` ligne 202 :
+- **Calcul `formatLabel**` (ligne 70) : ajouter le cas newsletter :
   ```ts
-  }, [user, sourceText, sourceUrl, tab, files, screenshotContext, workspaceId]);
+  const formatLabel =
+    contentType === "newsletter" ? "newsletter" :
+    contentType === "story" ? "story_serie" :
+    contentType === "reel" ? "reel" : (format || "post");
   ```
-- Le `setLoading(false)` est dans le `finally` → `return` propre.
+- **Canal** (ligne 78) : actuellement codé en dur `"instagram"`. Le rendre conditionnel uniquement pour les deux nouveaux cas LinkedIn/Newsletter, sans casser l'existant :
+  ```ts
+  canal:
+    contentType === "newsletter" ? "newsletter" :
+    contentType === "post_linkedin" ? "linkedin" : "instagram",
+  ```
+  Note : `post_linkedin` était jusqu'ici aussi écrit en `"instagram"`. **C'est un bug latent** (voir Propositions ci-dessous).
 
-## (b) Propositions d'amélioration connexes
-
-- **B1 — Inclure `sourceContent` dans la garde Crosspost si l'edge function renvoie un format différent** : non, le contrat est uniforme côté backend (limit_reached / message). Aucun changement nécessaire.
-- **B2 — Factoriser le pattern en helper `isQuotaResponse(error, data)`** dans `quota-error-handler.ts` : tentant, mais hors scope (toucherait `use-content-generator.ts`). À déclencher dans un chantier séparé si tu veux. **NON recommandé maintenant.**
-- **B3 — Vérifier que `registerQuotaWallCallback` est bien appelé au montage de l'app** : déjà fait ailleurs sinon `use-content-generator` ne marcherait pas → rien à toucher.
+Aucun changement sur le reste du fichier. Les 4 contentType existants conservent leur emoji, leur formatLabel et — sauf pour `post_linkedin` voir ci-dessous — leur canal.
 
 ## Critères de validation
 
-- `npx tsc --noEmit --skipLibCheck` passe
-- Compte free à 0 crédit sur chacun des 3 modes → QuotaWallModal s'ouvre, pas de toast "Erreur"
-- Compte avec crédits : génération normale dans les 3 modes
-- Lint hook deps : warning `react-hooks/exhaustive-deps` disparu sur `analyze` d'InspireFlow
+- `npx tsc --noEmit --skipLibCheck` passe.
+- Recycler en 5 formats → l'onglet actif expose "Planifier" + "Sauvegarder en idée".
+- Planifier le carrousel → ligne `calendar_posts` avec `canal="instagram"`, `format="carousel"`.
+- Planifier la newsletter → `canal="newsletter"`, `format="newsletter"`.
+- Sauvegarder la newsletter → carte `saved_ideas` avec emoji 📧.
+- CrosspostFlow inchangé fonctionnellement (mêmes dialogs, mêmes inserts).
 
-Dis-moi si je peux build, et si tu veux que je tente B2 en parallèle ou pas.
+## Propositions hors demande stricte (validation individuelle)
+
+**(a) Demandé** — tout ce qui précède.
+
+**(b) Propositions** :
+
+1. **Corriger le canal `post_linkedin` dans `SaveToIdeasDialog`.** Aujourd'hui `canal: "instagram"` est codé en dur, donc même une idée sauvegardée depuis Crosspost LinkedIn atterrit avec `canal="instagram"` dans `saved_ideas`. La modification du canal ci-dessus le règle au passage. Si tu préfères ne **pas** toucher ce comportement existant pour limiter le diff, je laisse `post_linkedin → "instagram"` et je ne change le canal que pour `newsletter`. Dis-moi. ok pour moi
+2. **Désactiver "Planifier" / "Sauvegarder" si** `!results[activeTab]?.trim()` (sécurité : un format peut être vide si la génération a partiellement échoué). Micro-ajout, zéro risque. ok
+
+Pas d'autres propositions hors périmètre.
+
+## Hors scope (rappel)
+
+- Pas de modification de `handleRecycle`, de l'upload, du RedFlagsChecker, du bouton Copier.
+- Pas de modification de `CrosspostFlow.tsx`, `InspireFlow.tsx`, `AddToCalendarDialog.tsx`.
+- Pas de modification du calendrier ni de l'Atelier.
