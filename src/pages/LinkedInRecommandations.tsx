@@ -110,7 +110,7 @@ ${prenom || "[Ton prénom]"}`;
   const personalizeMessage = async () => {
     setGeneratingMsg(true);
     try {
-      const res = await invokeWithTimeout("linkedin-ai", { body: { action: "personalize-message" } }, 60000);
+      const res = await invokeWithTimeout("linkedin-ai", { body: { action: "personalize-message", workspace_id: workspaceId !== user?.id ? workspaceId : undefined } }, 60000);
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
       let parsed: string[];
@@ -127,7 +127,7 @@ ${prenom || "[Ton prénom]"}`;
     setGeneratingDraft(true);
     try {
       const res = await invokeWithTimeout("linkedin-ai", {
-        body: { action: "draft-recommendation", person_name: draftName, collab_type: draftType, highlights: draftHighlights },
+        body: { action: "draft-recommendation", person_name: draftName, collab_type: draftType, highlights: draftHighlights, workspace_id: workspaceId !== user?.id ? workspaceId : undefined },
       }, 60000);
       if (res.error) throw new Error(res.error.message);
       setDraftResult(res.data?.content || "");
