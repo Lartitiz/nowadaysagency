@@ -15,7 +15,6 @@ interface Props {
   onNewsjackingSelect?: (data: { subject: string; context: string; format?: string; vehicule?: string }) => void;
   onPhotosNext?: (photos: PhotoItem[], description: string, subject: string) => void;
   workspaceId?: string;
-  activite?: string;
   initialIdea?: string;
   autoOpenTransform?: boolean;
   initialPhotos?: PhotoItem[];
@@ -23,32 +22,9 @@ interface Props {
   initialPhotoSubject?: string;
 }
 
-const ACTIVITY_PLACEHOLDERS: Record<string, string> = {
-  immobilier: "Ex : je veux montrer un bien que je viens d'acquérir / je voudrais parler de pourquoi j'ai choisi le portage / j'ai envie de réagir à une actu immo...",
-  marchand: "Ex : je veux montrer un bien que je viens d'acquérir / je voudrais parler de pourquoi j'ai choisi le portage / j'ai envie de réagir à une actu immo...",
-  coach: "Ex : je veux partager une prise de conscience d'une cliente / je voudrais parler de pourquoi j'ai créé mon accompagnement / j'ai envie de réagir à un mythe du développement perso...",
-  bien_etre: "Ex : je veux partager un rituel bien-être que j'adore / je voudrais parler de pourquoi j'ai choisi cette approche / j'ai envie de réagir à une tendance wellness...",
-  coach_sportive: "Ex : je veux montrer une transformation client·e / je voudrais parler de ma méthode d'entraînement / j'ai envie de réagir à un mythe fitness...",
-  artisane: "Ex : je veux montrer les nouvelles pièces que j'ai créées / je voudrais parler de pourquoi je fais ce métier / j'ai envie de réagir à une actu créa...",
-  mode_textile: "Ex : je veux montrer ma dernière collection / je voudrais parler de mode éthique / j'ai envie de réagir à une tendance mode...",
-  beaute_cosmetiques: "Ex : je veux montrer un nouveau soin que j'ai formulé / je voudrais parler de beauté naturelle / j'ai envie de réagir à un ingrédient controversé...",
-  boutique: "Ex : je veux montrer une nouveauté en boutique / je voudrais parler de pourquoi j'ai ouvert mon shop / j'ai envie de réagir à une tendance shopping...",
-  consultante: "Ex : je veux partager un cas client récent / je voudrais parler de pourquoi j'ai quitté le salariat / j'ai envie de réagir à une actu marketing...",
-  formatrice: "Ex : je veux partager un retour d'atelier / je voudrais parler de ma pédagogie / j'ai envie de réagir à une actu formation...",
-  art_design: "Ex : je veux montrer un projet créatif récent / je voudrais parler de mon processus artistique / j'ai envie de réagir à une expo ou une tendance design...",
-  deco_interieur: "Ex : je veux montrer un chantier terminé / je voudrais parler de déco éco-responsable / j'ai envie de réagir à une tendance déco...",
-};
+const UNIVERSAL_PLACEHOLDER = "Ex : je raconte une expérience vécue / je réagis à un chiffre qui m'a marquée / j'ose un avis à contre-courant / je montre mon process en coulisses…";
 
-function getPlaceholder(activite?: string): string {
-  if (!activite) return "Ex : je veux montrer un projet récent / je voudrais parler de pourquoi je fais ce métier / j'ai envie de réagir à une actu...";
-  const key = activite.toLowerCase();
-  for (const [k, v] of Object.entries(ACTIVITY_PLACEHOLDERS)) {
-    if (key.includes(k)) return v;
-  }
-  return "Ex : je veux montrer un projet récent / je voudrais parler de pourquoi je fais ce métier / j'ai envie de réagir à une actu...";
-}
-
-export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingSelect, onPhotosNext, workspaceId, activite, initialIdea, autoOpenTransform, initialPhotos, initialPhotoDescription, initialPhotoSubject }: Props) {
+export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingSelect, onPhotosNext, workspaceId, initialIdea, autoOpenTransform, initialPhotos, initialPhotoDescription, initialPhotoSubject }: Props) {
   const [idea, setIdea] = useState(initialIdea || "");
   const [coachOpen, setCoachOpen] = useState(false);
   const [showNewsjacking, setShowNewsjacking] = useState(false);
@@ -96,7 +72,7 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
             <Textarea
               value={idea}
               onChange={(e) => setIdea(e.target.value)}
-              placeholder={getPlaceholder(activite)}
+              placeholder={UNIVERSAL_PLACEHOLDER}
               rows={4}
               className="resize-none"
             />
@@ -213,7 +189,7 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
             <Textarea
               value={localPhotoSubject}
               onChange={(e) => setLocalPhotoSubject(e.target.value)}
-              placeholder={getPlaceholder(activite)}
+              placeholder={UNIVERSAL_PLACEHOLDER}
               rows={3}
               className="resize-none"
             />
