@@ -37,29 +37,43 @@ export function useStreamingInvoke(): UseStreamingInvokeReturn {
 
     try {
       const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token;
+      let token = session.data.session?.access_token;
       if (!token) throw new Error("Non authentifié");
 
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const controller = new AbortController();
       abortRef.current = controller;
 
-      // Timeout de 180s — couvre LinkedIn vision multi-photos, newsletters et deep research
-      const timeout = setTimeout(() => controller.abort(), 180000);
+      const doFetch = async (authToken: string) => {
+        // Timeout de 180s — couvre LinkedIn vision multi-photos, newsletters et deep research
+        const timeout = setTimeout(() => controller.abort(), 180000);
+        const resp = await fetch(`${supabaseUrl}/functions/v1/${functionName}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${authToken}`,
+            "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            "Accept": "text/event-stream",
+          },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        });
+        return { resp, timeout };
+      };
 
-      const resp = await fetch(`${supabaseUrl}/functions/v1/${functionName}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-          "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          "Accept": "text/event-stream",
-        },
-        body: JSON.stringify(body),
-        signal: controller.signal,
-      });
-
+      let { resp, timeout } = await doFetch(token);
       clearTimeout(timeout);
+
+      // Retry silencieux UNE SEULE FOIS si le token est périmé (onglet en veille)
+      if (resp.status === 401 || resp.status === 403) {
+        const { data: refreshed, error: refreshErr } = await supabase.auth.refreshSession();
+        const newToken = refreshed?.session?.access_token;
+        if (!refreshErr && newToken) {
+          token = newToken;
+          ({ resp, timeout } = await doFetch(newToken));
+          clearTimeout(timeout);
+        }
+      }
 
       // Handle JSON responses (non-streaming, e.g. LinkedIn 2-step generation)
       const contentType = resp.headers.get("Content-Type") || "";

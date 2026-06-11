@@ -1,46 +1,49 @@
-# Carrousel Instagram : rendre le choix entre 3 modes 100% clair
+## Fix — Retry silencieux sur 401/403 dans `use-streaming-invoke.ts`
 
-## Le problème
+### Analyse de co-occurence
 
-Aujourd'hui, quand tu pars de photos et choisis **Instagram → Carrousel**, l'app propose bien 2 cartes (📸 Photo / ✨ Mixte), mais :
+- Fichier référence `src/lib/invoke-with-timeout.ts` : utilisé partout ailleurs, déjà robuste, ne pas toucher.
+- `useStreamingInvoke` est consommé par les hooks de génération (carrousel, LinkedIn, newsletter, etc.). Sa signature publique (`content/streaming/done/error/invoke/reset`) reste inchangée → pas d'impact sur les consommateurs.
+- Le retry est strictement borné (401/403, une seule fois) → aucune incidence sur la logique quota (429 = JSON `limit_reached`, traité après le fetch, ne passe pas par le retry) ni sur les autres erreurs.
+- Le `clearTimeout` actuel est appelé une seule fois après le fetch. En extrayant `doFetch`, on s'assure que chaque tentative possède son propre timeout et que `clearTimeout` est appelé dans tous les chemins → pas de fuite de timer ni de double abort.
+- `AbortController` : on garde **un seul** controller exposé via `abortRef` (pour que `reset()` continue d'annuler la requête en cours), mais on associe un timeout par tentative. Si le 1er fetch n'a pas été abort, on peut réutiliser le même controller pour le retry.
 
-- Les libellés courts (**"Photo"**, **"Mixte"**) ne disent pas clairement **ce que l'IA va produire**.
-- Le mode "Photo" actuel correspond déjà à ce que tu veux (poster les photos brutes en plein écran, l'IA rédige juste la légende), mais ce n'est pas évident à la lecture.
-- Résultat : tu as choisi **Mixte** sans réaliser que **Photo** faisait exactement ce que tu voulais.
+### Changements dans `invoke` (lignes 34–164)
 
-## Ce qu'on va changer
+1. **Extraire** une fonction locale `doFetch(token: string)` qui :
+   - crée son propre `setTimeout(() => controller.abort(), 180000)`
+   - exécute le `fetch` avec headers/body/signal identiques à l'actuel
+   - retourne `{ resp, timeout }` pour que l'appelant fasse `clearTimeout`
+   - utilise le `controller` déjà stocké dans `abortRef.current` (créé une seule fois en amont)
 
-Une seule zone à retoucher : la grille des sous-modes carrousel dans `src/components/creer/CreerStepFormat.tsx` (lignes ~626-656), plus le chip replié (ligne ~594).
+2. **Premier appel** : `let { resp, timeout } = await doFetch(token); clearTimeout(timeout);`
 
-### Renommer les 3 modes avec des libellés explicites
+3. **Bloc de retry** juste après :
+   ```ts
+   if (resp.status === 401 || resp.status === 403) {
+     const { data: refreshed, error: refreshErr } = await supabase.auth.refreshSession();
+     const newToken = refreshed?.session?.access_token;
+     if (!refreshErr && newToken) {
+       ({ resp, timeout } = await doFetch(newToken));
+       clearTimeout(timeout);
+     }
+     // sinon : on laisse `resp` tel quel → le flux existant (JSON parse / !resp.ok) produira le message d'erreur habituel
+   }
+   ```
 
-| Avant | Après | Description (sous le titre) |
-|---|---|---|
-| 📝 Texte | **Carrousel texte** | *L'IA écrit + design 8-10 slides. .pptx téléchargeable.* |
-| 📸 Photo | **Carrousel photos seules** | *Tes photos brutes en plein écran. L'IA rédige uniquement la légende qui accompagne le post.* |
-| ✨ Mixte | **Carrousel storytelling** | *Alterne tes photos et des slides design avec du texte construit par l'IA.* |
+4. **Aucune autre modification** : le parsing JSON, le fallback `!resp.ok`, le SSE reader, le catch final, la détection `_isQuota`, le timeout 180s et la signature publique restent identiques.
 
-### Améliorer la lisibilité de la grille
+### Garanties
 
-- Cartes un peu plus hautes pour accueillir 2-3 lignes de description (au lieu d'une seule tronquée).
-- Garder l'emoji en gros (déjà 2xl) + titre en bold + description en `text-[11px]` plus lisible.
-- Sur mobile : passer de `grid-cols-2` à `grid-cols-1` pour que chaque carte respire et que la description complète soit lisible (pas de troncature).
-- Sur desktop : rester en `sm:grid-cols-3` quand les 3 modes sont visibles, ou `sm:grid-cols-2` quand on part de photos (Texte masqué).
+- Retry uniquement sur 401/403, jamais sur 429/500/autres.
+- Maximum 1 retry (pas de boucle).
+- Pas de fuite de timer : chaque `doFetch` a son propre `timeout`, `clearTimeout` appelé dans les deux chemins.
+- `reset()` continue de fonctionner (même `abortRef`).
+- Si `refreshSession` échoue → comportement actuel inchangé (l'erreur 401/403 retombe dans le flux JSON/`!resp.ok` existant).
+- `npx tsc --noEmit --skipLibCheck` reste OK (pas de changement de types).
 
-### Mettre à jour le chip replié
+### Hors scope (non touché)
 
-Une fois un mode choisi, le chip en haut (ligne 594, `subModeMeta`) doit afficher le **nouveau libellé long** au lieu de "Mixte" / "Photo" tout court :
-
-- `text` → "Carrousel texte"
-- `photo` → "Carrousel photos seules"
-- `mix` → "Carrousel storytelling"
-
-## Ce qu'on ne touche pas
-
-- La logique de génération côté `CreerUnifie.tsx` et edge function : les valeurs internes restent `text` / `photo` / `mix`, seuls les libellés et descriptions affichés changent.
-- Le masquage du mode "Texte" quand `hasPreloadedPhotos` est vrai : on garde ce comportement (logique).
-- La zone d'upload photo qui suit (ligne 661) : inchangée.
-
-## Fichier modifié
-
-- `src/components/creer/CreerStepFormat.tsx` (uniquement les libellés et descriptions des cartes + chip)
+- `src/lib/invoke-with-timeout.ts`
+- Toute autre logique du hook
+- Tout autre fichier
