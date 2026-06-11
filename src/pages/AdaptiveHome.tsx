@@ -140,10 +140,10 @@ const TOUR_STEPS = [
 
 /* ── Mini-cards data ── */
 const MINI_CARDS = [
-  { emoji: "🎨", title: "Mon identité", subtitle: "Affiner mon image de marque", bg: "bg-accent/10", route: "/branding" },
+  { emoji: "🎨", title: "Affiner mon identité", subtitle: "Affiner mon image de marque", bg: "bg-accent/10", route: "/branding" },
   { emoji: "🔍", title: "Lancer un audit", subtitle: "Instagram ou site web", bg: "bg-[hsl(var(--bento-blue))]", route: "__choose_audit__" },
   { emoji: "✨", title: "Planifier ma semaine", subtitle: "Planning IA personnalisé", bg: "bg-rose-pale", route: "__plan_week__" },
-  { emoji: "📅", title: "Mon calendrier", subtitle: "Planifier mes contenus", bg: "bg-accent/10", route: "/calendrier" },
+  { emoji: "📅", title: "Voir mon calendrier de contenus", subtitle: "Planifier mes contenus", bg: "bg-accent/10", route: "/calendrier" },
 ];
 
 /* ── Main ── */
@@ -259,7 +259,7 @@ export default function AdaptiveHome() {
       </p>
 
       <h2 className="font-display text-[26px] sm:text-3xl leading-[1.15] text-foreground">
-        Ton prochain contenu
+        Créer mon prochain contenu
       </h2>
 
       <p className="text-[15px] text-foreground/70 mt-2 leading-relaxed line-clamp-1">
