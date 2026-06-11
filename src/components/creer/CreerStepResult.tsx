@@ -159,6 +159,18 @@ function SkeletonPreview({ format }: { format: string }) {
     </div>
   );
 }
+// Cibles possibles pour "Transformer en…" — utilisent les format IDs internes
+// (cf. CreerUnifie paramFormat).
+const TRANSFORM_TARGETS: { id: string; emoji: string; label: string }[] = [
+  { id: "carousel", emoji: "🎠", label: "Carrousel Instagram" },
+  { id: "post", emoji: "📸", label: "Post Instagram" },
+  { id: "reel", emoji: "🎬", label: "Reel" },
+  { id: "story", emoji: "📱", label: "Stories" },
+  { id: "linkedin", emoji: "💼", label: "Post LinkedIn" },
+  { id: "newsletter", emoji: "📧", label: "Newsletter" },
+  { id: "pinterest_visual", emoji: "📌", label: "Pinterest visuel" },
+  { id: "pinterest_photo", emoji: "📌", label: "Pinterest photo" },
+];
 
 interface Props {
   result: any;
@@ -193,6 +205,10 @@ interface Props {
   currentChannel?: string;
   /** Nombre de photos qui ont été envoyées à l'IA en vision (photo_mode). 0/undefined = pas de vision. */
   usedPhotoCount?: number;
+  /** Brief source pour pré-remplir une duplication "Transformer en…". */
+  sourceIdea?: string;
+  sourceObjective?: string;
+  sourceAngle?: string | null;
 }
 
 export default function CreerStepResult({
