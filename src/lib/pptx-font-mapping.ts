@@ -203,6 +203,25 @@ function parseAlign(v: string): "left" | "center" | "right" {
   return "left";
 }
 
+/**
+ * Rect du content-box d'un élément (border-box moins le padding computed).
+ * C'est la zone réelle du texte dans le navigateur — l'utiliser pour les
+ * frames texte PPTX évite que le texte se cale dans le padding (pilules, badges).
+ */
+function contentBoxRect(el: HTMLElement, cs: CSSStyleDeclaration) {
+  const r = el.getBoundingClientRect();
+  const pl = parseFloat(cs.paddingLeft) || 0;
+  const pr = parseFloat(cs.paddingRight) || 0;
+  const pt = parseFloat(cs.paddingTop) || 0;
+  const pb = parseFloat(cs.paddingBottom) || 0;
+  return {
+    x: r.left + pl,
+    y: r.top + pt,
+    w: Math.max(1, r.width - pl - pr),
+    h: Math.max(1, r.height - pt - pb),
+  };
+}
+
 function parseFontWeight(v: string): number {
   const n = parseInt(v, 10);
   if (!isNaN(n)) return n;
@@ -256,6 +275,7 @@ export function extractEditableBlocks(
 
     const r = el.getBoundingClientRect();
     if (r.width < 20 || r.height < 10) continue;
+    const rect = contentBoxRect(el, cs);
 
     let kind: EditableBlock["kind"] = "body";
     if (isSemantic || fontSizePx >= 36) kind = "title";
@@ -264,7 +284,7 @@ export function extractEditableBlocks(
     candidates.push({
       el,
       text,
-      rect: { x: r.left, y: r.top, w: r.width, h: r.height },
+      rect,
       style: {
         color: cs.color || "#FFFFFF",
         fontFamily: cs.fontFamily || "",
@@ -326,7 +346,7 @@ export function extractAnnotatedBlocks(doc: Document): EditableBlock[] {
       el,
       text,
       runs,
-      rect: { x: r.left, y: r.top, w: r.width, h: r.height },
+      rect: contentBoxRect(el, cs),
       style: {
         color: cs.color || "#FFFFFF",
         fontFamily: cs.fontFamily || "",
