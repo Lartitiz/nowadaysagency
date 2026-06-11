@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogD
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useUserPhotos } from "@/hooks/use-user-photos";
-import { getSignedPhotoUrl, type UserPhotoRow } from "@/lib/photo-storage";
+import { getSignedPhotoUrl, getSignedPhotoUrls, type UserPhotoRow } from "@/lib/photo-storage";
 
 interface PhotoLibraryPickerDialogProps {
   open: boolean;
