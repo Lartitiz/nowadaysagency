@@ -237,12 +237,15 @@ export default function Dashboard() {
 
       const wsId = activeWorkspace?.id || null;
 
-      const [summaryRes, brandingData] = await Promise.all([
+      const [summaryRes, brandingData, ideasCountRes] = await Promise.all([
         supabase.rpc("get_dashboard_summary", {
           p_user_id: user.id,
           p_workspace_id: wsId,
         } as any),
         fetchBrandingData({ column, value }),
+        supabase.from("saved_ideas").select("*", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("workspace_id", wsId ?? user.id),
       ]);
 
       const s = (summaryRes.data as any) || {};
@@ -273,6 +276,7 @@ export default function Dashboard() {
         nextPost: s.next_post ? { date: s.next_post.date, theme: s.next_post.theme } : null,
         planData,
         recommendations: s.recommendations || [],
+        ideaCount: ideasCountRes.count ?? 0,
       };
     },
     enabled: !!user || isDemoMode,
