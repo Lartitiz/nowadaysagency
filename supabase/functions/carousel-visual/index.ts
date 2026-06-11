@@ -22,15 +22,22 @@ Voici le design pour chaque type :
 
 █ BEFORE_AFTER — Deux colonnes côte à côte
 <div style="display:flex;gap:24px;width:100%">
-  <div style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:32px;border-left:4px solid #E74C3C">
-    <p style="font-size:22px;font-weight:600;color:#E74C3C;margin-bottom:16px">❌ AVANT_LABEL</p>
-    <!-- items en <p> avec une puce rouge -->
+  <div style="flex:1;display:flex;gap:6px">
+    <div data-pptx-shape="card" style="width:8px;border-radius:4px;background:#E74C3C;flex-shrink:0"></div>
+    <div data-pptx-shape="card" style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:32px">
+      <p data-pptx-editable="caption" style="font-size:22px;font-weight:600;color:#E74C3C;margin-bottom:16px">❌ AVANT_LABEL</p>
+      <!-- items en <p data-pptx-editable="body"> avec une puce rouge -->
+    </div>
   </div>
-  <div style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:32px;border-left:4px solid #27AE60">
-    <p style="font-size:22px;font-weight:600;color:#27AE60;margin-bottom:16px">✅ APRÈS_LABEL</p>
-    <!-- items en <p> avec une puce verte -->
+  <div style="flex:1;display:flex;gap:6px">
+    <div data-pptx-shape="card" style="width:8px;border-radius:4px;background:#27AE60;flex-shrink:0"></div>
+    <div data-pptx-shape="card" style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:32px">
+      <p data-pptx-editable="caption" style="font-size:22px;font-weight:600;color:#27AE60;margin-bottom:16px">✅ APRÈS_LABEL</p>
+      <!-- items en <p data-pptx-editable="body"> avec une puce verte -->
+    </div>
   </div>
 </div>
+
 
 █ COMPARISON — Similaire mais avec les couleurs/labels du schema
 Même structure que before_after mais avec les labels et couleurs du champ left/right.
