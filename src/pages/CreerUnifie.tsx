@@ -2404,7 +2404,7 @@ export default function CreerUnifie() {
             {step === "idea" && (
               <>
                 <LowCreditsBanner remaining={remainingTotal()} plan={plan} />
-                <CreerStepIdea onNext={handleIdeaNext} onCoachingSelect={handleCoachingSelect} onNewsjackingSelect={handleNewsjackingSelect} onPhotosNext={handlePhotosNext} workspaceId={workspaceId} activite={activityText} initialIdea={ideaText} autoOpenTransform={autoOpenTransform} />
+                <CreerStepIdea onNext={handleIdeaNext} onCoachingSelect={handleCoachingSelect} onNewsjackingSelect={handleNewsjackingSelect} onPhotosNext={handlePhotosNext} workspaceId={workspaceId} activite={activityText} initialIdea={ideaText} autoOpenTransform={autoOpenTransform} initialPhotos={uploadedPhotos.length > 0 ? uploadedPhotos : undefined} initialPhotoDescription={photoDescription || undefined} initialPhotoSubject={ideaText || undefined} />
               </>
             )}
 
