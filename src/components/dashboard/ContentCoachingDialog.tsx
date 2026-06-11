@@ -660,6 +660,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
               <Button
                 variant="outline"
                 onClick={() => generateIdeas()}
+                disabled={regeneratingIdx !== null}
                 className="gap-1.5"
               >
                 <RefreshCw className="h-4 w-4" /> Autres idées
@@ -668,6 +669,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
                 <Button
                   variant="outline"
                   onClick={() => generateIdeas({ objectif, canal, format, sujet, intensity: "bold" })}
+                  disabled={regeneratingIdx !== null}
                   className="gap-1.5"
                   title="Sors des sentiers battus — idées plus audacieuses"
                 >
@@ -676,7 +678,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
               ) : null}
               <Button
                 onClick={handleGo}
-                disabled={!!(result.ideas?.length && !selectedIdea)}
+                disabled={!!(result.ideas?.length && !selectedIdea) || regeneratingIdx !== null}
                 className="flex-1 gap-2 text-base h-12"
               >
                 <Rocket className="h-5 w-5" /> C'est parti, on crée !
