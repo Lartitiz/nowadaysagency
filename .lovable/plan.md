@@ -1,66 +1,76 @@
-## Périmètre
+# Plan validé — Newsletter 2-step + correction pass dans creative-flow
 
-Fichier unique : `supabase/functions/_shared/correction-pass.ts`. Modifications **uniquement** dans le template `carousel` de l'objet des prompts (lignes 83-136). Aucune fonction TS, aucun autre template, aucun marqueur de format touché.
+## Fichier impacté
 
-## (a) Modifications demandées
+`supabase/functions/creative-flow/index.ts` uniquement.
 
-### 1. Règle 3 réécrite (lignes 97-99)
+## (a) Ce que tu as demandé
 
-Recibler : on garde la fusion des cascades par paraphrase amplifiée, on lève l'interdiction absolue des connecteurs d'ouverture, on introduit le critère de distinction cascade vs chaînage.
+### 1. Schéma JSON enrichi pour newsletter (autour de la ligne 588)
 
-Nouveau contenu :
+Remplacer le ternaire actuel :
 
-```
-3. SLIDES REDONDANTES OU CASCADE D'AMPLIFICATION :
-   → Cascade = même idée reformulée plus fort d'une slide à l'autre ("c'est important" → "c'est crucial" → "c'est vital"), ou paraphrase qui reprend le même mot-clé central sans rien ajouter. Dans ce cas SEULEMENT : fusionne les deux slides, ou remplace la plus faible par un nouvel angle (exemple, contre-exemple, chiffre, scène).
-   → Chaînage narratif = idée NOUVELLE (fait, scène, donnée, exemple, bascule) accrochée à la précédente par un connecteur ("Sauf que", "Et puis", "C'est là que", "Puis", "Alors", "Résultat") ou une reprise lexicale. C'est VOULU, on ne touche pas.
-   → Test de distinction : si la slide qui ouvre par "Sauf que / Et là / C'est là que" apporte un contenu nouveau (fait, détail, retournement) → garde l'ouverture intacte. Si elle ne fait que reformuler la précédente en plus fort → réécris.
+```ts
+${isReel || isStories ? `` : `Réponds UNIQUEMENT en JSON :
+{ "content": "...", "accroche": "...", "format": "...", "pillar": "...", "objectif": "..." }`}
 ```
 
-### 2. Règle 11 complétée (ligne 126-127)
+par une variante imbriquée :
 
-Conserver la règle anti-formule chic existante et ajouter trois points :
+- `isReel || isStories` → pas de JSON (inchangé)
+- `isNewsletter` → schéma enrichi :
+  ```json
+  {
+    "subject": "objet de l'email (max 50 caractères, accrocheur, jamais 'Newsletter #N')",
+    "preview_text": "texte de preview (40-90 caractères, complète l'objet sans le répéter)",
+    "content": "corps complet de la newsletter (avec \\n\\n entre paragraphes)",
+    "accroche": "première phrase du corps",
+    "cta_suggestion": "suggestion de CTA doux si pertinent, sinon null",
+    "format": "newsletter",
+    "pillar": "...",
+    "objectif": "..."
+  }
+  ```
+  Le champ reste `content` (pas `body`) pour la compat frontend.
+- sinon → schéma actuel (`content/accroche/format/pillar/objectif`) inchangé.
 
-```
-11. OVERLAYS PHOTO (carrousels mixtes — marqueur [SLIDE N - OVERLAY]) :
-    → Si l'overlay est une formule chic ou pourrait s'appliquer à n'importe quelle photo ("Quand la magie opère", "Un instant suspendu", "L'art du détail"), réécris-le en phrase ANCRÉE dans CE moment précis : un fait sensoriel (ce qu'on voit/entend/sent), un détail concret, ou une parole captée. 5-15 mots max. Pas d'abstraction décorative.
-    → NE JAMAIS supprimer le connecteur narratif ("Sauf que", "Et puis", "C'est là que"…) ou la reprise lexicale qui ouvre un overlay : c'est le chaînage voulu entre slides. Si tu réécris l'overlay, la version réécrite doit conserver un lien explicite avec la slide précédente (connecteur ou reprise d'un mot-clé).
-    → Un overlay reste 1 phrase de 5-25 mots. Ne JAMAIS le développer en 2-4 phrases : la consigne globale de longueur ne s'applique PAS aux lignes [SLIDE N - OVERLAY].
-    → Un overlay qui n'a de sens qu'après la slide précédente est un signe de qualité, pas un défaut à corriger.
-```
+### 2. Branche dispatch newsletter (juste après le bloc `if (isLinkedIn)` ligne 958, avant le retour vers le streaming générique)
 
-### 3. Règles absolues renforcées (ligne 130-131)
+Ajouter `if (isNewsletter) { ... }` calqué sur LinkedIn :
 
-Compléter le premier puce :
+a. `const rawContent = await callAnthropicSimple(model, systemPrompt, userPrompt!, 0.7, 4096);` (température 0.7 conformément à ta spec, vs 0.85 LinkedIn).
 
-```
-- Garde l'ARC NARRATIF du carrousel. Dans les carrousels photo/mix, le CHAÎNAGE entre slides (connecteurs narratifs en ouverture, reprises lexicales d'une slide à l'autre) est une exigence de génération : le préserver, ne jamais le lisser.
-- Chaque slide texte corrigée : 2-4 phrases (sauf slide 1 : 1-2 max, sauf overlays [SLIDE N - OVERLAY] : 1 phrase 5-25 mots).
-```
+b. Parse JSON tolérant :
 
-## (b) Proposition complémentaire — à valider AVANT exec
+- `JSON.parse(rawContent)` direct,
+- sinon `rawContent.match(/\{[\s\S]*\}/)` puis `JSON.parse`,
+- sinon fallback `{ content: rawContent }`.
 
-En lisant le fichier, le template `carousel` modifié ci-dessus est le prompt **texte simple**, mais le chemin réellement emprunté par la correction des carrousels JSON passe par `CAROUSEL_CORRECTION_PROMPT` (lignes 242-328, appelée via `applyCorrectionPassCarousel` / `carousel-json`). Ce second prompt ne contient aucune règle sur les overlays ni sur le chaînage et serait donc le **vrai** lieu de l'effet recherché en production.
+c. Correction pass si `parsed.content && parsed.content.length >= 200` :
 
-Deux options :
-- **B1** : appliquer en plus les mêmes 3 ajustements (anti-cascade nuancée, règle overlays, mention chaînage dans RÈGLES ABSOLUES) à `CAROUSEL_CORRECTION_PROMPT`. Recommandé si tu veux que le fix soit réellement visible sur les carrousels mix générés aujourd'hui.
-- **B2** : laisser de côté, périmètre strict respecté, on traite `CAROUSEL_CORRECTION_PROMPT` dans un plan séparé.
+   Jamais de throw qui remonterait à la requête.
 
-Le plan demandé (a) est exécutable seul ; B1/B2 est une décision à prendre avant que je passe en build.
+d. `parsed.word_count = parsed.content.split(/\s+/).filter(Boolean).length;` (si `parsed.content` existe).
 
-## Hors scope (confirmé)
+e. `await logUsage(userId, "content", "creative_flow", undefined, undefined, workspace_id);`
 
-- Fonctions TS (`extractCarouselTexts`, `reinjectCarouselTexts`, `applyCorrectionPass*`)
-- Autres templates (`linkedin`, `newsletter`, `instagram_caption`, `reel`, `stories`)
-- Règles 1, 2, 4-10 du template carousel
-- Marqueurs `[SLIDE N - …]`, format JSON, format de réponse
-- Tout autre fichier du repo
+f. `return new Response(JSON.stringify(parsed), { headers: { ...corsHeaders, "Content-Type": "application/json" } });`
 
-## Validation
+### 3. Aucune modification frontend.
 
-- `npx tsc --noEmit --skipLibCheck` → 0 erreur
-- Test manuel : génération carrousel mix 2-3 photos → connecteurs d'ouverture des overlays survivent, overlays restent 1 phrase courte, cascade amplifiée toujours fusionnée
+## Ce qui ne bouge pas
 
-## Question avant exec
+Bloc LinkedIn (958+), bloc Carousel, streaming vision LinkedIn photo (`canStreamPhoto`), streaming des autres formats texte (post IG, Pinterest), steps `adjust/recycle/angles/questions`, `runPipeline`, quotas, `newsletterBrief()`, `_shared/correction-pass.ts`, fonction `newsletter-ai`, injection contexte série newsletter.
 
-Dois-je appliquer (a) seul, ou (a) + B1 (étendre les mêmes 3 ajustements à `CAROUSEL_CORRECTION_PROMPT`) ?
+## (b) Propositions optionnelles (à valider une par une avant exec — non incluses par défaut)
+
+1. **Extraire le `jsonShape` newsletter dans une const en haut du bloc `generate**`, comme c'est fait pour le bloc photo (ligne 941 utilise déjà `${jsonShape}`). Aujourd'hui le schéma serait inline dans le template du systemPrompt, ce qui rend le diff lourd. Une const `newsletterJsonShape` au-dessus rendrait la lecture plus claire. **Risque** : sort légèrement du périmètre "corps du ternaire ligne 588". À valider. non
+2. **Logger la longueur de `parsed.subject` et `parsed.preview_text**` dans la branche newsletter (`console.log("[creative-flow newsletter] subject:", parsed.subject?.length, "preview:", parsed.preview_text?.length)`) pour faciliter le debug si Claude ignore les contraintes de longueur. Purement observabilité, zéro effet runtime. ok
+3. **Garde-fous de longueur côté serveur** (tronquer `subject` à 50 et `preview_text` à 90 si dépassement) — utile mais c'est un choix produit (préfères-tu re-prompter, tronquer, ou laisser passer ?). À discuter, **pas** dans ce plan.
+
+## Critères de validation
+
+- `npx tsc --noEmit --skipLibCheck` clean.
+- Génération newsletter depuis Créer : `subject` et `preview_text` présents dans la réponse JSON, cartes dédiées affichées par le renderer existant.
+- Post Instagram : streaming SSE inchangé. Post LinkedIn : JSON corrigé inchangé.
+- Logs edge : `[creative-flow newsletter] correction pass…` visible.
