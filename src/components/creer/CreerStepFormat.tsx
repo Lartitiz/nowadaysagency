@@ -443,6 +443,22 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
               <span className="text-xs font-semibold text-foreground">Photos + slides design</span>
               <p className="text-[10px] text-muted-foreground mt-0.5">Alternance photos / slides texte (6-8 slides)</p>
             </button>
+            <button
+              onClick={() => { setLinkedinSubMode("carousel"); handleFormatSelect("carousel", { keepCarouselSubMode: "photo" }); }}
+              className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
+            >
+              <span className="text-2xl block mb-1">📸</span>
+              <span className="text-xs font-semibold text-foreground">Tes photos en fond</span>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Photos plein écran + texte court par-dessus</p>
+            </button>
+            <button
+              onClick={() => { setLinkedinSubMode("carousel"); handleFormatSelect("carousel", { keepCarouselSubMode: "pure_photo" }); }}
+              className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
+            >
+              <span className="text-2xl block mb-1">🖼️</span>
+              <span className="text-xs font-semibold text-foreground">Photos brutes</span>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Tes photos au bon format, l'IA écrit juste le post</p>
+            </button>
           </div>
         </div>
       )}
