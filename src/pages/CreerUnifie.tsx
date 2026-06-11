@@ -126,7 +126,10 @@ export default function CreerUnifie() {
     if (!ps?.step) return "idea";
     if (ps.step === "result" && ps.result) return "result";
     if (ps.step === "edit" && ps.editContent) return "edit";
-    if (["result", "edit", "inspiration_proposals", "structure_review"].includes(ps.step)) return "idea";
+    // États avec données volatiles non persistées (questions IA, structure, propositions, result/edit invalides)
+    if (["questions", "structure_review", "inspiration_proposals", "result", "edit"].includes(ps.step)) {
+      return ps.selectedFormat ? "format" : "idea";
+    }
     return ps.step as Step;
   })();
   const [step, setStep] = useState<Step>(safeStep);

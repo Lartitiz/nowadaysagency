@@ -1,50 +1,65 @@
-## Problème
+## Bug
 
-En mode "Carrousel full photo", avec 2 photos (typique avant/après) :
-1. L'IA force 7-8 slides peu importe le nombre de photos.
-2. Les photos sont réparties de façon arbitraire ("photo 1 / photo 2 / photo 1 / photo 2…").
-3. Les `overlay_text` de chaque slide ne s'enchaînent pas — chaque phrase vit pour elle-même, sans continuité narrative.
+Sur l'étape 3 (Affine le brief = `step === "questions"`), si l'utilisatrice quitte la page puis revient :
 
-L'utilisateur accepte qu'une même photo serve plusieurs slides, à condition que **le texte raconte une histoire continue de slide à slide**.
+- `step` est restauré depuis `sessionStorage` → `"questions"`.
+- MAIS `questions[]` (le tableau de questions IA) vit dans le hook `useContentGenerator`, qui se ré-instancie vide. Idem pour `structureProposal`, `inspirationProposals[]`, `loadingQuestions`.
+- Résultat : `CreerStepQuestions` reçoit `questions=[]` et `loadingQuestions=false` → tombe sur la branche "Pas de questions pour ce format" avec un bouton "Générer directement" qui lance une génération sans contexte (d'où le "ça fait sauter") + bouton retour qui paraît cassé parce que l'écran lui-même est déjà dégradé.
 
-## Changements (1 fichier : `supabase/functions/carousel-ai/index.ts`)
+Le garde-fou actuel `src/pages/CreerUnifie.tsx:129` tombe sur `"idea"` pour `structure_review` et `inspiration_proposals`, mais **oublie `"questions"`**. Et il renvoie vers `"idea"` alors que `selectedFormat` est restauré — on perd le contexte alors qu'on aurait pu reprendre proprement à l'étape Format.
 
-### 1. Structure step — adapter la cible de slides au nombre de photos (lignes 317-321)
+## Fix (1 fichier : `src/pages/CreerUnifie.tsx`)
 
-Réécrire `photoInstruction` pour le mode PHOTO :
-- 1 photo → cible **4-6 slides**, même photo sur toutes les slides, justifier la répétition par le récit.
-- 2 photos → cible **5-7 slides**. Privilégier une logique narrative type **avant → bascule → après** (la photo "avant" peut occuper plusieurs slides successives, idem pour "après", avec une slide pivot au milieu). **Interdire** l'alternance mécanique 1/2/1/2 sans justification narrative.
-- 3-4 photos → cible **6-8 slides**, chaque photo peut se répéter si le rôle narratif change.
-- 5+ photos → comportement actuel (1 photo ≈ 1 slide).
+### 1. Élargir `safeStep` (ligne 125-131)
 
-Le `slide_count` envoyé par le front (7) devient une **suggestion plafond**, pas un plancher. Supprimer la phrase "Ne descends JAMAIS sous N slides".
+Ajouter `"questions"` à la liste des steps "fragiles" et faire retomber vers `"format"` si un `selectedFormat` est disponible, sinon `"idea"`.
 
-### 2. `buildPhotoCarouselPrompt` — règle de continuité narrative (ligne 1529+)
+```ts
+const safeStep = (() => {
+  if (!ps?.step) return "idea";
+  if (ps.step === "result" && ps.result) return "result";
+  if (ps.step === "edit" && ps.editContent) return "edit";
+  // États avec données volatiles non persistées (questions, structure, propositions)
+  if (["questions", "structure_review", "inspiration_proposals", "result", "edit"].includes(ps.step)) {
+    return ps.selectedFormat ? "format" : "idea";
+  }
+  return ps.step as Step;
+})();
+```
 
-Ajouter un bloc **CHAÎNAGE DES TEXTES — OBLIGATOIRE** :
-- Les `overlay_text` doivent se lire à la suite comme un mini-récit continu : chaque slide reprend, prolonge ou fait basculer ce que la précédente a posé.
-- Test interne : si on permute deux slides au hasard et que le carrousel "marche encore", c'est raté.
-- Mots de liaison narratifs autorisés en début de slide : "Puis", "Et puis", "Sauf que", "Trois mois plus tard", "Ce jour-là", "Au début", "Maintenant", "Résultat" — pour matérialiser la progression temporelle/logique.
-- Une photo qui se répète sur 2-3 slides consécutives DOIT porter une progression de texte (zoom narratif, avancée temporelle, retournement) — pas 3 variantes de la même idée.
+### 2. Même garde-fou dans le callback `useFormPersist` (ligne 184-193)
 
-Adapter aussi la section "PROGRESSION NARRATIVE" :
-- Cas **2 photos (avant/après)** explicite : slides 1-N₁ posent l'avant (mêmes ou variations de la photo "avant"), 1 slide pivot raconte la bascule, slides N₁+2 → fin montrent l'après. Le texte fait le pont de bout en bout.
-- Cas **1 photo unique** : la photo reste, les textes racontent l'histoire en plusieurs temps (contexte → tension → bascule → résolution → ouverture).
+Le callback `restoreFn` peut aussi appeler `setStep(saved.step)` directement, court-circuitant `safeStep`. Appliquer la même règle :
 
-### 3. `quality_check` enrichi (ligne 1593-1600)
+```ts
+(saved) => {
+  if (!shouldRestore) return;
+  if (searchParams.get("format") || searchParams.get("sujet")) return;
+  if (saved.step && saved.step !== "idea") {
+    const fragile = ["questions", "structure_review", "inspiration_proposals", "result", "edit"];
+    const safe = fragile.includes(saved.step)
+      ? (saved.selectedFormat ? "format" : "idea")
+      : saved.step;
+    // Ne pas écraser un step déjà "result"/"edit" valablement restauré par safeStep
+    setStep((prev) => (prev === "result" || prev === "edit" ? prev : (safe as Step)));
+  }
+  if (saved.ideaText) setIdeaText(saved.ideaText);
+  if (saved.objective) setObjective(saved.objective);
+  if (saved.selectedFormat) setSelectedFormat(saved.selectedFormat);
+  if (saved.editorialAngle) setEditorialAngle(saved.editorialAngle);
+  if (saved.answers && Object.keys(saved.answers).length) setAnswers(saved.answers);
+}
+```
 
-Ajouter :
-- `text_chain_continuity: true` — chaque overlay s'enchaîne avec le précédent
-- `slide_count_matches_photo_richness: true` — le nombre de slides est proportionné aux photos
-- `no_mechanical_photo_alternation: true` — pas d'alternance 1/2/1/2 sans raison narrative
+## Conséquence UX
 
-### 4. Pas de changement frontend, pas de changement DB
-
-Le front continue d'envoyer `slide_count: 7` ; le prompt l'interprète maintenant comme un plafond souple modulé par `photos.length`.
+Après navigation aller-retour depuis l'étape 3 :
+- L'utilisatrice retombe sur l'étape 2 (Format) avec son format présélectionné, son sujet et son objectif restaurés.
+- Un clic sur "Suivant" relance proprement la génération des questions.
+- Les boutons retour/avant fonctionnent à nouveau.
 
 ## Hors scope
 
-- Mode MIX (`carousel_type === "mix"`) inchangé — le problème décrit concerne le mode PHOTO pur.
-- Mode `pure_photo` inchangé.
-- Pas de modification du flux LinkedIn carousel.
-- Pas de UI ajoutée pour choisir le nombre de slides (l'IA s'adapte automatiquement).
+- Pas de persistance de `questions[]` / `structureProposal` (ça impliquerait des changements dans `useContentGenerator` et risquerait de servir des questions périmées).
+- Pas de changement visuel.
+- Pas de modification du stepper.
