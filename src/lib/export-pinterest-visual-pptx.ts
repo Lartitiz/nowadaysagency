@@ -1,5 +1,8 @@
 import PptxGenJS from "pptxgenjs";
 import html2canvas from "html2canvas";
+import { fetchLogoAsBase64, buildLogoOverlayHtml } from "./export-logo";
+
+const PIN_W = 1000;
 
 /**
  * @deprecated Plus utilisé dans l'UI depuis l'unification "Télécharger".
