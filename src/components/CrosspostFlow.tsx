@@ -37,6 +37,26 @@ interface CrosspostResult {
   versions: Record<string, { full_text?: string; script?: string; sequence?: any[]; character_count?: number; angle_choisi: string; duration?: string }>;
 }
 
+function formatStoriesSequence(sequence: any[]): string {
+  if (!Array.isArray(sequence)) return String(sequence ?? "");
+  return sequence
+    .map((item, i) => {
+      if (typeof item === "string") return item;
+      if (item && typeof item === "object") {
+        const lines: string[] = [`Story ${i + 1}`];
+        for (const [k, v] of Object.entries(item)) {
+          if (v === null || v === undefined || v === "") continue;
+          const line = typeof v === "string" ? v : typeof v === "number" ? String(v) : null;
+          if (line) lines.push(`${line}`);
+        }
+        return lines.join("\n");
+      }
+      return String(item ?? "");
+    })
+    .filter(Boolean)
+    .join("\n\n");
+}
+
 export default function CrosspostFlow() {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
