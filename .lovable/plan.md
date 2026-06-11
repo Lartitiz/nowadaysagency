@@ -1,47 +1,62 @@
 ## (a) Ce que tu m'as demandé
 
-### Backend — `supabase/functions/creative-flow/index.ts`
+### Pattern commun (3 composants)
 
-1. **Augmenter `max_tokens` pour le step recycle**
-  - Ligne 1438 (path générique) : `const maxTokens = step === "questions" ? 800 : step === "recycle" ? 8192 : undefined;`
-  - Ligne 1310 (path recycle avec fichiers) : `max_tokens: 4096` → `max_tokens: 8192`
-2. **Garde anti-échec silencieux (recycle uniquement)**
-  Après le parse JSON (vers la ligne 1459, AVANT la passe de correction LinkedIn et AVANT `logUsage`), insérer :
-   → `logUsage` (ligne 1487) n'est jamais atteint en cas d'échec, donc pas de crédit consommé.
+Import :
+```ts
+import { handleQuotaError } from "@/lib/quota-error-handler";
+```
 
-### Frontend — `src/components/ContentRecycling.tsx`
+Juste après l'appel `invokeWithTimeout` et AVANT le traitement d'erreur existant, insérer une garde quota :
+```ts
+if (error?.isRateLimit || data?.error === "limit_reached") {
+  if (handleQuotaError({ message: error?.message || data?.message, data })) {
+    return; // setLoading/setGenerating → géré par le finally
+  }
+}
+```
+→ Si `handleQuotaError` ouvre le QuotaWallModal (return true), on coupe net SANS afficher le toast générique. Sinon, le flow d'erreur actuel reprend la main inchangé.
 
-3. **Garde côté UI** dans `handleRecycle` (lignes 147-151) :
+### 1. `src/components/ContentRecycling.tsx` — `handleRecycle`
+- Ajout import `handleQuotaError`.
+- Insertion de la garde quota juste après `const { data, error } = await invokeWithTimeout(...)` (ligne ~147), AVANT le `if (error) throw ...` et AVANT la garde "results vide" déjà en place.
+- Le `setLoading(false)` est déjà dans le `finally` (patch précédent) → `return` propre.
+
+### 2. `src/components/CrosspostFlow.tsx` — `generate`
+- Ajout import `handleQuotaError`.
+- L'appel actuel est `const res = await invokeWithTimeout("linkedin-ai", ...)`. On le destructure pour avoir accès séparé à `data`/`error` :
   ```ts
-   const { data, error } = await invokeWithTimeout("creative-flow", { body }, 120000);
-   if (error) throw new Error(error.message);
-   const r = data?.results || {};
-   if (Object.keys(r).length === 0) {
-     toast({
-       title: "Génération incomplète",
-       description: "La génération a échoué en cours de route. Réessaie, ou coche moins de formats à la fois.",
-       variant: "destructive",
-     });
-     return; // évite l'insert content_recycling avec results vide
-   }
-   setResults(r);
-   setActiveTab(formats[0] || "");
+  const { data: cpData, error: cpError } = await invokeWithTimeout("linkedin-ai", { body: {...} }, 120000);
+  if (cpError?.isRateLimit || cpData?.error === "limit_reached") {
+    if (handleQuotaError({ message: cpError?.message || cpData?.message, data: cpData })) {
+      return;
+    }
+  }
+  if (cpError) throw new Error(cpError.message);
+  let parsed: CrosspostResult = parseAIResponse(cpData?.content || "");
   ```
-   Le `return` est placé AVANT l'insert `content_recycling` pour ne pas polluer la table avec une ligne vide. `setLoading(false)` reste géré par la sortie via le `try/catch/finally` actuel (en réalité c'est appelé après le bloc try — vérifier que le early-return n'empêche pas le reset : il faut donc passer `setLoading(false)` dans un `finally`, OU appeler `setLoading(false)` avant le `return`). Choix : ajouter un `finally { setLoading(false); }` et retirer le `setLoading(false)` final, plus propre.
+- Le `finally` existant gère `setGenerating(false)` + cleanup des fichiers uploadés. Le `return` passe par le `finally` → cleanup OK.
 
-## (b) Propositions d'amélioration connexes (à valider individuellement)
+### 3. `src/components/InspireFlow.tsx` — `analyze`
+- Ajout import `handleQuotaError`.
+- Insertion de la garde quota juste après la ligne 174 (`const { data, error } = await invokeWithTimeout("inspire-ai", ...)`), AVANT le `if (error || data?.error)` actuel.
+- **Bonus demandé** : corriger les deps du `useCallback` ligne 202 :
+  ```ts
+  }, [user, sourceText, sourceUrl, tab, files, screenshotContext, workspaceId]);
+  ```
+- Le `setLoading(false)` est dans le `finally` → `return` propre.
 
-- **B1 — `finally { setLoading(false) }**` : déjà mentionné, refactor mineur du `try/catch` actuel qui laisse `loading=true` si une exception est lancée hors du `try` (peu probable mais propre). **Recommandé** car nécessaire au point 3.
-- **B2 — Skip l'insert `content_recycling` aussi quand `r` est vide** : déjà couvert par le `return` au point 3.
-- **B3 — Log côté backend en cas d'échec recycle** : ajouter `console.warn("[creative-flow] recycle returned empty results, raw=", rawContent?.slice(0, 500))` avant le `return 500`, pour faciliter le debug d'occurrences réelles sans coût utilisateur. **Recommandé**, 1 ligne. ok
-- **B4 — (hors scope strict, mais lié)** Le path `step === "recycle" && filesArray.length > 0` n'utilise pas la même branche que le path générique : OK, les deux passent à `max_tokens: 8192` après ce patch. Pas d'autre changement nécessaire.
+## (b) Propositions d'amélioration connexes
 
-Pas d'autre dérive identifiée (prompt, upload, validation 20 Mo, limite 5 PDFs, runPipeline, autres steps : intacts).
+- **B1 — Inclure `sourceContent` dans la garde Crosspost si l'edge function renvoie un format différent** : non, le contrat est uniforme côté backend (limit_reached / message). Aucun changement nécessaire.
+- **B2 — Factoriser le pattern en helper `isQuotaResponse(error, data)`** dans `quota-error-handler.ts` : tentant, mais hors scope (toucherait `use-content-generator.ts`). À déclencher dans un chantier séparé si tu veux. **NON recommandé maintenant.**
+- **B3 — Vérifier que `registerQuotaWallCallback` est bien appelé au montage de l'app** : déjà fait ailleurs sinon `use-content-generator` ne marcherait pas → rien à toucher.
 
 ## Critères de validation
 
 - `npx tsc --noEmit --skipLibCheck` passe
-- Recyclage 5 formats sur texte long → 5 onglets complets
-- Si échec simulé (ex. payload trop gros côté modèle) → toast destructif, crédit inchangé
+- Compte free à 0 crédit sur chacun des 3 modes → QuotaWallModal s'ouvre, pas de toast "Erreur"
+- Compte avec crédits : génération normale dans les 3 modes
+- Lint hook deps : warning `react-hooks/exhaustive-deps` disparu sur `analyze` d'InspireFlow
 
-Dis-moi si tu valides (a) tel quel + lesquelles de B1/B3 tu retiens, et je passe en build.
+Dis-moi si je peux build, et si tu veux que je tente B2 en parallèle ou pas.
