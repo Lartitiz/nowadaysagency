@@ -1,50 +1,70 @@
-# Refonte modale détail d'idée — direction "Focus éditorial"
+## Objectif
 
-## Ce qui change visuellement
+Le logo uploadé dans la charte graphique (`brand_charter.logo_url`) n'est aujourd'hui utilisé nulle part hors de la page Charte. On l'active à 3 endroits, en gardant le contrôle utilisateur via une case à cocher pour les exports.
 
-Aujourd'hui le `DialogTitle` reçoit le champ `titre` qui peut être un paragraphe entier → il s'affiche en H1 énorme et écrase tout. La nouvelle hiérarchie traite l'idée comme **corps éditorial** et fait remonter le scan rapide (badges, méta) + isole les notes perso comme zone d'écriture distincte + colle les actions en footer.
+---
 
-Ordre vertical dans la modale :
-1. **Header sticky-top** : ligne de badges (statut cliquable, canal, objectif, type) à gauche + bouton fermer à droite.
-2. **L'idée** (corps) : le champ `titre` rendu en `font-display`, taille `text-xl md:text-2xl`, `leading-relaxed`, sans label "MES NOTES"-style — c'est le focal point.
-3. **Accroche** (conditionnel) : si `accroche_short` ou `accroche_long`, sous-bloc avec label mono uppercase "ACCROCHE" + texte body, séparé par border-top léger.
-4. **Contenu** (conditionnel) : même pattern label mono uppercase "CONTENU", garde le `ContentPreview` existant dans son fond `bg-rose-pale rounded-xl`.
-5. **Méta** : grille 2 colonnes (Angle / Format / Format technique / Création / Modifiée / Planifiée), labels en `font-mono-ui text-[10px] uppercase tracking-wider text-muted-foreground`, valeurs en `text-sm text-foreground`.
-6. **Mes notes** : bloc tinté `bg-rose-pale/40 border-l-4 border-primary/40 rounded-r-lg p-5`, label mono uppercase à gauche, lien "Sauvegarder" mono uppercase à droite, textarea bg-transparent sans bord visible.
-7. **Footer sticky-bottom** (`border-t bg-background`) : "Continuer la rédaction" en bouton primary plein-largeur, puis ligne `flex gap-3` avec "Planifier" (outline flex-1) + icône poubelle (ghost, hover destructive) qui déclenche l'AlertDialog de suppression existant.
+## 1. Logo dans les exports visuels (opt-in)
 
-## Fichier touché
+Périmètre concerné :
+- **Carrousels** — exports `export-carousel-visual-pptx.ts`, `export-carousel-hybrid-pptx.ts`, `export-carousel-png.ts` (PPTX visuel, hybride, PNG).
+- **Épingles Pinterest** — `export-pinterest-visual-pptx.ts` + `exportPinterestVisualPng`.
+- **Couvertures PPTX** — slide de couverture du carrousel `export-carousel-visual-pptx.ts`.
 
-- `src/pages/IdeasPage.tsx`, uniquement le bloc `<Dialog open={!!selectedIdea}>` (lignes ~441-575). Aucune autre page ni composant impacté.
+Exports volontairement **exclus** : `export-carousel-pptx.ts` (version éditable texte pur), `export-pinterest-editable-pptx.ts` (template à remplir).
 
-## Tokens utilisés (charte existante)
+UX :
+- Dans le dialog "Télécharger" de chaque export concerné (carrousel + Pinterest), ajouter une `Checkbox` shadcn :
+  - Label : « Ajouter mon logo »
+  - État par défaut : **coché si `logo_url` existe**, désactivée sinon avec tooltip « Upload ton logo dans Charte graphique pour l'activer ».
+  - Préférence mémorisée par utilisateur dans `localStorage` (clé `export-include-logo`).
+- Position du logo (non configurable pour rester simple) :
+  - Carrousel slide couverture : coin bas-droit, hauteur ≈ 8% slide, padding 0.3"
+  - Carrousel slides intérieures : même position, opacité 0.8
+  - Pinterest visuel : coin bas-droit, hauteur 60px sur visuel 1500px
+- Le logo est chargé une fois en base64 (via `fetch` + `FileReader`) avant la boucle de génération de slides ; embed base64 obligatoire pour PPTX (sinon LibreOffice casse).
 
-- Typo titre/idée : `font-display`
-- Labels uppercase : `font-mono-ui text-[10px] uppercase tracking-wider text-muted-foreground`
-- Fond notes : `bg-rose-pale/40` + `border-l-4 border-primary/40`
-- Bouton primary : `Button` shadcn variant par défaut (rose primary du projet) — pas de hex codé en dur
-- Bouton supprimer : `Button variant="ghost" size="icon"` avec `text-muted-foreground hover:text-destructive`
-- Aucune nouvelle couleur, aucune nouvelle police, aucune dépendance ajoutée
+Fallback : si le fetch du logo échoue (CORS, 404), l'export continue **sans logo** et un `toast` informe « Logo non chargé, export sans logo ».
 
-## Comportement / fonctionnalités
+## 2. Logo dans le header du workspace
 
-Strictement identique :
-- `StatusDropdown` reste accroché au badge statut.
-- `PlanifierPopover` continue d'envelopper le bouton "Planifier".
-- L'`AlertDialog` de suppression reste branché sur l'icône poubelle.
-- Le textarea de notes garde `detailNotes` + `handleSaveNotes`.
-- `ContentPreview` éditable inchangé.
-- `DialogTitle` est conservé en `sr-only` (accessibilité) avec une string courte type "Détail de l'idée".
+- Dans `AppHeader.tsx` (3 variantes desktop / tablet / mobile) : à côté du `WorkspaceSwitcher`, afficher le logo de la charte du **workspace actif** (taille `h-7 w-7` rounded, `object-contain`).
+- Affiché **uniquement si `brand_charter.logo_url` existe pour le workspace actif** ; sinon rien (pas de placeholder).
+- Le texte « L'Assistant Com' » + badge beta restent en place (c'est notre marque produit, pas remplacée).
+- Nouvelle hook légère `useWorkspaceLogo()` qui réutilise `useBrandCharter()` et retourne `{ logoUrl }`.
+
+## 3. Logo dans les briefs photo / visuels AI
+
+Edge functions concernées :
+- `supabase/functions/pinterest-visual/index.ts` (génère la structure visuelle de l'épingle)
+- `supabase/functions/pinterest-photo-brief/index.ts` (brief photo)
+
+Changements :
+- Côté client : passer `logo_url` au payload d'invocation (lecture depuis `brand_charter`).
+- Côté edge function : si `logo_url` présent, ajouter au prompt système un bloc :
+  > « La personne a un logo de marque (URL : …). Mentionne dans le brief où placer le logo (coin discret, watermark, ou sur un objet de la scène pour les photos), sans imposer — c'est une suggestion. Pour les visuels Pinterest générés, réserve un espace bas-droit. »
+- Aucune modification de schéma ; juste enrichissement de contexte prompt.
+
+---
+
+## Détails techniques
+
+**Helper partagé** `src/lib/export-logo.ts` :
+```ts
+export async function fetchLogoAsBase64(logoUrl: string | null): Promise<string | null>
+// fetch → blob → FileReader.readAsDataURL ; null sur erreur
+```
+Utilisé par les 4 fonctions d'export concernées.
+
+**Préférence checkbox** : helper trivial `localStorage.getItem("export-include-logo") !== "false"`.
+
+**Pas de migration DB** : `brand_charter.logo_url` existe déjà, `brand-assets` bucket public déjà en place.
+
+---
 
 ## Hors scope
 
-- Pas de modification des cartes d'idées dans la liste.
-- Pas de refonte de la `CalendarIdeasSidebar` ni du `IdeaDetailSheet` du calendrier (composants distincts).
-- Pas d'ajout de tabs / nouvelles actions / suggestions IA.
-- Pas de touche à la logique de sauvegarde, planification, suppression.
-
-## Validation
-
-- `npx tsc --noEmit` clean.
-- Test manuel : ouvrir une idée longue → l'idée se lit comme un paragraphe éditorial, les badges sont en tête, les méta scannables en grille, notes isolées, footer toujours visible.
-- Test idée avec accroche + content_data (carrousel) : les sections Accroche / Contenu restent fonctionnelles dans le nouveau rythme.
+- Configuration de la position du logo dans les exports (toujours bas-droit).
+- Watermark sur les exports éditables texte-seul.
+- Logo dans les emails, PDFs mirror, ou dans la `SharedBrandingPage` (séparé si besoin plus tard).
+- Génération automatique de variantes du logo (clair/sombre).

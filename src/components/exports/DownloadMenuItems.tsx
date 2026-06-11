@@ -1,5 +1,5 @@
-import { ImageIcon, FileText, Loader2, Sparkles } from "lucide-react";
-import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { ImageIcon, FileText, Loader2, Sparkles, Image as ImageLucide } from "lucide-react";
+import { DropdownMenuItem, DropdownMenuCheckboxItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 
 interface Props {
   onPng?: () => void;
@@ -17,6 +17,11 @@ interface Props {
   /** CTA optionnel affiché sous l'item grisé (ex: "Régénérer le carrousel"). */
   onPptxRegenerate?: () => void;
   pptxRegenerateLabel?: string;
+  /** Logo de marque disponible (déclenche l'affichage de la checkbox). */
+  logoAvailable?: boolean;
+  /** État de la case "Ajouter mon logo" (contrôlée par le parent). */
+  includeLogo?: boolean;
+  onIncludeLogoChange?: (value: boolean) => void;
 }
 
 /**
@@ -25,6 +30,8 @@ interface Props {
  *  1. Images PNG  — à publier directement
  *  2. PowerPoint éditable ✨ — texte modifiable, fond préservé
  *     → peut être affiché grisé avec une raison via `pptxDisabledReason`
+ *
+ * Optionnel : checkbox "Ajouter mon logo" si la charte contient un logo.
  */
 export function DownloadMenuItems({
   onPng,
@@ -35,11 +42,27 @@ export function DownloadMenuItems({
   pptxDisabledReason,
   onPptxRegenerate,
   pptxRegenerateLabel = "Régénérer le carrousel",
+  logoAvailable,
+  includeLogo,
+  onIncludeLogoChange,
 }: Props) {
   const showPptxDisabled = !!pptxDisabledReason && !onPptxEditable;
 
   return (
     <>
+      {logoAvailable && onIncludeLogoChange && (
+        <>
+          <DropdownMenuCheckboxItem
+            checked={!!includeLogo}
+            onCheckedChange={(v) => onIncludeLogoChange(!!v)}
+            onSelect={(e) => e.preventDefault()}
+          >
+            <ImageLucide className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+            <span className="text-xs">Ajouter mon logo</span>
+          </DropdownMenuCheckboxItem>
+          <DropdownMenuSeparator />
+        </>
+      )}
       {onPng && (
         <DropdownMenuItem onClick={onPng} disabled={downloadingPng}>
           {downloadingPng ? (

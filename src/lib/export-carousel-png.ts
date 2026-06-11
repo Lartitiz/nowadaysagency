@@ -1,4 +1,5 @@
 import html2canvas from "html2canvas-pro";
+import { fetchLogoAsBase64, buildLogoOverlayHtml } from "./export-logo";
 
 interface VisualSlide {
   slide_number: number;
@@ -16,7 +17,7 @@ const sanitize = (s: string) =>
  * Google Fonts que la page parente. Évite les conflits Tailwind/box-sizing
  * qui faisaient mal calculer `background-size: cover` à html2canvas.
  */
-async function mountSlideIframe(html: string): Promise<HTMLIFrameElement> {
+async function mountSlideIframe(html: string, logoOverlayHtml: string): Promise<HTMLIFrameElement> {
   const iframe = document.createElement("iframe");
   iframe.style.cssText = `position:fixed;top:-99999px;left:-99999px;width:${SLIDE_W}px;height:${SLIDE_H}px;border:0;z-index:-1;pointer-events:none;`;
   iframe.setAttribute("aria-hidden", "true");
@@ -34,10 +35,10 @@ async function mountSlideIframe(html: string): Promise<HTMLIFrameElement> {
 <meta charset="utf-8" />
 ${fontLinks}
 <style>
-  html, body { margin:0; padding:0; width:${SLIDE_W}px; height:${SLIDE_H}px; overflow:hidden; background:transparent; }
+  html, body { margin:0; padding:0; width:${SLIDE_W}px; height:${SLIDE_H}px; overflow:hidden; background:transparent; position:relative; }
   *, *::before, *::after { box-sizing: border-box; }
 </style>
-</head><body>${html}</body></html>`;
+</head><body>${html}${logoOverlayHtml}</body></html>`;
 
   iframe.srcdoc = srcdoc;
   document.body.appendChild(iframe);
@@ -166,8 +167,9 @@ async function captureSlide(
   html: string,
   scale: number,
   useCORS: boolean,
+  logoOverlayHtml: string,
 ): Promise<Blob> {
-  const iframe = await mountSlideIframe(html);
+  const iframe = await mountSlideIframe(html, logoOverlayHtml);
   try {
     await waitForIframeReady(iframe, html);
 
@@ -193,22 +195,22 @@ async function captureSlide(
   }
 }
 
-async function captureSlideWithRetry(html: string): Promise<Blob | null> {
+async function captureSlideWithRetry(html: string, logoOverlayHtml: string): Promise<Blob | null> {
   // 1er essai : qualité retina (scale 2) + CORS strict
   try {
-    return await captureSlide(html, 2, true);
+    return await captureSlide(html, 2, true, logoOverlayHtml);
   } catch (e) {
     console.warn("[exportCarouselPng] capture failed (scale 2, CORS), retry", e);
   }
   // 2e essai : scale 2 mais on tolère le taint (images sans CORS)
   try {
-    return await captureSlide(html, 2, false);
+    return await captureSlide(html, 2, false, logoOverlayHtml);
   } catch (e) {
     console.warn("[exportCarouselPng] capture failed (scale 2, taint), retry scale 1", e);
   }
   // 3e essai : scale 1 + taint, dernière chance
   try {
-    return await captureSlide(html, 1, false);
+    return await captureSlide(html, 1, false, logoOverlayHtml);
   } catch (e) {
     console.error("[exportCarouselPng] capture failed all retries", e);
     return null;
@@ -226,13 +228,18 @@ async function captureSlideWithRetry(html: string): Promise<Blob | null> {
 export async function exportCarouselPng(
   visualSlides: VisualSlide[],
   fileName = "carrousel",
+  logoUrl?: string | null,
 ): Promise<void> {
   if (!visualSlides || visualSlides.length === 0) return;
+
+  // Pré-charge le logo une seule fois ; injecté dans chaque slide via overlay HTML.
+  const logoBase64 = await fetchLogoAsBase64(logoUrl);
+  const logoOverlayHtml = logoBase64 ? buildLogoOverlayHtml(logoBase64, SLIDE_W) : "";
 
   const images: { name: string; blob: Blob }[] = [];
 
   for (const vs of visualSlides) {
-    const blob = await captureSlideWithRetry(vs.html);
+    const blob = await captureSlideWithRetry(vs.html, logoOverlayHtml);
     if (!blob) {
       console.warn(`[exportCarouselPng] slide ${vs.slide_number} skipped`);
       continue;

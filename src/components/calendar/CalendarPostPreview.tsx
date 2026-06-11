@@ -9,6 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/compon
 import { DownloadMenuItems } from "@/components/exports/DownloadMenuItems";
 import { useToast } from "@/hooks/use-toast";
 import { useBrandCharter } from "@/hooks/use-branding";
+import { getIncludeLogoPref, setIncludeLogoPref } from "@/lib/export-logo";
 
 interface Props {
   canal: string;
@@ -44,6 +45,9 @@ export function CalendarPostPreview({
   const [downloadingPng, setDownloadingPng] = useState(false);
   const [downloadingHybrid, setDownloadingHybrid] = useState(false);
   const [slideIndex, setSlideIndex] = useState(0);
+  const [includeLogo, setIncludeLogo] = useState(getIncludeLogoPref());
+  const logoUrl = (charterData as any)?.logo_url || null;
+  const handleIncludeLogoChange = (v: boolean) => { setIncludeLogo(v); setIncludeLogoPref(v); };
 
   const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9àâéèêëïîôùûüç\-_.]/g, "-");
 
@@ -52,14 +56,14 @@ export function CalendarPostPreview({
     if (!visualHtml || visualHtml.length === 0 || downloadingPng) return;
     setDownloadingPng(true);
     try {
-      await exportCarouselPng(visualHtml, theme || "carrousel");
+      await exportCarouselPng(visualHtml, theme || "carrousel", includeLogo ? logoUrl : null);
     } catch (err) {
       console.error("Download error:", err);
       toast({ title: "Erreur lors du téléchargement", variant: "destructive" });
     } finally {
       setDownloadingPng(false);
     }
-  }, [visualHtml, downloadingPng, theme, toast]);
+  }, [visualHtml, downloadingPng, theme, toast, includeLogo, logoUrl]);
 
   // ── PNG depuis Storage URLs (déjà rendus côté serveur) ──
   const handleDownloadFromUrls = useCallback(async () => {
@@ -117,7 +121,7 @@ export function CalendarPostPreview({
     setDownloadingHybrid(true);
     try {
       const fileName = sanitize(`editable-${theme || "carrousel"}`);
-      await exportCarouselHybridPptx(visualHtml, slidesData || null, charterData || null, fileName);
+      await exportCarouselHybridPptx(visualHtml, slidesData || null, charterData || null, fileName, undefined, includeLogo ? logoUrl : null);
       toast({ title: "PowerPoint éditable téléchargé" });
     } catch (err) {
       console.error("Hybrid PPTX error:", err);
@@ -125,7 +129,7 @@ export function CalendarPostPreview({
     } finally {
       setDownloadingHybrid(false);
     }
-  }, [visualHtml, slidesData, charterData, downloadingHybrid, theme, toast]);
+  }, [visualHtml, slidesData, charterData, downloadingHybrid, theme, toast, includeLogo, logoUrl]);
 
   const handleCopyCaption = useCallback(() => {
     if (!caption) return;
@@ -186,7 +190,11 @@ export function CalendarPostPreview({
                       ? onNavigateToGenerator
                       : undefined
                   }
+                  logoAvailable={!!logoUrl}
+                  includeLogo={includeLogo}
+                  onIncludeLogoChange={handleIncludeLogoChange}
                 />
+
               </DropdownMenuContent>
             </DropdownMenu>
           )}

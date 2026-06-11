@@ -14,6 +14,7 @@ import {
   type ShapeBlock,
   type TextRun,
 } from "./pptx-font-mapping";
+import { fetchLogoAsBase64, getPptxLogoRect } from "./export-logo";
 
 interface VisualSlide {
   slide_number: number;
@@ -449,11 +450,16 @@ export async function exportCarouselHybridPptx(
   charter: HybridCharter | null | undefined,
   fileName = "carrousel-editable",
   originalPhotos?: OriginalPhoto[],
+  logoUrl?: string | null,
 ) {
   const pptx = new PptxGenJS();
   pptx.defineLayout({ name: "INSTAGRAM", width: PPTX_W_IN, height: PPTX_H_IN });
   pptx.layout = "INSTAGRAM";
   pptx.author = "L'Assistant Com'";
+
+  // Pré-charge le logo une seule fois (sera ajouté en top layer sur chaque slide)
+  const logoBase64 = await fetchLogoAsBase64(logoUrl);
+
 
   for (let i = 0; i < visualSlides.length; i++) {
     const vs = visualSlides[i];
@@ -673,6 +679,16 @@ export async function exportCarouselHybridPptx(
           addBlockToSlide(slide, b, charter);
         } catch (e) {
           console.warn("[hybrid] addBlockToSlide failed", e);
+        }
+      }
+
+      // ---- Logo de marque (top layer, opt-in via logoUrl) ----
+      if (logoBase64) {
+        try {
+          const r = getPptxLogoRect(PPTX_W_IN, PPTX_H_IN);
+          slide.addImage({ data: logoBase64, x: r.x, y: r.y, w: r.w, h: r.h, sizing: { type: "contain", w: r.w, h: r.h } });
+        } catch (e) {
+          console.warn("[hybrid] addImage(logo) failed", e);
         }
       }
     } catch (e) {
