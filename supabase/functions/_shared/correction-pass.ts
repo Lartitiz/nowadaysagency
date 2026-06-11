@@ -363,11 +363,17 @@ function extractCarouselTexts(parsed: any): string {
     }
   }
 
-  // Caption
-  const caption = parsed.caption || parsed.instagram_caption || "";
-  if (caption) {
+  // Caption (peut être un objet { hook, body, cta, hashtags } ou une string legacy)
+  const caption = parsed.caption ?? parsed.instagram_caption ?? "";
+  if (caption && typeof caption === "object") {
+    if (caption.hook) lines.push(`[CAPTION - HOOK] ${caption.hook}`);
+    if (caption.body) lines.push(`[CAPTION - BODY] ${caption.body}`);
+    if (caption.cta) lines.push(`[CAPTION - CTA] ${caption.cta}`);
+    // hashtags volontairement exclus : pas de tics IA à corriger
+  } else if (typeof caption === "string" && caption) {
     lines.push(`[CAPTION] ${caption}`);
   }
+
 
   return lines.join("\n");
 }
@@ -423,11 +429,25 @@ function reinjectCarouselTexts(parsed: any, correctedBlock: string): any {
     }
   }
 
-  // Caption
-  if (corrections.has("CAPTION")) {
-    if (result.caption !== undefined) result.caption = corrections.get("CAPTION")!;
-    else if (result.instagram_caption !== undefined) result.instagram_caption = corrections.get("CAPTION")!;
+  // Caption : préserve la structure originale (objet vs string)
+  const captionTarget =
+    result.caption !== undefined ? "caption" :
+    result.instagram_caption !== undefined ? "instagram_caption" :
+    null;
+
+  if (captionTarget) {
+    const original = result[captionTarget];
+    if (original && typeof original === "object") {
+      // Format objet : on réinjecte champ par champ, hashtags inchangés
+      if (corrections.has("CAPTION - HOOK")) original.hook = corrections.get("CAPTION - HOOK")!;
+      if (corrections.has("CAPTION - BODY")) original.body = corrections.get("CAPTION - BODY")!;
+      if (corrections.has("CAPTION - CTA")) original.cta = corrections.get("CAPTION - CTA")!;
+    } else if (corrections.has("CAPTION")) {
+      // Format string legacy
+      result[captionTarget] = corrections.get("CAPTION")!;
+    }
   }
+
 
   return result;
 }
