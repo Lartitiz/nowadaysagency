@@ -1307,7 +1307,7 @@ Réponds UNIQUEMENT en JSON :
         system: systemPrompt,
         messages: [{ role: "user", content }],
         temperature: 0.8,
-        max_tokens: 4096,
+        max_tokens: 8192,
       });
     } else if (step === "questions" && body.photo_mode && body.photos?.[0]?.base64) {
       // Vision-anchored questions: let Claude SEE ALL photos (1..10) to ask grounded questions.
