@@ -143,14 +143,17 @@ RÈGLE FALLBACK : si quote_big.quote est absent → utilise slide.title à la pl
 
 █ OBJECTION_RESPONSE — Déconstruction verticale (objection en haut grisé, response en bas dominante)
 <div style="display:flex;flex-direction:column;gap:32px">
-  <div style="background:${ch.color_secondary}15;border-radius:${ch.border_radius || 12}px;padding:32px;position:relative">
+  <div data-pptx-shape="card" style="background:${ch.color_secondary}15;border-radius:${ch.border_radius || 12}px;padding:32px;position:relative">
     <span aria-hidden="true" style="position:absolute;top:16px;right:24px;font-size:32px;color:${ch.color_primary};opacity:0.5">❝</span>
     <p data-pptx-editable="caption" style="font-size:18px;font-weight:600;color:${ch.color_secondary};text-transform:uppercase;letter-spacing:1px;margin:0 0 12px 0;font-family:${ch.font_body}">CE QU'ON DIT</p>
     <p data-pptx-editable="body" style="font-size:24px;color:${ch.color_text};line-height:1.4;margin:0;font-style:italic;font-family:${ch.font_body}">OBJECTION</p>
   </div>
-  <div style="background:#FFF;border-left:4px solid ${ch.color_primary};border-radius:${ch.border_radius || 12}px;padding:32px;box-shadow:0 4px 16px rgba(0,0,0,0.06)">
-    <p data-pptx-editable="caption" style="font-size:18px;font-weight:600;color:${ch.color_primary};text-transform:uppercase;letter-spacing:1px;margin:0 0 12px 0;font-family:${ch.font_body}">MA POSITION</p>
-    <p data-pptx-editable="title" style="font-size:30px;color:${ch.color_text};line-height:1.4;margin:0;font-weight:500;font-family:${ch.font_title}">RESPONSE</p>
+  <div style="display:flex;gap:6px">
+    <div data-pptx-shape="card" style="width:8px;border-radius:4px;background:${ch.color_primary};flex-shrink:0"></div>
+    <div data-pptx-shape="card" style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:32px;box-shadow:0 4px 16px rgba(0,0,0,0.06)">
+      <p data-pptx-editable="caption" style="font-size:18px;font-weight:600;color:${ch.color_primary};text-transform:uppercase;letter-spacing:1px;margin:0 0 12px 0;font-family:${ch.font_body}">MA POSITION</p>
+      <p data-pptx-editable="title" style="font-size:30px;color:${ch.color_text};line-height:1.4;margin:0;font-weight:500;font-family:${ch.font_title}">RESPONSE</p>
+    </div>
   </div>
 </div>
 La RESPONSE est typographiquement plus grande que l'OBJECTION — elle domine.
