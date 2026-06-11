@@ -923,10 +923,10 @@ En complément des annotations \`data-pptx-editable\` sur les TEXTES, annote les
 
 CONDITIONS D'ANNOTATION (NE PAS annoter si UNE de ces conditions est vraie — l'élément reste alors figé dans le PNG, ce qui est ACCEPTABLE) :
 - L'élément utilise un gradient (linear-gradient, radial-gradient, conic-gradient)
-- L'élément a une box-shadow complexe. AUTORISÉ uniquement : une seule ombre externe simple de la forme \`Xpx Ypx blur rgba(...)\` (sans spread, sans inset). INTERDIT : ombres multiples (séparées par virgule), \`inset\`, \`spread\` non nul.
+- L'élément a une box-shadow complexe. AUTORISÉ : une seule ombre externe simple de la forme \`Xpx Ypx blur rgba(...)\` (sans spread, sans inset). INTERDIT : ombres multiples (séparées par virgule), \`inset\`, \`spread\` non nul.
 - L'élément a un backdrop-filter, mask, mix-blend-mode, filter, clip-path
 - L'élément a un transform autre que none (rotate, scale ≠ 1, skew, matrix)
-- L'élément a une bordure visible (les shapes natifs ne la restituent pas dans ce sprint)
+- L'élément a une bordure. AUTORISÉ : bordure UNIFORME sur les 4 côtés, style \`solid\` / \`dashed\` / \`dotted\`. INTERDIT : bordures partielles (\`border-left\` seul, etc.), styles \`double\` / \`groove\` / \`ridge\` / \`inset\` / \`outset\`.
 - Le fill n'est pas un aplat opaque (rgba avec alpha < 1 → ne pas annoter)
 - L'élément CONTIENT un descendant \`data-pptx-photo\` (le shape natif recouvrirait la photo native)
 - Un même élément ne porte JAMAIS à la fois \`data-pptx-editable\` et \`data-pptx-shape\` — un texte est un texte, un shape est un shape. Le texte vit DANS le shape comme enfant.
