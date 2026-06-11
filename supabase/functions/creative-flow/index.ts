@@ -585,7 +585,17 @@ Tu DOIS proposer une version SIGNIFICATIVEMENT DIFFÉRENTE :
 Rédige le contenu en suivant les INSTRUCTIONS DE RÉDACTION FINALE ci-dessus.
 Le contenu doit être PRÊT À POSTER (pas un brouillon).
 
-${isReel || isStories ? `` : `Réponds UNIQUEMENT en JSON :
+${isReel || isStories ? `` : isNewsletter ? `Réponds UNIQUEMENT en JSON :
+{
+  "subject": "objet de l'email (max 50 caractères, accrocheur, jamais 'Newsletter #N')",
+  "preview_text": "texte de preview (40-90 caractères, complète l'objet sans le répéter)",
+  "content": "corps complet de la newsletter (avec \\n\\n entre paragraphes)",
+  "accroche": "première phrase du corps",
+  "cta_suggestion": "suggestion de CTA doux si pertinent, sinon null",
+  "format": "newsletter",
+  "pillar": "...",
+  "objectif": "..."
+}` : `Réponds UNIQUEMENT en JSON :
 {
   "content": "...",
   "accroche": "...",
