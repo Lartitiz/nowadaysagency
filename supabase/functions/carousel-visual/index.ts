@@ -425,6 +425,14 @@ Le contenu doit être visuellement CENTRÉ au milieu de la slide.
 JAMAIS de contenu collé en bas ou en haut. Si tu vois du vide en haut ou en bas, c'est que le centrage manque.
 C'est la règle la plus importante du design system.
 
+RYTHME DU CARROUSEL (obligatoire dès 5 slides) :
+
+- Au moins UNE slide de rupture à fond plein dans le carrousel : SÉPARATEUR (fond ${ch.color_primary}), DARK BOX (punchline sur fond sombre) ou CTA inversé (fond ${ch.color_secondary}, texte clair).
+
+- Place-la sur la slide la plus forte éditorialement (prise de position, punchline, chiffre choc) — c'est elle qui crée la respiration visuelle dans le feed.
+
+- Alterne les densités : une slide dense (schéma, liste) est suivie d'une slide aérée (punchline, citation).
+
 ═══ DESIGN PAR RÔLE DE SLIDE ═══
 
 HOOK (slide 1) — Design le plus fort, stoppe le scroll :
