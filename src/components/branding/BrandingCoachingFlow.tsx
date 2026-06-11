@@ -994,6 +994,7 @@ export default function BrandingCoachingFlow({ section, personaId, onComplete, o
         if (insights.photo_style) charterPayload.photo_style = insights.photo_style;
         if (insights.font_title) charterPayload.font_title = insights.font_title;
         if (insights.font_body) charterPayload.font_body = insights.font_body;
+        if (insights.font_rationale) charterPayload.font_rationale = insights.font_rationale;
         if (insights.visual_donts) charterPayload.visual_donts = insights.visual_donts;
         if (insights.ai_generated_brief) charterPayload.ai_generated_brief = insights.ai_generated_brief;
 
