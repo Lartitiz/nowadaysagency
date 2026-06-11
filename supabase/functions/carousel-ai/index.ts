@@ -389,7 +389,7 @@ RÈGLES :
 - Justifie chaque choix de position en 1 phrase max
 - Propose des titres scène-first en 4-9 mots (voir RÈGLES TITRES ci-dessous), en français
 - Sois concise et actionnable, pas théorique
-- Le nombre de slides doit être entre ${slide_count || 7} et ${(slide_count || 7) + 2}
+- Le nombre de slides cible est ${slide_count || 7} en mode TEXTE/MIX ; en mode PHOTO il s'adapte au nombre de photos (voir MODE PHOTO ci-dessous) — n'impose pas 7+ slides s'il n'y en a que 1-2.
 ${photoInstruction}
 
 ${SLIDE_TITLE_RULES}
