@@ -429,11 +429,25 @@ function reinjectCarouselTexts(parsed: any, correctedBlock: string): any {
     }
   }
 
-  // Caption
-  if (corrections.has("CAPTION")) {
-    if (result.caption !== undefined) result.caption = corrections.get("CAPTION")!;
-    else if (result.instagram_caption !== undefined) result.instagram_caption = corrections.get("CAPTION")!;
+  // Caption : préserve la structure originale (objet vs string)
+  const captionTarget =
+    result.caption !== undefined ? "caption" :
+    result.instagram_caption !== undefined ? "instagram_caption" :
+    null;
+
+  if (captionTarget) {
+    const original = result[captionTarget];
+    if (original && typeof original === "object") {
+      // Format objet : on réinjecte champ par champ, hashtags inchangés
+      if (corrections.has("CAPTION - HOOK")) original.hook = corrections.get("CAPTION - HOOK")!;
+      if (corrections.has("CAPTION - BODY")) original.body = corrections.get("CAPTION - BODY")!;
+      if (corrections.has("CAPTION - CTA")) original.cta = corrections.get("CAPTION - CTA")!;
+    } else if (corrections.has("CAPTION")) {
+      // Format string legacy
+      result[captionTarget] = corrections.get("CAPTION")!;
+    }
   }
+
 
   return result;
 }
