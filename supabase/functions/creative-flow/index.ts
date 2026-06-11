@@ -731,6 +731,9 @@ Réponds UNIQUEMENT en JSON valide :
 {
   "results": {
     ${(formats || []).map((f: string) => `"${f}": "contenu complet ici"`).join(",\n    ")}
+  },
+  "topics": {
+    ${(formats || []).map((f: string) => `"${f}": "le sujet réel de ce contenu en 5-10 mots (pas 'recyclage', le VRAI sujet traité)"`).join(",\n    ")}
   }
 }`;
 
