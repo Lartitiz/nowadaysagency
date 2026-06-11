@@ -135,7 +135,7 @@ export default function CrosspostFlow() {
   const getActiveVersionText = () => {
     const v = getActiveVersion();
     if (!v) return "";
-    return v.full_text || v.script || JSON.stringify(v.sequence, null, 2) || "";
+    return v.full_text || v.script || (v.sequence ? formatStoriesSequence(v.sequence) : "") || "";
   };
   const getActiveChannelLabel = () => TARGET_CHANNELS.find((c) => c.id === activeVersionKey)?.label || activeVersionKey;
   const getActiveChannelCanal = () => activeVersionKey === "linkedin" ? "linkedin" : "instagram";
