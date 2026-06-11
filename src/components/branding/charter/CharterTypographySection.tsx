@@ -85,7 +85,12 @@ function FontAutocomplete({ label, value, onChange, allowEmpty }: {
                 className="w-full text-left px-3 py-2.5 hover:bg-muted/50 transition-colors flex items-center justify-between gap-3"
               >
                 <div className="flex-1 min-w-0">
-                  <span className="text-xs font-medium text-foreground">{font}</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-medium text-foreground">{font}</span>
+                    {AI_RECOMMENDED_FONTS.has(font) && (
+                      <Sparkles className="h-3 w-3 text-primary" aria-label="Recommandée par l'IA" />
+                    )}
+                  </div>
                   <p
                     style={{ fontFamily: `'${font}', sans-serif`, fontWeight: 400 }}
                     className="text-sm text-muted-foreground truncate mt-0.5"
