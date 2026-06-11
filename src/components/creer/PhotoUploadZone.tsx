@@ -37,6 +37,8 @@ export interface PhotoItem {
   originalMimeType?: string;
   /** True when the current base64 has been retouched via PhotoRoom. */
   edited?: boolean;
+  /** Identifiant stable généré à l'upload, utilisé comme clé React. */
+  id?: string;
 }
 
 function mimeFromBase64(input: string, fallback = "image/jpeg"): string {
@@ -138,7 +140,7 @@ export function PhotoUploadZone({
           }
           const converted = await convertHeicIfNeeded(f);
           const { base64, preview } = await resizeAndEncode(converted);
-          return { base64, preview, name: converted.name, mimeType: "image/jpeg" } as PhotoItem;
+          return { base64, preview, name: converted.name, mimeType: "image/jpeg", id: crypto.randomUUID() } as PhotoItem;
         }),
       );
 
@@ -357,7 +359,7 @@ export function PhotoUploadZone({
           </div>
           <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
             {photos.map((p, idx) => (
-              <div key={`${p.name}-${idx}`} className="flex flex-col gap-1.5">
+              <div key={p.id ?? `${p.name}-${idx}`} className="flex flex-col gap-1.5">
                 <div
                   draggable
                   onDragStart={() => onThumbDragStart(idx)}
