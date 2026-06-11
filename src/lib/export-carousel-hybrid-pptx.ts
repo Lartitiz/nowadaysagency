@@ -639,7 +639,10 @@ export async function exportCarouselHybridPptx(
           slide.addShape("roundRect", {
             x, y, w, h,
             fill: { color: sb.fill },
-            line: { type: "none" },
+            line: sb.border
+              ? { color: sb.border.color, width: sb.border.widthPt, dashType: sb.border.dashType }
+              : { type: "none" },
+
             rectRadius: cappedRadius,
             ...(sb.shadow && {
               shadow: {

@@ -534,7 +534,17 @@ export interface ShapeBlock {
     color: string;
     opacity: number;
   };
+  /**
+   * Bordure native pptxgenjs si la bordure CSS est uniforme sur les 4 côtés
+   * et de style solid/dashed/dotted. Absent → pas de bordure native.
+   */
+  border?: {
+    widthPt: number;
+    color: string;
+    dashType: "solid" | "dash" | "sysDot";
+  };
 }
+
 
 /**
  * Parse une box-shadow CSS simple en paramètres pptxgenjs.
@@ -599,6 +609,56 @@ function parseSimpleBoxShadow(raw: string): ShapeBlock["shadow"] | null {
 }
 
 /**
+ * Parse une bordure CSS uniforme sur les 4 côtés en line pptxgenjs.
+ *
+ * - Retourne `undefined` si pas de bordure (les 4 widths à 0).
+ * - Retourne `null` si bordure présente mais non convertible (asymétrique,
+ *   style non supporté, couleur non extractible) → skip défensif.
+ * - Retourne l'objet sinon. Style : solid → "solid", dashed → "dash",
+ *   dotted → "sysDot". px → pt via 0.75.
+ */
+function parseUniformBorder(
+  cs: CSSStyleDeclaration,
+): ShapeBlock["border"] | null | undefined {
+  const wT = parseFloat(cs.borderTopWidth || "0") || 0;
+  const wR = parseFloat(cs.borderRightWidth || "0") || 0;
+  const wB = parseFloat(cs.borderBottomWidth || "0") || 0;
+  const wL = parseFloat(cs.borderLeftWidth || "0") || 0;
+  if (wT === 0 && wR === 0 && wB === 0 && wL === 0) return undefined;
+
+  // Uniformité width
+  if (!(wT === wR && wR === wB && wB === wL)) return null;
+
+  // Uniformité style + style supporté
+  const sT = (cs.borderTopStyle || "none").toLowerCase();
+  const sR = (cs.borderRightStyle || "none").toLowerCase();
+  const sB = (cs.borderBottomStyle || "none").toLowerCase();
+  const sL = (cs.borderLeftStyle || "none").toLowerCase();
+  if (!(sT === sR && sR === sB && sB === sL)) return null;
+  if (sT === "none" || sT === "hidden") return undefined;
+
+  let dashType: "solid" | "dash" | "sysDot";
+  if (sT === "solid") dashType = "solid";
+  else if (sT === "dashed") dashType = "dash";
+  else if (sT === "dotted") dashType = "sysDot";
+  else return null;
+
+  // Uniformité couleur
+  const cT = cs.borderTopColor || "";
+  const cR = cs.borderRightColor || "";
+  const cB = cs.borderBottomColor || "";
+  const cL = cs.borderLeftColor || "";
+  if (!(cT === cR && cR === cB && cB === cL)) return null;
+  if (!cT || cT === "transparent" || cT === "rgba(0, 0, 0, 0)") return null;
+
+  const color = normalizeHex(cT, "000000");
+  const widthPt = wT * 0.75;
+  if (widthPt <= 0) return null;
+
+  return { widthPt, color, dashType };
+}
+
+/**
  * Extrait les éléments annotés `data-pptx-shape` du document iframe rendu.
  * Skip silencieusement les cas non supportés par les shapes natifs (gradient,
  * transform, ombre complexe, fond transparent, élément trop petit).
@@ -612,6 +672,7 @@ export function extractShapeBlocks(doc: Document): ShapeBlock[] {
   const nodes = Array.from(doc.body.querySelectorAll<HTMLElement>("[data-pptx-shape]"));
   const blocks: ShapeBlock[] = [];
   for (const el of nodes) {
+
     const cs = win.getComputedStyle(el);
     if (cs.visibility === "hidden" || cs.display === "none") continue;
     const r = el.getBoundingClientRect();
@@ -646,6 +707,14 @@ export function extractShapeBlocks(doc: Document): ShapeBlock[] {
       shadow = parsed;
     }
 
+    // Bordure : tenter la conversion native uniforme. Skip si non convertible.
+    const borderParsed = parseUniformBorder(cs);
+    if (borderParsed === null) {
+      console.debug("[hybrid] shape skipped (unsupported border)", { type });
+      continue;
+    }
+    const border = borderParsed; // undefined si pas de bordure, sinon objet
+
     const bgColor = cs.backgroundColor || "transparent";
     if (bgColor === "transparent" || bgColor === "rgba(0, 0, 0, 0)") {
       console.debug("[hybrid] shape skipped (transparent fill)", { type });
@@ -663,7 +732,9 @@ export function extractShapeBlocks(doc: Document): ShapeBlock[] {
       fill: normalizeHex(bgColor, "FFFFFF"),
       borderRadiusPx,
       shadow,
+      border,
     });
+
   }
   return blocks;
 }
