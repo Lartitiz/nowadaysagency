@@ -106,7 +106,7 @@ Question en pilule ${ch.color_primary}, branches avec lignes verticales, résult
 
 █ ICON_GRID — Grille d'emojis avec labels
 <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:24px">
-  <div style="text-align:center;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
+  <div data-pptx-shape="card" style="text-align:center;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
     <span style="font-size:48px;display:block;margin-bottom:8px">EMOJI</span>
     <p data-pptx-editable="body" style="font-size:20px;font-weight:600;color:${ch.color_secondary}">LABEL</p>
   </div>
