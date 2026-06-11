@@ -249,48 +249,63 @@ export default function AdaptiveHome() {
         <div
           data-tour="card-next-step"
           className="group rounded-2xl bg-gradient-to-br from-rose-pale/40 to-card border border-border/60 p-6 sm:p-8 shadow-[var(--shadow-bento)] hover:shadow-[var(--shadow-bento-hover)] hover:-translate-y-[3px] hover:border-border transition-all duration-[300ms] ease-out cursor-pointer"
-          onClick={() => handleNavigate(recommendation.ctaRoute)}
+          onClick={() => handleNavigate("/creer")}
         >
-          {/* Micro-header */}
-          <div className="flex items-center justify-between mb-4">
-            <p className="font-mono-ui text-[10.5px] text-foreground/60 uppercase tracking-[0.12em] font-semibold">
-              ✨ Ta prochaine étape
-            </p>
-          </div>
+          {/* Micro-header — stable */}
+          <p className="font-mono-ui text-[10.5px] text-foreground/60 uppercase tracking-[0.12em] font-semibold mb-3">
+            ✨ On crée quoi aujourd'hui&nbsp;?
+          </p>
 
-          {/* Titre */}
+          {/* Titre stable */}
           <h2 className="font-display text-[26px] sm:text-3xl leading-[1.15] text-foreground">
-            {recommendation.title}
+            Ton prochain contenu
           </h2>
 
-          {/* Explication */}
-          <MarkdownText
-            content={recommendation.explanation}
-            className="text-[15px] text-foreground/70 mt-3 leading-relaxed line-clamp-2"
-          />
+          {/* Sous-ligne contextuelle (motivation, 1 ligne) */}
+          <p className="text-[15px] text-foreground/70 mt-2 leading-relaxed line-clamp-1">
+            {recommendation.explanation}
+          </p>
 
           {/* CTA principal */}
           <Button
             className="mt-6 w-full sm:w-auto h-12 px-6 rounded-xl bg-bordeaux hover:bg-primary text-white text-[15px] font-semibold shadow-sm hover:shadow-md transition-all"
-            onClick={(e) => { e.stopPropagation(); handleNavigate(recommendation.ctaRoute); }}
+            onClick={(e) => { e.stopPropagation(); handleNavigate("/creer"); }}
           >
-            {recommendation.ctaLabel}
+            Créer un contenu
             <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
           </Button>
 
-          {/* Séparateur */}
-          <div className="mt-6 mb-4 h-px bg-border/60" />
+          {/* Chips de format — raccourcis directs */}
+          <div className="flex flex-wrap gap-2 mt-4">
+            {[
+              { label: "Post Instagram", route: "/creer" },
+              { label: "Carousel", route: "/creer?format=carousel" },
+              { label: "Reel", route: "/creer?format=reel" },
+              { label: "Post LinkedIn", route: "/creer?canal=linkedin" },
+              { label: "Article de blog", route: "/site/accueil" },
+            ].map((item) => (
+              <button
+                key={item.route + item.label}
+                onClick={(e) => { e.stopPropagation(); handleNavigate(item.route); }}
+                className="text-xs font-medium px-3.5 py-2 rounded-xl
+                  bg-card/80 border border-primary/15 text-foreground
+                  hover:bg-primary hover:text-primary-foreground hover:border-primary
+                  transition-all duration-150"
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
 
-          {/* Lien secondaire */}
+          {/* Séparateur */}
+          <div className="mt-6 mb-3 h-px bg-border/60" />
+
+          {/* Lien tertiaire discret */}
           <button
-            className="group/sec flex items-center gap-2 text-sm text-foreground/70 hover:text-primary transition-colors"
+            className="text-xs text-muted-foreground hover:text-primary transition-colors"
             onClick={(e) => { e.stopPropagation(); setContentCoachingOpen(true); }}
           >
-            <span className="text-base">🤔</span>
-            <span className="font-medium">Je sais pas quoi poster ?</span>
-            <span className="text-foreground/30">·</span>
-            <span className="text-foreground/60 group-hover/sec:text-primary">On en discute</span>
-            <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover/sec:translate-x-0.5" />
+            Pas d'idée&nbsp;? Discutes-en avec ta coach →
           </button>
 
           {/* Bouton démo Auriana */}
@@ -302,7 +317,7 @@ export default function AdaptiveHome() {
                 saveFlowState({ ...AURIANA_DEMO_FLOW, ts: Date.now() });
                 navigate("/creer", { state: { demo: true, demoScenario: "auriana-carousel" } });
               }}
-              className="mt-3 inline-flex items-center gap-2 text-xs font-medium px-3 py-1.5 bg-card/80 border border-border text-foreground/70 rounded-lg hover:border-primary/40 hover:text-primary transition-all"
+              className="mt-3 ml-3 inline-flex items-center gap-2 text-xs font-medium px-3 py-1.5 bg-card/80 border border-border text-foreground/70 rounded-lg hover:border-primary/40 hover:text-primary transition-all"
             >
               🎬 Lancer la démo carrousel
             </button>
