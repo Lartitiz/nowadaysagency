@@ -150,6 +150,7 @@ export function PhotoLibraryPickerDialog({
                 <PickerThumb
                   key={p.id}
                   photo={p}
+                  url={urlMap.get(p.storage_path) ?? null}
                   selected={selectedIds.includes(p.id)}
                   disabled={atMax}
                   onToggle={() => toggle(p.id)}
