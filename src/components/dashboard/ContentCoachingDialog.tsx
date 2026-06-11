@@ -138,6 +138,31 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
     setSelectedIdea(null);
     setSelectedSubject(null);
     setCarouselSubMode(null);
+    setSavedIdeas(new Set());
+  };
+
+  const handleSaveIdea = async (idea: ContentIdea, index: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (savedIdeas.has(index)) return;
+    if (!user) return;
+    try {
+      await createIdea.mutateAsync({
+        user_id: user.id,
+        workspace_id: workspaceId,
+        titre: idea.subject,
+        angle: idea.angle || null,
+        format: normalizeFormat(format) || format || null,
+        canal: canal || null,
+        objectif: idea.objective_tag || objectif || null,
+        type: "idea",
+        status: "to_explore",
+        notes: idea.why_it_works || null,
+        source_module: "content_coaching",
+      });
+      setSavedIdeas((prev) => new Set(prev).add(index));
+    } catch (err) {
+      console.error("Save idea error:", err);
+    }
   };
 
   const handleOpenChange = (v: boolean) => {
