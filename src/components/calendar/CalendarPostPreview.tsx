@@ -190,7 +190,11 @@ export function CalendarPostPreview({
                       ? onNavigateToGenerator
                       : undefined
                   }
+                  logoAvailable={!!logoUrl}
+                  includeLogo={includeLogo}
+                  onIncludeLogoChange={handleIncludeLogoChange}
                 />
+
               </DropdownMenuContent>
             </DropdownMenu>
           )}
