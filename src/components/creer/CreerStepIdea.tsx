@@ -97,18 +97,10 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
               rows={4}
               className="resize-none"
             />
-            <div className="flex items-start justify-between gap-3 flex-wrap">
-              <p className="text-xs text-muted-foreground flex-1 min-w-0">
-                Pas besoin d'être précise : un mot-clé, une phrase, une envie.
-              </p>
-              <button
-                type="button"
-                onClick={() => setCoachOpen(true)}
-                className="text-xs text-primary hover:underline inline-flex items-center gap-1 shrink-0"
-              >
-                <HelpCircle className="h-3 w-3" /> Pas d'idée ? Laisse-toi guider
-              </button>
-            </div>
+            <p className="text-xs text-muted-foreground">
+              Pas besoin d'être précise : un mot-clé, une phrase, une envie.
+            </p>
+
           </div>
 
           {/* Primary CTA */}
@@ -129,7 +121,7 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
               </p>
               <div className="h-px bg-foreground/20 flex-1" />
             </div>
-            <div className="grid sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {onPhotosNext && (
                 <button
                   type="button"
@@ -165,6 +157,18 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
                 </div>
                 <p className="text-[11px] text-muted-foreground">Recycler un post existant.</p>
               </button>
+              <button
+                type="button"
+                onClick={() => setCoachOpen(true)}
+                className="text-left rounded-xl border border-border bg-card hover:border-primary/40 hover:bg-muted/30 p-3 transition-all group"
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <HelpCircle className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-semibold text-foreground">Pas d'idée ?</span>
+                </div>
+                <p className="text-[11px] text-muted-foreground">Laisse-toi guider par la coach.</p>
+              </button>
+
             </div>
           </div>
         </>
