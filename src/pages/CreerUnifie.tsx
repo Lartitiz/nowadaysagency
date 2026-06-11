@@ -151,6 +151,7 @@ export default function CreerUnifie() {
   // Photo states (carousel photo + post photo)
   const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | "mix" | "pure_photo" | null>(null);
   const [uploadedPhotos, setUploadedPhotos] = useState<any[]>([]);
+  const [isLoadingLibraryPhotos, setIsLoadingLibraryPhotos] = useState(false);
   // Snapshot des photos au moment de la génération du carrousel.
   // Sert de source de vérité pour handleGenerateVisuals si le state UI est reset.
   const [generatedWithPhotos, setGeneratedWithPhotos] = useState<any[]>([]);
