@@ -86,13 +86,21 @@ const PONT_CONFIG: Record<string, { emoji: string; label: string; className: str
 };
 
 interface AnglesState {
-  loading: boolean;
-  data?: ActuAngle[];
+  loading: boolean;           // chargement du primary (1er angle)
+  data?: ActuAngle[];         // angles actuellement affichés (1 si seulement primary, 3 après variants)
   error?: string;
   errorCode?: "TIMEOUT" | "AUTH" | "NETWORK" | "RATE_LIMIT" | "SERVER" | "UNKNOWN";
   startedAt?: number;
-  slow?: boolean; // true after 15s without response
+  slow?: boolean;             // true après 15s sans réponse
+  primaryOnly?: boolean;      // true si on a 1 angle (primary) sans variantes encore
+  variantsLoading?: boolean;  // chargement des 2 variantes à la demande
+  variantsError?: string;
+  variantsSlow?: boolean;
 }
+
+// Combien d'actus dont on pré-calcule l'angle "primary" en arrière-plan
+// dès que la recherche d'actus aboutit.
+const PRECOMPUTE_COUNT = 4;
 
 const VIBES: { id: string; emoji: string; label: string }[] = [
   { id: "scoop", emoji: "💥", label: "Actu choc à rebondir" },
@@ -199,31 +207,60 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
       if (data.actus.length === 0 && data.message) {
         setError(data.message);
       }
+
+      // Pré-calcul des angles "primary" pour les premières actus visibles.
+      // Non-bloquant : les actus s'affichent immédiatement, les angles arrivent en fond.
+      if (data.actus.length > 0) {
+        const toPrefetch = (data.actus as Actu[]).slice(0, PRECOMPUTE_COUNT);
+        toPrefetch.forEach((actu, idx) => {
+          // Petit délai progressif pour éviter de saturer l'edge function
+          setTimeout(() => fetchPrimaryAngle(idx, actu), idx * 200);
+        });
+      }
     } catch {
       setError("La recherche a échoué, réessaie.");
     } finally {
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspaceId, selectedVibes, customIntent, filter]);
 
   // NOTE: pas d'auto-fetch au montage. L'utilisatrice déclenche la recherche
   // explicitement via le CTA "Lancer la recherche" pour éviter de consommer
   // un crédit par erreur et pour ne pas relancer si workspaceId arrive en async.
 
-  const fetchAngles = useCallback(async (idx: number, actu: Actu) => {
-    // Atomic gate : ne lance que si pas déjà data/loading.
+  // Helper commun pour mapper une erreur d'invocation vers un message / code
+  const mapFnError = (fnError: any): { errMsg: string; errorCode: AnglesState["errorCode"] } => {
+    const msg = fnError?.message || "";
+    if (fnError?.isRateLimit || msg.includes("limit_reached")) {
+      return { errMsg: "Tu as atteint ta limite de générations.", errorCode: "RATE_LIMIT" };
+    }
+    if (fnError?.isTimeout) {
+      return { errMsg: "L'IA met trop de temps à répondre. Réessaie dans un instant.", errorCode: "TIMEOUT" };
+    }
+    if (fnError?.isAuth) {
+      return { errMsg: "Ta session a expiré. Recharge la page et reconnecte-toi.", errorCode: "AUTH" };
+    }
+    if (fnError?.isNetwork) {
+      return { errMsg: "Connexion instable. Vérifie ton internet et réessaie.", errorCode: "NETWORK" };
+    }
+    return { errMsg: "Génération échouée, réessaie.", errorCode: "SERVER" };
+  };
+
+  // Charge UN angle (mode "primary") — appel court, prompt allégé.
+  const fetchPrimaryAngle = useCallback(async (idx: number, actu: Actu) => {
     let shouldFetch = false;
     setAnglesByIdx((prev) => {
+      // Skip si déjà en cours ou déjà chargé
       if (prev[idx]?.data || prev[idx]?.loading) return prev;
       shouldFetch = true;
-      return { ...prev, [idx]: { loading: true, startedAt: Date.now(), slow: false } };
+      return { ...prev, [idx]: { loading: true, startedAt: Date.now(), slow: false, primaryOnly: true } };
     });
     if (!shouldFetch) return;
 
     const t0 = Date.now();
-    console.log(`[newsjacking-angles] click idx=${idx} title="${String(actu.titre).slice(0, 60)}"`);
+    console.log(`[newsjacking-angles] primary start idx=${idx} title="${String(actu.titre).slice(0, 60)}"`);
 
-    // Marqueur "lent" après 15s (UI uniquement)
     const slowTimer = setTimeout(() => {
       setAnglesByIdx((prev) => {
         const s = prev[idx];
@@ -234,52 +271,105 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
 
     const finish = (next: Partial<AnglesState>) => {
       clearTimeout(slowTimer);
-      console.log(`[newsjacking-angles] done idx=${idx} in ${Date.now() - t0}ms`, next.errorCode || "ok");
-      setAnglesByIdx((prev) => ({ ...prev, [idx]: { loading: false, ...next } }));
+      console.log(`[newsjacking-angles] primary done idx=${idx} in ${Date.now() - t0}ms`, next.errorCode || "ok");
+      setAnglesByIdx((prev) => ({ ...prev, [idx]: { ...prev[idx], loading: false, ...next } }));
     };
 
     try {
       const { data, error: fnError } = await invokeWithTimeout("newsjacking-angles", {
-        body: { actu, workspace_id: workspaceId || undefined },
-      }, 100000);
+        body: { actu, workspace_id: workspaceId || undefined, mode: "primary" },
+      }, 60000);
 
       if (fnError) {
-        const msg = fnError.message || "";
-        let errorCode: AnglesState["errorCode"] = "SERVER";
-        let errMsg = "Génération échouée, réessaie.";
-        if (fnError.isRateLimit || msg.includes("limit_reached")) {
-          errorCode = "RATE_LIMIT";
-          errMsg = "Tu as atteint ta limite de générations.";
-        } else if (fnError.isTimeout) {
-          errorCode = "TIMEOUT";
-          errMsg = "L'IA met trop de temps à répondre. Réessaie dans un instant.";
-        } else if (fnError.isAuth) {
-          errorCode = "AUTH";
-          errMsg = "Ta session a expiré. Recharge la page et reconnecte-toi.";
-        } else if (fnError.isNetwork) {
-          errorCode = "NETWORK";
-          errMsg = "Connexion instable. Vérifie ton internet et réessaie.";
-        }
+        const { errMsg, errorCode } = mapFnError(fnError);
         finish({ error: errMsg, errorCode });
         return;
       }
-
       if (data?.error) {
         finish({ error: data.message || data.error, errorCode: "SERVER" });
         return;
       }
-
-      if (!data?.angles || !Array.isArray(data.angles)) {
+      if (!data?.angles || !Array.isArray(data.angles) || data.angles.length === 0) {
         finish({ error: "Format inattendu, réessaie.", errorCode: "SERVER" });
         return;
       }
-
-      finish({ data: data.angles });
+      finish({ data: data.angles.slice(0, 1), primaryOnly: true });
     } catch (e) {
-      console.error("[newsjacking-angles] unexpected throw", e);
+      console.error("[newsjacking-angles] primary unexpected throw", e);
       finish({ error: "Génération échouée, réessaie.", errorCode: "UNKNOWN" });
     }
   }, [workspaceId]);
+
+  // Charge 2 angles complémentaires en évitant le véhicule du primary
+  const fetchVariants = useCallback(async (idx: number, actu: Actu) => {
+    let primaryVehicule: string | undefined;
+    let shouldFetch = false;
+    setAnglesByIdx((prev) => {
+      const s = prev[idx];
+      if (!s?.data || !s.primaryOnly || s.variantsLoading) return prev;
+      primaryVehicule = s.data[0]?.vehicule;
+      shouldFetch = true;
+      return { ...prev, [idx]: { ...s, variantsLoading: true, variantsSlow: false, variantsError: undefined } };
+    });
+    if (!shouldFetch) return;
+
+    const t0 = Date.now();
+    console.log(`[newsjacking-angles] variants start idx=${idx}`);
+
+    const slowTimer = setTimeout(() => {
+      setAnglesByIdx((prev) => {
+        const s = prev[idx];
+        if (!s?.variantsLoading) return prev;
+        return { ...prev, [idx]: { ...s, variantsSlow: true } };
+      });
+    }, 15000);
+
+    const finishVariants = (next: { angles?: ActuAngle[]; error?: string }) => {
+      clearTimeout(slowTimer);
+      console.log(`[newsjacking-angles] variants done idx=${idx} in ${Date.now() - t0}ms`, next.error || "ok");
+      setAnglesByIdx((prev) => {
+        const s = prev[idx];
+        if (!s) return prev;
+        if (next.error) {
+          return { ...prev, [idx]: { ...s, variantsLoading: false, variantsError: next.error } };
+        }
+        const newAngles = [...(s.data || []), ...(next.angles || [])];
+        return { ...prev, [idx]: { ...s, variantsLoading: false, data: newAngles, primaryOnly: false } };
+      });
+    };
+
+    try {
+      const { data, error: fnError } = await invokeWithTimeout("newsjacking-angles", {
+        body: {
+          actu,
+          workspace_id: workspaceId || undefined,
+          mode: "variants",
+          exclude_vehicules: primaryVehicule ? [primaryVehicule] : [],
+        },
+      }, 100000);
+
+      if (fnError) {
+        const { errMsg } = mapFnError(fnError);
+        finishVariants({ error: errMsg });
+        return;
+      }
+      if (data?.error) {
+        finishVariants({ error: data.message || data.error });
+        return;
+      }
+      if (!data?.angles || !Array.isArray(data.angles)) {
+        finishVariants({ error: "Format inattendu, réessaie." });
+        return;
+      }
+      finishVariants({ angles: data.angles });
+    } catch (e) {
+      console.error("[newsjacking-angles] variants unexpected throw", e);
+      finishVariants({ error: "Génération échouée, réessaie." });
+    }
+  }, [workspaceId]);
+
+  // Alias rétro-compat : si la 5ᵉ actu (non pré-calculée) est ouverte → on lance le primary.
+  const fetchAngles = fetchPrimaryAngle;
 
   const handleToggleActu = (idx: number, actu: Actu) => {
     if (expandedActu === idx) {
@@ -287,8 +377,8 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
       return;
     }
     setExpandedActu(idx);
-    // Lazy-fetch angles when expanding
-    fetchAngles(idx, actu);
+    // Lazy-fetch si pas déjà pré-calculé
+    fetchPrimaryAngle(idx, actu);
   };
 
   const handleHide = (idx: number, e: React.MouseEvent) => {
@@ -565,7 +655,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
           ) : (
             <div className="space-y-3">
               <p className="text-xs text-muted-foreground">
-                {visibleActus.length} actu{visibleActus.length > 1 ? "s" : ""} • clique sur "Voir les angles" pour générer 3 idées
+                {visibleActus.length} actu{visibleActus.length > 1 ? "s" : ""} • clique sur "Voir les angles" pour découvrir une 1ʳᵉ idée (puis 2 variantes à la demande)
               </p>
               <AnimatePresence>
                 {visibleActus.map(({ actu, idx }, displayI) => {
@@ -721,7 +811,9 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
 
                               {anglesState?.data && (
                                 <>
-                                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Angles proposés</p>
+                                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                    {anglesState.primaryOnly ? "1ʳᵉ idée d'angle" : "Angles proposés"}
+                                  </p>
                                   {anglesState.data.map((angle, j) => {
                                     const vc = VEHICULE_CONFIG[angle.vehicule] || { emoji: "✨", label: angle.vehicule, className: "bg-muted" };
                                     return (
@@ -750,6 +842,52 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
                                       </div>
                                     );
                                   })}
+
+                                  {/* Bouton "Voir 2 autres angles" si on n'a que le primary */}
+                                  {anglesState.primaryOnly && !anglesState.variantsLoading && !anglesState.variantsError && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        fetchVariants(idx, actu);
+                                      }}
+                                      className="w-full gap-1.5"
+                                    >
+                                      <Sparkles className="h-3.5 w-3.5" /> Voir 2 autres angles
+                                    </Button>
+                                  )}
+
+                                  {anglesState.variantsLoading && (
+                                    <div className="flex flex-col gap-1 py-2 text-xs text-muted-foreground">
+                                      <div className="flex items-center gap-2">
+                                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                                        <span className="animate-pulse">Recherche de 2 autres angles…</span>
+                                      </div>
+                                      {anglesState.variantsSlow && (
+                                        <p className="pl-6 text-[11px] text-muted-foreground/80">
+                                          L'IA met plus de temps que prévu. Tu peux attendre encore un peu.
+                                        </p>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {anglesState.variantsError && (
+                                    <div className="py-2 space-y-2">
+                                      <p className="text-xs text-muted-foreground">{anglesState.variantsError}</p>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          fetchVariants(idx, actu);
+                                        }}
+                                        className="gap-1.5"
+                                      >
+                                        <RefreshCw className="h-3.5 w-3.5" /> Réessayer
+                                      </Button>
+                                    </div>
+                                  )}
                                 </>
                               )}
                             </div>

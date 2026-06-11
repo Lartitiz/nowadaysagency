@@ -432,6 +432,10 @@ export const CONTEXT_PRESETS: Record<string, ContextOptions> = {
   // Creative flow / content generation: full context
   content: { includeStory: true, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: true, includeAudit: false, includeVoice: true, includeCharter: true, includeMirror: true },
 
+  // Newsjacking — angle "primary" (ultra-light, ~2500 tokens): juste profil + persona, pas de voice/charter/mirror/editorial.
+  // On garde ce qu'il faut pour formuler un hook ancré (cible, combat, piliers, ton) sans tout le décor.
+  newsjacking: { includeStory: false, includePersona: true, includeOffers: false, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: false, includeCharter: false, includeMirror: false },
+
   // Weekly suggestions: lighter context for speed (no story, no mirror, no charter, no editorial)
   weeklySuggestions: { includeStory: true, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: true, includeAudit: false, includeVoice: true, includeCharter: false, includeMirror: false },
 
