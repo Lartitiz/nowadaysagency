@@ -17,6 +17,25 @@ import { applyCorrectionPass } from "../_shared/correction-pass.ts";
 
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
 
+/**
+ * Detect the actual media_type of an image payload so we never claim
+ * image/jpeg when the bytes are image/png (Anthropic returns a 400 otherwise).
+ *  1) If a data URL prefix is present, trust it (strip it from the data).
+ *  2) Otherwise, sniff base64 magic bytes (PNG / JPEG / WEBP / GIF).
+ *  3) Fall back to the caller-provided mime, then image/jpeg.
+ */
+function extractImagePayload(input: string, fallbackMime?: string): { media_type: string; data: string } {
+  const m = input.match(/^data:(image\/[a-z0-9.+-]+);base64,(.*)$/i);
+  if (m) return { media_type: m[1].toLowerCase(), data: m[2] };
+  const head = input.slice(0, 16);
+  let sniffed: string | undefined;
+  if (head.startsWith("iVBORw0KGgo")) sniffed = "image/png";
+  else if (head.startsWith("/9j/")) sniffed = "image/jpeg";
+  else if (head.startsWith("UklGR")) sniffed = "image/webp";
+  else if (head.startsWith("R0lGOD")) sniffed = "image/gif";
+  return { media_type: sniffed || fallbackMime || "image/jpeg", data: input };
+}
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
@@ -893,10 +912,10 @@ Privilégie les sources françaises et européennes quand elles existent.`,
 `,
         });
         validPhotos.forEach((p: any, idx: number) => {
-          const cleanB64 = p.base64.replace(/^data:image\/[a-z]+;base64,/, "");
+          const { media_type, data } = extractImagePayload(String(p.base64), p.mimeType);
           photoContent.push({
             type: "image",
-            source: { type: "base64", media_type: p.mimeType || "image/jpeg", data: cleanB64 },
+            source: { type: "base64", media_type, data },
           });
           const ctx = p.context?.trim();
           if (isBeforeAfter) {
@@ -1312,12 +1331,11 @@ Réponds UNIQUEMENT en JSON :
 
       const questionsContent: any[] = [];
       validPhotosQ.forEach((p: any, i: number) => {
-        const b64 = String(p.base64).replace(/^data:image\/[a-z]+;base64,/, "");
-        const mime = p.mimeType || "image/jpeg";
+        const { media_type, data } = extractImagePayload(String(p.base64), p.mimeType);
         if (photoCountQ > 1) {
           questionsContent.push({ type: "text", text: `Photo ${i + 1}/${photoCountQ}${p?.context?.trim() ? ` — contexte : "${p.context.trim()}"` : ""} :` });
         }
-        questionsContent.push({ type: "image", source: { type: "base64", media_type: mime, data: b64 } });
+        questionsContent.push({ type: "image", source: { type: "base64", media_type, data } });
       });
       questionsContent.push({ type: "text", text: visionQuestionsPrompt });
 
@@ -1370,10 +1388,10 @@ Réponds UNIQUEMENT en JSON :
       }
 
       validPhotos.forEach((p: any, idx: number) => {
-        const cleanB64 = p.base64.replace(/^data:image\/[a-z]+;base64,/, "");
+        const { media_type, data } = extractImagePayload(String(p.base64), p.mimeType);
         photoContent.push({
           type: "image",
-          source: { type: "base64", media_type: p.mimeType || "image/jpeg", data: cleanB64 },
+          source: { type: "base64", media_type, data },
         });
         // IMPORTANT : ne JAMAIS injecter "Photo 1/N" en texte — le modèle l'imite
         // dans sa sortie. On garde un label uniquement pour le mode AVANT/APRÈS

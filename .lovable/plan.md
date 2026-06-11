@@ -1,43 +1,74 @@
-# Pertinence des suggestions typo — étapes 1 à 4
+## Problème
 
-Travail itératif. Chaque étape est livrable indépendamment, on valide après chaque tour.
+Quand l'utilisatrice génère un post Instagram à partir d'une photo qu'elle a **retouchée via PhotoRoom** (notamment "Détourer / supprimer le fond"), Anthropic renvoie :
 
-## Étape 1 — Enrichir le prompt step 4 + mapping sectoriel typo + validation
+> `messages.0.content.1.image.source.base64: The image was specified using the image/jpeg media type, but the image appears to be a image/png image`
 
-**Fichier** : `supabase/functions/charter-coaching/index.ts`
+### Cause racine
 
-1. Ajouter un dict `SECTOR_FONTS` (jumeau de `SECTOR_PALETTES`) : 7 secteurs → 1-2 duos typo recommandés. Exemples :
-   - photographe → Cormorant Garamond + Inter / Playfair + Work Sans (épuré, laisse parler les images)
-   - mode éthique → Cormorant + Raleway / Lora + Nunito (artisanal-doux)
-   - coach business → Space Grotesk + Inter / Montserrat + Open Sans (affirmé)
-   - bien-être, artisan, food, default…
-2. Helper `getSectorFontAdvice(typeActivite)` symétrique à `getSectorAdvice`.
-3. Constante `ALLOWED_FONTS` (les 15 fonts du prompt) + helper `normalizeFont(name)` qui retourne la version canonique si match case-insensitive, sinon `null`.
-4. **Récrire le prompt step 4** :
-   - Injecter le conseil sectoriel typo.
-   - Injecter `charterData.mood_keywords`, `charterData.photo_style`, `charterData.color_primary` si présents (récoltés aux steps 1-3 du même coaching).
-   - Conserver le bloc `fontAdvice` basé sur ton, mais l'enrichir : mentionner que les mood_keywords visuels prennent priorité sur les défauts sectoriels.
-   - Demander à Claude de **justifier son choix en 1 phrase** dans `extracted.font_rationale` (utile debug + futurement affichage UI).
-5. Après réception, dans le handler : `normalizeFont(extracted.font_title)` + `normalizeFont(extracted.font_body)` → si l'un est `null`, retomber sur le 1er duo de `SECTOR_FONTS[secteur]` plutôt que de sauvegarder une font qui ne chargera pas.
+1. `supabase/functions/photoroom-edit/index.ts` renvoie un `data:image/png;base64,...` quand le mode est `remove_bg` (logique normale : PNG transparent).
+2. Côté client, `PhotoUploadZone.applyEditedPhoto` remplace `base64` par cette data URL PNG mais **ne met pas à jour `mimeType`** sur le `PhotoItem` (le champ n'est même pas typé).
+3. Côté edge function `creative-flow`, deux endroits envoient l'image à Claude :
+   - ligne ~899 (LinkedIn photo streaming)
+   - ligne ~1376 (chemin photo non-streamé, utilisé entre autres pour Instagram post)
+   
+   Les deux font :
+   ```ts
+   const cleanB64 = p.base64.replace(/^data:image\/[a-z]+;base64,/, "");
+   source: { type: "base64", media_type: p.mimeType || "image/jpeg", data: cleanB64 }
+   ```
+   → le préfixe `data:image/png` est jeté **sans être lu**, et comme `p.mimeType` est absent, on retombe sur `image/jpeg` alors que les octets sont du PNG → 400 Anthropic.
 
-**Aucun changement client ni DB.** Test : passer le coaching jusqu'au step 4 avec un compte photographe + mood "minimaliste épuré" → la suggestion doit être un duo épuré (Cormorant/Inter), pas un Playfair lourd.
+Le même bug touche aussi la branche `inspire-ai` / les images de questions (`questionsContent` ligne 1320) qui font confiance à un `mime` venant du client sans le vérifier contre les octets.
 
-## Étape 2 — Brancher `FONT_COMBOS` dans la section typo
+## Correctifs
 
-**Fichier** : `src/components/branding/charter/CharterTypographySection.tsx`
+### 1. `supabase/functions/creative-flow/index.ts` — source de vérité
 
-1. Utiliser la prop `toneKeywords` (déjà reçue, ignorée) pour filtrer `FONT_COMBOS` : matcher les `tone_match` ↔ keywords. Garder le top 3.
-2. Si aucun keyword (cas vide), afficher les 3 combos les plus universels (Moderne & Clean, Chaleureux & Accessible, Classique Élégant).
-3. Ajouter un bloc « 💡 Suggestions adaptées à ton ton » sous les inputs : 3 cards cliquables avec aperçu visuel (titre dans `font_title`, body dans `font_body`), description courte. Clic → `onDataChange({ font_title, font_body })` + `loadGoogleFont()`.
-4. Vérifier que `BrandCharterPage` passe bien `toneKeywords` (à confirmer ligne ~735).
+Ajouter un helper unique en tête de fichier :
 
-## Étape 3 (optionnelle, à valider après les 2 premières)
+```ts
+function extractImagePayload(input: string, fallbackMime?: string) {
+  // 1) data URL → on lit le mime du préfixe (vérité absolue)
+  const m = input.match(/^data:(image\/[a-z0-9.+-]+);base64,(.*)$/i);
+  if (m) return { media_type: m[1].toLowerCase(), data: m[2] };
 
-- Synchroniser les 100 fonts de `GOOGLE_FONTS_LIST` avec les 15 du prompt edge — décider : soit étendre le prompt à 30+ fonts, soit restreindre l'autocomplete aux 15 sûres, soit ajouter une marque visuelle « recommandée par l'IA » sur les 15.
-- Afficher la `font_rationale` retournée par l'IA dans une mini-bulle sous le duo.
+  // 2) base64 brut → sniff magic bytes sur les premiers caractères
+  //    PNG : iVBORw0KGgo  | JPEG : /9j/  | WEBP : UklGR  | GIF : R0lGOD
+  const head = input.slice(0, 16);
+  let sniffed: string | undefined;
+  if (head.startsWith("iVBORw0KGgo")) sniffed = "image/png";
+  else if (head.startsWith("/9j/")) sniffed = "image/jpeg";
+  else if (head.startsWith("UklGR")) sniffed = "image/webp";
+  else if (head.startsWith("R0lGOD")) sniffed = "image/gif";
+
+  return { media_type: sniffed || fallbackMime || "image/jpeg", data: input };
+}
+```
+
+Remplacer **les trois sites** par ce helper :
+
+- ligne ~896-900 (canStreamPhoto / LinkedIn streaming) ;
+- ligne ~1372-1377 (chemin photo non-streamé — celui qui casse pour Instagram) ;
+- ligne ~1318-1321 (`questionsContent.push({ type: "image", ... })`).
+
+Ainsi le `media_type` envoyé à Anthropic correspond **toujours** aux octets réellement transmis, indépendamment de ce que le client envoie.
+
+### 2. `src/components/creer/PhotoUploadZone.tsx` — cohérence client
+
+- Ajouter `mimeType?: string` au type `PhotoItem` (déjà attendu par `use-content-generator.ts` et `CreerUnifie.tsx`, mais jamais peuplé).
+- Dans `resizeAndEncode`, retourner `mimeType: "image/jpeg"` (le canvas force JPEG).
+- Dans `applyEditedPhoto(idx, newBase64)`, parser le préfixe `data:(image/[^;]+);base64,` et stocker `mimeType` mis à jour (PNG après `remove_bg`, JPEG après `replace_bg`).
+- Dans `revertPhoto`, restaurer aussi le `mimeType` d'origine (ou le re-déduire depuis `originalBase64`).
+
+Cela rend le payload propre dès le client et évite que d'éventuelles futures intégrations (au-delà de creative-flow) retombent dans le même piège.
+
+### 3. Vérification
+
+- Relancer le flow : Créer → Instagram post → uploader une photo → **Retoucher → Détourer le fond → Appliquer** → Générer.
+- Vérifier dans les logs `creative-flow` qu'on n'a plus de 400 Anthropic ; le post se génère.
+- Tester aussi le chemin sans retouche (la photo reste JPEG) et le chemin LinkedIn photo (streaming) pour s'assurer qu'aucune régression n'est introduite.
 
 ## Hors scope
 
-- Refonte du flow de coaching (ordre, nombre de steps).
-- Coaching audio/vocal.
-- Génération de specimens PDF de la typo.
+- Les fonctions `carousel-ai`, `carousel-visual`, `pinterest-*` ont aussi `media_type: "image/jpeg"` en dur, mais elles reçoivent des photos issues d'autres pipelines (Pinterest, scraping) où la garantie JPEG tient. Je ne les touche pas dans ce ticket pour rester ciblé sur le bug remonté (Instagram post à partir d'image retouchée).
