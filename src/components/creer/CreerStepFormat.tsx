@@ -98,6 +98,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
   const [expandAngles, setExpandAngles] = useState(false);
   const [forceShowAll, setForceShowAll] = useState(false);
   const hasPreloadedPhotos = (initialPhotos?.length ?? 0) > 0 && !forceShowAll;
+  const multiPhotos = (initialPhotos?.length ?? 0) >= 2 && !forceShowAll;
 
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
@@ -160,7 +161,8 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
       setUploadedPhotos(initialPhotos!);
       setPhotoDescription(initialPhotoDescription ?? "");
       if (id === "carousel") {
-        setCarouselSubMode(opts?.keepCarouselSubMode ?? "mix");
+        // Laisser l'utilisateur choisir le type de carrousel (sous-picker affiché)
+        setCarouselSubMode(opts?.keepCarouselSubMode ?? null);
         setPhotoMode(false);
       } else if (formatAcceptsSinglePhoto(id)) {
         setCarouselSubMode(null);
@@ -384,7 +386,9 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
         <p className="text-xs text-muted-foreground -mt-1">
           {hasPreloadedPhotos ? (
             <>
-              Quelques formats sont masqués car ils n'utilisent pas tes photos.{" "}
+              {multiPhotos
+                ? "Avec plusieurs photos, on part forcément sur un carrousel. Choisis le type ci-dessous."
+                : "Quelques formats sont masqués car ils n'utilisent pas tes photos."}{" "}
               <button
                 type="button"
                 onClick={() => setForceShowAll(true)}
@@ -484,7 +488,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
           <p className="text-sm font-semibold text-foreground">Quel format Instagram ?</p>
           <div className="grid grid-cols-2 gap-2">
             {typeEntries
-              .filter(([id, spec]) => spec.channel === "instagram" && (!hasPreloadedPhotos || formatAcceptsSinglePhoto(id) || id === "carousel"))
+              .filter(([id, spec]) => spec.channel === "instagram" && (multiPhotos ? id === "carousel" : !hasPreloadedPhotos || formatAcceptsSinglePhoto(id) || id === "carousel"))
               .map(([id, spec]) => {
                 const isRecommended = priorityTypes.includes(id);
                 return (
