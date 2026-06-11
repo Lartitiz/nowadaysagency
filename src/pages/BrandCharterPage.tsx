@@ -716,7 +716,7 @@ export default function BrandCharterPage() {
               <label className="flex flex-col items-center gap-2 cursor-pointer rounded-xl border-2 border-dashed border-border hover:border-primary/40 transition-colors p-8">
                 <Upload className="h-8 w-8 text-muted-foreground" />
                 <span className="text-sm text-muted-foreground">{logoUploading ? "Upload en cours..." : "Clique pour uploader ton logo"}</span>
-                <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} disabled={logoUploading} />
+                <input type="file" accept="image/*,.heic,.heif,image/heic,image/heif" className="hidden" onChange={handleLogoUpload} disabled={logoUploading} />
               </label>
             )}
           </section>
