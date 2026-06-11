@@ -338,6 +338,9 @@ export default function BrandCharterPage() {
   const [loading, setLoading] = useState(true);
   const [logoUploading, setLogoUploading] = useState(false);
   const [templatesUploading, setTemplatesUploading] = useState(false);
+  const [logoPalette, setLogoPalette] = useState<LogoPalette | null>(null);
+  const [logoPaletteOpen, setLogoPaletteOpen] = useState(false);
+  const [extractingPalette, setExtractingPalette] = useState(false);
   const dataRef = useRef(data);
   dataRef.current = data;
 
