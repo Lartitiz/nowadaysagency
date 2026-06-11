@@ -81,6 +81,7 @@ interface DashboardData {
   nextPost: { date: string; theme: string } | null;
   planData: PlanData | null;
   recommendations: { id: string; titre: string | null; route: string; completed: boolean | null }[];
+  ideaCount: number;
 }
 
 /* ── Welcome messages ── */
