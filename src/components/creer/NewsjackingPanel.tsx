@@ -214,7 +214,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
         const toPrefetch = (data.actus as Actu[]).slice(0, PRECOMPUTE_COUNT);
         toPrefetch.forEach((actu, idx) => {
           // Petit délai progressif pour éviter de saturer l'edge function
-          setTimeout(() => fetchPrimaryAngle(idx, actu), idx * 200);
+          setTimeout(() => fetchPrimaryAngle(idx, actu), idx * 600);
         });
       }
     } catch {
