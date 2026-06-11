@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, RefreshCw, Loader2, Sparkles, EyeOff, ChevronDown, Bookmark, BookmarkCheck, Newspaper, Lightbulb } from "lucide-react";
+import { ArrowLeft, RefreshCw, Loader2, Sparkles, EyeOff, ChevronDown, Bookmark, BookmarkCheck, Newspaper, Lightbulb, Link2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -26,6 +26,7 @@ interface Actu {
   ton?: string;
   force_pont?: "fort" | "moyen" | "fragile";
   pertinence: string;
+  from_url?: boolean;
   // angles are now generated on demand
 }
 
@@ -129,6 +130,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
   // Intention de recherche (optionnelle)
   const [selectedVibes, setSelectedVibes] = useState<string[]>([]);
   const [customIntent, setCustomIntent] = useState("");
+  const [urlInput, setUrlInput] = useState("");
   // angles cache, keyed by actu index
   const [anglesByIdx, setAnglesByIdx] = useState<Record<number, AnglesState>>({});
   // Déduplication synchrone des fetchs d'angles (évite spinner infini lié au
@@ -238,6 +240,82 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspaceId, selectedVibes, customIntent, filter]);
+
+  const fetchFromUrl = useCallback(async () => {
+    const trimmed = urlInput.trim();
+    if (!trimmed) return;
+    let normalized = trimmed;
+    if (!/^https?:\/\//i.test(normalized)) normalized = `https://${normalized}`;
+    try { new URL(normalized); } catch {
+      setError("Lien invalide. Vérifie l'URL.");
+      return;
+    }
+
+    setStarted(true);
+    setLoading(true);
+    setError(null);
+    setActus(null);
+    setExpandedActu(null);
+    setIsQuotaError(false);
+    setFilter("all");
+    setHidden(new Set());
+    setSavedIdx(new Set());
+    setSavingIdx(new Set());
+    setAnglesByIdx({});
+    primaryStartedRef.current = new Set();
+    variantsStartedRef.current = new Set();
+
+    try {
+      const { data, error: fnError } = await invokeWithTimeout("newsjacking-from-url", {
+        body: {
+          url: normalized,
+          workspace_id: workspaceId && workspaceId !== user?.id ? workspaceId : undefined,
+        },
+      }, 90000);
+
+      if (fnError) {
+        const msg = fnError.message || "";
+        if (fnError.isRateLimit || msg.includes("limit_reached") || msg.includes("crédits")) {
+          setIsQuotaError(true);
+          setError("Tu as utilisé tous tes crédits de recherche ce mois-ci.");
+        } else {
+          setError("Analyse du lien échouée, réessaie.");
+        }
+        return;
+      }
+
+      if (data?.error) {
+        if (data.error.includes("limit_reached") || data.error.includes("crédits") || data.error.includes("générations")) {
+          setIsQuotaError(true);
+          setError(data.message || data.error);
+        } else {
+          setError(data.error);
+        }
+        return;
+      }
+
+      if (!data?.actus || !Array.isArray(data.actus) || data.actus.length === 0) {
+        setError("Aucune analyse exploitable, réessaie avec un autre lien.");
+        return;
+      }
+
+      for (const a of data.actus as Actu[]) {
+        const url = a.source_url;
+        if (typeof url === "string" && url) seenUrlsRef.current.add(url);
+      }
+
+      setActus(data.actus);
+      setExpandedActu(0);
+
+      // Pré-calcul de l'angle "primary" pour l'unique actu
+      setTimeout(() => fetchPrimaryAngle(0, data.actus[0]), 200);
+    } catch {
+      setError("Analyse du lien échouée, réessaie.");
+    } finally {
+      setLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlInput, workspaceId, user?.id]);
 
   // NOTE: pas d'auto-fetch au montage. L'utilisatrice déclenche la recherche
   // explicitement via le CTA "Lancer la recherche" pour éviter de consommer
@@ -495,6 +573,49 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
             </div>
           </div>
 
+          {/* Analyser un lien d'actu */}
+          <div className="space-y-2 rounded-xl border border-primary/20 bg-primary/5 p-4">
+            <div className="flex items-center gap-2">
+              <Link2 className="h-3.5 w-3.5 text-primary" />
+              <p className="text-xs font-medium text-foreground">
+                Tu as déjà une actu en tête&nbsp;? <span className="text-muted-foreground font-normal">Colle son lien.</span>
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="url"
+                value={urlInput}
+                onChange={(e) => setUrlInput(e.target.value)}
+                placeholder="https://…"
+                className="flex-1 text-xs rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && urlInput.trim()) {
+                    e.preventDefault();
+                    fetchFromUrl();
+                  }
+                }}
+              />
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={fetchFromUrl}
+                disabled={!urlInput.trim()}
+                className="gap-1.5 shrink-0"
+              >
+                <Sparkles className="h-3.5 w-3.5" /> Analyser ce lien
+              </Button>
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              L'IA lit l'article et te propose des angles connectés à ta marque. 1 crédit. Articles web uniquement (pas YouTube ni réseaux sociaux).
+            </p>
+          </div>
+
+          <div className="text-center">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">ou</span>
+          </div>
+
+
+
           {/* Intention (optionnelle) */}
           <div className="space-y-3 rounded-xl bg-muted/30 p-4">
             <div className="flex items-center justify-between">
@@ -702,9 +823,15 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
                           <h4 className="font-medium text-sm leading-snug">{actu.titre}</h4>
                           <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{actu.resume}</p>
                           <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                              {actu.type === "globale" ? "Globale" : "Niche"}
-                            </span>
+                            {actu.from_url ? (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/15 text-primary font-medium">
+                                🔗 D'après ton lien
+                              </span>
+                            ) : (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                                {actu.type === "globale" ? "Globale" : "Niche"}
+                              </span>
+                            )}
                             {axe && (
                               <span className="text-[10px] px-2 py-0.5 rounded-full bg-secondary/40 text-secondary-foreground">
                                 {axe.emoji} {axe.label}
