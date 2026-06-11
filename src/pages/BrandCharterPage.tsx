@@ -423,6 +423,7 @@ export default function BrandCharterPage() {
       font_title: d.font_title,
       font_body: d.font_body,
       font_accent: d.font_accent,
+      font_rationale: d.font_rationale,
       photo_style: d.photo_style,
       photo_keywords: d.photo_keywords,
       mood_keywords: d.mood_keywords,
