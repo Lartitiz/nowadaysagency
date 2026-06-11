@@ -2855,6 +2855,16 @@ export default function CreerUnifie() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <SaveToIdeasDialog
+        open={saveIdeaDialogOpen}
+        onOpenChange={setSaveIdeaDialogOpen}
+        contentType={mapFormatToContentType(selectedFormat)}
+        subject={ideaText}
+        contentData={result?.raw}
+        sourceModule="creer"
+        format={selectedFormat || undefined}
+        objectif={objective || undefined}
+      />
     </div>
   );
 }
