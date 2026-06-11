@@ -817,6 +817,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
                                 <div className="py-3 space-y-2">
                                   <p className="text-xs text-muted-foreground">{anglesState.error}</p>
                                   <Button size="sm" variant="outline" onClick={() => {
+                                    primaryStartedRef.current.delete(idx);
                                     setAnglesByIdx((prev) => {
                                       const next = { ...prev };
                                       delete next[idx];
