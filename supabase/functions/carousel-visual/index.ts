@@ -22,11 +22,11 @@ Voici le design pour chaque type :
 
 █ BEFORE_AFTER — Deux colonnes côte à côte
 <div style="display:flex;gap:24px;width:100%">
-  <div style="flex:1;background:#FFF;border-radius:12px;padding:32px;border-left:4px solid #E74C3C">
+  <div style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:32px;border-left:4px solid #E74C3C">
     <p style="font-size:22px;font-weight:600;color:#E74C3C;margin-bottom:16px">❌ AVANT_LABEL</p>
     <!-- items en <p> avec une puce rouge -->
   </div>
-  <div style="flex:1;background:#FFF;border-radius:12px;padding:32px;border-left:4px solid #27AE60">
+  <div style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:32px;border-left:4px solid #27AE60">
     <p style="font-size:22px;font-weight:600;color:#27AE60;margin-bottom:16px">✅ APRÈS_LABEL</p>
     <!-- items en <p> avec une puce verte -->
   </div>
@@ -43,7 +43,7 @@ Même structure que before_after mais avec les labels et couleurs du champ left/
 
 █ CHECKLIST — Liste avec des badges ✅/❌
 Pour chaque item :
-<div style="display:flex;align-items:center;gap:16px;padding:16px 24px;background:#FFF;border-radius:12px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
+<div style="display:flex;align-items:center;gap:16px;padding:16px 24px;background:#FFF;border-radius:${ch.border_radius || 12}px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
   <span style="font-size:28px">✅ ou ❌</span>
   <p style="font-size:24px;color:${ch.color_text}">TEXTE</p>
 </div>
@@ -58,7 +58,7 @@ Dispose 2-3 stats en flex row avec des séparateurs visuels.
 
 █ MATRIX_2X2 — Grille 2×2 avec axes
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-  <div style="background:${ch.color_primary}15;border-radius:12px;padding:24px;text-align:center">
+  <div style="background:${ch.color_primary}15;border-radius:${ch.border_radius || 12}px;padding:24px;text-align:center">
     <span style="font-size:40px">EMOJI</span>
     <p style="font-size:22px;font-weight:600;margin-top:8px">LABEL</p>
   </div>
@@ -70,13 +70,13 @@ Le sommet = 50% de largeur, la base = 100%. Couleurs du plus foncé (sommet) au 
 
 █ EQUATION — A + B = C
 <div style="display:flex;align-items:center;justify-content:center;gap:24px">
-  <div style="background:#FFF;border-radius:12px;padding:24px 32px;box-shadow:0 2px 12px rgba(0,0,0,0.06);text-align:center">
+  <div style="background:#FFF;border-radius:${ch.border_radius || 12}px;padding:24px 32px;box-shadow:0 2px 12px rgba(0,0,0,0.06);text-align:center">
     <p style="font-size:28px;font-weight:600;color:${ch.color_secondary}">A</p>
   </div>
   <span style="font-size:48px;color:${ch.color_primary}">+</span>
   <!-- ... -->
   <span style="font-size:48px;color:${ch.color_primary}">=</span>
-  <div style="background:${ch.color_primary};border-radius:12px;padding:24px 32px;text-align:center">
+  <div style="background:${ch.color_primary};border-radius:${ch.border_radius || 12}px;padding:24px 32px;text-align:center">
     <p style="font-size:28px;font-weight:600;color:white">C</p>
   </div>
 </div>
@@ -91,7 +91,7 @@ Question en pilule ${ch.color_primary}, branches avec lignes verticales, résult
 
 █ ICON_GRID — Grille d'emojis avec labels
 <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:24px">
-  <div style="text-align:center;background:#FFF;border-radius:12px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
+  <div style="text-align:center;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
     <span style="font-size:48px;display:block;margin-bottom:8px">EMOJI</span>
     <p data-pptx-editable="body" style="font-size:20px;font-weight:600;color:${ch.color_secondary}">LABEL</p>
   </div>
@@ -157,6 +157,8 @@ RÈGLE FALLBACK : si process_visible.stages.length !== 3, rends quand même prop
 
 IMPORTANT pour les schémas :
 - Utilise les vraies couleurs de la charte (${ch.color_primary}, ${ch.color_secondary}, ${ch.color_accent}, ${ch.color_text})
+- Les cartes des templates sont blanches (#FFF) pour un fond de charte CLAIR. Si ${ch.color_background} est sombre, remplace le blanc des cartes par une teinte claire OPAQUE harmonisée avec la charte (jamais de rgba semi-transparent).
+- Couleurs sémantiques autorisées hors charte (les SEULES) : le rouge #E74C3C et le vert #27AE60 des oppositions ❌/✅ (before_after, checklist, scale) et le fond #1A1A1A de la DARK BOX. Tout autre accent vient de la charte.
 - COMPOSITION VERTICALE : la slide est une colonne flex pleine hauteur (display:flex;flex-direction:column;height:1350px). Le bloc titre+intro est en haut, le schéma occupe l'espace restant, centré dedans (wrapper avec flex:1;display:flex;flex-direction:column;justify-content:center). Résultat attendu : l'espace au-dessus du schéma ≈ l'espace en dessous, et JAMAIS plus de ~200px de vide sous le dernier élément de la slide.
 - Si le contenu est court (intro brève + petit schéma), AUGMENTE les tailles : padding des cartes, font-size du schéma, gaps — plutôt que de laisser du vide.
 - CARTES SŒURS = MÊME HAUTEUR : dans un schéma à cartes multiples (timeline, story_arc, process_visible, comparison…), toutes les cartes d'une même rangée ont la MÊME hauteur (le conteneur flex utilise align-items:stretch, jamais center ou flex-start) et le MÊME alignement vertical de leur contenu interne.
@@ -448,7 +450,7 @@ TIPS / CONTENU PÉDAGOGIQUE (slides du milieu) — Clair, structuré :
 - Corps du tip en ${ch.font_body} (28-30px)
 - Barre accent latérale colorée (4px solid) à gauche du bloc de texte
 - Un mot-clé souligné en ${ch.color_accent} (soulignement jaune type highlighter)
-- Alterner les couleurs d'accent entre les slides pour la variété : ${ch.color_primary}, bleu #3498db, vert #27AE60, orange #E67E22, violet #9B59B6
+- Alterner les couleurs d'accent entre les slides pour la variété, UNIQUEMENT dans la palette de la charte : ${ch.color_primary}, ${ch.color_accent}, ${ch.color_secondary}. JAMAIS de couleur hors charte pour les accents.
 
 SLIDE SÉPARATEUR (optionnelle, entre les blocs) — Rupture visuelle :
 - Fond : ${ch.color_primary} (rose vif, plein)
