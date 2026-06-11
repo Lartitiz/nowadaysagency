@@ -924,14 +924,14 @@ export default function CreerUnifie() {
     // Formats structurés : appel classique (pas de streaming)
     // Carrousels photo/mix : proposer la structure d'abord (sauf si déjà validée)
     // Les carrousels texte vont directement à la génération (pas de structure_review)
-    const isPhotoOrMixCarousel = carouselSubMode === "photo" || carouselSubMode === "mix";
+    const isPhotoOrMixCarousel = carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo";
     if (selectedFormat === "carousel" && isPhotoOrMixCarousel && !structureProposal && !lastConfirmedStructure) {
       setStructureLoading(true);
       try {
         const structureBody: any = {
           type: "structure_proposal",
           subject: enrichedSubject,
-          carousel_type: carouselSubMode || undefined,
+          carousel_type: carouselSubMode === "pure_photo" ? "photo" : (carouselSubMode || undefined),
           objective: objective || undefined,
           slide_count: 7,
           editorial_angle: editorialAngle || undefined,
@@ -940,13 +940,13 @@ export default function CreerUnifie() {
           photo_description: photoDescription || undefined,
           ...(newsjackingContext ? { news_context: newsjackingContext.slice(0, 3800) } : {}),
         };
-        // En mode photo/mix, envoyer les photos pour analyse visuelle
-        if ((carouselSubMode === "photo" || carouselSubMode === "mix") && uploadedPhotos.length > 0) {
+        // En mode photo/mix/pure_photo, envoyer les photos pour analyse visuelle
+        if ((carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo") && uploadedPhotos.length > 0) {
           structureBody.photos = uploadedPhotos.map(p => ({ base64: p.base64, context: p.context }));
           // Snapshot pour handleGenerateVisuals (résiste aux resets de state UI)
           setGeneratedWithPhotos(uploadedPhotos);
         }
-        const structureTimeout = (carouselSubMode === "photo" || carouselSubMode === "mix") && uploadedPhotos.length > 0 ? 60000 : 30000;
+        const structureTimeout = (carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo") && uploadedPhotos.length > 0 ? 60000 : 30000;
         const { data, error: fnError } = await invokeWithTimeout("carousel-ai", {
           body: structureBody,
         }, structureTimeout);
@@ -975,6 +975,7 @@ export default function CreerUnifie() {
             channel: isLinkedInCarousel ? "linkedin" : undefined,
             ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context })), photoDescription } : {}),
             ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context })), photoDescription } : {}),
+            ...(carouselSubMode === "pure_photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context })), photoDescription } : {}),
             ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context })) : undefined, photoDescription } : {}),
             ...(newsjackingContext ? { newsContext: newsjackingContext } : {}),
           });
@@ -998,6 +999,7 @@ export default function CreerUnifie() {
         confirmedStructure: lastConfirmedStructure,
         ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context })), photoDescription } : {}),
         ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context })), photoDescription } : {}),
+        ...(carouselSubMode === "pure_photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context })), photoDescription } : {}),
         ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context })) : undefined, photoDescription } : {}),
         ...(newsjackingContext ? { newsContext: newsjackingContext } : {}),
       });
@@ -1016,6 +1018,7 @@ export default function CreerUnifie() {
       channel: isLinkedInCarousel ? "linkedin" : undefined,
       ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context })), photoDescription } : {}),
       ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context })), photoDescription } : {}),
+      ...(carouselSubMode === "pure_photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context })), photoDescription } : {}),
       ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context })) : undefined, photoDescription } : {}),
       ...(newsjackingContext ? { newsContext: newsjackingContext } : {}),
     });
@@ -1147,7 +1150,7 @@ export default function CreerUnifie() {
     setStructureProposal(null);
     setStep("result");
     // Snapshot des photos avant la génération finale (au cas où le state UI serait reset)
-    if ((carouselSubMode === "photo" || carouselSubMode === "mix") && uploadedPhotos.length > 0) {
+    if ((carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo") && uploadedPhotos.length > 0) {
       setGeneratedWithPhotos(uploadedPhotos);
     }
     await generate({
@@ -1160,6 +1163,7 @@ export default function CreerUnifie() {
       confirmedStructure: confirmedSlides,
       ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context })), photoDescription } : {}),
       ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context })), photoDescription } : {}),
+      ...(carouselSubMode === "pure_photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context })), photoDescription } : {}),
       ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context })) : undefined, photoDescription } : {}),
       ...(newsjackingContext ? { newsContext: newsjackingContext } : {}),
     });
@@ -1566,7 +1570,7 @@ export default function CreerUnifie() {
       if (calendarPostId) {
         const storageUpdates: any = {};
         
-        if ((carouselSubMode === "photo" || carouselSubMode === "mix") && uploadedPhotos.length > 0) {
+        if ((carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo") && uploadedPhotos.length > 0) {
           try {
             const photoUrls = await uploadPhotosToStorage(calendarPostId);
             if (photoUrls.length > 0) storageUpdates.photo_urls = photoUrls;
@@ -1828,7 +1832,7 @@ export default function CreerUnifie() {
         const updates: any = {};
         
         // Upload photos originales dans Storage
-        if ((carouselSubMode === "photo" || carouselSubMode === "mix" || photoMode) && uploadedPhotos.length > 0) {
+        if ((carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo" || photoMode) && uploadedPhotos.length > 0) {
           try {
             const photoUrls = await uploadPhotosToStorage(postId);
             if (photoUrls.length > 0) {
@@ -2415,7 +2419,7 @@ export default function CreerUnifie() {
                   setStep("questions");
                 }}
                 isLoading={generating || structureLoading}
-                photos={(carouselSubMode === "photo" || carouselSubMode === "mix") ? uploadedPhotos : undefined}
+                photos={(carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo") ? uploadedPhotos : undefined}
                 carouselSubMode={carouselSubMode || "text"}
               />
             )}
@@ -2483,7 +2487,7 @@ export default function CreerUnifie() {
                 format={selectedFormat || "post"}
                 generating={generating || demoGenerating || streaming || pinterestVisualGenerating}
                 streamingContent={streaming ? streamingContent : undefined}
-                photos={(carouselSubMode === "photo" || carouselSubMode === "mix" || (photoMode && uploadedPhotos.length > 0)) ? uploadedPhotos : undefined}
+                photos={(carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo" || (photoMode && uploadedPhotos.length > 0)) ? uploadedPhotos : undefined}
                 usedPhotoCount={photoMode && uploadedPhotos.length > 0 ? uploadedPhotos.length : undefined}
                 onEdit={handleEdit}
                 onReset={handleReset}
@@ -2519,7 +2523,7 @@ export default function CreerUnifie() {
                 channel={isLinkedInCarousel ? "linkedin" : "instagram"}
                 captionLoading={captionLoading}
                 onRegenerateCaption={
-                  isLinkedInCarousel && (carouselSubMode === "mix" || carouselSubMode === "photo")
+                  isLinkedInCarousel && (carouselSubMode === "mix" || carouselSubMode === "photo" || carouselSubMode === "pure_photo")
                     ? () => { captionAutoTriggeredRef.current = null; generateLinkedInCarouselCaption(); }
                     : undefined
                 }
