@@ -279,7 +279,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
           setIsQuotaError(true);
           setError("Tu as utilisé tous tes crédits de recherche ce mois-ci.");
         } else {
-          setError("Analyse du lien échouée, réessaie.");
+          setError(fnError.message || "Analyse du lien échouée, réessaie.");
         }
         return;
       }
@@ -606,7 +606,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
               </Button>
             </div>
             <p className="text-[10px] text-muted-foreground">
-              L'IA lit l'article et te propose des angles connectés à ta marque. 1 crédit. Articles web uniquement (pas YouTube ni réseaux sociaux).
+              L'IA lit l'article et te propose des angles connectés à ta marque. 2 crédits (lecture + premier angle). Articles web uniquement (pas YouTube ni réseaux sociaux).
             </p>
           </div>
 
