@@ -1,62 +1,60 @@
 ## Objectif
 
-Ajouter un 3ᵉ type de carrousel Instagram **"Carrousel juste photo"** : les photos uploadées sont recadrées au format Insta (4:5/1:1) et utilisées telles quelles, **sans aucun texte overlay ni slide texte ajoutée**. L'IA ne rédige que la légende du post.
+Quand on arrive à l'étape 2 (Format) sur Instagram avec des photos préchargées :
 
-Les 3 cartes carrousel-photo dans `CreerStepFormat` deviendront, dans l'ordre :
+1. **2+ photos** → la grille Insta n'affiche **que la carte "Carrousel"** (les autres formats compatibles photo — Post photo, Reel, Story — sont masqués).
+2. **1 photo** → comportement actuel inchangé (Post photo, Reel, Story, Carrousel disponibles).
+3. Dès qu'on clique sur "Carrousel" (ou s'il est auto-sélectionné), le **sous-picker des 3 types de carrousel s'affiche immédiatement** en dessous, sans collapse — l'utilisateur choisit `full photo`, `storytelling`, ou `juste photo` dans la foulée.
 
-1. 📸 **Carrousel photo + texte** *(existant* `photo`*)* — texte overlay sur chaque photo
-2. ✨ **Carrousel texte** *(existant `mix`)* — alterne photos et slides texte design
-3. 🖼️ **Carrousel juste photo** *(nouveau `pure_photo`)* — photos seules, aucun texte sur les visuels
+## Changements
 
-La 4ᵉ carte "📝 Carrousel texte" reste affichée uniquement si aucune photo n'est préchargée (comportement actuel inchangé).
+**Fichier touché : `src/components/creer/CreerStepFormat.tsx`** (uniquement, pas de backend).
 
-## Périmètre
+### 1. Filtrer la grille Insta à 2+ photos (ligne 487)
 
-### 1. Front — UI sélecteur (`src/components/creer/CreerStepFormat.tsx`)
+Remplacer le filtre actuel :
+```ts
+spec.channel === "instagram" && (!hasPreloadedPhotos || formatAcceptsSinglePhoto(id) || id === "carousel")
+```
+par une logique 2+ photos :
+```ts
+const photoCount = initialPhotos?.length ?? 0;
+const multiPhotos = photoCount >= 2 && !forceShowAll;
+// filtre
+spec.channel === "instagram" && (
+  multiPhotos ? id === "carousel"
+  : !hasPreloadedPhotos || formatAcceptsSinglePhoto(id) || id === "carousel"
+)
+```
 
-- Ajouter `"pure_photo"` à l'union `useState<"text" | "photo" | "mix" | null>` → `"text" | "photo" | "mix" | "pure_photo" | null`.
-- Ajouter une 3ᵉ carte (emoji 🖼️, libellé "Carrousel juste photo", desc "Tes photos cadrées Insta, sans aucun texte par-dessus. L'IA écrit la légende.").
-- Ajouter l'entrée correspondante dans `subModeMeta` du chip réduit.
-- `hasPreloadedPhotos` → la grille devient `sm:grid-cols-3` (3 modes photo) au lieu de 2.
-- Sans `hasPreloadedPhotos`, la grille reste `sm:grid-cols-4` (text + 3 modes photo).
-- Étendre les conditions `carouselSubMode === "photo" || === "mix"` à `|| === "pure_photo"` pour : déclenchement de `PhotoUploadZone`, validation `uploadedPhotos.length === 0`, et envoi au flow suivant.
-- Étendre la prop `onNext`'s union de `carouselSubMode`.
+À 2+ photos, seule la carte Carrousel reste visible dans la grille.
 
-### 2. Front — Plomberie `CreerUnifie.tsx`, `ContentCoachingDialog.tsx`, `CreerStepIdea.tsx`, `StructureReviewStep.tsx`, `use-content-generator.ts`, `demo-data.ts`, `demo-auriana-data.ts`
+### 2. Auto-dérouler le sous-picker
 
-- Élargir toutes les unions `"text" | "photo" | "mix"` → `"text" | "photo" | "mix" | "pure_photo"`.
-- Toutes les branches `=== "photo" || === "mix"` qui transmettent `photos`, `photoDescription`, `carouselType`, `carousel_type`, `photo_description`, `vision_mode`, etc., doivent inclure `=== "pure_photo"`. Le payload backend devient `carouselType: "pure_photo"` mais conserve les mêmes photos/description.
-- `visionMode` (`use-content-generator.ts:503`) → `hasPhotos && (subMode === "photo" || === "mix" || === "pure_photo")`.
-- Le rendu résultat (`CreerStepResult.tsx:325`, `CreerUnifie.tsx:1445/1452/2098`) : ajouter une branche `r.carousel_type === "pure_photo"` qui rend les photos **sans overlay texte** (réutiliser le composant photo existant en passant `overlayText={null}` / désactiver le bloc texte).
+Le sous-picker (lignes 589-668) est déjà conditionné par `selectedFormat === "carousel"`. Quand l'utilisateur clique la carte Carrousel, `selectedFormat` passe à `"carousel"` et le picker s'affiche déjà.
 
-### 3. Backend — `supabase/functions/carousel-ai/index.ts`
+Le seul changement comportemental : **ne pas afficher la version "chip collapsed"** quand on vient de cliquer Carrousel — on garde le picker complet visible jusqu'à ce que les 3 cartes soient cliquées. Actuellement la chip s'affiche dès que `carouselSubMode` est défini, ce qui est bien — pas de changement nécessaire ici.
 
-- Ajouter le case `carousel_type === "pure_photo"` aux branches existantes (lignes ~179, 245, 312-315, 452, 558, 1310, 1816, 2033).
-- Dans le prompt de génération : quand `pure_photo`, instruire Claude de **ne produire aucun texte de slide** ni d'overlay, et de renvoyer un JSON où chaque slide a uniquement `photo_index` (pas de `text`, pas de `title`). La légende du post (`caption`) reste générée normalement.
-- `getStructureGuide("pure_photo")` retourne une consigne minimale : "Pas de texte sur les visuels. La narration passe par la légende et l'ordre des photos."
-- Vision Claude (analyse photo) reste appelée pour informer la **légende** mais le prompt indique de ne pas écrire de texte par-dessus.
+En revanche, pour que le sous-picker soit immédiatement visible **sans avoir à scroller**, ajouter un `scrollIntoView` doux dans `handleFormatSelect` quand `id === "carousel"` et `carouselSubMode === null`.
 
-### 4. Export PPTX / preview
+### 3. Hint sous la grille (ligne 383-409)
 
-- Réutiliser le générateur PPTX `photo` existant en désactivant la couche texte quand `carousel_type === "pure_photo"`. Si l'export est centralisé dans `pptx-generator` / similaire, ajouter un flag `noOverlay`.
-- Preview `ContentPreview.tsx:430` : afficher "🖼️ {n} slides · juste photo" pour `carousel_type === "pure_photo"`.
+Adapter le texte d'aide quand `multiPhotos` est vrai :
+> "Avec plusieurs photos, on part forcément sur un carrousel. Choisis le type ci-dessous."
 
-### 5. Recadrage 4:5 
-
-- Déjà géré côté `PhotoUploadZone` (`resizeAndEncode`) qui sort des images normalisées. Vérifier que le format de sortie est bien 4:5 ; ajuster les contraintes si besoin (rien à coder si déjà conforme).
+Avec un lien "Tout afficher quand même" qui bascule `forceShowAll = true` pour réafficher Post / Reel / Story (comportement déjà existant).
 
 ## Hors scope
 
-- Pas de changement au mode `text` (carrousel texte pur), `photo` ni `mix`.
-- Pas de modification du flow LinkedIn (le carousel sub-mode existe aussi côté LinkedIn — on étend l'union pour la cohérence des types mais on n'ajoute pas de carte spécifique LinkedIn dans cette itération).
-- Pas de migration DB : `carousel_type` est déjà `string`, accepte naturellement `"pure_photo"`.
+- Pas de modification du backend (`carousel-ai`, etc.).
+- Pas de changement sur LinkedIn ou Pinterest.
+- Pas de changement du flux 1 photo unique.
+- Pas de modification des prompts ou de la génération.
 
-## Vérification
+## Récap UX
 
-- Navigation Créer → Instagram → Carrousel : avec photos préchargées, voir 3 cartes ; sans photos, voir 4 cartes.
-- Sélectionner "Carrousel juste photo", uploader 3 photos, générer : 
-  - le résultat affiche 3 slides photo **sans texte** ;
-  - la légende est rédigée ;
-  - l'export PPTX ne contient aucun text-box overlay.
-- Aucun warning TS sur les unions `carouselSubMode`.
-- Les modes `photo` et `mix` continuent de fonctionner comme avant (non-régression).
+| Photos préchargées | Grille Insta affichée | Sous-picker carrousel |
+|---|---|---|
+| 0 | Tous les formats | Au clic sur Carrousel : 4 cartes (texte + 3 photo) |
+| 1 | Post photo, Reel, Story, Carrousel | Au clic sur Carrousel : 3 cartes photo |
+| 2+ | **Carrousel uniquement** | Auto-déroulé : 3 cartes photo |
