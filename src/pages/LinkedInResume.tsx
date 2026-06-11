@@ -14,6 +14,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { friendlyError } from "@/lib/error-messages";
+import { handleQuotaError } from "@/lib/quota-error-handler";
 import { Sparkles, Copy, Check, Loader2, RotateCcw, Search, Lightbulb } from "lucide-react";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
@@ -146,6 +147,9 @@ export default function LinkedInResume() {
       const res = await invokeWithTimeout("linkedin-ai", {
         body: { action: "analyze-resume", existing_resume: textToAnalyze },
       }, 60000);
+      if (res.error?.isRateLimit || res.data?.error === "limit_reached") {
+        if (handleQuotaError({ message: res.error?.message || res.data?.message, data: res.data })) return;
+      }
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
       const parsed = parseAnalysis(content);
@@ -181,6 +185,9 @@ export default function LinkedInResume() {
       const res = await invokeWithTimeout("linkedin-ai", {
         body: { action: "summary", passion, parcours, offre, cta },
       }, 90000);
+      if (res.error?.isRateLimit || res.data?.error === "limit_reached") {
+        if (handleQuotaError({ message: res.error?.message || res.data?.message, data: res.data })) return;
+      }
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
       let parsed: any;
