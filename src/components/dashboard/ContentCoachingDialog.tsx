@@ -380,7 +380,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
                 <div className="grid grid-cols-3 gap-2">
                   {([
                     { id: "text" as const, emoji: "📝", label: "Texte", desc: "L'IA rédige tes slides" },
-                    { id: "photo" as const, emoji: "📸", label: "Photo", desc: "Tes photos en plein écran" },
+                    { id: "photo" as const, emoji: "📸", label: "Photo", desc: "Photos + texte par-dessus" },
                     { id: "mix" as const, emoji: "✨", label: "Mixte", desc: "Photos + slides texte" },
                   ]).map(sub => (
                     <button
