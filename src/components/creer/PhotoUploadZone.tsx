@@ -108,8 +108,11 @@ export function PhotoUploadZone({
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [showContexts, setShowContexts] = useState(false);
   const [editIdx, setEditIdx] = useState<number | null>(null);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [importingFromLibrary, setImportingFromLibrary] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const isFull = photos.length >= maxPhotos;
+  const remainingSlots = Math.max(0, maxPhotos - photos.length);
 
   // Resync quand le parent fournit de nouvelles initialPhotos (changement de format,
   // rehydratation après "Partir de photos", etc.). Comparaison par identité de
