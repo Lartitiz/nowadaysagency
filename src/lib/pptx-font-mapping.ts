@@ -275,6 +275,7 @@ export function extractEditableBlocks(
 
     const r = el.getBoundingClientRect();
     if (r.width < 20 || r.height < 10) continue;
+    const rect = contentBoxRect(el, cs);
 
     let kind: EditableBlock["kind"] = "body";
     if (isSemantic || fontSizePx >= 36) kind = "title";
