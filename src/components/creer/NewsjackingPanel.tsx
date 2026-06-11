@@ -241,6 +241,82 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspaceId, selectedVibes, customIntent, filter]);
 
+  const fetchFromUrl = useCallback(async () => {
+    const trimmed = urlInput.trim();
+    if (!trimmed) return;
+    let normalized = trimmed;
+    if (!/^https?:\/\//i.test(normalized)) normalized = `https://${normalized}`;
+    try { new URL(normalized); } catch {
+      setError("Lien invalide. Vérifie l'URL.");
+      return;
+    }
+
+    setStarted(true);
+    setLoading(true);
+    setError(null);
+    setActus(null);
+    setExpandedActu(null);
+    setIsQuotaError(false);
+    setFilter("all");
+    setHidden(new Set());
+    setSavedIdx(new Set());
+    setSavingIdx(new Set());
+    setAnglesByIdx({});
+    primaryStartedRef.current = new Set();
+    variantsStartedRef.current = new Set();
+
+    try {
+      const { data, error: fnError } = await invokeWithTimeout("newsjacking-from-url", {
+        body: {
+          url: normalized,
+          workspace_id: workspaceId && workspaceId !== user?.id ? workspaceId : undefined,
+        },
+      }, 90000);
+
+      if (fnError) {
+        const msg = fnError.message || "";
+        if (fnError.isRateLimit || msg.includes("limit_reached") || msg.includes("crédits")) {
+          setIsQuotaError(true);
+          setError("Tu as utilisé tous tes crédits de recherche ce mois-ci.");
+        } else {
+          setError("Analyse du lien échouée, réessaie.");
+        }
+        return;
+      }
+
+      if (data?.error) {
+        if (data.error.includes("limit_reached") || data.error.includes("crédits") || data.error.includes("générations")) {
+          setIsQuotaError(true);
+          setError(data.message || data.error);
+        } else {
+          setError(data.error);
+        }
+        return;
+      }
+
+      if (!data?.actus || !Array.isArray(data.actus) || data.actus.length === 0) {
+        setError("Aucune analyse exploitable, réessaie avec un autre lien.");
+        return;
+      }
+
+      for (const a of data.actus as Actu[]) {
+        const url = a.source_url;
+        if (typeof url === "string" && url) seenUrlsRef.current.add(url);
+      }
+
+      setActus(data.actus);
+      setExpandedActu(0);
+
+      // Pré-calcul de l'angle "primary" pour l'unique actu
+      setTimeout(() => fetchPrimaryAngle(0, data.actus[0]), 200);
+    } catch {
+      setError("Analyse du lien échouée, réessaie.");
+    } finally {
+      setLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlInput, workspaceId, user?.id]);
+
   // NOTE: pas d'auto-fetch au montage. L'utilisatrice déclenche la recherche
   // explicitement via le CTA "Lancer la recherche" pour éviter de consommer
   // un crédit par erreur et pour ne pas relancer si workspaceId arrive en async.
