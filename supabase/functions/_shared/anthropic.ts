@@ -1,6 +1,6 @@
 // Shared Anthropic API helper for edge functions
 
-export type AnthropicModel = "claude-opus-4-6" | "claude-sonnet-4-5-20250929";
+export type AnthropicModel = "claude-opus-4-6" | "claude-sonnet-4-5-20250929" | "claude-haiku-4-5";
 
 export function getDefaultModel(): AnthropicModel {
   return (Deno.env.get("AI_MODEL_DEFAULT") as AnthropicModel) || "claude-sonnet-4-5-20250929";
@@ -53,6 +53,10 @@ const MODEL_MAP: Record<string, AnthropicModel> = {
   "offer": "claude-sonnet-4-5-20250929",
   "scoring": "claude-sonnet-4-5-20250929",
   "voice": "claude-sonnet-4-5-20250929",
+
+  // Haiku : tâches courtes et structurées (génération de questions, classification)
+  // Override possible via env AI_MODEL_QUESTIONS pour revenir à Sonnet en cas de souci.
+  "questions": (Deno.env.get("AI_MODEL_QUESTIONS") as AnthropicModel) || "claude-haiku-4-5",
 };
 
 export function getModelForAction(action: string): AnthropicModel {

@@ -157,6 +157,13 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
     // COMMON_PREFIX: identical for ALL steps → maximizes Anthropic prompt caching
     const COMMON_PREFIX = BASE_SYSTEM_RULES + "\n\n" + incarnationBlock + "\n\n" + `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :\n- Reproduis fidèlement le style décrit\n- Réutilise les expressions signature naturellement dans le texte\n- RESPECTE les expressions interdites : ne les utilise JAMAIS\n- Imite les patterns de ton et de structure\n- Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA\n\n` + CORE_PRINCIPLES + "\n\n" + EMBEDDED_EDUCATION + "\n\n" + ANTI_SLOP + "\n\n" + ETHICAL_GUARDRAILS + "\n\n" + fullContext;
 
+    // QUESTIONS_PREFIX : version allégée pour les steps `questions` et `follow-up`.
+    // On retire CORE_PRINCIPLES / EMBEDDED_EDUCATION / ANTI_SLOP / ETHICAL_GUARDRAILS / bloc voix :
+    // ces règles concernent la RÉDACTION du contenu final, pas la formulation de questions.
+    // On garde : règles de base, incarnation (qui elle est), branding/profil (pour personnaliser).
+    // Objectif : passer de ~10 500 tokens à ~3 000-4 000 tokens d'input.
+    const QUESTIONS_PREFIX = BASE_SYSTEM_RULES + "\n\n" + incarnationBlock + "\n\n" + fullContext;
+
     // Build calendar context block
     let calendarBlock = "";
     if (calendarContext) {
@@ -272,7 +279,7 @@ Réponds UNIQUEMENT en JSON :
         ? "Questions orientées PROFONDEUR : demande des réflexions de fond, des convictions, des retours d'expérience détaillés."
         : "Questions orientées ÉMOTION : demande des moments vécus, des ressentis, des transformations personnelles, des coulisses.";
 
-      systemPrompt = `${COMMON_PREFIX}
+      systemPrompt = `${QUESTIONS_PREFIX}
 ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}\n` : ""}${brandVocabBlock}
 
 ══════════════════════════════════════
@@ -359,7 +366,7 @@ Réponds UNIQUEMENT en JSON :
 
     } else if (step === "follow-up") {
       const answersBlock = answers.map((a: any, i: number) => `Q${i + 1} : "${a.question}" → "${a.answer}"`).join("\n");
-      systemPrompt = `${COMMON_PREFIX}
+      systemPrompt = `${QUESTIONS_PREFIX}
 ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}\n` : ""}${brandVocabBlock}
 SUJET du contenu : "${context}"
 
@@ -1413,7 +1420,12 @@ Réponds UNIQUEMENT en JSON :
       const maxTokens = step === "questions" ? 800 : undefined;
       const isLinkedInText = !!contentType?.includes("linkedin") && step !== "questions";
       const tempText = isLinkedInText ? 0.7 : 0.85;
-      rawContent = await callAnthropicSimple(getModelForAction("content"), systemPrompt, userPrompt!, tempText, maxTokens);
+      // L1 : Haiku pour les steps `questions` et `follow-up` (3-5× plus rapide que Sonnet,
+      // suffisant pour des questions structurées en JSON). Sonnet reste pour la génération de contenu.
+      const modelForCall = (step === "questions" || step === "follow-up")
+        ? getModelForAction("questions")
+        : getModelForAction("content");
+      rawContent = await callAnthropicSimple(modelForCall, systemPrompt, userPrompt!, tempText, maxTokens);
     }
 
     let parsed;
