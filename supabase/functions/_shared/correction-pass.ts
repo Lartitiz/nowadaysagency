@@ -363,11 +363,17 @@ function extractCarouselTexts(parsed: any): string {
     }
   }
 
-  // Caption
-  const caption = parsed.caption || parsed.instagram_caption || "";
-  if (caption) {
+  // Caption (peut être un objet { hook, body, cta, hashtags } ou une string legacy)
+  const caption = parsed.caption ?? parsed.instagram_caption ?? "";
+  if (caption && typeof caption === "object") {
+    if (caption.hook) lines.push(`[CAPTION - HOOK] ${caption.hook}`);
+    if (caption.body) lines.push(`[CAPTION - BODY] ${caption.body}`);
+    if (caption.cta) lines.push(`[CAPTION - CTA] ${caption.cta}`);
+    // hashtags volontairement exclus : pas de tics IA à corriger
+  } else if (typeof caption === "string" && caption) {
     lines.push(`[CAPTION] ${caption}`);
   }
+
 
   return lines.join("\n");
 }
