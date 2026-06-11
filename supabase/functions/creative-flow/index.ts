@@ -1435,7 +1435,7 @@ Réponds UNIQUEMENT en JSON :
         max_tokens: 4096,
       });
     } else {
-      const maxTokens = step === "questions" ? 800 : undefined;
+      const maxTokens = step === "questions" ? 800 : step === "recycle" ? 8192 : undefined;
       const isLinkedInText = !!contentType?.includes("linkedin") && step !== "questions";
       const tempText = isLinkedInText ? 0.7 : 0.85;
       // L1 : Haiku pour les steps `questions` et `follow-up` (3-5× plus rapide que Sonnet,
