@@ -542,7 +542,7 @@ Réponds UNIQUEMENT en JSON valide :
         });
 
         const content = await callAnthropic({
-          model: getModelForAction("carousel"),
+          model: getModelForAction("questions"),
           system: systemPrompt,
           messages: [{ role: "user", content: messageContent }],
           max_tokens: 4096,
