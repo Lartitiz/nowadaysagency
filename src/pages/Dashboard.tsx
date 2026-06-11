@@ -508,7 +508,7 @@ export default function Dashboard() {
             >
               <div className="flex justify-between items-start">
                 <div className="w-9 h-9 rounded-xl bg-white/60 backdrop-blur-sm border border-white/40 flex items-center justify-center">
-                  <Lightbulb className="h-4.5 w-4.5 text-primary" />
+                  <Lightbulb className="h-5 w-5 text-primary" />
                 </div>
                 {dashData.ideaCount > 0 && (
                   <span className="bg-black/5 px-2 py-0.5 rounded-md text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
