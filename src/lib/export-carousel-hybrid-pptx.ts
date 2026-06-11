@@ -526,7 +526,6 @@ export async function exportCarouselHybridPptx(
           if (sb.rect.y + sb.rect.h < 0 || sb.rect.x + sb.rect.w < 0) continue;
         }
         usableShapes.push(sb);
-        (sb.el as HTMLElement).setAttribute("data-pptx-shape-hide", "true");
       }
       if (usableShapes.length > SHAPE_CAP_PER_SLIDE) {
         console.warn(`[hybrid] ${usableShapes.length} shapes annotés sur slide ${vs.slide_number}, capé à ${SHAPE_CAP_PER_SLIDE}`);
@@ -537,6 +536,9 @@ export async function exportCarouselHybridPptx(
           return b.rect.w * b.rect.h - a.rect.w * a.rect.h;
         });
         usableShapes.length = SHAPE_CAP_PER_SLIDE;
+      }
+      for (const sb of usableShapes) {
+        (sb.el as HTMLElement).setAttribute("data-pptx-shape-hide", "true");
       }
 
       // ---- Photo zones extraction + filtering on availability
