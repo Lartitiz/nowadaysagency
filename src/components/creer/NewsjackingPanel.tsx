@@ -131,6 +131,10 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
   const [customIntent, setCustomIntent] = useState("");
   // angles cache, keyed by actu index
   const [anglesByIdx, setAnglesByIdx] = useState<Record<number, AnglesState>>({});
+  // Déduplication synchrone des fetchs d'angles (évite spinner infini lié au
+  // batching React 18 quand l'updater est différé).
+  const primaryStartedRef = useRef<Set<number>>(new Set());
+  const variantsStartedRef = useRef<Set<number>>(new Set());
   // Compteur écoulé pendant la recherche (rassure l'utilisatrice)
   const [searchElapsed, setSearchElapsed] = useState(0);
   useEffect(() => {
