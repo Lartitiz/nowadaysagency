@@ -4,7 +4,8 @@
  */
 
 import { useEffect, useState } from "react";
-import { Download, Loader2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Download, Loader2, Sparkles } from "lucide-react";
 import {
   Dialog,
   DialogContent,
