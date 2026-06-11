@@ -317,7 +317,35 @@ serve(async (req) => {
       let photoInstruction = "";
       if (hasPhotos && (isPhotoMode || isMixMode)) {
         if (isPhotoMode) {
-          photoInstruction = `\nMODE PHOTO — ${photos.length} photo(s) fournies.\nAnalyse chaque photo et propose une structure où CHAQUE slide utilise une photo.\nPour chaque slide, indique "photo_index" (1-based, correspondant à l'ordre des photos fournies) et "slide_type": "photo_full".\nAssigne les photos aux slides en fonction de leur contenu visuel et du rôle narratif de la slide.\n${photo_description ? `Description complémentaire des photos : "${photo_description}"` : ""}`;
+          const n = photos.length;
+          const slideTarget = n === 1 ? "4 à 6"
+            : n === 2 ? "5 à 7"
+            : n <= 4 ? "6 à 8"
+            : `${n} à ${n + 2}`;
+          const photoAssignmentRule = n === 1
+            ? `Une seule photo fournie → elle apparaît sur CHAQUE slide. Le récit se construit uniquement par les textes (overlay) qui s'enchaînent.`
+            : n === 2
+            ? `Deux photos fournies → traite-les comme un duo narratif (typiquement AVANT / APRÈS, ou DEUX FACES d'une même réalité).
+- N'alterne PAS mécaniquement photo 1 / photo 2 / photo 1 / photo 2. Cette alternance est INTERDITE sans justification narrative.
+- Structure conseillée : 2-3 slides successives avec photo 1 (poser le "avant" / contexte / problème) → 1 slide pivot (bascule, déclic) → 2-3 slides avec photo 2 ("après" / résolution / nouveau regard).
+- Variante acceptée : commencer par photo 2 en hook teaser, puis revenir à photo 1 pour raconter d'où on vient, puis ramener photo 2 pour boucler.
+- Dans tous les cas, le rythme des photos doit servir un ARC narratif clair, pas un effet de montage.`
+            : `${n} photos fournies → chaque photo peut se répéter si son rôle narratif change (ex: la même photo en hook puis en clôture avec un sens nouveau). Évite l'enchaînement plat "1 photo = 1 slide" si le récit gagne à insister sur une image-clé.`;
+
+          photoInstruction = `\nMODE PHOTO — ${n} photo(s) fournie(s).
+
+NOMBRE DE SLIDES : cible ${slideTarget} slides. Le nombre de slides s'ajuste à la richesse narrative du sujet ET au nombre de photos — il n'y a PAS de plancher rigide à 7-8 slides.
+
+RÉPARTITION DES PHOTOS :
+${photoAssignmentRule}
+
+Pour chaque slide, indique "photo_index" (1-based, peut se répéter d'une slide à l'autre) et "slide_type": "photo_full".
+
+CHAÎNAGE NARRATIF DES TEXTES (CRITIQUE) :
+Les overlay_text de chaque slide doivent se lire à la suite comme UN SEUL mini-récit. La slide N reprend, prolonge ou fait basculer ce que la slide N-1 a posé. Si on permute deux slides au hasard et que ça "marche encore", c'est raté — recommence.
+
+Quand une même photo se répète sur 2-3 slides consécutives, les textes DOIVENT porter une progression (zoom narratif, avancée temporelle, retournement) — pas trois variantes d'une même idée.
+${photo_description ? `Description complémentaire des photos : "${photo_description}"` : ""}`;
         } else {
           photoInstruction = `\nMODE MIXTE — ${photos.length} photo(s) fournies.
 
@@ -360,7 +388,7 @@ RÈGLES :
 - Justifie chaque choix de position en 1 phrase max
 - Propose des titres scène-first en 4-9 mots (voir RÈGLES TITRES ci-dessous), en français
 - Sois concise et actionnable, pas théorique
-- Le nombre de slides doit être entre ${slide_count || 7} et ${(slide_count || 7) + 2}
+- Le nombre de slides cible est ${slide_count || 7} en mode TEXTE/MIX ; en mode PHOTO il s'adapte au nombre de photos (voir MODE PHOTO ci-dessous) — n'impose pas 7+ slides s'il n'y en a que 1-2.
 ${photoInstruction}
 
 ${SLIDE_TITLE_RULES}
@@ -1551,6 +1579,20 @@ Chaque carrousel doit suivre un arc narratif clair :
 - Avant-dernière : le climax ou la révélation.
 - Dernière (CTA) : phrase qui ouvre vers l'action ou la conversation.
 
+═══ CHAÎNAGE DES TEXTES — RÈGLE ABSOLUE ═══
+Les overlay_text doivent se lire à la suite comme UN SEUL mini-récit continu. Chaque slide REPREND, PROLONGE ou FAIT BASCULER ce que la précédente a posé.
+- Test interne : si on permute deux slides au hasard et que le carrousel "marche encore", c'est raté → recommence.
+- Mots de liaison narratifs autorisés en début de phrase pour matérialiser la progression : "Puis", "Et puis", "Sauf que", "Trois mois plus tard", "Ce jour-là", "Au début", "Maintenant", "Résultat", "C'est là que…".
+- Une slide standalone qui pourrait vivre seule sur Instagram = mauvais signe. On veut le contraire : une slide qui n'a de sens QUE parce qu'on a lu la précédente.
+
+═══ CAS PARTICULIERS SELON LE NOMBRE DE PHOTOS ═══
+- 1 photo unique → elle apparaît sur toutes les slides. Tout repose sur les textes qui racontent l'histoire en plusieurs temps (contexte → tension → bascule → résolution → ouverture). Le nombre de slides cible est 4-6, pas 8.
+- 2 photos (avant/après ou duo) → structure conseillée : 2-3 slides avec la photo "avant" (poser le contexte/problème) → 1 slide pivot (la bascule, le déclic) → 2-3 slides avec la photo "après" (résolution, nouveau regard). INTERDIT : alterner mécaniquement photo 1 / 2 / 1 / 2. Cible 5-7 slides.
+- 3-4 photos → chaque photo peut se répéter si son rôle narratif change. Une image-clé peut revenir en clôture pour boucler.
+- 5+ photos → comportement classique (≈ 1 photo par slide), le chaînage des textes reste obligatoire.
+
+Quand une même photo se répète sur 2-3 slides consécutives, les textes DOIVENT porter une vraie progression (zoom narratif, avancée temporelle, retournement) — JAMAIS trois variantes de la même idée.
+
 ═══ RÔLES DES SLIDES ═══
 - "hook_visuel" : la première photo + phrase qui arrête le scroll
 - "detail" : zoom sur un détail, enrichi d'une phrase sensorielle
@@ -1596,6 +1638,9 @@ RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
     "max_overlay_words": 15,
     "caption_length": 520,
     "caption_complements_not_describes": true,
+    "text_chain_continuity": true,
+    "slide_count_matches_photo_richness": true,
+    "no_mechanical_photo_alternation": true,
     "score": 85
   }
 }`;

@@ -1,60 +1,50 @@
-## Objectif
+## Problème
 
-Quand on arrive à l'étape 2 (Format) sur Instagram avec des photos préchargées :
+En mode "Carrousel full photo", avec 2 photos (typique avant/après) :
+1. L'IA force 7-8 slides peu importe le nombre de photos.
+2. Les photos sont réparties de façon arbitraire ("photo 1 / photo 2 / photo 1 / photo 2…").
+3. Les `overlay_text` de chaque slide ne s'enchaînent pas — chaque phrase vit pour elle-même, sans continuité narrative.
 
-1. **2+ photos** → la grille Insta n'affiche **que la carte "Carrousel"** (les autres formats compatibles photo — Post photo, Reel, Story — sont masqués).
-2. **1 photo** → comportement actuel inchangé (Post photo, Reel, Story, Carrousel disponibles).
-3. Dès qu'on clique sur "Carrousel" (ou s'il est auto-sélectionné), le **sous-picker des 3 types de carrousel s'affiche immédiatement** en dessous, sans collapse — l'utilisateur choisit `full photo`, `storytelling`, ou `juste photo` dans la foulée.
+L'utilisateur accepte qu'une même photo serve plusieurs slides, à condition que **le texte raconte une histoire continue de slide à slide**.
 
-## Changements
+## Changements (1 fichier : `supabase/functions/carousel-ai/index.ts`)
 
-**Fichier touché : `src/components/creer/CreerStepFormat.tsx`** (uniquement, pas de backend).
+### 1. Structure step — adapter la cible de slides au nombre de photos (lignes 317-321)
 
-### 1. Filtrer la grille Insta à 2+ photos (ligne 487)
+Réécrire `photoInstruction` pour le mode PHOTO :
+- 1 photo → cible **4-6 slides**, même photo sur toutes les slides, justifier la répétition par le récit.
+- 2 photos → cible **5-7 slides**. Privilégier une logique narrative type **avant → bascule → après** (la photo "avant" peut occuper plusieurs slides successives, idem pour "après", avec une slide pivot au milieu). **Interdire** l'alternance mécanique 1/2/1/2 sans justification narrative.
+- 3-4 photos → cible **6-8 slides**, chaque photo peut se répéter si le rôle narratif change.
+- 5+ photos → comportement actuel (1 photo ≈ 1 slide).
 
-Remplacer le filtre actuel :
-```ts
-spec.channel === "instagram" && (!hasPreloadedPhotos || formatAcceptsSinglePhoto(id) || id === "carousel")
-```
-par une logique 2+ photos :
-```ts
-const photoCount = initialPhotos?.length ?? 0;
-const multiPhotos = photoCount >= 2 && !forceShowAll;
-// filtre
-spec.channel === "instagram" && (
-  multiPhotos ? id === "carousel"
-  : !hasPreloadedPhotos || formatAcceptsSinglePhoto(id) || id === "carousel"
-)
-```
+Le `slide_count` envoyé par le front (7) devient une **suggestion plafond**, pas un plancher. Supprimer la phrase "Ne descends JAMAIS sous N slides".
 
-À 2+ photos, seule la carte Carrousel reste visible dans la grille.
+### 2. `buildPhotoCarouselPrompt` — règle de continuité narrative (ligne 1529+)
 
-### 2. Auto-dérouler le sous-picker
+Ajouter un bloc **CHAÎNAGE DES TEXTES — OBLIGATOIRE** :
+- Les `overlay_text` doivent se lire à la suite comme un mini-récit continu : chaque slide reprend, prolonge ou fait basculer ce que la précédente a posé.
+- Test interne : si on permute deux slides au hasard et que le carrousel "marche encore", c'est raté.
+- Mots de liaison narratifs autorisés en début de slide : "Puis", "Et puis", "Sauf que", "Trois mois plus tard", "Ce jour-là", "Au début", "Maintenant", "Résultat" — pour matérialiser la progression temporelle/logique.
+- Une photo qui se répète sur 2-3 slides consécutives DOIT porter une progression de texte (zoom narratif, avancée temporelle, retournement) — pas 3 variantes de la même idée.
 
-Le sous-picker (lignes 589-668) est déjà conditionné par `selectedFormat === "carousel"`. Quand l'utilisateur clique la carte Carrousel, `selectedFormat` passe à `"carousel"` et le picker s'affiche déjà.
+Adapter aussi la section "PROGRESSION NARRATIVE" :
+- Cas **2 photos (avant/après)** explicite : slides 1-N₁ posent l'avant (mêmes ou variations de la photo "avant"), 1 slide pivot raconte la bascule, slides N₁+2 → fin montrent l'après. Le texte fait le pont de bout en bout.
+- Cas **1 photo unique** : la photo reste, les textes racontent l'histoire en plusieurs temps (contexte → tension → bascule → résolution → ouverture).
 
-Le seul changement comportemental : **ne pas afficher la version "chip collapsed"** quand on vient de cliquer Carrousel — on garde le picker complet visible jusqu'à ce que les 3 cartes soient cliquées. Actuellement la chip s'affiche dès que `carouselSubMode` est défini, ce qui est bien — pas de changement nécessaire ici.
+### 3. `quality_check` enrichi (ligne 1593-1600)
 
-En revanche, pour que le sous-picker soit immédiatement visible **sans avoir à scroller**, ajouter un `scrollIntoView` doux dans `handleFormatSelect` quand `id === "carousel"` et `carouselSubMode === null`.
+Ajouter :
+- `text_chain_continuity: true` — chaque overlay s'enchaîne avec le précédent
+- `slide_count_matches_photo_richness: true` — le nombre de slides est proportionné aux photos
+- `no_mechanical_photo_alternation: true` — pas d'alternance 1/2/1/2 sans raison narrative
 
-### 3. Hint sous la grille (ligne 383-409)
+### 4. Pas de changement frontend, pas de changement DB
 
-Adapter le texte d'aide quand `multiPhotos` est vrai :
-> "Avec plusieurs photos, on part forcément sur un carrousel. Choisis le type ci-dessous."
-
-Avec un lien "Tout afficher quand même" qui bascule `forceShowAll = true` pour réafficher Post / Reel / Story (comportement déjà existant).
+Le front continue d'envoyer `slide_count: 7` ; le prompt l'interprète maintenant comme un plafond souple modulé par `photos.length`.
 
 ## Hors scope
 
-- Pas de modification du backend (`carousel-ai`, etc.).
-- Pas de changement sur LinkedIn ou Pinterest.
-- Pas de changement du flux 1 photo unique.
-- Pas de modification des prompts ou de la génération.
-
-## Récap UX
-
-| Photos préchargées | Grille Insta affichée | Sous-picker carrousel |
-|---|---|---|
-| 0 | Tous les formats | Au clic sur Carrousel : 4 cartes (texte + 3 photo) |
-| 1 | Post photo, Reel, Story, Carrousel | Au clic sur Carrousel : 3 cartes photo |
-| 2+ | **Carrousel uniquement** | Auto-déroulé : 3 cartes photo |
+- Mode MIX (`carousel_type === "mix"`) inchangé — le problème décrit concerne le mode PHOTO pur.
+- Mode `pure_photo` inchangé.
+- Pas de modification du flux LinkedIn carousel.
+- Pas de UI ajoutée pour choisir le nombre de slides (l'IA s'adapte automatiquement).
