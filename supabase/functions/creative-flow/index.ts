@@ -1420,7 +1420,12 @@ Réponds UNIQUEMENT en JSON :
       const maxTokens = step === "questions" ? 800 : undefined;
       const isLinkedInText = !!contentType?.includes("linkedin") && step !== "questions";
       const tempText = isLinkedInText ? 0.7 : 0.85;
-      rawContent = await callAnthropicSimple(getModelForAction("content"), systemPrompt, userPrompt!, tempText, maxTokens);
+      // L1 : Haiku pour les steps `questions` et `follow-up` (3-5× plus rapide que Sonnet,
+      // suffisant pour des questions structurées en JSON). Sonnet reste pour la génération de contenu.
+      const modelForCall = (step === "questions" || step === "follow-up")
+        ? getModelForAction("questions")
+        : getModelForAction("content");
+      rawContent = await callAnthropicSimple(modelForCall, systemPrompt, userPrompt!, tempText, maxTokens);
     }
 
     let parsed;
