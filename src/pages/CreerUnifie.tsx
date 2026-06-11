@@ -1782,10 +1782,13 @@ export default function CreerUnifie() {
       const response = await fetch(raw);
       const blob = await response.blob();
       
-      const path = `${session.user.id}/${postId}/photos/photo-${i + 1}.jpg`;
+      const mime = blob.type || "image/jpeg";
+      const ext = mime === "image/png" ? "png" : "jpg";
+      
+      const path = `${session.user.id}/${postId}/photos/photo-${i + 1}.${ext}`;
       const { error } = await supabase.storage
         .from("calendar-visuals")
-        .upload(path, blob, { contentType: "image/jpeg", upsert: true });
+        .upload(path, blob, { contentType: mime, upsert: true });
       
       if (error) {
         console.error(`Failed to upload photo ${i + 1}:`, error);
