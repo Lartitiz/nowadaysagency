@@ -132,9 +132,23 @@ serve(async (req) => {
       fd.append("outputSize", "originalImage");
 
       if (parsed.mode === "replace_bg") {
-        fd.append("background.prompt", parsed.prompt!.trim());
+        if (parsed.background_image_base64) {
+          try {
+            const bg = decodeBase64Image(parsed.background_image_base64);
+            const bgBlob = new Blob([bg.bytes], { type: bg.mime });
+            fd.append(
+              "background.imageFile",
+              bgBlob,
+              "bg." + (bg.mime.split("/")[1] || "jpg"),
+            );
+          } catch {
+            throw new Error("Image de fond invalide");
+          }
+        } else if (parsed.prompt) {
+          fd.append("background.prompt", parsed.prompt.trim());
+        }
       }
-      // For remove_bg → no background.prompt → transparent PNG output.
+      // For remove_bg → no background.* → transparent PNG output.
 
       return await fetch(PHOTOROOM_URL, {
         method: "POST",
