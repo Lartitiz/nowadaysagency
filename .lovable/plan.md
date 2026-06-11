@@ -1,42 +1,30 @@
-# Afficher les photos dans la preview LinkedIn du calendrier
+## Objectif
+Ajouter une petite note douce et éducative dans le panel Newsjacking (état "idle", avant lancement), juste au-dessus du bouton **Lancer la recherche**, pour rassurer l'utilisateur : parfois une actu semble hors sujet, mais c'est justement le lien inattendu qui crée l'impact.
 
-## Diagnostic
+## Emplacement technique
+`src/components/creer/NewsjackingPanel.tsx`, ligne ~447, dans le bloc `!started && !loading` (idle state), juste avant le `<div className="flex justify-center">` qui contient le bouton.
 
-Dans `src/components/social-mockup/SocialMockup.tsx`, le composant `LinkedInMockup` (lignes 193-315) reçoit bien `mediaUrls` via les props partagées… mais il ne le destructure pas et ne l'affiche nulle part. Seul `InstagramMockup` rend les images (ligne 94). Résultat : un post LinkedIn avec photos n'a **aucun visuel** dans la preview du `CalendarPostDialog`.
+## Variantes de texte proposées
 
-Le reste de la chaîne est bon :
-- `CalendarPostDialog.tsx:389` passe `mediaUrls={mediaUrls}` à `CalendarPostPreview`.
-- `CalendarPostPreview.tsx:39-41` fait un fallback `mediaUrls || photoUrls` et le passe à `SocialMockup` (ligne 394).
-- Le canal `linkedin` est bien routé vers `LinkedInMockup` (ligne 44).
+**A — Le secret (ton mystérieux/invitant)**
+```
+Petit secret : l'actu qui semble n'avoir aucun rapport avec ta marque est souvent celle qui surprend le plus. C'est le lien inattendu qui crée l'impact.
+```
 
-Il manque juste le rendu côté LinkedIn.
+**B — La promesse (ton rassurant)**
+```
+Petit secret : pas besoin que l'actu soit "dans ton secteur". Ce qui compte, c'est le lien que tu crées. Et souvent, c'est l'angle inattendu qui marque le plus.
+```
 
-## Changements
+**C — L'invitation à la confiance (ton doux/encourageant)**
+```
+Petit secret : l'IA cherche aussi l'angle inattendu. L'actu qui semble loin de ta marque peut devenir ton meilleur rebond — c'est le lien créatif qui fait la différence.
+```
 
-### Fichier unique : `src/components/social-mockup/SocialMockup.tsx`
-
-1. Destructurer `mediaUrls` dans la signature de `LinkedInMockup` (ligne 193-196).
-2. Ajouter un bloc média **entre la fin du header et le bloc caption** (place LinkedIn standard : image affichée juste sous l'auteur, en pleine largeur de la carte, AVANT ou après la caption — sur LinkedIn natif c'est après la caption, donc on suit ce pattern).
-3. Layouts selon le nombre de photos (style LinkedIn natif) :
-   - **1 photo** → `<img>` pleine largeur, `aspect-[4/5]` max, `object-cover`.
-   - **2 photos** → grille 2 colonnes, chaque cellule carrée.
-   - **3 photos** → 1 grande à gauche + 2 empilées à droite.
-   - **4 photos ou plus** → grille 2×2 ; si >4, overlay `+N` sur la 4ᵉ tuile.
-4. Afficher le bloc même en mode `compact` (c'est précisément en compact qu'on est dans le dialog → l'utilisatrice DOIT voir ses photos). En compact, garder la hauteur raisonnable (par ex. `max-h-64`).
-5. Ne pas casser le cas "pas de photos" : si `mediaUrls` est vide/undef, ne rien afficher (pas de placeholder LinkedIn — c'est conforme au vrai LinkedIn pour les posts texte seul).
-
-## Hors-scope (ne pas toucher)
-
-- `InstagramMockup` : fonctionne déjà.
-- `CalendarPostPreview` et `CalendarPostDialog` : la donnée arrive correctement, rien à changer.
-- Carrousels LinkedIn (PDF/slides) : géré par un autre chemin (`slides` + `CarouselSlider`), pas concerné.
-- Storage / RLS / DB : aucune modification.
+## Mise en forme
+- Encart visuel : petite bulle/info-bande avec fond légèrement teinté (`bg-primary/5` ou `bg-muted/40`), texte en `text-xs text-muted-foreground`, possiblement avec une petite icône `Lightbulb` ou `Sparkles`.
+- Pas de bordure forte, pas d'animation — juste une note discrète et chaleureuse.
 
 ## Validation
-
-1. Ouvrir un post LinkedIn existant avec photos dans le calendrier → la preview live doit montrer les photos.
-2. Tester avec 1, 2, 3, 4, 5 photos pour vérifier les layouts.
-3. Tester avec 0 photo → preview texte seul, pas de bloc image vide.
-4. Vérifier que la preview Instagram n'a pas régressé.
-
-Tout petit changement, isolé à un fichier, zéro risque sur la logique métier.
+- Vérifier le rendu visuel dans le panel Newsjacking en mode idle.
+- S'assurer que l'espacement (`space-y-5` du parent) reste cohérent.
