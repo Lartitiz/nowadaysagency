@@ -502,6 +502,29 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
                           {!isSelected && (
                             <span className="ml-auto text-[10px] text-muted-foreground/70">Voir le détail →</span>
                           )}
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            onClick={(e) => handleSaveIdea(idea, i, e)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                handleSaveIdea(idea, i, e as any);
+                              }
+                            }}
+                            title={savedIdeas.has(i) ? "Idée sauvegardée" : "Sauvegarder dans Mes idées"}
+                            className={`${isSelected ? "" : ""} ${!isSelected ? "" : "ml-auto"} inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium transition-all ${
+                              savedIdeas.has(i)
+                                ? "border-primary bg-primary/10 text-primary"
+                                : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-primary"
+                            }`}
+                          >
+                            {savedIdeas.has(i) ? (
+                              <><BookmarkCheck className="h-3 w-3" /> Sauvegardée</>
+                            ) : (
+                              <><Bookmark className="h-3 w-3" /> Sauvegarder</>
+                            )}
+                          </span>
                         </div>
                         {isSelected && idea.why_it_works && (
                           <div className="mt-3 pt-3 border-t border-border/50 animate-fade-in">
