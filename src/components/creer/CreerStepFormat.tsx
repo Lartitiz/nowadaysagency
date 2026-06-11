@@ -431,7 +431,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
                 className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
               >
                 <span className="text-2xl block mb-1">🎠</span>
-                <span className="text-xs font-semibold text-foreground">Carrousel texte</span>
+                <span className="text-xs font-semibold text-foreground">Carrousel Texte</span>
                 <p className="text-[10px] text-muted-foreground mt-0.5">8-10 slides, design auto, .pptx téléchargeable</p>
               </button>
             )}
@@ -597,10 +597,10 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
           // Collapsed chip — replaces the full picker once a sub-mode is selected
           (() => {
             const subModeMeta = {
-              text: { emoji: "📝", label: "Carrousel texte", desc: "L'IA écrit et designe les slides" },
-              photo: { emoji: "📸", label: "Carrousel full photo", desc: "Photos plein écran + texte par-dessus" },
-              mix: { emoji: "✨", label: "Carrousel storytelling", desc: "Photos + slides texte design" },
-              pure_photo: { emoji: "🖼️", label: "Carrousel juste photo", desc: "Tes photos cadrées Insta, aucun texte par-dessus" },
+              text: { emoji: "📝", label: "Carrousel Texte", desc: "L'IA écrit et designe les slides" },
+              photo: { emoji: "📸", label: "Carrousel Photos + texte intégré", desc: "Photos plein écran + texte par-dessus" },
+              mix: { emoji: "✨", label: "Carrousel Photos + slides texte", desc: "Photos + slides texte design" },
+              pure_photo: { emoji: "🖼️", label: "Carrousel Photos brutes", desc: "Tes photos cadrées Insta, aucun texte par-dessus" },
             }[carouselSubMode];
             return (
               <div className="flex items-center justify-between gap-3 rounded-xl bg-muted/30 border border-border px-3 py-2 animate-fade-in">
@@ -638,7 +638,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
                   className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-4 text-left transition-all flex flex-col gap-1.5"
                 >
                   <span className="text-2xl">📝</span>
-                  <span className="text-sm font-semibold text-foreground">Carrousel texte</span>
+                  <span className="text-sm font-semibold text-foreground">Carrousel Texte</span>
                   <p className="text-[11px] leading-snug text-muted-foreground">L'IA écrit et designe 8-10 slides. .pptx téléchargeable.</p>
                 </button>
               )}
@@ -647,7 +647,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
                 className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-4 text-left transition-all flex flex-col gap-1.5"
               >
                 <span className="text-2xl">📸</span>
-                <span className="text-sm font-semibold text-foreground">Carrousel full photo</span>
+                <span className="text-sm font-semibold text-foreground">Carrousel Photos + texte intégré</span>
                 <p className="text-[11px] leading-snug text-muted-foreground">Tes photos en plein écran, l'IA pose un texte court par-dessus chaque slide (+ légende).</p>
               </button>
               <button
@@ -655,7 +655,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
                 className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-4 text-left transition-all flex flex-col gap-1.5"
               >
                 <span className="text-2xl">✨</span>
-                <span className="text-sm font-semibold text-foreground">Carrousel storytelling</span>
+                <span className="text-sm font-semibold text-foreground">Carrousel Photos + slides texte</span>
                 <p className="text-[11px] leading-snug text-muted-foreground">Alterne tes photos et des slides texte design, avec de l'espace blanc.</p>
               </button>
               <button
@@ -663,7 +663,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
                 className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-4 text-left transition-all flex flex-col gap-1.5"
               >
                 <span className="text-2xl">🖼️</span>
-                <span className="text-sm font-semibold text-foreground">Carrousel juste photo</span>
+                <span className="text-sm font-semibold text-foreground">Carrousel Photos brutes</span>
                 <p className="text-[11px] leading-snug text-muted-foreground">Tes photos cadrées Insta, aucun texte par-dessus. L'IA écrit juste la légende.</p>
               </button>
             </div>
