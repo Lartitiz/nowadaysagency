@@ -952,13 +952,13 @@ export default function CreerUnifie() {
           photo_description: photoDescription || undefined,
           ...(newsjackingContext ? { news_context: newsjackingContext.slice(0, 3800) } : {}),
         };
-        // En mode photo/mix/pure_photo, envoyer les photos pour analyse visuelle
-        if ((carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo") && uploadedPhotos.length > 0) {
+        // En mode photo/mix, envoyer les photos pour analyse visuelle
+        if ((carouselSubMode === "photo" || carouselSubMode === "mix") && uploadedPhotos.length > 0) {
           structureBody.photos = uploadedPhotos.map(p => ({ base64: p.base64, context: p.context }));
           // Snapshot pour handleGenerateVisuals (résiste aux resets de state UI)
           setGeneratedWithPhotos(uploadedPhotos);
         }
-        const structureTimeout = (carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo") && uploadedPhotos.length > 0 ? 60000 : 30000;
+        const structureTimeout = (carouselSubMode === "photo" || carouselSubMode === "mix") && uploadedPhotos.length > 0 ? 60000 : 30000;
         const { data, error: fnError } = await invokeWithTimeout("carousel-ai", {
           body: structureBody,
         }, structureTimeout);
