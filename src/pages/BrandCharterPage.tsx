@@ -25,6 +25,8 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import BrandingCoachingFlow from "@/components/branding/BrandingCoachingFlow";
 import { ACTIVITY_TO_SECTOR, DEFAULT_SECTOR } from "@/lib/charter-palettes";
+import { extractLogoPalette, type LogoPalette } from "@/lib/extract-logo-palette";
+import LogoPaletteDialog from "@/components/branding/charter/LogoPaletteDialog";
 
 const MOOD_OPTIONS = [
   "Minimaliste", "Coloré", "Vintage", "Épuré", "Artisanal", "Pop",
