@@ -359,7 +359,7 @@ export function PhotoUploadZone({
           </div>
           <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
             {photos.map((p, idx) => (
-              <div key={`${p.name}-${idx}`} className="flex flex-col gap-1.5">
+              <div key={p.id ?? `${p.name}-${idx}`} className="flex flex-col gap-1.5">
                 <div
                   draggable
                   onDragStart={() => onThumbDragStart(idx)}
