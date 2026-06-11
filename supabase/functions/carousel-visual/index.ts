@@ -157,7 +157,9 @@ RÈGLE FALLBACK : si process_visible.stages.length !== 3, rends quand même prop
 
 IMPORTANT pour les schémas :
 - Utilise les vraies couleurs de la charte (${ch.color_primary}, ${ch.color_secondary}, ${ch.color_accent}, ${ch.color_text})
-- Les schémas doivent être CENTRÉS verticalement dans la slide
+- COMPOSITION VERTICALE : la slide est une colonne flex pleine hauteur (display:flex;flex-direction:column;height:1350px). Le bloc titre+intro est en haut, le schéma occupe l'espace restant, centré dedans (wrapper avec flex:1;display:flex;flex-direction:column;justify-content:center). Résultat attendu : l'espace au-dessus du schéma ≈ l'espace en dessous, et JAMAIS plus de ~200px de vide sous le dernier élément de la slide.
+- Si le contenu est court (intro brève + petit schéma), AUGMENTE les tailles : padding des cartes, font-size du schéma, gaps — plutôt que de laisser du vide.
+- CARTES SŒURS = MÊME HAUTEUR : dans un schéma à cartes multiples (timeline, story_arc, process_visible, comparison…), toutes les cartes d'une même rangée ont la MÊME hauteur (le conteneur flex utilise align-items:stretch, jamais center ou flex-start) et le MÊME alignement vertical de leur contenu interne.
 - Le titre de la slide (s'il existe) reste AU-DESSUS du schéma
 - Les schémas doivent respirer : pas de texte trop petit, pas de schéma qui remplit 100% de la slide
 - Si une slide a un visual_schema, le design du schéma est PRIORITAIRE sur le design par rôle
@@ -931,6 +933,8 @@ Avant de répondre, vérifie :
 3. Le carrousel utilise au maximum 3-4 layouts différents (cohérence > variété).
 4. Aucune slide n'a de ligne décorative sous un titre.
 5. Aucune slide n'a un fond beige/crème par défaut.
+6. Aucune slide n'a plus de ~200px de vide sous son dernier élément (équilibre vertical).
+7. Les cartes sœurs d'un même schéma ont toutes la même hauteur.
 Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de contenu cassé.
 `;
 
