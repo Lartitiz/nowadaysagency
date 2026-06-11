@@ -490,7 +490,38 @@ export default function Dashboard() {
               </BentoCard>
             </FirstTimeTooltip>
           </div>
-          <div className="md:col-span-1 order-first md:order-last">
+          <div className="md:col-span-1 order-first md:order-last flex flex-col gap-4">
+            {/* ─── Mes idées ─── */}
+            <div
+              onClick={() => navigate("/idees")}
+              className="rounded-[20px] p-5 sm:p-5
+                shadow-[var(--shadow-bento)]
+                hover:shadow-[var(--shadow-bento-hover)] hover:-translate-y-[3px]
+                active:translate-y-0 active:shadow-[var(--shadow-bento)]
+                transition-all duration-[250ms] ease-out
+                cursor-pointer
+                opacity-0 animate-reveal-up
+                bg-gradient-to-br from-[hsl(var(--bento-lavande))] to-[hsl(270_50%_97%)]
+                border border-border/50 text-foreground
+                flex flex-col justify-between min-h-[130px]"
+              style={{ animationDelay: `${nextDelay()}s`, animationFillMode: "forwards" }}
+            >
+              <div className="flex justify-between items-start">
+                <div className="w-9 h-9 rounded-xl bg-white/60 backdrop-blur-sm border border-white/40 flex items-center justify-center">
+                  <Lightbulb className="h-4.5 w-4.5 text-primary" />
+                </div>
+                {dashData.ideaCount > 0 && (
+                  <span className="bg-black/5 px-2 py-0.5 rounded-md text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                    {dashData.ideaCount} idée{dashData.ideaCount > 1 ? "s" : ""}
+                  </span>
+                )}
+              </div>
+              <div>
+                <h3 className="font-heading text-base font-bold text-foreground leading-tight">Mes idées</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Boîte à idées</p>
+              </div>
+            </div>
+
             <SessionFocusWidget
               brandingCompletion={dashData.brandingCompletion}
               igAuditScore={dashData.igAuditScore}
