@@ -43,14 +43,6 @@ serve(async (req) => {
       .maybeSingle();
     const workspaceId = wsMember?.workspace_id;
 
-    const quota = await checkQuota(user.id, "content", workspaceId);
-    if (!quota.allowed) {
-      return new Response(JSON.stringify({ error: quota.message, quota }), {
-        status: 429,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     const reqBody = await req.json();
     validateInput(reqBody, z.object({
       image_base64: z.string().min(1).max(10000000),
@@ -64,6 +56,14 @@ serve(async (req) => {
     }
 
     const filterWs = reqBody.workspace_id || workspaceId;
+
+    const quota = await checkQuota(user.id, "content", filterWs);
+    if (!quota.allowed) {
+      return new Response(JSON.stringify({ error: quota.message, quota }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const ctx = await getUserContext(sbAdmin, user.id, filterWs);
     const contextText = formatContextForAI(ctx, CONTEXT_PRESETS.pinterest);
@@ -185,7 +185,7 @@ FORMAT DE RÉPONSE (JSON strict, rien d'autre) :
       }
     }
 
-    await logUsage(user.id, "content", "pinterest_inspiration", undefined, model, workspaceId);
+    await logUsage(user.id, "content", "pinterest_inspiration", undefined, model, filterWs);
 
     return new Response(JSON.stringify({ result, remaining: quota.remaining }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

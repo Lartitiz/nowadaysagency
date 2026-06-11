@@ -43,14 +43,6 @@ serve(async (req) => {
       .maybeSingle();
     const workspaceId = wsMember?.workspace_id;
 
-    const quota = await checkQuota(user.id, "content", workspaceId);
-    if (!quota.allowed) {
-      return new Response(JSON.stringify({ error: quota.message, quota }), {
-        status: 429,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     const reqBody = await req.json();
     validateInput(reqBody, z.object({
       subject: z.string().min(1).max(15000),
@@ -70,6 +62,14 @@ serve(async (req) => {
 
     const { subject, pin_type, brief_hint, pinterest_link, pinterest_board } = reqBody;
     const filterWs = reqBody.workspace_id || workspaceId;
+
+    const quota = await checkQuota(user.id, "content", filterWs);
+    if (!quota.allowed) {
+      return new Response(JSON.stringify({ error: quota.message, quota }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const col = filterWs ? "workspace_id" : "user_id";
     const val = filterWs || user.id;
@@ -244,7 +244,7 @@ CHARTE : primary ${ch.color_primary}, secondary ${ch.color_secondary}, accent ${
       result.overlay_html = fontsLink + html;
     }
 
-    await logUsage(user.id, "content", "pinterest_photo_brief", undefined, model, workspaceId);
+    await logUsage(user.id, "content", "pinterest_photo_brief", undefined, model, filterWs);
 
     return new Response(JSON.stringify({ result, remaining: quota.remaining }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
