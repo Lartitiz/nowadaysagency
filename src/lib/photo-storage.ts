@@ -216,6 +216,30 @@ export async function getSignedPhotoUrl(
 }
 
 /**
+ * Signs multiple paths in a single call. Returns a Map path → signedUrl
+ * (failed paths are simply absent from the Map).
+ */
+export async function getSignedPhotoUrls(
+  paths: string[],
+  expiresInSeconds = 3600,
+): Promise<Map<string, string>> {
+  const valid = paths.filter(Boolean);
+  if (valid.length === 0) return new Map();
+
+  const { data, error } = await supabase.storage
+    .from(USER_PHOTOS_BUCKET)
+    .createSignedUrls(valid, expiresInSeconds);
+
+  if (error || !data) return new Map();
+
+  const map = new Map<string, string>();
+  for (const entry of data) {
+    if (entry.signedUrl && entry.path) map.set(entry.path, entry.signedUrl);
+  }
+  return map;
+}
+
+/**
  * Loads a user_photos row from storage and converts it to a base64 data URL,
  * matching the shape used by PhotoUploadZone (PhotoItem.base64 = full data URL).
  */

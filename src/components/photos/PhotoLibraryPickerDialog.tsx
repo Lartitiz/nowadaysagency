@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogD
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useUserPhotos } from "@/hooks/use-user-photos";
-import { getSignedPhotoUrl, type UserPhotoRow } from "@/lib/photo-storage";
+import { getSignedPhotoUrls, type UserPhotoRow } from "@/lib/photo-storage";
 
 interface PhotoLibraryPickerDialogProps {
   open: boolean;
@@ -21,26 +21,17 @@ interface PhotoLibraryPickerDialogProps {
 
 function PickerThumb({
   photo,
+  url,
   selected,
   disabled,
   onToggle,
 }: {
   photo: UserPhotoRow;
+  url: string | null;
   selected: boolean;
   disabled: boolean;
   onToggle: () => void;
 }) {
-  const [url, setUrl] = useState<string | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    getSignedPhotoUrl(photo.storage_path).then((u) => {
-      if (!cancelled) setUrl(u);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [photo.storage_path]);
-
   return (
     <button
       type="button"
@@ -83,16 +74,32 @@ export function PhotoLibraryPickerDialog({
 }: PhotoLibraryPickerDialogProps) {
   const { data: photos, isLoading } = useUserPhotos();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [urlMap, setUrlMap] = useState<Map<string, string>>(new Map());
+
+  const readyPhotos = useMemo(
+    () => (photos ?? []).filter((p) => p.status === "ready"),
+    [photos],
+  );
 
   // Reset selection on every open
   useEffect(() => {
     if (open) setSelectedIds([]);
   }, [open]);
 
-  const readyPhotos = useMemo(
-    () => (photos ?? []).filter((p) => p.status === "ready"),
-    [photos],
-  );
+  // Batch-sign all ready photos when the dialog opens or photos change
+  useEffect(() => {
+    if (!open || readyPhotos.length === 0) {
+      setUrlMap(new Map());
+      return;
+    }
+    let cancelled = false;
+    getSignedPhotoUrls(readyPhotos.map((p) => p.storage_path)).then((map) => {
+      if (!cancelled) setUrlMap(map);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, readyPhotos]);
 
   const atMax = selectedIds.length >= maxSelectable;
 
@@ -143,6 +150,7 @@ export function PhotoLibraryPickerDialog({
                 <PickerThumb
                   key={p.id}
                   photo={p}
+                  url={urlMap.get(p.storage_path) ?? null}
                   selected={selectedIds.includes(p.id)}
                   disabled={atMax}
                   onToggle={() => toggle(p.id)}
