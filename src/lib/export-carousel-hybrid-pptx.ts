@@ -681,6 +681,16 @@ export async function exportCarouselHybridPptx(
           console.warn("[hybrid] addBlockToSlide failed", e);
         }
       }
+
+      // ---- Logo de marque (top layer, opt-in via logoUrl) ----
+      if (logoBase64) {
+        try {
+          const r = getPptxLogoRect(PPTX_W_IN, PPTX_H_IN);
+          slide.addImage({ data: logoBase64, x: r.x, y: r.y, w: r.w, h: r.h, sizing: { type: "contain", w: r.w, h: r.h } });
+        } catch (e) {
+          console.warn("[hybrid] addImage(logo) failed", e);
+        }
+      }
     } catch (e) {
       console.error("[hybrid] slide capture failed", e);
       slide.background = { color: normalizeHex(charter?.color_background, "FFFFFF") };
