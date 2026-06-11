@@ -622,10 +622,15 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
 
       {/* Loading */}
       {loading && (
-        <div className="flex flex-col items-center justify-center py-16 gap-4">
+        <div className="flex flex-col items-center justify-center py-16 gap-3">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <p className="text-sm text-muted-foreground animate-pulse">
             L'IA explore l'univers de ta marque et l'actu…
+          </p>
+          <p className="text-xs text-muted-foreground/80 tabular-nums">
+            {searchElapsed < 30
+              ? `Recherche en cours… ${searchElapsed}s`
+              : `L'IA fouille le web, ça peut prendre jusqu'à 2 min… ${searchElapsed}s`}
           </p>
         </div>
       )}
