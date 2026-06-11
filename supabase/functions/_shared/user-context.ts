@@ -108,6 +108,7 @@ export async function getUserContext(supabase: any, userId: string, workspaceId?
   ]);
 
   return {
+    profileUserId,
     storytelling: stRes.data,
     persona,
     tone: toneRes.data,

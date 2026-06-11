@@ -97,6 +97,7 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const t0 = Date.now();
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
@@ -185,17 +186,9 @@ serve(async (req) => {
     // ─────────────────────────────────────────────────────────────
     let universe: BrandUniverse = EMPTY_UNIVERSE;
     try {
-      // Resolve the brand_profile owner (workspace owner if shared, else current user)
-      let bpUserId = user.id;
-      if (workspace_id) {
-        const { data: ownerRow } = await sbService
-          .from("workspace_members")
-          .select("user_id")
-          .eq("workspace_id", workspace_id)
-          .eq("role", "owner")
-          .maybeSingle();
-        if (ownerRow?.user_id) bpUserId = ownerRow.user_id;
-      }
+      // Resolve the brand_profile owner via getUserContext (single source of truth)
+      const bpUserId = (ctx as any).profileUserId ?? user.id;
+
 
       const { data: bpRow } = await sbService
         .from("brand_profile")
@@ -593,7 +586,13 @@ Si vraiment rien ne fonctionne (moins de 3 sujets connectés trouvables), retour
 { "actus": [], "message": "Pas de phénomène suffisamment connectable trouvé cette semaine. Réessaie dans quelques jours !" }`;
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 170000);
+    const remainingBudget = Math.max(60_000, 170_000 - (Date.now() - t0));
+    const timeout = setTimeout(() => controller.abort(), remainingBudget);
+
+    const exclusionBlock = excludedUrls.length > 0
+      ? `\n\nSUJETS DÉJÀ PROPOSÉS À L'UTILISATRICE — ne reprends AUCUNE de ces sources, ni le même sujet reformulé depuis une autre source :\n` +
+        excludedUrls.map((u) => `- ${u}`).join("\n")
+      : "";
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -606,7 +605,7 @@ Si vraiment rien ne fonctionne (moins de 3 sujets connectés trouvables), retour
         model,
         max_tokens: 4096,
         tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5 }],
-        messages: [{ role: "user", content: systemPrompt + `\n\nFais les recherches maintenant. Pour chaque sujet candidat, applique les 3 garde-fous : (1) pont explicite concret citant le profil, (2) registre tagué + ⌈N/3⌉ décalants, (3) auto-évalue "force_pont" — si "fragile", jette. Au moins 2/3 des sujets renvoyés doivent être "fort". Mieux vaut 3 sujets ultra-connectés que 6 hors-sol.` }],
+        messages: [{ role: "user", content: systemPrompt + exclusionBlock + `\n\nFais les recherches maintenant. Pour chaque sujet candidat, applique les 3 garde-fous : (1) pont explicite concret citant le profil, (2) registre tagué + ⌈N/3⌉ décalants, (3) auto-évalue "force_pont" — si "fragile", jette. Au moins 2/3 des sujets renvoyés doivent être "fort". Mieux vaut 3 sujets ultra-connectés que 6 hors-sol.` }],
       }),
       signal: controller.signal,
     });
