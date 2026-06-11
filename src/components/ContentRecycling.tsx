@@ -193,6 +193,64 @@ export default function ContentRecycling() {
 
   const formatLabel = (id: string) => FORMATS.find(f => f.id === id)?.label || id;
 
+  const getFormatShortLabel = (id: string) => {
+    switch (id) {
+      case "carrousel": return "Carrousel";
+      case "reel": return "Reel";
+      case "stories": return "Stories";
+      case "linkedin": return "Post LinkedIn";
+      case "newsletter": return "Newsletter";
+      default: return id;
+    }
+  };
+  const getCanal = (id: string) =>
+    id === "linkedin" ? "linkedin" : id === "newsletter" ? "newsletter" : "instagram";
+  const getCalendarFormat = (id: string) => {
+    switch (id) {
+      case "carrousel": return "carousel";
+      case "reel": return "reel";
+      case "stories": return "story_serie";
+      case "linkedin": return "post";
+      case "newsletter": return "newsletter";
+      default: return "post";
+    }
+  };
+  const getContentType = (id: string): "story" | "reel" | "post_instagram" | "post_linkedin" | "newsletter" => {
+    switch (id) {
+      case "reel": return "reel";
+      case "stories": return "story";
+      case "linkedin": return "post_linkedin";
+      case "newsletter": return "newsletter";
+      default: return "post_instagram";
+    }
+  };
+
+  const activeText = activeTab ? (results[activeTab] || "") : "";
+  const canExport = activeText.trim().length > 0;
+
+  const handleAddToCalendar = async (dateStr: string) => {
+    if (!user || !activeTab) return;
+    const text = results[activeTab] || "";
+    const insertData: any = {
+      user_id: user.id,
+      date: dateStr,
+      theme: `Recyclage ${getFormatShortLabel(activeTab)}`,
+      canal: getCanal(activeTab),
+      format: getCalendarFormat(activeTab),
+      content_draft: text,
+      accroche: text.split("\n")[0]?.slice(0, 200) || "",
+      status: "ready",
+    };
+    if (workspaceId && workspaceId !== user.id) insertData.workspace_id = workspaceId;
+    const { error } = await supabase.from("calendar_posts").insert(insertData);
+    setShowCalendarDialog(false);
+    if (error) {
+      toast({ title: "Erreur lors de la planification", variant: "destructive" });
+    } else {
+      toast({ title: "📅 Planifié dans ton calendrier !" });
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       {loading ? (
