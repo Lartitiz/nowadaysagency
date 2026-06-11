@@ -410,12 +410,35 @@ export default function ContentRecycling() {
                 <Button variant="outline" size="sm" onClick={() => copyContent(results[activeTab])} className="rounded-pill gap-1.5">
                   <Copy className="h-3.5 w-3.5" /> Copier
                 </Button>
+                <Button variant="outline" size="sm" disabled={!canExport} onClick={() => setShowCalendarDialog(true)} className="rounded-pill gap-1.5">
+                  <CalendarDays className="h-3.5 w-3.5" /> Planifier
+                </Button>
+                <Button variant="outline" size="sm" disabled={!canExport} onClick={() => setShowIdeasDialog(true)} className="rounded-pill gap-1.5">
+                  <Lightbulb className="h-3.5 w-3.5" /> Sauvegarder en idée
+                </Button>
                 <Button variant="ghost" size="sm" onClick={() => { setResults({}); setActiveTab(""); setFiles([]); }} className="rounded-pill gap-1.5">
                   <RefreshCw className="h-3.5 w-3.5" /> Nouveau recyclage
                 </Button>
               </div>
 
               <BaseReminder variant="atelier" />
+
+              <AddToCalendarDialog
+                open={showCalendarDialog}
+                onOpenChange={setShowCalendarDialog}
+                onConfirm={handleAddToCalendar}
+                contentLabel={`♻️ Recyclage ${getFormatShortLabel(activeTab)}`}
+                contentEmoji="♻️"
+              />
+              <SaveToIdeasDialog
+                open={showIdeasDialog}
+                onOpenChange={setShowIdeasDialog}
+                contentType={getContentType(activeTab)}
+                subject={`Recyclage : ${getFormatShortLabel(activeTab)}`}
+                contentData={{ type: "recycling", format: activeTab, text: activeText }}
+                sourceModule="recycling"
+                format={getCalendarFormat(activeTab)}
+              />
             </div>
           )}
         </>
