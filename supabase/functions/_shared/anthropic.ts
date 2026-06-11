@@ -53,6 +53,10 @@ const MODEL_MAP: Record<string, AnthropicModel> = {
   "offer": "claude-sonnet-4-5-20250929",
   "scoring": "claude-sonnet-4-5-20250929",
   "voice": "claude-sonnet-4-5-20250929",
+
+  // Haiku : tâches courtes et structurées (génération de questions, classification)
+  // Override possible via env AI_MODEL_QUESTIONS pour revenir à Sonnet en cas de souci.
+  "questions": (Deno.env.get("AI_MODEL_QUESTIONS") as AnthropicModel) || "claude-haiku-4-5",
 };
 
 export function getModelForAction(action: string): AnthropicModel {
