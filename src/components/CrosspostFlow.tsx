@@ -95,9 +95,9 @@ export default function CrosspostFlow() {
 
   const canGenerate = () => {
     if (targets.size === 0) return false;
-    if (inputMode === "text") return sourceContent.trim().length > 0;
+    if (inputMode === "text") return sourceContent.trim().length > 0 && sourceContent.length <= 10000;
     if (inputMode === "files") return files.length > 0;
-    return sourceContent.trim().length > 0 || files.length > 0;
+    return sourceContent.length <= 10000 && (sourceContent.trim().length > 0 || files.length > 0);
   };
 
   const generate = async () => {
@@ -238,8 +238,16 @@ export default function CrosspostFlow() {
               value={sourceContent}
               onChange={(e) => setSourceContent(e.target.value)}
               placeholder={inputMode === "both" ? "Ajoute du contexte ou du texte complémentaire..." : "Colle ton contenu ici..."}
-              className="min-h-[120px] mb-3"
+              className="min-h-[120px] mb-1"
             />
+            <p className={`text-xs ${sourceContent.length > 10000 ? "text-destructive" : "text-muted-foreground"}`}>
+              {sourceContent.length} / 10 000 caractères
+            </p>
+            {sourceContent.length > 10000 && (
+              <p className="text-xs text-destructive mt-1">
+                Ton contenu est un peu long pour être traité d'un coup. Garde l'essentiel ou découpe-le en deux passages.
+              </p>
+            )}
           </>
         )}
 
