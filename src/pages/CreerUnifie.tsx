@@ -126,7 +126,10 @@ export default function CreerUnifie() {
     if (!ps?.step) return "idea";
     if (ps.step === "result" && ps.result) return "result";
     if (ps.step === "edit" && ps.editContent) return "edit";
-    if (["result", "edit", "inspiration_proposals", "structure_review"].includes(ps.step)) return "idea";
+    // États avec données volatiles non persistées (questions IA, structure, propositions, result/edit invalides)
+    if (["questions", "structure_review", "inspiration_proposals", "result", "edit"].includes(ps.step)) {
+      return ps.selectedFormat ? "format" : "idea";
+    }
     return ps.step as Step;
   })();
   const [step, setStep] = useState<Step>(safeStep);
@@ -184,7 +187,14 @@ export default function CreerUnifie() {
     (saved) => {
       if (!shouldRestore) return; // Fresh navigation — don't restore
       if (searchParams.get("format") || searchParams.get("sujet")) return;
-      if (saved.step && saved.step !== "idea") setStep(saved.step as Step);
+      if (saved.step && saved.step !== "idea") {
+        const fragile = ["questions", "structure_review", "inspiration_proposals", "result", "edit"];
+        const safe = fragile.includes(saved.step as string)
+          ? (saved.selectedFormat ? "format" : "idea")
+          : saved.step;
+        // Ne pas écraser un step déjà "result"/"edit" valablement restauré par safeStep
+        setStep((prev) => (prev === "result" || prev === "edit" ? prev : (safe as Step)));
+      }
       if (saved.ideaText) setIdeaText(saved.ideaText);
       if (saved.objective) setObjective(saved.objective);
       if (saved.selectedFormat) setSelectedFormat(saved.selectedFormat);
