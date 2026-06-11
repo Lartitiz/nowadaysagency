@@ -49,15 +49,19 @@ export async function exportPinterestVisualPptx(
 
 export async function exportPinterestVisualPng(
   pinHtml: string,
-  fileName = "epingle-pinterest"
+  fileName = "epingle-pinterest",
+  logoUrl?: string | null,
 ) {
+  const logoBase64 = await fetchLogoAsBase64(logoUrl);
+  const logoOverlayHtml = logoBase64 ? buildLogoOverlayHtml(logoBase64, PIN_W) : "";
+
   const container = document.createElement("div");
   container.style.cssText =
     "position:fixed;top:-9999px;left:-9999px;width:1000px;height:1500px;overflow:hidden;z-index:-1;";
   document.body.appendChild(container);
 
   try {
-    container.innerHTML = pinHtml;
+    container.innerHTML = pinHtml + logoOverlayHtml;
     await document.fonts.ready;
     await new Promise((r) => setTimeout(r, 300));
 
