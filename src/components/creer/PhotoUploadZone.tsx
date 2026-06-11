@@ -343,6 +343,30 @@ export function PhotoUploadZone({
         </div>
       )}
 
+      {/* ── "Choose from library" link (non-compact mode) ───── */}
+      {!compact && (
+        <div className="flex justify-center -mt-1">
+          <button
+            type="button"
+            onClick={() => setLibraryOpen(true)}
+            disabled={isFull || importingFromLibrary}
+            className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline font-medium disabled:opacity-50 disabled:no-underline disabled:cursor-not-allowed"
+          >
+            {importingFromLibrary ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Import…
+              </>
+            ) : (
+              <>
+                <Library className="h-3.5 w-3.5" />
+                Choisir dans mes photos
+              </>
+            )}
+          </button>
+        </div>
+      )}
+
       <input
         ref={inputRef}
         type="file"
