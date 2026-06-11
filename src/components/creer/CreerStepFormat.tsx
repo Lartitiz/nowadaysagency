@@ -161,7 +161,8 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
       setUploadedPhotos(initialPhotos!);
       setPhotoDescription(initialPhotoDescription ?? "");
       if (id === "carousel") {
-        setCarouselSubMode(opts?.keepCarouselSubMode ?? "mix");
+        // Laisser l'utilisateur choisir le type de carrousel (sous-picker affiché)
+        setCarouselSubMode(opts?.keepCarouselSubMode ?? null);
         setPhotoMode(false);
       } else if (formatAcceptsSinglePhoto(id)) {
         setCarouselSubMode(null);
