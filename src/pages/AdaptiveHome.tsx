@@ -274,26 +274,6 @@ export default function AdaptiveHome() {
         <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
       </Button>
 
-      <div className="flex flex-wrap gap-2 mt-4">
-        {[
-          { label: "Post Instagram", route: "/creer" },
-          { label: "Carousel", route: "/creer?format=carousel" },
-          { label: "Reel", route: "/creer?format=reel" },
-          { label: "Post LinkedIn", route: "/creer?canal=linkedin" },
-          { label: "Article de blog", route: "/site/accueil" },
-        ].map((item) => (
-          <button
-            key={item.route + item.label}
-            onClick={(e) => { e.stopPropagation(); handleNavigate(item.route); }}
-            className="text-xs font-medium px-3.5 py-2 rounded-xl
-              bg-card/80 border border-primary/15 text-foreground
-              hover:bg-primary hover:text-primary-foreground hover:border-primary
-              transition-all duration-150"
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
 
       <div className="mt-6 mb-3 h-px bg-border/60" />
 
