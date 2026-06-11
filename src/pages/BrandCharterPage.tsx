@@ -522,6 +522,15 @@ export default function BrandCharterPage() {
       // Cache-bust pour forcer le re-fetch après upsert
       update("logo_url", `${urlData.publicUrl}?v=${Date.now()}`);
       toast.success("Logo uploadé !");
+
+      // Extraction couleurs (silencieuse en cas d'échec)
+      try {
+        const palette = await extractLogoPalette(uploadFile);
+        setLogoPalette(palette);
+        setLogoPaletteOpen(true);
+      } catch (e) {
+        console.warn("[logo palette extraction skipped]", e);
+      }
     } catch (err: any) {
       toast.error(err?.message || "Erreur lors de l'upload du logo");
       console.error(err);
