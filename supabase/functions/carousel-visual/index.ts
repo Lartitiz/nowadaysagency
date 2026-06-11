@@ -7,6 +7,7 @@ import { callAnthropic, type AnthropicModel } from "../_shared/anthropic.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { buildPptxInvariants, formatInvariantsForPrompt } from "../_shared/pptx-invariants.ts";
+import { extractImagePayload } from "../_shared/image-utils.ts";
 
 /**
  * Bloc partagé : templates HTML/CSS des schémas visuels (visual_schema).
@@ -234,7 +235,7 @@ serve(async (req) => {
       charter: z.record(z.unknown()).optional().nullable(),
       custom_overrides: z.record(z.unknown()).optional().nullable(),
       template_reference_urls: z.array(z.string().url()).max(5).optional().nullable(),
-      photos: z.array(z.object({ base64: z.string() })).max(10).optional(),
+      photos: z.array(z.object({ base64: z.string(), context: z.string().max(200).optional(), mimeType: z.string().max(50).optional() })).max(10).optional(),
       carousel_type: z.string().max(50).optional().nullable(),
       workspace_id: z.string().uuid().optional().nullable(),
     }).passthrough());
@@ -816,11 +817,10 @@ Retourne UNIQUEMENT le JSON.`;
       for (let i = 0; i < reqBody.photos.length; i++) {
         const photo = reqBody.photos[i];
         if (photo.base64) {
-          // Strip data URL prefix if present (Anthropic expects raw base64)
-          const rawBase64 = photo.base64.replace(/^data:image\/[a-z]+;base64,/, "");
+          const { media_type, data } = extractImagePayload(photo.base64, photo.mimeType);
           messageContent.push({
             type: "image",
-            source: { type: "base64", media_type: "image/jpeg", data: rawBase64 }
+            source: { type: "base64", media_type, data }
           });
           messageContent.push({
             type: "text",
@@ -1038,8 +1038,9 @@ Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de con
         for (let i = 0; i < reqBody.photos.length; i++) {
           const placeholder = `{{PHOTO_${i + 1}}}`;
           // Le base64 peut déjà contenir le préfixe data URL
-          const raw = reqBody.photos[i].base64;
-          const base64Url = raw.startsWith("data:") ? raw : `data:image/jpeg;base64,${raw}`;
+          const p = reqBody.photos[i];
+          const raw = p.base64;
+          const base64Url = raw.startsWith("data:") ? raw : `data:${p.mimeType || "image/jpeg"};base64,${raw}`;
           while (html.includes(placeholder)) {
             html = html.replace(placeholder, base64Url);
           }
@@ -1074,8 +1075,9 @@ Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de con
       if (Array.isArray(reqPhotos)) {
         reqPhotos.forEach((p: any, i: number) => {
           const raw = typeof p === "string" ? p : (p?.base64 || p?.data || "");
+          const mime = typeof p === "object" && p?.mimeType ? p.mimeType : "image/jpeg";
           if (raw) {
-            const dataUrl = raw.startsWith("data:") ? raw : `data:image/jpeg;base64,${raw}`;
+            const dataUrl = raw.startsWith("data:") ? raw : `data:${mime};base64,${raw}`;
             photoBase64Map.set(i + 1, dataUrl);
           }
         });

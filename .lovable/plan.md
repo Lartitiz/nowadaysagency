@@ -1,51 +1,69 @@
-## Objectif
+## Contexte
 
-Ajouter la possibilité, dans le dialog "Modifier le fond" (PhotoEditDialog), de fournir une **image** à utiliser comme arrière-plan — en plus des presets et du prompt texte.
+Les photos retouchées via PhotoRoom ("Fond transparent") sont en PNG. Le frontend stocke leur `mimeType` dans `PhotoItem` mais le perd en route, et les Edge Functions `carousel-ai` / `carousel-visual` déclarent toutes les photos en `image/jpeg` hardcodé. L'API Anthropic rejette les bytes PNG annoncés JPEG → la génération de carrousel photo/mix échoue dès qu'une photo a été retouchée.
 
-## Diagnostic
+`creative-flow/index.ts` (lignes 21-36) gère déjà ça correctement avec `extractImagePayload` : c'est le modèle à répliquer.
 
-Aujourd'hui PhotoEditDialog propose 3 modes via la même API `photoroom-edit` :
-- preset `transparent` → `mode: remove_bg`
-- preset `studio_white` / `golden_hour` → `mode: replace_bg` + prompt texte
-- prompt libre → `mode: replace_bg` + prompt texte
+## Demandé par l'utilisateur
 
-L'edge function `photoroom-edit` appelle Photoroom v2 (`/v2/edit`) avec uniquement `background.prompt`. Or Photoroom v2 accepte aussi `background.imageFile` (image envoyée en multipart) pour utiliser une image comme fond, avec le sujet détouré par-dessus.
+### Backend
 
-## Changements
+**1. `supabase/functions/_shared/image-utils.ts` (NOUVEAU)**
+Helper partagé :
+```ts
+extractImagePayload(input: string, fallbackMime?: string): { media_type: string; data: string }
+```
+Copie exacte de la logique de `creative-flow/index.ts` lignes 21-36 :
+- (a) data URL → extraire mime + data
+- (b) sinon sniffer magic bytes (PNG / JPEG / WEBP / GIF)
+- (c) sinon `fallbackMime`, sinon `"image/jpeg"`
 
-### 1. Frontend — `src/components/creer/PhotoEditDialog.tsx`
+**2. `carousel-ai/index.ts`**
+- `pushPhotoWithContext` (~31-43) : remplacer strip regex + media_type hardcodé par `extractImagePayload(photo.base64, photo.mimeType)`. Signature : `(messageContent, photo: { base64: string; context?: string; mimeType?: string }, index)`.
+- Schéma zod (~74) : ajouter `mimeType: z.string().max(50).optional()` dans l'objet photos.
 
-- Ajouter un 3ᵉ bloc "Ou utilise ta propre image de fond" entre les presets et le prompt libre :
-  - Bouton "Choisir une image de fond" → ouvre un `<input type="file" accept="image/*">` masqué.
-  - Une fois choisie, afficher une vignette + bouton "Retirer".
-  - Convertir le fichier en base64 (data URL) côté client, stocker dans `bgImageBase64`.
-- Quand `bgImageBase64` est défini :
-  - Désélectionner tout preset, désactiver la textarea prompt (mêmes règles d'exclusivité que "transparent").
-  - `handleGenerate` envoie `mode: "replace_bg"` + `background_image_base64` (et pas de prompt).
-- Reset de `bgImageBase64` dans le `useEffect(open)`.
-- Validation côté client : taille max 5 Mo, types image, sinon toast d'erreur.
+**3. `carousel-visual/index.ts`**
+- Bloc vision photo/mix (~818-826) : remplacer strip regex + `"image/jpeg"` hardcodé par `extractImagePayload(...,  reqBody.photos[i].mimeType)`.
+- Schéma zod (~237) : ajouter `mimeType: z.string().max(50).optional()` ET `context: z.string().max(200).optional()` dans l'objet photos.
+- Post-processing `{{PHOTO_N}}` (~1042 et ~1079) : quand le base64 n'a pas de préfixe `data:`, construire le data URL avec le mimeType fourni : `` `data:${p.mimeType || "image/jpeg"};base64,${raw}` ``.
 
-### 2. Backend — `supabase/functions/photoroom-edit/index.ts`
+### Frontend
 
-- Étendre `BodySchema` : ajouter `background_image_base64: z.string().min(100).optional()`.
-- Adapter le `.refine` : pour `replace_bg`, accepter **soit** un prompt ≥ 3 caractères **soit** un `background_image_base64`.
-- Dans `callPhotoroom`, si `background_image_base64` présent :
-  - Décoder en bytes + mime (réutiliser `decodeBase64Image`).
-  - `fd.append("background.imageFile", new Blob([bgBytes], { type: bgMime }), "bg." + ext)`.
-  - Ne pas envoyer `background.prompt`.
-- Sinon, comportement actuel inchangé.
-- Aucun changement de quota / catégorie / rate limit.
+**4. `src/pages/CreerUnifie.tsx`**
+Propager `mimeType` dans tous les mappings de photos `{ base64, context }` → ajouter `mimeType: p.mimeType`. Emplacements :
+- ~955 (`structureBody.photos`)
+- ~986-989, ~1010-1013, ~1029-1032 (`doGenerate`)
+- ~1199-1202 (régénération)
+- ~2140 (`requestBody` carousel-visual : `photos: photosForVisuals.map(...)`)
 
-## Hors scope
+## Hors scope (confirmé)
 
-- Pas de stockage persistant de l'image de fond (purement en mémoire, comme la photo originale du dialog).
-- Pas de bibliothèque d'images de fond pré-fournie.
-- Pas de modification du flux `photo-background-replace` (variante persistante non utilisée ici).
-- Pas de changement UX sur les autres dialogs ou étapes.
+- `creative-flow/index.ts` : ne pas toucher (migration vers helper partagé reportée).
+- Quota / streaming SSE / prompts éditoriaux : aucun changement.
+- Prompts système/user de `carousel-visual` : aucun changement.
+- `PhotoUploadZone.tsx`, `PhotoEditDialog.tsx`, `photoroom-edit` : déjà corrects.
+- Fallback `"image/jpeg"` conservé par défaut quand rien n'est détectable.
 
-## Test manuel
+## Validation
 
-1. Ouvrir une photo → "Modifier le fond" → cliquer "Choisir une image de fond" → uploader un JPG/PNG.
-2. Lancer "Générer le nouveau fond" → l'aperçu montre le sujet détouré sur l'image fournie.
-3. "Retirer" l'image de fond → on peut revenir à un preset ou prompt texte.
-4. Tester aussi presets + prompt texte (régression : doivent toujours marcher).
+- `npx tsc --noEmit --skipLibCheck` passe.
+- Test manuel : photo → "Fond transparent" → carrousel **photo** → structure → génération → visuels OK.
+- Test manuel : même parcours sans retouche (JPEG) → comportement inchangé.
+- Idem pour carrousel **mix**.
+
+---
+
+## Propositions complémentaires (à valider séparément, NON inclus dans l'exec)
+
+En cherchant `media_type: "image/jpeg"` hardcodé dans les Edge Functions qui parlent à Anthropic, j'ai trouvé 3 autres endroits affectés par exactement le même bug dès qu'une photo PhotoRoom (PNG) y arrive :
+
+- **a)** `pinterest-photo-brief/index.ts` ligne 187 — `source: { type: "base64", media_type: "image/jpeg", data: rawBase64 }`
+- **b)** `pinterest-visual/index.ts` ligne 317 — idem
+- **c)** `pinterest-inspiration/index.ts` ligne 136 — idem (ici les images viennent probablement de scraping/upload utilisateur, à confirmer côté front)
+
+Si tu valides, je remplace chacun par `extractImagePayload(...)` avec le même helper partagé, dans un second passage. **Je ne touche pas à ces fichiers tant que tu n'as pas confirmé point par point.**
+
+Autres fichiers contenant `image/jpeg` mais qui ne posent **pas** ce problème (juste pour info, aucune action prévue) :
+- `photoroom-edit`, `photo-background-replace` : fallback de décodage entrant (sain).
+- `audit-instagram-ai`, `website-ai`, `_shared/scraping.ts` : usages non liés à un payload Anthropic image base64.
+- `generate-comment/index.ts` ligne 115 : déjà paramétré via `screenshot_media_type` (correct).
