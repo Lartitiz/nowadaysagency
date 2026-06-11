@@ -1611,6 +1611,12 @@ export default function CreerUnifie() {
         `• Ambiance : ${r.photo_brief.mood || ""}`,
       ].join("\n") : "";
       contentDraft = `📌 ${r.title || ""}\n\n${r.description || ""}\n\n${briefLines}`;
+    } else if (selectedFormat === "newsletter" && (r?.content || r?.body)) {
+      const nlBody = r.body || r.content || "";
+      accroche = (r.subject || r.accroche || nlBody.split("\n")[0] || "").slice(0, 200);
+      contentDraft = r.subject
+        ? `Objet : ${r.subject}\n${r.preview_text ? `Preview : ${r.preview_text}\n` : ""}\n${nlBody}`
+        : nlBody;
     } else {
       contentDraft = r.content || r.post || r.text || "";
       accroche = contentDraft.split("\n")[0] || "";
