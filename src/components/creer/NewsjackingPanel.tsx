@@ -811,7 +811,9 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
 
                               {anglesState?.data && (
                                 <>
-                                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Angles proposés</p>
+                                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                    {anglesState.primaryOnly ? "1ʳᵉ idée d'angle" : "Angles proposés"}
+                                  </p>
                                   {anglesState.data.map((angle, j) => {
                                     const vc = VEHICULE_CONFIG[angle.vehicule] || { emoji: "✨", label: angle.vehicule, className: "bg-muted" };
                                     return (
@@ -840,6 +842,52 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
                                       </div>
                                     );
                                   })}
+
+                                  {/* Bouton "Voir 2 autres angles" si on n'a que le primary */}
+                                  {anglesState.primaryOnly && !anglesState.variantsLoading && !anglesState.variantsError && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        fetchVariants(idx, actu);
+                                      }}
+                                      className="w-full gap-1.5"
+                                    >
+                                      <Sparkles className="h-3.5 w-3.5" /> Voir 2 autres angles
+                                    </Button>
+                                  )}
+
+                                  {anglesState.variantsLoading && (
+                                    <div className="flex flex-col gap-1 py-2 text-xs text-muted-foreground">
+                                      <div className="flex items-center gap-2">
+                                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                                        <span className="animate-pulse">Recherche de 2 autres angles…</span>
+                                      </div>
+                                      {anglesState.variantsSlow && (
+                                        <p className="pl-6 text-[11px] text-muted-foreground/80">
+                                          L'IA met plus de temps que prévu. Tu peux attendre encore un peu.
+                                        </p>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {anglesState.variantsError && (
+                                    <div className="py-2 space-y-2">
+                                      <p className="text-xs text-muted-foreground">{anglesState.variantsError}</p>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          fetchVariants(idx, actu);
+                                        }}
+                                        className="gap-1.5"
+                                      >
+                                        <RefreshCw className="h-3.5 w-3.5" /> Réessayer
+                                      </Button>
+                                    </div>
+                                  )}
                                 </>
                               )}
                             </div>
