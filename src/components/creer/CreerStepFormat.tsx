@@ -593,7 +593,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
           (() => {
             const subModeMeta = {
               text: { emoji: "📝", label: "Carrousel texte", desc: "L'IA écrit et designe les slides" },
-              photo: { emoji: "📸", label: "Carrousel photos seules", desc: "Tes photos brutes + légende générée" },
+              photo: { emoji: "📸", label: "Carrousel full photo", desc: "Photos plein écran + texte par-dessus" },
               mix: { emoji: "✨", label: "Carrousel storytelling", desc: "Photos + slides texte design" },
             }[carouselSubMode];
             return (
@@ -641,8 +641,8 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
                 className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-4 text-left transition-all flex flex-col gap-1.5"
               >
                 <span className="text-2xl">📸</span>
-                <span className="text-sm font-semibold text-foreground">Carrousel photos seules</span>
-                <p className="text-[11px] leading-snug text-muted-foreground">Tes photos brutes en plein écran. L'IA rédige uniquement la légende qui accompagne le post.</p>
+                <span className="text-sm font-semibold text-foreground">Carrousel full photo</span>
+                <p className="text-[11px] leading-snug text-muted-foreground">Tes photos en plein écran, l'IA pose un texte court par-dessus chaque slide (+ légende).</p>
               </button>
               <button
                 onClick={() => setCarouselSubMode("mix")}
@@ -650,7 +650,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
               >
                 <span className="text-2xl">✨</span>
                 <span className="text-sm font-semibold text-foreground">Carrousel storytelling</span>
-                <p className="text-[11px] leading-snug text-muted-foreground">Alterne tes photos et des slides design avec du texte construit par l'IA.</p>
+                <p className="text-[11px] leading-snug text-muted-foreground">Alterne tes photos et des slides texte design, avec de l'espace blanc.</p>
               </button>
             </div>
           </div>
