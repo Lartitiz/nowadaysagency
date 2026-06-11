@@ -1388,10 +1388,10 @@ Réponds UNIQUEMENT en JSON :
       }
 
       validPhotos.forEach((p: any, idx: number) => {
-        const cleanB64 = p.base64.replace(/^data:image\/[a-z]+;base64,/, "");
+        const { media_type, data } = extractImagePayload(String(p.base64), p.mimeType);
         photoContent.push({
           type: "image",
-          source: { type: "base64", media_type: p.mimeType || "image/jpeg", data: cleanB64 },
+          source: { type: "base64", media_type, data },
         });
         // IMPORTANT : ne JAMAIS injecter "Photo 1/N" en texte — le modèle l'imite
         // dans sa sortie. On garde un label uniquement pour le mode AVANT/APRÈS
