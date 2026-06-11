@@ -167,8 +167,9 @@ async function captureSlide(
   html: string,
   scale: number,
   useCORS: boolean,
+  logoOverlayHtml: string,
 ): Promise<Blob> {
-  const iframe = await mountSlideIframe(html);
+  const iframe = await mountSlideIframe(html, logoOverlayHtml);
   try {
     await waitForIframeReady(iframe, html);
 
@@ -194,22 +195,22 @@ async function captureSlide(
   }
 }
 
-async function captureSlideWithRetry(html: string): Promise<Blob | null> {
+async function captureSlideWithRetry(html: string, logoOverlayHtml: string): Promise<Blob | null> {
   // 1er essai : qualité retina (scale 2) + CORS strict
   try {
-    return await captureSlide(html, 2, true);
+    return await captureSlide(html, 2, true, logoOverlayHtml);
   } catch (e) {
     console.warn("[exportCarouselPng] capture failed (scale 2, CORS), retry", e);
   }
   // 2e essai : scale 2 mais on tolère le taint (images sans CORS)
   try {
-    return await captureSlide(html, 2, false);
+    return await captureSlide(html, 2, false, logoOverlayHtml);
   } catch (e) {
     console.warn("[exportCarouselPng] capture failed (scale 2, taint), retry scale 1", e);
   }
   // 3e essai : scale 1 + taint, dernière chance
   try {
-    return await captureSlide(html, 1, false);
+    return await captureSlide(html, 1, false, logoOverlayHtml);
   } catch (e) {
     console.error("[exportCarouselPng] capture failed all retries", e);
     return null;
