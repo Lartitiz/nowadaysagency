@@ -100,9 +100,9 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
   const [detailNotes, setDetailNotes] = useState("");
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !value) return;
     fetchIdeas();
-  }, [user?.id]);
+  }, [user?.id, column, value]);
 
   const fetchIdeas = async () => {
     if (!user) return;
