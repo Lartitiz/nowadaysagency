@@ -1148,6 +1148,52 @@ Réponds UNIQUEMENT en JSON :
         });
       }
 
+      // Newsletter: disable streaming, use 2-step generation + correction (same pattern as LinkedIn)
+      if (isNewsletter) {
+        const rawContent = await callAnthropicSimple(model, systemPrompt, userPrompt!, 0.7, 4096);
+
+        let parsed: any;
+        try {
+          parsed = JSON.parse(rawContent);
+        } catch {
+          const match = rawContent.match(/\{[\s\S]*\}/);
+          if (match) {
+            try { parsed = JSON.parse(match[0]); } catch { parsed = { content: rawContent }; }
+          } else {
+            parsed = { content: rawContent };
+          }
+        }
+
+        console.log(
+          `[creative-flow newsletter] subject:`,
+          parsed.subject?.length,
+          "preview:",
+          parsed.preview_text?.length,
+        );
+
+        if (parsed.content && typeof parsed.content === "string" && parsed.content.length >= 200) {
+          try {
+            const corrected = await applyCorrectionPass(parsed.content, "newsletter", {
+              logger: (m) => console.log(`[creative-flow newsletter] ${m}`),
+            });
+            if (corrected && corrected.length >= 200) {
+              parsed.content = corrected;
+            }
+          } catch (e) {
+            console.error("[creative-flow newsletter] correction pass failed:", e);
+          }
+        }
+
+        if (parsed.content && typeof parsed.content === "string") {
+          parsed.word_count = parsed.content.split(/\s+/).filter(Boolean).length;
+        }
+
+        await logUsage(userId, "content", "creative_flow", undefined, undefined, workspace_id);
+        return new Response(JSON.stringify(parsed), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       // Carousel: disable streaming, use 2-step generation + correction
       if (isCarousel) {
         const rawContent = await callAnthropicSimple(model, systemPrompt, userPrompt!, 0.85, 4096);
