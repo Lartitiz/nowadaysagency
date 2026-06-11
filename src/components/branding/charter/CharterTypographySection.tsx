@@ -44,7 +44,10 @@ function FontAutocomplete({ label, value, onChange, allowEmpty }: {
 
   const filtered = GOOGLE_FONTS_LIST.filter(f =>
     f.toLowerCase().includes(query.toLowerCase())
-  ).slice(0, 12);
+  )
+    // AI-recommended remontées en premier
+    .sort((a, b) => Number(AI_RECOMMENDED_FONTS.has(b)) - Number(AI_RECOMMENDED_FONTS.has(a)))
+    .slice(0, 12);
 
   const selectFont = (font: string) => {
     loadGoogleFont(font);
