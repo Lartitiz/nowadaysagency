@@ -460,22 +460,67 @@ export default function BrandCharterPage() {
 
   // Logo upload
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    const inputEl = e.target;
+    const file = inputEl.files?.[0];
     if (!file || !user) return;
+
+    // Size guard (5 Mo)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Fichier trop lourd (max 5 Mo)");
+      inputEl.value = "";
+      return;
+    }
+
     setLogoUploading(true);
     try {
-      const ext = file.name.split(".").pop();
+      let uploadFile: Blob = file;
+      let ext = (file.name.split(".").pop() || "").toLowerCase();
+      let contentType = file.type || "application/octet-stream";
+
+      // HEIC/HEIF detection (MIME or extension — Safari ne renseigne pas toujours le type)
+      const isHeic =
+        /heic|heif/i.test(file.type) || ext === "heic" || ext === "heif";
+
+      if (isHeic) {
+        const t = toast.loading("Conversion HEIC en cours…");
+        try {
+          const heic2any = (await import("heic2any")).default;
+          const converted = await heic2any({
+            blob: file,
+            toType: "image/jpeg",
+            quality: 0.92,
+          });
+          uploadFile = Array.isArray(converted) ? converted[0] : converted;
+          ext = "jpg";
+          contentType = "image/jpeg";
+          toast.dismiss(t);
+        } catch (convErr: any) {
+          toast.dismiss(t);
+          throw new Error(`Conversion HEIC échouée : ${convErr?.message || convErr}`);
+        }
+      }
+
+      // Whitelist extension
+      const allowed = ["jpg", "jpeg", "png", "webp", "svg"];
+      if (!allowed.includes(ext)) {
+        throw new Error(`Format non supporté (.${ext}). Utilise JPG, PNG, WEBP ou SVG.`);
+      }
+
       const path = `${user.id}/logo/logo.${ext}`;
-      const { error } = await supabase.storage.from("brand-assets").upload(path, file, { upsert: true });
+      const { error } = await supabase.storage
+        .from("brand-assets")
+        .upload(path, uploadFile, { upsert: true, contentType });
       if (error) throw error;
       const { data: urlData } = supabase.storage.from("brand-assets").getPublicUrl(path);
-      update("logo_url", urlData.publicUrl);
+      // Cache-bust pour forcer le re-fetch après upsert
+      update("logo_url", `${urlData.publicUrl}?v=${Date.now()}`);
       toast.success("Logo uploadé !");
     } catch (err: any) {
-      toast.error("Erreur lors de l'upload du logo");
+      toast.error(err?.message || "Erreur lors de l'upload du logo");
       console.error(err);
     } finally {
       setLogoUploading(false);
+      inputEl.value = "";
     }
   };
 
@@ -671,7 +716,7 @@ export default function BrandCharterPage() {
               <label className="flex flex-col items-center gap-2 cursor-pointer rounded-xl border-2 border-dashed border-border hover:border-primary/40 transition-colors p-8">
                 <Upload className="h-8 w-8 text-muted-foreground" />
                 <span className="text-sm text-muted-foreground">{logoUploading ? "Upload en cours..." : "Clique pour uploader ton logo"}</span>
-                <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} disabled={logoUploading} />
+                <input type="file" accept="image/*,.heic,.heif,image/heic,image/heif" className="hidden" onChange={handleLogoUpload} disabled={logoUploading} />
               </label>
             )}
           </section>

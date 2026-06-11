@@ -1,70 +1,39 @@
-## Objectif
+# Fix bug upload logo HEIC
 
-Le logo uploadé dans la charte graphique (`brand_charter.logo_url`) n'est aujourd'hui utilisé nulle part hors de la page Charte. On l'active à 3 endroits, en gardant le contrôle utilisateur via une case à cocher pour les exports.
+## Diagnostic
 
----
+Dans `src/pages/BrandCharterPage.tsx` (`handleLogoUpload`, lignes 462-480) :
+- `accept="image/*"` laisse passer les `.heic`/`.heif` exportés depuis un iPhone/Mac.
+- Le fichier est uploadé tel quel dans Supabase Storage (`brand-assets/{user}/logo/logo.heic`).
+- Le bucket renvoie bien une URL publique, **mais aucun navigateur (Chrome/Firefox/Edge) ne sait afficher du HEIC** → l'`<img src={data.logo_url}>` (ligne 664) casse, le logo apparaît vide/cassé, et tous les exports (carrousels, Pinterest, PPTX) qui vont charger ce logo via `fetch` puis l'embarquer dans une slide vont également échouer côté rendu.
+- En plus l'extension est dérivée naïvement de `file.name.split(".").pop()` → `HEIC` en majuscule donne un path différent à chaque upload.
 
-## 1. Logo dans les exports visuels (opt-in)
+## Plan
 
-Périmètre concerné :
-- **Carrousels** — exports `export-carousel-visual-pptx.ts`, `export-carousel-hybrid-pptx.ts`, `export-carousel-png.ts` (PPTX visuel, hybride, PNG).
-- **Épingles Pinterest** — `export-pinterest-visual-pptx.ts` + `exportPinterestVisualPng`.
-- **Couvertures PPTX** — slide de couverture du carrousel `export-carousel-visual-pptx.ts`.
+### 1. Conversion HEIC → JPEG côté client
+- Ajouter la dépendance `heic2any` (≈ 200 ko, lazy-loadée pour ne pas alourdir le bundle initial).
+- Dans `handleLogoUpload` :
+  - Détecter HEIC/HEIF via `file.type` (`image/heic`, `image/heif`) **et** fallback extension (`.heic`, `.heif`) car Safari/Finder ne renseignent pas toujours le MIME.
+  - `await import("heic2any")` puis convertir en `image/jpeg` qualité 0.92.
+  - Remplacer `file` par le `Blob` converti, forcer `ext = "jpg"` et `contentType: "image/jpeg"` lors du `upload`.
+  - Toast d'info pendant la conversion (« Conversion HEIC… ») car ça peut prendre 1-3 s sur gros fichiers.
+- Normaliser l'extension en minuscule + whitelist (`jpg|jpeg|png|webp|svg`) sinon refus avec message clair.
 
-Exports volontairement **exclus** : `export-carousel-pptx.ts` (version éditable texte pur), `export-pinterest-editable-pptx.ts` (template à remplir).
+### 2. UX upload
+- `accept="image/*,.heic,.heif"` pour que la boîte de dialogue Mac propose explicitement les HEIC.
+- Guard taille : refuser > 5 Mo avec toast (un HEIC iPhone fait souvent 3-4 Mo, le JPEG converti reste raisonnable).
+- Message d'erreur plus précis : afficher `err.message` au lieu du toast générique pour faciliter le debug futur.
 
-UX :
-- Dans le dialog "Télécharger" de chaque export concerné (carrousel + Pinterest), ajouter une `Checkbox` shadcn :
-  - Label : « Ajouter mon logo »
-  - État par défaut : **coché si `logo_url` existe**, désactivée sinon avec tooltip « Upload ton logo dans Charte graphique pour l'activer ».
-  - Préférence mémorisée par utilisateur dans `localStorage` (clé `export-include-logo`).
-- Position du logo (non configurable pour rester simple) :
-  - Carrousel slide couverture : coin bas-droit, hauteur ≈ 8% slide, padding 0.3"
-  - Carrousel slides intérieures : même position, opacité 0.8
-  - Pinterest visuel : coin bas-droit, hauteur 60px sur visuel 1500px
-- Le logo est chargé une fois en base64 (via `fetch` + `FileReader`) avant la boucle de génération de slides ; embed base64 obligatoire pour PPTX (sinon LibreOffice casse).
-
-Fallback : si le fetch du logo échoue (CORS, 404), l'export continue **sans logo** et un `toast` informe « Logo non chargé, export sans logo ».
-
-## 2. Logo dans le header du workspace
-
-- Dans `AppHeader.tsx` (3 variantes desktop / tablet / mobile) : à côté du `WorkspaceSwitcher`, afficher le logo de la charte du **workspace actif** (taille `h-7 w-7` rounded, `object-contain`).
-- Affiché **uniquement si `brand_charter.logo_url` existe pour le workspace actif** ; sinon rien (pas de placeholder).
-- Le texte « L'Assistant Com' » + badge beta restent en place (c'est notre marque produit, pas remplacée).
-- Nouvelle hook légère `useWorkspaceLogo()` qui réutilise `useBrandCharter()` et retourne `{ logoUrl }`.
-
-## 3. Logo dans les briefs photo / visuels AI
-
-Edge functions concernées :
-- `supabase/functions/pinterest-visual/index.ts` (génère la structure visuelle de l'épingle)
-- `supabase/functions/pinterest-photo-brief/index.ts` (brief photo)
-
-Changements :
-- Côté client : passer `logo_url` au payload d'invocation (lecture depuis `brand_charter`).
-- Côté edge function : si `logo_url` présent, ajouter au prompt système un bloc :
-  > « La personne a un logo de marque (URL : …). Mentionne dans le brief où placer le logo (coin discret, watermark, ou sur un objet de la scène pour les photos), sans imposer — c'est une suggestion. Pour les visuels Pinterest générés, réserve un espace bas-droit. »
-- Aucune modification de schéma ; juste enrichissement de contexte prompt.
-
----
+### 3. Vérifications connexes
+- Les autres uploads images du projet (avatars, visuels persona) utilisent les mêmes pickers ? → audit rapide de `rg "accept=\"image"` pour confirmer si on doit étendre la conversion (hors scope si non utilisés, juste signaler).
 
 ## Détails techniques
 
-**Helper partagé** `src/lib/export-logo.ts` :
-```ts
-export async function fetchLogoAsBase64(logoUrl: string | null): Promise<string | null>
-// fetch → blob → FileReader.readAsDataURL ; null sur erreur
-```
-Utilisé par les 4 fonctions d'export concernées.
-
-**Préférence checkbox** : helper trivial `localStorage.getItem("export-include-logo") !== "false"`.
-
-**Pas de migration DB** : `brand_charter.logo_url` existe déjà, `brand-assets` bucket public déjà en place.
-
----
+- `heic2any` est browser-only (utilise `libheif` compilé en WASM). L'import dynamique évite tout souci SSR/Vite.
+- Pas de changement DB ni RLS : on upload toujours dans le bucket existant `brand-assets`.
+- Pas de migration nécessaire pour les logos déjà uploadés en HEIC (s'il y en a) — on pourra les ré-uploader manuellement.
 
 ## Hors scope
 
-- Configuration de la position du logo dans les exports (toujours bas-droit).
-- Watermark sur les exports éditables texte-seul.
-- Logo dans les emails, PDFs mirror, ou dans la `SharedBrandingPage` (séparé si besoin plus tard).
-- Génération automatique de variantes du logo (clair/sombre).
+- Conversion côté Edge Function (inutile, le client fait le job).
+- Génération automatique de variantes (favicon, dark/light) — déjà discuté précédemment et non demandé.
