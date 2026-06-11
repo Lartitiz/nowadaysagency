@@ -4,7 +4,7 @@ import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildProfileBlock, buildPreGenFallback } from "../_shared/user-context.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
-import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
+import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { streamAnthropicSSE, createClientSSEStream } from "../_shared/anthropic-stream.ts";
@@ -796,10 +796,7 @@ Réponds UNIQUEMENT en JSON :
       // Check deep_research quota
       const drQuota = await checkQuota(userId, "deep_research");
       if (!drQuota.allowed) {
-        return new Response(
-          JSON.stringify({ error: "limit_reached", message: drQuota.message, remaining: 0 }),
-          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return quotaDeniedResponse(drQuota, corsHeaders);
       }
 
       const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
