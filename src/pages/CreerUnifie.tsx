@@ -1052,7 +1052,7 @@ export default function CreerUnifie() {
     const r: any = (result as any)?.raw;
     if (!r) return;
     if (!isLinkedInCarousel) return;
-    if (carouselSubMode !== "mix" && carouselSubMode !== "photo") return;
+    if (carouselSubMode !== "mix" && carouselSubMode !== "photo" && carouselSubMode !== "pure_photo") return;
 
     // Construire un résumé compact des slides (overlay_text + title + body), max ~1500 char
     const slidesArr: any[] = Array.isArray(r.slides) ? r.slides : [];
@@ -1129,7 +1129,7 @@ export default function CreerUnifie() {
   // Auto-trigger après une génération de carrousel LinkedIn mix/photo si la légende est vide
   useEffect(() => {
     if (!isLinkedInCarousel) return;
-    if (carouselSubMode !== "mix" && carouselSubMode !== "photo") return;
+    if (carouselSubMode !== "mix" && carouselSubMode !== "photo" && carouselSubMode !== "pure_photo") return;
     if (generating || captionLoading) return;
     const r: any = (result as any)?.raw;
     if (!r?.slides || !Array.isArray(r.slides) || r.slides.length === 0) return;
