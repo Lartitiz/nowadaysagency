@@ -15,13 +15,14 @@ interface NavItem {
   path: string;
   icon?: React.ReactNode;
   children?: { label: string; path: string }[];
+  freshStart?: boolean;
 }
 
 const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
   {
     label: "CRÉER",
     items: [
-      { label: "Nouveau contenu", path: "/creer", icon: <PenLine size={16} /> },
+      { label: "Nouveau contenu", path: "/creer", icon: <PenLine size={16} />, freshStart: true },
       { label: "Calendrier", path: "/calendrier", icon: <CalendarDays size={16} /> },
       { label: "Routine engagement", path: "/instagram/routine", icon: <MessageCircle size={16} /> },
     ],
@@ -296,7 +297,7 @@ export default function AppSidebar() {
                     </>
                   ) : (
                     <Link
-                      to={item.path}
+                      to={item.path + (item.freshStart ? "?new=1" : "")}
                       onClick={() => setOpen(false)}
                       className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body transition-colors ${
                         isActive(item.path) ? "bg-rose-pale text-primary font-semibold" : "text-foreground hover:bg-rose-pale"

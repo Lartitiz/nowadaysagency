@@ -86,7 +86,7 @@ type Step = "idea" | "format" | "questions" | "structure_review" | "inspiration_
 
 
 export default function CreerUnifie() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
   const { session } = useAuth();
