@@ -228,13 +228,18 @@ async function captureSlideWithRetry(html: string, logoOverlayHtml: string): Pro
 export async function exportCarouselPng(
   visualSlides: VisualSlide[],
   fileName = "carrousel",
+  logoUrl?: string | null,
 ): Promise<void> {
   if (!visualSlides || visualSlides.length === 0) return;
+
+  // Pré-charge le logo une seule fois ; injecté dans chaque slide via overlay HTML.
+  const logoBase64 = await fetchLogoAsBase64(logoUrl);
+  const logoOverlayHtml = logoBase64 ? buildLogoOverlayHtml(logoBase64, SLIDE_W) : "";
 
   const images: { name: string; blob: Blob }[] = [];
 
   for (const vs of visualSlides) {
-    const blob = await captureSlideWithRetry(vs.html);
+    const blob = await captureSlideWithRetry(vs.html, logoOverlayHtml);
     if (!blob) {
       console.warn(`[exportCarouselPng] slide ${vs.slide_number} skipped`);
       continue;
