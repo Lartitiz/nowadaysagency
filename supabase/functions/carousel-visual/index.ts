@@ -903,11 +903,7 @@ Chaque slide (texte, photo, schéma) est une colonne flex pleine hauteur :
 
 display:flex;flex-direction:column;height:1350px (+ justify-content adapté au contenu).
 
-- Le contenu se distribue sur la hauteur : JAMAIS plus de ~200px de vide consécutif en haut, au milieu ou en bas de la slide.
-
-- Contenu court → AUGMENTE les tailles (font-size, padding, gaps) plutôt que de laisser du vide.
-
-- Contenu dense → occupe la hauteur naturellement, garde les marges de respiration (~80px).
+- CONTRAINTE DE SORTIE VÉRIFIABLE : le dernier élément visible de chaque slide se termine entre 1010px et 1240px de hauteur (75-92% des 1350px). Si ton contenu finit plus haut, AUGMENTE font-sizes, paddings et gaps jusqu'à atteindre cette zone — n'ajoute pas de texte, agrandis l'existant.
 
 Une slide dont le contenu flotte dans le tiers central avec les deux autres tiers vides est un DÉFAUT à corriger avant de répondre.
 
