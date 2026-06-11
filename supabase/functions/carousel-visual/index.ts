@@ -45,31 +45,39 @@ Même structure que before_after mais avec les labels et couleurs du champ left/
 █ TIMELINE — Ligne verticale avec des étapes
 <div style="position:relative;padding-left:60px">
   <div style="position:absolute;left:24px;top:0;bottom:0;width:3px;background:linear-gradient(to bottom, ${ch.color_primary}, ${ch.color_accent})"></div>
-  <!-- Pour chaque step : cercle numéroté + label + desc -->
+  <!-- Pour chaque step : -->
+  <div style="display:flex;gap:20px;margin-bottom:24px;align-items:flex-start">
+    <div data-pptx-shape="pill" style="width:44px;height:44px;border-radius:50%;background:${ch.color_secondary};color:#FFF;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:600;flex-shrink:0">01</div>
+    <div data-pptx-shape="card" style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
+      <p data-pptx-editable="subtitle" style="font-size:24px;color:${ch.color_secondary}">LABEL</p>
+      <p data-pptx-editable="body" style="font-size:20px;color:${ch.color_text};opacity:0.85;margin-top:6px">DESC</p>
+    </div>
+  </div>
 </div>
 
 █ CHECKLIST — Liste avec des badges ✅/❌
 Pour chaque item :
-<div style="display:flex;align-items:center;gap:16px;padding:16px 24px;background:#FFF;border-radius:${ch.border_radius || 12}px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
+<div data-pptx-shape="card" style="display:flex;align-items:center;gap:16px;padding:16px 24px;background:#FFF;border-radius:${ch.border_radius || 12}px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
   <span style="font-size:28px">✅ ou ❌</span>
-  <p style="font-size:24px;color:${ch.color_text}">TEXTE</p>
+  <p data-pptx-editable="body" style="font-size:24px;color:${ch.color_text}">TEXTE</p>
 </div>
 
 █ STATS — Gros chiffres avec labels
 Pour chaque stat :
 <div style="text-align:center;padding:24px">
-  <p style="font-size:80px;font-weight:700;color:${ch.color_primary};line-height:1">73%</p>
-  <p style="font-size:22px;color:${ch.color_text};margin-top:8px;opacity:0.8">description</p>
+  <p data-pptx-editable="title" style="font-size:80px;font-weight:700;color:${ch.color_primary};line-height:1">73%</p>
+  <p data-pptx-editable="body" style="font-size:22px;color:${ch.color_text};margin-top:8px;opacity:0.8">description</p>
 </div>
 Dispose 2-3 stats en flex row avec des séparateurs visuels.
 
 █ MATRIX_2X2 — Grille 2×2 avec axes
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-  <div style="background:${ch.color_primary}15;border-radius:${ch.border_radius || 12}px;padding:24px;text-align:center">
+  <div data-pptx-shape="card" style="background:${ch.color_primary}15;border-radius:${ch.border_radius || 12}px;padding:24px;text-align:center">
     <span style="font-size:40px">EMOJI</span>
-    <p style="font-size:22px;font-weight:600;margin-top:8px">LABEL</p>
+    <p data-pptx-editable="body" style="font-size:22px;font-weight:600;margin-top:8px">LABEL</p>
   </div>
 </div>
+
 Ajoute les labels d'axes autour de la grille.
 
 █ PYRAMID — Niveaux empilés (le plus large en bas)
