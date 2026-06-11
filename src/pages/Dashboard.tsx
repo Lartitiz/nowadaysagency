@@ -208,6 +208,7 @@ export default function Dashboard() {
     contactCount: 0, prospectCount: 0, prospectConversation: 0, prospectOffered: 0,
     calendarPostCount: 0, weekPostsPublished: 0, weekPostsTotal: 0, nextPost: null,
     planData: null, recommendations: [],
+    ideaCount: 0,
   };
 
   // ── Dashboard data query ──
