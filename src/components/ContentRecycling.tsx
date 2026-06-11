@@ -12,8 +12,10 @@ import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import BaseReminder from "@/components/BaseReminder";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import AiLoadingIndicator from "@/components/AiLoadingIndicator";
-import { Mic, MicOff, Sparkles, Loader2, Copy, RefreshCw, Upload, X, Plus } from "lucide-react";
+import { Mic, MicOff, Sparkles, Loader2, Copy, RefreshCw, Upload, X, Plus, CalendarDays, Lightbulb } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { AddToCalendarDialog } from "@/components/calendar/AddToCalendarDialog";
+import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 
 const FORMATS = [
   { id: "carrousel", label: "📑 Carrousel Instagram (8 slides)", checked: true },
