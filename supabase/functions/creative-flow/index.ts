@@ -1458,6 +1458,23 @@ Réponds UNIQUEMENT en JSON :
       }
     }
 
+    // Garde anti-échec silencieux : si la génération recycle renvoie un JSON
+    // tronqué / sans `results`, on retourne une 500 SANS logUsage (pas de
+    // crédit consommé sur une génération ratée).
+    if (step === "recycle") {
+      const hasResults = parsed && typeof parsed === "object"
+        && parsed.results && typeof parsed.results === "object"
+        && Object.keys(parsed.results).length > 0;
+      if (!hasResults) {
+        console.warn("[creative-flow] recycle returned empty results, raw=", String(rawContent || "").slice(0, 500));
+        return new Response(
+          JSON.stringify({ error: "La génération a échoué en cours de route. Réessaie, ou coche moins de formats à la fois." }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+
     // ═══ PASSE DE CORRECTION LinkedIn ═══
     // Pour TOUT post LinkedIn généré (photo ou texte), on rejoue une 2ᵉ passe
     // spécialisée qui chasse cascades, anaphores, formules manufacturées, CTA génériques.
