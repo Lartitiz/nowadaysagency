@@ -991,6 +991,13 @@ export default function BrandCharterPage() {
           </TabsContent>
         </Tabs>
       </main>
+
+      <LogoPaletteDialog
+        open={logoPaletteOpen}
+        palette={logoPalette}
+        onClose={() => setLogoPaletteOpen(false)}
+        onApply={applyLogoPalette}
+      />
     </div>
   );
 }
