@@ -539,6 +539,35 @@ export default function BrandCharterPage() {
       inputEl.value = "";
     }
   };
+  const handleExtractFromExistingLogo = async () => {
+    if (!data.logo_url) return;
+    setExtractingPalette(true);
+    try {
+      const palette = await extractLogoPalette(data.logo_url);
+      setLogoPalette(palette);
+      setLogoPaletteOpen(true);
+    } catch (e: any) {
+      toast.error("Extraction impossible (logo inaccessible). Réessaie en réuploadant.");
+      console.error(e);
+    } finally {
+      setExtractingPalette(false);
+    }
+  };
+
+  const applyLogoPalette = (palette: LogoPalette) => {
+    setData(prev => ({
+      ...prev,
+      color_primary: palette.primary,
+      color_secondary: palette.secondary,
+      color_accent: palette.accent,
+      color_background: palette.background,
+      color_text: palette.text,
+    }));
+    triggerSave();
+    setLogoPaletteOpen(false);
+    toast.success("Palette mise à jour avec les couleurs du logo");
+  };
+
 
   const toggleMood = (keyword: string) => {
     const current = data.mood_keywords;
