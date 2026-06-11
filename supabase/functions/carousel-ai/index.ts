@@ -1662,6 +1662,8 @@ RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
     "text_chain_continuity": true,
     "slide_count_matches_photo_richness": true,
     "no_mechanical_photo_alternation": true,
+    "every_overlay_has_verb": true,
+    "no_nominal_fragment_lists": true,
     "score": 85
   }
 }`;
