@@ -145,6 +145,7 @@ const INITIAL: CharterData = {
   font_title: null,
   font_body: null,
   font_accent: null,
+  font_rationale: null,
   photo_style: null,
   photo_keywords: [],
   mood_keywords: [],
