@@ -37,6 +37,26 @@ interface CrosspostResult {
   versions: Record<string, { full_text?: string; script?: string; sequence?: any[]; character_count?: number; angle_choisi: string; duration?: string }>;
 }
 
+function formatStoriesSequence(sequence: any[]): string {
+  if (!Array.isArray(sequence)) return String(sequence ?? "");
+  return sequence
+    .map((item, i) => {
+      if (typeof item === "string") return item;
+      if (item && typeof item === "object") {
+        const lines: string[] = [`Story ${i + 1}`];
+        for (const [k, v] of Object.entries(item)) {
+          if (v === null || v === undefined || v === "") continue;
+          const line = typeof v === "string" ? v : typeof v === "number" ? String(v) : null;
+          if (line) lines.push(`${line}`);
+        }
+        return lines.join("\n");
+      }
+      return String(item ?? "");
+    })
+    .filter(Boolean)
+    .join("\n\n");
+}
+
 export default function CrosspostFlow() {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
@@ -135,7 +155,7 @@ export default function CrosspostFlow() {
   const getActiveVersionText = () => {
     const v = getActiveVersion();
     if (!v) return "";
-    return v.full_text || v.script || JSON.stringify(v.sequence, null, 2) || "";
+    return v.full_text || v.script || (v.sequence ? formatStoriesSequence(v.sequence) : "") || "";
   };
   const getActiveChannelLabel = () => TARGET_CHANNELS.find((c) => c.id === activeVersionKey)?.label || activeVersionKey;
   const getActiveChannelCanal = () => activeVersionKey === "linkedin" ? "linkedin" : "instagram";
@@ -288,7 +308,7 @@ export default function CrosspostFlow() {
               })}
             </TabsList>
             {Object.entries(result.versions).map(([key, version]) => {
-              const text = version.full_text || version.script || JSON.stringify(version.sequence, null, 2) || "";
+              const text = version.full_text || version.script || (version.sequence ? formatStoriesSequence(version.sequence) : "") || "";
               return (
                 <TabsContent key={key} value={key} className="space-y-3">
                   <div className="rounded-xl border border-border bg-card p-5">
@@ -298,14 +318,16 @@ export default function CrosspostFlow() {
                     )}
                     <p className="text-xs text-primary mt-1">💡 Angle choisi : {version.angle_choisi}</p>
                   </div>
-                  <RedFlagsChecker content={text} onFix={(fixed) => {
-                    if (!result) return;
-                    const updatedVersions = { ...result.versions };
-                    const version = updatedVersions[key];
-                    if (version.full_text) updatedVersions[key] = { ...version, full_text: fixed };
-                    else if (version.script) updatedVersions[key] = { ...version, script: fixed };
-                    setResult({ ...result, versions: updatedVersions });
-                  }} />
+                  {(version.full_text || version.script) && (
+                    <RedFlagsChecker content={text} onFix={(fixed) => {
+                      if (!result) return;
+                      const updatedVersions = { ...result.versions };
+                      const version = updatedVersions[key];
+                      if (version.full_text) updatedVersions[key] = { ...version, full_text: fixed };
+                      else if (version.script) updatedVersions[key] = { ...version, script: fixed };
+                      setResult({ ...result, versions: updatedVersions });
+                    }} />
+                  )}
                   <div className="flex flex-wrap gap-2">
                     <Button variant="outline" size="sm" onClick={() => handleCopy(text, key)} className="rounded-full gap-1.5">
                       {copied === key ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
