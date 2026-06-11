@@ -227,14 +227,64 @@ export async function userPhotoToBase64(
   const res = await fetch(url);
   if (!res.ok) throw new Error("Impossible de charger la photo.");
   const blob = await res.blob();
-  const mimeType = blob.type || "image/jpeg";
-  const base64: string = await new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(new Error("Lecture du fichier impossible."));
-    reader.readAsDataURL(blob);
-  });
-  return { base64, mimeType, name: photo.name || "photo" };
+  const name = photo.name || "photo";
+  const MAX_DIM = 1600;
+
+  try {
+    const bitmap = await createImageBitmap(blob);
+    let { width, height } = bitmap;
+    if (width > MAX_DIM || height > MAX_DIM) {
+      const ratio = Math.min(MAX_DIM / width, MAX_DIM / height);
+      width = Math.round(width * ratio);
+      height = Math.round(height * ratio);
+    }
+    const canvas =
+      typeof OffscreenCanvas !== "undefined"
+        ? new OffscreenCanvas(width, height)
+        : (() => {
+            const c = document.createElement("canvas");
+            c.width = width;
+            c.height = height;
+            return c as unknown as OffscreenCanvas;
+          })();
+    const ctx = canvas.getContext("2d") as
+      | OffscreenCanvasRenderingContext2D
+      | CanvasRenderingContext2D
+      | null;
+    if (!ctx) throw new Error("Canvas indisponible");
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    bitmap.close?.();
+
+    const isPng = blob.type === "image/png";
+    const outType = isPng ? "image/png" : "image/jpeg";
+    const quality = isPng ? undefined : 0.8;
+
+    let base64: string;
+    if ("convertToBlob" in canvas) {
+      const outBlob = await (canvas as OffscreenCanvas).convertToBlob(
+        isPng ? { type: outType } : { type: outType, quality },
+      );
+      base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error("Lecture du fichier impossible."));
+        reader.readAsDataURL(outBlob);
+      });
+    } else {
+      base64 = (canvas as unknown as HTMLCanvasElement).toDataURL(outType, quality);
+    }
+    return { base64, mimeType: outType, name };
+  } catch (e) {
+    console.warn("[userPhotoToBase64] resize failed, falling back to raw blob", e);
+    const mimeType = blob.type || "image/jpeg";
+    const base64: string = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error("Lecture du fichier impossible."));
+      reader.readAsDataURL(blob);
+    });
+    return { base64, mimeType, name };
+  }
 }
 
 /**
