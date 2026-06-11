@@ -386,7 +386,9 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
         <p className="text-xs text-muted-foreground -mt-1">
           {hasPreloadedPhotos ? (
             <>
-              Quelques formats sont masqués car ils n'utilisent pas tes photos.{" "}
+              {multiPhotos
+                ? "Avec plusieurs photos, on part forcément sur un carrousel. Choisis le type ci-dessous."
+                : "Quelques formats sont masqués car ils n'utilisent pas tes photos."}{" "}
               <button
                 type="button"
                 onClick={() => setForceShowAll(true)}
