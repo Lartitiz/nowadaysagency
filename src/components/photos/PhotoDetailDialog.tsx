@@ -138,8 +138,18 @@ export function PhotoDetailDialog({ photo, open, onOpenChange }: PhotoDetailDial
           )}
         </div>
 
-        <div className="flex justify-end">
-          <Button onClick={handleDownload} disabled={downloading || !url}>
+        <div className="flex justify-end gap-2">
+          {photo.status === "ready" && (
+            <Button
+              onClick={() => {
+                navigate("/creer", { state: { libraryPhotoIds: [photo.id] } });
+                onOpenChange(false);
+              }}
+            >
+              <Sparkles className="h-4 w-4 mr-2" /> Créer un contenu
+            </Button>
+          )}
+          <Button variant="outline" onClick={handleDownload} disabled={downloading || !url}>
             {downloading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Téléchargement…
