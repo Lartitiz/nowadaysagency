@@ -1,4 +1,5 @@
 import html2canvas from "html2canvas-pro";
+import { fetchLogoAsBase64, buildLogoOverlayHtml } from "./export-logo";
 
 interface VisualSlide {
   slide_number: number;
