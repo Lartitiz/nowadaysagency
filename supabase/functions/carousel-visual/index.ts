@@ -416,7 +416,7 @@ CARTES BLANCHES (pour les blocs de contenu) :
 - Border-radius: ${ch.border_radius}
 - Box-shadow: 0 4px 24px rgba(0,0,0,0.06)
 - Padding: 40px
-- Optionnel : border-left: 4px solid [couleur accent] pour une barre latérale colorée
+- Optionnel : barre latérale colorée = un div séparé (width:8px;border-radius:4px;background:[couleur accent]) accolé à la carte dans un flex avec gap:6px — JAMAIS border-left sur la carte (non exportable en shape éditable).
 
 BORDURES POINTILLÉES (pour les encadrés, citations, analogies) :
 - Border: 2px dashed ${ch.color_primary}40 (avec transparence)
