@@ -41,6 +41,8 @@ export interface PhotoItem {
   edited?: boolean;
   /** Identifiant stable généré à l'upload, utilisé comme clé React. */
   id?: string;
+  /** Si la photo vient de la photothèque (user_photos.id), pour tracker la conversion. */
+  userPhotoId?: string;
 }
 
 function mimeFromBase64(input: string, fallback = "image/jpeg"): string {
