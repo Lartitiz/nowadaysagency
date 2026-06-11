@@ -216,6 +216,28 @@ export async function getSignedPhotoUrl(
 }
 
 /**
+ * Loads a user_photos row from storage and converts it to a base64 data URL,
+ * matching the shape used by PhotoUploadZone (PhotoItem.base64 = full data URL).
+ */
+export async function userPhotoToBase64(
+  photo: UserPhotoRow,
+): Promise<{ base64: string; mimeType: string; name: string }> {
+  const url = await getSignedPhotoUrl(photo.storage_path, 300);
+  if (!url) throw new Error("Impossible de charger la photo.");
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Impossible de charger la photo.");
+  const blob = await res.blob();
+  const mimeType = blob.type || "image/jpeg";
+  const base64: string = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error("Lecture du fichier impossible."));
+    reader.readAsDataURL(blob);
+  });
+  return { base64, mimeType, name: photo.name || "photo" };
+}
+
+/**
  * Triggers a download via the browser. Uses a signed URL to fetch the blob,
  * then forces a descriptive filename.
  */

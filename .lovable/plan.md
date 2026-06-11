@@ -1,69 +1,110 @@
-## Contexte
+# Plan — Choisir des photos de la photothèque dans PhotoUploadZone
 
-Les photos retouchées via PhotoRoom ("Fond transparent") sont en PNG. Le frontend stocke leur `mimeType` dans `PhotoItem` mais le perd en route, et les Edge Functions `carousel-ai` / `carousel-visual` déclarent toutes les photos en `image/jpeg` hardcodé. L'API Anthropic rejette les bytes PNG annoncés JPEG → la génération de carrousel photo/mix échoue dès qu'une photo a été retouchée.
+Objectif : connecter la photothèque (`user_photos`) au flow de création. Une utilisatrice qui a préparé ses photos détourées dans `/photos` peut les réinjecter directement dans la zone d'upload, sans re-télécharger.
 
-`creative-flow/index.ts` (lignes 21-36) gère déjà ça correctement avec `extractImagePayload` : c'est le modèle à répliquer.
+## Fichiers modifiés / créés
 
-## Demandé par l'utilisateur
+1. **`src/lib/photo-storage.ts`** — ajouter `userPhotoToBase64`
+2. **`src/components/photos/PhotoLibraryPickerDialog.tsx`** — nouveau composant
+3. **`src/components/creer/PhotoUploadZone.tsx`** — bouton + intégration
 
-### Backend
+Aucun autre fichier touché. Aucun changement Edge Function. `PhotosPage` et `PhotoDetailDialog` ne bougent pas.
 
-**1. `supabase/functions/_shared/image-utils.ts` (NOUVEAU)**
-Helper partagé :
+## 1. Helper `userPhotoToBase64`
+
+Dans `src/lib/photo-storage.ts`, nouvelle fonction exportée :
+
+- Signature : `userPhotoToBase64(photo: UserPhotoRow): Promise<{ base64: string; mimeType: string; name: string }>`
+- `getSignedPhotoUrl(photo.storage_path, 300)` → si null, throw `"Impossible de charger la photo."`
+- `fetch(url)` → `blob()` → `FileReader.readAsDataURL` → résultat = data URL complète (incluant le préfixe `data:image/...;base64,...`, format attendu par `PhotoItem.base64` ailleurs dans `PhotoUploadZone`)
+- `mimeType = blob.type || "image/jpeg"`
+- `name = photo.name || "photo"`
+
+## 2. `PhotoLibraryPickerDialog`
+
+Nouveau composant `src/components/photos/PhotoLibraryPickerDialog.tsx`.
+
+Props :
+
 ```ts
-extractImagePayload(input: string, fallbackMime?: string): { media_type: string; data: string }
+{
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  maxSelectable: number;
+  onConfirm: (photos: UserPhotoRow[]) => void;
+}
 ```
-Copie exacte de la logique de `creative-flow/index.ts` lignes 21-36 :
-- (a) data URL → extraire mime + data
-- (b) sinon sniffer magic bytes (PNG / JPEG / WEBP / GIF)
-- (c) sinon `fallbackMime`, sinon `"image/jpeg"`
 
-**2. `carousel-ai/index.ts`**
-- `pushPhotoWithContext` (~31-43) : remplacer strip regex + media_type hardcodé par `extractImagePayload(photo.base64, photo.mimeType)`. Signature : `(messageContent, photo: { base64: string; context?: string; mimeType?: string }, index)`.
-- Schéma zod (~74) : ajouter `mimeType: z.string().max(50).optional()` dans l'objet photos.
+Comportement :
 
-**3. `carousel-visual/index.ts`**
-- Bloc vision photo/mix (~818-826) : remplacer strip regex + `"image/jpeg"` hardcodé par `extractImagePayload(...,  reqBody.photos[i].mimeType)`.
-- Schéma zod (~237) : ajouter `mimeType: z.string().max(50).optional()` ET `context: z.string().max(200).optional()` dans l'objet photos.
-- Post-processing `{{PHOTO_N}}` (~1042 et ~1079) : quand le base64 n'a pas de préfixe `data:`, construire le data URL avec le mimeType fourni : `` `data:${p.mimeType || "image/jpeg"};base64,${raw}` ``.
+- `useUserPhotos()` (filtrage workspace déjà géré) → ne garder que `status === "ready"`
+- Grille responsive de vignettes (réutilise le pattern des signed URLs de `PhotoCard` : chargement async dans un `useEffect`, fallback skeleton)
+- Sélection multiple par clic : ring `primary` + petit check en overlay quand sélectionnée
+- Compteur `N / maxSelectable sélectionnées` en footer
+- Au-delà de `maxSelectable`, les vignettes non sélectionnées deviennent non cliquables (cursor disabled, opacité réduite)
+- État vide (aucune photo `ready`) : message bienveillant + lien `/photos` (« Ta photothèque est vide. Ajoute tes photos ici. »)
+- Boutons footer : « Annuler » (ferme), « Utiliser ces photos » (disabled si 0 sélectionnée) → `onConfirm(selected)` puis `onOpenChange(false)`
+- Reset de la sélection à chaque ouverture
 
-### Frontend
+## 3. Intégration dans `PhotoUploadZone`
 
-**4. `src/pages/CreerUnifie.tsx`**
-Propager `mimeType` dans tous les mappings de photos `{ base64, context }` → ajouter `mimeType: p.mimeType`. Emplacements :
-- ~955 (`structureBody.photos`)
-- ~986-989, ~1010-1013, ~1029-1032 (`doGenerate`)
-- ~1199-1202 (régénération)
-- ~2140 (`requestBody` carousel-visual : `photos: photosForVisuals.map(...)`)
+- État local : `libraryOpen: boolean`, `importingFromLibrary: boolean`
+- Lien discret « 📚 Choisir dans mes photos » :
+  - en mode normal (dropzone vide) : sous la zone de drop
+  - en mode compact (photos déjà présentes) : à côté de « + Ajouter d'autres photos »
+  - Disabled si `photos.length >= maxPhotos` ou pendant un import
+- Click → ouvre `PhotoLibraryPickerDialog` avec `maxSelectable = maxPhotos - photos.length`
+- `onConfirm` :
+  - `setImportingFromLibrary(true)`
+  - `Promise.allSettled(selected.map(userPhotoToBase64))`
+  - Pour chaque succès, construire un `PhotoItem` :
+    ```ts
+    {
+      id: crypto.randomUUID(),
+      base64, // data URL complète
+      preview: base64,
+      name,
+      mimeType,
+      context: "",
+    }
+    ```
+  - Pour chaque échec, `toast.error` ciblé (comme `processFiles` fait pour les fichiers en échec)
+  - `updatePhotos([...photos, ...newItems].slice(0, maxPhotos))`
+  - `setImportingFromLibrary(false)` puis ferme le dialog
+- Loader (spinner + texte « Import… ») sur le bouton pendant la conversion
+
+Les photos importées sont ensuite indistinguables des photos uploadées : contexte, reorder, suppression, retouche PhotoRoom, payload de génération, tout fonctionne via les mêmes chemins de code.
+
+## Ce qui ne bouge PAS
+
+- `processFiles`, `resizeAndEncode`, conversion HEIC, drag & drop
+- `PhotosPage`, `PhotoDetailDialog`, `PhotoCard`
+- Interface `PhotoItem` (aucun champ nouveau)
+- Edge Functions
+- Filtrage workspace (on s'appuie strictement sur `useUserPhotos`)
+
+## Critères de validation
+
+- `npx tsc --noEmit --skipLibCheck` passe
+- `/photos` → retoucher une photo → `/creer` → carrousel photo → « Choisir dans mes photos » → 2 photos sélectionnées → présentes dans la grille, génération OK
+- Photothèque vide → état vide avec lien `/photos`
+- `maxPhotos` atteint → picker limite la sélection et désactive le bouton
+- Workspace manager : seules les photos du workspace actif visibles
 
 ## Hors scope (confirmé)
 
-- `creative-flow/index.ts` : ne pas toucher (migration vers helper partagé reportée).
-- Quota / streaming SSE / prompts éditoriaux : aucun changement.
-- Prompts système/user de `carousel-visual` : aucun changement.
-- `PhotoUploadZone.tsx`, `PhotoEditDialog.tsx`, `photoroom-edit` : déjà corrects.
-- Fallback `"image/jpeg"` conservé par défaut quand rien n'est détectable.
+- Inverse (bouton « Créer un contenu » depuis `PhotoDetailDialog`)
+- Sauvegarde auto des uploads dans la photothèque
+- Tags / recherche dans le picker
 
-## Validation
+## Améliorations connexes proposées (à valider une par une avant build)
 
-- `npx tsc --noEmit --skipLibCheck` passe.
-- Test manuel : photo → "Fond transparent" → carrousel **photo** → structure → génération → visuels OK.
-- Test manuel : même parcours sans retouche (JPEG) → comportement inchangé.
-- Idem pour carrousel **mix**.
+(a) **Demandé** : tout ce qui précède.
 
----
+(b) **Propositions optionnelles** — je n'implémente que si tu valides :
 
-## Propositions complémentaires (à valider séparément, NON inclus dans l'exec)
+1. **Tri par date desc** dans le picker (plus récentes en premier) — 2 lignes, gros gain UX, aucun risque.
+2. **Préchargement parallèle des signed URLs** (`Promise.all` au lieu du chargement vignette par vignette) pour éviter le flash de skeletons à l'ouverture — petit refactor isolé au composant picker.
+3. **Badge de count sur le bouton** (« 📚 Choisir dans mes photos · 12 »), seulement si `useUserPhotos` renvoie un total > 0 — incite à utiliser la fonctionnalité.
 
-En cherchant `media_type: "image/jpeg"` hardcodé dans les Edge Functions qui parlent à Anthropic, j'ai trouvé 3 autres endroits affectés par exactement le même bug dès qu'une photo PhotoRoom (PNG) y arrive :
-
-- **a)** `pinterest-photo-brief/index.ts` ligne 187 — `source: { type: "base64", media_type: "image/jpeg", data: rawBase64 }`
-- **b)** `pinterest-visual/index.ts` ligne 317 — idem
-- **c)** `pinterest-inspiration/index.ts` ligne 136 — idem (ici les images viennent probablement de scraping/upload utilisateur, à confirmer côté front)
-
-Si tu valides, je remplace chacun par `extractImagePayload(...)` avec le même helper partagé, dans un second passage. **Je ne touche pas à ces fichiers tant que tu n'as pas confirmé point par point.**
-
-Autres fichiers contenant `image/jpeg` mais qui ne posent **pas** ce problème (juste pour info, aucune action prévue) :
-- `photoroom-edit`, `photo-background-replace` : fallback de décodage entrant (sain).
-- `audit-instagram-ai`, `website-ai`, `_shared/scraping.ts` : usages non liés à un payload Anthropic image base64.
-- `generate-comment/index.ts` ligne 115 : déjà paramétré via `screenshot_media_type` (correct).
+Dis-moi lesquelles tu veux que j'inclue, ou « aucune » pour rester strictement sur le périmètre demandé.

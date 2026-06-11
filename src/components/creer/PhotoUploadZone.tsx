@@ -1,10 +1,12 @@
 import { useState, useRef, useCallback, useEffect, DragEvent as ReactDragEvent } from "react";
-import { Upload, X, GripVertical, Wand2, Undo2 } from "lucide-react";
+import { Upload, X, GripVertical, Wand2, Undo2, Library, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { PhotoEditDialog } from "./PhotoEditDialog";
+import { PhotoLibraryPickerDialog } from "@/components/photos/PhotoLibraryPickerDialog";
+import { userPhotoToBase64, type UserPhotoRow } from "@/lib/photo-storage";
 
 const MAX_FILE_SIZE_MB = 25;
 
@@ -106,8 +108,11 @@ export function PhotoUploadZone({
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [showContexts, setShowContexts] = useState(false);
   const [editIdx, setEditIdx] = useState<number | null>(null);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [importingFromLibrary, setImportingFromLibrary] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const isFull = photos.length >= maxPhotos;
+  const remainingSlots = Math.max(0, maxPhotos - photos.length);
 
   // Resync quand le parent fournit de nouvelles initialPhotos (changement de format,
   // rehydratation après "Partir de photos", etc.). Comparaison par identité de
@@ -165,6 +170,41 @@ export function PhotoUploadZone({
       if (items.length === 0) return;
       const next = [...photos, ...items];
       updatePhotos(next);
+    },
+    [photos, maxPhotos, updatePhotos],
+  );
+
+  const importFromLibrary = useCallback(
+    async (selected: UserPhotoRow[]) => {
+      if (selected.length === 0) return;
+      const slice = selected.slice(0, Math.max(0, maxPhotos - photos.length));
+      if (slice.length === 0) return;
+      setImportingFromLibrary(true);
+      try {
+        const results = await Promise.allSettled(slice.map((p) => userPhotoToBase64(p)));
+        const items: PhotoItem[] = [];
+        results.forEach((r, i) => {
+          if (r.status === "fulfilled") {
+            items.push({
+              id: crypto.randomUUID(),
+              base64: r.value.base64,
+              preview: r.value.base64,
+              name: r.value.name,
+              mimeType: r.value.mimeType,
+              context: "",
+            });
+          } else {
+            const name = slice[i].name || "photo";
+            console.warn("[photo-library-import] failed", name, r.reason);
+            toast.error(`Impossible d'importer "${name}". Réessaie dans un instant.`);
+          }
+        });
+        if (items.length > 0) {
+          updatePhotos([...photos, ...items].slice(0, maxPhotos));
+        }
+      } finally {
+        setImportingFromLibrary(false);
+      }
     },
     [photos, maxPhotos, updatePhotos],
   );
@@ -303,6 +343,30 @@ export function PhotoUploadZone({
         </div>
       )}
 
+      {/* ── "Choose from library" link (non-compact mode) ───── */}
+      {!compact && (
+        <div className="flex justify-center -mt-1">
+          <button
+            type="button"
+            onClick={() => setLibraryOpen(true)}
+            disabled={isFull || importingFromLibrary}
+            className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline font-medium disabled:opacity-50 disabled:no-underline disabled:cursor-not-allowed"
+          >
+            {importingFromLibrary ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Import…
+              </>
+            ) : (
+              <>
+                <Library className="h-3.5 w-3.5" />
+                Choisir dans mes photos
+              </>
+            )}
+          </button>
+        </div>
+      )}
+
       <input
         ref={inputRef}
         type="file"
@@ -335,13 +399,33 @@ export function PhotoUploadZone({
           )}
           <div className="flex justify-between items-center gap-2">
             {compact && !isFull ? (
-              <button
-                type="button"
-                onClick={() => inputRef.current?.click()}
-                className="text-xs text-primary hover:underline font-medium"
-              >
-                + Ajouter d'autres photos
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => inputRef.current?.click()}
+                  className="text-xs text-primary hover:underline font-medium"
+                >
+                  + Ajouter d'autres photos
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLibraryOpen(true)}
+                  disabled={importingFromLibrary}
+                  className="inline-flex items-center gap-1 text-xs text-primary hover:underline font-medium disabled:opacity-50 disabled:no-underline"
+                >
+                  {importingFromLibrary ? (
+                    <>
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Import…
+                    </>
+                  ) : (
+                    <>
+                      <Library className="h-3 w-3" />
+                      Choisir dans mes photos
+                    </>
+                  )}
+                </button>
+              </div>
             ) : (
               <span />
             )}
@@ -453,6 +537,14 @@ export function PhotoUploadZone({
           onApply={(newBase64) => applyEditedPhoto(editIdx, newBase64)}
         />
       )}
+
+      {/* ── Photo library picker ─────────────────── */}
+      <PhotoLibraryPickerDialog
+        open={libraryOpen}
+        onOpenChange={setLibraryOpen}
+        maxSelectable={remainingSlots}
+        onConfirm={importFromLibrary}
+      />
     </div>
   );
 }
