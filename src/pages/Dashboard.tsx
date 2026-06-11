@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useUserPhase } from "@/hooks/use-user-phase";
-import { X, ArrowLeft } from "lucide-react";
+import { X, ArrowLeft, Lightbulb } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useSession } from "@/contexts/SessionContext";
 import { toast } from "@/hooks/use-toast";
@@ -81,6 +81,7 @@ interface DashboardData {
   nextPost: { date: string; theme: string } | null;
   planData: PlanData | null;
   recommendations: { id: string; titre: string | null; route: string; completed: boolean | null }[];
+  ideaCount: number;
 }
 
 /* ── Welcome messages ── */
@@ -207,6 +208,7 @@ export default function Dashboard() {
     contactCount: 0, prospectCount: 0, prospectConversation: 0, prospectOffered: 0,
     calendarPostCount: 0, weekPostsPublished: 0, weekPostsTotal: 0, nextPost: null,
     planData: null, recommendations: [],
+    ideaCount: 0,
   };
 
   // ── Dashboard data query ──
@@ -223,6 +225,7 @@ export default function Dashboard() {
           weekPostsPublished: 1,
           contactCount: demoData.contacts.length,
           prospectCount: demoData.contacts.filter(c => c.type === "prospect").length,
+          ideaCount: demoData.saved_ideas?.length || 0,
           recommendations: [
             { id: "demo-rec-1", titre: "Optimise ta bio Instagram", route: "/instagram/profil/bio", completed: false },
             { id: "demo-rec-2", titre: "Crée un calendrier de publication régulier", route: "/calendrier", completed: false },
@@ -234,12 +237,15 @@ export default function Dashboard() {
 
       const wsId = activeWorkspace?.id || null;
 
-      const [summaryRes, brandingData] = await Promise.all([
+      const [summaryRes, brandingData, ideasCountRes] = await Promise.all([
         supabase.rpc("get_dashboard_summary", {
           p_user_id: user.id,
           p_workspace_id: wsId,
         } as any),
         fetchBrandingData({ column, value }),
+        supabase.from("saved_ideas").select("*", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("workspace_id", wsId ?? user.id),
       ]);
 
       const s = (summaryRes.data as any) || {};
@@ -270,6 +276,7 @@ export default function Dashboard() {
         nextPost: s.next_post ? { date: s.next_post.date, theme: s.next_post.theme } : null,
         planData,
         recommendations: s.recommendations || [],
+        ideaCount: ideasCountRes.count ?? 0,
       };
     },
     enabled: !!user || isDemoMode,
@@ -483,7 +490,38 @@ export default function Dashboard() {
               </BentoCard>
             </FirstTimeTooltip>
           </div>
-          <div className="md:col-span-1 order-first md:order-last">
+          <div className="md:col-span-1 order-first md:order-last flex flex-col gap-4">
+            {/* ─── Mes idées ─── */}
+            <div
+              onClick={() => navigate("/idees")}
+              className="rounded-[20px] p-5 sm:p-5
+                shadow-[var(--shadow-bento)]
+                hover:shadow-[var(--shadow-bento-hover)] hover:-translate-y-[3px]
+                active:translate-y-0 active:shadow-[var(--shadow-bento)]
+                transition-all duration-[250ms] ease-out
+                cursor-pointer
+                opacity-0 animate-reveal-up
+                bg-gradient-to-br from-[hsl(var(--bento-lavande))] to-[hsl(270_50%_97%)]
+                border border-border/50 text-foreground
+                flex flex-col justify-between min-h-[130px]"
+              style={{ animationDelay: `${nextDelay()}s`, animationFillMode: "forwards" }}
+            >
+              <div className="flex justify-between items-start">
+                <div className="w-9 h-9 rounded-xl bg-white/60 backdrop-blur-sm border border-white/40 flex items-center justify-center">
+                  <Lightbulb className="h-5 w-5 text-primary" />
+                </div>
+                {dashData.ideaCount > 0 && (
+                  <span className="bg-black/5 px-2 py-0.5 rounded-md text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                    {dashData.ideaCount} idée{dashData.ideaCount > 1 ? "s" : ""}
+                  </span>
+                )}
+              </div>
+              <div>
+                <h3 className="font-heading text-base font-bold text-foreground leading-tight">Mes idées</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Boîte à idées</p>
+              </div>
+            </div>
+
             <SessionFocusWidget
               brandingCompletion={dashData.brandingCompletion}
               igAuditScore={dashData.igAuditScore}
