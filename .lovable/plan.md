@@ -1,34 +1,70 @@
-# Plan — Affichage centré et plus lisible des idées sauvegardées
+# Phase 0.6 — Ombres ET bordures natives sur shapes PPTX
 
-## Problèmes identifiés
+## Constat exploration
 
-1. Le panneau de détail s'ouvre en `Sheet` latéral droit, étroit (`sm:max-w-[420px]`) — peu confortable pour lire un brief avec plusieurs champs.
-2. Pour les idées de type "data libre" (newsjacking : `axe`, `ton`, `titre`, `resume`, `source`, `pertinence`), le composant `FallbackPreview` aligne les labels en `text-xs` inline sans hiérarchie, ce qui produit l'effet de collage visible dans la sélection (`axe :debat_recurrentton :entre_deux…`).
+Le terrain confirme le plan :
+- `ShapeBlock` (pptx-font-mapping.ts l.518) a déjà `shadow?` ; il manque `border?`.
+- `parseSimpleBoxShadow` existe déjà (l.547) et fait exactement ce que le plan décrit pour l'ombre. **Aucune modif à apporter à l'ombre côté parsing** — seul l'ajout bordure est nouveau.
+- `extractShapeBlocks` (l.609) skippe déjà les shadows non convertibles. Il faut juste ajouter la détection bordure en miroir.
+- Le CSS de masquage `[data-pptx-shape-hide="true"]` neutralise déjà `border-color: transparent` (export-carousel-hybrid-pptx.ts l.120) — RAS.
+- `addShape` (l.639) pose déjà l'ombre native ; il faut juste injecter `line` quand `sb.border` est défini.
+- Le prompt (carousel-visual l.926-929) interdit toute bordure ; à libéraliser.
 
-## Changements
+Le plan tient. J'exécute tel quel.
 
-### 1. `src/pages/IdeasPage.tsx` — Sheet → Dialog centré
-- Remplacer l'import `Sheet*` par `Dialog*`.
-- Remplacer `<Sheet>` / `<SheetContent>` / `<SheetHeader>` / `<SheetTitle>` / `<SheetDescription>` par leurs équivalents Dialog.
-- `DialogContent` : largeur confortable (`max-w-2xl`), hauteur bornée (`max-h-[90vh]`), scroll interne (`overflow-y-auto`), padding généreux. Centré par défaut.
-- Conserver tout le contenu interne tel quel (badges statut/objectif/canal/type, sections Angle/Format, Accroche, Contenu, Dates, Notes, Actions).
+## Périmètre — ce qui est demandé (a)
 
-### 2. `src/components/ContentPreview.tsx` — `FallbackPreview` plus clair
-- Garder la même API (props et `onContentChange`).
-- Pour chaque entrée :
-  - Label en `text-[11px] font-mono-ui uppercase tracking-wide text-muted-foreground` au-dessus de la valeur (et non collé inline).
-  - Valeur en `text-sm text-foreground leading-relaxed` sur sa propre ligne.
-  - Bloc séparé par un `space-y-3` global et un `border-t border-border/40 pt-3` entre items (sauf le premier) pour aérer visuellement.
-- Mise en avant prioritaire : si la clé est `titre` ou `title`, l'afficher en `text-base font-semibold` sans label, en premier. Si `axe` et/ou `ton` existent, les afficher juste en dessous sous forme de petits chips `rounded-pill bg-muted px-2 py-0.5 text-[10px]`.
-- Conserver la limite `slice(0, 10)` et le filtre `length > 5`.
-- Conserver l'édition inline (`EditableText`).
+### 1. `src/lib/pptx-font-mapping.ts`
 
-## Hors scope
-- Pas de refonte des autres previews (Reel, Stories, Carousel, Post).
-- Pas de changement de logique de sauvegarde, statuts, actions, notes.
-- Pas de changement de couleurs / tokens globaux.
+a. Étendre `ShapeBlock` avec :
+```ts
+border?: { widthPt: number; color: string; dashType: "solid" | "dash" | "sysDot" };
+```
+
+b. Ajouter `parseUniformBorder(cs)` qui retourne `ShapeBlock["border"] | null` :
+- Convertible si les 4 côtés ont mêmes `borderTop/Right/Bottom/LeftWidth`, `…Style`, `…Color` (computed).
+- Style ∈ {`solid`, `dashed`, `dotted`} → dashType `solid`/`dash`/`sysDot`.
+- Width > 0 sinon `null` (= pas de bordure, pas un skip).
+- Color non extractible ou style autre → `null` distinct → skip défensif.
+
+c. Dans `extractShapeBlocks`, après le bloc shadow :
+- Lire les 4 côtés. Si tous width = 0 → pas de bordure (border = undefined, continuer).
+- Sinon appeler `parseUniformBorder`. Si retour `null` → `console.debug("[hybrid] shape skipped (unsupported border)", …)` + `continue`.
+- Sinon `border = parsed`, pousser dans le `blocks.push({…, border})`.
+
+d. **Ne pas toucher** : ombre, skips gradient/transform/transparent/<5px, normalizeHex, autres exports.
+
+### 2. `src/lib/export-carousel-hybrid-pptx.ts`
+
+e. Dans la boucle `usableShapes` (l.620-655), modifier l'appel `addShape("roundRect", …)` :
+- Remplacer `line: { type: "none" }` par `line: sb.border ? { color: sb.border.color, width: sb.border.widthPt, dashType: sb.border.dashType } : { type: "none" }`.
+- Le bloc `shadow` reste inchangé.
+
+f. **Ne pas toucher** : CSS de masquage (déjà OK), z-order, cap, photos, background.
+
+### 3. `supabase/functions/carousel-visual/index.ts`
+
+g. Dans "CONDITIONS D'ANNOTATION" (l.924-929), réécrire les deux puces ombre + bordure pour exprimer ce qui est désormais AUTORISÉ :
+- Ombre : une seule externe simple `Xpx Ypx blur rgba(...)`, sans spread ni inset (inchangé — déjà à jour).
+- Bordure : autorisée si **uniforme sur les 4 côtés**, style `solid` / `dashed` / `dotted`.
+- Toujours interdits : ombres multiples, `inset`, `spread` ≠ 0, bordures partielles (`border-left` seul…), styles `double` / `groove` / `ridge` / `inset` / `outset`.
+
+h. **Ne pas toucher** : templates HTML, autres règles, branding, rythme.
+
+## Propositions hors-périmètre (b) — pour validation
+
+Aucune. Le plan couvre proprement le sujet ; toute extension (compression PNG, fix italique, autres prompts) est listée en hors-scope par toi.
 
 ## Validation
-- `npx tsc --noEmit --skipLibCheck` propre.
-- Visuel : ouvrir une idée newsjacking → modale centrée, titre en avant, axe/ton en chips, résumé/source/pertinence en sections lisibles.
-- Régression : ouvrir une idée carrousel / reel / post → preview existante intacte.
+
+1. `npx tsc --noEmit --skipLibCheck` → 0 erreur.
+2. Test manuel : un carrousel avec slide "schéma à cartes" (ombre légère) + slide Contexte à bordure pointillée.
+   - Ouvrir dans Canva ET PowerPoint.
+   - Cartes ombrées = shapes éditables, ombre visuellement proche.
+   - Bordure pointillée = shape éditable avec sa bordure.
+   - Aucune double ombre / double bordure.
+3. Non-régression : carrousel photo identique à avant.
+
+## Hors scope (rappel)
+
+- Prompts branding/rythme, fix italique, compression image, exports legacy, carousel-ai.
