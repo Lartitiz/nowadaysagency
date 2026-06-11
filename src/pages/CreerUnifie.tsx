@@ -30,6 +30,7 @@ import CreerStepEdit from "@/components/creer/CreerStepEdit";
 import CreerStepper, { type StepperKey } from "@/components/creer/CreerStepper";
 import PinterestInspirationStep from "@/components/creer/PinterestInspirationStep";
 import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
+import { userPhotoToBase64, type UserPhotoRow } from "@/lib/photo-storage";
 import StructureReviewStep from "@/components/creer/StructureReviewStep";
 import type { SlideProposal, StructureProposal } from "@/components/creer/StructureReviewStep";
 
