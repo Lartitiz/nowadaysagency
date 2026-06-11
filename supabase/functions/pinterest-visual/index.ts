@@ -44,14 +44,6 @@ serve(async (req) => {
       .maybeSingle();
     const workspaceId = wsMember?.workspace_id;
 
-    const quota = await checkQuota(user.id, "content", workspaceId);
-    if (!quota.allowed) {
-      return new Response(JSON.stringify({ error: quota.message, quota }), {
-        status: 429,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     const reqBody = await req.json();
     validateInput(reqBody, z.object({
       subject: z.string().min(1).max(15000),
@@ -70,6 +62,14 @@ serve(async (req) => {
 
     const { subject, pin_type, pinterest_link, pinterest_board } = reqBody;
     const filterWs = reqBody.workspace_id || workspaceId;
+
+    const quota = await checkQuota(user.id, "content", filterWs);
+    if (!quota.allowed) {
+      return new Response(JSON.stringify({ error: quota.message, quota }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Fetch context and charter in parallel
     const col = filterWs ? "workspace_id" : "user_id";
@@ -397,7 +397,7 @@ Retourne UNIQUEMENT le JSON, pas de texte avant ou après.`;
       console.warn("pinterest-visual: pin_invariants manquant → fallback serveur");
     }
 
-    await logUsage(user.id, "content", "pinterest_visual", undefined, model, workspaceId);
+    await logUsage(user.id, "content", "pinterest_visual", undefined, model, filterWs);
 
     return new Response(JSON.stringify({ result, remaining: quota.remaining }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
