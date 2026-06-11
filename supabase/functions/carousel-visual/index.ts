@@ -890,7 +890,7 @@ En complément des annotations \`data-pptx-editable\` sur les TEXTES, annote les
 
 CONDITIONS D'ANNOTATION (NE PAS annoter si UNE de ces conditions est vraie — l'élément reste alors figé dans le PNG, ce qui est ACCEPTABLE) :
 - L'élément utilise un gradient (linear-gradient, radial-gradient, conic-gradient)
-- L'élément a une box-shadow (les shapes natifs perdent l'ombre — préfère le PNG)
+- L'élément a une box-shadow complexe. AUTORISÉ uniquement : une seule ombre externe simple de la forme \`Xpx Ypx blur rgba(...)\` (sans spread, sans inset). INTERDIT : ombres multiples (séparées par virgule), \`inset\`, \`spread\` non nul.
 - L'élément a un backdrop-filter, mask, mix-blend-mode, filter, clip-path
 - L'élément a un transform autre que none (rotate, scale ≠ 1, skew, matrix)
 - L'élément a une bordure visible (les shapes natifs ne la restituent pas dans ce sprint)
