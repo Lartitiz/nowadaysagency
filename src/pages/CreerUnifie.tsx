@@ -2627,6 +2627,9 @@ export default function CreerUnifie() {
                           onCopy={handleCopy}
                           usedPhotoCount={photoMode && uploadedPhotos.length > 0 ? uploadedPhotos.length : undefined}
                           photos={photoMode && uploadedPhotos.length > 0 ? uploadedPhotos : undefined}
+                          sourceIdea={ideaText}
+                          sourceObjective={objective}
+                          sourceAngle={editorialAngle}
                         />
                       </TabsContent>
                     ))}
