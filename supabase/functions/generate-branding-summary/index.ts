@@ -6,6 +6,7 @@ import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
+import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
 function hashString(str: string): string {
   let hash = 0;
@@ -40,6 +41,13 @@ serve(async (req) => {
     if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
 
     const { force, workspace_id } = await req.json().catch(() => ({ force: false, workspace_id: undefined }));
+
+    const sbGuard = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const membership = await assertWorkspaceMembership(sbGuard, user.id, workspace_id);
+    if (!membership.ok) {
+      console.warn("[workspace-guard] denied", { userId: user.id, workspaceId: workspace_id });
+      return workspaceDeniedResponse(corsHeaders);
+    }
 
     const filterCol = workspace_id ? "workspace_id" : "user_id";
     const filterVal = workspace_id || user.id;

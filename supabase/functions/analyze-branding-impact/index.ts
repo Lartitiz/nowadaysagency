@@ -4,6 +4,7 @@ import { getUserContext, formatContextForAI } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -28,6 +29,12 @@ serve(async (req) => {
     const { changed_field, old_value, new_value, workspace_id } = await req.json();
     if (!changed_field || !old_value || !new_value) {
       return new Response(JSON.stringify({ suggestions: [] }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    const membership = await assertWorkspaceMembership(supabase, user.id, workspace_id);
+    if (!membership.ok) {
+      console.warn("[workspace-guard] denied", { userId: user.id, workspaceId: workspace_id });
+      return workspaceDeniedResponse(corsHeaders);
     }
 
     // Check quota

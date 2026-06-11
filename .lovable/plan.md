@@ -1,81 +1,93 @@
-# Harmonisation textes crédits IA — fin de l'"illimité" Premium
+# Vague 2 — workspace-guard sur 5 Edge Functions d'écriture
 
-Aucune logique modifiée. Uniquement des chaînes affichées. `plan-limiter.ts` non touché.
+Pattern unique appliqué à 5 fichiers : import du helper + insertion d'`assertWorkspaceMembership` au point indiqué. Aucune autre modification.
 
 ## (a) Modifications demandées
 
-### 1. `src/pages/AbonnementPage.tsx`
-- L.320 : `credits="25 crédits IA/mois"` → `credits="60 crédits IA/mois"` (carte Gratuit)
-- Reste inchangé (300 déjà OK partout ailleurs).
+Dans CHAQUE fichier :
 
-### 2. `src/pages/PricingPage.tsx`
-Tableau comparatif :
-- L.35 : ligne "Contenus IA par mois" → `outil: "300/mois", studio: "300/mois"`
-- L.47 : ligne "Audits IA par mois" → `outil: "300/mois", studio: "300/mois"`
+**Import à ajouter** (après les imports existants) :
 
-Bloc descriptif Premium :
-- L.241 : "Contenus IA illimités, audits illimités, communauté active." → "300 crédits IA/mois (générations + audits), communauté active."
-- L.247 : "Contenus IA illimités (posts, reels, stories, newsletters…)" → "300 crédits IA/mois (posts, reels, stories, newsletters, audits…)"
-- L.248 : supprimer la ligne "Audits IA illimités" (fusionnée dans la précédente) — **à confirmer**, alternative : la remplacer par "Audits IA inclus dans les 300 crédits". Voir question ci-dessous.
+```ts
+import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
+```
 
-### 3. `src/lib/stripe-config.ts` (features plan outil, L.22-23)
-- Remplacer les 2 lignes `"Générations IA illimitées"` + `"Audits illimités"` par 1 seule : `"300 crédits IA / mois (générations + audits)"`
-- priceId, prix, mode, CREDIT_PACKS, STRIPE_PRODUCTS, ligne free L.10 → inchangés
+**Bloc à insérer** au point précisé :
 
-### 4. `src/components/UpgradeGate.tsx`
-- L.15 : "…passer au Premium pour des crédits illimités." → "…passer au Premium pour 300 crédits IA/mois."
-- L.16 : "…passer au Premium pour des audits illimités." → "…passer au Premium pour 300 crédits IA/mois."
-- L.48 (fallback) : "…Passe au Premium pour des crédits illimités." → "…Passe au Premium pour 300 crédits IA/mois."
+```ts
+const membership = await assertWorkspaceMembership(<CLIENT>, <USER>, <WS_BODY>);
+if (!membership.ok) {
+  console.warn("[workspace-guard] denied", { userId: <USER>, workspaceId: <WS_BODY> });
+  return workspaceDeniedResponse(corsHeaders);
+}
+```
 
-### 5. `src/components/QuotaWallModal.tsx`
-- L.129 : "Passer à L'Assistant Com' — crédits illimités" → "Passer à L'Assistant Com' — 300 crédits IA/mois"
+### 1. `analyze-brand/index.ts`
 
-### 6. `src/components/AiCreditsCounter.tsx`
-- L.127 : "Passer à L'Assistant Com' — crédits illimités" → "Passer à L'Assistant Com' — 300 crédits IA/mois"
+- Client : `supabaseAdmin` · User : `userId` · WS : `bodyWorkspaceId`
+- Insertion : **après la création de `supabaseAdmin` (L38-41)**, juste avant `const scrapedContent` (L43).
 
-### 7. `src/lib/email-templates.ts`
-- L.125 : "Crédits IA illimités" → "300 crédits IA/mois"
-- L.168 : "Crédits IA illimités" → "300 crédits IA/mois"
-- L.86, 120, 195 (60 crédits gratuit) inchangés
+### 2. `analyze-branding-impact/index.ts`
 
-### 8. `src/pages/BinomeSalesPage.tsx`
-- L.43 : "Valeur 39€/mois : crédits IA illimités, audits illimités, tout débloqué" → "Valeur 39€/mois : 300 crédits IA/mois, tout débloqué"
+- Client : `supabase` · User : `user.id` · WS : `workspace_id`
+- Insertion : **après le `req.json()` qui lit `workspace_id` (L28) et avant `checkQuota` (L34)** — au plus tôt après L31 (le early-return si champs manquants). On le place juste avant le commentaire `// Check quota` (L33).
 
-### 9. `src/pages/AccompagnementPage.tsx`
-- L.245 : "Crédits IA illimités" → "300 crédits IA/mois"
-- L.281 : "Crédits IA illimités" → "300 crédits IA/mois"
+### 3. `deep-diagnostic/index.ts`
 
-### 10. `src/pages/CguCgvPage.tsx`
-- L.99 : "25 crédits IA par mois" → "60 crédits IA par mois"
-- L.100 : remplacer par le paragraphe complet :
-  > Plan L'Assistant Com' Premium : 39€ TTC par mois, sans engagement. Inclut 300 crédits IA par mois (toutes actions IA confondues : génération de contenus, audits, suggestions, adaptations), tous les modules débloqués. Certaines actions spécifiques disposent de limites mensuelles propres, détaillées sur la page Tarifs : coaching IA (120), recherches approfondies (15), imports de statistiques (10), retouches photo (50). Les crédits non utilisés ne sont pas reportés. Des packs de crédits complémentaires sont disponibles à l'achat.
-- Section "13. Modification des CGU/CGV" : compléter avec le délai 30 jours et la phrase d'acceptation tacite (texte fourni dans la demande).
+- Client : `supabaseAdmin` · User : `userId` · WS : `bodyWorkspaceId`
+- Insertion : **après la création de `supabaseAdmin` (L80-83)**, juste avant le commentaire `// Get workspace` (L85) et la requête `wsData`.
 
-## (b) Propositions hors liste explicite (à valider)
+### 4. `generate-branding-summary/index.ts`
 
-Le grep a trouvé d'autres mentions "illimité" liées aux crédits/IA dans des fichiers **non listés**. Elles contredisent l'harmonisation si on les laisse :
+- Le fichier crée ses clients SERVICE_ROLE inline. Instancier un client local dédié au garde, juste avant l'appel :
 
-- **`src/pages/LandingPage.tsx`** (4 occurrences) :
-  - L.115 (FAQ) : "Le premium à 39€/mois débloque les contenus illimités, les audits, les stats…" → "Le premium à 39€/mois débloque 300 crédits IA/mois (contenus + audits), les stats…"
-  - L.701 : "Crée sans compter. L'IA en illimité." → "Crée régulièrement. 300 crédits IA/mois."
-  - L.707 : "Contenus IA illimités" → "300 crédits IA/mois (contenus + audits)"
-  - L.708 : "Audits IA illimités" → à supprimer (fusionnée) ou "Audits IA inclus"
+```ts
+const sbGuard = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+const membership = await assertWorkspaceMembership(sbGuard, user.id, workspace_id);
+if (!membership.ok) { ... return workspaceDeniedResponse(corsHeaders); }
+```
 
-- **`src/pages/PricingPage.tsx`** L.100 (FAQ) et L.123 (meta description SEO) :
-  - "Le Premium, c'est l'IA en illimité pour créer tes contenus en autonomie." → "Le Premium, c'est 300 crédits IA/mois pour créer en autonomie."
-  - meta description : "…Premium à 39€/mois pour l'IA illimitée…" → "…Premium à 39€/mois avec 300 crédits IA/mois…"
+- Insertion : **après la destructuration `{ force, workspace_id }` (L42)**, avant `const filterCol` (L44).
+- Pas de refactor des autres `createClient` inline.
 
-- **Non touchés** (légitimes, pas liés aux crédits IA) :
-  - `AbonnementPage.tsx` L.343 "WhatsApp illimité 6 mois" (binôme)
-  - `PromoCodeInput.tsx` L.42 (usages illimités d'un code promo)
+### 5. `generate-voice-guide/index.ts`
 
-## Question avant exec
+- Client : `serviceClient` · User : `userId` · WS : `workspace_id`
+- Insertion : **après la création de `serviceClient` (L50)**, avant `getUserContext` (L51).
 
-Pour les listes Premium qui affichaient 2 lignes séparées ("Contenus IA illimités" + "Audits IA illimités"), je propose de **fusionner en une seule ligne** "300 crédits IA/mois (générations + audits)" pour rester cohérent avec stripe-config. Confirme si tu préfères garder 2 lignes distinctes (ex : "300 crédits IA/mois — contenus" + "Audits inclus dans les 300 crédits").
+## Garanties
+
+- `membership.ok` uniquement utilisé (le helper hardcode 403).
+- `bodyWorkspaceId`/`workspace_id` absent → helper retourne `ok: true` (legacy) → comportement inchangé.
+- Aucun fichier touché en dehors des 5. Helper `_shared/workspace-guard.ts` non modifié. `assistant-chat` non retouché.
+- Aucune modification de logique métier, prompts, scraping, quotas, contextes, fallbacks `wsData`, profileUserId.
+
+## (b) Propositions hors demande
+
+Lecture des 5 fichiers : les points d'insertion proposés sont les plus précoces possibles SANS toucher au flux. À noter pour transparence (pas d'action requise) :
+
+- `**analyze-brand**` : `checkQuota` (L30) est appelé AVANT `supabaseAdmin` (L38) mais ne prend pas `workspace_id` en argument → aucun risque d'écriture/lecture scoping workspace avant le garde. Le point d'insertion L41 reste le plus sûr (premier moment où un client SERVICE_ROLE existe).
+- `**analyze-branding-impact**` : le early-return L29-31 (champs manquants) reste légitimement avant le garde car il n'utilise aucune donnée workspace. OK.
+- `**deep-diagnostic**` : `checkQuota` (situé plus bas dans le fichier, hors extrait) doit déjà être après L83. Le garde inséré à L84 protège bien `wsData` et toute la suite.
+
+Aucune amélioration nécessaire au-delà de ces observations.
 
 ## Validation
 
-- `npx tsc --noEmit --skipLibCheck` : 0 erreur
-- `grep -rn "illimité" src/` : plus aucune occurrence liée aux crédits/IA
-- `grep -rn "25 crédits" src/` : 0 résultat
-- Visuel : /tarifs, /abonnement, /cgu-cgv affichent 60 (free) et 300 (premium)
+- `npx tsc --noEmit --skipLibCheck` → 0 erreur
+- 5 fonctions appelées sur propre workspace : OK
+- 5 fonctions appelées sans `workspace_id` : OK (legacy)
+- 5 fonctions appelées avec workspace_id étranger : 403 `workspace_access_denied`, log `[workspace-guard] denied` 
+
+Plan validé, tu peux passer en Exec.
+
+Tes observations en (b) sont justes et j'ai vérifié deep-diagnostic : la première opération workspace y est la requête `wsData` (L87), suivie du `checkQuota` scopé workspace (L110) puis des écritures. Le garde à L84 précède bien tout. Parfait.
+
+Rappel des contraintes pour les 5 fichiers :
+
+- Garder sur la valeur **brute du body** (`bodyWorkspaceId` pour analyze-brand/deep-diagnostic, `workspace_id` pour les 3 autres), jamais sur un workspace calculé.
+- `membership.ok` uniquement.
+- Aucune logique métier touchée, fallbacks `wsData` et `profileUserId` intacts.
+- Aucun fichier hors les 5, helper non modifié, assistant-chat non retouché.
+
+Exécute les 5.
