@@ -24,11 +24,15 @@ const BodySchema = z
     image_base64: z.string().min(100), // data URL or raw base64
     mode: z.enum(["remove_bg", "replace_bg"]),
     prompt: z.string().max(500).optional(),
+    background_image_base64: z.string().min(100).optional(),
     workspace_id: z.string().uuid().optional().nullable(),
   })
   .refine(
-    (d) => d.mode === "remove_bg" || (d.prompt && d.prompt.trim().length >= 3),
-    { message: "Un prompt d'au moins 3 caractères est requis pour replace_bg" }
+    (d) =>
+      d.mode === "remove_bg" ||
+      (d.prompt && d.prompt.trim().length >= 3) ||
+      (d.background_image_base64 && d.background_image_base64.length >= 100),
+    { message: "Un prompt (≥3 caractères) ou une image de fond est requis pour replace_bg" }
   );
 
 const PHOTOROOM_URL = "https://image-api.photoroom.com/v2/edit";
@@ -128,9 +132,23 @@ serve(async (req) => {
       fd.append("outputSize", "originalImage");
 
       if (parsed.mode === "replace_bg") {
-        fd.append("background.prompt", parsed.prompt!.trim());
+        if (parsed.background_image_base64) {
+          try {
+            const bg = decodeBase64Image(parsed.background_image_base64);
+            const bgBlob = new Blob([bg.bytes], { type: bg.mime });
+            fd.append(
+              "background.imageFile",
+              bgBlob,
+              "bg." + (bg.mime.split("/")[1] || "jpg"),
+            );
+          } catch {
+            throw new Error("Image de fond invalide");
+          }
+        } else if (parsed.prompt) {
+          fd.append("background.prompt", parsed.prompt.trim());
+        }
       }
-      // For remove_bg → no background.prompt → transparent PNG output.
+      // For remove_bg → no background.* → transparent PNG output.
 
       return await fetch(PHOTOROOM_URL, {
         method: "POST",

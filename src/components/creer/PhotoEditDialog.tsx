@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Loader2, Sparkles, Wand2, RotateCcw } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Loader2, Sparkles, Wand2, RotateCcw, ImagePlus, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -53,6 +53,17 @@ const PRESETS: Preset[] = [
   },
 ];
 
+const MAX_BG_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
 export function PhotoEditDialog({
   open,
   onOpenChange,
@@ -67,6 +78,8 @@ export function PhotoEditDialog({
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [previewBase64, setPreviewBase64] = useState<string | null>(null);
+  const [bgImageBase64, setBgImageBase64] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Reset state every time we re-open
   useEffect(() => {
@@ -75,17 +88,60 @@ export function PhotoEditDialog({
       setSelectedPreset(null);
       setIsGenerating(false);
       setPreviewBase64(null);
+      setBgImageBase64(null);
     }
   }, [open]);
 
   const handlePreset = (key: string) => {
     setSelectedPreset(key);
+    setBgImageBase64(null);
     const p = PRESETS.find((p) => p.key === key);
     if (p?.mode === "replace_bg" && p.prompt) {
       setPrompt(p.prompt);
     } else if (p?.mode === "remove_bg") {
       setPrompt("");
     }
+  };
+
+  const handleBgFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    // Reset input so the same file can be re-selected later
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast({
+        title: "Format non supporté",
+        description: "Choisis un fichier image (JPG, PNG, WEBP).",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (file.size > MAX_BG_SIZE_BYTES) {
+      toast({
+        title: "Image trop lourde",
+        description: "Maximum 5 Mo. Réduis la taille puis réessaie.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      setBgImageBase64(dataUrl);
+      setSelectedPreset(null);
+      setPrompt("");
+    } catch {
+      toast({
+        title: "Lecture impossible",
+        description: "Cette image n'a pas pu être lue.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRemoveBgImage = () => {
+    setBgImageBase64(null);
   };
 
   const handleGenerate = async () => {
@@ -99,10 +155,14 @@ export function PhotoEditDialog({
     if (preset?.mode === "remove_bg") {
       mode = "remove_bg";
       finalPrompt = "";
+    } else if (bgImageBase64) {
+      mode = "replace_bg";
+      finalPrompt = "";
     } else if (finalPrompt.length < 3) {
       toast({
         title: "Décris d'abord ton fond",
-        description: "Choisis un preset ou écris quelques mots (ex : plage au coucher du soleil).",
+        description:
+          "Choisis un preset, uploade une image de fond, ou écris quelques mots (ex : plage au coucher du soleil).",
         variant: "destructive",
       });
       return;
@@ -116,7 +176,9 @@ export function PhotoEditDialog({
         body: {
           image_base64: originalBase64,
           mode,
-          prompt: mode === "replace_bg" ? finalPrompt : undefined,
+          prompt: mode === "replace_bg" && !bgImageBase64 ? finalPrompt : undefined,
+          background_image_base64:
+            mode === "replace_bg" && bgImageBase64 ? bgImageBase64 : undefined,
           workspace_id:
             activeWorkspace?.id && activeWorkspace.id !== "self"
               ? activeWorkspace.id
@@ -146,16 +208,19 @@ export function PhotoEditDialog({
     onOpenChange(false);
   };
 
+  const promptDisabled =
+    isGenerating || selectedPreset === "transparent" || !!bgImageBase64;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Wand2 className="h-4 w-4 text-primary" />
             Modifier le fond
           </DialogTitle>
           <DialogDescription>
-            L'IA détoure ta photo et remplace l'arrière-plan. Choisis un preset ou décris ce que tu veux.
+            L'IA détoure ta photo et remplace l'arrière-plan. Choisis un preset, uploade une image de fond, ou décris ce que tu veux.
           </DialogDescription>
         </DialogHeader>
 
@@ -224,6 +289,55 @@ export function PhotoEditDialog({
           </div>
         </div>
 
+        {/* Image de fond custom */}
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-foreground">
+            Ou utilise ta propre image de fond
+          </p>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleBgFileChange}
+          />
+          {bgImageBase64 ? (
+            <div className="flex items-center gap-3 p-2 rounded-lg border border-border bg-muted/30">
+              <img
+                src={bgImageBase64}
+                alt="Image de fond choisie"
+                className="h-14 w-14 rounded-md object-cover border border-border"
+              />
+              <div className="flex-1 text-xs text-muted-foreground">
+                Cette image sera utilisée comme arrière-plan. Ta photo sera détourée par-dessus.
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleRemoveBgImage}
+                disabled={isGenerating}
+                className="h-7 px-2"
+              >
+                <X className="h-3.5 w-3.5 mr-1" />
+                Retirer
+              </Button>
+            </div>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isGenerating}
+              className="h-8 text-xs"
+            >
+              <ImagePlus className="h-3.5 w-3.5 mr-1.5" />
+              Choisir une image de fond
+            </Button>
+          )}
+        </div>
+
         {/* Prompt libre */}
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-foreground">
@@ -236,9 +350,13 @@ export function PhotoEditDialog({
               // If user types a custom prompt, deselect "transparent" preset
               if (selectedPreset === "transparent") setSelectedPreset(null);
             }}
-            placeholder="Ex : ambiance, lumière, décor souhaité"
+            placeholder={
+              bgImageBase64
+                ? "Désactivé : une image de fond est déjà choisie"
+                : "Ex : ambiance, lumière, décor souhaité"
+            }
             maxLength={300}
-            disabled={isGenerating || selectedPreset === "transparent"}
+            disabled={promptDisabled}
             className="min-h-[60px] resize-none text-sm"
           />
           <p className="text-[10px] text-muted-foreground text-right">
