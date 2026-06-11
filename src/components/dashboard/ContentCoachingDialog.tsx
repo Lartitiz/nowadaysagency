@@ -125,6 +125,8 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
   const [selectedIdea, setSelectedIdea] = useState<ContentIdea | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | "mix" | null>(null);
+  const [savedIdeas, setSavedIdeas] = useState<Set<number>>(new Set());
+  const createIdea = useCreateIdea();
 
   const reset = () => {
     setStep(1);
