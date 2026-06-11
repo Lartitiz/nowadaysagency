@@ -109,7 +109,7 @@ export default function ContentRecycling() {
     if (e.dataTransfer.files.length > 0) await processFiles(e.dataTransfer.files);
   }, [processFiles]);
 
-  const canRecycle = (source.trim() || files.length > 0) && formats.length > 0;
+  const canRecycle = (source.trim() || files.length > 0) && formats.length > 0 && source.length <= 10000;
 
   const helpMessage = () => {
     const n = files.length;
@@ -217,6 +217,14 @@ export default function ContentRecycling() {
                 </button>
               )}
             </div>
+            <p className={`text-xs mt-1.5 ${source.length > 10000 ? "text-destructive" : "text-muted-foreground"}`}>
+              {source.length} / 10 000 caractères
+            </p>
+            {source.length > 10000 && (
+              <p className="text-xs text-destructive mt-1">
+                Ton contenu est un peu long pour être traité d'un coup. Garde l'essentiel ou découpe-le en deux passages.
+              </p>
+            )}
           </div>
 
           {/* File upload zone */}
