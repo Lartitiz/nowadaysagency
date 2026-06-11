@@ -119,6 +119,7 @@ interface CharterData {
   font_title: string | null;
   font_body: string | null;
   font_accent: string | null;
+  font_rationale: string | null;
   photo_style: string | null;
   photo_keywords: string[];
   mood_keywords: string[];
