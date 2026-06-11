@@ -538,11 +538,18 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
 
       {/* Single-photo formats toggle (post, reel, story, linkedin, newsletter) — hidden if photos preloaded & user hasn't changed format */}
       {formatAcceptsSinglePhoto(selectedFormat) && !((initialPhotos?.length ?? 0) > 0 && photoMode && postPhoto.length > 0) && (
-        <button
-          type="button"
+        <div
+          role="button"
+          tabIndex={0}
           onClick={() => setPhotoMode(!photoMode)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setPhotoMode(!photoMode);
+            }
+          }}
           className={cn(
-            "w-full flex items-center gap-3 p-4 rounded-lg border transition-all animate-fade-in text-left",
+            "w-full flex items-center gap-3 p-4 rounded-lg border transition-all animate-fade-in text-left cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
             photoMode
               ? "bg-primary/5 border-primary/40 ring-1 ring-primary/20"
               : "bg-muted/30 border-border hover:border-primary/30"
@@ -554,7 +561,8 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
             <p className="text-sm font-medium text-foreground">{getPhotoToggleCopy(selectedFormat!).title}</p>
             <p className="text-xs text-muted-foreground mt-0.5">{getPhotoToggleCopy(selectedFormat!).subtitle}</p>
           </div>
-        </button>
+        </div>
+
       )}
 
       {/* Avertissement explicite : photo chargée mais toggle OFF → l'IA ne la verra pas */}
