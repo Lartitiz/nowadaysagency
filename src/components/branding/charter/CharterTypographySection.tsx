@@ -1,9 +1,16 @@
 import { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
-import { X } from "lucide-react";
+import { Sparkles, X } from "lucide-react";
 import { GOOGLE_FONTS_LIST } from "@/lib/google-fonts-list";
 import { FONT_COMBOS } from "@/lib/charter-fonts";
 import { toast } from "sonner";
+
+// Fonts validées par le coaching IA (cohérence visuelle garantie sur les exports)
+const AI_RECOMMENDED_FONTS = new Set([
+  "Inter", "Poppins", "Montserrat", "Playfair Display", "Libre Baskerville",
+  "Lora", "Raleway", "Open Sans", "Nunito", "DM Sans", "Space Grotesk",
+  "Outfit", "Cormorant Garamond", "Josefin Sans", "Work Sans",
+]);
 
 function loadGoogleFont(font: string) {
   const id = `gf-${font.replace(/\s+/g, "-")}`;
