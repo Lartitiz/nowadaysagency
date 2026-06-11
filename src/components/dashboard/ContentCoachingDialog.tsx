@@ -6,7 +6,7 @@ import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import CoachingShell from "@/components/coaching/CoachingShell";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
-import { ArrowLeft, Rocket, RefreshCw, Sparkles, Bookmark, BookmarkCheck } from "lucide-react";
+import { ArrowLeft, Rocket, RefreshCw, Sparkles, Bookmark, BookmarkCheck, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { normalizeFormat } from "@/lib/format-normalizer";
 import { useCreateIdea } from "@/hooks/use-saved-ideas";
@@ -126,6 +126,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | "mix" | "pure_photo" | null>(null);
   const [savedIdeas, setSavedIdeas] = useState<Set<number>>(new Set());
+  const [regeneratingIdx, setRegeneratingIdx] = useState<number | null>(null);
   const createIdea = useCreateIdea();
 
   const reset = () => {
@@ -237,6 +238,56 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
       setStep(2);
     }
   };
+
+  const regenerateLens = async (idx: number, idea: ContentIdea, e: React.MouseEvent | React.KeyboardEvent) => {
+    e.stopPropagation();
+    if (!idea.lens || regeneratingIdx !== null) return;
+    const prevIdea = result?.ideas?.[idx];
+    if (!prevIdea) return;
+    setRegeneratingIdx(idx);
+    try {
+      const { data, error } = await invokeWithTimeout("content-coaching", {
+        body: {
+          answers: {
+            objectif,
+            sujet: sujet || null,
+            canal,
+            format,
+            content_type: "auto",
+            ton_envie: "auto",
+          },
+          workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
+          regenerate_lens: idea.lens,
+        },
+      }, 120000);
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const newIdea: ContentIdea | undefined = data?.ideas?.[0];
+      if (!newIdea) throw new Error("Réponse invalide");
+      setResult((prev) =>
+        prev && prev.ideas
+          ? { ...prev, ideas: prev.ideas.map((it, i) => (i === idx ? newIdea : it)) }
+          : prev,
+      );
+      setSelectedIdea((cur) => (cur === prevIdea ? null : cur));
+      setSavedIdeas((prev) => {
+        if (!prev.has(idx)) return prev;
+        const next = new Set(prev);
+        next.delete(idx);
+        return next;
+      });
+    } catch (err: any) {
+      console.error("[ContentCoaching] regenerateLens error:", err);
+      const msg = err?.isTimeout
+        ? "La régénération prend trop de temps. Réessaie."
+        : (typeof err?.message === "string" ? err.message : "Erreur lors de la régénération.");
+      toast.error(msg);
+    } finally {
+      setRegeneratingIdx(null);
+    }
+  };
+
+
 
   const handleGo = () => {
     if (!result) return;
@@ -475,18 +526,20 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
                             : "border-border bg-card hover:border-primary/40"
                         }`}
                       >
-                        <p className={`text-sm font-bold leading-snug ${isSelected ? "text-primary" : "text-foreground"}`}>
-                          {idea.subject}
-                        </p>
-                        {idea.angle && (
-                          <p
-                            className={`mt-2 text-[11px] leading-relaxed text-muted-foreground border-l-2 border-primary/40 pl-2 ${
-                              isSelected ? "" : "line-clamp-3"
-                            }`}
-                          >
-                            {idea.angle}
+                        <div className={regeneratingIdx === i ? "opacity-60 transition-opacity" : "transition-opacity"}>
+                          <p className={`text-sm font-bold leading-snug ${isSelected ? "text-primary" : "text-foreground"}`}>
+                            {idea.subject}
                           </p>
-                        )}
+                          {idea.angle && (
+                            <p
+                              className={`mt-2 text-[11px] leading-relaxed text-muted-foreground border-l-2 border-primary/40 pl-2 ${
+                                isSelected ? "" : "line-clamp-3"
+                              }`}
+                            >
+                              {idea.angle}
+                            </p>
+                          )}
+                        </div>
                         <div className="flex items-center gap-2 mt-2 flex-wrap">
                           {idea.boldness && (
                             <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
@@ -505,6 +558,33 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
                           )}
                           <span
                             role="button"
+                            tabIndex={idea.lens && regeneratingIdx === null ? 0 : -1}
+                            aria-disabled={!idea.lens || regeneratingIdx !== null}
+                            onClick={(e) => {
+                              if (!idea.lens || regeneratingIdx !== null) { e.stopPropagation(); return; }
+                              regenerateLens(i, idea, e);
+                            }}
+                            onKeyDown={(e) => {
+                              if ((e.key === "Enter" || e.key === " ") && idea.lens && regeneratingIdx === null) {
+                                e.preventDefault();
+                                regenerateLens(i, idea, e);
+                              }
+                            }}
+                            title={!idea.lens ? "Indisponible pour cette idée" : "Régénérer un autre angle pour cette idée (consomme 1 crédit)"}
+                            className={`${isSelected || !idea.lens ? "" : ""} ${!isSelected ? "" : "ml-auto"} inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium transition-all ${
+                              !idea.lens || (regeneratingIdx !== null && regeneratingIdx !== i)
+                                ? "border-border bg-card text-muted-foreground/50 cursor-not-allowed"
+                                : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-primary"
+                            }`}
+                          >
+                            {regeneratingIdx === i ? (
+                              <><Loader2 className="h-3 w-3 animate-spin" /> régénération…</>
+                            ) : (
+                              <><RefreshCw className="h-3 w-3" /> autre angle</>
+                            )}
+                          </span>
+                          <span
+                            role="button"
                             tabIndex={0}
                             onClick={(e) => handleSaveIdea(idea, i, e)}
                             onKeyDown={(e) => {
@@ -514,7 +594,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
                               }
                             }}
                             title={savedIdeas.has(i) ? "Idée sauvegardée" : "Sauvegarder dans Mes idées"}
-                            className={`${isSelected ? "" : ""} ${!isSelected ? "" : "ml-auto"} inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium transition-all ${
+                            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium transition-all ${
                               savedIdeas.has(i)
                                 ? "border-primary bg-primary/10 text-primary"
                                 : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-primary"
@@ -580,6 +660,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
               <Button
                 variant="outline"
                 onClick={() => generateIdeas()}
+                disabled={regeneratingIdx !== null}
                 className="gap-1.5"
               >
                 <RefreshCw className="h-4 w-4" /> Autres idées
@@ -588,6 +669,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
                 <Button
                   variant="outline"
                   onClick={() => generateIdeas({ objectif, canal, format, sujet, intensity: "bold" })}
+                  disabled={regeneratingIdx !== null}
                   className="gap-1.5"
                   title="Sors des sentiers battus — idées plus audacieuses"
                 >
@@ -596,7 +678,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
               ) : null}
               <Button
                 onClick={handleGo}
-                disabled={!!(result.ideas?.length && !selectedIdea)}
+                disabled={!!(result.ideas?.length && !selectedIdea) || regeneratingIdx !== null}
                 className="flex-1 gap-2 text-base h-12"
               >
                 <Rocket className="h-5 w-5" /> C'est parti, on crée !
