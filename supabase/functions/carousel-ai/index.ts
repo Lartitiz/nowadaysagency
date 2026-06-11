@@ -246,7 +246,7 @@ serve(async (req) => {
         const photoPrompt = buildPhotoCarouselPrompt(body);
         let content: string;
 
-        if (body.photos && body.photos.length > 0) {
+        if (body.photos && body.photos.length > 0 && !body.confirmed_structure) {
           // Vision mode: send photos to Claude
           const messageContent: any[] = [];
           const photoCtxRecap = buildPhotoContextRecap(body.photos);
