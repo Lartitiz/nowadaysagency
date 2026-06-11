@@ -71,6 +71,7 @@ export function SaveToIdeasDialog({
 
     const { error } = await supabase.from("saved_ideas").insert({
       user_id: user.id,
+      workspace_id: workspaceId !== user.id ? workspaceId : undefined,
       titre: `${contentEmoji} ${subject || contentType}`,
       angle: selectedTags.length > 0 ? selectedTags.join(", ") : contentType,
       format: formatLabel,
