@@ -94,9 +94,10 @@ Si oui → réécris.
 2. NUMÉROTATION DE CONSEILS ("Conseil 1", "Erreur n°2", "Étape 3") :
    → Reformuler comme moment dans un arc narratif.
 
-3. SLIDES REDONDANTES OU EN CASCADE :
-   → Si deux slides consécutives traitent la même idée avec une intensité montante ("c'est important" → "c'est crucial" → "c'est vital"), ou si l'une paraphrase l'autre en reprenant le même mot-clé central, FUSIONNE-les en une seule slide qui pose le point une fois, ou remplace la plus faible par un nouvel angle (exemple, contre-exemple, chiffre, scène concrète).
-   → Aucune slide texte ne doit ouvrir par un connecteur d'amplification : "En vrai", "Et là", "Sauf que", "Sauf qu'en fait", "Le vrai X c'est…", "C'est pour ça que…". Réécris l'ouverture par un fait, une scène, ou une question directe.
+3. SLIDES REDONDANTES OU CASCADE D'AMPLIFICATION :
+   → Cascade = même idée reformulée plus fort d'une slide à l'autre ("c'est important" → "c'est crucial" → "c'est vital"), ou paraphrase qui reprend le même mot-clé central sans rien ajouter. Dans ce cas SEULEMENT : fusionne les deux slides, ou remplace la plus faible par un nouvel angle (exemple, contre-exemple, chiffre, scène).
+   → Chaînage narratif = idée NOUVELLE (fait, scène, donnée, exemple, bascule) accrochée à la précédente par un connecteur ("Sauf que", "Et puis", "C'est là que", "Puis", "Alors", "Résultat") ou une reprise lexicale. C'est VOULU, on ne touche pas.
+   → Test de distinction : si la slide qui ouvre par "Sauf que / Et là / C'est là que" apporte un contenu nouveau (fait, détail, retournement) → garde l'ouverture intacte. Si elle ne fait que reformuler la précédente en plus fort → réécris.
 
 4. RAFALES DE PHRASES COURTES (2+ phrases < 10 mots dans une slide) :
    → Fusionne en prose fluide.
@@ -125,10 +126,13 @@ Si oui → réécris.
 
 11. OVERLAYS PHOTO (carrousels mixtes — marqueur [SLIDE N - OVERLAY]) :
     → Si l'overlay est une formule chic ou pourrait s'appliquer à n'importe quelle photo ("Quand la magie opère", "Un instant suspendu", "L'art du détail"), réécris-le en phrase ANCRÉE dans CE moment précis : un fait sensoriel (ce qu'on voit/entend/sent), un détail concret, ou une parole captée. 5-15 mots max. Pas d'abstraction décorative.
+    → NE JAMAIS supprimer le connecteur narratif ("Sauf que", "Et puis", "C'est là que"…) ou la reprise lexicale qui ouvre un overlay : c'est le chaînage voulu entre slides. Si tu réécris l'overlay, la version réécrite doit conserver un lien explicite avec la slide précédente (connecteur ou reprise d'un mot-clé).
+    → Un overlay reste 1 phrase de 5-25 mots. Ne JAMAIS le développer en 2-4 phrases : la consigne globale de longueur ne s'applique PAS aux lignes [SLIDE N - OVERLAY].
+    → Un overlay qui n'a de sens qu'après la slide précédente est un signe de qualité, pas un défaut à corriger.
 
 ══ RÈGLES ABSOLUES ══
-- Garde l'ARC NARRATIF du carrousel.
-- Chaque slide corrigée : 2-4 phrases (sauf slide 1 : 1-2 max).
+- Garde l'ARC NARRATIF du carrousel. Dans les carrousels photo/mix, le CHAÎNAGE entre slides (connecteurs narratifs en ouverture, reprises lexicales d'une slide à l'autre) est une exigence de génération : le préserver, ne jamais le lisser.
+- Chaque slide texte corrigée : 2-4 phrases (sauf slide 1 : 1-2 max, sauf overlays [SLIDE N - OVERLAY] : 1 phrase 5-25 mots).
 - Total : 1500-3000 caractères.
 - Garde le format JSON original avec marqueurs 📌 SLIDE et 📝 CAPTION.
 - JAMAIS de tiret cadratin (—).
