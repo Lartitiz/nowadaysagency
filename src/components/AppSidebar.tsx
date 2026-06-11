@@ -96,7 +96,7 @@ export default function AppSidebar() {
   const { plan } = useUserPlan();
   const { activateDemo } = useDemoContext();
   const navigate = useNavigate();
-  const planLabel = plan === "binome" ? "Binôme · Illimité ✨" : plan === "outil" ? "Outil · 39€/mois" : "Gratuit";
+  const planLabel = plan === "binome" ? "Binôme ✨" : plan === "outil" ? "Outil · 39€/mois" : "Gratuit";
   const isBinome = plan === "binome";
 
   const [open, setOpen] = useState(false);
