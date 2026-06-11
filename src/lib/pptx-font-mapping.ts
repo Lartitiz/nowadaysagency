@@ -284,7 +284,7 @@ export function extractEditableBlocks(
     candidates.push({
       el,
       text,
-      rect: { x: r.left, y: r.top, w: r.width, h: r.height },
+      rect,
       style: {
         color: cs.color || "#FFFFFF",
         fontFamily: cs.fontFamily || "",
