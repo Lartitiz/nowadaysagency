@@ -387,11 +387,27 @@ function extractRunsFromElement(
   frame: FrameStyle,
 ): TextRun[] | undefined {
   const walker = doc_treeWalker(root);
-  if (!walker) return undefined;
+  if (!walker) {
+    // Fallback flat path: still honour <br> as newlines
+    const flat = textContentWithBreaks(root).trim().replace(/\n+$/g, "");
+    if (!flat) return undefined;
+    return undefined;
+  }
 
   const raw: TextRun[] = [];
   let node: Node | null = walker.nextNode();
   while (node) {
+    // <br> → append "\n" to the last collected run (ignore if leading)
+    if (node.nodeType === 1 /* ELEMENT_NODE */) {
+      const el = node as Element;
+      if (el.tagName === "BR" && raw.length > 0) {
+        const last = raw[raw.length - 1];
+        last.text = last.text + "\n";
+      }
+      node = walker.nextNode();
+      continue;
+    }
+
     const txt = node.nodeValue || "";
     if (txt.length > 0) {
       const parent = node.parentElement;
@@ -427,6 +443,11 @@ function extractRunsFromElement(
   while (raw.length > 0 && raw[0].text.trim() === "") raw.shift();
   while (raw.length > 0 && raw[raw.length - 1].text.trim() === "") raw.pop();
   if (raw.length === 0) return undefined;
+
+  // 1b. Strip trailing "\n" from last run (trailing <br>)
+  if (raw.length > 0) {
+    raw[raw.length - 1].text = raw[raw.length - 1].text.replace(/\n+$/g, "");
+  }
 
   // 2. Normalize internal whitespace runs: merge whitespace-only run with
   //    its previous neighbor (so its style doesn't matter visually).
@@ -489,9 +510,34 @@ function extractRunsFromElement(
 function doc_treeWalker(root: HTMLElement): TreeWalker | null {
   const ownerDoc = root.ownerDocument;
   if (!ownerDoc || typeof ownerDoc.createTreeWalker !== "function") return null;
-  // NodeFilter.SHOW_TEXT = 4
-  return ownerDoc.createTreeWalker(root, 4);
+  // NodeFilter.SHOW_ELEMENT (1) | SHOW_TEXT (4) = 5
+  return ownerDoc.createTreeWalker(root, 5);
 }
+
+/**
+ * Like `el.textContent`, but converts `<br>` into a literal "\n" so that
+ * intentional line breaks survive into the PPTX text path.
+ */
+function textContentWithBreaks(el: Element): string {
+  let out = "";
+  const walk = (node: Node) => {
+    for (const child of Array.from(node.childNodes)) {
+      if (child.nodeType === 1 /* ELEMENT_NODE */) {
+        const ce = child as Element;
+        if (ce.tagName === "BR") {
+          out += "\n";
+        } else {
+          walk(ce);
+        }
+      } else if (child.nodeType === 3 /* TEXT_NODE */) {
+        out += child.nodeValue || "";
+      }
+    }
+  };
+  walk(el);
+  return out;
+}
+
 
 /** Convert CSS px font-size into PPTX point size for a 1080px wide -> 7.5in slide. */
 export function fontSizePxToPt(px: number, pxPerInch: number): number {
