@@ -6,9 +6,10 @@ import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import CoachingShell from "@/components/coaching/CoachingShell";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
-import { ArrowLeft, Rocket, RefreshCw, Sparkles } from "lucide-react";
+import { ArrowLeft, Rocket, RefreshCw, Sparkles, Bookmark, BookmarkCheck } from "lucide-react";
 import { toast } from "sonner";
 import { normalizeFormat } from "@/lib/format-normalizer";
+import { useCreateIdea } from "@/hooks/use-saved-ideas";
 
 type Step = 1 | 2 | "loading" | "result";
 
