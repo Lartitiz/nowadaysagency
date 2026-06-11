@@ -183,7 +183,7 @@ serve(async (req) => {
           : buildMixCarouselPrompt(body, isLinkedIn);
         let content: string;
 
-        if (body.photos && body.photos.length > 0) {
+        if (body.photos && body.photos.length > 0 && !body.confirmed_structure) {
           const messageContent: any[] = [];
           
           // 1. Brief créatif EN PREMIER (avant les photos)
