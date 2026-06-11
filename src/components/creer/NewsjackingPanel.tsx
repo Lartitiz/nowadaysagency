@@ -131,6 +131,10 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
   const [customIntent, setCustomIntent] = useState("");
   // angles cache, keyed by actu index
   const [anglesByIdx, setAnglesByIdx] = useState<Record<number, AnglesState>>({});
+  // Déduplication synchrone des fetchs d'angles (évite spinner infini lié au
+  // batching React 18 quand l'updater est différé).
+  const primaryStartedRef = useRef<Set<number>>(new Set());
+  const variantsStartedRef = useRef<Set<number>>(new Set());
   // Compteur écoulé pendant la recherche (rassure l'utilisatrice)
   const [searchElapsed, setSearchElapsed] = useState(0);
   useEffect(() => {
@@ -165,6 +169,8 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
     setSavedIdx(new Set());
     setSavingIdx(new Set());
     setAnglesByIdx({});
+    primaryStartedRef.current = new Set();
+    variantsStartedRef.current = new Set();
 
     try {
       const intent = {
@@ -257,14 +263,14 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
 
   // Charge UN angle (mode "primary") — appel court, prompt allégé.
   const fetchPrimaryAngle = useCallback(async (idx: number, actu: Actu) => {
-    let shouldFetch = false;
+    // Garde synchrone : empêche les doubles lancements sans dépendre du
+    // flush différé de setAnglesByIdx.
+    if (primaryStartedRef.current.has(idx)) return;
+    primaryStartedRef.current.add(idx);
     setAnglesByIdx((prev) => {
-      // Skip si déjà en cours ou déjà chargé
       if (prev[idx]?.data || prev[idx]?.loading) return prev;
-      shouldFetch = true;
       return { ...prev, [idx]: { loading: true, startedAt: Date.now(), slow: false, primaryOnly: true } };
     });
-    if (!shouldFetch) return;
 
     const t0 = Date.now();
     console.log(`[newsjacking-angles] primary start idx=${idx} title="${String(actu.titre).slice(0, 60)}"`);
@@ -279,6 +285,8 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
 
     const finish = (next: Partial<AnglesState>) => {
       clearTimeout(slowTimer);
+      // En cas d'erreur, libérer le verrou pour permettre un vrai "Réessayer".
+      if (next.error) primaryStartedRef.current.delete(idx);
       console.log(`[newsjacking-angles] primary done idx=${idx} in ${Date.now() - t0}ms`, next.errorCode || "ok");
       setAnglesByIdx((prev) => ({ ...prev, [idx]: { ...prev[idx], loading: false, ...next } }));
     };
@@ -309,17 +317,15 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
   }, [workspaceId]);
 
   // Charge 2 angles complémentaires en évitant le véhicule du primary
-  const fetchVariants = useCallback(async (idx: number, actu: Actu) => {
-    let primaryVehicule: string | undefined;
-    let shouldFetch = false;
+  const fetchVariants = useCallback(async (idx: number, actu: Actu, primaryVehicule?: string) => {
+    // Garde synchrone (même rationale que fetchPrimaryAngle).
+    if (variantsStartedRef.current.has(idx)) return;
+    variantsStartedRef.current.add(idx);
     setAnglesByIdx((prev) => {
       const s = prev[idx];
       if (!s?.data || !s.primaryOnly || s.variantsLoading) return prev;
-      primaryVehicule = s.data[0]?.vehicule;
-      shouldFetch = true;
       return { ...prev, [idx]: { ...s, variantsLoading: true, variantsSlow: false, variantsError: undefined } };
     });
-    if (!shouldFetch) return;
 
     const t0 = Date.now();
     console.log(`[newsjacking-angles] variants start idx=${idx}`);
@@ -334,6 +340,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
 
     const finishVariants = (next: { angles?: ActuAngle[]; error?: string }) => {
       clearTimeout(slowTimer);
+      if (next.error) variantsStartedRef.current.delete(idx);
       console.log(`[newsjacking-angles] variants done idx=${idx} in ${Date.now() - t0}ms`, next.error || "ok");
       setAnglesByIdx((prev) => {
         const s = prev[idx];
@@ -810,6 +817,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
                                 <div className="py-3 space-y-2">
                                   <p className="text-xs text-muted-foreground">{anglesState.error}</p>
                                   <Button size="sm" variant="outline" onClick={() => {
+                                    primaryStartedRef.current.delete(idx);
                                     setAnglesByIdx((prev) => {
                                       const next = { ...prev };
                                       delete next[idx];
@@ -863,7 +871,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
                                       variant="outline"
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        fetchVariants(idx, actu);
+                                        fetchVariants(idx, actu, anglesState.data?.[0]?.vehicule);
                                       }}
                                       className="w-full gap-1.5"
                                     >
@@ -893,7 +901,8 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
                                         variant="outline"
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          fetchVariants(idx, actu);
+                                          variantsStartedRef.current.delete(idx);
+                                          fetchVariants(idx, actu, anglesState.data?.[0]?.vehicule);
                                         }}
                                         className="gap-1.5"
                                       >
