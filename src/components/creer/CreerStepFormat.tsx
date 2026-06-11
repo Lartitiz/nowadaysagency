@@ -604,7 +604,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
             onPhotosChange={setPostPhoto}
             onDescriptionChange={setPostPhotoDescription}
             title={postPhoto.length > 0 ? `Vos photos (${postPhoto.length})` : undefined}
-            compact
+            compact={(initialPhotos?.length ?? 0) > 0}
           />
           {selectedFormat === "linkedin" && (
             <p className="text-xs text-muted-foreground pl-1">
