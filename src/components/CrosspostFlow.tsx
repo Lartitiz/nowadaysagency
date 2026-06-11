@@ -308,7 +308,7 @@ export default function CrosspostFlow() {
               })}
             </TabsList>
             {Object.entries(result.versions).map(([key, version]) => {
-              const text = version.full_text || version.script || JSON.stringify(version.sequence, null, 2) || "";
+              const text = version.full_text || version.script || (version.sequence ? formatStoriesSequence(version.sequence) : "") || "";
               return (
                 <TabsContent key={key} value={key} className="space-y-3">
                   <div className="rounded-xl border border-border bg-card p-5">
