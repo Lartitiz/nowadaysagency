@@ -346,7 +346,6 @@ Les overlay_text de chaque slide doivent se lire à la suite comme UN SEUL mini-
 
 Quand une même photo se répète sur 2-3 slides consécutives, les textes DOIVENT porter une progression (zoom narratif, avancée temporelle, retournement) — pas trois variantes d'une même idée.
 ${photo_description ? `Description complémentaire des photos : "${photo_description}"` : ""}`;
-        }
         } else {
           photoInstruction = `\nMODE MIXTE — ${photos.length} photo(s) fournies.
 
