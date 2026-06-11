@@ -2424,6 +2424,17 @@ export default function CreerUnifie() {
     <div className="min-h-screen bg-background">
       <AppHeader />
 
+      {isLoadingLibraryPhotos && (
+        <div className="fixed inset-0 z-50 bg-background/70 backdrop-blur-sm flex items-center justify-center">
+          <div className="flex flex-col items-center gap-2 text-foreground">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <p className="text-sm font-medium">Préparation de ta photo…</p>
+          </div>
+        </div>
+      )}
+
+
+
       <div className="max-w-2xl mx-auto px-4 py-6 pb-24">
         {/* Sub-page header */}
         {paramFrom && (
