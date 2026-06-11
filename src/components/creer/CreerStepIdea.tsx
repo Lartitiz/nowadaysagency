@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 
 interface Props {
   onNext: (idea: string) => void;
-  onCoachingSelect?: (data: { subject: string; format: string; objective: string; carouselSubMode?: "text" | "photo" }) => void;
+  onCoachingSelect?: (data: { subject: string; format: string; objective: string; carouselSubMode?: "text" | "photo" | "mix" | "pure_photo" }) => void;
   onNewsjackingSelect?: (data: { subject: string; context: string; format?: string; vehicule?: string }) => void;
   onPhotosNext?: (photos: PhotoItem[], description: string, subject: string) => void;
   workspaceId?: string;

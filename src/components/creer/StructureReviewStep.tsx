@@ -31,7 +31,7 @@ interface StructureReviewStepProps {
   onBack: () => void;
   isLoading: boolean;
   photos?: PhotoItem[];
-  carouselSubMode?: "text" | "photo" | "mix";
+  carouselSubMode?: "text" | "photo" | "mix" | "pure_photo";
 }
 
 export default function StructureReviewStep({

@@ -67,7 +67,7 @@ interface Props {
   suggestedFormat?: string;
   initialPhotos?: PhotoItem[];
   initialPhotoDescription?: string;
-  onNext: (format: string, editorialAngle?: string, carouselSubMode?: "text" | "photo" | "mix", photos?: PhotoItem[], photoDescription?: string, photoMode?: boolean, pinterestData?: { link?: string; boardId?: string; boardName?: string }, linkedinCarousel?: boolean) => void;
+  onNext: (format: string, editorialAngle?: string, carouselSubMode?: "text" | "photo" | "mix" | "pure_photo", photos?: PhotoItem[], photoDescription?: string, photoMode?: boolean, pinterestData?: { link?: string; boardId?: string; boardName?: string }, linkedinCarousel?: boolean) => void;
   onBack: () => void;
 }
 
@@ -77,7 +77,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
   );
   const [selectedFormat, setSelectedFormat] = useState<string | null>(initialFormat || null);
   const [selectedAngle, setSelectedAngle] = useState<string | undefined>(undefined);
-  const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | "mix" | null>(null);
+  const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | "mix" | "pure_photo" | null>(null);
   const [uploadedPhotos, setUploadedPhotos] = useState<PhotoItem[]>(initialPhotos ?? []);
   const [photoDescription, setPhotoDescription] = useState(initialPhotoDescription ?? "");
   const [photoMode, setPhotoMode] = useState(false);
@@ -149,7 +149,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
       )
     : { recommended: [], others: [] };
 
-  const handleFormatSelect = (id: string, opts?: { keepCarouselSubMode?: "text" | "photo" | "mix" }) => {
+  const handleFormatSelect = (id: string, opts?: { keepCarouselSubMode?: "text" | "photo" | "mix" | "pure_photo" }) => {
     if (CONTENT_TYPE_SPECS[id]?.comingSoon) return;
     const isFirstSelectionWithPhotos = !hasUserChangedFormat.current && (initialPhotos?.length ?? 0) > 0;
     hasUserChangedFormat.current = true;
@@ -173,8 +173,8 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
       }
     } else {
       setCarouselSubMode(opts?.keepCarouselSubMode ?? null);
-      // Préserver les photos uploadées si on entre en mode carousel mix/photo
-      if (!(id === "carousel" && (opts?.keepCarouselSubMode === "mix" || opts?.keepCarouselSubMode === "photo"))) {
+      // Préserver les photos uploadées si on entre en mode carousel mix/photo/pure_photo
+      if (!(id === "carousel" && (opts?.keepCarouselSubMode === "mix" || opts?.keepCarouselSubMode === "photo" || opts?.keepCarouselSubMode === "pure_photo"))) {
         setUploadedPhotos([]);
         setPhotoDescription("");
       }
@@ -278,12 +278,13 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
       return;
     }
     // Guard: photo/mix mode requires at least one photo
-    if (selectedFormat === "carousel" && (carouselSubMode === "photo" || carouselSubMode === "mix") && uploadedPhotos.length === 0) {
+    if (selectedFormat === "carousel" && (carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo") && uploadedPhotos.length === 0) {
       setPhotoWarning(true);
       return;
     }
     const isCarouselPhoto = selectedFormat === "carousel" && carouselSubMode === "photo";
     const isCarouselMix = selectedFormat === "carousel" && carouselSubMode === "mix";
+    const isCarouselPurePhoto = selectedFormat === "carousel" && carouselSubMode === "pure_photo";
     const isSinglePhotoFormat = formatAcceptsSinglePhoto(selectedFormat) && photoMode;
     const isLinkedInCarousel = selectedChannel === "linkedin" && selectedFormat === "carousel";
     const isInspirationPin = selectedFormat === "pinterest_inspiration";
@@ -296,8 +297,8 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
       selectedFormat,
       selectedAngle,
       selectedFormat === "carousel" ? (carouselSubMode || "text") : undefined,
-      isCarouselPhoto || isCarouselMix ? uploadedPhotos : isSinglePhotoFormat ? postPhoto : isInspirationPin ? inspirationPhotos : undefined,
-      isCarouselPhoto || isCarouselMix ? photoDescription : isSinglePhotoFormat ? postPhotoDescription : undefined,
+      isCarouselPhoto || isCarouselMix || isCarouselPurePhoto ? uploadedPhotos : isSinglePhotoFormat ? postPhoto : isInspirationPin ? inspirationPhotos : undefined,
+      isCarouselPhoto || isCarouselMix || isCarouselPurePhoto ? photoDescription : isSinglePhotoFormat ? postPhotoDescription : undefined,
       formatAcceptsSinglePhoto(selectedFormat) ? photoMode : undefined,
       pinterestData,
       isLinkedInCarousel,
@@ -595,6 +596,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
               text: { emoji: "📝", label: "Carrousel texte", desc: "L'IA écrit et designe les slides" },
               photo: { emoji: "📸", label: "Carrousel full photo", desc: "Photos plein écran + texte par-dessus" },
               mix: { emoji: "✨", label: "Carrousel storytelling", desc: "Photos + slides texte design" },
+              pure_photo: { emoji: "🖼️", label: "Carrousel juste photo", desc: "Tes photos cadrées Insta, aucun texte par-dessus" },
             }[carouselSubMode];
             return (
               <div className="flex items-center justify-between gap-3 rounded-xl bg-muted/30 border border-border px-3 py-2 animate-fade-in">
@@ -625,7 +627,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
         ) : (
           <div className="space-y-3 animate-fade-in">
             <p className="text-sm font-semibold text-foreground">Quel type de carrousel ?</p>
-            <div className={`grid grid-cols-1 ${hasPreloadedPhotos ? "sm:grid-cols-2" : "sm:grid-cols-3"} gap-2`}>
+            <div className={`grid grid-cols-1 ${hasPreloadedPhotos ? "sm:grid-cols-3" : "sm:grid-cols-2 lg:grid-cols-4"} gap-2`}>
               {!hasPreloadedPhotos && (
                 <button
                   onClick={() => { setCarouselSubMode("text"); setUploadedPhotos([]); setPhotoDescription(""); }}
@@ -652,13 +654,21 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
                 <span className="text-sm font-semibold text-foreground">Carrousel storytelling</span>
                 <p className="text-[11px] leading-snug text-muted-foreground">Alterne tes photos et des slides texte design, avec de l'espace blanc.</p>
               </button>
+              <button
+                onClick={() => setCarouselSubMode("pure_photo")}
+                className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-4 text-left transition-all flex flex-col gap-1.5"
+              >
+                <span className="text-2xl">🖼️</span>
+                <span className="text-sm font-semibold text-foreground">Carrousel juste photo</span>
+                <p className="text-[11px] leading-snug text-muted-foreground">Tes photos cadrées Insta, aucun texte par-dessus. L'IA écrit juste la légende.</p>
+              </button>
             </div>
           </div>
         )
       )}
 
-      {/* Photo upload zone (carousel photo mode) */}
-      {(carouselSubMode === "photo" || carouselSubMode === "mix") && (
+      {/* Photo upload zone (carousel photo / mix / pure_photo) */}
+      {(carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo") && (
         <div className="animate-fade-in">
           <PhotoUploadZone
             maxPhotos={10}
