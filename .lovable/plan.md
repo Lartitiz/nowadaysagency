@@ -1,93 +1,68 @@
-# Vague 2 — workspace-guard sur 5 Edge Functions d'écriture
+# Newsjacking — analyse d'une URL d'actu fournie par l'utilisatrice
 
-Pattern unique appliqué à 5 fichiers : import du helper + insertion d'`assertWorkspaceMembership` au point indiqué. Aucune autre modification.
+## Idée et pertinence
 
-## (a) Modifications demandées
+Très bonne idée et naturelle dans ce panneau. Aujourd'hui le flow part toujours d'une recherche Perplexity ("vibes" + intention libre) qui ramène des actus. Permettre de **coller un lien d'article** et générer directement les angles sur CETTE actu couvre un cas d'usage très concret : « j'ai vu cet article ce matin, qu'est-ce que j'en fais ? ».
 
-Dans CHAQUE fichier :
+Avantages :
+- Zéro hallucination sur le sujet (on lit l'article, on ne le devine pas).
+- Plus rapide qu'une recherche large (1 seul appel Anthropic, pas de Perplexity).
+- Plus économe : 1 crédit pour 1 actu ciblée vs. recherche large.
 
-**Import à ajouter** (après les imports existants) :
+## UX proposée
 
-```ts
-import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
+Ajouter dans le bloc d'intention un **3e champ** au-dessus (ou en dessous) des vibes :
+
+```
+🔗 Tu as déjà une actu en tête ?
+[ Colle le lien ici (article, vidéo YouTube, post LinkedIn…) ]
+[ Analyser ce lien ]   ← CTA séparé du "Lancer la recherche"
 ```
 
-**Bloc à insérer** au point précisé :
+- Si l'utilisatrice colle une URL et clique sur "Analyser ce lien" → on bypasse Perplexity, on scrape l'URL, on construit UNE actu, on génère ses angles.
+- Si elle laisse vide et clique sur "Lancer la recherche" → flow actuel inchangé.
+- Les 2 modes cohabitent, pas de régression.
 
-```ts
-const membership = await assertWorkspaceMembership(<CLIENT>, <USER>, <WS_BODY>);
-if (!membership.ok) {
-  console.warn("[workspace-guard] denied", { userId: <USER>, workspaceId: <WS_BODY> });
-  return workspaceDeniedResponse(corsHeaders);
-}
-```
+Résultat affiché : exactement comme aujourd'hui (carte actu + angles dépliables + bouton "Utiliser"). L'actu unique vient simplement avec un badge "📰 D'après ton lien" au lieu de venir de la recherche.
 
-### 1. `analyze-brand/index.ts`
+## Implémentation
 
-- Client : `supabaseAdmin` · User : `userId` · WS : `bodyWorkspaceId`
-- Insertion : **après la création de `supabaseAdmin` (L38-41)**, juste avant `const scrapedContent` (L43).
+### 1. Frontend — `src/components/creer/NewsjackingPanel.tsx`
+- Nouveau state `urlInput: string` + validation URL simple (http/https).
+- Nouveau bloc UI au-dessus des vibes (ou en bas, à valider) avec input + CTA.
+- Nouveau handler `fetchFromUrl()` qui appelle une nouvelle Edge Function `newsjacking-from-url` avec `{ url, workspace_id }`, reçoit `{ actus: [oneActu] }` au même format, puis enchaîne le pré-calcul d'angles existant (`fetchPrimaryAngle`).
 
-### 2. `analyze-branding-impact/index.ts`
+### 2. Backend — nouvelle Edge Function `supabase/functions/newsjacking-from-url/index.ts`
+Pipeline :
+1. Auth (`getUser`) + rate limit + workspace-guard (Vague 2 pattern) + `checkQuota("content")` (1 crédit, identique au flow recherche).
+2. Validation Zod : `url: z.string().url()`.
+3. **Scraping** via le helper existant `scrapeWebsite(url, signal)` de `_shared/scraping.ts` — pas besoin de Firecrawl, le helper est déjà utilisé partout (analyze-brand, deep-diagnostic).
+4. Si scraping vide / échec → 422 `{ error: "Impossible de lire ce lien" }`.
+5. Appel Anthropic Sonnet avec `getUserContext` (preset léger) + le texte scrapé, prompt qui extrait :
+   - `titre` (titre réel de l'article)
+   - `resume` (3-4 phrases neutres)
+   - `source` (nom du média déduit du domaine)
+   - `source_url` (URL fournie)
+   - `axe` + `ton` + `force_pont` + `pertinence` (même format que les actus Perplexity)
+6. `logUsage("content", 1)`.
+7. Retour : `{ actus: [actuObject] }` — strictement le même format que `newsjacking-ai`, le frontend n'a rien d'autre à changer.
 
-- Client : `supabase` · User : `user.id` · WS : `workspace_id`
-- Insertion : **après le `req.json()` qui lit `workspace_id` (L28) et avant `checkQuota` (L34)** — au plus tôt après L31 (le early-return si champs manquants). On le place juste avant le commentaire `// Check quota` (L33).
+L'enrichissement angles continue d'utiliser `newsjacking-angles` existant (mode="primary" puis "variants"), aucun changement requis là.
 
-### 3. `deep-diagnostic/index.ts`
+### Choix techniques
 
-- Client : `supabaseAdmin` · User : `userId` · WS : `bodyWorkspaceId`
-- Insertion : **après la création de `supabaseAdmin` (L80-83)**, juste avant le commentaire `// Get workspace` (L85) et la requête `wsData`.
+- **Pas de Firecrawl** : le helper `scrapeWebsite` interne suffit, pas de nouveau secret/coût.
+- **Pas de cache** : on suit le pattern actuel (chaque recherche = 1 crédit), équitable.
+- **Pas de support multi-URLs** dans cette v1 (1 lien = 1 actu = 1 crédit).
 
-### 4. `generate-branding-summary/index.ts`
+## Hors scope (v2 possible)
 
-- Le fichier crée ses clients SERVICE_ROLE inline. Instancier un client local dédié au garde, juste avant l'appel :
+- Support vidéos YouTube (transcription) — autre helper.
+- Support posts LinkedIn (déjà `scrapeLinkedin`, mais auth requise).
+- Détection auto de plusieurs angles concurrents dans un long-format (article 5000 mots).
 
-```ts
-const sbGuard = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-const membership = await assertWorkspaceMembership(sbGuard, user.id, workspace_id);
-if (!membership.ok) { ... return workspaceDeniedResponse(corsHeaders); }
-```
+## Questions à valider avant exec
 
-- Insertion : **après la destructuration `{ force, workspace_id }` (L42)**, avant `const filterCol` (L44).
-- Pas de refactor des autres `createClient` inline.
-
-### 5. `generate-voice-guide/index.ts`
-
-- Client : `serviceClient` · User : `userId` · WS : `workspace_id`
-- Insertion : **après la création de `serviceClient` (L50)**, avant `getUserContext` (L51).
-
-## Garanties
-
-- `membership.ok` uniquement utilisé (le helper hardcode 403).
-- `bodyWorkspaceId`/`workspace_id` absent → helper retourne `ok: true` (legacy) → comportement inchangé.
-- Aucun fichier touché en dehors des 5. Helper `_shared/workspace-guard.ts` non modifié. `assistant-chat` non retouché.
-- Aucune modification de logique métier, prompts, scraping, quotas, contextes, fallbacks `wsData`, profileUserId.
-
-## (b) Propositions hors demande
-
-Lecture des 5 fichiers : les points d'insertion proposés sont les plus précoces possibles SANS toucher au flux. À noter pour transparence (pas d'action requise) :
-
-- `**analyze-brand**` : `checkQuota` (L30) est appelé AVANT `supabaseAdmin` (L38) mais ne prend pas `workspace_id` en argument → aucun risque d'écriture/lecture scoping workspace avant le garde. Le point d'insertion L41 reste le plus sûr (premier moment où un client SERVICE_ROLE existe).
-- `**analyze-branding-impact**` : le early-return L29-31 (champs manquants) reste légitimement avant le garde car il n'utilise aucune donnée workspace. OK.
-- `**deep-diagnostic**` : `checkQuota` (situé plus bas dans le fichier, hors extrait) doit déjà être après L83. Le garde inséré à L84 protège bien `wsData` et toute la suite.
-
-Aucune amélioration nécessaire au-delà de ces observations.
-
-## Validation
-
-- `npx tsc --noEmit --skipLibCheck` → 0 erreur
-- 5 fonctions appelées sur propre workspace : OK
-- 5 fonctions appelées sans `workspace_id` : OK (legacy)
-- 5 fonctions appelées avec workspace_id étranger : 403 `workspace_access_denied`, log `[workspace-guard] denied` 
-
-Plan validé, tu peux passer en Exec.
-
-Tes observations en (b) sont justes et j'ai vérifié deep-diagnostic : la première opération workspace y est la requête `wsData` (L87), suivie du `checkQuota` scopé workspace (L110) puis des écritures. Le garde à L84 précède bien tout. Parfait.
-
-Rappel des contraintes pour les 5 fichiers :
-
-- Garder sur la valeur **brute du body** (`bodyWorkspaceId` pour analyze-brand/deep-diagnostic, `workspace_id` pour les 3 autres), jamais sur un workspace calculé.
-- `membership.ok` uniquement.
-- Aucune logique métier touchée, fallbacks `wsData` et `profileUserId` intacts.
-- Aucun fichier hors les 5, helper non modifié, assistant-chat non retouché.
-
-Exécute les 5.
+1. **Placement** : input URL **au-dessus** des vibes (= chemin prioritaire) ou **en dessous** (= alternative discrète au cas où) ?
+2. **Coût** : 1 crédit comme la recherche actuelle, OK ? (cohérent, on facture l'usage IA pas la recherche Perplexity en elle-même.)
+3. **Format accepté** v1 : uniquement HTTP/HTTPS d'articles web ? On exclut explicitement YouTube/LinkedIn/Twitter pour ne pas promettre ce qu'on tient mal.
