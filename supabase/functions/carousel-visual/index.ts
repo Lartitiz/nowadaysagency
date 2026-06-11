@@ -977,7 +977,7 @@ Avant de répondre, vérifie :
 3. Le carrousel utilise au maximum 3-4 layouts différents (cohérence > variété).
 4. Aucune slide n'a de ligne décorative sous un titre.
 5. Aucune slide n'a un fond beige/crème par défaut.
-6. Aucune slide n'a plus de ~200px de vide sous son dernier élément (équilibre vertical).
+6. Le dernier élément de chaque slide se termine entre 1010px et 1240px de hauteur.
 7. Les cartes sœurs d'un même schéma ont toutes la même hauteur.
 Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de contenu cassé.
 `;
