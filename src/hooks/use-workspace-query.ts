@@ -8,14 +8,14 @@ import { useQuery } from "@tanstack/react-query";
  * for backward compatibility when no workspace is selected.
  */
 export function useWorkspaceId(): string {
+  const { user } = useAuth();
+  let activeWorkspaceId: string | undefined;
   try {
-    const { activeWorkspace } = useWorkspace();
-    if (activeWorkspace?.id) return activeWorkspace.id;
+    activeWorkspaceId = useWorkspace().activeWorkspace?.id;
   } catch {
     // WorkspaceProvider not mounted yet — fallback
   }
-  const { user } = useAuth();
-  return user?.id ?? "";
+  return activeWorkspaceId ?? user?.id ?? "";
 }
 
 /**
@@ -23,17 +23,19 @@ export function useWorkspaceId(): string {
  * Use with supabase `.eq(filter.column, filter.value)`.
  */
 export function useWorkspaceFilter(): { column: string; value: string } {
+  const { user } = useAuth();
+  let activeWorkspaceId: string | undefined;
   try {
-    const { activeWorkspace } = useWorkspace();
-    if (activeWorkspace?.id) {
-      return { column: "workspace_id", value: activeWorkspace.id };
-    }
+    activeWorkspaceId = useWorkspace().activeWorkspace?.id;
   } catch {
     // fallback
   }
-  const { user } = useAuth();
+  if (activeWorkspaceId) {
+    return { column: "workspace_id", value: activeWorkspaceId };
+  }
   return { column: "user_id", value: user?.id ?? "" };
 }
+
 
 /**
  * Returns the user_id of the workspace owner.

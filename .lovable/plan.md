@@ -1,62 +1,60 @@
 ## Problème
 
-Quand l'utilisatrice clique sur **"Lancer la recherche"** (ou plus rarement sur **"Voir les angles"**) dans Surfer sur l'actu, le loader tourne sans fin et rien ne s'affiche, alors qu'aucune erreur n'est jetée côté serveur.
+Sur `/branding/charter`, l'`ErrorBoundary` se déclenche avec **"Cannot read properties of null (reading 'useContext')"**. La cause vraie remonte plus haut dans la console :
 
-### Cause racine
+```
+React has detected a change in the order of Hooks called by SessionProvider.
+   Previous render            Next render
+   ------------------------------------------------------
+1. useContext                 useContext
+2. useContext                 useContext
+3. useContext                 useState
+```
 
-`supabase/functions/newsjacking-ai/index.ts` appelle Anthropic avec l'outil `web_search_20250305` configuré sur `max_uses: 10`. Ces appels durent **régulièrement 70–150 s** (10 recherches web séquentielles). Mais les timeouts en cascade sont mal alignés :
+C'est une **violation des Rules of Hooks** dans `src/hooks/use-workspace-query.ts` (`useWorkspaceFilter`, `useWorkspaceId`, `useProfileUserId`). Ces hooks appellent conditionnellement `useAuth()` :
 
-| Endroit | Timeout actuel | Conséquence |
-|---|---|---|
-| Client `invokeWithTimeout("newsjacking-ai")` | **90 s** | Coupe la promesse **avant** la fin d'Anthropic |
-| `AbortController` dans la fonction | 120 s | Le serveur continue à attendre Anthropic après la coupure |
-| Anthropic web_search 10 uses | ~70–150 s typiques | Souvent au-delà des 90 s client |
+```ts
+export function useWorkspaceFilter() {
+  try {
+    const { activeWorkspace } = useWorkspace();           // useContext #1 — toujours
+    if (activeWorkspace?.id) return { ... };              // ← early return
+  } catch { /* fallback */ }
+  const { user } = useAuth();                              // useContext #2 — conditionnel !
+  return { column: "user_id", value: user?.id ?? "" };
+}
+```
 
-Résultat : `invokeWithTimeout` résout en `TIMEOUT` au bout de 90 s, mais sur le panneau `setLoading(false)` n'est appelé **que dans le `finally`** APRÈS `setError(...)` — donc l'UI affiche bien une erreur, sauf que **l'utilisatrice voit d'abord le spinner pendant 90 s** sans aucun feedback intermédiaire → impression de "ça tourne dans le vide". Et si la connexion est lente / un proxy coupe à 60 s, le SDK Supabase peut renvoyer un `FunctionsFetchError` qui re-tente une fois (encore 90 s d'attente).
+Tant que `activeWorkspace` est vide (premier render), React voit 2 `useContext` dans cette fonction. Dès que le workspace arrive (render suivant), le early-return saute le `useAuth()` → l'ordre des hooks change → React part en vrille et crash le sous-arbre, ce qui produit l'erreur générique vue par l'utilisatrice.
 
-Même problème, à plus petite échelle, sur `newsjacking-angles` :
-- mode `primary` : 4 appels parallèles fan-out (`PRECOMPUTE_COUNT = 4`, délai 200 ms), client à 60 s, edge à 90 s — quand Claude est lent ou un appel hit 529, la 1ʳᵉ tuile reste en "Génération…" indéfiniment.
-- mode `variants` : client à **100 s** mais l'`AbortController` côté edge est à **90 s** — donc la fonction abort AVANT que le client ait expiré, renvoyant un 502 silencieux.
+Le même problème existe dans `useWorkspaceId` (même pattern try / early-return / useAuth après) et dans `useProfileUserId` (try/catch autour de `useWorkspace()`, le `useQuery` enchaîné garde un ordre stable mais le crash de l'ancêtre suffit à casser la page).
 
-## Correctifs
+`useWorkspaceFilterWithFallback` au bas du fichier appelle déjà `useAuth()` **avant** le try/catch — c'est la forme correcte, on s'en sert comme modèle.
 
-### 1. Aligner et allonger les timeouts (fix immédiat)
+## Correctif
 
-**`src/components/creer/NewsjackingPanel.tsx`** :
-- `newsjacking-ai` : passer `invokeWithTimeout(..., 90000)` → **`180000`** (3 min).
-- `newsjacking-angles` primary : passer `60000` → **`120000`**.
-- `newsjacking-angles` variants : passer `100000` → **`130000`** (au-dessus de l'abort serveur).
+**`src/hooks/use-workspace-query.ts`** — toujours appeler `useAuth()` et `useWorkspace()` (via un wrapper safe) **en haut** de chaque hook, puis choisir la valeur retournée. Aucun appel de hook ne doit dépendre d'une branche conditionnelle.
 
-**`supabase/functions/newsjacking-ai/index.ts`** :
-- `AbortController` : 120 000 → **170 000 ms** (laisser une marge sous le client 180 s).
-- `web_search` `max_uses` : **10 → 5**. C'est le principal levier wall-time. 5 recherches suffisent largement pour 3-6 actus selon le prompt.
+1. `useWorkspaceId` :
+   ```ts
+   const { user } = useAuth();
+   let activeWorkspaceId: string | undefined;
+   try { activeWorkspaceId = useWorkspace().activeWorkspace?.id; } catch {}
+   return activeWorkspaceId ?? user?.id ?? "";
+   ```
 
-**`supabase/functions/newsjacking-angles/index.ts`** :
-- `AbortController` : 90 000 → **120 000 ms** (au-dessus du client primary 120 s et sous le client variants 130 s).
+2. `useWorkspaceFilter` : pareil — `useAuth()` d'abord, puis tentative `useWorkspace()`, puis choix.
 
-### 2. Réduire la pression du pré-calcul (fix immédiat)
+3. `useProfileUserId` : retirer la branche conditionnelle qui repousse `useAuth` après le try/catch. L'ordre devient `useAuth → useWorkspace (try/catch sans early-return) → useQuery`. `useQuery` est déjà appelé inconditionnellement grâce à `enabled: isManager`, donc rien d'autre à toucher.
 
-**`src/components/creer/NewsjackingPanel.tsx`** :
-- `PRECOMPUTE_COUNT` : 4 → **2**. Le délai inter-call passe à 600 ms (au lieu de 200 ms) :
-  ```ts
-  setTimeout(() => fetchPrimaryAngle(idx, actu), idx * 600);
-  ```
-  Conséquence : on évite de saturer Anthropic en bursts de 4 et on réduit le risque de 529 / file d'attente côté gateway. Les 2 autres tuiles fetchent à la demande quand on clique "Voir les angles" — c'est déjà le comportement de `handleToggleActu`.
+4. Laisser `useWorkspaceFilterWithFallback` tel quel (déjà conforme).
 
-### 3. Feedback utilisateur pendant l'attente (fix UX)
+## Vérification
 
-**`src/components/creer/NewsjackingPanel.tsx`** (rendu du bouton "Lancer la recherche") :
-- Ajouter un compteur "Recherche en cours… 23s" sous le bouton dès que `loading` est `true`, basé sur un `useState<number>(0)` incrémenté toutes les 1 s. Au-delà de 30 s, afficher "L'IA explore le web, ça peut prendre jusqu'à 2 minutes…". Cela rassure et évite l'impression de "freeze".
-- Idem pour le slow-state des tuiles : le `slowTimer` existe déjà à 15 s sur les angles, mais aucun message n'est affiché. Ajouter "Claude prend son temps sur celle-ci…" quand `slow === true`.
+- Recharger `/branding/charter` après le fix → la page rend sans tomber dans l'ErrorBoundary.
+- Console du navigateur : plus d'avertissement "change in the order of Hooks called by SessionProvider".
+- Naviguer vers d'autres pages utilisant ces hooks (calendrier, créer, identité de marque) → aucune régression visuelle.
 
-### 4. Vérification
+## Hors scope
 
-- Ouvrir Surfer sur l'actu, cliquer "Lancer la recherche", attendre 2 min max — les actus s'affichent.
-- Logs Supabase : `newsjacking-ai` doit renvoyer 200 sous 170 s avec ≤5 web_search uses.
-- Cliquer sur "Voir les angles" sur 3 tuiles d'affilée : aucune ne reste bloquée plus de 120 s ; en cas de timeout, le message d'erreur typé s'affiche bien sur la tuile.
-- Cliquer "Voir 2 autres angles" : la réponse arrive ou un message d'erreur clair s'affiche dans la limite des 130 s.
-
-## Hors scope (à proposer plus tard si insuffisant)
-
-- Refactor vers le pattern **job asynchrone + polling** (table `newsjacking_jobs`, `EdgeRuntime.waitUntil`, status polling client) — robuste mais lourd ; pertinent uniquement si même après allongement des timeouts on continue à dépasser les 3 min.
-- Bascule de `newsjacking-ai` sur `invokeWithHeartbeat` (SSE keep-alive) — utile si on observe des coupures de proxy intermédiaires malgré les nouveaux timeouts. Requiert d'adapter la fonction pour émettre des events SSE de heartbeat.
+- Le warning Tailwind `duration-[300ms]` ambigu vu dans les logs Vite : cosmétique, sans rapport.
+- Le re-render lent du préchargement Google Fonts dans `CharterTypographySection` : non lié au crash.
