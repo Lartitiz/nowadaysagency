@@ -503,13 +503,87 @@ export interface ShapeBlock {
   fill: string;
   /** Border-radius en px (top-left si shorthand asymétrique). */
   borderRadiusPx: number;
+  /**
+   * Ombre native pptxgenjs si la box-shadow CSS est convertible.
+   * Si absent → pas d'ombre (ou ombre complexe non supportée).
+   */
+  shadow?: {
+    blurPt: number;
+    offsetPt: number;
+    angle: number;
+    color: string;
+    opacity: number;
+  };
+}
+
+/**
+ * Parse une box-shadow CSS simple en paramètres pptxgenjs.
+ * Retourne null si l'ombre est inset, multiple, a un spread non nul, ou si
+ * la couleur n'est pas extractible.
+ *
+ * Conversions : px → pt via 0.75 (96 px/in ÷ 72 pt/in). Angle = atan2(oy, ox)
+ * en degrés normalisés 0-359. Blur plafonné à 100pt (limite pptxgenjs).
+ */
+function parseSimpleBoxShadow(raw: string): ShapeBlock["shadow"] | null {
+  const value = raw.trim();
+  if (!value || value === "none") return null;
+  if (/\binset\b/i.test(value)) return null;
+
+  // Rejeter les ombres multiples : une virgule HORS parenthèses sépare deux ombres.
+  let depth = 0;
+  for (let i = 0; i < value.length; i++) {
+    const c = value[i];
+    if (c === "(") depth++;
+    else if (c === ")") depth--;
+    else if (c === "," && depth === 0) return null;
+  }
+
+  // Extraire la couleur d'abord (rgba/rgb/hex) puis travailler sur le reste.
+  let colorHex = "000000";
+  let opacity = 1;
+  let rest = value;
+
+  const rgbaMatch = value.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([\d.]+))?\s*\)/i);
+  const hexMatch = !rgbaMatch ? value.match(/#([0-9a-f]{3,8})\b/i) : null;
+  if (rgbaMatch) {
+    const r = Math.max(0, Math.min(255, parseInt(rgbaMatch[1], 10)));
+    const g = Math.max(0, Math.min(255, parseInt(rgbaMatch[2], 10)));
+    const b = Math.max(0, Math.min(255, parseInt(rgbaMatch[3], 10)));
+    colorHex = [r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("").toUpperCase();
+    opacity = rgbaMatch[4] !== undefined ? Math.max(0, Math.min(1, parseFloat(rgbaMatch[4]))) : 1;
+    rest = value.replace(rgbaMatch[0], "").trim();
+  } else if (hexMatch) {
+    colorHex = normalizeHex(hexMatch[0], "000000");
+    rest = value.replace(hexMatch[0], "").trim();
+  } else {
+    return null;
+  }
+
+  // Le reste doit être 2-4 longueurs en px : offsetX offsetY [blur [spread]]
+  const lengths = rest.match(/-?\d*\.?\d+px/g);
+  if (!lengths || lengths.length < 2 || lengths.length > 4) return null;
+  const nums = lengths.map((s) => parseFloat(s));
+  const [ox, oy, blur = 0, spread = 0] = nums;
+  if (spread !== 0) return null;
+
+  const PX_TO_PT = 0.75;
+  const blurPt = Math.min(blur * PX_TO_PT, 100);
+  const offsetPt = Math.hypot(ox, oy) * PX_TO_PT;
+  let angle = 0;
+  if (offsetPt >= 0.1) {
+    angle = (Math.atan2(oy, ox) * 180) / Math.PI;
+    angle = ((angle % 360) + 360) % 360;
+  }
+
+  return { blurPt, offsetPt, angle, color: colorHex, opacity };
 }
 
 /**
  * Extrait les éléments annotés `data-pptx-shape` du document iframe rendu.
  * Skip silencieusement les cas non supportés par les shapes natifs (gradient,
- * box-shadow, transform, fond transparent, élément trop petit).
+ * transform, ombre complexe, fond transparent, élément trop petit).
  *
+ * Les ombres CSS simples sont converties en ombres pptxgenjs natives.
  * Console.debug en cas de skip pour diagnostiquer le respect des règles par Opus.
  */
 export function extractShapeBlocks(doc: Document): ShapeBlock[] {
@@ -531,14 +605,25 @@ export function extractShapeBlocks(doc: Document): ShapeBlock[] {
     // Skip défensif : conditions interdites par le prompt mais on ne fait pas confiance.
     const bgImage = cs.backgroundImage || "none";
     const hasGradient = /gradient\(/i.test(bgImage);
-    const hasShadow = (cs.boxShadow || "none") !== "none";
     const hasTransform = (cs.transform || "none") !== "none";
-    if (hasGradient || hasShadow || hasTransform) {
+    if (hasGradient || hasTransform) {
       console.debug("[hybrid] shape skipped (unsupported style)", {
         type,
-        reason: hasGradient ? "gradient" : hasShadow ? "shadow" : "transform",
+        reason: hasGradient ? "gradient" : "transform",
       });
       continue;
+    }
+
+    // Box-shadow : tenter la conversion native. Skip uniquement si non convertible.
+    const rawShadow = cs.boxShadow || "none";
+    let shadow: ShapeBlock["shadow"] | undefined = undefined;
+    if (rawShadow !== "none") {
+      const parsed = parseSimpleBoxShadow(rawShadow);
+      if (!parsed) {
+        console.debug("[hybrid] shape skipped (unsupported shadow)", { type, raw: rawShadow });
+        continue;
+      }
+      shadow = parsed;
     }
 
     const bgColor = cs.backgroundColor || "transparent";
@@ -557,8 +642,10 @@ export function extractShapeBlocks(doc: Document): ShapeBlock[] {
       rect: { x: r.left, y: r.top, w: r.width, h: r.height },
       fill: normalizeHex(bgColor, "FFFFFF"),
       borderRadiusPx,
+      shadow,
     });
   }
   return blocks;
 }
+
 
