@@ -42,6 +42,7 @@ export function SaveToIdeasDialog({
   objectif,
 }: Props) {
   const { user } = useAuth();
+  const workspaceId = useWorkspaceId();
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [customTag, setCustomTag] = useState("");
   const [note, setNote] = useState("");
