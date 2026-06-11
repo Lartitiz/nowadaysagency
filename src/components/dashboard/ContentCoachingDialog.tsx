@@ -558,6 +558,33 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
                           )}
                           <span
                             role="button"
+                            tabIndex={idea.lens && regeneratingIdx === null ? 0 : -1}
+                            aria-disabled={!idea.lens || regeneratingIdx !== null}
+                            onClick={(e) => {
+                              if (!idea.lens || regeneratingIdx !== null) { e.stopPropagation(); return; }
+                              regenerateLens(i, idea, e);
+                            }}
+                            onKeyDown={(e) => {
+                              if ((e.key === "Enter" || e.key === " ") && idea.lens && regeneratingIdx === null) {
+                                e.preventDefault();
+                                regenerateLens(i, idea, e);
+                              }
+                            }}
+                            title={!idea.lens ? "Indisponible pour cette idée" : "Régénérer un autre angle pour cette idée (consomme 1 crédit)"}
+                            className={`${isSelected || !idea.lens ? "" : ""} ${!isSelected ? "" : "ml-auto"} inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium transition-all ${
+                              !idea.lens || (regeneratingIdx !== null && regeneratingIdx !== i)
+                                ? "border-border bg-card text-muted-foreground/50 cursor-not-allowed"
+                                : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-primary"
+                            }`}
+                          >
+                            {regeneratingIdx === i ? (
+                              <><Loader2 className="h-3 w-3 animate-spin" /> régénération…</>
+                            ) : (
+                              <><RefreshCw className="h-3 w-3" /> autre angle</>
+                            )}
+                          </span>
+                          <span
+                            role="button"
                             tabIndex={0}
                             onClick={(e) => handleSaveIdea(idea, i, e)}
                             onKeyDown={(e) => {
@@ -567,7 +594,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
                               }
                             }}
                             title={savedIdeas.has(i) ? "Idée sauvegardée" : "Sauvegarder dans Mes idées"}
-                            className={`${isSelected ? "" : ""} ${!isSelected ? "" : "ml-auto"} inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium transition-all ${
+                            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium transition-all ${
                               savedIdeas.has(i)
                                 ? "border-primary bg-primary/10 text-primary"
                                 : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-primary"
