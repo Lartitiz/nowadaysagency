@@ -316,7 +316,7 @@ serve(async (req) => {
     // Validation step 4 : normaliser font_title / font_body contre la liste autorisée,
     // sinon retomber sur le fallback sectoriel pour éviter de sauvegarder une font qui ne charge pas
     if (step === 4 && parsed?.extracted) {
-      const sectorFont = getSectorFontEntry(typeActivite);
+      const sectorFont = getSectorFontEntry(profileRes.data?.type_activite || null);
       const normalizedTitle = normalizeFont(parsed.extracted.font_title);
       const normalizedBody = normalizeFont(parsed.extracted.font_body);
       if (!normalizedTitle || !normalizedBody) {
