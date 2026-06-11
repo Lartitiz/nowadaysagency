@@ -317,17 +317,15 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
   }, [workspaceId]);
 
   // Charge 2 angles complémentaires en évitant le véhicule du primary
-  const fetchVariants = useCallback(async (idx: number, actu: Actu) => {
-    let primaryVehicule: string | undefined;
-    let shouldFetch = false;
+  const fetchVariants = useCallback(async (idx: number, actu: Actu, primaryVehicule?: string) => {
+    // Garde synchrone (même rationale que fetchPrimaryAngle).
+    if (variantsStartedRef.current.has(idx)) return;
+    variantsStartedRef.current.add(idx);
     setAnglesByIdx((prev) => {
       const s = prev[idx];
       if (!s?.data || !s.primaryOnly || s.variantsLoading) return prev;
-      primaryVehicule = s.data[0]?.vehicule;
-      shouldFetch = true;
       return { ...prev, [idx]: { ...s, variantsLoading: true, variantsSlow: false, variantsError: undefined } };
     });
-    if (!shouldFetch) return;
 
     const t0 = Date.now();
     console.log(`[newsjacking-angles] variants start idx=${idx}`);
