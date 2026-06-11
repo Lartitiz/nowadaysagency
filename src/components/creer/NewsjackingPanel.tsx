@@ -340,6 +340,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
 
     const finishVariants = (next: { angles?: ActuAngle[]; error?: string }) => {
       clearTimeout(slowTimer);
+      if (next.error) variantsStartedRef.current.delete(idx);
       console.log(`[newsjacking-angles] variants done idx=${idx} in ${Date.now() - t0}ms`, next.error || "ok");
       setAnglesByIdx((prev) => {
         const s = prev[idx];
