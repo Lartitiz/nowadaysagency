@@ -1,48 +1,83 @@
-## Diagnostic
+## Périmètre confirmé
 
-La légende n'est pas tronquée à la génération : c'est la **passe de correction anti-tics IA** qui corrompt l'objet `caption`.
+3 fichiers, aucune migration, aucun touch aux exports legacy ni aux templates de schémas.
 
-Flux du bug (carrousel photo) :
+- **Frontend** : `src/lib/pptx-font-mapping.ts`, `src/lib/export-carousel-hybrid-pptx.ts`
+- **Backend** : `supabase/functions/carousel-visual/index.ts` (prompt uniquement)
 
-1. `carousel-ai` retourne un JSON où `caption` est un **objet** `{ hook, body, cta, hashtags }` (schéma défini ligne ~1572 de `carousel-ai/index.ts`).
-2. `extractCarouselTexts` (`_shared/correction-pass.ts:367-370`) fait `` `[CAPTION] ${caption}` `` sur cet objet → produit la chaîne `[CAPTION] [object Object]` envoyée à Claude pour correction.
-3. Claude renvoie une chaîne « corrigée » d'une phrase.
-4. `reinjectCarouselTexts` (`correction-pass.ts:427-428`) écrase `result.caption` (l'objet) par cette chaîne plate.
-5. Côté front, `buildCaptionWithFallback` (`CarouselPhotoResult.tsx:213-237`) ne trouve ni `.hook` ni `.body` ni `.cta` ni `.hashtags` sur la chaîne → `hasContent = false` → fallback sur `firstSlide.overlay_text` (une seule phrase courte). C'est exactement le symptôme observé.
+Vérifications faites pendant l'audit :
 
-## Fichier modifié
+- `extractShapeBlocks` skipe actuellement à `pptx-font-mapping.ts:534-542` via un test groupé `gradient || shadow || transform`. À éclater proprement pour traiter `shadow` séparément.
+- Le CSS de masquage (`export-carousel-hybrid-pptx.ts:115-119`) inclut déjà `box-shadow: none !important` sur `[data-pptx-shape-hide="true"]` → quand on promeut une carte ombrée en shape natif, la capture PNG ne dessine plus l'ombre CSS. **Aucun risque de double ombre.** Rien à toucher sur ce CSS.
+- `slide.addShape("roundRect", { ... })` est appelé à `export-carousel-hybrid-pptx.ts:639` — c'est le seul point d'injection à enrichir.
 
-`supabase/functions/_shared/correction-pass.ts` — uniquement `extractCarouselTexts` et `reinjectCarouselTexts`.
+## Ce que tu m'as demandé (a)
 
-## Changement
+### 1. `src/lib/pptx-font-mapping.ts`
 
-### `extractCarouselTexts` (ligne ~366-370)
+a. Étendre `ShapeBlock` avec :
+```ts
+shadow?: { blurPt: number; offsetPt: number; angle: number; color: string; opacity: number };
+```
 
-Si `caption` est un objet, sérialiser ses sous-champs séparément (et conserver le format objet en mémoire pour la réinjection). Pousser :
+b. Dans `extractShapeBlocks`, remplacer le test groupé `hasGradient || hasShadow || hasTransform` par :
+- skip si `gradient` ou `transform` (inchangé)
+- pour `box-shadow !== "none"` → tenter un parsing via un helper local `parseSimpleBoxShadow(raw: string): ShapeBlock["shadow"] | null` :
+  - rejet si la valeur contient une virgule **hors parenthèses** (ombres multiples)
+  - rejet si `inset` présent
+  - extraction `offsetX`, `offsetY`, `blur`, `spread?` en px ; rejet si `spread` présent et `!== 0`
+  - extraction couleur via regex acceptant `rgba(...)`, `rgb(...)`, `#hex` ; alpha par défaut `1`
+  - conversion : `PX_TO_PT = 0.75`, `blurPt = min(blur * 0.75, 100)`, `offsetPt = hypot(offsetX, offsetY) * 0.75`, `angle = ((atan2(offsetY, offsetX) * 180 / PI) % 360 + 360) % 360`
+  - `color` via `normalizeHex(...)` (hex 6 chars sans `#`)
+- si parsing ok → `shadow = parsed`, on **n'interrompt plus** le pipeline
+- si parsing null → `console.debug("[hybrid] shape skipped (unsupported shadow)", { type, raw })` puis `continue`
 
-- `[CAPTION - HOOK] {hook}`
-- `[CAPTION - BODY] {body}`
-- `[CAPTION - CTA] {cta}`
+c. Ajouter le champ `shadow` (peut être `undefined`) au `blocks.push(...)`.
 
-Les hashtags ne passent **pas** par la correction (pas de tics IA à corriger là-dessus, et on évite que Claude les reformate).
+### 2. `src/lib/export-carousel-hybrid-pptx.ts`
 
-Si `caption` est déjà une string (compatibilité legacy / `instagram_caption`), garder le comportement actuel `[CAPTION] {string}`.
+Dans la boucle `usableShapes` (ligne 620), au `slide.addShape("roundRect", { ... })` (ligne 639), ajouter conditionnellement :
+```ts
+...(sb.shadow && {
+  shadow: {
+    type: "outer" as const,
+    blur: sb.shadow.blurPt,
+    offset: sb.shadow.offsetPt,
+    angle: sb.shadow.angle,
+    color: sb.shadow.color,
+    opacity: sb.shadow.opacity,
+  },
+}),
+```
+Le cas `type === "background"` (ligne 621) reste inchangé : pas d'ombre sur `slide.background`.
 
-### `reinjectCarouselTexts` (ligne ~426-430)
+### 3. `supabase/functions/carousel-visual/index.ts`
 
-- Détecter le type original de `result.caption` (objet vs string) avant de réinjecter.
-- Si objet : remplir `.hook`/`.body`/`.cta` depuis les clés `CAPTION - HOOK/BODY/CTA` si présentes, en gardant la structure et les hashtags intacts.
-- Si string : comportement actuel via la clé `CAPTION`.
+À la ligne 893, remplacer :
+> - L'élément a une box-shadow (les shapes natifs perdent l'ombre — préfère le PNG)
 
-## Hors scope (NE PAS TOUCHER)
+par :
+> - L'élément a une box-shadow complexe : **autorisé uniquement** une ombre externe simple (forme `Xpx Ypx blur rgba(...)` sans `spread` ni `inset`). **Interdit** : ombres multiples (virgule), `inset`, `spread` non nul.
 
-- `carousel-ai/index.ts` (schéma, prompt, `max_tokens` 8192) — pas le problème.
-- `CarouselPhotoResult.tsx` (`buildCaptionWithFallback`) — son fallback est légitime.
-- `callAnthropicSimple`, le filtre `skipIfShorterThan`, le reste de `correction-pass.ts`.
-- Les chemins slide (HOOK / TITLE / BODY / PUNCHLINE / OVERLAY) — inchangés.
+Aucune autre ligne du bloc « CONDITIONS D'ANNOTATION » ne change.
+
+## Mes propositions connexes (b — à valider avant exec)
+
+**P1 — Cap dur sur l'angle quand `offsetPt < 0.1pt`** : si l'ombre n'a quasi pas d'offset (ex. `0 0 12px rgba(...)`), `atan2(0,0) = 0` → angle arbitraire. Forcer `angle = 0` pour éviter un bruit de rendu inutile dans le XML PPTX. Trivial, 1 ligne.
+
+**P2 — Logger les shapes promus avec ombre** au moins un `console.debug` agrégé (`shapes natifs ombrés : N/total`) à la fin de la boucle, pour valider en QA visuelle qu'Opus a bien généré des ombres convertibles. Aide au diagnostic Phase 0.7+. Trivial.
+
+**P3 — Tester le parser avec les ombres réellement utilisées par les templates** : j'ai listé via grep les `box-shadow` actuels dans `carousel-visual/index.ts` (lignes 46, 73, 94, 107, 136, 146). Toutes sont de la forme `0 Xpx Ypx rgba(0,0,0,0.0X)` → **toutes convertibles** par le parser proposé. Pas un changement, mais une garantie de couverture immédiate. Je ne l'ajoute pas au code, je le signale.
+
+**Non proposé** (volontairement, hors scope) : compression PNG→JPEG, bordures natives `line`, refonte des templates.
+
+## Hors scope confirmé
+
+`mapFontToPptx` (fix Canva déjà mergé), `extractAnnotatedBlocks`, `extractEditableBlocks`, `extractRunsFromElement`, photos natives, z-order, `SHAPE_CAP_PER_SLIDE`, CSS `data-pptx-shape-hide`, exports legacy, `carousel-ai`, templates HTML.
 
 ## Validation
 
 - `npx tsc --noEmit --skipLibCheck` passe.
-- Générer un carrousel photo : la textarea « Légende du carrousel » contient hook + corps + CTA + hashtags, plus seulement la phrase d'overlay.
-- Un éventuel ancien chemin où `caption` arrive en string continue de fonctionner.
+- Carrousel avec schéma `checklist` ou `story_arc` : cartes blanches éditables dans Canva, ombre douce identique au preview.
+- Carrousel photos + slide texte simple : diff visuel nul vs avant.
+- Console : `[hybrid] shape skipped (unsupported shadow)` n'apparaît que sur ombres réellement complexes.
