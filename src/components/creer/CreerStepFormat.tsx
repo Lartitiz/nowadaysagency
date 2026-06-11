@@ -598,8 +598,8 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
           (() => {
             const subModeMeta = {
               text: { emoji: "📝", label: "Carrousel Texte", desc: "L'IA écrit et designe les slides" },
-              photo: { emoji: "📸", label: "Carrousel Photos + texte intégré", desc: "Photos plein écran + texte par-dessus" },
-              mix: { emoji: "✨", label: "Carrousel Photos + slides texte", desc: "Photos + slides texte design" },
+              photo: { emoji: "📸", label: "Carrousel photo + texte superposé", desc: "Photos plein écran + texte par-dessus" },
+              mix: { emoji: "✨", label: "Carrousel texte designé", desc: "Photos + slides texte design" },
               pure_photo: { emoji: "🖼️", label: "Carrousel Photos brutes", desc: "Tes photos cadrées Insta, aucun texte par-dessus" },
             }[carouselSubMode];
             return (
@@ -647,7 +647,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
                 className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-4 text-left transition-all flex flex-col gap-1.5"
               >
                 <span className="text-2xl">📸</span>
-                <span className="text-sm font-semibold text-foreground">Carrousel Photos + texte intégré</span>
+                <span className="text-sm font-semibold text-foreground">Carrousel photo + texte superposé</span>
                 <p className="text-[11px] leading-snug text-muted-foreground">Tes photos en plein écran, l'IA pose un texte court par-dessus chaque slide (+ légende).</p>
               </button>
               <button
@@ -655,7 +655,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
                 className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-4 text-left transition-all flex flex-col gap-1.5"
               >
                 <span className="text-2xl">✨</span>
-                <span className="text-sm font-semibold text-foreground">Carrousel Photos + slides texte</span>
+                <span className="text-sm font-semibold text-foreground">Carrousel texte designé</span>
                 <p className="text-[11px] leading-snug text-muted-foreground">Alterne tes photos et des slides texte design, avec de l'espace blanc.</p>
               </button>
               <button
