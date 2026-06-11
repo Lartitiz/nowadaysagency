@@ -764,6 +764,14 @@ export default function BrandCharterPage() {
                     disabled={logoUploading}
                   />
                 </label>
+                <button
+                  type="button"
+                  onClick={handleExtractFromExistingLogo}
+                  disabled={extractingPalette}
+                  className="text-xs text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
+                >
+                  {extractingPalette ? "Extraction…" : "🎨 Extraire les couleurs du logo"}
+                </button>
               </div>
             ) : (
               <label className="flex flex-col items-center gap-2 cursor-pointer rounded-xl border-2 border-dashed border-border hover:border-primary/40 transition-colors p-8">
