@@ -138,7 +138,7 @@ export function PhotoUploadZone({
           }
           const converted = await convertHeicIfNeeded(f);
           const { base64, preview } = await resizeAndEncode(converted);
-          return { base64, preview, name: converted.name } as PhotoItem;
+          return { base64, preview, name: converted.name, mimeType: "image/jpeg" } as PhotoItem;
         }),
       );
 
