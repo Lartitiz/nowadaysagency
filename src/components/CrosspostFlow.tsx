@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { friendlyError } from "@/lib/error-messages";
+import { handleQuotaError } from "@/lib/quota-error-handler";
 import { RefreshCw, Copy, Check, Sparkles, Loader2, CalendarDays, Lightbulb } from "lucide-react";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import BaseReminder from "@/components/BaseReminder";
