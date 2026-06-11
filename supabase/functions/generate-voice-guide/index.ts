@@ -5,6 +5,7 @@ import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -48,6 +49,13 @@ Deno.serve(async (req) => {
 
     // Get user context
     const serviceClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+    const membership = await assertWorkspaceMembership(serviceClient, userId, workspace_id);
+    if (!membership.ok) {
+      console.warn("[workspace-guard] denied", { userId, workspaceId: workspace_id });
+      return workspaceDeniedResponse(corsHeaders);
+    }
+
     const ctx = await getUserContext(serviceClient, userId, workspace_id);
     const contextText = formatContextForAI(ctx, {
       includeProfile: true,

@@ -5,6 +5,7 @@ import { scrapeWebsite, scrapeInstagram, scrapeLinkedin, processDocuments, extra
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
 const MAX_TEXT_PER_SOURCE = 8000;
 const GLOBAL_TIMEOUT_MS = 50000;
@@ -39,6 +40,13 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
+
+    const membership = await assertWorkspaceMembership(supabaseAdmin, userId, bodyWorkspaceId);
+    if (!membership.ok) {
+      console.warn("[workspace-guard] denied", { userId, workspaceId: bodyWorkspaceId });
+      clearTimeout(timeout);
+      return workspaceDeniedResponse(corsHeaders);
+    }
 
     const scrapedContent: Record<string, string> = {};
     const sourcesUsed: string[] = [];
