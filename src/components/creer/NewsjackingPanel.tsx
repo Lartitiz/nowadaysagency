@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, RefreshCw, Loader2, Sparkles, EyeOff, ChevronDown, Bookmark, BookmarkCheck, Newspaper, Lightbulb } from "lucide-react";
+import { ArrowLeft, RefreshCw, Loader2, Sparkles, EyeOff, ChevronDown, Bookmark, BookmarkCheck, Newspaper, Lightbulb, Link2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -572,6 +572,49 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
               </p>
             </div>
           </div>
+
+          {/* Analyser un lien d'actu */}
+          <div className="space-y-2 rounded-xl border border-primary/20 bg-primary/5 p-4">
+            <div className="flex items-center gap-2">
+              <Link2 className="h-3.5 w-3.5 text-primary" />
+              <p className="text-xs font-medium text-foreground">
+                Tu as déjà une actu en tête&nbsp;? <span className="text-muted-foreground font-normal">Colle son lien.</span>
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="url"
+                value={urlInput}
+                onChange={(e) => setUrlInput(e.target.value)}
+                placeholder="https://…"
+                className="flex-1 text-xs rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && urlInput.trim()) {
+                    e.preventDefault();
+                    fetchFromUrl();
+                  }
+                }}
+              />
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={fetchFromUrl}
+                disabled={!urlInput.trim()}
+                className="gap-1.5 shrink-0"
+              >
+                <Sparkles className="h-3.5 w-3.5" /> Analyser ce lien
+              </Button>
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              L'IA lit l'article et te propose des angles connectés à ta marque. 1 crédit. Articles web uniquement (pas YouTube ni réseaux sociaux).
+            </p>
+          </div>
+
+          <div className="text-center">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">ou</span>
+          </div>
+
+
 
           {/* Intention (optionnelle) */}
           <div className="space-y-3 rounded-xl bg-muted/30 p-4">
