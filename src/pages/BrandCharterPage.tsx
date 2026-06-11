@@ -506,7 +506,9 @@ export default function BrandCharterPage() {
         throw new Error(`Format non supporté (.${ext}). Utilise JPG, PNG, WEBP ou SVG.`);
       }
 
-      const path = `${user.id}/logo/logo.${ext}`;
+      // Path stable (sans extension) → upsert écrase toujours le même blob, pas d'orphelins
+      const path = `${user.id}/logo/logo`;
+      console.log("[logo upload]", { name: file.name, type: file.type, size: file.size, ext, contentType, path });
       const { error } = await supabase.storage
         .from("brand-assets")
         .upload(path, uploadFile, { upsert: true, contentType });
@@ -707,9 +709,17 @@ export default function BrandCharterPage() {
             {data.logo_url ? (
               <div className="flex flex-col items-center gap-3">
                 <img src={data.logo_url} alt="Logo" className="max-h-32 max-w-full object-contain rounded-xl border border-border" />
-                <label className="cursor-pointer">
-                  <span className="text-xs text-primary hover:underline">Changer le logo</span>
-                  <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
+                <label className="cursor-pointer" aria-disabled={logoUploading}>
+                  <span className="text-xs text-primary hover:underline">
+                    {logoUploading ? "Upload en cours…" : "Changer le logo"}
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*,.heic,.heif,image/heic,image/heif"
+                    className="hidden"
+                    onChange={handleLogoUpload}
+                    disabled={logoUploading}
+                  />
                 </label>
               </div>
             ) : (

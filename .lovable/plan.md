@@ -1,39 +1,54 @@
-# Fix bug upload logo HEIC
+# Fix bug "impossible de changer le logo"
 
 ## Diagnostic
 
-Dans `src/pages/BrandCharterPage.tsx` (`handleLogoUpload`, lignes 462-480) :
-- `accept="image/*"` laisse passer les `.heic`/`.heif` exportés depuis un iPhone/Mac.
-- Le fichier est uploadé tel quel dans Supabase Storage (`brand-assets/{user}/logo/logo.heic`).
-- Le bucket renvoie bien une URL publique, **mais aucun navigateur (Chrome/Firefox/Edge) ne sait afficher du HEIC** → l'`<img src={data.logo_url}>` (ligne 664) casse, le logo apparaît vide/cassé, et tous les exports (carrousels, Pinterest, PPTX) qui vont charger ce logo via `fetch` puis l'embarquer dans une slide vont également échouer côté rendu.
-- En plus l'extension est dérivée naïvement de `file.name.split(".").pop()` → `HEIC` en majuscule donne un path différent à chaque upload.
+Dans `src/pages/BrandCharterPage.tsx` il y a **deux inputs file** pour le logo :
+
+1. **Premier upload** (ligne 719, état vide) — `accept="image/*,.heic,.heif,..."`, `disabled={logoUploading}`. OK, modifié au tour précédent.
+2. **"Changer le logo"** (ligne 712, état avec logo existant) :
+   ```tsx
+   <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
+   ```
+   - `accept="image/*"` **n'inclut pas HEIC/HEIF** → sur Mac la boîte de dialogue grise les fichiers iPhone, donc impossible d'en sélectionner un.
+   - Pas de `disabled={logoUploading}` → on peut re-déclencher pendant un upload en cours et casser l'état.
+   - Pas de `key` → si on ré-sélectionne **le même fichier** que la dernière fois, le `onChange` ne se redéclenche pas (comportement natif des inputs file).
+
+Et un point structurel sur `handleLogoUpload` :
+- Après conversion HEIC ou changement d'extension (ex. JPG → PNG), le nouveau fichier est écrit à un **path différent** (`logo.jpg` vs `logo.png`). Le `upsert: true` n'écrase que le même path → on accumule des vieux blobs morts dans le bucket et l'ancien `logo_url` peut rester servi en cache.
 
 ## Plan
 
-### 1. Conversion HEIC → JPEG côté client
-- Ajouter la dépendance `heic2any` (≈ 200 ko, lazy-loadée pour ne pas alourdir le bundle initial).
-- Dans `handleLogoUpload` :
-  - Détecter HEIC/HEIF via `file.type` (`image/heic`, `image/heif`) **et** fallback extension (`.heic`, `.heif`) car Safari/Finder ne renseignent pas toujours le MIME.
-  - `await import("heic2any")` puis convertir en `image/jpeg` qualité 0.92.
-  - Remplacer `file` par le `Blob` converti, forcer `ext = "jpg"` et `contentType: "image/jpeg"` lors du `upload`.
-  - Toast d'info pendant la conversion (« Conversion HEIC… ») car ça peut prendre 1-3 s sur gros fichiers.
-- Normaliser l'extension en minuscule + whitelist (`jpg|jpeg|png|webp|svg`) sinon refus avec message clair.
+### 1. Aligner le second input sur le premier
+Remplacer ligne 712 par :
+```tsx
+<input
+  type="file"
+  accept="image/*,.heic,.heif,image/heic,image/heif"
+  className="hidden"
+  onChange={handleLogoUpload}
+  disabled={logoUploading}
+/>
+```
 
-### 2. UX upload
-- `accept="image/*,.heic,.heif"` pour que la boîte de dialogue Mac propose explicitement les HEIC.
-- Guard taille : refuser > 5 Mo avec toast (un HEIC iPhone fait souvent 3-4 Mo, le JPEG converti reste raisonnable).
-- Message d'erreur plus précis : afficher `err.message` au lieu du toast générique pour faciliter le debug futur.
+### 2. Forcer un path unique stable
+Dans `handleLogoUpload`, écrire systématiquement sur **un seul path** quelle que soit l'extension :
+- Path = `${user.id}/logo/logo` (sans extension), avec `contentType` correct passé au `upload({ contentType })`.
+- `upsert: true` écrasera toujours le même blob → pas de fichiers orphelins, pas de logo fantôme.
+- L'URL publique reste stable, le cache-bust `?v=Date.now()` suffit à forcer le rafraîchissement.
 
-### 3. Vérifications connexes
-- Les autres uploads images du projet (avatars, visuels persona) utilisent les mêmes pickers ? → audit rapide de `rg "accept=\"image"` pour confirmer si on doit étendre la conversion (hors scope si non utilisés, juste signaler).
+### 3. Reset visuel pendant l'upload
+- L'input file est déjà reset (`inputEl.value = ""`) dans `finally`. Bon.
+- S'assurer que le `<label>` "Changer le logo" porte un attribut `aria-disabled` quand `logoUploading` est `true`, et affiche un état visuel (texte "Upload en cours…").
+
+### 4. Logs de debug temporaires
+Ajouter un `console.log` au tout début de `handleLogoUpload` (`name`, `type`, `size`) pour confirmer que le picker renvoie bien le fichier sur les prochains essais. À retirer une fois validé.
 
 ## Détails techniques
 
-- `heic2any` est browser-only (utilise `libheif` compilé en WASM). L'import dynamique évite tout souci SSR/Vite.
-- Pas de changement DB ni RLS : on upload toujours dans le bucket existant `brand-assets`.
-- Pas de migration nécessaire pour les logos déjà uploadés en HEIC (s'il y en a) — on pourra les ré-uploader manuellement.
+- Aucun changement DB, RLS, ni edge function.
+- Bucket `brand-assets` inchangé.
+- Si on veut nettoyer les anciens blobs (`logo.heic`, `logo.png`…) déjà en storage, on peut ajouter un `supabase.storage.from("brand-assets").remove([...])` ciblé avant l'upsert — proposé en option, hors scope par défaut.
 
 ## Hors scope
 
-- Conversion côté Edge Function (inutile, le client fait le job).
-- Génération automatique de variantes (favicon, dark/light) — déjà discuté précédemment et non demandé.
+- Refonte de la section logo, gestion de plusieurs variantes (déjà demandée ailleurs), drag & drop.
