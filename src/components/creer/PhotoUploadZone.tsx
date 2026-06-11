@@ -194,6 +194,7 @@ export function PhotoUploadZone({
               name: r.value.name,
               mimeType: r.value.mimeType,
               context: "",
+              userPhotoId: slice[i].id,
             });
           } else {
             const name = slice[i].name || "photo";
