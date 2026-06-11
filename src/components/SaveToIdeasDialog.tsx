@@ -7,6 +7,7 @@ import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voi
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceId } from "@/hooks/use-workspace-query";
 
 const TAG_OPTIONS = [
   { id: "education", label: "Éducation" },
@@ -41,6 +42,7 @@ export function SaveToIdeasDialog({
   objectif,
 }: Props) {
   const { user } = useAuth();
+  const workspaceId = useWorkspaceId();
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [customTag, setCustomTag] = useState("");
   const [note, setNote] = useState("");
@@ -69,6 +71,7 @@ export function SaveToIdeasDialog({
 
     const { error } = await supabase.from("saved_ideas").insert({
       user_id: user.id,
+      workspace_id: workspaceId !== user.id ? workspaceId : undefined,
       titre: `${contentEmoji} ${subject || contentType}`,
       angle: selectedTags.length > 0 ? selectedTags.join(", ") : contentType,
       format: formatLabel,
