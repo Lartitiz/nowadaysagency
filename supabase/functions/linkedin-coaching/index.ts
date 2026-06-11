@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
       workspace_id: z.string().uuid().optional().nullable(),
     }).passthrough());
 
-    const quota = await checkQuota(user.id, "suggestion");
+    const quota = await checkQuota(user.id, "suggestion", workspace_id);
     if (!quota.allowed) {
       return new Response(JSON.stringify({ error: quota.message, quota }), {
         status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -140,7 +140,7 @@ Retourne UNIQUEMENT un JSON :
         };
       }
 
-      await logUsage(user.id, "suggestion", "linkedin_coaching_questions");
+      await logUsage(user.id, "suggestion", "linkedin_coaching_questions", undefined, undefined, workspace_id);
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -220,7 +220,7 @@ Sois directe, bienveillante, et concrète. Pas de jargon. Tutoiement.`;
         });
       }
 
-      await logUsage(user.id, "suggestion", "linkedin_coaching_diagnostic");
+      await logUsage(user.id, "suggestion", "linkedin_coaching_diagnostic", undefined, undefined, workspace_id);
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
