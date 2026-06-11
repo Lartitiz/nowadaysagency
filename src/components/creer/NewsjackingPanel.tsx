@@ -655,7 +655,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
           ) : (
             <div className="space-y-3">
               <p className="text-xs text-muted-foreground">
-                {visibleActus.length} actu{visibleActus.length > 1 ? "s" : ""} • clique sur "Voir les angles" pour générer 3 idées
+                {visibleActus.length} actu{visibleActus.length > 1 ? "s" : ""} • clique sur "Voir les angles" pour découvrir une 1ʳᵉ idée (puis 2 variantes à la demande)
               </p>
               <AnimatePresence>
                 {visibleActus.map(({ actu, idx }, displayI) => {
