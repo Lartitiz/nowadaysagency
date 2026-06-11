@@ -279,7 +279,7 @@ Réponds UNIQUEMENT en JSON :
         ? "Questions orientées PROFONDEUR : demande des réflexions de fond, des convictions, des retours d'expérience détaillés."
         : "Questions orientées ÉMOTION : demande des moments vécus, des ressentis, des transformations personnelles, des coulisses.";
 
-      systemPrompt = `${COMMON_PREFIX}
+      systemPrompt = `${QUESTIONS_PREFIX}
 ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}\n` : ""}${brandVocabBlock}
 
 ══════════════════════════════════════
