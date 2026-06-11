@@ -593,7 +593,7 @@ Si vraiment rien ne fonctionne (moins de 3 sujets connectés trouvables), retour
 { "actus": [], "message": "Pas de phénomène suffisamment connectable trouvé cette semaine. Réessaie dans quelques jours !" }`;
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 120000);
+    const timeout = setTimeout(() => controller.abort(), 170000);
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
