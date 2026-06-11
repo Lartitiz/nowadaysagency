@@ -26,6 +26,7 @@ interface Actu {
   ton?: string;
   force_pont?: "fort" | "moyen" | "fragile";
   pertinence: string;
+  from_url?: boolean;
   // angles are now generated on demand
 }
 
@@ -129,6 +130,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
   // Intention de recherche (optionnelle)
   const [selectedVibes, setSelectedVibes] = useState<string[]>([]);
   const [customIntent, setCustomIntent] = useState("");
+  const [urlInput, setUrlInput] = useState("");
   // angles cache, keyed by actu index
   const [anglesByIdx, setAnglesByIdx] = useState<Record<number, AnglesState>>({});
   // Déduplication synchrone des fetchs d'angles (évite spinner infini lié au
