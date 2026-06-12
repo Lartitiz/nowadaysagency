@@ -885,65 +885,120 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     </>
   );
 
-  if (embedded) {
-    return (
-      <div>
-        <AuditRecommendationBanner />
-        <ExportSection filteredPosts={filteredPosts} canalFilter={canalFilter} toast={toast} onCoachingOpen={() => setCoachingOpen(true)} onQuickBatchOpen={() => setQuickBatchOpen(true)} seriesNameById={seriesNameById} />
-        {isMobile && (
-          <div className="flex rounded-full border border-border overflow-hidden mb-4">
-            <button onClick={() => setMobileTab("calendar")} className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${mobileTab === "calendar" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>📅 Calendrier</button>
-            <button onClick={() => setMobileTab("ideas")} className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${mobileTab === "ideas" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>💡 Mes idées</button>
-          </div>
-        )}
-        {isMobile ? (
-          mobileTab === "calendar" ? calendarContent : <CalendarIdeasSidebar onIdeaPlanned={fetchPosts} onIdeaClick={handleIdeaClick} isMobile />
-        ) : (
-          <Suspense fallback={<div className="flex gap-6"><div className="flex-1 min-w-0">{calendarContent}</div></div>}>
-            <CalendarDndWrapper onDragStart={handleDragStart} onDragEnd={handleDragEnd} overlayContent={activeDragItem ? (
-                <div className="bg-card border border-primary/40 rounded-lg px-3 py-2 shadow-lg text-xs font-medium max-w-[180px]">
-                  <span className="truncate block">{activeDragItem.type === "idea" ? `💡 ${activeDragItem.idea.titre}` : `${activeDragItem.post?.content_type_emoji || ""} ${activeDragItem.post?.theme}`}</span>
-                </div>
-              ) : null}>
-              <div className="flex gap-6">
-                <div className="flex-1 min-w-0">{calendarContent}</div>
-                <div className={`shrink-0 transition-all duration-300 ${ideasCollapsed ? "w-10" : "w-[280px]"}`}>
-                  <div className="sticky top-24">
-                    {ideasCollapsed ? (
+  const body = (
+    <>
+      <AuditRecommendationBanner />
+      <ExportSection filteredPosts={filteredPosts} canalFilter={canalFilter} toast={toast} onCoachingOpen={() => setCoachingOpen(true)} onQuickBatchOpen={() => setQuickBatchOpen(true)} seriesNameById={seriesNameById} />
+
+      {/* Mobile tabs */}
+      {isMobile && (
+        <div className="flex rounded-full border border-border overflow-hidden mb-4">
+          <button onClick={() => setMobileTab("calendar")}
+            className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${mobileTab === "calendar" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
+            📅 Calendrier
+          </button>
+          <button onClick={() => setMobileTab("ideas")}
+            className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${mobileTab === "ideas" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
+            💡 Mes idées
+          </button>
+        </div>
+      )}
+
+      {isMobile ? (
+        mobileTab === "calendar" ? calendarContent : (
+          <CalendarIdeasSidebar onIdeaPlanned={fetchPosts} onIdeaClick={handleIdeaClick} isMobile />
+        )
+      ) : (
+        <Suspense fallback={<div className="flex gap-6"><div className="flex-1 min-w-0">{calendarContent}</div></div>}>
+          <CalendarDndWrapper onDragStart={handleDragStart} onDragEnd={handleDragEnd} overlayContent={activeDragItem ? (
+              <div className="bg-card border border-primary/40 rounded-lg px-3 py-2 shadow-lg text-xs font-medium max-w-[180px]">
+                <span className="truncate block">
+                  {activeDragItem.type === "idea"
+                    ? `💡 ${activeDragItem.idea.titre}`
+                    : `${activeDragItem.post?.content_type_emoji || ""} ${activeDragItem.post?.theme}`
+                  }
+                </span>
+              </div>
+            ) : null}>
+            <div className="flex gap-6">
+              <div className="flex-1 min-w-0">
+                {calendarContent}
+              </div>
+              <div className={`shrink-0 transition-all duration-300 ${ideasCollapsed ? "w-10" : "w-[280px]"}`}>
+                <div className="sticky top-24">
+                  {ideasCollapsed ? (
+                    <button
+                      onClick={() => setIdeasCollapsed(false)}
+                      className="w-10 h-10 rounded-xl border border-border bg-card flex items-center justify-center hover:bg-muted transition-colors"
+                      title="Afficher les idées"
+                    >
+                      💡
+                    </button>
+                  ) : (
+                    <div className="relative border border-border rounded-2xl bg-card p-4 max-h-[calc(100vh-120px)] overflow-hidden flex flex-col">
                       <button
-                        onClick={() => setIdeasCollapsed(false)}
-                        className="w-10 h-10 rounded-xl border border-border bg-card flex items-center justify-center hover:bg-muted transition-colors"
-                        title="Afficher les idées"
+                        onClick={() => setIdeasCollapsed(true)}
+                        className="absolute -top-2 -right-2 z-10 w-6 h-6 rounded-full bg-card border border-border shadow-sm flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                        title="Replier le panneau idées"
                       >
-                        💡
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                       </button>
-                    ) : (
-                      <div className="relative">
-                        <button
-                          onClick={() => setIdeasCollapsed(true)}
-                          className="absolute -top-2 -right-2 z-10 w-7 h-7 rounded-full bg-destructive border border-destructive shadow-md flex items-center justify-center text-destructive-foreground hover:opacity-90 transition-colors"
-                          title="Replier le panneau idées"
-                        >
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                        </button>
-                        <div className="border border-border rounded-2xl bg-card p-4 max-h-[calc(100vh-120px)] overflow-hidden flex flex-col">
-                          <CalendarIdeasSidebar onIdeaPlanned={fetchPosts} onIdeaClick={handleIdeaClick} />
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                      <CalendarIdeasSidebar onIdeaPlanned={fetchPosts} onIdeaClick={handleIdeaClick} />
+                    </div>
+                  )}
                 </div>
               </div>
-            </CalendarDndWrapper>
-          </Suspense>
-        )}
-        <LocalErrorBoundary fallbackMessage="Erreur dans le dialogue de post.">
-          <CalendarPostDialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setPrefillData(null); }} editingPost={editingPost} selectedDate={selectedDate} defaultCanal={canalFilter} onSave={handleSave} onDelete={handleDelete} onUnplan={editingPost ? handleUnplan : undefined} onDateChange={(postId, newDate) => { handleMovePost(postId, newDate); setSelectedDate(newDate); if (editingPost) setEditingPost({ ...editingPost, date: newDate }); }} prefillData={prefillData} />
-        </LocalErrorBoundary>
-        <IdeaDetailSheet idea={selectedIdea} open={ideaDetailOpen} onOpenChange={setIdeaDetailOpen} onUpdated={handleIdeaUpdated} onPlanned={handleIdeaPlannedFromSheet} />
-        <CalendarCoachingDialog open={coachingOpen} onOpenChange={setCoachingOpen} onPostAdded={fetchPosts} />
-      </div>
-    );
+            </div>
+          </CalendarDndWrapper>
+        </Suspense>
+      )}
+
+      <LocalErrorBoundary fallbackMessage="Erreur dans le dialogue de post.">
+        <CalendarPostDialog
+          open={dialogOpen}
+          onOpenChange={(open) => { setDialogOpen(open); if (!open) setPrefillData(null); }}
+          editingPost={editingPost}
+          selectedDate={selectedDate}
+          defaultCanal={canalFilter}
+          onSave={handleSave}
+          onDelete={handleDelete}
+          onUnplan={editingPost ? handleUnplan : undefined}
+          onDateChange={(postId, newDate) => {
+            handleMovePost(postId, newDate);
+            setSelectedDate(newDate);
+            if (editingPost) setEditingPost({ ...editingPost, date: newDate });
+          }}
+          prefillData={prefillData}
+        />
+      </LocalErrorBoundary>
+
+      <IdeaDetailSheet
+        idea={selectedIdea}
+        open={ideaDetailOpen}
+        onOpenChange={setIdeaDetailOpen}
+        onUpdated={handleIdeaUpdated}
+        onPlanned={handleIdeaPlannedFromSheet}
+      />
+
+      <CalendarCoachingDialog
+        open={coachingOpen}
+        onOpenChange={setCoachingOpen}
+        onPostAdded={fetchPosts}
+        existingPosts={weekPosts.map(p => ({ date: p.date, theme: p.theme, format: p.format || "post", canal: p.canal, objectif: p.objectif || null }))}
+      />
+
+      <QuickBatchAdd
+        open={quickBatchOpen}
+        onOpenChange={setQuickBatchOpen}
+        weekStartDate={toLocalDateStr(weekStart)}
+        defaultCanal={canalFilter !== "all" ? canalFilter : "instagram"}
+        onPostsAdded={fetchPosts}
+      />
+    </>
+  );
+
+  if (embedded) {
+    return <div>{body}</div>;
   }
 
   return (
@@ -953,115 +1008,9 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
         {isInstagramRoute && (
           <SubPageHeader parentLabel="Instagram" parentTo="/instagram" currentLabel="Calendrier éditorial" useFromParam />
         )}
-        <AuditRecommendationBanner />
-        <ExportSection filteredPosts={filteredPosts} canalFilter={canalFilter} toast={toast} onCoachingOpen={() => setCoachingOpen(true)} onQuickBatchOpen={() => setQuickBatchOpen(true)} seriesNameById={seriesNameById} />
-
-
-        {/* Mobile tabs */}
-        {isMobile && (
-          <div className="flex rounded-full border border-border overflow-hidden mb-4">
-            <button onClick={() => setMobileTab("calendar")}
-              className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${mobileTab === "calendar" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
-              📅 Calendrier
-            </button>
-            <button onClick={() => setMobileTab("ideas")}
-              className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${mobileTab === "ideas" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
-              💡 Mes idées
-            </button>
-          </div>
-        )}
-
-        {isMobile ? (
-          mobileTab === "calendar" ? calendarContent : (
-            <CalendarIdeasSidebar onIdeaPlanned={fetchPosts} onIdeaClick={handleIdeaClick} isMobile />
-          )
-        ) : (
-          <Suspense fallback={<div className="flex gap-6"><div className="flex-1 min-w-0">{calendarContent}</div></div>}>
-            <CalendarDndWrapper onDragStart={handleDragStart} onDragEnd={handleDragEnd} overlayContent={activeDragItem ? (
-                <div className="bg-card border border-primary/40 rounded-lg px-3 py-2 shadow-lg text-xs font-medium max-w-[180px]">
-                  <span className="truncate block">
-                    {activeDragItem.type === "idea"
-                      ? `💡 ${activeDragItem.idea.titre}`
-                      : `${activeDragItem.post?.content_type_emoji || ""} ${activeDragItem.post?.theme}`
-                    }
-                  </span>
-                </div>
-              ) : null}>
-              <div className="flex gap-6">
-                <div className="flex-1 min-w-0">
-                  {calendarContent}
-                </div>
-                <div className={`shrink-0 transition-all duration-300 ${ideasCollapsed ? "w-10" : "w-[280px]"}`}>
-                  <div className="sticky top-24">
-                    {ideasCollapsed ? (
-                      <button
-                        onClick={() => setIdeasCollapsed(false)}
-                        className="w-10 h-10 rounded-xl border border-border bg-card flex items-center justify-center hover:bg-muted transition-colors"
-                        title="Afficher les idées"
-                      >
-                        💡
-                      </button>
-                    ) : (
-                      <div className="relative border border-border rounded-2xl bg-card p-4 max-h-[calc(100vh-120px)] overflow-hidden flex flex-col">
-                        <button
-                          onClick={() => setIdeasCollapsed(true)}
-                          className="absolute -top-2 -right-2 z-10 w-6 h-6 rounded-full bg-card border border-border shadow-sm flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                          title="Replier le panneau idées"
-                        >
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                        </button>
-                        <CalendarIdeasSidebar onIdeaPlanned={fetchPosts} onIdeaClick={handleIdeaClick} />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </CalendarDndWrapper>
-          </Suspense>
-        )}
-
-        <LocalErrorBoundary fallbackMessage="Erreur dans le dialogue de post.">
-          <CalendarPostDialog
-            open={dialogOpen}
-            onOpenChange={(open) => { setDialogOpen(open); if (!open) setPrefillData(null); }}
-            editingPost={editingPost}
-            selectedDate={selectedDate}
-            defaultCanal={canalFilter}
-            onSave={handleSave}
-            onDelete={handleDelete}
-            onUnplan={editingPost ? handleUnplan : undefined}
-            onDateChange={(postId, newDate) => {
-              handleMovePost(postId, newDate);
-              setSelectedDate(newDate);
-              if (editingPost) setEditingPost({ ...editingPost, date: newDate });
-            }}
-            prefillData={prefillData}
-          />
-        </LocalErrorBoundary>
-
-        <IdeaDetailSheet
-          idea={selectedIdea}
-          open={ideaDetailOpen}
-          onOpenChange={setIdeaDetailOpen}
-          onUpdated={handleIdeaUpdated}
-          onPlanned={handleIdeaPlannedFromSheet}
-        />
-
-        <CalendarCoachingDialog
-          open={coachingOpen}
-          onOpenChange={setCoachingOpen}
-          onPostAdded={fetchPosts}
-          existingPosts={weekPosts.map(p => ({ date: p.date, theme: p.theme, format: p.format || "post", canal: p.canal, objectif: p.objectif || null }))}
-        />
-
-        <QuickBatchAdd
-          open={quickBatchOpen}
-          onOpenChange={setQuickBatchOpen}
-          weekStartDate={toLocalDateStr(weekStart)}
-          defaultCanal={canalFilter !== "all" ? canalFilter : "instagram"}
-          onPostsAdded={fetchPosts}
-        />
+        {body}
       </main>
     </div>
   );
 }
+
