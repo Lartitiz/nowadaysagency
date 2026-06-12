@@ -46,7 +46,7 @@ function getGeneratorRoute(post: CalendarPost): string | null {
   if (isStories || fmt === "story" || fmt === "story_serie") return "/creer?format=story";
   if (fmt === "reel") return "/creer?format=reel";
   if (fmt === "carousel" || fmt === "post_carrousel") return "/creer?format=carousel";
-  if (fmt === "linkedin") return "/linkedin";
+  if (fmt === "linkedin") return "/creer?canal=linkedin";
   if (fmt === "newsletter" || fmt === "newsletter_standard") return "/creer";
   if (fmt === "post" || fmt === "post_photo") return "/creer";
 
@@ -55,7 +55,7 @@ function getGeneratorRoute(post: CalendarPost): string | null {
   if (gct === "carousel") return "/creer?format=carousel";
   if (gct === "reel") return "/creer?format=reel";
   if (gct === "story") return "/creer?format=story";
-  if (gct === "linkedin") return "/linkedin";
+  if (gct === "linkedin") return "/creer?canal=linkedin";
 
   return null; // fallback to dialog
 }
@@ -234,6 +234,11 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       setSelectedDate(today);
       setPrefillData({ theme: prefillTheme, notes: prefillContent || "" });
       setDialogOpen(true);
+      // Clean up the params so reopening doesn't re-trigger
+      const next = new URLSearchParams(searchParams);
+      next.delete("prefill_theme");
+      next.delete("prefill_content");
+      navigate({ search: next.toString() }, { replace: true });
     }
     if (searchParams.get("coaching") === "1") {
       setCoachingOpen(true);
@@ -300,7 +305,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       setPostsLoading(false);
       return;
     }
-    if (!user) return;
+    if (!user) { setPostsLoading(false); return; }
 
     if ((viewMode === "kanban" || viewMode === "list") && kanbanPeriod === "all") {
       // No date filter — fetch all posts
@@ -443,10 +448,16 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       media_urls: data.media_urls || null,
       series_id: data.series_id || null, episode_number: data.episode_number ?? null,
     };
+    let error;
     if (editingPost) {
-      await supabase.from("calendar_posts").update(payload).eq("id", editingPost.id);
+      ({ error } = await supabase.from("calendar_posts").update(payload).eq("id", editingPost.id));
     } else {
-      await supabase.from("calendar_posts").insert({ ...payload, user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, date: selectedDate });
+      ({ error } = await supabase.from("calendar_posts").insert({ ...payload, user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, date: selectedDate }));
+    }
+    if (error) {
+      toast({ title: "Oups, ça n'a pas été enregistré", description: "Réessaie dans un instant.", variant: "destructive" });
+      fetchPosts();
+      return;
     }
     setDialogOpen(false);
     fetchPosts();
@@ -455,7 +466,12 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
 
   const handleDelete = async () => {
     if (!editingPost) return;
-    await supabase.from("calendar_posts").delete().eq("id", editingPost.id);
+    const { error } = await supabase.from("calendar_posts").delete().eq("id", editingPost.id);
+    if (error) {
+      toast({ title: "Oups, ça n'a pas été enregistré", description: "Réessaie dans un instant.", variant: "destructive" });
+      fetchPosts();
+      return;
+    }
     setDialogOpen(false);
     fetchPosts();
     toast({ title: "Post supprimé" });
@@ -479,7 +495,12 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   };
 
   const handleQuickStatusChange = async (postId: string, newStatus: string) => {
-    await supabase.from("calendar_posts").update({ status: newStatus }).eq("id", postId);
+    const { error } = await supabase.from("calendar_posts").update({ status: newStatus }).eq("id", postId);
+    if (error) {
+      toast({ title: "Oups, ça n'a pas été enregistré", description: "Réessaie dans un instant.", variant: "destructive" });
+      fetchPosts();
+      return;
+    }
     setPosts(prev => prev.map(p => p.id === postId ? { ...p, status: newStatus } : p));
     const statusLabels: Record<string, string> = {
       a_rediger: "📝 À rédiger", drafting: "✏️ En rédaction", ready: "✅ Prêt", published: "🟢 Publié"
@@ -515,9 +536,14 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   };
 
   const handleUpdateDraft = async (postId: string, draft: string) => {
-    await (supabase.from("calendar_posts") as any)
+    const { error } = await (supabase.from("calendar_posts") as any)
       .update({ content_draft: draft, updated_at: new Date().toISOString() })
       .eq("id", postId);
+    if (error) {
+      toast({ title: "Oups, ça n'a pas été enregistré", description: "Réessaie dans un instant.", variant: "destructive" });
+      fetchPosts();
+      return;
+    }
     setPosts(prev => prev.map(p => p.id === postId ? { ...p, content_draft: draft } as any : p));
   };
 
@@ -533,7 +559,8 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
         params.set("format", "newsletter");
       }
 
-      navigate(`${route}?${params.toString()}`, { state: {
+      const sep = route.includes("?") ? "&" : "?";
+      navigate(`${route}${sep}${params.toString()}`, { state: {
         fromCalendar: true,
         postId: post.id,
         calendarPostId: post.id,
@@ -568,7 +595,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   const handleUnplan = async () => {
     if (!editingPost || !user) return;
     // Create or restore idea in saved_ideas
-    await supabase.from("saved_ideas").insert({
+    const { error: insertError } = await supabase.from("saved_ideas").insert({
       user_id: user.id,
       workspace_id: workspaceId !== user.id ? workspaceId : undefined,
       titre: editingPost.theme,
@@ -580,6 +607,11 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       content_draft: editingPost.content_draft || null,
       angle: editingPost.angle || "",
     });
+    if (insertError) {
+      toast({ title: "Oups, ça n'a pas été enregistré", description: "Réessaie dans un instant.", variant: "destructive" });
+      fetchPosts();
+      return;
+    }
     // Delete calendar post
     await supabase.from("calendar_posts").delete().eq("id", editingPost.id);
     setDialogOpen(false);
