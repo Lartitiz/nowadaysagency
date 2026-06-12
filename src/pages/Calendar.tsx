@@ -448,10 +448,16 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       media_urls: data.media_urls || null,
       series_id: data.series_id || null, episode_number: data.episode_number ?? null,
     };
+    let error;
     if (editingPost) {
-      await supabase.from("calendar_posts").update(payload).eq("id", editingPost.id);
+      ({ error } = await supabase.from("calendar_posts").update(payload).eq("id", editingPost.id));
     } else {
-      await supabase.from("calendar_posts").insert({ ...payload, user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, date: selectedDate });
+      ({ error } = await supabase.from("calendar_posts").insert({ ...payload, user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, date: selectedDate }));
+    }
+    if (error) {
+      toast({ title: "Oups, ça n'a pas été enregistré", description: "Réessaie dans un instant.", variant: "destructive" });
+      fetchPosts();
+      return;
     }
     setDialogOpen(false);
     fetchPosts();
@@ -460,7 +466,12 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
 
   const handleDelete = async () => {
     if (!editingPost) return;
-    await supabase.from("calendar_posts").delete().eq("id", editingPost.id);
+    const { error } = await supabase.from("calendar_posts").delete().eq("id", editingPost.id);
+    if (error) {
+      toast({ title: "Oups, ça n'a pas été enregistré", description: "Réessaie dans un instant.", variant: "destructive" });
+      fetchPosts();
+      return;
+    }
     setDialogOpen(false);
     fetchPosts();
     toast({ title: "Post supprimé" });
@@ -484,7 +495,12 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   };
 
   const handleQuickStatusChange = async (postId: string, newStatus: string) => {
-    await supabase.from("calendar_posts").update({ status: newStatus }).eq("id", postId);
+    const { error } = await supabase.from("calendar_posts").update({ status: newStatus }).eq("id", postId);
+    if (error) {
+      toast({ title: "Oups, ça n'a pas été enregistré", description: "Réessaie dans un instant.", variant: "destructive" });
+      fetchPosts();
+      return;
+    }
     setPosts(prev => prev.map(p => p.id === postId ? { ...p, status: newStatus } : p));
     const statusLabels: Record<string, string> = {
       a_rediger: "📝 À rédiger", drafting: "✏️ En rédaction", ready: "✅ Prêt", published: "🟢 Publié"
@@ -520,9 +536,14 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   };
 
   const handleUpdateDraft = async (postId: string, draft: string) => {
-    await (supabase.from("calendar_posts") as any)
+    const { error } = await (supabase.from("calendar_posts") as any)
       .update({ content_draft: draft, updated_at: new Date().toISOString() })
       .eq("id", postId);
+    if (error) {
+      toast({ title: "Oups, ça n'a pas été enregistré", description: "Réessaie dans un instant.", variant: "destructive" });
+      fetchPosts();
+      return;
+    }
     setPosts(prev => prev.map(p => p.id === postId ? { ...p, content_draft: draft } as any : p));
   };
 
