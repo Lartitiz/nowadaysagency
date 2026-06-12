@@ -12,6 +12,10 @@ export const STATUSES = [
   { id: "published", label: "Publié" },
 ];
 
+export const STATUS_LABELS: Record<string, string> = Object.fromEntries(
+  STATUSES.map((s) => [s.id, s.label])
+);
+
 export const CANAL_FILTERS = [
   { id: "all", label: "Tout", enabled: true },
   { id: "instagram", label: "Instagram", enabled: true },
