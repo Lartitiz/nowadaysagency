@@ -54,9 +54,10 @@ interface Props {
   onIdeaClick?: (idea: SavedIdea) => void;
   isMobile?: boolean;
   onCollapse?: () => void;
+  refreshKey?: number;
 }
 
-export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile, onCollapse }: Props) {
+export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile, onCollapse, refreshKey }: Props) {
   const { user } = useAuth();
   const { isDemoMode, demoData } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
