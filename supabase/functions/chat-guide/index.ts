@@ -357,6 +357,13 @@ Deno.serve(async (req) => {
     let profileData: any = null;
     let stratData: any = null;
 
+    const sbGuard = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const membership = await assertWorkspaceMembership(sbGuard, userId, workspaceId);
+    if (!membership.ok) {
+      console.warn("[workspace-guard] denied", { userId, workspaceId });
+      return workspaceDeniedResponse(cors);
+    }
+
     // Resolve workspace owner for profile-scoped tables
     let profileUserId = userId;
     if (workspaceId) {
