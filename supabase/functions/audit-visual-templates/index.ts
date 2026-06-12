@@ -44,15 +44,6 @@ serve(async (req) => {
 
     const ownerWorkspaceId = wsMember?.workspace_id;
 
-    // Check quota
-    const quota = await checkQuota(user.id, "audit", ownerWorkspaceId);
-    if (!quota.allowed) {
-      return new Response(JSON.stringify({ error: quota.message, quota }), {
-        status: 429,
-        headers: { ...cors, "Content-Type": "application/json" },
-      });
-    }
-
     const reqBody = await req.json();
     const { template_urls } = validateInput(reqBody, z.object({
       template_urls: z.array(z.string().url().max(2048)).min(1, "Au moins 1 URL requise").max(10),
@@ -67,8 +58,14 @@ serve(async (req) => {
 
     // Priority: body workspace_id > owner lookup
     const workspaceId = reqBody.workspace_id || ownerWorkspaceId;
-    if (false) {
-      throw new Error("Aucun template fourni");
+
+    // Check quota (workspace cible prioritaire)
+    const quota = await checkQuota(user.id, "audit", workspaceId);
+    if (!quota.allowed) {
+      return new Response(JSON.stringify({ error: quota.message, quota }), {
+        status: 429,
+        headers: { ...cors, "Content-Type": "application/json" },
+      });
     }
 
     const urls = template_urls.slice(0, 5);
