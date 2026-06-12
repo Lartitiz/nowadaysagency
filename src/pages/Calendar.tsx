@@ -608,6 +608,8 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   };
 
   const handleMovePost = async (postId: string, newDate: string) => {
+    const originalPost = posts.find((p) => p.id === postId);
+    const originalDate = originalPost?.date ?? null;
     setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, date: newDate } : p)));
     const { error } = await supabase.from("calendar_posts")
       .update({ date: newDate, updated_at: new Date().toISOString() })
@@ -615,7 +617,25 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     if (error) { toast({ title: "Erreur", variant: "destructive" }); fetchPosts(); }
     else {
       const formatted = new Date(newDate + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
-      toast({ title: `Déplacé au ${formatted}` });
+      toast({
+        title: `Déplacé au ${formatted}`,
+        action: originalDate && originalDate !== newDate ? (
+          <ToastAction
+            altText="Annuler le déplacement"
+            onClick={async () => {
+              const { error: rollbackError } = await supabase.from("calendar_posts")
+                .update({ date: originalDate, updated_at: new Date().toISOString() })
+                .eq("id", postId);
+              if (rollbackError) {
+                toast({ title: "Oups, ça n'a pas été enregistré", description: "Réessaie dans un instant.", variant: "destructive" });
+              }
+              fetchPosts();
+            }}
+          >
+            Annuler
+          </ToastAction>
+        ) : undefined,
+      });
     }
   };
 
