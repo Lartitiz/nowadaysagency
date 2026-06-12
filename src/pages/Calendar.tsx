@@ -62,11 +62,17 @@ function getGeneratorRoute(post: CalendarPost): string | null {
 
 const STATUSES_MAP: Record<string, string> = { idea: "Idée", a_rediger: "À rédiger", drafting: "En rédaction", ready: "Prêt à publier", published: "Publié" };
 
-function postToRow(p: CalendarPost) {
-  return {
-    Date: p.date, Thème: p.theme, Canal: p.canal, Format: p.format || "",
-    Objectif: p.objectif || p.category || "", Statut: STATUSES_MAP[p.status] || p.status,
-    Notes: p.notes || "", Brouillon: (p.content_draft || "").slice(0, 200),
+function makePostToRow(seriesNameById: Record<string, string>) {
+  return (p: CalendarPost) => {
+    const sid = (p as any).series_id as string | null | undefined;
+    const ep = (p as any).episode_number as number | null | undefined;
+    return {
+      Date: p.date, Thème: p.theme, Canal: p.canal, Format: p.format || "",
+      Objectif: p.objectif || (p as any).category || "", Statut: STATUSES_MAP[p.status] || p.status,
+      Série: sid ? (seriesNameById[sid] || "") : "",
+      Épisode: ep ?? "",
+      Notes: p.notes || "", Brouillon: (p.content_draft || "").slice(0, 200),
+    };
   };
 }
 
