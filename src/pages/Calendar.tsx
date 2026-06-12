@@ -19,7 +19,7 @@ import { ChevronLeft, ChevronRight, Sparkles, Download, Link2, PenLine } from "l
 import { CalendarShareDialog } from "@/components/calendar/CalendarShareDialog";
 
 import CalendarCoachingDialog from "@/components/calendar/CalendarCoachingDialog";
-import { CANAL_FILTERS, type CalendarPost } from "@/lib/calendar-constants";
+import { CANAL_FILTERS, STATUS_LABELS, type CalendarPost } from "@/lib/calendar-constants";
 import { CalendarGrid } from "@/components/calendar/CalendarGrid";
 import { CalendarWeekGrid } from "@/components/calendar/CalendarWeekGrid";
 import { CalendarPostDialog } from "@/components/calendar/CalendarPostDialog";
@@ -60,15 +60,13 @@ function getGeneratorRoute(post: CalendarPost): string | null {
   return null; // fallback to dialog
 }
 
-const STATUSES_MAP: Record<string, string> = { idea: "Idée", a_rediger: "À rédiger", drafting: "En rédaction", ready: "Prêt à publier", published: "Publié" };
-
 function makePostToRow(seriesNameById: Record<string, string>) {
   return (p: CalendarPost) => {
     const sid = (p as any).series_id as string | null | undefined;
     const ep = (p as any).episode_number as number | null | undefined;
     return {
       Date: p.date, Thème: p.theme, Canal: p.canal, Format: p.format || "",
-      Objectif: p.objectif || (p as any).category || "", Statut: STATUSES_MAP[p.status] || p.status,
+      Objectif: p.objectif || (p as any).category || "", Statut: STATUS_LABELS[p.status] || p.status,
       Série: sid ? (seriesNameById[sid] || "") : "",
       Épisode: ep ?? "",
       Notes: p.notes || "", Brouillon: (p.content_draft || "").slice(0, 200),
@@ -510,10 +508,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       return;
     }
     setPosts(prev => prev.map(p => p.id === postId ? { ...p, status: newStatus } : p));
-    const statusLabels: Record<string, string> = {
-      a_rediger: "📝 À rédiger", drafting: "✏️ En rédaction", ready: "✅ Prêt", published: "🟢 Publié"
-    };
-    toast({ title: statusLabels[newStatus] || newStatus });
+    toast({ title: STATUS_LABELS[newStatus] || newStatus });
   };
 
   const handleQuickDuplicate = async (post: CalendarPost) => {
@@ -778,6 +773,10 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
               className={`px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === "week" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
               Semaine
             </button>
+            <button onClick={() => setViewMode("month")}
+              className={`px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === "month" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+              Mois
+            </button>
             <button onClick={() => setViewMode("kanban")}
               className={`px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === "kanban" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
               Kanban
@@ -785,10 +784,6 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
             <button onClick={() => setViewMode("list")}
               className={`px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
               Liste
-            </button>
-            <button onClick={() => setViewMode("month")}
-              className={`px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === "month" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
-              Mois
             </button>
           </div>
           {viewMode === "kanban" || viewMode === "list" ? (

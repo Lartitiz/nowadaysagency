@@ -375,7 +375,6 @@ export function CalendarWeekGrid({ weekDays, postsByDate, todayStr, isMobile, on
             </p>
             <Calendar
               mode="single" selected={moveDate} onSelect={setMoveDate}
-              disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
               className={cn("p-3 pointer-events-auto mx-auto")} locale={fr}
             />
             <button onClick={confirmMobileMove} disabled={!moveDate}

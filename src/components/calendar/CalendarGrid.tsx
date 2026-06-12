@@ -187,7 +187,6 @@ export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, on
               mode="single"
               selected={moveDate}
               onSelect={setMoveDate}
-              disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
               className={cn("p-3 pointer-events-auto mx-auto")}
               locale={fr}
             />
