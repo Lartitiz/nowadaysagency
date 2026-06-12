@@ -868,11 +868,13 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
 
 
       {postsLoading ? (
-        <div className="grid grid-cols-2 gap-4">
-          <SkeletonCard variant="medium" />
-          <SkeletonCard variant="medium" />
-          <SkeletonCard variant="medium" />
-          <SkeletonCard variant="medium" />
+        <div className="space-y-3">
+          <div className="h-10 rounded-lg bg-muted animate-pulse" />
+          <div className="grid grid-cols-7 gap-2">
+            {Array.from({ length: 35 }).map((_, i) => (
+              <div key={i} className="h-24 rounded-[12px] bg-muted animate-pulse" />
+            ))}
+          </div>
         </div>
       ) : viewMode === "kanban" ? (
         <CalendarKanbanView
