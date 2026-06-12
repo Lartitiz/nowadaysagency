@@ -46,7 +46,7 @@ function getGeneratorRoute(post: CalendarPost): string | null {
   if (isStories || fmt === "story" || fmt === "story_serie") return "/creer?format=story";
   if (fmt === "reel") return "/creer?format=reel";
   if (fmt === "carousel" || fmt === "post_carrousel") return "/creer?format=carousel";
-  if (fmt === "linkedin") return "/linkedin";
+  if (fmt === "linkedin") return "/creer?canal=linkedin";
   if (fmt === "newsletter" || fmt === "newsletter_standard") return "/creer";
   if (fmt === "post" || fmt === "post_photo") return "/creer";
 
@@ -55,7 +55,7 @@ function getGeneratorRoute(post: CalendarPost): string | null {
   if (gct === "carousel") return "/creer?format=carousel";
   if (gct === "reel") return "/creer?format=reel";
   if (gct === "story") return "/creer?format=story";
-  if (gct === "linkedin") return "/linkedin";
+  if (gct === "linkedin") return "/creer?canal=linkedin";
 
   return null; // fallback to dialog
 }
@@ -234,6 +234,11 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       setSelectedDate(today);
       setPrefillData({ theme: prefillTheme, notes: prefillContent || "" });
       setDialogOpen(true);
+      // Clean up the params so reopening doesn't re-trigger
+      const next = new URLSearchParams(searchParams);
+      next.delete("prefill_theme");
+      next.delete("prefill_content");
+      navigate({ search: next.toString() }, { replace: true });
     }
     if (searchParams.get("coaching") === "1") {
       setCoachingOpen(true);
@@ -300,7 +305,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       setPostsLoading(false);
       return;
     }
-    if (!user) return;
+    if (!user) { setPostsLoading(false); return; }
 
     if ((viewMode === "kanban" || viewMode === "list") && kanbanPeriod === "all") {
       // No date filter — fetch all posts
