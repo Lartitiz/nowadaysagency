@@ -50,6 +50,13 @@ export default function ContentRecycling() {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<Record<string, string>>({});
   const [topics, setTopics] = useState<Record<string, string>>({});
+  const [carouselStructure, setCarouselStructure] = useState<
+    | {
+        slides: Array<{ slide_number: number; title: string; body: string }>;
+        caption: { hook: string; body: string; cta: string };
+      }
+    | null
+  >(null);
   const [activeTab, setActiveTab] = useState<string>("");
   const [showCalendarDialog, setShowCalendarDialog] = useState(false);
   const [showIdeasDialog, setShowIdeasDialog] = useState(false);
