@@ -195,7 +195,7 @@ export function useContentGenerator() {
 
     // Defensive: bail early on non-canonical formats (e.g. "auto") so the user
     // gets a clear toast instead of a half-broken request.
-    const SUPPORTED = ["carousel", "reel", "story", "post", "linkedin", "newsletter"] as const;
+    const SUPPORTED = ["carousel", "reel", "story", "post", "linkedin"] as const;
     if (!format || !(SUPPORTED as readonly string[]).includes(format)) {
       setGenerating(false);
       setError("Choisis un format valide pour générer ton contenu.");
@@ -381,25 +381,6 @@ export function useContentGenerator() {
           break;
         }
 
-        case "newsletter": {
-          const res = await invokeWithTimeout("newsletter-ai", {
-            body: {
-              topic: effectiveSubject + (existingContent ? `\n\n${existingContent}` : ""),
-              preGenAnswers: answers
-                ? {
-                    anecdote: answers.anecdote || answers.q_0 || undefined,
-                    emotion: answers.emotion || answers.q_1 || undefined,
-                    conviction: answers.conviction || answers.q_2 || undefined,
-                  }
-                : preGenAnswers || null,
-              template: editorialAngle || null,
-              workspace_id: workspaceId || null,
-            },
-          }, 120000);
-          data = res.data;
-          invokeError = res.error;
-          break;
-        }
 
         default:
           throw new Error(`Format non supporté : ${format}`);

@@ -1,63 +1,62 @@
 ## Objectif
 
-Les contenus Pinterest sauvegardés en idée étaient classés comme "post_instagram" (canal "instagram"). Les filtres LinkedIn, Newsletter et Pinterest étaient grisés "(V2)" dans l'Atelier alors que les idées correspondantes existent.
+Supprimer l'ancien pipeline `newsletter-ai` (deprecated juin 2026), désormais sans appelant vivant. La génération de newsletter passe entièrement par `creative-flow` via le chemin streaming. On nettoie pour garantir le principe single source of truth.
 
 ## Modifications
 
-### 1. SaveToIdeasDialog.tsx
+### 1. src/hooks/use-content-generator.ts
 
-Extension STRICTEMENT ADDITIVE du type `contentType` et du mapping `handleSave`.
+Deux retraits, strictement bornés au chemin non-streaming de `generate()` :
 
-- Union du prop `contentType` : ajouter `"pinterest"` :
+- **Ligne 198** — retirer `"newsletter"` de la constante `SUPPORTED` :
   ````text
-  "story" | "reel" | "post_instagram" | "post_linkedin" | "newsletter" | "pinterest"
+  const SUPPORTED = ["carousel", "reel", "story", "post", "linkedin"] as const;
   ````
-- Dans `handleSave` :
-  - `contentEmoji` : `"📌"` pour `contentType === "pinterest"`
-  - `formatLabel` : `"pinterest"` pour `contentType === "pinterest"` (ou conserver le prop `format` s'il est fourni, comme pour les posts)
-  - `canalValue` : `"pinterest"` pour `contentType === "pinterest"`
-- Les mappings existants (newsletter, story, reel, post_linkedin, post_instagram) restent identiques.
-- Le shape d'insertion dans `saved_ideas` (user_id, workspace_id conditionnel, titre, angle, type, status, content_draft, content_data, source_module) est inchangé.
-- Le pattern workspace (`workspaceId !== user.id ? workspaceId : undefined`) est inchangé.
+  Conséquence : si quelqu'un appelle par erreur `generate({ format: "newsletter" })`, on tombe sur la garde existante (toast clair "Choisis un format valide…") au lieu d'atteindre un edge function supprimé.
 
-### 2. CreerUnifie.tsx — mapFormatToContentType
+- **Lignes 384-402** — supprimer le `case "newsletter": { … break; }` complet du switch.
 
-- Ajouter avant le `return` final :
-  ````text
-  if (fmt === "pinterest" || fmt === "pinterest_visual" || fmt === "pinterest_photo") return "pinterest";
-  ````
-- Mettre à jour le type de retour de la fonction pour inclure `"pinterest"`.
-- Les autres mappings (newsletter, story, reel, linkedin) restent identiques.
-- `handleSave` de CreerUnifie (chemin carousel et ouverture du dialog) : inchangé.
+Restent **intacts** :
+- Les unions de types `GenerateParams.format` (ligne 20) et `ContentResult.type` (ligne 84) — `"newsletter"` y reste car le résultat de génération streaming est typé pareil.
+- Le chemin streaming complet : `generateStream()` lignes 690+, le mapping `format → contentType` (`newsletter: "post_newsletter"` ligne 719), l'union `StreamParams.format` ligne 848.
+- Tous les autres cases du switch (carousel, reel, story, post, linkedin).
 
-### 3. IdeasPage.tsx — CANAL_OPTIONS
+### 2. supabase/functions/newsletter-ai/
 
-Remplacer la constante par :
+Supprimer le dossier complet (`index.ts` est le seul fichier).
 
-````text
-const CANAL_OPTIONS = [
-  { id: "instagram", label: "📱 Instagram", enabled: true },
-  { id: "linkedin",   label: "💼 LinkedIn",   enabled: true },
-  { id: "newsletter", label: "✉️ Newsletter", enabled: true },
-  { id: "pinterest",  label: "📌 Pinterest",  enabled: true },
-];
-````
+Après suppression, appeler `supabase--delete_edge_functions(["newsletter-ai"])` pour retirer aussi la fonction déployée.
 
-La logique d'affichage des FilterChips ("(V2)" si `!enabled`) reste en place telle quelle — elle ne s'affichera simplement plus.
+Les fichiers `_shared/` (correction-pass.ts, copywriting-prompts.ts, plan-limiter.ts…) ne sont **pas** touchés — ils servent d'autres fonctions.
 
-Les éléments suivants sont INTACTS :
-- Logique de filtrage (`canalFilter`), tri, constantes `TYPE_OPTIONS`/`OBJECTIF_OPTIONS`
-- Mapping des `content_briefs` (ligne ~128)
-- Tout le reste de IdeasPage
+### 3. src/components/creer/formatRenderers/NewsletterResult.tsx
+
+Le schéma `creative-flow` newsletter ne contient plus `personalization_level`. Nettoyer :
+
+- **Ligne 19** — supprimer `const personalizationLevel = result?.personalization_level;`
+- **Lignes 95-106** — supprimer le bloc `{personalizationLevel && (…)}` dans la section Meta.
+- **Lignes 92-107** — la `<div>` Meta est conservée, ne contient plus que `wordCount`.
+
+Le reste du renderer (subject, preview_text, body, cta_suggestion, copySubject, copyAll, RedFlagsChecker, AiGeneratedMention) est **strictement identique**.
 
 ## Améliorations connexes identifiées
 
-Aucune. Le mapping des `content_briefs` (ligne ~128) souffre du même défaut pour Pinterest, mais il est explicitement hors scope / intouché dans ce plan.
+(b) **Proposition non incluse dans le plan** — `src/lib/content-structures.ts` ligne 531 contient encore `edgeFunction: "newsletter-ai"` dans le registry des formats. Ce champ n'est lu à l'exécution par aucun fichier (`grep .edgeFunction src/` = vide), c'est purement déclaratif. Le mettre à jour en `"creative-flow"` resterait cohérent avec la réalité, mais ce n'est pas requis pour le fonctionnement et tu as listé seulement 3 fichiers impactés. À valider à part si tu veux l'inclure ; je ne le touche pas dans cet exec.
+
+Aucune autre amélioration identifiée dans le périmètre.
+
+## Ce qui ne bouge pas
+
+- `supabase/functions/creative-flow/index.ts`
+- `supabase/functions/_shared/*`
+- Le chemin streaming newsletter de bout en bout (generateStream → use-streaming-invoke → creative-flow "post_newsletter" → NewsletterResult)
+- Les autres cases de `generate()` et leurs edge functions
+- Les autres renderers
 
 ## Validation
 
 - `npx tsc --noEmit --skipLibCheck` passe sans erreur
-- Générer une épingle Pinterest → "Sauvegarder en idée" → l'idée apparaît dans Mes idées avec 📌 et canal `pinterest`, filtrable via le chip Pinterest
-- Les chips LinkedIn / Newsletter / Pinterest sont cliquables et filtrent correctement
-- Sauvegarder une idée depuis une autre page (ex. générateur LinkedIn) → comportement strictement identique à avant
-- Aucun consommateur de `SaveToIdeasDialog` parmi les 14 fichiers existants ne nécessite de modification (changement purement additif du type)
+- `grep -rn "newsletter-ai" src/ supabase/functions/` ne retourne plus rien (sauf éventuellement la ligne `content-structures.ts:531` si on n'inclut pas la proposition (b) — à confirmer avec toi)
+- Test manuel : générer une newsletter depuis Créer → résultat complet avec objet + preview + body, sauvegarde calendrier et idée OK
+- Test manuel : générer un post, un LinkedIn, un carrousel → comportements inchangés
+- Le dossier `supabase/functions/newsletter-ai/` n'existe plus et la fonction est désinscrite côté backend
