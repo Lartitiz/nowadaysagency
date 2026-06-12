@@ -551,6 +551,8 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     if (!error && dupData) {
       setPosts(prev => [...prev, dupData as CalendarPost]);
       toast({ title: "📋 Post dupliqué !" });
+    } else {
+      toast({ title: "Oups, ça n'a pas été enregistré", description: "Réessaie dans un instant.", variant: "destructive" });
     }
   };
 
