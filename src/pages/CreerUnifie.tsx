@@ -189,6 +189,7 @@ export default function CreerUnifie() {
   const [structureProposal, setStructureProposal] = useState<StructureProposal | null>(null);
   const [structureLoading, setStructureLoading] = useState(false);
   const [lastConfirmedStructure, setLastConfirmedStructure] = useState<SlideProposal[] | null>(null);
+  const [lastNarrativeThread, setLastNarrativeThread] = useState<string | null>(null);
   const [newsjackingContext, setNewsjackingContext] = useState<string | null>(null);
   const [newsjackingSuggestedFormat, setNewsjackingSuggestedFormat] = useState<string | null>(null);
 
@@ -1095,6 +1096,7 @@ export default function CreerUnifie() {
         answers: Object.keys(ans).length > 0 ? ans : undefined,
         channel: isLinkedInCarousel ? "linkedin" : undefined,
         confirmedStructure: lastConfirmedStructure,
+        ...(lastNarrativeThread ? { narrativeThread: lastNarrativeThread } : {}),
         ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
         ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
         ...(carouselSubMode === "pure_photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
@@ -1279,7 +1281,10 @@ export default function CreerUnifie() {
     const enrichedSubject = existingCalendarContent
       ? ideaText + "\n\n[Contenu existant à approfondir]\n" + existingCalendarContent
       : ideaText;
+    // Capture le fil narratif AVANT de reset structureProposal
+    const narrativeThread = structureProposal?.narrative_thread || undefined;
     setLastConfirmedStructure(confirmedSlides);
+    setLastNarrativeThread(narrativeThread || null);
     setStructureProposal(null);
     setStep("result");
     // Snapshot des photos avant la génération finale (au cas où le state UI serait reset)
@@ -1294,6 +1299,7 @@ export default function CreerUnifie() {
       answers: Object.keys(answers).length > 0 ? answers : undefined,
       channel: isLinkedInCarousel ? "linkedin" : undefined,
       confirmedStructure: confirmedSlides,
+      ...(narrativeThread ? { narrativeThread } : {}),
       ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
       ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
       ...(carouselSubMode === "pure_photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),

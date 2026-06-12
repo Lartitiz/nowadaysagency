@@ -87,7 +87,10 @@ serve(async (req) => {
         strategic_note: z.string(),
         photo_index: z.number().optional(),
         slide_type: z.enum(["photo_full", "photo_integrated", "text_only"]).optional(),
+        story_beat: z.string().max(300).optional(),
+        visual_anchor: z.string().max(120).optional(),
       })).optional().nullable(),
+      narrative_thread: z.string().max(1000).optional().nullable(),
       recent_briefs_context: z.string().max(6000).optional().nullable(),
       news_context: z.string().max(4000).optional().nullable(),
       series_id: z.string().uuid().optional().nullable(),
@@ -405,19 +408,28 @@ ${brandingContext}
 Retourne UNIQUEMENT un objet JSON valide (pas de texte avant ou après, pas de backticks), avec cette structure exacte :
 {
   "strategic_rationale": "2-3 phrases expliquant la logique narrative globale",
+  "narrative_thread": "L'HISTOIRE COMPLÈTE du carrousel en 2-3 phrases : situation → tension → bascule → résolution → ouverture. C'est le fil que le pass d'écriture devra exécuter. Pas une description du sujet, pas une liste des slides : le récit lui-même, dans l'ordre, comme on le raconterait à l'oral.",
   "slides": [
     {
       "slide_number": 1,
       "role": "hook",
       "title_suggestion": "titre court proposé",
-      "strategic_note": "pourquoi cette slide à cette position"${hasPhotos ? `,
+      "strategic_note": "pourquoi cette slide à cette position",
+      "story_beat": "Ce que CETTE slide FAIT VIVRE dans le récit, en 1 phrase. Une INTENTION NARRATIVE — pas une description de la photo. Exemples : « ici on installe le doute », « ici la bascule : le client rappelle », « ici on paie le prix de la décision ». JAMAIS « on voit un chantier », « la photo montre… »."${hasPhotos ? `,
       "photo_index": 1,
-      "slide_type": "photo_full"` : ""}
+      "slide_type": "photo_full",
+      "visual_anchor": "OPTIONNEL — uniquement pour les slides avec photo_index. 3-8 mots qui pointent UN détail concret de la photo, mobilisable par le pass d'écriture comme matière première (ex : « la poussière sur les bottes », « les deux tasses encore pleines »). C'est UN détail, JAMAIS un résumé de l'image."` : ""}
     }
   ],
   "total_slides": 7,
   "carousel_type": "${carousel_type || "auto"}"
-}`;
+}
+
+RAPPEL CRITIQUE sur les nouveaux champs :
+- "narrative_thread" = LE récit que le pass d'écriture exécutera. C'est la colonne vertébrale.
+- "story_beat" (par slide) = ce que la slide RACONTE dans ce récit, pas ce que la photo MONTRE. Une intention narrative.
+- "visual_anchor" (slides photo uniquement) = UN détail mobilisable, optionnel. Pas une description. Si rien d'évident à pointer, omets le champ.
+- story_beat et visual_anchor SERVENT le narrative_thread : chaque story_beat est UNE étape du récit global ; les visual_anchors fournissent la matière sensorielle qui ancre cette étape.`;
 
       const structureUserPrompt = `Sujet du carrousel : "${subject || "non précisé"}"
 ${carousel_type ? `Type de carrousel : ${carousel_type}` : "Choisis le type le plus pertinent."}
@@ -447,14 +459,14 @@ Propose la structure optimale.`;
           model: getModelForAction("content"),
           system: structureSystemPrompt,
           messages: [{ role: "user", content: messageContent }],
-          max_tokens: 2048,
+          max_tokens: 3000,
         });
       } else {
         content = await callAnthropic({
           model: getModelForAction("content"),
           system: structureSystemPrompt,
           messages: [{ role: "user", content: structureUserPrompt }],
-          max_tokens: 2048,
+          max_tokens: 3000,
         });
       }
 
@@ -1517,7 +1529,7 @@ Retourne ce JSON exact :
 }
 
 function buildPhotoCarouselPrompt(body: any): string {
-  const { editorial_angle, content_structure, deepening_answers, confirmed_structure } = body;
+  const { editorial_angle, content_structure, deepening_answers, confirmed_structure, narrative_thread } = body;
 
   // ── STRUCTURE IMPOSÉE (si confirmée par l'utilisateur·ice) ──
   let confirmedStructureBlock = "";
@@ -1527,13 +1539,21 @@ function buildPhotoCarouselPrompt(body: any): string {
         let line = `  Slide ${s.slide_number} — Rôle : ${s.role} — Titre : "${s.title_suggestion}"`;
         if (s.photo_index) line += ` — Photo n°${s.photo_index}${s.slide_type ? ` (${s.slide_type})` : ""}`;
         line += ` — ${s.strategic_note}`;
+        if (s.story_beat) line += `\n    → Raconte : ${s.story_beat}`;
+        if (s.visual_anchor) line += `\n    → Détail mobilisable : ${s.visual_anchor}`;
         return line;
       })
       .join("\n");
+    const narrativeBlock = narrative_thread && typeof narrative_thread === "string" && narrative_thread.trim()
+      ? `RÉCIT À EXÉCUTER (décidé en voyant les photos) : ${narrative_thread.trim()}
+Chaque slide écrit UNE étape de ce récit. Tu n'inventes pas une autre histoire, tu exécutes celle-ci.
+
+`
+      : "";
     confirmedStructureBlock = `══════════════════════════════════════
 STRUCTURE IMPOSÉE PAR L'UTILISATEUR·ICE — OBLIGATOIRE
 ══════════════════════════════════════
-Tu DOIS générer le contenu pour EXACTEMENT ces slides dans cet ordre :
+${narrativeBlock}Tu DOIS générer le contenu pour EXACTEMENT ces slides dans cet ordre :
 ${structureList}
 
 RÈGLES ABSOLUES :
@@ -1542,6 +1562,7 @@ RÈGLES ABSOLUES :
 - Génère uniquement le contenu (body, visual_schema, caption) pour chaque slide
 - Le JSON retourné doit contenir exactement ${confirmed_structure.length} slides
 - Si une slide a un photo_index, le champ photo_index doit être présent dans le JSON de sortie
+- INTERDIT de décrire la photo. L'overlay écrit l'étape du récit définie par le story_beat ; le visual_anchor est une matière optionnelle (un détail à glisser dans la phrase si naturel), JAMAIS un contenu à réciter.
 
 `;
   }
@@ -1676,7 +1697,7 @@ RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
 }
 
 function buildMixCarouselPrompt(body: any, isLinkedIn: boolean = false): string {
-  const { editorial_angle, content_structure, deepening_answers, slide_structure, confirmed_structure } = body;
+  const { editorial_angle, content_structure, deepening_answers, slide_structure, confirmed_structure, narrative_thread } = body;
 
   // ── Adaptation éditoriale selon le canal ──
   const channelBlock = isLinkedIn
@@ -1702,13 +1723,21 @@ Ce carrousel est destiné à LinkedIn (et non Instagram). Tu DOIS adapter ton, o
         let line = `  Slide ${s.slide_number} — Rôle : ${s.role} — Titre : "${s.title_suggestion}"`;
         if (s.photo_index) line += ` — Photo n°${s.photo_index}${s.slide_type ? ` (${s.slide_type})` : ""}`;
         line += ` — ${s.strategic_note}`;
+        if (s.story_beat) line += `\n    → Raconte : ${s.story_beat}`;
+        if (s.visual_anchor) line += `\n    → Détail mobilisable : ${s.visual_anchor}`;
         return line;
       })
       .join("\n");
+    const narrativeBlock = narrative_thread && typeof narrative_thread === "string" && narrative_thread.trim()
+      ? `RÉCIT À EXÉCUTER (décidé en voyant les photos) : ${narrative_thread.trim()}
+Chaque slide écrit UNE étape de ce récit. Tu n'inventes pas une autre histoire, tu exécutes celle-ci.
+
+`
+      : "";
     confirmedStructureBlock = `══════════════════════════════════════
 STRUCTURE IMPOSÉE PAR L'UTILISATEUR·ICE — OBLIGATOIRE
 ══════════════════════════════════════
-Tu DOIS générer le contenu pour EXACTEMENT ces slides dans cet ordre :
+${narrativeBlock}Tu DOIS générer le contenu pour EXACTEMENT ces slides dans cet ordre :
 ${structureList}
 
 RÈGLES ABSOLUES :
@@ -1717,6 +1746,7 @@ RÈGLES ABSOLUES :
 - Génère uniquement le contenu (body, visual_schema, caption) pour chaque slide
 - Le JSON retourné doit contenir exactement ${confirmed_structure.length} slides
 - Si une slide a un photo_index, le champ photo_index doit être présent dans le JSON de sortie
+- INTERDIT de décrire la photo. L'overlay écrit l'étape du récit définie par le story_beat ; le visual_anchor est une matière optionnelle (un détail à glisser dans la phrase si naturel), JAMAIS un contenu à réciter.
 
 `;
   }

@@ -49,7 +49,11 @@ export interface GenerateParams {
     strategic_note: string;
     photo_index?: number;
     slide_type?: "photo_full" | "photo_integrated" | "text_only";
+    story_beat?: string;
+    visual_anchor?: string;
   }>;
+  // Récit transmis du pass structure vers le pass d'écriture (carrousel uniquement)
+  narrativeThread?: string;
   // Newsjacking — separate field to avoid bloating `subject`
   newsContext?: string;
 }
@@ -251,6 +255,7 @@ export function useContentGenerator() {
               photo_description: (params.carouselType === "photo" || params.carouselType === "mix") ? params.photoDescription : undefined,
               slide_structure: params.slideStructure || null,
               confirmed_structure: params.confirmedStructure || null,
+              ...(params.narrativeThread && params.narrativeThread.trim() ? { narrative_thread: params.narrativeThread } : {}),
               ...(newsContext && newsContext.trim() ? { news_context: newsContext.slice(0, 3800) } : {}),
             },
           }, 180000);
