@@ -6,6 +6,7 @@ import { callAnthropic, getModelForAction } from "../_shared/anthropic.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req); const cors = corsHeaders;
@@ -56,6 +57,13 @@ serve(async (req) => {
     const { template_urls } = validateInput(reqBody, z.object({
       template_urls: z.array(z.string().url().max(2048)).min(1, "Au moins 1 URL requise").max(10),
     }));
+
+    const sbGuard = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const membership = await assertWorkspaceMembership(sbGuard, user.id, reqBody.workspace_id);
+    if (!membership.ok) {
+      console.warn("[workspace-guard] denied", { userId: user.id, workspaceId: reqBody.workspace_id });
+      return workspaceDeniedResponse(corsHeaders);
+    }
 
     // Priority: body workspace_id > owner lookup
     const workspaceId = reqBody.workspace_id || ownerWorkspaceId;

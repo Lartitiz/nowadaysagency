@@ -8,6 +8,7 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { buildPptxInvariants, formatInvariantsForPrompt } from "../_shared/pptx-invariants.ts";
 import { extractImagePayload } from "../_shared/image-utils.ts";
+import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
 /**
  * Bloc partagé : templates HTML/CSS des schémas visuels (visual_schema).
@@ -240,6 +241,13 @@ serve(async (req) => {
       workspace_id: z.string().uuid().optional().nullable(),
     }).passthrough());
     const { slides, template_style, charter: bodyCharter, custom_overrides, template_reference_urls } = reqBody;
+
+    const sbGuard = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const membership = await assertWorkspaceMembership(sbGuard, user.id, reqBody.workspace_id);
+    if (!membership.ok) {
+      console.warn("[workspace-guard] denied", { userId: user.id, workspaceId: reqBody.workspace_id });
+      return workspaceDeniedResponse(corsHeaders);
+    }
 
     // Priority: body workspace_id > owner lookup
     const workspaceId = reqBody.workspace_id || ownerWorkspaceId;

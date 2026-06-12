@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
 
 serve(async (req) => {
@@ -23,6 +24,12 @@ serve(async (req) => {
       const anonSb = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
       const { data: { user } } = await anonSb.auth.getUser(authHeader.replace("Bearer ", ""));
       if (user) {
+        const sbGuard = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+        const membership = await assertWorkspaceMembership(sbGuard, user.id, workspace_id);
+        if (!membership.ok) {
+          console.warn("[workspace-guard] denied", { userId: user.id, workspaceId: workspace_id });
+          return workspaceDeniedResponse(corsHeaders);
+        }
         const filterCol = workspace_id ? "workspace_id" : "user_id";
         const filterVal = workspace_id || user.id;
         // Resolve workspace owner for profile-scoped tables

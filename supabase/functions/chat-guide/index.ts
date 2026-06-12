@@ -3,6 +3,7 @@ import { getModelForAction } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
 const ICON_MAP: Record<string, string> = {
   branding: "Palette",
@@ -355,6 +356,13 @@ Deno.serve(async (req) => {
     let contextBlock = "";
     let profileData: any = null;
     let stratData: any = null;
+
+    const sbGuard = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const membership = await assertWorkspaceMembership(sbGuard, userId, workspaceId);
+    if (!membership.ok) {
+      console.warn("[workspace-guard] denied", { userId, workspaceId });
+      return workspaceDeniedResponse(cors);
+    }
 
     // Resolve workspace owner for profile-scoped tables
     let profileUserId = userId;
