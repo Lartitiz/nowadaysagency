@@ -949,7 +949,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
 
       {isMobile ? (
         mobileTab === "calendar" ? calendarContent : (
-          <CalendarIdeasSidebar onIdeaPlanned={fetchPosts} onIdeaClick={handleIdeaClick} isMobile />
+          <CalendarIdeasSidebar onIdeaPlanned={fetchPosts} onIdeaClick={handleIdeaClick} isMobile refreshKey={ideasRefreshKey} />
         )
       ) : (
         <Suspense fallback={<div className="flex gap-6"><div className="flex-1 min-w-0">{calendarContent}</div></div>}>
