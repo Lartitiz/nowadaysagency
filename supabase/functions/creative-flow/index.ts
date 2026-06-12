@@ -740,12 +740,27 @@ SELF-CHECK FINAL (fais-le en interne avant de répondre) :
 Réponds UNIQUEMENT en JSON valide :
 {
   "results": {
-    ${(formats || []).map((f: string) => `"${f}": "contenu complet ici"`).join(",\n    ")}
+    ${(formats || []).map((f: string) => f === "carrousel"
+      ? `"carrousel": {
+      "slides": [
+        { "slide_number": 1, "title": "hook court", "body": "2-4 phrases" },
+        { "slide_number": 2, "title": "...", "body": "..." },
+        { "slide_number": 3, "title": "...", "body": "..." },
+        { "slide_number": 4, "title": "...", "body": "..." },
+        { "slide_number": 5, "title": "...", "body": "..." },
+        { "slide_number": 6, "title": "...", "body": "..." },
+        { "slide_number": 7, "title": "...", "body": "..." },
+        { "slide_number": 8, "title": "punchline + CTA", "body": "2-4 phrases" }
+      ],
+      "caption": { "hook": "1-2 phrases d'accroche", "body": "développement de la légende", "cta": "appel à l'action final" }
+    }`
+      : `"${f}": "contenu complet ici"`).join(",\n    ")}
   },
   "topics": {
     ${(formats || []).map((f: string) => `"${f}": "le sujet réel de ce contenu en 5-10 mots (pas 'recyclage', le VRAI sujet traité)"`).join(",\n    ")}
   }
-}`;
+}
+${(formats || []).includes("carrousel") ? `\nIMPORTANT pour le carrousel : tu DOIS renvoyer un OBJET structuré avec exactement 8 slides (slide_number 1 à 8, chaque slide a title + body de 2-4 phrases) et une caption {hook, body, cta}. Pas une string. Pas moins de 8 slides. Les règles de longueur et d'arc narratif (slide 1 = hook, 2-7 = développement, 8 = punchline + CTA) s'appliquent au champ body de chaque slide.` : ""}`;
 
       // Move source text to user message instead of system prompt
       userPrompt = sourceText

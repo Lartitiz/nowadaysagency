@@ -50,6 +50,13 @@ export default function ContentRecycling() {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<Record<string, string>>({});
   const [topics, setTopics] = useState<Record<string, string>>({});
+  const [carouselStructure, setCarouselStructure] = useState<
+    | {
+        slides: Array<{ slide_number: number; title: string; body: string }>;
+        caption: { hook: string; body: string; cta: string };
+      }
+    | null
+  >(null);
   const [activeTab, setActiveTab] = useState<string>("");
   const [showCalendarDialog, setShowCalendarDialog] = useState(false);
   const [showIdeasDialog, setShowIdeasDialog] = useState(false);
@@ -166,7 +173,27 @@ export default function ContentRecycling() {
         });
         return;
       }
-      setResults(r);
+
+      // Detect structured carousel and flatten to readable text for display
+      const rawCarousel = r.carrousel;
+      const display: Record<string, string> = {};
+      let structure: typeof carouselStructure = null;
+      for (const k of Object.keys(r)) {
+        if (k === "carrousel" && rawCarousel && typeof rawCarousel === "object" && Array.isArray(rawCarousel.slides)) {
+          const slides = rawCarousel.slides as Array<{ slide_number: number; title: string; body: string }>;
+          const caption = rawCarousel.caption || { hook: "", body: "", cta: "" };
+          structure = { slides, caption };
+          const slidesText = slides
+            .map((s) => `Slide ${s.slide_number} — ${s.title}\n${s.body}`)
+            .join("\n\n");
+          const captionText = [caption.hook, caption.body, caption.cta].filter(Boolean).join("\n\n");
+          display[k] = `${slidesText}\n\n──────────\nLégende\n\n${captionText}`;
+        } else {
+          display[k] = typeof r[k] === "string" ? r[k] : JSON.stringify(r[k]);
+        }
+      }
+      setCarouselStructure(structure);
+      setResults(display);
       setTopics(data?.topics || {});
       setActiveTab(formats[0] || "");
 
@@ -246,6 +273,13 @@ export default function ContentRecycling() {
       status: "ready",
     };
     if (workspaceId && workspaceId !== user.id) insertData.workspace_id = workspaceId;
+    if (activeTab === "carrousel" && carouselStructure) {
+      insertData.story_sequence_detail = {
+        type: "carousel",
+        slides: carouselStructure.slides,
+        caption: carouselStructure.caption,
+      };
+    }
     const { error } = await supabase.from("calendar_posts").insert(insertData);
     setShowCalendarDialog(false);
     if (error) {
@@ -407,7 +441,7 @@ export default function ContentRecycling() {
 
               <RedFlagsChecker
                 content={results[activeTab]}
-                onFix={(fixed) => setResults(prev => ({ ...prev, [activeTab]: fixed }))}
+                onFix={(fixed) => { setResults(prev => ({ ...prev, [activeTab]: fixed })); if (activeTab === "carrousel") setCarouselStructure(null); }}
               />
 
               <div className="flex flex-wrap gap-2">
@@ -420,7 +454,7 @@ export default function ContentRecycling() {
                 <Button variant="outline" size="sm" disabled={!canExport} onClick={() => setShowIdeasDialog(true)} className="rounded-pill gap-1.5">
                   <Lightbulb className="h-3.5 w-3.5" /> Sauvegarder en idée
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => { setResults({}); setTopics({}); setActiveTab(""); setFiles([]); }} className="rounded-pill gap-1.5">
+                <Button variant="ghost" size="sm" onClick={() => { setResults({}); setTopics({}); setActiveTab(""); setFiles([]); setCarouselStructure(null); }} className="rounded-pill gap-1.5">
                   <RefreshCw className="h-3.5 w-3.5" /> Nouveau recyclage
                 </Button>
               </div>

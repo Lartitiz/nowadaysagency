@@ -1,42 +1,144 @@
-## Fix — Régénérer une épingle photo Pinterest depuis le calendrier
+# Plan — Le carrousel recyclé devient un vrai carrousel dans le calendrier
 
-### Le bug
-`pinterest-photo-brief` exige `reference_image_base64` (zod min(1)). Quand on relance un post calendrier `pinterest_photo`, l'image d'origine n'existe plus → 400. En plus, `deduceChannel` retourne `instagram` pour `pinterest_photo` → mauvais canal affiché.
+## (a) Ce que tu m'as demandé
 
-### Changements
+### 1. Backend — `supabase/functions/creative-flow/index.ts` (step `recycle` uniquement)
 
-**1. `supabase/functions/pinterest-photo-brief/index.ts`**
-- Schéma zod : `reference_image_base64: z.string().max(10000000).optional().nullable()` (au lieu de `.min(1)` requis).
-- Construction du message Anthropic :
-  - Si `reference_image_base64` présent → comportement actuel (image + texte "Voici l'épingle Pinterest d'inspiration…").
-  - Sinon → message texte seul, userPrompt adapté (« Crée un brief photo + overlay depuis le sujet et la charte uniquement », sans mention « inspire-toi de l'image »).
-- Tout le reste inchangé : quota (déjà avant `callAnthropic` après fix précédent), `assertWorkspaceMembership`, `getUserContext`, `brand_charter`, format de réponse `{photo_brief, overlay_html, title, description}`, post-processing fonts.
+Dans le system prompt du step `recycle` (~lignes 740-748), modifier la spec
+JSON de sortie pour que la clé `carrousel` (si demandée) soit un objet
+structuré, les autres formats restent des strings :
 
-**2. `src/pages/CreerUnifie.tsx` (~ligne 976)**
-Dans le body de l'appel `pinterest-photo-brief`, remplacer :
-```ts
-reference_image_base64: inspirationImageBase64 || "",
+```json
+{
+  "results": {
+    "carrousel": {
+      "slides": [
+        { "slide_number": 1, "title": "...", "body": "..." },
+        ... 8 slides
+      ],
+      "caption": { "hook": "...", "body": "...", "cta": "..." }
+    },
+    "reel": "string complet",
+    "stories": "string complet",
+    "linkedin": "string complet",
+    "newsletter": "string complet"
+  },
+  "topics": { ... inchangé ... }
+}
 ```
-par un spread conditionnel (même pattern que le bloc `pinterest_visual`) :
+
+Construction dynamique : pour chaque format demandé, émettre la ligne
+correspondante (objet structuré pour `carrousel`, string sinon). Garder
+toutes les règles de longueur actuelles (8 slides, hook/dev/punchline, etc.)
+et les reporter dans la description de la structure carrousel.
+
+Aucun changement à : `hasResults` (vérifie juste la présence de la clé,
+fonctionne avec objet ou string), `checkQuota`/`logUsage`, passe LinkedIn,
+autres steps, `topics`.
+
+### 2. Frontend — `src/components/ContentRecycling.tsx`
+
+**a. Nouveau state** :
 ```ts
-...(inspirationImageBase64 ? { reference_image_base64: inspirationImageBase64 } : {}),
+const [carouselStructure, setCarouselStructure] = useState<
+  { slides: Array<{ slide_number: number; title: string; body: string }>;
+    caption: { hook: string; body: string; cta: string } } | null
+>(null);
 ```
 
-**3. `src/components/creer/CreerStepFormat.tsx` (ligne 34)**
-Ajouter `pinterest_photo` à la liste :
+**b. Réception (`handleRecycle`, après `const r = data?.results || {}`)** :
+
+Si `r.carrousel` est un objet avec `slides` (Array) :
+- `setCarouselStructure({ slides: r.carrousel.slides, caption: r.carrousel.caption })`
+- Générer une version texte lisible :
+  ```
+  Slide 1 — {title}
+  {body}
+  
+  Slide 2 — {title}
+  ...
+  
+  ──────────
+  Légende
+  
+  {hook}
+  
+  {body}
+  
+  {cta}
+  ```
+- Remplacer `r.carrousel` par cette string AVANT `setResults(r)` pour que
+  tout le rendu existant (`<pre>`, Copier, `RedFlagsChecker`) reste
+  inchangé.
+
+Si `r.carrousel` est une string (rétro-compat) : `setCarouselStructure(null)`,
+comportement actuel inchangé.
+
+L'insert dans `content_recycling` (ligne 175-182) reste tel quel : la
+colonne `results` est JSON, elle accepte la structure objet OU la string
+indifféremment — on lui passe l'objet original (`r` avant transformation
+en string lisible) pour garder la donnée brute exploitable.
+
+→ ajustement : faire une copie pour l'affichage. Garder `r` original pour
+le DB insert, set `results` avec la version texte.
+
+**c. `handleAddToCalendar`** (ligne 235) :
+
 ```ts
-if (format === "pinterest" || format === "pinterest_visual" || format === "pinterest_inspiration" || format === "pinterest_photo") return "pinterest";
+if (activeTab === "carrousel" && carouselStructure) {
+  insertData.story_sequence_detail = {
+    type: "carousel",
+    slides: carouselStructure.slides,
+    caption: carouselStructure.caption,
+  };
+}
 ```
 
-### Hors scope (strictement inchangé)
-- Flux inspiration complet (upload capture → proposition → brief AVEC image)
-- Pattern quota / logUsage / workspace guard
-- Bloc `pinterest_visual` de `CreerUnifie.tsx`
-- Autres formats dans `deduceChannel`
-- `PinterestPhotoBriefResult.tsx`
+**d. RedFlagsChecker `onFix`** (ligne 410) : si `activeTab === "carrousel"`,
+appeler aussi `setCarouselStructure(null)` → la correction texte invalide
+la structure, le post part en texte seul.
 
-### Validation
+**e. Reset "Nouveau recyclage"** (ligne 423) : ajouter
+`setCarouselStructure(null)`.
+
+## Ce qui ne bouge pas
+
+- Autres steps de `creative-flow` (questions, generate, dictation, angles…)
+- Garde `hasResults`, pattern `checkQuota`/`logUsage`, passe LinkedIn
+- 4 autres formats de recyclage (string, rendu, planification identiques)
+- `CrosspostFlow`, `InspireFlow`, `AddToCalendarDialog`, `SaveToIdeasDialog`,
+  `ContentPreview`, `CalendarPostContent`, `CalendarPostDialog`,
+  `CarouselPreview`
+- Upload de fichiers, dictée vocale, insert `content_recycling`
+
+## Validation
+
 - `npx tsc --noEmit --skipLibCheck` OK
-- Test 1 : flux inspiration (avec image) → inchangé
-- Test 2 : relance d'un post calendrier `pinterest_photo` (sans image) → brief + overlay + titre + description générés, pas de 400
-- Test 3 : depuis le calendrier, le canal affiché pour `pinterest_photo` est bien Pinterest
+- Recycler avec carrousel coché → onglet Carrousel affiche le texte
+  slide-par-slide lisible, Copier OK
+- Planifier → calendar_post a `story_sequence_detail` typé carousel →
+  "👁️ Voir les slides" + "🎨 Générer les visuels" apparaissent
+- 3 formats cochés (carrousel + reel + stories) → reel/stories planifiés
+  comme avant (texte seul)
+- Correction RedFlags sur carrousel → planification en texte seul, OK
+- Aucune régression Crosspost / S'inspirer
+
+## (b) Propositions optionnelles (à valider séparément)
+
+1. **Persister la structure dans `content_recycling.results`** : le code
+   stocke déjà l'objet brut, ce qui permettrait plus tard de retrouver la
+   structure depuis l'historique. Ce plan le fait gratuitement en gardant
+   `r` original pour l'insert DB. À confirmer.
+
+2. **Garde-fou côté backend** : valider que `carrousel.slides.length === 8`
+   et que `caption.hook/body/cta` sont non-vides ; sinon, fallback en
+   string (concaténation côté serveur) pour éviter qu'un JSON partiel
+   arrive vide côté UI. Léger (~10 lignes), évite un crash d'affichage si
+   l'IA ne respecte pas la spec.
+
+3. **Désactiver le bouton "Planifier" si la structure carrousel a été
+   invalidée par RedFlags** : afficher un petit hint "Planifié en texte
+   seul, les slides ne seront pas conservées" sous le bouton dans ce cas.
+   Pure UX, hors scope strict.
+
+Dis-moi lesquelles tu veux que j'embarque avant d'exécuter.
