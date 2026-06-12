@@ -1,60 +1,63 @@
-# Plan — Transporter le récit entre les deux pass carrousel
+## Objectif
 
-Plan validé tel que fourni. Périmètre strict : 1 fichier backend + 3 fichiers frontend. Aucun changement d'UI, aucune réintroduction des photos dans le pass d'écriture.
+Les contenus Pinterest sauvegardés en idée étaient classés comme "post_instagram" (canal "instagram"). Les filtres LinkedIn, Newsletter et Pinterest étaient grisés "(V2)" dans l'Atelier alors que les idées correspondantes existent.
 
-## Fichiers impactés
+## Modifications
 
-**Backend**
-- `supabase/functions/carousel-ai/index.ts`
-  - Schéma Zod racine
-  - Prompt du handler `type === "structure_proposal"` (+ max_tokens 2048 → 3000)
-  - `confirmedStructureBlock` dans `buildPhotoCarouselPrompt` (ligne ~1523)
-  - `confirmedStructureBlock` dans `buildMixCarouselPrompt` (ligne ~1698)
-  - PAS de modification de `buildMixCarouselNewsReactionPrompt` ni `buildExpressFullPrompt`
+### 1. SaveToIdeasDialog.tsx
 
-**Frontend**
-- `src/components/creer/StructureReviewStep.tsx` — interfaces uniquement
-- `src/pages/CreerUnifie.tsx` — capture + transport
-- `src/hooks/use-content-generator.ts` — types + payload
+Extension STRICTEMENT ADDITIVE du type `contentType` et du mapping `handleSave`.
 
-## Comportement
+- Union du prop `contentType` : ajouter `"pinterest"` :
+  ````text
+  "story" | "reel" | "post_instagram" | "post_linkedin" | "newsletter" | "pinterest"
+  ````
+- Dans `handleSave` :
+  - `contentEmoji` : `"📌"` pour `contentType === "pinterest"`
+  - `formatLabel` : `"pinterest"` pour `contentType === "pinterest"` (ou conserver le prop `format` s'il est fourni, comme pour les posts)
+  - `canalValue` : `"pinterest"` pour `contentType === "pinterest"`
+- Les mappings existants (newsletter, story, reel, post_linkedin, post_instagram) restent identiques.
+- Le shape d'insertion dans `saved_ideas` (user_id, workspace_id conditionnel, titre, angle, type, status, content_draft, content_data, source_module) est inchangé.
+- Le pattern workspace (`workspaceId !== user.id ? workspaceId : undefined`) est inchangé.
 
-### 1. Sortie enrichie de `structure_proposal`
-Nouveau JSON demandé au modèle :
-- Racine : `narrative_thread` (2-3 phrases : situation → tension → bascule → résolution → ouverture)
-- Par slide : `story_beat` (1 phrase, intention narrative — ce que la slide RACONTE, jamais une description photo)
-- Par slide photo uniquement : `visual_anchor` (3-8 mots, un détail concret mobilisable)
+### 2. CreerUnifie.tsx — mapFormatToContentType
 
-Consigne ajoutée au prompt : story_beat = ce que la slide raconte ; visual_anchor = un détail, pas une description ; les deux servent le narrative_thread.
+- Ajouter avant le `return` final :
+  ````text
+  if (fmt === "pinterest" || fmt === "pinterest_visual" || fmt === "pinterest_photo") return "pinterest";
+  ````
+- Mettre à jour le type de retour de la fonction pour inclure `"pinterest"`.
+- Les autres mappings (newsletter, story, reel, linkedin) restent identiques.
+- `handleSave` de CreerUnifie (chemin carousel et ouverture du dialog) : inchangé.
 
-`max_tokens` du handler structure_proposal : 2048 → 3000.
+### 3. IdeasPage.tsx — CANAL_OPTIONS
 
-### 2. Frontend transport
-- `StructureReviewStep` : ajout des champs optionnels à `SlideProposal` (`story_beat?`, `visual_anchor?`) et `StructureProposal` (`narrative_thread?`). Spreads existants des handlers (réordo/suppression/rename) les préservent. Aucune UI ajoutée.
-- `CreerUnifie` : dans `handleConfirmStructure`, capturer `structureProposal?.narrative_thread` AVANT le reset, le stocker dans un nouveau state `lastNarrativeThread`, le passer à `generate()` via param `narrativeThread`. Idem dans le chemin régénération qui réutilise `lastConfirmedStructure`.
-- `use-content-generator` : ajouter `story_beat`/`visual_anchor` aux types de `confirmedStructure`, ajouter `narrativeThread?: string` aux params, envoyer dans le body sous `narrative_thread` UNIQUEMENT pour `format === "carousel"`.
+Remplacer la constante par :
 
-### 3. Schéma Zod + injection prompts d'écriture
-- Zod : `story_beat: z.string().max(300).optional()` et `visual_anchor: z.string().max(120).optional()` dans les objets `confirmed_structure` ; `narrative_thread: z.string().max(1000).optional().nullable()` à la racine.
-- `confirmedStructureBlock` (photo + mix) :
-  - Si `narrative_thread` présent, ouvre par : « RÉCIT À EXÉCUTER (décidé en voyant les photos) : {narrative_thread}. Chaque slide écrit UNE étape de ce récit. Tu n'inventes pas une autre histoire, tu exécutes celle-ci. »
-  - Par slide : enrichir la ligne avec « Raconte : {story_beat} » et « Détail mobilisable : {visual_anchor} » quand présents.
-  - Garde-fou ajouté : « INTERDIT de décrire la photo. L'overlay écrit l'étape du récit définie par le story_beat ; le visual_anchor est une matière optionnelle (un détail à glisser dans la phrase si naturel), JAMAIS un contenu à réciter. »
+````text
+const CANAL_OPTIONS = [
+  { id: "instagram", label: "📱 Instagram", enabled: true },
+  { id: "linkedin",   label: "💼 LinkedIn",   enabled: true },
+  { id: "newsletter", label: "✉️ Newsletter", enabled: true },
+  { id: "pinterest",  label: "📌 Pinterest",  enabled: true },
+];
+````
 
-## Ne bouge pas
-- Optimisation latence : pas de réinjection des photos quand `confirmed_structure` est présent.
-- Blocs CHAÎNAGE NARRATIF et INTERDICTION CASCADE conservés (story_beat s'ajoute).
-- Champs existants intacts, tout nouveau champ optionnel (rétrocompat).
-- UI `StructureReviewStep`, mode `pure_photo`, news_reaction, express_full, quota, workspace, routage, correction pass, fallback structure_proposal.
+La logique d'affichage des FilterChips ("(V2)" si `!enabled`) reste en place telle quelle — elle ne s'affichera simplement plus.
+
+Les éléments suivants sont INTACTS :
+- Logique de filtrage (`canalFilter`), tri, constantes `TYPE_OPTIONS`/`OBJECTIF_OPTIONS`
+- Mapping des `content_briefs` (ligne ~128)
+- Tout le reste de IdeasPage
+
+## Améliorations connexes identifiées
+
+Aucune. Le mapping des `content_briefs` (ligne ~128) souffre du même défaut pour Pinterest, mais il est explicitement hors scope / intouché dans ce plan.
 
 ## Validation
-1. `npx tsc --noEmit --skipLibCheck` clean.
-2. Carrousel photo 2-3 photos : réponse réseau contient `narrative_thread` + `story_beat` par slide ; overlays exécutent l'histoire validée ; aucun overlay ne décrit la photo.
-3. Carrousel mix : idem + slides texte suivent le récit.
-4. Régénération sur structure ancienne (sans nouveaux champs) : pas d'erreur.
 
-## Propositions (optionnel, à valider séparément)
-Aucune proposition hors périmètre identifiée à ce stade — le plan tel que rédigé est cohérent et autosuffisant. Je signalerai en exec si un ancrage plus sûr apparaît pendant l'écriture.
-
-## Hors scope
-Affichage UI du récit, harmonisation newsjacking mix, adaptation LinkedIn photo (Plan 4), story_beat pour carrousels texte.
+- `npx tsc --noEmit --skipLibCheck` passe sans erreur
+- Générer une épingle Pinterest → "Sauvegarder en idée" → l'idée apparaît dans Mes idées avec 📌 et canal `pinterest`, filtrable via le chip Pinterest
+- Les chips LinkedIn / Newsletter / Pinterest sont cliquables et filtrent correctement
+- Sauvegarder une idée depuis une autre page (ex. générateur LinkedIn) → comportement strictement identique à avant
+- Aucun consommateur de `SaveToIdeasDialog` parmi les 14 fichiers existants ne nécessite de modification (changement purement additif du type)
