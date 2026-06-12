@@ -54,9 +54,10 @@ interface Props {
   onIdeaClick?: (idea: SavedIdea) => void;
   isMobile?: boolean;
   onCollapse?: () => void;
+  refreshKey?: number;
 }
 
-export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile, onCollapse }: Props) {
+export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile, onCollapse, refreshKey }: Props) {
   const { user } = useAuth();
   const { isDemoMode, demoData } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
@@ -86,11 +87,10 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile, onC
 
   useEffect(() => { fetchIdeas(); }, [user?.id, isDemoMode, column, value]);
 
-  // Expose refresh so parent can trigger after unplan
   useEffect(() => {
-    (window as any).__refreshIdeasSidebar = fetchIdeas;
-    return () => { delete (window as any).__refreshIdeasSidebar; };
-  }, [user?.id]);
+    if (refreshKey === undefined || refreshKey === 0) return;
+    fetchIdeas();
+  }, [refreshKey]);
 
   const filteredIdeas = useMemo(() => {
     let result = ideas;

@@ -14,6 +14,7 @@ import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ChevronLeft, ChevronRight, Sparkles, Download, Link2, PenLine } from "lucide-react";
 import { CalendarShareDialog } from "@/components/calendar/CalendarShareDialog";
@@ -206,6 +207,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   const [kanbanPeriod, setKanbanPeriod] = useState<"week" | "month" | "all">("week");
   const [posts, setPosts] = useState<CalendarPost[]>([]);
   const [postsLoading, setPostsLoading] = useState(true);
+  const [ideasRefreshKey, setIdeasRefreshKey] = useState(0);
   const [canalFilter, setCanalFilter] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -455,10 +457,16 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       series_id: data.series_id || null, episode_number: data.episode_number ?? null,
     };
     let error;
+    let createdPost: CalendarPost | null = null;
     if (editingPost) {
       ({ error } = await supabase.from("calendar_posts").update(payload).eq("id", editingPost.id));
     } else {
-      ({ error } = await supabase.from("calendar_posts").insert({ ...payload, user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, date: selectedDate }));
+      const { data: inserted, error: insertError } = await supabase.from("calendar_posts")
+        .insert({ ...payload, user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, date: selectedDate })
+        .select()
+        .single();
+      error = insertError;
+      createdPost = (inserted as CalendarPost) || null;
     }
     if (error) {
       toast({ title: "Oups, ça n'a pas été enregistré", description: "Réessaie dans un instant.", variant: "destructive" });
@@ -467,7 +475,18 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     }
     setDialogOpen(false);
     fetchPosts();
-    toast({ title: editingPost ? "Post modifié !" : "Post ajouté au calendrier !" });
+    if (editingPost) {
+      toast({ title: "Post modifié !" });
+    } else {
+      toast({
+        title: "Post ajouté au calendrier !",
+        action: createdPost ? (
+          <ToastAction altText="Générer maintenant" onClick={() => handleQuickGenerate(createdPost!)}>
+            ✨ Générer
+          </ToastAction>
+        ) : undefined,
+      });
+    }
   };
 
   const handleDelete = async () => {
@@ -532,6 +551,8 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     if (!error && dupData) {
       setPosts(prev => [...prev, dupData as CalendarPost]);
       toast({ title: "📋 Post dupliqué !" });
+    } else {
+      toast({ title: "Oups, ça n'a pas été enregistré", description: "Réessaie dans un instant.", variant: "destructive" });
     }
   };
 
@@ -587,6 +608,8 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   };
 
   const handleMovePost = async (postId: string, newDate: string) => {
+    const originalPost = posts.find((p) => p.id === postId);
+    const originalDate = originalPost?.date ?? null;
     setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, date: newDate } : p)));
     const { error } = await supabase.from("calendar_posts")
       .update({ date: newDate, updated_at: new Date().toISOString() })
@@ -594,7 +617,25 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     if (error) { toast({ title: "Erreur", variant: "destructive" }); fetchPosts(); }
     else {
       const formatted = new Date(newDate + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
-      toast({ title: `Déplacé au ${formatted}` });
+      toast({
+        title: `Déplacé au ${formatted}`,
+        action: originalDate && originalDate !== newDate ? (
+          <ToastAction
+            altText="Annuler le déplacement"
+            onClick={async () => {
+              const { error: rollbackError } = await supabase.from("calendar_posts")
+                .update({ date: originalDate, updated_at: new Date().toISOString() })
+                .eq("id", postId);
+              if (rollbackError) {
+                toast({ title: "Oups, ça n'a pas été enregistré", description: "Réessaie dans un instant.", variant: "destructive" });
+              }
+              fetchPosts();
+            }}
+          >
+            Annuler
+          </ToastAction>
+        ) : undefined,
+      });
     }
   };
 
@@ -626,7 +667,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     setDialogOpen(false);
     fetchPosts();
     // Refresh sidebar
-    (window as any).__refreshIdeasSidebar?.();
+    setIdeasRefreshKey(k => k + 1);
     toast({ title: "Remis en idée !" });
   };
 
@@ -636,12 +677,12 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   };
 
   const handleIdeaUpdated = () => {
-    (window as any).__refreshIdeasSidebar?.();
+    setIdeasRefreshKey(k => k + 1);
   };
 
   const handleIdeaPlannedFromSheet = () => {
     fetchPosts();
-    (window as any).__refreshIdeasSidebar?.();
+    setIdeasRefreshKey(k => k + 1);
   };
 
   // Unified Drag & Drop handler (sidebar ideas + calendar post moves)
@@ -684,7 +725,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       } as any);
       await supabase.from("calendar_posts").delete().eq("id", post.id);
       fetchPosts();
-      (window as any).__refreshIdeasSidebar?.();
+      setIdeasRefreshKey(k => k + 1);
       toast({ title: "Remis en idée !" });
       return;
     }
@@ -722,7 +763,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
         await supabase.from("saved_ideas").update({ calendar_post_id: newPost.id, planned_date: newDate }).eq("id", idea.id);
       }
       fetchPosts();
-      (window as any).__refreshIdeasSidebar?.();
+      setIdeasRefreshKey(k => k + 1);
       toast({ title: `"${idea.titre}" planifié !` });
     } else {
       const postId = active.id as string;
@@ -827,11 +868,13 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
 
 
       {postsLoading ? (
-        <div className="grid grid-cols-2 gap-4">
-          <SkeletonCard variant="medium" />
-          <SkeletonCard variant="medium" />
-          <SkeletonCard variant="medium" />
-          <SkeletonCard variant="medium" />
+        <div className="space-y-3">
+          <div className="h-10 rounded-lg bg-muted animate-pulse" />
+          <div className="grid grid-cols-7 gap-2">
+            {Array.from({ length: 35 }).map((_, i) => (
+              <div key={i} className="h-24 rounded-[12px] bg-muted animate-pulse" />
+            ))}
+          </div>
         </div>
       ) : viewMode === "kanban" ? (
         <CalendarKanbanView
@@ -906,7 +949,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
 
       {isMobile ? (
         mobileTab === "calendar" ? calendarContent : (
-          <CalendarIdeasSidebar onIdeaPlanned={fetchPosts} onIdeaClick={handleIdeaClick} isMobile />
+          <CalendarIdeasSidebar onIdeaPlanned={fetchPosts} onIdeaClick={handleIdeaClick} isMobile refreshKey={ideasRefreshKey} />
         )
       ) : (
         <Suspense fallback={<div className="flex gap-6"><div className="flex-1 min-w-0">{calendarContent}</div></div>}>
@@ -943,7 +986,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
                       >
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                       </button>
-                      <CalendarIdeasSidebar onIdeaPlanned={fetchPosts} onIdeaClick={handleIdeaClick} />
+                      <CalendarIdeasSidebar onIdeaPlanned={fetchPosts} onIdeaClick={handleIdeaClick} refreshKey={ideasRefreshKey} />
                     </div>
                   )}
                 </div>
