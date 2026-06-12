@@ -949,7 +949,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
           <SubPageHeader parentLabel="Instagram" parentTo="/instagram" currentLabel="Calendrier éditorial" useFromParam />
         )}
         <AuditRecommendationBanner />
-        <ExportSection filteredPosts={filteredPosts} canalFilter={canalFilter} toast={toast} onCoachingOpen={() => setCoachingOpen(true)} onQuickBatchOpen={() => setQuickBatchOpen(true)} />
+        <ExportSection filteredPosts={filteredPosts} canalFilter={canalFilter} toast={toast} onCoachingOpen={() => setCoachingOpen(true)} onQuickBatchOpen={() => setQuickBatchOpen(true)} seriesNameById={seriesNameById} />
 
 
         {/* Mobile tabs */}
