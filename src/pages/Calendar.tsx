@@ -457,10 +457,16 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       series_id: data.series_id || null, episode_number: data.episode_number ?? null,
     };
     let error;
+    let createdPost: CalendarPost | null = null;
     if (editingPost) {
       ({ error } = await supabase.from("calendar_posts").update(payload).eq("id", editingPost.id));
     } else {
-      ({ error } = await supabase.from("calendar_posts").insert({ ...payload, user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, date: selectedDate }));
+      const { data: inserted, error: insertError } = await supabase.from("calendar_posts")
+        .insert({ ...payload, user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, date: selectedDate })
+        .select()
+        .single();
+      error = insertError;
+      createdPost = (inserted as CalendarPost) || null;
     }
     if (error) {
       toast({ title: "Oups, ça n'a pas été enregistré", description: "Réessaie dans un instant.", variant: "destructive" });
@@ -469,7 +475,18 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     }
     setDialogOpen(false);
     fetchPosts();
-    toast({ title: editingPost ? "Post modifié !" : "Post ajouté au calendrier !" });
+    if (editingPost) {
+      toast({ title: "Post modifié !" });
+    } else {
+      toast({
+        title: "Post ajouté au calendrier !",
+        action: createdPost ? (
+          <ToastAction altText="Générer maintenant" onClick={() => handleQuickGenerate(createdPost!)}>
+            ✨ Générer
+          </ToastAction>
+        ) : undefined,
+      });
+    }
   };
 
   const handleDelete = async () => {
