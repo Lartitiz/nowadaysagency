@@ -144,7 +144,9 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile, onC
       format: planDialogIdea.format,
       notes: planDialogIdea.notes,
       content_draft: planDialogIdea.content_draft,
-    }).select("id").single();
+      series_id: (planDialogIdea as any).series_id ?? null,
+      episode_number: (planDialogIdea as any).episode_number ?? null,
+    } as any).select("id").single();
 
     if (newPost) {
       await supabase.from("saved_ideas").update({ calendar_post_id: newPost.id, planned_date: dateStr }).eq("id", planDialogIdea.id);
