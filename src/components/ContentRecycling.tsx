@@ -269,7 +269,10 @@ export default function ContentRecycling() {
       canal: getCanal(activeTab),
       format: getCalendarFormat(activeTab),
       content_draft: text,
-      accroche: text.split("\n")[0]?.slice(0, 200) || "",
+      accroche: (activeTab === "carrousel" && carouselStructure
+        ? (carouselStructure.caption?.hook || carouselStructure.slides?.[0]?.title || "")
+        : text.split("\n")[0] || ""
+      ).slice(0, 200),
       status: "ready",
     };
     if (workspaceId && workspaceId !== user.id) insertData.workspace_id = workspaceId;
