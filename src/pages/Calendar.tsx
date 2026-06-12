@@ -528,6 +528,10 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       format: post.format,
       notes: post.notes,
       angle: post.angle,
+      content_draft: (post as any).content_draft ?? null,
+      accroche: (post as any).accroche ?? null,
+      media_urls: (post as any).media_urls ?? null,
+      category: (post as any).category ?? null,
       ...(column !== "user_id" ? { [column]: value } : {}),
     }).select().single();
     if (!error && dupData) {
