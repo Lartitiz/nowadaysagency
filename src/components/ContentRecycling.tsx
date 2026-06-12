@@ -454,7 +454,7 @@ export default function ContentRecycling() {
                 <Button variant="outline" size="sm" disabled={!canExport} onClick={() => setShowIdeasDialog(true)} className="rounded-pill gap-1.5">
                   <Lightbulb className="h-3.5 w-3.5" /> Sauvegarder en idée
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => { setResults({}); setTopics({}); setActiveTab(""); setFiles([]); }} className="rounded-pill gap-1.5">
+                <Button variant="ghost" size="sm" onClick={() => { setResults({}); setTopics({}); setActiveTab(""); setFiles([]); setCarouselStructure(null); }} className="rounded-pill gap-1.5">
                   <RefreshCw className="h-3.5 w-3.5" /> Nouveau recyclage
                 </Button>
               </div>
