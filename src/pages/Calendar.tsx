@@ -207,6 +207,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   const [kanbanPeriod, setKanbanPeriod] = useState<"week" | "month" | "all">("week");
   const [posts, setPosts] = useState<CalendarPost[]>([]);
   const [postsLoading, setPostsLoading] = useState(true);
+  const [ideasRefreshKey, setIdeasRefreshKey] = useState(0);
   const [canalFilter, setCanalFilter] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
