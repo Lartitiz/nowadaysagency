@@ -684,7 +684,9 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
         canal: post.canal || "instagram",
         content_draft: post.content_draft || null,
         angle: post.angle || "",
-      });
+        series_id: (post as any).series_id ?? null,
+        episode_number: (post as any).episode_number ?? null,
+      } as any);
       await supabase.from("calendar_posts").delete().eq("id", post.id);
       fetchPosts();
       (window as any).__refreshIdeasSidebar?.();
