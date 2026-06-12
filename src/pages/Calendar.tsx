@@ -618,7 +618,9 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       canal: editingPost.canal || "instagram",
       content_draft: editingPost.content_draft || null,
       angle: editingPost.angle || "",
-    });
+      series_id: (editingPost as any).series_id ?? null,
+      episode_number: (editingPost as any).episode_number ?? null,
+    } as any);
     if (insertError) {
       toast({ title: "Oups, ça n'a pas été enregistré", description: "Réessaie dans un instant.", variant: "destructive" });
       fetchPosts();
