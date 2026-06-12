@@ -6213,6 +6213,7 @@ export type Database = {
           content_data: Json | null
           content_draft: string | null
           created_at: string
+          episode_number: number | null
           format: string
           format_technique: string | null
           id: string
@@ -6220,6 +6221,7 @@ export type Database = {
           objectif: string | null
           personal_elements: Json | null
           planned_date: string | null
+          series_id: string | null
           source_module: string | null
           status: string | null
           titre: string
@@ -6237,6 +6239,7 @@ export type Database = {
           content_data?: Json | null
           content_draft?: string | null
           created_at?: string
+          episode_number?: number | null
           format: string
           format_technique?: string | null
           id?: string
@@ -6244,6 +6247,7 @@ export type Database = {
           objectif?: string | null
           personal_elements?: Json | null
           planned_date?: string | null
+          series_id?: string | null
           source_module?: string | null
           status?: string | null
           titre: string
@@ -6261,6 +6265,7 @@ export type Database = {
           content_data?: Json | null
           content_draft?: string | null
           created_at?: string
+          episode_number?: number | null
           format?: string
           format_technique?: string | null
           id?: string
@@ -6268,6 +6273,7 @@ export type Database = {
           objectif?: string | null
           personal_elements?: Json | null
           planned_date?: string | null
+          series_id?: string | null
           source_module?: string | null
           status?: string | null
           titre?: string
@@ -6282,6 +6288,13 @@ export type Database = {
             columns: ["calendar_post_id"]
             isOneToOne: false
             referencedRelation: "calendar_posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "saved_ideas_series_id_fkey"
+            columns: ["series_id"]
+            isOneToOne: false
+            referencedRelation: "series"
             referencedColumns: ["id"]
           },
           {
