@@ -4,6 +4,7 @@ import { streamAnthropicSSE, createClientSSEStream } from "../_shared/anthropic-
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
 const MODULE_QUESTIONS: Record<string, string[]> = {
   persona: [
@@ -89,6 +90,15 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "module et phase requis" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    {
+      const sbGuard = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      const membership = await assertWorkspaceMembership(sbGuard, user.id, workspace_id);
+      if (!membership.ok) {
+        console.warn("[workspace-guard] denied", { userId: user.id, workspaceId: workspace_id });
+        return workspaceDeniedResponse(corsHeaders);
+      }
     }
 
     // Quota check

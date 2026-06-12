@@ -1,144 +1,65 @@
-# Plan — Le carrousel recyclé devient un vrai carrousel dans le calendrier
+Périmètre : backend, 4 fichiers Edge Function. Helper `_shared/workspace-guard.ts` consommé, non modifié.
 
-## (a) Ce que tu m'as demandé
+## Contexte
 
-### 1. Backend — `supabase/functions/creative-flow/index.ts` (step `recycle` uniquement)
+Ces 4 fonctions résolvent `workspace_id` depuis le body sans vérifier l'appartenance. On pose un garde uniforme (même pattern que Vagues 1-3) qui bloque en 403 si l'utilisateur·ice n'est pas membre du workspace passé.
 
-Dans le system prompt du step `recycle` (~lignes 740-748), modifier la spec
-JSON de sortie pour que la clé `carrousel` (si demandée) soit un objet
-structuré, les autres formats restent des strings :
+## Changements par fichier
 
-```json
-{
-  "results": {
-    "carrousel": {
-      "slides": [
-        { "slide_number": 1, "title": "...", "body": "..." },
-        ... 8 slides
-      ],
-      "caption": { "hook": "...", "body": "...", "cta": "..." }
-    },
-    "reel": "string complet",
-    "stories": "string complet",
-    "linkedin": "string complet",
-    "newsletter": "string complet"
-  },
-  "topics": { ... inchangé ... }
-}
-```
+### 1. `supabase/functions/ai-text-action/index.ts`
 
-Construction dynamique : pour chaque format demandé, émettre la ligne
-correspondante (objet structuré pour `carrousel`, string sinon). Garder
-toutes les règles de longueur actuelles (8 slides, hook/dev/punchline, etc.)
-et les reporter dans la description de la structure carrousel.
+- **Import** : ajouter `assertWorkspaceMembership` et `workspaceDeniedResponse` depuis `../_shared/workspace-guard.ts`.
+- **Garde** : après le parsing du body (`const { workspace_id, … } = await req.json()`, L18-23) et AVANT `checkQuota` (L25) :
+  - Instancier `sbGuard` avec `createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)`.
+  - `const membership = await assertWorkspaceMembership(sbGuard, userId, workspace_id);`
+  - Si `!membership.ok`, `console.warn("[workspace-guard] denied", …)` puis `return workspaceDeniedResponse(corsHeaders);`.
+- **Résultat** : `checkQuota` et la lecture `brand_profile` se déroulent uniquement si membre ou mode legacy (pas de `workspace_id` dans le body).
 
-Aucun changement à : `hasResults` (vérifie juste la présence de la clé,
-fonctionne avec objet ou string), `checkQuota`/`logUsage`, passe LinkedIn,
-autres steps, `topics`.
+### 2. `supabase/functions/coaching-module/index.ts`
 
-### 2. Frontend — `src/components/ContentRecycling.tsx`
+- **Import** : idem.
+- **Garde** : après le destructuring du body (`const { … workspace_id } = body`, L86) et la validation `module/phase` (L88-92), AVANT `checkQuota` (L96) :
+  - `sbGuard` dédié.
+  - `assertWorkspaceMembership(sbGuard, user.id, workspace_id)`.
+  - 403 + log si refusé.
+- **Résultat** : la lecture parallèle `brand_profile` + `branding_audits` + `audit_recommendations` (L104+) protégée.
 
-**a. Nouveau state** :
-```ts
-const [carouselStructure, setCarouselStructure] = useState<
-  { slides: Array<{ slide_number: number; title: string; body: string }>;
-    caption: { hook: string; body: string; cta: string } } | null
->(null);
-```
+### 3. `supabase/functions/branding-mirror/index.ts`
 
-**b. Réception (`handleRecycle`, après `const r = data?.results || {}`)** :
+- **Import** : idem.
+- **Garde** : après `workspace_id = body?.workspace_id` (L41) et AVANT `checkQuota` (L45) :
+  - `sbGuard` dédié.
+  - `assertWorkspaceMembership(sbGuard, user.id, workspace_id)`.
+  - 403 + log si refusé.
+- **Résultat** : le bloc owner-resolve (L55-68) et les lectures `brand_profile` / `branding_audits` / `calendar_posts` (L71+) protégées.
 
-Si `r.carrousel` est un objet avec `slides` (Array) :
-- `setCarouselStructure({ slides: r.carrousel.slides, caption: r.carrousel.caption })`
-- Générer une version texte lisible :
-  ```
-  Slide 1 — {title}
-  {body}
-  
-  Slide 2 — {title}
-  ...
-  
-  ──────────
-  Légende
-  
-  {hook}
-  
-  {body}
-  
-  {cta}
-  ```
-- Remplacer `r.carrousel` par cette string AVANT `setResults(r)` pour que
-  tout le rendu existant (`<pre>`, Copier, `RedFlagsChecker`) reste
-  inchangé.
+### 4. `supabase/functions/charter-coaching/index.ts`
 
-Si `r.carrousel` est une string (rétro-compat) : `setCarouselStructure(null)`,
-comportement actuel inchangé.
+- **Import** : idem.
+- **Garde** : après `const userId = user.id` (L243) et AVANT le bloc `if (workspace_id) { … owner-resolve … }` (L249) :
+  - `sbGuard` dédié.
+  - `assertWorkspaceMembership(sbGuard, userId, workspace_id)`.
+  - 403 + log si refusé.
+- **Résultat** : le owner-resolve (L249-262), le `checkQuota` (L265), et les lectures `profiles` / `brand_profile` (L274+) protégées.
 
-L'insert dans `content_recycling` (ligne 175-182) reste tel quel : la
-colonne `results` est JSON, elle accepte la structure objet OU la string
-indifféremment — on lui passe l'objet original (`r` avant transformation
-en string lisible) pour garder la donnée brute exploitable.
+## Règles du pattern
 
-→ ajustement : faire une copie pour l'affichage. Garder `r` original pour
-le DB insert, set `results` avec la version texte.
+- `sbGuard` est systématiquement un **nouveau** `createClient` (service_role), pas un client existant réutilisé.
+- `corsHeaders` est déjà en portée dans les 4 fichiers ; `workspaceDeniedResponse(corsHeaders)` s'utilise tel quel.
+- Si `workspace_id` est absent du body, `assertWorkspaceMembership` retourne `{ ok: true, role: "legacy" }` → comportement inchangé.
+- Aucune logique métier ne bouge : prompts, appels Anthropic, quotas, lectures DB, `logUsage`, réponses — strictement identique.
 
-**c. `handleAddToCalendar`** (ligne 235) :
+## Proposition d'amélioration repérée (hors scope demandé)
 
-```ts
-if (activeTab === "carrousel" && carouselStructure) {
-  insertData.story_sequence_detail = {
-    type: "carousel",
-    slides: carouselStructure.slides,
-    caption: carouselStructure.caption,
-  };
-}
-```
-
-**d. RedFlagsChecker `onFix`** (ligne 410) : si `activeTab === "carrousel"`,
-appeler aussi `setCarouselStructure(null)` → la correction texte invalide
-la structure, le post part en texte seul.
-
-**e. Reset "Nouveau recyclage"** (ligne 423) : ajouter
-`setCarouselStructure(null)`.
-
-## Ce qui ne bouge pas
-
-- Autres steps de `creative-flow` (questions, generate, dictation, angles…)
-- Garde `hasResults`, pattern `checkQuota`/`logUsage`, passe LinkedIn
-- 4 autres formats de recyclage (string, rendu, planification identiques)
-- `CrosspostFlow`, `InspireFlow`, `AddToCalendarDialog`, `SaveToIdeasDialog`,
-  `ContentPreview`, `CalendarPostContent`, `CalendarPostDialog`,
-  `CarouselPreview`
-- Upload de fichiers, dictée vocale, insert `content_recycling`
+- Dans `branding-mirror` et `charter-coaching`, le bloc `owner-resolve` (query `workspace_members` pour trouver le owner) pourrait être unifié dans un helper futur. Pas de changement dans ce lot.
 
 ## Validation
 
-- `npx tsc --noEmit --skipLibCheck` OK
-- Recycler avec carrousel coché → onglet Carrousel affiche le texte
-  slide-par-slide lisible, Copier OK
-- Planifier → calendar_post a `story_sequence_detail` typé carousel →
-  "👁️ Voir les slides" + "🎨 Générer les visuels" apparaissent
-- 3 formats cochés (carrousel + reel + stories) → reel/stories planifiés
-  comme avant (texte seul)
-- Correction RedFlags sur carrousel → planification en texte seul, OK
-- Aucune régression Crosspost / S'inspirer
-
-## (b) Propositions optionnelles (à valider séparément)
-
-1. **Persister la structure dans `content_recycling.results`** : le code
-   stocke déjà l'objet brut, ce qui permettrait plus tard de retrouver la
-   structure depuis l'historique. Ce plan le fait gratuitement en gardant
-   `r` original pour l'insert DB. À confirmer.
-
-2. **Garde-fou côté backend** : valider que `carrousel.slides.length === 8`
-   et que `caption.hook/body/cta` sont non-vides ; sinon, fallback en
-   string (concaténation côté serveur) pour éviter qu'un JSON partiel
-   arrive vide côté UI. Léger (~10 lignes), évite un crash d'affichage si
-   l'IA ne respecte pas la spec.
-
-3. **Désactiver le bouton "Planifier" si la structure carrousel a été
-   invalidée par RedFlags** : afficher un petit hint "Planifié en texte
-   seul, les slides ne seront pas conservées" sous le bouton dans ce cas.
-   Pure UX, hors scope strict.
-
-Dis-moi lesquelles tu veux que j'embarque avant d'exécuter.
+1. `npx tsc --noEmit --skipLibCheck` passe sans erreur.
+2. Sur le propre workspace de l'utilisateur·ice : comportement identique.
+3. En mode legacy (aucun `workspace_id` dans le body) : comportement identique.
+4. Workspace d'un·e autre → 403 `workspace_access_denied`, log `[workspace-guard] denied`, aucune donnée branding lue. Plan 5A validé, tu peux passer en Exec.
+  Bon réflexe d'avoir placé le garde avant `checkQuota` partout — on garde ça.
+  Ta proposition (b) (helper owner-resolve unifié) : notée pour plus tard, hors scope ici, on n'y touche pas.
+  Rappels : `sbGuard` dédié partout (pas de réutilisation), `membership.ok` uniquement, aucune logique métier touchée, helper non modifié, et surtout **uniquement ces 4 fichiers** — pas les 4 du lot 5B.
+  Exécute les 4.

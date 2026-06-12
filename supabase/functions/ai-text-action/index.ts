@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -20,6 +21,15 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Missing selected_text or action_prompt" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    {
+      const sbGuard = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      const membership = await assertWorkspaceMembership(sbGuard, userId, workspace_id);
+      if (!membership.ok) {
+        console.warn("[workspace-guard] denied", { userId, workspaceId: workspace_id });
+        return workspaceDeniedResponse(corsHeaders);
+      }
     }
 
     const quota = await checkQuota(userId, "adaptation", workspace_id || undefined);
