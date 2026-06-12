@@ -5,6 +5,7 @@ import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limit
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req); const cors = corsHeaders;
@@ -40,6 +41,15 @@ serve(async (req) => {
       const body = await req.json();
       workspace_id = body?.workspace_id || undefined;
     } catch { /* no body = own workspace */ }
+
+    {
+      const sbGuard = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      const membership = await assertWorkspaceMembership(sbGuard, user.id, workspace_id);
+      if (!membership.ok) {
+        console.warn("[workspace-guard] denied", { userId: user.id, workspaceId: workspace_id });
+        return workspaceDeniedResponse(cors);
+      }
+    }
 
     // Check quota (audit category)
     const quota = await checkQuota(user.id, "audit", workspace_id);

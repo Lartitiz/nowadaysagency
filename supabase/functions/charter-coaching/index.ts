@@ -6,6 +6,7 @@ import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropic, getModelForAction } from "../_shared/anthropic.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
 const STEPS: Record<number, { question: string; topic: string; label: string }> = {
   1: {
@@ -244,6 +245,15 @@ serve(async (req) => {
 
     const rateCheck = checkRateLimit(userId);
     if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+
+    {
+      const sbGuard = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      const membership = await assertWorkspaceMembership(sbGuard, userId, workspace_id);
+      if (!membership.ok) {
+        console.warn("[workspace-guard] denied", { userId, workspaceId: workspace_id });
+        return workspaceDeniedResponse(corsHeaders);
+      }
+    }
 
     // Resolve workspace owner for profile-scoped tables
     let profileUserId = userId;
