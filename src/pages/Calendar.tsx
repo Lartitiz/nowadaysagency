@@ -559,7 +559,8 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
         params.set("format", "newsletter");
       }
 
-      navigate(`${route}?${params.toString()}`, { state: {
+      const sep = route.includes("?") ? "&" : "?";
+      navigate(`${route}${sep}${params.toString()}`, { state: {
         fromCalendar: true,
         postId: post.id,
         calendarPostId: post.id,
@@ -594,7 +595,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   const handleUnplan = async () => {
     if (!editingPost || !user) return;
     // Create or restore idea in saved_ideas
-    await supabase.from("saved_ideas").insert({
+    const { error: insertError } = await supabase.from("saved_ideas").insert({
       user_id: user.id,
       workspace_id: workspaceId !== user.id ? workspaceId : undefined,
       titre: editingPost.theme,
@@ -606,6 +607,11 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       content_draft: editingPost.content_draft || null,
       angle: editingPost.angle || "",
     });
+    if (insertError) {
+      toast({ title: "Oups, ça n'a pas été enregistré", description: "Réessaie dans un instant.", variant: "destructive" });
+      fetchPosts();
+      return;
+    }
     // Delete calendar post
     await supabase.from("calendar_posts").delete().eq("id", editingPost.id);
     setDialogOpen(false);
