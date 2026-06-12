@@ -62,11 +62,17 @@ function getGeneratorRoute(post: CalendarPost): string | null {
 
 const STATUSES_MAP: Record<string, string> = { idea: "Idée", a_rediger: "À rédiger", drafting: "En rédaction", ready: "Prêt à publier", published: "Publié" };
 
-function postToRow(p: CalendarPost) {
-  return {
-    Date: p.date, Thème: p.theme, Canal: p.canal, Format: p.format || "",
-    Objectif: p.objectif || p.category || "", Statut: STATUSES_MAP[p.status] || p.status,
-    Notes: p.notes || "", Brouillon: (p.content_draft || "").slice(0, 200),
+function makePostToRow(seriesNameById: Record<string, string>) {
+  return (p: CalendarPost) => {
+    const sid = (p as any).series_id as string | null | undefined;
+    const ep = (p as any).episode_number as number | null | undefined;
+    return {
+      Date: p.date, Thème: p.theme, Canal: p.canal, Format: p.format || "",
+      Objectif: p.objectif || (p as any).category || "", Statut: STATUSES_MAP[p.status] || p.status,
+      Série: sid ? (seriesNameById[sid] || "") : "",
+      Épisode: ep ?? "",
+      Notes: p.notes || "", Brouillon: (p.content_draft || "").slice(0, 200),
+    };
   };
 }
 
@@ -90,13 +96,15 @@ function ShareButton() {
   );
 }
 
-function ExportSection({ filteredPosts, canalFilter, toast, onCoachingOpen, onQuickBatchOpen }: {
+function ExportSection({ filteredPosts, canalFilter, toast, onCoachingOpen, onQuickBatchOpen, seriesNameById }: {
   filteredPosts: CalendarPost[];
   canalFilter: string;
   toast: ReturnType<typeof useToast>["toast"];
   onCoachingOpen: () => void;
   onQuickBatchOpen: () => void;
+  seriesNameById: Record<string, string>;
 }) {
+  const postToRow = makePostToRow(seriesNameById);
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -520,6 +528,10 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       format: post.format,
       notes: post.notes,
       angle: post.angle,
+      content_draft: (post as any).content_draft ?? null,
+      accroche: (post as any).accroche ?? null,
+      media_urls: (post as any).media_urls ?? null,
+      category: (post as any).category ?? null,
       ...(column !== "user_id" ? { [column]: value } : {}),
     }).select().single();
     if (!error && dupData) {
@@ -606,7 +618,9 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       canal: editingPost.canal || "instagram",
       content_draft: editingPost.content_draft || null,
       angle: editingPost.angle || "",
-    });
+      series_id: (editingPost as any).series_id ?? null,
+      episode_number: (editingPost as any).episode_number ?? null,
+    } as any);
     if (insertError) {
       toast({ title: "Oups, ça n'a pas été enregistré", description: "Réessaie dans un instant.", variant: "destructive" });
       fetchPosts();
@@ -670,7 +684,9 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
         canal: post.canal || "instagram",
         content_draft: post.content_draft || null,
         angle: post.angle || "",
-      });
+        series_id: (post as any).series_id ?? null,
+        episode_number: (post as any).episode_number ?? null,
+      } as any);
       await supabase.from("calendar_posts").delete().eq("id", post.id);
       fetchPosts();
       (window as any).__refreshIdeasSidebar?.();
@@ -704,7 +720,9 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
         format: idea.format,
         notes: idea.notes,
         content_draft: idea.content_draft,
-      }).select("id").single();
+        series_id: (idea as any).series_id ?? null,
+        episode_number: (idea as any).episode_number ?? null,
+      } as any).select("id").single();
       if (newPost) {
         await supabase.from("saved_ideas").update({ calendar_post_id: newPost.id, planned_date: newDate }).eq("id", idea.id);
       }
@@ -876,7 +894,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     return (
       <div>
         <AuditRecommendationBanner />
-        <ExportSection filteredPosts={filteredPosts} canalFilter={canalFilter} toast={toast} onCoachingOpen={() => setCoachingOpen(true)} onQuickBatchOpen={() => setQuickBatchOpen(true)} />
+        <ExportSection filteredPosts={filteredPosts} canalFilter={canalFilter} toast={toast} onCoachingOpen={() => setCoachingOpen(true)} onQuickBatchOpen={() => setQuickBatchOpen(true)} seriesNameById={seriesNameById} />
         {isMobile && (
           <div className="flex rounded-full border border-border overflow-hidden mb-4">
             <button onClick={() => setMobileTab("calendar")} className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${mobileTab === "calendar" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>📅 Calendrier</button>
@@ -941,7 +959,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
           <SubPageHeader parentLabel="Instagram" parentTo="/instagram" currentLabel="Calendrier éditorial" useFromParam />
         )}
         <AuditRecommendationBanner />
-        <ExportSection filteredPosts={filteredPosts} canalFilter={canalFilter} toast={toast} onCoachingOpen={() => setCoachingOpen(true)} onQuickBatchOpen={() => setQuickBatchOpen(true)} />
+        <ExportSection filteredPosts={filteredPosts} canalFilter={canalFilter} toast={toast} onCoachingOpen={() => setCoachingOpen(true)} onQuickBatchOpen={() => setQuickBatchOpen(true)} seriesNameById={seriesNameById} />
 
 
         {/* Mobile tabs */}

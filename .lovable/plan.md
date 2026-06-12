@@ -1,65 +1,65 @@
-Périmètre : backend, 4 fichiers Edge Function. Helper `_shared/workspace-guard.ts` consommé, non modifié.
+# Intégrité du rattachement série dans le calendrier
 
-## Contexte
+## (a) Demandé
 
-Ces 4 fonctions résolvent `workspace_id` depuis le body sans vérifier l'appartenance. On pose un garde uniforme (même pattern que Vagues 1-3) qui bloque en 403 si l'utilisateur·ice n'est pas membre du workspace passé.
+### 1. Migration — `saved_ideas`
+Nouvelle migration Supabase ajoutant deux colonnes nullable :
+- `series_id uuid` avec FK `REFERENCES public.series(id) ON DELETE SET NULL`
+- `episode_number integer`
 
-## Changements par fichier
+Aucun changement de RLS / GRANT (la table en a déjà). Aucun backfill.
 
-### 1. `supabase/functions/ai-text-action/index.ts`
+### 2. `src/pages/Calendar.tsx`
 
-- **Import** : ajouter `assertWorkspaceMembership` et `workspaceDeniedResponse` depuis `../_shared/workspace-guard.ts`.
-- **Garde** : après le parsing du body (`const { workspace_id, … } = await req.json()`, L18-23) et AVANT `checkQuota` (L25) :
-  - Instancier `sbGuard` avec `createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)`.
-  - `const membership = await assertWorkspaceMembership(sbGuard, userId, workspace_id);`
-  - Si `!membership.ok`, `console.warn("[workspace-guard] denied", …)` puis `return workspaceDeniedResponse(corsHeaders);`.
-- **Résultat** : `checkQuota` et la lecture `brand_profile` se déroulent uniquement si membre ou mode legacy (pas de `workspace_id` dans le body).
+**`handleUnplan` (L595)** — l'insert dans `saved_ideas` transmet en plus :
+- `series_id: editingPost.series_id ?? null`
+- `episode_number: editingPost.episode_number ?? null`
 
-### 2. `supabase/functions/coaching-module/index.ts`
+Note `media_urls` : la table `saved_ideas` **n'a pas** de colonne `media_urls` aujourd'hui (vérifié en base — 22 colonnes, aucune media). Donc on ne transmet pas `media_urls` lors de l'unplan. Si tu veux les conserver, il faut une seconde migration pour ajouter `media_urls text[]` à `saved_ideas` — à confirmer (hors plan actuel).
 
-- **Import** : idem.
-- **Garde** : après le destructuring du body (`const { … workspace_id } = body`, L86) et la validation `module/phase` (L88-92), AVANT `checkQuota` (L96) :
-  - `sbGuard` dédié.
-  - `assertWorkspaceMembership(sbGuard, user.id, workspace_id)`.
-  - 403 + log si refusé.
-- **Résultat** : la lecture parallèle `brand_profile` + `branding_audits` + `audit_recommendations` (L104+) protégée.
+**`handleDragEnd` branche `ideas-sidebar` (L657-679)** — même ajout (`series_id`, `episode_number`) dans l'insert `saved_ideas`. Même limitation `media_urls`.
 
-### 3. `supabase/functions/branding-mirror/index.ts`
+**`handleDragEnd` branche idée → date (L694-713)** — l'insert dans `calendar_posts` transmet :
+- `series_id: idea.series_id ?? null`
+- `episode_number: idea.episode_number ?? null`
 
-- **Import** : idem.
-- **Garde** : après `workspace_id = body?.workspace_id` (L41) et AVANT `checkQuota` (L45) :
-  - `sbGuard` dédié.
-  - `assertWorkspaceMembership(sbGuard, user.id, workspace_id)`.
-  - 403 + log si refusé.
-- **Résultat** : le bloc owner-resolve (L55-68) et les lectures `brand_profile` / `branding_audits` / `calendar_posts` (L71+) protégées.
+**`handleQuickDuplicate` (L511)** — l'insert dans `calendar_posts` reçoit en plus :
+- `content_draft: post.content_draft`
+- `accroche: (post as any).accroche`
+- `media_urls: post.media_urls`
+- `category: (post as any).category`
 
-### 4. `supabase/functions/charter-coaching/index.ts`
+Aucun `series_id` / `episode_number` (épisode unique → la copie devient un post libre). Statut reste `idea`. Pattern workspace existant (`column !== "user_id"`) inchangé.
 
-- **Import** : idem.
-- **Garde** : après `const userId = user.id` (L243) et AVANT le bloc `if (workspace_id) { … owner-resolve … }` (L249) :
-  - `sbGuard` dédié.
-  - `assertWorkspaceMembership(sbGuard, userId, workspace_id)`.
-  - 403 + log si refusé.
-- **Résultat** : le owner-resolve (L249-262), le `checkQuota` (L265), et les lectures `profiles` / `brand_profile` (L274+) protégées.
+**`postToRow` (L65)** — ajoute deux colonnes après "Objectif" :
+- `Série: seriesNameById[p.series_id] || ""`
+- `Épisode: p.episode_number ?? ""`
 
-## Règles du pattern
+Comme `postToRow` est une fonction module-level, on la transforme en factory `makePostToRow(seriesNameById)` (ou on passe `seriesNameById` en argument). `ExportSection` reçoit `seriesNameById: Record<string, string>` en nouvelle prop ; le composant parent Calendar (qui déjà destructure `seriesNameById` via `useAllSeriesMap()` L249) la transmet aux deux usages JSX `<ExportSection .../>` (L879 + L944).
 
-- `sbGuard` est systématiquement un **nouveau** `createClient` (service_role), pas un client existant réutilisé.
-- `corsHeaders` est déjà en portée dans les 4 fichiers ; `workspaceDeniedResponse(corsHeaders)` s'utilise tel quel.
-- Si `workspace_id` est absent du body, `assertWorkspaceMembership` retourne `{ ok: true, role: "legacy" }` → comportement inchangé.
-- Aucune logique métier ne bouge : prompts, appels Anthropic, quotas, lectures DB, `logUsage`, réponses — strictement identique.
+### 3. `src/components/calendar/IdeaDetailSheet.tsx`
 
-## Proposition d'amélioration repérée (hors scope demandé)
+**`handlePlan` (L99)** — l'insert `calendar_posts` transmet :
+- `series_id: (idea as any).series_id ?? null`
+- `episode_number: (idea as any).episode_number ?? null`
 
-- Dans `branding-mirror` et `charter-coaching`, le bloc `owner-resolve` (query `workspace_members` pour trouver le owner) pourrait être unifié dans un helper futur. Pas de changement dans ce lot.
+### 4. `src/components/calendar/CalendarIdeasSidebar.tsx`
+
+**`handleMobilePlan` (L133)** — l'insert `calendar_posts` transmet `series_id` + `episode_number` de `planDialogIdea`.
+
+`handleAdd` (AddIdeaDialog, L359) **inchangé** — c'est une création d'idée from scratch, pas une planification.
+
+## (b) Propositions
+
+Aucune amélioration connexe pertinente repérée dans le périmètre. Le pattern workspace est déjà uniforme dans les inserts touchés ; pas de refacto opportuniste sans sortir du scope.
+
+## Hors scope respecté
+
+Pas de touche à `handleMovePost`, `handleSave`, `handleDelete`, `fetchPosts`, `CalendarPostDialog`, edge functions, ni au DnD hors branches citées.
 
 ## Validation
-
-1. `npx tsc --noEmit --skipLibCheck` passe sans erreur.
-2. Sur le propre workspace de l'utilisateur·ice : comportement identique.
-3. En mode legacy (aucun `workspace_id` dans le body) : comportement identique.
-4. Workspace d'un·e autre → 403 `workspace_access_denied`, log `[workspace-guard] denied`, aucune donnée branding lue. Plan 5A validé, tu peux passer en Exec.
-  Bon réflexe d'avoir placé le garde avant `checkQuota` partout — on garde ça.
-  Ta proposition (b) (helper owner-resolve unifié) : notée pour plus tard, hors scope ici, on n'y touche pas.
-  Rappels : `sbGuard` dédié partout (pas de réutilisation), `membership.ok` uniquement, aucune logique métier touchée, helper non modifié, et surtout **uniquement ces 4 fichiers** — pas les 4 du lot 5B.
-  Exécute les 4.
+1. `npx tsc --noEmit --skipLibCheck` clean.
+2. Post avec série + épisode → unplan (bouton dialog) → ré-planifier depuis sidebar → série/épisode conservés.
+3. Idem via drag du post vers la sidebar puis drag retour sur une date.
+4. Dupliquer un post rédigé → la copie a `content_draft`, `accroche`, `media_urls`, `category`, statut `idea`, **aucun** `series_id`.
+5. Export CSV : colonnes "Série" et "Épisode" présentes et remplies pour les posts liés.
