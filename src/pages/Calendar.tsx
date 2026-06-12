@@ -96,13 +96,15 @@ function ShareButton() {
   );
 }
 
-function ExportSection({ filteredPosts, canalFilter, toast, onCoachingOpen, onQuickBatchOpen }: {
+function ExportSection({ filteredPosts, canalFilter, toast, onCoachingOpen, onQuickBatchOpen, seriesNameById }: {
   filteredPosts: CalendarPost[];
   canalFilter: string;
   toast: ReturnType<typeof useToast>["toast"];
   onCoachingOpen: () => void;
   onQuickBatchOpen: () => void;
+  seriesNameById: Record<string, string>;
 }) {
+  const postToRow = makePostToRow(seriesNameById);
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
