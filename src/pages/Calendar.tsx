@@ -667,7 +667,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     setDialogOpen(false);
     fetchPosts();
     // Refresh sidebar
-    (window as any).__refreshIdeasSidebar?.();
+    setIdeasRefreshKey(k => k + 1);
     toast({ title: "Remis en idée !" });
   };
 
@@ -677,12 +677,12 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   };
 
   const handleIdeaUpdated = () => {
-    (window as any).__refreshIdeasSidebar?.();
+    setIdeasRefreshKey(k => k + 1);
   };
 
   const handleIdeaPlannedFromSheet = () => {
     fetchPosts();
-    (window as any).__refreshIdeasSidebar?.();
+    setIdeasRefreshKey(k => k + 1);
   };
 
   // Unified Drag & Drop handler (sidebar ideas + calendar post moves)
@@ -725,7 +725,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       } as any);
       await supabase.from("calendar_posts").delete().eq("id", post.id);
       fetchPosts();
-      (window as any).__refreshIdeasSidebar?.();
+      setIdeasRefreshKey(k => k + 1);
       toast({ title: "Remis en idée !" });
       return;
     }
@@ -763,7 +763,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
         await supabase.from("saved_ideas").update({ calendar_post_id: newPost.id, planned_date: newDate }).eq("id", idea.id);
       }
       fetchPosts();
-      (window as any).__refreshIdeasSidebar?.();
+      setIdeasRefreshKey(k => k + 1);
       toast({ title: `"${idea.titre}" planifié !` });
     } else {
       const postId = active.id as string;
