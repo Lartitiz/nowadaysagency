@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
-import { ArrowRight, Sparkles, HelpCircle, Newspaper, Camera, ArrowLeft, Repeat } from "lucide-react";
+import { ArrowRight, Sparkles, HelpCircle, Newspaper, Camera, ArrowLeft, Repeat, CalendarRange } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import ContentCoachingDialog from "@/components/dashboard/ContentCoachingDialog";
 import NewsjackingPanel from "./NewsjackingPanel";
@@ -34,6 +35,7 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
   const [localDescription, setLocalDescription] = useState(initialPhotoDescription || "");
   const [localPhotoSubject, setLocalPhotoSubject] = useState(initialPhotoSubject || "");
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   // Si on arrive via un legacy redirect (?mode=transform), nettoyer le param
   // de l'URL pour éviter que le panneau ne se ré-ouvre au refresh.
@@ -149,6 +151,21 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
               </button>
 
             </div>
+            {/* Banner: Planifier ma semaine */}
+            <button
+              type="button"
+              onClick={() => navigate("/calendrier?coaching=1")}
+              className="w-full mt-2 rounded-xl bg-rose-soft p-3 flex items-center gap-3 text-left transition-all hover:opacity-90"
+            >
+              <CalendarRange className="h-5 w-5 text-bordeaux shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-bordeaux">Plutôt envie de voir plus loin ?</p>
+                <p className="text-xs text-bordeaux/70">L'IA te propose 5 idées pour toute ta semaine.</p>
+              </div>
+              <span className="bg-card text-bordeaux rounded-lg px-3 py-1.5 text-xs font-medium whitespace-nowrap hover:bg-card/80">
+                Ma semaine →
+              </span>
+            </button>
           </div>
         </>
       )}
