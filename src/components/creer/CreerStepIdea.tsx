@@ -151,6 +151,21 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
               </button>
 
             </div>
+            {/* Banner: Planifier ma semaine */}
+            <button
+              type="button"
+              onClick={() => navigate("/calendrier?coaching=1")}
+              className="w-full mt-2 rounded-xl bg-rose-soft p-3 flex items-center gap-3 text-left transition-all hover:opacity-90"
+            >
+              <CalendarRange className="h-5 w-5 text-bordeaux shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-bordeaux">Plutôt envie de voir plus loin ?</p>
+                <p className="text-xs text-bordeaux/70">L'IA te propose 5 idées pour toute ta semaine.</p>
+              </div>
+              <span className="bg-card text-bordeaux rounded-lg px-3 py-1.5 text-xs font-medium whitespace-nowrap hover:bg-card/80">
+                Ma semaine →
+              </span>
+            </button>
           </div>
         </>
       )}
