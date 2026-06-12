@@ -720,7 +720,9 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
         format: idea.format,
         notes: idea.notes,
         content_draft: idea.content_draft,
-      }).select("id").single();
+        series_id: (idea as any).series_id ?? null,
+        episode_number: (idea as any).episode_number ?? null,
+      } as any).select("id").single();
       if (newPost) {
         await supabase.from("saved_ideas").update({ calendar_post_id: newPost.id, planned_date: newDate }).eq("id", idea.id);
       }
