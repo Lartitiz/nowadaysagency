@@ -1,65 +1,72 @@
-# Intégrité du rattachement série dans le calendrier
+# Factorisation rendu embedded/standalone — Calendar.tsx
 
-## (a) Demandé
+## Objectif
 
-### 1. Migration — `saved_ideas`
-Nouvelle migration Supabase ajoutant deux colonnes nullable :
-- `series_id uuid` avec FK `REFERENCES public.series(id) ON DELETE SET NULL`
-- `episode_number integer`
+Supprimer la duplication ~150 lignes entre les branches `if (embedded)` (L888-947) et standalone (L949-1066). Une seule implémentation du bloc commun, deux wrappers minimaux.
 
-Aucun changement de RLS / GRANT (la table en a déjà). Aucun backfill.
+## (a) Demandé — implémentation
 
-### 2. `src/pages/Calendar.tsx`
+### Étape 1 — Extraire un JSX `body` unique (variable locale dans le composant)
 
-**`handleUnplan` (L595)** — l'insert dans `saved_ideas` transmet en plus :
-- `series_id: editingPost.series_id ?? null`
-- `episode_number: editingPost.episode_number ?? null`
+Construit après `calendarContent`, juste avant `if (embedded)`. Contient, dans l'ordre :
 
-Note `media_urls` : la table `saved_ideas` **n'a pas** de colonne `media_urls` aujourd'hui (vérifié en base — 22 colonnes, aucune media). Donc on ne transmet pas `media_urls` lors de l'unplan. Si tu veux les conserver, il faut une seconde migration pour ajouter `media_urls text[]` à `saved_ideas` — à confirmer (hors plan actuel).
+1. `<AuditRecommendationBanner />`
+2. `<ExportSection ... seriesNameById={seriesNameById} />`
+3. Tabs mobile (le bloc `{isMobile && <div className="flex rounded-full…">…</div>}`)
+4. Bloc principal `{isMobile ? … : <Suspense><CalendarDndWrapper>…</CalendarDndWrapper></Suspense>}` avec sidebar idées repliable
+5. `<LocalErrorBoundary><CalendarPostDialog … /></LocalErrorBoundary>`
+6. `<IdeaDetailSheet … />`
+7. `<CalendarCoachingDialog … />` — **avec** la prop `existingPosts` (présente en standalone L1054, absente en embedded L944 — bug latent : on garde la version standalone)
+8. `<QuickBatchAdd … />` — **présent uniquement en standalone aujourd'hui** (L1057-1063). On l'inclut dans `body` pour que `ExportSection.onQuickBatchOpen` fonctionne aussi en embedded (sinon clic mort). Signalé en (b) pour validation explicite.
 
-**`handleDragEnd` branche `ideas-sidebar` (L657-679)** — même ajout (`series_id`, `episode_number`) dans l'insert `saved_ideas`. Même limitation `media_urls`.
+Aucun changement de props, de handlers, ni d'ordre.
 
-**`handleDragEnd` branche idée → date (L694-713)** — l'insert dans `calendar_posts` transmet :
-- `series_id: idea.series_id ?? null`
-- `episode_number: idea.episode_number ?? null`
+### Étape 2 — Unifier le bouton "replier"
 
-**`handleQuickDuplicate` (L511)** — l'insert dans `calendar_posts` reçoit en plus :
-- `content_draft: post.content_draft`
-- `accroche: (post as any).accroche`
-- `media_urls: post.media_urls`
-- `category: (post as any).category`
+Garder la version discrète standalone (L1005-1012) :
 
-Aucun `series_id` / `episode_number` (épisode unique → la copie devient un post libre). Statut reste `idea`. Pattern workspace existant (`column !== "user_id"`) inchangé.
+- conteneur : `<div className="relative border border-border rounded-2xl bg-card p-4 max-h-[calc(100vh-120px)] overflow-hidden flex flex-col">`
+- bouton : `bg-card border-border shadow-sm text-muted-foreground`, taille `w-6 h-6`, svg strokeWidth 2.5
+- Supprimer la variante destructive rouge de la branche embedded (L921-933).
 
-**`postToRow` (L65)** — ajoute deux colonnes après "Objectif" :
-- `Série: seriesNameById[p.series_id] || ""`
-- `Épisode: p.episode_number ?? ""`
+### Étape 3 — Réduire les deux returns à des wrappers
 
-Comme `postToRow` est une fonction module-level, on la transforme en factory `makePostToRow(seriesNameById)` (ou on passe `seriesNameById` en argument). `ExportSection` reçoit `seriesNameById: Record<string, string>` en nouvelle prop ; le composant parent Calendar (qui déjà destructure `seriesNameById` via `useAllSeriesMap()` L249) la transmet aux deux usages JSX `<ExportSection .../>` (L879 + L944).
+```tsx
+if (embedded) {
+  return <div>{body}</div>;
+}
 
-### 3. `src/components/calendar/IdeaDetailSheet.tsx`
+return (
+  <div className="min-h-screen bg-background">
+    <AppHeader />
+    <main id="main-content" className="mx-auto max-w-[1400px] px-6 py-8 max-md:px-4">
+      {isInstagramRoute && (
+        <SubPageHeader parentLabel="Instagram" parentTo="/instagram" currentLabel="Calendrier éditorial" useFromParam />
+      )}
+      {body}
+    </main>
+  </div>
+);
+```
 
-**`handlePlan` (L99)** — l'insert `calendar_posts` transmet :
-- `series_id: (idea as any).series_id ?? null`
-- `episode_number: (idea as any).episode_number ?? null`
+Pas de nouveau fichier ni de nouveau composant exporté : `body` reste une variable JSX locale dans `CalendarPage`, ce qui préserve l'accès direct aux états/handlers/closures sans threading de props.
 
-### 4. `src/components/calendar/CalendarIdeasSidebar.tsx`
+## (b) Propositions connexes — à valider avant exec
 
-**`handleMobilePlan` (L133)** — l'insert `calendar_posts` transmet `series_id` + `episode_number` de `planDialogIdea`.
+1. **Ajouter `QuickBatchAdd` au mode embedded** (cf. étape 1.8). Aujourd'hui le bouton "Batch rapide" d'`ExportSection` est mort en embedded. C'est un alignement de comportement, pas une régression de l'existant — mais c'est un changement fonctionnel léger. Valider O/N. OUI
+2. **Ajouter** `existingPosts` **au** `CalendarCoachingDialog` **du mode embedded** (cf. étape 1.7). Idem, l'embedded est dégradé aujourd'hui. Valider O/N. OUI
 
-`handleAdd` (AddIdeaDialog, L359) **inchangé** — c'est une création d'idée from scratch, pas une planification.
-
-## (b) Propositions
-
-Aucune amélioration connexe pertinente repérée dans le périmètre. Le pattern workspace est déjà uniforme dans les inserts touchés ; pas de refacto opportuniste sans sortir du scope.
+Si tu refuses l'un des deux, on conserve la divergence via une prop booléenne sur `body` (peu propre) ou on duplique juste ces deux lignes. Préférable de valider et tout unifier.
 
 ## Hors scope respecté
 
-Pas de touche à `handleMovePost`, `handleSave`, `handleDelete`, `fetchPosts`, `CalendarPostDialog`, edge functions, ni au DnD hors branches citées.
+- Aucun handler touché.
+- Aucun composant enfant modifié.
+- Aucun changement d'URL handling ni de filtres.
+- Pas d'extraction en fichier séparé.
 
 ## Validation
+
 1. `npx tsc --noEmit --skipLibCheck` clean.
-2. Post avec série + épisode → unplan (bouton dialog) → ré-planifier depuis sidebar → série/épisode conservés.
-3. Idem via drag du post vers la sidebar puis drag retour sur une date.
-4. Dupliquer un post rédigé → la copie a `content_draft`, `accroche`, `media_urls`, `category`, statut `idea`, **aucun** `series_id`.
-5. Export CSV : colonnes "Série" et "Épisode" présentes et remplies pour les posts liés.
+2. Diff comportemental : `/calendrier` standalone + page consommatrice de `<CalendarPage embedded />` — DnD, sidebar repliable (bouton gris discret partout), tabs mobile, tous les dialogs, exports identiques.
+3. Bouton replier visuellement identique dans les deux modes.
