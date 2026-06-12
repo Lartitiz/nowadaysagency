@@ -35,6 +35,7 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
   const [localDescription, setLocalDescription] = useState(initialPhotoDescription || "");
   const [localPhotoSubject, setLocalPhotoSubject] = useState(initialPhotoSubject || "");
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   // Si on arrive via un legacy redirect (?mode=transform), nettoyer le param
   // de l'URL pour éviter que le panneau ne se ré-ouvre au refresh.
