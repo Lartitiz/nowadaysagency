@@ -59,8 +59,9 @@ const OBJECTIF_OPTIONS = [
 
 const CANAL_OPTIONS = [
   { id: "instagram", label: "📱 Instagram", enabled: true },
-  { id: "linkedin", label: "LinkedIn", enabled: false },
-  { id: "newsletter", label: "Newsletter", enabled: false },
+  { id: "linkedin", label: "💼 LinkedIn", enabled: true },
+  { id: "newsletter", label: "✉️ Newsletter", enabled: true },
+  { id: "pinterest", label: "📌 Pinterest", enabled: true },
 ];
 
 const TYPE_OPTIONS = [

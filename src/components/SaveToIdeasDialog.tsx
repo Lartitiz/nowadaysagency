@@ -21,7 +21,7 @@ const TAG_OPTIONS = [
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  contentType: "story" | "reel" | "post_instagram" | "post_linkedin" | "newsletter";
+  contentType: "story" | "reel" | "post_instagram" | "post_linkedin" | "newsletter" | "pinterest";
   subject: string;
   contentData: any;
   personalElements?: any;
@@ -69,14 +69,17 @@ export function SaveToIdeasDialog({
     const contentEmoji =
       contentType === "newsletter" ? "📧" :
       contentType === "story" ? "📱" :
-      contentType === "reel" ? "🎬" : "📸";
+      contentType === "reel" ? "🎬" :
+      contentType === "pinterest" ? "📌" : "📸";
     const formatLabel =
       contentType === "newsletter" ? "newsletter" :
       contentType === "story" ? "story_serie" :
-      contentType === "reel" ? "reel" : (format || "post");
+      contentType === "reel" ? "reel" :
+      contentType === "pinterest" ? (format || "pinterest") : (format || "post");
     const canalValue =
       contentType === "newsletter" ? "newsletter" :
-      contentType === "post_linkedin" ? "linkedin" : "instagram";
+      contentType === "post_linkedin" ? "linkedin" :
+      contentType === "pinterest" ? "pinterest" : "instagram";
 
     const { error } = await supabase.from("saved_ideas").insert({
       user_id: user.id,

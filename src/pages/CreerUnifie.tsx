@@ -1580,11 +1580,12 @@ export default function CreerUnifie() {
     setSaveIdeaDialogOpen(true);
   };
 
-  const mapFormatToContentType = (fmt: string | null): "story" | "reel" | "post_instagram" | "post_linkedin" | "newsletter" => {
+  const mapFormatToContentType = (fmt: string | null): "story" | "reel" | "post_instagram" | "post_linkedin" | "newsletter" | "pinterest" => {
     if (fmt === "newsletter") return "newsletter";
     if (fmt === "story") return "story";
     if (fmt === "reel") return "reel";
     if (fmt === "linkedin") return "post_linkedin";
+    if (fmt === "pinterest" || fmt === "pinterest_visual" || fmt === "pinterest_photo") return "pinterest";
     return "post_instagram";
   };
 
