@@ -1,8 +1,22 @@
 import { useState, useEffect } from "react";
-import CalendarCoachingDialog from "@/components/calendar/CalendarCoachingDialog";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, ChevronDown, Clock, Globe, Instagram, Lightbulb } from "lucide-react";
+import {
+  ArrowRight,
+  ChevronDown,
+  Clock,
+  Globe,
+  Instagram,
+  Linkedin,
+  Mail,
+  Pin,
+  Lightbulb,
+  Calendar as CalendarIcon,
+  MessageCircle,
+  Palette,
+  Search,
+  Rocket,
+} from "lucide-react";
 
 import { useGuideRecommendation } from "@/hooks/use-guide-recommendation";
 import { useOnboardingMissions, OnboardingMission } from "@/hooks/use-onboarding-missions";
@@ -10,7 +24,6 @@ import { useOnboardingMissions, OnboardingMission } from "@/hooks/use-onboarding
 import WelcomeOverlay from "@/components/dashboard/WelcomeOverlay";
 import GuidedTour from "@/components/GuidedTour";
 import AppHeader from "@/components/AppHeader";
-import ContentCoachingDialog from "@/components/dashboard/ContentCoachingDialog";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -28,23 +41,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { supabase } from "@/integrations/supabase/client";
 
-/* ── Icon resolver ── */
-function RecommendationIcon({ name }: { name: string }) {
-  const iconMap: Record<string, string> = {
-    BookOpen: "📖", Users: "👥", Layers: "📚", CalendarPlus: "📅",
-    CalendarDays: "📅", BarChart3: "📊", Sparkles: "✨", PenLine: "✏️",
-    Palette: "🎨", Search: "🔍", ClipboardCheck: "📋", LayoutGrid: "📱",
-    Lightbulb: "💡"
-  };
-  return <span className="text-xl">{iconMap[name] || "📌"}</span>;
-}
-
 /* ── Collapsible missions ── */
 const COLLAPSED_KEY = "lac_missions_collapsed";
 const FIRST_SEEN_KEY = "lac_missions_first_seen";
 
-function CollapsibleMissions({ onNavigate }: { onNavigate: (route: string) => void }) {
-  const { missions, completedCount, allDone, nextMission, dismissed, dismiss, isLoading } = useOnboardingMissions();
+function OnboardingBanner({ onNavigate }: { onNavigate: (route: string) => void }) {
+  const { missions, completedCount, allDone, nextMission, dismissed, isLoading } = useOnboardingMissions();
 
   const [collapsed, setCollapsed] = useState(() => {
     const stored = localStorage.getItem(COLLAPSED_KEY);
@@ -67,30 +69,40 @@ function CollapsibleMissions({ onNavigate }: { onNavigate: (route: string) => vo
   if (dismissed || isLoading) return null;
   if (allDone) return null;
 
+  const remaining = 5 - completedCount;
+  const counterLabel = remaining === 1 ? `4/5 — plus qu'une !` : `${completedCount}/5`;
+
   return (
-    <div data-tour="card-missions" className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+    <div
+      data-tour="card-missions"
+      className="rounded-2xl border border-yellow/40 bg-yellow/40 p-3 sm:p-4 shadow-sm"
+    >
       <button onClick={toggle} className="w-full flex items-center gap-3">
-        <span className="text-base">🚀</span>
-        <span className="font-heading text-sm font-bold text-foreground">Tes missions</span>
-        <span className="text-xs font-medium text-primary bg-primary/10 rounded-full px-2 py-0.5">
-          {completedCount}/5
+        <Rocket className="h-4 w-4 text-foreground shrink-0" />
+        <span className="font-heading text-sm font-bold text-foreground shrink-0">
+          Tes premiers pas
         </span>
-        <Progress value={completedCount / 5 * 100} className="h-1.5 flex-1 max-w-[80px]" />
-        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${collapsed ? "" : "rotate-180"}`} />
+        <Progress value={(completedCount / 5) * 100} className="h-1.5 flex-1" />
+        <span className="text-xs font-medium text-foreground/80 shrink-0">
+          {counterLabel}
+        </span>
+        <ChevronDown
+          className={`h-4 w-4 text-foreground/60 transition-transform shrink-0 ${collapsed ? "" : "rotate-180"}`}
+        />
       </button>
 
-      {!collapsed &&
+      {!collapsed && (
         <div className="mt-4 space-y-2">
-          {missions.map((mission) =>
+          {missions.map((mission) => (
             <MissionRow
               key={mission.id}
               mission={mission}
               isNext={nextMission?.id === mission.id}
               onClick={() => onNavigate(mission.route)}
             />
-          )}
+          ))}
         </div>
-      }
+      )}
     </div>
   );
 }
@@ -118,32 +130,41 @@ function MissionRow({ mission, isNext, onClick }: { mission: OnboardingMission; 
           {mission.time}
         </span>
       </div>
-      {isNext && !isCompleted &&
+      {isNext && !isCompleted && (
         <span className="text-xs font-medium text-primary animate-pulse shrink-0 mt-1">
           Commencer →
         </span>
-      }
+      )}
     </button>
+  );
+}
+
+/* ── Section label ── */
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="font-mono-ui text-[11px] uppercase tracking-[0.18em] text-foreground/60 font-semibold mb-3">
+      {children}
+    </p>
   );
 }
 
 /* ── Tour steps ── */
 const TOUR_STEPS = [
   { target: "card-next-step", title: "Ta prochaine étape", text: "Chaque jour, l'outil te recommande l'action qui aura le plus d'impact. Pas besoin de réfléchir par où commencer : c'est ici.", position: "bottom" as const },
-  { target: "card-ideas", title: "Tes idées sauvegardées", text: "Toutes les idées que tu mets de côté atterrissent ici. Tu peux les transformer en contenu en un clic.", position: "left" as const },
-  { target: "card-mini-actions", title: "Tes raccourcis", text: "Ton branding, tes audits, ta routine d'engagement, ton calendrier : tout est accessible en un clic depuis ces cartes.", position: "bottom" as const },
+  { target: "card-ideas", title: "Tes idées sauvegardées", text: "Toutes les idées que tu mets de côté atterrissent ici. Tu peux les transformer en contenu en un clic.", position: "top" as const },
+  { target: "card-mini-actions", title: "Approfondir", text: "Affine ton identité de marque et lance des audits pour aller plus loin quand tu en as l'envie.", position: "top" as const },
   { target: "nav-creer", title: "Créer", text: "C'est ici que tu génères tes contenus : posts, carrousels, newsletters, Reels. L'IA connaît ton branding et écrit avec ta voix.", position: "bottom" as const },
   { target: "nav-calendrier", title: "Organiser", text: "Ton calendrier éditorial. Tu planifies tes contenus, tu vois ta semaine d'un coup d'œil, et tu sais toujours quoi poster.", position: "bottom" as const },
-  { target: "card-missions", title: "Tes premières missions", text: "5 petites étapes pour bien démarrer. Avance à ton rythme, coche au fur et à mesure. Rien d'obligatoire, tout est utile.", position: "top" as const },
-  { target: "card-assistant", title: "Ta coach de com'", text: "Un doute, une question, besoin d'un coup de pouce ? Elle connaît ton projet et te répond de façon personnalisée.", position: "top" as const },
+  { target: "card-missions", title: "Tes premiers pas", text: "5 petites étapes pour bien démarrer. Avance à ton rythme, coche au fur et à mesure. Rien d'obligatoire, tout est utile.", position: "bottom" as const },
+  { target: "card-assistant", title: "Ta coach de com'", text: "Un doute, une question, besoin d'un coup de pouce ? Elle connaît ton projet et te répond de façon personnalisée.", position: "bottom" as const },
 ];
 
-/* ── Mini-cards data ── */
-const MINI_CARDS = [
-  { emoji: "🎨", title: "Affiner mon identité", subtitle: "Affiner mon image de marque", bg: "bg-accent/10", route: "/branding" },
-  { emoji: "🔍", title: "Lancer un audit", subtitle: "Instagram ou site web", bg: "bg-[hsl(var(--bento-blue))]", route: "__choose_audit__" },
-  { emoji: "✨", title: "Planifier ma semaine", subtitle: "Planning IA personnalisé", bg: "bg-rose-pale", route: "__plan_week__" },
-  { emoji: "📅", title: "Voir mon calendrier de contenus", subtitle: "Planifier mes contenus", bg: "bg-accent/10", route: "/calendrier" },
+/* ── Channel pills (decorative) ── */
+const CHANNEL_PILLS = [
+  { label: "Instagram", icon: Instagram },
+  { label: "LinkedIn", icon: Linkedin },
+  { label: "Newsletter", icon: Mail },
+  { label: "Pinterest", icon: Pin },
 ];
 
 /* ── Main ── */
@@ -156,12 +177,9 @@ export default function AdaptiveHome() {
 
   const [tourDone, setTourDone] = useState(() => !!localStorage.getItem("lac_dashboard_tour_seen"));
   const [welcomeDone, setWelcomeDone] = useState(() => localStorage.getItem("lac_welcome_seen") === "true");
-  const [contentCoachingOpen, setContentCoachingOpen] = useState(false);
-  const [planWeekOpen, setPlanWeekOpen] = useState(false);
   const [auditPickerOpen, setAuditPickerOpen] = useState(false);
-  const [coachHovered, setCoachHovered] = useState(false);
 
-  // Ideas count — pour la card "Idées sauvegardées" en colonne droite
+  // Ideas count
   const workspaceId = activeWorkspace?.id ?? null;
   const { data: ideaCount = 0 } = useQuery<number>({
     queryKey: ["adaptive-home-ideas-count", user?.id, workspaceId],
@@ -179,8 +197,6 @@ export default function AdaptiveHome() {
     staleTime: 2 * 60 * 1000,
   });
 
-  // Après l'enrichissement fire-and-forget, invalider le cache branding
-  // pour que les pages branding affichent les données pré-remplies
   const queryClient = useQueryClient();
   const location = useLocation();
   useEffect(() => {
@@ -214,10 +230,6 @@ export default function AdaptiveHome() {
   }, []);
 
   const handleNavigate = (route: string) => {
-    if (route === "__plan_week__") {
-      setPlanWeekOpen(true);
-      return;
-    }
     if (route === "__choose_audit__") {
       setAuditPickerOpen(true);
       return;
@@ -237,7 +249,7 @@ export default function AdaptiveHome() {
     return (
       <div className="min-h-screen bg-background">
         <AppHeader />
-        <main className="max-w-[1100px] mx-auto px-4 py-12">
+        <main className="max-w-[860px] mx-auto px-4 py-12">
           <div className="space-y-4 animate-pulse">
             <div className="h-8 w-48 bg-muted rounded-lg" />
             <div className="h-4 w-64 bg-muted rounded" />
@@ -248,172 +260,194 @@ export default function AdaptiveHome() {
     );
   }
 
-  /* ─── Hero block (col gauche) ─── */
-  const heroBlock = (
-    <div
-      data-tour="card-next-step"
-      className="group rounded-2xl bg-gradient-to-br from-rose-pale/40 to-card border border-border/60 p-6 sm:p-8 shadow-[var(--shadow-bento)] hover:shadow-[var(--shadow-bento-hover)] hover:-translate-y-[3px] hover:border-border transition-all duration-[300ms] ease-out cursor-pointer"
-      onClick={() => handleNavigate("/creer")}
-    >
-      <p className="font-mono-ui text-[10.5px] text-foreground/60 uppercase tracking-[0.12em] font-semibold mb-3">
-        ✨ On crée quoi aujourd'hui&nbsp;?
-      </p>
-
-      <h2 className="font-display text-[26px] sm:text-3xl leading-[1.15] text-foreground">
-        Créer mon prochain contenu
-      </h2>
-
-      <p className="text-[15px] text-foreground/70 mt-2 leading-relaxed line-clamp-1">
-        {recommendation.explanation}
-      </p>
-
-      <Button
-        className="mt-6 w-full sm:w-auto h-12 px-6 rounded-xl bg-bordeaux hover:bg-primary text-white text-[15px] font-semibold shadow-sm hover:shadow-md transition-all"
-        onClick={(e) => { e.stopPropagation(); handleNavigate("/creer"); }}
-      >
-        Créer un contenu
-        <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-      </Button>
-
-
-      <div className="mt-6 mb-3 h-px bg-border/60" />
-
-      <button
-        className="text-xs text-muted-foreground hover:text-primary transition-colors"
-        onClick={(e) => { e.stopPropagation(); setContentCoachingOpen(true); }}
-      >
-        Pas d'idée&nbsp;? Discutes-en avec ta coach →
-      </button>
-
-      {isAurianaDemoEmail(user?.email) && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            clearFlowState();
-            saveFlowState({ ...AURIANA_DEMO_FLOW, ts: Date.now() });
-            navigate("/creer", { state: { demo: true, demoScenario: "auriana-carousel" } });
-          }}
-          className="mt-3 ml-3 inline-flex items-center gap-2 text-xs font-medium px-3 py-1.5 bg-card/80 border border-border text-foreground/70 rounded-lg hover:border-primary/40 hover:text-primary transition-all"
-        >
-          🎬 Lancer la démo carrousel
-        </button>
-      )}
-    </div>
-  );
-
-  /* ─── Outils 2x2 (col gauche, sous le hero) ─── */
-  const toolsGrid = (
-    <div data-tour="card-mini-actions" className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      {MINI_CARDS.map((card) => (
-        <div
-          key={card.route}
-          className={`rounded-2xl p-5 cursor-pointer border border-transparent hover:border-border hover:-translate-y-[2px] hover:shadow-[var(--shadow-bento)] transition-all duration-[250ms] ease-out ${card.bg}`}
-          onClick={() => handleNavigate(card.route)}
-        >
-          <span className="text-2xl mb-3 block">{card.emoji}</span>
-          <p className="font-body text-sm font-semibold text-foreground">{card.title}</p>
-          <p className="font-body text-xs text-muted-foreground">{card.subtitle}</p>
-        </div>
-      ))}
-    </div>
-  );
-
-  /* ─── Card Idées sauvegardées (col droite) ─── */
-  const ideasCard = (
-    <button
-      data-tour="card-ideas"
-      onClick={() => navigate("/idees")}
-      className="group w-full text-left rounded-2xl bg-card border border-border/60 p-6 shadow-[var(--shadow-bento)] hover:shadow-[var(--shadow-bento-hover)] hover:-translate-y-[2px] hover:border-primary/30 transition-all duration-[250ms] ease-out"
-    >
-      <div className="flex items-center justify-between mb-3">
-        <span className="font-mono-ui text-[10px] text-foreground/60 uppercase tracking-[0.18em] font-semibold">
-          Inspiration
-        </span>
-        <span className="font-display italic text-bordeaux text-2xl leading-none">
-          {ideaCount}
-        </span>
-      </div>
-      <div className="flex items-start gap-3">
-        <div className="w-10 h-10 rounded-xl bg-rose-pale flex items-center justify-center shrink-0">
-          <Lightbulb className="h-5 w-5 text-bordeaux" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <h3 className="font-display text-[17px] text-foreground leading-tight">
-            Idées sauvegardées
-          </h3>
-          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-            {ideaCount > 0
-              ? "Retrouve tes pépites et transforme-les en posts."
-              : "Aucune idée encore — lance un brainstorm avec ta coach."}
-          </p>
-        </div>
-        <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-bordeaux group-hover:translate-x-0.5 transition-all shrink-0 mt-1" />
-      </div>
-    </button>
-  );
-
-  /* ─── Coach card (col droite) ─── */
-  const coachCard = (
-    <div
-      data-tour="card-assistant"
-      className="rounded-2xl p-5 bg-gradient-to-br from-rose-pale to-card border border-primary/15 hover:border-primary/30 hover:-translate-y-[2px] hover:shadow-[var(--shadow-bento)] transition-all duration-[250ms] ease-out cursor-pointer"
-      onClick={() => handleNavigate("/dashboard/guide")}
-      onMouseEnter={() => setCoachHovered(true)}
-      onMouseLeave={() => setCoachHovered(false)}
-    >
-      <div className="flex items-center gap-3">
-        <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-rose-soft to-rose-medium/20 flex items-center justify-center shrink-0">
-          <span className="text-lg">🧠</span>
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-display text-[15px] text-foreground">Ta coach de com'</p>
-          <p className="text-xs text-muted-foreground">
-            Pose-lui n'importe quelle question sur ta com', ta stratégie, tes contenus.
-          </p>
-        </div>
-        <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition-colors duration-200 ${coachHovered ? "bg-bordeaux" : "bg-card"}`}>
-          <ArrowRight className={`h-4 w-4 transition-colors duration-200 ${coachHovered ? "text-white" : "text-muted-foreground"}`} />
-        </div>
-      </div>
-    </div>
-  );
-
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
-      <main className="max-w-[1100px] mx-auto px-4 py-8 space-y-6">
+      <main className="max-w-[860px] mx-auto px-4 py-8 space-y-8">
 
-        {/* A. Greeting */}
-        <div>
-          <h1 className="font-display text-[28px] text-foreground leading-tight">
-            Salut {profileSummary.firstName} ! 👋
-          </h1>
-          <p className="text-muted-foreground mt-1 text-[15px]">
-            Prête à faire rayonner tes projets ?
+        {/* Bandeau premiers pas */}
+        <OnboardingBanner onNavigate={handleNavigate} />
+
+        {/* Greeting + pastille coach */}
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="font-display text-[28px] text-foreground leading-tight">
+              Salut {profileSummary.firstName} ! 👋
+            </h1>
+            <p className="text-muted-foreground mt-1 text-[15px]">
+              Prête à faire rayonner tes projets ?
+            </p>
+          </div>
+
+          <button
+            data-tour="card-assistant"
+            aria-label="Parler à ma coach de com'"
+            onClick={() => handleNavigate("/dashboard/guide")}
+            className="shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card border border-border text-sm font-medium text-foreground hover:border-primary/40 hover:text-primary transition-colors"
+          >
+            <MessageCircle className="h-4 w-4" aria-hidden="true" />
+            <span className="hidden sm:inline">Parler à ma coach</span>
+          </button>
+        </div>
+
+        {/* Hero */}
+        <div
+          data-tour="card-next-step"
+          className="group rounded-2xl bg-gradient-to-br from-rose-pale/40 to-card border border-border/60 p-6 sm:p-8 shadow-[var(--shadow-bento)] hover:shadow-[var(--shadow-bento-hover)] hover:-translate-y-[3px] hover:border-border transition-all duration-[300ms] ease-out cursor-pointer"
+          onClick={() => handleNavigate("/creer")}
+        >
+          <p className="font-mono-ui text-[10.5px] text-foreground/60 uppercase tracking-[0.12em] font-semibold mb-3">
+            ✨ On crée quoi aujourd'hui&nbsp;?
           </p>
-        </div>
 
-        {/* Magazine layout : 2 colonnes asymétriques à partir de lg */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <h2 className="font-display text-[26px] sm:text-3xl leading-[1.15] text-foreground">
+            Créer mon prochain contenu
+          </h2>
 
-          {/* Colonne gauche : hero + outils */}
-          <div className="lg:col-span-8 space-y-6">
-            {heroBlock}
-            {toolsGrid}
+          <p className="text-[15px] text-foreground/70 mt-2 leading-relaxed line-clamp-1">
+            {recommendation.explanation}
+          </p>
+
+          {/* Channel pills (decorative) */}
+          <div className="flex flex-wrap gap-2 mt-4" aria-hidden="true">
+            {CHANNEL_PILLS.map(({ label, icon: Icon }) => (
+              <span
+                key={label}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-pale border border-border/40 text-xs text-foreground/70 pointer-events-none"
+              >
+                <Icon className="h-3 w-3" />
+                {label}
+              </span>
+            ))}
           </div>
 
-          {/* Colonne droite : idées + missions + coach */}
-          <div className="lg:col-span-4 space-y-4">
-            {ideasCard}
-            <CollapsibleMissions onNavigate={handleNavigate} />
-            {coachCard}
-          </div>
+          <Button
+            className="mt-6 w-full sm:w-auto h-12 px-6 rounded-xl bg-bordeaux hover:bg-primary text-white text-[15px] font-semibold shadow-sm hover:shadow-md transition-all"
+            onClick={(e) => { e.stopPropagation(); handleNavigate("/creer"); }}
+          >
+            Créer un contenu
+            <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+          </Button>
 
+          {isAurianaDemoEmail(user?.email) && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                clearFlowState();
+                saveFlowState({ ...AURIANA_DEMO_FLOW, ts: Date.now() });
+                navigate("/creer", { state: { demo: true, demoScenario: "auriana-carousel" } });
+              }}
+              className="mt-3 ml-3 inline-flex items-center gap-2 text-xs font-medium px-3 py-1.5 bg-card/80 border border-border text-foreground/70 rounded-lg hover:border-primary/40 hover:text-primary transition-all"
+            >
+              🎬 Lancer la démo carrousel
+            </button>
+          )}
         </div>
 
-        {/* Dialogs */}
-        <ContentCoachingDialog open={contentCoachingOpen} onOpenChange={setContentCoachingOpen} />
-        <CalendarCoachingDialog open={planWeekOpen} onOpenChange={setPlanWeekOpen} />
+        {/* Zone Piloter */}
+        <section>
+          <SectionLabel>Piloter</SectionLabel>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <button
+              onClick={() => handleNavigate("/calendrier")}
+              className="group text-left rounded-2xl bg-card border border-border/60 p-5 shadow-[var(--shadow-bento)] hover:shadow-[var(--shadow-bento-hover)] hover:-translate-y-[2px] hover:border-primary/30 transition-all duration-[250ms] ease-out"
+            >
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-rose-pale flex items-center justify-center shrink-0">
+                  <CalendarIcon className="h-5 w-5 text-bordeaux" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-display text-[17px] text-foreground leading-tight">
+                    Voir mon calendrier
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                    Planifie tes contenus et garde une vue claire de ta semaine.
+                  </p>
+                </div>
+                <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-bordeaux group-hover:translate-x-0.5 transition-all shrink-0 mt-1" />
+              </div>
+            </button>
+
+            <button
+              data-tour="card-ideas"
+              onClick={() => navigate("/idees")}
+              className="group text-left rounded-2xl bg-card border border-border/60 p-5 shadow-[var(--shadow-bento)] hover:shadow-[var(--shadow-bento-hover)] hover:-translate-y-[2px] hover:border-primary/30 transition-all duration-[250ms] ease-out"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <span className="font-mono-ui text-[10px] text-foreground/60 uppercase tracking-[0.18em] font-semibold">
+                  Inspiration
+                </span>
+                <span className="font-display italic text-bordeaux text-2xl leading-none">
+                  {ideaCount}
+                </span>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-rose-pale flex items-center justify-center shrink-0">
+                  <Lightbulb className="h-5 w-5 text-bordeaux" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-display text-[17px] text-foreground leading-tight">
+                    Piocher dans mes idées
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                    {ideaCount > 0
+                      ? "Retrouve tes pépites et transforme-les en posts."
+                      : "Aucune idée encore — lance un brainstorm avec ta coach."}
+                  </p>
+                </div>
+                <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-bordeaux group-hover:translate-x-0.5 transition-all shrink-0 mt-1" />
+              </div>
+            </button>
+          </div>
+        </section>
+
+        {/* Zone Approfondir */}
+        <section>
+          <SectionLabel>Approfondir</SectionLabel>
+          <div data-tour="card-mini-actions" className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <button
+              onClick={() => handleNavigate("/branding")}
+              className="group text-left rounded-2xl bg-card border border-border/60 p-5 shadow-[var(--shadow-bento)] hover:shadow-[var(--shadow-bento-hover)] hover:-translate-y-[2px] hover:border-primary/30 transition-all duration-[250ms] ease-out"
+            >
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-rose-pale flex items-center justify-center shrink-0">
+                  <Palette className="h-5 w-5 text-bordeaux" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-display text-[17px] text-foreground leading-tight">
+                    Affiner mon identité de marque
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                    Ton histoire, ton persona, ta voix.
+                  </p>
+                </div>
+                <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-bordeaux group-hover:translate-x-0.5 transition-all shrink-0 mt-1" />
+              </div>
+            </button>
+
+            <button
+              onClick={() => handleNavigate("__choose_audit__")}
+              className="group text-left rounded-2xl bg-card border border-border/60 p-5 shadow-[var(--shadow-bento)] hover:shadow-[var(--shadow-bento-hover)] hover:-translate-y-[2px] hover:border-primary/30 transition-all duration-[250ms] ease-out"
+            >
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-rose-pale flex items-center justify-center shrink-0">
+                  <Search className="h-5 w-5 text-bordeaux" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-display text-[17px] text-foreground leading-tight">
+                    Lancer un audit
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                    Instagram ou site web.
+                  </p>
+                </div>
+                <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-bordeaux group-hover:translate-x-0.5 transition-all shrink-0 mt-1" />
+              </div>
+            </button>
+          </div>
+        </section>
+
+        {/* Audit picker */}
         <Dialog open={auditPickerOpen} onOpenChange={setAuditPickerOpen}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>

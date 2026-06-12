@@ -1,72 +1,83 @@
-# Factorisation rendu embedded/standalone — Calendar.tsx
+# Restructuration du dashboard AdaptiveHome en mono-colonne
 
-## Objectif
+Fichier unique : `src/pages/AdaptiveHome.tsx`.
 
-Supprimer la duplication ~150 lignes entre les branches `if (embedded)` (L888-947) et standalone (L949-1066). Une seule implémentation du bloc commun, deux wrappers minimaux.
+## (a) Demandé
 
-## (a) Demandé — implémentation
+### 1. Bandeau "Tes premiers pas" (pleine largeur, avant le greeting)
 
-### Étape 1 — Extraire un JSX `body` unique (variable locale dans le composant)
+- Réécriture de `CollapsibleMissions` en **bandeau fin** : fond `--yellow`, rocket, titre "Tes premiers pas", `Progress` flex-1, compteur (`4/5 — plus qu'une !` si reste 1, sinon `X/5`), chevron de repli.
+- Conserver toute la logique : `useOnboardingMissions`, localStorage `lac_missions_collapsed`, déplié → liste `MissionRow` inchangées, disparition si `allDone || dismissed`, `data-tour="card-missions"`.
 
-Construit après `calendarContent`, juste avant `if (embedded)`. Contient, dans l'ordre :
+### 2. Greeting + pastille coach
 
-1. `<AuditRecommendationBanner />`
-2. `<ExportSection ... seriesNameById={seriesNameById} />`
-3. Tabs mobile (le bloc `{isMobile && <div className="flex rounded-full…">…</div>}`)
-4. Bloc principal `{isMobile ? … : <Suspense><CalendarDndWrapper>…</CalendarDndWrapper></Suspense>}` avec sidebar idées repliable
-5. `<LocalErrorBoundary><CalendarPostDialog … /></LocalErrorBoundary>`
-6. `<IdeaDetailSheet … />`
-7. `<CalendarCoachingDialog … />` — **avec** la prop `existingPosts` (présente en standalone L1054, absente en embedded L944 — bug latent : on garde la version standalone)
-8. `<QuickBatchAdd … />` — **présent uniquement en standalone aujourd'hui** (L1057-1063). On l'inclut dans `body` pour que `ExportSection.onQuickBatchOpen` fonctionne aussi en embedded (sinon clic mort). Signalé en (b) pour validation explicite.
+- Ligne `flex justify-between items-start` :
+  - Gauche : greeting inchangé.
+  - Droite : pilule `rounded-full` fond card + bordure fine, icône `MessageCircle` (lucide) + label "Parler à ma coach", `data-tour="card-assistant"`, `onClick → handleNavigate("/dashboard/guide")`.
+- Supprimer `coachCard` et le state `coachHovered`.
 
-Aucun changement de props, de handlers, ni d'ordre.
+### 3. Hero (modifications légères)
 
-### Étape 2 — Unifier le bouton "replier"
+- Conserver gradient, kicker, titre, `recommendation.explanation`, bouton "Créer un contenu", bouton démo Auriana, `data-tour="card-next-step"`.
+- **Supprimer** : séparateur + lien "Pas d'idée ? Discutes-en avec ta coach →", state `contentCoachingOpen`, import et rendu de `ContentCoachingDialog`.
+- **Ajouter** entre sous-titre et bouton CTA : rangée de 4 pastilles décoratives (non cliquables, `pointer-events-none` ou simples `<span>`) — Instagram / LinkedIn / Newsletter / Pinterest — pilules fond `rose-pale`, bordure fine, icônes lucide `Instagram, Linkedin, Mail, Pin`, `text-xs`.
 
-Garder la version discrète standalone (L1005-1012) :
+### 4. Zone "Piloter"
 
-- conteneur : `<div className="relative border border-border rounded-2xl bg-card p-4 max-h-[calc(100vh-120px)] overflow-hidden flex flex-col">`
-- bouton : `bg-card border-border shadow-sm text-muted-foreground`, taille `w-6 h-6`, svg strokeWidth 2.5
-- Supprimer la variante destructive rouge de la branche embedded (L921-933).
+- Label discret `text-[11px] tracking-[0.18em] uppercase text-foreground/60` : "Piloter".
+- Grid `sm:grid-cols-2 gap-4` :
+  - **Voir mon calendrier** → `handleNavigate("/calendrier")`, icône `Calendar`.
+  - **Piocher dans mes idées** → `navigate("/idees")`, conserve query `saved_ideas` count, compteur `font-display`, wording conditionnel sur `ideaCount > 0`, `data-tour="card-ideas"`, icône `Lightbulb`.
+- Style cards : fond card, bordure fine, icône dans pastille `rounded-xl bg-rose-pale`, hover `translate + shadow-bento`.
 
-### Étape 3 — Réduire les deux returns à des wrappers
+### 5. Zone "Approfondir"
 
-```tsx
-if (embedded) {
-  return <div>{body}</div>;
-}
+- Label "Approfondir" même style.
+- Grid 2 colonnes, `data-tour="card-mini-actions"` sur le conteneur :
+  - **Affiner mon branding** — sous-titre "Ton histoire, ton persona, ta voix" → `/branding`.
+  - **Lancer un audit** — sous-titre "Instagram ou site web" → `__choose_audit__` (Dialog auditPicker inchangé).
 
-return (
-  <div className="min-h-screen bg-background">
-    <AppHeader />
-    <main id="main-content" className="mx-auto max-w-[1400px] px-6 py-8 max-md:px-4">
-      {isInstagramRoute && (
-        <SubPageHeader parentLabel="Instagram" parentTo="/instagram" currentLabel="Calendrier éditorial" useFromParam />
-      )}
-      {body}
-    </main>
-  </div>
-);
-```
+### 6. Suppressions
 
-Pas de nouveau fichier ni de nouveau composant exporté : `body` reste une variable JSX locale dans `CalendarPage`, ce qui préserve l'accès direct aux états/handlers/closures sans threading de props.
+- Card "Planifier ma semaine" : retirer state `planWeekOpen`, case `__plan_week__` de `handleNavigate`, import + rendu de `CalendarCoachingDialog`.
+- Constante `MINI_CARDS` : supprimée.
+- Colonne droite + grid 12 cols : remplacé par layout mono-colonne.
+- Conteneur `max-w-[1100px]` → `max-w-[860px]`.
 
-## (b) Propositions connexes — à valider avant exec
+### 7. TOUR_STEPS
 
-1. **Ajouter `QuickBatchAdd` au mode embedded** (cf. étape 1.8). Aujourd'hui le bouton "Batch rapide" d'`ExportSection` est mort en embedded. C'est un alignement de comportement, pas une régression de l'existant — mais c'est un changement fonctionnel léger. Valider O/N. OUI
-2. **Ajouter** `existingPosts` **au** `CalendarCoachingDialog` **du mode embedded** (cf. étape 1.7). Idem, l'embedded est dégradé aujourd'hui. Valider O/N. OUI
+- Adapter textes/positions aux nouveaux emplacements :
+  - `card-next-step` : `bottom` (hero toujours en haut).
+  - `card-ideas` : `top` (Piloter, dans le scroll).
+  - `card-mini-actions` : `top` (Approfondir, plus bas).
+  - `nav-creer`, `nav-calendrier` : inchangés.
+  - `card-missions` : `bottom` (bandeau désormais en haut).
+  - `card-assistant` : `bottom` (pastille header).
+- Aucune étape supprimée, aucun `data-tour` renommé.
 
-Si tu refuses l'un des deux, on conserve la divergence via une prop booléenne sur `body` (peu propre) ou on duplique juste ces deux lignes. Préférable de valider et tout unifier.
+### Ce qui ne bouge pas
 
-## Hors scope respecté
-
-- Aucun handler touché.
-- Aucun composant enfant modifié.
-- Aucun changement d'URL handling ni de filtres.
-- Pas d'extraction en fichier séparé.
+AppHeader, hooks (`useGuideRecommendation`, `useOnboardingMissions`, `useAuth`, `useWorkspace`), useEffect cache branding, WelcomeOverlay + GuidedTour, logique démo Auriana, toast `/creer`, query `saved_ideas` (filtrage workspace identique, juste déplacée), Dialog auditPicker, composants `ContentCoachingDialog`/`CalendarCoachingDialog` eux-mêmes, aucun autre fichier.
 
 ## Validation
 
-1. `npx tsc --noEmit --skipLibCheck` clean.
-2. Diff comportemental : `/calendrier` standalone + page consommatrice de `<CalendarPage embedded />` — DnD, sidebar repliable (bouton gris discret partout), tabs mobile, tous les dialogs, exports identiques.
-3. Bouton replier visuellement identique dans les deux modes.
+- `npx tsc --noEmit --skipLibCheck` OK.
+- Ordre visuel : bandeau → greeting+pastille → hero (4 pastilles canaux) → Piloter (2 cards) → Approfondir (2 cards).
+- Bandeau se replie/déplie, disparaît à 5/5.
+- "Parler à ma coach" → `/dashboard/guide`. Audit → picker. Compteur idées OK. Démo Auriana OK. Tour OK.
+
+---
+
+## (b) Propositions — à valider individuellement
+
+1. **Extraire `OnboardingBanner` en sous-composant** dans le même fichier (comme `CollapsibleMissions` aujourd'hui) plutôt que d'inliner le bandeau dans `AdaptiveHome`. Garde la lisibilité du return principal. oui
+2. **Factoriser une mini-fonction `SectionLabel({ children })**` pour les labels "Piloter" / "Approfondir" (3 lignes, évite la duplication de classes utilitaires). **Oui**
+3. **Petit `aria-label` sur la pastille "Parler à ma coach"** (accessibilité — actuellement la pastille a juste un emoji/icône + texte, mais autant être propre côté lecteur d'écran si l'icône est purement décorative). **Oui**
+4. **Retirer l'import inutile `Sparkles**` s'il n'est plus utilisé après suppression du lien coach dans la hero (nettoyage des imports lucide orphelins en général : `ChevronDown` reste utilisé par le bandeau, à vérifier au moment de l'exec).non
+5. **Wording compteur** : proposition de variante plus courte "4/5 · une dernière !" au lieu de "4/5 — plus qu'une !" (plus dans le ton minimal du reste de l'app). **O/N** — sinon je garde ta formulation.
+
+Aucune de ces propositions n'est appliquée tant que tu ne les valides pas.
+
+## Hors scope confirmé
+
+Enrichissement des cards avec données réelles (Plan 2), bandeau semaine dans CreerUnifie (Plan 3), état vide calendrier, BinomeDashboard, démo Léa.
