@@ -408,19 +408,28 @@ ${brandingContext}
 Retourne UNIQUEMENT un objet JSON valide (pas de texte avant ou après, pas de backticks), avec cette structure exacte :
 {
   "strategic_rationale": "2-3 phrases expliquant la logique narrative globale",
+  "narrative_thread": "L'HISTOIRE COMPLÈTE du carrousel en 2-3 phrases : situation → tension → bascule → résolution → ouverture. C'est le fil que le pass d'écriture devra exécuter. Pas une description du sujet, pas une liste des slides : le récit lui-même, dans l'ordre, comme on le raconterait à l'oral.",
   "slides": [
     {
       "slide_number": 1,
       "role": "hook",
       "title_suggestion": "titre court proposé",
-      "strategic_note": "pourquoi cette slide à cette position"${hasPhotos ? `,
+      "strategic_note": "pourquoi cette slide à cette position",
+      "story_beat": "Ce que CETTE slide FAIT VIVRE dans le récit, en 1 phrase. Une INTENTION NARRATIVE — pas une description de la photo. Exemples : « ici on installe le doute », « ici la bascule : le client rappelle », « ici on paie le prix de la décision ». JAMAIS « on voit un chantier », « la photo montre… »."${hasPhotos ? `,
       "photo_index": 1,
-      "slide_type": "photo_full"` : ""}
+      "slide_type": "photo_full",
+      "visual_anchor": "OPTIONNEL — uniquement pour les slides avec photo_index. 3-8 mots qui pointent UN détail concret de la photo, mobilisable par le pass d'écriture comme matière première (ex : « la poussière sur les bottes », « les deux tasses encore pleines »). C'est UN détail, JAMAIS un résumé de l'image."` : ""}
     }
   ],
   "total_slides": 7,
   "carousel_type": "${carousel_type || "auto"}"
-}`;
+}
+
+RAPPEL CRITIQUE sur les nouveaux champs :
+- "narrative_thread" = LE récit que le pass d'écriture exécutera. C'est la colonne vertébrale.
+- "story_beat" (par slide) = ce que la slide RACONTE dans ce récit, pas ce que la photo MONTRE. Une intention narrative.
+- "visual_anchor" (slides photo uniquement) = UN détail mobilisable, optionnel. Pas une description. Si rien d'évident à pointer, omets le champ.
+- story_beat et visual_anchor SERVENT le narrative_thread : chaque story_beat est UNE étape du récit global ; les visual_anchors fournissent la matière sensorielle qui ancre cette étape.`;
 
       const structureUserPrompt = `Sujet du carrousel : "${subject || "non précisé"}"
 ${carousel_type ? `Type de carrousel : ${carousel_type}` : "Choisis le type le plus pertinent."}
@@ -450,14 +459,14 @@ Propose la structure optimale.`;
           model: getModelForAction("content"),
           system: structureSystemPrompt,
           messages: [{ role: "user", content: messageContent }],
-          max_tokens: 2048,
+          max_tokens: 3000,
         });
       } else {
         content = await callAnthropic({
           model: getModelForAction("content"),
           system: structureSystemPrompt,
           messages: [{ role: "user", content: structureUserPrompt }],
-          max_tokens: 2048,
+          max_tokens: 3000,
         });
       }
 
