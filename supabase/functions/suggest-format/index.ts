@@ -24,6 +24,12 @@ serve(async (req) => {
       const anonSb = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
       const { data: { user } } = await anonSb.auth.getUser(authHeader.replace("Bearer ", ""));
       if (user) {
+        const sbGuard = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+        const membership = await assertWorkspaceMembership(sbGuard, user.id, workspace_id);
+        if (!membership.ok) {
+          console.warn("[workspace-guard] denied", { userId: user.id, workspaceId: workspace_id });
+          return workspaceDeniedResponse(corsHeaders);
+        }
         const filterCol = workspace_id ? "workspace_id" : "user_id";
         const filterVal = workspace_id || user.id;
         // Resolve workspace owner for profile-scoped tables
