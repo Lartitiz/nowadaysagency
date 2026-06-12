@@ -441,7 +441,7 @@ export default function ContentRecycling() {
 
               <RedFlagsChecker
                 content={results[activeTab]}
-                onFix={(fixed) => setResults(prev => ({ ...prev, [activeTab]: fixed }))}
+                onFix={(fixed) => { setResults(prev => ({ ...prev, [activeTab]: fixed })); if (activeTab === "carrousel") setCarouselStructure(null); }}
               />
 
               <div className="flex flex-wrap gap-2">
