@@ -1697,7 +1697,7 @@ RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
 }
 
 function buildMixCarouselPrompt(body: any, isLinkedIn: boolean = false): string {
-  const { editorial_angle, content_structure, deepening_answers, slide_structure, confirmed_structure } = body;
+  const { editorial_angle, content_structure, deepening_answers, slide_structure, confirmed_structure, narrative_thread } = body;
 
   // ── Adaptation éditoriale selon le canal ──
   const channelBlock = isLinkedIn
@@ -1723,13 +1723,21 @@ Ce carrousel est destiné à LinkedIn (et non Instagram). Tu DOIS adapter ton, o
         let line = `  Slide ${s.slide_number} — Rôle : ${s.role} — Titre : "${s.title_suggestion}"`;
         if (s.photo_index) line += ` — Photo n°${s.photo_index}${s.slide_type ? ` (${s.slide_type})` : ""}`;
         line += ` — ${s.strategic_note}`;
+        if (s.story_beat) line += `\n    → Raconte : ${s.story_beat}`;
+        if (s.visual_anchor) line += `\n    → Détail mobilisable : ${s.visual_anchor}`;
         return line;
       })
       .join("\n");
+    const narrativeBlock = narrative_thread && typeof narrative_thread === "string" && narrative_thread.trim()
+      ? `RÉCIT À EXÉCUTER (décidé en voyant les photos) : ${narrative_thread.trim()}
+Chaque slide écrit UNE étape de ce récit. Tu n'inventes pas une autre histoire, tu exécutes celle-ci.
+
+`
+      : "";
     confirmedStructureBlock = `══════════════════════════════════════
 STRUCTURE IMPOSÉE PAR L'UTILISATEUR·ICE — OBLIGATOIRE
 ══════════════════════════════════════
-Tu DOIS générer le contenu pour EXACTEMENT ces slides dans cet ordre :
+${narrativeBlock}Tu DOIS générer le contenu pour EXACTEMENT ces slides dans cet ordre :
 ${structureList}
 
 RÈGLES ABSOLUES :
@@ -1738,6 +1746,7 @@ RÈGLES ABSOLUES :
 - Génère uniquement le contenu (body, visual_schema, caption) pour chaque slide
 - Le JSON retourné doit contenir exactement ${confirmed_structure.length} slides
 - Si une slide a un photo_index, le champ photo_index doit être présent dans le JSON de sortie
+- INTERDIT de décrire la photo. L'overlay écrit l'étape du récit définie par le story_beat ; le visual_anchor est une matière optionnelle (un détail à glisser dans la phrase si naturel), JAMAIS un contenu à réciter.
 
 `;
   }
