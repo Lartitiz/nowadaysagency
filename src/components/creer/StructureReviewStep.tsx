@@ -10,6 +10,8 @@ export interface SlideProposal {
   strategic_note: string;
   photo_index?: number;
   slide_type?: "photo_full" | "photo_integrated" | "text_only";
+  story_beat?: string;
+  visual_anchor?: string;
 }
 
 export interface StructureProposal {
@@ -17,6 +19,7 @@ export interface StructureProposal {
   slides: SlideProposal[];
   total_slides: number;
   carousel_type?: string;
+  narrative_thread?: string;
 }
 
 export interface PhotoItem {
