@@ -568,7 +568,18 @@ export default function AdaptiveHome() {
                       ? "Retrouve tes pépites et transforme-les en posts."
                       : "Aucune idée encore — lance un brainstorm avec ta coach."}
                   </p>
+                  {ideaCount > 0 && latestIdea && (
+                    <div className="mt-3 rounded-lg bg-rose-pale/60 px-3 py-2">
+                      <p className="font-mono-ui text-[9px] uppercase tracking-[0.18em] text-foreground/60 font-semibold">
+                        Dernière pépite
+                      </p>
+                      <p className="text-xs italic text-foreground/80 truncate mt-0.5">
+                        {latestIdea.titre ?? latestIdea.accroche_short ?? latestIdea.content_draft ?? ""}
+                      </p>
+                    </div>
+                  )}
                 </div>
+
                 <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-bordeaux group-hover:translate-x-0.5 transition-all shrink-0 mt-1" />
               </div>
             </button>
