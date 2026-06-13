@@ -1723,7 +1723,204 @@ RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
     "every_overlay_has_verb": true,
     "no_nominal_fragment_lists": true,
     "score": 85
+}
+
+function buildPhotoCarouselNewsReactionPrompt(body: any, isLinkedIn: boolean = false): string {
+  const { editorial_angle, content_structure, deepening_answers, confirmed_structure, narrative_thread, subject, photos } = body;
+
+  // ── STRUCTURE IMPOSÉE (si confirmée par l'utilisateur·ice) — calqué sur buildPhotoCarouselPrompt ──
+  let confirmedStructureBlock = "";
+  if (confirmed_structure && Array.isArray(confirmed_structure) && confirmed_structure.length > 0) {
+    const structureList = confirmed_structure
+      .map((s: any) => {
+        let line = `  Slide ${s.slide_number} — Rôle : ${s.role} — Titre : "${s.title_suggestion}"`;
+        if (s.photo_index) line += ` — Photo n°${s.photo_index}${s.slide_type ? ` (${s.slide_type})` : ""}`;
+        line += ` — ${s.strategic_note}`;
+        if (s.story_beat) line += `\n    → Raconte : ${s.story_beat}`;
+        if (s.visual_anchor) line += `\n    → Détail mobilisable : ${s.visual_anchor}`;
+        return line;
+      })
+      .join("\n");
+    const narrativeBlock = narrative_thread && typeof narrative_thread === "string" && narrative_thread.trim()
+      ? `RÉCIT À EXÉCUTER (décidé en voyant les photos ET en lisant l'actu) : ${narrative_thread.trim()}
+Chaque slide écrit UNE étape de ce récit. Tu n'inventes pas une autre histoire, tu exécutes celle-ci.
+
+`
+      : "";
+    confirmedStructureBlock = `══════════════════════════════════════
+STRUCTURE IMPOSÉE PAR L'UTILISATEUR·ICE — OBLIGATOIRE
+══════════════════════════════════════
+${narrativeBlock}Tu DOIS générer le contenu pour EXACTEMENT ces slides dans cet ordre :
+${structureList}
+
+RÈGLES ABSOLUES :
+- Ne change NI l'ordre NI les rôles NI le nombre de slides
+- Utilise les titres proposés comme base (tu peux les affiner légèrement)
+- Génère uniquement le contenu (overlay_text, caption) pour chaque slide
+- Le JSON retourné doit contenir exactement ${confirmed_structure.length} slides
+- Si une slide a un photo_index, le champ photo_index doit être présent dans le JSON de sortie
+- INTERDIT de décrire la photo. L'overlay écrit l'étape du récit définie par le story_beat ; le visual_anchor est une matière optionnelle (un détail à glisser dans la phrase si naturel), JAMAIS un contenu à réciter.
+
+`;
   }
+
+  let deepeningCtx = "";
+  if (deepening_answers) {
+    const answers = Object.entries(deepening_answers)
+      .filter(([, v]) => v && (v as string).trim())
+      .map(([k, v]) => `- ${k}: ${v}`)
+      .join("\n");
+    if (answers) deepeningCtx = `\nRÉPONSES DE L'UTILISATRICE (intègre son vécu et ses mots) :\n${answers}\n`;
+  }
+
+  let angleBlock = "";
+  if (editorial_angle && content_structure) {
+    angleBlock = `\nANGLE ÉDITORIAL CHOISI : ${editorial_angle}\nSTRUCTURE IMPOSÉE :\n${content_structure}\n\n${EDITORIAL_ANGLES_REFERENCE}`;
+  }
+
+  const channelBlock = isLinkedIn
+    ? `═══ ADAPTATION LINKEDIN (OBLIGATOIRE) ═══
+
+Ce carrousel photo est destiné à LinkedIn (PDF natif posté comme document), pas à Instagram. Tu DOIS adapter ton, overlays et légende :
+
+- TON : professionnel mais chaleureux, expert·e mais accessible. Vouvoiement réservé AU SEUL CTA final (le reste = JE qui réagit).
+- OVERLAYS : sobres, factuels, ancrés dans la réaction perso à l'actu / la leçon métier / le retour terrain. 0-1 emoji max par slide.
+- LÉGENDE : "vous" seulement dans le CTA, pas d'emojis décoratifs, hashtags professionnels.
+
+`
+    : "";
+
+  const nPhotos = Array.isArray(photos) ? photos.length : 0;
+  const photoCountBlock = nPhotos > 0
+    ? `Carrousel de ${nPhotos} photo(s) → cible ${nPhotos === 1 ? "4 à 6" : nPhotos === 2 ? "5 à 7" : nPhotos <= 4 ? "6 à 8" : `${nPhotos} à ${nPhotos + 2}`} slides.`
+    : "";
+
+  return `${confirmedStructureBlock}${channelBlock}Tu es l'AUTRICE qui réagit à une actualité dans un carrousel photo ${isLinkedIn ? "LinkedIn" : "Instagram"}.
+
+Ce N'EST PAS un résumé d'actu. Ce N'EST PAS un diaporama joli avec des légendes. C'est UNE PRISE DE PAROLE PERSONNELLE — incarnée dans tes photos — qui rebondit sur cette actu.
+
+══════════════════════════════════════
+MODE "RÉACTION D'AUTRICE EN PHOTOS" — RÈGLES NON NÉGOCIABLES
+══════════════════════════════════════
+
+1. VOIX = JE qui réagit
+   - L'autrice REGARDE l'actu et PARTAGE ce qu'elle en pense, ce que ça lui fait, ce qu'elle voit que les autres ne voient pas.
+   - Pas de "voilà ce qui s'est passé + 3 leçons à en tirer". Pas de "pour mieux comprendre, voici 5 points".
+   - À la place : "ce que je vois passer / ce que ça me fait / pourquoi je trouve que c'est plus profond que ce qu'on raconte / ce que ça touche dans MON terrain".
+
+2. ARC NARRATIF UNIQUE (obligatoire)
+   - Slide 1 (hook) : l'actu comme point d'entrée — un détail, une phrase, une image qui m'a frappée. PAS le résumé de l'article. L'overlay slide 1 part de l'actu, pas de la photo.
+   - Slides milieu : ce qui m'a vraiment frappée + le DÉCALAGE (là où je ne suis pas d'accord avec la lecture commune, là où je vois autre chose). C'est la pépite.
+   - Au moins UNE slide doit exploiter un FAIT PRÉCIS de l'actu (chiffre, nom, citation, date, mécanisme). Si l'actu n'en contient pas, formule honnêtement avec une tournure prudente plutôt que d'inventer.
+   - Dernière slide : ouverture — pas une leçon, une question ou un constat qui invite à la conversation.
+
+3. PHOTOS INCARNENT, NE REMPLACENT PAS
+   - Les photos sont le SUPPORT VISUEL de ta réaction, pas le sujet. Elles incarnent ce que tu dis, elles ne le remplacent pas.
+   - L'overlay raconte TA réaction à l'actu ; la photo donne corps à cette réaction. JAMAIS l'inverse (overlay qui décrit ce qu'on voit sur la photo).
+   - Une photo peut se répéter sur plusieurs slides si son rôle narratif change.
+
+4. AUDIENCE = TÉMOIN, PAS PATIENTE
+   - Le "tu/vous" est INTERDIT dans ce mode (sauf 1 fois dans le CTA final).
+   - Pas de diagnostic sur l'audience ("tu n'oses pas", "on a intériorisé que…"). Voir bloc ANTI-VICTIMISATION du system prompt.
+   - L'audience est convoquée par RICOCHET via "on" inclusif ("nous toutes qui regardons ça passer") — jamais désignée comme problème.
+
+5. INTERDIT ABSOLU — INVENTION DE FAITS
+   - Ne JAMAIS inventer un chiffre, une statistique, une citation, un nom d'entreprise/personne ou un événement absent du contexte fourni.
+   - ANTI_FABRICATED_STORYTELLING s'applique : pas de "hier en lisant ça j'ai pensé à une cliente qui m'a dit Y". Tu peux dire "je vois passer cette histoire et ce qui me frappe c'est X".
+
+6. PONT ACTU → MÉTIER (formulation obligatoire)
+   - Pas "voilà ce que cette actu dit de TON business".
+   - À la place : "voilà ce que cette actu touche dans MON terrain / dans MA pratique / dans ce que je vois passer chez les gens que j'accompagne".
+
+══════════════════════════════════════
+ACTU DÉCLENCHEUSE (rappel — détaillée dans le system prompt)
+══════════════════════════════════════
+Brief créatif personnel : "${subject || ""}"
+Cette actu est le POINT D'ENTRÉE visible (slide 1). Le reste du carrousel = TA réaction incarnée par les photos.
+
+═══ RÈGLES OVERLAY (identiques au mode photo classique) ═══
+- CHAQUE SLIDE a un overlay_text. Exception : 1 slide MAX peut avoir overlay_text: null.
+- overlay_text : 5 à 25 mots, VRAIE PHRASE COMPLÈTE (sujet + verbe conjugué + complément). Pas un titre, pas une étiquette.
+- INTERDIT : suite de groupes nominaux séparés par des points ("Bord de mer. Vue dégagée. Coup de cœur."). Test : si on retire les points, l'overlay doit se prononcer d'un seul souffle.
+- Styles : "sensoriel", "narratif", "minimal" (1 max), "technique".
+- Positions : "bottom_left", "bottom_center", "top_left", "top_center", "center".
+
+═══ COMPOSITION ═══
+${photoCountBlock}
+- Slide 1 = hook ancré sur l'actu (overlay part de l'actu, pas de la description photo).
+- Au moins 1 slide de corps exploite un fait précis de l'actu.
+- Dernière slide = ouverture/CTA en JE (pas une leçon).
+
+═══ CHAÎNAGE DES TEXTES — RÈGLE ABSOLUE ═══
+Les overlay_text doivent se lire à la suite comme UN MONOLOGUE de l'autrice qui réagit. Chaque slide REPREND, PROLONGE ou FAIT BASCULER ce que la précédente a posé.
+À partir de la slide 2, chaque overlay DOIT contenir au moins l'UN des deux :
+  (a) un connecteur narratif ("Puis", "Sauf que", "C'est là que", "Ce qui me frappe", "Ce que personne ne dit"…)
+  (b) une reprise lexicale d'un mot/groupe-clé de la slide précédente.
+
+${SLIDE_TITLE_RULES}
+
+═══ ASSIGNATION DES PHOTOS ═══
+Photos fournies dans l'ordre : photo 1, photo 2... Pour chaque slide, indique photo_index (1-based, peut se répéter).
+
+${deepeningCtx}${angleBlock}
+
+═══ VÉRIFICATION FINALE (avant de retourner le JSON) ═══
+- Slide 1 part de l'actu, pas de la description photo.
+- Au moins 1 slide de corps cite un fait précis de l'actu (ou formule honnête prudente si pas de fait exploitable).
+- Aucun chiffre/citation/nom inventé.
+- Voix JE dominante, aucun "tu/vous" hors CTA final.
+- Aucune slide ne diagnostique l'audience.
+- Test monologue : overlays lus à la suite = UNE pensée qui se déroule.
+
+${isLinkedIn ? `═══ LÉGENDE LINKEDIN (OPTIONNELLE) ═══
+Caption gérée par appel dédié. Tu peux mettre {"hook":"","body":"","cta":"","hashtags":[]} ou l'omettre.` : `═══ LÉGENDE INSTAGRAM (OBLIGATOIRE) ═══
+- 400-800 caractères, prolonge TA réaction (n'la répète pas)
+- "hook" DIFFÉRENT du texte slide 1, ancré dans TA réaction à l'actu
+- "body" : ce que les slides ne disent pas, formulé en JE
+- "cta" : invitation à la conversation (1 seule)
+- 5-10 hashtags pertinents au sujet de l'actu`}
+
+⚠️ Les valeurs ci-dessous montrent la STRUCTURE JSON, PAS le ton. Tout doit être 100% ancré dans l'actu réelle et la voix JE.
+
+RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
+{
+  "carousel_type": "photo",
+  "chosen_angle": { "title": "Titre court de l'angle (3-5 mots)", "description": "Quel décalage je propose face à cette actu" },
+  "slides": [
+    {
+      "slide_number": 1,
+      "role": "hook_actu",
+      "photo_index": 1,
+      "photo_description": "Description de ce que montre la photo",
+      "overlay_text": "Phrase qui part de l'actu, pas de la photo (5-25 mots)",
+      "overlay_position": "bottom_left",
+      "overlay_style": "sensoriel",
+      "note": "Note de direction artistique"
+    }
+  ],
+  "caption": {
+    "hook": "Accroche personnelle différente du texte slide 1 (125 car max)",
+    "body": "Corps en JE, prolonge la réaction",
+    "cta": "Invitation à la conversation (1 seule)",
+    "hashtags": ["hashtag1", "hashtag2"]
+  },
+  "quality_check": {
+    "slides_with_text": 5,
+    "slides_without_text": 1,
+    "max_overlay_words": 20,
+    "hook_starts_from_news": true,
+    "at_least_one_news_fact_cited": true,
+    "no_fabricated_fact": true,
+    "je_voice_dominant": true,
+    "tu_vous_count_outside_cta": 0,
+    "audience_as_victim": false,
+    "fabricated_scene_detected": false,
+    "text_chain_continuity": true,
+    "every_overlay_has_verb": true,
+    "no_nominal_fragment_lists": true,
+    "score": 85
+  }
+}`;
 }`;
 }
 
