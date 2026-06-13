@@ -220,6 +220,7 @@ export default function AdaptiveHome() {
 
   // Ideas count
   const workspaceId = activeWorkspace?.id ?? null;
+  const wsFilter = useWorkspaceFilter();
   const { data: ideaCount = 0 } = useQuery<number>({
     queryKey: ["adaptive-home-ideas-count", user?.id, workspaceId],
     queryFn: async () => {
@@ -235,6 +236,113 @@ export default function AdaptiveHome() {
     enabled: !!user,
     staleTime: 2 * 60 * 1000,
   });
+
+  // Upcoming posts (next 2)
+  type UpcomingPost = { date: string; theme: string | null; format: string | null; canal: string | null };
+  const { data: upcomingPosts = [], isLoading: upcomingLoading } = useQuery<UpcomingPost[]>({
+    queryKey: ["adaptive-home-upcoming-posts", wsFilter.column, wsFilter.value],
+    queryFn: async () => {
+      try {
+        const todayStr = toLocalDateStr(new Date());
+        const { data, error } = await supabase
+          .from("calendar_posts")
+          .select("date, theme, format, canal, status")
+          .eq(wsFilter.column, wsFilter.value)
+          .gte("date", todayStr)
+          .neq("status", "idea")
+          .order("date", { ascending: true })
+          .limit(2);
+        if (error) return [];
+        return (data ?? []) as UpcomingPost[];
+      } catch {
+        return [];
+      }
+    },
+    enabled: !!wsFilter.value,
+    staleTime: 2 * 60 * 1000,
+  });
+
+  // Latest saved idea
+  type LatestIdea = { title: string | null; content: string | null; created_at: string };
+  const { data: latestIdea = null } = useQuery<LatestIdea | null>({
+    queryKey: ["adaptive-home-latest-idea", wsFilter.column, wsFilter.value],
+    queryFn: async () => {
+      try {
+        const { data, error } = await supabase
+          .from("saved_ideas")
+          .select("title, content, created_at")
+          .eq(wsFilter.column, wsFilter.value)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (error) return null;
+        return (data as LatestIdea | null) ?? null;
+      } catch {
+        return null;
+      }
+    },
+    enabled: !!wsFilter.value,
+    staleTime: 2 * 60 * 1000,
+  });
+
+  // Branding completion percent
+  const { data: brandingPercent = 0 } = useQuery<number>({
+    queryKey: ["adaptive-home-branding-completion", wsFilter.column, wsFilter.value],
+    queryFn: async () => {
+      try {
+        const r = await getBrandingCompletion({ column: wsFilter.column, value: wsFilter.value });
+        return r?.percent ?? 0;
+      } catch {
+        return 0;
+      }
+    },
+    enabled: !!wsFilter.value,
+    staleTime: 2 * 60 * 1000,
+  });
+
+  // Latest audit (most recent between instagram_audit and website_audit)
+  type LatestAudit = { score_global: number; created_at: string; type: "Instagram" | "Site" } | null;
+  const { data: latestAudit = null } = useQuery<LatestAudit>({
+    queryKey: ["adaptive-home-latest-audit", wsFilter.column, wsFilter.value],
+    queryFn: async (): Promise<LatestAudit> => {
+      try {
+        const [ig, web] = await Promise.all([
+          supabase
+            .from("instagram_audit")
+            .select("score_global, created_at")
+            .eq(wsFilter.column, wsFilter.value)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+          supabase
+            .from("website_audit")
+            .select("score_global, created_at")
+            .eq(wsFilter.column, wsFilter.value)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+        ]);
+        const igRow = ig.data as { score_global: number | null; created_at: string } | null;
+        const webRow = web.data as { score_global: number | null; created_at: string } | null;
+        const candidates: LatestAudit[] = [];
+        if (igRow && igRow.score_global != null) {
+          candidates.push({ score_global: igRow.score_global, created_at: igRow.created_at, type: "Instagram" });
+        }
+        if (webRow && webRow.score_global != null) {
+          candidates.push({ score_global: webRow.score_global, created_at: webRow.created_at, type: "Site" });
+        }
+        if (candidates.length === 0) return null;
+        candidates.sort((a, b) => new Date(b!.created_at).getTime() - new Date(a!.created_at).getTime());
+        return candidates[0];
+      } catch {
+        return null;
+      }
+    },
+    enabled: !!wsFilter.value,
+    staleTime: 2 * 60 * 1000,
+  });
+
+
 
   const queryClient = useQueryClient();
   const location = useLocation();
