@@ -634,8 +634,6 @@ export default function CreerUnifie() {
     if (subject && subject.trim()) {
       setIdeaText(subject.trim());
     }
-    setNewsjackingContext(null);
-    setNewsjackingSuggestedFormat(null);
     setSelectedFormat(null);
     setEditorialAngle(null);
     setCarouselSubMode(null);
