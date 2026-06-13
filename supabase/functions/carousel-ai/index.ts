@@ -1528,7 +1528,7 @@ Retourne ce JSON exact :
 }`;
 }
 
-function buildPhotoCarouselPrompt(body: any): string {
+function buildPhotoCarouselPrompt(body: any, isLinkedIn: boolean = false): string {
   const { editorial_angle, content_structure, deepening_answers, confirmed_structure, narrative_thread } = body;
 
   // ── STRUCTURE IMPOSÉE (si confirmée par l'utilisateur·ice) ──
