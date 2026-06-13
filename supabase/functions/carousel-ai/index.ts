@@ -390,9 +390,14 @@ ${photo_description ? `Description complémentaire des photos : "${photo_descrip
       }
 
       const hasNewsContextForStructure = typeof newsContext === "string" && newsContext.trim().length > 0;
-      const structureNewsContextBlock = hasNewsContextForStructure ? newsContextBlock : "";
+      // Bloc condensé spécifique à structure_proposal : on ne réutilise PAS newsContextBlock
+      // (trop lourd, orienté rédaction finale avec ANTI_FABRICATED_STORYTELLING etc.).
+      // Ici on veut juste informer l'architecture narrative.
+      const structureNewsContextBlock = hasNewsContextForStructure
+        ? `\n\n══════════════════════════════════════\nCONTEXTE ACTUALITÉ (NEWSJACKING)\n══════════════════════════════════════\n${(newsContext as string).trim()}\n`
+        : "";
       const structureNewsConsigne = hasNewsContextForStructure
-        ? `\n\nCONSIGNE STRUCTURE — NEWSJACKING ACTIF :\n- La slide 1 (hook) DOIT partir de l'actualité ci-dessus.\n- Au moins une slide de corps doit exploiter un fait précis de l'actu (chiffre, nom, citation, mécanisme).\n- Les photos illustrent et incarnent ce propos ; elles ne le remplacent pas.\n`
+        ? `\nCONSIGNE STRUCTURE — NEWSJACKING ACTIF :\n- La slide 1 (hook) DOIT partir de l'actualité ci-dessus, pas d'une description des photos.\n- Au moins une slide de corps doit exploiter un fait précis de l'actu (chiffre, nom, citation, mécanisme évoqué).\n- Les photos illustrent et incarnent ce propos ; elles ne le remplacent pas.\n- Pense "article + photos", pas "photos seules".\n`
         : "";
 
       const structureSystemPrompt = `${BASE_SYSTEM_RULES}
