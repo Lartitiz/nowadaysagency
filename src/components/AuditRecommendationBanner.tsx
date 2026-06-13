@@ -1,15 +1,21 @@
 import { useState, useEffect } from "react";
 import { X, Lightbulb } from "lucide-react";
 
+const TTL_MS = 30 * 60 * 1000; // 30 min
+
 export default function AuditRecommendationBanner() {
   const [recommendation, setRecommendation] = useState<{ module: string; conseil: string } | null>(null);
 
   useEffect(() => {
     try {
       const stored = sessionStorage.getItem("audit_recommendation");
-      if (stored) {
-        setRecommendation(JSON.parse(stored));
+      if (!stored) return;
+      const parsed = JSON.parse(stored) as { module: string; conseil: string; ts?: number };
+      if (!parsed.ts || Date.now() - parsed.ts > TTL_MS) {
+        sessionStorage.removeItem("audit_recommendation");
+        return;
       }
+      setRecommendation({ module: parsed.module, conseil: parsed.conseil });
     } catch { /* ignore */ }
   }, []);
 

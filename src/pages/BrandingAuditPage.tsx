@@ -537,7 +537,7 @@ function AuditResults({ result, previousAudit, expandedPillar, setExpandedPillar
 
   const navigateWithContext = (route: string, conseil?: string, module?: string) => {
     if (conseil && module) {
-      sessionStorage.setItem("audit_recommendation", JSON.stringify({ module, conseil }));
+      sessionStorage.setItem("audit_recommendation", JSON.stringify({ module, conseil, ts: Date.now() }));
     }
     navigate(route);
   };
