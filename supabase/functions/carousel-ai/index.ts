@@ -1662,14 +1662,20 @@ Quand une même photo se répète sur 2-3 slides consécutives, les textes DOIVE
 - "emotion" : photo émotionnelle + phrase qui amplifie
 - "cta_visuel" : dernière slide, invitation douce
 
-═══ LÉGENDE ═══
+${isLinkedIn ? `═══ LÉGENDE LINKEDIN (OPTIONNELLE) ═══
+- Légende optionnelle : si tu la rédiges, qu'elle apporte une vraie valeur (contexte métier, leçon, retour terrain) ; sinon laisse les champs vides (elle sera générée par un appel dédié).
+- Ton "vous" professionnel et chaleureux, pas d'emojis décoratifs (fleurs, cœurs).
+- Hook : phrase d'accroche DIFFÉRENTE du texte de la slide 1.
+- Body : ce que les photos ne montrent pas (mécanisme, chiffre, leçon, contexte marché).
+- CTA pro : "Votre avis en commentaire ?", "Partagez si cela résonne", "Quelle est votre expérience ?". JAMAIS "Sauvegarde", "DM moi", "Tag une copine".
+- Hashtags : 0-5 hashtags PROFESSIONNELS (secteur, métier, thématique pro). PAS de hashtags lifestyle Instagram.` : `═══ LÉGENDE ═══
 - 400-800 caractères
 - La légende PROLONGE l'histoire des slides, elle ne la répète pas
 - Hook : phrase d'accroche DIFFÉRENTE du texte de la slide 1
 - Body : ce que les photos ne montrent pas (l'envers du décor, l'émotion, le pourquoi)
 - Ton sensoriel : faire ressentir les textures, les lumières, les ambiances
 - CTA : invitation à la conversation ("Et toi, tu as déjà ressenti ça ?")
-- 5-10 hashtags pertinents
+- 5-10 hashtags pertinents`}
 ${deepeningCtx}${angleBlock}
 
 RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
