@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 
 const STORAGE_KEY = "creer_flow_state";
+const PHOTOS_KEY = "creer_flow_photos";
 
 interface FlowState {
   step: string;
@@ -19,6 +20,8 @@ interface FlowState {
   inspirationImagePreview: string | null;
   demoScenario?: string | null;
   editingIdeaId?: string | null;
+  carouselSubMode?: "text" | "photo" | "mix" | "pure_photo" | null;
+  photoDescription?: string;
   ts: number;
 }
 
@@ -74,6 +77,41 @@ export function clearFlowState() {
   try {
     sessionStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(STORAGE_KEY + "_backup");
+  } catch {}
+  clearPhotos();
+}
+
+export function savePhotos(photos: any[]) {
+  try {
+    const payload = (photos || []).slice(0, 10).map((p) => ({
+      base64: p.base64,
+      mimeType: p.mimeType,
+      context: p.context,
+    }));
+    sessionStorage.setItem(PHOTOS_KEY, JSON.stringify({ photos: payload, ts: Date.now() }));
+  } catch (e) {
+    console.warn("[use-flow-persistence] savePhotos failed (storage quota?)", e);
+  }
+}
+
+export function loadPhotos(): any[] {
+  try {
+    const raw = sessionStorage.getItem(PHOTOS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (parsed?.ts && Date.now() - parsed.ts > MAX_AGE_MS) {
+      sessionStorage.removeItem(PHOTOS_KEY);
+      return [];
+    }
+    return Array.isArray(parsed?.photos) ? parsed.photos : [];
+  } catch {
+    return [];
+  }
+}
+
+export function clearPhotos() {
+  try {
+    sessionStorage.removeItem(PHOTOS_KEY);
   } catch {}
 }
 
