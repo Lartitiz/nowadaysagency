@@ -8,7 +8,7 @@ interface Slide {
 }
 
 interface CarouselSliderProps {
-  slides: Slide[];
+  slides?: Slide[];
   mediaUrls?: string[];
 }
 
@@ -16,8 +16,10 @@ export function CarouselSlider({ slides, mediaUrls }: CarouselSliderProps) {
   const [current, setCurrent] = useState(0);
   const touchStart = useRef<number | null>(null);
 
+  const total = Math.max(slides?.length || 0, mediaUrls?.length || 0);
+
   const prev = useCallback(() => setCurrent(i => Math.max(0, i - 1)), []);
-  const next = useCallback(() => setCurrent(i => Math.min(slides.length - 1, i + 1)), [slides.length]);
+  const next = useCallback(() => setCurrent(i => Math.min(total - 1, i + 1)), [total]);
 
   const onTouchStart = (e: React.TouchEvent) => { touchStart.current = e.touches[0].clientX; };
   const onTouchEnd = (e: React.TouchEvent) => {
@@ -27,7 +29,7 @@ export function CarouselSlider({ slides, mediaUrls }: CarouselSliderProps) {
     touchStart.current = null;
   };
 
-  const slide = slides[current];
+  const slide = slides?.[current];
 
   return (
     <div
@@ -37,7 +39,7 @@ export function CarouselSlider({ slides, mediaUrls }: CarouselSliderProps) {
     >
       {/* Counter */}
       <span className="absolute top-3 right-3 z-10 text-[10px] font-semibold bg-black/50 text-white px-2 py-0.5 rounded-full">
-        {current + 1}/{slides.length}
+        {current + 1}/{total}
       </span>
 
       {/* Arrows */}
@@ -46,7 +48,7 @@ export function CarouselSlider({ slides, mediaUrls }: CarouselSliderProps) {
           <ChevronLeft className="h-4 w-4 text-gray-700" />
         </button>
       )}
-      {current < slides.length - 1 && (
+      {current < total - 1 && (
         <button onClick={next} aria-label="Slide suivante" className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-white/80 flex items-center justify-center shadow-sm hover:bg-white transition-colors">
           <ChevronRight className="h-4 w-4 text-gray-700" />
         </button>
@@ -68,7 +70,7 @@ export function CarouselSlider({ slides, mediaUrls }: CarouselSliderProps) {
 
       {/* Dots */}
       <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1">
-        {slides.map((_, i) => (
+        {Array.from({ length: total }).map((_, i) => (
           <button
             key={i}
             onClick={() => setCurrent(i)}
