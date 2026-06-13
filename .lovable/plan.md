@@ -1,42 +1,49 @@
 ## Contexte métier
 
-À l'étape "structure" d'un carrousel (avant les slides), si l'utilisatrice est à court de crédits, carousel-ai renvoie un 429 SANS l'objet `quota` complet. Le QuotaWallModal s'ouvre alors sans le bilan détaillé du mois — alors que l'étape "slides" (carousel-visual), elle, l'a déjà (corrigé précédemment). Incohérence d'expérience entre les deux étapes du même flow carrousel.
+Depuis le fix du retour silencieux à "format", useFormPersist ne touche plus au step. Il ne fait plus que persister/restaurer 5 champs (ideaText, objective, selectedFormat, editorialAngle, answers) déjà entièrement couverts par use-flow-persistence (creer_flow_state). C'est une seconde source de vérité redondante.
 
-Objectif : carousel-ai renvoie le même format que carousel-visual, avec l'objet quota.
+Objectif : un seul système de persistance du flow (use-flow-persistence), zéro régression.
+
+## Vérification préalable
+
+`rg "useFormPersist" src/` confirme que le hook n'est consommé QUE par `src/pages/CreerUnifie.tsx`. Le fichier `src/hooks/use-form-persist.ts` n'est référencé nulle part ailleurs.
 
 ## Fichiers impactés
 
-- supabase/functions/carousel-ai/index.ts (UNIQUEMENT — le bloc de réponse 429 quota)
+- `src/pages/CreerUnifie.tsx` (modifications)
+- `src/hooks/use-form-persist.ts` (suppression — plus aucun consommateur)
 
 ## Comportement attendu
 
-1. Localiser le bloc `if (!quotaCheck.allowed)` (~ligne 104) qui renvoie actuellement :
-  `{ error: "limit_reached", message: quotaCheck.message, remaining: 0, category: quotaCheck.reason }`
-2. Le remplacer pour inclure l'objet quota complet, en conservant la sentinelle :
-  `{ error: "limit_reached", message: quotaCheck.message, quota: quotaCheck }`
-   (handleQuotaError lit `quota.reason` et `quota.usage` pour alimenter le modal ;
-   l'ancien `remaining`/`category` était redondant et incomplet.)
-3. Vérifier que la variable de retour de checkQuota dans cette fonction s'appelle bien `quotaCheck` (sinon adapter le nom). NE PAS renommer la variable.
+1. **Retirer l'import** ligne 50 : `import { useFormPersist } from "@/hooks/use-form-persist";`
+
+2. **Retirer l'appel du hook** (lignes 197-212) : tout le bloc `const { restored: draftRestored, clearDraft } = useFormPersist(...)`. `draftRestored` n'est lu nulle part, suppression sans impact.
+
+3. **useEffect "fresh start"** (ligne 219) : retirer `clearDraft();` et ajouter à la place `sessionStorage.removeItem("form_draft_creer-unifie-form");` pour purger d'éventuels résidus d'anciennes sessions. `clearFlowState()` ligne 218 reste.
+
+4. **Reset complet** (ligne 1518) : retirer `clearDraft();`. `clearFlowState()` ligne 1517 couvre déjà tout. Pas besoin d'ajouter la purge sessionStorage ici (déjà fait au mount par le useEffect "fresh start" la prochaine fois).
+
+5. **Supprimer `src/hooks/use-form-persist.ts`** : plus aucun consommateur.
 
 ## Ce qui NE DOIT PAS bouger
 
-- La logique de checkQuota elle-même, le calcul de `category` (suggestion vs content) : NE PAS TOUCHER.
-- Tout le reste de carousel-ai (génération structure, slides texte, getUserContext, contexte branding, series) : NE PAS TOUCHER.
-- Le status HTTP reste 429.
-- carousel-visual : déjà corrigé, NE PAS TOUCHER.
-- Aucun changement front nécessaire (handleQuotaError + use-content-generator gèrent déjà `error === "limit_reached"` et lisent `data.quota`).
+- `use-flow-persistence.ts` (saveFlowState / loadFlowState / clearFlowState).
+- `safeStep` et la logique de restauration du step.
+- Le useEffect saveFlowState (~ligne 368).
+- Tous les autres `clearFlowState()`.
+- Aucun autre comportement du flow.
 
 ## Critères de validation
 
-1. `npx tsc --noEmit --skipLibCheck` passe sans erreur (côté repo front, inchangé).
-2. Test manuel (compte à 0 crédit) : lancer une génération de carrousel photo/mix (qui passe par l'étape structure) → le QuotaWallModal s'ouvre AVEC le bilan du mois.
-3. Test manuel régression : avec crédits dispo, la proposition de structure fonctionne normalement.
+1. `npx tsc --noEmit --skipLibCheck` passe (pas d'import/variable orphelin).
+2. Flow complet carrousel de bout en bout → aucune régression, step restauré après F5 (via safeStep).
+3. Clic frais "Créer" sans contexte → démarre sur "idea", state vierge, ancienne clé `form_draft_creer-unifie-form` purgée.
+4. Reset/recommencer → state nettoyé.
 
-## Proposition d'améliorations (optionnel)
+## Proposition d'améliorations (signalée, non implémentée)
 
-Si d'autres `status: 429` (rate-limit Anthropic, overload 529) qui mériteraient un typage cohérent sont repérés dans carousel-ai, ils seront signalés sans être implémentés. ok
+Aucune autre page n'utilise useFormPersist — la consolidation est totale avec ce plan.
 
-## Hors scope (plans séparés à venir)
+## Hors scope
 
-- Harmonisation des ~10 autres edge functions à 429 artisanal.
-- Suppression de useFormPersist.
+- Harmonisation des 429 des autres edge functions.
