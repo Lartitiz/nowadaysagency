@@ -1,125 +1,84 @@
-## Contexte métier
+# Plan — Scoper les clés de persistance par utilisateur
 
-Quand une utilisatrice uploade ses photos pour un carrousel "photo" / "mix" puis change d'onglet, le retour provoque un remount : les photos (en state React mémoire uniquement) sont perdues, le step est rétrogradé à "format" via `safeStep`, et elle doit tout recommencer. Le hook `use-flow-persistence` ne connaît pas les champs photo.
+## (a) Demandé
 
-Objectif : retrouver photos, carouselSubMode et photoDescription au retour d'onglet.
+### 1. `src/components/ProtectedRoute.tsx`
 
-## (a) Demandé — Implémentation
+- Remplacer la clé `onboarding_checked` par une clé scopée `onboarding_checked:{user.id}`.
+- Init des `useState` :
+  - `checkingOnboarding` : init à `true` par défaut (on ne lit plus le storage à l'init, car `user.id` n'est pas garanti dispo synchroniquement). Cohérent avec « si user pas résolu → checking = true ».
+  - `needsOnboarding` : init à `false`.
+- Dans le `useEffect` (déjà déclenché par `user?.id`) :
+  - Si `user?.id`, lire d'abord `sessionStorage.getItem(\`onboarding_checked:${user.id})` :
+    - `"done"` → `setNeedsOnboarding(false)` ; `setCheckingOnboarding(false)` ; pas de fetch DB.
+    - `"needs"` → `setNeedsOnboarding(true)` ; `setCheckingOnboarding(false)` ; pas de fetch.
+    - sinon → fetch DB existant, puis `sessionStorage.setItem(\`onboarding_checked:${user.id}, done ? "done" : "needs")`.
+  - Branche démo : écrire `onboarding_checked:demo` (au lieu de la clé globale) pour préserver le shortcut sans pollution cross-compte.
+- Ne pas toucher la logique démo / `DEMO_READY_ROUTES` / feature flags / redirections.
+- Mettre à jour `src/lib/storage-cleanup.ts` (cf. §3) pour balayer le nouveau pattern.
 
-### Fichier 1 : `src/hooks/use-flow-persistence.ts`
+### 2. `src/hooks/use-flow-persistence.ts`
 
-1. Étendre l'interface `FlowState` avec deux champs légers :
-   - `carouselSubMode?: "text" | "photo" | "mix" | "pure_photo" | null`
-   - `photoDescription?: string`
+- Backup localStorage : clé devient `creer_flow_state_backup:{userId}`.
+- Mécanisme userId : voir §(b) ci-dessous — proposition « registre module » (`setFlowUserId` / `getFlowUserId`). À valider avant exec.
+- `saveFlowState` :
+  - Si `userId` connu et `step !== "idea"` → écrire dans `creer_flow_state_backup:{userId}`.
+  - Si `userId` inconnu → ne PAS écrire de backup (la sessionStorage reste, ça suffit pour le tab actif).
+  - **Nouveau** : si `state.step === "idea"` (étape de départ) → supprimer le backup `creer_flow_state_backup:{userId}` (corrige le résidu actuel).
+- `loadFlowState` :
+  - sessionStorage `creer_flow_state` : inchangé (cf. §3 ci-dessous).
+  - Fallback backup : lire `creer_flow_state_backup:{userId}` uniquement si `userId` est connu. Si inconnu → renvoyer `null` sur le fallback (pas de réhydratation aveugle).
+- `clearFlowState` :
+  - sessionStorage `creer_flow_state` : `removeItem` inchangé.
+  - localStorage : `removeItem(\`creer_flow_state_backup:${userId})`si`userId`connu ; sinon balayer toutes les clés`localStorage`préfixées par`creer_flow_state_backup`(filet de sécurité côté hook, indépendant de`storage-cleanup`).
+- TTL 2h (`MAX_AGE_MS`) : inchangé.
 
-2. Ajouter trois nouvelles fonctions exportées pour les photos (clé séparée `creer_flow_photos`) :
+### 3. `src/lib/storage-cleanup.ts`
 
-```ts
-const PHOTOS_KEY = "creer_flow_photos";
+- Retirer `"creer_flow_state_backup"` de `LOCAL_KEYS` (clé non scopée → n'existe plus).
+- Ajouter un balayage : `Object.keys(localStorage).filter(k => k.startsWith("creer_flow_state_backup")).forEach(localStorage.removeItem)`.
+- Idem côté session pour `onboarding_checked` : retirer la clé fixe et balayer les clés `onboarding_checked` + `onboarding_checked:*`.
 
-export function savePhotos(photos: any[]) {
-  try {
-    const payload = (photos || []).slice(0, 10).map(p => ({
-      base64: p.base64, mimeType: p.mimeType, context: p.context,
-    }));
-    sessionStorage.setItem(PHOTOS_KEY, JSON.stringify({ photos: payload, ts: Date.now() }));
-  } catch (e) {
-    console.warn("[use-flow-persistence] savePhotos failed (storage quota?)", e);
-  }
-}
+### Confirmation sur `creer_flow_state` (sessionStorage, non backup)
 
-export function loadPhotos(): any[] {
-  try {
-    const raw = sessionStorage.getItem(PHOTOS_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (parsed?.ts && Date.now() - parsed.ts > MAX_AGE_MS) {
-      sessionStorage.removeItem(PHOTOS_KEY);
-      return [];
-    }
-    return Array.isArray(parsed?.photos) ? parsed.photos : [];
-  } catch { return []; }
-}
+**Pas de risque résiduel identifié, donc on ne scope pas** :
 
-export function clearPhotos() {
-  try { sessionStorage.removeItem(PHOTOS_KEY); } catch {}
-}
-```
+- sessionStorage est isolée par onglet.
+- La clé est purgée :
+  - au logout via `clearAppStorage()` (avant `supabase.auth.signOut`),
+  - au switch de compte via `clearFlowState()` dans `use-account-switcher` (ligne 71),
+  - au retour à l'étape "idea" via le `useEffect` de reset (`CreerUnifie.tsx` L209).
+- Si on scope aussi backup → aucun chemin par lequel un état du compte précédent puisse être réhydraté chez le compte suivant.
 
-3. Étendre `clearFlowState()` pour appeler `clearPhotos()` (un seul reset = nettoyage total).
+## (b) Proposition d'implémentation — userId dans `use-flow-persistence`
 
-### Fichier 2 : `src/pages/CreerUnifie.tsx`
+Trois options envisagées, **je recommande l'option C**, à valider :
 
-1. **Import** : ajouter `savePhotos, loadPhotos, clearPhotos` à l'import existant ligne 48.
+- **Option A — Passer `userId` en argument** à `saveFlowState/loadFlowState/clearFlowState`.
+  - Robuste, explicite. Inconvénient : touche `CreerUnifie.tsx` (≈6 call sites), `Dashboard.tsx`, `AdaptiveHome.tsx`, `use-account-switcher.ts`. Beaucoup de surface modifiée.
+- **Option B — Parsing synchrone du token Supabase** dans `localStorage` (`sb-<ref>-auth-token` → `user.id`).
+  - Aucune dépendance applicative à câbler. Inconvénient : fragile (format interne Supabase, peut changer), et lit le token à chaque call.
+- **Option C (recommandée) — Registre module simple** : ok
+  - Ajouter dans `use-flow-persistence.ts` :
+    ```ts
+    let currentFlowUserId: string | null = null;
+    export function setFlowUserId(id: string | null) { currentFlowUserId = id; }
+    function getFlowUserId(): string | null { return currentFlowUserId; }
+    ```
+  - Câbler une seule fois dans `AuthContext.tsx` : dans le `useEffect` qui écoute `onAuthStateChange` + `getSession`, appeler `setFlowUserId(session?.user?.id ?? null)`.
+  - Avantages : 1 seul point de câblage, synchrone, pas de parsing fragile, callers inchangés. Inconvénient : couplage léger Auth → persistance (acceptable, c'est exactement le besoin).
+  - Garde-fou : si `getFlowUserId() === null` au moment d'un save/load, on dégrade proprement (pas de backup, pas de fallback localStorage) plutôt que d'écrire une clé non scopée.
 
-2. **Initialisation des states photo** (lignes 162-173) — lire depuis la persistance :
-   - `carouselSubMode` : initialiser depuis `ps?.carouselSubMode ?? null`
-   - `uploadedPhotos` : initialiser depuis `shouldRestore ? loadPhotos() : []`
-   - `generatedWithPhotos` : idem (snapshot identique au mount)
-   - `photoDescription` : initialiser depuis `ps?.photoDescription ?? ""`
+## Validation
 
-3. **safeStep** (ligne 136-145) — fix critique : ne pas rétrograder à "format" si on revient du retour d'onglet sur un step contenant des photos. Adapter :
-   ```ts
-   const safeStep = (() => {
-     if (!ps?.step) return "idea";
-     if (ps.step === "result" && ps.result) return "result";
-     if (ps.step === "edit" && ps.editContent) return "edit";
-     // Si flow photo/mix avec photos retrouvées, garder le step en cours (questions, structure_review)
-     if (["questions", "structure_review", "inspiration_proposals"].includes(ps.step)) {
-       const isPhotoFlow = ps.carouselSubMode === "photo" || ps.carouselSubMode === "mix" || ps.carouselSubMode === "pure_photo";
-       if (isPhotoFlow && loadPhotos().length > 0) return ps.step as Step;
-       return ps.selectedFormat ? "format" : "idea";
-     }
-     if (["result", "edit"].includes(ps.step)) {
-       return ps.selectedFormat ? "format" : "idea";
-     }
-     return ps.step as Step;
-   })();
-   ```
+- `npx tsc --noEmit --skipLibCheck` → 0 erreur.
+- Compte A onboardé → logout → compte B neuf se connecte → `/onboarding` (pas de flash "done").
+- Refresh sur même compte au milieu du flow → état restauré.
+- Switch via `use-account-switcher` → aucune réhydratation cross-compte (sessionStorage purgée + backup scopé).
+- Retour à l'étape "idea" → la clé `creer_flow_state_backup:{userId}` est bien supprimée (DevTools → Application → localStorage).
 
-4. **saveFlowState effect** (lignes 351-373) — ajouter `carouselSubMode` et `photoDescription` au payload et aux deps de l'effet.
+## Décisions à valider avant exec
 
-5. **Persistance des photos** — étendre l'effet existant (lignes 536-540) :
-   ```ts
-   useEffect(() => {
-     if (uploadedPhotos.length > 0) {
-       setGeneratedWithPhotos((prev) => (prev.length === uploadedPhotos.length ? prev : uploadedPhotos));
-       if (carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo") {
-         savePhotos(uploadedPhotos);
-       }
-     }
-   }, [uploadedPhotos, carouselSubMode]);
-   ```
-
-6. **Reset** — `clearFlowState()` appelle déjà `clearPhotos()` (via étape 3 du fichier 1), donc tous les sites de reset existants (~ligne 1502, ~1771, ~2049, useEffect "fresh start" ~ligne 203) sont couverts automatiquement. Aucune modif supplémentaire.
-
-## Ce qui NE DOIT PAS bouger
-
-- `handleGenerateVisuals` (logique snapshot/dialog/downgrade explicite) : intact.
-- Pattern quota (checkQuota / logUsage) : intact.
-- Mapping slides (photo_full / photo_integrated / text_only) : intact.
-- Edge Functions (carousel-ai, carousel-visual) : intact (bug 100% frontend).
-- Autres formats (reels, stories, posts, LinkedIn, Pinterest, newsletter) : intact.
-- Mode démo Auriana : intact.
-- Champs existants de `FlowState` : ne rien retirer.
-
-## Critères de validation
-
-1. `npx tsc --noEmit --skipLibCheck` passe.
-2. Test manuel : carrousel "mix", upload 3 photos + sujet, avancer jusqu'à "questions", changer d'onglet 10s, revenir → 3 photos toujours là, `carouselSubMode` = "mix", step préservé.
-3. Test manuel : "nouvelle création" → photos effacées (clé `creer_flow_photos` purgée).
-4. Test poids : 10 grosses photos → au pire un `console.warn` "savePhotos failed", aucune erreur bloquante (les autres clés de persistance restent valides grâce à la séparation).
-
-## (b) Propositions d'amélioration (signalées, non implémentées)
-
-1. **IndexedDB pour les photos** : sessionStorage plafonne à ~5-10 MB selon le navigateur. 10 photos base64 (~3 MB chacune compressées en JPEG) = risque de quota dépassé en mode "warn silencieux". IndexedDB (via idb-keyval, ~600 octets ajoutés) permettrait 50 MB+ sans risque. Migration low-risk car l'API photo serait isolée derrière `savePhotos/loadPhotos`.
-
-2. **Compression amont** : avant `setUploadedPhotos`, passer chaque photo dans un `canvas` 1080px max + quality 0.8 avant base64. Diviserait le poids par 3–5 et résoudrait le problème sans changer le storage backend. Plus simple qu'IndexedDB.
-
-3. **Persistance unifiée des photos pour `photoMode`** (post photo hors carrousel) : même bug latent, déclaré hors scope par toi mais la mécanique `savePhotos/loadPhotos` serait réutilisable directement.
-
-## Hors scope (plans séparés à venir)
-
-- Persistance des photos pour `photoMode` hors carrousel.
-- Bug "Sauvegarder en idée" qui ne persiste que les carrousels.
-- Migration IndexedDB systématique.
+1. **Option C** pour le userId dans `use-flow-persistence` (vs A ou B) ?
+2. Pour la démo, scoper `onboarding_checked:demo` (et non plus la clé globale) — OK ?
+3. Balayage `startsWith("creer_flow_state_backup")` dans `clearAppStorage` plutôt que liste exhaustive — OK ?
