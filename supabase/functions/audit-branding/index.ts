@@ -6,6 +6,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { validateInput, ValidationError, AuditBrandingSchema } from "../_shared/input-validators.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildIdentityBlock } from "../_shared/user-context.ts";
+import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
 function htmlToText(html: string): string {
   return html
@@ -115,6 +116,15 @@ Deno.serve(async (req) => {
 
     const body = validateInput(await req.json(), AuditBrandingSchema);
     const { site_url, instagram_username, linkedin_url, document_text, free_text, workspace_id, social_links } = body;
+
+    const sbGuard = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const membership = await assertWorkspaceMembership(sbGuard, user.id, workspace_id);
+    if (!membership.ok) {
+      console.warn("[workspace-guard] denied", { userId: user.id, workspaceId: workspace_id });
+      return workspaceDeniedResponse(corsHeaders);
+    }
+
+
 
     // Workspace-aware filtering
     const filterCol = workspace_id ? "workspace_id" : "user_id";
