@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { posthog } from "@/lib/posthog";
 import { clearAppStorage } from "@/lib/storage-cleanup";
+import { setFlowUserId } from "@/hooks/use-flow-persistence";
 
 interface AuthContextType {
   user: User | null;
@@ -222,6 +223,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
   }, []);
+
+  // Keep the flow-persistence registry in sync with the current user.
+  // Scoped backup keys (creer_flow_state_backup:{userId}) require this.
+  useEffect(() => {
+    setFlowUserId(user?.id && user.id !== "demo-user" ? user.id : null);
+  }, [user?.id]);
 
   // Fetch admin role when user changes
   useEffect(() => {
