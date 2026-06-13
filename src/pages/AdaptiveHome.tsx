@@ -244,7 +244,7 @@ export default function AdaptiveHome() {
     queryFn: async () => {
       try {
         const todayStr = toLocalDateStr(new Date());
-        const { data, error } = await supabase
+        const { data, error } = await (supabase as any)
           .from("calendar_posts")
           .select("date, theme, format, canal, status")
           .eq(wsFilter.column, wsFilter.value)
@@ -263,14 +263,14 @@ export default function AdaptiveHome() {
   });
 
   // Latest saved idea
-  type LatestIdea = { title: string | null; content: string | null; created_at: string };
+  type LatestIdea = { titre: string | null; accroche_short: string | null; content_draft: string | null; created_at: string };
   const { data: latestIdea = null } = useQuery<LatestIdea | null>({
     queryKey: ["adaptive-home-latest-idea", wsFilter.column, wsFilter.value],
     queryFn: async () => {
       try {
-        const { data, error } = await supabase
+        const { data, error } = await (supabase as any)
           .from("saved_ideas")
-          .select("title, content, created_at")
+          .select("titre, accroche_short, content_draft, created_at")
           .eq(wsFilter.column, wsFilter.value)
           .order("created_at", { ascending: false })
           .limit(1)
@@ -307,14 +307,14 @@ export default function AdaptiveHome() {
     queryFn: async (): Promise<LatestAudit> => {
       try {
         const [ig, web] = await Promise.all([
-          supabase
+          (supabase as any)
             .from("instagram_audit")
             .select("score_global, created_at")
             .eq(wsFilter.column, wsFilter.value)
             .order("created_at", { ascending: false })
             .limit(1)
             .maybeSingle(),
-          supabase
+          (supabase as any)
             .from("website_audit")
             .select("score_global, created_at")
             .eq(wsFilter.column, wsFilter.value)
@@ -324,7 +324,7 @@ export default function AdaptiveHome() {
         ]);
         const igRow = ig.data as { score_global: number | null; created_at: string } | null;
         const webRow = web.data as { score_global: number | null; created_at: string } | null;
-        const candidates: LatestAudit[] = [];
+        const candidates: NonNullable<LatestAudit>[] = [];
         if (igRow && igRow.score_global != null) {
           candidates.push({ score_global: igRow.score_global, created_at: igRow.created_at, type: "Instagram" });
         }
@@ -332,7 +332,7 @@ export default function AdaptiveHome() {
           candidates.push({ score_global: webRow.score_global, created_at: webRow.created_at, type: "Site" });
         }
         if (candidates.length === 0) return null;
-        candidates.sort((a, b) => new Date(b!.created_at).getTime() - new Date(a!.created_at).getTime());
+        candidates.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         return candidates[0];
       } catch {
         return null;
@@ -341,6 +341,7 @@ export default function AdaptiveHome() {
     enabled: !!wsFilter.value,
     staleTime: 2 * 60 * 1000,
   });
+
 
 
 
