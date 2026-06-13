@@ -639,24 +639,73 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     }
   };
 
+  /** Build idea insert payload from a calendar post, snapshotting carousel slides + visuals into content_data */
+  const buildIdeaPayloadFromPost = async (post: CalendarPost) => {
+    if (!user) return null;
+    // Fetch latest carousel linked to this post (if any)
+    const { data: carousel } = await supabase
+      .from("generated_carousels")
+      .select("slides, caption, hashtags, carousel_type, quality_score, hook_text, subject")
+      .eq("calendar_post_id", post.id)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const contentData: Record<string, any> = {};
+    if ((post as any).accroche) contentData.accroche = (post as any).accroche;
+    if (post.content_draft) contentData.content = post.content_draft;
+
+    if (carousel && Array.isArray((carousel as any).slides) && (carousel as any).slides.length > 0) {
+      contentData.carousel = {
+        slides: (carousel as any).slides,
+        caption: (carousel as any).caption ?? null,
+        hashtags: (carousel as any).hashtags ?? null,
+        carousel_type: (carousel as any).carousel_type ?? null,
+        quality_score: (carousel as any).quality_score ?? null,
+        hook_text: (carousel as any).hook_text ?? null,
+      };
+      // Compat racine pour lecteurs existants (IdeaDetailSheet, etc.)
+      contentData.slides = (carousel as any).slides;
+      if ((carousel as any).caption) contentData.caption = (carousel as any).caption;
+      if ((carousel as any).hashtags) contentData.hashtags = (carousel as any).hashtags;
+    }
+
+    if ((post as any).story_sequence_detail) {
+      contentData.story_sequence_detail = (post as any).story_sequence_detail;
+      if ((post as any).stories_count) contentData.stories_count = (post as any).stories_count;
+      if ((post as any).stories_objective) contentData.stories_objective = (post as any).stories_objective;
+      if ((post as any).stories_structure) contentData.stories_structure = (post as any).stories_structure;
+      if ((post as any).stories_timing) contentData.stories_timing = (post as any).stories_timing;
+    }
+
+    const mediaUrls = (post as any).media_urls;
+    if (Array.isArray(mediaUrls) && mediaUrls.length > 0) {
+      contentData.media_urls = mediaUrls;
+    }
+
+    return {
+      user_id: user.id,
+      workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+      titre: post.theme,
+      format: post.format || null,
+      objectif: post.objectif || null,
+      notes: post.notes || null,
+      status: "to_explore",
+      canal: post.canal || "instagram",
+      content_draft: post.content_draft || null,
+      angle: post.angle || "",
+      series_id: (post as any).series_id ?? null,
+      episode_number: (post as any).episode_number ?? null,
+      content_data: Object.keys(contentData).length > 0 ? contentData : null,
+    } as any;
+  };
+
   /** Unplan a post: move it back to saved_ideas */
   const handleUnplan = async () => {
     if (!editingPost || !user) return;
-    // Create or restore idea in saved_ideas
-    const { error: insertError } = await supabase.from("saved_ideas").insert({
-      user_id: user.id,
-      workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-      titre: editingPost.theme,
-      format: editingPost.format || null,
-      objectif: editingPost.objectif || null,
-      notes: editingPost.notes || null,
-      status: "to_explore",
-      canal: editingPost.canal || "instagram",
-      content_draft: editingPost.content_draft || null,
-      angle: editingPost.angle || "",
-      series_id: (editingPost as any).series_id ?? null,
-      episode_number: (editingPost as any).episode_number ?? null,
-    } as any);
+    const payload = await buildIdeaPayloadFromPost(editingPost);
+    if (!payload) return;
+    const { error: insertError } = await supabase.from("saved_ideas").insert(payload);
     if (insertError) {
       toast({ title: "Oups, ça n'a pas été enregistré", description: "Réessaie dans un instant.", variant: "destructive" });
       fetchPosts();
@@ -709,20 +758,9 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       const postId = active.id as string;
       const post = posts.find(p => p.id === postId);
       if (!post) return;
-      await supabase.from("saved_ideas").insert({
-        user_id: user.id,
-        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-        titre: post.theme,
-        format: post.format || null,
-        objectif: post.objectif || null,
-        notes: post.notes || null,
-        status: "to_explore",
-        canal: post.canal || "instagram",
-        content_draft: post.content_draft || null,
-        angle: post.angle || "",
-        series_id: (post as any).series_id ?? null,
-        episode_number: (post as any).episode_number ?? null,
-      } as any);
+      const payload = await buildIdeaPayloadFromPost(post);
+      if (!payload) return;
+      await supabase.from("saved_ideas").insert(payload);
       await supabase.from("calendar_posts").delete().eq("id", post.id);
       fetchPosts();
       setIdeasRefreshKey(k => k + 1);
