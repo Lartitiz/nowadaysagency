@@ -47,7 +47,7 @@ import { useActivityExamples } from "@/hooks/use-activity-examples";
 import { supabase } from "@/integrations/supabase/client";
 import { loadFlowState, saveFlowState, clearFlowState } from "@/hooks/use-flow-persistence";
 import { isAurianaDemoEmail, AURIANA_DEMO_SUBJECT, AURIANA_DEMO_FLOW } from "@/lib/demo-auriana-data";
-import { useFormPersist } from "@/hooks/use-form-persist";
+
 // Phase 4: streaming SSE is now encapsulated inside useContentGenerator
 import { useUserPlan } from "@/hooks/use-user-plan";
 
@@ -194,29 +194,14 @@ export default function CreerUnifie() {
   const [newsjackingContext, setNewsjackingContext] = useState<string | null>(null);
   const [newsjackingSuggestedFormat, setNewsjackingSuggestedFormat] = useState<string | null>(null);
 
-  const { restored: draftRestored, clearDraft } = useFormPersist(
-    "creer-unifie-form",
-    { step, ideaText, objective, selectedFormat, editorialAngle, answers },
-    (saved) => {
-      if (!shouldRestore) return; // Fresh navigation — don't restore
-      if (searchParams.get("format") || searchParams.get("sujet")) return;
-      // Le step est entièrement géré par safeStep + use-flow-persistence (qui ont le result).
-      // useFormPersist ne doit PAS toucher au step, sous peine de retomber sur "format"
-      // pendant la génération des slides visuelles.
-      if (saved.ideaText) setIdeaText(saved.ideaText);
-      if (saved.objective) setObjective(saved.objective);
-      if (saved.selectedFormat) setSelectedFormat(saved.selectedFormat);
-      if (saved.editorialAngle) setEditorialAngle(saved.editorialAngle);
-      if (saved.answers && Object.keys(saved.answers).length) setAnswers(saved.answers);
-    }
-  );
+
 
   // When arriving at /creer without params AND no persisted in-progress flow, clear state
   // This distinguishes "fresh sidebar click" from "page reload mid-flow"
   useEffect(() => {
     if (!hasSomeContext && !shouldRestore) {
       clearFlowState();
-      clearDraft();
+      sessionStorage.removeItem("form_draft_creer-unifie-form");
       sessionStorage.removeItem("creer_unifie_result");
       setStep("idea");
       setSelectedFormat(null);
@@ -1515,7 +1500,7 @@ export default function CreerUnifie() {
     setLastConfirmedStructure(null);
     setEditingIdeaId(null);
     clearFlowState();
-    clearDraft();
+    
     sessionStorage.removeItem(CREER_RESULT_KEY);
   };
 
