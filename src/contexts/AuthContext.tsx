@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { posthog } from "@/lib/posthog";
+import { clearAppStorage } from "@/lib/storage-cleanup";
 
 interface AuthContextType {
   user: User | null;
@@ -217,7 +218,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
-    sessionStorage.removeItem("onboarding_checked");
+    clearAppStorage();
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
   }, []);
