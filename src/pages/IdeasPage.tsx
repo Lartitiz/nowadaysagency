@@ -344,11 +344,17 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
                   {/* Badges */}
                   <div className="flex gap-1.5 flex-wrap mb-2">
                     {statusBadge && (
-                      <StatusDropdown ideaId={idea.id} current={idea.status || "to_explore"} onSelect={handleStatusChange}>
-                        <span className={`font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill cursor-pointer ${statusBadge.bg} ${statusBadge.text}`}>
+                      idea.type === "brief" ? (
+                        <span className={`font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill ${statusBadge.bg} ${statusBadge.text}`}>
                           {statusBadge.label}
                         </span>
-                      </StatusDropdown>
+                      ) : (
+                        <StatusDropdown ideaId={idea.id} current={idea.status || "to_explore"} onSelect={handleStatusChange}>
+                          <span className={`font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill cursor-pointer ${statusBadge.bg} ${statusBadge.text}`}>
+                            {statusBadge.label}
+                          </span>
+                        </StatusDropdown>
+                      )
                     )}
                     {objBadge && (
                       <span className={`font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill ${objBadge.bg} ${objBadge.text}`}>
@@ -449,7 +455,9 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
                   <div className="flex gap-1.5 flex-wrap pr-8">
                     {getStatusBadge(selectedIdea.status) && (() => {
                       const sb = getStatusBadge(selectedIdea.status)!;
-                      return (
+                      return selectedIdea.type === "brief" ? (
+                        <span className={`font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill ${sb.bg} ${sb.text}`}>{sb.label}</span>
+                      ) : (
                         <StatusDropdown ideaId={selectedIdea.id} current={selectedIdea.status || "to_explore"} onSelect={(id, s) => { handleStatusChange(id, s); setSelectedIdea((prev) => prev ? { ...prev, status: s } : null); }}>
                           <span className={`font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill cursor-pointer ${sb.bg} ${sb.text}`}>{sb.label}</span>
                         </StatusDropdown>
@@ -540,24 +548,26 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
                   </section>
 
                   {/* Notes — accented block */}
-                  <section className="bg-rose-pale/40 border-l-4 border-primary/40 rounded-r-lg p-5">
-                    <div className="flex justify-between items-center mb-3">
-                      <p className="font-mono-ui text-[10px] uppercase tracking-wider font-bold text-primary">Mes notes personnelles</p>
-                      <button
-                        type="button"
-                        onClick={() => handleSaveNotes(selectedIdea.id, detailNotes)}
-                        className="font-mono-ui text-[10px] uppercase tracking-wider font-bold text-primary hover:underline"
-                      >
-                        Sauvegarder
-                      </button>
-                    </div>
-                    <Textarea
-                      value={detailNotes}
-                      onChange={(e) => setDetailNotes(e.target.value)}
-                      placeholder="Ajoute tes notes personnelles ici..."
-                      className="bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none p-0 text-sm leading-relaxed text-foreground/90 min-h-[100px] resize-none"
-                    />
-                  </section>
+                  {selectedIdea.type !== "brief" && (
+                    <section className="bg-rose-pale/40 border-l-4 border-primary/40 rounded-r-lg p-5">
+                      <div className="flex justify-between items-center mb-3">
+                        <p className="font-mono-ui text-[10px] uppercase tracking-wider font-bold text-primary">Mes notes personnelles</p>
+                        <button
+                          type="button"
+                          onClick={() => handleSaveNotes(selectedIdea.id, detailNotes)}
+                          className="font-mono-ui text-[10px] uppercase tracking-wider font-bold text-primary hover:underline"
+                        >
+                          Sauvegarder
+                        </button>
+                      </div>
+                      <Textarea
+                        value={detailNotes}
+                        onChange={(e) => setDetailNotes(e.target.value)}
+                        placeholder="Ajoute tes notes personnelles ici..."
+                        className="bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none p-0 text-sm leading-relaxed text-foreground/90 min-h-[100px] resize-none"
+                      />
+                    </section>
+                  )}
                 </div>
 
                 {/* Sticky footer actions */}
