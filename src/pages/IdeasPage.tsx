@@ -121,6 +121,8 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
   const [canalFilter, setCanalFilter] = useState(searchParams.get("canal") || "all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [sort, setSort] = useState("newest");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const activeAdvancedCount = (objectifFilter !== "all" ? 1 : 0) + (canalFilter !== "all" ? 1 : 0) + (typeFilter !== "all" ? 1 : 0);
 
   // Detail panel
   const [selectedIdea, setSelectedIdea] = useState<SavedIdea | null>(null);
