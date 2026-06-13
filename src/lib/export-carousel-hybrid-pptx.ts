@@ -669,48 +669,19 @@ export async function exportCarouselHybridPptx(
         const w = Math.min(PPTX_W_IN - x, wRaw - (x - xRaw));
         const h = Math.min(PPTX_H_IN - y, hRaw - (y - yRaw));
         if (w <= 0 || h <= 0) continue;
+        const frameRatio = w / h;
+        const cacheKey = `${zone.photoIndex}:${frameRatio.toFixed(3)}`;
+        let cropped = cropCache.get(cacheKey);
+        if (cropped === undefined) {
+          cropped = await cropToRatioBase64(photo.base64, frameRatio);
+          cropCache.set(cacheKey, cropped);
+        }
         try {
-          const srcSize = photoSizes[zone.photoIndex - 1];
-          const addImageOpts: any = { data: photo.base64, x, y, w, h };
-
-          if (srcSize && srcSize.w > 0 && srcSize.h > 0) {
-            const srcRatio = srcSize.w / srcSize.h;
-            const frameRatio = w / h;
-            const TOL = 0.01;
-            // Crop exprimé en pourcentages de l'image source (invariant à la résolution).
-            const pct = (v: number) => `${(v * 100).toFixed(4)}%`;
-
-            if (Math.abs(srcRatio - frameRatio) < TOL) {
-              // Ratios alignés → pas de sizing → l'image remplit le cadre sans déformation.
-            } else if (srcRatio > frameRatio) {
-              // Source plus paysage → rogner gauche/droite, garder toute la hauteur.
-              const visibleFrac = frameRatio / srcRatio;
-              const offFrac = (1 - visibleFrac) / 2;
-              addImageOpts.sizing = {
-                type: "crop",
-                x: pct(offFrac),
-                y: "0%",
-                w: pct(visibleFrac),
-                h: "100%",
-              };
-            } else {
-              // Source plus portrait → rogner haut/bas, garder toute la largeur.
-              const visibleFrac = srcRatio / frameRatio;
-              const offFrac = (1 - visibleFrac) / 2;
-              addImageOpts.sizing = {
-                type: "crop",
-                x: "0%",
-                y: pct(offFrac),
-                w: "100%",
-                h: pct(visibleFrac),
-              };
-            }
-          } else {
-            // Fallback : mesure échouée → comportement actuel (peut étirer, pas de crash).
-            addImageOpts.sizing = { type: "cover", w, h };
-          }
-
-          slide.addImage(addImageOpts);
+          slide.addImage({
+            data: cropped ?? photo.base64,
+            x, y, w, h,
+            ...(cropped ? {} : { sizing: { type: "cover", w, h } }),
+          });
         } catch (e) {
           console.warn("[hybrid] addImage(originalPhoto) failed", e);
         }
