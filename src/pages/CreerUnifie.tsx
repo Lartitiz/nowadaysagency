@@ -45,7 +45,7 @@ import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useBrandCharter } from "@/hooks/use-branding";
 import { useActivityExamples } from "@/hooks/use-activity-examples";
 import { supabase } from "@/integrations/supabase/client";
-import { loadFlowState, saveFlowState, clearFlowState } from "@/hooks/use-flow-persistence";
+import { loadFlowState, saveFlowState, clearFlowState, savePhotos, loadPhotos } from "@/hooks/use-flow-persistence";
 import { isAurianaDemoEmail, AURIANA_DEMO_SUBJECT, AURIANA_DEMO_FLOW } from "@/lib/demo-auriana-data";
 
 // Phase 4: streaming SSE is now encapsulated inside useContentGenerator
@@ -137,8 +137,14 @@ export default function CreerUnifie() {
     if (!ps?.step) return "idea";
     if (ps.step === "result" && ps.result) return "result";
     if (ps.step === "edit" && ps.editContent) return "edit";
-    // États avec données volatiles non persistées (questions IA, structure, propositions, result/edit invalides)
-    if (["questions", "structure_review", "inspiration_proposals", "result", "edit"].includes(ps.step)) {
+    // Si flow photo/mix/pure_photo avec photos retrouvées, garder le step en cours
+    if (["questions", "structure_review", "inspiration_proposals"].includes(ps.step)) {
+      const isPhotoFlow = ps.carouselSubMode === "photo" || ps.carouselSubMode === "mix" || ps.carouselSubMode === "pure_photo";
+      if (isPhotoFlow && loadPhotos().length > 0) return ps.step as Step;
+      return ps.selectedFormat ? "format" : "idea";
+    }
+    // États avec données volatiles non persistées (result/edit invalides)
+    if (["result", "edit"].includes(ps.step)) {
       return ps.selectedFormat ? "format" : "idea";
     }
     return ps.step as Step;
@@ -159,18 +165,18 @@ export default function CreerUnifie() {
   const fromCalendar = !!(locState?.fromCalendar && calendarPostId);
 
   // Photo states (carousel photo + post photo)
-  const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | "mix" | "pure_photo" | null>(null);
-  const [uploadedPhotos, setUploadedPhotos] = useState<any[]>([]);
+  const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | "mix" | "pure_photo" | null>(ps?.carouselSubMode ?? null);
+  const [uploadedPhotos, setUploadedPhotos] = useState<any[]>(shouldRestore ? loadPhotos() : []);
   const [isLoadingLibraryPhotos, setIsLoadingLibraryPhotos] = useState(false);
   // Snapshot des photos au moment de la génération du carrousel.
   // Sert de source de vérité pour handleGenerateVisuals si le state UI est reset.
-  const [generatedWithPhotos, setGeneratedWithPhotos] = useState<any[]>([]);
+  const [generatedWithPhotos, setGeneratedWithPhotos] = useState<any[]>(shouldRestore ? loadPhotos() : []);
   // Dialog "photos manquantes" : remplace le downgrade silencieux.
   const [photoMissingDialog, setPhotoMissingDialog] = useState<{
     open: boolean;
     rawType: "photo" | "mix" | null;
   }>({ open: false, rawType: null });
-  const [photoDescription, setPhotoDescription] = useState("");
+  const [photoDescription, setPhotoDescription] = useState(ps?.photoDescription ?? "");
   const [photoMode, setPhotoMode] = useState(false);
   const [demoGenerating, setDemoGenerating] = useState(false);
   const [pinterestData, setPinterestData] = useState<{ link?: string; boardId?: string; boardName?: string } | null>(null);
@@ -368,9 +374,11 @@ export default function CreerUnifie() {
         inspirationImagePreview: inspirationImagePreview || null,
         demoScenario: aurianaDemoActive ? "auriana-carousel" : undefined,
         editingIdeaId,
+        carouselSubMode,
+        photoDescription,
       });
     }
-  }, [step, ideaText, objective, selectedFormat, editorialAngle, editContent, result, visualSlides?.length, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview, editingIdeaId]);
+  }, [step, ideaText, objective, selectedFormat, editorialAngle, editContent, result, visualSlides?.length, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview, editingIdeaId, carouselSubMode, photoDescription]);
 
   // Pre-fill from URL/state & auto-advance (only when URL params are present)
   const initDone = useRef(false);
@@ -536,8 +544,11 @@ export default function CreerUnifie() {
   useEffect(() => {
     if (uploadedPhotos.length > 0) {
       setGeneratedWithPhotos((prev) => (prev.length === uploadedPhotos.length ? prev : uploadedPhotos));
+      if (carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo") {
+        savePhotos(uploadedPhotos);
+      }
     }
-  }, [uploadedPhotos]);
+  }, [uploadedPhotos, carouselSubMode]);
 
   // ── Step handlers ──
 
