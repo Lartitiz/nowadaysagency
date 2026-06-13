@@ -65,21 +65,58 @@ const PX_PER_IN = SLIDE_W_PX / PPTX_W_IN; // 144
 // Mesure des dimensions source d'une image (pour calcul d'un crop proportionnel)
 // ---------------------------------------------------------------------------
 
-async function measureImageSize(
+// ---------------------------------------------------------------------------
+// Pré-recadrage "cover" centré au ratio cible via canvas.
+// Garantit que l'image arrive dans pptxgenjs au ratio exact du cadre →
+// aucun srcRect généré, aucune déformation.
+// ---------------------------------------------------------------------------
+
+async function cropToRatioBase64(
   dataUrl: string,
+  targetRatio: number, // w/h du cadre de destination
   timeoutMs = 5000,
-): Promise<{ w: number; h: number } | null> {
+): Promise<string | null> {
   return new Promise((resolve) => {
     const img = new Image();
     const t = setTimeout(() => { img.src = ""; resolve(null); }, timeoutMs);
     img.onload = () => {
       clearTimeout(t);
-      resolve({ w: img.naturalWidth, h: img.naturalHeight });
+      try {
+        const sw = img.naturalWidth;
+        const sh = img.naturalHeight;
+        if (!sw || !sh || !isFinite(targetRatio) || targetRatio <= 0) {
+          resolve(null);
+          return;
+        }
+        const srcRatio = sw / sh;
+        // Fenêtre source à conserver (crop centré "cover")
+        let cw = sw;
+        let chh = sh;
+        let ox = 0;
+        let oy = 0;
+        if (srcRatio > targetRatio) {
+          cw = Math.round(sh * targetRatio);
+          ox = Math.round((sw - cw) / 2);
+        } else if (srcRatio < targetRatio) {
+          chh = Math.round(sw / targetRatio);
+          oy = Math.round((sh - chh) / 2);
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = cw;
+        canvas.height = chh;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) { resolve(null); return; }
+        ctx.drawImage(img, ox, oy, cw, chh, 0, 0, cw, chh);
+        resolve(canvas.toDataURL("image/jpeg", 0.92));
+      } catch {
+        resolve(null);
+      }
     };
     img.onerror = () => { clearTimeout(t); resolve(null); };
     img.src = dataUrl;
   });
 }
+
 
 // ---------------------------------------------------------------------------
 // iframe mounting + readiness
@@ -480,11 +517,11 @@ export async function exportCarouselHybridPptx(
   // Pré-charge le logo une seule fois (sera ajouté en top layer sur chaque slide)
   const logoBase64 = await fetchLogoAsBase64(logoUrl);
 
-  // Pré-mesure des dimensions natives de chaque photo (une fois par photo, pas par slide)
-  // pour calculer un crop "cover" proportionnel au moment de l'insertion.
-  const photoSizes: Array<{ w: number; h: number } | null> = originalPhotos
-    ? await Promise.all(originalPhotos.map((p) => measureImageSize(p.base64)))
-    : [];
+  // Cache des recadrages photo, clé par (photoIndex + ratio cadre arrondi).
+  // Une même photo peut servir plusieurs cadres de ratios différents → on cache par ratio.
+  const cropCache = new Map<string, string | null>();
+
+
 
 
   for (let i = 0; i < visualSlides.length; i++) {
