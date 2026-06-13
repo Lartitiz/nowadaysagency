@@ -1,49 +1,50 @@
-## Contexte métier
+## Contexte
 
-A la fin de l'onboarding, le diagnostic IA (`deep-diagnostic`, appel Sonnet sur plusieurs sources) peut prendre 60-90s. Or un `safetyTimeout` manuel declenche un fallback generique des 52s, alors que `invokeWithTimeout` est lui regle a 180s.
-
-Resultat : tout diagnostic un peu long est REMPLACE par un calcul local generique (`computeDiagnosticData`), et la personne perd le vrai diagnostic personnalise.
+`buildMixCarouselNewsReactionPrompt` (mix en réaction à une actu) est le dernier des 4 prompts carrousel qui n'a pas le chaînage narratif. Son bloc actuel (lignes 2355-2358) contient encore le "Test slide-seule" qui contredit explicitement le récit continu adopté par les 3 autres modes.
 
 ## Fichier impacté
 
-`src/components/onboarding/DiagnosticLoading.tsx` (UNIQUEMENT ce fichier)
+`supabase/functions/carousel-ai/index.ts` — uniquement la fonction `buildMixCarouselNewsReactionPrompt`, lignes 2355-2358.
 
-## Analyse technique
+## Changement
 
-- `invokeWithTimeout` ne rejette jamais : a son propre timeout (180s) il RESOUT avec `{ data: null, error: { isTimeout: true } }`.
-- Le code en aval gere deja ce cas : `if (error || !data) { useFallback(); return; }`.
-- Le `safetyTimeout` manuel (52s) fait double emploi avec le timeout interne, mais en BEAUCOUP plus court -> il sabote l'appel reel.
+Remplacer le bloc actuel :
 
-## Changements attendus
+```
+${structureConstraint}═══ INTERDICTION CASCADE / ESCALIER ═══
+- Pas d'ouvertures par "En vrai", "Et là", "Sauf que"...
+- Pas de rampe émotionnelle artificielle...
+- Test slide-seule : chaque text_only doit pouvoir être lue hors contexte...
+```
 
-1. **Supprimer entierement le mecanisme `safetyTimeout`/`timeoutFired`** (option A retenue) :
-   - Supprimer la declaration `let safetyTimeout: ReturnType<typeof setTimeout> | null = null;`
-   - Supprimer `let timeoutFired = false;`
-   - Supprimer le `setTimeout(..., 52000)` (lignes ~270-274)
-   - Supprimer les `clearTimeout(safetyTimeout)` (lignes ~278 et ~300)
-   - Supprimer les gardes `if (timeoutFired) return;` (lignes ~279 et ~301)
+par les **deux blocs** déjà validés dans `buildMixCarouselPrompt` (lignes 2095-2120), transposés tels quels :
 
-2. **Reduire le timeout d'`invokeWithTimeout` de 180000 a 120000** (ligne ~276) :
-   - 120s est le timeout Opus/audits documente du projet, suffisant pour ce diagnostic et plus raisonnable en UX que 180s d'attente.
+1. `═══ CHAÎNAGE NARRATIF DES OVERLAYS — RÈGLE ABSOLUE ═══` — récit continu, connecteurs / reprise lexicale sur photo_full à partir de la slide 2, ouverture-développement-tension sur text_only, test de permutation.
+2. `═══ INTERDICTION CASCADE / ESCALIER (CRITIQUE) ═══` — distinction cascade vs continuité, test de progression, connecteurs autorisés si contenu neuf, pas de répétition du mot-clé central, pas de rampe émotionnelle, anti-TU (JE).
 
-## Ce qui NE DOIT PAS bouger
+`${structureConstraint}` reste placé juste avant ces deux blocs, dans le même ordre qu'aujourd'hui.
 
-- `useFallback()` et `computeDiagnosticData` : inchanges.
-- Le branchement `isDemoMode` en haut de l'effet : inchangé.
-- `mapEdgeResponseToDiagnostic`, `buildRevealMessages`, la phase "revealing" : inchanges.
-- Le body envoye a l'edge function (`isOnboarding: true`, `workspace_id...`) : inchangé.
-- Les messages UI `elapsedSeconds >= 15` / `>= 30` : gardes, ils restent pertinents comme reassurance pendant l'attente.
-- `calledRef`, `diagnosticDataRef`, toute la machinerie de phases : inchanges.
+## Adaptation au registre "actualité"
+
+Le bloc standard parle d'"expérience partagée" pour le JE. En contexte newsjacking le JE reste la voix principale mais peut porter une **analyse / lecture de l'actu**, pas seulement un vécu. Ajustement minimal : reformuler la ligne Anti-TU en "voix principale = JE (expérience ou analyse partagée)" — le reste des deux blocs est neutre vis-à-vis du registre et se transpose à l'identique.
+
+## Ce qui ne bouge pas
+
+- `buildMixCarouselPrompt`, `buildPhotoCarouselPrompt`, `buildPhotoCarouselNewsReactionPrompt` : aucune modification.
+- Dans `buildMixCarouselNewsReactionPrompt` : tout le reste — `confirmedStructureBlock`, channel LinkedIn, bloc COMPOSITION (50% photos, slide 1 photo_full, alternance), `structureConstraint`, `SLIDE_TITLE_RULES`, assignation photos, bloc news_context, légende, schéma JSON de sortie, VÉRIFICATION FINALE actuelle.
+- Routage, quota, workspace, correction pass, choix du modèle, frontend.
 
 ## Critères de validation
 
-- `npx tsc --noEmit --skipLibCheck` passe sans erreur.
-- Plus aucune occurrence de `52000`, `safetyTimeout` ou `timeoutFired` dans le fichier.
-- `invokeWithTimeout(...)` est appele avec `120000` en 3e argument.
-- Test manuel : onboarding complet avec un vrai compte (site web renseigne) -> le diagnostic affiche est bien le diagnostic IA personnalise, pas le generique, meme si l'analyse prend ~70-90s.
-- Test manuel : couper le reseau pendant l'analyse -> le fallback generique s'affiche correctement (pas d'ecran bloque).
+- `npx tsc --noEmit --skipLibCheck` passe.
+- `rg "Test slide-seule" supabase/functions/carousel-ai/index.ts` ne retourne plus rien.
+- `rg "CHAÎNAGE NARRATIF DES OVERLAYS" supabase/functions/carousel-ai/index.ts` retourne désormais 2 occurrences (mix standard + mix-news).
+- Test manuel : carrousel mix en mode newsjacking → overlays se lisent à la suite, plus d'îlots autonomes.
 
-## Hors scope (plans séparés)
+## Propositions connexes (optionnel, à valider séparément — hors exec)
 
-- Le decompte 3 credits hors onboarding.
-- Le polish onboarding (validators steps 9/10, auto-next step 3, desired_channels).
+- (b) Ajouter dans la VÉRIFICATION FINALE du mix-news les 2 points de contrôle "récit continu" + "test de permutation" déjà présents dans la checklist du mix standard. Pertinent pour cohérence des 4 modes — mais hors scope tant que tu ne valides pas. ok
+
+## Hors scope
+
+- Harmonisation des fourchettes de longueur d'overlay (5-15 / 5-20 / 5-25 mots) à travers tous les prompts.
