@@ -28,6 +28,8 @@ interface Props {
   sourceModule: string;
   format?: string;
   objectif?: string;
+  visualSlides?: { slide_number: number; html: string }[];
+  onUploadVisuals?: (ideaId: string) => Promise<string[]>;
 }
 
 export function SaveToIdeasDialog({
