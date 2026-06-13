@@ -2885,6 +2885,8 @@ export default function CreerUnifie() {
         sourceModule="creer"
         format={selectedFormat || undefined}
         objectif={objective || undefined}
+        visualSlides={selectedFormat === "carousel" && visualSlides.length > 0 ? visualSlides : undefined}
+        onUploadVisuals={selectedFormat === "carousel" ? uploadVisualsToStorage : undefined}
       />
     </div>
   );
