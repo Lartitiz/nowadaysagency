@@ -454,10 +454,16 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
 
                   {/* Preview (scannable, 2 lignes max) */}
                   {(() => {
-                    const preview = buildIdeaPreview(idea);
-                    if (!preview) return null;
-                    return <p className="text-[13px] text-foreground/70 line-clamp-2 mt-2">{preview}</p>;
+                    const preview = getIdeaPreview(idea);
+                    if (!preview.title && !preview.text) return null;
+                    return (
+                      <div className="mt-2 space-y-0.5">
+                        {preview.title && <p className="font-semibold text-[13px] text-foreground line-clamp-1">{preview.title}</p>}
+                        {preview.text && <p className="text-[13px] text-foreground/70 line-clamp-2">{preview.text}</p>}
+                      </div>
+                    );
                   })()}
+
 
                   {/* Date + planned */}
                   <div className="flex items-center gap-3 mt-2">
