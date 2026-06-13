@@ -40,6 +40,45 @@ import { saveFlowState, clearFlowState } from "@/hooks/use-flow-persistence";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { getBrandingCompletion } from "@/lib/branding-completion";
+import { toLocalDateStr } from "@/lib/utils";
+
+/* ── Helpers ── */
+function formatShortDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const s = new Intl.DateTimeFormat("fr-FR", { weekday: "short", day: "numeric" }).format(d);
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function formatRelative(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const today = new Date();
+  const a = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const b = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const diff = Math.round((b.getTime() - a.getTime()) / 86400000);
+  if (diff <= 0) return "aujourd'hui";
+  if (diff === 1) return "hier";
+  return `il y a ${diff} jours`;
+}
+
+function formatPill(format?: string | null, canal?: string | null): { label: string; cls: string } {
+  const f = (format ?? "").toLowerCase();
+  let label = "Post";
+  if (f.includes("carrousel") || f.includes("carousel")) label = "Carrousel";
+  else if (f.includes("story") || f.includes("storie")) label = "Story";
+  else if (f.includes("reel")) label = "Reel";
+  else if (f.includes("newsletter")) label = "Newsletter";
+  else if (f.includes("pin")) label = "Pin";
+  else if (f.includes("post")) label = "Post";
+  const isInsta = (canal ?? "").toLowerCase().includes("insta");
+  const cls = isInsta
+    ? "bg-rose-soft text-bordeaux"
+    : "bg-rose-pale text-bordeaux";
+  return { label, cls };
+}
 
 /* ── Collapsible missions ── */
 const COLLAPSED_KEY = "lac_missions_collapsed";
