@@ -513,6 +513,7 @@ export default function CreerUnifie() {
         });
         if (items.length === 0) throw new Error("Impossible de charger la photo.");
         setUploadedPhotos(items);
+        if (items.length > 0) savePhotos(items);
 
         // Préremplir ideaText avec photo.name si descriptif
         const first = ordered[0];
@@ -543,11 +544,11 @@ export default function CreerUnifie() {
   useEffect(() => {
     if (uploadedPhotos.length > 0) {
       setGeneratedWithPhotos((prev) => (prev.length === uploadedPhotos.length ? prev : uploadedPhotos));
-      if (carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo") {
+      if (selectedFormat === "carousel" || photoMode) {
         savePhotos(uploadedPhotos);
       }
     }
-  }, [uploadedPhotos, carouselSubMode]);
+  }, [uploadedPhotos, selectedFormat, photoMode]);
 
   // ── Step handlers ──
 
@@ -625,6 +626,7 @@ export default function CreerUnifie() {
 
   const handlePhotosNext = (photos: PhotoItem[], description: string, subject?: string) => {
     setUploadedPhotos(photos);
+    if (photos.length > 0) savePhotos(photos);
     setPhotoDescription(description);
     if (subject && subject.trim()) {
       setIdeaText(subject.trim());
@@ -651,7 +653,7 @@ export default function CreerUnifie() {
         setSelectedFormat(format);
         setEditorialAngle(angle || null);
         if (sub) setCarouselSubMode(sub);
-        if (photos) setUploadedPhotos(photos);
+        if (photos) { setUploadedPhotos(photos); if (photos.length > 0) savePhotos(photos); }
         if (desc) setPhotoDescription(desc);
         if (pm !== undefined) setPhotoMode(pm);
         setStep("result");
@@ -669,7 +671,7 @@ export default function CreerUnifie() {
     setEditorialAngle(angle || null);
     if (format !== "pinterest" && format !== "pinterest_visual") setPinterestData(null);
     if (sub) setCarouselSubMode(sub);
-    if (photos) setUploadedPhotos(photos);
+    if (photos) { setUploadedPhotos(photos); if (photos.length > 0) savePhotos(photos); }
     if (desc) setPhotoDescription(desc);
     if (pm !== undefined) setPhotoMode(pm);
 

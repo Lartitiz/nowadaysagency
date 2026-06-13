@@ -1,78 +1,60 @@
 ## Objectif
-Séparer la persistance technique du carrousel (insert dans `generated_carousels`) de l'action "Sauvegarder en idée" (ouverture de `SaveToIdeasDialog`). Aujourd'hui, `handleSave` fait les deux, et comme `handleAddToCalendar` et `handleSaveBackToCalendar` l'appellent pour auto-sauvegarder techniquement le carrousel, ils héritent à tort de l'ouverture du dialog Idées — clic Agenda → dialog Idées par-dessus → photos perdues si l'utilisatrice valide là.
+Persister les photos uploadées (`savePhotos`) de façon précoce et indépendante de `carouselSubMode`, pour que `loadPhotos()` soit fiable lors des remounts qui peuvent survenir pendant la génération. Aujourd'hui le save n'arrive que via le useEffect (l. 543-550) conditionné à `carouselSubMode` ∈ {photo, mix, pure_photo} ; tant que le sous-mode n'est pas encore commité, ou si la batch de setState n'a pas flushé, `loadPhotos()` reste vide → `safeStep` (l. 142-144) retombe sur `"format"` et la fenêtre UI perd les photos.
 
 ## Fichier impacté
 - `src/pages/CreerUnifie.tsx` (uniquement)
 
 ## Changements
 
-### 1. Extraire `persistCarousel`
-Nouvelle fonction qui contient le corps actuel du bloc carrousel de `handleSave` (lignes ~1543-1570), sans toucher à `setSaveIdeaDialogOpen` :
+### 1. Save synchrone aux points d'entrée des photos
+Ajouter un `savePhotos(<photos>)` juste après chaque `setUploadedPhotos(<photos non vides>)` réel :
+
+- **L. 515** (chargement depuis la photothèque) — après `setUploadedPhotos(items);` :
+  `if (items.length > 0) savePhotos(items);`
+- **L. 627** (`handlePhotosNext`) — après `setUploadedPhotos(photos);` :
+  `if (photos.length > 0) savePhotos(photos);`
+- **L. 654** (`handleFormatNext`, branche demo) — wrapper le `if (photos) setUploadedPhotos(photos);` en :
+  ```ts
+  if (photos) {
+    setUploadedPhotos(photos);
+    if (photos.length > 0) savePhotos(photos);
+  }
+  ```
+- **L. 672** (`handleFormatNext`, branche normale) — même wrapper.
+
+Ces appels sont synchrones, ne dépendent pas de `carouselSubMode`, et persistent dès que des photos arrivent — exactement ce qui rend `loadPhotos()` fiable au remount.
+
+### 2. Renforcer le useEffect (l. 543-550)
+Retirer la condition `carouselSubMode === ...` pour le `savePhotos` ; garder le snapshot `setGeneratedWithPhotos`. Nouvelle forme :
 
 ```ts
-const persistCarousel = async () => {
-  if (!session?.user?.id || !result?.raw || saving) return;
-  const r = result.raw;
-  if (selectedFormat === "carousel" && r?.slides) {
-    setSaving(true);
-    try {
-      const hookText = r.slides?.[0]?.title || "";
-      const captionText = [r.caption?.hook, r.caption?.body, r.caption?.cta].filter(Boolean).join("\n\n");
-      const { data } = await supabase.from("generated_carousels" as any).insert({
-        user_id: session.user.id,
-        ...(workspaceId && workspaceId !== session.user.id ? { workspace_id: workspaceId } : {}),
-        carousel_type: r.carousel_type || "tips",
-        subject: ideaText,
-        objective: objective || null,
-        hook_text: hookText,
-        slide_count: r.slides?.length || 7,
-        slides: r.slides,
-        caption: captionText,
-        hashtags: r.caption?.hashtags || [],
-        quality_score: r.quality_check?.score || null,
-      }).select("id").single();
-      if (data) setSavedId((data as any).id);
-    } catch (e: any) {
-      console.warn("generated_carousels insert failed:", e?.message);
-    } finally {
-      setSaving(false);
+useEffect(() => {
+  if (uploadedPhotos.length > 0) {
+    setGeneratedWithPhotos((prev) => (prev.length === uploadedPhotos.length ? prev : uploadedPhotos));
+    if (selectedFormat === "carousel" || photoMode) {
+      savePhotos(uploadedPhotos);
     }
   }
-};
+}, [uploadedPhotos, selectedFormat, photoMode]);
 ```
 
-Insert/champs/guards strictement identiques — déplacement, pas modification.
+Filet de sécurité : persiste toute mise à jour ultérieure (édition d'un contexte photo, ajout, etc.) en contexte carrousel ou photoMode, sans attendre que `carouselSubMode` soit commité.
 
-### 2. Simplifier `handleSave` (bouton "Sauvegarder en idée")
-```ts
-const handleSave = async () => {
-  await persistCarousel();
-  setSaveIdeaDialogOpen(true);
-};
-```
-Comportement final du bouton "Sauvegarder en idée" inchangé : persiste le carrousel puis ouvre le dialog Idées.
-
-### 3. `handleAddToCalendar` (ligne 1794)
-Remplacer `await handleSave();` par `await persistCarousel();`. Le reste (branch `fromCalendar` → `handleSaveBackToCalendar`, sinon `setCalendarDialogOpen(true)`) reste inchangé.
-
-### 4. `handleSaveBackToCalendar` (ligne 1696)
-Remplacer `await handleSave();` par `await persistCarousel();`. Le reste de la fonction (update calendar_posts, uploads photos/visuels, navigate) reste inchangé.
-
-## Ce qui NE bouge pas
-- `SaveToIdeasDialog.tsx` — non touché.
-- `handleConfirmCalendar`, `uploadPhotosToStorage`, `uploadVisualsToStorage` — non touchés.
-- Mapping des champs de l'insert `generated_carousels` — identique.
-- Early-returns sur `savedId` chez les appelants — conservés (la fonction `persistCarousel` n'est appelée par les flows agenda que si `!savedId`).
+### 3. NE PAS toucher
+- `safeStep` (l. 136-152) — devient fiable une fois `loadPhotos()` correct.
+- `use-flow-persistence.ts` — pas de changement.
+- Logique de génération, mapping, `PhotoMissingDialog`, `generatedWithPhotos`.
+- `clearFlowState` / `clearPhotos` légitimes (reset, fresh start, l. 1497, save calendrier réussi).
+- Le fix Bug B (`persistCarousel`) — indépendant.
 
 ## Validation
 1. `npx tsc --noEmit --skipLibCheck` → 0 erreur.
-2. Manuel : générer un carrousel → "Ajouter à l'agenda" → SEUL le dialog Calendrier s'ouvre. Valider → post calendrier reçoit les `photo_urls`.
-3. Régression : "Sauvegarder en idée" → dialog Idées s'ouvre, ligne créée dans `generated_carousels`.
-4. Régression : depuis le calendrier (`fromCalendar`) → "Sauvegarder dans le calendrier" → update OK, pas de dialog Idées.
+2. Manuel — carrousel photo : uploader 3 photos → générer structure puis slides → le flow reste en `"photo"`, les 3 photos sont conservées, aucun retour à `"format"`.
+3. Régression — carrousel texte : pas d'effet de bord, pas de save inutile (la garde `uploadedPhotos.length > 0` protège).
+4. Régression — après "Ajouter à l'agenda" réussi : `clearFlowState`/`clearPhotos` nettoient bien, pas de fuite cross-session.
 
 ## Signalement (proposition, non implémenté)
-`SaveToIdeasDialog` n'upload pas les photos dans Storage — donc même après ce fix, sauvegarder un carrousel "en idée" ne conserve pas les images. À traiter dans un plan séparé si vous voulez que les idées gardent les visuels.
+En dernier recours, `uploadedPhotos` pourrait être restauré depuis `generatedWithPhotos` si `loadPhotos()` est vide ET que la génération a déjà eu lieu — c'est une rustine secondaire. Le vrai fix est celui ci-dessus (persister tôt). À garder en tête seulement si un edge case résiduel apparaît.
 
-## Hors scope (plans séparés)
-- Bug A : photos perdues + retour à "format" pendant la génération des slides.
-- Persistance des photos dans `SaveToIdeasDialog`.
+## Hors scope
+- Persistance des photos dans `SaveToIdeasDialog` (plan séparé).
