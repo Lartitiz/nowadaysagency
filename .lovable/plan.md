@@ -1,163 +1,48 @@
-## Résumé
+## Contexte métier
 
-Ajouter un flux opt-in de détourage du logo dans `BrandCharterPage.tsx`, juste après l'upload réussi (et accessible a posteriori). Réutilise l'Edge Function `photoroom-edit` (mode `remove_bg`) sans aucune modification backend. Aucun code d'export ne change : ils consomment déjà `logo_url`.
+7 Edge Functions de branding construisent leur réponse de refus quota « à la main ». Conséquence : le `QuotaWallModal` ne reçoit pas la forme attendue (`error: "limit_reached"`, objet `quota` complet) et la personne tombe sur un toast générique au lieu du bilan de crédits + CTA.
 
-## Fichier impacté
+## Fichiers impactés (backend uniquement)
 
-- `src/pages/BrandCharterPage.tsx` (ajout d'un dialog + handler `runLogoCutout`)
+1. `supabase/functions/charter-coaching/index.ts`
+2. `supabase/functions/offer-coaching/index.ts`
+3. `supabase/functions/generate-voice-guide/index.ts`
+4. `supabase/functions/audit-branding/index.ts`
+5. `supabase/functions/analyze-brand/index.ts`
+6. `supabase/functions/branding-structure-ai/index.ts`
+7. `supabase/functions/generate-branding-summary/index.ts`
 
-Aucune modif : `photoroom-edit`, exports, `handleLogoUpload` (préservé tel quel, l'appel au dialog est ajouté à la fin), `extractLogoPalette` / `LogoPaletteDialog`.
+Le helper `quotaDeniedResponse(quota, corsHeaders)` existe déjà dans `supabase/functions/_shared/plan-limiter.ts` — il ne sera pas modifié.
 
-## Implémentation
+## Changements par fichier
 
-### 1. Nouveaux états (en haut du composant)
+Pour chacun, uniquement 2 actions : (a) ajouter `quotaDeniedResponse` à l'import existant, (b) remplacer le bloc `if (!quota.allowed)` / `if (!usageCheck.allowed)` par un appel au helper.
 
-```ts
-const [cutoutOpen, setCutoutOpen] = useState(false);
-const [cutoutSource, setCutoutSource] = useState<{ blob?: Blob; url?: string } | null>(null);
-const [cutoutPreviewUrl, setCutoutPreviewUrl] = useState<string | null>(null); // data URL "après"
-const [cutoutResultBase64, setCutoutResultBase64] = useState<string | null>(null);
-const [cutoutLoading, setCutoutLoading] = useState(false);
-const [cutoutSaving, setCutoutSaving] = useState(false);
-```
+| Fichier | Import actuel | Lignes ciblées | Changement |
+|---------|--------------|----------------|------------|
+| charter-coaching | `import { checkQuota, logUsage }` | ~276–281 | Remplacer `new Response(JSON.stringify({ error: quota.message, quota: true }), { status: 429 ... })` par `quotaDeniedResponse(quota, corsHeaders)` |
+| offer-coaching | `import { checkQuota, logUsage }` | ~42–47 | Remplacer `new Response(JSON.stringify({ error: "limit_reached", message: usageCheck.error, remaining: 0 }), { status: 403 ... })` par `quotaDeniedResponse(usageCheck, corsHeaders)` (passe de 403 à 429 — correct) |
+| generate-voice-guide | `import { checkQuota, logUsage }` | ~46–48 | Remplacer `new Response(JSON.stringify({ error: quota.message, quota }), { status: 429 ... })` par `quotaDeniedResponse(quota, corsHeaders)` |
+| audit-branding | `import { checkQuota, logUsage }` | ~110–114 | Remplacer `new Response(JSON.stringify({ error: quota.message, quota }), { status: 429, headers: { ...cors ... } })` par `quotaDeniedResponse(quota, cors)` |
+| analyze-brand | `import { checkQuota, logUsage }` | ~32–37 | Conserver le `clearTimeout(timeout)` AVANT le return. Remplacer le `new Response` par `quotaDeniedResponse(quota, corsHeaders)` |
+| branding-structure-ai | `import { checkQuota, logUsage }` | ~123–127 | Remplacer `new Response(JSON.stringify({ error: quota.message, quota }), { status: 429 ... })` par `quotaDeniedResponse(quota, corsHeaders)` |
+| generate-branding-summary | `import { checkQuota, logUsage }` | ~57–62 | Remplacer `new Response(JSON.stringify({ error: quota.message, quota }), { status: 429 ... })` par `quotaDeniedResponse(quota, corsHeaders)` |
 
-### 2. Ouverture du dialog après `handleLogoUpload`
+## Ce qui ne bouge pas
 
-Juste avant le bloc "Extraction couleurs" (ligne ~529), ajouter :
-
-```ts
-setCutoutSource({ blob: uploadFile });
-setCutoutPreviewUrl(null);
-setCutoutResultBase64(null);
-setCutoutOpen(true);
-```
-
-L'extraction de palette reste à la suite (les deux dialogs peuvent coexister, le palette dialog se ferme manuellement par l'utilisatrice).
-
-### 3. Bouton "Détourer le fond" sur logo existant
-
-À côté du bouton "Extraire les couleurs" (autour de `handleExtractFromExistingLogo`) :
-
-```tsx
-<Button variant="outline" onClick={() => {
-  setCutoutSource({ url: data.logo_url! });
-  setCutoutPreviewUrl(null);
-  setCutoutResultBase64(null);
-  setCutoutOpen(true);
-}}>Détourer le fond</Button>
-```
-
-### 4. Handler `runLogoCutout` (appel Photoroom)
-
-```ts
-const runLogoCutout = async () => {
-  if (!cutoutSource) return;
-  setCutoutLoading(true);
-  try {
-    // Convertir source → base64 (data URL)
-    let base64: string;
-    if (cutoutSource.blob) {
-      base64 = await blobToDataUrl(cutoutSource.blob);
-    } else {
-      const r = await fetch(cutoutSource.url!);
-      const b = await r.blob();
-      base64 = await blobToDataUrl(b);
-    }
-    const wsId = activeWorkspace?.id && activeWorkspace.id !== "self" ? activeWorkspace.id : undefined;
-    const { data: res, error } = await invokeWithTimeout("photoroom-edit", {
-      body: { image_base64: base64, mode: "remove_bg", workspace_id: wsId },
-    }, 90_000);
-    if (error || !res?.image_base64) throw new Error(error?.message || "Pas de résultat");
-    const outUrl = res.image_base64.startsWith("data:") ? res.image_base64 : `data:image/png;base64,${res.image_base64}`;
-    setCutoutResultBase64(outUrl);
-    setCutoutPreviewUrl(outUrl);
-  } catch (e: any) {
-    toast.error("Détourage impossible, on garde ton logo original.");
-    console.error("[logo cutout]", e);
-  } finally {
-    setCutoutLoading(false);
-  }
-};
-```
-
-### 5. Handler `keepCutout` (upload + maj logo_url)
-
-```ts
-const keepCutout = async () => {
-  if (!cutoutResultBase64 || !user) return;
-  setCutoutSaving(true);
-  try {
-    const blob = await (await fetch(cutoutResultBase64)).blob();
-    const path = `${user.id}/logo/logo-cutout.png`;
-    const { error } = await supabase.storage.from("brand-assets")
-      .upload(path, blob, { upsert: true, contentType: "image/png" });
-    if (error) throw error;
-    const { data: urlData } = supabase.storage.from("brand-assets").getPublicUrl(path);
-    // Append ancien logo_url dans logo_variants (sans perte)
-    const oldUrl = data.logo_url;
-    if (oldUrl) {
-      const variants = Array.isArray(data.logo_variants) ? [...data.logo_variants] : [];
-      variants.push({ url: oldUrl, kind: "original", saved_at: new Date().toISOString() });
-      update("logo_variants", variants);
-    }
-    update("logo_url", `${urlData.publicUrl}?v=${Date.now()}`);
-    toast.success("Logo détouré appliqué !");
-    setCutoutOpen(false);
-  } catch (e: any) {
-    toast.error("Sauvegarde impossible");
-    console.error(e);
-  } finally {
-    setCutoutSaving(false);
-  }
-};
-```
-
-### 6. Dialog JSX (en bas, à côté de `LogoPaletteDialog`)
-
-- Titre : "Détourer le fond de ton logo ?"
-- AVANT : `<img>` de la source (objectURL si blob, sinon url).
-- APRÈS (si `cutoutPreviewUrl`) : `<img>` sur fond damier CSS (`backgroundImage: conic-gradient` ou bg checker via `bg-[url('data:image/svg+xml...')]`).
-- Boutons :
-  - Tant que pas de résultat : `Détourer le fond` (loading spinner si `cutoutLoading`), `Annuler`.
-  - Après résultat : `Garder l'original` (ferme), `Garder cette version` (appelle `keepCutout`).
-
-### 7. Helper `blobToDataUrl`
-
-Petite fonction utilitaire en haut du fichier (ou inline) :
-
-```ts
-const blobToDataUrl = (b: Blob): Promise<string> =>
-  new Promise((res, rej) => {
-    const r = new FileReader();
-    r.onload = () => res(r.result as string);
-    r.onerror = rej;
-    r.readAsDataURL(b);
-  });
-```
-
-## Ce qui NE bouge PAS
-
-- Edge Function `photoroom-edit` (quota/logUsage géré côté serveur).
-- Code d'export (carrousels, PNG, Pinterest, logo) — hérite automatiquement via `logo_url`.
-- `handleLogoUpload` original (upload, cache-bust, extraction palette) — uniquement augmenté d'un appel à ouvrir le dialog cutout.
-- `logo_variants` : append uniquement, pas d'écrasement.
+- Aucune logique métier (prompts, `checkQuota`, `logUsage`, appels Anthropic, schemas Zod, rate-limiting, auth).
+- Le `clearTimeout(timeout)` dans `analyze-brand` reste en place.
+- `_shared/plan-limiter.ts` inchangé.
+- Aucun fichier frontend touché.
+- Les 4 fonctions déjà conformes (branding-coaching, persona-ai, voice-analysis, branding-mirror) inchangées.
 
 ## Validation
 
-1. `npx tsc --noEmit --skipLibCheck` passe.
-2. Upload logo fond blanc → dialog → "Détourer le fond" → aperçu damier transparent → "Garder cette version" → `logo_url` pointe vers `logo-cutout.png`, original présent dans `logo_variants`.
-3. "Garder l'original" → `logo_url` inchangé.
-4. Bouton "Détourer le fond" sur logo existant → même flux à partir de l'URL.
-5. Export carrousel → plus de rectangle blanc.
+1. `npx tsc --noEmit --skipLibCheck` passe sans régression.
+2. `grep -rn "quota: true" supabase/functions/charter-coaching/` retourne vide.
+3. `grep -rn "status: 403" supabase/functions/offer-coaching/` retourne vide (hors blocs auth si applicable).
+4. Test manuel compte free à 0 crédit : le `QuotaWallModal` s'ouvre avec bilan + CTA.
 
-## (b) Suggestions connexes (à valider séparément, pas exécutées dans ce plan)
+## Recherche additionnelle
 
-- **Badge "Logo détouré ✓"** à côté de l'aperçu du logo dans la charte quand `logo_url` pointe sur `logo-cutout.png` — repère visuel rapide. ok
-- **Aperçu sur fond coloré** (un mini swatch utilisant la couleur principale de la palette) dans le dialog cutout, en plus du damier — pour voir le rendu réel dans les carrousels. non
-- **Bouton "Revenir à l'original"** si `logo_variants` contient une entrée `kind: "original"` — restaurer en un clic. ok
-
-## Hors scope
-
-- Nettoyage des éléments UI Pinterest dans sources de carrousels.
-- Toute modif Edge Functions d'export/génération.
-- Détourage automatique.
+Aucune autre réponse de refus quota non standardisée détectée dans ces 7 fichiers. Chacun contient exactement un seul bloc `if (!quota.allowed)` (ou `if (!usageCheck.allowed)`), déjà listé ci-dessus.

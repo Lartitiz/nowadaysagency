@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { callAnthropicSimple, getDefaultModel } from "../_shared/anthropic.ts";
-import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
+import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
 import { validateInput, ValidationError, AuditBrandingSchema } from "../_shared/input-validators.ts";
@@ -109,9 +109,7 @@ Deno.serve(async (req) => {
     // Quota check
     const quota = await checkQuota(user.id, "audit");
     if (!quota.allowed) {
-      return new Response(JSON.stringify({ error: quota.message, quota }), {
-        status: 429, headers: { ...cors, "Content-Type": "application/json" },
-      });
+      return quotaDeniedResponse(quota, cors);
     }
 
     const body = validateInput(await req.json(), AuditBrandingSchema);
