@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { clearFlowState } from "@/hooks/use-flow-persistence";
+import { clearAppStorage } from "@/lib/storage-cleanup";
 
 const LS_KEY = "saved_accounts";
 
@@ -67,8 +67,8 @@ export function useAccountSwitcher() {
       });
     }
 
-    // Clear creation flow state to prevent cross-account content leakage
-    clearFlowState();
+    // Purge complète du storage applicatif pour éviter toute fuite cross-compte
+    clearAppStorage();
 
     // Restore the target account's session
     const { error } = await supabase.auth.refreshSession({
