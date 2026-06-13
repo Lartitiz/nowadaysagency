@@ -1926,7 +1926,6 @@ RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
     "score": 85
   }
 }`;
-}`;
 }
 
 function buildMixCarouselPrompt(body: any, isLinkedIn: boolean = false): string {
