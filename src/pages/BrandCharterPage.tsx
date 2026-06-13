@@ -582,6 +582,108 @@ export default function BrandCharterPage() {
     toast.success("Palette mise à jour avec les couleurs du logo");
   };
 
+  // ─── Logo cutout (détourage opt-in via photoroom-edit) ───
+  const blobToDataUrl = (b: Blob): Promise<string> =>
+    new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(r.result as string);
+      r.onerror = rej;
+      r.readAsDataURL(b);
+    });
+
+  const openCutoutDialog = async (src: { blob?: Blob; url?: string }) => {
+    setCutoutSource(src);
+    setCutoutResultUrl(null);
+    if (src.blob) {
+      try {
+        setCutoutSourcePreview(await blobToDataUrl(src.blob));
+      } catch {
+        setCutoutSourcePreview(null);
+      }
+    } else {
+      setCutoutSourcePreview(src.url || null);
+    }
+    setCutoutOpen(true);
+  };
+
+  const runLogoCutout = async () => {
+    if (!cutoutSource) return;
+    setCutoutLoading(true);
+    try {
+      let base64: string;
+      if (cutoutSource.blob) {
+        base64 = await blobToDataUrl(cutoutSource.blob);
+      } else if (cutoutSource.url) {
+        const r = await fetch(cutoutSource.url);
+        const b = await r.blob();
+        base64 = await blobToDataUrl(b);
+      } else {
+        throw new Error("Source manquante");
+      }
+      const wsId = workspaceId && workspaceId !== user?.id ? workspaceId : undefined;
+      const { data: res, error } = await invokeWithTimeout("photoroom-edit", {
+        body: { image_base64: base64, mode: "remove_bg", workspace_id: wsId },
+      }, 90_000);
+      if (error) throw new Error(error.message || "Erreur Photoroom");
+      const out = (res as any)?.image_base64;
+      if (!out) throw new Error("Pas de résultat");
+      const outUrl = typeof out === "string" && out.startsWith("data:") ? out : `data:image/png;base64,${out}`;
+      setCutoutResultUrl(outUrl);
+    } catch (e: any) {
+      toast.error("Détourage impossible, on garde ton logo original.");
+      console.error("[logo cutout]", e);
+    } finally {
+      setCutoutLoading(false);
+    }
+  };
+
+  const keepCutout = async () => {
+    if (!cutoutResultUrl || !user) return;
+    setCutoutSaving(true);
+    try {
+      const blob = await (await fetch(cutoutResultUrl)).blob();
+      const path = `${user.id}/logo/logo-cutout.png`;
+      const { error } = await supabase.storage
+        .from("brand-assets")
+        .upload(path, blob, { upsert: true, contentType: "image/png" });
+      if (error) throw error;
+      const { data: urlData } = supabase.storage.from("brand-assets").getPublicUrl(path);
+      const oldUrl = data.logo_url;
+      if (oldUrl && !oldUrl.includes("logo-cutout.png")) {
+        const variants = Array.isArray(data.logo_variants) ? [...data.logo_variants] : [];
+        variants.push({ url: oldUrl, kind: "original", saved_at: new Date().toISOString() });
+        update("logo_variants", variants);
+      }
+      update("logo_url", `${urlData.publicUrl}?v=${Date.now()}`);
+      toast.success("Logo détouré appliqué !");
+      setCutoutOpen(false);
+    } catch (e: any) {
+      toast.error("Sauvegarde impossible");
+      console.error(e);
+    } finally {
+      setCutoutSaving(false);
+    }
+  };
+
+  const revertToOriginalLogo = () => {
+    const variants = Array.isArray(data.logo_variants) ? data.logo_variants : [];
+    const original = [...variants].reverse().find((v: any) => v?.kind === "original" && v?.url);
+    if (!original) {
+      toast.error("Pas d'original sauvegardé");
+      return;
+    }
+    const remaining = variants.filter((v: any) => v !== original);
+    update("logo_variants", remaining);
+    update("logo_url", `${original.url}${original.url.includes("?") ? "&" : "?"}v=${Date.now()}`);
+    toast.success("Logo original restauré");
+  };
+
+  const isLogoCutout = !!data.logo_url && data.logo_url.includes("logo-cutout.png");
+  const hasOriginalVariant = Array.isArray(data.logo_variants)
+    && data.logo_variants.some((v: any) => v?.kind === "original" && v?.url);
+
+
+
 
   const toggleMood = (keyword: string) => {
     const current = data.mood_keywords;
