@@ -88,21 +88,40 @@ function cleanSlideMarkers(text: string): string {
     .trim();
 }
 
-function buildIdeaPreview(idea: SavedIdea): string {
-  if (idea.accroche_short?.trim()) return `🎣 ${idea.accroche_short.trim()}`;
-  if (idea.content_draft?.trim()) return cleanSlideMarkers(idea.content_draft);
-  const cd = idea.content_data;
-  if (cd && typeof cd === "object") {
-    const fallback =
-      cd.carousel?.hook_text ||
-      cd.carousel?.caption ||
-      cd.hook_text ||
-      cd.caption ||
-      (Array.isArray(cd.carousel?.slides) ? cd.carousel.slides[0]?.text || cd.carousel.slides[0]?.title : null);
-    if (typeof fallback === "string" && fallback.trim()) return cleanSlideMarkers(fallback);
+function getIdeaPreview(idea: SavedIdea): { title?: string; text?: string } {
+  // a. content_data (objet ou string JSON)
+  let data: any = idea.content_data;
+  if (typeof data === "string") {
+    try { data = JSON.parse(data); } catch { data = null; }
   }
-  return "";
+  if (data && typeof data === "object") {
+    const title = typeof data.chosen_angle?.title === "string" && data.chosen_angle.title.trim()
+      ? data.chosen_angle.title.trim()
+      : undefined;
+    const firstSlide = Array.isArray(data.slides) ? data.slides[0] : null;
+    const scriptHook = Array.isArray(data.script)
+      ? data.script.find((s: any) => s?.section === "hook")?.texte_parle
+      : undefined;
+    const rawText =
+      (typeof data.chosen_angle?.description === "string" && data.chosen_angle.description.trim()) ||
+      (firstSlide && (firstSlide.hook || firstSlide.text || firstSlide.titre || firstSlide.title || firstSlide.body || firstSlide.caption || firstSlide.overlay_text)) ||
+      scriptHook ||
+      (typeof data.hook === "object" ? data.hook?.texte_parle : data.hook) ||
+      (typeof data.caption === "object" ? (data.caption?.hook || data.caption?.body || data.caption?.text) : data.caption) ||
+      data.body ||
+      data.content ||
+      undefined;
+    const cleanText = typeof rawText === "string" && rawText.trim() ? cleanSlideMarkers(rawText) : undefined;
+    if (title || cleanText) return { title, text: cleanText };
+    // content_data inexploitable → on continue vers les fallbacks
+  }
+  // b. accroche_short
+  if (idea.accroche_short?.trim()) return { text: `🎣 ${idea.accroche_short.trim()}` };
+  // c. content_draft nettoyé
+  if (idea.content_draft?.trim()) return { text: cleanSlideMarkers(idea.content_draft) };
+  return {};
 }
+
 
 export default function IdeasPage({ embedded = false }: { embedded?: boolean }) {
   const { user } = useAuth();
