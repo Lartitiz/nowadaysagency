@@ -386,6 +386,12 @@ ${photo_description ? `Description complémentaire des photos : "${photo_descrip
         }
       }
 
+      const hasNewsContextForStructure = typeof newsContext === "string" && newsContext.trim().length > 0;
+      const structureNewsContextBlock = hasNewsContextForStructure ? newsContextBlock : "";
+      const structureNewsConsigne = hasNewsContextForStructure
+        ? `\n\nCONSIGNE STRUCTURE — NEWSJACKING ACTIF :\n- La slide 1 (hook) DOIT partir de l'actualité ci-dessus.\n- Au moins une slide de corps doit exploiter un fait précis de l'actu (chiffre, nom, citation, mécanisme).\n- Les photos illustrent et incarnent ce propos ; elles ne le remplacent pas.\n`
+        : "";
+
       const structureSystemPrompt = `${BASE_SYSTEM_RULES}
 
 Tu es une stratège éditoriale spécialisée en carrousels Instagram et LinkedIn.
@@ -404,6 +410,8 @@ ${SLIDE_TITLE_RULES}
 
 CONTEXTE BRANDING :
 ${brandingContext}
+${structureNewsContextBlock}${structureNewsConsigne}
+
 
 Retourne UNIQUEMENT un objet JSON valide (pas de texte avant ou après, pas de backticks), avec cette structure exacte :
 {
@@ -432,6 +440,7 @@ RAPPEL CRITIQUE sur les nouveaux champs :
 - story_beat et visual_anchor SERVENT le narrative_thread : chaque story_beat est UNE étape du récit global ; les visual_anchors fournissent la matière sensorielle qui ancre cette étape.`;
 
       const structureUserPrompt = `Sujet du carrousel : "${subject || "non précisé"}"
+${hasNewsContextForStructure ? `Actualité de référence : "${(newsContext as string).split("\n")[0]?.slice(0, 120) || ""}…" — cette actu doit ancrer la structure proposée.` : ""}
 ${carousel_type ? `Type de carrousel : ${carousel_type}` : "Choisis le type le plus pertinent."}
 ${objective ? `Objectif : ${objective}` : ""}
 ${editorial_angle ? `Angle éditorial souhaité : ${editorial_angle}` : ""}

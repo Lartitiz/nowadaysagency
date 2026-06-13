@@ -1,69 +1,67 @@
-# Plan — Newsjacking : remonter les faits clés de l'article jusqu'à la génération
+# Plan — Carrousel photo : intégrer le contexte actu dans la proposition de structure
 
-## (a) Ce que tu m'as demandé
+## Contexte
 
-### 1. `supabase/functions/newsjacking-from-url/index.ts`
+Dans `supabase/functions/carousel-ai/index.ts`, le `newsContextBlock` est construit (ligne 165) et injecté dans `systemPrompt` global (ligne 169). Mais le bloc `type === "structure_proposal"` (lignes 315-491) reconstruit son propre `structureSystemPrompt` from scratch (ligne 389) — qui ne reçoit jamais le contexte actualité. Résultat : en mode photo + newsjacking, le squelette narratif des slides ignore totalement l'article.
 
-**Prompt JSON (lignes 142-149)** — ajouter `faits_cles` :
+## Fichier modifié
 
-```
-"faits_cles": ["fait brut 1", "fait brut 2", ...]  // 4 à 8 entrées
-```
+- `supabase/functions/carousel-ai/index.ts` (bloc `structure_proposal` uniquement)
 
-Plus, dans les **Règles** (lignes 151-155), ajouter une règle anti-invention :
-- "faits_cles" = chiffres, noms d'acteurs, dates, citations courtes, exemples nommés tirés de l'article. JAMAIS d'analyse, jamais de reformulation marketing. Si rien d'exploitable : `[]`. Ne fabrique JAMAIS un fait absent — mieux vaut un tableau vide.
+## Modifications détaillées
 
-**max_tokens (ligne 172)** : `1200` → `1600`.
+### 1. Injecter newsContextBlock dans structureSystemPrompt (conditionné)
 
-**Construction `actu` (lignes 196-207)** — ajouter :
+Dans le bloc `structure_proposal`, après la déclaration de `structureSystemPrompt` (ligne 389), ajouter :
 
-```ts
-faits_cles: Array.isArray(parsed.faits_cles)
-  ? parsed.faits_cles
-      .filter((f: unknown): f is string => typeof f === "string")
-      .map((f: string) => f.trim().slice(0, 200))
-      .filter((f: string) => f.length > 0)
-      .slice(0, 8)
-  : [],
-```
-
-### 2. `src/components/creer/NewsjackingPanel.tsx`
-
-**Interface `Actu` (lignes 19-31)** — ajouter `faits_cles?: string[]`.
-
-**`handleSelectAngle` (ligne 528-536)** — enrichir le `context` entre la ligne `Résumé` et le bloc `ANGLE CHOISI` :
-
-```ts
-const faitsBloc = actu.faits_cles && actu.faits_cles.length > 0
-  ? `\n\nFAITS DE L'ARTICLE (à exploiter, ne rien inventer d'autre) :\n${actu.faits_cles.map(f => `- ${f}`).join("\n")}`
+```typescript
+const structureNewsContextBlock = (typeof newsContext === "string" && newsContext.trim().length > 0)
+  ? newsContextBlock  // réutilise la variable déjà construite ligne 165
   : "";
-const context = `ACTUALITÉ : ${actu.titre}\nSource : ${actu.source}\nRésumé : ${actu.resume}\nPertinence : ${actu.pertinence}${faitsBloc}\n\nANGLE CHOISI :\nVéhicule : ${angle.vehicule}\nHook : ${angle.hook}\nDéveloppement : ${angle.description}\nFormat suggéré : ${angle.format_suggere}`;
 ```
 
-Mêmes clés `{ subject, context, format, vehicule }` retournées par `onSelect`.
+Modifier `structureSystemPrompt` pour insérer `structureNewsContextBlock` après le bloc CONTEXTE BRANDING (ligne 405-406), avec une consigne spécifique structure :
 
-## (b) Mes propositions — à valider une par une
+```text
+CONTEXTE BRANDING :
+${brandingContext}
 
-1. **Transmettre `faits_cles` à `newsjacking-angles`.** En lisant le code, je vois que les angles sont générés à la demande à partir d'`actu`. Si l'edge function `newsjacking-angles` reçoit aussi les faits, les angles eux-mêmes seraient ancrés (hook qui cite un chiffre, par ex), pas seulement la génération finale. À chiffrer dans un mini-passage du code de l'appel `newsjacking-angles` côté front pour confirmer. ✅/❌
+${structureNewsContextBlock}
 
-2. **Ajouter une mention courte des faits dans la pertinence côté UI** (ex : "3 faits exploitables détectés") pour rassurer l'utilisatrice quand elle voit la card. ✅/❌ (purement cosmétique, je peux skip si tu veux rester strict sur le périmètre)
+CONSIGNE STRUCTURE — NEWSJACKING ACTIF :
+- La slide 1 (hook) DOIT partir de l'actualité ci-dessus.
+- Au moins une slide de corps doit exploiter un fait précis de l'actu (chiffre, nom, citation, mécanisme).
+- Les photos illustrent et incarnent ce propos ; elles ne le remplacent pas.
+```
 
-## Ce qui ne bouge pas
+L'insertion est conditionnée : si `newsContext` est absent ou vide, `structureNewsContextBlock` vaut `""`, la consigne disparaît, et le prompt est strictement identique à aujourd'hui.
 
-- Structure existante de `actu` : on ajoute `faits_cles`, rien d'autre.
-- Scraping, quota `deep_research`, rate limit, workspace guard, timeout 50s, `robustJsonParse`, sets `ALLOWED_*` : intacts.
-- `handleSaveActu`, affichage cards : intacts (champ optionnel → rétro-compatible).
-- `newsjacking-angles` : intact sauf si tu valides la proposition (1).
+### 2. Enrichir structureUserPrompt avec un rappel actu
 
-## Validation
+Dans `structureUserPrompt` (lignes 434-440), ajouter une ligne conditionnée juste après le sujet :
 
-- `npx tsc --noEmit --skipLibCheck` : 0 erreur.
-- Article riche → logs Edge montrent `faits_cles` peuplé, le contenu généré cite ≥ 1 fait réel.
-- Tribune d'opinion → `faits_cles = []`, pas de crash, comportement identique à aujourd'hui.
+```typescript
+${typeof newsContext === "string" && newsContext.trim().length > 0
+  ? `Actualité de référence : "${newsContext.split("\n")[0]?.slice(0, 120)}…" — cette actu doit ancrer la structure proposée.`
+  : ""}
+```
 
-## Hors scope (confirmé)
+Cela rappelle au modèle, au milieu de l'analyse photo, qu'une actu de référence existe et doit structurer le squelette. Le titre est extrait de la première ligne de `newsContext` (tronquée à 120 caractères) pour rester concis.
 
-- Carrousel photo réactif à l'actu (chantier B).
-- Prompt photo réactif (chantier C).
-- Reset `newsjackingContext` dans `handlePhotosNext`.
-- Toute modif `newsjacking-angles` au-delà de la proposition (1).
+## Ce qui reste inchangé (garanti)
+
+- `photoInstruction`, `slideTarget`, `SLIDE_TITLE_RULES` : aucun changement.
+- La structure JSON de sortie (`narrative_thread`, `story_beat`, `visual_anchor`, `photo_index`, etc.) : inchangée.
+- `pushPhotoWithContext`, ordre des photos, analyse visuelle : inchangée.
+- Les branches `express_full`, `hooks`, `slides`, `mix`, `suggest_*`, `deepening_questions` : non touchées.
+- `max_tokens: 3000` pour `structure_proposal` : conservé (pas de risque de troncation avéré : on ajoute ~300 tokens de consigne conditionnée, soit <10% du budget, et seulement quand newsContext est présent).
+
+## Proposition optionnelle (b) à valider individuellement
+
+1. **Appliquer la même injection à `structure_proposal` en mode mix** (`carousel_type === "mix"`) quand `newsContext` est présent. Aujourd'hui le mode mix a déjà un prompt news dans `buildMixCarouselNewsReactionPrompt` pour l'écriture, mais PAS pour la proposition de structure. Si validé, la consigne s'appliquerait aussi au mix. Si refusé, le mix reste en l'état (hors scope). (Validé ? Oui / Non) oui
+
+## Critères de validation
+
+- `npx tsc --noEmit --skipLibCheck` passe sans erreur.
+- Test manuel : actu + carrousel photo → l'écran `structure_review` montre une slide 1 ancrée sur l'actu et au moins une slide de corps liée à l'article, pas seulement une description des photos.
+- Régression : carrousel photo SANS actu → structure identique à avant (pas de mention actu dans les prompts, comportement inchangé).
