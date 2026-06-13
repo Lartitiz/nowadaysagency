@@ -62,6 +62,26 @@ const PPTX_H_IN = 9.375;
 const PX_PER_IN = SLIDE_W_PX / PPTX_W_IN; // 144
 
 // ---------------------------------------------------------------------------
+// Mesure des dimensions source d'une image (pour calcul d'un crop proportionnel)
+// ---------------------------------------------------------------------------
+
+async function measureImageSize(
+  dataUrl: string,
+  timeoutMs = 5000,
+): Promise<{ w: number; h: number } | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const t = setTimeout(() => { img.src = ""; resolve(null); }, timeoutMs);
+    img.onload = () => {
+      clearTimeout(t);
+      resolve({ w: img.naturalWidth, h: img.naturalHeight });
+    };
+    img.onerror = () => { clearTimeout(t); resolve(null); };
+    img.src = dataUrl;
+  });
+}
+
+// ---------------------------------------------------------------------------
 // iframe mounting + readiness
 // ---------------------------------------------------------------------------
 
@@ -460,6 +480,12 @@ export async function exportCarouselHybridPptx(
   // Pré-charge le logo une seule fois (sera ajouté en top layer sur chaque slide)
   const logoBase64 = await fetchLogoAsBase64(logoUrl);
 
+  // Pré-mesure des dimensions natives de chaque photo (une fois par photo, pas par slide)
+  // pour calculer un crop "cover" proportionnel au moment de l'insertion.
+  const photoSizes: Array<{ w: number; h: number } | null> = originalPhotos
+    ? await Promise.all(originalPhotos.map((p) => measureImageSize(p.base64)))
+    : [];
+
 
   for (let i = 0; i < visualSlides.length; i++) {
     const vs = visualSlides[i];
@@ -607,14 +633,47 @@ export async function exportCarouselHybridPptx(
         const h = Math.min(PPTX_H_IN - y, hRaw - (y - yRaw));
         if (w <= 0 || h <= 0) continue;
         try {
-          slide.addImage({
-            data: photo.base64,
-            x,
-            y,
-            w,
-            h,
-            sizing: { type: "cover", w, h },
-          });
+          const srcSize = photoSizes[zone.photoIndex - 1];
+          const addImageOpts: any = { data: photo.base64, x, y, w, h };
+
+          if (srcSize && srcSize.w > 0 && srcSize.h > 0) {
+            const srcRatio = srcSize.w / srcSize.h;
+            const frameRatio = w / h;
+            const TOL = 0.01;
+            // Crop exprimé en pourcentages de l'image source (invariant à la résolution).
+            const pct = (v: number) => `${(v * 100).toFixed(4)}%`;
+
+            if (Math.abs(srcRatio - frameRatio) < TOL) {
+              // Ratios alignés → pas de sizing → l'image remplit le cadre sans déformation.
+            } else if (srcRatio > frameRatio) {
+              // Source plus paysage → rogner gauche/droite, garder toute la hauteur.
+              const visibleFrac = frameRatio / srcRatio;
+              const offFrac = (1 - visibleFrac) / 2;
+              addImageOpts.sizing = {
+                type: "crop",
+                x: pct(offFrac),
+                y: "0%",
+                w: pct(visibleFrac),
+                h: "100%",
+              };
+            } else {
+              // Source plus portrait → rogner haut/bas, garder toute la largeur.
+              const visibleFrac = srcRatio / frameRatio;
+              const offFrac = (1 - visibleFrac) / 2;
+              addImageOpts.sizing = {
+                type: "crop",
+                x: "0%",
+                y: pct(offFrac),
+                w: "100%",
+                h: pct(visibleFrac),
+              };
+            }
+          } else {
+            // Fallback : mesure échouée → comportement actuel (peut étirer, pas de crash).
+            addImageOpts.sizing = { type: "cover", w, h };
+          }
+
+          slide.addImage(addImageOpts);
         } catch (e) {
           console.warn("[hybrid] addImage(originalPhoto) failed", e);
         }
