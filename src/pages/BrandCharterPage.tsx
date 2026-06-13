@@ -867,7 +867,22 @@ export default function BrandCharterPage() {
             <h2 className="font-display text-base font-bold text-foreground mb-4">🖼️ Mon logo</h2>
             {data.logo_url ? (
               <div className="flex flex-col items-center gap-3">
-                <img src={data.logo_url} alt="Logo" className="max-h-32 max-w-full object-contain rounded-xl border border-border" />
+                <div
+                  className="relative max-w-full rounded-xl border border-border p-2"
+                  style={isLogoCutout ? {
+                    backgroundImage:
+                      "linear-gradient(45deg, #e5e7eb 25%, transparent 25%), linear-gradient(-45deg, #e5e7eb 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #e5e7eb 75%), linear-gradient(-45deg, transparent 75%, #e5e7eb 75%)",
+                    backgroundSize: "12px 12px",
+                    backgroundPosition: "0 0, 0 6px, 6px -6px, -6px 0",
+                  } : undefined}
+                >
+                  <img src={data.logo_url} alt="Logo" className="max-h-32 max-w-full object-contain block" />
+                </div>
+                {isLogoCutout && (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                    <CheckCircle2 className="h-3 w-3" /> Logo détouré
+                  </span>
+                )}
                 <label className="cursor-pointer" aria-disabled={logoUploading}>
                   <span className="text-xs text-primary hover:underline">
                     {logoUploading ? "Upload en cours…" : "Changer le logo"}
@@ -880,14 +895,32 @@ export default function BrandCharterPage() {
                     disabled={logoUploading}
                   />
                 </label>
-                <button
-                  type="button"
-                  onClick={handleExtractFromExistingLogo}
-                  disabled={extractingPalette}
-                  className="text-xs text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
-                >
-                  {extractingPalette ? "Extraction…" : "🎨 Extraire les couleurs du logo"}
-                </button>
+                <div className="flex flex-wrap items-center justify-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => openCutoutDialog({ url: data.logo_url! })}
+                    className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                  >
+                    ✂️ Détourer le fond
+                  </button>
+                  {hasOriginalVariant && (
+                    <button
+                      type="button"
+                      onClick={revertToOriginalLogo}
+                      className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      ↩️ Revenir à l'original
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleExtractFromExistingLogo}
+                    disabled={extractingPalette}
+                    className="text-xs text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
+                  >
+                    {extractingPalette ? "Extraction…" : "🎨 Extraire les couleurs"}
+                  </button>
+                </div>
               </div>
             ) : (
               <label className="flex flex-col items-center gap-2 cursor-pointer rounded-xl border-2 border-dashed border-border hover:border-primary/40 transition-colors p-8">
