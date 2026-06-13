@@ -65,6 +65,19 @@ const PX_PER_IN = SLIDE_W_PX / PPTX_W_IN; // 144
 // Mesure des dimensions source d'une image (pour calcul d'un crop proportionnel)
 // ---------------------------------------------------------------------------
 
+async function measureImageNatural(
+  dataUrl: string,
+  timeoutMs = 5000,
+): Promise<{ w: number; h: number } | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const t = setTimeout(() => { img.src = ""; resolve(null); }, timeoutMs);
+    img.onload = () => { clearTimeout(t); resolve({ w: img.naturalWidth, h: img.naturalHeight }); };
+    img.onerror = () => { clearTimeout(t); resolve(null); };
+    img.src = dataUrl;
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Pré-recadrage "cover" centré au ratio cible via canvas.
 // Garantit que l'image arrive dans pptxgenjs au ratio exact du cadre →
@@ -516,6 +529,7 @@ export async function exportCarouselHybridPptx(
 
   // Pré-charge le logo une seule fois (sera ajouté en top layer sur chaque slide)
   const logoBase64 = await fetchLogoAsBase64(logoUrl);
+  const logoSize = logoBase64 ? await measureImageNatural(logoBase64) : null;
 
   // Cache des recadrages photo, clé par (photoIndex + ratio cadre arrondi).
   // Une même photo peut servir plusieurs cadres de ratios différents → on cache par ratio.
@@ -754,8 +768,13 @@ export async function exportCarouselHybridPptx(
       // ---- Logo de marque (top layer, opt-in via logoUrl) ----
       if (logoBase64) {
         try {
-          const r = getPptxLogoRect(PPTX_W_IN, PPTX_H_IN);
-          slide.addImage({ data: logoBase64, x: r.x, y: r.y, w: r.w, h: r.h, sizing: { type: "contain", w: r.w, h: r.h } });
+          const padding = 0.3;
+          const hLogo = PPTX_H_IN * 0.07;            // hauteur fixe (7% de la slide)
+          const ratio = logoSize && logoSize.h > 0 ? logoSize.w / logoSize.h : 2.2; // fallback
+          const wLogo = hLogo * ratio;               // largeur déduite du ratio réel
+          const xLogo = PPTX_W_IN - wLogo - padding;
+          const yLogo = PPTX_H_IN - hLogo - padding;
+          slide.addImage({ data: logoBase64, x: xLogo, y: yLogo, w: wLogo, h: hLogo });
         } catch (e) {
           console.warn("[hybrid] addImage(logo) failed", e);
         }
