@@ -6,6 +6,7 @@ import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildIdentityBlock } from "../_shared/user-context.ts";
 import { IDEA_LENSES, pickLenses, WOW_IDEA_EXAMPLES } from "../_shared/copywriting-prompts.ts";
+import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
 const MAX_CONTEXT_CHARS = 12000;
 const MAX_LIVING_MATTER_CHARS = 4500;
@@ -56,6 +57,13 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { answers, workspace_id, intensity, regenerate_lens } = body;
     const { objectif, sujet, canal, format, content_type, ton_envie } = answers || {};
+
+    const sbGuard = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const membership = await assertWorkspaceMembership(sbGuard, user.id, workspace_id);
+    if (!membership.ok) {
+      console.warn("[workspace-guard] denied", { userId: user.id, workspaceId: workspace_id });
+      return workspaceDeniedResponse(corsHeaders);
+    }
 
     if (!objectif || !ton_envie) {
       return new Response(JSON.stringify({ error: "Réponses incomplètes" }), {

@@ -1,51 +1,43 @@
-## Contexte
+## Résumé
+Ajouter le garde workspace-guard (`assertWorkspaceMembership`) sur 2 Edge Functions détectées par le watchdog de sécurité : `content-coaching` et `audit-branding`. Le helper `_shared/workspace-guard.ts` existe déjà et n'est pas modifié.
 
-Le diagnostic de fin d'onboarding est un moment d'accueil offert, mais il consomme aujourd'hui 3 crédits (via 3 appels à `logUsage` dans `supabase/functions/deep-diagnostic/index.ts`). Une nouvelle utilisatrice free arrive sur son dashboard avec 27/30 crédits sans avoir rien généré.
+## Fichiers impactés
+1. `supabase/functions/content-coaching/index.ts`
+2. `supabase/functions/audit-branding/index.ts`
 
-## Ce qui va être modifié
+## Implémentation
 
-### Fichier unique
-- `supabase/functions/deep-diagnostic/index.ts`
+### Pour CHAQUE fichier :
 
-### Changement
-Rendre le bloc `logUsage` (lignes 442–448) conditionnel à `!isOnboarding` :
+(A) **Import** en tête (après les imports existants) :
+```typescript
+import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
+```
+
+(B) **Garde** juste après la destructuration du `workspace_id` du body, et AVANT toute lecture/écriture scopée workspace :
+
+**content-coaching** — après `const { answers, workspace_id, intensity, regenerate_lens } = body` (~L57), avant `const filterCol` (~L146).
+
+**audit-branding** — après `const { ..., workspace_id, ... } = body` (~L117), avant `const filterCol` (~L120) / `getUserContext` / insert `branding_audits` (~L358).
 
 ```typescript
-// AVANT (lignes 442-448)
-fastSaves.push(
-  Promise.all([
-    logUsage(...),
-    logUsage(...),
-    logUsage(...),
-  ]).catch(...)
-);
+const sbGuard = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-// APRÈS
-if (!isOnboarding) {
-  fastSaves.push(
-    Promise.all([
-      logUsage(...),
-      logUsage(...),
-      logUsage(...),
-    ]).catch(...)
-  );
+const membership = await assertWorkspaceMembership(sbGuard, user.id, workspace_id);
+if (!membership.ok) {
+  console.warn("[workspace-guard] denied", { userId: user.id, workspaceId: workspace_id });
+  return workspaceDeniedResponse(corsHeaders);
 }
 ```
 
-## Ce qui reste inchangé
+## Ce qui NE bouge PAS
+- Helper `workspace-guard.ts`, `getUserContext`, tous les gardes Vagues 1-5.
+- Logique métier, prompts, appels Anthropic, quotas, inserts DB — strictement identique.
+- Legacy (sans `workspace_id`) : inchangé (le helper retourne `ok: true` quand `workspace_id` est absent).
+- Aucune autre Edge Function, aucun frontend.
 
-- Le `checkQuota` conditionnel ligne 117 (`if (!isOnboarding)`) : ne pas y toucher.
-- L'insertion de `audit_recommendations` (le `fastSaves.push` précédent) : continue à s'exécuter dans tous les cas, onboarding inclus.
-- La structure `fastSaves` / `await Promise.allSettled(fastSaves)` : identique, seul l'ajout devient conditionnel.
-- La phase 2 d'enrichissement branding (fire-and-forget) qui suit : inchangée.
-- La signature de `logUsage` et le fichier `plan-limiter.ts` : ne pas toucher.
-
-## Critères de validation
-
-1. `npx tsc --noEmit --skipLibCheck` passe sans erreur.
-2. Test manuel : onboarding complet avec un compte free → dashboard affiche 30/30 crédits.
-3. Test manuel : audit relancé depuis le dashboard → décompte habituel de 3 crédits s'applique toujours.
-
-## Proposition d'amélioration (à valider séparément — NE PAS implémenter sans accord)
-
-Hors onboarding, le bloc appelle `logUsage` 3 fois pour un seul diagnostic. Si l'intention métier est qu'un diagnostic coûte 1 crédit (et non 3), il faudrait réduire à un seul appel. C'est un sujet de pricing distinct du fix demandé ci-dessus. Je ne l'implémenterai que sur validation explicite de ta part.
+## Validation
+1. `npx tsc --noEmit --skipLibCheck` passe.
+2. Fonctionnement normal sur workspace propre : identique.
+3. Legacy (sans workspace_id) : identique.
+4. Workspace étranger → 403 `workspace_access_denied`, aucune lecture/écriture cross-workspace.
