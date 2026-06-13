@@ -1147,6 +1147,75 @@ export default function BrandCharterPage() {
         onClose={() => setLogoPaletteOpen(false)}
         onApply={applyLogoPalette}
       />
+
+      <Dialog open={cutoutOpen} onOpenChange={(o) => { if (!cutoutLoading && !cutoutSaving) setCutoutOpen(o); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Détourer le fond de ton logo ?</DialogTitle>
+            <DialogDescription>
+              Si ton logo est sur fond blanc, le détourer le rend transparent. Il s'intégrera mieux dans tes carrousels et visuels.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid grid-cols-2 gap-3 my-2">
+            <div className="space-y-1">
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground text-center">Avant</p>
+              <div className="rounded-lg border border-border bg-white aspect-square flex items-center justify-center p-3">
+                {cutoutSourcePreview ? (
+                  <img src={cutoutSourcePreview} alt="Logo original" className="max-h-full max-w-full object-contain" />
+                ) : (
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                )}
+              </div>
+            </div>
+            <div className="space-y-1">
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground text-center">Après</p>
+              <div
+                className="rounded-lg border border-border aspect-square flex items-center justify-center p-3"
+                style={{
+                  backgroundImage:
+                    "linear-gradient(45deg, #e5e7eb 25%, transparent 25%), linear-gradient(-45deg, #e5e7eb 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #e5e7eb 75%), linear-gradient(-45deg, transparent 75%, #e5e7eb 75%)",
+                  backgroundSize: "14px 14px",
+                  backgroundPosition: "0 0, 0 7px, 7px -7px, -7px 0",
+                  backgroundColor: "#f9fafb",
+                }}
+              >
+                {cutoutLoading ? (
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                ) : cutoutResultUrl ? (
+                  <img src={cutoutResultUrl} alt="Logo détouré" className="max-h-full max-w-full object-contain" />
+                ) : (
+                  <span className="text-xs text-muted-foreground text-center px-2">Clique "Détourer le fond" pour voir l'aperçu</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            {!cutoutResultUrl ? (
+              <>
+                <Button variant="outline" onClick={() => setCutoutOpen(false)} disabled={cutoutLoading}>
+                  Annuler
+                </Button>
+                <Button onClick={runLogoCutout} disabled={cutoutLoading || !cutoutSource} className="gap-2">
+                  {cutoutLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                  Détourer le fond
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => setCutoutOpen(false)} disabled={cutoutSaving}>
+                  Garder l'original
+                </Button>
+                <Button onClick={keepCutout} disabled={cutoutSaving} className="gap-2">
+                  {cutoutSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+                  Garder cette version
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
