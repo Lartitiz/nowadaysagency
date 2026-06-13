@@ -635,10 +635,22 @@ export default function AdaptiveHome() {
                   <h3 className="font-display text-[17px] text-foreground leading-tight">
                     Lancer un audit
                   </h3>
-                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                    Instagram ou site web.
-                  </p>
+                  {latestAudit ? (
+                    <>
+                      <p className="font-display italic text-bordeaux text-2xl leading-none mt-1">
+                        {latestAudit.score_global}<span className="text-base text-foreground/50">/100</span>
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                        Dernier audit {latestAudit.type} — {formatRelative(latestAudit.created_at)}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                      Instagram ou site web.
+                    </p>
+                  )}
                 </div>
+
                 <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-bordeaux group-hover:translate-x-0.5 transition-all shrink-0 mt-1" />
               </div>
             </button>
