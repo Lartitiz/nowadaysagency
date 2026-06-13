@@ -343,6 +343,13 @@ export default function BrandCharterPage() {
   const [logoPalette, setLogoPalette] = useState<LogoPalette | null>(null);
   const [logoPaletteOpen, setLogoPaletteOpen] = useState(false);
   const [extractingPalette, setExtractingPalette] = useState(false);
+  // Logo cutout (détourage)
+  const [cutoutOpen, setCutoutOpen] = useState(false);
+  const [cutoutSource, setCutoutSource] = useState<{ blob?: Blob; url?: string } | null>(null);
+  const [cutoutSourcePreview, setCutoutSourcePreview] = useState<string | null>(null);
+  const [cutoutResultUrl, setCutoutResultUrl] = useState<string | null>(null);
+  const [cutoutLoading, setCutoutLoading] = useState(false);
+  const [cutoutSaving, setCutoutSaving] = useState(false);
   const dataRef = useRef(data);
   dataRef.current = data;
 
@@ -526,6 +533,10 @@ export default function BrandCharterPage() {
       update("logo_url", `${urlData.publicUrl}?v=${Date.now()}`);
       toast.success("Logo uploadé !");
 
+      // Propose cutout
+      openCutoutDialog({ blob: uploadFile });
+
+
       // Extraction couleurs (silencieuse en cas d'échec)
       try {
         const palette = await extractLogoPalette(uploadFile);
@@ -570,6 +581,108 @@ export default function BrandCharterPage() {
     setLogoPaletteOpen(false);
     toast.success("Palette mise à jour avec les couleurs du logo");
   };
+
+  // ─── Logo cutout (détourage opt-in via photoroom-edit) ───
+  const blobToDataUrl = (b: Blob): Promise<string> =>
+    new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(r.result as string);
+      r.onerror = rej;
+      r.readAsDataURL(b);
+    });
+
+  const openCutoutDialog = async (src: { blob?: Blob; url?: string }) => {
+    setCutoutSource(src);
+    setCutoutResultUrl(null);
+    if (src.blob) {
+      try {
+        setCutoutSourcePreview(await blobToDataUrl(src.blob));
+      } catch {
+        setCutoutSourcePreview(null);
+      }
+    } else {
+      setCutoutSourcePreview(src.url || null);
+    }
+    setCutoutOpen(true);
+  };
+
+  const runLogoCutout = async () => {
+    if (!cutoutSource) return;
+    setCutoutLoading(true);
+    try {
+      let base64: string;
+      if (cutoutSource.blob) {
+        base64 = await blobToDataUrl(cutoutSource.blob);
+      } else if (cutoutSource.url) {
+        const r = await fetch(cutoutSource.url);
+        const b = await r.blob();
+        base64 = await blobToDataUrl(b);
+      } else {
+        throw new Error("Source manquante");
+      }
+      const wsId = workspaceId && workspaceId !== user?.id ? workspaceId : undefined;
+      const { data: res, error } = await invokeWithTimeout("photoroom-edit", {
+        body: { image_base64: base64, mode: "remove_bg", workspace_id: wsId },
+      }, 90_000);
+      if (error) throw new Error(error.message || "Erreur Photoroom");
+      const out = (res as any)?.image_base64;
+      if (!out) throw new Error("Pas de résultat");
+      const outUrl = typeof out === "string" && out.startsWith("data:") ? out : `data:image/png;base64,${out}`;
+      setCutoutResultUrl(outUrl);
+    } catch (e: any) {
+      toast.error("Détourage impossible, on garde ton logo original.");
+      console.error("[logo cutout]", e);
+    } finally {
+      setCutoutLoading(false);
+    }
+  };
+
+  const keepCutout = async () => {
+    if (!cutoutResultUrl || !user) return;
+    setCutoutSaving(true);
+    try {
+      const blob = await (await fetch(cutoutResultUrl)).blob();
+      const path = `${user.id}/logo/logo-cutout.png`;
+      const { error } = await supabase.storage
+        .from("brand-assets")
+        .upload(path, blob, { upsert: true, contentType: "image/png" });
+      if (error) throw error;
+      const { data: urlData } = supabase.storage.from("brand-assets").getPublicUrl(path);
+      const oldUrl = data.logo_url;
+      if (oldUrl && !oldUrl.includes("logo-cutout.png")) {
+        const variants = Array.isArray(data.logo_variants) ? [...data.logo_variants] : [];
+        variants.push({ url: oldUrl, kind: "original", saved_at: new Date().toISOString() });
+        update("logo_variants", variants);
+      }
+      update("logo_url", `${urlData.publicUrl}?v=${Date.now()}`);
+      toast.success("Logo détouré appliqué !");
+      setCutoutOpen(false);
+    } catch (e: any) {
+      toast.error("Sauvegarde impossible");
+      console.error(e);
+    } finally {
+      setCutoutSaving(false);
+    }
+  };
+
+  const revertToOriginalLogo = () => {
+    const variants = Array.isArray(data.logo_variants) ? data.logo_variants : [];
+    const original = [...variants].reverse().find((v: any) => v?.kind === "original" && v?.url);
+    if (!original) {
+      toast.error("Pas d'original sauvegardé");
+      return;
+    }
+    const remaining = variants.filter((v: any) => v !== original);
+    update("logo_variants", remaining);
+    update("logo_url", `${original.url}${original.url.includes("?") ? "&" : "?"}v=${Date.now()}`);
+    toast.success("Logo original restauré");
+  };
+
+  const isLogoCutout = !!data.logo_url && data.logo_url.includes("logo-cutout.png");
+  const hasOriginalVariant = Array.isArray(data.logo_variants)
+    && data.logo_variants.some((v: any) => v?.kind === "original" && v?.url);
+
+
 
 
   const toggleMood = (keyword: string) => {
@@ -754,7 +867,22 @@ export default function BrandCharterPage() {
             <h2 className="font-display text-base font-bold text-foreground mb-4">🖼️ Mon logo</h2>
             {data.logo_url ? (
               <div className="flex flex-col items-center gap-3">
-                <img src={data.logo_url} alt="Logo" className="max-h-32 max-w-full object-contain rounded-xl border border-border" />
+                <div
+                  className="relative max-w-full rounded-xl border border-border p-2"
+                  style={isLogoCutout ? {
+                    backgroundImage:
+                      "linear-gradient(45deg, #e5e7eb 25%, transparent 25%), linear-gradient(-45deg, #e5e7eb 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #e5e7eb 75%), linear-gradient(-45deg, transparent 75%, #e5e7eb 75%)",
+                    backgroundSize: "12px 12px",
+                    backgroundPosition: "0 0, 0 6px, 6px -6px, -6px 0",
+                  } : undefined}
+                >
+                  <img src={data.logo_url} alt="Logo" className="max-h-32 max-w-full object-contain block" />
+                </div>
+                {isLogoCutout && (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                    <CheckCircle2 className="h-3 w-3" /> Logo détouré
+                  </span>
+                )}
                 <label className="cursor-pointer" aria-disabled={logoUploading}>
                   <span className="text-xs text-primary hover:underline">
                     {logoUploading ? "Upload en cours…" : "Changer le logo"}
@@ -767,14 +895,32 @@ export default function BrandCharterPage() {
                     disabled={logoUploading}
                   />
                 </label>
-                <button
-                  type="button"
-                  onClick={handleExtractFromExistingLogo}
-                  disabled={extractingPalette}
-                  className="text-xs text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
-                >
-                  {extractingPalette ? "Extraction…" : "🎨 Extraire les couleurs du logo"}
-                </button>
+                <div className="flex flex-wrap items-center justify-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => openCutoutDialog({ url: data.logo_url! })}
+                    className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                  >
+                    ✂️ Détourer le fond
+                  </button>
+                  {hasOriginalVariant && (
+                    <button
+                      type="button"
+                      onClick={revertToOriginalLogo}
+                      className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      ↩️ Revenir à l'original
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleExtractFromExistingLogo}
+                    disabled={extractingPalette}
+                    className="text-xs text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
+                  >
+                    {extractingPalette ? "Extraction…" : "🎨 Extraire les couleurs"}
+                  </button>
+                </div>
               </div>
             ) : (
               <label className="flex flex-col items-center gap-2 cursor-pointer rounded-xl border-2 border-dashed border-border hover:border-primary/40 transition-colors p-8">
@@ -1001,6 +1147,75 @@ export default function BrandCharterPage() {
         onClose={() => setLogoPaletteOpen(false)}
         onApply={applyLogoPalette}
       />
+
+      <Dialog open={cutoutOpen} onOpenChange={(o) => { if (!cutoutLoading && !cutoutSaving) setCutoutOpen(o); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Détourer le fond de ton logo ?</DialogTitle>
+            <DialogDescription>
+              Si ton logo est sur fond blanc, le détourer le rend transparent. Il s'intégrera mieux dans tes carrousels et visuels.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid grid-cols-2 gap-3 my-2">
+            <div className="space-y-1">
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground text-center">Avant</p>
+              <div className="rounded-lg border border-border bg-white aspect-square flex items-center justify-center p-3">
+                {cutoutSourcePreview ? (
+                  <img src={cutoutSourcePreview} alt="Logo original" className="max-h-full max-w-full object-contain" />
+                ) : (
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                )}
+              </div>
+            </div>
+            <div className="space-y-1">
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground text-center">Après</p>
+              <div
+                className="rounded-lg border border-border aspect-square flex items-center justify-center p-3"
+                style={{
+                  backgroundImage:
+                    "linear-gradient(45deg, #e5e7eb 25%, transparent 25%), linear-gradient(-45deg, #e5e7eb 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #e5e7eb 75%), linear-gradient(-45deg, transparent 75%, #e5e7eb 75%)",
+                  backgroundSize: "14px 14px",
+                  backgroundPosition: "0 0, 0 7px, 7px -7px, -7px 0",
+                  backgroundColor: "#f9fafb",
+                }}
+              >
+                {cutoutLoading ? (
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                ) : cutoutResultUrl ? (
+                  <img src={cutoutResultUrl} alt="Logo détouré" className="max-h-full max-w-full object-contain" />
+                ) : (
+                  <span className="text-xs text-muted-foreground text-center px-2">Clique "Détourer le fond" pour voir l'aperçu</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            {!cutoutResultUrl ? (
+              <>
+                <Button variant="outline" onClick={() => setCutoutOpen(false)} disabled={cutoutLoading}>
+                  Annuler
+                </Button>
+                <Button onClick={runLogoCutout} disabled={cutoutLoading || !cutoutSource} className="gap-2">
+                  {cutoutLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                  Détourer le fond
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => setCutoutOpen(false)} disabled={cutoutSaving}>
+                  Garder l'original
+                </Button>
+                <Button onClick={keepCutout} disabled={cutoutSaving} className="gap-2">
+                  {cutoutSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+                  Garder cette version
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
