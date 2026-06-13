@@ -1643,7 +1643,7 @@ RÈGLE DE SURFACE VÉRIFIABLE : à partir de la slide 2, CHAQUE overlay DOIT con
   (a) un connecteur narratif en début ou milieu de phrase : "Puis", "Et puis", "Sauf que", "C'est là que", "Alors", "Du coup", "Mais", "Sauf que", "Sauf qu'en vrai", "Trois mois plus tard", "Au début", "Maintenant", "Résultat", "Ce qu'on n'a pas vu venir", "Ce que personne ne dit".
   (b) une reprise lexicale d'un mot/groupe-clé de la slide précédente (le même mot, ou un synonyme évident qui boucle la référence).
 
-Test interne : si on permute deux slides au hasard et que le carrousel "marche encore", c'est raté → recommence. Une slide qui pourrait vivre seule sur Instagram = mauvais signe. On veut une slide qui n'a de sens QUE parce qu'on a lu la précédente.
+Test interne : si on permute deux slides au hasard et que le carrousel "marche encore", c'est raté → recommence. Une slide qui pourrait vivre seule sur ${isLinkedIn ? "LinkedIn" : "Instagram"} = mauvais signe. On veut une slide qui n'a de sens QUE parce qu'on a lu la précédente.
 
 ═══ CAS PARTICULIERS SELON LE NOMBRE DE PHOTOS ═══
 - 1 photo unique → elle apparaît sur toutes les slides. Tout repose sur les textes qui racontent l'histoire en plusieurs temps (contexte → tension → bascule → résolution → ouverture). Cible 4-6 slides, pas 8.
