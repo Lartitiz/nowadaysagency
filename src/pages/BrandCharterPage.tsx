@@ -896,13 +896,15 @@ export default function BrandCharterPage() {
                   />
                 </label>
                 <div className="flex flex-wrap items-center justify-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => openCutoutDialog({ url: data.logo_url! })}
-                    className="text-xs text-muted-foreground hover:text-primary transition-colors"
-                  >
-                    ✂️ Détourer le fond
-                  </button>
+                  {!isLogoCutout && (
+                    <button
+                      type="button"
+                      onClick={() => openCutoutDialog({ url: data.logo_url! })}
+                      className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      ✂️ Détourer le fond
+                    </button>
+                  )}
                   {hasOriginalVariant && (
                     <button
                       type="button"
