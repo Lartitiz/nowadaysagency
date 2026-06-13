@@ -247,7 +247,7 @@ serve(async (req) => {
 
       // ── Photo carousel mode ──
       if (body.carousel_type === "photo") {
-        const photoPrompt = buildPhotoCarouselPrompt(body);
+        const photoPrompt = buildPhotoCarouselPrompt(body, isLinkedIn);
         let content: string;
 
         if (body.photos && body.photos.length > 0 && !body.confirmed_structure) {
@@ -258,7 +258,7 @@ serve(async (req) => {
           // 1. Brief + recap contexte AVANT les photos
           messageContent.push({
             type: "text",
-            text: `Voici ${body.photos.length} photo(s) pour un carrousel photo Instagram.\n\nSujet : "${body.subject || "non précisé"}"\nObjectif : ${body.objective || "engagement"}\nNombre de slides : ${body.photos.length}\n${body.photo_description ? `Description complémentaire : "${body.photo_description}"` : ""}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : "L'IA choisit le meilleur angle."}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${photoCtxRecap}`,
+            text: `Voici ${body.photos.length} photo(s) pour un carrousel photo ${isLinkedIn ? "LinkedIn" : "Instagram"}.\n\nSujet : "${body.subject || "non précisé"}"\nObjectif : ${body.objective || "engagement"}\nNombre de slides : ${body.photos.length}\n${body.photo_description ? `Description complémentaire : "${body.photo_description}"` : ""}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : "L'IA choisit le meilleur angle."}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${photoCtxRecap}`,
           });
 
           // 2. Photos (avec contexte par photo s'il existe — l'ordre = ordre d'envoi front)
@@ -1528,7 +1528,7 @@ Retourne ce JSON exact :
 }`;
 }
 
-function buildPhotoCarouselPrompt(body: any): string {
+function buildPhotoCarouselPrompt(body: any, isLinkedIn: boolean = false): string {
   const { editorial_angle, content_structure, deepening_answers, confirmed_structure, narrative_thread } = body;
 
   // ── STRUCTURE IMPOSÉE (si confirmée par l'utilisateur·ice) ──
@@ -1581,7 +1581,20 @@ RÈGLES ABSOLUES :
     angleBlock = `\nANGLE ÉDITORIAL CHOISI : ${editorial_angle}\nSTRUCTURE IMPOSÉE :\n${content_structure}\n\n${EDITORIAL_ANGLES_REFERENCE}`;
   }
 
-  return `${confirmedStructureBlock}Tu es une DIRECTRICE ARTISTIQUE ÉDITORIALE spécialisée dans les carrousels photo Instagram.
+  const channelBlock = isLinkedIn
+    ? `═══ ADAPTATION LINKEDIN (OBLIGATOIRE) ═══
+
+Ce carrousel photo est destiné à LinkedIn (PDF natif posté comme document), pas à Instagram. Tu DOIS adapter ton, overlays et légende :
+
+- TON : professionnel mais chaleureux, expert·e mais accessible. Vouvoiement par défaut (sauf si la voix de marque dit le contraire).
+- OVERLAYS : sobres, factuels, ancrés dans l'expertise / la leçon métier / le retour terrain. Pas de "vibe" pure ni d'emojis fleurs/cœurs (✨🌸💖). 0-1 emoji max par slide. On privilégie le "narratif" et le "technique" au "sensoriel" pur.
+- ARC : photo terrain → analyse / mécanisme / chiffre → preuve ou leçon → ouverture pro (échange, retour d'expérience).
+- LÉGENDE : "vous" plutôt que "tu", pas d'emojis décoratifs, hashtags professionnels (secteur, métier, thématique pro) — pas de hashtags lifestyle Instagram.
+
+`
+    : "";
+
+  return `${confirmedStructureBlock}${channelBlock}Tu es une DIRECTRICE ARTISTIQUE ÉDITORIALE spécialisée dans les carrousels photo ${isLinkedIn ? "LinkedIn" : "Instagram"}.
 
 Ton rôle : transformer des photos en carrousel éditorial qui RACONTE UNE HISTOIRE. Chaque slide participe à une narration.
 
@@ -1630,7 +1643,7 @@ RÈGLE DE SURFACE VÉRIFIABLE : à partir de la slide 2, CHAQUE overlay DOIT con
   (a) un connecteur narratif en début ou milieu de phrase : "Puis", "Et puis", "Sauf que", "C'est là que", "Alors", "Du coup", "Mais", "Sauf que", "Sauf qu'en vrai", "Trois mois plus tard", "Au début", "Maintenant", "Résultat", "Ce qu'on n'a pas vu venir", "Ce que personne ne dit".
   (b) une reprise lexicale d'un mot/groupe-clé de la slide précédente (le même mot, ou un synonyme évident qui boucle la référence).
 
-Test interne : si on permute deux slides au hasard et que le carrousel "marche encore", c'est raté → recommence. Une slide qui pourrait vivre seule sur Instagram = mauvais signe. On veut une slide qui n'a de sens QUE parce qu'on a lu la précédente.
+Test interne : si on permute deux slides au hasard et que le carrousel "marche encore", c'est raté → recommence. Une slide qui pourrait vivre seule sur ${isLinkedIn ? "LinkedIn" : "Instagram"} = mauvais signe. On veut une slide qui n'a de sens QUE parce qu'on a lu la précédente.
 
 ═══ CAS PARTICULIERS SELON LE NOMBRE DE PHOTOS ═══
 - 1 photo unique → elle apparaît sur toutes les slides. Tout repose sur les textes qui racontent l'histoire en plusieurs temps (contexte → tension → bascule → résolution → ouverture). Cible 4-6 slides, pas 8.
@@ -1649,14 +1662,20 @@ Quand une même photo se répète sur 2-3 slides consécutives, les textes DOIVE
 - "emotion" : photo émotionnelle + phrase qui amplifie
 - "cta_visuel" : dernière slide, invitation douce
 
-═══ LÉGENDE ═══
+${isLinkedIn ? `═══ LÉGENDE LINKEDIN (OPTIONNELLE) ═══
+- Légende optionnelle : si tu la rédiges, qu'elle apporte une vraie valeur (contexte métier, leçon, retour terrain) ; sinon laisse les champs vides (elle sera générée par un appel dédié).
+- Ton "vous" professionnel et chaleureux, pas d'emojis décoratifs (fleurs, cœurs).
+- Hook : phrase d'accroche DIFFÉRENTE du texte de la slide 1.
+- Body : ce que les photos ne montrent pas (mécanisme, chiffre, leçon, contexte marché).
+- CTA pro : "Votre avis en commentaire ?", "Partagez si cela résonne", "Quelle est votre expérience ?". JAMAIS "Sauvegarde", "DM moi", "Tag une copine".
+- Hashtags : 0-5 hashtags PROFESSIONNELS (secteur, métier, thématique pro). PAS de hashtags lifestyle Instagram.` : `═══ LÉGENDE ═══
 - 400-800 caractères
 - La légende PROLONGE l'histoire des slides, elle ne la répète pas
 - Hook : phrase d'accroche DIFFÉRENTE du texte de la slide 1
 - Body : ce que les photos ne montrent pas (l'envers du décor, l'émotion, le pourquoi)
 - Ton sensoriel : faire ressentir les textures, les lumières, les ambiances
 - CTA : invitation à la conversation ("Et toi, tu as déjà ressenti ça ?")
-- 5-10 hashtags pertinents
+- 5-10 hashtags pertinents`}
 ${deepeningCtx}${angleBlock}
 
 RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :

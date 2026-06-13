@@ -1,66 +1,96 @@
 ## Problème
 
-Dans `SocialMockup` (rendu Instagram), un post multi-photos sans `slides` textuels n'affiche que la première image (`<img mediaUrls[0]>`). Les flèches/dots du slider sont absents.
+Le carrousel PHOTO pur ignore le canal : prompt système hardcodé "Instagram", message user qui dit littéralement "carrousel photo Instagram" même sur LinkedIn, légende avec hashtags Instagram obligatoires. Le mode MIX a déjà résolu ça via un `channelBlock` + paramètre `isLinkedIn`.
 
-## Solution (a — demandé)
+## Fichier impacté
 
-### Fichier 1 — `src/components/social-mockup/CarouselSlider.tsx`
+`supabase/functions/carousel-ai/index.ts` uniquement.
 
-Rendre le slider tolérant à un `slides` vide quand `mediaUrls` est fourni.
+## (a) Modifications demandées
 
-- Calculer le nombre total de pages : `const total = Math.max(slides?.length || 0, mediaUrls?.length || 0);`
-- Remplacer `slides.length` par `total` dans :
-  - le clamp de `next()` (`Math.min(total - 1, i + 1)`)
-  - le compteur `{current + 1}/{total}`
-  - la condition d'affichage de la flèche droite (`current < total - 1`)
-  - la boucle des dots (`Array.from({ length: total }).map(...)`)
-- Le bloc texte de fallback (`slide?.title` / `slide?.body`) ne s'affiche déjà que si `mediaUrls[current]` est absent → comportement conservé.
-- Rendre `slides` optionnel dans l'interface (`slides?: Slide[]`) pour le cas photos-pures.
+### 1. Signature `buildPhotoCarouselPrompt` (ligne 1531)
 
-### Fichier 2 — `src/components/social-mockup/SocialMockup.tsx` (ligne ~86-95)
-
-Étendre la branche `format === "carousel"` à `mediaUrls.length > 1`, sans toucher au cas mono-photo :
-
-```tsx
-{(format === "carousel" && slides && slides.length > 0) || (mediaUrls && mediaUrls.length > 1) ? (
-  compact ? (
-    <div className="w-full aspect-[4/3] flex items-center justify-center" style={{...}}>
-      <span className="text-2xl">{FORMAT_EMOJI.carousel}</span>
-    </div>
-  ) : (
-    <CarouselSlider slides={slides || []} mediaUrls={mediaUrls} />
-  )
-) : mediaUrls && mediaUrls.length > 0 ? (
-  <img src={mediaUrls[0]} ... />
-) : (
-  /* placeholder inchangé */
-)}
+```ts
+function buildPhotoCarouselPrompt(body: any, isLinkedIn: boolean = false): string
 ```
 
-→ Multi-photos (≥2) déclenche le slider ; mono-photo reste un `<img>` simple ; carrousel texte classique inchangé ; placeholder inchangé.
+Défaut `false` → Instagram strictement inchangé.
+
+### 2. Appel dans la branche photo (ligne 250)
+
+```ts
+const photoPrompt = buildPhotoCarouselPrompt(body, isLinkedIn);
+```
+
+`isLinkedIn` est déjà calculé en haut du handler (ligne 100).
+
+### 3. Dé-hardcoder "Instagram" dans le message user vision (ligne 261)
+
+```ts
+text: `Voici ${body.photos.length} photo(s) pour un carrousel photo ${isLinkedIn ? "LinkedIn" : "Instagram"}.…`
+```
+
+Vérifier qu'aucun autre "Instagram" hardcodé ne subsiste dans le chemin vision ni dans le chemin text-only de la branche photo (le chemin text-only n'en contient pas aujourd'hui — confirmé).
+
+### 4. Bloc d'adaptation LinkedIn dans `buildPhotoCarouselPrompt`
+
+Transposer le `channelBlock` du mix au photo, en respectant les spécificités photo (overlays, progression visuelle) :
+
+```ts
+const channelBlock = isLinkedIn
+  ? `═══ ADAPTATION LINKEDIN (OBLIGATOIRE) ═══
+
+Ce carrousel photo est destiné à LinkedIn (PDF natif posté comme document), pas à Instagram. Tu DOIS adapter ton, overlays et légende :
+
+- TON : professionnel mais chaleureux, expert·e mais accessible. Vouvoiement par défaut (sauf si la voix de marque dit le contraire).
+- OVERLAYS : sobres, factuels, ancrés dans l'expertise / la leçon métier / le retour terrain. Pas de "vibe" pure ni d'emojis fleurs/cœurs (✨🌸💖). 0-1 emoji max par slide. On privilégie le "narratif" et le "technique" au "sensoriel" pur.
+- ARC : photo terrain → analyse / mécanisme / chiffre → preuve ou leçon → ouverture pro (échange, retour d'expérience).
+- LÉGENDE : "vous" plutôt que "tu", pas d'emojis décoratifs, hashtags professionnels (secteur, métier, thématique pro) — pas de hashtags lifestyle Instagram.
+
+`
+  : "";
+```
+
+Injecter `${channelBlock}` juste après `${confirmedStructureBlock}` dans le `return` final (ligne 1584), exactement comme le mix le fait ligne 1768.
+
+Adapter aussi la phrase de rôle :
+
+```
+…spécialisée dans les carrousels photo ${isLinkedIn ? "LinkedIn" : "Instagram"}.
+```
+
+### 5. Légende conditionnelle (bloc ligne 1652-1659)
+
+Aligner sur le mix (ligne 1910) :
+
+- Sur Instagram (`!isLinkedIn`) : bloc actuel inchangé (hook + body + CTA + 5-10 hashtags).
+- Sur LinkedIn (`isLinkedIn`) : légende OPTIONNELLE, ton "vous", pas de hashtags Instagram. Hashtags pro autorisés mais non requis ; CTA pro ("Votre avis en commentaire ?", "Partagez si cela résonne").
+
+Schéma JSON de sortie : le bloc `caption` reste présent dans les deux cas (champs identiques), mais sur LinkedIn `hashtags` peut être un tableau vide ou contenir des hashtags pro.
+
+## (b) Propositions optionnelles — à valider individuellement - oui pour tout
+
+- **P1 — Ajuster aussi la mention "vit seule sur Instagram" (ligne 1633)** en `${isLinkedIn ? "LinkedIn" : "Instagram"}`. Cosmétique mais évite une incohérence visible si on relit le prompt. **Reco : appliquer.**
+- **P2 — Adapter le CTA d'exemple ligne 1658** ("Et toi, tu as déjà ressenti ça ?") avec une variante "vous" sur LinkedIn. **Reco : appliquer**, c'est dans le périmètre légende.
+- **P3 — Ajuster les rôles de slides (ligne 1644-1650)** pour ajouter un rôle "preuve" / "leçon" côté LinkedIn. **Reco : NE PAS appliquer** — hors périmètre, les rôles actuels (`hook_visuel`, `detail`, `contexte`, `process`, `emotion`, `cta_visuel`) fonctionnent sur les deux canaux.
 
 ## Ce qui ne bouge pas
 
-- LinkedInMockup / LinkedInMedia (intact).
-- CalendarPostPreview, CalendarPostDialog, CreerUnifie (intacts).
-- Mode `compact` (vignette calendrier) : conserve l'emoji carrousel.
-- Props existantes (aucune supprimée, `slides` devient juste optionnel).
+- Comportement Instagram (`isLinkedIn=false` → prompt strictement identique à aujourd'hui).
+- `buildMixCarouselPrompt`, `buildMixCarouselNewsReactionPrompt`, `buildExpressFullPrompt`.
+- Bloc `confirmedStructureBlock` (narrative_thread / story_beat / visual_anchor).
+- Garde-fou anti-description photo, routage vision/text-only, latence, correction pass, quota, workspace, choix du modèle.
+- Frontend (le canal `linkedin` est déjà transmis via `body.channel`).
 
 ## Validation
 
 - `npx tsc --noEmit --skipLibCheck` passe.
-- Test manuel : post 2 photos via "Partir de photos" → calendrier → preview affiche flèches + dots.
-- Carrousel texte classique : inchangé.
-- Mono-photo : reste `<img>` simple.
-
-## Proposition (b)
-
-**Proposition n°1** — Plutôt qu'une détection implicite via `mediaUrls.length > 1`, ajouter un prop explicite `photoCarousel?: boolean` calculé en amont (ex: dans `CalendarPostPreview`). Avantage : intention claire, pas de "magie" sur la longueur. Inconvénient : touche un fichier hors scope. **Recommandation : ne PAS appliquer**, la détection par longueur est suffisante et reste locale à `SocialMockup`.
-
-**Proposition n°2** — Activer le slider dès `mediaUrls.length >= 1` (même mono-photo) pour homogénéiser le rendu. Inconvénient : ajoute compteur "1/1" et dots inutiles. **Recommandation : ne PAS appliquer**, garder le `<img>` pur en mono-photo.
+- Test manuel Instagram : carrousel photo → légende + hashtags présents, ton inchangé.
+- Test manuel LinkedIn : carrousel photo → vouvoiement, pas de hashtags lifestyle, message user mentionne "LinkedIn".
+- `grep -n "Instagram"` dans la branche photo et `buildPhotoCarouselPrompt` : aucune occurrence hardcodée restante quand `isLinkedIn=true`.
 
 ## Hors scope
 
-- ContentViewer plein écran.
-- Export PPTX/PNG des photos pures.
-- Mode mix (photo + texte).
+- Harmonisation du chaînage dans `buildMixCarouselNewsReactionPrompt`.
+- Harmonisation des fourchettes de longueur d'overlay (5-15 / 5-20 / 5-25).
+- UI de sélection du canal.
