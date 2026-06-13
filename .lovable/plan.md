@@ -1,50 +1,49 @@
-# Plan — Carrousel photo : prompt de rédaction qui réagit à l'actu
+## Contexte métier
 
-## État réel du code (différent du plan initial)
+A la fin de l'onboarding, le diagnostic IA (`deep-diagnostic`, appel Sonnet sur plusieurs sources) peut prendre 60-90s. Or un `safetyTimeout` manuel declenche un fallback generique des 52s, alors que `invokeWithTimeout` est lui regle a 180s.
 
-Vérification du fichier `supabase/functions/carousel-ai/index.ts` :
+Resultat : tout diagnostic un peu long est REMPLACE par un calcul local generique (`computeDiagnosticData`), et la personne perd le vrai diagnostic personnalise.
 
-1. **Le call site existe déjà** (ligne 252-253) :
-   ```
-   const photoPrompt = hasNews
-     ? buildPhotoCarouselNewsReactionPrompt(body, isLinkedIn)
-     : buildPhotoCarouselPrompt(body, isLinkedIn);
-   ```
+## Fichier impacté
 
-2. **La fonction `buildPhotoCarouselNewsReactionPrompt` existe déjà** (ligne 1733-1930), bien calquée sur la version mix, avec tous les garde-fous attendus : voix JE, hook sur l'actu, ≥1 fait précis cité, anti-fabrication, chaînage des overlays, quality_check enrichi.
+`src/components/onboarding/DiagnosticLoading.tsx` (UNIQUEMENT ce fichier)
 
-3. **Bug de syntaxe à la fin de la fonction** (lignes 1928-1930) :
-   ```
-   1928:   }`;
-   1929: }`;     ← LIGNE EN TROP : `}` + backtick + `;` parasites
-   1930: }
-   ```
-   Cette ligne 1929 termine prématurément un template string inexistant et casse le parsing. La fonction est donc présente mais le fichier ne compile pas en l'état.
+## Analyse technique
 
-## Fichiers impactés
+- `invokeWithTimeout` ne rejette jamais : a son propre timeout (180s) il RESOUT avec `{ data: null, error: { isTimeout: true } }`.
+- Le code en aval gere deja ce cas : `if (error || !data) { useFallback(); return; }`.
+- Le `safetyTimeout` manuel (52s) fait double emploi avec le timeout interne, mais en BEAUCOUP plus court -> il sabote l'appel reel.
 
-- `supabase/functions/carousel-ai/index.ts` — supprimer la ligne 1929 uniquement.
+## Changements attendus
 
-## Comportement attendu après fix
+1. **Supprimer entierement le mecanisme `safetyTimeout`/`timeoutFired`** (option A retenue) :
+   - Supprimer la declaration `let safetyTimeout: ReturnType<typeof setTimeout> | null = null;`
+   - Supprimer `let timeoutFired = false;`
+   - Supprimer le `setTimeout(..., 52000)` (lignes ~270-274)
+   - Supprimer les `clearTimeout(safetyTimeout)` (lignes ~278 et ~300)
+   - Supprimer les gardes `if (timeoutFired) return;` (lignes ~279 et ~301)
 
-- `npx tsc --noEmit --skipLibCheck` passe sans erreur.
-- Mode photo AVEC actu (`newsContext` non vide) → `buildPhotoCarouselNewsReactionPrompt` est utilisé, le carrousel s'ouvre sur l'actu, cite au moins un fait, photos = support visuel.
-- Mode photo SANS actu → `buildPhotoCarouselPrompt` (inchangé) → comportement strictement identique à avant.
+2. **Reduire le timeout d'`invokeWithTimeout` de 180000 a 120000** (ligne ~276) :
+   - 120s est le timeout Opus/audits documente du projet, suffisant pour ce diagnostic et plus raisonnable en UX que 180s d'attente.
 
 ## Ce qui NE DOIT PAS bouger
 
-- `buildPhotoCarouselPrompt`, `buildMixCarouselPrompt`, `buildMixCarouselNewsReactionPrompt` : aucun changement.
-- Le contenu de `buildPhotoCarouselNewsReactionPrompt` lui-même : aucun changement de prompt (il est déjà conforme au plan d'origine). On corrige seulement la syntaxe.
-- L'envoi des photos, `max_tokens` 8192, le correction pass, `logUsage "carousel_photo"` : inchangés.
+- `useFallback()` et `computeDiagnosticData` : inchanges.
+- Le branchement `isDemoMode` en haut de l'effet : inchangé.
+- `mapEdgeResponseToDiagnostic`, `buildRevealMessages`, la phase "revealing" : inchanges.
+- Le body envoye a l'edge function (`isOnboarding: true`, `workspace_id...`) : inchangé.
+- Les messages UI `elapsedSeconds >= 15` / `>= 30` : gardes, ils restent pertinents comme reassurance pendant l'attente.
+- `calledRef`, `diagnosticDataRef`, toute la machinerie de phases : inchanges.
 
 ## Critères de validation
 
-- `npx tsc --noEmit --skipLibCheck` passe.
-- Test manuel : actu (avec faits) → carrousel photo → slide 1 part de l'actu, ≥1 slide cite un fait, photos servent le propos.
-- Régression : carrousel photo sans actu → identique à avant.
+- `npx tsc --noEmit --skipLibCheck` passe sans erreur.
+- Plus aucune occurrence de `52000`, `safetyTimeout` ou `timeoutFired` dans le fichier.
+- `invokeWithTimeout(...)` est appele avec `120000` en 3e argument.
+- Test manuel : onboarding complet avec un vrai compte (site web renseigne) -> le diagnostic affiche est bien le diagnostic IA personnalise, pas le generique, meme si l'analyse prend ~70-90s.
+- Test manuel : couper le reseau pendant l'analyse -> le fallback generique s'affiche correctement (pas d'ecran bloque).
 
-## Hors scope
+## Hors scope (plans séparés)
 
-- Mode texte, mode mix, structure_proposal (couvert ailleurs).
-- handlePhotosNext reset (séparé).
-- Toute réécriture du prompt déjà en place (il correspond déjà à la spec).
+- Le decompte 3 credits hors onboarding.
+- Le polish onboarding (validators steps 9/10, auto-next step 3, desired_channels).
