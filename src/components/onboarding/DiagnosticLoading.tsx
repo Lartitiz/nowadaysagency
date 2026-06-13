@@ -240,9 +240,8 @@ export default function DiagnosticLoading({
     callDeepDiagnostic();
 
     async function callDeepDiagnostic() {
-      let timeoutFired = false;
-      let safetyTimeout: ReturnType<typeof setTimeout> | undefined;
       try {
+
         const body = {
           userId: user?.id,
           websiteUrl: answers.website || null,
@@ -267,22 +266,14 @@ export default function DiagnosticLoading({
           },
         };
 
-        safetyTimeout = setTimeout(() => {
-          timeoutFired = true;
-           console.warn("Deep diagnostic timeout (52s), using fallback");
-           useFallback();
-         }, 52000);
-
-        const { data, error } = await invokeWithTimeout("deep-diagnostic", { body: { ...body, isOnboarding: true, workspace_id: workspaceId !== user?.id ? workspaceId : undefined } }, 180000);
-
-        clearTimeout(safetyTimeout);
-        if (timeoutFired) return;
+        const { data, error } = await invokeWithTimeout("deep-diagnostic", { body: { ...body, isOnboarding: true, workspace_id: workspaceId !== user?.id ? workspaceId : undefined } }, 120000);
 
         if (error || !data) {
           console.warn("Edge function failed, using fallback:", error);
           useFallback();
           return;
         }
+
 
         const result = mapEdgeResponseToDiagnostic(data);
         diagnosticDataRef.current = result;
@@ -297,11 +288,10 @@ export default function DiagnosticLoading({
           setTimeout(() => onReady(result), 400);
         }
       } catch (err) {
-        clearTimeout(safetyTimeout);
-        if (timeoutFired) return;
         console.warn("Deep diagnostic error, using fallback:", err);
         useFallback();
       }
+
     }
 
     function useFallback() {
