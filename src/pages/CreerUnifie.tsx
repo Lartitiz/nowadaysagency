@@ -1539,7 +1539,7 @@ export default function CreerUnifie() {
 
   // ── Post-generation handlers ──
 
-  const handleSave = async () => {
+  const persistCarousel = async () => {
     if (!session?.user?.id || !result?.raw || saving) return;
     const r = result.raw;
     if (selectedFormat === "carousel" && r?.slides) {
@@ -1566,11 +1566,15 @@ export default function CreerUnifie() {
       } finally {
         setSaving(false);
       }
-      // Suite : ouvre le dialog pour insérer dans saved_ideas (boîte à idées)
     }
+  };
+
+  const handleSave = async () => {
+    await persistCarousel();
     // Ouvrir le dialog SaveToIdeasDialog (insertion réelle dans saved_ideas)
     setSaveIdeaDialogOpen(true);
   };
+
 
   const mapFormatToContentType = (fmt: string | null): "story" | "reel" | "post_instagram" | "post_linkedin" | "newsletter" | "pinterest" => {
     if (fmt === "newsletter") return "newsletter";
@@ -1693,7 +1697,7 @@ export default function CreerUnifie() {
     setSavingToCalendar(true);
     try {
       if (selectedFormat === "carousel" && !savedId && result?.raw?.slides) {
-        await handleSave();
+        await persistCarousel();
       }
       const { contentDraft, accroche, storyDetail } = extractContentForCalendar();
       const r = result?.raw;
@@ -1791,7 +1795,7 @@ export default function CreerUnifie() {
     if (!session?.user?.id || !result?.raw) return;
     // Auto-save carousel if not already saved
     if (selectedFormat === "carousel" && !savedId && result?.raw?.slides) {
-      await handleSave();
+      await persistCarousel();
     }
     // If coming from calendar, save directly back
     if (fromCalendar) {
