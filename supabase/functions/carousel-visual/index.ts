@@ -223,10 +223,10 @@ serve(async (req) => {
 
     const quota = await checkQuota(user.id, "content", ownerWorkspaceId);
     if (!quota.allowed) {
-      return new Response(JSON.stringify({ error: quota.message, quota }), {
-        status: 429,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: "limit_reached", message: quota.message, quota }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     const reqBody = await req.json();

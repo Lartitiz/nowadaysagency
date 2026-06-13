@@ -1,138 +1,101 @@
 ## Objectif
 
-Insérer chaque photo dans le PPTX avec un VRAI crop "cover" centré (recadrage proportionnel) au lieu de l'actuel stretch. Mesure des dimensions source faite localement dans l'exporteur, sans toucher à la chaîne amont ni à l'interface `OriginalPhoto`.
+À court de crédits sur "générer les slides visuelles", ouvrir le `QuotaWallModal` (avec bilan + date renouvellement + CTA), au lieu d'un toast rouge brut.
 
-## Cause racine (rappel)
+## Cause racine (confirmée par lecture)
 
-`slide.addImage({ w, h, sizing: { type: "cover", w, h } })` passe les dimensions du CADRE à `sizing.cover`. Sans le ratio source réel, pptxgenjs ne peut pas calculer le crop → il étire l'image pour remplir.
+1. **Edge** `supabase/functions/carousel-visual/index.ts` ligne 225-229 :
+   ```ts
+   return new Response(JSON.stringify({ error: quota.message, quota }), { status: 429, ... })
+   ```
+   `error` vaut le **message** au lieu de la sentinelle `"limit_reached"`.
 
-## Fichier impacté
+2. **Front** `src/pages/CreerUnifie.tsx` ligne 2297 :
+   ```ts
+   if (data?.error) throw new Error(data.error);
+   ```
+   Cette ligne perd l'objet `data.quota` (Error n'a que `message`). Et le catch ligne 2304-2310 fait `toast.error` directement sans passer par `handleQuotaError`.
 
-`src/lib/export-carousel-hybrid-pptx.ts` UNIQUEMENT.
+`handleQuotaError` (déjà importé) lit `error?.data?.error === "limit_reached"` et `error?.data?.quota` pour décider d'ouvrir le modal.
 
-## Solution (a) — Demandé
+## Modifications (a) — Demandé
 
-### 1. Helper de mesure des dimensions source
+### EDGE — `supabase/functions/carousel-visual/index.ts`
 
-Ajouter en haut du fichier (au-dessus de `exportCarouselHybridPptx`) :
-
+**Ligne 225-229 :**
 ```ts
-async function measureImageSize(
-  dataUrl: string,
-  timeoutMs = 5000,
-): Promise<{ w: number; h: number } | null> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    const t = setTimeout(() => { img.src = ""; resolve(null); }, timeoutMs);
-    img.onload = () => {
-      clearTimeout(t);
-      resolve({ w: img.naturalWidth, h: img.naturalHeight });
-    };
-    img.onerror = () => { clearTimeout(t); resolve(null); };
-    img.src = dataUrl;
-  });
+if (!quota.allowed) {
+  return new Response(
+    JSON.stringify({ error: "limit_reached", message: quota.message, quota }),
+    { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+  );
 }
 ```
+Seule la forme de la réponse change. La logique de `checkQuota` est inchangée.
 
-### 2. Pré-mesure mutualisée (une fois par photo, pas par slide)
+### FRONT — `src/pages/CreerUnifie.tsx`, `handleGenerateVisuals`
 
-Juste après `const logoBase64 = await fetchLogoAsBase64(logoUrl);` (ligne 461) :
+**Lignes 2293-2313 :** intercepter le cas quota AVANT le throw générique, et brancher `handleQuotaError` aussi dans le catch.
 
-```ts
-const photoSizes: Array<{ w: number; h: number } | null> =
-  originalPhotos
-    ? await Promise.all(originalPhotos.map((p) => measureImageSize(p.base64)))
-    : [];
-```
+```tsx
+const { data, error: fnError } = await invokeWithTimeout("carousel-visual", {
+  body: requestBody,
+}, 120000);
+if (fnError) throw fnError;
 
-Une photo réutilisée sur plusieurs slides n'est mesurée qu'une fois.
+// Quota épuisé : ouvrir le QuotaWallModal avec l'objet quota complet,
+// avant le throw générique qui perdrait data.quota.
+if (data?.error === "limit_reached" || data?.quota) {
+  if (handleQuotaError({ data })) return;
+}
 
-### 3. Calcul du crop centré au moment de l'insertion
-
-Remplacer le bloc `slide.addImage({ ..., sizing: { type: "cover", w, h } })` (lignes 609-621) par un calcul qui produit `sizing.type: "crop"` avec une fenêtre source proportionnelle au ratio du cadre :
-
-```ts
-const srcSize = photoSizes[zone.photoIndex - 1];
-const addImageOpts: any = { data: photo.base64, x, y, w, h };
-
-if (srcSize && srcSize.w > 0 && srcSize.h > 0) {
-  const srcRatio   = srcSize.w / srcSize.h;
-  const frameRatio = w / h;
-  const TOL = 0.01;
-
-  // Crop exprimé en POURCENTAGES de l'image source (invariant à la résolution).
-  // pptxgenjs (type: "crop") accepte des Coord en "NN%".
-  const pct = (v: number) => `${(v * 100).toFixed(4)}%`;
-
-  if (Math.abs(srcRatio - frameRatio) < TOL) {
-    // Ratios alignés → pas de sizing → l'image remplit le cadre sans déformation.
-  } else if (srcRatio > frameRatio) {
-    // Source plus paysage que le cadre → rogner gauche/droite, garder toute la hauteur.
-    const visibleFrac = frameRatio / srcRatio; // part de la largeur source conservée (0-1)
-    const offFrac = (1 - visibleFrac) / 2;     // marge rognée de chaque côté
-    addImageOpts.sizing = {
-      type: "crop",
-      x: pct(offFrac),
-      y: "0%",
-      w: pct(visibleFrac),
-      h: "100%",
-    };
-  } else {
-    // Source plus portrait que le cadre → rogner haut/bas, garder toute la largeur.
-    const visibleFrac = srcRatio / frameRatio; // part de la hauteur source conservée (0-1)
-    const offFrac = (1 - visibleFrac) / 2;
-    addImageOpts.sizing = {
-      type: "crop",
-      x: "0%",
-      y: pct(offFrac),
-      w: "100%",
-      h: pct(visibleFrac),
-    };
-  }
+if (data?.error) throw new Error(data.error);
+setVisualSlides(data.result?.slides_html || []);
+if (downgradeReason === "user_chose_text") {
+  toast.success("Carrousel généré en mode texte (aucune photo disponible).");
 } else {
-  // Fallback : mesure échouée → comportement actuel (peut étirer, pas de crash).
-  addImageOpts.sizing = { type: "cover", w, h };
+  toast.success("Visuels générés !");
 }
-
-try {
-  slide.addImage(addImageOpts);
-} catch (e) {
-  console.warn("[hybrid] addImage(originalPhoto) failed", e);
+} catch (e: any) {
+  // Quota remonté par throw (ex: invokeWithTimeout retourne déjà l'erreur typée)
+  if (handleQuotaError(e)) return;
+  posthog.capture("carousel_visual_error", {
+    error_message: e?.message || "unknown",
+    had_slides: !!result?.raw?.slides,
+    slides_count: result?.raw?.slides?.length || 0,
+  });
+  toast.error(e?.message || "Erreur lors de la génération des visuels");
+} finally {
+  setVisualLoading(false);
 }
 ```
 
-Note technique : avec `sizing.type: "crop"`, pptxgenjs interprète `x/y/w/h` du sizing comme une fenêtre dans le repère source (en inches via `PX_PER_IN` pour rester cohérent), et le cadre cible reste défini par les `x/y/w/h` du `addImage`. Comme `visibleW / visibleH === frameRatio` par construction, il n'y a aucune déformation.
+Le `return` après `handleQuotaError` court-circuite proprement : le `finally` existant reste seul responsable du `setVisualLoading(false)`.
 
 ## Ce qui NE BOUGE PAS (confirmé)
 
-- Architecture 3 couches (photos → shapes natifs → PNG → texte).
-- Placement et coordonnées des cadres photo (x, y, w, h) : INCHANGÉS.
-- Clamping existant `Math.max/Math.min` sur x, y, w, h (lignes 604-607).
-- Constantes `SLIDE_W_PX`, `SLIDE_H_PX`, `PPTX_W_IN`, `PPTX_H_IN`, `PX_PER_IN`.
-- Logo, fond PNG, shapes natifs, texte éditable, captureBody, mountIframe.
-- Interface `OriginalPhoto` : INCHANGÉE (mesure locale, pas de nouveau champ amont).
-- Pattern quota, palette, fonts.
-- `CreerUnifie.tsx`, hooks, Edge Functions : INCHANGÉS.
+- Logique `checkQuota`, mapping slides, downgrade photo/mix, `PhotoMissingDialog`, `generatedWithPhotos`, snapshots photos.
+- Bypass démo Auriana, `posthog.capture` (conservé après le court-circuit quota).
+- Autres handlers (`handleGenerateText`, `handleGeneratePinterest`, carrousel structure, brief) qui gèrent déjà `handleQuotaError`.
+- `carousel-ai/index.ts` : hors scope.
+- Import `handleQuotaError` ligne 3 : déjà présent, pas re-importé.
+- Le `finally { setVisualLoading(false); }` : unique endroit qui reset le loading.
 
 ## Validation
 
 1. `npx tsc --noEmit --skipLibCheck` : 0 erreur.
-2. Régénérer un carrousel contenant au moins :
-  - 1 slide photo-haut/texte-bas avec photo PORTRAIT (cas du bug)
-  - 1 slide photo plein cadre (ratio proche du cadre)
-  - 1 slide `photo_integrated` colonne verticale
-3. Ouvrir le PPTX : aucune photo aplatie, sujet correctement proportionné, recadrage centré cohérent.
-4. Photo déjà bien proportionnée → rendu identique à avant (branche TOL atteinte).
-5. Slides sans photo : aucune régression.
+2. Compte à 0 crédit → "générer les slides" → `QuotaWallModal` s'ouvre avec bilan du mois (pas un toast rouge).
+3. Régression : avec crédits, génération normale, toast de succès, visuels affichés.
+4. Régression : carrousel photo sans photo → `PhotoMissingDialog` (pas le mur quota), inchangé car ce flow n'atteint pas l'appel `carousel-visual`.
+5. Régression : autres erreurs (timeout, 500) → toast d'erreur classique inchangé.
 
-## Propositions séparées (b) — à valider individuellement
+## Propositions séparées (b) — non implémentées
 
-- **b1. Point focal configurable.** Aujourd'hui on centre. Lire un `data-pptx-focal-x` / `data-pptx-focal-y` (0-1) sur l'élément photo HTML pour décaler le crop (utile portraits où le visage est haut). 5 lignes. À activer seulement quand la couche amont annote l'info.
-- **b2. Mutualisation amont du sizing.** Si une étape pipeline charge déjà ces base64 dans un `Image()`, on pourrait y cacher `naturalWidth/Height`. Bénéfice marginal (mesure base64 = quelques ms), risque de couplage. **Recommandation : ne pas faire**, garder mesure locale autonome.
-- **b3. Tolérance.** `TOL = 0.01` (1%) évite des crops invisibles. Ajuster à `0.005` seulement si on observe du micro-aliasing aux bords, après QA visuelle.
+- **b1.** `carousel-visual` retourne d'autres erreurs avec `{ error: "<message brut>" }` (ex. Anthropic 529, timeout, "Aucune slide générée"). Les typer (`error: "overloaded"`, `"timeout"`, `"empty_output"`) permettrait au front d'afficher des toasts métier (ex. "L'IA est saturée, réessaie dans 30s"). Hors scope ici, à inclure dans le plan d'harmonisation globale.
+- **b2.** `invokeWithTimeout` pourrait, sur status 429, attacher `e._isQuota = true` et `e.data = await res.json()` côté wrapper, ce qui simplifierait tous les call-sites (un seul `if (handleQuotaError(e)) return`). Refacto utile mais transverse — à proposer dans le plan global.
 
-## Hors scope (rappel)
+## Hors scope (plans séparés)
 
-- Éditabilité texte cartes en PPTX (plan distinct).
-- `supabase/functions/carousel-visual/index.ts` (plan A layout — déjà traité).
-- Micro-cadrage fond logo, export PNG.
+- `carousel-ai` : ajouter l'objet `quota` complet dans son `limit_reached`.
+- Harmonisation des ~11 fonctions à 429 artisanal.
+- Suppression de `useFormPersist`.
