@@ -1,51 +1,73 @@
-## (a) Implémentation demandée — Cartes Boîte à idées : aperçu scannable
+## (a) Ce que tu demandes — implémentation des filtres repliés
 
-### Scope
+### 1. State local
+Ajouter `const [filtersOpen, setFiltersOpen] = useState(false);` dans `IdeasPage.tsx`.
 
-UNIQUEMENT le bloc de rendu d'une carte dans la liste (`filtered.map`) dans `src/pages/IdeasPage.tsx` (~lignes 379-390 et lignes 374-377). Aucun autre fichier.
+### 2. Ligne visible (sticky)
+Sur la ligne Statut existante (l. 296-301) :
+- **Gauche** : les chips Statut ("Tout" + 5 statuts) — **strictement inchangés**
+- **Droite** : le sélecteur de tri (déplacé depuis la ligne Type) + le bouton "Filtres"
+- Le sélecteur et le bouton s'alignent à droite de la ligne via `flex justify-between` ou `ml-auto gap-2`
 
-### Changements
+### 3. Bouton "Filtres"
+- Icône `SlidersHorizontal` (lucide-react)
+- Label : `"Filtres"` si 0 actif, sinon `"Filtres · N"`
+- Compteur : nombre de filtres parmi Objectif / Canal / Type qui ne sont pas sur `"all"`
+- Toggle : `onClick={() => setFiltersOpen(v => !v)}`
+- Style : chip-like (`rounded-lg`, `border`, `px-2 py-1`, `text-[11px]`) ou `Button` variant outline, selon cohérence visuelle
 
-1. **Remplacer le bloc Preview dans la carte de liste**
-  - Localiser la zone actuelle (lignes ~379-390) qui rend `<ContentPreview>` avec `compact` pour `content_data` ou `content_draft`.
-  - Supprimer ces deux branches `<ContentPreview>`.
-  - Les remplacer par un unique bloc qui extrait un texte d'aperçu dans cet ordre :
-    - **a.** `idea.accroche_short` existe → afficher `🎣 {idea.accroche_short}`
-    - **b.** sinon `idea.content_draft` existe → en extraire le texte brut, nettoyer les préfixes type `SLIDE 1 [📸]:` / `SLIDE 2 [📝]:` (conserver uniquement la phrase qui suit), puis afficher le début
-    - **c.** sinon → ne rien afficher
-  - Le texte résultant est rendu dans un `<p>` avec les classes : `text-[13px] text-foreground/70 line-clamp-2 mt-2`
-  - Le `line-clamp-2` garantit un aperçu de 2 lignes max avec ellipse propre.
-2. **Conditionner les métadonnées Angle / Format**
-  - Lignes ~376-377 : entourer `<p>Angle : {idea.angle}</p>` d'une condition `idea.angle?.trim()`.
-  - Entourer `<p>Format : {idea.format}</p>` d'une condition `idea.format?.trim()`.
-  - Si la valeur est vide, la ligne ne s'affiche pas du tout.
-3. **Invariants (strictement inchangés)**
-  - `ContentPreview.tsx` : aucune modification.
-  - Le panneau de détail (`Dialog` à partir de ~ligne 448) : aucune modification, il continue d'afficher `<ContentPreview>` complet au clic sur la carte.
-  - Badges (statut, objectif, canal, brief) : inchangés.
-  - Boutons d'action (Rédiger, Planifier, Supprimer, Créer à partir du brief) : inchangés.
-  - Ligne "Créée le …" + date planifiée : inchangée.
-  - Toute la logique de filtres, tri, fetch, handlers : inchangée.
-  - Aucun import Supabase, aucune requête, aucune config touchée.
+### 4. Panneau dépliable
+Utiliser le composant `Collapsible` déjà présent (`src/components/ui/collapsible.tsx`, Radix UI natif) :
+- `<Collapsible open={filtersOpen}>`
+- `<CollapsibleContent>` contient les 3 groupes de chips actuels :
+  - Ligne Objectif (l. 304-308)
+  - Ligne Canal (l. 310-316)
+  - Ligne Type (l. 319-323)
+- Les chips et leur logique sont strictement inchangées — seul l'emballage change
+- Ajouter un lien/bouton "Réinitialiser" dans le panneau :
+  - `onClick={() => { setObjectifFilter("all"); setCanalFilter("all"); setTypeFilter("all"); }}`
+  - Ne touche pas `statusFilter` ni `sort`
 
-## (b) Propositions d'amélioration (à valider séparément)
+### 5. Layout sticky
+Le conteneur sticky (l. 294) garde son `className` et son `z-30`. La structure interne devient :
+```
+sticky container
+  ├── ligne visible : Statut (gauche) + tri + bouton Filtres (droite)
+  └── CollapsibleContent
+        ├── ligne Objectif
+        ├── ligne Canal
+        ├── ligne Type
+        └── Réinitialiser
+```
 
-1. **Helper `cleanSlideMarkers ok**`
-  - Extraire une petite fonction locale dans `IdeasPage.tsx` (pas de nouveau fichier) pour nettoyer les marqueurs SLIDE :
-  - Avantage : évite la duplication si un autre endroit veut le même nettoyage, et rend la transformation explicite.
-  - Si tu préfères l'inline dans le JSX, c'est aussi faisable.
-2. **Gestion du** `content_data` **comme fallback texte ok**
-  - Le plan demande de ne plus utiliser `content_data` dans la carte. J'ai identifié que certains carrousels générés stockent les slides dans `content_data` (et pas dans `content_draft`). Si une idée n'a ni `accroche_short` ni `content_draft` mais a un `content_data.carousel.caption` ou `.hook_text`, on pourrait en piocher un texte. Cependant, cela réintroduit une dépendance à `content_data` dans la carte, ce que le plan demande d'éviter. Je ne l'implémente donc PAS sauf si tu le demandes explicitement.
+### 6. Invariants
+- `filtered` useMemo : inchangé
+- `STATUS_OPTIONS`, `OBJECTIF_OPTIONS`, `CANAL_OPTIONS`, `TYPE_OPTIONS`, `SORT_OPTIONS` : inchangés
+- `FilterChip` : inchangé
+- States de filtre : conservés, seul leur emplacement d'affichage change
+- Rendu des cartes, Dialog de détail, handlers : inchangés
 
-## Validation
+---
 
-- `npx tsc --noEmit --skipLibCheck` → 0 erreur.
-- Carte carrousel avec long brouillon : max 2 lignes d'aperçu texte, plus de rendu complet des slides.
-- Clic sur carte : ouvre le détail avec `<ContentPreview>` complet comme avant.
-- Lignes Angle/Format vides absentes.
+## (b) Proposition d'amélioration — animation propre
+
+Le projet a déjà `<Collapsible>` (shadcn / Radix UI) à `src/components/ui/collapsible.tsx`. Je te propose de l'utiliser plutôt qu'une logique maison `filtersOpen && ...` :
+- Avantage : animation d'ouverture/fermeture douce native (hauteur CSS animée), accessibilité clavier (Enter/Espace sur le trigger), état `data-state="open|closed"` pour styling.
+- Inconvénient : aucun, c'est un wrapper léger autour de Radix.
+
+Alternative si tu préfères éviter Collapsible : un simple `filtersOpen && <div className="animate-in slide-in-from-top-2 ...">` avec Tailwind `animate-in` — plus léger mais moins accessible.
+
+**Ma recommandation : utiliser le `Collapsible` déjà présent.**
+
+---
+
+## Validation prévue
+- `npx tsc --noEmit --skipLibCheck` → 0 erreur
+- Au chargement : seule la ligne Statut + tri + "Filtres" est visible
+- Clic "Filtres" → panneau s'ouvre avec Objectif/Canal/Type + "Réinitialiser"
+- Sélectionner un Objectif, fermer le panneau → compteur "Filtres · 1" reste visible, filtre actif
+- "Réinitialiser" remet les 3 filtres sur "all", panneau reste ouvert (ou se ferme — au choix, je laisserai ouvert par simplicité)
 
 ## Hors scope
-
-- Replier les filtres derrière un bouton "Filtres" (chantier B).
-- Nettoyer les badges redondants (chantier C).
-- Modification de `ContentPreview.tsx`.
+- Badges redondants sur les cartes (chantier C)
+- Toute modification du chantier A (cartes)
