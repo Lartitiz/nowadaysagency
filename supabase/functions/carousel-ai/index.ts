@@ -247,7 +247,10 @@ serve(async (req) => {
 
       // ── Photo carousel mode ──
       if (body.carousel_type === "photo") {
-        const photoPrompt = buildPhotoCarouselPrompt(body, isLinkedIn);
+        const hasNews = typeof newsContext === "string" && newsContext.trim().length > 0;
+        const photoPrompt = hasNews
+          ? buildPhotoCarouselNewsReactionPrompt(body, isLinkedIn)
+          : buildPhotoCarouselPrompt(body, isLinkedIn);
         let content: string;
 
         if (body.photos && body.photos.length > 0 && !body.confirmed_structure) {
