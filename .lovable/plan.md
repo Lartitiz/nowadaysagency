@@ -1,28 +1,39 @@
-## Fix
+## Objectif
 
-In `src/pages/CreerUnifie.tsx`, within `handlePhotosNext` (lines 631-645), **remove** lines 637-638:
+Dans le dialog d'édition d'un post du calendrier :
+1. Isoler visuellement le bloc **Statut** (et la **Date**) en haut, séparé du reste des métadonnées (canal, format, etc.).
+2. Remplacer la petite icône ↩︎ "Remettre en idée" (peu lisible) par un **bouton texte explicite** : "💡 Je veux le remettre dans mes idées", placé directement sous le Statut.
 
-```typescript
-    setNewsjackingContext(null);
-    setNewsjackingSuggestedFormat(null);
-```
+Comportement du bouton : exactement celui déjà câblé via `handleUnplan` dans `src/pages/Calendar.tsx` (lignes 643-672) — création d'une ligne dans `saved_ideas` + suppression du `calendar_posts` + refresh sidebar + toast. **Aucune modif de la logique métier**, juste de l'UI.
 
-## Why
+## Fichiers impactés
 
-These two resets were unconditionally clearing any newsjacking context that the user had just selected via an article angle. Since `handlePhotosNext` is called from the "Partir de photos" entry point, preserving the context allows the photo carousel flow to remain anchored to the chosen actu.
+- `src/components/calendar/CalendarPostMetadata.tsx`
+  - Couper le composant en deux blocs visuels :
+    - **Bloc 1 (statut + date)** : encadré léger (carte avec `border border-border rounded-[12px] p-3 space-y-3`) pour le détacher.
+    - **Bloc 2** : le reste (Série, résumé Canal/Format, Collapsible avancé) reste inchangé, juste séparé par un petit espacement.
+  - Ajouter dans le bloc 1, juste sous le Statut, un bouton plein largeur : `💡 Je veux le remettre dans mes idées`. Ce bouton appelle une nouvelle prop optionnelle `onUnplan?: () => void` et ne s'affiche que si `onUnplan && editingPostId`.
+  - Confirmation native avant l'action : `window.confirm("Remettre ce post dans ta boîte à idées ? Il sera retiré du calendrier.")`.
 
-When there is no upstream actu, these states are already `null`; removing the reset is a no-op and does not affect non-newsjacking journeys.
+- `src/components/calendar/CalendarPostDialog.tsx`
+  - Passer la prop `onUnplan={onUnplan}` à `<CalendarPostMetadata />`.
+  - **Supprimer** le bouton icône ↩︎ Undo2 du `actionsBlock` (lignes 406-410), il fait désormais doublon.
+  - Garder le bouton 💾 Enregistrer et le bouton 🗑️ Supprimer.
+  - Retirer l'import `Undo2` si plus utilisé.
 
-## Unchanged
+- `src/pages/Calendar.tsx`
+  - **Aucun changement** — `handleUnplan` reste tel quel, déjà passé via `onUnplan`.
 
-- `handleIdeaNext` keeps its `setNewsjackingContext(null)` — reparting from a raw idea should still clear the actu.
-- The `onBack` callback at line 2556 keeps its `setNewsjackingContext(null)` — stepping back to idea resets legitimately.
-- All other state resets in `handlePhotosNext` remain (`setSelectedFormat(null)`, `setEditorialAngle(null)`, etc.).
-- No other files touched.
+## Critères de validation
 
-## Validation
+- `npx tsc --noEmit --skipLibCheck` passe.
+- Sur mobile et desktop, le Statut + Date apparaissent dans une carte dédiée en haut du panneau Méta, avec le bouton "Je veux le remettre dans mes idées" juste dessous.
+- Cliquer ce bouton → confirmation → post disparaît du calendrier, réapparaît dans la sidebar Idées, toast "Remis en idée !".
+- Plus aucun bouton icône ↩︎ dans la barre d'actions du bas (juste 💾 Enregistrer + 🗑️ Supprimer).
+- Création d'un nouveau post (pas d'`editingPost`) : le bouton n'apparaît pas (cohérent — rien à "remettre").
 
-- `npx tsc --noEmit --skipLibCheck` must pass.
-- Manual test A: article → angle → "Partir de photos" → carousel photo uses the actu.
-- Manual test B: direct "Partir de photos" without actu → normal generation, no ghost context.
-- Manual test C: article → angle → photo carousel (without photo entry point) → unchanged.
+## Hors scope
+
+- Changement de la requête `handleUnplan` (déjà OK).
+- Refonte du drag-and-drop vers la sidebar idées (déjà fonctionnel).
+- Animations de transition.

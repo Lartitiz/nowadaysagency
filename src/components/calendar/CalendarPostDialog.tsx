@@ -13,7 +13,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
-import { Trash2, ChevronDown, Upload, Undo2 } from "lucide-react";
+import { Trash2, ChevronDown, Upload } from "lucide-react";
 import { getGuide } from "@/lib/production-guides";
 import { type CalendarPost } from "@/lib/calendar-constants";
 import { supabase } from "@/integrations/supabase/client";
@@ -379,7 +379,9 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       format={format} setFormat={setFormat} objectif={objectif} setObjectif={setObjectif}
       angle={angle} setAngle={setAngle} showAdvanced={showAdvanced} setShowAdvanced={setShowAdvanced}
       editingPostId={editingPost?.id} selectedDate={selectedDate} onDateChange={onDateChange}
+      onUnplan={onUnplan}
     />
+
   );
 
   // Bloc preview (avec props compact + sync)
@@ -403,11 +405,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   const actionsBlock = (
     <div className="flex gap-2 pt-4 mt-4 border-t border-border">
       <Button onClick={handleSave} disabled={!theme.trim()} className="flex-1 rounded-pill bg-primary text-primary-foreground hover:bg-primary/90">💾 Enregistrer</Button>
-      {onUnplan && editingPost && (
-        <Button variant="outline" size="icon" onClick={onUnplan} className="rounded-full text-muted-foreground hover:text-primary" title="Remettre en idée">
-          <Undo2 className="h-4 w-4" />
-        </Button>
-      )}
+
       {editingPost && (
         <Button variant="outline" size="icon" onClick={() => { if (window.confirm("Supprimer ce post du calendrier ? Cette action est irréversible.")) onDelete(); }} className="rounded-full text-destructive hover:bg-destructive/10">
           <Trash2 className="h-4 w-4" />
