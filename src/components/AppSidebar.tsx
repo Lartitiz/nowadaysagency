@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ChevronRight, ChevronDown, Check, Home, PenLine, CalendarDays, MessageCircle, Palette, ClipboardList, Instagram, Briefcase, Globe, Search, Pin, Users, BarChart3, Brain, Settings, Film, GraduationCap, Wrench, CreditCard, HeartHandshake, LogOut, Menu, X, Plus, Trash2, Image } from "lucide-react";
+import { ChevronRight, ChevronDown, Check, Home, PenLine, CalendarDays, MessageCircle, Palette, ClipboardList, Instagram, Briefcase, Globe, Search, Pin, Users, BarChart3, Brain, Settings, Film, GraduationCap, Wrench, CreditCard, HeartHandshake, LogOut, Menu, X, Plus, Trash2, Image, Lightbulb } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserPlan } from "@/hooks/use-user-plan";
 import { useDemoContext } from "@/contexts/DemoContext";
@@ -24,6 +24,7 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
     items: [
       { label: "Nouveau contenu", path: "/creer", icon: <PenLine size={16} />, freshStart: true },
       { label: "Calendrier", path: "/calendrier", icon: <CalendarDays size={16} /> },
+      { label: "Mes idées", path: "/calendrier?tab=idees", icon: <Lightbulb size={16} /> },
       { label: "Routine engagement", path: "/instagram/routine", icon: <MessageCircle size={16} /> },
     ],
   },
