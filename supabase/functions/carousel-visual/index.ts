@@ -179,7 +179,7 @@ IMPORTANT pour les schémas :
 - Utilise les vraies couleurs de la charte (${ch.color_primary}, ${ch.color_secondary}, ${ch.color_accent}, ${ch.color_text})
 - Les cartes des templates sont blanches (#FFF) pour un fond de charte CLAIR. Si ${ch.color_background} est sombre, remplace le blanc des cartes par une teinte claire OPAQUE harmonisée avec la charte (jamais de rgba semi-transparent).
 - Couleurs sémantiques autorisées hors charte (les SEULES) : le rouge #E74C3C et le vert #27AE60 des oppositions ❌/✅ (before_after, checklist, scale) et le fond #1A1A1A de la DARK BOX. Tout autre accent vient de la charte.
-- CARTES SŒURS = MÊME HAUTEUR : dans un schéma à cartes multiples (timeline, story_arc, process_visible, comparison…), toutes les cartes d'une même rangée ont la MÊME hauteur (le conteneur flex utilise align-items:stretch, jamais center ou flex-start) et le MÊME alignement vertical de leur contenu interne.
+- CARTES SŒURS = MÊME HAUTEUR ENTRE ELLES, PAS PLEINE SLIDE : dans un schéma à cartes multiples côte à côte (before_after, comparison, process_visible, et toute rangée de cartes sœurs), les cartes d'une même rangée ont la MÊME hauteur entre elles (le conteneur flex de la rangée garde align-items:stretch, jamais center ou flex-start) ET le MÊME alignement vertical de leur contenu interne. EN REVANCHE, la rangée ne doit PAS être étirée pour remplir toute la hauteur de la slide : le wrapper de niveau slide centre la rangée verticalement (display:flex; align-items:center; justify-content:center) et laisse la rangée se dimensionner sur son contenu. La hauteur d'une carte est dictée par son contenu (avec un padding intérieur confortable) — JAMAIS par height:100% de la slide. Si le contenu est court, les cartes restent compactes et la slide montre de l'air autour, c'est volontaire.
 - Le titre de la slide (s'il existe) reste AU-DESSUS du schéma
 - Les schémas doivent respirer : pas de texte trop petit, pas de schéma qui remplit 100% de la slide
 - Si une slide a un visual_schema, le design du schéma est PRIORITAIRE sur le design par rôle
@@ -760,6 +760,12 @@ ${buildVisualSchemaBlock(ch)}
 - TOUTES les slides utilisent les mêmes fonts (${ch.font_title} pour les titres, ${ch.font_body} pour le corps) et la même palette.
 - Le padding latéral est constant (80px pour text_only et photo_integrated ; pour photo_full, le padding s'applique au bloc d'overlay, pas au div).
 - Le NUMÉRO DE SLIDE (badge pilule discret en coin, ex: "01/08", ${ch.color_primary} ou semi-transparent blanc sur photo_full) DOIT figurer sur TOUTES les slides — c'est l'élément qui unifie le carrousel.
+- ZONE DE SÉCURITÉ TITRE / NUMÉRO (impératif) :
+  · Le badge numéro de slide est positionné en absolu dans un coin (top/right ou bottom/right), AU-DESSUS du flux normal (z-index supérieur).
+  · Le titre principal ne doit JAMAIS chevaucher ce badge. Deux options autorisées (au choix selon le layout) :
+    – Soit le titre est placé SOUS la ligne du badge (le badge a son propre espace en haut, suivi d'un margin-top sur le titre ≥ hauteur du badge + 16px).
+    – Soit le titre partage la ligne du haut MAIS son conteneur a max-width: 78% (ou padding-right ≥ largeur du badge + 24px) pour réserver la zone du badge.
+  · Cette règle s'applique à TOUS les types de slide (text_only, photo_integrated, photo_full), schémas inclus.
 - Continuité photo→texte : entre une slide photo_full/photo_integrated et une slide text_only suivante, REPRENDS un élément graphique commun (même couleur de badge, même style de soulignement, même typographie de titre).
 - Les slides text_only encadrées par deux slides photo doivent utiliser un fond ${ch.color_background} (jamais blanc pur) pour adoucir la transition visuelle.
 - L'alternance des types crée le rythme : photo → texte → photo → texte. Une slide photo_integrated peut servir de transition entre photo_full et text_only.
