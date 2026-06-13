@@ -373,21 +373,15 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
 
                   {/* Title */}
                   <h3 className="font-display text-base font-bold text-foreground mb-1">{idea.titre}</h3>
-                  <p className="text-[13px] text-muted-foreground">Angle : {idea.angle}</p>
-                  <p className="text-[13px] text-muted-foreground">Format : {idea.format}</p>
+                  {idea.angle?.trim() && <p className="text-[13px] text-muted-foreground">Angle : {idea.angle}</p>}
+                  {idea.format?.trim() && <p className="text-[13px] text-muted-foreground">Format : {idea.format}</p>}
 
-                  {/* Preview */}
-                  {idea.content_data ? (
-                    <div className="mt-2">
-                      <ContentPreview contentData={idea.content_data} contentType={idea.format === "reel" ? "reel" : idea.format === "story_serie" ? "stories" : undefined} compact />
-                    </div>
-                  ) : idea.content_draft ? (
-                    <div className="mt-2">
-                      <ContentPreview contentData={null} contentDraft={idea.content_draft} contentType={idea.format === "reel" ? "reel" : idea.format === "story_serie" ? "stories" : undefined} compact />
-                    </div>
-                  ) : idea.accroche_short ? (
-                    <p className="text-[13px] text-foreground/70 mt-2 line-clamp-1 italic">🎣 {idea.accroche_short}</p>
-                  ) : null}
+                  {/* Preview (scannable, 2 lignes max) */}
+                  {(() => {
+                    const preview = buildIdeaPreview(idea);
+                    if (!preview) return null;
+                    return <p className="text-[13px] text-foreground/70 line-clamp-2 mt-2">{preview}</p>;
+                  })()}
 
                   {/* Date + planned */}
                   <div className="flex items-center gap-3 mt-2">
