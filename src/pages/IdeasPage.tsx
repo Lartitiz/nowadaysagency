@@ -413,10 +413,30 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
               return (
                 <div
                   key={idea.id}
-                  className="rounded-xl border border-[#F0E4EC] bg-card p-4 hover:shadow-md hover:border-rose-medium transition-all cursor-pointer animate-fade-in"
+                  className="relative rounded-xl border border-[#F0E4EC] bg-card p-4 hover:shadow-md hover:border-rose-medium transition-all cursor-pointer animate-fade-in"
                   style={{ animationDelay: `${idx * 0.05}s` }}
                   onClick={() => { setSelectedIdea(idea); setDetailNotes(idea.notes || ""); }}
                 >
+                  {/* Delete button — top right */}
+                  <div className="absolute top-2 right-2" onClick={(e) => e.stopPropagation()}>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0 rounded-full hover:bg-destructive/10 hover:text-destructive">
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Supprimer cette idée ?</AlertDialogTitle>
+                          <AlertDialogDescription>Tu veux vraiment supprimer cette idée ? Cette action est irréversible.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Annuler</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDelete(idea.id)}>Supprimer</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                   {/* Badges */}
                   <div className="flex gap-1.5 flex-wrap mb-2">
                     {statusBadge && (
@@ -494,23 +514,6 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
                           <PenLine className="h-3 w-3" /> Rédiger
                         </Button>
                         <PlanifierPopover idea={idea} onPlan={handlePlan} />
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="outline" size="sm" className="rounded-pill text-xs gap-1 text-muted-foreground hover:text-destructive">
-                              <Trash2 className="h-3 w-3" /> Supprimer
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Supprimer cette idée ?</AlertDialogTitle>
-                              <AlertDialogDescription>Tu veux vraiment supprimer cette idée ? Cette action est irréversible.</AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Annuler</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDelete(idea.id)}>Supprimer</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
                       </>
                     )}
                   </div>
