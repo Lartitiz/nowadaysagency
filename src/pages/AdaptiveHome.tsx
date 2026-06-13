@@ -40,6 +40,45 @@ import { saveFlowState, clearFlowState } from "@/hooks/use-flow-persistence";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { getBrandingCompletion } from "@/lib/branding-completion";
+import { toLocalDateStr } from "@/lib/utils";
+
+/* ── Helpers ── */
+function formatShortDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const s = new Intl.DateTimeFormat("fr-FR", { weekday: "short", day: "numeric" }).format(d);
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function formatRelative(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const today = new Date();
+  const a = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const b = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const diff = Math.round((b.getTime() - a.getTime()) / 86400000);
+  if (diff <= 0) return "aujourd'hui";
+  if (diff === 1) return "hier";
+  return `il y a ${diff} jours`;
+}
+
+function formatPill(format?: string | null, canal?: string | null): { label: string; cls: string } {
+  const f = (format ?? "").toLowerCase();
+  let label = "Post";
+  if (f.includes("carrousel") || f.includes("carousel")) label = "Carrousel";
+  else if (f.includes("story") || f.includes("storie")) label = "Story";
+  else if (f.includes("reel")) label = "Reel";
+  else if (f.includes("newsletter")) label = "Newsletter";
+  else if (f.includes("pin")) label = "Pin";
+  else if (f.includes("post")) label = "Post";
+  const isInsta = (canal ?? "").toLowerCase().includes("insta");
+  const cls = isInsta
+    ? "bg-rose-soft text-bordeaux"
+    : "bg-rose-pale text-bordeaux";
+  return { label, cls };
+}
 
 /* ── Collapsible missions ── */
 const COLLAPSED_KEY = "lac_missions_collapsed";
@@ -181,6 +220,7 @@ export default function AdaptiveHome() {
 
   // Ideas count
   const workspaceId = activeWorkspace?.id ?? null;
+  const wsFilter = useWorkspaceFilter();
   const { data: ideaCount = 0 } = useQuery<number>({
     queryKey: ["adaptive-home-ideas-count", user?.id, workspaceId],
     queryFn: async () => {
@@ -196,6 +236,114 @@ export default function AdaptiveHome() {
     enabled: !!user,
     staleTime: 2 * 60 * 1000,
   });
+
+  // Upcoming posts (next 2)
+  type UpcomingPost = { date: string; theme: string | null; format: string | null; canal: string | null };
+  const { data: upcomingPosts = [], isLoading: upcomingLoading } = useQuery<UpcomingPost[]>({
+    queryKey: ["adaptive-home-upcoming-posts", wsFilter.column, wsFilter.value],
+    queryFn: async () => {
+      try {
+        const todayStr = toLocalDateStr(new Date());
+        const { data, error } = await (supabase as any)
+          .from("calendar_posts")
+          .select("date, theme, format, canal, status")
+          .eq(wsFilter.column, wsFilter.value)
+          .gte("date", todayStr)
+          .neq("status", "idea")
+          .order("date", { ascending: true })
+          .limit(2);
+        if (error) return [];
+        return (data ?? []) as UpcomingPost[];
+      } catch {
+        return [];
+      }
+    },
+    enabled: !!wsFilter.value,
+    staleTime: 2 * 60 * 1000,
+  });
+
+  // Latest saved idea
+  type LatestIdea = { titre: string | null; accroche_short: string | null; content_draft: string | null; created_at: string };
+  const { data: latestIdea = null } = useQuery<LatestIdea | null>({
+    queryKey: ["adaptive-home-latest-idea", wsFilter.column, wsFilter.value],
+    queryFn: async () => {
+      try {
+        const { data, error } = await (supabase as any)
+          .from("saved_ideas")
+          .select("titre, accroche_short, content_draft, created_at")
+          .eq(wsFilter.column, wsFilter.value)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (error) return null;
+        return (data as LatestIdea | null) ?? null;
+      } catch {
+        return null;
+      }
+    },
+    enabled: !!wsFilter.value,
+    staleTime: 2 * 60 * 1000,
+  });
+
+  // Branding completion percent
+  const { data: brandingPercent = 0 } = useQuery<number>({
+    queryKey: ["adaptive-home-branding-completion", wsFilter.column, wsFilter.value],
+    queryFn: async () => {
+      try {
+        const r = await getBrandingCompletion({ column: wsFilter.column, value: wsFilter.value });
+        return r?.percent ?? 0;
+      } catch {
+        return 0;
+      }
+    },
+    enabled: !!wsFilter.value,
+    staleTime: 2 * 60 * 1000,
+  });
+
+  // Latest audit (most recent between instagram_audit and website_audit)
+  type LatestAudit = { score_global: number; created_at: string; type: "Instagram" | "Site" } | null;
+  const { data: latestAudit = null } = useQuery<LatestAudit>({
+    queryKey: ["adaptive-home-latest-audit", wsFilter.column, wsFilter.value],
+    queryFn: async (): Promise<LatestAudit> => {
+      try {
+        const [ig, web] = await Promise.all([
+          (supabase as any)
+            .from("instagram_audit")
+            .select("score_global, created_at")
+            .eq(wsFilter.column, wsFilter.value)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+          (supabase as any)
+            .from("website_audit")
+            .select("score_global, created_at")
+            .eq(wsFilter.column, wsFilter.value)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+        ]);
+        const igRow = ig.data as { score_global: number | null; created_at: string } | null;
+        const webRow = web.data as { score_global: number | null; created_at: string } | null;
+        const candidates: NonNullable<LatestAudit>[] = [];
+        if (igRow && igRow.score_global != null) {
+          candidates.push({ score_global: igRow.score_global, created_at: igRow.created_at, type: "Instagram" });
+        }
+        if (webRow && webRow.score_global != null) {
+          candidates.push({ score_global: webRow.score_global, created_at: webRow.created_at, type: "Site" });
+        }
+        if (candidates.length === 0) return null;
+        candidates.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        return candidates[0];
+      } catch {
+        return null;
+      }
+    },
+    enabled: !!wsFilter.value,
+    staleTime: 2 * 60 * 1000,
+  });
+
+
+
 
   const queryClient = useQueryClient();
   const location = useLocation();
@@ -363,7 +511,33 @@ export default function AdaptiveHome() {
                   <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                     Planifie tes contenus et garde une vue claire de ta semaine.
                   </p>
+                  <div className="mt-3 space-y-1.5 min-h-[42px]">
+                    {upcomingLoading ? (
+                      <>
+                        <div className="h-4 w-full bg-muted/50 rounded animate-pulse" />
+                        <div className="h-4 w-3/4 bg-muted/50 rounded animate-pulse" />
+                      </>
+                    ) : upcomingPosts.length > 0 ? (
+                      upcomingPosts.map((p, i) => {
+                        const pill = formatPill(p.format, p.canal);
+                        return (
+                          <div key={i} className="flex items-center gap-2 text-xs min-w-0">
+                            <span className={`shrink-0 px-2 py-0.5 rounded-full ${pill.cls} text-[10px] font-semibold uppercase tracking-wide`}>
+                              {pill.label}
+                            </span>
+                            <span className="shrink-0 text-foreground/70">{formatShortDate(p.date)}</span>
+                            <span className="truncate text-muted-foreground">{p.theme ?? ""}</span>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <p className="text-xs text-muted-foreground italic">
+                        Rien de prévu pour l'instant — et si on créait ton prochain post ?
+                      </p>
+                    )}
+                  </div>
                 </div>
+
                 <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-bordeaux group-hover:translate-x-0.5 transition-all shrink-0 mt-1" />
               </div>
             </button>
@@ -394,7 +568,18 @@ export default function AdaptiveHome() {
                       ? "Retrouve tes pépites et transforme-les en posts."
                       : "Aucune idée encore — lance un brainstorm avec ta coach."}
                   </p>
+                  {ideaCount > 0 && latestIdea && (
+                    <div className="mt-3 rounded-lg bg-rose-pale/60 px-3 py-2">
+                      <p className="font-mono-ui text-[9px] uppercase tracking-[0.18em] text-foreground/60 font-semibold">
+                        Dernière pépite
+                      </p>
+                      <p className="text-xs italic text-foreground/80 truncate mt-0.5">
+                        {latestIdea.titre ?? latestIdea.accroche_short ?? latestIdea.content_draft ?? ""}
+                      </p>
+                    </div>
+                  )}
                 </div>
+
                 <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-bordeaux group-hover:translate-x-0.5 transition-all shrink-0 mt-1" />
               </div>
             </button>
@@ -417,10 +602,23 @@ export default function AdaptiveHome() {
                   <h3 className="font-display text-[17px] text-foreground leading-tight">
                     Affiner mon identité de marque
                   </h3>
-                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                    Ton histoire, ton persona, ta voix.
-                  </p>
+                  {brandingPercent === 100 ? (
+                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                      Ton identité de marque est complète ✨
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                      Ton histoire, ton persona, ta voix.
+                    </p>
+                  )}
+                  <div className="mt-3 flex items-center gap-2">
+                    <Progress value={brandingPercent} className="h-1.5 flex-1" />
+                    <span className="font-mono-ui text-[11px] text-foreground/60 font-semibold shrink-0">
+                      {brandingPercent}%
+                    </span>
+                  </div>
                 </div>
+
                 <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-bordeaux group-hover:translate-x-0.5 transition-all shrink-0 mt-1" />
               </div>
             </button>
@@ -437,10 +635,22 @@ export default function AdaptiveHome() {
                   <h3 className="font-display text-[17px] text-foreground leading-tight">
                     Lancer un audit
                   </h3>
-                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                    Instagram ou site web.
-                  </p>
+                  {latestAudit ? (
+                    <>
+                      <p className="font-display italic text-bordeaux text-2xl leading-none mt-1">
+                        {latestAudit.score_global}<span className="text-base text-foreground/50">/100</span>
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                        Dernier audit {latestAudit.type} — {formatRelative(latestAudit.created_at)}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                      Instagram ou site web.
+                    </p>
+                  )}
                 </div>
+
                 <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-bordeaux group-hover:translate-x-0.5 transition-all shrink-0 mt-1" />
               </div>
             </button>
