@@ -30,6 +30,7 @@ interface Props {
   objectif?: string;
   visualSlides?: { slide_number: number; html: string }[];
   onUploadVisuals?: (ideaId: string) => Promise<string[]>;
+  editingIdeaId?: string | null;
 }
 
 export function SaveToIdeasDialog({
@@ -44,6 +45,7 @@ export function SaveToIdeasDialog({
   objectif,
   visualSlides,
   onUploadVisuals,
+  editingIdeaId,
 }: Props) {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
@@ -85,42 +87,66 @@ export function SaveToIdeasDialog({
       contentType === "post_linkedin" ? "linkedin" :
       contentType === "pinterest" ? "pinterest" : "instagram";
 
-    const { data: newIdea, error } = await supabase.from("saved_ideas").insert({
-      user_id: user.id,
-      workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+    const baseFields = {
       titre: `${contentEmoji} ${subject || contentType}`,
       angle: selectedTags.length > 0 ? selectedTags.join(", ") : contentType,
       format: formatLabel,
       canal: canalValue,
       objectif: objectif || null,
-      type: "draft",
-      status: "to_explore",
       notes: note || null,
       content_draft: typeof contentData === "string" ? contentData : JSON.stringify(contentData),
       content_data: contentData,
-      source_module: sourceModule,
       personal_elements: personalElements || null,
-    } as any).select("id").single();
+    };
 
-    if (error) {
-      setSaving(false);
-      onOpenChange(false);
-      console.error("Save to ideas error:", error);
-      toast.error("Erreur lors de la sauvegarde");
-      return;
+    let targetId: string | null = null;
+    let isUpdate = false;
+
+    if (editingIdeaId) {
+      isUpdate = true;
+      const { error } = await supabase
+        .from("saved_ideas")
+        .update({ ...baseFields, updated_at: new Date().toISOString() } as any)
+        .eq("id", editingIdeaId);
+      if (error) {
+        setSaving(false);
+        onOpenChange(false);
+        console.error("Update idea error:", error);
+        toast.error("Erreur lors de la mise à jour");
+        return;
+      }
+      targetId = editingIdeaId;
+    } else {
+      const { data: newIdea, error } = await supabase.from("saved_ideas").insert({
+        user_id: user.id,
+        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+        ...baseFields,
+        type: "draft",
+        status: "to_explore",
+        source_module: sourceModule,
+      } as any).select("id").single();
+
+      if (error) {
+        setSaving(false);
+        onOpenChange(false);
+        console.error("Save to ideas error:", error);
+        toast.error("Erreur lors de la sauvegarde");
+        return;
+      }
+      targetId = newIdea?.id ?? null;
     }
 
     // Upload optionnel des visuels — ne bloque jamais la sauvegarde
-    if (visualSlides && visualSlides.length > 0 && onUploadVisuals && newIdea?.id) {
+    if (visualSlides && visualSlides.length > 0 && onUploadVisuals && targetId) {
       try {
-        const urls = await onUploadVisuals(newIdea.id);
+        const urls = await onUploadVisuals(targetId);
         if (urls.length > 0) {
           await supabase
             .from("saved_ideas")
             .update({
               content_data: { ...contentData, visual_urls: urls, visual_html: visualSlides },
             } as any)
-            .eq("id", newIdea.id);
+            .eq("id", targetId);
         }
       } catch (e) {
         console.warn("Visual upload failed (idea saved without visuals):", e);
@@ -129,7 +155,7 @@ export function SaveToIdeasDialog({
 
     setSaving(false);
     onOpenChange(false);
-    toast.success("💡 Idée sauvegardée ! Tu la retrouveras dans Mes idées.");
+    toast.success(isUpdate ? "💡 Idée mise à jour !" : "💡 Idée sauvegardée ! Tu la retrouveras dans Mes idées.");
     setSelectedTags([]);
     setNote("");
   };
