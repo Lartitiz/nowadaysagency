@@ -65,6 +65,19 @@ const PX_PER_IN = SLIDE_W_PX / PPTX_W_IN; // 144
 // Mesure des dimensions source d'une image (pour calcul d'un crop proportionnel)
 // ---------------------------------------------------------------------------
 
+async function measureImageNatural(
+  dataUrl: string,
+  timeoutMs = 5000,
+): Promise<{ w: number; h: number } | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const t = setTimeout(() => { img.src = ""; resolve(null); }, timeoutMs);
+    img.onload = () => { clearTimeout(t); resolve({ w: img.naturalWidth, h: img.naturalHeight }); };
+    img.onerror = () => { clearTimeout(t); resolve(null); };
+    img.src = dataUrl;
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Pré-recadrage "cover" centré au ratio cible via canvas.
 // Garantit que l'image arrive dans pptxgenjs au ratio exact du cadre →
