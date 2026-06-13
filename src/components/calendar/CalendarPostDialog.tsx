@@ -379,7 +379,9 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       format={format} setFormat={setFormat} objectif={objectif} setObjectif={setObjectif}
       angle={angle} setAngle={setAngle} showAdvanced={showAdvanced} setShowAdvanced={setShowAdvanced}
       editingPostId={editingPost?.id} selectedDate={selectedDate} onDateChange={onDateChange}
+      onUnplan={onUnplan}
     />
+
   );
 
   // Bloc preview (avec props compact + sync)
