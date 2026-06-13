@@ -103,6 +103,7 @@ export default function CreerUnifie() {
   const paramMode = searchParams.get("mode");
   const paramFrom = searchParams.get("from");
   const paramAngle = searchParams.get("angle");
+  const paramIdeaId = searchParams.get("idea_id");
 
   const isFreshStart = searchParams.get("new") === "1";
   const clearedFreshStart = useRef(false);
@@ -224,6 +225,7 @@ export default function CreerUnifie() {
       setObjective(null);
       setAnswers({});
       setEditContent("");
+      setEditingIdeaId(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -261,6 +263,7 @@ export default function CreerUnifie() {
   const [saving, setSaving] = useState(false);
   const [saveIdeaDialogOpen, setSaveIdeaDialogOpen] = useState(false);
   const [savedId, setSavedId] = useState<string | null>(ps?.savedId || null);
+  const [editingIdeaId, setEditingIdeaId] = useState<string | null>(ps?.editingIdeaId ?? paramIdeaId ?? null);
   const [calendarDialogOpen, setCalendarDialogOpen] = useState(false);
   const [calendarDate, setCalendarDate] = useState("");
   const [savingToCalendar, setSavingToCalendar] = useState(false);
@@ -379,9 +382,10 @@ export default function CreerUnifie() {
         inspirationProposals: inspirationProposals || [],
         inspirationImagePreview: inspirationImagePreview || null,
         demoScenario: aurianaDemoActive ? "auriana-carousel" : undefined,
+        editingIdeaId,
       });
     }
-  }, [step, ideaText, objective, selectedFormat, editorialAngle, editContent, result, visualSlides?.length, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview]);
+  }, [step, ideaText, objective, selectedFormat, editorialAngle, editContent, result, visualSlides?.length, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview, editingIdeaId]);
 
   // Pre-fill from URL/state & auto-advance (only when URL params are present)
   const initDone = useRef(false);
@@ -1511,6 +1515,7 @@ export default function CreerUnifie() {
     setPhotoBriefOverlayHtml(null);
     setStructureProposal(null);
     setLastConfirmedStructure(null);
+    setEditingIdeaId(null);
     clearFlowState();
     clearDraft();
     sessionStorage.removeItem(CREER_RESULT_KEY);
@@ -2889,6 +2894,7 @@ export default function CreerUnifie() {
         objectif={objective || undefined}
         visualSlides={selectedFormat === "carousel" && visualSlides.length > 0 ? visualSlides : undefined}
         onUploadVisuals={selectedFormat === "carousel" ? uploadVisualsToStorage : undefined}
+        editingIdeaId={editingIdeaId}
       />
     </div>
   );
