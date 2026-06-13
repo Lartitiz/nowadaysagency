@@ -511,7 +511,33 @@ export default function AdaptiveHome() {
                   <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                     Planifie tes contenus et garde une vue claire de ta semaine.
                   </p>
+                  <div className="mt-3 space-y-1.5 min-h-[42px]">
+                    {upcomingLoading ? (
+                      <>
+                        <div className="h-4 w-full bg-muted/50 rounded animate-pulse" />
+                        <div className="h-4 w-3/4 bg-muted/50 rounded animate-pulse" />
+                      </>
+                    ) : upcomingPosts.length > 0 ? (
+                      upcomingPosts.map((p, i) => {
+                        const pill = formatPill(p.format, p.canal);
+                        return (
+                          <div key={i} className="flex items-center gap-2 text-xs min-w-0">
+                            <span className={`shrink-0 px-2 py-0.5 rounded-full ${pill.cls} text-[10px] font-semibold uppercase tracking-wide`}>
+                              {pill.label}
+                            </span>
+                            <span className="shrink-0 text-foreground/70">{formatShortDate(p.date)}</span>
+                            <span className="truncate text-muted-foreground">{p.theme ?? ""}</span>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <p className="text-xs text-muted-foreground italic">
+                        Rien de prévu pour l'instant — et si on créait ton prochain post ?
+                      </p>
+                    )}
+                  </div>
                 </div>
+
                 <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-bordeaux group-hover:translate-x-0.5 transition-all shrink-0 mt-1" />
               </div>
             </button>
