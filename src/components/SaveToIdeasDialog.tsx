@@ -85,7 +85,7 @@ export function SaveToIdeasDialog({
       contentType === "post_linkedin" ? "linkedin" :
       contentType === "pinterest" ? "pinterest" : "instagram";
 
-    const { error } = await supabase.from("saved_ideas").insert({
+    const { data: newIdea, error } = await supabase.from("saved_ideas").insert({
       user_id: user.id,
       workspace_id: workspaceId !== user.id ? workspaceId : undefined,
       titre: `${contentEmoji} ${subject || contentType}`,
@@ -100,19 +100,38 @@ export function SaveToIdeasDialog({
       content_data: contentData,
       source_module: sourceModule,
       personal_elements: personalElements || null,
-    } as any);
+    } as any).select("id").single();
+
+    if (error) {
+      setSaving(false);
+      onOpenChange(false);
+      console.error("Save to ideas error:", error);
+      toast.error("Erreur lors de la sauvegarde");
+      return;
+    }
+
+    // Upload optionnel des visuels — ne bloque jamais la sauvegarde
+    if (visualSlides && visualSlides.length > 0 && onUploadVisuals && newIdea?.id) {
+      try {
+        const urls = await onUploadVisuals(newIdea.id);
+        if (urls.length > 0) {
+          await supabase
+            .from("saved_ideas")
+            .update({
+              content_data: { ...contentData, visual_urls: urls, visual_html: visualSlides },
+            } as any)
+            .eq("id", newIdea.id);
+        }
+      } catch (e) {
+        console.warn("Visual upload failed (idea saved without visuals):", e);
+      }
+    }
 
     setSaving(false);
     onOpenChange(false);
-
-    if (error) {
-      console.error("Save to ideas error:", error);
-      toast.error("Erreur lors de la sauvegarde");
-    } else {
-      toast.success("💡 Idée sauvegardée ! Tu la retrouveras dans Mes idées.");
-      setSelectedTags([]);
-      setNote("");
-    }
+    toast.success("💡 Idée sauvegardée ! Tu la retrouveras dans Mes idées.");
+    setSelectedTags([]);
+    setNote("");
   };
 
   return (
