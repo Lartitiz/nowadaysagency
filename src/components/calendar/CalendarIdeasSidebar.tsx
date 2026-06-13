@@ -368,7 +368,7 @@ function AddIdeaDialog({ open, onOpenChange, onAdded }: { open: boolean; onOpenC
       angle: "",
       objectif: objective,
       notes: notes || null,
-      status: "idea",
+      status: "to_explore",
       canal: ideaFormat === "linkedin" ? "linkedin" : "instagram",
     });
     toast({ title: "Idée ajoutée !" });
