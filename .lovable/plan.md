@@ -1,58 +1,69 @@
-# Plan — Carrousels dans la boîte à idées
+# Plan — Newsjacking : remonter les faits clés de l'article jusqu'à la génération
 
 ## (a) Ce que tu m'as demandé
 
-### 1. `src/components/SaveToIdeasDialog.tsx`
+### 1. `supabase/functions/newsjacking-from-url/index.ts`
 
-Ajouter deux props optionnelles :
+**Prompt JSON (lignes 142-149)** — ajouter `faits_cles` :
+
+```
+"faits_cles": ["fait brut 1", "fait brut 2", ...]  // 4 à 8 entrées
+```
+
+Plus, dans les **Règles** (lignes 151-155), ajouter une règle anti-invention :
+- "faits_cles" = chiffres, noms d'acteurs, dates, citations courtes, exemples nommés tirés de l'article. JAMAIS d'analyse, jamais de reformulation marketing. Si rien d'exploitable : `[]`. Ne fabrique JAMAIS un fait absent — mieux vaut un tableau vide.
+
+**max_tokens (ligne 172)** : `1200` → `1600`.
+
+**Construction `actu` (lignes 196-207)** — ajouter :
 
 ```ts
-visualSlides?: { slide_number: number; html: string }[];
-onUploadVisuals?: (ideaId: string) => Promise<string[]>;
+faits_cles: Array.isArray(parsed.faits_cles)
+  ? parsed.faits_cles
+      .filter((f: unknown): f is string => typeof f === "string")
+      .map((f: string) => f.trim().slice(0, 200))
+      .filter((f: string) => f.length > 0)
+      .slice(0, 8)
+  : [],
 ```
 
-Refactor `handleSave` :
+### 2. `src/components/creer/NewsjackingPanel.tsx`
 
-- L'insert `saved_ideas` devient `.select("id").single()` pour récupérer l'`id`.
-- Si `visualSlides?.length > 0 && onUploadVisuals` :
-  - `try { const urls = await onUploadVisuals(newIdea.id); if (urls.length) await supabase.from("saved_ideas").update({ content_data: { ...contentData, visual_urls: urls, visual_html: visualSlides } }).eq("id", newIdea.id); } catch (e) { console.warn(...) }`
-  - L'upload ne bloque jamais : catch silencieux, idée texte reste sauvegardée, toast succès affiché dans tous les cas.
-- Reset tags/note + toast succès : inchangés.
-- Comportement pour formats non-carrousel (props absentes) : strictement identique.
+**Interface `Actu` (lignes 19-31)** — ajouter `faits_cles?: string[]`.
 
-### 2. `src/pages/CreerUnifie.tsx`
+**`handleSelectAngle` (ligne 528-536)** — enrichir le `context` entre la ligne `Résumé` et le bloc `ANGLE CHOISI` :
 
-`**handleSave` (ligne ~1549)** — branche carrousel :
-
-- Garder l'insert `generated_carousels` tel quel (champs, conditions workspace, `setSavedId`).
-- Supprimer le `return` ligne 1577.
-- Retirer le `toast.success("Contenu sauvegardé !")` ligne 1571 (cf. proposition validée ci-dessous — sinon je le garde).
-- Garder le `try/catch/finally` pour `setSaving(false)`, mais après le `finally` laisser le flux atteindre `setSaveIdeaDialogOpen(true)`.
-
-`**<SaveToIdeasDialog>` (ligne ~2880)** — brancher les nouvelles props :
-
-```tsx
-visualSlides={selectedFormat === "carousel" && visualSlides.length > 0 ? visualSlides : undefined}
-onUploadVisuals={selectedFormat === "carousel" ? uploadVisualsToStorage : undefined}
+```ts
+const faitsBloc = actu.faits_cles && actu.faits_cles.length > 0
+  ? `\n\nFAITS DE L'ARTICLE (à exploiter, ne rien inventer d'autre) :\n${actu.faits_cles.map(f => `- ${f}`).join("\n")}`
+  : "";
+const context = `ACTUALITÉ : ${actu.titre}\nSource : ${actu.source}\nRésumé : ${actu.resume}\nPertinence : ${actu.pertinence}${faitsBloc}\n\nANGLE CHOISI :\nVéhicule : ${angle.vehicule}\nHook : ${angle.hook}\nDéveloppement : ${angle.description}\nFormat suggéré : ${angle.format_suggere}`;
 ```
 
-## (b) Mes propositions — à valider une par une ok pour tout
+Mêmes clés `{ subject, context, format, vehicule }` retournées par `onSelect`.
 
-1. **Retirer le toast** `"Contenu sauvegardé !"` **du** `handleSave` **carrousel.** Sinon : toast → dialog s'ouvre → 2e toast après save. Pas terrible UX. Je propose de le retirer. ✅/❌ 
-2. **Double-toast / confusion UX** : le toast actuel suggère que c'est fini, puis le dialog s'ouvre = friction. Le retrait du toast (point 1) règle aussi ça. Pas d'action supplémentaire si tu valides 1.
-3. **Vérifier la signature exacte de `uploadVisualsToStorage**` avant exec (j'ai vu `(postId) => Promise<string[]>` dans ta description, je confirme en lisant la fonction au moment de l'edit pour m'assurer qu'elle est compatible avec un `ideaId` UUID — c'est juste un identifiant arbitraire utilisé dans le path Storage, donc a priori OK). ✅/❌
+## (b) Mes propositions — à valider une par une
 
-## Hors scope (confirmé)
+1. **Transmettre `faits_cles` à `newsjacking-angles`.** En lisant le code, je vois que les angles sont générés à la demande à partir d'`actu`. Si l'edge function `newsjacking-angles` reçoit aussi les faits, les angles eux-mêmes seraient ancrés (hook qui cite un chiffre, par ex), pas seulement la génération finale. À chiffrer dans un mini-passage du code de l'appel `newsjacking-angles` côté front pour confirmer. ✅/❌
 
-- `generated_carousels` insert : intact.
-- `uploadVisualsToStorage` interne : non modifié.
-- `ContentPreview` : non modifié.
-- Autres sources d'insertion `saved_ideas` : intactes.
+2. **Ajouter une mention courte des faits dans la pertinence côté UI** (ex : "3 faits exploitables détectés") pour rassurer l'utilisatrice quand elle voit la card. ✅/❌ (purement cosmétique, je peux skip si tu veux rester strict sur le périmètre)
+
+## Ce qui ne bouge pas
+
+- Structure existante de `actu` : on ajoute `faits_cles`, rien d'autre.
+- Scraping, quota `deep_research`, rate limit, workspace guard, timeout 50s, `robustJsonParse`, sets `ALLOWED_*` : intacts.
+- `handleSaveActu`, affichage cards : intacts (champ optionnel → rétro-compatible).
+- `newsjacking-angles` : intact sauf si tu valides la proposition (1).
 
 ## Validation
 
-1. `npx tsc --noEmit --skipLibCheck` : 0 erreur.
-2. Carrousel sans visuels → apparaît dans /idees (texte).
-3. Carrousel avec visuels → apparaît dans /idees avec images.
-4. Post/reel/story → comportement inchangé.
-5. Ligne `generated_carousels` toujours créée (com-score OK).
+- `npx tsc --noEmit --skipLibCheck` : 0 erreur.
+- Article riche → logs Edge montrent `faits_cles` peuplé, le contenu généré cite ≥ 1 fait réel.
+- Tribune d'opinion → `faits_cles = []`, pas de crash, comportement identique à aujourd'hui.
+
+## Hors scope (confirmé)
+
+- Carrousel photo réactif à l'actu (chantier B).
+- Prompt photo réactif (chantier C).
+- Reset `newsjackingContext` dans `handlePhotosNext`.
+- Toute modif `newsjacking-angles` au-delà de la proposition (1).

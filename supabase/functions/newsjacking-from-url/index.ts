@@ -142,6 +142,7 @@ Rends UNIQUEMENT du JSON strict, sans texte autour, avec EXACTEMENT cette struct
 {
   "titre": "titre court et fidèle de l'article (max 110 caractères)",
   "resume": "3-4 phrases neutres qui résument l'article (pas d'analyse, juste les faits)",
+  "faits_cles": ["4 à 8 faits bruts tirés de l'article : chiffres, noms d'acteurs, dates, citations courtes, exemples nommés. Une entrée = un fait concret, max 200 caractères. Pas d'analyse, pas de reformulation marketing."],
   "axe": "mot_qui_revient" | "obsession_collective" | "comportement_emergent" | "debat_recurrent" | "objet_culturel" | "actu_connectable",
   "ton": "confortable" | "entre_deux" | "decalant",
   "force_pont": "fort" | "moyen" | "fragile",
@@ -151,6 +152,7 @@ Rends UNIQUEMENT du JSON strict, sans texte autour, avec EXACTEMENT cette struct
 Règles :
 - "force_pont" = "fragile" si l'actu n'a aucun lien naturel avec son univers ET qu'aucun angle décalé n'est crédible.
 - Ne jamais inventer d'infos qui ne sont pas dans l'article.
+- "faits_cles" : ne JAMAIS fabriquer un fait absent de l'article. Mieux vaut un tableau court ou vide qu'un fait inventé. Si l'article est une tribune d'opinion sans données concrètes : renvoie [].
 - Pas de "synonyme" : titre = vraiment celui de l'article (ou très proche), pas un slogan créateur.
 - Français.`;
 
@@ -169,7 +171,7 @@ Analyse maintenant.`;
 
     let raw = "";
     try {
-      raw = await callAnthropicSimple(model, systemPrompt, userPrompt, 0.6, 1200);
+      raw = await callAnthropicSimple(model, systemPrompt, userPrompt, 0.6, 1600);
     } catch (e) {
       console.error("[newsjacking-from-url] anthropic error", (e as Error).message);
       clearTimeout(timeout);
@@ -203,6 +205,13 @@ Analyse maintenant.`;
       ton: ALLOWED_TONS.has(parsed.ton) ? parsed.ton : "entre_deux",
       force_pont: ALLOWED_PONTS.has(parsed.force_pont) ? parsed.force_pont : "moyen",
       pertinence: typeof parsed.pertinence === "string" ? parsed.pertinence : "",
+      faits_cles: Array.isArray(parsed.faits_cles)
+        ? parsed.faits_cles
+            .filter((f: unknown): f is string => typeof f === "string")
+            .map((f: string) => f.trim().slice(0, 200))
+            .filter((f: string) => f.length > 0)
+            .slice(0, 8)
+        : [],
       from_url: true,
     };
 

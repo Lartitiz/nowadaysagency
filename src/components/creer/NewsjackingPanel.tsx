@@ -26,6 +26,7 @@ interface Actu {
   ton?: string;
   force_pont?: "fort" | "moyen" | "fragile";
   pertinence: string;
+  faits_cles?: string[];
   from_url?: boolean;
   // angles are now generated on demand
 }
@@ -526,7 +527,10 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
   };
 
   const handleSelectAngle = (actu: Actu, angle: ActuAngle) => {
-    const context = `ACTUALITÉ : ${actu.titre}\nSource : ${actu.source}\nRésumé : ${actu.resume}\nPertinence : ${actu.pertinence}\n\nANGLE CHOISI :\nVéhicule : ${angle.vehicule}\nHook : ${angle.hook}\nDéveloppement : ${angle.description}\nFormat suggéré : ${angle.format_suggere}`;
+    const faitsBloc = actu.faits_cles && actu.faits_cles.length > 0
+      ? `\n\nFAITS DE L'ARTICLE (à exploiter, ne rien inventer d'autre) :\n${actu.faits_cles.map(f => `- ${f}`).join("\n")}`
+      : "";
+    const context = `ACTUALITÉ : ${actu.titre}\nSource : ${actu.source}\nRésumé : ${actu.resume}\nPertinence : ${actu.pertinence}${faitsBloc}\n\nANGLE CHOISI :\nVéhicule : ${angle.vehicule}\nHook : ${angle.hook}\nDéveloppement : ${angle.description}\nFormat suggéré : ${angle.format_suggere}`;
     onSelect({
       subject: angle.hook,
       context,
