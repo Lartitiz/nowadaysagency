@@ -1,53 +1,54 @@
-# Plan — Nettoyer les redirections legacy mortes du routing branding (App.tsx)
+# Plan — Carrousel photo : intégrer le contexte actu dans la proposition de structure
 
 ## Contexte métier
 
-Le routing `/branding/*` dans App.tsx a accumulé des redirections d'anciennes URLs vers la nouvelle structure unifiée `/branding/section?section=X`. Un audit a confirmé que 14 de ces redirections sont totalement mortes : AUCUN composant, hook, navigate(), Link, email ou edge function n'y pointe plus. Ce sont des lignes inertes à retirer pour alléger le routing.
+Quand on génère un carrousel PHOTO en partant d'une actu (newsjacking), l'étape `structure_proposal` définit le squelette narratif des slides AVANT toute rédaction. Le code actuel injecte déjà le bloc `newsContextBlock` complet dans `structureSystemPrompt`, mais ce bloc contient des consignes de rédaction finale (ANTI_FABRICATED_STORYTELLING, interdictions de fabrication de chiffres, etc.) qui n'ont pas leur place dans une étape d'architecture. Le résultat est un prompt surchargé et des structures qui peinent à ancrer réellement la slide 1 sur l'actu.
 
-## Fichier impacté
+Objectif : que la structure proposée soit pensée "article + photos", pas "photos seules", avec un bloc actu propre et condensé pour l'étape structure.
 
-- `src/App.tsx` (uniquement les `<Route>` listées ci-dessous)
+## Fichiers impactés
 
-## Changements à apporter
+- `supabase/functions/carousel-ai/index.ts` — uniquement le bloc `type === "structure_proposal"`
 
-Supprimer EXACTEMENT ces 14 lignes de `<Route>` (redirections `Navigate` mortes) :
+## Comportement attendu
 
-```text
-<Route path="/branding/ton" element={<Navigate to="/branding/section?section=tone_style" replace />} />
-<Route path="/branding/ton/recap" element={<Navigate to="/branding/section?section=tone_style&tab=synthese" replace />} />
-<Route path="/branding/storytelling" element={<Navigate to="/branding/section?section=story" replace />} />
-<Route path="/branding/storytelling/new" element={<Navigate to="/branding/coaching?section=story" replace />} />
-<Route path="/branding/storytelling/import" element={<Navigate to="/branding/section?section=story" replace />} />
-<Route path="/branding/storytelling/:id" element={<Navigate to="/branding/section?section=story" replace />} />
-<Route path="/branding/storytelling/:id/recap" element={<Navigate to="/branding/section?section=story&tab=synthese" replace />} />
-<Route path="/branding/storytelling/recap" element={<Navigate to="/branding/section?section=story&tab=synthese" replace />} />
-<Route path="/branding/niche" element={<Navigate to="/branding/section?section=tone_style" replace />} />
-<Route path="/branding/niche/recap" element={<Navigate to="/branding/section?section=tone_style" replace />} />
-<Route path="/branding/strategie" element={<Navigate to="/branding/section?section=content_strategy" replace />} />
-<Route path="/branding/strategie/recap" element={<Navigate to="/branding/section?section=content_strategy&tab=synthese" replace />} />
-<Route path="/branding/persona" element={<Navigate to="/branding/section?section=persona" replace />} />
-<Route path="/branding/persona/recap" element={<Navigate to="/branding/section?section=persona&tab=synthese" replace />} />
-```
+1. **Créer un bloc actu condensé pour structure_proposal**
 
-## Ce qui NE DOIT PAS bouger — CRITIQUE
+   Quand `newsContext` est présent et non vide, construire `structureNewsContextBlockCondensed` contenant uniquement :
+   - L'en-tête `CONTEXTE ACTUALITÉ (NEWSJACKING)`
+   - Le texte brut de l'actu (`newsContext.trim()`)
+   - Une consigne structure courte (3-4 lignes) : la slide 1 (hook) DOIT partir de l'actu ; au moins une slide de corps exploite un fait précis ; les photos illustrent le propos.
 
-Garder INTACTES ces routes (ce sont de vraies pages OU des redirections encore référencées) :
+   Ne PAS réutiliser le `newsContextBlock` global (lourd, orienté rédaction finale).
 
-- `<Route path="/branding/storytelling/:id/edit" ... StorytellingEditPage />` — vraie page, 3 composants y naviguent. NE PAS SUPPRIMER.
-- `<Route path="/branding/proposition" element={<Navigate to="/branding/proposition/recap" replace />} />` — encore utile, sert la page recap. GARDER.
-- `<Route path="/branding/proposition/recap" ... PropositionRecapPage />` — vraie page, référencée par 10+ endroits. GARDER.
-- Toutes les autres routes `/branding` (`/`, `/audit`, `/audit/:id`, `/offres`, `/offres/:id`, `/coaching`, `/section`, `/voice-guide`, `/charter`) — GARDER.
-- NE PAS toucher à l'import de `Navigate` en haut du fichier (encore utilisé par la redirection `/branding/proposition`).
-- NE PAS toucher à `src/lib/breadcrumb-config.ts` (l'entrée `/branding/storytelling/` sert encore la page edit).
-- NE rien changer d'autre dans App.tsx (imports, autres modules, ProtectedRoute, PUBLIC_PATHS).
+2. **Injection dans `structureSystemPrompt`**
+
+   - Insérer `structureNewsContextBlockCondensed` dans `structureSystemPrompt`, juste après le bloc `CONTEXTE BRANDING` et avant la consigne JSON.
+   - Si `newsContext` est absent, ce bloc est une chaîne vide — le prompt reste strictement identique à aujourd'hui.
+
+3. **Rappel dans `structureUserPrompt`**
+
+   Conserver (ou ajuster si absent) la ligne rappelant l'actu de référence dans `structureUserPrompt`, pour que le modèle garde l'actualité en tête au milieu de l'analyse photo.
+
+## Ce qui NE DOIT PAS bouger
+
+- Le comportement `structure_proposal` SANS `newsContext` : strictement identique (l'injection est conditionnée).
+- `photoInstruction`, `slideTarget`, `SLIDE_TITLE_RULES`, la structure JSON de sortie (`narrative_thread`, `story_beat`, `visual_anchor`, `photo_index`…) : aucun changement.
+- L'analyse des photos (`pushPhotoWithContext`, ordre des photos) : inchangée.
+- Les autres branches (`mix`, `photo express_full`, `hooks`, `slides`, `suggest_topics`, etc.) : ne pas toucher.
+- `max_tokens` de `structure_proposal` (3000) : garder.
 
 ## Critères de validation
 
-1. `npx tsc --noEmit --skipLibCheck` passe sans erreur.
-2. `grep -n 'path="/branding' src/App.tsx` ne montre plus AUCUNE des 14 routes supprimées, mais montre toujours : `/branding`, `/branding/audit`, `/branding/audit/:id`, `/branding/storytelling/:id/edit`, `/branding/proposition`, `/branding/proposition/recap`, `/branding/offres(/:id)`, `/branding/coaching`, `/branding/section`, `/branding/voice-guide`, `/branding/charter`.
-3. Test manuel : naviguer dans l'espace branding (sections, coaching, édition story, proposition de valeur) — tout fonctionne, aucune page blanche.
+- `npx tsc --noEmit --skipLibCheck` passe sans erreur.
+- Test manuel : actu + carrousel photo → la structure proposée (écran `structure_review`) montre une slide 1 ancrée sur l'actu et au moins une slide de corps liée à l'article, pas seulement une description des photos.
+- Régression : carrousel photo SANS actu → structure identique à avant.
+
+## Proposition d'amélioration (optionnel, à valider séparément)
+
+- Réduire le `max_tokens` de 3000 à 2500 pour structure_proposal si le prompt allégé libère de la marge sans risque de troncation. Non appliqué par défaut.
 
 ## Hors scope (plans séparés)
 
-- Refacto langage neutre "l'utilisatrice" dans les Edge Functions.
-- Toute modification des composants qui naviguent (ils pointent déjà vers les bonnes URLs `/branding/section` et `/branding/coaching`).
+- Le prompt de rédaction finale du mode photo (`buildPhotoCarouselNewsReactionPrompt`) — plan C.
+- Mode mix (a déjà son prompt news).
