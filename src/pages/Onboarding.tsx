@@ -134,7 +134,7 @@ export default function Onboarding() {
                   {step === 0 && <WelcomeStep onNext={next} />}
                   {step === 1 && <OnboardingPhase1Profile prenom={answers.prenom} activite={answers.activite} onPrenomChange={v => set("prenom", v)} onActiviteChange={v => set("activite", v)} onNext={validatedNext} />}
                   {step === 2 && <ActivityStep value={answers.activity_type} detailValue={answers.activity_detail} onChange={v => { set("activity_type", v); if (v !== "autre") set("activity_detail", ""); }} onDetailChange={v => set("activity_detail", v)} onNext={validatedNext} />}
-                  {step === 3 && <ProductServiceScreen value={answers.product_or_service} onChange={v => { set("product_or_service", v); setPendingAutoNext(true); }} />}
+                  {step === 3 && <ProductServiceScreen value={answers.product_or_service} onChange={v => { set("product_or_service", v); setPendingAutoNext(true); }} onNext={validatedNext} />}
                   {step === 4 && <OnboardingPhase2Import answers={answers} set={set} files={isDemoMode ? [{ id: "demo-file", name: "profil_instagram_lea.png", url: "" }] : uploadedFiles} uploading={uploading} onUpload={isDemoMode ? () => {} : handleFileUpload} onRemove={isDemoMode ? () => {} : removeFile} onNext={next} onLeave={triggerPreScrape} isDemoMode={isDemoMode} />}
                   {step === 5 && <CanauxCombinedScreen answers={answers} set={set} onNext={validatedNext} />}
                   {step === 6 && <ObjectifScreen value={answers.objectif} onChange={v => { set("objectif", v); setPendingAutoNext(true); }} />}
