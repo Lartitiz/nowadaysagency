@@ -18,6 +18,7 @@ interface FlowState {
   inspirationProposals: any[];
   inspirationImagePreview: string | null;
   demoScenario?: string | null;
+  editingIdeaId?: string | null;
   ts: number;
 }
 
