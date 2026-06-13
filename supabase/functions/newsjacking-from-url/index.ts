@@ -171,7 +171,7 @@ Analyse maintenant.`;
 
     let raw = "";
     try {
-      raw = await callAnthropicSimple(model, systemPrompt, userPrompt, 0.6, 1200);
+      raw = await callAnthropicSimple(model, systemPrompt, userPrompt, 0.6, 1600);
     } catch (e) {
       console.error("[newsjacking-from-url] anthropic error", (e as Error).message);
       clearTimeout(timeout);
