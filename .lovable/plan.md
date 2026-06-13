@@ -1,69 +1,74 @@
 ## Objectif
 
-Quand `/creer` est ouvert avec `?idea_id=...` (depuis "Rédiger" / "Continuer la rédaction"), la sauvegarde doit METTRE À JOUR cette idée existante au lieu d'insérer un doublon dans `saved_ideas`. Sans `idea_id`, comportement actuel inchangé (insert).
+Remplacer l'approche `sizing: { type: "crop", ... }` (qui produit des `srcRect` invalides avec valeurs négatives dans pptxgenjs v4) par un pré-recadrage centré "cover" via `<canvas>` AVANT insertion. L'image arrivera déjà au ratio exact du cadre → aucun `srcRect`, aucune déformation.
 
-## Fichiers impactés
+## Fichier impacté
 
-1. `src/hooks/use-flow-persistence.ts`
-2. `src/pages/CreerUnifie.tsx`
-3. `src/components/SaveToIdeasDialog.tsx`
+- `src/lib/export-carousel-hybrid-pptx.ts` (uniquement)
 
 ## Changements
 
-### 1. `use-flow-persistence.ts`
+### 1. Remplacer `measureImageSize` par `cropToRatioBase64` (lignes 64-82)
 
-- Dans l'interface `FlowState`, ajouter le champ optionnel `editingIdeaId?: string | null;`
-- (Pas besoin de l'ajouter au tableau de dépendances du `useEffect` du hook : `saveFlowState` est déjà appelé directement depuis `CreerUnifie` avec tout l'objet.)
+Helper qui charge la dataURL dans un `Image`, calcule la fenêtre source "cover" centrée pour `targetRatio`, dessine dans un canvas à la résolution conservée (pas de perte), retourne `canvas.toDataURL("image/jpeg", 0.92)` ou `null` en cas d'échec/timeout (5s).
 
-### 2. `CreerUnifie.tsx`
+### 2. Supprimer le pré-calcul `photoSizes` (lignes 483-487)
 
-- ~ligne 105, lire le param URL :
-`const paramIdeaId = searchParams.get("idea_id");`
-- Ajouter le state, priorité au persisté puis URL :
-`const [editingIdeaId, setEditingIdeaId] = useState<string | null>(ps?.editingIdeaId ?? paramIdeaId ?? null);`
-- ~ligne 366, inclure `editingIdeaId` dans l'objet `saveFlowState({...})` et dans le tableau de dépendances ligne 384.
-- Dans `handleReset` (~ligne 1482-1517), ajouter `setEditingIdeaId(null);`
-- Dans le bloc "fresh navigation reset" (~ligne 215-227), ajouter aussi `setEditingIdeaId(null);` pour cohérence.
-- ~ligne 2881, passer la prop au dialog : `editingIdeaId={editingIdeaId}`
+Plus nécessaire — le crop est désormais fait à l'insertion, par cadre. Remplacer par un cache :
 
-### 3. `SaveToIdeasDialog.tsx`
+```ts
+const cropCache = new Map<string, string | null>();
+// clé: `${photoIndex}:${frameRatio.toFixed(3)}`
+```
 
-- Ajouter à `Props` : `editingIdeaId?: string | null;`
-- Déstructurer la prop dans le composant.
-- Dans `handleSave` :
-  - Si `editingIdeaId` fourni → `supabase.from("saved_ideas").update({ titre, angle, format: formatLabel, canal: canalValue, objectif: objectif || null, notes: note || null, content_draft, content_data: contentData, personal_elements: personalElements || null, updated_at: new Date().toISOString() }).eq("id", editingIdeaId).select("id").single();`
-  Ne PAS toucher : `user_id`, `workspace_id`, `created_at`, `status`, `type`, `source_module`.
-  - Sinon → insert actuel inchangé.
-- Récupérer l'id cible : `const targetId = editingIdeaId ?? newIdea?.id;` puis appliquer le bloc upload visuels existant (inchangé dans sa logique) avec `targetId`.
-- Toast :
-  - update → `"💡 Idée mise à jour !"`
-  - insert → `"💡 Idée sauvegardée ! Tu la retrouveras dans Mes idées."` (inchangé)
+Le cache mutualise les recadrages quand la même photo réapparaît avec un cadre de ratio identique.
 
-## Ce qui NE DOIT PAS bouger
+### 3. Remplacer le bloc `addImage` lignes 635-679
 
-- `IdeasPage.handleRediger` : déjà correct.
-- Comportement quand `idea_id` est absent : strictement identique (insert).
-- `savedId` du FlowState (id de `generated_carousels`) : distinct de `editingIdeaId`, ne pas confondre.
-- Insert `generated_carousels` dans `handleSave` de CreerUnifie : inchangé.
-- Autres chemins d'insertion `saved_ideas` (Calendar, InspireFlow, Newsjacking…) : hors scope.
-- `status`, `user_id`, `workspace_id`, `created_at`, `type`, `source_module` d'une idée mise à jour : préservés.
+```ts
+const frameRatio = w / h;
+const cacheKey = `${zone.photoIndex}:${frameRatio.toFixed(3)}`;
+let cropped = cropCache.get(cacheKey);
+if (cropped === undefined) {
+  cropped = await cropToRatioBase64(photo.base64, frameRatio);
+  cropCache.set(cacheKey, cropped);
+}
+try {
+  slide.addImage({
+    data: cropped ?? photo.base64,
+    x, y, w, h,
+    ...(cropped ? {} : { sizing: { type: "cover", w, h } }),
+  });
+} catch (e) {
+  console.warn("[hybrid] addImage(originalPhoto) failed", e);
+}
+```
 
-## (b) Propositions / vigilance
+La boucle est déjà dans `exportCarouselHybridPptx` (async) → `await` est valide. Confirmé : la boucle ligne 623 est dans le `for (let i…)` qui est lui-même dans une fonction `async`.
 
-- **Reset "fresh navigation" ligne 215-227** : je propose d'y ajouter `setEditingIdeaId(null)` aussi (pas dans ta liste explicite mais cohérent — sans ça, si l'utilisateur ouvre `/creer?idea_id=X` puis revient sur `/creer` sans params via la sidebar, l'`editingIdeaId` pourrait survivre via state React si le bloc reset n'efface pas tout). ok
-- **Point 5 (survie au refresh)** : OK natif. `ps?.editingIdeaId` est lu à l'init, et `saveFlowState` est appelé à chaque changement avec le champ inclus, donc l'id persiste tant que le flow est restauré (`shouldRestore = true`). ok
-- **Risque résiduel** : si l'utilisateur change radicalement de sujet en gardant `editingIdeaId`, l'update écrasera l'idée d'origine — c'est le comportement voulu d'après ton critère 4 (changement de format reflété sur l'idée d'origine).
+## Ce qui NE BOUGE PAS
 
-## Critères de validation
+- Architecture 3 couches (photos → shapes natifs → PNG → texte)
+- Coordonnées des cadres (x, y, w, h) et clamping
+- Constantes SLIDE_W_PX/H_PX, PPTX_W/H_IN, PX_PER_IN
+- Logo, fond PNG, shapes natifs, texte éditable, `captureBody`
+- Interface `OriginalPhoto`
+- Chaîne amont (CreerUnifie, hooks, Edge Function)
 
-- `npx tsc --noEmit --skipLibCheck` : 0 erreur.
-- Reprendre une idée → générer → sauvegarder → même id, pas de doublon (count `/idees` identique).
-- Créer sans idée existante → nouvelle idée créée.
-- Changer le format pendant la reprise → idée d'origine mise à jour, pas de doublon.
-- Refresh en cours de rédaction → `editingIdeaId` survit, update à la sauvegarde.
-- Après "Nouvelle idée" → `editingIdeaId` à null, insert normal.
+## Validation
+
+1. `npx tsc --noEmit --skipLibCheck` : 0 erreur
+2. Régénérer un carrousel avec slide photo-haut (photo portrait), slide photo plein cadre, slide photo colonne verticale → photos non déformées, recadrage centré, nettes
+3. XML d'une slide photo : `<p:pic>` sans `<a:srcRect>` (ou neutre `l=0 r=0 t=0 b=0`), aucune valeur négative
+4. Slides sans photo : aucune régression
+
+## Propositions séparées (b)
+
+- **b1. Point focal personnalisé** : lire `data-pptx-focal-x/y` (0-1) sur l'élément photo et l'utiliser pour décaler `ox/oy` au lieu du centrage. Utile pour portraits visage haut. Hors scope ici. o
+- **b2. Qualité JPEG** : 0.92 = bon compromis. Passer à 0.95 si tu veux plus de netteté (poids ↑).
 
 ## Hors scope
 
-- Emoji "📋 " dans le titre des briefs (cosmétique).
-- Nettoyage `isBrief` dans `handleStatusChange`/`handleSaveNotes`.
+- Éditabilité texte cartes en PPTX
+- `carousel-visual/index.ts` (layout)
+- Micro-cadrage logo, export PNG
