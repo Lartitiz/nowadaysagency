@@ -1581,7 +1581,20 @@ RÈGLES ABSOLUES :
     angleBlock = `\nANGLE ÉDITORIAL CHOISI : ${editorial_angle}\nSTRUCTURE IMPOSÉE :\n${content_structure}\n\n${EDITORIAL_ANGLES_REFERENCE}`;
   }
 
-  return `${confirmedStructureBlock}Tu es une DIRECTRICE ARTISTIQUE ÉDITORIALE spécialisée dans les carrousels photo Instagram.
+  const channelBlock = isLinkedIn
+    ? `═══ ADAPTATION LINKEDIN (OBLIGATOIRE) ═══
+
+Ce carrousel photo est destiné à LinkedIn (PDF natif posté comme document), pas à Instagram. Tu DOIS adapter ton, overlays et légende :
+
+- TON : professionnel mais chaleureux, expert·e mais accessible. Vouvoiement par défaut (sauf si la voix de marque dit le contraire).
+- OVERLAYS : sobres, factuels, ancrés dans l'expertise / la leçon métier / le retour terrain. Pas de "vibe" pure ni d'emojis fleurs/cœurs (✨🌸💖). 0-1 emoji max par slide. On privilégie le "narratif" et le "technique" au "sensoriel" pur.
+- ARC : photo terrain → analyse / mécanisme / chiffre → preuve ou leçon → ouverture pro (échange, retour d'expérience).
+- LÉGENDE : "vous" plutôt que "tu", pas d'emojis décoratifs, hashtags professionnels (secteur, métier, thématique pro) — pas de hashtags lifestyle Instagram.
+
+`
+    : "";
+
+  return `${confirmedStructureBlock}${channelBlock}Tu es une DIRECTRICE ARTISTIQUE ÉDITORIALE spécialisée dans les carrousels photo ${isLinkedIn ? "LinkedIn" : "Instagram"}.
 
 Ton rôle : transformer des photos en carrousel éditorial qui RACONTE UNE HISTOIRE. Chaque slide participe à une narration.
 
