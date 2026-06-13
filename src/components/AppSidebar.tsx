@@ -24,6 +24,7 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
     items: [
       { label: "Nouveau contenu", path: "/creer", icon: <PenLine size={16} />, freshStart: true },
       { label: "Calendrier", path: "/calendrier", icon: <CalendarDays size={16} /> },
+      { label: "Mes idées", path: "/calendrier?tab=idees", icon: <Lightbulb size={16} /> },
       { label: "Routine engagement", path: "/instagram/routine", icon: <MessageCircle size={16} /> },
     ],
   },
