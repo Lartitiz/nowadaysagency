@@ -2294,6 +2294,11 @@ export default function CreerUnifie() {
         body: requestBody,
       }, 120000);
       if (fnError) throw fnError;
+      // Quota épuisé : ouvrir le QuotaWallModal avec l'objet quota complet,
+      // avant le throw générique qui perdrait data.quota.
+      if (data?.error === "limit_reached" || data?.quota) {
+        if (handleQuotaError({ data })) return;
+      }
       if (data?.error) throw new Error(data.error);
       setVisualSlides(data.result?.slides_html || []);
       if (downgradeReason === "user_chose_text") {
@@ -2302,6 +2307,8 @@ export default function CreerUnifie() {
         toast.success("Visuels générés !");
       }
     } catch (e: any) {
+      // Quota remonté par throw : ouvrir le mur quota au lieu d'un toast brut.
+      if (handleQuotaError(e)) return;
       posthog.capture("carousel_visual_error", {
         error_message: e?.message || "unknown",
         had_slides: !!result?.raw?.slides,
