@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { scrapeWebsite, scrapeInstagram, scrapeLinkedin, processDocuments, extractVisualInfo } from "../_shared/scraping.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
-import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
+import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
@@ -31,9 +31,7 @@ serve(async (req) => {
     const quota = await checkQuota(userId, "import");
     if (!quota.allowed) {
       clearTimeout(timeout);
-      return new Response(JSON.stringify({ error: quota.message, quota }), {
-        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return quotaDeniedResponse(quota, corsHeaders);
     }
 
     const supabaseAdmin = createClient(

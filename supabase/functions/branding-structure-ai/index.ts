@@ -4,7 +4,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
-import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
+import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 const SECTION_PROMPTS: Record<string, string> = {
@@ -121,9 +121,7 @@ serve(async (req) => {
 
     const quota = await checkQuota(userId, "coach");
     if (!quota.allowed) {
-      return new Response(JSON.stringify({ error: quota.message, quota }), {
-        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return quotaDeniedResponse(quota, corsHeaders);
     }
 
     if (!section || !SECTION_PROMPTS[section]) {

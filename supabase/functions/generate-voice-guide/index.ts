@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
-import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
+import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
     // Check quota
     const quota = await checkQuota(userId, "content");
     if (!quota.allowed) {
-      return new Response(JSON.stringify({ error: quota.message, quota }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return quotaDeniedResponse(quota, corsHeaders);
     }
 
     // Get user context

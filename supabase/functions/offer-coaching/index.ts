@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildIdentityBlock } from "../_shared/user-context.ts";
-import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
+import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
@@ -40,10 +40,7 @@ serve(async (req) => {
     // Check plan limits
     const usageCheck = await checkQuota(user.id, "content");
     if (!usageCheck.allowed) {
-      return new Response(
-        JSON.stringify({ error: "limit_reached", message: usageCheck.error, remaining: 0 }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return quotaDeniedResponse(usageCheck, corsHeaders);
     }
 
     const reqBody = await req.json();
