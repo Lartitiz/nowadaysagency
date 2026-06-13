@@ -78,6 +78,31 @@ const SORT_OPTIONS = [
   { id: "by_status", label: "Par statut" },
 ];
 
+/* ─── Preview helpers ─── */
+function cleanSlideMarkers(text: string): string {
+  return text
+    .replace(/^SLIDE\s+\d+\s*(?:\[[^\]]*\])?\s*[:\-–]?\s*/gim, "")
+    .replace(/\n+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function buildIdeaPreview(idea: SavedIdea): string {
+  if (idea.accroche_short?.trim()) return `🎣 ${idea.accroche_short.trim()}`;
+  if (idea.content_draft?.trim()) return cleanSlideMarkers(idea.content_draft);
+  const cd = idea.content_data;
+  if (cd && typeof cd === "object") {
+    const fallback =
+      cd.carousel?.hook_text ||
+      cd.carousel?.caption ||
+      cd.hook_text ||
+      cd.caption ||
+      (Array.isArray(cd.carousel?.slides) ? cd.carousel.slides[0]?.text || cd.carousel.slides[0]?.title : null);
+    if (typeof fallback === "string" && fallback.trim()) return cleanSlideMarkers(fallback);
+  }
+  return "";
+}
+
 export default function IdeasPage({ embedded = false }: { embedded?: boolean }) {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
