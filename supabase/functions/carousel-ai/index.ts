@@ -2394,6 +2394,8 @@ ${deepeningCtx}${angleBlock}
 - Slide pivot identifiée : c'est une PRISE DE POSITION qui décale, pas un diagnostic.
 - Test monologue : si je lis les body text_only à la suite → ça forme UNE pensée qui se déroule, pas 5 points indépendants.
 - Le pont actu → métier est formulé en "ce que ça touche dans MON terrain", pas "ce que ça dit de TON business".
+- Les overlay_text des slides photo_full, lus à la suite, forment un récit continu (reprise, prolongement ou bascule d'une slide à l'autre) — pas une galerie de légendes interchangeables.
+- Test de permutation : si on échange deux slides au hasard et que le carrousel "marche encore" → raté, recommence.
 
 ${isLinkedIn ? `═══ LÉGENDE LINKEDIN (OPTIONNELLE) ═══
 Caption gérée par appel dédié. Tu peux mettre {"hook":"","body":"","cta":"","hashtags":[]} ou l'omettre.` : `═══ LÉGENDE INSTAGRAM (OBLIGATOIRE) ═══
