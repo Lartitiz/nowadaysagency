@@ -205,6 +205,13 @@ Analyse maintenant.`;
       ton: ALLOWED_TONS.has(parsed.ton) ? parsed.ton : "entre_deux",
       force_pont: ALLOWED_PONTS.has(parsed.force_pont) ? parsed.force_pont : "moyen",
       pertinence: typeof parsed.pertinence === "string" ? parsed.pertinence : "",
+      faits_cles: Array.isArray(parsed.faits_cles)
+        ? parsed.faits_cles
+            .filter((f: unknown): f is string => typeof f === "string")
+            .map((f: string) => f.trim().slice(0, 200))
+            .filter((f: string) => f.length > 0)
+            .slice(0, 8)
+        : [],
       from_url: true,
     };
 
