@@ -1568,15 +1568,14 @@ export default function CreerUnifie() {
           quality_score: r.quality_check?.score || null,
         }).select("id").single();
         if (data) setSavedId((data as any).id);
-        toast.success("Contenu sauvegardé !");
       } catch (e: any) {
-        toast.error(e?.message || "Erreur lors de la sauvegarde");
+        console.warn("generated_carousels insert failed:", e?.message);
       } finally {
         setSaving(false);
       }
-      return;
+      // Suite : ouvre le dialog pour insérer dans saved_ideas (boîte à idées)
     }
-    // Autres formats : ouvrir le dialog SaveToIdeasDialog (insertion réelle dans saved_ideas)
+    // Ouvrir le dialog SaveToIdeasDialog (insertion réelle dans saved_ideas)
     setSaveIdeaDialogOpen(true);
   };
 
@@ -2886,6 +2885,8 @@ export default function CreerUnifie() {
         sourceModule="creer"
         format={selectedFormat || undefined}
         objectif={objective || undefined}
+        visualSlides={selectedFormat === "carousel" && visualSlides.length > 0 ? visualSlides : undefined}
+        onUploadVisuals={selectedFormat === "carousel" ? uploadVisualsToStorage : undefined}
       />
     </div>
   );
