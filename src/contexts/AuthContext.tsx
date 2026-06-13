@@ -224,6 +224,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   }, []);
 
+  // Keep the flow-persistence registry in sync with the current user.
+  // Scoped backup keys (creer_flow_state_backup:{userId}) require this.
+  useEffect(() => {
+    setFlowUserId(user?.id && user.id !== "demo-user" ? user.id : null);
+  }, [user?.id]);
+
   // Fetch admin role when user changes
   useEffect(() => {
     if (isDemoMode || !user) {
