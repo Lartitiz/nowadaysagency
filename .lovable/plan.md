@@ -1,73 +1,97 @@
-## (a) Ce que tu demandes — implémentation des filtres repliés
+## (a) Ce que tu demandes
 
-### 1. State local
-Ajouter `const [filtersOpen, setFiltersOpen] = useState(false);` dans `IdeasPage.tsx`.
+### 1. Helper `getIdeaPreview` dans `src/pages/IdeasPage.tsx`
 
-### 2. Ligne visible (sticky)
-Sur la ligne Statut existante (l. 296-301) :
-- **Gauche** : les chips Statut ("Tout" + 5 statuts) — **strictement inchangés**
-- **Droite** : le sélecteur de tri (déplacé depuis la ligne Type) + le bouton "Filtres"
-- Le sélecteur et le bouton s'alignent à droite de la ligne via `flex justify-between` ou `ml-auto gap-2`
+Remplacer les helpers actuels (`cleanSlideMarkers` reste, `buildIdeaPreview` est supprimé) par :
 
-### 3. Bouton "Filtres"
-- Icône `SlidersHorizontal` (lucide-react)
-- Label : `"Filtres"` si 0 actif, sinon `"Filtres · N"`
-- Compteur : nombre de filtres parmi Objectif / Canal / Type qui ne sont pas sur `"all"`
-- Toggle : `onClick={() => setFiltersOpen(v => !v)}`
-- Style : chip-like (`rounded-lg`, `border`, `px-2 py-1`, `text-[11px]`) ou `Button` variant outline, selon cohérence visuelle
-
-### 4. Panneau dépliable
-Utiliser le composant `Collapsible` déjà présent (`src/components/ui/collapsible.tsx`, Radix UI natif) :
-- `<Collapsible open={filtersOpen}>`
-- `<CollapsibleContent>` contient les 3 groupes de chips actuels :
-  - Ligne Objectif (l. 304-308)
-  - Ligne Canal (l. 310-316)
-  - Ligne Type (l. 319-323)
-- Les chips et leur logique sont strictement inchangées — seul l'emballage change
-- Ajouter un lien/bouton "Réinitialiser" dans le panneau :
-  - `onClick={() => { setObjectifFilter("all"); setCanalFilter("all"); setTypeFilter("all"); }}`
-  - Ne touche pas `statusFilter` ni `sort`
-
-### 5. Layout sticky
-Le conteneur sticky (l. 294) garde son `className` et son `z-30`. La structure interne devient :
-```
-sticky container
-  ├── ligne visible : Statut (gauche) + tri + bouton Filtres (droite)
-  └── CollapsibleContent
-        ├── ligne Objectif
-        ├── ligne Canal
-        ├── ligne Type
-        └── Réinitialiser
+```ts
+function getIdeaPreview(idea: SavedIdea): { title?: string; text?: string } {
+  // a. content_data (objet ou string JSON)
+  let data: any = idea.content_data;
+  if (typeof data === "string") {
+    try { data = JSON.parse(data); } catch { data = null; }
+  }
+  if (data && typeof data === "object") {
+    const title = typeof data.chosen_angle?.title === "string" ? data.chosen_angle.title.trim() : undefined;
+    const text =
+      (typeof data.chosen_angle?.description === "string" && data.chosen_angle.description.trim()) ||
+      (Array.isArray(data.slides) && (data.slides[0]?.hook || data.slides[0]?.text || data.slides[0]?.titre || data.slides[0]?.title || data.slides[0]?.body || data.slides[0]?.caption)) ||
+      (typeof data.hook === "object" ? data.hook?.texte_parle : data.hook) ||
+      (typeof data.caption === "object" ? (data.caption?.hook || data.caption?.body || data.caption?.text) : data.caption) ||
+      data.body || data.content || undefined;
+    const cleanText = typeof text === "string" && text.trim() ? cleanSlideMarkers(text) : undefined;
+    if (title || cleanText) return { title, text: cleanText };
+    // NB : on ne retombe PAS sur les autres champs si content_data existe mais ne livre rien d'exploitable → on continue plus bas
+  }
+  // b. accroche_short
+  if (idea.accroche_short?.trim()) return { text: `🎣 ${idea.accroche_short.trim()}` };
+  // c. content_draft nettoyé
+  if (idea.content_draft?.trim()) return { text: cleanSlideMarkers(idea.content_draft) };
+  // d. rien
+  return {};
+}
 ```
 
-### 6. Invariants
-- `filtered` useMemo : inchangé
-- `STATUS_OPTIONS`, `OBJECTIF_OPTIONS`, `CANAL_OPTIONS`, `TYPE_OPTIONS`, `SORT_OPTIONS` : inchangés
-- `FilterChip` : inchangé
-- States de filtre : conservés, seul leur emplacement d'affichage change
-- Rendu des cartes, Dialog de détail, handlers : inchangés
+Note : si `content_data` est présent mais qu'on n'en tire rien, on continue jusqu'à `accroche_short` / `content_draft` plutôt que de laisser la carte vide. Aucun cas ne retourne `JSON.stringify`.
+
+### 2. Remplacement du bloc Preview (l. 437-441)
+
+```tsx
+{(() => {
+  const preview = getIdeaPreview(idea);
+  if (!preview.title && !preview.text) return null;
+  return (
+    <div className="mt-2 space-y-0.5">
+      {preview.title && <p className="font-semibold text-[13px] text-foreground line-clamp-1">{preview.title}</p>}
+      {preview.text && <p className="text-[13px] text-foreground/70 line-clamp-2">{preview.text}</p>}
+    </div>
+  );
+})()}
+```
+
+### 3. Invariants
+
+- `ContentPreview.tsx`, Dialog de détail, badges, date, actions, filtres/tri/handlers, interface `SavedIdea` : strictement inchangés.
+- `cleanSlideMarkers` est conservé (utilisé par le nouveau helper).
+- `buildIdeaPreview` (ajouté au chantier précédent) est supprimé, remplacé par `getIdeaPreview`.
 
 ---
 
-## (b) Proposition d'amélioration — animation propre
+## (b) Mes ajouts (à valider)
 
-Le projet a déjà `<Collapsible>` (shadcn / Radix UI) à `src/components/ui/collapsible.tsx`. Je te propose de l'utiliser plutôt qu'une logique maison `filtersOpen && ...` :
-- Avantage : animation d'ouverture/fermeture douce native (hauteur CSS animée), accessibilité clavier (Enter/Espace sur le trigger), état `data-state="open|closed"` pour styling.
-- Inconvénient : aucun, c'est un wrapper léger autour de Radix.
+En lisant `ContentPreview.tsx` et `demo-data.ts`, j'ai trouvé d'autres formes de `content_data` réellement présentes :
 
-Alternative si tu préfères éviter Collapsible : un simple `filtersOpen && <div className="animate-in slide-in-from-top-2 ...">` avec Tailwind `animate-in` — plus léger mais moins accessible.
+1. **Carrousel produit** : `{ slides: [{ title, body, overlay_text, caption }], caption: { hook, body, cta }, carousel_type }`
+  → j'ajoute `slides[0].title`, `slides[0].body`, `slides[0].caption` et `caption.{hook,body}` (champs objet) dans la chaîne de fallback. ok
+2. **Reel** : `{ script: [{ section, texte_parle, texte_overlay }], caption: { text, cta } }`
+  → j'ajoute `script.find(s => s.section === "hook")?.texte_parle` et `caption.text` (cas objet) comme fallbacks. ok
 
-**Ma recommandation : utiliser le `Collapsible` déjà présent.**
+Si tu valides, le helper devient (changements par rapport à ta spec entre `(+)` ) :
+
+```ts
+const text =
+  data.chosen_angle?.description ||
+  (Array.isArray(data.slides) && (data.slides[0]?.hook || data.slides[0]?.text || data.slides[0]?.titre
+    /*(+)*/ || data.slides[0]?.title || data.slides[0]?.body || data.slides[0]?.caption)) ||
+  /*(+)*/ (Array.isArray(data.script) && data.script.find((s:any) => s?.section === "hook")?.texte_parle) ||
+  (typeof data.hook === "object" ? data.hook?.texte_parle : data.hook) ||
+  /*(+)*/ (typeof data.caption === "object" ? (data.caption?.hook || data.caption?.body || data.caption?.text) : data.caption) ||
+  data.body || data.content || undefined;
+```
+
+Si tu préfères t'en tenir strictement à ta liste, dis-le et je l'implémente sans les ajouts.
 
 ---
 
 ## Validation prévue
-- `npx tsc --noEmit --skipLibCheck` → 0 erreur
-- Au chargement : seule la ligne Statut + tri + "Filtres" est visible
-- Clic "Filtres" → panneau s'ouvre avec Objectif/Canal/Type + "Réinitialiser"
-- Sélectionner un Objectif, fermer le panneau → compteur "Filtres · 1" reste visible, filtre actif
-- "Réinitialiser" remet les 3 filtres sur "all", panneau reste ouvert (ou se ferme — au choix, je laisserai ouvert par simplicité)
+
+- `npx tsc --noEmit --skipLibCheck` → 0 erreur.
+- Carte avec `chosen_angle.title` + `description` → titre en gras + 2 lignes lisibles, aucun `{` / `"` JSON.
+- Carte sans `content_data` exploitable mais avec `accroche_short` → "🎣 …" sur 2 lignes.
+- Carte sans rien → aucun bloc d'aperçu.
+- Clic sur la carte → Dialog inchangé, rendu complet via `ContentPreview`.
 
 ## Hors scope
-- Badges redondants sur les cartes (chantier C)
-- Toute modification du chantier A (cartes)
+
+- Replier les filtres (chantier B — déjà fait).
+- Nettoyer les badges redondants (chantier C).
