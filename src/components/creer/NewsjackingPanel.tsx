@@ -26,6 +26,7 @@ interface Actu {
   ton?: string;
   force_pont?: "fort" | "moyen" | "fragile";
   pertinence: string;
+  faits_cles?: string[];
   from_url?: boolean;
   // angles are now generated on demand
 }
