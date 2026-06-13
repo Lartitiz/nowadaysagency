@@ -1,50 +1,50 @@
-## Contexte
-
-`buildMixCarouselNewsReactionPrompt` (mix en réaction à une actu) est le dernier des 4 prompts carrousel qui n'a pas le chaînage narratif. Son bloc actuel (lignes 2355-2358) contient encore le "Test slide-seule" qui contredit explicitement le récit continu adopté par les 3 autres modes.
+# Plan — Corriger chevauchement titre/numéro et étirement des colonnes
 
 ## Fichier impacté
+`supabase/functions/carousel-visual/index.ts` — UNIQUEMENT le prompt système.
+Aucune modification du flux IA (appel Claude, parsing, post-processing), des annotations `data-pptx-*`, des placeholders `{{PHOTO_N}}`, du quota ou du frontend.
 
-`supabase/functions/carousel-ai/index.ts` — uniquement la fonction `buildMixCarouselNewsReactionPrompt`, lignes 2355-2358.
+## Changement 1 — Zone de sécurité titre vs badge numéro
 
-## Changement
+Dans la section `═══ COHÉRENCE ET CONTINUITÉ VISUELLE ═══` (l.759-766), juste après la ligne 762 qui décrit le badge numéro de slide, ajouter une règle dédiée :
 
-Remplacer le bloc actuel :
+> ZONE DE SÉCURITÉ TITRE / NUMÉRO (impératif) :
+> - Le badge numéro de slide est positionné en absolu dans un coin (top/right ou bottom/right), AU-DESSUS du flux normal (z-index supérieur).
+> - Le titre principal ne doit JAMAIS chevaucher ce badge. Deux options autorisées (au choix selon le layout) :
+>   · Soit le titre est placé SOUS la ligne du badge (le badge a son propre espace en haut, suivi d'un margin-top sur le titre ≥ hauteur du badge + 16px).
+>   · Soit le titre partage la ligne du haut MAIS son conteneur a `max-width: 78%` (ou `padding-right` ≥ largeur du badge + 24px) pour réserver la zone du badge.
+> - Cette règle s'applique à TOUS les types de slide (text_only, photo_integrated, photo_full), schémas inclus.
 
-```
-${structureConstraint}═══ INTERDICTION CASCADE / ESCALIER ═══
-- Pas d'ouvertures par "En vrai", "Et là", "Sauf que"...
-- Pas de rampe émotionnelle artificielle...
-- Test slide-seule : chaque text_only doit pouvoir être lue hors contexte...
-```
+Cette règle est posée au niveau "cohérence" car elle est transverse à tous les layouts, pas spécifique à un schéma.
 
-par les **deux blocs** déjà validés dans `buildMixCarouselPrompt` (lignes 2095-2120), transposés tels quels :
+## Changement 2 — Cartes à colonnes : hauteur proportionnée
 
-1. `═══ CHAÎNAGE NARRATIF DES OVERLAYS — RÈGLE ABSOLUE ═══` — récit continu, connecteurs / reprise lexicale sur photo_full à partir de la slide 2, ouverture-développement-tension sur text_only, test de permutation.
-2. `═══ INTERDICTION CASCADE / ESCALIER (CRITIQUE) ═══` — distinction cascade vs continuité, test de progression, connecteurs autorisés si contenu neuf, pas de répétition du mot-clé central, pas de rampe émotionnelle, anti-TU (JE).
+Reformuler la règle `CARTES SŒURS = MÊME HAUTEUR` (l.182) pour distinguer clairement deux niveaux : la rangée vs la slide.
 
-`${structureConstraint}` reste placé juste avant ces deux blocs, dans le même ordre qu'aujourd'hui.
+Remplacement de la ligne 182 par :
 
-## Adaptation au registre "actualité"
+> - CARTES SŒURS = MÊME HAUTEUR ENTRE ELLES, PAS PLEINE SLIDE : dans un schéma à cartes multiples côte à côte (before_after, comparison, process_visible, et toute rangée de cartes sœurs), les cartes d'une même rangée ont la MÊME hauteur entre elles (le conteneur flex de la rangée garde `align-items:stretch`, jamais `center` ou `flex-start`) ET le MÊME alignement vertical de leur contenu interne. EN REVANCHE, la rangée ne doit PAS être étirée pour remplir toute la hauteur de la slide : le wrapper de niveau slide centre la rangée verticalement (`display:flex; align-items:center; justify-content:center`) et laisse la rangée se dimensionner sur son contenu. La hauteur d'une carte est dictée par son contenu (avec un padding intérieur confortable) — JAMAIS par `height:100%` de la slide. Si le contenu est court, les cartes restent compactes et la slide montre de l'air autour, c'est volontaire.
 
-Le bloc standard parle d'"expérience partagée" pour le JE. En contexte newsjacking le JE reste la voix principale mais peut porter une **analyse / lecture de l'actu**, pas seulement un vécu. Ajustement minimal : reformuler la ligne Anti-TU en "voix principale = JE (expérience ou analyse partagée)" — le reste des deux blocs est neutre vis-à-vis du registre et se transpose à l'identique.
+Aucune autre ligne du prompt ne change ; les templates HTML inline (`flex:1` sur les cartes d'une rangée, `align-items:stretch` sur la rangée elle-même) restent intacts puisqu'ils respectent déjà la règle reformulée — seul le wrapper de niveau slide doit éviter d'étirer la rangée.
 
-## Ce qui ne bouge pas
+## Propositions hors demande (à valider séparément, non incluses dans l'exec)
 
-- `buildMixCarouselPrompt`, `buildPhotoCarouselPrompt`, `buildPhotoCarouselNewsReactionPrompt` : aucune modification.
-- Dans `buildMixCarouselNewsReactionPrompt` : tout le reste — `confirmedStructureBlock`, channel LinkedIn, bloc COMPOSITION (50% photos, slide 1 photo_full, alternance), `structureConstraint`, `SLIDE_TITLE_RULES`, assignation photos, bloc news_context, légende, schéma JSON de sortie, VÉRIFICATION FINALE actuelle.
-- Routage, quota, workspace, correction pass, choix du modèle, frontend.
+(b1) Préciser dans le bloc `═══ ANTI-PATTERNS ═══` deux entrées miroirs :
+- "❌ Titre qui passe sous le badge numéro de slide"
+- "❌ Cartes étirées sur 100% de la hauteur de la slide avec contenu court"
+
+(b2) Mentionner une hauteur de carte indicative max (ex: 60-70% de la slide) pour ancrer le "compact si contenu court". Plus prescriptif, à manier avec précaution car risque de régression sur cartes avec contenu long.
 
 ## Critères de validation
 
-- `npx tsc --noEmit --skipLibCheck` passe.
-- `rg "Test slide-seule" supabase/functions/carousel-ai/index.ts` ne retourne plus rien.
-- `rg "CHAÎNAGE NARRATIF DES OVERLAYS" supabase/functions/carousel-ai/index.ts` retourne désormais 2 occurrences (mix standard + mix-news).
-- Test manuel : carrousel mix en mode newsjacking → overlays se lisent à la suite, plus d'îlots autonomes.
-
-## Propositions connexes (optionnel, à valider séparément — hors exec)
-
-- (b) Ajouter dans la VÉRIFICATION FINALE du mix-news les 2 points de contrôle "récit continu" + "test de permutation" déjà présents dans la checklist du mix standard. Pertinent pour cohérence des 4 modes — mais hors scope tant que tu ne valides pas. ok
+- `npx tsc --noEmit --skipLibCheck` passe (changement = chaînes de caractères uniquement, aucun impact type-checker attendu).
+- `rg "ZONE DE SÉCURITÉ TITRE" supabase/functions/carousel-visual/index.ts` → 1 occurrence.
+- `rg "PAS PLEINE SLIDE" supabase/functions/carousel-visual/index.ts` → 1 occurrence.
+- Régénération manuelle : 1 carrousel avec titre long, 1 avec `before_after`, 1 avec `comparison` → aucun chevauchement titre/badge, cartes proportionnées au contenu.
+- Aucune régression sur `story_arc`, `timeline`, `pyramid`, `process_visible`, `equation`, slides photo_full / photo_integrated.
 
 ## Hors scope
 
-- Harmonisation des fourchettes de longueur d'overlay (5-15 / 5-20 / 5-25 mots) à travers tous les prompts.
+- export-carousel-hybrid-pptx.ts (inchangé)
+- Éditabilité PPTX (plan B distinct)
+- Contenu éditorial / prompts copywriting
