@@ -236,23 +236,9 @@ function AnimatedRoutes() {
                 <Route path="/branding" element={<ProtectedRoute><BrandingPage /></ProtectedRoute>} />
                 <Route path="/branding/audit" element={<ProtectedRoute><BrandingAuditPage /></ProtectedRoute>} />
                 <Route path="/branding/audit/:id" element={<ProtectedRoute><BrandingAuditResultPage /></ProtectedRoute>} />
-                <Route path="/branding/ton" element={<Navigate to="/branding/section?section=tone_style" replace />} />
-                <Route path="/branding/ton/recap" element={<Navigate to="/branding/section?section=tone_style&tab=synthese" replace />} />
-                <Route path="/branding/storytelling" element={<Navigate to="/branding/section?section=story" replace />} />
-                <Route path="/branding/storytelling/new" element={<Navigate to="/branding/coaching?section=story" replace />} />
-                <Route path="/branding/storytelling/import" element={<Navigate to="/branding/section?section=story" replace />} />
-                <Route path="/branding/storytelling/:id" element={<Navigate to="/branding/section?section=story" replace />} />
-                <Route path="/branding/storytelling/:id/recap" element={<Navigate to="/branding/section?section=story&tab=synthese" replace />} />
                 <Route path="/branding/storytelling/:id/edit" element={<ProtectedRoute><StorytellingEditPage /></ProtectedRoute>} />
-                <Route path="/branding/storytelling/recap" element={<Navigate to="/branding/section?section=story&tab=synthese" replace />} />
-                <Route path="/branding/persona" element={<Navigate to="/branding/section?section=persona" replace />} />
-                <Route path="/branding/persona/recap" element={<Navigate to="/branding/section?section=persona&tab=synthese" replace />} />
                 <Route path="/branding/proposition" element={<Navigate to="/branding/proposition/recap" replace />} />
                 <Route path="/branding/proposition/recap" element={<ProtectedRoute><PropositionRecapPage /></ProtectedRoute>} />
-                <Route path="/branding/niche" element={<Navigate to="/branding/section?section=tone_style" replace />} />
-                <Route path="/branding/niche/recap" element={<Navigate to="/branding/section?section=tone_style" replace />} />
-                <Route path="/branding/strategie" element={<Navigate to="/branding/section?section=content_strategy" replace />} />
-                <Route path="/branding/strategie/recap" element={<Navigate to="/branding/section?section=content_strategy&tab=synthese" replace />} />
                 <Route path="/branding/offres" element={<ProtectedRoute><OffersPage /></ProtectedRoute>} />
                 <Route path="/branding/offres/:id" element={<ProtectedRoute><OfferWorkshopPage /></ProtectedRoute>} />
                 <Route path="/branding/coaching" element={<ProtectedRoute><BrandingCoachingPage /></ProtectedRoute>} />
