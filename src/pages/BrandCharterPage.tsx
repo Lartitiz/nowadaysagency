@@ -343,6 +343,13 @@ export default function BrandCharterPage() {
   const [logoPalette, setLogoPalette] = useState<LogoPalette | null>(null);
   const [logoPaletteOpen, setLogoPaletteOpen] = useState(false);
   const [extractingPalette, setExtractingPalette] = useState(false);
+  // Logo cutout (détourage)
+  const [cutoutOpen, setCutoutOpen] = useState(false);
+  const [cutoutSource, setCutoutSource] = useState<{ blob?: Blob; url?: string } | null>(null);
+  const [cutoutSourcePreview, setCutoutSourcePreview] = useState<string | null>(null);
+  const [cutoutResultUrl, setCutoutResultUrl] = useState<string | null>(null);
+  const [cutoutLoading, setCutoutLoading] = useState(false);
+  const [cutoutSaving, setCutoutSaving] = useState(false);
   const dataRef = useRef(data);
   dataRef.current = data;
 
@@ -525,6 +532,10 @@ export default function BrandCharterPage() {
       // Cache-bust pour forcer le re-fetch après upsert
       update("logo_url", `${urlData.publicUrl}?v=${Date.now()}`);
       toast.success("Logo uploadé !");
+
+      // Propose cutout
+      openCutoutDialog({ blob: uploadFile });
+
 
       // Extraction couleurs (silencieuse en cas d'échec)
       try {
