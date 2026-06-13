@@ -2352,10 +2352,32 @@ Cette actu est le POINT D'ENTRÉE visible (slide 1). Le reste du carrousel = TA 
 - Slide 1 = photo_full (entrée scène). Dernière slide = text_only (ouverture/CTA).
 - Jamais 3 slides du même type à la suite. Alterne.
 
-${structureConstraint}═══ INTERDICTION CASCADE / ESCALIER ═══
-- Pas d'ouvertures par "En vrai", "Et là", "Sauf que", "Sauf qu'en fait", "Le vrai X c'est…", "Et oui…".
-- Pas de rampe émotionnelle artificielle ("important" → "crucial" → "vital").
-- Test slide-seule : chaque text_only doit pouvoir être lue hors contexte ET garder un message clair (même si elle s'inscrit dans le monologue).
+${structureConstraint}═══ CHAÎNAGE NARRATIF DES OVERLAYS — RÈGLE ABSOLUE ═══
+
+Le carrousel mix doit se lire comme UN SEUL mini-récit continu, slides photo ET texte confondues. Chaque slide REPREND, PROLONGE ou FAIT BASCULER ce que la précédente a posé — peu importe que la précédente soit une photo_full, photo_integrated ou text_only.
+
+Sur les slides photo_full :
+- À partir de la slide 2, CHAQUE overlay_text DOIT contenir au moins l'UN des deux éléments suivants :
+  (a) un connecteur narratif en début ou milieu de phrase : "Puis", "Et puis", "Sauf que", "C'est là que", "Alors", "Du coup", "Trois mois plus tard", "Au début", "Maintenant", "Résultat", "Ce qu'on n'a pas vu venir".
+  (b) une reprise lexicale d'un mot/groupe-clé de la slide précédente (le même mot, ou un synonyme évident qui boucle la référence).
+- Les overlays lus à la suite (en ignorant les text_only entre eux) doivent former un fil narratif cohérent — pas une galerie de légendes interchangeables.
+
+Sur les slides text_only :
+- Elles s'OUVRENT sur ce que la slide photo précédente vient de poser (reprise lexicale, ou prolongement direct de l'image montrée).
+- Elles DÉVELOPPENT en profondeur (mécanisme, donnée, croyance retournée, prise de position sur l'actu).
+- Leur DERNIÈRE phrase TEND vers la slide suivante : elle ouvre la question, la tension ou l'image que la slide suivante va incarner.
+
+Test de permutation : si on échange deux slides au hasard et que le carrousel "marche encore", c'est raté → recommence.
+
+═══ INTERDICTION CASCADE / ESCALIER (CRITIQUE) ═══
+
+La "cascade" est le défaut #1 des carrousels mixtes IA : chaque slide texte paraphrase la précédente en montant d'un cran émotionnel. C'est INTERDIT — à distinguer de la continuité narrative, qui elle est OBLIGATOIRE (voir bloc CHAÎNAGE ci-dessus).
+
+- Test de progression : chaque slide texte DOIT APPORTER un élément nouveau (fait, scène, donnée, mécanisme, bascule, contre-exemple) par rapport à la précédente. Si elle reformule la même idée avec d'autres mots, ou avec une intensité supérieure → c'est une cascade : fusionne avec la précédente ou réécris-la autour d'un contenu neuf.
+- Connecteurs d'ouverture : un connecteur narratif en ouverture d'une slide texte est AUTORISÉ s'il introduit un contenu NOUVEAU (scène, fait, donnée, exemple). Il reste INTERDIT s'il introduit une simple reformulation amplifiée de la slide précédente ("En vrai…", "Sauf qu'en fait…", "Le vrai X c'est…" suivis d'une redite = cascade).
+- Deux slides texte consécutives ne doivent JAMAIS répéter le même mot-clé central. Si slide N parle de "visibilité", slide N+1 doit changer d'angle (exemple, contre-exemple, scène), pas redéfinir "visibilité".
+- Pas de rampe émotionnelle artificielle ("c'est important" → "c'est crucial" → "c'est vital"). Une seule tension, posée une fois, puis on développe par EXEMPLES, pas par escalade rhétorique.
+- Anti-TU : voix principale = JE (expérience ou analyse partagée). Le TU est limité à 2 slides max d'interpellation ponctuelle, jamais comme voix narrative.
 
 ${SLIDE_TITLE_RULES}
 
@@ -2372,6 +2394,8 @@ ${deepeningCtx}${angleBlock}
 - Slide pivot identifiée : c'est une PRISE DE POSITION qui décale, pas un diagnostic.
 - Test monologue : si je lis les body text_only à la suite → ça forme UNE pensée qui se déroule, pas 5 points indépendants.
 - Le pont actu → métier est formulé en "ce que ça touche dans MON terrain", pas "ce que ça dit de TON business".
+- Les overlay_text des slides photo_full, lus à la suite, forment un récit continu (reprise, prolongement ou bascule d'une slide à l'autre) — pas une galerie de légendes interchangeables.
+- Test de permutation : si on échange deux slides au hasard et que le carrousel "marche encore" → raté, recommence.
 
 ${isLinkedIn ? `═══ LÉGENDE LINKEDIN (OPTIONNELLE) ═══
 Caption gérée par appel dédié. Tu peux mettre {"hook":"","body":"","cta":"","hashtags":[]} ou l'omettre.` : `═══ LÉGENDE INSTAGRAM (OBLIGATOIRE) ═══
