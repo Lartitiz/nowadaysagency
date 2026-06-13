@@ -758,20 +758,9 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       const postId = active.id as string;
       const post = posts.find(p => p.id === postId);
       if (!post) return;
-      await supabase.from("saved_ideas").insert({
-        user_id: user.id,
-        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-        titre: post.theme,
-        format: post.format || null,
-        objectif: post.objectif || null,
-        notes: post.notes || null,
-        status: "to_explore",
-        canal: post.canal || "instagram",
-        content_draft: post.content_draft || null,
-        angle: post.angle || "",
-        series_id: (post as any).series_id ?? null,
-        episode_number: (post as any).episode_number ?? null,
-      } as any);
+      const payload = await buildIdeaPayloadFromPost(post);
+      if (!payload) return;
+      await supabase.from("saved_ideas").insert(payload);
       await supabase.from("calendar_posts").delete().eq("id", post.id);
       fetchPosts();
       setIdeasRefreshKey(k => k + 1);
