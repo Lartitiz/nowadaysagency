@@ -288,11 +288,10 @@ export default function DiagnosticLoading({
           setTimeout(() => onReady(result), 400);
         }
       } catch (err) {
-        clearTimeout(safetyTimeout);
-        if (timeoutFired) return;
         console.warn("Deep diagnostic error, using fallback:", err);
         useFallback();
       }
+
     }
 
     function useFallback() {
