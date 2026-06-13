@@ -83,13 +83,13 @@ function InstagramMockup({
       </div>
 
       {/* Media area */}
-      {format === "carousel" && slides && slides.length > 0 ? (
+      {(format === "carousel" && slides && slides.length > 0) || (mediaUrls && mediaUrls.length > 1) ? (
         compact ? (
           <div className="w-full aspect-[4/3] flex items-center justify-center" style={{ background: "linear-gradient(135deg, hsl(340 60% 96%), hsl(30 60% 97%))" }}>
             <span className="text-2xl">{FORMAT_EMOJI.carousel}</span>
           </div>
         ) : (
-          <CarouselSlider slides={slides} mediaUrls={mediaUrls} />
+          <CarouselSlider slides={slides || []} mediaUrls={mediaUrls} />
         )
       ) : mediaUrls && mediaUrls.length > 0 ? (
         <img src={mediaUrls[0]} alt="Visuel du post" className={`w-full object-cover ${format === "reel" ? "aspect-[4/5]" : "aspect-square"}`} />
