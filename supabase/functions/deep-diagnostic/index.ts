@@ -439,13 +439,15 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
       );
     }
 
-    fastSaves.push(
-      Promise.all([
-        logUsage(userId, "audit", "deep_diagnostic", undefined, "claude-sonnet", workspaceId),
-        logUsage(userId, "audit", "deep_diagnostic", undefined, "claude-sonnet", workspaceId),
-        logUsage(userId, "audit", "deep_diagnostic", undefined, "claude-sonnet", workspaceId),
-      ]).catch(e => console.error("logUsage failed:", e))
-    );
+    if (!isOnboarding) {
+      fastSaves.push(
+        Promise.all([
+          logUsage(userId, "audit", "deep_diagnostic", undefined, "claude-sonnet", workspaceId),
+          logUsage(userId, "audit", "deep_diagnostic", undefined, "claude-sonnet", workspaceId),
+          logUsage(userId, "audit", "deep_diagnostic", undefined, "claude-sonnet", workspaceId),
+        ]).catch(e => console.error("logUsage failed:", e))
+      );
+    }
 
     await Promise.allSettled(fastSaves);
 
