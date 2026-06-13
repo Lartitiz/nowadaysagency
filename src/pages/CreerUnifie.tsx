@@ -207,7 +207,6 @@ export default function CreerUnifie() {
   useEffect(() => {
     if (!hasSomeContext && !shouldRestore) {
       clearFlowState();
-      sessionStorage.removeItem("form_draft_creer-unifie-form");
       sessionStorage.removeItem("creer_unifie_result");
       setStep("idea");
       setSelectedFormat(null);
