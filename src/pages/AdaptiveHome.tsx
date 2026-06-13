@@ -602,10 +602,23 @@ export default function AdaptiveHome() {
                   <h3 className="font-display text-[17px] text-foreground leading-tight">
                     Affiner mon identité de marque
                   </h3>
-                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                    Ton histoire, ton persona, ta voix.
-                  </p>
+                  {brandingPercent === 100 ? (
+                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                      Ton identité de marque est complète ✨
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                      Ton histoire, ton persona, ta voix.
+                    </p>
+                  )}
+                  <div className="mt-3 flex items-center gap-2">
+                    <Progress value={brandingPercent} className="h-1.5 flex-1" />
+                    <span className="font-mono-ui text-[11px] text-foreground/60 font-semibold shrink-0">
+                      {brandingPercent}%
+                    </span>
+                  </div>
                 </div>
+
                 <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-bordeaux group-hover:translate-x-0.5 transition-all shrink-0 mt-1" />
               </div>
             </button>
