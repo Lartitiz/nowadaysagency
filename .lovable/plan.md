@@ -1,39 +1,42 @@
-## Objectif
+## Contexte métier
 
-Dans le dialog d'édition d'un post du calendrier :
-1. Isoler visuellement le bloc **Statut** (et la **Date**) en haut, séparé du reste des métadonnées (canal, format, etc.).
-2. Remplacer la petite icône ↩︎ "Remettre en idée" (peu lisible) par un **bouton texte explicite** : "💡 Je veux le remettre dans mes idées", placé directement sous le Statut.
+À l'étape "structure" d'un carrousel (avant les slides), si l'utilisatrice est à court de crédits, carousel-ai renvoie un 429 SANS l'objet `quota` complet. Le QuotaWallModal s'ouvre alors sans le bilan détaillé du mois — alors que l'étape "slides" (carousel-visual), elle, l'a déjà (corrigé précédemment). Incohérence d'expérience entre les deux étapes du même flow carrousel.
 
-Comportement du bouton : exactement celui déjà câblé via `handleUnplan` dans `src/pages/Calendar.tsx` (lignes 643-672) — création d'une ligne dans `saved_ideas` + suppression du `calendar_posts` + refresh sidebar + toast. **Aucune modif de la logique métier**, juste de l'UI.
+Objectif : carousel-ai renvoie le même format que carousel-visual, avec l'objet quota.
 
 ## Fichiers impactés
 
-- `src/components/calendar/CalendarPostMetadata.tsx`
-  - Couper le composant en deux blocs visuels :
-    - **Bloc 1 (statut + date)** : encadré léger (carte avec `border border-border rounded-[12px] p-3 space-y-3`) pour le détacher.
-    - **Bloc 2** : le reste (Série, résumé Canal/Format, Collapsible avancé) reste inchangé, juste séparé par un petit espacement.
-  - Ajouter dans le bloc 1, juste sous le Statut, un bouton plein largeur : `💡 Je veux le remettre dans mes idées`. Ce bouton appelle une nouvelle prop optionnelle `onUnplan?: () => void` et ne s'affiche que si `onUnplan && editingPostId`.
-  - Confirmation native avant l'action : `window.confirm("Remettre ce post dans ta boîte à idées ? Il sera retiré du calendrier.")`.
+- supabase/functions/carousel-ai/index.ts (UNIQUEMENT — le bloc de réponse 429 quota)
 
-- `src/components/calendar/CalendarPostDialog.tsx`
-  - Passer la prop `onUnplan={onUnplan}` à `<CalendarPostMetadata />`.
-  - **Supprimer** le bouton icône ↩︎ Undo2 du `actionsBlock` (lignes 406-410), il fait désormais doublon.
-  - Garder le bouton 💾 Enregistrer et le bouton 🗑️ Supprimer.
-  - Retirer l'import `Undo2` si plus utilisé.
+## Comportement attendu
 
-- `src/pages/Calendar.tsx`
-  - **Aucun changement** — `handleUnplan` reste tel quel, déjà passé via `onUnplan`.
+1. Localiser le bloc `if (!quotaCheck.allowed)` (~ligne 104) qui renvoie actuellement :
+  `{ error: "limit_reached", message: quotaCheck.message, remaining: 0, category: quotaCheck.reason }`
+2. Le remplacer pour inclure l'objet quota complet, en conservant la sentinelle :
+  `{ error: "limit_reached", message: quotaCheck.message, quota: quotaCheck }`
+   (handleQuotaError lit `quota.reason` et `quota.usage` pour alimenter le modal ;
+   l'ancien `remaining`/`category` était redondant et incomplet.)
+3. Vérifier que la variable de retour de checkQuota dans cette fonction s'appelle bien `quotaCheck` (sinon adapter le nom). NE PAS renommer la variable.
+
+## Ce qui NE DOIT PAS bouger
+
+- La logique de checkQuota elle-même, le calcul de `category` (suggestion vs content) : NE PAS TOUCHER.
+- Tout le reste de carousel-ai (génération structure, slides texte, getUserContext, contexte branding, series) : NE PAS TOUCHER.
+- Le status HTTP reste 429.
+- carousel-visual : déjà corrigé, NE PAS TOUCHER.
+- Aucun changement front nécessaire (handleQuotaError + use-content-generator gèrent déjà `error === "limit_reached"` et lisent `data.quota`).
 
 ## Critères de validation
 
-- `npx tsc --noEmit --skipLibCheck` passe.
-- Sur mobile et desktop, le Statut + Date apparaissent dans une carte dédiée en haut du panneau Méta, avec le bouton "Je veux le remettre dans mes idées" juste dessous.
-- Cliquer ce bouton → confirmation → post disparaît du calendrier, réapparaît dans la sidebar Idées, toast "Remis en idée !".
-- Plus aucun bouton icône ↩︎ dans la barre d'actions du bas (juste 💾 Enregistrer + 🗑️ Supprimer).
-- Création d'un nouveau post (pas d'`editingPost`) : le bouton n'apparaît pas (cohérent — rien à "remettre").
+1. `npx tsc --noEmit --skipLibCheck` passe sans erreur (côté repo front, inchangé).
+2. Test manuel (compte à 0 crédit) : lancer une génération de carrousel photo/mix (qui passe par l'étape structure) → le QuotaWallModal s'ouvre AVEC le bilan du mois.
+3. Test manuel régression : avec crédits dispo, la proposition de structure fonctionne normalement.
 
-## Hors scope
+## Proposition d'améliorations (optionnel)
 
-- Changement de la requête `handleUnplan` (déjà OK).
-- Refonte du drag-and-drop vers la sidebar idées (déjà fonctionnel).
-- Animations de transition.
+Si d'autres `status: 429` (rate-limit Anthropic, overload 529) qui mériteraient un typage cohérent sont repérés dans carousel-ai, ils seront signalés sans être implémentés. ok
+
+## Hors scope (plans séparés à venir)
+
+- Harmonisation des ~10 autres edge functions à 429 artisanal.
+- Suppression de useFormPersist.
