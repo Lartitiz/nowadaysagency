@@ -42,6 +42,8 @@ export function SaveToIdeasDialog({
   sourceModule,
   format,
   objectif,
+  visualSlides,
+  onUploadVisuals,
 }: Props) {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
