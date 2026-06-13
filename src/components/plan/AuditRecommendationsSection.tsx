@@ -85,7 +85,7 @@ export default function AuditRecommendationsSection() {
       return;
     }
     const conseil = rec.conseil_contextuel || rec.conseil || rec.detail || "";
-    sessionStorage.setItem("audit_recommendation", JSON.stringify({ module: rec.module, conseil }));
+    sessionStorage.setItem("audit_recommendation", JSON.stringify({ module: rec.module, conseil, ts: Date.now() }));
     const resolvedRoute = resolveRoute(rec);
     const route = `${resolvedRoute}?from=audit&rec_id=${rec.id}`;
     navigate(route);
