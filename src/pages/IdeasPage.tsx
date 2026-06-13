@@ -514,23 +514,6 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
                           <PenLine className="h-3 w-3" /> Rédiger
                         </Button>
                         <PlanifierPopover idea={idea} onPlan={handlePlan} />
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="outline" size="sm" className="rounded-pill text-xs gap-1 text-muted-foreground hover:text-destructive">
-                              <Trash2 className="h-3 w-3" /> Supprimer
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Supprimer cette idée ?</AlertDialogTitle>
-                              <AlertDialogDescription>Tu veux vraiment supprimer cette idée ? Cette action est irréversible.</AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Annuler</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDelete(idea.id)}>Supprimer</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
                       </>
                     )}
                   </div>
