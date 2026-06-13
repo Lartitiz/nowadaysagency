@@ -295,42 +295,71 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
 
         {/* Filters */}
         <div className="sticky top-14 z-30 bg-background py-3 -mx-6 px-6 max-md:-mx-4 max-md:px-4 border-b border-border mb-4 space-y-2">
-          {/* Status */}
-          <div className="flex gap-1.5 flex-wrap">
+          {/* Status (always visible) + sort + Filtres toggle */}
+          <div className="flex gap-1.5 flex-wrap items-center">
             <FilterChip active={statusFilter === "all"} onClick={() => setStatusFilter("all")}>Tout</FilterChip>
             {STATUS_OPTIONS.map((s) => (
               <FilterChip key={s.id} active={statusFilter === s.id} onClick={() => setStatusFilter(s.id)}>{s.label}</FilterChip>
             ))}
+            <div className="ml-auto flex items-center gap-2">
+              <select value={sort} onChange={(e) => setSort(e.target.value)}
+                className="text-[11px] font-mono-ui bg-card border border-border rounded-lg px-2 py-1 text-muted-foreground">
+                {SORT_OPTIONS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+              </select>
+              <button
+                type="button"
+                onClick={() => setFiltersOpen((v) => !v)}
+                className={`inline-flex items-center gap-1.5 text-[11px] font-mono-ui rounded-lg border px-2 py-1 transition-colors ${
+                  activeAdvancedCount > 0 || filtersOpen
+                    ? "bg-foreground text-background border-foreground"
+                    : "bg-card text-muted-foreground border-border hover:text-foreground"
+                }`}
+                aria-expanded={filtersOpen}
+              >
+                <SlidersHorizontal className="h-3 w-3" />
+                {activeAdvancedCount > 0 ? `Filtres · ${activeAdvancedCount}` : "Filtres"}
+              </button>
+            </div>
           </div>
-          {/* Objectif + Canal + Type + Sort */}
-          <div className="flex gap-1.5 flex-wrap items-center">
-            <span className="text-[11px] text-muted-foreground font-mono-ui mr-1">Objectif:</span>
-            <FilterChip active={objectifFilter === "all"} onClick={() => setObjectifFilter("all")}>Tout</FilterChip>
-            {OBJECTIF_OPTIONS.map((o) => (
-              <FilterChip key={o.id} active={objectifFilter === o.id} onClick={() => setObjectifFilter(o.id)}>{o.label}</FilterChip>
-            ))}
-            <span className="w-px h-4 bg-border mx-1" />
-            <span className="text-[11px] text-muted-foreground font-mono-ui mr-1">Canal:</span>
-            <FilterChip active={canalFilter === "all"} onClick={() => setCanalFilter("all")}>Tout</FilterChip>
-            {CANAL_OPTIONS.map((c) => (
-              <FilterChip key={c.id} active={canalFilter === c.id} onClick={() => c.enabled && setCanalFilter(c.id)} disabled={!c.enabled}>
-                {c.label}{!c.enabled && " (V2)"}
-              </FilterChip>
-            ))}
-          </div>
-          <div className="flex gap-1.5 flex-wrap items-center">
-            <span className="text-[11px] text-muted-foreground font-mono-ui mr-1">Type:</span>
-            <FilterChip active={typeFilter === "all"} onClick={() => setTypeFilter("all")}>Tout</FilterChip>
-            {TYPE_OPTIONS.map((t) => (
-              <FilterChip key={t.id} active={typeFilter === t.id} onClick={() => setTypeFilter(t.id)}>{t.label}</FilterChip>
-            ))}
-            <span className="w-px h-4 bg-border mx-1" />
-            <select value={sort} onChange={(e) => setSort(e.target.value)}
-              className="text-[11px] font-mono-ui bg-card border border-border rounded-lg px-2 py-1 text-muted-foreground">
-              {SORT_OPTIONS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
-            </select>
-          </div>
+
+          <Collapsible open={filtersOpen}>
+            <CollapsibleContent className="space-y-2 pt-2 overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
+              <div className="flex gap-1.5 flex-wrap items-center">
+                <span className="text-[11px] text-muted-foreground font-mono-ui mr-1">Objectif:</span>
+                <FilterChip active={objectifFilter === "all"} onClick={() => setObjectifFilter("all")}>Tout</FilterChip>
+                {OBJECTIF_OPTIONS.map((o) => (
+                  <FilterChip key={o.id} active={objectifFilter === o.id} onClick={() => setObjectifFilter(o.id)}>{o.label}</FilterChip>
+                ))}
+              </div>
+              <div className="flex gap-1.5 flex-wrap items-center">
+                <span className="text-[11px] text-muted-foreground font-mono-ui mr-1">Canal:</span>
+                <FilterChip active={canalFilter === "all"} onClick={() => setCanalFilter("all")}>Tout</FilterChip>
+                {CANAL_OPTIONS.map((c) => (
+                  <FilterChip key={c.id} active={canalFilter === c.id} onClick={() => c.enabled && setCanalFilter(c.id)} disabled={!c.enabled}>
+                    {c.label}{!c.enabled && " (V2)"}
+                  </FilterChip>
+                ))}
+              </div>
+              <div className="flex gap-1.5 flex-wrap items-center">
+                <span className="text-[11px] text-muted-foreground font-mono-ui mr-1">Type:</span>
+                <FilterChip active={typeFilter === "all"} onClick={() => setTypeFilter("all")}>Tout</FilterChip>
+                {TYPE_OPTIONS.map((t) => (
+                  <FilterChip key={t.id} active={typeFilter === t.id} onClick={() => setTypeFilter(t.id)}>{t.label}</FilterChip>
+                ))}
+                {activeAdvancedCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => { setObjectifFilter("all"); setCanalFilter("all"); setTypeFilter("all"); }}
+                    className="ml-auto text-[11px] font-mono-ui text-muted-foreground hover:text-foreground underline underline-offset-2"
+                  >
+                    Réinitialiser
+                  </button>
+                )}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
         </div>
+
 
         {/* Ideas list */}
         {loading ? (
