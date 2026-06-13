@@ -240,9 +240,8 @@ export default function DiagnosticLoading({
     callDeepDiagnostic();
 
     async function callDeepDiagnostic() {
-      let timeoutFired = false;
-      let safetyTimeout: ReturnType<typeof setTimeout> | undefined;
       try {
+
         const body = {
           userId: user?.id,
           websiteUrl: answers.website || null,
