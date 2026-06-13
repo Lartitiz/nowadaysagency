@@ -8,8 +8,10 @@
 const SESSION_KEYS = [
   "creer_flow_state",
   "creer_unifie_result",
+  "creer_flow_photos",
   "audit_recommendation",
 ];
+
 
 // Préfixes sessionStorage scopés par user (à balayer)
 const SESSION_PREFIXES = [
