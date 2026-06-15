@@ -10,6 +10,7 @@ import { TOTAL_STEPS } from "@/lib/onboarding-constants";
 import { type DiagnosticData } from "@/lib/diagnostic-data";
 import { useWorkspaceFilter, useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
 import { posthog } from "@/lib/posthog";
+import { resolveOnboardingStatus } from "@/lib/onboarding-status";
 
 /* ────────────────────────────────────────────── helpers */
 
