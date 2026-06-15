@@ -8,6 +8,7 @@ import {
   calculateBrandingCompletion,
   type BrandingCompletion,
 } from "@/lib/branding-completion";
+import { resolveOnboardingStatus } from "@/lib/onboarding-status";
 
 /* ── Types ── */
 interface Alternative {
