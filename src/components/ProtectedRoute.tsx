@@ -1,21 +1,37 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { Navigate, useLocation } from "react-router-dom";
-import { ReactNode, useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { ReactNode, useEffect, useRef, useState } from "react";
+import { resolveOnboardingStatus } from "@/lib/onboarding-status";
 
 import AppHeader from "@/components/AppHeader";
 import { isRouteVisible } from "@/config/feature-flags";
 import DemoBanner from "@/components/demo/DemoBanner";
 
+const GATING_TIMEOUT_MS = 5000;
+
 export default function ProtectedRoute({ children }: { children: ReactNode }) {
-  const { user, loading, isAdmin } = useAuth();
+  const { user, session, loading, isAdmin } = useAuth();
   const { isDemoMode } = useDemoContext();
   const location = useLocation();
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
+  // Refs scoped to the current mount + user.id (reset when user.id changes).
+  const ranWithTokenRef = useRef(false);
+  const gaveUpRef = useRef(false);
+  const gatingStartedAtRef = useRef<number | null>(null);
+  const lastUserIdRef = useRef<string | null>(null);
+
   useEffect(() => {
+    // Reset per-mount refs when user changes (login/logout).
+    if (lastUserIdRef.current !== (user?.id ?? null)) {
+      ranWithTokenRef.current = false;
+      gaveUpRef.current = false;
+      gatingStartedAtRef.current = null;
+      lastUserIdRef.current = user?.id ?? null;
+    }
+
     if (isDemoMode || !user || location.pathname === "/onboarding") {
       setCheckingOnboarding(false);
       if (isDemoMode) sessionStorage.setItem("onboarding_checked:demo", "done");
@@ -30,35 +46,78 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
       return;
     }
     if (cached === "needs") {
-      setNeedsOnboarding(true);
-      setCheckingOnboarding(false);
+      // Invalidate "needs" cache if a token is now available and we haven't
+      // yet run the check token-in-hand for this mount. Otherwise honour it.
+      const canRevalidate = !!session?.access_token && !ranWithTokenRef.current;
+      if (!canRevalidate) {
+        setNeedsOnboarding(true);
+        setCheckingOnboarding(false);
+        return;
+      }
+    }
+
+    // Gating: do not run the check until the session token is actually injected.
+    if (loading || !session?.access_token) {
+      // If we already gave up for this mount, let the user through and stop.
+      if (gaveUpRef.current) {
+        setNeedsOnboarding(false);
+        setCheckingOnboarding(false);
+        return;
+      }
+      const now = Date.now();
+      if (gatingStartedAtRef.current === null) {
+        gatingStartedAtRef.current = now;
+      }
+      const elapsed = now - gatingStartedAtRef.current;
+      if (elapsed >= GATING_TIMEOUT_MS) {
+        console.warn(
+          `[ProtectedRoute] Session token not ready after ${elapsed}ms — letting user through without onboarding check.`
+        );
+        gaveUpRef.current = true;
+        setNeedsOnboarding(false);
+        setCheckingOnboarding(false);
+        return;
+      }
+      // Stay in checking state; effect will re-run when session?.access_token arrives.
+      setCheckingOnboarding(true);
       return;
     }
 
+    // Token is in hand: reset gating counters; this run is authoritative.
+    gatingStartedAtRef.current = null;
+
     const check = async () => {
       try {
-        const [{ data: profile }, { data: config }] = await Promise.all([
-          supabase.from("profiles")
-            .select("onboarding_completed")
-            .eq("user_id", user.id)
-            .maybeSingle(),
-          supabase.from("user_plan_config")
-            .select("onboarding_completed")
-            .eq("user_id", user.id)
-            .maybeSingle(),
-        ]);
-        const done = profile?.onboarding_completed === true || config?.onboarding_completed === true;
-        setNeedsOnboarding(!done);
-        sessionStorage.setItem(scopedKey, done ? "done" : "needs");
+        const status = await resolveOnboardingStatus({
+          profileUserId: user.id,
+          planConfigUserId: user.id,
+        });
+        ranWithTokenRef.current = true;
+
+        switch (status) {
+          case "done":
+            setNeedsOnboarding(false);
+            sessionStorage.setItem(scopedKey, "done");
+            break;
+          case "needs":
+            setNeedsOnboarding(true);
+            sessionStorage.setItem(scopedKey, "needs");
+            break;
+          case "unknown":
+            // Unreliable result: do NOT cache, do NOT redirect. Will retry on next useful render.
+            setNeedsOnboarding(false);
+            break;
+        }
       } catch (e) {
         console.error("Onboarding check failed:", e);
-        setNeedsOnboarding(true);
+        // Treat as unknown: no cache, no redirect.
+        setNeedsOnboarding(false);
       } finally {
         setCheckingOnboarding(false);
       }
     };
     check();
-  }, [user?.id, isDemoMode, location.pathname]);
+  }, [user?.id, isDemoMode, location.pathname, session?.access_token, loading]);
 
   if (isDemoMode) {
     const DEMO_READY_ROUTES = [
