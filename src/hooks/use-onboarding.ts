@@ -10,6 +10,7 @@ import { TOTAL_STEPS } from "@/lib/onboarding-constants";
 import { type DiagnosticData } from "@/lib/diagnostic-data";
 import { useWorkspaceFilter, useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
 import { posthog } from "@/lib/posthog";
+import { resolveOnboardingStatus } from "@/lib/onboarding-status";
 
 /* ────────────────────────────────────────────── helpers */
 
@@ -204,17 +205,16 @@ export function useOnboarding() {
     if (isDemoMode || !user) return;
 
     const check = async () => {
-      const [{ data: profile }, { data: config }] = await Promise.all([
-        (supabase.from("profiles") as any)
-          .select("onboarding_completed, prenom, activite, type_activite, activity_detail, canaux, main_blocker, main_goal, weekly_time, website_url, instagram_username, linkedin_url, linkedin_summary")
-          .eq("user_id", profileUserId)
-          .maybeSingle(),
-        (supabase.from("user_plan_config") as any)
-          .select("onboarding_completed")
-          .eq("user_id", user.id)
-          .maybeSingle(),
-      ]);
-      const done = profile?.onboarding_completed === true || config?.onboarding_completed === true;
+      const { data: profile } = await (supabase.from("profiles") as any)
+        .select("onboarding_completed, prenom, activite, type_activite, activity_detail, canaux, main_blocker, main_goal, weekly_time, website_url, instagram_username, linkedin_url, linkedin_summary")
+        .eq("user_id", profileUserId)
+        .maybeSingle();
+
+      const status = await resolveOnboardingStatus({
+        profileUserId: profileUserId,
+        planConfigUserId: user.id,
+      });
+      const done = status === "done";
 
       if (done) {
         navigate("/dashboard", { replace: true });
