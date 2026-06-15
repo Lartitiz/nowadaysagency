@@ -6,6 +6,7 @@ import { useDemoContext } from "@/contexts/DemoContext";
 import { posthog } from "@/lib/posthog";
 import { clearAppStorage } from "@/lib/storage-cleanup";
 import { setFlowUserId } from "@/hooks/use-flow-persistence";
+import { resolveOnboardingStatus } from "@/lib/onboarding-status";
 
 interface AuthContextType {
   user: User | null;
@@ -40,20 +41,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function resolvePostAuthRoute(userId: string): Promise<string> {
     try {
-      const [{ data: profile }, { data: config }] = await Promise.all([
-        supabase
-          .from("profiles")
-          .select("onboarding_completed")
-          .eq("user_id", userId)
-          .maybeSingle(),
-        supabase
-          .from("user_plan_config")
-          .select("onboarding_completed, welcome_seen")
-          .eq("user_id", userId)
-          .maybeSingle(),
-      ]);
-      const onboardingDone = profile?.onboarding_completed && config?.onboarding_completed;
-      if (!onboardingDone) return "/onboarding";
+      const status = await resolveOnboardingStatus({
+        profileUserId: userId,
+        planConfigUserId: userId,
+      });
+      if (status === "needs") return "/onboarding";
+
+      // Lecture dédiée pour welcome_seen (séparée du statut onboarding)
+      const { data: config } = await supabase
+        .from("user_plan_config")
+        .select("welcome_seen")
+        .eq("user_id", userId)
+        .maybeSingle();
+
       if (!config?.welcome_seen) return "/welcome";
       return "/dashboard";
     } catch (err) {
