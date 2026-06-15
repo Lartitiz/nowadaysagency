@@ -255,11 +255,11 @@ export function useGuideRecommendation(): UseGuideRecommendationResult {
 
       const bc = calculateBrandingCompletion(brandingData);
       const firstName = (profileRes.data as any)?.prenom || "toi";
-      // Consider onboarding done if EITHER table says true
-      // (prevents lockout if one table wasn't updated during original onboarding)
-      const profileOnboarded = (profileRes.data as any)?.onboarding_completed === true;
-      const configOnboarded = (planConfigRes.data as any)?.onboarding_completed === true;
-      const onboardingDone = profileOnboarded || configOnboarded;
+      const status = await resolveOnboardingStatus({
+        profileUserId: profileUserId,
+        planConfigUserId: profileUserId,
+      });
+      const onboardingDone = status === "done";
       const calendarPosts = calendarCountRes.count ?? 0;
       const lastAuditDate: string | null = (auditRes.data as any)?.created_at ?? null;
       const contentsCount = contentsCountRes.count ?? 0;
