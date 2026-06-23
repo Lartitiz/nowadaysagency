@@ -14,7 +14,7 @@ import { ChevronDown } from "lucide-react";
 
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import LinkedInCaptionEditor from "@/components/linkedin/LinkedInCaptionEditor";
-import { AlertTriangle, RefreshCw } from "lucide-react";
+import { AlertTriangle, RefreshCw, ArrowUp, ArrowDown } from "lucide-react";
 
 interface CarouselPhotoResultProps {
   result: any;
