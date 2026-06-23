@@ -59,17 +59,20 @@ serve(async (req) => {
     const prompt = `L'utilisatrice a une idée de contenu mais ne sait pas quel format choisir. Analyse son idée et recommande le meilleur format.
 
 Formats disponibles :
-- post : Post Instagram (texte, image, carrousel). Idéal pour storytelling, partage d'expertise, contenus longs.
+- post : Post Instagram (texte simple ou visuel unique). Idéal pour une idée directe, une réflexion courte.
+- carousel : Carrousel Instagram (plusieurs slides). Idéal pour expliquer, structurer une méthode, raconter en étapes.
 - reel : Reel Instagram (vidéo courte). Idéal pour tutos rapides, tendances, avant/après, contenus dynamiques.
 - story : Story Instagram (séquence éphémère). Idéal pour coulisses, sondages, questions, contenus spontanés.
 - linkedin : Post LinkedIn. Idéal pour expertise, réflexions pro, retours d'expérience.
+- newsletter : Newsletter / email. Idéal pour contenu long, nurturing, partage approfondi à une audience d'abonnées.
+- pinterest : Épingle Pinterest. Idéal pour contenu evergreen, inspiration visuelle, trafic vers un site ou article.
 
 Idée de l'utilisatrice : ${idea}
 ${userContext ? `\nContexte utilisatrice :${userContext}` : ""}
 
 Réponds UNIQUEMENT en JSON valide (pas de markdown), avec ces champs :
 {
-  "format": "post" | "reel" | "story" | "linkedin",
+  "format": "post" | "carousel" | "reel" | "story" | "linkedin" | "newsletter" | "pinterest",
   "format_label": "Post Instagram",
   "suggested_angle": "Storytelling personnel + leçon",
   "objective": "visibilite" | "confiance" | "vente" | "credibilite",

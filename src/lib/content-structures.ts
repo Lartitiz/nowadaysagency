@@ -619,8 +619,13 @@ export function getStructureForCombo(contentType: string, angleId: string): stri
     return "coup_de_gueule";
   }
 
-  // Default: use angle's defaultStructure (check both angle lists)
-  const angle = EDITORIAL_ANGLES.find((a) => a.id === angleId) || LINKEDIN_EDITORIAL_ANGLES.find((a) => a.id === angleId);
+  // Default: use angle's defaultStructure (check ALL angle lists, Pinterest inclus —
+  // sans ça, tout angle Pinterest retombait en silence sur "educationnelle").
+  const angle =
+    EDITORIAL_ANGLES.find((a) => a.id === angleId) ||
+    LINKEDIN_EDITORIAL_ANGLES.find((a) => a.id === angleId) ||
+    PINTEREST_EDITORIAL_ANGLES.find((a) => a.id === angleId) ||
+    PINTEREST_VISUAL_ANGLES.find((a) => a.id === angleId);
   return angle?.defaultStructure || "educationnelle";
 }
 
