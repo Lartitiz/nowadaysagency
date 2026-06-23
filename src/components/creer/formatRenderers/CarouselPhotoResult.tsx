@@ -447,6 +447,32 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                     </DropdownMenuContent>
                   </DropdownMenu>
                 )}
+                <div className="ml-auto flex items-center gap-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    disabled={idx === 0}
+                    onClick={() => moveSlide(idx, -1)}
+                    aria-label="Monter la slide"
+                    title="Monter la slide"
+                  >
+                    <ArrowUp size={14} />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    disabled={idx === slides.length - 1}
+                    onClick={() => moveSlide(idx, 1)}
+                    aria-label="Descendre la slide"
+                    title="Descendre la slide"
+                  >
+                    <ArrowDown size={14} />
+                  </Button>
+                </div>
               </div>
 
               {(() => {
