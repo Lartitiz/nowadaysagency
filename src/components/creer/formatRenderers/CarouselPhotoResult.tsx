@@ -275,6 +275,12 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (visualSlides && visualSlides.length > 0) {
+      setSlidesReorderedSinceVisuals(false);
+    }
+  }, [visualSlides]);
+
   // P2 : Quality check calculé côté front (au lieu de faire confiance à l'IA)
   const computedQuality = useMemo(() => {
     const isPhotoSlide = (s: any) =>
