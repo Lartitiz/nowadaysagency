@@ -655,7 +655,28 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
         </div>
       )}
 
-      {visualSlides && visualSlides.length > 0 && (() => {
+      {slidesReorderedSinceVisuals && (
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-3">
+          <div className="flex items-center gap-2 text-sm text-foreground">
+            <AlertTriangle size={16} className="text-primary shrink-0" />
+            <span>Ordre modifié — régénère les visuels pour les mettre à jour.</span>
+          </div>
+          {onRegenerateVisuals && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={visualLoading}
+              onClick={onRegenerateVisuals}
+            >
+              <RefreshCw size={14} className={visualLoading ? "animate-spin" : ""} />
+              Régénérer les visuels
+            </Button>
+          )}
+        </div>
+      )}
+
+      {!slidesReorderedSinceVisuals && visualSlides && visualSlides.length > 0 && (() => {
         // Hash du contenu textuel actuel des slides (overlay_text + title + body)
         const currentHash = JSON.stringify(
           slides.map((s: any) => [s.overlay_text || "", s.title || "", s.body || ""])
