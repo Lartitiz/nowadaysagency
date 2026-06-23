@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
-import { logUsage } from "../_shared/plan-limiter.ts";
+import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
@@ -20,10 +20,12 @@ serve(async (req) => {
 
     // Get user context
     let userContext = "";
+    let authUserId: string | null = null;
     if (authHeader) {
       const anonSb = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
       const { data: { user } } = await anonSb.auth.getUser(authHeader.replace("Bearer ", ""));
       if (user) {
+        authUserId = user.id;
         const sbGuard = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
         const membership = await assertWorkspaceMembership(sbGuard, user.id, workspace_id);
         if (!membership.ok) {
@@ -75,6 +77,12 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown), avec ces champs :
   "reason": "Une phrase expliquant pourquoi ce format est adapté."
 }`;
 
+    // Quota AVANT l'appel IA (était généré sans aucune vérification de quota).
+    if (authUserId) {
+      const quota = await checkQuota(authUserId, "suggestion");
+      if (!quota.allowed) return quotaDeniedResponse(quota, corsHeaders);
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
@@ -109,13 +117,9 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown), avec ces champs :
     if (!jsonMatch) throw new Error("Invalid AI response");
     const suggestion = JSON.parse(jsonMatch[0]);
 
-    // Log usage if user is authenticated
-    if (authHeader) {
-      const anonSb2 = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
-      const { data: { user: logUser } } = await anonSb2.auth.getUser(authHeader.replace("Bearer ", ""));
-      if (logUser) {
-        await logUsage(logUser.id, "suggestion", "suggest_format");
-      }
+    // Log usage (utilisateur déjà résolu plus haut — plus de getUser redondant).
+    if (authUserId) {
+      await logUsage(authUserId, "suggestion", "suggest_format");
     }
 
     return new Response(JSON.stringify(suggestion), {

@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { callAnthropicSimple, getDefaultModel } from "../_shared/anthropic.ts";
-import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
+import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
@@ -97,6 +97,10 @@ Règles :
 - start_row: première ligne de données (souvent 2, parfois 3 si double header)
 - Choisis la feuille qui contient le plus de données de suivi (pas une feuille "OLD" ou vide)
 - confidence: "high" si headers clairs, "medium" si ambigus, "low" si très incertain`;
+
+    // Quota AVANT l'appel IA (la catégorie "import" était loggée après succès, mais jamais vérifiée).
+    const quota = await checkQuota(user.id, "import");
+    if (!quota.allowed) return quotaDeniedResponse(quota, corsHeaders);
 
     let content = await callAnthropicSimple(
       getDefaultModel(),

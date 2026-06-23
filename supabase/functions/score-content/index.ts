@@ -2,6 +2,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 import { buildIdentityBlock } from "../_shared/user-context.ts";
+import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -83,6 +84,13 @@ Réponds UNIQUEMENT en JSON :
       return new Response(JSON.stringify({ error: "Action non reconnue" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // "improve" réécrit le contenu → vraie génération, facturée en "content".
+    // "score" (simple notation) reste gratuit.
+    if (action === "improve") {
+      const quota = await checkQuota(userId, "content");
+      if (!quota.allowed) return quotaDeniedResponse(quota, corsHeaders);
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
@@ -122,6 +130,10 @@ Réponds UNIQUEMENT en JSON :
       } else {
         parsed = { raw: rawContent };
       }
+    }
+
+    if (action === "improve") {
+      await logUsage(userId, "content", "score_content_improve");
     }
 
     return new Response(JSON.stringify(parsed), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
