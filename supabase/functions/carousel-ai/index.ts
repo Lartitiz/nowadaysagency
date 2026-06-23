@@ -1799,8 +1799,8 @@ RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
     "every_overlay_has_verb": true,
     "no_nominal_fragment_lists": true,
     "score": 85
-}\`;
-
+}`;
+}
 function buildPhotoCarouselNewsReactionPrompt(body: any, isLinkedIn: boolean = false): string {
   const { editorial_angle, content_structure, deepening_answers, confirmed_structure, narrative_thread, subject, photos } = body;
 
