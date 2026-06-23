@@ -565,6 +565,17 @@ export default function CreerStepResult({
             <RefreshCw className="h-3.5 w-3.5" /> Regénérer visuels
           </Button>
         )}
+        {isCarousel && !generating && result && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onRegenerate}
+            title="Régénère le carrousel sur le même sujet (consomme 1 crédit)."
+            className="gap-1.5 text-xs text-muted-foreground"
+          >
+            <RefreshCw className="h-3.5 w-3.5" /> Nouvelle proposition
+          </Button>
+        )}
         {format === "pinterest_visual" && (result?.pin_html || result?.title) && (onExportPinterestPng || onExportPinterestEditablePptx) && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
