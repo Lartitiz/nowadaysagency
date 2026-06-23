@@ -308,6 +308,7 @@ serve(async (req) => {
           console.error("Correction pass failed in carousel-ai (mix):", correctionError);
         }
 
+        content = normalizePhotoIndexes(content, body.photos?.length || 0);
         await logUsage(userId, category, "carousel_mix");
         return new Response(JSON.stringify({ content }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
