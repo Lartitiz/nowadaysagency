@@ -134,6 +134,21 @@ export default function SalesPageOptimizer() {
       if (error || !data?.success) throw new Error(data?.error || error?.message || "Erreur");
       setResult(data.result);
       setStep("results");
+
+      // Persiste l'analyse : alimente la bannière "récent" (lue au montage) et permet
+      // de la retrouver au refresh (avant : rien n'écrivait cette table → résultat volatile).
+      // Best-effort : un échec d'écriture ne casse pas l'affichage déjà rendu.
+      try {
+        await (supabase.from("sales_page_optimizations") as any).insert({
+          user_id: user.id,
+          workspace_id: workspaceId !== user.id ? workspaceId : null,
+          site_url: siteUrl.trim(),
+          raw_result: data.result,
+          score_global: data.result?.score_global ?? null,
+        });
+      } catch (saveErr) {
+        console.warn("[SalesPageOptimizer] persistance de l'analyse échouée:", saveErr);
+      }
     } catch (e: any) {
       toast.error(e.message || "Erreur lors de l'analyse");
       setStep("input");
