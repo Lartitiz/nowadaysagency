@@ -112,6 +112,7 @@ export function savePhotos(photos: any[]) {
       base64: p.base64,
       mimeType: p.mimeType,
       context: p.context,
+      name: p.name,
     }));
     sessionStorage.setItem(PHOTOS_KEY, JSON.stringify({ photos: payload, ts: Date.now() }));
   } catch (e) {
@@ -128,7 +129,8 @@ export function loadPhotos(): any[] {
       sessionStorage.removeItem(PHOTOS_KEY);
       return [];
     }
-    return Array.isArray(parsed?.photos) ? parsed.photos : [];
+    const photos = Array.isArray(parsed?.photos) ? parsed.photos : [];
+    return photos.map((p) => ({ ...p, preview: p.preview || p.base64 }));
   } catch {
     return [];
   }
