@@ -15,6 +15,7 @@ import { TextareaWithVoice } from "@/components/ui/textarea-with-voice";
 import { InputWithVoice } from "@/components/ui/input-with-voice";
 import { ArrowLeft, ArrowRight, Loader2, Check, Sparkles, CalendarDays } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import Confetti from "@/components/Confetti";
 import { DEMO_INTAKE_DATA, type DemoIntakeQuestion } from "@/lib/demo-intake-data";
@@ -121,6 +122,7 @@ export default function IntakeQuestionnaire({ programId, onComplete, onBack }: I
 
   const handleStart = useCallback(async () => {
     setPhase("coaching");
+    try {
     if (isDemoMode && demoQuestions) {
       const first = demoQuestions[0];
       setCurrentQuestion({
@@ -148,6 +150,10 @@ export default function IntakeQuestionnaire({ programId, onComplete, onBack }: I
       setCurrentQuestion(response);
       setMessages([{ role: "assistant", content: response.question }]);
       setCompletionPct(response.completion_percentage || 5);
+    }
+    } catch (e: any) {
+      toast.error(e?.message || "La connexion a échoué. Réessaie dans un instant.");
+      setPhase("intro");
     }
   }, [isDemoMode, demoQuestions, hasExistingSession, messages, askAI]);
 
@@ -192,7 +198,17 @@ export default function IntakeQuestionnaire({ programId, onComplete, onBack }: I
     // Real mode
     const newMessages: Message[] = [...messages, { role: "user", content: userAnswer }];
     setMessages(newMessages);
-    const response = await askAI(newMessages);
+    let response: AIResponse;
+    try {
+      response = await askAI(newMessages);
+    } catch (e: any) {
+      // Rollback the optimistic UI so the user keeps her answer and can retry.
+      toast.error(e?.message || "La connexion a échoué. Ta réponse est conservée, réessaie.");
+      setMessages(messages);
+      setQuestionIndex(questionIndex);
+      setAnswer(userAnswer);
+      return;
+    }
     if (!response) return;
 
     const updatedMessages: Message[] = [...newMessages, { role: "assistant", content: response.question || response.kickoff_summary || "" }];

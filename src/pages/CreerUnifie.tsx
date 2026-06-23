@@ -1275,6 +1275,7 @@ export default function CreerUnifie() {
 
 
   const handleConfirmStructure = async (confirmedSlides: SlideProposal[]) => {
+    if (generating) return; // garde anti double-clic (évite une 2e génération facturée)
     const enrichedSubject = existingCalendarContent
       ? ideaText + "\n\n[Contenu existant à approfondir]\n" + existingCalendarContent
       : ideaText;
@@ -1401,6 +1402,7 @@ export default function CreerUnifie() {
   };
 
   const handleSelectInspirationProposal = async (proposal: any) => {
+    if (pinterestVisualGenerating) return; // garde anti double-clic (évite une 2e génération facturée)
     setChosenProposal(proposal);
 
     if (proposal.recommended_output === "visual") {
@@ -1568,6 +1570,7 @@ export default function CreerUnifie() {
         if (data) setSavedId((data as any).id);
       } catch (e: any) {
         console.warn("generated_carousels insert failed:", e?.message);
+        toast.error("La sauvegarde du carrousel a échoué. Réessaie.");
       } finally {
         setSaving(false);
       }
@@ -1725,18 +1728,20 @@ export default function CreerUnifie() {
       if (error) throw error;
 
       // Upload visuels et photos dans Storage
+      let uploadFailed = false;
       if (calendarPostId) {
         const storageUpdates: any = {};
-        
+
         if ((carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo") && uploadedPhotos.length > 0) {
           try {
             const photoUrls = await uploadPhotosToStorage(calendarPostId);
             if (photoUrls.length > 0) storageUpdates.photo_urls = photoUrls;
           } catch (err) {
             console.warn("Photo upload failed:", err);
+            uploadFailed = true;
           }
         }
-        
+
         if (visualSlides.length > 0) {
           try {
             toast.info("Upload des visuels...");
@@ -1746,6 +1751,7 @@ export default function CreerUnifie() {
             storageUpdates.visual_html = visualSlides;
           } catch (err) {
             console.warn("Visual upload failed:", err);
+            uploadFailed = true;
           }
         }
 
@@ -1758,6 +1764,7 @@ export default function CreerUnifie() {
             storageUpdates.visual_html = [{ slide_number: 1, html: pinterestPinHtml }];
           } catch (err) {
             console.warn("Pinterest visual upload failed:", err);
+            uploadFailed = true;
           }
         }
 
@@ -1770,6 +1777,7 @@ export default function CreerUnifie() {
             storageUpdates.visual_html = [{ slide_number: 1, html: photoBriefOverlayHtml }];
           } catch (err) {
             console.warn("Overlay upload failed (non-blocking):", err);
+            uploadFailed = true;
           }
         }
 
@@ -1786,7 +1794,11 @@ export default function CreerUnifie() {
         await supabase.from("content_briefs").update({ calendar_post_id: calendarPostId } as any).eq("id", currentBriefId);
       }
 
-      toast.success("Contenu sauvegardé dans ton calendrier !");
+      if (uploadFailed) {
+        toast.warning("Texte sauvegardé, mais l'upload des visuels a échoué. Tu pourras les régénérer depuis le calendrier.");
+      } else {
+        toast.success("Contenu sauvegardé dans ton calendrier !");
+      }
       clearFlowState();
       navigate(`/calendrier?date=${calendarPostDate || ""}&post=${calendarPostId}`);
     } catch (e: any) {
