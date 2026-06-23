@@ -112,6 +112,7 @@ export function savePhotos(photos: any[]) {
       base64: p.base64,
       mimeType: p.mimeType,
       context: p.context,
+      name: p.name,
     }));
     sessionStorage.setItem(PHOTOS_KEY, JSON.stringify({ photos: payload, ts: Date.now() }));
   } catch (e) {
