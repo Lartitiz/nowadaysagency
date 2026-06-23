@@ -11,7 +11,11 @@ serve(async (req) => {
 
   try {
     const { idea, workspace_id } = await req.json();
-    if (!idea) throw new Error("Missing idea");
+    if (!idea) {
+      return new Response(JSON.stringify({ error: "Missing idea" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const authHeader = req.headers.get("Authorization");
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -54,6 +58,14 @@ serve(async (req) => {
         const channels = (c?.channels as string[]) || (b?.channels as string[]) || [];
         if (channels.length > 0) userContext += `\nCanaux actifs : ${channels.join(", ")}`;
       }
+    }
+
+    // Auth obligatoire : sinon l'endpoint (déployé et public) génère de l'IA gratuitement,
+    // sans quota ni décompte. On exige une utilisatrice authentifiée avant l'appel IA.
+    if (!authUserId) {
+      return new Response(JSON.stringify({ error: "Authentification requise." }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const prompt = `L'utilisatrice a une idée de contenu mais ne sait pas quel format choisir. Analyse son idée et recommande le meilleur format.

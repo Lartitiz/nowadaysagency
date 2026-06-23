@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
   try {
     const { userId } = await authenticateRequest(req);
 
-    const { content, format, objective, persona, action } = await req.json();
+    const { content, format, objective, persona, action, improvements } = await req.json();
 
     let systemPrompt = "";
     let userPrompt = "";
@@ -60,7 +60,7 @@ Le commentaire de chaque critère : 1 phrase max, direct.`;
       userPrompt = "Évalue ce contenu.";
 
     } else if (action === "improve") {
-      const { improvements } = await req.json().catch(() => ({ improvements: [] }));
+      // improvements vient du body initial (req.json() ne peut être lu qu'une fois).
       const improvementsList = Array.isArray(improvements) ? improvements : [];
       const axes = improvementsList.map((i: any) => `- ${i.criterion} : ${i.suggestion}`).join("\n");
 

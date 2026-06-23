@@ -289,7 +289,7 @@ CONTRAINTES SPÉCIFIQUES :
 
 Privilégier la structure REEL FACE CAM ramassée OU REEL HOOK LOOP court.
 Éviter REEL VOIX OFF + B-ROLL (trop long pour ce format).`;
-  } else if (effectiveObjective === "engagement" || effectiveObjective === "vente" || effectiveObjective === "credibilite") {
+  } else if (effectiveObjective === "confiance" || effectiveObjective === "vente" || effectiveObjective === "credibilite") {
     calibrage = `
 
 ══ CALIBRAGE DURÉE — OBJECTIF ${effectiveObjective.toUpperCase()} (NURTURE) ══
@@ -1092,8 +1092,8 @@ export function captionBrief(effectiveObjective: string | null): string {
 LONGUEUR : 300-600 caractères. Court, percutant. L'idée doit claquer en quelques phrases.
 Le hook fait tout le travail. Le corps développe UNE seule idée. Pas de remplissage.
 Privilégie une prise de position ou un constat décalé qui donne envie de partager.
-` : effectiveObjective === "engagement" ? `
-══ OBJECTIF : ENGAGEMENT ══
+` : effectiveObjective === "confiance" ? `
+══ OBJECTIF : CONFIANCE ══
 LONGUEUR : 400-800 caractères. Assez pour raconter, pas assez pour perdre l'attention.
 Le hook crée la connexion. Le corps partage du vécu ou pose une question qui touche. La fin invite au dialogue (question précise, pas générique).
 ` : effectiveObjective === "vente" || effectiveObjective === "conversion" ? `

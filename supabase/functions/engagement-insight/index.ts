@@ -1,6 +1,7 @@
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { validateInput, ValidationError, EngagementInsightSchema } from "../_shared/input-validators.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -8,6 +9,11 @@ Deno.serve(async (req) => {
 
   try {
     const { userId } = await authenticateRequest(req);
+
+    // Décision produit : engagement-insight reste GRATUIT (non décompté du quota).
+    // On garde un rate-limit pour empêcher le spam de l'IA, sans facturer de crédit.
+    const rateCheck = checkRateLimit(userId);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
 
     const { currentWeek, history } = validateInput(await req.json(), EngagementInsightSchema);
 
@@ -71,6 +77,12 @@ Génère 1-2 phrases d'insight :
 
     const aiData = await aiResponse.json();
     const insight = (aiData.choices?.[0]?.message?.content || "").trim();
+
+    if (!insight) {
+      return new Response(JSON.stringify({ error: "L'IA n'a renvoyé aucun insight, réessaie." }), {
+        status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     return new Response(JSON.stringify({ insight }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

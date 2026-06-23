@@ -6,7 +6,7 @@ import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildProfileBlock 
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { isDemoUser } from "../_shared/guard-demo.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
+import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { validateInput, ValidationError, GenerateContentSchema } from "../_shared/input-validators.ts";
 import { applyCorrectionPass } from "../_shared/correction-pass.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
@@ -95,10 +95,7 @@ serve(async (req) => {
     const usageCategory = isAuditType ? "audit" : "content";
     const quotaCheck = await checkQuota(user.id, usageCategory, workspace_id);
     if (!quotaCheck.allowed) {
-      return new Response(
-        JSON.stringify({ error: "limit_reached", message: quotaCheck.message, remaining: 0 }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return quotaDeniedResponse(quotaCheck, corsHeaders);
     }
 
     let systemPrompt = "";
