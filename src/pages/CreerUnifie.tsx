@@ -2328,12 +2328,17 @@ export default function CreerUnifie() {
     if (!result?.raw?.slides) return;
     try {
       const { exportCarouselPptx } = await import("@/lib/export-carousel-pptx");
+      const { resolvePhotoIndexes } = await import("@/lib/resolve-photo-index");
+      const photosForExport = uploadedPhotos.length > 0 ? uploadedPhotos : undefined;
+      // Filet déterministe : évite "une seule photo sur tous les slides" si l'IA a mal
+      // (ou pas) renseigné photo_index. Couvre aussi les carrousels déjà sauvegardés.
+      const normalizedSlides = resolvePhotoIndexes(result.raw.slides, photosForExport?.length ?? 0);
       await exportCarouselPptx(
-        result.raw.slides,
+        normalizedSlides,
         ideaText || "carrousel",
         visualSlides.length > 0 ? visualSlides : undefined,
         charterData,
-        uploadedPhotos.length > 0 ? uploadedPhotos : undefined,
+        photosForExport,
       );
       toast.success("PPTX éditable téléchargé !");
     } catch (e: any) {
