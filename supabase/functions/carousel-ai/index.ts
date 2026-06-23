@@ -42,6 +42,75 @@ function pushPhotoWithContext(messageContent: any[], photo: { base64: string; co
   });
 }
 
+// ── Normalisation déterministe du photo_index ──
+// Filet de sécurité au cas où l'IA omettrait/dégénérerait l'assignation des photos
+// aux slides (ex: toutes les slides-photo pointent sur photo 1 → toutes les slides
+// finiraient avec la même image à l'export PPTX).
+// Stratégie : si l'assignation IA est invalide OU dégénérée, on réassigne
+// séquentiellement 1, 2, 3... (clamp sur la dernière photo si moins de photos que
+// de slides-photo). Les slides text_only sont forcées à photo_index: null.
+function normalizePhotoIndexes(content: string, photoCount: number): string {
+  if (!content || photoCount <= 0) return content;
+  try {
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return content;
+    const parsed = JSON.parse(jsonMatch[0]);
+    const slides = parsed?.slides;
+    if (!Array.isArray(slides) || slides.length === 0) return content;
+
+    const isPhotoSlide = (s: any) =>
+      s?.slide_type === "photo_full" || s?.slide_type === "photo_integrated";
+
+    const photoSlides = slides.filter(isPhotoSlide);
+    if (photoSlides.length === 0) {
+      // Pas de slide-photo : juste forcer null sur les text_only
+      slides.forEach((s: any) => {
+        if (s && s.slide_type === "text_only") s.photo_index = null;
+      });
+    } else {
+      // Vérifier validité de l'assignation IA
+      const aiIndexes = photoSlides.map((s: any) => s.photo_index);
+      const allInRange = aiIndexes.every(
+        (v: any) => Number.isInteger(v) && v >= 1 && v <= photoCount
+      );
+      const distinctCount = new Set(aiIndexes).size;
+      // Dégénéré : plusieurs photos disponibles ET plusieurs slides-photo ET
+      // toutes les slides-photo pointent la même photo.
+      const degenerate =
+        photoCount > 1 && photoSlides.length > 1 && distinctCount === 1;
+      const needsRewrite = !allInRange || degenerate;
+
+      if (needsRewrite) {
+        let photoCursor = 0;
+        slides.forEach((s: any) => {
+          if (!s) return;
+          if (isPhotoSlide(s)) {
+            const assigned = Math.min(photoCursor + 1, photoCount);
+            s.photo_index = assigned;
+            photoCursor += 1;
+          } else if (s.slide_type === "text_only") {
+            s.photo_index = null;
+          }
+        });
+        console.log(
+          `[carousel-ai] photo_index normalisé : IA=${JSON.stringify(aiIndexes)} → final séquentiel (photoCount=${photoCount})`
+        );
+      } else {
+        // Assignation IA respectée ; on s'assure juste que les text_only sont null
+        slides.forEach((s: any) => {
+          if (s && s.slide_type === "text_only") s.photo_index = null;
+        });
+      }
+    }
+
+    const newJson = JSON.stringify(parsed, null, 2);
+    return content.replace(jsonMatch[0], newJson);
+  } catch (err) {
+    console.warn("[carousel-ai] normalizePhotoIndexes: échec, content laissé tel quel", err);
+    return content;
+  }
+}
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   const wantsSSE = (req.headers.get("accept") || "").includes("text/event-stream");
@@ -239,6 +308,7 @@ serve(async (req) => {
           console.error("Correction pass failed in carousel-ai (mix):", correctionError);
         }
 
+        content = normalizePhotoIndexes(content, body.photos?.length || 0);
         await logUsage(userId, category, "carousel_mix");
         return new Response(JSON.stringify({ content }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -307,6 +377,7 @@ serve(async (req) => {
           console.error("Correction pass failed in carousel-ai (photo):", correctionError);
         }
 
+        content = normalizePhotoIndexes(content, body.photos?.length || 0);
         await logUsage(userId, category, "carousel_photo");
         return new Response(JSON.stringify({ content }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
