@@ -175,6 +175,7 @@ RÈGLES :
     if (suggestions.length > 0) {
       const { data } = await supabase.from("branding_suggestions").insert({
         user_id: user.id,
+        workspace_id: workspace_id || null,
         trigger_field: changed_field,
         trigger_old_value: old_value,
         trigger_new_value: new_value,
