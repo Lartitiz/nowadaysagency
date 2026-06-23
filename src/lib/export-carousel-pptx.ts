@@ -374,8 +374,12 @@ function buildPhotoIntegratedSlide(
 ) {
   slide.background = { color: "FFFFFF" };
 
-  const photoIdx = (s.photo_index || 1) - 1;
-  const photo = photos[photoIdx] || photos[0];
+  const requested = (s.photo_index || 1) - 1;
+  const clamped = photos.length > 0 ? Math.max(0, Math.min(requested, photos.length - 1)) : 0;
+  if (requested !== clamped) {
+    console.warn(`[export-pptx] photo_integrated: photo_index ${s.photo_index} hors plage (${photos.length} photos) → clamp à ${clamped + 1}`);
+  }
+  const photo = photos[clamped];
   const layout = s.photo_layout || "top_photo";
 
   let photoData = "";
