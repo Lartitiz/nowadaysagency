@@ -46,8 +46,16 @@ serve(async (req) => {
       try { body = await req.json(); } catch { body = {}; }
     }
 
+    // Facturation par step (décision produit "1 post = 1 crédit") : seules la génération
+    // finale et ses variantes (generate/adjust/recycle) débitent un crédit `content`.
+    // Les étapes d'assistance (angles/questions/follow-up) et la dictée vocale sont
+    // gratuites → on désactive le gate quota ET le logUsage pour elles.
+    const BILLED_STEPS = new Set(["generate", "adjust", "recycle"]);
+    const isBilledStep = typeof body?.step === "string" && BILLED_STEPS.has(body.step);
+
     const r = await runPipeline(req, {
       category: "content",
+      skipQuota: !isBilledStep,
       workspaceId: body?.workspace_id ?? undefined,
     });
     if (!r.ok) return r.response;
@@ -1573,7 +1581,10 @@ Réponds UNIQUEMENT en JSON :
       }
     }
 
-    await logUsage(userId, "content", "creative_flow", undefined, undefined, workspace_id);
+    // Ne débite que les steps facturés (generate/adjust/recycle) ; angles/questions/follow-up/dictation = gratuits.
+    if (isBilledStep) {
+      await logUsage(userId, "content", "creative_flow", undefined, undefined, workspace_id);
+    }
     return new Response(JSON.stringify(parsed), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: any) {
     if (e instanceof ValidationError) {
