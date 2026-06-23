@@ -317,6 +317,12 @@ export default function CreerUnifie() {
   useEffect(() => {
     if (ps?.result && !result) {
       setResult(ps.result);
+      // Re-hydrate les states dédiés Pinterest depuis result.raw : sinon, au refresh,
+      // pinterestPinHtml / photoBriefOverlayHtml repartent à null et les boutons
+      // "Exporter en PNG" et "Ajouter au calendrier" deviennent muets (no-op).
+      const raw: any = (ps.result as any)?.raw;
+      if (raw?.pin_html) setPinterestPinHtml(raw.pin_html);
+      if (raw?.overlay_html) setPhotoBriefOverlayHtml(raw.overlay_html);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

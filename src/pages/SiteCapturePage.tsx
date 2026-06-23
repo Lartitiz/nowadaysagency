@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
@@ -19,6 +19,33 @@ export default function SiteCapturePage() {
   const [leadDesc, setLeadDesc] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
+
+  // Persistance locale (scopée workspace) : la page de capture générée n'a pas de table
+  // dédiée → sans ça, elle disparaît au refresh. On réhydrate au montage et on
+  // sauvegarde à chaque changement de résultat (génération OU correction RedFlags).
+  const storageKey = `capture-page:${workspaceId ?? "default"}`;
+
+  useEffect(() => {
+    if (!workspaceId) return;
+    try {
+      const saved = localStorage.getItem(`capture-page:${workspaceId}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed?.result) {
+          setResult(parsed.result);
+          if (parsed.leadName) setLeadName(parsed.leadName);
+          if (parsed.leadDesc) setLeadDesc(parsed.leadDesc);
+        }
+      }
+    } catch { /* cache corrompu : on ignore */ }
+  }, [workspaceId]);
+
+  useEffect(() => {
+    if (!workspaceId || !result) return;
+    try {
+      localStorage.setItem(storageKey, JSON.stringify({ result, leadName, leadDesc }));
+    } catch { /* quota localStorage plein : non bloquant */ }
+  }, [result, workspaceId]);
 
   const copyText = (text: string) => {
     navigator.clipboard.writeText(text);
