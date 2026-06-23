@@ -14,7 +14,7 @@ import { ChevronDown } from "lucide-react";
 
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import LinkedInCaptionEditor from "@/components/linkedin/LinkedInCaptionEditor";
-import { AlertTriangle, RefreshCw } from "lucide-react";
+import { AlertTriangle, RefreshCw, ArrowUp, ArrowDown } from "lucide-react";
 
 interface CarouselPhotoResultProps {
   result: any;
@@ -239,6 +239,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
   const [slides, setSlides] = useState<any[]>(r?.slides || []);
   const [caption, setCaption] = useState<any>(buildCaptionWithFallback(r?.caption, r?.slides || []));
   const [hashtagInput, setHashtagInput] = useState((buildCaptionWithFallback(r?.caption, r?.slides || []).hashtags || []).join(" "));
+  const [slidesReorderedSinceVisuals, setSlidesReorderedSinceVisuals] = useState(false);
   
 
   const prevSignature = useRef(JSON.stringify({
@@ -273,6 +274,12 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (visualSlides && visualSlides.length > 0) {
+      setSlidesReorderedSinceVisuals(false);
+    }
+  }, [visualSlides]);
 
   // P2 : Quality check calculé côté front (au lieu de faire confiance à l'IA)
   const computedQuality = useMemo(() => {
@@ -311,6 +318,19 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
     const next = slides.map((s, i) => (i === idx ? { ...s, overlay_text: text } : s));
     setSlides(next);
     notify(next, caption);
+  };
+
+  const moveSlide = (idx: number, direction: -1 | 1) => {
+    const target = idx + direction;
+    if (target < 0 || target >= slides.length) return;
+    const next = [...slides];
+    [next[idx], next[target]] = [next[target], next[idx]];
+    const renumbered = next.map((s, i) => ({ ...s, slide_number: i + 1 }));
+    setSlides(renumbered);
+    notify(renumbered, caption);
+    if (visualSlides && visualSlides.length > 0) {
+      setSlidesReorderedSinceVisuals(true);
+    }
   };
 
   const updateCaption = (field: string, value: string) => {
@@ -427,6 +447,32 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                     </DropdownMenuContent>
                   </DropdownMenu>
                 )}
+                <div className="ml-auto flex items-center gap-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    disabled={idx === 0}
+                    onClick={() => moveSlide(idx, -1)}
+                    aria-label="Monter la slide"
+                    title="Monter la slide"
+                  >
+                    <ArrowUp size={14} />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    disabled={idx === slides.length - 1}
+                    onClick={() => moveSlide(idx, 1)}
+                    aria-label="Descendre la slide"
+                    title="Descendre la slide"
+                  >
+                    <ArrowDown size={14} />
+                  </Button>
+                </div>
               </div>
 
               {(() => {
@@ -609,7 +655,28 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
         </div>
       )}
 
-      {visualSlides && visualSlides.length > 0 && (() => {
+      {slidesReorderedSinceVisuals && (
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-3">
+          <div className="flex items-center gap-2 text-sm text-foreground">
+            <AlertTriangle size={16} className="text-primary shrink-0" />
+            <span>Ordre modifié — régénère les visuels pour les mettre à jour.</span>
+          </div>
+          {onRegenerateVisuals && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={visualLoading}
+              onClick={onRegenerateVisuals}
+            >
+              <RefreshCw size={14} className={visualLoading ? "animate-spin" : ""} />
+              Régénérer les visuels
+            </Button>
+          )}
+        </div>
+      )}
+
+      {!slidesReorderedSinceVisuals && visualSlides && visualSlides.length > 0 && (() => {
         // Hash du contenu textuel actuel des slides (overlay_text + title + body)
         const currentHash = JSON.stringify(
           slides.map((s: any) => [s.overlay_text || "", s.title || "", s.body || ""])
