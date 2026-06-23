@@ -129,7 +129,8 @@ export function loadPhotos(): any[] {
       sessionStorage.removeItem(PHOTOS_KEY);
       return [];
     }
-    return Array.isArray(parsed?.photos) ? parsed.photos : [];
+    const photos = Array.isArray(parsed?.photos) ? parsed.photos : [];
+    return photos.map((p) => ({ ...p, preview: p.preview || p.base64 }));
   } catch {
     return [];
   }
