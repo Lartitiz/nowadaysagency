@@ -1,10 +1,12 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildIdentityBlock } from "../_shared/user-context.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
+import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
 const MODULE_QUESTIONS: Record<string, string[]> = {
   profil: [
@@ -58,6 +60,9 @@ Deno.serve(async (req) => {
       });
     }
 
+    const rateCheck = checkRateLimit(user.id);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+
     const body = await req.json();
     const { phase, module, answers, workspace_id } = validateInput(body, z.object({
       phase: z.enum(["questions", "diagnostic"]),
@@ -66,7 +71,7 @@ Deno.serve(async (req) => {
       workspace_id: z.string().uuid().optional().nullable(),
     }).passthrough());
 
-    const quota = await checkQuota(user.id, "suggestion");
+    const quota = await checkQuota(user.id, "suggestion", workspace_id);
     if (!quota.allowed) {
       return new Response(JSON.stringify({ error: quota.message, quota }), {
         status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -77,6 +82,12 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
+
+    const membership = await assertWorkspaceMembership(sbService, user.id, workspace_id);
+    if (!membership.ok) {
+      console.warn("[workspace-guard] denied", { userId: user.id, workspaceId: workspace_id });
+      return workspaceDeniedResponse(corsHeaders);
+    }
 
     const filterCol = workspace_id ? "workspace_id" : "user_id";
     const filterVal = workspace_id || user.id;
@@ -136,7 +147,7 @@ Retourne UNIQUEMENT un JSON :
         };
       }
 
-      await logUsage(user.id, "suggestion", "linkedin_coaching_questions");
+      await logUsage(user.id, "suggestion", "linkedin_coaching_questions", undefined, undefined, workspace_id);
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -216,7 +227,7 @@ Sois directe, bienveillante, et concrète. Pas de jargon. Tutoiement.`;
         });
       }
 
-      await logUsage(user.id, "content", "linkedin_coaching_diagnostic");
+      await logUsage(user.id, "suggestion", "linkedin_coaching_diagnostic", undefined, undefined, workspace_id);
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

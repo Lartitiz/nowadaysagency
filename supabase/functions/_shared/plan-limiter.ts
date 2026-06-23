@@ -3,20 +3,21 @@
  * Checks per-category and total monthly limits, logs usage after success.
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 
 export const PLAN_LIMITS: Record<string, Record<string, number>> = {
   free: {
-    total: 30,
-    content: 30,
-    audit: 30,
-    dm_comment: 30,
-    bio_profile: 30,
-    suggestion: 30,
-    coach: 30,
-    import: 30,
-    adaptation: 30,
-    deep_research: 30,
+    total: 60,
+    content: 60,
+    audit: 60,
+    dm_comment: 60,
+    bio_profile: 60,
+    suggestion: 60,
+    coach: 60,
+    import: 60,
+    adaptation: 60,
+    deep_research: 60,
+    photo_retouch: 5,
   },
   outil: {
     total: 9999,
@@ -25,10 +26,11 @@ export const PLAN_LIMITS: Record<string, Record<string, number>> = {
     dm_comment: 60,
     bio_profile: 15,
     suggestion: 30,
-    coach: 60,
+    coach: 120,
     import: 10,
     adaptation: 30,
     deep_research: 15,
+    photo_retouch: 50,
   },
   binome: {
     total: 9999,
@@ -37,10 +39,11 @@ export const PLAN_LIMITS: Record<string, Record<string, number>> = {
     dm_comment: 50,
     bio_profile: 15,
     suggestion: 30,
-    coach: 60,
+    coach: 120,
     import: 10,
     adaptation: 30,
     deep_research: 30,
+    photo_retouch: 100,
   },
 };
 
@@ -64,6 +67,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   import: "imports",
   adaptation: "adaptations",
   deep_research: "recherches approfondies",
+  photo_retouch: "retouches photo",
 };
 
 export interface QuotaResult {
@@ -117,6 +121,13 @@ async function getWorkspacePlan(workspaceId: string): Promise<string> {
   return resolvePlan(data?.plan || "free");
 }
 
+/** Compare two plans and return the one with the highest total limit */
+function bestPlan(planA: string, planB: string): string {
+  const limitsA = PLAN_LIMITS[planA] || PLAN_LIMITS.free;
+  const limitsB = PLAN_LIMITS[planB] || PLAN_LIMITS.free;
+  return limitsA.total >= limitsB.total ? planA : planB;
+}
+
 function getMonthStart(): string {
   const now = new Date();
   return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
@@ -144,9 +155,11 @@ export async function checkQuota(
     return { allowed: true, plan: "admin", remaining: 9999, remaining_total: 9999 };
   }
 
-  const plan = workspaceId
-    ? await getWorkspacePlan(workspaceId)
-    : await getUserPlan(userId);
+  // Toujours vérifier le plan personnel de l'utilisatrice (subscriptions)
+  // + le plan du workspace si applicable, et garder le meilleur
+  const userPlan = await getUserPlan(userId);
+  const workspacePlan = workspaceId ? await getWorkspacePlan(workspaceId) : "free";
+  const plan = bestPlan(userPlan, workspacePlan);
   const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
 
   // Check if category is available for this plan
@@ -281,20 +294,4 @@ export async function logUsage(
         .eq("user_id", userId);
     }
   }
-}
-
-/** @deprecated Use checkQuota + logUsage instead */
-export async function checkAndIncrementUsage(
-  _supabase: any,
-  userId: string,
-  type: "generation" | "audit" = "generation"
-): Promise<{ allowed: boolean; remaining?: number; plan: string; error?: string }> {
-  const category = type === "audit" ? "audit" : "content";
-  const result = await checkQuota(userId, category);
-  if (!result.allowed) {
-    return { allowed: false, plan: result.plan, error: result.message };
-  }
-  // Log immediately for backward compat
-  await logUsage(userId, category, type === "audit" ? "audit_instagram" : "content_generic");
-  return { allowed: true, remaining: result.remaining, plan: result.plan };
 }

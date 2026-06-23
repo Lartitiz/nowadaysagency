@@ -20,7 +20,7 @@ import Confetti from "@/components/Confetti";
 import { toast } from "sonner";
 import { MarkdownText } from "@/components/ui/markdown-text";
 
-type Section = "story" | "persona" | "tone_style" | "content_strategy" | "offers" | "charter";
+type Section = "story" | "persona" | "tone_style" | "content_strategy" | "offers" | "charter" | "content_series";
 
 interface Message {
   id: string;
@@ -48,6 +48,7 @@ const SECTION_META: Record<Section, { emoji: string; title: string; description:
   content_strategy: { emoji: "🍒", title: "Ma ligne éditoriale", description: "On va poser tes piliers de contenu et ton concept créatif. Réponds à mes questions, et ta ligne éditoriale prend forme automatiquement.", duration: "~4 min" },
   offers: { emoji: "🎁", title: "Mes offres", description: "On va formuler tes offres pour qu'elles donnent envie. Je te pose les bonnes questions, ta fiche offres se remplit.", duration: "~5 min" },
   charter: { emoji: "🎨", title: "Ma charte graphique", description: "On va définir ton identité visuelle ensemble : couleurs, typos, style, ambiance. Je te guide pas à pas.", duration: "~4 min" },
+  content_series: { emoji: "📺", title: "Mes séries signatures", description: "On va poser 1 à 3 séries éditoriales qui vont structurer ta communication dans la durée. Je pars de tes piliers pour te proposer des séries qui les incarnent.", duration: "~6-8 min" },
 };
 
 const LOADING_PHRASES = [
@@ -105,13 +106,14 @@ function CoachingProgress({ section, coveredTopics }: { section: Section; covere
 
 interface BrandingCoachingFlowProps {
   section: Section;
+  personaId?: string;
   onComplete?: () => void;
   onBack?: () => void;
   autofillData?: Record<string, any> | null;
   autofillConfidence?: string | null;
 }
 
-export default function BrandingCoachingFlow({ section, onComplete, onBack, autofillData, autofillConfidence }: BrandingCoachingFlowProps) {
+export default function BrandingCoachingFlow({ section, personaId, onComplete, onBack, autofillData, autofillConfidence }: BrandingCoachingFlowProps) {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
@@ -144,6 +146,7 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
   useEffect(() => { questionIndexRef.current = questionIndex; }, [questionIndex]);
   const coveredTopicsRef = useRef(coveredTopics);
   useEffect(() => { coveredTopicsRef.current = coveredTopics; }, [coveredTopics]);
+  const resolvedPersonaIdRef = useRef<string | null>(personaId || null);
 
   const meta = SECTION_META[section];
   const demoQuestions = isDemoMode ? DEMO_COACHING_DATA[section]?.questions : null;
@@ -207,15 +210,56 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    const ctx = {
-      profile: profileData,
-      branding: brandProfileData,
+
+    // Extraire seulement les champs utiles du profil (pas les métadonnées)
+    const profileCtx = profileData ? {
+      prenom: (profileData as any).prenom || (profileData as any).first_name,
+      activite: (profileData as any).activite || (profileData as any).activity,
+      type_activite: (profileData as any).type_activite || (profileData as any).activity_type,
+      canaux: (profileData as any).canaux,
+      main_goal: (profileData as any).main_goal,
+    } : undefined;
+
+    // Extraire seulement les champs branding utiles (pas id/timestamps/doublons)
+    const brandingCtx = brandProfileData ? {
+      positioning: (brandProfileData as any).positioning,
+      mission: (brandProfileData as any).mission,
+      tone_keywords: (brandProfileData as any).tone_keywords,
+      values: (brandProfileData as any).values,
+      offer: (brandProfileData as any).offer,
+    } : undefined;
+
+    // existing_data : uniquement les champs remplis, sans les champs déjà dans branding
+    let existingData: Record<string, any> | undefined;
+    if (brandProfileData) {
+      const { id, user_id, workspace_id, created_at, updated_at, positioning, mission, tone_keywords, ...rest } = brandProfileData as any;
+      const filled = Object.fromEntries(
+        Object.entries(rest).filter(([_, v]) => v != null && v !== "" && v !== false)
+      );
+      existingData = Object.keys(filled).length > 0 ? filled : undefined;
+    }
+
+    const ctx: any = {
+      profile: profileCtx,
+      branding: brandingCtx,
       audit: auditData,
-      existing_data: brandProfileData || {},
+      existing_data: existingData,
     };
+
+    // Enrichissement spécifique pour content_series : on a besoin des piliers
+    if (section === "content_series") {
+      const { data: bs } = await (supabase.from("brand_strategy") as any)
+        .select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3, creative_concept")
+        .eq(column, value)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (bs) ctx.brand_strategy = bs;
+    }
+
     contextRef.current = ctx;
     return ctx;
-  }, [user?.id, profileData, brandProfileData]);
+  }, [user?.id, profileData, brandProfileData, section, column, value]);
 
   // Charter coaching state
   const charterStepRef = useRef(0);
@@ -238,6 +282,7 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
             step: stepNum,
             answer,
             charterData: charterDataRef.current || {},
+            workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
           },
         }, 120000);
 
@@ -246,18 +291,19 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
           console.error("[CharterCoaching] Edge function error:", err);
 
           if (err.isRateLimit) {
-            setError("Tu envoies trop de requêtes. Attends quelques secondes avant de réessayer 😊");
+            setError("L'IA a besoin d'un petit instant. Attends quelques secondes avant de réessayer 😊");
           } else if (err.isTimeout) {
             setError("La génération prend plus de temps que prévu. Réessaie dans quelques instants.");
           } else if (err.isAuth) {
-            setError("Ta session a expiré. Rafraîchis la page pour te reconnecter.");
+            setError("Ta session a expiré. Reconnecte-toi pour continuer.");
           } else if (err.isNetwork) {
             setError("Connexion perdue. Vérifie ta connexion internet et réessaie.");
+          } else if (err.message?.includes("invalide") || err.message?.includes("Données")) {
+            setError("Un souci technique est survenu. Réessaie en reformulant ta réponse 😊");
           } else {
             setError("L'IA a eu un blanc. Ça arrive 😅");
           }
 
-          toast.error(err.message || "L'IA a eu un blanc. Réessaie.");
           return null;
         }
 
@@ -323,18 +369,20 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
         console.error("[BrandingCoaching] Edge function error:", err);
 
         if (err.isRateLimit) {
-          setError("Tu envoies trop de requêtes. Attends quelques secondes avant de réessayer 😊");
+          setError("L'IA a besoin d'un petit instant. Attends quelques secondes avant de réessayer 😊");
         } else if (err.isTimeout) {
           setError("La génération prend plus de temps que prévu. Réessaie dans quelques instants.");
         } else if (err.isAuth) {
-          setError("Ta session a expiré. Rafraîchis la page pour te reconnecter.");
+          setError("Ta session a expiré. Reconnecte-toi pour continuer.");
         } else if (err.isNetwork) {
           setError("Connexion perdue. Vérifie ta connexion internet et réessaie.");
+        } else if (err.message?.includes("invalide") || err.message?.includes("Données")) {
+          setError("Un souci technique est survenu. Réessaie en reformulant ta réponse 😊");
         } else {
           setError("L'IA a eu un blanc. Ça arrive 😅");
         }
 
-        toast.error(err.message || "L'IA a eu un blanc. Réessaie.");
+        
         return null;
       }
 
@@ -419,6 +467,15 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
     updateCoveredTopics(response);
     setCompletionPct(response.completion_percentage || completionPct);
 
+    // Save extracted insights on retry too (was missing entirely)
+    if (response.extracted_insights && Object.keys(response.extracted_insights).length > 0) {
+      try {
+        await saveInsights(section, response.extracted_insights);
+      } catch (e) {
+        console.error("[BrandingCoaching] Failed to save insights on retry:", e);
+      }
+    }
+
     if (response.is_complete) {
       setFinalSummary(response.final_summary || "");
       setCompletionPct(100);
@@ -427,7 +484,7 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
       return;
     }
     setCurrentQuestion(response);
-  }, [askAI, completionPct]);
+  }, [askAI, completionPct, section]);
 
   const updateCoveredTopics = useCallback((response: AIResponse) => {
     if (response.covered_topic) {
@@ -461,6 +518,14 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
     // Guard against double-start (React strict mode / double mount)
     if (startingRef.current) return;
     startingRef.current = true;
+
+    // Garde démo : content_series n'est pas dispo en démo
+    if (section === "content_series" && isDemoMode) {
+      startingRef.current = false;
+      toast.info("Pas dispo en mode démo, crée un compte");
+      onBack?.();
+      return;
+    }
 
     setPhase("coaching");
 
@@ -564,11 +629,11 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
 
   const handleNext = useCallback(async () => {
     if (loading) return;
-    const userAnswer = currentQuestion?.question_type === "select" || currentQuestion?.question_type === "multi_select"
+    const rawAnswer = currentQuestion?.question_type === "select" || currentQuestion?.question_type === "multi_select"
       ? selectedOptions.join(", ")
       : answer;
-
-    if (!userAnswer.trim()) return;
+    const userAnswer = rawAnswer.trim();
+    if (!userAnswer) return;
 
     const nextIndex = questionIndexRef.current + 1;
     setQuestionIndex(nextIndex);
@@ -675,19 +740,28 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
       covered_topics: newCovered as any,
     };
 
-    if (existingSession?.id) {
-      (supabase.from("branding_coaching_sessions") as any).update(sessionPayload).eq("id", existingSession.id).then(({ error: saveErr }: any) => {
+    try {
+      if (existingSession?.id) {
+        const { error: saveErr } = await (supabase.from("branding_coaching_sessions") as any)
+          .update(sessionPayload).eq("id", existingSession.id);
         if (saveErr) console.error("[BrandingCoaching] Save session error:", saveErr);
-      });
-    } else {
-      (supabase.from("branding_coaching_sessions") as any).insert(sessionPayload).then(({ error: saveErr }: any) => {
+      } else {
+        const { error: saveErr } = await (supabase.from("branding_coaching_sessions") as any)
+          .insert(sessionPayload);
         if (saveErr) console.error("[BrandingCoaching] Save session error:", saveErr);
-      });
+      }
+    } catch (e) {
+      console.error("[BrandingCoaching] Save session critical error:", e);
     }
 
-    // Save extracted insights
+    // Save extracted insights — MUST await to guarantee persistence before showing completion
     if (response.extracted_insights && Object.keys(response.extracted_insights).length > 0) {
-      saveInsights(section, response.extracted_insights);
+      try {
+        await saveInsights(section, response.extracted_insights);
+      } catch (e) {
+        console.error("[BrandingCoaching] Failed to save insights:", e);
+        toast.error("Tes réponses sont enregistrées dans la conversation mais la fiche n'a pas pu être mise à jour. Clique sur 'Affiner avec l'IA' pour réessayer.");
+      }
     }
 
     if (response.is_complete) {
@@ -727,6 +801,175 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
         }
       }
 
+      // If persona, fill missing fields + generate pitches
+      if (section === "persona") {
+        try {
+          let personaQuery = (supabase.from("persona") as any)
+            .select("*");
+          if (resolvedPersonaIdRef.current) {
+            personaQuery = personaQuery.eq("id", resolvedPersonaIdRef.current);
+          } else {
+            personaQuery = personaQuery.eq(column, value).eq("is_primary", true);
+          }
+          const { data: currentPersona } = await personaQuery.maybeSingle();
+
+          if (currentPersona?.id) {
+            const targetFields = [
+              "step_1_frustrations", "step_2_transformation", "step_3a_objections",
+              "step_3b_cliches", "step_4_beautiful", "step_4_inspiring",
+              "step_4_repulsive", "step_4_feeling", "step_5_actions"
+            ];
+            const missingFields = targetFields.filter(f => {
+              const v = currentPersona[f];
+              return !v || (typeof v === "string" && v.trim().length === 0);
+            });
+
+            if (missingFields.length > 0) {
+              const fieldLabels: Record<string, string> = {
+                step_1_frustrations: "Ses frustrations profondes",
+                step_2_transformation: "Sa transformation rêvée",
+                step_3a_objections: "Ses objections principales",
+                step_3b_cliches: "Les clichés / croyances à déconstruire",
+                step_4_beautiful: "Ce qu'elle trouve beau (direction esthétique)",
+                step_4_inspiring: "Ce qui l'inspire (personnes, marques, contenus)",
+                step_4_repulsive: "Ce qui la rebute visuellement",
+                step_4_feeling: "Ce qu'elle a besoin de ressentir (émotion recherchée)",
+                step_5_actions: "Ses premières actions / déclencheurs d'achat",
+              };
+              const missingList = missingFields.map(f => `- "${f}": ${fieldLabels[f]}`).join("\n");
+              const ctx = await fetchContext();
+              const simpleMsgs = updatedMessages.map(m => ({ role: m.role, content: m.content }));
+
+              const { data: fillData } = await invokeWithTimeout("branding-coaching", {
+                body: {
+                  user_id: profileUserId,
+                  workspace_id: workspaceId,
+                  section: "persona_fill",
+                  messages: [
+                    ...simpleMsgs,
+                    { role: "user", content: `À partir de TOUTE notre conversation, extrais les informations pour remplir ces champs manquants. Si tu n'as pas d'info directe, déduis-la intelligemment à partir du contexte. Réponds UNIQUEMENT en JSON avec ces clés :\n${missingList}` }
+                  ],
+                  context: ctx,
+                  covered_topics: checklist,
+                },
+              }, 120000);
+
+              const fillResponse = fillData?.response;
+              let fillInsights: Record<string, any> = {};
+              if (fillResponse) {
+                if (typeof fillResponse === "string") {
+                  try {
+                    fillInsights = JSON.parse(fillResponse.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
+                  } catch { /* ignore */ }
+                } else if (typeof fillResponse === "object") {
+                  fillInsights = fillResponse.extracted_insights || fillResponse;
+                }
+              }
+
+              // Normalize potential AI alias keys → real DB columns
+              const aliasMap: Record<string, string> = {
+                objections_courantes: "step_3a_objections",
+                objections: "step_3a_objections",
+                freins_achat: "step_3a_objections",
+                freins: "step_3a_objections",
+                croyances_limitantes: "step_3b_cliches",
+                croyances: "step_3b_cliches",
+                cliches: "step_3b_cliches",
+                declencheurs_achat: "step_5_actions",
+                declencheurs: "step_5_actions",
+                premieres_actions: "step_5_actions",
+                actions: "step_5_actions",
+                frustrations_profondes: "step_1_frustrations",
+                frustrations: "step_1_frustrations",
+                transformation_revee: "step_2_transformation",
+                transformation: "step_2_transformation",
+                objectif_principal: "step_2_transformation",
+                beau: "step_4_beautiful",
+                esthetique: "step_4_beautiful",
+                inspirant: "step_4_inspiring",
+                inspiration: "step_4_inspiring",
+                repoussant: "step_4_repulsive",
+                rebute: "step_4_repulsive",
+                ressenti: "step_4_feeling",
+                emotion: "step_4_feeling",
+              };
+              const normalized: Record<string, any> = { ...fillInsights };
+              for (const [alias, realKey] of Object.entries(aliasMap)) {
+                if (fillInsights[alias] && !normalized[realKey]) {
+                  normalized[realKey] = fillInsights[alias];
+                }
+              }
+
+              const validFills: Record<string, string> = {};
+              for (const f of missingFields) {
+                const val = normalized[f];
+                if (val && typeof val === "string" && val.trim().length > 0) {
+                  validFills[f] = val.trim();
+                }
+              }
+
+              if (Object.keys(validFills).length > 0) {
+                await (supabase.from("persona") as any)
+                  .update({ ...validFills, updated_at: new Date().toISOString() })
+                  .eq("id", currentPersona.id);
+                console.log(`[BrandingCoaching] Persona fill: ${Object.keys(validFills).length} missing fields filled`);
+              } else if (fillResponse) {
+                console.warn("[BrandingCoaching] Persona fill: AI responded but no exploitable keys. Received:",
+                  Object.keys(fillInsights), "Expected:", missingFields);
+              }
+            }
+
+            // Generate pitches automatically
+            try {
+              const { data: freshPersona } = await (supabase.from("persona") as any)
+                .select("*")
+                .eq("id", currentPersona.id)
+                .maybeSingle();
+
+              const { data: brandData } = await (supabase.from("brand_profile") as any)
+                .select("activite, mission, offer, target_description, tone_register, voice_description, target_verbatims, combat_cause")
+                .eq(column, value)
+                .maybeSingle();
+
+              const { data: pitchData } = await invokeWithTimeout("persona-ai", {
+                body: {
+                  type: "pitch",
+                  persona: freshPersona || currentPersona,
+                  profile: brandData || {},
+                },
+              }, 60000);
+
+              if (pitchData?.content) {
+                let pitchParsed: any;
+                try {
+                  pitchParsed = typeof pitchData.content === "string"
+                    ? JSON.parse(pitchData.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim())
+                    : pitchData.content;
+                } catch { /* ignore */ }
+
+                if (pitchParsed) {
+                  const pitchUpdate: Record<string, string> = {};
+                  if (pitchParsed.short) pitchUpdate.pitch_short = pitchParsed.short;
+                  if (pitchParsed.medium) pitchUpdate.pitch_medium = pitchParsed.medium;
+                  if (pitchParsed.long) pitchUpdate.pitch_long = pitchParsed.long;
+
+                  if (Object.keys(pitchUpdate).length > 0) {
+                    await (supabase.from("persona") as any)
+                      .update({ ...pitchUpdate, updated_at: new Date().toISOString() })
+                      .eq("id", currentPersona.id);
+                    console.log(`[BrandingCoaching] Persona pitches generated: ${Object.keys(pitchUpdate).join(", ")}`);
+                  }
+                }
+              }
+            } catch (e) {
+              console.error("[BrandingCoaching] Error generating persona pitches:", e);
+            }
+          }
+        } catch (e) {
+          console.error("[BrandingCoaching] Error in persona completion:", e);
+        }
+      }
+
       setFinalSummary(response.final_summary || "");
       setCompletionPct(100);
       setCoveredTopics(checklist);
@@ -751,6 +994,7 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
         if (insights.photo_style) charterPayload.photo_style = insights.photo_style;
         if (insights.font_title) charterPayload.font_title = insights.font_title;
         if (insights.font_body) charterPayload.font_body = insights.font_body;
+        if (insights.font_rationale) charterPayload.font_rationale = insights.font_rationale;
         if (insights.visual_donts) charterPayload.visual_donts = insights.visual_donts;
         if (insights.ai_generated_brief) charterPayload.ai_generated_brief = insights.ai_generated_brief;
 
@@ -773,18 +1017,27 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
           charterDataRef.current = { ...charterDataRef.current, ...charterPayload };
         }
       } else if (sec === "persona") {
-        const { data: existingPersona } = await (supabase.from("persona") as any)
-          .select("id").eq(column, value).eq("is_primary", true).maybeSingle();
-        if (existingPersona?.id) {
-          await (supabase.from("persona") as any).update({ ...insights, updated_at: new Date().toISOString() }).eq("id", existingPersona.id);
+        let targetPersonaId = resolvedPersonaIdRef.current;
+        
+        if (!targetPersonaId) {
+          const { data: primaryPersona } = await (supabase.from("persona") as any)
+            .select("id").eq(column, value).eq("is_primary", true).maybeSingle();
+          targetPersonaId = primaryPersona?.id || null;
+        }
+        
+        if (targetPersonaId) {
+          await (supabase.from("persona") as any)
+            .update({ ...insights, updated_at: new Date().toISOString() })
+            .eq("id", targetPersonaId);
         } else {
-          await (supabase.from("persona") as any).insert({
+          const { data: newPersona } = await (supabase.from("persona") as any).insert({
             user_id: profileUserId,
             workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
             is_primary: true,
             ...insights,
             updated_at: new Date().toISOString(),
-          });
+          }).select("id").single();
+          if (newPersona?.id) resolvedPersonaIdRef.current = newPersona.id;
         }
       } else if (sec === "story") {
         // Map coaching insights to storytelling columns
@@ -852,7 +1105,7 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
         if (Object.keys(strategyData).length > 0) {
           strategyData.updated_at = new Date().toISOString();
           const { data: existingStrat } = await (supabase.from("brand_strategy") as any)
-            .select("id").eq(column, value).maybeSingle();
+            .select("id").eq(column, value).order("updated_at", { ascending: false }).limit(1).maybeSingle();
           if (existingStrat?.id) {
             await (supabase.from("brand_strategy") as any).update(strategyData).eq("id", existingStrat.id);
           } else {
@@ -891,6 +1144,108 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
           }
           queryClient.invalidateQueries({ queryKey: ["editorial-line"] });
         }
+      } else if (sec === "content_series") {
+        // ── Mapping cadence libre → enum DB ──
+        const mapCadence = (raw?: string): "weekly" | "biweekly" | "monthly" | "irregular" | null => {
+          if (!raw || typeof raw !== "string") return null;
+          const s = raw.toLowerCase().trim();
+          if (/(hebdo|chaque semaine|toutes les semaines|une fois par semaine|weekly|every week)/.test(s)) return "weekly";
+          if (/(bimensuel|tous les 15 jours|toutes les deux semaines|deux fois par mois|biweekly|every two weeks)/.test(s)) return "biweekly";
+          if (/(mensuel|chaque mois|tous les mois|une fois par mois|monthly|every month)/.test(s)) return "monthly";
+          if (/(irr[ée]gulier|quand [çc]a vient|sporadique|al[ée]atoire|irregular|ad hoc)/.test(s)) return "irregular";
+          if (["weekly", "biweekly", "monthly", "irregular"].includes(s)) return s as any;
+          return null;
+        };
+
+        // A. Sauvegarde des séries
+        const seriesArr: any[] = Array.isArray(insights.series) ? insights.series.slice(0, 8) : [];
+        for (const serie of seriesArr) {
+          try {
+            if (!serie?.name || !serie?.promise) continue;
+            const name = String(serie.name).trim();
+            if (!name) continue;
+
+            const { data: existingSerie } = await (supabase.from("series") as any)
+              .select("id")
+              .eq(column, value)
+              .eq("name", name)
+              .maybeSingle();
+
+            const payload: Record<string, any> = {
+              name,
+              promise: String(serie.promise).trim(),
+            };
+            if (serie.pillar_key && ["pillar_major", "pillar_minor_1", "pillar_minor_2", "pillar_minor_3"].includes(serie.pillar_key)) {
+              payload.pillar_key = serie.pillar_key;
+            }
+            const cadence = mapCadence(serie.cadence ?? serie.cadence_raw);
+            if (cadence) payload.cadence = cadence;
+            if (serie.format_template) payload.format_template = String(serie.format_template).trim();
+            if (serie.signature_description) payload.signature_description = String(serie.signature_description).trim();
+            if (Array.isArray(serie.channels) && serie.channels.length > 0) {
+              payload.channels = serie.channels.filter((c: any) => typeof c === "string");
+            }
+
+            if (existingSerie?.id) {
+              const { error } = await (supabase.from("series") as any)
+                .update({ ...payload, updated_at: new Date().toISOString() })
+                .eq("id", existingSerie.id);
+              if (error) console.error("[ContentSeries] Update error:", error);
+            } else {
+              const { error } = await (supabase.from("series") as any).insert({
+                ...payload,
+                user_id: profileUserId,
+                workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
+              });
+              if (error) console.error("[ContentSeries] Insert error:", error);
+            }
+          } catch (serieErr) {
+            console.error("[ContentSeries] Failed to save serie:", serie?.name, serieErr);
+          }
+        }
+
+        // B. Mode combo : pillars_new (n'écrit que si vide en DB)
+        const pillarsNew: string[] = Array.isArray(insights.pillars_new)
+          ? insights.pillars_new.filter((p: any) => typeof p === "string" && p.trim()).slice(0, 4)
+          : [];
+        if (pillarsNew.length > 0) {
+          try {
+            const { data: existingStrat } = await (supabase.from("brand_strategy") as any)
+              .select("id, pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3")
+              .eq(column, value)
+              .order("updated_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            const isEmpty = (v: any) => !v || (typeof v === "string" && v.trim().length === 0);
+            const cols = ["pillar_major", "pillar_minor_1", "pillar_minor_2", "pillar_minor_3"];
+            const updates: Record<string, any> = {};
+            cols.forEach((col, i) => {
+              if (i < pillarsNew.length && (!existingStrat || isEmpty(existingStrat[col]))) {
+                updates[col] = pillarsNew[i].trim();
+              }
+            });
+
+            if (Object.keys(updates).length > 0) {
+              if (existingStrat?.id) {
+                await (supabase.from("brand_strategy") as any)
+                  .update({ ...updates, updated_at: new Date().toISOString() })
+                  .eq("id", existingStrat.id);
+              } else {
+                await (supabase.from("brand_strategy") as any).insert({
+                  user_id: profileUserId,
+                  workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
+                  ...updates,
+                });
+              }
+            }
+          } catch (pillarsErr) {
+            console.error("[ContentSeries] Failed to save pillars_new:", pillarsErr);
+          }
+        }
+
+        queryClient.invalidateQueries({ queryKey: ["series"] });
+        queryClient.invalidateQueries({ queryKey: ["brand-strategy"] });
       } else {
         const { data: existingBP } = await (supabase.from("brand_profile") as any)
           .select("id").eq(column, value).maybeSingle();
@@ -912,6 +1267,9 @@ export default function BrandingCoachingFlow({ section, onComplete, onBack, auto
         queryClient.invalidateQueries({ queryKey: ["brand-charter"] });
         queryClient.invalidateQueries({ queryKey: ["persona"] });
       }
+      // Always invalidate the global branding data cache so BrandingPage/BrandingSectionPage see fresh data
+      queryClient.invalidateQueries({ queryKey: ["branding-data"] });
+      queryClient.invalidateQueries({ queryKey: ["branding-completion"] });
     } catch (e) {
       console.error("[BrandingCoaching] Error saving insights:", e);
     }

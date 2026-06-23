@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useWorkspaceFilter, useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useProfile } from "@/hooks/use-profile";
 import { Copy, Sparkles } from "lucide-react";
 import { friendlyError } from "@/lib/error-messages";
@@ -172,7 +173,7 @@ export default function InstagramLaunch() {
     setGeneratingIdeas(true);
     setLaunchIdeas([]);
     try {
-      const res = await supabase.functions.invoke("generate-content", {
+      const res = await invokeWithTimeout("generate-content", {
         body: {
           type: "launch-ideas",
           profile: {
@@ -189,7 +190,7 @@ export default function InstagramLaunch() {
             launch_selected_contents: launch.selected_contents,
           },
         },
-      });
+      }, 90000);
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
       let parsed: LaunchIdea[];

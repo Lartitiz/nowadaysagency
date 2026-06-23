@@ -4,6 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { posthog } from "@/lib/posthog";
+import { clearAppStorage } from "@/lib/storage-cleanup";
+import { setFlowUserId } from "@/hooks/use-flow-persistence";
+import { resolveOnboardingStatus } from "@/lib/onboarding-status";
 
 interface AuthContextType {
   user: User | null;
@@ -38,20 +41,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function resolvePostAuthRoute(userId: string): Promise<string> {
     try {
-      const [{ data: profile }, { data: config }] = await Promise.all([
-        supabase
-          .from("profiles")
-          .select("onboarding_completed")
-          .eq("user_id", userId)
-          .maybeSingle(),
-        supabase
-          .from("user_plan_config")
-          .select("onboarding_completed, welcome_seen")
-          .eq("user_id", userId)
-          .maybeSingle(),
-      ]);
-      const onboardingDone = profile?.onboarding_completed && config?.onboarding_completed;
-      if (!onboardingDone) return "/onboarding";
+      const status = await resolveOnboardingStatus({
+        profileUserId: userId,
+        planConfigUserId: userId,
+      });
+      if (status === "needs") return "/onboarding";
+
+      // Lecture dédiée pour welcome_seen (séparée du statut onboarding)
+      const { data: config } = await supabase
+        .from("user_plan_config")
+        .select("welcome_seen")
+        .eq("user_id", userId)
+        .maybeSingle();
+
       if (!config?.welcome_seen) return "/welcome";
       return "/dashboard";
     } catch (err) {
@@ -174,7 +176,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const elapsed = Date.now() - lastHiddenAt.current;
         if (elapsed < 5 * 60 * 1000) return;
 
-        supabase.auth.getSession().then(({ data: { session: refreshedSession } }) => {
+        // After 30+ min away: force a server refresh to get a fresh token
+        // After 5-30 min: just read the cached session (faster, usually still valid)
+        const refreshPromise = elapsed > 30 * 60 * 1000
+          ? supabase.auth.refreshSession().then(({ data }) => data.session)
+          : supabase.auth.getSession().then(({ data }) => data.session);
+
+        refreshPromise.then((refreshedSession) => {
           if (!mounted) return;
           if (refreshedSession) {
             setSession(refreshedSession);
@@ -211,10 +219,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
-    sessionStorage.removeItem("onboarding_checked");
+    clearAppStorage();
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
   }, []);
+
+  // Keep the flow-persistence registry in sync with the current user.
+  // Scoped backup keys (creer_flow_state_backup:{userId}) require this.
+  useEffect(() => {
+    setFlowUserId(user?.id && user.id !== "demo-user" ? user.id : null);
+  }, [user?.id]);
 
   // Fetch admin role when user changes
   useEffect(() => {

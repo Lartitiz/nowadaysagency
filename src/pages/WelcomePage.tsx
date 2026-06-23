@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useProfileUserId } from "@/hooks/use-workspace-query";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useProfile } from "@/hooks/use-profile";
@@ -275,6 +275,7 @@ function BrandingCardItem({ card, index, onSave }: { card: BrandingCard; index: 
 export default function WelcomePage() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
+  const profileUserId = useProfileUserId();
   const navigate = useNavigate();
   const { data: profileData } = useProfile();
   const [goal, setGoal] = useState("");
@@ -343,7 +344,7 @@ export default function WelcomePage() {
           .maybeSingle(),
         supabase.from("profiles")
           .select("diagnostic_data")
-          .eq("user_id", user.id)
+          .eq("user_id", profileUserId)
           .maybeSingle(),
         (supabase.from("audit_recommendations") as any)
           .select("*")

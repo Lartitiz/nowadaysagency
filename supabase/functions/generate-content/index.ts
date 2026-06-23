@@ -1,14 +1,16 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOURCES, ANTI_SLOP, CHAIN_OF_THOUGHT } from "../_shared/copywriting-prompts.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
+import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOURCES, ANTI_SLOP, CHAIN_OF_THOUGHT, ANTI_BROETRY_LINKEDIN, LINKEDIN_PRINCIPLES_COMPACT, EMBEDDED_EDUCATION } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildProfileBlock } from "../_shared/user-context.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { isDemoUser } from "../_shared/guard-demo.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
-import { validateInput, GenerateContentSchema } from "../_shared/input-validators.ts";
+import { validateInput, ValidationError, GenerateContentSchema } from "../_shared/input-validators.ts";
+import { applyCorrectionPass } from "../_shared/correction-pass.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
+import { buildSeriesContext } from "../_shared/series-context.ts";
 
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
 
@@ -36,7 +38,7 @@ const ACCROCHE_BANK: Record<string, string[]> = {
   ],
   credibilite: [
     "Accroche décryptage : 'J'ai analysé...' ou 'J'ai remarqué que...'",
-    "Accroche liste : '5 choses que j'ai apprises en...'",
+    "Accroche déclencheur : 'Un chiffre m'a interpellée cette semaine...' ou 'Un retour client m'a fait réaliser que...'",
     "Accroche mythe : '\"Il faut...\" Non.'",
     "Accroche expertise : partage une observation que seul·e un·e expert·e fait",
     "Accroche processus : montre ton framework ou ta méthode",
@@ -86,7 +88,7 @@ serve(async (req) => {
       return new Response(JSON.stringify({ pong: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     const body = validateInput(rawBody, GenerateContentSchema);
-    const { type, format, sujet, profile, canal, objectif, structure: structureInput, accroche: accrocheInput, angle: angleInput, prompt: rawPrompt, playground_prompt, workspace_id } = body;
+    const { type, format, sujet, profile, canal, objectif, structure: structureInput, accroche: accrocheInput, angle: angleInput, prompt: rawPrompt, playground_prompt, workspace_id, series_id, episode_number } = body;
 
     // Check plan limits — use "audit" category for audit types, "content" otherwise
     const isAuditType = type === "bio-audit";
@@ -101,6 +103,7 @@ serve(async (req) => {
 
     let systemPrompt = "";
     let userPrompt = "";
+    let isLinkedinGeneration = false;
 
     // Handle "raw" type early - no profile block needed
     if (type === "raw") {
@@ -123,7 +126,7 @@ serve(async (req) => {
         const objectifInstruction = objectif
           ? `L'objectif choisi est : ${objectif}. Oriente les sujets en conséquence.`
           : "";
-        systemPrompt = `${CORE_PRINCIPLES}\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\n${objectifInstruction}\n\nPropose exactement 5 idées de sujets de posts ${canalLabel}, adaptées à son activité et sa cible. Chaque idée doit être formulée comme un sujet concret et spécifique (pas vague), en une phrase.\n\nVarie les angles : un sujet éducatif, un storytelling, un sujet engagé, un sujet pratique, un sujet inspirant.\n\nRéponds uniquement avec les 5 sujets, un par ligne, sans numérotation, sans tiret, sans explication.`;
+        systemPrompt = `${CORE_PRINCIPLES}\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\n${objectifInstruction}\n\nPropose exactement 5 idées de sujets de posts ${canalLabel}, adaptées à son activité et sa cible. Chaque idée doit être formulée comme un sujet concret et spécifique (pas vague), en une phrase.\n\nVarie les angles : un récit d'expérience (raconter ce qui s'est passé quand…), un constat décalé (remettre en question une évidence du secteur), un déclencheur externe (rebondir sur un retour client, un chiffre, une conversation), un sujet engagé (prise de position sur un enjeu du métier), un sujet qui montre plutôt qu'il explique (process, transformation, avant/après). JAMAIS de sujet formulé comme une liste de conseils ou d'erreurs.\n\nRéponds uniquement avec les 5 sujets, un par ligne, sans numérotation, sans tiret, sans explication.`;
         userPrompt = `Propose-moi 5 sujets de posts ${canalLabel}.`;
 
       } else if (type === "weekly-suggestions") {
@@ -160,21 +163,23 @@ CHAQUE IDÉE DOIT CONTENIR :
 3. Un FORMAT adapté au sujet
 4. Un OBJECTIF de communication
 5. Un ANGLE ÉDITORIAL parmi ces formats Nowadays :
-   - "coup_de_gueule" : exprimer une injustice de ton secteur
-   - "mythe_a_deconstruire" : démonter une croyance répandue
-   - "storytelling_lecon" : raconter un vécu + en tirer une leçon
-   - "histoire_cliente" : illustrer un blocage commun via un cas réel
-   - "conseil_contre_intuitif" : donner un conseil qui va à l'encontre du consensus
-   - "regard_philosophique" : prendre de la hauteur sur un sujet de société lié à son métier
-   - "before_after" : montrer une évolution (pratique, pensée, résultat)
+   - "recit_experience" : raconter ce qui s'est passé quand… (l'info arrive comme sous-produit de l'histoire)
+   - "declencheur_externe" : rebondir sur un retour client, un chiffre découvert, une conversation, un commentaire reçu
+   - "constat_decale" : remettre en question une évidence du secteur avec un regard lucide (pas une attaque)
+   - "coup_de_gueule" : exprimer une frustration partagée sur un problème systémique du secteur
+   - "mythe_a_deconstruire" : démonter une croyance répandue avec des arguments concrets
+   - "histoire_cliente" : illustrer un blocage commun via un cas réel (social proof incarné)
+   - "before_after" : montrer une transformation concrète (process visible, pas juste un résultat annoncé)
    - "identification" : situation du quotidien dans laquelle la cible se reconnaît
-   - "analyse_decryptage" : décortiquer un sujet en profondeur
-   - "build_in_public" : partager les coulisses de son projet
+   - "build_in_public" : partager les coulisses de son projet en transparence
+   - "regard_philosophique" : prendre de la hauteur sur un sujet de société lié à son métier
    - "surf_actu" : rebondir sur une actualité pertinente
 
 RÈGLES CRITIQUES :
 - Les idées doivent être ULTRA-SPÉCIFIQUES à son activité, sa cible, ses piliers, ses combats. Pas de sujets génériques applicables à n'importe qui.
+- ÉDUCATION EMBARQUÉE OBLIGATOIRE : l'information est le passager, pas le conducteur. Chaque idée doit transmettre l'info via un VÉHICULE (récit, déclencheur, constat, process montré). JAMAIS de sujet formulé comme "X conseils pour", "X erreurs à éviter", "X astuces". Si le hook pourrait commencer par "Conseil n°1", réécrire.
 - Le hook doit être formulé comme la vraie première phrase du post : oral, direct, percutant. Pas un titre de blog SEO.
+- Le hook doit embarquer le lecteur dans une SITUATION, une ANECDOTE, un CONSTAT ou une TENSION. Pas dans une promesse de liste ("Voici 5…", "Les 3 erreurs…").
 - Varier les objectifs : une idée orientée visibilité, une confiance/engagement, une vente/crédibilité.
 - Varier les angles éditoriaux : ne PAS proposer 3 fois le même format.
 - Varier les formats Instagram : mixer post, carousel, reel, story.
@@ -479,6 +484,60 @@ Réponds en JSON :
           live: "Live (plan de session structuré)",
         };
         const formatInstruction = calFormat ? `FORMAT : ${formatMap[calFormat] || calFormat}` : "FORMAT : Carrousel par défaut";
+        const isLinkedinCalendar = calFormat === "post_linkedin" || (body.canal === "linkedin");
+        isLinkedinGeneration = isLinkedinCalendar;
+        const linkedinDepthMandate = `${ANTI_BROETRY_LINKEDIN}
+
+FORMAT : POST LINKEDIN (1300-2000 caractères)
+
+══ ÉTAPE 1 : AVANT D'ÉCRIRE, IDENTIFIE CES 3 ÉLÉMENTS ══
+
+Avant de rédiger une seule ligne, tu DOIS répondre mentalement à ces 3 questions :
+
+1. QUELLE CONVICTION ou ÉMOTION porte ce post ?
+   Chaque bon post LinkedIn est porté par un ressort émotionnel : fierté d'un aboutissement, indignation face à un constat, enthousiasme pour une découverte, gratitude envers un parcours, frustration face à une norme...
+   → Si tu ne trouves pas l'émotion, le post sera un communiqué.
+
+2. QUEL DÉTAIL CONCRET ancre le post dans le réel ?
+   Un chiffre précis, une date, un lieu, une phrase entendue, une durée, un nom d'outil, un avant/après mesurable.
+   → Si le sujet ne contient pas de détail, ancre dans le contexte branding.
+
+3. QUEL EST LE MOUVEMENT NARRATIF ?
+   - Annonce/événement → raconter le CHEMIN ou la CONVICTION derrière.
+   - Partage d'expertise → partir d'un CONSTAT TERRAIN et creuser le POURQUOI.
+   - Milestone/bilan → choisir UN fil rouge émotionnel.
+   - Collaboration/rencontre → raconter ce que cette rencontre a PROVOQUÉ ou RÉVÉLÉ.
+
+══ ÉTAPE 2 : ÉCRITURE ══
+
+ACCROCHE (< 210 caractères) :
+- Un FAIT CONCRET ou une ÉMOTION SINCÈRE. Jamais une promesse marketing, un teaser, ou un slogan.
+
+CORPS :
+- 2-3 paragraphes de prose fluide. UNE idée creusée, pas 5 survolées.
+- Chaque paragraphe apporte du NOUVEAU. Si tu reformules le précédent, coupe.
+- PRENDS POSITION. Pas de "chacun son avis".
+
+FIN :
+- Question PRÉCISE liée au sujet, ou rien du tout.
+- JAMAIS de résumé, JAMAIS de crescendo rhétorique.
+
+FORMAT :
+- 0-2 emojis max, jamais en puces
+- 0-2 hashtags niche en fin
+- Écriture inclusive avec point médian
+- Pas de tirets cadratin (—), utiliser : ou ;
+- DENSE : 1300-2000 caractères. Zéro remplissage.
+
+══ INTERDITS ABSOLUS ══
+- Storytelling fabriqué ("Et là, tout a basculé", "Le déclic ?", "Ce jour-là j'ai compris")
+- Phrases courtes en rafale pour l'effet dramatique
+- Listes à puces inspirationnelles
+- Promesses marketing en accroche
+- "Et vous, qu'en pensez-vous ?" comme CTA
+- Flex déguisé en humilité
+- Post qui DÉCRIT un sujet sans PRENDRE POSITION dessus`;
+        const calendarPrinciples = isLinkedinCalendar ? `${LINKEDIN_PRINCIPLES_COMPACT}\n\n${linkedinDepthMandate}` : `${CORE_PRINCIPLES}\n\n${FORMAT_STRUCTURES}`;
 
         let launchBlock = "";
         if (launchContext) {
@@ -486,7 +545,7 @@ Réponds en JSON :
           launchBlock = `\nCONTEXTE LANCEMENT :\n- Phase : ${lc.phase || "?"}\n- Chapitre : ${lc.chapter_label || "?"}\n- Phase mentale audience : ${lc.audience_phase || "?"}\n- Objectif du slot : ${lc.objective || "?"}\n- Angle suggéré : ${lc.angle_suggestion || "?"}\n- Offre : "${lc.offer || "?"}"\n- Promesse : "${lc.promise || "?"}"\n- Objections : "${lc.objections || "?"}"\n`;
         }
 
-        systemPrompt = `${CORE_PRINCIPLES}\n\n${FORMAT_STRUCTURES}\n\n${WRITING_RESOURCES}\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\nCONTEXTE DU POST :\n- Thème/sujet : "${theme || "?"}"\n- Objectif : ${calObj || "non précisé"}\n- Angle : ${calAngle || "non précisé"}\n- ${formatInstruction}\n- Notes : "${calNotes || "aucune"}"\n${launchBlock}\nRÈGLES :\n- Écriture inclusive avec point médian\n- JAMAIS de tiret cadratin (—). Utilise : ou ;\n- Le ton correspond au branding de l'utilisatrice\n- Utiliser ses expressions, son vocabulaire\n- PRIORITÉ ABSOLUE : si un profil de voix existe dans le contexte, le contenu DOIT reproduire ce style. Réutilise les expressions signature. Reproduis les patterns de structure. Imite le rythme des exemples.\n- Ne JAMAIS utiliser les expressions listées comme interdites dans le profil de voix\n- Le contenu doit pouvoir être publié tel quel par l'utilisatrice sans qu'on sente que c'est écrit par une IA\n- Oral assumé mais pas surjoué\n- Phrases fluides et complètes\n- Le contenu a de la valeur même pour celles qui n'achètent pas\n- CTA conversationnel, jamais agressif\n\nGARDE-FOUS ÉTHIQUES :\n- Pas de fausse urgence\n- Pas de shaming\n- Pas de promesses de résultats garantis\n- Pas de FOMO artificiel\n\n${ANTI_SLOP}\n\n${CHAIN_OF_THOUGHT}\n\nGénère le contenu complet, prêt à copier-coller. Réponds avec le texte uniquement.`;
+        systemPrompt = `${calendarPrinciples}\n\n${WRITING_RESOURCES}\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\nCONTEXTE DU POST :\n- Thème/sujet : "${theme || "?"}"\n- Objectif : ${calObj || "non précisé"}\n- Angle : ${calAngle || "non précisé"}\n- ${formatInstruction}\n- Notes : "${calNotes || "aucune"}"\n${launchBlock}\nRÈGLES :\n- Écriture inclusive avec point médian\n- JAMAIS de tiret cadratin (—). Utilise : ou ;\n- Le ton correspond au branding de l'utilisatrice\n- Utiliser ses expressions, son vocabulaire\n- PRIORITÉ ABSOLUE : si un profil de voix existe dans le contexte, le contenu DOIT reproduire ce style. Réutilise les expressions signature. Reproduis les patterns de structure. Imite le rythme des exemples.\n- Ne JAMAIS utiliser les expressions listées comme interdites dans le profil de voix\n- Le contenu doit pouvoir être publié tel quel par l'utilisatrice sans qu'on sente que c'est écrit par une IA\n- Oral assumé mais pas surjoué\n- Phrases fluides et complètes\n- Le contenu a de la valeur même pour celles qui n'achètent pas\n- CTA conversationnel, jamais agressif\n\nGARDE-FOUS ÉTHIQUES :\n- Pas de fausse urgence\n- Pas de shaming\n- Pas de promesses de résultats garantis\n- Pas de FOMO artificiel\n\n${EMBEDDED_EDUCATION}\n\n${ANTI_SLOP}\n\n${CHAIN_OF_THOUGHT}\n\nGénère le contenu complet, prêt à copier-coller. Réponds avec le texte uniquement.`;
         userPrompt = `Rédige le contenu complet pour ce post sur "${theme || "?"}".`;
 
       } else if (type === "express-draft") {
@@ -506,8 +565,62 @@ Réponds en JSON :
           linkedin: "Post LinkedIn (texte complet)",
         };
         const formatInstruction = expressFormat ? `FORMAT : ${formatMap[expressFormat] || expressFormat}` : "FORMAT : Post Instagram par défaut";
+        const isLinkedinFormat = expressFormat === "linkedin";
+        isLinkedinGeneration = isLinkedinFormat;
+        const expressLinkedinDepth = `${ANTI_BROETRY_LINKEDIN}
 
-        systemPrompt = `${CORE_PRINCIPLES}\n\n${FORMAT_STRUCTURES}\n\n${WRITING_RESOURCES}\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\nCONTEXTE :\n- Sujet : "${expressSujet || "?"}"\n- Objectif : ${expressObj || "non précisé"}\n- ${formatInstruction}\n\nRÈGLES :\n- Écriture inclusive avec point médian\n- JAMAIS de tiret cadratin (—). Utilise : ou ;\n- Le ton correspond au branding de l'utilisatrice\n- Utiliser ses expressions, son vocabulaire\n- PRIORITÉ ABSOLUE : si un profil de voix existe dans le contexte, le contenu DOIT reproduire ce style\n- Ne JAMAIS utiliser les expressions listées comme interdites dans le profil de voix\n- Le contenu doit pouvoir être publié tel quel\n- Oral assumé mais pas surjoué\n- CTA conversationnel, jamais agressif\n\nGARDE-FOUS ÉTHIQUES :\n- Pas de fausse urgence ni de shaming\n- Pas de promesses de résultats garantis\n\n${ANTI_SLOP}\n\n${CHAIN_OF_THOUGHT}\n\nRéponds en JSON avec ce format exact :\n{"accroche": "L'accroche du post (première ligne percutante)", "content": "Le contenu complet prêt à copier-coller (inclus l'accroche au début)", "hashtags": ["3 à 5 hashtags pertinents"]}`;
+FORMAT : POST LINKEDIN (1300-2000 caractères)
+
+══ ÉTAPE 1 : AVANT D'ÉCRIRE, IDENTIFIE CES 3 ÉLÉMENTS ══
+
+Avant de rédiger une seule ligne, tu DOIS répondre mentalement à ces 3 questions :
+
+1. QUELLE CONVICTION ou ÉMOTION porte ce post ?
+   Chaque bon post LinkedIn est porté par un ressort émotionnel : fierté d'un aboutissement, indignation face à un constat, enthousiasme pour une découverte, gratitude envers un parcours, frustration face à une norme...
+   → Si tu ne trouves pas l'émotion, le post sera un communiqué.
+
+2. QUEL DÉTAIL CONCRET ancre le post dans le réel ?
+   Un chiffre précis, une date, un lieu, une phrase entendue, une durée, un nom d'outil, un avant/après mesurable.
+   → Si le sujet ne contient pas de détail, ancre dans le contexte branding.
+
+3. QUEL EST LE MOUVEMENT NARRATIF ?
+   - Annonce/événement → raconter le CHEMIN ou la CONVICTION derrière.
+   - Partage d'expertise → partir d'un CONSTAT TERRAIN et creuser le POURQUOI.
+   - Milestone/bilan → choisir UN fil rouge émotionnel.
+   - Collaboration/rencontre → raconter ce que cette rencontre a PROVOQUÉ ou RÉVÉLÉ.
+
+══ ÉTAPE 2 : ÉCRITURE ══
+
+ACCROCHE (< 210 caractères) :
+- Un FAIT CONCRET ou une ÉMOTION SINCÈRE. Jamais une promesse marketing, un teaser, ou un slogan.
+
+CORPS :
+- 2-3 paragraphes de prose fluide. UNE idée creusée, pas 5 survolées.
+- Chaque paragraphe apporte du NOUVEAU. Si tu reformules le précédent, coupe.
+- PRENDS POSITION. Pas de "chacun son avis".
+
+FIN :
+- Question PRÉCISE liée au sujet, ou rien du tout.
+- JAMAIS de résumé, JAMAIS de crescendo rhétorique.
+
+FORMAT :
+- 0-2 emojis max, jamais en puces
+- 0-2 hashtags niche en fin
+- Écriture inclusive avec point médian
+- Pas de tirets cadratin (—), utiliser : ou ;
+- DENSE : 1300-2000 caractères. Zéro remplissage.
+
+══ INTERDITS ABSOLUS ══
+- Storytelling fabriqué ("Et là, tout a basculé", "Le déclic ?", "Ce jour-là j'ai compris")
+- Phrases courtes en rafale pour l'effet dramatique
+- Listes à puces inspirationnelles
+- Promesses marketing en accroche
+- "Et vous, qu'en pensez-vous ?" comme CTA
+- Flex déguisé en humilité
+- Post qui DÉCRIT un sujet sans PRENDRE POSITION dessus`;
+        const channelPrinciples = isLinkedinFormat ? `${LINKEDIN_PRINCIPLES_COMPACT}\n\n${expressLinkedinDepth}` : `${CORE_PRINCIPLES}\n\n${FORMAT_STRUCTURES}`;
+
+        systemPrompt = `${channelPrinciples}\n\n${WRITING_RESOURCES}\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\nCONTEXTE :\n- Sujet : "${expressSujet || "?"}"\n- Objectif : ${expressObj || "non précisé"}\n- ${formatInstruction}\n\nRÈGLES :\n- Écriture inclusive avec point médian\n- JAMAIS de tiret cadratin (—). Utilise : ou ;\n- Le ton correspond au branding de l'utilisatrice\n- Utiliser ses expressions, son vocabulaire\n- PRIORITÉ ABSOLUE : si un profil de voix existe dans le contexte, le contenu DOIT reproduire ce style\n- Ne JAMAIS utiliser les expressions listées comme interdites dans le profil de voix\n- Le contenu doit pouvoir être publié tel quel\n- Oral assumé mais pas surjoué\n- CTA conversationnel, jamais agressif\n\nGARDE-FOUS ÉTHIQUES :\n- Pas de fausse urgence ni de shaming\n- Pas de promesses de résultats garantis\n\n${EMBEDDED_EDUCATION}\n\n${ANTI_SLOP}\n\n${CHAIN_OF_THOUGHT}\n\nRéponds en JSON avec ce format exact :\n{"accroche": "L'accroche du post (première ligne percutante)", "content": "Le contenu complet prêt à copier-coller (inclus l'accroche au début)", "hashtags": ["3 à 5 hashtags pertinents"]}`;
         userPrompt = `Rédige un contenu complet, engageant et prêt à publier sur : "${expressSujet || "?"}"`;
 
       } else if (type === "caption") {
@@ -521,6 +634,20 @@ Réponds en JSON :
           JSON.stringify({ error: "Type de requête non reconnu" }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
+      }
+    }
+
+    // Inject SERIES context for content-generating types (post on this calendar entry belongs to a series)
+    const seriesTypes = new Set(["calendar-quick", "express-draft", "redaction-draft", "redaction-structure", "redaction-accroches", "caption"]);
+    if (series_id && seriesTypes.has(type)) {
+      try {
+        const seriesCtx = await buildSeriesContext(supabase, series_id, episode_number, canal || undefined);
+        if (seriesCtx) {
+          console.log(`[generate-content] series context injected for ${type}: ${seriesCtx.seriesName} (ep #${seriesCtx.episodeNumber})`);
+          systemPrompt += `\n\n${seriesCtx.block}`;
+        }
+      } catch (e) {
+        console.error("[generate-content] buildSeriesContext failed", e);
       }
     }
 
@@ -556,7 +683,21 @@ Réponds en JSON :
     const maxTokens = shortTypes.includes(type) ? 1024 : longTypes.includes(type) ? 8192 : 4096;
     const auditTypes = ["bio-audit"];
     const modelAction = auditTypes.includes(type) ? "audit" : "content";
-    const content = await callAnthropicSimple(getModelForAction(modelAction), systemPrompt, userPrompt, 0.8, maxTokens);
+    let content = await callAnthropicSimple(getModelForAction(modelAction), systemPrompt, userPrompt, 0.8, maxTokens);
+
+    // LinkedIn correction pass — shared CORRECTION_PROMPTS.linkedin (richer than the previous inline prompt)
+    if (isLinkedinGeneration) {
+      try {
+        const corrected = await applyCorrectionPass(content, "linkedin", {
+          logger: (m) => console.log(`[generate-content] ${m}`),
+        });
+        if (corrected && corrected.length > 200) {
+          content = corrected;
+        }
+      } catch (correctionError) {
+        console.error("LinkedIn correction pass failed, using original:", correctionError);
+      }
+    }
 
 
     await logUsage(user.id, usageCategory, type, undefined, undefined, workspace_id);
@@ -565,6 +706,16 @@ Réponds en JSON :
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e: any) {
+    if (e instanceof ValidationError) {
+      return new Response(JSON.stringify({ error: e.message }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (e?.status === 429) {
+      return new Response(JSON.stringify({ error: "Trop de requêtes. Réessaie dans un moment." }), {
+        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     console.error(JSON.stringify({
       type: "edge_function_error",
       function_name: "generate-content",
@@ -572,8 +723,11 @@ Réponds en JSON :
       user_id: null,
       timestamp: new Date().toISOString(),
     }));
+    const userMessage = e?.message?.includes("API") || e?.message?.includes("IA")
+      ? e.message
+      : "Erreur interne du serveur";
     return new Response(
-      JSON.stringify({ error: "Erreur interne du serveur" }),
+      JSON.stringify({ error: userMessage }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

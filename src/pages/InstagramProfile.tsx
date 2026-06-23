@@ -1,14 +1,13 @@
 import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
-import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Sparkles, PenLine, BookmarkCheck, Pin, Palette, BarChart3 } from "lucide-react";
 import { useDemoContext } from "@/contexts/DemoContext";
-import { DEMO_DATA } from "@/lib/demo-data";
 
 interface AuditData {
   score_global: number;
@@ -55,7 +54,7 @@ function scoreBadge(score: number | null) {
 
 export default function InstagramProfile() {
   const { user } = useAuth();
-  const { isDemoMode } = useDemoContext();
+  const { isDemoMode, demoData } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
   const [audit, setAudit] = useState<AuditData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -63,9 +62,9 @@ export default function InstagramProfile() {
   const [snippets, setSnippets] = useState<ProfileSnippets>({});
 
   useEffect(() => {
-    if (isDemoMode) {
+    if (isDemoMode && demoData) {
       setAudit({
-        score_global: DEMO_DATA.audit.score,
+        score_global: (demoData as any).audit.score,
         score_nom: 70,
         score_bio: 45,
         score_stories: 55,
@@ -75,10 +74,10 @@ export default function InstagramProfile() {
         resume: "Profil cohérent visuellement mais manque de CTA et de structure dans les highlights.",
       });
       setSnippets({
-        instagram_display_name: "Léa Portraits",
-        instagram_bio: DEMO_DATA.bio,
+        instagram_display_name: (demoData as any).profile.first_name + " Portraits",
+        instagram_bio: (demoData as any).bio,
         instagram_highlights: ["Séances", "Avis", "Coulisses"],
-        instagram_pillars: DEMO_DATA.branding.editorial.pillars.map(p => p.name),
+        instagram_pillars: (demoData as any).branding.editorial.pillars.map((p: any) => p.name),
       });
       setValidations([{ section: "feed", status: "validated" }]);
       setLoading(false);

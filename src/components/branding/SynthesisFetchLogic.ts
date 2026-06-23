@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceFilter, useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
 import { useProfile, useBrandProfile } from "@/hooks/use-profile";
 import { calculateBrandingCompletion, fetchBrandingData } from "@/lib/branding-completion";
@@ -77,9 +78,9 @@ export function useSynthesisFetch() {
     if (!user) return;
     setSummariesLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("generate-branding-summary", {
+      const { data, error } = await invokeWithTimeout("generate-branding-summary", {
         body: { force: false },
-      });
+      }, 90000);
       if (!error && data) {
         setSummaries(data.summaries);
       }
@@ -93,9 +94,9 @@ export function useSynthesisFetch() {
   const regenerateSummaries = useCallback(async () => {
     setSummariesLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("generate-branding-summary", {
+      const { data, error } = await invokeWithTimeout("generate-branding-summary", {
         body: { force: true },
-      });
+      }, 90000);
       if (!error && data) {
         setSummaries(data.summaries);
         toast.success("Résumés régénérés !");

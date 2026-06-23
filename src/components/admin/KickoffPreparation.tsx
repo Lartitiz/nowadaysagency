@@ -121,14 +121,41 @@ export default function KickoffPreparation({ open, onOpenChange, coachUserId, on
     const { error: profErr } = await (supabase.from("profiles").update({ current_plan: "binome" } as any).eq("user_id", clientUserId) as any);
     if (profErr) console.error("Erreur mise à jour profil:", profErr);
 
+    let attachedToExisting = false;
     if (createWorkspace) {
+      // Look for an existing owner workspace for this client (oldest first)
       const { data: existingWs } = await supabase
         .from("workspace_members")
-        .select("workspace_id")
+        .select("workspace_id, workspaces!inner(created_at)")
         .eq("user_id", clientUserId)
-        .eq("role", "owner");
+        .eq("role", "owner")
+        .order("workspaces(created_at)" as any, { ascending: true });
 
-      if (!existingWs || existingWs.length === 0) {
+      if (existingWs && existingWs.length > 0) {
+        // Attach coach to the existing workspace
+        const targetWsId = (existingWs[0] as any).workspace_id;
+        const { data: alreadyMember } = await supabase
+          .from("workspace_members")
+          .select("id")
+          .eq("workspace_id", targetWsId)
+          .eq("user_id", coachUserId)
+          .maybeSingle();
+
+        if (!alreadyMember) {
+          const { error: addErr } = await supabase
+            .from("workspace_members")
+            .insert({ workspace_id: targetWsId, user_id: coachUserId, role: "manager" } as any);
+          if (addErr) {
+            console.error("Erreur ajout coach à l'espace existant:", addErr);
+            toast.warning("Programme créé, mais impossible de te rattacher à l'espace existant");
+          } else {
+            attachedToExisting = true;
+          }
+        } else {
+          attachedToExisting = true;
+        }
+      } else {
+        // No workspace yet (rare) → create one
         const { data: ws, error: wsErr } = await supabase
           .from("workspaces")
           .insert({ name: clientName, created_by: coachUserId } as any)
@@ -147,7 +174,11 @@ export default function KickoffPreparation({ open, onOpenChange, coachUserId, on
       }
     }
 
-    toast.success("Programme créé pour " + clientName + " ! 🎉");
+    if (attachedToExisting) {
+      toast.success(`Programme créé · Tu as été ajoutée à l'espace existant de ${clientName} 🎉`);
+    } else {
+      toast.success("Programme créé pour " + clientName + " ! 🎉");
+    }
     setEmail(""); setWhatsapp(""); setCreateWorkspace(true); setCreating(false); onOpenChange(false); onCreated();
   };
 
@@ -162,7 +193,7 @@ export default function KickoffPreparation({ open, onOpenChange, coachUserId, on
           </section>
           <section>
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Le programme</p>
-            <div className="rounded-xl bg-rose-pale/50 p-3 text-sm text-foreground"><p className="font-semibold">Engagement : 6 mois · 250€/mois · 1 500€ total</p></div>
+            <div className="rounded-xl bg-rose-pale/50 p-3 text-sm text-foreground"><p className="font-semibold">Engagement : 6 mois · 290€/mois · 1 740€ total</p></div>
             <div className="mt-3"><label className="text-sm font-medium text-foreground">Date de début</label><Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="mt-1" /></div>
           </section>
           <section>

@@ -1,7 +1,9 @@
 import { useState, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { friendlyError } from "@/lib/error-messages";
+import { handleQuotaError } from "@/lib/quota-error-handler";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
@@ -10,8 +12,10 @@ import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import BaseReminder from "@/components/BaseReminder";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import AiLoadingIndicator from "@/components/AiLoadingIndicator";
-import { Mic, MicOff, Sparkles, Loader2, Copy, RefreshCw, Upload, X, Plus } from "lucide-react";
+import { Mic, MicOff, Sparkles, Loader2, Copy, RefreshCw, Upload, X, Plus, CalendarDays, Lightbulb } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { AddToCalendarDialog } from "@/components/calendar/AddToCalendarDialog";
+import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 
 const FORMATS = [
   { id: "carrousel", label: "📑 Carrousel Instagram (8 slides)", checked: true },
@@ -45,7 +49,17 @@ export default function ContentRecycling() {
   );
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<Record<string, string>>({});
+  const [topics, setTopics] = useState<Record<string, string>>({});
+  const [carouselStructure, setCarouselStructure] = useState<
+    | {
+        slides: Array<{ slide_number: number; title: string; body: string }>;
+        caption: { hook: string; body: string; cta: string };
+      }
+    | null
+  >(null);
   const [activeTab, setActiveTab] = useState<string>("");
+  const [showCalendarDialog, setShowCalendarDialog] = useState(false);
+  const [showIdeasDialog, setShowIdeasDialog] = useState(false);
 
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -107,7 +121,7 @@ export default function ContentRecycling() {
     if (e.dataTransfer.files.length > 0) await processFiles(e.dataTransfer.files);
   }, [processFiles]);
 
-  const canRecycle = (source.trim() || files.length > 0) && formats.length > 0;
+  const canRecycle = (source.trim() || files.length > 0) && formats.length > 0 && source.length <= 10000;
 
   const helpMessage = () => {
     const n = files.length;
@@ -143,10 +157,44 @@ export default function ContentRecycling() {
         }
       }
 
-      const { data, error } = await supabase.functions.invoke("creative-flow", { body });
-      if (error) throw error;
+      const { data, error } = await invokeWithTimeout("creative-flow", { body }, 120000);
+      if (error?.isRateLimit || data?.error === "limit_reached") {
+        if (handleQuotaError({ message: error?.message || data?.message, data })) {
+          return;
+        }
+      }
+      if (error) throw new Error(error.message);
       const r = data?.results || {};
-      setResults(r);
+      if (Object.keys(r).length === 0) {
+        toast({
+          title: "Génération incomplète",
+          description: "La génération a échoué en cours de route. Réessaie, ou coche moins de formats à la fois.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Detect structured carousel and flatten to readable text for display
+      const rawCarousel = r.carrousel;
+      const display: Record<string, string> = {};
+      let structure: typeof carouselStructure = null;
+      for (const k of Object.keys(r)) {
+        if (k === "carrousel" && rawCarousel && typeof rawCarousel === "object" && Array.isArray(rawCarousel.slides)) {
+          const slides = rawCarousel.slides as Array<{ slide_number: number; title: string; body: string }>;
+          const caption = rawCarousel.caption || { hook: "", body: "", cta: "" };
+          structure = { slides, caption };
+          const slidesText = slides
+            .map((s) => `Slide ${s.slide_number} — ${s.title}\n${s.body}`)
+            .join("\n\n");
+          const captionText = [caption.hook, caption.body, caption.cta].filter(Boolean).join("\n\n");
+          display[k] = `${slidesText}\n\n──────────\nLégende\n\n${captionText}`;
+        } else {
+          display[k] = typeof r[k] === "string" ? r[k] : JSON.stringify(r[k]);
+        }
+      }
+      setCarouselStructure(structure);
+      setResults(display);
+      setTopics(data?.topics || {});
       setActiveTab(formats[0] || "");
 
       if (user) {
@@ -162,8 +210,9 @@ export default function ContentRecycling() {
     } catch (e: any) {
       console.error("Erreur technique:", e);
       toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const copyContent = (text: string) => {
@@ -172,6 +221,76 @@ export default function ContentRecycling() {
   };
 
   const formatLabel = (id: string) => FORMATS.find(f => f.id === id)?.label || id;
+
+  const getFormatShortLabel = (id: string) => {
+    switch (id) {
+      case "carrousel": return "Carrousel";
+      case "reel": return "Reel";
+      case "stories": return "Stories";
+      case "linkedin": return "Post LinkedIn";
+      case "newsletter": return "Newsletter";
+      default: return id;
+    }
+  };
+  const getCanal = (id: string) =>
+    id === "linkedin" ? "linkedin" : id === "newsletter" ? "newsletter" : "instagram";
+  const getCalendarFormat = (id: string) => {
+    switch (id) {
+      case "carrousel": return "carousel";
+      case "reel": return "reel";
+      case "stories": return "story_serie";
+      case "linkedin": return "post";
+      case "newsletter": return "newsletter";
+      default: return "post";
+    }
+  };
+  const getContentType = (id: string): "story" | "reel" | "post_instagram" | "post_linkedin" | "newsletter" => {
+    switch (id) {
+      case "reel": return "reel";
+      case "stories": return "story";
+      case "linkedin": return "post_linkedin";
+      case "newsletter": return "newsletter";
+      default: return "post_instagram";
+    }
+  };
+
+  const getTopicFor = (id: string) => topics[id]?.trim() || (results[id] || "").split("\n").find(l => l.trim())?.slice(0, 80) || `Recyclage ${getFormatShortLabel(id)}`;
+
+  const activeText = activeTab ? (results[activeTab] || "") : "";
+  const canExport = activeText.trim().length > 0;
+
+  const handleAddToCalendar = async (dateStr: string) => {
+    if (!user || !activeTab) return;
+    const text = results[activeTab] || "";
+    const insertData: any = {
+      user_id: user.id,
+      date: dateStr,
+      theme: getTopicFor(activeTab),
+      canal: getCanal(activeTab),
+      format: getCalendarFormat(activeTab),
+      content_draft: text,
+      accroche: (activeTab === "carrousel" && carouselStructure
+        ? (carouselStructure.caption?.hook || carouselStructure.slides?.[0]?.title || "")
+        : text.split("\n")[0] || ""
+      ).slice(0, 200),
+      status: "ready",
+    };
+    if (workspaceId && workspaceId !== user.id) insertData.workspace_id = workspaceId;
+    if (activeTab === "carrousel" && carouselStructure) {
+      insertData.story_sequence_detail = {
+        type: "carousel",
+        slides: carouselStructure.slides,
+        caption: carouselStructure.caption,
+      };
+    }
+    const { error } = await supabase.from("calendar_posts").insert(insertData);
+    setShowCalendarDialog(false);
+    if (error) {
+      toast({ title: "Erreur lors de la planification", variant: "destructive" });
+    } else {
+      toast({ title: "📅 Planifié dans ton calendrier !" });
+    }
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -201,6 +320,14 @@ export default function ContentRecycling() {
                 </button>
               )}
             </div>
+            <p className={`text-xs mt-1.5 ${source.length > 10000 ? "text-destructive" : "text-muted-foreground"}`}>
+              {source.length} / 10 000 caractères
+            </p>
+            {source.length > 10000 && (
+              <p className="text-xs text-destructive mt-1">
+                Ton contenu est un peu long pour être traité d'un coup. Garde l'essentiel ou découpe-le en deux passages.
+              </p>
+            )}
           </div>
 
           {/* File upload zone */}
@@ -317,19 +444,42 @@ export default function ContentRecycling() {
 
               <RedFlagsChecker
                 content={results[activeTab]}
-                onFix={(fixed) => setResults(prev => ({ ...prev, [activeTab]: fixed }))}
+                onFix={(fixed) => { setResults(prev => ({ ...prev, [activeTab]: fixed })); if (activeTab === "carrousel") setCarouselStructure(null); }}
               />
 
               <div className="flex flex-wrap gap-2">
                 <Button variant="outline" size="sm" onClick={() => copyContent(results[activeTab])} className="rounded-pill gap-1.5">
                   <Copy className="h-3.5 w-3.5" /> Copier
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => { setResults({}); setActiveTab(""); setFiles([]); }} className="rounded-pill gap-1.5">
+                <Button variant="outline" size="sm" disabled={!canExport} onClick={() => setShowCalendarDialog(true)} className="rounded-pill gap-1.5">
+                  <CalendarDays className="h-3.5 w-3.5" /> Planifier
+                </Button>
+                <Button variant="outline" size="sm" disabled={!canExport} onClick={() => setShowIdeasDialog(true)} className="rounded-pill gap-1.5">
+                  <Lightbulb className="h-3.5 w-3.5" /> Sauvegarder en idée
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => { setResults({}); setTopics({}); setActiveTab(""); setFiles([]); setCarouselStructure(null); }} className="rounded-pill gap-1.5">
                   <RefreshCw className="h-3.5 w-3.5" /> Nouveau recyclage
                 </Button>
               </div>
 
               <BaseReminder variant="atelier" />
+
+              <AddToCalendarDialog
+                open={showCalendarDialog}
+                onOpenChange={setShowCalendarDialog}
+                onConfirm={handleAddToCalendar}
+                contentLabel={`♻️ Recyclage ${getFormatShortLabel(activeTab)}`}
+                contentEmoji="♻️"
+              />
+              <SaveToIdeasDialog
+                open={showIdeasDialog}
+                onOpenChange={setShowIdeasDialog}
+                contentType={getContentType(activeTab)}
+                subject={getTopicFor(activeTab)}
+                contentData={{ type: "recycling", format: activeTab, text: activeText }}
+                sourceModule="recycling"
+                format={getCalendarFormat(activeTab)}
+              />
             </div>
           )}
         </>

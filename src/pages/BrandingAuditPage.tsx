@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { toast } from "sonner";
 import { extractTextFromFile, isAcceptedFile, ACCEPTED_MIME_TYPES } from "@/lib/file-extractors";
 import { Search, Loader2, Upload, FileText, X, ChevronDown, ChevronUp, ArrowRight } from "lucide-react";
@@ -73,6 +74,7 @@ export default function BrandingAuditPage() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
+  const profileUserId = useProfileUserId();
   const navigate = useNavigate();
   const location = useLocation();
   const { diagnosticData: diagCache, isRecent: diagIsRecent } = useDiagnosticCache();
@@ -110,7 +112,7 @@ export default function BrandingAuditPage() {
       const { data: profile } = await supabase
         .from("profiles")
         .select("website_url, instagram_url, linkedin_url")
-        .eq("id", user.id)
+        .eq("user_id", profileUserId)
         .maybeSingle();
       if (profile?.website_url) setSiteUrl(profile.website_url);
       if (profile?.instagram_url) {
@@ -144,7 +146,7 @@ export default function BrandingAuditPage() {
         setFormOpen(true);
       }
     })();
-  }, [user]);
+  }, [user, profileUserId, column, value]);
 
   // If navigated with ?refaire hash, open form
   useEffect(() => {
@@ -202,7 +204,7 @@ export default function BrandingAuditPage() {
       if (documentText) payload.document_text = documentText;
       if (useFreeText && freeText.trim()) payload.free_text = freeText.trim();
 
-      const { data, error } = await supabase.functions.invoke("audit-branding", { body: { ...payload, workspace_id: workspaceId } });
+      const { data, error } = await invokeWithTimeout("audit-branding", { body: { ...payload, workspace_id: workspaceId } }, 120000);
 
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
@@ -535,7 +537,7 @@ function AuditResults({ result, previousAudit, expandedPillar, setExpandedPillar
 
   const navigateWithContext = (route: string, conseil?: string, module?: string) => {
     if (conseil && module) {
-      sessionStorage.setItem("audit_recommendation", JSON.stringify({ module, conseil }));
+      sessionStorage.setItem("audit_recommendation", JSON.stringify({ module, conseil, ts: Date.now() }));
     }
     navigate(route);
   };

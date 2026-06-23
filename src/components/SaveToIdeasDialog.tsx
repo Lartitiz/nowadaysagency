@@ -7,6 +7,7 @@ import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voi
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceId } from "@/hooks/use-workspace-query";
 
 const TAG_OPTIONS = [
   { id: "education", label: "Éducation" },
@@ -20,13 +21,16 @@ const TAG_OPTIONS = [
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  contentType: "story" | "reel" | "post_instagram" | "post_linkedin";
+  contentType: "story" | "reel" | "post_instagram" | "post_linkedin" | "newsletter" | "pinterest";
   subject: string;
   contentData: any;
   personalElements?: any;
   sourceModule: string;
   format?: string;
   objectif?: string;
+  visualSlides?: { slide_number: number; html: string }[];
+  onUploadVisuals?: (ideaId: string) => Promise<string[]>;
+  editingIdeaId?: string | null;
 }
 
 export function SaveToIdeasDialog({
@@ -39,8 +43,12 @@ export function SaveToIdeasDialog({
   sourceModule,
   format,
   objectif,
+  visualSlides,
+  onUploadVisuals,
+  editingIdeaId,
 }: Props) {
   const { user } = useAuth();
+  const workspaceId = useWorkspaceId();
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [customTag, setCustomTag] = useState("");
   const [note, setNote] = useState("");
@@ -64,36 +72,92 @@ export function SaveToIdeasDialog({
     if (!user) return;
     setSaving(true);
 
-    const contentEmoji = contentType === "story" ? "📱" : contentType === "reel" ? "🎬" : "📸";
-    const formatLabel = contentType === "story" ? "story_serie" : contentType === "reel" ? "reel" : format || "post";
+    const contentEmoji =
+      contentType === "newsletter" ? "📧" :
+      contentType === "story" ? "📱" :
+      contentType === "reel" ? "🎬" :
+      contentType === "pinterest" ? "📌" : "📸";
+    const formatLabel =
+      contentType === "newsletter" ? "newsletter" :
+      contentType === "story" ? "story_serie" :
+      contentType === "reel" ? "reel" :
+      contentType === "pinterest" ? (format || "pinterest") : (format || "post");
+    const canalValue =
+      contentType === "newsletter" ? "newsletter" :
+      contentType === "post_linkedin" ? "linkedin" :
+      contentType === "pinterest" ? "pinterest" : "instagram";
 
-    const { error } = await supabase.from("saved_ideas").insert({
-      user_id: user.id,
+    const baseFields = {
       titre: `${contentEmoji} ${subject || contentType}`,
       angle: selectedTags.length > 0 ? selectedTags.join(", ") : contentType,
       format: formatLabel,
-      canal: "instagram",
+      canal: canalValue,
       objectif: objectif || null,
-      type: "draft",
-      status: "to_explore",
       notes: note || null,
       content_draft: typeof contentData === "string" ? contentData : JSON.stringify(contentData),
       content_data: contentData,
-      source_module: sourceModule,
       personal_elements: personalElements || null,
-    } as any);
+    };
+
+    let targetId: string | null = null;
+    let isUpdate = false;
+
+    if (editingIdeaId) {
+      isUpdate = true;
+      const { error } = await supabase
+        .from("saved_ideas")
+        .update({ ...baseFields, updated_at: new Date().toISOString() } as any)
+        .eq("id", editingIdeaId);
+      if (error) {
+        setSaving(false);
+        onOpenChange(false);
+        console.error("Update idea error:", error);
+        toast.error("Erreur lors de la mise à jour");
+        return;
+      }
+      targetId = editingIdeaId;
+    } else {
+      const { data: newIdea, error } = await supabase.from("saved_ideas").insert({
+        user_id: user.id,
+        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+        ...baseFields,
+        type: "draft",
+        status: "to_explore",
+        source_module: sourceModule,
+      } as any).select("id").single();
+
+      if (error) {
+        setSaving(false);
+        onOpenChange(false);
+        console.error("Save to ideas error:", error);
+        toast.error("Erreur lors de la sauvegarde");
+        return;
+      }
+      targetId = newIdea?.id ?? null;
+    }
+
+    // Upload optionnel des visuels — ne bloque jamais la sauvegarde
+    if (visualSlides && visualSlides.length > 0 && onUploadVisuals && targetId) {
+      try {
+        const urls = await onUploadVisuals(targetId);
+        if (urls.length > 0) {
+          await supabase
+            .from("saved_ideas")
+            .update({
+              content_data: { ...contentData, visual_urls: urls, visual_html: visualSlides },
+            } as any)
+            .eq("id", targetId);
+        }
+      } catch (e) {
+        console.warn("Visual upload failed (idea saved without visuals):", e);
+      }
+    }
 
     setSaving(false);
     onOpenChange(false);
-
-    if (error) {
-      console.error("Save to ideas error:", error);
-      toast.error("Erreur lors de la sauvegarde");
-    } else {
-      toast.success("💡 Idée sauvegardée ! Tu la retrouveras dans Mes idées.");
-      setSelectedTags([]);
-      setNote("");
-    }
+    toast.success(isUpdate ? "💡 Idée mise à jour !" : "💡 Idée sauvegardée ! Tu la retrouveras dans Mes idées.");
+    setSelectedTags([]);
+    setNote("");
   };
 
   return (

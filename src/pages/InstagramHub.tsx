@@ -7,7 +7,7 @@ import { ArrowLeft } from "lucide-react";
 import FirstTimeTooltip from "@/components/FirstTimeTooltip";
 import { ZoneSection, HubCard, FormatPill } from "@/components/hub";
 import { useDemoContext } from "@/contexts/DemoContext";
-import { DEMO_DATA } from "@/lib/demo-data";
+
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import InstagramProfileCoaching from "@/components/instagram/InstagramProfileCoaching";
 
@@ -24,7 +24,7 @@ interface ProgressData {
 
 export default function InstagramHub() {
   const { user } = useAuth();
-  const { isDemoMode } = useDemoContext();
+  const { isDemoMode, demoData } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState<ProgressData>({
@@ -33,11 +33,11 @@ export default function InstagramHub() {
   const [coachingOpen, setCoachingOpen] = useState(false);
 
   useEffect(() => {
-    if (isDemoMode) {
+    if (isDemoMode && demoData) {
       setProgress({
-        auditScore: DEMO_DATA.audit.score,
-        ideasCount: DEMO_DATA.calendar_posts.filter(p => !p.planned_day).length,
-        calendarCount: DEMO_DATA.calendar_posts.filter(p => p.planned_day).length,
+        auditScore: (demoData as any).audit.score,
+        ideasCount: (demoData as any).calendar_posts.filter((p: any) => !p.planned_day).length,
+        calendarCount: (demoData as any).calendar_posts.filter((p: any) => p.planned_day).length,
         launchCount: 0,
         engagementWeekly: "4/10",
         statsFollowers: 1247,

@@ -1,10 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { getUserContext, formatContextForAI, buildIdentityBlock } from "../_shared/user-context.ts";
 import { callAnthropic, getModelForAction } from "../_shared/anthropic.ts";
 import { buildSystemPrompt, CONTENT_VOICE_RULES, ANTI_PATTERNS } from "../_shared/base-prompts.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 
@@ -29,15 +30,17 @@ serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
       return new Response(JSON.stringify({ error: "Non autorisé" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const userId = claimsData.claims.sub as string;
+    const userId = user.id;
+
+    const rateCheck = checkRateLimit(userId);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
 
     const reqBody = await req.json();
     const { messages, page_context, workspace_id, mode, generation_type } = validateInput(reqBody, z.object({
@@ -141,17 +144,17 @@ TA PERSONNALITÉ :
 - Tu assumes la vulnérabilité mais tu restes dans l'enseignement
 - Tu fais des apartés en *italique* quand c'est pertinent
 
-PROFIL DE L'UTILISATRICE :
+PROFIL DE LA PERSONNE :
 ${brandingContext || "Aucun profil branding renseigné pour le moment."}
 
-CONTEXTE DANS L'OUTIL : L'utilisatrice se trouve actuellement sur : ${pageLabel}
+CONTEXTE DANS L'OUTIL : La personne se trouve actuellement sur : ${pageLabel}
 
 CE QUE TU PEUX FAIRE :
 - Répondre à des questions sur la com', le branding, le contenu, les réseaux sociaux, le site web, le copywriting, le SEO, l'email marketing
 - Donner des conseils personnalisés basés sur le profil branding
 - Aider à débloquer une situation ("je sais pas quoi poster", "j'arrive pas à formuler mon offre")
 - Rediriger vers le bon module de l'outil quand c'est pertinent
-- Donner un feedback sur un texte que l'utilisatrice te soumet
+- Donner un feedback sur un texte qu'on te soumet
 - Aider à réfléchir à une stratégie
 
 CE QUE TU NE FAIS PAS :
@@ -179,9 +182,9 @@ LIMITES :
 - Tes réponses font 3-8 phrases max (c'est un chat, pas une dissertation)
 - Si la question est trop vaste, pose UNE question de clarification
 - Si tu ne sais pas, dis-le franchement
-- Commence souvent par valider ce que l'utilisatrice dit avant de donner ton conseil
+- Commence souvent par valider ce que la personne dit avant de donner ton conseil
 - Réponds en markdown (gras, italique) mais pas de titres h1/h2`,
-      isPreGen ? `PROFIL DE L'UTILISATRICE :\n${brandingContext || "Aucun profil branding renseigné pour le moment."}` : ""
+      isPreGen ? `PROFIL DE LA PERSONNE :\n${brandingContext || "Aucun profil branding renseigné pour le moment."}` : ""
     );
 
     // Build messages for Anthropic (only last 20 messages)
@@ -208,11 +211,22 @@ LIMITES :
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (error) {
+  } catch (error: any) {
+    if (error instanceof ValidationError) {
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (error?.status === 429) {
+      return new Response(JSON.stringify({ error: "Trop de requêtes. Réessaie dans un moment." }), {
+        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     console.error("coach-chat error:", error);
-    return new Response(JSON.stringify({
-      error: error instanceof Error ? error.message : "Erreur interne",
-    }), {
+    const userMessage = error instanceof Error && (error.message.includes("API") || error.message.includes("IA"))
+      ? error.message
+      : "Erreur interne";
+    return new Response(JSON.stringify({ error: userMessage }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

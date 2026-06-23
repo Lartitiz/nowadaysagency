@@ -7,9 +7,10 @@ import { useState } from "react";
 
 interface Props {
   result: any;
+  photos?: { preview: string; base64?: string; name?: string }[];
 }
 
-export default function LinkedInResult({ result }: Props) {
+export default function LinkedInResult({ result, photos }: Props) {
   const hook = result?.hook || result?.accroche || "";
   const body = result?.body || result?.content || result?.text || "";
   const cta = result?.cta || result?.call_to_action || "";
@@ -25,6 +26,27 @@ export default function LinkedInResult({ result }: Props) {
 
   return (
     <div className="space-y-4 animate-fade-in">
+      {photos && photos.length > 0 && (
+        <Card className="border-border">
+          <CardContent className="p-3 space-y-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Tes photos ({photos.length})
+            </p>
+            <div className="grid grid-cols-3 gap-1.5">
+              {photos.map((p, i) => (
+                <img
+                  key={i}
+                  src={p.preview || (p.base64?.startsWith("data:") ? p.base64 : `data:image/jpeg;base64,${p.base64}`)}
+                  alt={p.name || `Photo ${i + 1}`}
+                  className="aspect-square w-full rounded-md object-cover border border-border"
+                />
+              ))}
+            </div>
+            <p className="text-[10px] text-muted-foreground">À joindre manuellement à ton post LinkedIn. Elles sont sauvegardées dans le calendrier.</p>
+          </CardContent>
+        </Card>
+      )}
+
       {hook && (
         <Card className="border-primary/20 bg-primary/5">
           <CardContent className="p-3 space-y-1">

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
-import { DEMO_DATA } from "@/lib/demo-data";
+
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Plus, GripVertical, MoreVertical, Trash2, CalendarIcon, Undo2, Search, X } from "lucide-react";
@@ -54,11 +54,12 @@ interface Props {
   onIdeaClick?: (idea: SavedIdea) => void;
   isMobile?: boolean;
   onCollapse?: () => void;
+  refreshKey?: number;
 }
 
-export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile, onCollapse }: Props) {
+export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile, onCollapse, refreshKey }: Props) {
   const { user } = useAuth();
-  const { isDemoMode } = useDemoContext();
+  const { isDemoMode, demoData } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const { toast } = useToast();
@@ -71,8 +72,8 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile, onC
   const [planDate, setPlanDate] = useState<Date | undefined>();
 
   const fetchIdeas = async () => {
-    if (isDemoMode) {
-      const demoIdeas = (DEMO_DATA as any).saved_ideas || [];
+    if (isDemoMode && demoData) {
+      const demoIdeas = (demoData as any).saved_ideas || [];
       setIdeas(demoIdeas as SavedIdea[]);
       return;
     }
@@ -86,11 +87,10 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile, onC
 
   useEffect(() => { fetchIdeas(); }, [user?.id, isDemoMode, column, value]);
 
-  // Expose refresh so parent can trigger after unplan
   useEffect(() => {
-    (window as any).__refreshIdeasSidebar = fetchIdeas;
-    return () => { delete (window as any).__refreshIdeasSidebar; };
-  }, [user?.id]);
+    if (refreshKey === undefined || refreshKey === 0) return;
+    fetchIdeas();
+  }, [refreshKey]);
 
   const filteredIdeas = useMemo(() => {
     let result = ideas;
@@ -144,7 +144,9 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile, onC
       format: planDialogIdea.format,
       notes: planDialogIdea.notes,
       content_draft: planDialogIdea.content_draft,
-    }).select("id").single();
+      series_id: (planDialogIdea as any).series_id ?? null,
+      episode_number: (planDialogIdea as any).episode_number ?? null,
+    } as any).select("id").single();
 
     if (newPost) {
       await supabase.from("saved_ideas").update({ calendar_post_id: newPost.id, planned_date: dateStr }).eq("id", planDialogIdea.id);
@@ -366,7 +368,7 @@ function AddIdeaDialog({ open, onOpenChange, onAdded }: { open: boolean; onOpenC
       angle: "",
       objectif: objective,
       notes: notes || null,
-      status: "idea",
+      status: "to_explore",
       canal: ideaFormat === "linkedin" ? "linkedin" : "instagram",
     });
     toast({ title: "Idée ajoutée !" });

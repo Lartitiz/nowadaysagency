@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useUserPhase } from "@/hooks/use-user-phase";
-import { X, ArrowLeft } from "lucide-react";
+import { X, ArrowLeft, Lightbulb } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useSession } from "@/contexts/SessionContext";
 import { toast } from "@/hooks/use-toast";
@@ -32,13 +32,15 @@ import SpaceBentoCard from "@/components/dashboard/SpaceBentoCard";
 import { spaceModules } from "@/config/dashboardModules";
 import BadgesWidget from "@/components/dashboard/BadgesWidget";
 import WeekCalendarWidget from "@/components/dashboard/WeekCalendarWidget";
-import EngagementRoutineWidget from "@/components/dashboard/EngagementRoutineWidget";
+import PlanWeekWidget from "@/components/dashboard/PlanWeekWidget";
 import MonthlyStatsWidget from "@/components/dashboard/MonthlyStatsWidget";
 import LaetitiaCoachingCard from "@/components/dashboard/LaetitiaCoachingCard";
 import DiscoveryCoachingCard from "@/components/dashboard/DiscoveryCoachingCard";
 import { checkBadges } from "@/lib/badges";
 import { trackError } from "@/lib/error-tracker";
 import OnboardingMissions from "@/components/dashboard/OnboardingMissions";
+import { isAurianaDemoEmail, AURIANA_DEMO_FLOW } from "@/lib/demo-auriana-data";
+import { saveFlowState, clearFlowState } from "@/hooks/use-flow-persistence";
 
 import SessionFocusWidget from "@/components/dashboard/SessionFocusWidget";
 import ContentCoachingDialog from "@/components/dashboard/ContentCoachingDialog";
@@ -79,6 +81,7 @@ interface DashboardData {
   nextPost: { date: string; theme: string } | null;
   planData: PlanData | null;
   recommendations: { id: string; titre: string | null; route: string; completed: boolean | null }[];
+  ideaCount: number;
 }
 
 /* ── Welcome messages ── */
@@ -205,6 +208,7 @@ export default function Dashboard() {
     contactCount: 0, prospectCount: 0, prospectConversation: 0, prospectOffered: 0,
     calendarPostCount: 0, weekPostsPublished: 0, weekPostsTotal: 0, nextPost: null,
     planData: null, recommendations: [],
+    ideaCount: 0,
   };
 
   // ── Dashboard data query ──
@@ -221,6 +225,7 @@ export default function Dashboard() {
           weekPostsPublished: 1,
           contactCount: demoData.contacts.length,
           prospectCount: demoData.contacts.filter(c => c.type === "prospect").length,
+          ideaCount: demoData.saved_ideas?.length || 0,
           recommendations: [
             { id: "demo-rec-1", titre: "Optimise ta bio Instagram", route: "/instagram/profil/bio", completed: false },
             { id: "demo-rec-2", titre: "Crée un calendrier de publication régulier", route: "/calendrier", completed: false },
@@ -232,12 +237,15 @@ export default function Dashboard() {
 
       const wsId = activeWorkspace?.id || null;
 
-      const [summaryRes, brandingData] = await Promise.all([
+      const [summaryRes, brandingData, ideasCountRes] = await Promise.all([
         supabase.rpc("get_dashboard_summary", {
           p_user_id: user.id,
           p_workspace_id: wsId,
         } as any),
         fetchBrandingData({ column, value }),
+        supabase.from("saved_ideas").select("*", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("workspace_id", wsId ?? user.id),
       ]);
 
       const s = (summaryRes.data as any) || {};
@@ -268,6 +276,7 @@ export default function Dashboard() {
         nextPost: s.next_post ? { date: s.next_post.date, theme: s.next_post.theme } : null,
         planData,
         recommendations: s.recommendations || [],
+        ideaCount: ideasCountRes.count ?? 0,
       };
     },
     enabled: !!user || isDemoMode,
@@ -454,16 +463,65 @@ export default function Dashboard() {
                     </button>
                   ))}
                 </div>
-                <button
-                  onClick={(e) => { e.stopPropagation(); setContentCoachingOpen(true); }}
-                  className="text-xs text-muted-foreground hover:text-primary mt-3 transition-colors"
-                >
-                  🤔 Je sais pas quoi poster...
-                </button>
+                <div className="flex flex-col gap-2 mt-3">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setContentCoachingOpen(true); }}
+                    className="text-xs text-muted-foreground hover:text-primary transition-colors self-start"
+                  >
+                    🤔 Je sais pas quoi poster...
+                  </button>
+                  {isAurianaDemoEmail(user?.email) && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        clearFlowState();
+                        saveFlowState({ ...AURIANA_DEMO_FLOW, ts: Date.now() });
+                        navigate("/creer", { state: { demo: true, demoScenario: "auriana-carousel" } });
+                      }}
+                      className="self-start text-sm font-semibold px-4 py-2.5 rounded-xl
+                        bg-primary text-primary-foreground
+                        hover:bg-primary/90
+                        transition-all duration-150 shadow-sm"
+                    >
+                      🎬 Lancer la démo carrousel
+                    </button>
+                  )}
+                </div>
               </BentoCard>
             </FirstTimeTooltip>
           </div>
-          <div className="md:col-span-1 order-first md:order-last">
+          <div className="md:col-span-1 order-first md:order-last flex flex-col gap-4">
+            {/* ─── Mes idées ─── */}
+            <div
+              onClick={() => navigate("/idees")}
+              className="rounded-[20px] p-5 sm:p-5
+                shadow-[var(--shadow-bento)]
+                hover:shadow-[var(--shadow-bento-hover)] hover:-translate-y-[3px]
+                active:translate-y-0 active:shadow-[var(--shadow-bento)]
+                transition-all duration-[250ms] ease-out
+                cursor-pointer
+                opacity-0 animate-reveal-up
+                bg-gradient-to-br from-[hsl(var(--bento-lavande))] to-[hsl(270_50%_97%)]
+                border border-border/50 text-foreground
+                flex flex-col justify-between min-h-[130px]"
+              style={{ animationDelay: `${nextDelay()}s`, animationFillMode: "forwards" }}
+            >
+              <div className="flex justify-between items-start">
+                <div className="w-9 h-9 rounded-xl bg-white/60 backdrop-blur-sm border border-white/40 flex items-center justify-center">
+                  <Lightbulb className="h-5 w-5 text-primary" />
+                </div>
+                {dashData.ideaCount > 0 && (
+                  <span className="bg-black/5 px-2 py-0.5 rounded-md text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                    {dashData.ideaCount} idée{dashData.ideaCount > 1 ? "s" : ""}
+                  </span>
+                )}
+              </div>
+              <div>
+                <h3 className="font-heading text-base font-bold text-foreground leading-tight">Mes idées</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Boîte à idées</p>
+              </div>
+            </div>
+
             <SessionFocusWidget
               brandingCompletion={dashData.brandingCompletion}
               igAuditScore={dashData.igAuditScore}
@@ -510,8 +568,8 @@ export default function Dashboard() {
           <FirstTimeTooltip id="dashboard-calendar" text="Planifie tes contenus de la semaine. Fini le 'je poste quoi aujourd'hui'." className="col-span-4 sm:col-span-6 lg:col-span-6 row-span-3">
             <WeekCalendarWidget animationDelay={nextDelay()} />
           </FirstTimeTooltip>
-          <FirstTimeTooltip id="dashboard-routine" text="15 min/jour pour interagir avec ta communauté. L'habitude qui change tout." className="col-span-4 sm:col-span-6 lg:col-span-6 row-span-1">
-            <EngagementRoutineWidget animationDelay={nextDelay()} />
+          <FirstTimeTooltip id="dashboard-plan-week" text="L'IA te propose un planning de contenus personnalisé pour la semaine." className="col-span-4 sm:col-span-6 lg:col-span-6 row-span-1">
+            <PlanWeekWidget animationDelay={nextDelay()} />
           </FirstTimeTooltip>
           <FirstTimeTooltip id="dashboard-stats" text="Tes chiffres du mois. Publications, engagement, objectifs." className="col-span-4 sm:col-span-6 lg:col-span-6 row-span-2">
             <MonthlyStatsWidget animationDelay={nextDelay()} />

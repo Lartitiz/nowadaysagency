@@ -3,7 +3,7 @@ import { Gift, Loader2, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useUserPlan } from "@/hooks/use-user-plan";
 
 export default function PromoCodeInput() {
@@ -17,10 +17,10 @@ export default function PromoCodeInput() {
     if (!code.trim()) return;
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("redeem-promo", {
+      const { data, error } = await invokeWithTimeout("redeem-promo", {
         body: { code: code.trim() },
-      });
-      if (error) throw error;
+      }, 30000);
+      if (error) throw new Error(error.message);
       if (data?.error) {
         toast({ title: "Erreur", description: data.error, variant: "destructive" });
       } else if (data?.success) {

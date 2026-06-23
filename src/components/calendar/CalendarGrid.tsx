@@ -20,10 +20,11 @@ interface Props {
   onEditPost: (post: CalendarPost) => void;
   onMovePost?: (postId: string, newDate: string) => void;
   onAddIdea?: (dateStr: string) => void;
+  seriesNameById?: Record<string, string>;
 }
 
 /* ── Draggable content card (desktop) ── */
-function DraggableCard({ post, onClick }: { post: CalendarPost; onClick: () => void }) {
+function DraggableCard({ post, onClick, seriesNameById }: { post: CalendarPost; onClick: () => void; seriesNameById?: Record<string, string> }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: post.id });
   const style: React.CSSProperties = {
     transform: transform ? `translate(${transform.x}px, ${transform.y}px)` : undefined,
@@ -35,18 +36,19 @@ function DraggableCard({ post, onClick }: { post: CalendarPost; onClick: () => v
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <CalendarContentCard post={post} onClick={onClick} variant="compact" />
+      <CalendarContentCard post={post} onClick={onClick} variant="compact" seriesNameById={seriesNameById} />
     </div>
   );
 }
 
 /* ── Droppable day cell (desktop) ── */
 function DroppableDay({
-  dateStr, dayNum, inMonth, isToday, posts, onCreatePost, onEditPost, onAddIdea,
+  dateStr, dayNum, inMonth, isToday, posts, onCreatePost, onEditPost, onAddIdea, seriesNameById,
 }: {
   dateStr: string; dayNum: number; inMonth: boolean; isToday: boolean;
   posts: CalendarPost[]; onCreatePost: (dateStr: string) => void; onEditPost: (p: CalendarPost) => void;
   onAddIdea: (dateStr: string) => void;
+  seriesNameById?: Record<string, string>;
 }) {
   const isPast = new Date(dateStr + "T00:00:00") < new Date(toLocalDateStr(new Date()) + "T00:00:00");
   const { setNodeRef, isOver } = useDroppable({ id: dateStr });
@@ -72,7 +74,7 @@ function DroppableDay({
       </div>
       <div className="space-y-0">
         {posts.slice(0, maxVisible).map((p) => (
-          <DraggableCard key={p.id} post={p} onClick={() => onEditPost(p)} />
+          <DraggableCard key={p.id} post={p} onClick={() => onEditPost(p)} seriesNameById={seriesNameById} />
         ))}
         {posts.length > maxVisible && (
           <button
@@ -88,7 +90,7 @@ function DroppableDay({
 }
 
 /* ── Mobile post card with long-press move ── */
-function MobilePostCard({ post, onClick, onMove }: { post: CalendarPost; onClick: () => void; onMove: (post: CalendarPost) => void }) {
+function MobilePostCard({ post, onClick, onMove, seriesNameById }: { post: CalendarPost; onClick: () => void; onMove: (post: CalendarPost) => void; seriesNameById?: Record<string, string> }) {
   const [pressTimer, setPressTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
 
   const handleTouchStart = () => {
@@ -106,13 +108,13 @@ function MobilePostCard({ post, onClick, onMove }: { post: CalendarPost; onClick
       onTouchEnd={handleTouchEnd}
       onTouchCancel={handleTouchEnd}
     >
-      <CalendarContentCard post={post} onClick={onClick} variant="compact" />
+      <CalendarContentCard post={post} onClick={onClick} variant="compact" seriesNameById={seriesNameById} />
     </div>
   );
 }
 
 /* ── Main component (no DndContext — parent provides it) ── */
-export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, onCreatePost, onEditPost, onMovePost, onAddIdea }: Props) {
+export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, onCreatePost, onEditPost, onMovePost, onAddIdea, seriesNameById }: Props) {
   const [moveDialogPost, setMoveDialogPost] = useState<CalendarPost | null>(null);
   const [moveDate, setMoveDate] = useState<Date | undefined>();
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
@@ -153,7 +155,7 @@ export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, on
                 </div>
                 <div>
                   {(expandedDays.has(dateStr) ? dayPosts : dayPosts.slice(0, 1)).map((p) => (
-                    <MobilePostCard key={p.id} post={p} onClick={() => onEditPost(p)} onMove={handleMobileMove} />
+                    <MobilePostCard key={p.id} post={p} onClick={() => onEditPost(p)} onMove={handleMobileMove} seriesNameById={seriesNameById} />
                   ))}
                   {dayPosts.length > 1 && !expandedDays.has(dateStr) && (
                     <button
@@ -185,7 +187,6 @@ export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, on
               mode="single"
               selected={moveDate}
               onSelect={setMoveDate}
-              disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
               className={cn("p-3 pointer-events-auto mx-auto")}
               locale={fr}
             />
@@ -244,6 +245,7 @@ export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, on
                     onCreatePost={onCreatePost}
                     onEditPost={onEditPost}
                     onAddIdea={addIdeaHandler}
+                    seriesNameById={seriesNameById}
                   />
                 );
               })}

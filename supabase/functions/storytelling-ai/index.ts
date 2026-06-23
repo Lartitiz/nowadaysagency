@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
@@ -8,6 +8,7 @@ import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { isDemoUser } from "../_shared/guard-demo.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -27,14 +28,16 @@ serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
       return new Response(JSON.stringify({ error: "Authentification invalide" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const userId = claimsData.claims.sub;
+    const userId = user.id;
+
+    const rateCheck = checkRateLimit(userId);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
 
     if (isDemoUser(userId)) {
       return new Response(JSON.stringify({ error: "Demo mode: this feature is simulated" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -82,7 +85,7 @@ CONSIGNE :
 Améliore ce texte pour le rendre plus vivant, plus concret et plus immersif. 
 
 RÈGLES STRICTES :
-- Garde le sens et les idées de l'utilisatrice. Ne change PAS le fond.
+- Garde le sens et les idées de la personne. Ne change PAS le fond.
 - Garde ses mots clés, ses expressions, sa voix. C'est SON histoire.
 - Rends les scènes plus visuelles (lieu, action, détails sensoriels)
 - Ajoute des sensations physiques si pertinent
@@ -100,9 +103,9 @@ Réponds UNIQUEMENT avec le texte amélioré, sans commentaire ni explication.`;
       const s = steps || {};
       systemPrompt = `Tu es expert·e en storytelling.
 
-Tu vas écrire un storytelling captivant à partir des éléments fournis par l'utilisatrice.
+Tu vas écrire un storytelling captivant à partir des éléments fournis par la personne.
 
-ÉLÉMENTS DE L'UTILISATRICE :
+ÉLÉMENTS DE LA PERSONNE :
 - Histoire brute (étape 1) : "${s.step_1_raw || ""}"
 - Lieu et action (étape 2) : "${s.step_2_location || ""}"
 - Scène d'action (étape 3) : "${s.step_3_action || ""}"

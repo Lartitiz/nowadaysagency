@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -205,10 +206,10 @@ export default function AdminResetTool() {
 
       // Call the edge function which uses service role key (bypasses RLS)
       const session = (await (supabase.auth as any).getSession()).data.session;
-      const { data, error } = await supabase.functions.invoke("reset-onboarding", {
+      const { data, error } = await invokeWithTimeout("reset-onboarding", {
         headers: { Authorization: `Bearer ${session?.access_token}` },
         body: { targetUserId: userId },
-      });
+      }, 30000);
 
       if (error) {
         toast.error("Erreur lors du reset", { description: error.message });

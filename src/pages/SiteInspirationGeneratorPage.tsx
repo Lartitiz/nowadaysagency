@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
@@ -7,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceId, useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { friendlyError } from "@/lib/error-messages";
@@ -85,15 +86,15 @@ export default function SiteInspirationGeneratorPage() {
     if (!sectionType) return;
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("website-ai", {
+      const { data, error } = await invokeWithTimeout("website-ai", {
         body: {
           action: "generate-section-html",
           section_type: sectionType,
           variant_count: 2,
           workspace_id: workspaceId,
         },
-      });
-      if (error) throw error;
+      }, 90000);
+      if (error) throw new Error(error.message);
 
       const content = typeof data === "string" ? data : data?.content ?? data;
       let parsed: { variants: Variant[] };

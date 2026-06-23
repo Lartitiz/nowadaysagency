@@ -3,6 +3,7 @@ import EmptyState from "@/components/EmptyState";
 import { MESSAGES } from "@/lib/messages";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
@@ -59,7 +60,7 @@ export default function PinterestTableaux() {
     if (!b.name.trim()) return;
     setGeneratingIdx(idx);
     try {
-      const res = await supabase.functions.invoke("pinterest-ai", { body: { action: "board-description", board_name: b.name, board_type: b.board_type } });
+      const res = await invokeWithTimeout("pinterest-ai", { body: { action: "board-description", board_name: b.name, board_type: b.board_type, workspace_id: workspaceId !== user?.id ? workspaceId : undefined } }, 60000);
       if (res.error) throw new Error(res.error.message);
       updateBoard(idx, "description", res.data?.content || "");
     } catch (e: any) { console.error("Erreur technique:", e); toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" }); }
@@ -112,7 +113,7 @@ export default function PinterestTableaux() {
                 <span className="text-sm font-bold text-foreground">Tableau {idx + 1}</span>
                 <Button variant="ghost" size="sm" onClick={() => removeBoard(idx)}><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>
               </div>
-              <Input value={b.name} onChange={e => updateBoard(idx, "name", e.target.value)} placeholder="Ex : Bijoux artisanaux minimalistes" />
+              <Input value={b.name} onChange={e => updateBoard(idx, "name", e.target.value)} placeholder="Ex : le thème de ton tableau" />
               <Select value={b.board_type} onValueChange={v => updateBoard(idx, "board_type", v)}>
                 <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>{BOARD_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>

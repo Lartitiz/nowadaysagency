@@ -1,10 +1,12 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildIdentityBlock } from "../_shared/user-context.ts";
+import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
 const MODULE_QUESTIONS: Record<string, string[]> = {
   bio: [
@@ -67,6 +69,9 @@ Deno.serve(async (req) => {
       });
     }
 
+    const rateCheck = checkRateLimit(user.id);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+
     const body = await req.json();
     const { phase, module, answers, audit_context, workspace_id } = body;
 
@@ -87,6 +92,12 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
+
+    const membership = await assertWorkspaceMembership(sbService, user.id, workspace_id);
+    if (!membership.ok) {
+      console.warn("[workspace-guard] denied", { userId: user.id, workspaceId: workspace_id });
+      return workspaceDeniedResponse(corsHeaders);
+    }
 
     const filterCol = workspace_id ? "workspace_id" : "user_id";
     const filterVal = workspace_id || user.id;
@@ -127,7 +138,7 @@ Retourne UNIQUEMENT un JSON :
   "intro": "Message d'intro court et personnalisé (2 phrases max)"
 }`;
 
-      const raw = await callAnthropicSimple(getModelForAction("coaching_light"), BASE_SYSTEM_RULES + "\n\n" + systemPrompt + "\n\n" + ANTI_SLOP, "Génère les questions personnalisées.", 0.4, 1024);
+      const raw = await callAnthropicSimple(getModelForAction("coaching_light"), BASE_SYSTEM_RULES + "\n\n" + systemPrompt, "Génère les questions personnalisées.", 0.4, 1024);
 
       let result;
       try {
@@ -194,7 +205,7 @@ Retourne un JSON :
 
 Sois directe, bienveillante, et concrète. Pas de jargon. Tutoiement.`;
 
-      const raw = await callAnthropicSimple(getModelForAction("coaching_light"), BASE_SYSTEM_RULES + "\n\n" + systemPrompt + "\n\n" + ANTI_SLOP, "Génère ton diagnostic et tes propositions.", 0.5, 4000);
+      const raw = await callAnthropicSimple(getModelForAction("coaching_light"), BASE_SYSTEM_RULES + "\n\n" + systemPrompt, "Génère ton diagnostic et tes propositions.", 0.5, 4000);
 
       let result;
       try {
@@ -208,7 +219,7 @@ Sois directe, bienveillante, et concrète. Pas de jargon. Tutoiement.`;
         });
       }
 
-      await logUsage(user.id, "content", "ig_profile_coaching_diagnostic");
+      await logUsage(user.id, "suggestion", "ig_profile_coaching_diagnostic");
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

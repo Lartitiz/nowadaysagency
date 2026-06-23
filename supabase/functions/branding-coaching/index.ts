@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { callAnthropic, callAnthropicWithMeta, getDefaultModel } from "../_shared/anthropic.ts";
+import { callAnthropic, callAnthropicWithMeta, getDefaultModel, getModelForAction } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
+
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
@@ -11,11 +11,12 @@ import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limit
 
 const SECTION_CHECKLISTS: Record<string, string[]> = {
   story: ["story_origin", "story_turning_point", "story_struggles", "story_unique", "story_vision"],
-  persona: ["description", "demographics", "frustrations", "desires", "objections", "buying_triggers", "channels", "daily_life"],
+  persona: ["frustrations", "transformation", "objections", "cliches", "aesthetic_world", "inspiration", "actions"],
   value_proposition: ["value_prop_problem", "value_prop_solution", "value_prop_difference", "value_prop_proof", "value_prop_sentence"],
   tone_style: ["tone_description", "tone_do", "tone_dont", "combats", "visual_style"],
   content_strategy: ["content_pillars", "content_twist", "content_formats", "content_frequency", "content_editorial_line"],
   offers: ["offer_name", "offer_price", "offer_target", "offer_promise", "offer_includes"],
+  content_series: ["series_count", "series_pitch", "series_pillar_link", "series_format", "series_signature"],
 };
 
 const SECTION_NAMES: Record<string, string> = {
@@ -25,6 +26,7 @@ const SECTION_NAMES: Record<string, string> = {
   tone_style: "Mon ton, mon style & mes combats",
   content_strategy: "Ma stratégie de contenu",
   offers: "Mes offres",
+  content_series: "Mes séries signatures",
 };
 
 const TOPIC_LABELS: Record<string, string> = {
@@ -33,14 +35,13 @@ const TOPIC_LABELS: Record<string, string> = {
   story_struggles: "Les galères",
   story_unique: "Ce qui te rend unique",
   story_vision: "Ta vision",
-  description: "Portrait général",
-  demographics: "Âge, situation, localisation",
-  frustrations: "Ce qui la bloque",
-  desires: "Ce qu'elle veut vraiment",
-  objections: "Ses objections",
-  buying_triggers: "Déclencheurs d'achat",
-  channels: "Où elle traîne",
-  daily_life: "Sa journée type",
+  frustrations: "Ses frustrations",
+  transformation: "Sa transformation rêvée",
+  objections: "Ses objections et croyances",
+  cliches: "Les clichés à déconstruire",
+  aesthetic_world: "Son univers esthétique",
+  inspiration: "Ce qui l'inspire et la rebute",
+  actions: "Ses premières actions",
   value_prop_problem: "Le problème que tu résous",
   value_prop_solution: "Ta solution",
   value_prop_difference: "Ce qui te différencie",
@@ -61,6 +62,11 @@ const TOPIC_LABELS: Record<string, string> = {
   offer_target: "Pour qui",
   offer_promise: "La promesse",
   offer_includes: "Ce qui est inclus",
+  series_count: "Combien de séries",
+  series_pitch: "Nom et promesse de chaque série",
+  series_pillar_link: "Rattachement aux piliers",
+  series_format: "Format fixe",
+  series_signature: "Signature visuelle",
 };
 
 const TOPIC_ALIASES: Record<string, string> = {
@@ -71,20 +77,19 @@ const TOPIC_ALIASES: Record<string, string> = {
   "unique": "story_unique", "difference": "story_unique", "différence": "story_unique",
   "vision": "story_vision", "futur": "story_vision", "avenir": "story_vision",
   // persona
-  "portrait": "description", "profil": "description",
-  "age": "demographics", "démographie": "demographics", "situation": "demographics",
-  "blocages": "frustrations", "problemes": "frustrations", "problèmes": "frustrations",
-  "envies": "desires", "aspirations": "desires", "besoins": "desires",
+  "blocages": "frustrations", "problemes": "frustrations", "problèmes": "frustrations", "ce_qui_bloque": "frustrations",
+  "desires": "transformation", "envies": "transformation", "aspirations": "transformation", "besoins": "transformation", "reve": "transformation",
   "freins": "objections", "hesitations": "objections", "hésitations": "objections",
-  "declencheurs": "buying_triggers", "déclencheurs": "buying_triggers", "triggers": "buying_triggers",
-  "canaux": "channels", "reseaux": "channels", "réseaux": "channels", "plateformes": "channels",
-  "journee": "daily_life", "journée": "daily_life", "quotidien": "daily_life",
+  "croyances": "cliches", "préjugés": "cliches", "prejuges": "cliches",
+  "esthetique": "aesthetic_world", "esthétique": "aesthetic_world", "beau": "aesthetic_world", "visuel": "aesthetic_world",
+  "inspire": "inspiration", "rebute": "inspiration", "ressenti": "inspiration",
+  "declencheurs": "actions", "déclencheurs": "actions", "triggers": "actions", "premieres_actions": "actions",
   // tone_style
   "ton": "tone_description", "voix": "tone_description", "style_communication": "tone_description",
   "do": "tone_do", "je_fais": "tone_do",
   "dont": "tone_dont", "je_ne_fais_pas": "tone_dont", "limites": "tone_dont",
   "combat": "combats", "engagements": "combats", "valeurs_combat": "combats",
-  "style_visuel": "visual_style", "esthetique": "visual_style", "esthétique": "visual_style",
+  "style_visuel": "visual_style",
   // content_strategy
   "piliers": "content_pillars", "pillars": "content_pillars", "themes": "content_pillars", "thèmes": "content_pillars",
   "twist": "content_twist", "twist_creatif": "content_twist", "concept": "content_twist", "angle": "content_twist",
@@ -97,6 +102,12 @@ const TOPIC_ALIASES: Record<string, string> = {
   "cible": "offer_target", "target": "offer_target", "pour_qui": "offer_target",
   "promesse": "offer_promise", "promise": "offer_promise", "transformation": "offer_promise",
   "inclus": "offer_includes", "includes": "offer_includes", "contenu_offre": "offer_includes",
+  // content_series
+  "nombre_series": "series_count", "combien": "series_count", "nb_series": "series_count",
+  "pitch": "series_pitch",
+  "pilier": "series_pillar_link", "rattachement": "series_pillar_link", "pillar": "series_pillar_link",
+  "format": "series_format", "format_fixe": "series_format",
+  "signature": "series_signature", "signature_visuelle": "series_signature",
 };
 
 function normalizeCoveredTopic(topic: string | null | undefined, section: string): string | null {
@@ -148,9 +159,32 @@ function buildSystemPrompt(section: string, context: any, coveredTopics: string[
     if (a.score_global) contextLines.push(`Score audit global : ${a.score_global}/100`);
   }
 
+  // ── Contexte spécifique content_series : piliers ──
+  let pillarsContext = "Aucun pilier défini pour le moment (mode combo)";
+  if (section === "content_series") {
+    const bs = context.brand_strategy;
+    if (bs && (bs.pillar_major || bs.pillar_minor_1 || bs.pillar_minor_2 || bs.pillar_minor_3)) {
+      const pillars: string[] = [];
+      if (bs.pillar_major) pillars.push(`• Pilier majeur : ${bs.pillar_major}`);
+      if (bs.pillar_minor_1) pillars.push(`• Pilier mineur 1 : ${bs.pillar_minor_1}`);
+      if (bs.pillar_minor_2) pillars.push(`• Pilier mineur 2 : ${bs.pillar_minor_2}`);
+      if (bs.pillar_minor_3) pillars.push(`• Pilier mineur 3 : ${bs.pillar_minor_3}`);
+      pillarsContext = pillars.join("\n");
+    }
+  }
+  const isComboMode = section === "content_series" && pillarsContext.startsWith("Aucun pilier");
+
   const existing = context.existing_data;
   if (existing && Object.keys(existing).length > 0) {
-    contextLines.push(`\nDONNÉES EXISTANTES :\n${JSON.stringify(existing, null, 2)}`);
+    // Ne garder que les champs branding utiles, pas les métadonnées
+    const { id, user_id, workspace_id, created_at, updated_at, ...relevantData } = existing;
+    const relevantStr = JSON.stringify(relevantData, null, 2);
+    // Limiter à 2000 chars pour ne pas exploser le contexte
+    if (relevantStr.length > 2000) {
+      contextLines.push(`\nDONNÉES EXISTANTES (résumé) :\n${relevantStr.slice(0, 2000)}...`);
+    } else if (Object.keys(relevantData).length > 0) {
+      contextLines.push(`\nDONNÉES EXISTANTES :\n${relevantStr}`);
+    }
   }
 
   // ── Autofill context injection ──
@@ -215,14 +249,35 @@ section === "story" ? `- "story_origin": string, comment tout a commencé
 - "story_struggles": string, les galères traversées
 - "story_unique": string, ce qui rend unique
 - "story_vision": string, la vision pour l'avenir` :
-section === "persona" ? `- "description": string, portrait général de la cliente idéale
-- "demographics": string, âge, situation, localisation
-- "step_1_frustrations": string, ce qui la bloque / ses frustrations
-- "step_2_transformation": string, ce qu'elle veut vraiment / sa transformation rêvée
-- "step_3a_objections": string, ses objections principales
-- "buying_triggers": tableau JSON, les déclencheurs d'achat
-- "channels": tableau de strings, où elle traîne en ligne
-- "daily_life": string, sa journée type` :
+section === "persona" ? `MAPPING SUJET → CLÉS (remplis TOUTES les clés listées quand tu couvres un sujet) :
+
+Sujet "frustrations" → clés à remplir :
+  - "step_1_frustrations": string, ses frustrations profondes, ce qui la bloque au quotidien
+
+Sujet "transformation" → clés à remplir :
+  - "step_2_transformation": string, ce qu'elle veut vraiment, sa transformation rêvée, comment elle se verrait dans l'idéal
+
+Sujet "objections" → clés à remplir :
+  - "step_3a_objections": string, ses objections principales (prix, légitimité, timing, doutes…)
+
+Sujet "cliches" → clés à remplir :
+  - "step_3b_cliches": string, les croyances, clichés ou préjugés qu'elle a sur ton domaine — ce qu'il faut déconstruire
+
+Sujet "aesthetic_world" → clés à remplir (TOUTES les 2 dans la même réponse) :
+  - "step_4_beautiful": string, ce qu'elle trouve beau — sa direction esthétique, les ambiances visuelles qui l'attirent
+  - "step_4_repulsive": string, ce qui la rebute visuellement, ce qui la fait fuir
+
+Sujet "inspiration" → clés à remplir (TOUTES les 2 dans la même réponse) :
+  - "step_4_inspiring": string, ce qui l'inspire — personnes, marques, contenus, comptes qu'elle suit
+  - "step_4_feeling": string, ce qu'elle a besoin de ressentir — l'émotion qu'elle cherche (confiance, légèreté, fierté…)
+
+Sujet "actions" → clés à remplir :
+  - "step_5_actions": string, ses premières actions concrètes, ce qui la fait passer à l'achat, ses déclencheurs
+
+Clé bonus (à remplir dès que l'info est disponible) :
+  - "portrait_prenom": string, le prénom fictif de ce persona si mentionné
+
+⚠️ IMPORTANT : Quand un sujet mappe vers PLUSIEURS clés (aesthetic_world, inspiration), tu DOIS remplir TOUTES les clés dans le même extracted_insights. Ne renvoie pas une seule clé en ignorant l'autre.` :
 section === "tone_style" ? `- "voice_description": string, comment tu parles / ta voix
 - "tone_register": string, le registre (familier, soutenu, etc.)
 - "tone_do": string, ce que tu fais toujours en com
@@ -234,8 +289,50 @@ section === "offers" ? `- "offer_name": string, nom de l'offre
 - "offer_price": string, prix et format de paiement
 - "offer_target": string, pour qui c'est fait
 - "offer_promise": string, la promesse / transformation
-- "offer_includes": string, ce qui est inclus` : ""}
-N'inclus dans extracted_insights QUE les clés ci-dessus. Inclus uniquement celles qui sont pertinentes pour la réponse qui vient d'être donnée (pas toutes à chaque fois).
+- "offer_includes": string, ce qui est inclus` :
+section === "content_series" ? `══ CONTEXTE SPÉCIFIQUE SÉRIES ══
+Tu aides ${prenom} à définir 1 à 3 séries éditoriales. Une série = un rendez-vous éditorial récurrent avec une promesse claire, un format fixe et une cadence.
+
+Piliers éditoriaux de ${prenom} :
+${pillarsContext}
+
+${isComboMode
+  ? `MODE COMBO : ${prenom} n'a pas encore défini ses piliers éditoriaux. Tu vas commencer par lui faire poser 2-4 piliers (1 majeur + 1 à 3 mineurs) AVANT d'aborder les séries. Extrais les piliers dans extracted_insights.pillars_new (tableau de 2-4 strings, le premier étant le pilier majeur).`
+  : `Tu parcours les piliers un par un et proposes, pour chacun, d'en faire une série. ${prenom} peut skipper certains piliers ("cette série-là je la sens pas") et/ou ajouter une série transversale hors-piliers à la fin.`}
+
+══ APPROCHE PÉDAGOGIQUE ══
+- Présente le concept de série en 1-2 phrases max (promesse + format + cadence)
+- Si piliers existants : parcours les piliers un par un ("Parlons de ton pilier [X]. Si tu devais en faire une série hebdo, ça ressemblerait à quoi ?")
+- Si mode combo : pose 2-3 piliers d'abord (majeur + mineurs), puis enchaîne sur une série pour le pilier majeur
+- Pour chaque série, recueille idéalement : nom, promesse, cadence, format, signature
+- Propose des suggestions concrètes quand ${prenom} bloque ("Par exemple 'Le cas client du vendredi' : carrousel 6 slides, chaque vendredi, numérotation #N en coin")
+- JAMAIS de format listé ("5 erreurs", "3 conseils") dans les suggestions — aligne-toi sur le framework éducation embarquée (récit, déclencheur externe, constat décalé, process visible)
+- Rappelle que la cadence peut être hebdo/bimensuelle/mensuelle/irrégulière — valorise l'irrégulier si ${prenom} hésite à s'engager
+
+══ CLÉS OBLIGATOIRES POUR extracted_insights (section content_series) ══
+
+Extrais les séries au fur et à mesure. Quand ${prenom} a décrit au moins UNE série complète (name + promise minimum), remplis :
+
+- "series" : tableau d'objets, un par série définie. Format de chaque objet :
+  {
+    "name": string,                       // nom court, ex: "Le cas client du vendredi"
+    "promise": string,                    // phrase pitch complète
+    "pillar_key": "pillar_major" | "pillar_minor_1" | "pillar_minor_2" | "pillar_minor_3" | null,  // null si transversale
+    "cadence": string,                    // texte libre type "chaque vendredi", "tous les 15 jours" — le mapping vers l'enum est fait côté client
+    "format_template": string,            // ex: "carrousel 6 slides + CTA story"
+    "signature_description": string,      // ex: "numérotation #N, couleur framboise, emoji 🎬"
+    "channels": array de strings parmi ["instagram", "linkedin", "pinterest", "newsletter", "website"]
+  }
+
+${isComboMode ? `- "pillars_new" : array de 2-4 strings, le premier étant le pilier majeur (OBLIGATOIRE en mode combo dès que ${prenom} a posé ses piliers)` : ""}
+
+RÈGLES DE REMPLISSAGE :
+- name et promise sont TOUJOURS obligatoires
+- Les autres champs sont optionnels : ne les inclus que si ${prenom} les a évoqués clairement
+- Ne fabrique pas de cadence ou de format si ${prenom} ne s'est pas prononcé — laisse le champ absent
+- Mets à jour le tableau "series" progressivement : si ${prenom} précise la série #1 après avoir décrit la #2, republie les 2 objets complets à chaque extraction
+- LIMITE : maximum 8 séries dans le tableau` : ""}
+N'inclus dans extracted_insights QUE les clés ci-dessus. Pour chaque réponse, remplis TOUTES les clés mappées au sujet couvert. Si la réponse contient des infos sur d'autres sujets non encore couverts, inclus aussi leurs clés.
 
 ══ FORMAT DE RÉPONSE ══
 Retourne TOUJOURS un JSON valide, rien d'autre :
@@ -257,7 +354,7 @@ Quand is_complete = true, ajoute :
   "completion_percentage": 100,
   "covered_topic": "dernier champ couvert",
   "extracted_insights": { ... },
-  "final_summary": "Un résumé structuré en 3 parties :\\n\\n✅ Ce qu'on a construit ensemble : [résumé des éléments clés extraits]\\n\\n💡 Pour aller plus loin : [2-3 suggestions concrètes d'amélioration]\\n\\n🎯 Prochaine étape : [une action concrète à faire maintenant]"
+  "final_summary": "2-3 phrases max : ce qu'on a posé ensemble + 1 prochaine étape concrète. PAS de structure en parties, PAS de bullet points, PAS d'emojis de section. Court et direct."
 }`;
 }
 
@@ -272,7 +369,7 @@ serve(async (req) => {
         section: z.string().max(100).min(1, "section requis"),
         messages: z.array(z.object({
           role: z.enum(["user", "assistant"]),
-          content: z.string().max(10000),
+          content: z.string().max(50000),
         })).max(50).optional(),
         context: z.record(z.unknown()).optional().nullable(),
         covered_topics: z.array(z.string().max(100)).max(30).optional(),
@@ -295,6 +392,7 @@ serve(async (req) => {
     if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, cors);
 
     const { section, messages, context, covered_topics, workspace_id, autofill_data, autofill_confidence } = body;
+    console.log(`[BrandingCoaching] section=${section}, messages=${(messages || []).length}, totalChars=${(messages || []).reduce((sum: number, m: any) => sum + (m.content?.length || 0), 0)}`);
 
     const quota = await checkQuota(userId, "coach", workspace_id || undefined);
     if (!quota.allowed) {
@@ -339,6 +437,22 @@ serve(async (req) => {
         merged.unshift({ role: "user" as const, content: "Commence." });
       }
 
+      // ── Garde-fou story_generate : limiter la taille du payload ──
+      for (const msg of merged) {
+        if (msg.content.length > 3000) {
+          msg.content = msg.content.slice(0, 3000) + "\n[...tronqué]";
+        }
+      }
+      if (merged.length > 20) {
+        const first = merged[0];
+        const recent = merged.slice(-19);
+        if (first.role === recent[0].role) {
+          merged.splice(0, merged.length, ...recent);
+        } else {
+          merged.splice(0, merged.length, first, ...recent);
+        }
+      }
+
       const rawStory = await callAnthropic({
         model: getDefaultModel(),
         system: storySystemPrompt,
@@ -354,7 +468,155 @@ serve(async (req) => {
       });
     }
 
-    const systemPrompt = BASE_SYSTEM_RULES + "\n\n" + buildSystemPrompt(section, context || {}, covered_topics || [], autofill_data, autofill_confidence) + "\n\n" + ANTI_SLOP;
+    // Special section: fill missing persona fields from conversation context
+    if (section === "persona_fill") {
+      const prenom = context?.profile?.prenom || context?.profile?.first_name || "toi";
+      const fillSystemPrompt = BASE_SYSTEM_RULES + `\n\nTu es experte en persona marketing. Tu reçois un contexte composite : il peut contenir un CONTEXTE DE MARQUE (mission, cible, verbatims, ton), une SYNTHÈSE PORTRAIT, des CHAMPS PERSONA DÉJÀ REMPLIS, et/ou une CONVERSATION de coaching. Tu peux recevoir une seule de ces sources, plusieurs, ou toutes — adapte-toi.
+
+À partir de TOUT ce qui est disponible, extrais ou DÉDUIS les informations demandées pour ${prenom}.
+
+RÈGLES STRICTES — FORMAT DE SORTIE :
+- Réponds UNIQUEMENT par un OBJET JSON PLAT valide, rien d'autre (pas de markdown, pas de texte avant/après, pas de \`\`\`json)
+- Les SEULES clés autorisées sont EXACTEMENT celles listées dans le dernier message utilisateur (ex: "step_3a_objections", "step_3b_cliches", "step_4_beautiful", "step_4_inspiring", "step_4_repulsive", "step_4_feeling", "step_5_actions", "step_1_frustrations", "step_2_transformation")
+- INTERDIT d'utiliser des clés alternatives comme "objections_courantes", "croyances_limitantes", "declencheurs_achat", "freins_achat", "frustrations_profondes", "objectif_principal", "experience_ideale", "profil_complet", "persona", "insights" ou tout autre alias
+- INTERDIT d'imbriquer (pas de sous-objets, pas de tableaux) — chaque clé demandée DOIT mapper directement à une string
+- Si une clé demandée s'appelle "step_3a_objections", ta sortie DOIT contenir littéralement "step_3a_objections" comme clé, pas un synonyme
+
+RÈGLES DE CONTENU :
+- Tu DOIS produire une valeur concrète et plausible pour CHAQUE champ demandé
+- Si tu n'as pas d'information directe pour un champ, DÉDUIS-la intelligemment à partir de la cible, des verbatims, du problème, de la mission, du ton et de tout autre élément du contexte
+- Ne refuse JAMAIS sous prétexte de manque d'info — déduis. Une déduction plausible vaut mieux qu'un champ vide
+- Chaque valeur doit être une string de 1 à 5 phrases, concrète et spécifique (pas de généralités creuses)
+- Ton empathique et direct
+- Écriture inclusive avec point médian
+- N'invente PAS de données qui CONTREDISENT explicitement ce qui a été dit dans le contexte`;
+
+      let fillMessages = (messages || []).map((m: any) => ({
+        role: m.role === "user" ? "user" as const : "assistant" as const,
+        content: m.content,
+      }));
+
+      while (fillMessages.length > 0 && fillMessages[fillMessages.length - 1].role === "assistant") {
+        fillMessages.pop();
+      }
+      if (fillMessages.length === 0) {
+        fillMessages.push({ role: "user" as const, content: "Extrais les informations manquantes." });
+      }
+
+      const merged: typeof fillMessages = [];
+      for (const msg of fillMessages) {
+        if (merged.length > 0 && merged[merged.length - 1].role === msg.role) {
+          merged[merged.length - 1].content += "\n\n" + msg.content;
+        } else {
+          merged.push({ ...msg });
+        }
+      }
+      if (merged.length > 0 && merged[0].role === "assistant") {
+        merged.unshift({ role: "user" as const, content: "Commence." });
+      }
+
+      for (const msg of merged) {
+        if (msg.content.length > 3000) {
+          msg.content = msg.content.slice(0, 3000) + "\n[...tronqué]";
+        }
+      }
+
+      const rawFill = await callAnthropic({
+        model: getDefaultModel(),
+        system: fillSystemPrompt,
+        messages: merged,
+        temperature: 0.5,
+        max_tokens: 2000,
+      });
+
+      await logUsage(userId, "coach", "branding_coaching", undefined, undefined, workspace_id || undefined);
+
+      return new Response(JSON.stringify({ response: rawFill }), {
+        headers: { ...cors, "Content-Type": "application/json" },
+      });
+    }
+
+    // Special section: fill missing content_strategy (ligne éditoriale) fields from brand context
+    if (section === "content_strategy_fill") {
+      const prenom = context?.profile?.prenom || context?.profile?.first_name || "toi";
+      const fillSystemPrompt = BASE_SYSTEM_RULES + `\n\nTu es experte en stratégie éditoriale de marque personnelle. Tu reçois un contexte composite : il peut contenir un CONTEXTE DE MARQUE (mission, positionnement, voix, ton, combats), une PROPOSITION DE VALEUR, un PERSONA (cliente idéale), un STORYTELLING, des CHAMPS LIGNE ÉDITO DÉJÀ REMPLIS, et/ou une CONVERSATION de coaching. Adapte-toi à ce qui est disponible.
+
+Ton job : remplir la LIGNE ÉDITORIALE de ${prenom} — c'est-à-dire les facettes de marque, les piliers de contenu et le concept créatif.
+
+══ DÉFINITIONS MÉTIER ══
+- "step_1_hidden_facets" : les facettes cachées de la marque, les zones d'ombre / d'intimité que ${prenom} pourrait montrer pour incarner sa singularité (ex: son rapport au corps, sa vie d'indépendante, ses doutes). 2-4 phrases concrètes.
+- "facet_1", "facet_2", "facet_3" : trois facettes courtes et incarnées de la marque. Phrases nominales courtes (5-12 mots), pas un paragraphe. Ex: "Mon rapport à la confiance en soi", "Ma vie de photographe indépendante", "Mes coulisses créatives".
+- "pillar_major" : LE pilier majeur de contenu — le sujet central, le territoire d'expertise principal sur lequel ${prenom} prend la parole. Phrase courte (4-10 mots). Ex: "Portraits d'entrepreneures qui osent se montrer".
+- "pillar_minor_1", "pillar_minor_2", "pillar_minor_3" : trois piliers mineurs DISTINCTS du pilier majeur, qui orbitent autour. Phrases courtes (4-10 mots chacun). Ex: "Coulisses de séances", "Conseils posture", "Vie d'indépendante".
+- "creative_concept" : le concept créatif / twist unique qui RELIE les piliers entre eux et donne une signature reconnaissable. 1-3 phrases. Ex: "Chaque post commence par un détail brut du quotidien d'entrepreneure, puis bascule vers une vérité sur la confiance en soi."
+
+══ RÈGLES DE COHÉRENCE MÉTIER ══
+- Les 3 piliers mineurs DOIVENT être distincts du pilier majeur (pas de redite, pas de reformulation)
+- Les piliers DOIVENT rester ancrés dans la voix, la mission, la cible et le combat de la marque — pas du contenu hors-sol
+- Le concept créatif DOIT relier les piliers (pas une nouvelle idée déconnectée)
+- Les facettes 1/2/3 doivent être complémentaires, couvrir des territoires différents (intime, pro, créatif…)
+- Si un champ est DÉJÀ rempli dans le contexte, NE LE PROPOSE PAS à nouveau (tu n'écraseras rien — mais ça pollue)
+
+══ RÈGLES STRICTES — FORMAT DE SORTIE ══
+- Réponds UNIQUEMENT par un OBJET JSON PLAT valide, rien d'autre (pas de markdown, pas de texte avant/après, pas de \`\`\`json)
+- Les SEULES clés autorisées sont EXACTEMENT celles listées dans le dernier message utilisateur, parmi : "step_1_hidden_facets", "facet_1", "facet_2", "facet_3", "pillar_major", "pillar_minor_1", "pillar_minor_2", "pillar_minor_3", "creative_concept"
+- INTERDIT d'utiliser des clés alternatives comme "pilier_principal", "pilier_majeur", "axe_majeur", "concept", "concept_creatif", "axe_editorial", "ligne_editoriale", "facettes_cachees", "facettes", "piliers", "themes", "twist" ou tout autre alias
+- INTERDIT d'imbriquer (pas de sous-objets, pas de tableaux) — chaque clé demandée DOIT mapper directement à une string
+- Si une clé demandée s'appelle "pillar_major", ta sortie DOIT contenir littéralement "pillar_major" comme clé
+
+══ RÈGLES DE CONTENU ══
+- Tu DOIS produire une valeur concrète et plausible pour CHAQUE champ demandé
+- Si tu n'as pas d'information directe, DÉDUIS intelligemment à partir de la mission, de la cible, des combats, des verbatims, de la voix
+- Ne refuse JAMAIS sous prétexte de manque d'info — déduis. Une déduction plausible vaut mieux qu'un champ vide
+- Ton incarné, oral, jamais corporate. Écriture inclusive avec point médian quand pertinent
+- N'invente PAS de données qui CONTREDISENT explicitement le contexte`;
+
+      let fillMessages = (messages || []).map((m: any) => ({
+        role: m.role === "user" ? "user" as const : "assistant" as const,
+        content: m.content,
+      }));
+
+      while (fillMessages.length > 0 && fillMessages[fillMessages.length - 1].role === "assistant") {
+        fillMessages.pop();
+      }
+      if (fillMessages.length === 0) {
+        fillMessages.push({ role: "user" as const, content: "Extrais les informations manquantes." });
+      }
+
+      const merged: typeof fillMessages = [];
+      for (const msg of fillMessages) {
+        if (merged.length > 0 && merged[merged.length - 1].role === msg.role) {
+          merged[merged.length - 1].content += "\n\n" + msg.content;
+        } else {
+          merged.push({ ...msg });
+        }
+      }
+      if (merged.length > 0 && merged[0].role === "assistant") {
+        merged.unshift({ role: "user" as const, content: "Commence." });
+      }
+
+      for (const msg of merged) {
+        if (msg.content.length > 3000) {
+          msg.content = msg.content.slice(0, 3000) + "\n[...tronqué]";
+        }
+      }
+
+      const rawFill = await callAnthropic({
+        model: getDefaultModel(),
+        system: fillSystemPrompt,
+        messages: merged,
+        temperature: 0.6,
+        max_tokens: 2000,
+      });
+
+      await logUsage(userId, "coach", "branding_coaching", undefined, undefined, workspace_id || undefined);
+
+      return new Response(JSON.stringify({ response: rawFill }), {
+        headers: { ...cors, "Content-Type": "application/json" },
+      });
+    }
+
+    const systemPrompt = BASE_SYSTEM_RULES + "\n\n" + buildSystemPrompt(section, context || {}, covered_topics || [], autofill_data, autofill_confidence);
 
     // Build anthropic messages — send ALL messages, no pruning
     let anthropicMessages = (messages || []).map((m: any) => ({
@@ -399,12 +661,31 @@ serve(async (req) => {
       });
     }
 
-    // Appel IA avec détection de troncation
+    // ── Garde-fou : limiter la taille du payload ──
+    const MAX_MESSAGES = 20;
+    const MAX_CHARS_PER_MESSAGE = 1500;
+    for (const msg of mergedMessages) {
+      if (msg.content.length > MAX_CHARS_PER_MESSAGE) {
+        msg.content = msg.content.slice(0, MAX_CHARS_PER_MESSAGE) + "\n[...réponse tronquée pour la suite de la session]";
+      }
+    }
+    if (mergedMessages.length > MAX_MESSAGES) {
+      const originalLen = mergedMessages.length;
+      const first = mergedMessages[0];
+      const recent = mergedMessages.slice(-(MAX_MESSAGES - 1));
+      if (first.role === recent[0].role) {
+        mergedMessages.splice(0, mergedMessages.length, ...recent);
+      } else {
+        mergedMessages.splice(0, mergedMessages.length, first, ...recent);
+      }
+      console.log(`[BrandingCoaching] Pruned messages from ${originalLen} to ${mergedMessages.length}`);
+    }
+
     let rawResponse: string;
     let wasTruncated = false;
 
     const aiResult = await callAnthropicWithMeta({
-      model: getDefaultModel(),
+      model: getModelForAction("coaching"),
       system: systemPrompt,
       messages: mergedMessages,
       temperature: 0.7,
@@ -416,7 +697,7 @@ serve(async (req) => {
     if (wasTruncated) {
       console.warn("[BrandingCoaching] Response truncated (max_tokens reached). Retrying with higher limit...");
       const retryResult = await callAnthropicWithMeta({
-        model: getDefaultModel(),
+        model: getModelForAction("coaching"),
         system: systemPrompt + "\n\nATTENTION : ta réponse précédente a été tronquée car trop longue. Sois CONCIS. La question doit faire 1-2 phrases max. Les extracted_insights doivent être courts. Pas de remaining_topics si la liste est longue.",
         messages: mergedMessages,
         temperature: 0.7,
@@ -463,6 +744,63 @@ serve(async (req) => {
           covered_topic: null,
           remaining_topics: SECTION_CHECKLISTS[section] || [],
         };
+      }
+    }
+
+    // ── content_series : truncation à 8 + validation Zod du shape series[] ──
+    if (section === "content_series" && parsed?.extracted_insights?.series && Array.isArray(parsed.extracted_insights.series)) {
+      if (parsed.extracted_insights.series.length > 8) {
+        console.warn(`[BrandingCoaching] series array length ${parsed.extracted_insights.series.length} > 8, truncating to 8 most recent`);
+        parsed.extracted_insights.series = parsed.extracted_insights.series.slice(-8);
+      }
+      const SeriesItemSchema = z.object({
+        name: z.string().min(1),
+        promise: z.string().min(1),
+        pillar_key: z.enum(["pillar_major", "pillar_minor_1", "pillar_minor_2", "pillar_minor_3"]).nullable().optional(),
+        cadence: z.string().optional(),
+        cadence_raw: z.string().optional(),
+        format_template: z.string().optional(),
+        signature_description: z.string().optional(),
+        channels: z.array(z.string()).optional(),
+      });
+      const validated: any[] = [];
+      for (const item of parsed.extracted_insights.series) {
+        const result = SeriesItemSchema.safeParse(item);
+        if (result.success) {
+          validated.push(result.data);
+        } else {
+          console.warn("[BrandingCoaching] Invalid series item rejected:", JSON.stringify(item), result.error.flatten());
+        }
+      }
+      parsed.extracted_insights.series = validated;
+    }
+
+    // ── Filet de sécurité : forcer la complétion si tous les sujets sont couverts ──
+    const checklist = SECTION_CHECKLISTS[section] || [];
+    const allCoveredTopics = [...(covered_topics || [])];
+    if (parsed.covered_topic) allCoveredTopics.push(parsed.covered_topic);
+    const uniqueCovered = [...new Set(allCoveredTopics)];
+    const normalizedCovered = uniqueCovered
+      .map(t => normalizeCoveredTopic(t, section))
+      .filter(Boolean) as string[];
+    const remaining = checklist.filter(t => !normalizedCovered.includes(t));
+
+    if (remaining.length === 0 && !parsed.is_complete) {
+      console.log(`[BrandingCoaching] All ${checklist.length} topics covered but is_complete was false — forcing completion`);
+      parsed.is_complete = true;
+      parsed.completion_percentage = 100;
+      if (!parsed.final_summary) {
+        parsed.final_summary = "Ta section est complète ! Tu peux retrouver tout ce qu'on a construit dans ta fiche. N'hésite pas à y revenir pour ajuster.";
+      }
+    }
+
+    // Si la réponse a été tronquée ET qu'il ne reste qu'un seul sujet, forcer aussi
+    if (wasTruncated && remaining.length <= 1 && !parsed.is_complete) {
+      console.warn(`[BrandingCoaching] Response truncated with ${remaining.length} topic(s) remaining — forcing completion`);
+      parsed.is_complete = true;
+      parsed.completion_percentage = 100;
+      if (!parsed.final_summary) {
+        parsed.final_summary = "On a fait un super travail ensemble ! Ta fiche est remplie. Tu peux toujours compléter ou modifier les champs directement.";
       }
     }
 

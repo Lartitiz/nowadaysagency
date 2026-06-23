@@ -1,10 +1,15 @@
 import { useState, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import { invokeWithHeartbeat } from "@/lib/invoke-with-heartbeat";
+import { supabase } from "@/integrations/supabase/client";
 import { handleQuotaError } from "@/lib/quota-error-handler";
+import { useStreamingInvoke } from "@/hooks/use-streaming-invoke";
 import {
   EDITORIAL_ANGLES,
   CONTENT_STRUCTURES,
+  LINKEDIN_EDITORIAL_ANGLES,
+  PINTEREST_EDITORIAL_ANGLES,
+  PINTEREST_VISUAL_ANGLES,
   getStructureForCombo,
   getStructurePromptForCombo,
 } from "@/lib/content-structures";
@@ -28,9 +33,29 @@ export interface GenerateParams {
   slideCount?: number;
   carouselType?: string;
   // Photo-related
-  photos?: { base64: string }[];
+  photos?: { base64: string; context?: string; mimeType?: string }[];
   photoDescription?: string;
   photoMode?: boolean;
+  slideStructure?: Array<{
+    slide_number: number;
+    type: "photo_full" | "photo_integrated" | "text_only";
+    photo_index?: number;
+    photo_layout?: string;
+  }>;
+  confirmedStructure?: Array<{
+    slide_number: number;
+    role: string;
+    title_suggestion: string;
+    strategic_note: string;
+    photo_index?: number;
+    slide_type?: "photo_full" | "photo_integrated" | "text_only";
+    story_beat?: string;
+    visual_anchor?: string;
+  }>;
+  // Récit transmis du pass structure vers le pass d'écriture (carrousel uniquement)
+  narrativeThread?: string;
+  // Newsjacking — separate field to avoid bloating `subject`
+  newsContext?: string;
 }
 
 export interface GenerateQuestionsParams {
@@ -39,6 +64,14 @@ export interface GenerateQuestionsParams {
   editorialAngle?: string;
   objective?: string;
   channel?: "instagram" | "linkedin";
+  workspaceId?: string;
+  // Photo-related — when present, ask vision-anchored questions
+  photos?: Array<{ base64: string; context?: string; mimeType?: string }>;
+  photoDescription?: string;
+  carouselSubMode?: "text" | "photo" | "mix" | "pure_photo";
+  photoMode?: boolean;
+  // Newsjacking — anchors the questions in the actu instead of generic subject
+  newsContext?: string;
 }
 
 export interface Question {
@@ -120,6 +153,17 @@ export function useContentGenerator() {
   const [loadingQuestions, setLoadingQuestions] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([]);
 
+  // Internal streaming wrapper — proxied to consumers via the hook's return.
+  // Kept inside the hook so all callers share the same SSE state.
+  const {
+    content: streamingContent,
+    streaming,
+    done: streamDone,
+    error: streamError,
+    invoke: streamInvoke,
+    reset: streamReset,
+  } = useStreamingInvoke();
+
   const reset = useCallback(() => {
     setGenerating(false);
     setResult(null);
@@ -142,11 +186,21 @@ export function useContentGenerator() {
       preGenAnswers,
       slideCount,
       carouselType,
+      newsContext,
     } = params;
 
     setGenerating(true);
     setError(null);
     setResult(null);
+
+    // Defensive: bail early on non-canonical formats (e.g. "auto") so the user
+    // gets a clear toast instead of a half-broken request.
+    const SUPPORTED = ["carousel", "reel", "story", "post", "linkedin"] as const;
+    if (!format || !(SUPPORTED as readonly string[]).includes(format)) {
+      setGenerating(false);
+      setError("Choisis un format valide pour générer ton contenu.");
+      return null;
+    }
 
     // Compute structure if editorial angle provided
     let structurePrompt: string | null = null;
@@ -180,7 +234,7 @@ export function useContentGenerator() {
             effectiveCarouselType = null;
           }
 
-          const res = await invokeWithTimeout("carousel-ai", {
+          const res = await invokeWithHeartbeat("carousel-ai", {
             body: {
               type: "express_full",
               channel: params.channel || "instagram",
@@ -193,10 +247,18 @@ export function useContentGenerator() {
               editorial_angle: editorialAngle || null,
               content_structure: structurePrompt || null,
               workspace_id: workspaceId || null,
-              photos: (params.carouselType === "photo" || params.carouselType === "mix") ? params.photos : undefined,
+              // Optimisation : si la structure a déjà été confirmée à l'étape précédente
+              // (structure_proposal), Claude a déjà analysé les photos en vision. Inutile
+              // de les renvoyer en base64 — la structure encode déjà photo_index + slide_type.
+              // Évite que Sonnet refasse une analyse vision (~3 min → ~40 s).
+              photos: (!params.confirmedStructure && (params.carouselType === "photo" || params.carouselType === "mix")) ? params.photos : undefined,
               photo_description: (params.carouselType === "photo" || params.carouselType === "mix") ? params.photoDescription : undefined,
+              slide_structure: params.slideStructure || null,
+              confirmed_structure: params.confirmedStructure || null,
+              ...(params.narrativeThread && params.narrativeThread.trim() ? { narrative_thread: params.narrativeThread } : {}),
+              ...(newsContext && newsContext.trim() ? { news_context: newsContext.slice(0, 3800) } : {}),
             },
-          }, 120000);
+          }, 180000);
           data = res.data;
           invokeError = res.error;
           break;
@@ -214,11 +276,11 @@ export function useContentGenerator() {
             };
           }
 
-          const res = await invokeWithTimeout("reels-ai", {
+          const res = await invokeWithTimeout("creative-flow", {
             body: {
-              type: "script",
-              subject: effectiveSubject,
-              subject_details: existingContent || undefined,
+              step: "generate",
+              contentType: "reel",
+              context: effectiveSubject + (existingContent ? `\n\n[Contenu existant à approfondir]\n${existingContent}` : ""),
               objective: objective || null,
               face_cam: faceCam || "oui",
               time_available: timeAvailable || "flexible",
@@ -227,6 +289,7 @@ export function useContentGenerator() {
               editorial_angle: editorialAngle || null,
               content_structure: structurePrompt || null,
               workspace_id: workspaceId || null,
+              ...(newsContext && newsContext.trim() ? { news_context: newsContext.slice(0, 3800) } : {}),
             },
           }, 120000);
           data = res.data;
@@ -235,15 +298,17 @@ export function useContentGenerator() {
         }
 
         case "story": {
-          const res = await invokeWithTimeout("stories-ai", {
+          const res = await invokeWithTimeout("creative-flow", {
             body: {
-              type: "generate",
-              subject: effectiveSubject,
-              subject_details: existingContent || undefined,
+              step: "generate",
+              contentType: "stories",
+              context: effectiveSubject + (existingContent ? `\n\n[Contenu existant à approfondir]\n${existingContent}` : ""),
               objective: objective || null,
-              editorial_angle: editorialAngle || null,
-              content_structure: structurePrompt || null,
+              face_cam: faceCam || "flexible",
+              time_available: timeAvailable || "flexible",
+              pre_gen_answers: preGenAnswers || null,
               workspace_id: workspaceId || null,
+              ...(newsContext && newsContext.trim() ? { news_context: newsContext.slice(0, 3800) } : {}),
             },
           }, 120000);
           data = res.data;
@@ -275,8 +340,9 @@ export function useContentGenerator() {
               objective: objective || null,
               workspace_id: workspaceId || null,
               photo_mode: params.photoMode || undefined,
-              photos: params.photoMode && params.photos?.length ? [{ base64: params.photos[0].base64, mimeType: "image/jpeg" }] : undefined,
+              photos: params.photoMode && params.photos?.length ? params.photos.slice(0, 10).map(p => ({ base64: p.base64, mimeType: p.mimeType || "image/jpeg", context: p.context })) : undefined,
               photo_description: params.photoMode ? params.photoDescription : undefined,
+              ...(newsContext && newsContext.trim() ? { news_context: newsContext.slice(0, 3800) } : {}),
             },
           }, 120000);
           data = res.data;
@@ -302,6 +368,12 @@ export function useContentGenerator() {
               objective: objective || null,
               editorialFormat: editorialAngle || null,
               workspace_id: workspaceId || null,
+              photo_mode: params.photoMode || undefined,
+              photos: params.photoMode && params.photos?.length
+                ? params.photos.slice(0, 10).map((p) => ({ base64: p.base64, mimeType: p.mimeType || "image/jpeg", context: p.context }))
+                : undefined,
+              photo_description: params.photoMode ? params.photoDescription : undefined,
+              ...(newsContext && newsContext.trim() ? { news_context: newsContext.slice(0, 3800) } : {}),
             },
           }, 120000);
           data = res.data;
@@ -309,25 +381,6 @@ export function useContentGenerator() {
           break;
         }
 
-        case "newsletter": {
-          const res = await invokeWithTimeout("newsletter-ai", {
-            body: {
-              topic: effectiveSubject + (existingContent ? `\n\n${existingContent}` : ""),
-              preGenAnswers: answers
-                ? {
-                    anecdote: answers.anecdote || answers.q_0 || undefined,
-                    emotion: answers.emotion || answers.q_1 || undefined,
-                    conviction: answers.conviction || answers.q_2 || undefined,
-                  }
-                : preGenAnswers || null,
-              template: editorialAngle || null,
-              workspace_id: workspaceId || null,
-            },
-          }, 120000);
-          data = res.data;
-          invokeError = res.error;
-          break;
-        }
 
         default:
           throw new Error(`Format non supporté : ${format}`);
@@ -369,7 +422,7 @@ export function useContentGenerator() {
 
   const generateQuestions = useCallback(
     async (params: GenerateQuestionsParams) => {
-      const { format, subject, editorialAngle, objective } = params;
+      const { format, subject, editorialAngle, objective, workspaceId } = params;
 
       setLoadingQuestions(true);
       setQuestions([]);
@@ -388,12 +441,58 @@ export function useContentGenerator() {
           existingContentQ = subject.slice(idx + CALENDAR_MARKER_Q.length);
         }
 
+        // Fetch recent briefs (sujets uniquement) pour mémoire anti-répétition.
+        // ⚠️ On NE PASSE PAS les "réponses marquantes" : elles polluent le prompt
+        // et l'IA finit par mélanger un ancien vécu avec le sujet courant.
+        let recentBriefsContext = "";
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user?.id) {
+            let q = supabase
+              .from("content_briefs")
+              .select("subject, format, editorial_angle, created_at")
+              .order("created_at", { ascending: false })
+              .limit(8); // marge pour filtrer les sujets vides
+            if (workspaceId) q = q.eq("workspace_id", workspaceId);
+            else q = q.eq("user_id", user.id);
+            const { data: briefs } = await q;
+            const cleanBriefs = (briefs || [])
+              .filter((b: any) => typeof b.subject === "string" && b.subject.trim().length > 0)
+              .slice(0, 3);
+            if (cleanBriefs.length > 0) {
+              const lines = cleanBriefs.map((b: any, i: number) => {
+                const subj = b.subject.trim();
+                const safeSubj = subj.length > 120 ? subj.slice(0, 117) + "..." : subj;
+                const parts = [`Brief #${i + 1} — sujet : "${safeSubj}"`];
+                if (b.format) parts.push(`format : ${b.format}`);
+                if (b.editorial_angle) parts.push(`angle : ${b.editorial_angle}`);
+                return parts.join(" · ");
+              });
+              recentBriefsContext = `\n══ HISTORIQUE RÉCENT (${cleanBriefs.length} brief${cleanBriefs.length > 1 ? "s" : ""}, indicatif) ══\n${lines.join("\n")}\n\nUSAGE STRICT : ne re-pose pas une question déjà posée pour ces sujets passés. Ces briefs ne décrivent PAS le sujet courant — ne mélange jamais leur contenu avec le sujet courant.\n`;
+              const RECENT_BRIEFS_MAX = 1500;
+              if (recentBriefsContext.length > RECENT_BRIEFS_MAX) {
+                recentBriefsContext = recentBriefsContext.slice(0, RECENT_BRIEFS_MAX - 20) + "\n... (tronqué)\n";
+              }
+            }
+          }
+        } catch (e) {
+          // non-blocking
+          console.warn("[generateQuestions] could not fetch recent briefs:", e);
+        }
+
         if (format === "carousel") {
           const structurePrompt = editorialAngle
             ? getStructurePromptForCombo(format, editorialAngle)
             : null;
 
-          const res = await supabase.functions.invoke("carousel-ai", {
+          const hasPhotos = (params.photos?.length ?? 0) > 0;
+          const isPhotoLikeMode = params.carouselSubMode === "photo" || params.carouselSubMode === "mix" || params.carouselSubMode === "pure_photo";
+          const visionMode = hasPhotos && isPhotoLikeMode;
+          // pure_photo réutilise la pipeline "photo" côté backend (le post-process
+          // côté client supprimera ensuite tout overlay_text/title/body).
+          const effectiveSubMode = params.carouselSubMode === "pure_photo" ? "photo" : params.carouselSubMode;
+
+          const res = await invokeWithTimeout("carousel-ai", {
             body: {
               type: "deepening_questions",
               channel: params.channel || "instagram",
@@ -402,8 +501,15 @@ export function useContentGenerator() {
               objective: objective || null,
               editorial_angle: editorialAngle || null,
               content_structure: structurePrompt || null,
+              recent_briefs_context: recentBriefsContext || undefined,
+              carousel_type: visionMode ? effectiveSubMode : undefined,
+              photos: visionMode
+                ? params.photos!.map((p) => ({ base64: p.base64, context: p.context }))
+                : undefined,
+              photo_description: visionMode ? params.photoDescription || undefined : undefined,
+              ...(params.newsContext && params.newsContext.trim() ? { news_context: params.newsContext.slice(0, 3800) } : {}),
             },
-          });
+          }, visionMode ? 90000 : 60000);
           data = res.data;
           invokeError = res.error;
         } else {
@@ -426,7 +532,10 @@ export function useContentGenerator() {
             };
           }
 
-          const res = await supabase.functions.invoke("creative-flow", {
+          const hasPhotosCF = (params.photos?.length ?? 0) > 0 && !!params.photos?.[0]?.base64;
+          const photoModeCF = hasPhotosCF && (params.photoMode === true || format === "post" || format === "linkedin");
+
+          const res = await invokeWithTimeout("creative-flow", {
             body: {
               step: "questions",
               contentType:
@@ -435,11 +544,36 @@ export function useContentGenerator() {
                   : format === "newsletter"
                   ? "newsletter"
                   : "instagram_post",
-              context: effectiveSubjectQ + (existingContentQ ? `\n\n[Contenu existant à approfondir]\n${existingContentQ}` : ""),
+              context: (() => {
+                const CONTEXT_MAX = 7800;
+                const base = effectiveSubjectQ;
+                if (!existingContentQ) {
+                  return base.length > CONTEXT_MAX ? base.slice(0, CONTEXT_MAX - 3) + "..." : base;
+                }
+                const suffix = `\n\n[Contenu existant à approfondir]\n`;
+                const reservedForSubject = Math.min(base.length, Math.floor(CONTEXT_MAX * 0.4));
+                const remaining = CONTEXT_MAX - reservedForSubject - suffix.length;
+                const safeSubject = base.length > reservedForSubject ? base.slice(0, reservedForSubject - 3) + "..." : base;
+                const safeExisting = existingContentQ.length > remaining
+                  ? existingContentQ.slice(0, remaining - 3) + "..."
+                  : existingContentQ;
+                return safeSubject + suffix + safeExisting;
+              })(),
               angle: angleObj,
               objective: objective || null,
+              recent_briefs_context: recentBriefsContext || undefined,
+              photo_mode: photoModeCF || undefined,
+              photos: photoModeCF
+                ? params.photos!.slice(0, 10).map(p => ({
+                    base64: p.base64,
+                    mimeType: p.mimeType || "image/jpeg",
+                    context: p.context,
+                  }))
+                : undefined,
+              photo_description: photoModeCF ? params.photoDescription || undefined : undefined,
+              ...(params.newsContext && params.newsContext.trim() ? { news_context: params.newsContext.slice(0, 3800) } : {}),
             },
-          });
+          }, photoModeCF ? 180000 : 60000);
           data = res.data;
           invokeError = res.error;
         }
@@ -478,6 +612,196 @@ export function useContentGenerator() {
     []
   );
 
+  const generateFollowUp = useCallback(
+    async (params: {
+      subject: string;
+      answers: Record<string, string>;
+      questions: Question[];
+      contentType?: string;
+      objective?: string;
+      photos?: { base64: string; mimeType?: string; context?: string }[];
+      photoMode?: boolean;
+      photoDescription?: string;
+    }): Promise<Question[]> => {
+      try {
+        const answersArray = params.questions.map((q) => ({
+          question: q.question,
+          answer: params.answers[q.id] || "",
+        })).filter((a) => a.answer.trim());
+
+        if (answersArray.length === 0) return [];
+
+        // Follow-up ne fait PAS d'appel vision côté serveur (cf. creative-flow step="follow-up").
+        // On évite donc de retransmettre les base64 (jusqu'à 10 × ~250 KB), qui ne servent à rien
+        // et fragilisent la requête réseau. On garde photo_description comme contexte texte.
+        const hasPhotosFU = (params.photos?.length ?? 0) > 0 && !!params.photos?.[0]?.base64;
+        const photoModeFU = hasPhotosFU && params.photoMode === true;
+
+        const res = await invokeWithTimeout("creative-flow", {
+          body: {
+            step: "follow-up",
+            contentType: params.contentType || "instagram_post",
+            context: params.subject,
+            answers: answersArray,
+            objective: params.objective || null,
+            photo_mode: photoModeFU || undefined,
+            photo_description: photoModeFU ? params.photoDescription || undefined : undefined,
+          },
+        }, 45000);
+
+        if (res.error) throw new Error(res.error.message || "Erreur follow-up");
+        const rawContent = res.data?.content ?? res.data;
+        const parsed = parseAIJson(rawContent);
+        const list = parsed?.follow_up_questions || parsed?.questions || [];
+        if (!Array.isArray(list)) return [];
+
+        return list.map((q: any, i: number) => ({
+          id: q.id || `fu_${i}`,
+          question: q.question || q.label || String(q),
+          placeholder: q.placeholder || q.hint || "",
+        }));
+      } catch (e: any) {
+        console.error("[generateFollowUp] error:", e);
+        return [];
+      }
+    },
+    []
+  );
+
+  // ── Streaming generation (text formats: post / linkedin / newsletter / pinterest) ──
+  // Encapsulates the SSE flow that used to live inline in CreerUnifie.tsx.
+  // Mirrors EXACTLY the previous behavior: contentType mapping, body shape,
+  // angle resolution across all 4 angle catalogs, JSON parsing, quota handling.
+  const generateStream = useCallback(
+    async (params: GenerateStreamParams): Promise<ContentResult | null> => {
+      const {
+        format,
+        subject,
+        objective,
+        editorialAngle,
+        answers,
+        workspaceId,
+        photoMode,
+        photos,
+        photoDescription,
+        deepResearch,
+        pinterestLink,
+        pinterestBoard,
+        newsContext,
+      } = params;
+
+      streamReset();
+      setError(null);
+      setResult(null);
+
+      const contentTypeMap: Record<string, string> = {
+        post: "post_instagram",
+        linkedin: "post_linkedin",
+        newsletter: "post_newsletter",
+        pinterest: "post_pinterest",
+      };
+
+      // Resolve angle across all 4 catalogs (same lookup CreerUnifie used)
+      const angleObj = editorialAngle
+        ? (() => {
+            const found =
+              EDITORIAL_ANGLES.find((a) => a.id === editorialAngle) ||
+              LINKEDIN_EDITORIAL_ANGLES.find((a) => a.id === editorialAngle) ||
+              PINTEREST_EDITORIAL_ANGLES.find((a) => a.id === editorialAngle) ||
+              PINTEREST_VISUAL_ANGLES.find((a) => a.id === editorialAngle);
+            const structureId = getStructureForCombo(format, editorialAngle);
+            const structure = structureId ? CONTENT_STRUCTURES[structureId] : undefined;
+            return found
+              ? {
+                  title: found.label,
+                  structure: structure?.steps.map((s) => s.label),
+                  tone: "direct, chaleureux, oral assumé",
+                }
+              : undefined;
+          })()
+        : undefined;
+
+      const ans = answers || {};
+      const hasAnswers = Object.keys(ans).length > 0;
+
+      const streamBody: any = {
+        step: "generate",
+        contentType: contentTypeMap[format] || "post_instagram",
+        context: subject,
+        angle: angleObj,
+        answers: hasAnswers
+          ? Object.entries(ans).map(([q, a]) => ({ question: q, answer: a }))
+          : undefined,
+        preGenAnswers: hasAnswers
+          ? {
+              anecdote: ans.anecdote || ans.q_0 || undefined,
+              emotion: ans.emotion || ans.q_1 || undefined,
+              conviction: ans.conviction || ans.q_2 || undefined,
+            }
+          : undefined,
+        workspace_id: workspaceId || undefined,
+        objective: objective || undefined,
+        editorialFormat: editorialAngle || undefined,
+        editorialFormatLabel: editorialAngle || undefined,
+        ...(photoMode
+          ? {
+              photo_mode: true,
+              photo_description: photoDescription,
+              ...(photos && photos.length > 0 && photos[0]?.base64
+                ? {
+                    photos: photos.slice(0, 10).map((p) => ({
+                      base64: p.base64,
+                      mimeType: p.mimeType || "image/jpeg",
+                      context: p.context,
+                    })),
+                  }
+                : {}),
+            }
+          : {}),
+        ...(deepResearch ? { deepResearch: true } : {}),
+        ...(newsContext && newsContext.trim().length > 0 ? { news_context: newsContext.slice(0, 3800) } : {}),
+        ...(format === "pinterest" && (pinterestLink || pinterestBoard)
+          ? { pinterest_link: pinterestLink, pinterest_board: pinterestBoard }
+          : {}),
+      };
+
+      let fullText = "";
+      try {
+        fullText = await streamInvoke("creative-flow", streamBody);
+      } catch (e: any) {
+        if (e?._isQuota && handleQuotaError(e)) {
+          setError(null);
+          return null;
+        }
+        const msg = e?.message || "Erreur lors de la génération";
+        setError(msg);
+        return null;
+      }
+
+      if (!fullText) {
+        // Empty result — let the caller decide whether to surface a toast
+        return null;
+      }
+
+      // Tolerant JSON parse (same logic as inline CreerUnifie)
+      let parsed: any;
+      try {
+        const jsonMatch = fullText.match(/\{[\s\S]*\}/);
+        parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { content: fullText };
+      } catch {
+        parsed = { content: fullText };
+      }
+
+      const normalized: ContentResult = {
+        type: format as ContentResult["type"],
+        raw: parsed,
+      };
+      setResult(normalized);
+      return normalized;
+    },
+    [streamInvoke, streamReset]
+  );
+
   return {
     generate,
     generating,
@@ -486,7 +810,34 @@ export function useContentGenerator() {
     error,
     reset,
     generateQuestions,
+    generateFollowUp,
     loadingQuestions,
     questions,
+    setQuestions,
+    // Streaming API (Phase 4 — proxy of internal useStreamingInvoke)
+    generateStream,
+    streamingContent,
+    streaming,
+    streamDone,
+    streamError,
+    streamReset,
   };
+}
+
+// ── Streaming params type ──
+export interface GenerateStreamParams {
+  format: "post" | "linkedin" | "newsletter" | "pinterest";
+  subject: string;
+  objective?: string;
+  editorialAngle?: string;
+  answers?: Record<string, string>;
+  workspaceId?: string;
+  photoMode?: boolean;
+  photos?: { base64: string; mimeType?: string; context?: string }[];
+  photoDescription?: string;
+  deepResearch?: boolean;
+  pinterestLink?: string;
+  pinterestBoard?: string;
+  // Newsjacking — separate field, not stuffed into `subject`
+  newsContext?: string;
 }

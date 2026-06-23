@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
@@ -10,6 +11,7 @@ import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voi
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { friendlyError } from "@/lib/error-messages";
+import { handleQuotaError } from "@/lib/quota-error-handler";
 import { Sparkles, Copy, Check, Plus, Trash2, Lightbulb } from "lucide-react";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -78,9 +80,12 @@ export default function LinkedInParcours() {
     if (!exp.description_raw.trim()) return;
     setGeneratingIdx(idx);
     try {
-      const res = await supabase.functions.invoke("linkedin-ai", {
+      const res = await invokeWithTimeout("linkedin-ai", {
         body: { action: "optimize-experience", job_title: exp.job_title, company: exp.company, description: exp.description_raw, workspace_id: workspaceId !== user?.id ? workspaceId : undefined },
-      });
+      }, 60000);
+      if (res.error?.isRateLimit || res.data?.error === "limit_reached") {
+        if (handleQuotaError({ message: res.error?.message || res.data?.message, data: res.data })) return;
+      }
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
       updateExp(idx, "description_optimized", content);
@@ -115,7 +120,10 @@ export default function LinkedInParcours() {
   const suggestSkills = async () => {
     setGeneratingSkills(true);
     try {
-      const res = await supabase.functions.invoke("linkedin-ai", { body: { action: "suggest-skills", workspace_id: workspaceId !== user?.id ? workspaceId : undefined } });
+      const res = await invokeWithTimeout("linkedin-ai", { body: { action: "suggest-skills", workspace_id: workspaceId !== user?.id ? workspaceId : undefined } }, 60000);
+      if (res.error?.isRateLimit || res.data?.error === "limit_reached") {
+        if (handleQuotaError({ message: res.error?.message || res.data?.message, data: res.data })) return;
+      }
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
       let parsed: any;

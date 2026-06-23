@@ -2,7 +2,7 @@ import { useState } from "react";
 import { usePageSEO } from "@/hooks/use-page-seo";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, Navigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useToast } from "@/hooks/use-toast";
 import { friendlyError } from "@/lib/error-messages";
 import { useUserPlan } from "@/hooks/use-user-plan";
@@ -32,7 +32,7 @@ const SECTIONS = [
   {
     title: "Création de contenu",
     rows: [
-      { label: "Contenus IA par mois", free: "30/mois", outil: "Illimités", studio: "Illimités" },
+      { label: "Contenus IA par mois", free: "60/mois", outil: "300/mois", studio: "300/mois" },
       { label: "Posts Instagram", free: true, outil: true, studio: true },
       { label: "Reels", free: true, outil: true, studio: true },
       { label: "Stories", free: true, outil: true, studio: true },
@@ -44,7 +44,7 @@ const SECTIONS = [
   {
     title: "Analyse & suivi",
     rows: [
-      { label: "Audits IA par mois", free: "30/mois", outil: "Illimités", studio: "Illimités" },
+      { label: "Audits IA par mois", free: "60/mois", outil: "300/mois", studio: "300/mois" },
       { label: "Audit LinkedIn", free: true, outil: true, studio: true },
       { label: "Suivi de tes statistiques", free: true, outil: true, studio: true },
       { label: "Tableau de bord performances", free: true, outil: true, studio: true },
@@ -97,7 +97,7 @@ const FAQ = [
   },
   {
     q: "C'est quoi la différence entre le Premium et l'accompagnement binôme ?",
-    a: "Le Premium, c'est l'IA en illimité pour créer tes contenus en autonomie. L'accompagnement binôme, c'est le Premium + Laetitia qui te coache, construit ta stratégie, te débloque, et valide chaque étape.",
+    a: "Le Premium, c'est 300 crédits IA/mois pour créer tes contenus en autonomie. L'accompagnement binôme, c'est le Premium + Laetitia qui te coache, construit ta stratégie, te débloque, et valide chaque étape.",
   },
   {
     q: "Mes données sont sécurisées ?",
@@ -120,7 +120,7 @@ export default function PricingPage() {
 
   usePageSEO({
     title: "Tarifs — Gratuit, Premium ou Binôme",
-    description: "Découvre les formules de l'Assistant Com'. Gratuit pour démarrer, Premium à 39€/mois pour l'IA illimitée, Binôme à 250€/mois avec coaching humain.",
+    description: "Découvre les formules de l'Assistant Com'. Gratuit pour démarrer, Premium à 39€/mois avec 300 crédits IA/mois, Binôme à 290€/mois avec coaching humain.",
     canonical: "/pricing",
   });
   
@@ -132,13 +132,13 @@ export default function PricingPage() {
     }
     setCheckoutLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("create-checkout", {
+      const { data, error } = await invokeWithTimeout("create-checkout", {
         body: {
           priceId: STRIPE_PLANS.outil.priceId,
           mode: "subscription",
         },
-      });
-      if (error) throw error;
+      }, 15000);
+      if (error) throw new Error(error.message);
       if (data?.url) window.location.href = data.url;
     } catch (e: any) {
       console.error("Erreur technique:", e);
@@ -238,14 +238,13 @@ export default function PricingPage() {
               </span>
             </p>
             <p className="text-sm text-muted-foreground mt-1 mb-5">
-              Contenus IA illimités, audits illimités, communauté active. Pour celleux qui veulent publier régulièrement sans se poser la question des limites.
+              300 crédits IA/mois (générations + audits), communauté active. Pour celleux qui veulent publier régulièrement.
             </p>
             <p className="text-xs text-muted-foreground mb-2 pb-2 border-b border-border">
               Tout le plan gratuit, plus :
             </p>
             <ul className="space-y-2 text-sm text-foreground mb-6 flex-1">
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Contenus IA illimités (posts, reels, stories, newsletters…)</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Audits IA illimités</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> 300 crédits IA/mois (posts, reels, stories, newsletters, audits…)</li>
               <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Communauté active : poste, commente, échange</li>
               <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Lives mensuels avec Laetitia + replays</li>
             </ul>
@@ -270,7 +269,7 @@ export default function PricingPage() {
             <h3 className="font-display text-xl font-bold">Ta binôme de com</h3>
             <p className="text-xs text-muted-foreground font-medium mt-1">On fait ensemble. Tu n'es plus seul·e face à ta com'.</p>
             <p className="text-3xl font-bold mt-2 text-primary">
-              250€
+              290€
               <span className="text-base font-normal text-muted-foreground">
                 /mois × 6
               </span>

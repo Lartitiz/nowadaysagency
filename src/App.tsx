@@ -1,4 +1,6 @@
 import { useEffect, lazy, Suspense } from "react";
+import * as Sentry from "@sentry/react";
+import { toast } from "sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -121,6 +123,7 @@ const SharedBrandingPage = lazy(() => import("./pages/SharedBrandingPage"));
 const SharedCalendarPage = lazy(() => import("./pages/SharedCalendarPage"));
 const VoiceGuidePage = lazy(() => import("./pages/VoiceGuidePage"));
 const BrandCharterPage = lazy(() => import("./pages/BrandCharterPage"));
+const PhotosPage = lazy(() => import("./pages/PhotosPage"));
 
 
 const queryClient = new QueryClient({
@@ -173,6 +176,34 @@ const PUBLIC_PATHS = ["/", "/login", "/connexion", "/reset-password", "/binome",
 function AnimatedRoutes() {
   const location = useLocation();
   useOnlineStatus();
+
+  // Global safety net: catch unhandled async errors
+  useEffect(() => {
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      const msg = event.reason?.message || String(event.reason) || "Erreur inattendue";
+      
+      // Ignore benign errors (ResizeObserver, chunk loading, etc.)
+      if (
+        msg.includes("ResizeObserver") ||
+        msg.includes("Loading chunk") ||
+        msg.includes("dynamically imported module") ||
+        msg.includes("AbortError") ||
+        msg.includes("The user aborted")
+      ) return;
+
+      console.error("[Unhandled rejection]", event.reason);
+      
+      Sentry.captureException(event.reason || new Error(msg));
+      
+      if (!msg.includes("NetworkError") && !msg.includes("Failed to fetch")) {
+        toast.error("Un problème est survenu. Si ça persiste, recharge la page.");
+      }
+    };
+
+    window.addEventListener("unhandledrejection", handleUnhandledRejection);
+    return () => window.removeEventListener("unhandledrejection", handleUnhandledRejection);
+  }, []);
+
   const showAppWidgets = !PUBLIC_PATHS.includes(location.pathname) && !location.pathname.startsWith("/invite/") && !location.pathname.startsWith("/share/") && !location.pathname.startsWith("/calendrier/partage/");
   const showCoach = showAppWidgets && location.pathname !== "/onboarding" && location.pathname !== "/welcome";
 
@@ -205,23 +236,9 @@ function AnimatedRoutes() {
                 <Route path="/branding" element={<ProtectedRoute><BrandingPage /></ProtectedRoute>} />
                 <Route path="/branding/audit" element={<ProtectedRoute><BrandingAuditPage /></ProtectedRoute>} />
                 <Route path="/branding/audit/:id" element={<ProtectedRoute><BrandingAuditResultPage /></ProtectedRoute>} />
-                <Route path="/branding/ton" element={<Navigate to="/branding/section?section=tone_style" replace />} />
-                <Route path="/branding/ton/recap" element={<Navigate to="/branding/section?section=tone_style&tab=synthese" replace />} />
-                <Route path="/branding/storytelling" element={<Navigate to="/branding/section?section=story" replace />} />
-                <Route path="/branding/storytelling/new" element={<Navigate to="/branding/coaching?section=story" replace />} />
-                <Route path="/branding/storytelling/import" element={<Navigate to="/branding/section?section=story" replace />} />
-                <Route path="/branding/storytelling/:id" element={<Navigate to="/branding/section?section=story" replace />} />
-                <Route path="/branding/storytelling/:id/recap" element={<Navigate to="/branding/section?section=story&tab=synthese" replace />} />
                 <Route path="/branding/storytelling/:id/edit" element={<ProtectedRoute><StorytellingEditPage /></ProtectedRoute>} />
-                <Route path="/branding/storytelling/recap" element={<Navigate to="/branding/section?section=story&tab=synthese" replace />} />
-                <Route path="/branding/persona" element={<Navigate to="/branding/section?section=persona" replace />} />
-                <Route path="/branding/persona/recap" element={<Navigate to="/branding/section?section=persona&tab=synthese" replace />} />
                 <Route path="/branding/proposition" element={<Navigate to="/branding/proposition/recap" replace />} />
                 <Route path="/branding/proposition/recap" element={<ProtectedRoute><PropositionRecapPage /></ProtectedRoute>} />
-                <Route path="/branding/niche" element={<Navigate to="/branding/section?section=tone_style" replace />} />
-                <Route path="/branding/niche/recap" element={<Navigate to="/branding/section?section=tone_style" replace />} />
-                <Route path="/branding/strategie" element={<Navigate to="/branding/section?section=content_strategy" replace />} />
-                <Route path="/branding/strategie/recap" element={<Navigate to="/branding/section?section=content_strategy&tab=synthese" replace />} />
                 <Route path="/branding/offres" element={<ProtectedRoute><OffersPage /></ProtectedRoute>} />
                 <Route path="/branding/offres/:id" element={<ProtectedRoute><OfferWorkshopPage /></ProtectedRoute>} />
                 <Route path="/branding/coaching" element={<ProtectedRoute><BrandingCoachingPage /></ProtectedRoute>} />
@@ -238,6 +255,7 @@ function AnimatedRoutes() {
               <Route path="/lives" element={<ProtectedRoute><LivesPage /></ProtectedRoute>} />
               <Route path="/communaute" element={<ProtectedRoute><CommunautePage /></ProtectedRoute>} />
               <Route path="/contacts" element={<ProtectedRoute><ContactsPage /></ProtectedRoute>} />
+              <Route path="/photos" element={<ProtectedRoute><PhotosPage /></ProtectedRoute>} />
               <Route path="/profil" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
               <Route path="/parametres" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
               <Route path="/parametres/connexions" element={<ProtectedRoute><ConnectionCheckPage /></ProtectedRoute>} />

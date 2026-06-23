@@ -15,7 +15,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { CalendarIcon, Sparkles, Trash2, Save, RefreshCw } from "lucide-react";
+import { CalendarIcon, Sparkles, Trash2, Save, RefreshCw, Newspaper } from "lucide-react";
 import type { SavedIdea } from "./CalendarIdeasSidebar";
 
 const FORMAT_OPTIONS = [
@@ -110,7 +110,9 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
       format: ideaFormat,
       notes: notes || null,
       content_draft: idea.content_draft,
-    }).select("id").single();
+      series_id: (idea as any).series_id ?? null,
+      episode_number: (idea as any).episode_number ?? null,
+    } as any).select("id").single();
     if (newPost) {
       await supabase.from("saved_ideas").update({ calendar_post_id: newPost.id, planned_date: dateStr }).eq("id", idea.id);
     }
@@ -169,9 +171,42 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
 
   const transformFormats = FORMAT_OPTIONS.filter((f) => f.id !== ideaFormat);
 
+  const isSavedActu = (idea as any)?.source_module === "newsjacking" && (idea as any)?.format === "actu";
+  const actuData = isSavedActu ? (idea as any)?.content_data : null;
+
+  const handleCreateFromActu = () => {
+    if (!idea) return;
+    const actu = actuData || {};
+    const subject = actu.titre || idea.titre?.replace(/^📰\s*/, "") || "";
+    const context = actu.titre
+      ? `ACTUALITÉ : ${actu.titre}\nSource : ${actu.source || ""}\nRésumé : ${actu.resume || ""}\nPertinence : ${actu.pertinence || ""}`
+      : idea.notes || "";
+    onOpenChange(false);
+    navigate("/creer", { state: { subject, context, fromIdeas: true, ideaId: idea.id } });
+  };
+
   const content = (
 
     <div className="space-y-5 mt-2">
+      {/* Saved newsjacking banner */}
+      {isSavedActu && (
+        <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 space-y-2">
+          <div className="flex items-center gap-2 text-sm font-medium text-primary">
+            <Newspaper className="h-4 w-4" /> 📰 Actualité sauvegardée
+          </div>
+          {actuData?.source && (
+            <p className="text-xs text-muted-foreground">Source : {actuData.source}</p>
+          )}
+          <Button
+            onClick={handleCreateFromActu}
+            size="sm"
+            className="w-full rounded-pill gap-1.5 mt-1"
+          >
+            <Sparkles className="h-3.5 w-3.5" /> Créer un contenu à partir de cette actu
+          </Button>
+        </div>
+      )}
+
       {/* Titre */}
       <div>
         <label className="text-sm font-medium mb-1.5 block">Titre</label>

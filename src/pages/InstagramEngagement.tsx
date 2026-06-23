@@ -16,7 +16,7 @@ import TipsSection from "@/components/engagement/TipsSection";
 import ProspectionSection from "@/components/prospection/ProspectionSection";
 import Confetti from "@/components/Confetti";
 import { useDemoContext } from "@/contexts/DemoContext";
-import { DEMO_DATA } from "@/lib/demo-data";
+
 import { friendlyError } from "@/lib/error-messages";
 
 function getMonday(d: Date) {
@@ -37,7 +37,7 @@ function getDayIndex() {
 export default function InstagramEngagement() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const { isDemoMode } = useDemoContext();
+  const { isDemoMode, demoData } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const [showConfetti, setShowConfetti] = useState(false);
@@ -63,12 +63,12 @@ export default function InstagramEngagement() {
   const threshold = Math.ceil(items.length * 0.6);
 
   useEffect(() => {
-    if (isDemoMode) {
+    if (isDemoMode && demoData) {
       setCurrentStreak(2);
       setBestStreak(5);
       setWeekChecks([true, true, false, false, false, false, false]);
       setChecked(["reply_stories", "like_target"]);
-      setContacts(DEMO_DATA.contacts.map((c, i) => ({
+      setContacts((demoData as any).contacts.map((c: any, i: number) => ({
         id: `demo-${i}`,
         pseudo: c.name,
         tag: c.type === "prospect" ? "prospect" : c.type === "client" ? "client" : "paire",

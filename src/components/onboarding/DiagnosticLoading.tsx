@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { type DiagnosticData, computeDiagnosticData, DEMO_DIAGNOSTIC } from "@/lib/diagnostic-data";
 import { Progress } from "@/components/ui/progress";
 
@@ -123,6 +124,7 @@ export default function DiagnosticLoading({
   answers, brandingAnswers, uploadedFileIds, activityType, onReady,
 }: Props) {
   const { user } = useAuth();
+  const workspaceId = useWorkspaceId();
   const [messages, setMessages] = useState<LiveMessage[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [checks, setChecks] = useState({ ig: false, web: false, docs: false });
@@ -238,9 +240,8 @@ export default function DiagnosticLoading({
     callDeepDiagnostic();
 
     async function callDeepDiagnostic() {
-      let timeoutFired = false;
-      let safetyTimeout: ReturnType<typeof setTimeout> | undefined;
       try {
+
         const body = {
           userId: user?.id,
           websiteUrl: answers.website || null,
@@ -265,22 +266,14 @@ export default function DiagnosticLoading({
           },
         };
 
-        safetyTimeout = setTimeout(() => {
-          timeoutFired = true;
-           console.warn("Deep diagnostic timeout (52s), using fallback");
-           useFallback();
-         }, 52000);
-
-        const { data, error } = await supabase.functions.invoke("deep-diagnostic", { body: { ...body, isOnboarding: true } });
-
-        clearTimeout(safetyTimeout);
-        if (timeoutFired) return;
+        const { data, error } = await invokeWithTimeout("deep-diagnostic", { body: { ...body, isOnboarding: true, workspace_id: workspaceId !== user?.id ? workspaceId : undefined } }, 120000);
 
         if (error || !data) {
           console.warn("Edge function failed, using fallback:", error);
           useFallback();
           return;
         }
+
 
         const result = mapEdgeResponseToDiagnostic(data);
         diagnosticDataRef.current = result;
@@ -295,11 +288,10 @@ export default function DiagnosticLoading({
           setTimeout(() => onReady(result), 400);
         }
       } catch (err) {
-        clearTimeout(safetyTimeout);
-        if (timeoutFired) return;
         console.warn("Deep diagnostic error, using fallback:", err);
         useFallback();
       }
+
     }
 
     function useFallback() {

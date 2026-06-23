@@ -3,7 +3,7 @@ import { type CalendarPost } from "@/lib/calendar-constants";
 import {
   FORMAT_LABELS,
 } from "@/lib/calendar-helpers";
-import { ChevronRight, Sparkles, Copy, Trash2 } from "lucide-react";
+import { ChevronRight, Sparkles, Copy, Trash2, Tv } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
@@ -22,8 +22,11 @@ interface Props {
   onQuickDuplicate?: (post: CalendarPost) => void;
   onQuickDelete?: (postId: string) => void;
   onQuickGenerate?: (post: CalendarPost) => void;
+  onQuickAttachSeries?: (post: CalendarPost) => void;
   ownerUsername?: string;
   ownerDisplayName?: string;
+  /** Map of series_id → series name for badge display */
+  seriesNameById?: Record<string, string>;
 }
 
 const CANAL_ICONS: Record<string, string> = {
@@ -50,13 +53,29 @@ function getStatusStyle(status: string): { bg: string; borderColor: string; text
 }
 
 /** Compact card for calendar cells — simplified & readable */
-export function CalendarContentCard({ post, onClick, variant = "compact", commentCount, onQuickStatusChange, onQuickDuplicate, onQuickDelete, onQuickGenerate }: Props) {
+export function CalendarContentCard({
+  post,
+  onClick,
+  variant = "compact",
+  commentCount,
+  onQuickStatusChange,
+  onQuickDuplicate,
+  onQuickDelete,
+  onQuickGenerate,
+  onQuickAttachSeries,
+  seriesNameById,
+}: Props) {
   const isMobile = useIsMobile();
   const statusStyle = getStatusStyle(post.status);
   const canalIcon = CANAL_ICONS[post.canal] || "📌";
   const title = post.theme || "Sans titre";
   const formatKey = (post as any).format_technique || post.format || "";
   const formatLabel = FORMAT_LABELS[formatKey] || "";
+
+  const seriesId = (post as any).series_id as string | null | undefined;
+  const episodeNumber = (post as any).episode_number as number | null | undefined;
+  const seriesName = seriesId ? seriesNameById?.[seriesId] : undefined;
+  const hasSeries = !!seriesId;
 
   const cardStyle: React.CSSProperties = {
     backgroundColor: statusStyle.bg,
@@ -74,6 +93,11 @@ export function CalendarContentCard({ post, onClick, variant = "compact", commen
         <span>{canalIcon} {post.canal}</span>
         {formatLabel && <span>· {formatLabel}</span>}
       </div>
+      {hasSeries && (
+        <p className="text-xs text-primary font-medium">
+          📺 Série : {seriesName || "—"}{episodeNumber ? ` · épisode #${episodeNumber}` : ""}
+        </p>
+      )}
       {post.content_draft && (
         <p className="text-xs text-muted-foreground line-clamp-3 whitespace-pre-wrap">
           {post.content_draft.slice(0, 150)}
@@ -84,6 +108,25 @@ export function CalendarContentCard({ post, onClick, variant = "compact", commen
       )}
     </div>
   );
+
+  // Series badge — detailed variant: name + #ep, truncated
+  const seriesBadgeDetailed = hasSeries ? (
+    <div className="inline-flex items-center gap-1 max-w-full bg-primary/10 text-primary text-[10px] font-semibold px-1.5 py-0.5 rounded-md mb-1">
+      <Tv className="h-2.5 w-2.5 shrink-0" />
+      <span className="truncate" style={{ maxWidth: 110 }}>
+        {seriesName || "Série"}
+      </span>
+      {episodeNumber ? <span className="opacity-80 shrink-0">#{episodeNumber}</span> : null}
+    </div>
+  ) : null;
+
+  // Series badge — compact variant: just episode number to save space
+  const seriesBadgeCompact = hasSeries ? (
+    <span className="inline-flex items-center gap-0.5 bg-primary/10 text-primary text-[9px] font-semibold px-1 py-0 rounded leading-tight shrink-0">
+      <Tv className="h-2 w-2" />
+      {episodeNumber ? `#${episodeNumber}` : ""}
+    </span>
+  ) : null;
 
   if (variant === "detailed") {
     return (
@@ -99,7 +142,7 @@ export function CalendarContentCard({ post, onClick, variant = "compact", commen
               style={cardStyle}
             >
               {/* Quick actions on hover */}
-              {(onQuickStatusChange || onQuickDuplicate || onQuickDelete || onQuickGenerate) && (
+              {(onQuickStatusChange || onQuickDuplicate || onQuickDelete || onQuickGenerate || onQuickAttachSeries) && (
                 <div
                   className="absolute top-1 right-1 flex items-center gap-0.5 opacity-0 group-hover/card:opacity-100 transition-opacity duration-150 z-10"
                   onClick={(e) => e.stopPropagation()}
@@ -131,6 +174,18 @@ export function CalendarContentCard({ post, onClick, variant = "compact", commen
                       <Sparkles className="h-3 w-3" />
                     </button>
                   )}
+                  {onQuickAttachSeries && !hasSeries && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onQuickAttachSeries(post);
+                      }}
+                      className="p-1 rounded-md bg-background/90 border border-border/50 hover:bg-primary/10 hover:border-primary/30 text-muted-foreground hover:text-primary transition-colors"
+                      title="Rattacher à une série"
+                    >
+                      <Tv className="h-3 w-3" />
+                    </button>
+                  )}
                   {onQuickDuplicate && (
                     <button
                       onClick={(e) => {
@@ -157,6 +212,9 @@ export function CalendarContentCard({ post, onClick, variant = "compact", commen
                   )}
                 </div>
               )}
+
+              {/* Series badge above title */}
+              {seriesBadgeDetailed}
 
               {/* Canal icon + title (2 lines max) */}
               <div className="flex items-start gap-1.5">
@@ -207,7 +265,7 @@ export function CalendarContentCard({ post, onClick, variant = "compact", commen
             <div className="flex items-start gap-1">
               <span className="text-xs shrink-0">{canalIcon}</span>
               <p className={cn(
-                "font-medium text-[11px] leading-tight",
+                "font-medium text-[11px] leading-tight flex-1 min-w-0",
                 post.status === "published" && "line-through",
               )}
               style={{
@@ -219,6 +277,7 @@ export function CalendarContentCard({ post, onClick, variant = "compact", commen
               }}>
                 {title}
               </p>
+              {seriesBadgeCompact}
             </div>
             {(commentCount || 0) > 0 && (
               <span className="absolute bottom-0.5 right-0.5 text-[9px] bg-primary/10 text-primary font-semibold px-1 py-0 rounded-full leading-tight">

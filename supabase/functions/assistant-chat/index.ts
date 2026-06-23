@@ -1,10 +1,11 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { callAnthropic, getDefaultModel } from "../_shared/anthropic.ts";
 import { getUserContext, formatContextForAI, buildIdentityBlock } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { validateInput, ValidationError, AssistantChatSchema } from "../_shared/input-validators.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
 function getServiceClient() {
   return createClient(
@@ -21,9 +22,9 @@ async function getUserId(req: Request): Promise<string | null> {
     Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBLISHABLE_KEY")!,
     { global: { headers: { Authorization: authHeader } } }
   );
-  const { data, error } = await supabase.auth.getClaims(authHeader.replace("Bearer ", ""));
-  if (error || !data?.claims?.sub) return null;
-  return data.claims.sub as string;
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) return null;
+  return user.id;
 }
 
 // Save undo log before destructive action
@@ -55,7 +56,7 @@ async function saveUndoLog(
 }
 
 // Execute actions returned by AI
-async function executeActions(sb: any, userId: string, actions: any[], workspaceId?: string): Promise<any[]> {
+async function executeActions(sb: any, userId: string, actions: any[], workspaceId?: string, profileUserId?: string): Promise<any[]> {
   const filterCol = workspaceId ? "workspace_id" : "user_id";
   const filterVal = workspaceId || userId;
   const results: any[] = [];
@@ -92,11 +93,12 @@ async function executeActions(sb: any, userId: string, actions: any[], workspace
           break;
         }
         case "update_profile": {
-          // profiles always uses user_id (no workspace_id)
-          const { data: before } = await sb.from("profiles").select("*").eq("user_id", userId).maybeSingle();
+          // profiles uses user_id — resolved to workspace owner when in client workspace
+          const targetUserId = profileUserId || userId;
+          const { data: before } = await sb.from("profiles").select("*").eq("user_id", targetUserId).maybeSingle();
           if (before) {
             await saveUndoLog(sb, userId, "update_profile", "profiles", before.id, before);
-            const { error } = await sb.from("profiles").update({ [action.field]: action.value }).eq("user_id", userId);
+            const { error } = await sb.from("profiles").update({ [action.field]: action.value }).eq("user_id", targetUserId);
             results.push({ action: action.type, field: action.field, success: !error, error: error?.message });
           }
           break;
@@ -233,7 +235,7 @@ async function undoLastAction(sb: any, userId: string): Promise<{ success: boole
 const SYSTEM_PROMPT_BODY = `
 
 CONTEXTE IMPORTANT :
-Tu as accès au branding complet de l'utilisatrice (son histoire, sa cible, son ton, sa stratégie, ses offres). Utilise ces informations pour personnaliser chaque réponse. Ne réponds jamais de manière générique quand tu as du contexte spécifique.
+Tu as accès au branding complet de la personne (son histoire, sa cible, son ton, sa stratégie, ses offres). Utilise ces informations pour personnaliser chaque réponse. Ne réponds jamais de manière générique quand tu as du contexte spécifique.
 
 TON STYLE :
 - Tu ne dis JAMAIS de gros mots, de jurons, ni de langage vulgaire. Tu restes toujours courtois·e et professionnel·le.
@@ -249,10 +251,10 @@ TON STYLE :
 - Tu utilises des listes à puces (· item) quand tu donnes plusieurs conseils
 
 CE QUE TU PEUX FAIRE :
-1. **Conseils stratégiques** : analyser la com' de l'utilisatrice, proposer des priorités, répondre à ses questions
+1. **Conseils stratégiques** : analyser la com' de la personne, proposer des priorités, répondre à ses questions
 2. **Modifier le branding** : mettre à jour le ton, la proposition, les offres, la cible (via les actions)
 3. **Planifier des posts** : ajouter des idées au calendrier éditorial (via insert_calendar_post)
-4. **Analyser un contenu** : quand l'utilisatrice colle un texte, le critiquer constructivement
+4. **Analyser un contenu** : quand la personne colle un texte, le critiquer constructivement
 5. **Orienter vers les outils** : rediriger vers les bons modules de l'app
 
 RÈGLE SUR LA CRÉATION DE CONTENU :
@@ -263,7 +265,7 @@ Tu PEUX donner des angles, des accroches, des conseils sur le format. Mais pas l
 
 COMMENT PERSONNALISER TES RÉPONSES :
 - Si la cible est définie, parle d'elle par son prénom quand c'est pertinent
-- Si le ton est défini, adapte tes suggestions au style de l'utilisatrice
+- Si le ton est défini, adapte tes suggestions au style de la personne
 - Si les offres existent, lie tes conseils à ce qu'elle vend concrètement
 - Si le storytelling est rempli, fais des références à son parcours
 
@@ -290,7 +292,7 @@ RÈGLES :
 4. Jamais de conseil type "poste 3 fois par jour" ou "achète des followers"
 5. Utilise le contexte complet : parle de SA cible, SON ton, SES offres
 6. Pour les questions stratégiques, pas de champ "actions"
-7. Si l'utilisatrice n'a pas encore rempli une section essentielle, suggère-le naturellement
+7. Si la personne n'a pas encore rempli une section essentielle, suggère-le naturellement
 
 FORMAT DE RÉPONSE (JSON strict) :
 {
@@ -303,7 +305,7 @@ FORMAT DE RÉPONSE (JSON strict) :
 Retourne UNIQUEMENT du JSON valide, sans texte avant ou après.`;
 
 Deno.serve(async (req) => {
-  const corsHeaders = getCorsHeaders(req);
+  const corsHeaders = getCorsHeaders(req); const cors = corsHeaders;
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -324,6 +326,24 @@ Deno.serve(async (req) => {
     const { message, conversation_history, confirmed_actions, undo, workspace_id } = validateInput(await req.json(), AssistantChatSchema);
     const sb = getServiceClient();
 
+    const membership = await assertWorkspaceMembership(sb, userId, workspace_id);
+    if (!membership.ok) {
+      console.warn("[workspace-guard] denied", { userId, workspaceId: workspace_id });
+      return workspaceDeniedResponse(cors);
+    }
+
+    // Resolve workspace owner's user_id for profile-scoped tables
+    let profileUserId = userId;
+    if (workspace_id) {
+      const { data: ownerRow } = await sb
+        .from("workspace_members")
+        .select("user_id")
+        .eq("workspace_id", workspace_id)
+        .eq("role", "owner")
+        .maybeSingle();
+      if (ownerRow?.user_id) profileUserId = ownerRow.user_id;
+    }
+
     // Handle undo
     if (undo) {
       const result = await undoLastAction(sb, userId);
@@ -334,7 +354,7 @@ Deno.serve(async (req) => {
 
     // Handle confirmed actions
     if (confirmed_actions?.length) {
-      const results = await executeActions(sb, userId, confirmed_actions, workspace_id);
+      const results = await executeActions(sb, userId, confirmed_actions, workspace_id, profileUserId);
       const allSuccess = results.every((r) => r.success);
       return new Response(
         JSON.stringify({
@@ -394,7 +414,7 @@ Deno.serve(async (req) => {
     const dayOfWeek = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"][new Date().getDay()];
 
     const fullUserPrompt =
-      `${contextText}${calendarContext}${offersWithIds}\n\nDATE DU JOUR : ${today} (${dayOfWeek})\n\nMessage de l'utilisatrice : ${message}`;
+      `${contextText}${calendarContext}${offersWithIds}\n\nDATE DU JOUR : ${today} (${dayOfWeek})\n\nMessage : ${message}`;
 
     // Build messages from conversation history
     const messages: any[] = [];
@@ -465,6 +485,16 @@ Deno.serve(async (req) => {
       { headers: { ...cors, "Content-Type": "application/json" } }
     );
   } catch (err: any) {
+    if (err instanceof ValidationError) {
+      return new Response(JSON.stringify({ error: err.message }), {
+        status: 400, headers: { ...cors, "Content-Type": "application/json" },
+      });
+    }
+    if (err?.status === 429) {
+      return new Response(JSON.stringify({ error: "Trop de requêtes. Réessaie dans un moment." }), {
+        status: 429, headers: { ...cors, "Content-Type": "application/json" },
+      });
+    }
     console.error(JSON.stringify({
       type: "edge_function_error",
       function_name: "assistant-chat",
@@ -472,8 +502,11 @@ Deno.serve(async (req) => {
       user_id: null,
       timestamp: new Date().toISOString(),
     }));
+    const userMessage = err?.message?.includes("API") || err?.message?.includes("IA")
+      ? err.message
+      : "Erreur interne du serveur";
     return new Response(
-      JSON.stringify({ error: "Erreur interne du serveur" }),
+      JSON.stringify({ error: userMessage }),
       { status: 500, headers: { ...cors, "Content-Type": "application/json" } }
     );
   }

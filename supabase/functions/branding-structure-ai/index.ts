@@ -2,9 +2,10 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
-import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
+
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
-import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
+import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 const SECTION_PROMPTS: Record<string, string> = {
   story: `Tu es une experte en storytelling de marque personnelle.
@@ -112,13 +113,15 @@ serve(async (req) => {
 
   try {
     const { userId } = await authenticateRequest(req);
+
+    const rateCheck = checkRateLimit(userId);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+
     const { section, input, branding_context } = await req.json();
 
     const quota = await checkQuota(userId, "coach");
     if (!quota.allowed) {
-      return new Response(JSON.stringify({ error: quota.message, quota }), {
-        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return quotaDeniedResponse(quota, corsHeaders);
     }
 
     if (!section || !SECTION_PROMPTS[section]) {
@@ -151,7 +154,7 @@ serve(async (req) => {
     const model = getModelForAction("content");
     const result = await callAnthropicSimple({
       model,
-      system: `${BASE_SYSTEM_RULES}\n\n${ANTI_SLOP}\n\n${sectionPrompt}\n\nRéponds UNIQUEMENT avec un JSON valide, sans markdown, sans commentaire.`,
+      system: `${BASE_SYSTEM_RULES}\n\n${sectionPrompt}\n\nRéponds UNIQUEMENT avec un JSON valide, sans markdown, sans commentaire.`,
       messages: [{ role: "user", content: userMessage }],
       temperature: 0.7,
       max_tokens: 2000,

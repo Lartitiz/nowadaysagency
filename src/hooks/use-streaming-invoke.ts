@@ -37,43 +37,89 @@ export function useStreamingInvoke(): UseStreamingInvokeReturn {
 
     try {
       const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token;
+      let token = session.data.session?.access_token;
       if (!token) throw new Error("Non authentifié");
 
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const controller = new AbortController();
       abortRef.current = controller;
 
-      // Timeout de 60s pour le streaming (plus long que le non-streaming car on reçoit des tokens)
-      const timeout = setTimeout(() => controller.abort(), 60000);
+      const doFetch = async (authToken: string) => {
+        // Timeout de 180s — couvre LinkedIn vision multi-photos, newsletters et deep research
+        const timeout = setTimeout(() => controller.abort(), 180000);
+        const resp = await fetch(`${supabaseUrl}/functions/v1/${functionName}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${authToken}`,
+            "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            "Accept": "text/event-stream",
+          },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        });
+        return { resp, timeout };
+      };
 
-      const resp = await fetch(`${supabaseUrl}/functions/v1/${functionName}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-          "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          "Accept": "text/event-stream",
-        },
-        body: JSON.stringify(body),
-        signal: controller.signal,
-      });
-
+      let { resp, timeout } = await doFetch(token);
       clearTimeout(timeout);
 
+      // Retry silencieux UNE SEULE FOIS si le token est périmé (onglet en veille)
+      if (resp.status === 401 || resp.status === 403) {
+        const { data: refreshed, error: refreshErr } = await supabase.auth.refreshSession();
+        const newToken = refreshed?.session?.access_token;
+        if (!refreshErr && newToken) {
+          token = newToken;
+          ({ resp, timeout } = await doFetch(newToken));
+          clearTimeout(timeout);
+        }
+      }
+
+      // Handle JSON responses (non-streaming, e.g. LinkedIn 2-step generation)
+      const contentType = resp.headers.get("Content-Type") || "";
+      if (contentType.includes("application/json")) {
+        const json = await resp.json();
+        if (json.error === "limit_reached" || json.message?.includes("ce mois")) {
+          const err = new Error(json.message || json.error);
+          (err as any)._isQuota = true;
+          (err as any).data = json;
+          throw err;
+        }
+        if (json.error) {
+          throw new Error(json.message || json.error);
+        }
+        // Valid non-streaming JSON response
+        const text = JSON.stringify(json);
+        setContent(text);
+        setDone(true);
+        setStreaming(false);
+        return text;
+      }
+
       if (!resp.ok || !resp.body) {
-        // Fallback: maybe the edge function returned JSON (not streaming)
+        // Fallback: edge function returned error (not streaming)
+        let errorMsg = "Erreur de génération";
         try {
           const json = await resp.json();
-          if (json.error) throw new Error(json.message || json.error);
-          const text = json.content || json.raw || JSON.stringify(json);
-          setContent(text);
-          setDone(true);
-          setStreaming(false);
-          return text;
-        } catch {
-          throw new Error("Erreur de génération");
+          if (json.error === "limit_reached" || json.message?.includes("ce mois")) {
+            const err = new Error(json.message || json.error);
+            (err as any)._isQuota = true;
+            (err as any).data = json;
+            throw err;
+          }
+          if (json.error) {
+            errorMsg = json.message || json.error;
+          } else {
+            const text = json.content || json.raw || JSON.stringify(json);
+            setContent(text);
+            setDone(true);
+            setStreaming(false);
+            return text;
+          }
+        } catch (parseErr) {
+          if ((parseErr as any)?._isQuota) throw parseErr;
         }
+        throw new Error(errorMsg);
       }
 
       const reader = resp.body.getReader();
@@ -124,7 +170,10 @@ export function useStreamingInvoke(): UseStreamingInvokeReturn {
         : err?.message || "Erreur de génération";
       setError(msg);
       setStreaming(false);
-      return "";
+      if (err?._isQuota) throw err;
+      const wrapped = new Error(msg);
+      (wrapped as any).cause = err;
+      throw wrapped;
     }
   }, [reset]);
 

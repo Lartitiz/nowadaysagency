@@ -137,16 +137,21 @@ export default function ProspectDetailDialog({ prospect, open, onOpenChange, onU
             prospect={prospect}
             interactions={interactions}
             onBack={() => setShowDmGen(false)}
-            onMessageSent={(content, approach, meta) => {
+            onMessageSent={async (content, approach, meta) => {
               // Log interaction
               if (user) {
-                supabase.from("contact_interactions").insert({
-                  contact_id: prospect.id,
-                  user_id: user.id,
-                  interaction_type: "dm_sent",
-                  content,
-                  ai_generated: true,
-                } as any).then(() => loadInteractions());
+                try {
+                  await supabase.from("contact_interactions").insert({
+                    contact_id: prospect.id,
+                    user_id: user.id,
+                    interaction_type: "dm_sent",
+                    content,
+                    ai_generated: true,
+                  } as any);
+                  loadInteractions();
+                } catch (e) {
+                  console.error("[ProspectDetail] Failed to log interaction:", e);
+                }
               }
               // Determine next stage & reminder based on approach
               const currentStage = prospect.stage || prospect.prospect_stage;

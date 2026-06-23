@@ -2,10 +2,12 @@ import { useState } from "react";
 import { parseAIResponse } from "@/lib/parse-ai-response";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { friendlyError } from "@/lib/error-messages";
+import { handleQuotaError } from "@/lib/quota-error-handler";
 import { RefreshCw, Copy, Check, Sparkles, Loader2, CalendarDays, Lightbulb } from "lucide-react";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import BaseReminder from "@/components/BaseReminder";
@@ -33,6 +35,26 @@ const TARGET_CHANNELS = [
 
 interface CrosspostResult {
   versions: Record<string, { full_text?: string; script?: string; sequence?: any[]; character_count?: number; angle_choisi: string; duration?: string }>;
+}
+
+function formatStoriesSequence(sequence: any[]): string {
+  if (!Array.isArray(sequence)) return String(sequence ?? "");
+  return sequence
+    .map((item, i) => {
+      if (typeof item === "string") return item;
+      if (item && typeof item === "object") {
+        const lines: string[] = [`Story ${i + 1}`];
+        for (const [k, v] of Object.entries(item)) {
+          if (v === null || v === undefined || v === "") continue;
+          const line = typeof v === "string" ? v : typeof v === "number" ? String(v) : null;
+          if (line) lines.push(`${line}`);
+        }
+        return lines.join("\n");
+      }
+      return String(item ?? "");
+    })
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 export default function CrosspostFlow() {
@@ -73,9 +95,9 @@ export default function CrosspostFlow() {
 
   const canGenerate = () => {
     if (targets.size === 0) return false;
-    if (inputMode === "text") return sourceContent.trim().length > 0;
+    if (inputMode === "text") return sourceContent.trim().length > 0 && sourceContent.length <= 10000;
     if (inputMode === "files") return files.length > 0;
-    return sourceContent.trim().length > 0 || files.length > 0;
+    return sourceContent.length <= 10000 && (sourceContent.trim().length > 0 || files.length > 0);
   };
 
   const generate = async () => {
@@ -90,18 +112,23 @@ export default function CrosspostFlow() {
           fileUrls.push({ url, type: f.type, name: f.name });
         }
       }
-      const res = await supabase.functions.invoke("linkedin-ai", {
+      const { data: cpData, error: cpError } = await invokeWithTimeout("linkedin-ai", {
         body: {
     action: "crosspost",
     sourceContent: sourceContent || "",
     sourceType,
     targetChannels: Array.from(targets),
     fileUrls,
-    workspace_id: workspaceId,
+    workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
         },
-      });
-      if (res.error) throw new Error(res.error.message);
-      let parsed: CrosspostResult = parseAIResponse(res.data?.content || "");
+      }, 120000);
+      if (cpError || cpData?.error) {
+        if (handleQuotaError({ message: cpError?.message || cpData?.message, data: cpData })) {
+          return;
+        }
+      }
+      if (cpError) throw new Error(cpError.message);
+      let parsed: CrosspostResult = parseAIResponse(cpData?.content || "");
       setResult(parsed);
       setActiveVersionKey(Object.keys(parsed.versions || {})[0] || "");
     } catch (e: any) {
@@ -128,7 +155,7 @@ export default function CrosspostFlow() {
   const getActiveVersionText = () => {
     const v = getActiveVersion();
     if (!v) return "";
-    return v.full_text || v.script || JSON.stringify(v.sequence, null, 2) || "";
+    return v.full_text || v.script || (v.sequence ? formatStoriesSequence(v.sequence) : "") || "";
   };
   const getActiveChannelLabel = () => TARGET_CHANNELS.find((c) => c.id === activeVersionKey)?.label || activeVersionKey;
   const getActiveChannelCanal = () => activeVersionKey === "linkedin" ? "linkedin" : "instagram";
@@ -211,8 +238,16 @@ export default function CrosspostFlow() {
               value={sourceContent}
               onChange={(e) => setSourceContent(e.target.value)}
               placeholder={inputMode === "both" ? "Ajoute du contexte ou du texte complémentaire..." : "Colle ton contenu ici..."}
-              className="min-h-[120px] mb-3"
+              className="min-h-[120px] mb-1"
             />
+            <p className={`text-xs ${sourceContent.length > 10000 ? "text-destructive" : "text-muted-foreground"}`}>
+              {sourceContent.length} / 10 000 caractères
+            </p>
+            {sourceContent.length > 10000 && (
+              <p className="text-xs text-destructive mt-1">
+                Ton contenu est un peu long pour être traité d'un coup. Garde l'essentiel ou découpe-le en deux passages.
+              </p>
+            )}
           </>
         )}
 
@@ -281,7 +316,7 @@ export default function CrosspostFlow() {
               })}
             </TabsList>
             {Object.entries(result.versions).map(([key, version]) => {
-              const text = version.full_text || version.script || JSON.stringify(version.sequence, null, 2) || "";
+              const text = version.full_text || version.script || (version.sequence ? formatStoriesSequence(version.sequence) : "") || "";
               return (
                 <TabsContent key={key} value={key} className="space-y-3">
                   <div className="rounded-xl border border-border bg-card p-5">
@@ -291,14 +326,16 @@ export default function CrosspostFlow() {
                     )}
                     <p className="text-xs text-primary mt-1">💡 Angle choisi : {version.angle_choisi}</p>
                   </div>
-                  <RedFlagsChecker content={text} onFix={(fixed) => {
-                    if (!result) return;
-                    const updatedVersions = { ...result.versions };
-                    const version = updatedVersions[key];
-                    if (version.full_text) updatedVersions[key] = { ...version, full_text: fixed };
-                    else if (version.script) updatedVersions[key] = { ...version, script: fixed };
-                    setResult({ ...result, versions: updatedVersions });
-                  }} />
+                  {(version.full_text || version.script) && (
+                    <RedFlagsChecker content={text} onFix={(fixed) => {
+                      if (!result) return;
+                      const updatedVersions = { ...result.versions };
+                      const version = updatedVersions[key];
+                      if (version.full_text) updatedVersions[key] = { ...version, full_text: fixed };
+                      else if (version.script) updatedVersions[key] = { ...version, script: fixed };
+                      setResult({ ...result, versions: updatedVersions });
+                    }} />
+                  )}
                   <div className="flex flex-wrap gap-2">
                     <Button variant="outline" size="sm" onClick={() => handleCopy(text, key)} className="rounded-full gap-1.5">
                       {copied === key ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}

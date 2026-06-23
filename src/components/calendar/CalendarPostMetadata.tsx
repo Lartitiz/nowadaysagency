@@ -4,9 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Input } from "@/components/ui/input";
 import { cn, toLocalDateStr } from "@/lib/utils";
 import { ChevronDown, CalendarIcon } from "lucide-react";
 import { ANGLES, STATUSES, OBJECTIFS } from "@/lib/calendar-constants";
+import { useActiveSeries } from "@/hooks/use-active-series";
 
 const FORMAT_OPTIONS_BY_CANAL: Record<string, { id: string; emoji: string; label: string }[]> = {
   instagram: [
@@ -47,53 +49,118 @@ interface Props {
   editingPostId?: string;
   selectedDate: string | null;
   onDateChange?: (postId: string, newDate: string) => void;
+  onUnplan?: () => void;
+  seriesId?: string | null;
+  setSeriesId?: (id: string | null) => void;
+  episodeNumber?: number | null;
+  setEpisodeNumber?: (n: number | null) => void;
 }
 
 export function CalendarPostMetadata({
   status, setStatus, postCanal, setPostCanal, format, setFormat,
   objectif, setObjectif, angle, setAngle, showAdvanced, setShowAdvanced,
-  editingPostId, selectedDate, onDateChange,
+  editingPostId, selectedDate, onDateChange, onUnplan,
+  seriesId, setSeriesId, episodeNumber, setEpisodeNumber,
 }: Props) {
+  const { data: activeSeries = [] } = useActiveSeries();
+  const selectedSerie = activeSeries.find((s) => s.id === seriesId) || null;
   return (
     <>
-      {/* Statut — toujours visible */}
-      <div>
-        <label className="text-xs font-semibold mb-1.5 block text-foreground">Statut</label>
-        <div className="flex flex-wrap gap-1.5">
-          {STATUSES.map((s) => (
-            <button key={s.id} onClick={() => setStatus(s.id)}
-              className={`rounded-pill px-2.5 py-1 text-[11px] font-medium border transition-all ${status === s.id ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
-              {s.label}
-            </button>
-          ))}
+      {/* Bloc Statut + Date + action "remettre en idée" — encadré dédié */}
+      <div className="rounded-[12px] border border-border bg-card/40 p-3 space-y-3">
+        {/* Statut */}
+        <div>
+          <label className="text-xs font-semibold mb-1.5 block text-foreground">Statut</label>
+          <div className="flex flex-wrap gap-1.5">
+            {STATUSES.map((s) => (
+              <button key={s.id} onClick={() => setStatus(s.id)}
+                className={`rounded-pill px-2.5 py-1 text-[11px] font-medium border transition-all ${status === s.id ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
+                {s.label}
+              </button>
+            ))}
+          </div>
         </div>
+
+        {/* Date */}
+        {editingPostId && selectedDate && (
+          <div>
+            <label className="text-xs font-semibold mb-1.5 block text-foreground">Date</label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn("w-full justify-start text-left font-normal rounded-[10px] h-9 text-xs")}>
+                  <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                  {formatDate(new Date(selectedDate + "T00:00:00"), "EEE d MMM yyyy", { locale: fr })}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0 z-[60]" align="start">
+                <Calendar
+                  mode="single"
+                  selected={new Date(selectedDate + "T00:00:00")}
+                  onSelect={(d) => {
+                    if (d && onDateChange && editingPostId) {
+                      onDateChange(editingPostId, toLocalDateStr(d));
+                    }
+                  }}
+                  locale={fr}
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+        )}
+
+        {/* Bouton "Je veux le remettre dans mes idées" */}
+        {onUnplan && editingPostId && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              if (window.confirm("Remettre ce post dans ta boîte à idées ? Il sera retiré du calendrier.")) {
+                onUnplan();
+              }
+            }}
+            className="w-full rounded-[10px] h-9 text-xs font-medium text-foreground hover:text-primary hover:border-primary/40"
+          >
+            💡 Je veux le remettre dans mes idées
+          </Button>
+        )}
       </div>
 
-      {/* Date — toujours visible */}
-      {editingPostId && selectedDate && (
-        <div>
-          <label className="text-xs font-semibold mb-1.5 block text-foreground">Date</label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className={cn("w-full justify-start text-left font-normal rounded-[10px] h-9 text-xs")}>
-                <CalendarIcon className="mr-2 h-3.5 w-3.5" />
-                {formatDate(new Date(selectedDate + "T00:00:00"), "EEE d MMM yyyy", { locale: fr })}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 z-[60]" align="start">
-              <Calendar
-                mode="single"
-                selected={new Date(selectedDate + "T00:00:00")}
-                onSelect={(d) => {
-                  if (d && onDateChange && editingPostId) {
-                    onDateChange(editingPostId, toLocalDateStr(d));
-                  }
+
+      {/* Série + N° épisode */}
+      {setSeriesId && (
+        <div className="space-y-2">
+          <label className="text-xs font-semibold block text-foreground">📚 Série</label>
+          <select
+            value={seriesId || ""}
+            onChange={(e) => {
+              const v = e.target.value || null;
+              setSeriesId(v);
+              if (!v && setEpisodeNumber) setEpisodeNumber(null);
+            }}
+            className="w-full rounded-[10px] h-9 px-2 text-xs bg-card border border-border text-foreground"
+          >
+            <option value="">Aucune série</option>
+            {activeSeries.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+          {selectedSerie && setEpisodeNumber && (
+            <div>
+              <label className="text-[11px] font-medium mb-1 block text-muted-foreground">N° épisode</label>
+              <Input
+                type="number"
+                min={1}
+                value={episodeNumber ?? ""}
+                onChange={(e) => {
+                  const n = parseInt(e.target.value, 10);
+                  setEpisodeNumber(Number.isFinite(n) && n > 0 ? n : null);
                 }}
-                locale={fr}
-                className={cn("p-3 pointer-events-auto")}
+                placeholder="auto"
+                className="rounded-[10px] h-9 text-xs"
               />
-            </PopoverContent>
-          </Popover>
+            </div>
+          )}
         </div>
       )}
 

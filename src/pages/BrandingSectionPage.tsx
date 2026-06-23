@@ -18,13 +18,14 @@ import BrandingSuggestionsCard from "@/components/branding/BrandingSuggestionsCa
 import BrandingSpark from "@/components/branding/BrandingSpark";
 import BrandingActionCTA from "@/components/branding/BrandingActionCTA";
 import { useBrandingSuggestions } from "@/hooks/use-branding-suggestions";
-import { DEMO_DATA } from "@/lib/demo-data";
+
 import { safeParseJson } from "@/lib/branding-utils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import { usePersonas } from "@/hooks/use-personas";
 import PersonaList from "@/components/branding/PersonaList";
+import SeriesFicheCards from "@/components/branding/SeriesFicheCards";
 
 type Section = "story" | "persona" | "tone_style" | "content_strategy";
 
@@ -287,7 +288,7 @@ export default function BrandingSectionPage() {
         query = query.eq("is_primary", true);
       }
 
-      const { data: row } = await query.maybeSingle();
+      const { data: row } = await query.order("updated_at", { ascending: false }).limit(1).maybeSingle();
       if (row) {
         setData(row);
         setLastUpdated(row.updated_at || null);
@@ -327,7 +328,7 @@ export default function BrandingSectionPage() {
       const coachingDone = session?.is_complete === true;
 
       if (pct === 0 && !coachingDone) {
-        navigate(`/branding/coaching?section=${section}`, { replace: true });
+        navigate(`/branding/coaching?section=${section}${isPersonaSection && selectedPersonaId ? `&personaId=${selectedPersonaId}` : ""}`, { replace: true });
       }
       setRedirectChecked(true);
     };
@@ -376,7 +377,7 @@ export default function BrandingSectionPage() {
         const cols = "*";
         let q = (supabase.from(config.table as any) as any).select(cols).eq(column, value);
         if (config.table === "storytelling") q = q.eq("is_primary", true);
-        q.maybeSingle().then(({ data: row }: any) => {
+        q.order("updated_at", { ascending: false }).limit(1).maybeSingle().then(({ data: row }: any) => {
           if (row) { setData(row); setLastUpdated(row.updated_at || null); }
         });
       }
@@ -433,6 +434,9 @@ export default function BrandingSectionPage() {
           section={section}
           fields={config.fields}
           data={data}
+          table={config.table}
+          recordId={data?.id}
+          onFieldUpdate={handleFieldUpdate}
         />
       )}
 
@@ -549,12 +553,28 @@ export default function BrandingSectionPage() {
                 >
                   📝 Modifier les champs
                 </button>
+                {section === "content_strategy" && (
+                  <button
+                    onClick={() => setActiveTab("series")}
+                    className={`text-sm font-medium px-3 py-1.5 rounded-full transition-colors ${
+                      activeTab === "series"
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    📺 Mes séries
+                  </button>
+                )}
               </div>
               <Button
                 variant="outline"
                 size="sm"
                 className="gap-2 text-xs rounded-full"
-                onClick={() => navigate(`/branding/coaching?section=${section}`)}
+                onClick={() => {
+                  const targetSection = activeTab === "series" ? "content_series" : section;
+                  const personaQuery = isPersonaSection && selectedPersonaId ? `&personaId=${selectedPersonaId}` : "";
+                  navigate(`/branding/coaching?section=${targetSection}${personaQuery}`);
+                }}
               >
                 <Sparkles className="h-3.5 w-3.5" />
                 Affiner avec l'IA
@@ -576,6 +596,11 @@ export default function BrandingSectionPage() {
                   </p>
                 )}
               </div>
+            ) : activeTab === "series" ? (
+              <SeriesFicheCards
+                hasRecap={hasRecap}
+                onLaunchCoaching={() => navigate("/branding/coaching?section=content_series")}
+              />
             ) : (
               <div>{ficheContent}</div>
             )}
@@ -583,25 +608,59 @@ export default function BrandingSectionPage() {
         ) : (
           <div>
             {/* No recap: show fiche + coaching CTA */}
-            {ficheContent}
+            {/* Toggle bar réduite uniquement pour content_strategy */}
+            {section === "content_strategy" && (
+              <div className="flex items-center gap-1 bg-muted rounded-full p-1 w-fit mb-6">
+                <button
+                  onClick={() => setActiveTab("fiche")}
+                  className={`text-sm font-medium px-3 py-1.5 rounded-full transition-colors ${
+                    activeTab === "fiche" || activeTab === "synthese"
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  📝 Modifier les champs
+                </button>
+                <button
+                  onClick={() => setActiveTab("series")}
+                  className={`text-sm font-medium px-3 py-1.5 rounded-full transition-colors ${
+                    activeTab === "series"
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  📺 Mes séries
+                </button>
+              </div>
+            )}
 
-            <div className="rounded-2xl border-2 border-primary/20 bg-primary/5 p-5 mt-6 text-center space-y-3">
-              <p className="font-display text-base font-bold text-foreground">
-                {filledCount > 0 ? "Envie d'aller plus loin ?" : "Tu ne sais pas quoi écrire ?"}
-              </p>
-              <p className="text-sm text-muted-foreground leading-relaxed max-w-md mx-auto">
-                {filledCount > 0
-                  ? "L'IA te pose des questions ciblées pour enrichir et affiner cette section. Tes réponses mettent à jour ta fiche automatiquement."
-                  : "Pas de panique : l'IA te guide question par question. Tu réponds, elle remplit ta fiche. Simple."}
-              </p>
-              <Button
-                className="rounded-full gap-2"
-                onClick={() => navigate(`/branding/coaching?section=${section}`)}
-              >
-                <Sparkles className="h-4 w-4" />
-                {filledCount > 0 ? "Affiner avec l'IA →" : "Lancer le coaching IA →"}
-              </Button>
-            </div>
+            {section === "content_strategy" && activeTab === "series" ? (
+              <SeriesFicheCards
+                hasRecap={false}
+                onLaunchCoaching={() => navigate("/branding/coaching?section=content_series")}
+              />
+            ) : (
+              <>
+                {ficheContent}
+                <div className="rounded-2xl border-2 border-primary/20 bg-primary/5 p-5 mt-6 text-center space-y-3">
+                  <p className="font-display text-base font-bold text-foreground">
+                    {filledCount > 0 ? "Envie d'aller plus loin ?" : "Tu ne sais pas quoi écrire ?"}
+                  </p>
+                  <p className="text-sm text-muted-foreground leading-relaxed max-w-md mx-auto">
+                    {filledCount > 0
+                      ? "L'IA te pose des questions ciblées pour enrichir et affiner cette section. Tes réponses mettent à jour ta fiche automatiquement."
+                      : "Pas de panique : l'IA te guide question par question. Tu réponds, elle remplit ta fiche. Simple."}
+                  </p>
+                  <Button
+                    className="rounded-full gap-2"
+                    onClick={() => navigate(`/branding/coaching?section=${section}${isPersonaSection && selectedPersonaId ? `&personaId=${selectedPersonaId}` : ""}`)}
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    {filledCount > 0 ? "Affiner avec l'IA →" : "Lancer le coaching IA →"}
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         )}
 

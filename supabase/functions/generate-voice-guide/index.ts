@@ -1,8 +1,11 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
-import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
+import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
+import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -11,7 +14,7 @@ Deno.serve(async (req) => {
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Non autorisé" }), { status: 401, headers: { ...cors, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "Non autorisé" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const supabase = createClient(
@@ -20,12 +23,14 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claims, error: claimsErr } = await supabase.auth.getClaims(token);
-    if (claimsErr || !claims?.claims) {
-      return new Response(JSON.stringify({ error: "Non autorisé" }), { status: 401, headers: { ...cors, "Content-Type": "application/json" } });
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: "Non autorisé" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-    const userId = claims.claims.sub as string;
+    const userId = user.id;
+
+    const rateCheck = checkRateLimit(userId);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
 
     // Read optional workspace_id from body
     let workspace_id: string | undefined;
@@ -39,11 +44,18 @@ Deno.serve(async (req) => {
     // Check quota
     const quota = await checkQuota(userId, "content");
     if (!quota.allowed) {
-      return new Response(JSON.stringify({ error: quota.message, quota }), { status: 429, headers: { ...cors, "Content-Type": "application/json" } });
+      return quotaDeniedResponse(quota, corsHeaders);
     }
 
     // Get user context
     const serviceClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+    const membership = await assertWorkspaceMembership(serviceClient, userId, workspace_id);
+    if (!membership.ok) {
+      console.warn("[workspace-guard] denied", { userId, workspaceId: workspace_id });
+      return workspaceDeniedResponse(corsHeaders);
+    }
+
     const ctx = await getUserContext(serviceClient, userId, workspace_id);
     const contextText = formatContextForAI(ctx, {
       includeProfile: true,
@@ -55,12 +67,14 @@ Deno.serve(async (req) => {
       includeAudit: false,
     });
 
-    const systemPrompt = `Tu es une directrice de communication experte en personal branding. À partir du profil de marque de cette utilisatrice, génère un GUIDE DE VOIX professionnel et actionnable. Ce guide sera partagé avec des prestataires (graphiste, CM freelance, assistante).
+    const systemPrompt = `${BASE_SYSTEM_RULES}
+
+Tu es un·e expert·e en communication et personal branding. À partir du profil de marque de cette personne, génère un GUIDE DE VOIX professionnel et actionnable. Ce guide sera partagé avec des prestataires (graphiste, CM freelance, assistant·e).
 
 Réponds en JSON strict avec cette structure :
 
 {
-  "brand_name": "le nom ou prénom de l'utilisatrice",
+  "brand_name": "le nom ou prénom de la personne",
   "voice_summary": "3-4 phrases résumant sa voix de marque",
   "tone_keywords": ["3-5 mots-clés de ton"],
   "do_say": ["5-7 exemples de phrases DANS le ton de la marque"],
@@ -103,7 +117,7 @@ Réponds UNIQUEMENT avec le JSON, sans commentaire ni balise markdown.`;
     await logUsage(userId, "content", "voice_guide", undefined, model);
 
     return new Response(JSON.stringify({ guide, remaining: quota.remaining }), {
-      headers: { ...cors, "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e: any) {
     console.error("generate-voice-guide error:", e);

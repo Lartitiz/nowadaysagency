@@ -271,16 +271,20 @@ export default function ContactsPage() {
               prospect={dmContact as any}
               interactions={dmInteractions as any}
               onBack={() => setDmContact(null)}
-              onMessageSent={(content, approach) => {
+              onMessageSent={async (content, approach) => {
                 if (!user || !dmContact) return;
-                supabase.from("contact_interactions").insert({
-                  contact_id: dmContact.id,
-                  user_id: user.id,
-                  workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-                  interaction_type: "dm_sent",
-                  content,
-                  ai_generated: true,
-                } as any);
+                try {
+                  await supabase.from("contact_interactions").insert({
+                    contact_id: dmContact.id,
+                    user_id: user.id,
+                    workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+                    interaction_type: "dm_sent",
+                    content,
+                    ai_generated: true,
+                  } as any);
+                } catch (e) {
+                  console.error("[Contacts] Failed to log interaction:", e);
+                }
                 const nextStage = dmContact.prospect_stage === "to_contact" ? "in_conversation" : dmContact.prospect_stage;
                 const reminderDate = new Date();
                 reminderDate.setDate(reminderDate.getDate() + 3);

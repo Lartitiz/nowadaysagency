@@ -1,13 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
-import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useProfileUserId } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
   fetchBrandingData,
   calculateBrandingCompletion,
   type BrandingCompletion,
 } from "@/lib/branding-completion";
+import { resolveOnboardingStatus } from "@/lib/onboarding-status";
 
 /* ── Types ── */
 interface Alternative {
@@ -66,7 +67,7 @@ function getNextEmptySection(bc: BrandingCompletion) {
 const FALLBACK: GuideRecommendation = {
   title: "Raconte-moi ton histoire",
   explanation:
-    "Bon, on part de zéro et c'est très bien. La première étape : raconter ton histoire. C'est la fondation de tout le reste. Sans ça, ta com' ressemblera à toutes les autres.",
+    "On part de zéro — première étape, raconter ton histoire. C'est la fondation de tout le reste.",
   ctaLabel: "C'est parti !",
   ctaRoute: "/branding/coaching?section=story",
   icon: "BookOpen",
@@ -90,8 +91,7 @@ function buildRecommendation(
   if (!onboardingDone) {
     return {
       title: "Termine ton diagnostic",
-      explanation:
-        "On avait commencé à discuter de ton projet et je suis restée sur ma faim ! Ton diagnostic va te donner une vraie feuille de route. Promis, ça prend 10 minutes max.",
+      explanation: "Ton diagnostic n'est pas fini — 10 min pour avoir ta vraie feuille de route.",
       ctaLabel: "Reprendre →",
       ctaRoute: "/onboarding",
       icon: "ClipboardCheck",
@@ -108,13 +108,12 @@ function buildRecommendation(
     if (!hasContent) {
       return {
         title: "Crée ton premier contenu",
-        explanation:
-          "Ton branding est posé, l'outil connaît ton projet. Le meilleur moyen de tester la puissance de l'outil, c'est de créer un contenu tout de suite. L'IA utilise tout ce que tu as renseigné pour écrire avec ta voix.",
+        explanation: "Ton identité est posée — l'IA écrit déjà avec ta voix. On teste&nbsp;?",
         ctaLabel: "Créer un contenu →",
         ctaRoute: "/creer",
         icon: "Sparkles",
         alternatives: [
-          { title: "Affiner mon branding", route: "/branding", icon: "Palette" },
+          { title: "Affiner mon identité de marque", route: "/branding", icon: "Palette" },
           { title: "Faire un audit Instagram", route: "/instagram/audit", icon: "Search" },
         ],
       };
@@ -123,8 +122,8 @@ function buildRecommendation(
     const next = getNextEmptySection(bc);
     const remaining = 7 - sectionsFilled;
     return {
-      title: "Affine ton branding pour des contenus encore meilleurs",
-      explanation: `Tes premiers contenus sont lancés, bravo ! Pour que l'IA soit encore plus précise, il te reste ${remaining} section${remaining > 1 ? "s" : ""} de branding à compléter. Chaque info en plus rend tes contenus plus personnalisés.`,
+      title: "Affine ton identité de marque",
+      explanation: `Encore ${remaining} section${remaining > 1 ? "s" : ""} d'identité à compléter pour des contenus encore plus précis.`,
       ctaLabel: "Compléter →",
       ctaRoute: next.activeRoute,
       icon: "Palette",
@@ -139,8 +138,7 @@ function buildRecommendation(
   if (sectionsFilled >= 3 && calendarPosts === 0) {
     return {
       title: "Crée ton prochain contenu",
-      explanation:
-        "Ton branding prend forme et c'est top. Le meilleur moyen d'avancer, c'est de créer un contenu maintenant. L'IA utilise tout ce que tu as renseigné pour écrire avec ta voix.",
+      explanation: "Ton identité prend forme — c'est le bon moment pour créer.",
       ctaLabel: "Créer un contenu →",
       ctaRoute: "/creer",
       icon: "Sparkles",
@@ -154,15 +152,14 @@ function buildRecommendation(
   // P6 – Has posts but no audit → pousser création
   if (calendarPosts > 0 && !lastAuditDate) {
     return {
-      title: "Continue sur ta lancée",
-      explanation:
-        "Tu publies, c'est déjà énorme. Le secret c'est la régularité. On crée ton prochain contenu ?",
+      title: "Crée ton prochain contenu",
+      explanation: "Tu publies déjà, c'est énorme — on garde le rythme.",
       ctaLabel: "Créer un contenu →",
       ctaRoute: "/creer",
       icon: "Sparkles",
       alternatives: [
         { title: "Faire un audit Instagram", route: "/instagram/audit", icon: "Search" },
-        { title: "Enrichir ton branding", route: "/branding", icon: "Palette" },
+        { title: "Enrichir ton identité de marque", route: "/branding", icon: "Palette" },
       ],
     };
   }
@@ -170,13 +167,12 @@ function buildRecommendation(
   // P7 – Everything is advanced
   return {
     title: "Crée ton prochain contenu",
-    explanation:
-      "Ta com' est bien calée. Le secret maintenant, c'est la régularité. Pas la perfection, la régularité. On crée ton prochain contenu ?",
+    explanation: "Ta com' est bien calée — le secret maintenant, c'est la régularité.",
     ctaLabel: "C'est parti !",
     ctaRoute: "/creer",
     icon: "Sparkles",
     alternatives: [
-      { title: "Mettre à jour ton branding", route: "/branding", icon: "Palette" },
+      { title: "Mettre à jour ton identité de marque", route: "/branding", icon: "Palette" },
       { title: "Faire ta routine d'engagement", route: "/instagram/routine", icon: "Heart" },
     ],
   };
@@ -187,9 +183,10 @@ export function useGuideRecommendation(): UseGuideRecommendationResult {
   const { user } = useAuth();
   const { isDemoMode, demoData } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
+  const profileUserId = useProfileUserId();
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["guide-recommendation", user?.id, column, value, isDemoMode],
+    queryKey: ["guide-recommendation", user?.id, profileUserId, column, value, isDemoMode],
     queryFn: async (): Promise<{
       recommendation: GuideRecommendation;
       profileSummary: ProfileSummary;
@@ -234,13 +231,13 @@ export function useGuideRecommendation(): UseGuideRecommendationResult {
       const [brandingData, profileRes, planConfigRes, calendarCountRes, auditRes, contentsCountRes] =
         await Promise.all([
           fetchBrandingData(filter),
-    (supabase.from("profiles") as any)
+          (supabase.from("profiles") as any)
             .select("prenom, onboarding_completed")
-            .eq("user_id", user.id)
+            .eq("user_id", profileUserId)
             .maybeSingle(),
           (supabase.from("user_plan_config") as any)
             .select("onboarding_completed")
-            .eq("user_id", user.id)
+            .eq("user_id", profileUserId)
             .maybeSingle(),
           (supabase.from("calendar_posts") as any)
             .select("id", { count: "exact", head: true })
@@ -258,11 +255,11 @@ export function useGuideRecommendation(): UseGuideRecommendationResult {
 
       const bc = calculateBrandingCompletion(brandingData);
       const firstName = (profileRes.data as any)?.prenom || "toi";
-      // Consider onboarding done if EITHER table says true
-      // (prevents lockout if one table wasn't updated during original onboarding)
-      const profileOnboarded = (profileRes.data as any)?.onboarding_completed === true;
-      const configOnboarded = (planConfigRes.data as any)?.onboarding_completed === true;
-      const onboardingDone = profileOnboarded || configOnboarded;
+      const status = await resolveOnboardingStatus({
+        profileUserId: profileUserId,
+        planConfigUserId: profileUserId,
+      });
+      const onboardingDone = status === "done";
       const calendarPosts = calendarCountRes.count ?? 0;
       const lastAuditDate: string | null = (auditRes.data as any)?.created_at ?? null;
       const contentsCount = contentsCountRes.count ?? 0;

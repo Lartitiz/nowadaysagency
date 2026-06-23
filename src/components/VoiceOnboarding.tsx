@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -55,10 +56,10 @@ export default function VoiceOnboarding({ onComplete, existingProfile }: VoiceOn
     }
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("voice-analysis", {
+      const { data, error } = await invokeWithTimeout("voice-analysis", {
         body: { texts: validTexts },
-      });
-      if (error) throw error;
+      }, 60000);
+      if (error) throw new Error(error.message);
       setAnalysis(data as VoiceAnalysis);
       setEditedSummary(data.voice_summary || "");
       setStep("review");

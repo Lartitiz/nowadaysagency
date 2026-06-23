@@ -1,11 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropic } from "../_shared/anthropic.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -24,6 +26,9 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new Error("Non autorisé");
 
+    const rateCheck = checkRateLimit(user.id);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+
     const sbAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -38,18 +43,10 @@ serve(async (req) => {
       .maybeSingle();
     const workspaceId = wsMember?.workspace_id;
 
-    const quota = await checkQuota(user.id, "content", workspaceId);
-    if (!quota.allowed) {
-      return new Response(JSON.stringify({ error: quota.message, quota }), {
-        status: 429,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     const reqBody = await req.json();
     validateInput(reqBody, z.object({
       subject: z.string().min(1).max(15000),
-      reference_image_base64: z.string().min(1).max(10000000),
+      reference_image_base64: z.string().max(10000000).optional().nullable(),
       pin_type: z.enum(["photo_product", "photo_lifestyle", "photo_flat_lay"]),
       brief_hint: z.string().max(5000).optional().nullable(),
       pinterest_link: z.string().max(500).optional().nullable(),
@@ -57,8 +54,22 @@ serve(async (req) => {
       workspace_id: z.string().uuid().optional().nullable(),
     }).passthrough());
 
+    const membership = await assertWorkspaceMembership(sbAdmin, user.id, reqBody.workspace_id);
+    if (!membership.ok) {
+      console.warn("[workspace-guard] denied", { userId: user.id, workspaceId: reqBody.workspace_id });
+      return workspaceDeniedResponse(corsHeaders);
+    }
+
     const { subject, pin_type, brief_hint, pinterest_link, pinterest_board } = reqBody;
     const filterWs = reqBody.workspace_id || workspaceId;
+
+    const quota = await checkQuota(user.id, "content", filterWs);
+    if (!quota.allowed) {
+      return new Response(JSON.stringify({ error: quota.message, quota }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const col = filterWs ? "workspace_id" : "user_id";
     const val = filterWs || user.id;
@@ -161,9 +172,24 @@ FORMAT DE RÉPONSE (JSON strict, rien d'autre) :
   "description": "Description SEO 100-200 mots"
 }`;
 
-    const rawBase64 = reqBody.reference_image_base64.replace(/^data:image\/[a-z]+;base64,/, "");
+    const hasReference = !!reqBody.reference_image_base64;
+    const rawBase64 = hasReference
+      ? reqBody.reference_image_base64.replace(/^data:image\/[a-z]+;base64,/, "")
+      : "";
 
-    const userPrompt = `Voici l'épingle Pinterest d'inspiration. Crée un brief photo + overlay pour l'adapter au projet de cette utilisatrice.
+    const userPrompt = hasReference
+      ? `Voici l'épingle Pinterest d'inspiration. Crée un brief photo + overlay pour l'adapter au projet de cette utilisatrice.
+
+SUJET : ${subject}
+TYPE : ${pin_type}
+${brief_hint ? `BRIEF INITIAL : ${brief_hint}` : ""}
+${pinterest_link ? `LIEN : ${pinterest_link}` : ""}
+
+CONTEXTE BRANDING :
+${contextText}
+
+CHARTE : primary ${ch.color_primary}, secondary ${ch.color_secondary}, accent ${ch.color_accent}, bg ${ch.color_background}, text ${ch.color_text}, font_title ${ch.font_title}, font_body ${ch.font_body}`
+      : `Crée un brief photo + overlay pour cette utilisatrice à partir du sujet et de sa charte uniquement (pas d'image de référence).
 
 SUJET : ${subject}
 TYPE : ${pin_type}
@@ -175,19 +201,21 @@ ${contextText}
 
 CHARTE : primary ${ch.color_primary}, secondary ${ch.color_secondary}, accent ${ch.color_accent}, bg ${ch.color_background}, text ${ch.color_text}, font_title ${ch.font_title}, font_body ${ch.font_body}`;
 
-    const messages = [{
-      role: "user",
-      content: [
-        {
-          type: "image",
-          source: { type: "base64", media_type: "image/jpeg", data: rawBase64 },
-        },
-        {
-          type: "text",
-          text: userPrompt,
-        },
-      ],
-    }];
+    const messages = hasReference
+      ? [{
+          role: "user",
+          content: [
+            {
+              type: "image",
+              source: { type: "base64", media_type: "image/jpeg", data: rawBase64 },
+            },
+            {
+              type: "text",
+              text: userPrompt,
+            },
+          ],
+        }]
+      : [{ role: "user", content: userPrompt }];
 
     const model = "claude-opus-4-6" as any;
 
@@ -233,7 +261,7 @@ CHARTE : primary ${ch.color_primary}, secondary ${ch.color_secondary}, accent ${
       result.overlay_html = fontsLink + html;
     }
 
-    await logUsage(user.id, "content", "pinterest_photo_brief", undefined, model, workspaceId);
+    await logUsage(user.id, "content", "pinterest_photo_brief", undefined, model, filterWs);
 
     return new Response(JSON.stringify({ result, remaining: quota.remaining }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

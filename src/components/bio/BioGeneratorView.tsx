@@ -204,7 +204,7 @@ export default function BioGeneratorView({
                 <Textarea
                   value={diffText}
                   onChange={e => setDiffText(e.target.value)}
-                  placeholder="Ex: J'enseigne la com' en écoles de mode, j'ai cofondé un éco-lieu, et je refuse le marketing manipulatoire"
+                  placeholder="Ex : ce que tu fais, ce qui te rend unique, pour qui"
                   className="min-h-[100px]"
                   aria-label="Ce qui te différencie"
                 />

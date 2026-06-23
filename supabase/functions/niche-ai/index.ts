@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { CORE_PRINCIPLES } from "../_shared/copywriting-prompts.ts";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
@@ -7,13 +7,14 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { isDemoUser } from "../_shared/guard-demo.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 // Subset of writing rules relevant to niche/branding formulations (not full content)
 const NICHE_WRITING_RULES = `
 RÈGLES D'ÉCRITURE :
 - Écriture inclusive avec point médian (créateur·ice, entrepreneur·se)
 - JAMAIS de tiret cadratin (—). Utilise : ou ;
-- Expressions orales naturelles : "bon", "en vrai", "franchement", "j'avoue", "le truc c'est que", "du coup", "sauf que"
+- Expressions orales naturelles : "bon", "en vrai", "franchement", "j'avoue", "le truc c'est que", "du coup"
 - Alterner phrases longues fluides et phrases courtes qui claquent
 - Apartés entre parenthèses : "(Oui, même toi.)", "(Pas besoin d'être parfaite pour ça.)"
 - JAMAIS de jargon marketing (funnel, lead magnet, ROI) → Langage humain
@@ -46,6 +47,9 @@ serve(async (req) => {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const rateCheck = checkRateLimit(user.id);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
 
     if (isDemoUser(user.id)) {
       return new Response(JSON.stringify({ error: "Demo mode: this feature is simulated" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });

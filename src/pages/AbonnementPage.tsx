@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -50,7 +50,7 @@ export default function AbonnementPage() {
     (async () => {
       setLoadingSub(true);
       try {
-        const { data } = await supabase.functions.invoke("check-subscription");
+        const { data } = await invokeWithTimeout("check-subscription", {}, 15000);
         if (data) setSubInfo(data);
       } catch (e) {
         console.error("Abonnement error:", e);
@@ -63,7 +63,7 @@ export default function AbonnementPage() {
   const handlePortal = async () => {
     setPortalLoading(true);
     try {
-      const { data } = await supabase.functions.invoke("create-portal-session");
+      const { data } = await invokeWithTimeout("create-portal-session", {}, 15000);
       if (data?.url) window.open(data.url, "_blank");
     } catch (e) {
       console.error("Abonnement error:", e);
@@ -75,9 +75,9 @@ export default function AbonnementPage() {
   const handleCheckout = async (priceId: string) => {
     setPortalLoading(true);
     try {
-      const { data } = await supabase.functions.invoke("create-checkout", {
+      const { data } = await invokeWithTimeout("create-checkout", {
         body: { priceId, mode: "subscription" },
-      });
+      }, 15000);
       if (data?.url) window.location.href = data.url;
     } catch (e) {
       console.error("Abonnement error:", e);
@@ -90,9 +90,9 @@ export default function AbonnementPage() {
     if (!priceId) return;
     setPackLoading(packKey);
     try {
-      const { data } = await supabase.functions.invoke("create-checkout", {
+      const { data } = await invokeWithTimeout("create-checkout", {
         body: { priceId, mode: "payment" },
-      });
+      }, 15000);
       if (data?.url) window.location.href = data.url;
     } catch (e) {
       console.error("Abonnement error:", e);
@@ -140,7 +140,7 @@ export default function AbonnementPage() {
               <p className="text-sm">
                 <span className="font-semibold text-primary">{subInfo?.source === "promo" ? "💎 " : ""}{planLabel}</span>
                 {subInfo?.plan === "outil" && " · 39€/mois"}
-                {subInfo?.plan === "binome" && " · 250€/mois"}
+                {subInfo?.plan === "binome" && " · 290€/mois"}
               </p>
               {subInfo?.plan === "binome" && (
                 <div className="mt-2 space-y-1">
@@ -317,7 +317,7 @@ export default function AbonnementPage() {
             <PlanCard
               name="Gratuit"
               price="0€"
-              credits="25 crédits IA/mois"
+              credits="60 crédits IA/mois"
               active={plan === "free"}
               onSelect={() => {}}
               disabled
@@ -334,7 +334,7 @@ export default function AbonnementPage() {
               plan === "binome" ? "border-primary bg-rose-pale" : "border-border hover:border-primary/30"
             }`}>
               <h3 className="font-display font-bold text-foreground">🤝 Ta binôme de com</h3>
-              <p className="text-lg font-semibold text-primary mt-1">250€/mois</p>
+              <p className="text-lg font-semibold text-primary mt-1">290€/mois</p>
               <p className="text-xs text-muted-foreground mt-0.5">Engagement 6 mois</p>
               <div className="text-[11px] text-muted-foreground mt-1 space-y-0.5 text-left">
                 <p>✅ L'outil complet (300 crédits/mois)</p>

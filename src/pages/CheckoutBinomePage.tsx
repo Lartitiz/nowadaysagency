@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { STRIPE_PLANS } from "@/lib/stripe-config";
 import { Button } from "@/components/ui/button";
 import { Shield, Heart, Loader2, ArrowLeft, ArrowRight } from "lucide-react";
@@ -93,10 +92,10 @@ export default function CheckoutBinomePage() {
           {/* Price */}
           <div className="text-center mb-8">
             <p className="text-4xl font-bold text-foreground">
-              250€<span className="text-lg font-normal text-muted-foreground">/mois</span>
+              290€<span className="text-lg font-normal text-muted-foreground">/mois</span>
             </p>
             <p className="text-sm text-muted-foreground mt-1">
-              Engagement 6 mois · 1 500€ au total
+              Engagement 6 mois · 1 740€ au total
             </p>
           </div>
 

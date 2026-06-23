@@ -124,6 +124,7 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
           mix_or_focus: mixOrFocus,
           mode,
           existing_posts: mode === "complete" ? existingPosts : undefined,
+          workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
         },
       }, 120000);
       if (error) throw error;

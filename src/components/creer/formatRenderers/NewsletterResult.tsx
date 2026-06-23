@@ -16,7 +16,7 @@ export default function NewsletterResult({ result }: Props) {
   const body = result?.body || result?.content || result?.text || "";
   const wordCount = result?.word_count;
   const ctaSuggestion = result?.cta_suggestion;
-  const personalizationLevel = result?.personalization_level;
+  
 
   const fullText = [subject, body].filter(Boolean).join("\n\n");
   const [checkedText, setCheckedText] = useState(fullText);
@@ -27,7 +27,12 @@ export default function NewsletterResult({ result }: Props) {
   };
 
   const copyAll = () => {
-    const text = `Objet : ${subject}\n\n${body}${ctaSuggestion ? `\n\n---\n${ctaSuggestion}` : ""}`;
+    const text = [
+      subject ? `Objet : ${subject}` : null,
+      previewText ? `Preview : ${previewText}` : null,
+      body,
+      ctaSuggestion ? `---\n${ctaSuggestion}` : null,
+    ].filter(Boolean).join("\n\n");
     navigator.clipboard.writeText(text);
     toast.success("Newsletter copiée !");
   };
@@ -87,18 +92,6 @@ export default function NewsletterResult({ result }: Props) {
       {/* Meta */}
       <div className="flex items-center gap-3 text-xs text-muted-foreground">
         {wordCount && <span>{wordCount} mots</span>}
-        {personalizationLevel && (
-          <span className="flex items-center gap-1">
-            Personnalisation :
-            <span className={
-              personalizationLevel === "high" ? "text-green-600 font-medium" :
-              personalizationLevel === "medium" ? "text-amber-600 font-medium" :
-              "text-muted-foreground"
-            }>
-              {personalizationLevel === "high" ? "Élevée ✨" : personalizationLevel === "medium" ? "Moyenne" : "Faible"}
-            </span>
-          </span>
-        )}
       </div>
 
       {/* Copy all */}

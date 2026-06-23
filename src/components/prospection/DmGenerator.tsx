@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useToast } from "@/hooks/use-toast";
 import { friendlyError } from "@/lib/error-messages";
 import { Button } from "@/components/ui/button";
@@ -173,7 +174,7 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
         .map(i => `${new Date(i.created_at).toLocaleDateString("fr-FR")} : ${i.interaction_type}${i.content ? ` - ${i.content}` : ""}`)
         .join("\n") || "Aucune interaction précédente.";
 
-      const { data, error } = await supabase.functions.invoke("prospect-dm", {
+      const { data, error } = await invokeWithTimeout("prospect-dm", {
         body: {
           prospect: {
             ...prospect,
@@ -188,9 +189,9 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
           selected_offer: selectedOffer || null,
           workspace_id: workspaceId,
         },
-      });
+      }, 60000);
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       setVariants(data);
     } catch (err: any) {
       console.error("Erreur technique:", err);
@@ -205,7 +206,7 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
     navigator.clipboard.writeText(text).then(() => toast({ title: "📋 Copié !" }));
   };
 
-  const handleSent = (text: string) => {
+  const handleSent = async (text: string) => {
     // Save context back to prospect
     if (user) {
       const updates: Record<string, any> = {};
@@ -215,7 +216,11 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
       if (toAvoid.trim()) updates.to_avoid = toAvoid;
       if (messageContext.trim()) updates.last_dm_context = messageContext;
       if (Object.keys(updates).length > 0) {
-        supabase.from("prospects").update(updates).eq("id", prospect.id).then(() => {});
+        try {
+          await supabase.from("prospects").update(updates).eq("id", prospect.id);
+        } catch (e) {
+          console.error("[DmGenerator] Failed to save prospect context:", e);
+        }
       }
     }
 
@@ -227,7 +232,7 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
     });
   };
 
-  const handlePostpone = () => {
+  const handlePostpone = async () => {
     // Save context even if not sending now
     if (user) {
       const updates: Record<string, any> = {};
@@ -237,7 +242,11 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
       if (toAvoid.trim()) updates.to_avoid = toAvoid;
       if (messageContext.trim()) updates.last_dm_context = messageContext;
       if (Object.keys(updates).length > 0) {
-        supabase.from("prospects").update(updates).eq("id", prospect.id).then(() => {});
+        try {
+          await supabase.from("prospects").update(updates).eq("id", prospect.id);
+        } catch (e) {
+          console.error("[DmGenerator] Failed to save prospect context on postpone:", e);
+        }
       }
     }
     onBack();
@@ -340,7 +349,7 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
           <Textarea
             value={messageContext}
             onChange={e => setMessageContext(e.target.value)}
-            placeholder="Ex : Je veux lui parler de mon atelier Instagram, rebondir sur sa story d'hier, lui proposer un café virtuel..."
+            placeholder="Ex : l'intention du message (proposer un échange, rebondir sur un contenu…)"
             className="text-xs min-h-[60px]"
           />
         </div>

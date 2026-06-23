@@ -112,7 +112,7 @@ const FAQ_DATA = [
   },
   {
     q: "Le plan gratuit, c'est vraiment gratuit ? C'est quoi le piège ?",
-    a: "Pas de piège. Le plan gratuit inclut l'onboarding complet, tout l'espace branding, le calendrier éditorial, les espaces par canal, et 60 contenus IA par mois. C'est déjà beaucoup. Le premium à 39€/mois débloque les contenus illimités, les audits, les stats et la communauté. Mais tu peux rester en gratuit aussi longtemps que tu veux."
+    a: "Pas de piège. Le plan gratuit inclut l'onboarding complet, tout l'espace branding, le calendrier éditorial, les espaces par canal, et 60 crédits IA par mois. C'est déjà beaucoup. Le premium à 39€/mois débloque 300 crédits IA/mois (contenus + audits), les stats et la communauté. Mais tu peux rester en gratuit aussi longtemps que tu veux."
   },
   {
     q: "Je peux annuler quand je veux ?",
@@ -320,7 +320,7 @@ export default function LandingPage() {
           <div className="hidden md:flex items-center gap-6">
             <a href="#features" onClick={scrollTo("features")} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Fonctionnalités</a>
             <Link to="/pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Pricing</Link>
-            <Link to="/binome" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Accompagnement</Link>
+            <a href="https://www.nowadaysagency.com/accompagnement-communication" target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Accompagnement</a>
           </div>
           <div className="hidden md:flex items-center gap-3">
             <Link to="/login" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Se connecter</Link>
@@ -336,7 +336,7 @@ export default function LandingPage() {
           <div className="md:hidden border-t border-border bg-card px-4 py-4 space-y-3 animate-fade-in">
             <a href="#features" onClick={scrollTo("features")} className="block text-sm font-medium">Fonctionnalités</a>
             <Link to="/pricing" className="block text-sm font-medium">Pricing</Link>
-            <Link to="/binome" className="block text-sm font-medium">Accompagnement</Link>
+            <a href="https://www.nowadaysagency.com/accompagnement-communication" target="_blank" rel="noopener noreferrer" className="block text-sm font-medium">Accompagnement</a>
             <Link to="/login" className="block text-sm font-medium text-muted-foreground">Se connecter</Link>
             <a href="#signup-section" onClick={scrollTo("signup-section")} className="block text-center rounded-pill bg-primary text-primary-foreground py-2.5 text-sm font-medium shadow-cta">
               Commencer gratuitement
@@ -358,12 +358,12 @@ export default function LandingPage() {
               🚀 Gratuit · Sans carte bancaire · En 30 secondes
             </span>
             <h1 className="font-display text-[28px] sm:text-[40px] lg:text-[52px] font-bold leading-[1.12] text-foreground">
-              Gère toute ta com' au même endroit.
+              Tous tes contenus social media du mois.
               <br />
-              <span className="text-primary">Et récupère tes soirées.</span>
+              <span className="text-primary">En une heure.</span>
             </h1>
             <p className="mt-6 text-base sm:text-lg text-muted-foreground max-w-xl leading-relaxed">
-              Branding, création de contenu, calendrier éditorial, audits Instagram et SEO : l'outil structure ta stratégie et crée tes contenus.
+              Trouve tes idées, organise ta stratégie social media, génère posts, stories et reels, sans page blanche ni copier les autres.
               <br className="hidden sm:block" />
               <strong className="text-foreground">Une IA qui connaît ta marque et écrit avec ta voix.</strong>
             </p>
@@ -698,14 +698,13 @@ export default function LandingPage() {
                 <span className="text-2xl mb-2">💎</span>
                 <h3 className="font-display text-lg font-bold">Premium</h3>
                 <p className="text-primary font-bold text-xl mt-1">39€<span className="text-sm font-normal text-muted-foreground">/mois</span></p>
-                <p className="text-sm text-muted-foreground mt-1 mb-4">Crée sans compter. L'IA en illimité.</p>
+                <p className="text-sm text-muted-foreground mt-1 mb-4">Crée régulièrement. 300 crédits IA/mois.</p>
                 <p className="text-xs text-muted-foreground mb-2 pb-2 border-b border-border">
                   Tout le plan gratuit, plus :
                 </p>
                 <ul className="space-y-2 mb-6 flex-1">
                   {[
-                    "Contenus IA illimités",
-                    "Audits IA illimités",
+                    "300 crédits IA/mois (contenus + audits)",
                     "Communauté active + lives mensuels",
                   ].map((item, idx) => (
                     <li key={idx} className="text-sm text-foreground flex items-start gap-2">
@@ -727,11 +726,11 @@ export default function LandingPage() {
               <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
                 <div className="text-left flex-1">
                   <h3 className="font-display text-lg font-bold text-foreground">Tu préfères qu'on le fasse ensemble ?</h3>
-                  <p className="text-sm text-muted-foreground mt-1">L'outil + Laetitia à tes côtés pendant 6 mois. Stratégie, contenu, visio, WhatsApp. 250€/mois.</p>
+                  <p className="text-sm text-muted-foreground mt-1">L'outil + Laetitia à tes côtés pendant 6 mois. Stratégie, contenu, visio, WhatsApp. 290€/mois.</p>
                 </div>
-                <Link to="/binome" className="shrink-0 inline-flex items-center gap-1 rounded-pill border border-primary text-primary px-5 py-2.5 text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
+                <a href="https://www.nowadaysagency.com/accompagnement-communication" target="_blank" rel="noopener noreferrer" className="shrink-0 inline-flex items-center gap-1 rounded-pill border border-primary text-primary px-5 py-2.5 text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
                   Découvrir <ArrowRight className="h-3.5 w-3.5" />
-                </Link>
+                </a>
               </div>
             </div>
           </Reveal>

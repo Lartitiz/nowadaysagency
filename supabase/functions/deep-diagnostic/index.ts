@@ -1,10 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { scrapeLinkedin, processScreenshots, scrapeWebsite, extractVisualInfo } from "../_shared/scraping.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
 const MAX_TEXT_PER_SOURCE = 8000;
 const GLOBAL_TIMEOUT_MS = 55000;
@@ -70,12 +72,23 @@ serve(async (req) => {
 
   try {
     const { userId } = await authenticateRequest(req);
-    const { websiteUrl, instagramHandle, linkedinUrl, documentIds, profile, freeformAnswers, isOnboarding } = await req.json();
+
+    const rateCheck = checkRateLimit(userId);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+
+    const { websiteUrl, instagramHandle, linkedinUrl, documentIds, profile, freeformAnswers, isOnboarding, workspace_id: bodyWorkspaceId } = await req.json();
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
+
+    const membership = await assertWorkspaceMembership(supabaseAdmin, userId, bodyWorkspaceId);
+    if (!membership.ok) {
+      console.warn("[workspace-guard] denied", { userId, workspaceId: bodyWorkspaceId });
+      clearTimeout(timeout);
+      return workspaceDeniedResponse(corsHeaders);
+    }
 
     // Get workspace
     const { data: wsData } = await supabaseAdmin
@@ -86,7 +99,19 @@ serve(async (req) => {
       .limit(1)
       .single();
 
-    const workspaceId = wsData?.workspace_id || null;
+    const workspaceId = bodyWorkspaceId || wsData?.workspace_id || null;
+
+    // Resolve workspace owner for user_id-scoped tables (scrape_cache)
+    let profileUserId = userId;
+    if (workspaceId) {
+      const { data: ownerRow } = await supabaseAdmin
+        .from("workspace_members")
+        .select("user_id")
+        .eq("workspace_id", workspaceId)
+        .eq("role", "owner")
+        .maybeSingle();
+      if (ownerRow?.user_id) profileUserId = ownerRow.user_id;
+    }
 
     // Check quota (diagnostic = 3 credits, category: audit) — skip during onboarding
     if (!isOnboarding) {
@@ -115,7 +140,7 @@ serve(async (req) => {
           const { data: cached } = await supabaseAdmin
             .from("scrape_cache")
             .select("content, style_hints")
-            .eq("user_id", userId)
+            .eq("user_id", profileUserId)
             .eq("url", websiteUrl)
             .gte("created_at", new Date(Date.now() - 60 * 60 * 1000).toISOString())
             .order("created_at", { ascending: false })
@@ -414,13 +439,12 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
       );
     }
 
-    fastSaves.push(
-      Promise.all([
-        logUsage(userId, "audit", "deep_diagnostic", undefined, "claude-sonnet", workspaceId),
-        logUsage(userId, "audit", "deep_diagnostic", undefined, "claude-sonnet", workspaceId),
-        logUsage(userId, "audit", "deep_diagnostic", undefined, "claude-sonnet", workspaceId),
-      ]).catch(e => console.error("logUsage failed:", e))
-    );
+    if (!isOnboarding) {
+      fastSaves.push(
+        logUsage(userId, "audit", "deep_diagnostic", undefined, "claude-sonnet", workspaceId)
+          .catch(e => console.error("logUsage failed:", e))
+      );
+    }
 
     await Promise.allSettled(fastSaves);
 
@@ -438,7 +462,7 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
           const { data: fullCache } = await supabaseAdmin
             .from("scrape_cache")
             .select("content, style_hints")
-            .eq("user_id", userId)
+            .eq("user_id", profileUserId)
             .eq("url", websiteUrl)
             .gte("created_at", new Date(Date.now() - 60 * 60 * 1000).toISOString())
             .order("created_at", { ascending: false })

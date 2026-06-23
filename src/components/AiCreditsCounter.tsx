@@ -124,7 +124,7 @@ export default function AiCreditsCounter({ plan, usage }: AiCreditsCounterProps)
               to="/mon-plan"
               className="inline-block rounded-full bg-[#FB3D80] text-white px-4 py-2 text-xs font-medium hover:bg-[#e0326f] transition-colors"
             >
-              Passer au Premium — 300 crédits/mois
+              Passer à L'Assistant Com' — 300 crédits IA/mois
             </Link>
           </div>
         ) : (
@@ -164,14 +164,14 @@ export default function AiCreditsCounter({ plan, usage }: AiCreditsCounterProps)
                   to="/mon-plan"
                   className="inline-block mt-3 rounded-full bg-[#FB3D80] text-white px-4 py-2 text-xs font-medium hover:bg-[#e0326f] transition-colors"
                 >
-                  Débloquer 300 crédits/mois →
+                  Passer à L'Assistant Com' →
                 </Link>
               ) : (
                 <Link
                   to="/mon-plan"
                   className="block mt-3 text-xs font-semibold text-primary hover:underline"
                 >
-                  Débloquer 300 crédits/mois →
+                  Passer à L'Assistant Com' →
                 </Link>
               )
             )}

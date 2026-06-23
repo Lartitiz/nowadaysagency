@@ -1,8 +1,10 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { callAnthropicSimple, getDefaultModel } from "../_shared/anthropic.ts";
 import { streamAnthropicSSE, createClientSSEStream } from "../_shared/anthropic-stream.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
 const MODULE_QUESTIONS: Record<string, string[]> = {
   persona: [
@@ -78,6 +80,9 @@ Deno.serve(async (req) => {
       });
     }
 
+    const rateCheck = checkRateLimit(user.id);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+
     const body = await req.json();
     const { phase, module, answers, rec_id, previous_diagnostic, adjustment_feedback, iteration_history, iteration, workspace_id } = body;
 
@@ -87,8 +92,17 @@ Deno.serve(async (req) => {
       });
     }
 
+    {
+      const sbGuard = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      const membership = await assertWorkspaceMembership(sbGuard, user.id, workspace_id);
+      if (!membership.ok) {
+        console.warn("[workspace-guard] denied", { userId: user.id, workspaceId: workspace_id });
+        return workspaceDeniedResponse(corsHeaders);
+      }
+    }
+
     // Quota check
-    const category = phase === "questions" ? "suggestion" : "suggestion";
+    const category = phase === "questions" ? "suggestion" : "content";
     const quota = await checkQuota(user.id, category, workspace_id);
     if (!quota.allowed) {
       return new Response(JSON.stringify({ error: quota.message, quota }), {
@@ -239,7 +253,9 @@ Pour le module editorial, propose piliers de contenu.`;
           0.5,
           4000,
         );
-        return createClientSSEStream(anthropicStream, corsHeaders);
+        return createClientSSEStream(anthropicStream, corsHeaders, async () => {
+          await logUsage(user.id, "content", "coaching_diagnostic");
+        });
       }
 
       const raw = await callAnthropicSimple(getDefaultModel(), systemPrompt, "Génère ton diagnostic et tes propositions.", 0.5, 4000);
@@ -345,7 +361,9 @@ Pour le module editorial, propose piliers de contenu.`;
           0.5,
           4000,
         );
-        return createClientSSEStream(anthropicStream, corsHeaders);
+        return createClientSSEStream(anthropicStream, corsHeaders, async () => {
+          await logUsage(user.id, "suggestion", "coaching_adjust");
+        });
       }
 
       const raw = await callAnthropicSimple(getDefaultModel(), systemPrompt, "Ajuste ta proposition en tenant compte du feedback.", 0.5, 4000);

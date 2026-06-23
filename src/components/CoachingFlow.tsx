@@ -77,7 +77,7 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
       const { data, error } = await invokeWithTimeout("coaching-module", {
         body: { phase: "questions", module, rec_id: recId },
       }, 120000);
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
       setQuestions(data.questions || []);
       setIntro(data.intro || conseil || "");

@@ -3,6 +3,7 @@ import EmptyState from "@/components/EmptyState";
 import { MESSAGES } from "@/lib/messages";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
@@ -51,7 +52,7 @@ export default function PinterestEpingles() {
     setGenerating(true);
     try {
       const boardName = boards.find(b => b.id === boardId)?.name || "";
-      const res = await supabase.functions.invoke("pinterest-ai", { body: { action: "pin", subject, board_name: boardName } });
+      const res = await invokeWithTimeout("pinterest-ai", { body: { action: "pin", subject, board_name: boardName, workspace_id: workspaceId !== user?.id ? workspaceId : undefined } }, 60000);
       if (res.error) throw new Error(res.error.message);
       const c = res.data?.content || "";
       let parsed: PinVariant[];
@@ -103,7 +104,7 @@ export default function PinterestEpingles() {
         {/* Generator */}
         <section className="rounded-xl border border-border bg-card p-5 space-y-4 mb-8">
           <h3 className="font-display text-base font-bold">✨ Créer une épingle optimisée</h3>
-          <Input value={subject} onChange={e => setSubject(e.target.value)} placeholder="Ex : Mon tote bag en lin fait main" />
+          <Input value={subject} onChange={e => setSubject(e.target.value)} placeholder="Ex : le sujet de ton épingle (produit, conseil, inspiration…)" />
           {boards.length > 0 && (
             <Select value={boardId} onValueChange={setBoardId}>
               <SelectTrigger><SelectValue placeholder="Tableau de destination" /></SelectTrigger>

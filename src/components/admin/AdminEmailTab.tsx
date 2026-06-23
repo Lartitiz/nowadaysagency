@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -111,10 +112,10 @@ function InscritesView() {
       if (!session?.access_token) return;
       setLoading(true);
       try {
-        const res = await supabase.functions.invoke("admin-users", {
+        const res = await invokeWithTimeout("admin-users", {
           headers: { Authorization: `Bearer ${session.access_token}` },
           body: null,
-        });
+        }, 30000);
         if (res.data?.users) setUsers(res.data.users);
       } catch (e) { console.error(e); }
 
@@ -210,7 +211,7 @@ function InscritesView() {
     for (const r of recipients) {
       try {
         const resolved = resolveVariables(emailBody || `<p>${emailSubject}</p>`, emailSubject, r);
-        const res = await supabase.functions.invoke("send-email", {
+        const res = await invokeWithTimeout("send-email", {
           body: {
             to: r.email,
             subject: resolved.subject,
@@ -218,7 +219,7 @@ function InscritesView() {
             user_id: r.user_id,
             template_id: selectedTemplateId !== "libre" ? selectedTemplateId : undefined,
           },
-        });
+        }, 30000);
         if (res.data?.success) successCount++;
       } catch (e) { console.error(e); }
     }
@@ -408,7 +409,7 @@ function SequencesView() {
   async function handleTrigger(event: string) {
     setTriggerLoading(event);
     try {
-      const res = await supabase.functions.invoke("email-trigger", { body: { event } });
+      const res = await invokeWithTimeout("email-trigger", { body: { event } }, 30000);
       if (res.error) throw new Error(res.error.message || "Erreur inconnue");
       const d = res.data || {};
       if (event === "process_queue") {

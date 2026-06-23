@@ -3,6 +3,7 @@ import { LocalErrorBoundary } from "@/components/LocalErrorBoundary";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { useToast } from "@/hooks/use-toast";
@@ -125,8 +126,26 @@ export default function InstagramStats() {
     const last = periodStats[periodStats.length - 1];
     const followers = last.followers;
     const avgReach = periodStats.reduce((s, r) => s + (r.reach || 0), 0) / periodStats.length;
-    const avgEngagement = periodStats.reduce((s, r) => s + (safeDivPct(r.interactions, r.reach) || 0), 0) / periodStats.length;
-    const totalRevenue = periodStats.reduce((s, r) => s + (r.revenue || 0), 0);
+
+    // Weighted engagement rate by reach: Σ(accounts_engaged) / Σ(reach).
+    // Fallback to interactions if accounts_engaged isn't filled in (legacy data).
+    const totalReach = periodStats.reduce((s, r) => s + (r.reach || 0), 0);
+    const totalEngaged = periodStats.reduce(
+      (s, r) => s + (r.accounts_engaged ?? r.interactions ?? 0),
+      0,
+    );
+    const avgEngagement = totalReach > 0 ? (totalEngaged / totalReach) * 100 : 0;
+
+    // Engagement by followers (Σ interactions / followers du dernier mois × 100, moyenné).
+    const totalInteractions = periodStats.reduce((s, r) => s + (r.interactions || 0), 0);
+    const engagementByFollowers = followers && followers > 0
+      ? (totalInteractions / periodStats.length / followers) * 100
+      : null;
+
+    // Net growth: somme des followers_gained − followers_lost sur la période.
+    const totalGained = periodStats.reduce((s, r) => s + (r.followers_gained || 0), 0);
+    const totalLost = periodStats.reduce((s, r) => s + (r.followers_lost || 0), 0);
+    const netGrowth = totalGained - totalLost;
 
     const periodMonths = periodStats.length;
     const prevStats = allStats
@@ -136,15 +155,23 @@ export default function InstagramStats() {
 
     const prevFollowers = prevStats.length > 0 ? prevStats[prevStats.length - 1]?.followers : null;
     const prevAvgReach = prevStats.length > 0 ? prevStats.reduce((s, r) => s + (r.reach || 0), 0) / prevStats.length : null;
-    const prevAvgEngagement = prevStats.length > 0 ? prevStats.reduce((s, r) => s + (safeDivPct(r.interactions, r.reach) || 0), 0) / prevStats.length : null;
-    const prevTotalRevenue = prevStats.length > 0 ? prevStats.reduce((s, r) => s + (r.revenue || 0), 0) : null;
+
+    const prevTotalReach = prevStats.reduce((s, r) => s + (r.reach || 0), 0);
+    const prevTotalEngaged = prevStats.reduce((s, r) => s + (r.accounts_engaged ?? r.interactions ?? 0), 0);
+    const prevAvgEngagement = prevStats.length > 0 && prevTotalReach > 0
+      ? (prevTotalEngaged / prevTotalReach) * 100
+      : null;
+
+    const prevNetGrowth = prevStats.length > 0
+      ? prevStats.reduce((s, r) => s + (r.followers_gained || 0) - (r.followers_lost || 0), 0)
+      : null;
 
     return {
-      followers, avgReach: Math.round(avgReach), avgEngagement, totalRevenue,
+      followers, avgReach: Math.round(avgReach), avgEngagement, engagementByFollowers, netGrowth,
       changeFollowers: pctChange(followers, prevFollowers),
       changeReach: pctChange(avgReach, prevAvgReach),
       changeEngagement: pctChange(avgEngagement, prevAvgEngagement),
-      changeRevenue: pctChange(totalRevenue, prevTotalRevenue),
+      changeNetGrowth: pctChange(netGrowth, prevNetGrowth),
       followersGained: isSingleMonth ? last.followers_gained : null,
     };
   }, [periodStats, allStats, periodRange, isSingleMonth]);
@@ -152,22 +179,33 @@ export default function InstagramStats() {
   const activeConfig = config || draftConfig;
 
   const chartData = useMemo(() =>
-    periodStats.map(s => ({
-      month: monthLabelShort(s.month_date),
-      followers: s.followers ?? 0,
-      reach: s.reach ?? 0,
-      engagement: safeDivPct(s.interactions, s.reach) ?? 0,
-      revenue: s.revenue ?? 0,
-      clients: s.clients_signed ?? 0,
-      ...(activeConfig.traffic_sources || ["search", "social", "pinterest", "instagram"]).reduce((acc, src) => {
-        if (s.website_data && typeof s.website_data === "object" && s.website_data.sources) {
-          acc[`traffic_${src}`] = s.website_data.sources[src] ?? (s as any)[`traffic_${src}`] ?? 0;
-        } else {
-          acc[`traffic_${src}`] = (s as any)[`traffic_${src}`] ?? 0;
-        }
-        return acc;
-      }, {} as Record<string, number>),
-    }))
+    periodStats.map(s => {
+      const engaged = s.accounts_engaged ?? s.interactions ?? 0;
+      const eng = s.reach && s.reach > 0 ? (engaged / s.reach) * 100 : 0;
+      const engFollowers = s.followers && s.followers > 0 && s.interactions != null
+        ? (s.interactions / s.followers) * 100
+        : 0;
+      return {
+        month: monthLabelShort(s.month_date),
+        followers: s.followers ?? 0,
+        reach: s.reach ?? 0,
+        engagement: eng,
+        engagement_followers: engFollowers,
+        profile_visits: s.profile_visits ?? 0,
+        website_clicks: s.website_clicks ?? 0,
+        gained: s.followers_gained ?? 0,
+        lost: -(s.followers_lost ?? 0),
+        net: (s.followers_gained ?? 0) - (s.followers_lost ?? 0),
+        ...(activeConfig.traffic_sources || ["search", "social", "pinterest", "instagram"]).reduce((acc, src) => {
+          if (s.website_data && typeof s.website_data === "object" && s.website_data.sources) {
+            acc[`traffic_${src}`] = s.website_data.sources[src] ?? (s as any)[`traffic_${src}`] ?? 0;
+          } else {
+            acc[`traffic_${src}`] = (s as any)[`traffic_${src}`] ?? 0;
+          }
+          return acc;
+        }, {} as Record<string, number>),
+      };
+    })
   , [periodStats, config]);
 
   const monthOptions = useMemo(() => {
@@ -235,10 +273,10 @@ export default function InstagramStats() {
     setIsGenerating(true);
     try {
       const last6 = allStats.slice(0, 6);
-      const { data, error } = await supabase.functions.invoke("engagement-insight", {
+      const { data, error } = await invokeWithTimeout("engagement-insight", {
         body: { currentWeek: formData, history: last6, mode: "monthly_stats" },
-      });
-      if (error) throw error;
+      }, 60000);
+      if (error) throw new Error(error.message);
       const insight = data?.insight || "";
       setAiAnalysis(insight);
       if (formId) {

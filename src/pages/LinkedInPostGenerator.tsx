@@ -3,6 +3,7 @@ import { parseAIResponse } from "@/lib/parse-ai-response";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
@@ -11,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { useToast } from "@/hooks/use-toast";
 import { friendlyError } from "@/lib/error-messages";
+import { handleQuotaError } from "@/lib/quota-error-handler";
 import { Sparkles, Copy, Check, RefreshCw, CalendarDays, Loader2, Search, Lightbulb } from "lucide-react";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import LinkedInPreview from "@/components/linkedin/LinkedInPreview";
@@ -52,9 +54,12 @@ export default function LinkedInPostGenerator() {
     setImproving(true);
     setImproveResult(null);
     try {
-      const res = await supabase.functions.invoke("linkedin-ai", {
+      const res = await invokeWithTimeout("linkedin-ai", {
         body: { action: "improve-post", postContent: existingPost, workspace_id: workspaceId !== user?.id ? workspaceId : undefined },
-      });
+      }, 60000);
+      if (res.error?.isRateLimit || res.data?.error === "limit_reached") {
+        if (handleQuotaError({ message: res.error?.message || res.data?.message, data: res.data })) return;
+      }
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
       let parsed: ImproveResult = parseAIResponse(content);

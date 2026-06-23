@@ -585,27 +585,78 @@ function FallbackPreview({ data, editable, onContentChange }: { data: any; edita
   }
 
   const entries = Object.entries(data)
-    .filter(([_, val]) => typeof val === "string" && (val as string).length > 5)
-    .slice(0, 10);
+    .filter(([_, val]) => typeof val === "string" && (val as string).length > 5) as [string, string][];
 
   if (entries.length === 0) return null;
 
+  // Promote title + chip-style meta keys for newsjacking-style ideas
+  const titleEntry = entries.find(([k]) => k === "titre" || k === "title");
+  const chipKeys = ["axe", "ton", "angle", "format"];
+  const chipEntries = entries.filter(([k]) => chipKeys.includes(k));
+  const promotedKeys = new Set<string>([
+    ...(titleEntry ? [titleEntry[0]] : []),
+    ...chipEntries.map(([k]) => k),
+  ]);
+  const restEntries = entries.filter(([k]) => !promotedKeys.has(k)).slice(0, 10);
+
+  const renderValue = (key: string, val: string) =>
+    editable && onContentChange ? (
+      <EditableText
+        value={val}
+        onSave={(v) => { onContentChange({ ...data, [key]: v }); }}
+        className="text-sm text-foreground leading-relaxed"
+      />
+    ) : (
+      <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{val}</p>
+    );
+
+  const formatLabel = (k: string) => k.replace(/_/g, " ");
+
   return (
-    <div className="space-y-2">
-      {entries.map(([key, val]) => (
-        <div key={key}>
-          <span className="text-xs text-muted-foreground capitalize">{key.replace(/_/g, " ")} :</span>
+    <div className="space-y-4">
+      {titleEntry && (
+        <div>
           {editable && onContentChange ? (
             <EditableText
-              value={val as string}
-              onSave={(v) => { onContentChange({ ...data, [key]: v }); }}
-              className="text-sm text-foreground"
+              value={titleEntry[1]}
+              onSave={(v) => { onContentChange({ ...data, [titleEntry[0]]: v }); }}
+              className="text-base font-semibold text-foreground leading-snug"
             />
           ) : (
-            <p className="text-sm text-foreground">{val as string}</p>
+            <p className="text-base font-semibold text-foreground leading-snug">{titleEntry[1]}</p>
           )}
         </div>
-      ))}
+      )}
+
+      {chipEntries.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {chipEntries.map(([key, val]) => (
+            <span
+              key={key}
+              className="inline-flex items-center gap-1 rounded-pill bg-muted px-2 py-0.5 text-[10px] font-mono-ui text-foreground/80"
+            >
+              <span className="uppercase tracking-wide text-muted-foreground">{formatLabel(key)}</span>
+              <span className="text-foreground">{val}</span>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {restEntries.length > 0 && (
+        <div className="space-y-3">
+          {restEntries.map(([key, val], idx) => (
+            <div
+              key={key}
+              className={idx > 0 ? "border-t border-border/40 pt-3" : ""}
+            >
+              <p className="text-[11px] font-mono-ui uppercase tracking-wide text-muted-foreground mb-1">
+                {formatLabel(key)}
+              </p>
+              {renderValue(key, val)}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

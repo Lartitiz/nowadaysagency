@@ -1,16 +1,19 @@
 import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { PostCommentsSection } from "@/components/calendar/PostCommentsSection";
 import { friendlyError } from "@/lib/error-messages";
-import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useProfile } from "@/hooks/use-profile";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
-import { Trash2, ChevronDown, Upload, Undo2 } from "lucide-react";
+import { Trash2, ChevronDown, Upload } from "lucide-react";
 import { getGuide } from "@/lib/production-guides";
 import { type CalendarPost } from "@/lib/calendar-constants";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,7 +32,7 @@ interface Props {
   editingPost: CalendarPost | null;
   selectedDate: string | null;
   defaultCanal: string;
-  onSave: (data: { theme: string; angle: string | null; status: string; notes: string; canal: string; objectif: string | null; format: string | null; content_draft: string | null; accroche: string | null; media_urls: string[] | null }) => void;
+  onSave: (data: { theme: string; angle: string | null; status: string; notes: string; canal: string; objectif: string | null; format: string | null; content_draft: string | null; accroche: string | null; media_urls: string[] | null; series_id: string | null; episode_number: number | null }) => void;
   onDelete: () => void;
   onUnplan?: () => void;
   onDateChange?: (postId: string, newDate: string) => void;
@@ -37,9 +40,12 @@ interface Props {
 }
 
 export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDate, defaultCanal, onSave, onDelete, onUnplan, onDateChange, prefillData }: Props) {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const { data: profileData } = useProfile();
   const [ownerName, setOwnerName] = useState("Moi");
   const [igUsername, setIgUsername] = useState("");
@@ -62,9 +68,12 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   const [contentDraft, setContentDraft] = useState<string | null>(null);
   const [accroche, setAccroche] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [dialogTab, setDialogTab] = useState<"edit" | "preview">("edit");
+  const [dialogTab, setDialogTab] = useState<"edit" | "preview" | "meta">("edit");
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showContentViewer, setShowContentViewer] = useState(false);
+  const [savedDraft, setSavedDraft] = useState<string | null>(null);
+  const [seriesId, setSeriesId] = useState<string | null>(null);
+  const [episodeNumber, setEpisodeNumber] = useState<number | null>(null);
 
   useEffect(() => {
     if (!profileData) return;
@@ -88,17 +97,22 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
         || (ssd?.script ? ssd.script.map((s: any) => s.texte_parle || "").join("\n\n") : null)
         || null;
       setContentDraft(draft);
+      setSavedDraft(draft);
       setAccroche((editingPost as any).accroche || null);
       setMediaUrls((editingPost as any).media_urls || []);
+      setSeriesId((editingPost as any).series_id || null);
+      setEpisodeNumber((editingPost as any).episode_number ?? null);
     } else if (prefillData) {
       setTheme(prefillData.theme || "");
       setAngle(null); setStatus("idea"); setNotes(prefillData.notes || "");
       setObjectif(null); setPostCanal(defaultCanal !== "all" ? defaultCanal : "instagram");
-      setFormat(null); setContentDraft(null); setAccroche(null); setMediaUrls([]);
+      setFormat(null); setContentDraft(null); setSavedDraft(null); setAccroche(null); setMediaUrls([]);
+      setSeriesId(null); setEpisodeNumber(null);
     } else {
       setTheme(""); setAngle(null); setStatus("idea"); setNotes("");
       setObjectif(null); setPostCanal(defaultCanal !== "all" ? defaultCanal : "instagram");
-      setFormat(null); setContentDraft(null); setAccroche(null); setMediaUrls([]);
+      setFormat(null); setContentDraft(null); setSavedDraft(null); setAccroche(null); setMediaUrls([]);
+      setSeriesId(null); setEpisodeNumber(null);
     }
     setDialogTab("edit");
     setShowAdvanced(false);
@@ -148,7 +162,8 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
 
   const handleSave = () => {
     if (!theme.trim()) return;
-    onSave({ theme, angle, status, notes, canal: postCanal, objectif, format, content_draft: contentDraft, accroche, media_urls: mediaUrls.length > 0 ? mediaUrls : null });
+    onSave({ theme, angle, status, notes, canal: postCanal, objectif, format, content_draft: contentDraft, accroche, media_urls: mediaUrls.length > 0 ? mediaUrls : null, series_id: seriesId, episode_number: episodeNumber });
+    setSavedDraft(contentDraft);
   };
 
   const handleCopy = () => {
@@ -170,7 +185,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       const validObjectifs = ["visibilite", "confiance", "vente", "credibilite"];
       const safeObjectif = objectif && validObjectifs.includes(objectif) ? objectif : null;
       const res = await invokeWithTimeout("generate-content", {
-        body: { type: "calendar-quick", theme, objectif: safeObjectif, angle, format: format || "post_carrousel", notes, profile: profileData || {}, canal: postCanal },
+        body: { type: "calendar-quick", theme, objectif: safeObjectif, angle, format: format || "post_carrousel", notes, profile: profileData || {}, canal: postCanal, workspace_id: workspaceId !== user?.id ? workspaceId : undefined },
       }, 120000);
       // Handle quota limit
       if (res.data?.error === "limit_reached") {
@@ -199,7 +214,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   };
 
   const handleOpenAtelier = () => {
-    if (theme.trim()) onSave({ theme, angle, status, notes, canal: postCanal, objectif, format, content_draft: contentDraft, accroche, media_urls: mediaUrls.length > 0 ? mediaUrls : null });
+    if (theme.trim()) onSave({ theme, angle, status, notes, canal: postCanal, objectif, format, content_draft: contentDraft, accroche, media_urls: mediaUrls.length > 0 ? mediaUrls : null, series_id: seriesId, episode_number: episodeNumber });
     onOpenChange(false);
     setTimeout(() => {
       navigate("/creer?canal=" + (postCanal || "instagram"), {
@@ -209,7 +224,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   };
 
   const handleNavigateToGenerator = (mode: "generate" | "regenerate" | "view") => {
-    if (theme.trim()) onSave({ theme, angle, status, notes, canal: postCanal, objectif, format, content_draft: contentDraft, accroche, media_urls: mediaUrls.length > 0 ? mediaUrls : null });
+    if (theme.trim()) onSave({ theme, angle, status, notes, canal: postCanal, objectif, format, content_draft: contentDraft, accroche, media_urls: mediaUrls.length > 0 ? mediaUrls : null, series_id: seriesId, episode_number: episodeNumber });
     onOpenChange(false);
     setTimeout(() => {
       const params = new URLSearchParams();
@@ -231,7 +246,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   };
 
   const handleNavigateToDeepen = () => {
-    if (theme.trim()) onSave({ theme, angle, status, notes, canal: postCanal, objectif, format, content_draft: contentDraft, accroche, media_urls: mediaUrls.length > 0 ? mediaUrls : null });
+    if (theme.trim()) onSave({ theme, angle, status, notes, canal: postCanal, objectif, format, content_draft: contentDraft, accroche, media_urls: mediaUrls.length > 0 ? mediaUrls : null, series_id: seriesId, episode_number: episodeNumber });
     onOpenChange(false);
     setTimeout(() => {
       const params = new URLSearchParams();
@@ -259,180 +274,201 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
 
   // ── Render ──
 
+  const ssd = editingPost?.story_sequence_detail as any;
+  const syncStatus = (savedDraft || "") === (contentDraft || "") ? "synced" : "dirty";
+
+  // Bloc édition (theme + content + brief + notes + visuels + guide + comments)
+  const editionBlock = (
+    <div className="space-y-4 min-w-0">
+      <div>
+        <label className="text-xs font-semibold mb-1.5 block text-foreground">Thème / sujet</label>
+        <Input autoFocus value={theme} onChange={(e) => setTheme(e.target.value)} placeholder="De quoi parle ce post ?" className="rounded-[10px] h-11" />
+      </div>
+
+      <CalendarPostContent
+        editingPost={editingPost} theme={theme}
+        contentDraft={contentDraft} setContentDraft={setContentDraft}
+        accroche={accroche} setAccroche={setAccroche}
+        status={status} setStatus={setStatus}
+        isGenerating={isGenerating} onSmartGenerate={handleSmartGenerate}
+        onCopy={handleCopy} onOpenAtelier={handleOpenAtelier}
+        onNavigateToDeepen={handleNavigateToDeepen}
+        onNavigateToFormat={handleNavigateToFormat}
+        postCanal={postCanal} format={format} angle={angle}
+        objectif={objectif} notes={notes} mediaUrls={mediaUrls}
+        onSaveAndClose={() => { handleSave(); onOpenChange(false); }}
+        onShowContentViewer={isMobile ? () => setShowContentViewer(true) : undefined}
+      />
+
+      {linkedBrief && (
+        <Collapsible>
+          <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-foreground w-full py-2">
+            <span>📋 Brief créatif</span>
+            <span className="text-xs text-muted-foreground font-normal ml-auto">
+              {Object.values(linkedBrief.answers).filter(v => v?.trim()).length} réponse(s)
+            </span>
+            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+          </CollapsibleTrigger>
+          <CollapsibleContent className="space-y-3 pt-2">
+            <p className="text-xs text-muted-foreground">Les réponses que tu as données pour créer ce contenu :</p>
+            {linkedBrief.questions.map((q: any) => {
+              const answer = linkedBrief.answers[q.id] || linkedBrief.answers[q.question] || "";
+              if (!answer.trim()) return null;
+              return (
+                <div key={q.id} className="rounded-lg bg-muted/30 border border-border p-3">
+                  <p className="text-xs font-medium text-foreground mb-1">{q.question}</p>
+                  <p className="text-xs text-muted-foreground whitespace-pre-wrap">{answer}</p>
+                </div>
+              );
+            })}
+          </CollapsibleContent>
+        </Collapsible>
+      )}
+
+      <div>
+        <label className="text-xs font-semibold mb-1.5 block text-foreground">📝 Notes</label>
+        <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Idées, brouillon, remarques..." className="rounded-[10px] min-h-[80px]" />
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-xs font-medium text-foreground">🖼️ Visuels</label>
+        {mediaUrls.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {mediaUrls.map((url, i) => (
+              <div key={i} className="relative group w-14 h-14 rounded-lg overflow-hidden border border-border">
+                <img src={url} alt={`Visuel ${i + 1}`} className="w-full h-full object-cover" />
+                <button onClick={() => setMediaUrls(prev => prev.filter((_, idx) => idx !== i))} aria-label={`Supprimer le visuel ${i + 1}`} className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-foreground/60 text-background flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs">x</button>
+              </div>
+            ))}
+          </div>
+        )}
+        <label className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer transition-colors">
+          <Upload className="h-3.5 w-3.5" />
+          {uploading ? "Upload en cours..." : "Ajouter des visuels"}
+          <input type="file" accept="image/*" multiple className="hidden" onChange={handleMediaUpload} disabled={uploading} />
+        </label>
+      </div>
+
+      {guide && (
+        <Collapsible>
+          <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary transition-colors w-full">
+            <span>📝 Comment produire ce post</span>
+            <ChevronDown className="h-4 w-4 transition-transform data-[state=open]:rotate-180" />
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-3">
+            <ol className="space-y-3 text-[13px] leading-relaxed text-foreground">
+              {guide.map((step, i) => (
+                <li key={i}>
+                  <span className="font-semibold text-primary">{step.label}</span>
+                  <p className="mt-0.5 text-muted-foreground">{step.detail}</p>
+                </li>
+              ))}
+            </ol>
+          </CollapsibleContent>
+        </Collapsible>
+      )}
+
+      {editingPost && <PostCommentsSection postId={editingPost.id} ownerName={ownerName} />}
+    </div>
+  );
+
+  // Bloc métadonnées
+  const metaBlock = (
+    <CalendarPostMetadata
+      status={status} setStatus={setStatus} postCanal={postCanal} setPostCanal={setPostCanal}
+      format={format} setFormat={setFormat} objectif={objectif} setObjectif={setObjectif}
+      angle={angle} setAngle={setAngle} showAdvanced={showAdvanced} setShowAdvanced={setShowAdvanced}
+      editingPostId={editingPost?.id} selectedDate={selectedDate} onDateChange={onDateChange}
+      onUnplan={onUnplan}
+    />
+
+  );
+
+  // Bloc preview (avec props compact + sync)
+  const previewBlock = (compact: boolean) => (
+    <CalendarPostPreview
+      canal={postCanal} format={format} caption={contentDraft} theme={theme}
+      username={igUsername || ownerName} displayName={ownerName} mediaUrls={mediaUrls}
+      visualHtml={ssd?.visual_html || null}
+      visualUrls={ssd?.visual_urls || null}
+      onNavigateToGenerator={() => handleNavigateToGenerator("generate")}
+      hasAngle={!!angle} hasTheme={!!theme.trim()}
+      slidesData={ssd?.slides || null}
+      photoUrls={ssd?.photo_urls || null}
+      compact={compact}
+      onFullscreen={ssd ? () => setShowContentViewer(true) : undefined}
+      syncStatus={contentDraft ? syncStatus : undefined}
+    />
+  );
+
+  // Footer actions
+  const actionsBlock = (
+    <div className="flex gap-2 pt-4 mt-4 border-t border-border">
+      <Button onClick={handleSave} disabled={!theme.trim()} className="flex-1 rounded-pill bg-primary text-primary-foreground hover:bg-primary/90">💾 Enregistrer</Button>
+
+      {editingPost && (
+        <Button variant="outline" size="icon" onClick={() => { if (window.confirm("Supprimer ce post du calendrier ? Cette action est irréversible.")) onDelete(); }} className="rounded-full text-destructive hover:bg-destructive/10">
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      )}
+    </div>
+  );
+
   return (
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <div className="flex items-center justify-between">
-            <DialogTitle className="font-display">{editingPost ? "Modifier le post" : "Ajouter un post"}</DialogTitle>
-            {editingPost && (
-              <div className="flex rounded-full border border-border overflow-hidden mr-6">
-                <button onClick={() => setDialogTab("edit")} className={`px-3 py-1 text-[11px] font-medium transition-colors ${dialogTab === "edit" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>✏️ Éditer</button>
-                <button onClick={() => setDialogTab("preview")} className={`px-3 py-1 text-[11px] font-medium transition-colors ${dialogTab === "preview" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>👁️ Preview</button>
-              </div>
-            )}
-          </div>
+      <DialogContent className={cn(
+        "max-h-[90vh] overflow-hidden flex flex-col p-0",
+        isMobile ? "sm:max-w-2xl" : "sm:max-w-6xl"
+      )}>
+        <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
+          <DialogTitle className="font-display">{editingPost ? "Modifier le post" : "Ajouter un post"}</DialogTitle>
           <DialogDescription className="sr-only">Formulaire de création ou modification d'un post du calendrier éditorial</DialogDescription>
         </DialogHeader>
 
-        <div className="mt-2">
-          {dialogTab === "preview" ? (
-            <CalendarPostPreview
-              canal={postCanal} format={format} caption={contentDraft} theme={theme}
-              username={igUsername || ownerName} displayName={ownerName} mediaUrls={mediaUrls}
-              visualHtml={(editingPost?.story_sequence_detail as any)?.visual_html || null}
-              visualUrls={(editingPost?.story_sequence_detail as any)?.visual_urls || null}
-              onNavigateToGenerator={() => handleNavigateToGenerator("generate")}
-              hasAngle={!!angle} hasTheme={!!theme.trim()}
-            />
-          ) : (
-          <>
-            <div className="grid grid-cols-1 sm:grid-cols-[1fr_220px] gap-5">
-              {/* Left column: Content */}
-              <div className="space-y-4 min-w-0">
-                <div>
-                  <label className="text-xs font-semibold mb-1.5 block text-foreground">Thème / sujet</label>
-                  <Input autoFocus value={theme} onChange={(e) => setTheme(e.target.value)} placeholder="De quoi parle ce post ?" className="rounded-[10px] h-11" />
-                </div>
+        {isMobile ? (
+          // ── Mobile : 3 tabs ──
+          <Tabs value={dialogTab} onValueChange={(v) => setDialogTab(v as any)} className="flex-1 flex flex-col overflow-hidden px-6 pb-6">
+            <TabsList className="grid grid-cols-3 w-full rounded-pill bg-muted h-9 shrink-0">
+              <TabsTrigger value="edit" className="rounded-pill text-xs">✏️ Éditer</TabsTrigger>
+              <TabsTrigger value="preview" className="rounded-pill text-xs" disabled={!editingPost}>👁️ Preview</TabsTrigger>
+              <TabsTrigger value="meta" className="rounded-pill text-xs">📋 Méta</TabsTrigger>
+            </TabsList>
+            <div className="flex-1 overflow-y-auto mt-3">
+              <TabsContent value="edit" className="mt-0">{editionBlock}</TabsContent>
+              <TabsContent value="preview" className="mt-0">{previewBlock(true)}</TabsContent>
+              <TabsContent value="meta" className="mt-0 space-y-4">{metaBlock}</TabsContent>
+            </div>
+            {actionsBlock}
+          </Tabs>
+        ) : (
+          // ── Desktop : 3 colonnes ──
+          <div className="flex-1 flex flex-col overflow-hidden px-6 pb-6">
+            <div className="flex-1 overflow-y-auto">
+              <div className="grid grid-cols-[220px_1fr_340px] gap-5">
+                {/* Col 1 : Métadonnées */}
+                <aside className="space-y-4">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Métadonnées</p>
+                  {metaBlock}
+                </aside>
 
-                <CalendarPostContent
-                  editingPost={editingPost} theme={theme}
-                  contentDraft={contentDraft} setContentDraft={setContentDraft}
-                  accroche={accroche} setAccroche={setAccroche}
-                  status={status} setStatus={setStatus}
-                  isGenerating={isGenerating} onSmartGenerate={handleSmartGenerate}
-                  onCopy={handleCopy} onOpenAtelier={handleOpenAtelier}
-                  onNavigateToDeepen={handleNavigateToDeepen}
-                  onNavigateToFormat={handleNavigateToFormat}
-                  postCanal={postCanal} format={format} angle={angle}
-                  objectif={objectif} notes={notes} mediaUrls={mediaUrls}
-                  onSaveAndClose={() => { handleSave(); onOpenChange(false); }}
-                  onShowContentViewer={() => setShowContentViewer(true)}
-                />
+                {/* Col 2 : Édition */}
+                <main className="border-x border-border px-5">
+                  {editionBlock}
+                </main>
 
-                {/* Brief créatif lié */}
-                {linkedBrief && (
-                  <Collapsible>
-                    <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-foreground w-full py-2">
-                      <span>📋 Brief créatif</span>
-                      <span className="text-xs text-muted-foreground font-normal ml-auto">
-                        {Object.values(linkedBrief.answers).filter(v => v?.trim()).length} réponse(s)
-                      </span>
-                      <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="space-y-3 pt-2">
-                      <p className="text-xs text-muted-foreground">
-                        Les réponses que tu as données pour créer ce contenu :
-                      </p>
-                      {linkedBrief.questions.map((q: any) => {
-                        const answer = linkedBrief.answers[q.id] || linkedBrief.answers[q.question] || "";
-                        if (!answer.trim()) return null;
-                        return (
-                          <div key={q.id} className="rounded-lg bg-muted/30 border border-border p-3">
-                            <p className="text-xs font-medium text-foreground mb-1">{q.question}</p>
-                            <p className="text-xs text-muted-foreground whitespace-pre-wrap">{answer}</p>
-                          </div>
-                        );
-                      })}
-                    </CollapsibleContent>
-                  </Collapsible>
-                )}
-
-                <div>
-                  <label className="text-xs font-semibold mb-1.5 block text-foreground">📝 Notes</label>
-                  <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Idées, brouillon, remarques..." className="rounded-[10px] min-h-[80px]" />
-                </div>
-
-                {/* Visuels */}
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-foreground">🖼️ Visuels</label>
-                  {mediaUrls.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {mediaUrls.map((url, i) => (
-                        <div key={i} className="relative group w-14 h-14 rounded-lg overflow-hidden border border-border">
-                          <img src={url} alt={`Visuel ${i + 1}`} className="w-full h-full object-cover" />
-                          <button onClick={() => setMediaUrls(prev => prev.filter((_, idx) => idx !== i))} aria-label={`Supprimer le visuel ${i + 1}`} className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs">x</button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <label className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer transition-colors">
-                    <Upload className="h-3.5 w-3.5" />
-                    {uploading ? "Upload en cours..." : "Ajouter des visuels"}
-                    <input type="file" accept="image/*" multiple className="hidden" onChange={handleMediaUpload} disabled={uploading} />
-                  </label>
-                </div>
-
-                {/* Production guide */}
-                {guide && (
-                  <Collapsible>
-                    <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary transition-colors w-full">
-                      <span>📝 Comment produire ce post</span>
-                      <ChevronDown className="h-4 w-4 transition-transform data-[state=open]:rotate-180" />
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="mt-3">
-                      <ol className="space-y-3 text-[13px] leading-relaxed text-foreground">
-                        {guide.map((step, i) => (
-                          <li key={i}>
-                            <span className="font-semibold text-primary">{step.label}</span>
-                            <p className="mt-0.5 text-muted-foreground">{step.detail}</p>
-                          </li>
-                        ))}
-                      </ol>
-                    </CollapsibleContent>
-                  </Collapsible>
-                )}
-
-                {editingPost && <PostCommentsSection postId={editingPost.id} ownerName={ownerName} />}
-              </div>
-
-              {/* Right column (desktop): Metadata */}
-              <div className="hidden sm:block space-y-4 sm:border-l sm:border-border sm:pl-5">
-                <CalendarPostMetadata
-                  status={status} setStatus={setStatus} postCanal={postCanal} setPostCanal={setPostCanal}
-                  format={format} setFormat={setFormat} objectif={objectif} setObjectif={setObjectif}
-                  angle={angle} setAngle={setAngle} showAdvanced={showAdvanced} setShowAdvanced={setShowAdvanced}
-                  editingPostId={editingPost?.id} selectedDate={selectedDate} onDateChange={onDateChange}
-                />
-              </div>
-
-              {/* Mobile: Metadata collapsible */}
-              <div className="sm:hidden">
-                <Collapsible>
-                  <CollapsibleTrigger className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-primary w-full py-2">
-                    <span>📋 Canal, statut, date, format</span>
-                    <ChevronDown className="h-3.5 w-3.5 ml-auto" />
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="space-y-4 pt-2">
-                    <CalendarPostMetadata
-                      status={status} setStatus={setStatus} postCanal={postCanal} setPostCanal={setPostCanal}
-                      format={format} setFormat={setFormat} objectif={objectif} setObjectif={setObjectif}
-                      angle={angle} setAngle={setAngle} showAdvanced={showAdvanced} setShowAdvanced={setShowAdvanced}
-                      editingPostId={editingPost?.id} selectedDate={selectedDate} onDateChange={onDateChange}
-                    />
-                  </CollapsibleContent>
-                </Collapsible>
+                {/* Col 3 : Preview live (sticky) */}
+                <aside className="space-y-2">
+                  <div className="sticky top-0">
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Preview live</p>
+                    {previewBlock(true)}
+                  </div>
+                </aside>
               </div>
             </div>
-
-            {/* Actions */}
-            <div className="flex gap-2 pt-4 mt-4 border-t border-border">
-              <Button onClick={handleSave} disabled={!theme.trim()} className="flex-1 rounded-pill bg-primary text-primary-foreground hover:bg-primary/90">💾 Enregistrer</Button>
-              {onUnplan && editingPost && (
-                <Button variant="outline" size="icon" onClick={onUnplan} className="rounded-full text-muted-foreground hover:text-primary" title="Remettre en idée">
-                  <Undo2 className="h-4 w-4" />
-                </Button>
-              )}
-              {editingPost && (
-                <Button variant="outline" size="icon" onClick={() => { if (window.confirm("Supprimer ce post du calendrier ? Cette action est irréversible.")) onDelete(); }} className="rounded-full text-destructive hover:bg-destructive/10">
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-          </>
-          )}
-        </div>
+            {actionsBlock}
+          </div>
+        )}
       </DialogContent>
     </Dialog>
 

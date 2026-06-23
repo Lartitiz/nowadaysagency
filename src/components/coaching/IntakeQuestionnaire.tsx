@@ -5,9 +5,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice } from "@/components/ui/textarea-with-voice";
@@ -51,6 +52,7 @@ interface IntakeQuestionnaireProps {
 export default function IntakeQuestionnaire({ programId, onComplete, onBack }: IntakeQuestionnaireProps) {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
+  const workspaceId = useWorkspaceId();
   const { isDemoMode } = useDemoContext();
   const navigate = useNavigate();
 
@@ -100,16 +102,17 @@ export default function IntakeQuestionnaire({ programId, onComplete, onBack }: I
     setLoading(true);
     setLoadingPhrase(LOADING_PHRASES[Math.floor(Math.random() * LOADING_PHRASES.length)]);
     try {
-      const { data, error } = await supabase.functions.invoke("branding-coaching", {
+      const { data, error } = await invokeWithTimeout("branding-coaching", {
         body: {
           user_id: user!.id,
           section: "intake",
           messages: msgs,
           context: { program_id: programId },
           intake_mode: true,
+          workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
         },
-      });
-      if (error) throw error;
+      }, 90000);
+      if (error) throw new Error(error.message);
       return data.response as AIResponse;
     } finally {
       setLoading(false);

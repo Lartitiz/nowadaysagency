@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -34,9 +34,25 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
   const [loadingWsFor, setLoadingWsFor] = useState<string | null>(null);
   const [creatingStandalone, setCreatingStandalone] = useState(false);
   const [newWsName, setNewWsName] = useState("");
+  const [newWsEmail, setNewWsEmail] = useState("");
   const [showNewWsInput, setShowNewWsInput] = useState(false);
   const [deletingWs, setDeletingWs] = useState<string | null>(null);
   const [removedWsIds, setRemovedWsIds] = useState<Set<string>>(new Set());
+  const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    const ids = standaloneWorkspaces.map(w => w.id);
+    if (ids.length === 0) { setMemberCounts({}); return; }
+    (async () => {
+      const { data } = await supabase
+        .from("workspace_members")
+        .select("workspace_id")
+        .in("workspace_id", ids);
+      const counts: Record<string, number> = {};
+      (data || []).forEach((r: any) => { counts[r.workspace_id] = (counts[r.workspace_id] || 0) + 1; });
+      setMemberCounts(counts);
+    })();
+  }, [standaloneWorkspaces]);
 
   const getNextSession = (programId: string) => sessions.find(s => s.program_id === programId && s.status === "scheduled" && s.scheduled_date);
   const getSessionStats = (programId: string) => {
@@ -108,39 +124,38 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
     navigate("/dashboard");
   };
 
-  const handleDeleteStandaloneWs = async (wsId: string, wsName: string) => {
-    const { data: members } = await supabase
-      .from("workspace_members")
-      .select("user_id, role")
-      .eq("workspace_id", wsId);
-
-    const otherMembers = (members || []).filter(m => m.user_id !== user?.id);
-
-    if (otherMembers.length > 0) {
+  const handleLeaveOrDeleteWs = async (wsId: string, wsName: string, hasOthers: boolean) => {
+    if (hasOthers) {
       const confirmed = window.confirm(
-        `L'espace « ${wsName} » a ${otherMembers.length} autre·s membre·s. Tu seras retiré·e de cet espace mais il ne sera pas supprimé. Continuer ?`
+        `L'espace « ${wsName} » a d'autres membres. Tu vas le quitter (l'espace ne sera pas supprimé). Continuer ?`
       );
       if (!confirmed) return;
       setDeletingWs(wsId);
-      await supabase
+      const { error } = await supabase
         .from("workspace_members")
         .delete()
         .eq("workspace_id", wsId)
         .eq("user_id", user!.id);
+      if (error) {
+        toast.error(`Impossible de quitter : ${error.message}`);
+        setDeletingWs(null);
+        return;
+      }
       toast.success(`Tu as quitté l'espace « ${wsName} »`);
     } else {
       const confirmed = window.confirm(
-        `Supprimer l'espace « ${wsName} » ? Cette action est irréversible.`
+        `Supprimer définitivement l'espace « ${wsName} » et toutes ses données (branding, contenus, calendrier…) ? Action irréversible.`
       );
       if (!confirmed) return;
       setDeletingWs(wsId);
-      await supabase
-        .from("workspaces")
-        .delete()
-        .eq("id", wsId);
-      toast.success(`Espace « ${wsName} » supprimé`);
+      const { error } = await supabase.rpc("delete_workspace_with_cleanup" as any, { _workspace_id: wsId });
+      if (error) {
+        toast.error(`Suppression échouée : ${error.message}`);
+        setDeletingWs(null);
+        return;
+      }
+      toast.success(`Espace « ${wsName} » supprimé définitivement`);
     }
-    // Optimistic removal — hide from UI immediately
     setRemovedWsIds(prev => new Set(prev).add(wsId));
     setDeletingWs(null);
     onReload();
@@ -150,6 +165,60 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
     if (!newWsName.trim() || !user?.id) return;
     setCreatingStandalone(true);
     try {
+      // If email provided, check if a profile + workspace already exist
+      const trimmedEmail = newWsEmail.trim();
+      if (trimmedEmail) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("user_id, prenom")
+          .ilike("email", trimmedEmail)
+          .maybeSingle();
+
+        if (profile) {
+          // Find their existing owner workspace (oldest)
+          const { data: existing } = await supabase
+            .from("workspace_members")
+            .select("workspace_id, workspaces!inner(name, created_at)")
+            .eq("user_id", profile.user_id)
+            .eq("role", "owner")
+            .order("workspaces(created_at)" as any, { ascending: true });
+
+          if (existing && existing.length > 0) {
+            const targetWsId = (existing[0] as any).workspace_id;
+            const targetWsName = (existing[0] as any).workspaces?.name || profile.prenom || trimmedEmail;
+            const confirmed = window.confirm(
+              `${profile.prenom || trimmedEmail} a déjà un espace « ${targetWsName} ».\n\nOK = t'attacher à cet espace existant (recommandé)\nAnnuler = créer un NOUVEAU espace en doublon`
+            );
+
+            if (confirmed) {
+              // Attach as manager
+              const { data: alreadyMember } = await supabase
+                .from("workspace_members")
+                .select("id")
+                .eq("workspace_id", targetWsId)
+                .eq("user_id", user.id)
+                .maybeSingle();
+
+              if (!alreadyMember) {
+                const { error: addErr } = await supabase
+                  .from("workspace_members")
+                  .insert({ workspace_id: targetWsId, user_id: user.id, role: "manager" } as any);
+                if (addErr) {
+                  toast.error("Impossible de t'attacher : " + addErr.message);
+                  return;
+                }
+              }
+              toast.success(`Tu es maintenant rattachée à l'espace de ${profile.prenom || trimmedEmail} 🎉`);
+              setNewWsName(""); setNewWsEmail(""); setShowNewWsInput(false);
+              onReload();
+              return;
+            }
+            // User chose to create duplicate anyway → fall through
+          }
+        }
+      }
+
+      // Create a new standalone workspace
       const { data: ws, error } = await supabase
         .from("workspaces")
         .insert({ name: newWsName.trim(), created_by: user.id } as any)
@@ -158,12 +227,11 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
 
       if (error || !ws) { console.error("Erreur création workspace:", error); toast.error("Erreur création: " + (error?.message || "inconnu")); return; }
 
-      await supabase.from("workspace_members").insert({ workspace_id: ws.id, user_id: user.id, role: "manager" } as any);
+      await supabase.from("workspace_members").insert({ workspace_id: ws.id, user_id: user.id, role: "owner" } as any);
 
       toast.success(`Espace « ${newWsName.trim()} » créé`);
 
-      setNewWsName("");
-      setShowNewWsInput(false);
+      setNewWsName(""); setNewWsEmail(""); setShowNewWsInput(false);
       onReload();
     } catch {
       toast.error("Erreur création");
@@ -262,12 +330,16 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
         </div>
 
         {showNewWsInput && (
-          <div className="flex gap-2 mb-4">
-            <Input value={newWsName} onChange={e => setNewWsName(e.target.value)} placeholder="Nom de l'espace…" className="flex-1" onKeyDown={e => e.key === "Enter" && handleCreateStandaloneWs()} />
-            <Button size="sm" onClick={handleCreateStandaloneWs} disabled={creatingStandalone || !newWsName.trim()} className="rounded-full">
-              {creatingStandalone ? <Loader2 className="h-4 w-4 animate-spin" /> : "Créer"}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => { setShowNewWsInput(false); setNewWsName(""); }}>Annuler</Button>
+          <div className="rounded-xl border border-border bg-card p-3 mb-4 space-y-2">
+            <Input value={newWsName} onChange={e => setNewWsName(e.target.value)} placeholder="Nom de l'espace…" onKeyDown={e => e.key === "Enter" && handleCreateStandaloneWs()} />
+            <Input value={newWsEmail} onChange={e => setNewWsEmail(e.target.value)} placeholder="Email de la cliente (optionnel — évite les doublons)" type="email" onKeyDown={e => e.key === "Enter" && handleCreateStandaloneWs()} />
+            <p className="text-[11px] text-muted-foreground">Si tu renseignes un email déjà inscrit, on te proposera de t'attacher à son espace existant au lieu d'en créer un en doublon.</p>
+            <div className="flex gap-2">
+              <Button size="sm" onClick={handleCreateStandaloneWs} disabled={creatingStandalone || !newWsName.trim()} className="rounded-full">
+                {creatingStandalone ? <Loader2 className="h-4 w-4 animate-spin" /> : "Créer"}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => { setShowNewWsInput(false); setNewWsName(""); setNewWsEmail(""); }}>Annuler</Button>
+            </div>
           </div>
         )}
 
@@ -285,16 +357,22 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
                   <Button size="sm" variant="ghost" className="gap-1 text-xs" onClick={(e) => handleOpenStandaloneWs(ws.id, e)}>
                     <ExternalLink className="h-3 w-3" /> Ouvrir
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="gap-1 text-xs text-destructive hover:text-destructive"
-                    onClick={(e) => { e.stopPropagation(); handleDeleteStandaloneWs(ws.id, ws.name); }}
-                    disabled={deletingWs === ws.id}
-                  >
-                    {deletingWs === ws.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
-                    Supprimer
-                  </Button>
+                  {(() => {
+                    const count = memberCounts[ws.id] ?? 1;
+                    const hasOthers = count > 1;
+                    return (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="gap-1 text-xs text-destructive hover:text-destructive"
+                        onClick={(e) => { e.stopPropagation(); handleLeaveOrDeleteWs(ws.id, ws.name, hasOthers); }}
+                        disabled={deletingWs === ws.id}
+                      >
+                        {deletingWs === ws.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                        {hasOthers ? "Quitter" : "Supprimer définitivement"}
+                      </Button>
+                    );
+                  })()}
                 </div>
               </div>
             ))}

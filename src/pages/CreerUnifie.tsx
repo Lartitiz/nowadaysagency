@@ -6,6 +6,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { posthog } from "@/lib/posthog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2, CalendarDays, Palette } from "lucide-react";
@@ -16,20 +26,29 @@ import CreerStepIdea from "@/components/creer/CreerStepIdea";
 import CreerStepFormat from "@/components/creer/CreerStepFormat";
 import CreerStepQuestions from "@/components/creer/CreerStepQuestions";
 import CreerStepResult from "@/components/creer/CreerStepResult";
+import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import CreerStepEdit from "@/components/creer/CreerStepEdit";
+import CreerStepper, { type StepperKey } from "@/components/creer/CreerStepper";
 import PinterestInspirationStep from "@/components/creer/PinterestInspirationStep";
-import CreerTransformTab from "@/components/creer/CreerTransformTab";
+import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
+import { userPhotoToBase64, type UserPhotoRow } from "@/lib/photo-storage";
+import StructureReviewStep from "@/components/creer/StructureReviewStep";
+import type { SlideProposal, StructureProposal } from "@/components/creer/StructureReviewStep";
+
 import { useContentGenerator } from "@/hooks/use-content-generator";
+import { normalizeFormat } from "@/lib/format-normalizer";
 import { CONTENT_STRUCTURES, EDITORIAL_ANGLES, LINKEDIN_EDITORIAL_ANGLES, PINTEREST_EDITORIAL_ANGLES, PINTEREST_VISUAL_ANGLES, getStructureForCombo } from "@/lib/content-structures";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
-import { DEMO_DATA } from "@/lib/demo-data";
+// DEMO_DATA n'est plus importé directement — on utilise demoData du context
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useBrandCharter } from "@/hooks/use-branding";
+import { useActivityExamples } from "@/hooks/use-activity-examples";
 import { supabase } from "@/integrations/supabase/client";
-import { loadFlowState, saveFlowState, clearFlowState } from "@/hooks/use-flow-persistence";
-import { useFormPersist } from "@/hooks/use-form-persist";
-import { useStreamingInvoke } from "@/hooks/use-streaming-invoke";
+import { loadFlowState, saveFlowState, clearFlowState, savePhotos, loadPhotos } from "@/hooks/use-flow-persistence";
+import { isAurianaDemoEmail, AURIANA_DEMO_SUBJECT, AURIANA_DEMO_FLOW } from "@/lib/demo-auriana-data";
+
+// Phase 4: streaming SSE is now encapsulated inside useContentGenerator
 import { useUserPlan } from "@/hooks/use-user-plan";
 
 function LowCreditsBanner({ remaining, plan }: { remaining: number; plan: string }) {
@@ -63,17 +82,18 @@ function LowCreditsBanner({ remaining, plan }: { remaining: number; plan: string
   );
 }
 
-type Step = "idea" | "format" | "questions" | "inspiration_proposals" | "result" | "edit";
-type Mode = "create" | "transform";
+type Step = "idea" | "format" | "questions" | "structure_review" | "inspiration_proposals" | "result" | "edit";
+
 
 export default function CreerUnifie() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
   const { session } = useAuth();
   const { isDemoMode, demoData } = useDemoContext();
   const workspaceId = useWorkspaceId();
   const { data: charterData } = useBrandCharter();
+  const { activityText } = useActivityExamples();
   const { remainingTotal, loading: planLoading, plan, usage } = useUserPlan();
 
   // URL params
@@ -82,6 +102,11 @@ export default function CreerUnifie() {
   const paramObjectif = searchParams.get("objectif") || searchParams.get("objective") || "";
   const paramMode = searchParams.get("mode");
   const paramFrom = searchParams.get("from");
+  const paramAngle = searchParams.get("angle");
+  const paramIdeaId = searchParams.get("idea_id");
+
+  const isFreshStart = searchParams.get("new") === "1";
+  const clearedFreshStart = useRef(false);
 
   // Location state (from calendar, etc.)
   const locState = (location.state as any) || {};
@@ -94,23 +119,38 @@ export default function CreerUnifie() {
   // 1. We have URL params / location state (coming back from calendar, etc.)
   // 2. OR there is a recent session in storage (survives HMR / tab refresh)
   const hasSomeContext = hasUrlParams || !!location.state;
-  const existingFlowState = loadFlowState();
-  const shouldRestore = hasSomeContext || (existingFlowState !== null && existingFlowState.step !== "idea");
+
+  if (isFreshStart && !clearedFreshStart.current) {
+    clearFlowState();
+    clearedFreshStart.current = true;
+  }
+  const existingFlowState = isFreshStart ? null : loadFlowState();
+  const aurianaDemoActive = locState?.demoScenario === "auriana-carousel" || existingFlowState?.demoScenario === "auriana-carousel";
+  const shouldRestore = hasSomeContext || aurianaDemoActive || (existingFlowState !== null && existingFlowState.step !== "idea");
   const persistedState = useRef(shouldRestore ? (existingFlowState || null) : null);
 
   // Core state — restore from sessionStorage if available
   const ps = persistedState.current;
-  const [mode, setMode] = useState<Mode>(paramMode === "transform" ? "transform" : "create");
+  const autoOpenTransform = paramMode === "transform";
   // Restore step — allow "result" and "edit" if their data is available
   const safeStep = (() => {
     if (!ps?.step) return "idea";
     if (ps.step === "result" && ps.result) return "result";
     if (ps.step === "edit" && ps.editContent) return "edit";
-    if (["result", "edit", "inspiration_proposals"].includes(ps.step)) return "idea";
+    // Si flow photo/mix/pure_photo avec photos retrouvées, garder le step en cours
+    if (["questions", "structure_review", "inspiration_proposals"].includes(ps.step)) {
+      const isPhotoFlow = ps.carouselSubMode === "photo" || ps.carouselSubMode === "mix" || ps.carouselSubMode === "pure_photo";
+      if (isPhotoFlow && loadPhotos().length > 0) return ps.step as Step;
+      return ps.selectedFormat ? "format" : "idea";
+    }
+    // États avec données volatiles non persistées (result/edit invalides)
+    if (["result", "edit"].includes(ps.step)) {
+      return ps.selectedFormat ? "format" : "idea";
+    }
     return ps.step as Step;
   })();
   const [step, setStep] = useState<Step>(safeStep);
-  const [restoredQuestions] = useState(ps?.questions || []);
+  
   const [ideaText, setIdeaText] = useState(ps?.ideaText || paramSujet || locState.sujet || locState.subject || "");
   const [objective, setObjective] = useState<string | null>(
     ps?.objective || paramObjectif || locState.objectif || locState.objective || null
@@ -125,9 +165,18 @@ export default function CreerUnifie() {
   const fromCalendar = !!(locState?.fromCalendar && calendarPostId);
 
   // Photo states (carousel photo + post photo)
-  const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | "mix" | null>(null);
-  const [uploadedPhotos, setUploadedPhotos] = useState<any[]>([]);
-  const [photoDescription, setPhotoDescription] = useState("");
+  const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | "mix" | "pure_photo" | null>(ps?.carouselSubMode ?? null);
+  const [uploadedPhotos, setUploadedPhotos] = useState<any[]>(shouldRestore ? loadPhotos() : []);
+  const [isLoadingLibraryPhotos, setIsLoadingLibraryPhotos] = useState(false);
+  // Snapshot des photos au moment de la génération du carrousel.
+  // Sert de source de vérité pour handleGenerateVisuals si le state UI est reset.
+  const [generatedWithPhotos, setGeneratedWithPhotos] = useState<any[]>(shouldRestore ? loadPhotos() : []);
+  // Dialog "photos manquantes" : remplace le downgrade silencieux.
+  const [photoMissingDialog, setPhotoMissingDialog] = useState<{
+    open: boolean;
+    rawType: "photo" | "mix" | null;
+  }>({ open: false, rawType: null });
+  const [photoDescription, setPhotoDescription] = useState(ps?.photoDescription ?? "");
   const [photoMode, setPhotoMode] = useState(false);
   const [demoGenerating, setDemoGenerating] = useState(false);
   const [pinterestData, setPinterestData] = useState<{ link?: string; boardId?: string; boardName?: string } | null>(null);
@@ -144,28 +193,20 @@ export default function CreerUnifie() {
   const [currentBriefId, setCurrentBriefId] = useState<string | null>(null);
   const [briefsCount, setBriefsCount] = useState(0);
   const [photoBriefOverlayHtml, setPhotoBriefOverlayHtml] = useState<string | null>(null);
+  const [structureProposal, setStructureProposal] = useState<StructureProposal | null>(null);
+  const [structureLoading, setStructureLoading] = useState(false);
+  const [lastConfirmedStructure, setLastConfirmedStructure] = useState<SlideProposal[] | null>(null);
+  const [lastNarrativeThread, setLastNarrativeThread] = useState<string | null>(null);
+  const [newsjackingContext, setNewsjackingContext] = useState<string | null>(null);
+  const [newsjackingSuggestedFormat, setNewsjackingSuggestedFormat] = useState<string | null>(null);
 
-  const { restored: draftRestored, clearDraft } = useFormPersist(
-    "creer-unifie-form",
-    { step, ideaText, objective, selectedFormat, editorialAngle, answers },
-    (saved) => {
-      if (!shouldRestore) return; // Fresh navigation — don't restore
-      if (location.state || searchParams.get("format") || searchParams.get("sujet")) return;
-      if (saved.step && saved.step !== "idea") setStep(saved.step as Step);
-      if (saved.ideaText) setIdeaText(saved.ideaText);
-      if (saved.objective) setObjective(saved.objective);
-      if (saved.selectedFormat) setSelectedFormat(saved.selectedFormat);
-      if (saved.editorialAngle) setEditorialAngle(saved.editorialAngle);
-      if (saved.answers && Object.keys(saved.answers).length) setAnswers(saved.answers);
-    }
-  );
+
 
   // When arriving at /creer without params AND no persisted in-progress flow, clear state
   // This distinguishes "fresh sidebar click" from "page reload mid-flow"
   useEffect(() => {
     if (!hasSomeContext && !shouldRestore) {
       clearFlowState();
-      clearDraft();
       sessionStorage.removeItem("creer_unifie_result");
       setStep("idea");
       setSelectedFormat(null);
@@ -174,9 +215,17 @@ export default function CreerUnifie() {
       setObjective(null);
       setAnswers({});
       setEditContent("");
+      setEditingIdeaId(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Remove ?new=1 from URL after a fresh start so reloads don't wipe the flow
+  useEffect(() => {
+    if (isFreshStart) {
+      setSearchParams({}, { replace: true });
+    }
+  }, [isFreshStart, setSearchParams]);
 
   // If canal param is set, pre-select the format
   useEffect(() => {
@@ -190,11 +239,14 @@ export default function CreerUnifie() {
   // Charger le nombre de briefs existants quand on arrive sur les questions
   useEffect(() => {
     if (step !== "questions" || !session?.user?.id) return;
-    supabase.from("content_briefs")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", session.user.id)
-      .then(({ count }: any) => setBriefsCount(count || 0));
-  }, [step, session?.user?.id]);
+    let q = supabase.from("content_briefs")
+      .select("id", { count: "exact", head: true });
+    // Scope workspace : un·e manager voit le compteur de l'espace actif, pas le sien.
+    q = workspaceId && workspaceId !== session.user.id
+      ? q.eq("workspace_id", workspaceId)
+      : q.eq("user_id", session.user.id);
+    q.then(({ count }: any) => setBriefsCount(count || 0));
+  }, [step, session?.user?.id, workspaceId]);
 
   const [launchResults, setLaunchResults] = useState<any[]>([]);
   const [launchIndex, setLaunchIndex] = useState(0);
@@ -202,7 +254,9 @@ export default function CreerUnifie() {
 
   // Post-generation states
   const [saving, setSaving] = useState(false);
+  const [saveIdeaDialogOpen, setSaveIdeaDialogOpen] = useState(false);
   const [savedId, setSavedId] = useState<string | null>(ps?.savedId || null);
+  const [editingIdeaId, setEditingIdeaId] = useState<string | null>(ps?.editingIdeaId ?? paramIdeaId ?? null);
   const [calendarDialogOpen, setCalendarDialogOpen] = useState(false);
   const [calendarDate, setCalendarDate] = useState("");
   const [savingToCalendar, setSavingToCalendar] = useState(false);
@@ -210,6 +264,7 @@ export default function CreerUnifie() {
   // Visual states (carousel only)
   const [visualSlides, setVisualSlides] = useState<{ slide_number: number; html: string }[]>(ps?.visualSlides || []);
   const [visualLoading, setVisualLoading] = useState(false);
+  
 
   // ── Persist generated result to sessionStorage ──
   const CREER_RESULT_KEY = "creer_unifie_result";
@@ -217,7 +272,7 @@ export default function CreerUnifie() {
 
   useEffect(() => {
     if (resultRestoredRef.current) return;
-    if (location.state || searchParams.get("format") || searchParams.get("sujet")) return;
+    if (searchParams.get("format") || searchParams.get("sujet")) return;
     resultRestoredRef.current = true;
     try {
       const raw = sessionStorage.getItem(CREER_RESULT_KEY);
@@ -246,11 +301,17 @@ export default function CreerUnifie() {
     error,
     reset: resetGenerator,
     generateQuestions,
+    generateFollowUp,
     loadingQuestions,
     questions,
+    setQuestions,
+    generateStream,
+    streamingContent,
+    streaming,
+    streamDone,
+    streamError,
+    streamReset,
   } = useContentGenerator();
-
-  const { content: streamingContent, streaming, done: streamDone, invoke: streamInvoke, reset: streamReset } = useStreamingInvoke();
 
   // Restore result from persisted state
   useEffect(() => {
@@ -260,19 +321,39 @@ export default function CreerUnifie() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Demo mode: pre-fill with carousel photo example
+  // Warn if AI forgot the carousel caption
+  const warnedCaptionRef = useRef<any>(null);
   useEffect(() => {
-    if (!isDemoMode || !demoData) return;
-    const demo = (DEMO_DATA as any).carousel_photo_demo;
-    if (!demo) return;
-    if (!ideaText && !selectedFormat) {
-      setIdeaText(demo.subject);
-      setSelectedFormat("carousel");
-      setCarouselSubMode("photo");
-      setObjective(demo.objective);
-      setStep("format");
+    if (selectedFormat !== "carousel") return;
+    const r: any = (result as any)?.raw;
+    if (!r?.slides || warnedCaptionRef.current === r) return;
+    const c = r.caption || {};
+    const isEmpty = !c.hook && !c.body && !c.cta && (!c.hashtags || c.hashtags.length === 0);
+    if (isEmpty) {
+      console.warn("[carousel] caption manquante dans la réponse IA", r);
+      const msg = isLinkedInCarousel
+        ? "L'IA a oublié la légende, vous pouvez l'écrire à la main."
+        : "L'IA a oublié la légende, tu peux l'écrire à la main 🌸";
+      toast(msg);
+      warnedCaptionRef.current = r;
     }
-  }, [isDemoMode, demoData, ideaText, selectedFormat]);
+  }, [result, selectedFormat]);
+
+  // Demo mode: pre-fill with carousel example (type dynamique selon le profil)
+  useEffect(() => {
+    if (aurianaDemoActive) return;
+    if (!isDemoMode || !demoData) return;
+    const demo = (demoData as any)?.carousel_photo_demo;
+    if (!demo) return;
+    setIdeaText(demo.subject);
+    setSelectedFormat("carousel");
+    setCarouselSubMode((demo.carousel_type as "text" | "photo" | "mix" | "pure_photo") || "text");
+    setObjective(demo.objective);
+    setStep("format");
+    setResult(null);
+    setDemoGenerating(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aurianaDemoActive, isDemoMode]);
 
   // Auto-persist state on changes
   useEffect(() => {
@@ -293,9 +374,13 @@ export default function CreerUnifie() {
         inspirationAnalysis: inspirationAnalysis || undefined,
         inspirationProposals: inspirationProposals || [],
         inspirationImagePreview: inspirationImagePreview || null,
+        demoScenario: aurianaDemoActive ? "auriana-carousel" : undefined,
+        editingIdeaId,
+        carouselSubMode,
+        photoDescription,
       });
     }
-  }, [step, ideaText, objective, selectedFormat, editorialAngle, editContent, result, visualSlides?.length, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview]);
+  }, [step, ideaText, objective, selectedFormat, editorialAngle, editContent, result, visualSlides?.length, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview, editingIdeaId, carouselSubMode, photoDescription]);
 
   // Pre-fill from URL/state & auto-advance (only when URL params are present)
   const initDone = useRef(false);
@@ -316,8 +401,31 @@ export default function CreerUnifie() {
     if (obj) setObjective(obj);
     if (locState?.existingContent) setExistingCalendarContent(locState.existingContent);
 
-    const fmt = paramFormat || locState?.format;
-    const paramCarouselSubMode = searchParams.get("carouselSubMode") as "text" | "photo" | "mix" | null;
+    // Newsjacking context arriving from "Créer depuis cette actu" (IdeaDetailSheet)
+    // — preserves the actu block so the generated content stays a real newsjacking.
+    if (locState?.context && typeof locState.context === "string" && locState.context.trim()) {
+      setNewsjackingContext(locState.context.trim().slice(0, 3800));
+    }
+
+    const fmtRaw = paramFormat || locState?.format;
+    const paramCarouselSubMode = searchParams.get("carouselSubMode") as "text" | "photo" | "mix" | "pure_photo" | null;
+
+    // Mapping vers les formats canoniques de CreerUnifie/use-content-generator
+    // Couvre les valeurs venues du calendrier ET de saved_ideas (boîte à idées).
+    const FORMAT_MAP: Record<string, string> = {
+      "post_photo": "post",
+      "post_texte": "post",
+      "post_carrousel": "carousel",
+      "carrousel": "carousel",
+      "story_serie": "story",
+    };
+    const SUPPORTED_FORMATS = new Set([
+      "post", "carousel", "reel", "story", "linkedin",
+      "newsletter", "pinterest", "pinterest_visual", "pinterest_inspiration", "pinterest_photo",
+    ]);
+    const fmtMapped = fmtRaw ? (FORMAT_MAP[fmtRaw] || fmtRaw) : null;
+    const fmt = fmtMapped && SUPPORTED_FORMATS.has(fmtMapped) ? fmtMapped : null;
+
     if (fmt) setSelectedFormat(fmt);
     if (paramCarouselSubMode) setCarouselSubMode(paramCarouselSubMode);
 
@@ -328,45 +436,126 @@ export default function CreerUnifie() {
       const enrichedSubject = calendarContent
         ? subject + "\n\n[Contenu existant à approfondir]\n" + calendarContent
         : subject;
-      const calendarAngle = locState?.angle || undefined;
+      const calendarAngle = locState?.angle || paramAngle || undefined;
       if (calendarAngle) setEditorialAngle(calendarAngle);
-      
-      // Si le format est "carousel" ou "post", passer par l'étape format
-      // pour permettre le sous-choix (carrousel texte/photo, toggle photo)
-      // SAUF si on vient du calendrier avec un angle déjà choisi (flow calendrier = direct)
-      if ((fmt === "carousel" || fmt === "post") && !locState?.fromCalendar) {
+
+      // Si un angle est déjà choisi (depuis la boîte à idées ou le calendrier),
+      // on saute l'étape "format" et on enchaîne directement sur les questions.
+      // Sinon, pour carousel/post on passe par l'étape format pour permettre
+      // le sous-choix (carrousel texte/photo, toggle photo).
+      if ((fmt === "carousel" || fmt === "post") && !locState?.fromCalendar && !paramAngle) {
         setStep("format");
       } else {
         handleFormatNext(fmt, calendarAngle, { overrideSubject: enrichedSubject });
       }
     } else if (locState?.fromCalendar && subject) {
-      // Map calendar formats to CreerUnifie formats
-      const FORMAT_MAP: Record<string, string> = {
-        "post_photo": "post",
-        "post_texte": "post",
-        "post_carrousel": "carousel",
-        "story_serie": "story",
-      };
-      const mappedFormat = locState.format ? (FORMAT_MAP[locState.format] || locState.format) : null;
-      if (mappedFormat) setSelectedFormat(mappedFormat);
+      // Calendar fallback path (already handled above with FORMAT_MAP)
       if (locState.angle) setEditorialAngle(locState.angle);
+      setStep("format");
+    } else if (fmt || (fmtRaw && subject.trim())) {
+      // Format inconnu/non-supporté mais sujet présent → laisser choisir le format
       setStep("format");
     } else if (fmt) {
       setStep("format");
     } else if (!ps) {
       setStep("idea");
     }
+    // Clean up location.state after reading it to prevent re-init on tab switch
+    if (location.state) {
+      window.history.replaceState({}, '', window.location.href);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search]);
+
+  // ── Library photos → preload as if uploaded (chemin /photos → /creer) ──
+  // Capturé une seule fois au mount pour survivre au cleanup replaceState.
+  const libraryPhotoIdsRef = useRef<string[]>(
+    Array.isArray(locState?.libraryPhotoIds)
+      ? locState.libraryPhotoIds.filter((x: unknown): x is string => typeof x === "string")
+      : [],
+  );
+  const libraryLoadedRef = useRef(false);
+  useEffect(() => {
+    if (libraryLoadedRef.current) return;
+    const ids = libraryPhotoIdsRef.current;
+    if (ids.length === 0) return;
+    if (!workspaceId) return; // attend que le workspace soit prêt
+    libraryLoadedRef.current = true;
+
+    (async () => {
+      setIsLoadingLibraryPhotos(true);
+      setStep("format");
+      try {
+        const { data, error: qErr } = await supabase
+          .from("user_photos")
+          .select("*")
+          .in("id", ids)
+          .eq("workspace_id", workspaceId)
+          .eq("status", "ready");
+        if (qErr) throw qErr;
+        if (!data || data.length === 0) throw new Error("Photo introuvable dans ta photothèque.");
+
+        const ordered = ids
+          .map((id) => data.find((p) => p.id === id))
+          .filter(Boolean) as UserPhotoRow[];
+
+        const results = await Promise.allSettled(ordered.map((p) => userPhotoToBase64(p)));
+        const items: PhotoItem[] = [];
+        results.forEach((r, i) => {
+          if (r.status === "fulfilled") {
+            items.push({
+              id: crypto.randomUUID(),
+              base64: r.value.base64,
+              preview: r.value.base64,
+              name: r.value.name,
+              mimeType: r.value.mimeType,
+              context: "",
+              userPhotoId: ordered[i].id,
+            });
+          }
+        });
+        if (items.length === 0) throw new Error("Impossible de charger la photo.");
+        setUploadedPhotos(items);
+        if (items.length > 0) savePhotos(items);
+
+        // Préremplir ideaText avec photo.name si descriptif
+        const first = ordered[0];
+        const candidate = (first?.name ?? "").trim();
+        const looksLikeFilename = /^(img|dsc|dscn|photo|p)[\W_]?\d+/i.test(candidate);
+        if (!ideaText && candidate.length >= 8 && !looksLikeFilename) {
+          setIdeaText(candidate);
+        }
+      } catch (e: any) {
+        toast.error(e?.message || "Impossible de charger la photo de la photothèque.");
+        setStep("idea");
+      } finally {
+        setIsLoadingLibraryPhotos(false);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspaceId]);
+
 
   // Show error
   useEffect(() => {
     if (error) toast.error(error);
   }, [error]);
 
+  // Snapshot défensif : sync uploadedPhotos -> generatedWithPhotos dès qu'on a
+  // des photos. Évite la perte si le state UI est reset entre l'upload et la
+  // génération du visuel (changement d'onglet, re-render, etc.).
+  useEffect(() => {
+    if (uploadedPhotos.length > 0) {
+      setGeneratedWithPhotos((prev) => (prev.length === uploadedPhotos.length ? prev : uploadedPhotos));
+      if (selectedFormat === "carousel" || photoMode) {
+        savePhotos(uploadedPhotos);
+      }
+    }
+  }, [uploadedPhotos, selectedFormat, photoMode]);
+
   // ── Step handlers ──
 
-  const handleCoachingSelect = useCallback((data: { subject: string; format: string; objective: string; carouselSubMode?: "text" | "photo" | "mix" }) => {
+  const handleCoachingSelect = useCallback((data: { subject: string; format: string; objective: string; carouselSubMode?: "text" | "photo" | "mix" | "pure_photo" }) => {
     setAnswers({});
     setEditorialAngle(null);
     setEditContent("");
@@ -374,62 +563,118 @@ export default function CreerUnifie() {
 
     setIdeaText(data.subject);
     if (data.objective) setObjective(data.objective);
-    setSelectedFormat(data.format);
+
+    // Defensive: if the coach returned an unknown/auto format, send the user
+    // to the format picker instead of triggering a "Format non supporté" crash.
+    const safeFormat = normalizeFormat(data.format);
+    if (!safeFormat) {
+      setSelectedFormat(null);
+      setStep("format");
+      toast.info("Choisis un format pour continuer.");
+      return;
+    }
+
+    setSelectedFormat(safeFormat);
     if (data.carouselSubMode) setCarouselSubMode(data.carouselSubMode);
 
-    // Coaching dialog already handles sub-mode choice, go directly to questions
+    // Même politique que l'init URL (chemin Dashboard → /creer?format=...) :
+    // carousel et post passent par l'étape format pour permettre le choix
+    // d'angle, le sous-mode et l'upload de photos. Sans ça, un "carrousel
+    // photo" choisi dans le coach partait en génération sans photos et
+    // était silencieusement dégradé en carrousel texte (visionMode=false).
+    if (safeFormat === "carousel" || safeFormat === "post") {
+      setStep("format");
+      return;
+    }
+
+    // Autres formats (reel, story, linkedin, newsletter, pinterest…) :
+    // pas de sous-choix ni de photos à cette étape, on garde le saut direct.
     setStep("questions");
-    generateQuestions({ 
-      format: data.format, 
-      subject: data.subject, 
-      editorialAngle: undefined, 
-      objective: data.objective || undefined 
+    generateQuestions({
+      format: safeFormat,
+      subject: data.subject,
+      editorialAngle: undefined,
+      objective: data.objective || undefined,
     });
   }, [generateQuestions]);
 
-  const handleIdeaNext = (idea: string, obj?: string) => {
+  const handleNewsjackingSelect = useCallback((data: { subject: string; context: string; format?: string; vehicule?: string }) => {
+    setIdeaText(data.subject);
+    setNewsjackingContext(data.context);
+    setSelectedFormat(null);
+    setNewsjackingSuggestedFormat(data.format || null);
+    if (!objective) setObjective("visibilite");
+    setStep("format");
+  }, [objective]);
+
+  const handleIdeaNext = (idea: string) => {
     setIdeaText(idea);
-    setObjective(obj || null);
-    // Reset format-related state so the user starts fresh at channel selection
+    setNewsjackingContext(null);
+    setNewsjackingSuggestedFormat(null);
+    // Auriana demo: keep pre-filled format/angle if subject unchanged
+    if (aurianaDemoActive && idea === AURIANA_DEMO_SUBJECT) {
+      setStep("format");
+      return;
+    }
+    // Reset format-related state so the user starts fresh at channel selection.
+    // NOTE: photos (uploadedPhotos / photoDescription) are NOT reset here so
+    // that the "Partir de photos" entry point can pre-load them in CreerStepFormat.
     setSelectedFormat(null);
     setEditorialAngle(null);
     setCarouselSubMode(null);
-    setUploadedPhotos([]);
-    setPhotoDescription("");
     setPhotoMode(false);
     setPinterestData(null);
     setStep("format");
   };
 
-  const handleFormatNext = async (format: string, angle?: string, options?: { carouselSubMode?: "text" | "photo" | "mix"; photos?: any[]; photoDescription?: string; photoMode?: boolean; overrideSubject?: string }) => {
-    const { carouselSubMode: sub, photos, photoDescription: desc, photoMode: pm, overrideSubject } = options || {};
+  const handlePhotosNext = (photos: PhotoItem[], description: string, subject?: string) => {
+    setUploadedPhotos(photos);
+    if (photos.length > 0) savePhotos(photos);
+    setPhotoDescription(description);
+    if (subject && subject.trim()) {
+      setIdeaText(subject.trim());
+    }
+    setSelectedFormat(null);
+    setEditorialAngle(null);
+    setCarouselSubMode(null);
+    setPhotoMode(false);
+    setPinterestData(null);
+    setStep("format");
+  };
 
-    // Demo mode: skip questions step, go directly to generation
+  const handleFormatNext = async (format: string, angle?: string, options?: { carouselSubMode?: "text" | "photo" | "mix" | "pure_photo"; photos?: any[]; photoDescription?: string; photoMode?: boolean; overrideSubject?: string; linkedinCarousel?: boolean }) => {
+    const { carouselSubMode: sub, photos, photoDescription: desc, photoMode: pm, overrideSubject, linkedinCarousel: linkedinCarLocal } = options || {};
+
+    // Auriana demo account: let the flow continue through all steps (no bypass)
+
+    // Demo mode: si le sujet correspond au pré-fill, afficher instantanément le résultat pré-généré.
+    // Sinon, laisser le flow normal continuer vers la vraie génération IA.
     if (isDemoMode) {
-      setSelectedFormat(format);
-      setEditorialAngle(angle || null);
-      if (sub) setCarouselSubMode(sub);
-      if (photos) setUploadedPhotos(photos);
-      if (desc) setPhotoDescription(desc);
-      if (pm !== undefined) setPhotoMode(pm);
-      setStep("result");
-      // Trigger demo generation directly
-      const demo = (DEMO_DATA as any).carousel_photo_demo;
-      if (demo?.result) {
+      const demo = (demoData as any)?.carousel_photo_demo;
+      const isPrefilledSubject = demo && ideaText === demo.subject;
+      if (isPrefilledSubject && demo?.result) {
+        setSelectedFormat(format);
+        setEditorialAngle(angle || null);
+        if (sub) setCarouselSubMode(sub);
+        if (photos) { setUploadedPhotos(photos); if (photos.length > 0) savePhotos(photos); }
+        if (desc) setPhotoDescription(desc);
+        if (pm !== undefined) setPhotoMode(pm);
+        setStep("result");
         setDemoGenerating(true);
         setTimeout(() => {
           setResult({ type: "carousel", raw: demo.result, ...demo.result });
           setDemoGenerating(false);
         }, 2500);
+        return;
       }
-      return;
+      // Sinon : ne PAS return, laisser le flow normal continuer (vraie génération IA)
     }
 
     setSelectedFormat(format);
     setEditorialAngle(angle || null);
-    if (format !== "pinterest") setPinterestData(null);
+    if (format !== "pinterest" && format !== "pinterest_visual") setPinterestData(null);
     if (sub) setCarouselSubMode(sub);
-    if (photos) setUploadedPhotos(photos);
+    if (photos) { setUploadedPhotos(photos); if (photos.length > 0) savePhotos(photos); }
     if (desc) setPhotoDescription(desc);
     if (pm !== undefined) setPhotoMode(pm);
 
@@ -457,7 +702,7 @@ export default function CreerUnifie() {
         const { data, error: fnError } = await invokeWithTimeout("pinterest-inspiration", {
           body: {
             image_base64: imgBase64,
-            workspace_id: workspaceId || undefined,
+            workspace_id: workspaceId !== session.user.id ? workspaceId : undefined,
           },
         }, 180000); // 180s — Claude Opus + vision is slow
         if (fnError) throw fnError;
@@ -495,28 +740,84 @@ export default function CreerUnifie() {
       return;
     }
 
+    resetGenerator();
     setStep("questions");
-    await generateQuestions({ format, subject: enrichedSubject, editorialAngle: angle, objective: objective || undefined, channel: isLinkedInCarousel ? "linkedin" : undefined });
+
+    // Auriana demo: inject pre-built questions ONLY if user follows the scripted scenario
+    // (carrousel texte, sujet pré-rempli, aucune photo). Sinon → vraie génération IA.
+    const isAurianaScript = aurianaDemoActive
+      && ideaText === AURIANA_DEMO_SUBJECT
+      && (sub || carouselSubMode) === "text"
+      && (!photos || photos.length === 0)
+      && uploadedPhotos.length === 0;
+    if (isAurianaScript) {
+      setQuestions(AURIANA_DEMO_FLOW.questions);
+      return;
+    }
+
+    const photosForQuestions = (photos && photos.length > 0 ? photos : uploadedPhotos);
+    const descForQuestions = desc || photoDescription;
+    const subModeForQuestions = sub || carouselSubMode;
+    const photoModeForQuestions = pm !== undefined ? pm : photoMode;
+
+    // Fallback subject: si l'utilisateur n'a pas tapé de sujet (flow photo),
+    // on injecte la description ou un placeholder pour ne jamais envoyer "" à l'IA.
+    const safeSubject = enrichedSubject?.trim()
+      ? enrichedSubject
+      : (descForQuestions?.trim()
+          || (photosForQuestions && photosForQuestions.length > 0
+                ? "Carrousel basé sur les photos uploadées"
+                : ""));
+
+    // Channel: calculé depuis les arguments locaux (pas le state, qui n'est pas
+    // encore commit après setSelectedFormat / setIsLinkedInCarousel).
+    const channelForQuestions = (format === "linkedin" || linkedinCarLocal || isLinkedInCarousel)
+      ? "linkedin"
+      : undefined;
+
+    await generateQuestions({
+      format,
+      subject: safeSubject,
+      editorialAngle: angle,
+      objective: objective || undefined,
+      channel: channelForQuestions,
+      photos: photosForQuestions && photosForQuestions.length > 0
+        ? photosForQuestions.map((p: any) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType }))
+        : undefined,
+      photoDescription: descForQuestions || undefined,
+      carouselSubMode: subModeForQuestions || undefined,
+      photoMode: photoModeForQuestions || undefined,
+      newsContext: newsjackingContext || undefined,
+    });
   };
 
   const handleQuestionsNext = async (ans: Record<string, string>) => {
     setAnswers(ans);
 
     // Sauvegarder le brief en base pour les futures créations
-    if (session?.user?.id && Object.keys(ans).length > 0) {
-      supabase.from("content_briefs").insert({
-        user_id: session.user.id,
-        workspace_id: workspaceId && workspaceId !== session.user.id ? workspaceId : null,
-        subject: ideaText,
-        objective: objective || null,
-        format: selectedFormat || null,
-        editorial_angle: editorialAngle || null,
-        questions: questions.map(q => ({ id: q.id, question: q.question })),
-        answers: ans,
-      } as any).select("id").maybeSingle()
-        .then(({ data }: any) => { if (data?.id) setCurrentBriefId(data.id); }, console.error);
+    // ⚠️ On n'enregistre PAS les briefs sans sujet : ils polluent l'historique
+    // récent envoyé à l'IA et provoquent des questions hors-sujet.
+    if (session?.user?.id && Object.keys(ans).length > 0 && ideaText.trim().length > 0) {
+      try {
+        const { data: briefData } = await supabase.from("content_briefs").insert({
+          user_id: session.user.id,
+          workspace_id: workspaceId && workspaceId !== session.user.id ? workspaceId : null,
+          subject: ideaText,
+          objective: objective || null,
+          format: selectedFormat || null,
+          editorial_angle: editorialAngle || null,
+          questions: questions.map(q => ({ id: q.id, question: q.question })),
+          answers: ans,
+        } as any).select("id").maybeSingle();
+        if (briefData?.id) setCurrentBriefId(briefData.id);
+      } catch (e) {
+        console.error("[CreerUnifie] Failed to save content brief:", e);
+      }
     }
 
+    // On bascule TOUJOURS vers "result" pour afficher un loader pendant
+    // que doGenerate tourne (pour les carrousels photo/mix, ce loader correspond
+    // à l'écran "structureLoading"). Sinon l'écran questions reste figé 30-60s.
     setStep("result");
     await doGenerate(ans);
   };
@@ -529,10 +830,31 @@ export default function CreerUnifie() {
 
   const doGenerate = async (ans: Record<string, string>) => {
     if (!selectedFormat) return;
+
+    // Auriana demo account: instant pre-built result ONLY if user followed the scripted path
+    // (carrousel texte sur sujet pré-rempli, sans photos). Sinon → vraie génération IA.
+    const isAurianaScript = aurianaDemoActive
+      && ideaText === AURIANA_DEMO_SUBJECT
+      && carouselSubMode === "text"
+      && uploadedPhotos.length === 0;
+    if (isAurianaScript) {
+      setDemoGenerating(true);
+      setStep("result");
+      const { type: _t, ...demoRest } = AURIANA_DEMO_FLOW.result;
+      setTimeout(() => {
+        setResult({ type: "carousel" as const, raw: AURIANA_DEMO_FLOW.result, ...demoRest });
+        setDemoGenerating(false);
+      }, 2500);
+      return;
+    }
+
     // Demo mode: simulate generation with pre-built result
     if (isDemoMode) {
-      const demo = (DEMO_DATA as any).carousel_photo_demo;
-      if (demo?.result) {
+      const demo = (demoData as any)?.carousel_photo_demo;
+      const isPrefilledSubject = demo && ideaText === demo.subject;
+
+      // Si le sujet correspond au pré-fill → résultat pré-généré (rapide, zéro risque)
+      if (isPrefilledSubject && demo?.result) {
         setDemoGenerating(true);
         setStep("result");
         setTimeout(() => {
@@ -541,6 +863,9 @@ export default function CreerUnifie() {
         }, 2500);
         return;
       }
+
+      // Si le sujet est personnalisé → laisser la génération IA se faire normalement
+      // (nécessite une session Supabase active — fonctionne si l'admin est connecté en arrière-plan)
     }
     // Reset post-generation state on new generation
     setSavedId(null);
@@ -548,9 +873,12 @@ export default function CreerUnifie() {
     setPinterestPinHtml(null);
     setPhotoBriefOverlayHtml(null);
     setPhotoBriefResult(null);
-    const enrichedSubject = existingCalendarContent
+    let enrichedSubject = existingCalendarContent
       ? ideaText + "\n\n[Contenu existant à approfondir]\n" + existingCalendarContent
       : ideaText;
+
+    // Newsjacking : ne PAS injecter le bloc actu dans le subject (cap creative-flow.context = 8000).
+    // Il voyage dans le champ dédié `newsContext` qui a son propre cap côté edge.
 
     // Formats texte : utiliser le streaming SSE
     const textFormats = ["post", "linkedin", "newsletter", "pinterest"];
@@ -558,56 +886,55 @@ export default function CreerUnifie() {
 
     if (isTextFormat) {
       streamReset();
-      const contentTypeMap: Record<string, string> = {
-        post: "post_instagram",
-        linkedin: "post_linkedin",
-        newsletter: "post_newsletter",
-        pinterest: "post_pinterest",
-      };
-      // Build angle object matching classic path
-      const angleObj = editorialAngle
-        ? (() => {
-            const found = EDITORIAL_ANGLES.find((a) => a.id === editorialAngle) || LINKEDIN_EDITORIAL_ANGLES.find((a) => a.id === editorialAngle) || PINTEREST_EDITORIAL_ANGLES.find((a) => a.id === editorialAngle) || PINTEREST_VISUAL_ANGLES.find((a) => a.id === editorialAngle);
-            const structureId = getStructureForCombo(selectedFormat, editorialAngle);
-            const structure = structureId ? CONTENT_STRUCTURES[structureId] : undefined;
-            return found
-              ? { title: found.label, structure: structure?.steps.map((s) => s.label), tone: "direct, chaleureux, oral assumé" }
-              : undefined;
-          })()
-        : undefined;
+      try {
+        const generated = await generateStream({
+          format: selectedFormat as "post" | "linkedin" | "newsletter" | "pinterest",
+          subject: enrichedSubject,
+          objective: objective || undefined,
+          editorialAngle: editorialAngle || undefined,
+          answers: ans,
+          workspaceId: workspaceId !== session.user.id ? workspaceId : undefined,
+          photoMode: photoMode || undefined,
+          photos: photoMode && uploadedPhotos.length > 0 && uploadedPhotos[0]?.base64
+            ? uploadedPhotos.slice(0, 10).map((p) => ({
+                base64: p.base64,
+                mimeType: (p as any).mimeType || "image/jpeg",
+                context: p.context,
+              }))
+            : undefined,
+          photoDescription: photoMode ? photoDescription : undefined,
+          deepResearch: !!newsjackingContext,
+          newsContext: newsjackingContext || undefined,
+          pinterestLink: selectedFormat === "pinterest" ? pinterestData?.link : undefined,
+          pinterestBoard: selectedFormat === "pinterest" ? pinterestData?.boardName : undefined,
+        });
 
-      const streamBody: any = {
-        step: "generate",
-        contentType: contentTypeMap[selectedFormat] || "post_instagram",
-        context: enrichedSubject,
-        angle: angleObj,
-        answers: Object.keys(ans).length > 0
-          ? Object.entries(ans).map(([q, a]) => ({ question: q, answer: a }))
-          : undefined,
-        preGenAnswers: Object.keys(ans).length > 0
-          ? { anecdote: ans.anecdote || ans.q_0 || undefined, emotion: ans.emotion || ans.q_1 || undefined, conviction: ans.conviction || ans.q_2 || undefined }
-          : undefined,
-        workspace_id: workspaceId || undefined,
-        objective: objective || undefined,
-        editorialFormat: editorialAngle || undefined,
-        editorialFormatLabel: editorialAngle || undefined,
-        ...(photoMode ? { photo_mode: true, photo_description: photoDescription } : {}),
-        ...(selectedFormat === "pinterest" && pinterestData ? {
-          pinterest_link: pinterestData.link,
-          pinterest_board: pinterestData.boardName,
-        } : {}),
-      };
-
-      const fullText = await streamInvoke("creative-flow", streamBody);
-
-      if (fullText) {
-        try {
-          const jsonMatch = fullText.match(/\{[\s\S]*\}/);
-          const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { content: fullText };
-          setResult({ type: selectedFormat as any, raw: parsed });
-        } catch {
-          setResult({ type: selectedFormat as any, raw: { content: fullText } });
+        // generateStream already handles quota errors silently and returns null.
+        // If null + not streaming → likely an error or empty result we should surface.
+        if (!generated && !streaming) {
+          // Demo mode fallback parity with the previous inline behavior
+          if (isDemoMode) {
+            toast("La génération en direct nécessite un compte connecté. Le résultat pré-généré est disponible avec le sujet par défaut.");
+            setStep("format");
+            return;
+          }
+          toast.error(streamError || "La génération a échoué. Réessaie.");
+          setStep("format");
+          return;
         }
+      } catch (e: any) {
+        // Defensive — generateStream catches its own errors, but keep parity.
+        if (e?._isQuota && handleQuotaError(e)) {
+          setStep("format");
+          return;
+        }
+        if (isDemoMode) {
+          toast("La génération en direct nécessite un compte connecté. Le résultat pré-généré est disponible avec le sujet par défaut.");
+          setStep("format");
+          return;
+        }
+        toast.error(e?.message || "Erreur lors de la génération");
+        return;
       }
       return;
     }
@@ -626,7 +953,7 @@ export default function CreerUnifie() {
             pinterest_link: pinterestData?.link,
             pinterest_board: pinterestData?.boardName,
             ...(inspirationImageBase64 ? { reference_image_base64: inspirationImageBase64 } : {}),
-            workspace_id: workspaceId || undefined,
+            workspace_id: workspaceId !== session.user.id ? workspaceId : undefined,
           },
         }, 120000);
         if (fnError) throw fnError;
@@ -659,12 +986,12 @@ export default function CreerUnifie() {
         const { data, error: fnError } = await invokeWithTimeout("pinterest-photo-brief", {
           body: {
             subject: enrichedSubject,
-            reference_image_base64: inspirationImageBase64 || "",
+            ...(inspirationImageBase64 ? { reference_image_base64: inspirationImageBase64 } : {}),
             pin_type: chosenProposal?.pin_type || "photo_lifestyle",
             brief_hint: chosenProposal?.brief || "",
             pinterest_link: pinterestData?.link,
             pinterest_board: pinterestData?.boardName,
-            workspace_id: workspaceId || undefined,
+            workspace_id: workspaceId !== session.user.id ? workspaceId : undefined,
           },
         }, 120000);
         if (fnError) throw fnError;
@@ -690,6 +1017,95 @@ export default function CreerUnifie() {
     }
 
     // Formats structurés : appel classique (pas de streaming)
+    // Carrousels photo/mix : proposer la structure d'abord (sauf si déjà validée)
+    // Les carrousels texte vont directement à la génération (pas de structure_review)
+    // pure_photo : pas de structure review non plus — le nombre de slides est forcé
+    // au nombre de photos uploadées dans le post-process (effet plus bas).
+    const isPhotoOrMixCarousel = carouselSubMode === "photo" || carouselSubMode === "mix";
+    if (selectedFormat === "carousel" && isPhotoOrMixCarousel && !structureProposal && !lastConfirmedStructure) {
+      setStructureLoading(true);
+      try {
+        const structureBody: any = {
+          type: "structure_proposal",
+          subject: enrichedSubject,
+          carousel_type: carouselSubMode || undefined,
+          objective: objective || undefined,
+          slide_count: 7,
+          editorial_angle: editorialAngle || undefined,
+          deepening_answers: Object.keys(ans).length > 0 ? ans : undefined,
+          workspace_id: workspaceId !== session.user.id ? workspaceId : undefined,
+          photo_description: photoDescription || undefined,
+          ...(newsjackingContext ? { news_context: newsjackingContext.slice(0, 3800) } : {}),
+        };
+        // En mode photo/mix, envoyer les photos pour analyse visuelle
+        if ((carouselSubMode === "photo" || carouselSubMode === "mix") && uploadedPhotos.length > 0) {
+          structureBody.photos = uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType }));
+          // Snapshot pour handleGenerateVisuals (résiste aux resets de state UI)
+          setGeneratedWithPhotos(uploadedPhotos);
+        }
+        const structureTimeout = (carouselSubMode === "photo" || carouselSubMode === "mix") && uploadedPhotos.length > 0 ? 60000 : 30000;
+        const { data, error: fnError } = await invokeWithTimeout("carousel-ai", {
+          body: structureBody,
+        }, structureTimeout);
+        if (fnError) throw fnError;
+        if (data?.error) throw new Error(data.error);
+        if (data?.result) {
+          setStructureProposal(data.result);
+          setStep("structure_review");
+        } else {
+          throw new Error("Structure non reçue");
+        }
+      } catch (e: any) {
+        if (isDemoMode) {
+          toast("La génération en direct nécessite un compte connecté. Le résultat pré-généré est disponible avec le sujet par défaut.");
+          setStep("format");
+          return;
+        }
+        if (!handleQuotaError(e)) {
+          toast.error("Erreur lors de la proposition de structure. Génération directe...");
+          await generate({
+            format: selectedFormat as any,
+            subject: enrichedSubject,
+            objective: objective || undefined,
+            editorialAngle: editorialAngle || undefined,
+            answers: Object.keys(ans).length > 0 ? ans : undefined,
+            channel: isLinkedInCarousel ? "linkedin" : undefined,
+            ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
+            ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
+            ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })) : undefined, photoDescription } : {}),
+            ...(newsjackingContext ? { newsContext: newsjackingContext } : {}),
+          });
+        }
+      } finally {
+        setStructureLoading(false);
+      }
+      return;
+    }
+
+    // Régénération carrousel : réutiliser la dernière structure confirmée
+    if (selectedFormat === "carousel" && lastConfirmedStructure) {
+      setStep("result");
+      await generate({
+        format: "carousel",
+        subject: enrichedSubject,
+        objective: objective || undefined,
+        editorialAngle: editorialAngle || undefined,
+        answers: Object.keys(ans).length > 0 ? ans : undefined,
+        channel: isLinkedInCarousel ? "linkedin" : undefined,
+        confirmedStructure: lastConfirmedStructure,
+        ...(lastNarrativeThread ? { narrativeThread: lastNarrativeThread } : {}),
+        ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
+        ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
+        ...(carouselSubMode === "pure_photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
+        ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })) : undefined, photoDescription } : {}),
+        ...(newsjackingContext ? { newsContext: newsjackingContext } : {}),
+      });
+      return;
+    }
+
+    // Sécurité : s'assurer qu'on est bien sur l'étape result avant de lancer la génération
+    setStep("result");
+
     await generate({
       format: selectedFormat as any,
       subject: enrichedSubject,
@@ -697,14 +1113,200 @@ export default function CreerUnifie() {
       editorialAngle: editorialAngle || undefined,
       answers: Object.keys(ans).length > 0 ? ans : undefined,
       channel: isLinkedInCarousel ? "linkedin" : undefined,
-      ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64 })), photoDescription } : {}),
-      ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64 })), photoDescription } : {}),
-      ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? [{ base64: uploadedPhotos[0]?.base64 }] : undefined, photoDescription } : {}),
+      ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
+      ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
+      ...(carouselSubMode === "pure_photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
+      ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })) : undefined, photoDescription } : {}),
+      ...(newsjackingContext ? { newsContext: newsjackingContext } : {}),
     });
   };
 
   const handleRegenerate = async () => {
     await doGenerate(answers);
+  };
+
+  // Drapeau qui force une régénération une fois que le nouveau editorialAngle a été commité dans le state.
+  // (setState étant async, on ne peut pas appeler doGenerate juste après setEditorialAngle.)
+  const [pendingAngleRegen, setPendingAngleRegen] = useState(false);
+  const handleChangeAngle = (newAngle: string | null) => {
+    setEditorialAngle(newAngle);
+    setPendingAngleRegen(true);
+  };
+  useEffect(() => {
+    if (!pendingAngleRegen) return;
+    setPendingAngleRegen(false);
+    doGenerate(answers);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingAngleRegen, editorialAngle]);
+
+  // ── LinkedIn carousel caption: appel dédié à linkedin-ai/caption-for-carousel ──
+  // Le prompt carousel-ai (mix/photo) laisse volontairement la légende vide pour
+  // qu'elle soit générée par ce prompt LinkedIn dédié (anti-broetry, hashtags pro).
+  const [captionLoading, setCaptionLoading] = useState(false);
+  const captionAutoTriggeredRef = useRef<any>(null);
+
+  const generateLinkedInCarouselCaption = useCallback(async () => {
+    const r: any = (result as any)?.raw;
+    if (!r) return;
+    if (!isLinkedInCarousel) return;
+    if (carouselSubMode !== "mix" && carouselSubMode !== "photo" && carouselSubMode !== "pure_photo") return;
+
+    // Construire un résumé compact des slides (overlay_text + title + body), max ~1500 char
+    const slidesArr: any[] = Array.isArray(r.slides) ? r.slides : [];
+    const slidesSummary = slidesArr
+      .map((s: any, i: number) => {
+        const parts = [s.overlay_text, s.title, s.body].filter((x: any) => typeof x === "string" && x.trim());
+        return `Slide ${s.slide_number ?? i + 1}: ${parts.join(" — ")}`;
+      })
+      .join("\n")
+      .slice(0, 1500);
+
+    setCaptionLoading(true);
+    try {
+      const { data, error: fnError } = await invokeWithTimeout("linkedin-ai", {
+        body: {
+          action: "caption-for-carousel",
+          subject: ideaText,
+          chosen_angle: typeof r.chosen_angle === "string"
+            ? r.chosen_angle
+            : (r.chosen_angle?.title || r.chosen_angle?.angle || (r.chosen_angle ? JSON.stringify(r.chosen_angle) : null)),
+          slides_summary: slidesSummary,
+          editorial_angle: editorialAngle || null,
+          objective: objective || null,
+          workspace_id: workspaceId !== session?.user?.id ? workspaceId : undefined,
+        },
+      }, 60000);
+      if (fnError) throw new Error(fnError.message || "Erreur génération légende");
+      if (data?.error) {
+        if (handleQuotaError(data)) return;
+        throw new Error(data.message || data.error);
+      }
+      const rawContent = data?.content ?? data;
+      let parsed: any = rawContent;
+      if (typeof rawContent === "string") {
+        try {
+          let cleaned = rawContent.trim();
+          if (cleaned.startsWith("```")) {
+            cleaned = cleaned.replace(/^```[a-z]*\s*\n?/i, "").replace(/\n?\s*```\s*$/, "");
+          }
+          parsed = JSON.parse(cleaned);
+        } catch {
+          const m = rawContent.match(/\{[\s\S]*\}/);
+          if (m) {
+            try { parsed = JSON.parse(m[0]); } catch { parsed = null; }
+          }
+        }
+      }
+      if (!parsed || typeof parsed !== "object") {
+        throw new Error("Légende illisible");
+      }
+
+      // Merge dans result.raw.caption
+      setResult((prev: any) => {
+        if (!prev) return prev;
+        const nextRaw = { ...(prev.raw || {}) };
+        nextRaw.caption = {
+          ...(nextRaw.caption || {}),
+          hook: parsed.hook || nextRaw.caption?.hook || "",
+          body: parsed.body || "",
+          cta: parsed.cta || "",
+          hashtags: Array.isArray(parsed.hashtags) ? parsed.hashtags : [],
+        };
+        return { ...prev, raw: nextRaw };
+      });
+    } catch (e: any) {
+      console.error("[linkedin-caption-for-carousel] failed:", e);
+      toast.error(e?.message || "Impossible de générer la légende LinkedIn");
+    } finally {
+      setCaptionLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result, isLinkedInCarousel, carouselSubMode, ideaText, editorialAngle, objective, workspaceId, session?.user?.id]);
+
+  // Auto-trigger après une génération de carrousel LinkedIn mix/photo si la légende est vide
+  useEffect(() => {
+    if (!isLinkedInCarousel) return;
+    if (carouselSubMode !== "mix" && carouselSubMode !== "photo" && carouselSubMode !== "pure_photo") return;
+    if (generating || captionLoading) return;
+    const r: any = (result as any)?.raw;
+    if (!r?.slides || !Array.isArray(r.slides) || r.slides.length === 0) return;
+    if (captionAutoTriggeredRef.current === r) return;
+    const c = r.caption || {};
+    const bodyLen = typeof c.body === "string" ? c.body.trim().length : 0;
+    const isEmpty = bodyLen < 200; // seuil — body doit faire 800-1500 ; <200 = bâclée/vide
+    if (!isEmpty) return;
+    captionAutoTriggeredRef.current = r;
+    generateLinkedInCarouselCaption();
+  }, [result, isLinkedInCarousel, carouselSubMode, generating, captionLoading, generateLinkedInCarouselCaption]);
+
+  // ── Carrousel "juste photo" : on supprime tout overlay/title/body sur les slides
+  // ET on tronque le nombre de slides au nombre de photos uploadées (1 photo = 1 slide).
+  // La légende reste générée par l'IA.
+  const purePhotoStrippedRef = useRef<any>(null);
+  useEffect(() => {
+    if (carouselSubMode !== "pure_photo") return;
+    const r: any = (result as any)?.raw;
+    if (!r?.slides || !Array.isArray(r.slides) || r.slides.length === 0) return;
+    if (purePhotoStrippedRef.current === r) return;
+    // Source de vérité : snapshot pris au moment de la génération, sinon état UI courant.
+    const photoCount = generatedWithPhotos.length || uploadedPhotos.length;
+    if (photoCount === 0) return;
+    purePhotoStrippedRef.current = r;
+    const baseSlides = r.slides.slice(0, photoCount);
+    // Si l'IA a produit moins de slides que de photos, on complète avec des slides vides.
+    while (baseSlides.length < photoCount) {
+      baseSlides.push({ slide_number: baseSlides.length + 1, role: "body" });
+    }
+    const cleaned = baseSlides.map((s: any, i: number) => ({
+      ...s,
+      slide_number: i + 1,
+      slide_type: "photo_full",
+      overlay_text: null,
+      title: "",
+      body: "",
+      photo_index: i + 1,
+    }));
+    setResult((prev: any) => {
+      if (!prev) return prev;
+      const nextRaw = { ...(prev.raw || {}), slides: cleaned, no_overlay: true, carousel_type: "photo" };
+      return { ...prev, raw: nextRaw };
+    });
+  }, [result, carouselSubMode, generatedWithPhotos.length, uploadedPhotos.length]);
+
+
+  const handleConfirmStructure = async (confirmedSlides: SlideProposal[]) => {
+    const enrichedSubject = existingCalendarContent
+      ? ideaText + "\n\n[Contenu existant à approfondir]\n" + existingCalendarContent
+      : ideaText;
+    // Capture le fil narratif AVANT de reset structureProposal
+    const narrativeThread = structureProposal?.narrative_thread || undefined;
+    setLastConfirmedStructure(confirmedSlides);
+    setLastNarrativeThread(narrativeThread || null);
+    setStructureProposal(null);
+    setStep("result");
+    // Snapshot des photos avant la génération finale (au cas où le state UI serait reset)
+    if ((carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo") && uploadedPhotos.length > 0) {
+      setGeneratedWithPhotos(uploadedPhotos);
+    }
+    await generate({
+      format: "carousel",
+      subject: enrichedSubject,
+      objective: objective || undefined,
+      editorialAngle: editorialAngle || undefined,
+      answers: Object.keys(answers).length > 0 ? answers : undefined,
+      channel: isLinkedInCarousel ? "linkedin" : undefined,
+      confirmedStructure: confirmedSlides,
+      ...(narrativeThread ? { narrativeThread } : {}),
+      ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
+      ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
+      ...(carouselSubMode === "pure_photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
+      ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })) : undefined, photoDescription } : {}),
+      ...(newsjackingContext ? { newsContext: newsjackingContext } : {}),
+    });
+  };
+
+  const handleSkipStructure = async (slides: SlideProposal[]) => {
+    await handleConfirmStructure(slides);
   };
 
   const handleCopy = (text: string) => {
@@ -814,7 +1416,7 @@ export default function CreerUnifie() {
             reference_image_base64: inspirationImageBase64,
             pinterest_link: pinterestData?.link,
             pinterest_board: pinterestData?.boardName,
-            workspace_id: workspaceId || undefined,
+            workspace_id: workspaceId !== session.user.id ? workspaceId : undefined,
           },
         }, 180000);
         if (fnError) throw fnError;
@@ -852,7 +1454,7 @@ export default function CreerUnifie() {
             brief_hint: proposal.brief,
             pinterest_link: pinterestData?.link,
             pinterest_board: pinterestData?.boardName,
-            workspace_id: workspaceId || undefined,
+            workspace_id: workspaceId !== session.user.id ? workspaceId : undefined,
           },
         }, 180000);
         if (fnError) throw fnError;
@@ -883,6 +1485,7 @@ export default function CreerUnifie() {
     resetGenerator();
     streamReset();
     setStep("idea");
+    setNewsjackingContext(null);
     setIdeaText("");
     setObjective(null);
     setSelectedFormat(null);
@@ -908,8 +1511,11 @@ export default function CreerUnifie() {
     setInspirationImagePreview(null);
     setPhotoBriefResult(null);
     setPhotoBriefOverlayHtml(null);
+    setStructureProposal(null);
+    setLastConfirmedStructure(null);
+    setEditingIdeaId(null);
     clearFlowState();
-    clearDraft();
+    
     sessionStorage.removeItem(CREER_RESULT_KEY);
   };
 
@@ -938,16 +1544,17 @@ export default function CreerUnifie() {
 
   // ── Post-generation handlers ──
 
-  const handleSave = async () => {
+  const persistCarousel = async () => {
     if (!session?.user?.id || !result?.raw || saving) return;
-    setSaving(true);
-    try {
-      const r = result.raw;
-      if (selectedFormat === "carousel" && r?.slides) {
+    const r = result.raw;
+    if (selectedFormat === "carousel" && r?.slides) {
+      setSaving(true);
+      try {
         const hookText = r.slides?.[0]?.title || "";
         const captionText = [r.caption?.hook, r.caption?.body, r.caption?.cta].filter(Boolean).join("\n\n");
         const { data } = await supabase.from("generated_carousels" as any).insert({
           user_id: session.user.id,
+          ...(workspaceId && workspaceId !== session.user.id ? { workspace_id: workspaceId } : {}),
           carousel_type: r.carousel_type || "tips",
           subject: ideaText,
           objective: objective || null,
@@ -959,13 +1566,28 @@ export default function CreerUnifie() {
           quality_score: r.quality_check?.score || null,
         }).select("id").single();
         if (data) setSavedId((data as any).id);
+      } catch (e: any) {
+        console.warn("generated_carousels insert failed:", e?.message);
+      } finally {
+        setSaving(false);
       }
-      toast.success("Contenu sauvegardé !");
-    } catch (e: any) {
-      toast.error(e?.message || "Erreur lors de la sauvegarde");
-    } finally {
-      setSaving(false);
     }
+  };
+
+  const handleSave = async () => {
+    await persistCarousel();
+    // Ouvrir le dialog SaveToIdeasDialog (insertion réelle dans saved_ideas)
+    setSaveIdeaDialogOpen(true);
+  };
+
+
+  const mapFormatToContentType = (fmt: string | null): "story" | "reel" | "post_instagram" | "post_linkedin" | "newsletter" | "pinterest" => {
+    if (fmt === "newsletter") return "newsletter";
+    if (fmt === "story") return "story";
+    if (fmt === "reel") return "reel";
+    if (fmt === "linkedin") return "post_linkedin";
+    if (fmt === "pinterest" || fmt === "pinterest_visual" || fmt === "pinterest_photo") return "pinterest";
+    return "post_instagram";
   };
 
   // Extract content draft from result for calendar save
@@ -1025,6 +1647,12 @@ export default function CreerUnifie() {
         `• Ambiance : ${r.photo_brief.mood || ""}`,
       ].join("\n") : "";
       contentDraft = `📌 ${r.title || ""}\n\n${r.description || ""}\n\n${briefLines}`;
+    } else if (selectedFormat === "newsletter" && (r?.content || r?.body)) {
+      const nlBody = r.body || r.content || "";
+      accroche = (r.subject || r.accroche || nlBody.split("\n")[0] || "").slice(0, 200);
+      contentDraft = r.subject
+        ? `Objet : ${r.subject}\n${r.preview_text ? `Preview : ${r.preview_text}\n` : ""}\n${nlBody}`
+        : nlBody;
     } else {
       contentDraft = r.content || r.post || r.text || "";
       accroche = contentDraft.split("\n")[0] || "";
@@ -1074,7 +1702,7 @@ export default function CreerUnifie() {
     setSavingToCalendar(true);
     try {
       if (selectedFormat === "carousel" && !savedId && result?.raw?.slides) {
-        await handleSave();
+        await persistCarousel();
       }
       const { contentDraft, accroche, storyDetail } = extractContentForCalendar();
       const r = result?.raw;
@@ -1100,7 +1728,7 @@ export default function CreerUnifie() {
       if (calendarPostId) {
         const storageUpdates: any = {};
         
-        if ((carouselSubMode === "photo" || carouselSubMode === "mix") && uploadedPhotos.length > 0) {
+        if ((carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo") && uploadedPhotos.length > 0) {
           try {
             const photoUrls = await uploadPhotosToStorage(calendarPostId);
             if (photoUrls.length > 0) storageUpdates.photo_urls = photoUrls;
@@ -1114,6 +1742,8 @@ export default function CreerUnifie() {
             toast.info("Upload des visuels...");
             const visualUrls = await uploadVisualsToStorage(calendarPostId);
             if (visualUrls.length > 0) storageUpdates.visual_urls = visualUrls;
+            // Persist source HTML to enable PowerPoint éditable from calendar
+            storageUpdates.visual_html = visualSlides;
           } catch (err) {
             console.warn("Visual upload failed:", err);
           }
@@ -1125,6 +1755,7 @@ export default function CreerUnifie() {
             toast.info("Upload du visuel Pinterest...");
             const pinVisualUrls = await uploadPinterestVisualToStorage(calendarPostId, pinterestPinHtml);
             if (pinVisualUrls.length > 0) storageUpdates.visual_urls = pinVisualUrls;
+            storageUpdates.visual_html = [{ slide_number: 1, html: pinterestPinHtml }];
           } catch (err) {
             console.warn("Pinterest visual upload failed:", err);
           }
@@ -1136,6 +1767,7 @@ export default function CreerUnifie() {
             toast.info("Upload de l'overlay...");
             const overlayUrls = await uploadPinterestVisualToStorage(calendarPostId, photoBriefOverlayHtml);
             if (overlayUrls.length > 0) storageUpdates.visual_urls = overlayUrls;
+            storageUpdates.visual_html = [{ slide_number: 1, html: photoBriefOverlayHtml }];
           } catch (err) {
             console.warn("Overlay upload failed (non-blocking):", err);
           }
@@ -1151,7 +1783,7 @@ export default function CreerUnifie() {
 
       // Lier le brief au post calendrier
       if (currentBriefId && calendarPostId) {
-        supabase.from("content_briefs").update({ calendar_post_id: calendarPostId } as any).eq("id", currentBriefId).then(() => {}, console.error);
+        await supabase.from("content_briefs").update({ calendar_post_id: calendarPostId } as any).eq("id", currentBriefId);
       }
 
       toast.success("Contenu sauvegardé dans ton calendrier !");
@@ -1168,7 +1800,7 @@ export default function CreerUnifie() {
     if (!session?.user?.id || !result?.raw) return;
     // Auto-save carousel if not already saved
     if (selectedFormat === "carousel" && !savedId && result?.raw?.slides) {
-      await handleSave();
+      await persistCarousel();
     }
     // If coming from calendar, save directly back
     if (fromCalendar) {
@@ -1192,10 +1824,13 @@ export default function CreerUnifie() {
       const response = await fetch(raw);
       const blob = await response.blob();
       
-      const path = `${session.user.id}/${postId}/photos/photo-${i + 1}.jpg`;
+      const mime = blob.type || "image/jpeg";
+      const ext = mime === "image/png" ? "png" : "jpg";
+      
+      const path = `${session.user.id}/${postId}/photos/photo-${i + 1}.${ext}`;
       const { error } = await supabase.storage
         .from("calendar-visuals")
-        .upload(path, blob, { contentType: "image/jpeg", upsert: true });
+        .upload(path, blob, { contentType: mime, upsert: true });
       
       if (error) {
         console.error(`Failed to upload photo ${i + 1}:`, error);
@@ -1358,7 +1993,7 @@ export default function CreerUnifie() {
         const updates: any = {};
         
         // Upload photos originales dans Storage
-        if ((carouselSubMode === "photo" || carouselSubMode === "mix") && uploadedPhotos.length > 0) {
+        if ((carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo" || photoMode) && uploadedPhotos.length > 0) {
           try {
             const photoUrls = await uploadPhotosToStorage(postId);
             if (photoUrls.length > 0) {
@@ -1377,6 +2012,8 @@ export default function CreerUnifie() {
             if (visualUrls.length > 0) {
               updates.visual_urls = visualUrls;
             }
+            // Persist source HTML to enable PowerPoint éditable from calendar
+            updates.visual_html = visualSlides;
           } catch (err) {
             console.warn("Visual upload failed (non-blocking):", err);
           }
@@ -1390,6 +2027,7 @@ export default function CreerUnifie() {
             if (pinVisualUrls.length > 0) {
               updates.visual_urls = pinVisualUrls;
             }
+            updates.visual_html = [{ slide_number: 1, html: pinterestPinHtml }];
           } catch (err) {
             console.warn("Pinterest visual upload failed (non-blocking):", err);
           }
@@ -1403,6 +2041,7 @@ export default function CreerUnifie() {
             if (overlayUrls.length > 0) {
               updates.visual_urls = overlayUrls;
             }
+            updates.visual_html = [{ slide_number: 1, html: photoBriefOverlayHtml }];
           } catch (err) {
             console.warn("Overlay upload failed (non-blocking):", err);
           }
@@ -1421,7 +2060,7 @@ export default function CreerUnifie() {
 
       // Lier le brief au post calendrier
       if (currentBriefId && postId) {
-        supabase.from("content_briefs").update({ calendar_post_id: postId } as any).eq("id", currentBriefId).then(() => {}, console.error);
+        await supabase.from("content_briefs").update({ calendar_post_id: postId } as any).eq("id", currentBriefId);
       }
 
       toast.success("Ajouté au calendrier !");
@@ -1440,54 +2079,248 @@ export default function CreerUnifie() {
     }
   };
 
-  const handleGenerateVisuals = async () => {
+  const handleGenerateVisuals = async (opts?: { forceText?: boolean }) => {
     if (!result?.raw?.slides || visualLoading) return;
     setVisualLoading(true);
+
+    // ═══ Demo bypass: return pre-built visuals only when user follows the script ═══
+    const isAurianaScript = aurianaDemoActive
+      && ideaText === AURIANA_DEMO_SUBJECT
+      && carouselSubMode === "text"
+      && uploadedPhotos.length === 0;
+    if (isAurianaScript) {
+      const { getAurianaDemoVisualSlides } = await import("@/lib/demo-auriana-data");
+      await new Promise(r => setTimeout(r, 1500));
+      setVisualSlides(getAurianaDemoVisualSlides());
+      setVisualLoading(false);
+      toast.success("Visuels générés !");
+      return;
+    }
+
     try {
-      const isPhotoCarousel = result.raw.carousel_type === "photo";
-      const isMixCarousel = result.raw.carousel_type === "mix";
+      // ═══ Diagnostic : vérifier la structure des slides ═══
+      const rawSlides = result.raw.slides;
+      console.log("[carousel-visual] raw slides type:", typeof rawSlides, "isArray:", Array.isArray(rawSlides), "length:", rawSlides?.length);
+      
+      if (!Array.isArray(rawSlides) || rawSlides.length === 0) {
+        console.error("[carousel-visual] slides invalides:", JSON.stringify(rawSlides).slice(0, 500));
+        posthog.capture("carousel_visual_invalid_slides", {
+          raw_type: typeof rawSlides,
+          raw_is_array: Array.isArray(rawSlides),
+          raw_length: rawSlides?.length,
+          raw_keys: typeof rawSlides === "object" && rawSlides ? Object.keys(rawSlides) : [],
+          raw_preview: JSON.stringify(rawSlides).slice(0, 300),
+          result_raw_keys: Object.keys(result?.raw || {}),
+        });
+        toast.error("Les slides ne sont pas dans un format valide. Essaie de régénérer le carrousel.");
+        setVisualLoading(false);
+        return;
+      }
+
+      const rawCarouselType = result.raw.carousel_type;
+      // ═══ Source de vérité photos : snapshot pris au moment de la génération.
+      // Si le state UI uploadedPhotos a été reset (changement d'onglet, etc.),
+      // on retombe sur generatedWithPhotos pour ne pas perdre les photos.
+      const photosForVisuals = uploadedPhotos.length > 0 ? uploadedPhotos : generatedWithPhotos;
+      const hasActualPhotos = photosForVisuals.length > 0;
+      console.log("[carousel-visual] photos source:", {
+        ui_state: uploadedPhotos.length,
+        snapshot: generatedWithPhotos.length,
+        used: photosForVisuals.length,
+      });
+      // ═══ Downgrade EXPLICITE : si l'IA demande photo/mix mais qu'aucune photo
+      // n'est disponible, on n'applique JAMAIS un downgrade silencieux. On ouvre
+      // un dialog pour laisser l'utilisateur décider (ajouter des photos OU
+      // continuer en texte). Si forceText === true, l'utilisateur a confirmé.
+      let downgradeReason: "no_photos_at_generation" | "user_chose_text" | null = null;
+      if ((rawCarouselType === "photo" || rawCarouselType === "mix") && !hasActualPhotos) {
+        if (!opts?.forceText) {
+          setPhotoMissingDialog({ open: true, rawType: rawCarouselType });
+          setVisualLoading(false);
+          return;
+        }
+        downgradeReason = "user_chose_text";
+      }
+      const effectiveCarouselType = (rawCarouselType === "photo" || rawCarouselType === "mix") && !hasActualPhotos
+        ? "text"
+        : rawCarouselType;
+
+      const isPhotoCarousel = effectiveCarouselType === "photo";
+      const isMixCarousel = effectiveCarouselType === "mix";
       const hasPhotos = isPhotoCarousel || isMixCarousel;
 
+      // ═══ Construire le body et le valider avant envoi ═══
+      // P0-2: auto-assign photo_index séquentiel si l'IA l'oublie sur photo_full / photo_integrated
+      let autoPhotoCursor = 0;
+      const totalPhotos = photosForVisuals.length;
+
+      const mappedSlides = rawSlides.map((s: any, slideIdx: number) => {
+        const slideType = hasPhotos
+          ? (s.slide_type || (isPhotoCarousel ? "photo_full" : "text_only"))
+          : "text_only";
+
+        // Résolution photo_index : utilise celui fourni s'il est valide (1-based, dans la range),
+        // sinon attribue séquentiellement la prochaine photo dispo et logge.
+        let resolvedPhotoIndex: number | undefined;
+        if (slideType === "photo_full" || slideType === "photo_integrated") {
+          const provided = Number.isInteger(s.photo_index) ? s.photo_index : null;
+          if (provided && provided >= 1 && provided <= totalPhotos) {
+            resolvedPhotoIndex = provided;
+          } else if (totalPhotos > 0) {
+            resolvedPhotoIndex = (autoPhotoCursor % totalPhotos) + 1;
+            console.warn(
+              `[carousel] slide ${s.slide_number ?? slideIdx + 1} (${slideType}) sans photo_index valide (reçu: ${s.photo_index}). Auto-assigné à ${resolvedPhotoIndex}.`
+            );
+            autoPhotoCursor++;
+          }
+          if (provided && provided >= 1 && provided <= totalPhotos) {
+            autoPhotoCursor = Math.max(autoPhotoCursor, provided);
+          }
+        }
+
+        return {
+          slide_number: s.slide_number,
+          role: s.role,
+          slide_type: slideType,
+          ...(slideType === "photo_full" ? {
+            overlay_text: s.overlay_text,
+            overlay_position: s.overlay_position || "bottom_center",
+            overlay_style: s.overlay_style || "sensoriel",
+            note: s.note,
+            photo_index: resolvedPhotoIndex,
+          } : {}),
+          ...(slideType === "photo_integrated" ? {
+            photo_index: resolvedPhotoIndex,
+            photo_layout: s.photo_layout || "top_photo",
+            title: s.title || "",
+            body: s.body || "",
+            note: s.note,
+          } : {}),
+          ...(slideType === "text_only" ? {
+            title: s.title || s.overlay_text || "",
+            body: s.body || s.note || "",
+            visual_suggestion: s.visual_suggestion,
+            ...(s.visual_schema ? { visual_schema: s.visual_schema } : {}),
+          } : {}),
+        };
+      });
+
+      // P1-8 : Validation sequencing post-IA pour mix
+      // - Slide 1 doit être visuelle (photo_full / photo_integrated) pour ouvrir fort
+      // - Dernière slide doit être text_only (CTA)
+      // On corrige silencieusement (log console) sans bloquer l'utilisateur.
+      if (isMixCarousel && mappedSlides.length >= 2) {
+        const first = mappedSlides[0];
+        const last = mappedSlides[mappedSlides.length - 1];
+        if (first.slide_type === "text_only") {
+          console.warn(
+            `[carousel] sequencing: slide 1 était text_only — conversion en photo_full pour ouvrir fort.`
+          );
+          const targetPhoto = totalPhotos > 0 ? 1 : undefined;
+          mappedSlides[0] = {
+            slide_number: first.slide_number,
+            role: first.role,
+            slide_type: "photo_full",
+            overlay_text: (first as any).title || "",
+            overlay_position: "bottom_center",
+            overlay_style: "sensoriel",
+            note: (first as any).note,
+            photo_index: targetPhoto,
+          };
+        }
+        if (
+          last.slide_type !== "text_only" &&
+          last.slide_type !== undefined &&
+          last.role !== "cta"
+        ) {
+          console.warn(
+            `[carousel] sequencing: dernière slide n'était pas text_only — conversion en CTA texte.`
+          );
+          // Mapping CTA propre : on supprime overlay_text/photo_index/photo_layout
+          // pour ne garder que les champs pertinents pour une slide texte CTA.
+          mappedSlides[mappedSlides.length - 1] = {
+            slide_number: last.slide_number,
+            role: "cta",
+            slide_type: "text_only",
+            title: (last as any).title || (last as any).overlay_text || "",
+            body: (last as any).body || (last as any).note || "",
+            ...((last as any).visual_suggestion ? { visual_suggestion: (last as any).visual_suggestion } : {}),
+          };
+        }
+      }
+
+      if (!mappedSlides || mappedSlides.length === 0) {
+        console.error("[carousel-visual] mapping a produit 0 slides");
+        toast.error("Erreur de préparation des slides. Régénère le carrousel.");
+        setVisualLoading(false);
+        return;
+      }
+
+      const requestBody: any = {
+        slides: mappedSlides,
+        ...(hasPhotos && hasActualPhotos ? {
+          photos: photosForVisuals.map(p => ({ base64: p.base64, mimeType: p.mimeType })),
+          carousel_type: isMixCarousel ? "mix" : "photo",
+        } : {
+          template_style: null,
+        }),
+        workspace_id: workspaceId !== session.user.id ? workspaceId : undefined,
+      };
+
+      console.log("[carousel-visual] request body keys:", Object.keys(requestBody), "slides count:", requestBody.slides?.length);
+
+      // ═══ Tracking automatique pour diagnostic à distance ═══
+      const diagnosticPayload = {
+        raw_keys: Object.keys(result.raw || {}),
+        has_slides: !!result.raw?.slides,
+        slides_type: typeof result.raw?.slides,
+        slides_is_array: Array.isArray(result.raw?.slides),
+        slides_count: rawSlides?.length || 0,
+        mapped_slides_count: mappedSlides?.length || 0,
+        body_keys: Object.keys(requestBody),
+        body_has_slides: !!requestBody.slides,
+        body_slides_count: requestBody.slides?.length || 0,
+        carousel_type: rawCarouselType || "text",
+        effective_type: effectiveCarouselType || "text",
+        has_photos: hasActualPhotos,
+        ui_state_count: uploadedPhotos.length,
+        snapshot_count: generatedWithPhotos.length,
+        downgrade_reason: downgradeReason,
+        format: selectedFormat,
+      };
+      posthog.capture("carousel_visual_debug", diagnosticPayload);
+      if (session?.user?.id) {
+        supabase.from("frontend_debug_logs").insert({
+          user_id: session.user.id,
+          event: "carousel_visual_request",
+          payload: diagnosticPayload,
+        }).then(() => {}, () => {});
+      }
+
       const { data, error: fnError } = await invokeWithTimeout("carousel-visual", {
-        body: {
-          slides: result.raw.slides.map((s: any) => ({
-            slide_number: s.slide_number,
-            role: s.role,
-            slide_type: s.slide_type || (isPhotoCarousel ? "photo_full" : "text_only"),
-            ...(s.slide_type === "photo_full" || (isPhotoCarousel && !s.slide_type) ? {
-              overlay_text: s.overlay_text,
-              overlay_position: s.overlay_position || "bottom_center",
-              overlay_style: s.overlay_style || "sensoriel",
-              note: s.note,
-              photo_index: s.photo_index,
-            } : {}),
-            ...(s.slide_type === "photo_integrated" ? {
-              photo_index: s.photo_index,
-              photo_layout: s.photo_layout || "top_photo",
-              title: s.title || "",
-              body: s.body || "",
-              note: s.note,
-            } : {}),
-            ...(s.slide_type === "text_only" || (!hasPhotos && !s.slide_type) ? {
-              title: s.title || "",
-              body: s.body || "",
-              visual_suggestion: s.visual_suggestion,
-              ...(s.visual_schema ? { visual_schema: s.visual_schema } : {}),
-            } : {}),
-          })),
-          ...(hasPhotos && uploadedPhotos.length > 0 ? {
-            photos: uploadedPhotos.map(p => ({ base64: p.base64 })),
-            carousel_type: isMixCarousel ? "mix" : "photo",
-          } : {
-            template_style: null,
-          }),
-        },
+        body: requestBody,
       }, 120000);
       if (fnError) throw fnError;
+      // Quota épuisé : ouvrir le QuotaWallModal avec l'objet quota complet,
+      // avant le throw générique qui perdrait data.quota.
+      if (data?.error === "limit_reached" || data?.quota) {
+        if (handleQuotaError({ data })) return;
+      }
       if (data?.error) throw new Error(data.error);
       setVisualSlides(data.result?.slides_html || []);
-      toast.success("Visuels générés !");
+      if (downgradeReason === "user_chose_text") {
+        toast.success("Carrousel généré en mode texte (aucune photo disponible).");
+      } else {
+        toast.success("Visuels générés !");
+      }
     } catch (e: any) {
+      // Quota remonté par throw : ouvrir le mur quota au lieu d'un toast brut.
+      if (handleQuotaError(e)) return;
+      posthog.capture("carousel_visual_error", {
+        error_message: e?.message || "unknown",
+        had_slides: !!result?.raw?.slides,
+        slides_count: result?.raw?.slides?.length || 0,
+      });
       toast.error(e?.message || "Erreur lors de la génération des visuels");
     } finally {
       setVisualLoading(false);
@@ -1498,11 +2331,17 @@ export default function CreerUnifie() {
     if (!result?.raw?.slides) return;
     try {
       const { exportCarouselPptx } = await import("@/lib/export-carousel-pptx");
+      const { resolvePhotoIndexes } = await import("@/lib/resolve-photo-index");
+      const photosForExport = uploadedPhotos.length > 0 ? uploadedPhotos : undefined;
+      // Filet déterministe : évite "une seule photo sur tous les slides" si l'IA a mal
+      // (ou pas) renseigné photo_index. Couvre aussi les carrousels déjà sauvegardés.
+      const normalizedSlides = resolvePhotoIndexes(result.raw.slides, photosForExport?.length ?? 0);
       await exportCarouselPptx(
-        result.raw.slides,
+        normalizedSlides,
         ideaText || "carrousel",
         visualSlides.length > 0 ? visualSlides : undefined,
         charterData,
+        photosForExport,
       );
       toast.success("PPTX éditable téléchargé !");
     } catch (e: any) {
@@ -1510,25 +2349,36 @@ export default function CreerUnifie() {
     }
   };
 
-  const handleExportVisualPptx = async () => {
+  const handleExportVisualPng = async () => {
     if (visualSlides.length === 0) return;
     try {
-      toast.info("Export visuels en cours (capture des slides)…");
-      const { exportCarouselVisualPptx } = await import("@/lib/export-carousel-visual-pptx");
-      await exportCarouselVisualPptx(visualSlides, ideaText || "carrousel-visuels");
-      toast.success("PPTX visuels téléchargé !");
+      toast.info("Export PNG en cours…");
+      const { exportCarouselPng } = await import("@/lib/export-carousel-png");
+      const { getIncludeLogoPref } = await import("@/lib/export-logo");
+      const logoUrl = getIncludeLogoPref() ? (charterData as any)?.logo_url : null;
+      await exportCarouselPng(visualSlides, ideaText || "carrousel", logoUrl);
+      toast.success(visualSlides.length > 1 ? "ZIP des images téléchargé !" : "PNG téléchargé !");
     } catch (e: any) {
       toast.error(e?.message || "Erreur lors de l'export");
     }
   };
 
-  const handleExportPinterestPptx = async () => {
-    if (!pinterestPinHtml) return;
+  const handleExportHybridPptx = async () => {
+    if (visualSlides.length === 0) return;
     try {
-      toast.info("Export PPTX en cours...");
-      const { exportPinterestVisualPptx } = await import("@/lib/export-pinterest-visual-pptx");
-      await exportPinterestVisualPptx(pinterestPinHtml, ideaText || "epingle-pinterest");
-      toast.success("PPTX téléchargé !");
+      toast.info("Export PowerPoint éditable en cours…");
+      const { exportCarouselHybridPptx } = await import("@/lib/export-carousel-hybrid-pptx");
+      const { getIncludeLogoPref } = await import("@/lib/export-logo");
+      const logoUrl = getIncludeLogoPref() ? (charterData as any)?.logo_url : null;
+      await exportCarouselHybridPptx(
+        visualSlides,
+        result?.raw?.slides || null,
+        charterData || null,
+        ideaText || "carrousel-editable",
+        generatedWithPhotos.length > 0 ? generatedWithPhotos : uploadedPhotos,
+        logoUrl,
+      );
+      toast.success("PowerPoint éditable téléchargé !");
     } catch (e: any) {
       toast.error(e?.message || "Erreur lors de l'export");
     }
@@ -1539,7 +2389,9 @@ export default function CreerUnifie() {
     try {
       toast.info("Export PNG en cours...");
       const { exportPinterestVisualPng } = await import("@/lib/export-pinterest-visual-pptx");
-      await exportPinterestVisualPng(pinterestPinHtml, ideaText || "epingle-pinterest");
+      const { getIncludeLogoPref } = await import("@/lib/export-logo");
+      const logoUrl = getIncludeLogoPref() ? (charterData as any)?.logo_url : null;
+      await exportPinterestVisualPng(pinterestPinHtml, ideaText || "epingle-pinterest", logoUrl);
       toast.success("PNG téléchargé !");
     } catch (e: any) {
       toast.error(e?.message || "Erreur lors de l'export");
@@ -1551,7 +2403,9 @@ export default function CreerUnifie() {
     try {
       toast.info("Export PNG en cours...");
       const { exportPinterestVisualPng } = await import("@/lib/export-pinterest-visual-pptx");
-      await exportPinterestVisualPng(photoBriefOverlayHtml, ideaText || "overlay-pinterest");
+      const { getIncludeLogoPref } = await import("@/lib/export-logo");
+      const logoUrl = getIncludeLogoPref() ? (charterData as any)?.logo_url : null;
+      await exportPinterestVisualPng(photoBriefOverlayHtml, ideaText || "overlay-pinterest", logoUrl);
       toast.success("PNG téléchargé !");
     } catch (e: any) {
       toast.error(e?.message || "Erreur lors de l'export");
@@ -1608,15 +2462,8 @@ export default function CreerUnifie() {
     setLaunchGenerating(false);
   };
 
-  // ── Progress bar ──
+  // ── Progress bar moved into <CreerStepper /> below ──
 
-  const stepOrder: Step[] = (() => {
-    if (selectedFormat === "pinterest_inspiration") {
-      return ["idea", "format", "inspiration_proposals", "result", "edit"];
-    }
-    return ["idea", "format", "questions", "result", "edit"];
-  })();
-  const stepIndex = stepOrder.indexOf(step);
 
   // ── Launch mode rendering ──
 
@@ -1627,11 +2474,23 @@ export default function CreerUnifie() {
   const effectiveHandleSave = isDemoMode ? demoToast : handleSave;
   const effectiveHandleAddToCalendar = isDemoMode ? demoToast : handleAddToCalendar;
   const effectiveHandleExportPptx = isDemoMode ? demoToast : handleExportPptx;
-  const effectiveHandleExportVisualPptx = isDemoMode ? demoToast : handleExportVisualPptx;
+  const effectiveHandleExportVisualPng = isDemoMode ? demoToast : handleExportVisualPng;
+  const effectiveHandleExportHybridPptx = isDemoMode ? demoToast : handleExportHybridPptx;
 
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
+
+      {isLoadingLibraryPhotos && (
+        <div className="fixed inset-0 z-50 bg-background/70 backdrop-blur-sm flex items-center justify-center">
+          <div className="flex flex-col items-center gap-2 text-foreground">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <p className="text-sm font-medium">Préparation de ta photo…</p>
+          </div>
+        </div>
+      )}
+
+
 
       <div className="max-w-2xl mx-auto px-4 py-6 pb-24">
         {/* Sub-page header */}
@@ -1644,44 +2503,46 @@ export default function CreerUnifie() {
           />
         )}
 
+        {/* Mode tabs — first visible choice */}
         <BrandingStatusBanner />
 
-        {/* Tabs */}
-        <Tabs value={mode} onValueChange={(v) => setMode(v as Mode)} className="mb-6">
-          <TabsList className="w-full">
-            <TabsTrigger value="create" className="flex-1 gap-1.5">✨ Créer</TabsTrigger>
-            <TabsTrigger value="transform" className="flex-1 gap-1.5">🔄 Transformer</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="create" className="mt-4">
-            {/* Progress bar (from step 2+) */}
-            {step !== "idea" && (
-              <div className="flex gap-1 mb-5">
-                {stepOrder.map((s, i) => (
-                  <div
-                    key={s}
-                    className={`h-1.5 rounded-full flex-1 transition-colors ${
-                      i < stepIndex
-                        ? "bg-primary"
-                        : i === stepIndex
-                        ? "bg-primary/60"
-                        : "bg-muted"
-                    }`}
-                  />
-                ))}
-              </div>
-            )}
+        <div className="mt-4">
+          {/* Unified stepper — visible from step 1, hidden on result/edit screens to give content full focus */}
+          {(() => {
+            const stepperKey: StepperKey | null = (() => {
+              if (step === "idea") return "idea";
+              if (step === "format") return "format";
+              if (step === "questions" || step === "structure_review" || step === "inspiration_proposals") return "brief";
+              if (step === "result" || step === "edit") return "result";
+              return null;
+            })();
+            if (!stepperKey) return null;
+            const handleStepClick = (key: StepperKey) => {
+              // Allow jumping back only — never forward
+              if (key === "idea") setStep("idea");
+              else if (key === "format" && step !== "idea") setStep("format");
+              else if (key === "brief" && (step === "result" || step === "edit")) setStep("questions");
+            };
+            const credits =
+              !planLoading && remainingTotal() < 9000 ? (
+                <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+                  ✨ {remainingTotal()} restantes
+                </span>
+              ) : null;
+            return (
+              <CreerStepper
+                current={stepperKey}
+                onStepClick={handleStepClick}
+                rightSlot={credits}
+              />
+            );
+          })()}
 
             {/* Steps */}
             {step === "idea" && (
               <>
                 <LowCreditsBanner remaining={remainingTotal()} plan={plan} />
-                {!planLoading && remainingTotal() < 9000 && (
-                  <p className="text-xs text-muted-foreground text-right mb-2">
-                    ✨ {remainingTotal()} générations restantes ce mois
-                  </p>
-                )}
-                <CreerStepIdea onNext={handleIdeaNext} onCoachingSelect={handleCoachingSelect} />
+                <CreerStepIdea onNext={handleIdeaNext} onCoachingSelect={handleCoachingSelect} onNewsjackingSelect={handleNewsjackingSelect} onPhotosNext={handlePhotosNext} workspaceId={workspaceId} initialIdea={ideaText} autoOpenTransform={autoOpenTransform} initialPhotos={uploadedPhotos.length > 0 ? uploadedPhotos : undefined} initialPhotoDescription={photoDescription || undefined} initialPhotoSubject={ideaText || undefined} />
               </>
             )}
 
@@ -1690,13 +2551,16 @@ export default function CreerUnifie() {
                 idea={ideaText}
                 objective={objective || undefined}
                 initialFormat={selectedFormat || undefined}
+                suggestedFormat={newsjackingSuggestedFormat || undefined}
+                initialPhotos={uploadedPhotos.length > 0 ? uploadedPhotos : undefined}
+                initialPhotoDescription={photoDescription || undefined}
                 onNext={(fmt, angle, sub, photos, desc, pm, pintData, linkedinCar) => {
                   if (pintData) setPinterestData(pintData);
                   if (linkedinCar) setIsLinkedInCarousel(true);
                   else setIsLinkedInCarousel(false);
-                  handleFormatNext(fmt, angle, { carouselSubMode: sub || (linkedinCar ? "text" : undefined), photos, photoDescription: desc, photoMode: pm });
+                  handleFormatNext(fmt, angle, { carouselSubMode: sub, photos, photoDescription: desc, photoMode: pm, linkedinCarousel: !!linkedinCar });
                 }}
-                onBack={() => setStep("idea")}
+                onBack={() => { setStep("idea"); setNewsjackingContext(null); }}
               />
             )}
 
@@ -1705,12 +2569,42 @@ export default function CreerUnifie() {
                 format={selectedFormat || ""}
                 subject={ideaText}
                 editorialAngle={editorialAngle || undefined}
-                questions={questions.length > 0 ? questions : restoredQuestions}
+                questions={questions}
                 loadingQuestions={loadingQuestions}
                 onNext={handleQuestionsNext}
                 onSkip={handleSkipQuestions}
                 onBack={() => setStep("format")}
                 previousBriefsCount={briefsCount}
+                initialAnswers={aurianaDemoActive && ideaText === AURIANA_DEMO_SUBJECT && carouselSubMode === "text" && uploadedPhotos.length === 0 ? AURIANA_DEMO_FLOW.answers : undefined}
+                onRequestFollowUp={async (currentAnswers) => {
+                  return await generateFollowUp({
+                    subject: ideaText,
+                    answers: currentAnswers,
+                    questions,
+                    contentType: selectedFormat || "instagram_post",
+                    objective: objective || undefined,
+                    photos: photoMode && uploadedPhotos.length > 0
+                      ? uploadedPhotos.slice(0, 10).map((p) => ({ base64: p.base64, mimeType: p.mimeType, context: p.context }))
+                      : undefined,
+                    photoMode: photoMode || undefined,
+                    photoDescription: photoMode ? photoDescription : undefined,
+                  });
+                }}
+              />
+            )}
+
+            {step === "structure_review" && structureProposal && (
+              <StructureReviewStep
+                structureProposal={structureProposal}
+                onConfirm={handleConfirmStructure}
+                onSkip={handleSkipStructure}
+                onBack={() => {
+                  setStructureProposal(null);
+                  setStep("questions");
+                }}
+                isLoading={generating || structureLoading}
+                photos={(carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo") ? uploadedPhotos : undefined}
+                carouselSubMode={carouselSubMode || "text"}
               />
             )}
 
@@ -1739,7 +2633,15 @@ export default function CreerUnifie() {
               )
             )}
 
-            {step === "result" && !isLaunchMode && !generating && !demoGenerating && !streaming && !pinterestVisualGenerating && !result && (
+            {step === "result" && structureLoading && (
+              <div className="py-16 text-center space-y-4 animate-fade-in">
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto" />
+                <p className="text-sm font-medium text-foreground">Préparation de la structure de ton carrousel…</p>
+                <p className="text-xs text-muted-foreground">L'IA organise tes idées en slides. Ça prend quelques secondes.</p>
+              </div>
+            )}
+
+            {step === "result" && !isLaunchMode && !generating && !demoGenerating && !streaming && !pinterestVisualGenerating && !structureLoading && !result && (
               <div className="py-12 text-center space-y-4 animate-fade-in">
                 {error ? (
                   <p className="text-destructive font-medium">{error}</p>
@@ -1769,7 +2671,8 @@ export default function CreerUnifie() {
                 format={selectedFormat || "post"}
                 generating={generating || demoGenerating || streaming || pinterestVisualGenerating}
                 streamingContent={streaming ? streamingContent : undefined}
-                photos={(carouselSubMode === "photo" || carouselSubMode === "mix") ? uploadedPhotos : undefined}
+                photos={(carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo" || (photoMode && uploadedPhotos.length > 0)) ? uploadedPhotos : undefined}
+                usedPhotoCount={photoMode && uploadedPhotos.length > 0 ? uploadedPhotos.length : undefined}
                 onEdit={handleEdit}
                 onReset={handleReset}
                 onRegenerate={handleRegenerate}
@@ -1781,10 +2684,10 @@ export default function CreerUnifie() {
                 visualLoading={visualLoading}
                 visualSlides={visualSlides.length > 0 ? visualSlides : undefined}
                 onExportPptx={selectedFormat === "carousel" ? effectiveHandleExportPptx : undefined}
-                onExportVisualPptx={selectedFormat === "carousel" && visualSlides.length > 0 ? effectiveHandleExportVisualPptx : undefined}
+                onExportVisualPng={selectedFormat === "carousel" && visualSlides.length > 0 ? effectiveHandleExportVisualPng : undefined}
+                onExportHybridPptx={selectedFormat === "carousel" && visualSlides.length > 0 ? effectiveHandleExportHybridPptx : undefined}
                 pinterestPinHtml={pinterestPinHtml}
                 onExportPinterestPng={selectedFormat === "pinterest_visual" ? handleExportPinterestPng : selectedFormat === "pinterest_photo" ? handleExportPhotoBriefPng : undefined}
-                onExportPinterestPptx={selectedFormat === "pinterest_visual" ? handleExportPinterestPptx : undefined}
                 onExportPinterestEditablePptx={selectedFormat === "pinterest_visual" ? handleExportPinterestEditablePptx : undefined}
                 onSlidesUpdate={selectedFormat === "carousel" ? (slides, caption) => {
                   if (result?.raw) {
@@ -1801,6 +2704,23 @@ export default function CreerUnifie() {
                   }
                 } : undefined}
                 photoBriefOverlayHtml={photoBriefOverlayHtml}
+                channel={isLinkedInCarousel ? "linkedin" : "instagram"}
+                captionLoading={captionLoading}
+                onRegenerateCaption={
+                  isLinkedInCarousel && (carouselSubMode === "mix" || carouselSubMode === "photo" || carouselSubMode === "pure_photo")
+                    ? () => { captionAutoTriggeredRef.current = null; generateLinkedInCarouselCaption(); }
+                    : undefined
+                }
+                onChangeAngle={handleChangeAngle}
+                currentAngle={editorialAngle}
+                currentChannel={
+                  selectedFormat === "linkedin" || isLinkedInCarousel ? "linkedin"
+                  : selectedFormat?.startsWith("pinterest") ? "pinterest"
+                  : "instagram"
+                }
+                sourceIdea={ideaText}
+                sourceObjective={objective}
+                sourceAngle={editorialAngle}
               />
             )}
 
@@ -1854,6 +2774,11 @@ export default function CreerUnifie() {
                           onReset={handleReset}
                           onRegenerate={handleRegenerate}
                           onCopy={handleCopy}
+                          usedPhotoCount={photoMode && uploadedPhotos.length > 0 ? uploadedPhotos.length : undefined}
+                          photos={photoMode && uploadedPhotos.length > 0 ? uploadedPhotos : undefined}
+                          sourceIdea={ideaText}
+                          sourceObjective={objective}
+                          sourceAngle={editorialAngle}
                         />
                       </TabsContent>
                     ))}
@@ -1877,12 +2802,7 @@ export default function CreerUnifie() {
                 }}
               />
             )}
-          </TabsContent>
-
-          <TabsContent value="transform" className="mt-4">
-            <CreerTransformTab />
-          </TabsContent>
-        </Tabs>
+        </div>
       </div>
 
       {/* Calendar date dialog */}
@@ -1919,6 +2839,70 @@ export default function CreerUnifie() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog "photos manquantes" : remplace le downgrade silencieux des
+          carrousels mix/photo générés sans photos uploadées (cas typique :
+          entrée par le coaching, qui ne propose pas d'upload). */}
+      <AlertDialog
+        open={photoMissingDialog.open}
+        onOpenChange={(open) => {
+          if (!open) setPhotoMissingDialog({ open: false, rawType: null });
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Ce carrousel gagnerait à avoir des photos</AlertDialogTitle>
+            <AlertDialogDescription>
+              L'IA a structuré un carrousel{" "}
+              <strong>{photoMissingDialog.rawType === "mix" ? "mixte (texte + photos)" : "photo"}</strong>,
+              mais aucune photo n'a été uploadée. Tu peux en ajouter maintenant
+              ou continuer en mode texte uniquement.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel
+              onClick={() => setPhotoMissingDialog({ open: false, rawType: null })}
+            >
+              Annuler
+            </AlertDialogCancel>
+            <Button
+              variant="outline"
+              onClick={() => {
+                // Continuer en texte : relance la génération avec forceText.
+                setPhotoMissingDialog({ open: false, rawType: null });
+                handleGenerateVisuals({ forceText: true });
+              }}
+            >
+              Continuer en texte
+            </Button>
+            <AlertDialogAction
+              onClick={() => {
+                // Ajouter des photos : retour à l'étape format, on force le
+                // sub-mode mix pour exposer la zone d'upload. Le contexte
+                // (sujet, angle, réponses, format) est préservé.
+                setCarouselSubMode("mix");
+                setPhotoMissingDialog({ open: false, rawType: null });
+                setStep("format");
+              }}
+            >
+              Ajouter des photos
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <SaveToIdeasDialog
+        open={saveIdeaDialogOpen}
+        onOpenChange={setSaveIdeaDialogOpen}
+        contentType={mapFormatToContentType(selectedFormat)}
+        subject={ideaText}
+        contentData={result?.raw}
+        sourceModule="creer"
+        format={selectedFormat || undefined}
+        objectif={objective || undefined}
+        visualSlides={selectedFormat === "carousel" && visualSlides.length > 0 ? visualSlides : undefined}
+        onUploadVisuals={selectedFormat === "carousel" ? uploadVisualsToStorage : undefined}
+        editingIdeaId={editingIdeaId}
+      />
     </div>
   );
 }

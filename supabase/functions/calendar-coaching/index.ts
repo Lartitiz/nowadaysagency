@@ -1,10 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { getUserContext, formatContextForAI, buildIdentityBlock } from "../_shared/user-context.ts";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
-import { ANTI_SLOP, CORE_PRINCIPLES } from "../_shared/copywriting-prompts.ts";
+import { CORE_PRINCIPLES } from "../_shared/copywriting-prompts.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -20,7 +22,20 @@ serve(async (req) => {
     const { data: { user }, error: authErr } = await supabase.auth.getUser();
     if (authErr || !user) throw new Error("Non authentifié·e");
 
-    const { posts_per_week, context_week, mix_or_focus, mode, existing_posts } = await req.json();
+    const rateCheck = checkRateLimit(user.id);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+
+    const { posts_per_week, context_week, mix_or_focus, mode, existing_posts, workspace_id: bodyWorkspaceId } = await req.json();
+
+    const sbGuard = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+    const membership = await assertWorkspaceMembership(sbGuard, user.id, bodyWorkspaceId);
+    if (!membership.ok) {
+      console.warn("[workspace-guard] denied", { userId: user.id, workspaceId: bodyWorkspaceId });
+      return workspaceDeniedResponse(corsHeaders);
+    }
 
     // Get workspace
     const { data: wsMember } = await supabase
@@ -29,7 +44,7 @@ serve(async (req) => {
       .eq("user_id", user.id)
       .eq("role", "owner")
       .maybeSingle();
-    const workspaceId = wsMember?.workspace_id;
+    const workspaceId = bodyWorkspaceId || wsMember?.workspace_id;
 
     const quota = await checkQuota(user.id, "coach", workspaceId || undefined);
     if (!quota.allowed) {
@@ -197,7 +212,7 @@ Retourne UNIQUEMENT un JSON valide :
 
     const raw = await callAnthropicSimple(
       getModelForAction("coaching"),
-      systemPrompt + "\n\n" + ANTI_SLOP,
+      systemPrompt,
       `Planifie ${posts_per_week} posts pour ma semaine. Contexte : ${context_week || "semaine normale"}. Approche : ${mix_or_focus}.\n\nRappel : chaque sujet doit avoir un angle Nowadays précis, être hyper-spécifique à mon métier, et l'accroche doit être une VRAIE première ligne de post (max 20 mots, ton oral, percutante).`,
       0.9,
       4096

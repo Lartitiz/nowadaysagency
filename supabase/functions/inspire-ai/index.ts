@@ -1,10 +1,11 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { CORE_PRINCIPLES, FORMAT_STRUCTURES, WRITING_RESOURCES } from "../_shared/copywriting-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
-import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
+import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { callAnthropic, getModelForAction } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { validateInput, ValidationError, InspireAiSchema } from "../_shared/input-validators.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -37,17 +38,17 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check plan limits
-    const usageCheck = await checkQuota(user.id, "content");
-    if (!usageCheck.allowed) {
-      return new Response(
-        JSON.stringify({ error: "limit_reached", message: usageCheck.error, remaining: 0 }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    const rateCheck = checkRateLimit(user.id);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
 
     const body = validateInput(await req.json(), InspireAiSchema);
     const { source_text, source_type, images, context, workspace_id } = body;
+
+    // Check plan limits
+    const usageCheck = await checkQuota(user.id, "content", workspace_id);
+    if (!usageCheck.allowed) {
+      return quotaDeniedResponse(usageCheck, corsHeaders);
+    }
 
     const isScreenshot = source_type === "screenshot";
 
@@ -194,12 +195,25 @@ Réponds UNIQUEMENT en JSON valide :
       return new Response(JSON.stringify({ error: "Erreur de format IA" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    await logUsage(user.id, "content", "inspire");
+    await logUsage(user.id, "content", "inspire", undefined, undefined, workspace_id);
     return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-  } catch (error) {
-    console.error("Error:", error);
+  } catch (error: any) {
+    if (error instanceof ValidationError) {
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (error?.status === 429) {
+      return new Response(JSON.stringify({ error: "Trop de requêtes. Réessaie dans un moment." }), {
+        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    console.error("inspire-ai error:", error);
+    const userMessage = error?.message?.includes("API") || error?.message?.includes("IA")
+      ? error.message
+      : "Erreur serveur";
     return new Response(
-      JSON.stringify({ error: "Erreur serveur" }),
+      JSON.stringify({ error: userMessage }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

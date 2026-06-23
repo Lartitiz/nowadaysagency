@@ -1,8 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { logUsage } from "../_shared/plan-limiter.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
+import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
+import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
+
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -19,14 +20,28 @@ serve(async (req) => {
 
     // Get user context
     let userContext = "";
+    let authUserId: string | null = null;
     if (authHeader) {
       const anonSb = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
       const { data: { user } } = await anonSb.auth.getUser(authHeader.replace("Bearer ", ""));
       if (user) {
+        authUserId = user.id;
+        const sbGuard = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+        const membership = await assertWorkspaceMembership(sbGuard, user.id, workspace_id);
+        if (!membership.ok) {
+          console.warn("[workspace-guard] denied", { userId: user.id, workspaceId: workspace_id });
+          return workspaceDeniedResponse(corsHeaders);
+        }
         const filterCol = workspace_id ? "workspace_id" : "user_id";
         const filterVal = workspace_id || user.id;
+        // Resolve workspace owner for profile-scoped tables
+        let profileUserId = user.id;
+        if (workspace_id) {
+          const { data: ownerRow } = await sb.from("workspace_members").select("user_id").eq("workspace_id", workspace_id).eq("role", "owner").maybeSingle();
+          if (ownerRow?.user_id) profileUserId = ownerRow.user_id;
+        }
         const [profileRes, brandRes, configRes] = await Promise.all([
-          sb.from("profiles").select("activite, cible").eq("user_id", user.id).maybeSingle(),
+          sb.from("profiles").select("activite, cible").eq("user_id", profileUserId).maybeSingle(),
           sb.from("brand_profile").select("mission, offer, target_description, channels").eq(filterCol, filterVal).maybeSingle(),
           sb.from("user_plan_config").select("channels").eq(filterCol, filterVal).maybeSingle(),
         ]);
@@ -62,6 +77,12 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown), avec ces champs :
   "reason": "Une phrase expliquant pourquoi ce format est adapté."
 }`;
 
+    // Quota AVANT l'appel IA (était généré sans aucune vérification de quota).
+    if (authUserId) {
+      const quota = await checkQuota(authUserId, "suggestion");
+      if (!quota.allowed) return quotaDeniedResponse(quota, corsHeaders);
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
@@ -74,7 +95,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown), avec ces champs :
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: ANTI_SLOP },
+          { role: "system", content: "Tu es une assistante en stratégie de contenu. Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks." },
           { role: "user", content: prompt },
         ],
         temperature: 0.7,
@@ -96,13 +117,9 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown), avec ces champs :
     if (!jsonMatch) throw new Error("Invalid AI response");
     const suggestion = JSON.parse(jsonMatch[0]);
 
-    // Log usage if user is authenticated
-    if (authHeader) {
-      const anonSb2 = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
-      const { data: { user: logUser } } = await anonSb2.auth.getUser(authHeader.replace("Bearer ", ""));
-      if (logUser) {
-        await logUsage(logUser.id, "suggestion", "suggest_format");
-      }
+    // Log usage (utilisateur déjà résolu plus haut — plus de getUser redondant).
+    if (authUserId) {
+      await logUsage(authUserId, "suggestion", "suggest_format");
     }
 
     return new Response(JSON.stringify(suggestion), {

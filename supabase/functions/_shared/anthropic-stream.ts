@@ -107,3 +107,72 @@ export function createClientSSEStream(
     },
   });
 }
+
+/**
+ * Wrap an existing async handler (that returns a normal JSON Response) into
+ * an SSE response that emits heartbeats every `intervalMs` ms while the
+ * handler is running. When the handler resolves, the JSON body is parsed and
+ * re-emitted as a single `done` event whose `full` field is the JSON string.
+ *
+ * Goal: keep long-running edge functions alive through proxies/CDNs that
+ * close idle connections after ~60s, WITHOUT changing any generation logic.
+ */
+export function runWithHeartbeatSSE(
+  corsHeaders: Record<string, string>,
+  work: () => Promise<Response>,
+  intervalMs = 10000,
+): Response {
+  const encoder = new TextEncoder();
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      let closed = false;
+      const safeEnqueue = (chunk: Uint8Array) => {
+        if (closed) return;
+        try { controller.enqueue(chunk); } catch { /* controller closed */ }
+      };
+      const safeClose = () => {
+        if (closed) return;
+        closed = true;
+        try { controller.close(); } catch { /* already closed */ }
+      };
+
+      const heartbeat = setInterval(() => {
+        safeEnqueue(encoder.encode(`data: ${JSON.stringify({ type: "heartbeat", t: Date.now() })}\n\n`));
+      }, intervalMs);
+
+      safeEnqueue(encoder.encode(`data: ${JSON.stringify({ type: "status", stage: "generating" })}\n\n`));
+
+      try {
+        const response = await work();
+        clearInterval(heartbeat);
+
+        let bodyText = "";
+        try { bodyText = await response.text(); } catch { bodyText = ""; }
+
+        if (!response.ok) {
+          safeEnqueue(encoder.encode(`data: ${JSON.stringify({ type: "error", error: bodyText || `HTTP ${response.status}` })}\n\n`));
+          safeClose();
+          return;
+        }
+
+        safeEnqueue(encoder.encode(`data: ${JSON.stringify({ type: "done", full: bodyText })}\n\n`));
+        safeClose();
+      } catch (err) {
+        clearInterval(heartbeat);
+        safeEnqueue(encoder.encode(`data: ${JSON.stringify({ type: "error", error: String((err as any)?.message || err) })}\n\n`));
+        safeClose();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      "Connection": "keep-alive",
+      "X-Accel-Buffering": "no",
+    },
+  });
+}

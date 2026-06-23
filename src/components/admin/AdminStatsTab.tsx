@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -119,10 +119,10 @@ export default function AdminStatsTab() {
     setLoading(true);
     setError(null);
     try {
-      const res = await supabase.functions.invoke("admin-users?mode=stats", {
+      const res = await invokeWithTimeout("admin-users?mode=stats", {
         headers: { Authorization: `Bearer ${session.access_token}` },
         body: null,
-      });
+      }, 30000);
       if (res.error) {
         setError(res.error?.message || JSON.stringify(res.error));
       } else if (res.data) {
@@ -521,7 +521,7 @@ function AlertsPanel({ stats }: { stats: StatsData }) {
       <div key="near-limit" className="flex gap-3 rounded-lg border-l-4 border-l-amber-500 bg-amber-500/5 p-4">
         <Zap className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
         <div>
-          <p className="text-sm font-medium">{stats.near_limit_free.length} utilisatrice(s) free proche(s) de la limite (24+/30 crédits)</p>
+          <p className="text-sm font-medium">{stats.near_limit_free.length} utilisatrice(s) free proche(s) de la limite (48+/60 crédits)</p>
           <p className="text-xs text-muted-foreground mt-1">
             {stats.near_limit_free.map(u => `${u.prenom} (${u.credits_used} crédits)`).join(", ")}
           </p>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { usePageSEO } from "@/hooks/use-page-seo";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate, Link, useSearchParams } from "react-router-dom";
@@ -19,11 +19,21 @@ export default function LoginPage() {
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const redirectTo = searchParams.get("redirect");
+  const isAddAccount = searchParams.get("add_account") === "true";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [forgotMode, setForgotMode] = useState(false);
   const [forgotSent, setForgotSent] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+
+  // If adding account while logged in, sign out silently first
+  useEffect(() => {
+    if (user && isAddAccount && !signingOut) {
+      setSigningOut(true);
+      supabase.auth.signOut().catch(() => {});
+    }
+  }, [user, isAddAccount, signingOut]);
 
   usePageSEO({
     title: "Connexion",

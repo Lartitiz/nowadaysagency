@@ -1,62 +1,62 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOURCES, ANTI_SLOP, CHAIN_OF_THOUGHT, ETHICAL_GUARDRAILS, ANTI_BIAS, PREGEN_INJECTION_RULES, EDITORIAL_ANGLES_REFERENCE, VISUAL_ANALOGIES, LINKEDIN_TEMPLATES } from "../_shared/copywriting-prompts.ts";
+import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOURCES, ANTI_SLOP, CHAIN_OF_THOUGHT, ETHICAL_GUARDRAILS, ANTI_BIAS, PREGEN_INJECTION_RULES, EDITORIAL_ANGLES_REFERENCE, VISUAL_ANALOGIES, LINKEDIN_TEMPLATES, ANTI_BROETRY_LINKEDIN, EMBEDDED_EDUCATION } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildProfileBlock, buildPreGenFallback } from "../_shared/user-context.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
-import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
-import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
-import { isDemoUser } from "../_shared/guard-demo.ts";
+import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { streamAnthropicSSE, createClientSSEStream } from "../_shared/anthropic-stream.ts";
+import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
+import { carouselBrief, reelBrief, storiesBrief, linkedinBrief, pinterestBrief, newsletterBrief, photoCaptionBrief, captionBrief } from "../_shared/format-briefs.ts";
+import { buildVisionQuestionsPrompt, buildVisionGenerateBrief } from "../_shared/vision-prompts.ts";
+import { runPipeline } from "../_shared/request-pipeline.ts";
+import { buildSeriesContext } from "../_shared/series-context.ts";
+import { applyCorrectionPass } from "../_shared/correction-pass.ts";
 
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
 
+/**
+ * Detect the actual media_type of an image payload so we never claim
+ * image/jpeg when the bytes are image/png (Anthropic returns a 400 otherwise).
+ *  1) If a data URL prefix is present, trust it (strip it from the data).
+ *  2) Otherwise, sniff base64 magic bytes (PNG / JPEG / WEBP / GIF).
+ *  3) Fall back to the caller-provided mime, then image/jpeg.
+ */
+function extractImagePayload(input: string, fallbackMime?: string): { media_type: string; data: string } {
+  const m = input.match(/^data:(image\/[a-z0-9.+-]+);base64,(.*)$/i);
+  if (m) return { media_type: m[1].toLowerCase(), data: m[2] };
+  const head = input.slice(0, 16);
+  let sniffed: string | undefined;
+  if (head.startsWith("iVBORw0KGgo")) sniffed = "image/png";
+  else if (head.startsWith("/9j/")) sniffed = "image/jpeg";
+  else if (head.startsWith("UklGR")) sniffed = "image/webp";
+  else if (head.startsWith("R0lGOD")) sniffed = "image/gif";
+  return { media_type: sniffed || fallbackMime || "image/jpeg", data: input };
+}
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Authentification requise" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    // Parse body first to extract workspace_id
+    let body: any = {};
+    if (req.method !== "OPTIONS") {
+      try { body = await req.json(); } catch { body = {}; }
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { global: { headers: { Authorization: authHeader } } }
-    );
+    const r = await runPipeline(req, {
+      category: "content",
+      workspaceId: body?.workspace_id ?? undefined,
+    });
+    if (!r.ok) return r.response;
+    const { userId, supabase } = r;
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Authentification invalide" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    if (isDemoUser(user.id)) {
-      return new Response(JSON.stringify({ error: "Demo mode: this feature is simulated" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    // Rate limit check
-    const rateCheck = checkRateLimit(user.id);
-    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
-
-    // Check plan limits
-    const usageCheck = await checkQuota(user.id, "content");
-    if (!usageCheck.allowed) {
-      return new Response(
-        JSON.stringify({ error: "limit_reached", message: usageCheck.error, remaining: 0 }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const body = await req.json();
     validateInput(body, z.object({
       step: z.string().max(50),
       contentType: z.string().max(100).optional().nullable(),
-      context: z.string().max(5000).optional().nullable(),
+      context: z.string().max(8000).optional().nullable(),
       adjustment: z.string().max(2000).optional().nullable(),
       sourceText: z.string().max(10000).optional().nullable(),
       targetFormat: z.string().max(100).optional().nullable(),
@@ -66,27 +66,72 @@ serve(async (req) => {
       editorialFormatLabel: z.string().max(200).optional().nullable(),
       photo_mode: z.boolean().optional(),
       photo_description: z.string().max(2000).optional().nullable(),
-      photos: z.array(z.object({ base64: z.string(), mimeType: z.string().optional() })).max(1).optional(),
+      photos: z.array(z.object({ base64: z.string(), mimeType: z.string().optional(), context: z.string().max(200).optional() })).max(10).optional(),
+      recent_briefs_context: z.string().max(6000).optional().nullable(),
+      face_cam: z.string().max(50).optional().nullable(),
+      time_available: z.string().max(50).optional().nullable(),
+      is_launch: z.boolean().optional().nullable(),
+      selected_hook: z.any().optional().nullable(),
+      pre_gen_answers: z.any().optional().nullable(),
+      inspiration_context: z.string().max(5000).optional().nullable(),
+      editorial_angle: z.string().max(200).optional().nullable(),
+      content_structure: z.string().max(5000).optional().nullable(),
+      launch_context: z.any().optional().nullable(),
+      news_context: z.string().max(4000).optional().nullable(),
+      price_range: z.string().max(50).optional().nullable(),
+      series_id: z.string().uuid().optional().nullable(),
+      episode_number: z.number().int().min(1).optional().nullable(),
     }).passthrough());
-    const { step, contentType, context, profile, angle, answers, followUpAnswers, content: currentContent, adjustment, calendarContext, preGenAnswers, sourceText, formats, targetFormat, workspace_id, deepResearch, objective, editorialFormat, editorialFormatLabel, variation, previousContent, pinterest_link, pinterest_board } = body;
+    const { step, contentType, context, profile, angle, answers, followUpAnswers, content: currentContent, adjustment, calendarContext, preGenAnswers, sourceText, formats, targetFormat, workspace_id, deepResearch, objective, editorialFormat, editorialFormatLabel, variation, previousContent, pinterest_link, pinterest_board, recent_briefs_context: recentBriefsFromBody, series_id, episode_number, news_context: newsContext } = body;
+
+    // Reusable newsjacking block — injected into prompts when present.
+    // Kept separate from `context` to avoid blowing the 8000-char cap on subjects.
+    const newsContextBlock = (typeof newsContext === "string" && newsContext.trim().length > 0)
+      ? `\n\n══════════════════════════════════════\nCONTEXTE ACTUALITÉ (NEWSJACKING)\n══════════════════════════════════════\n${newsContext.trim()}\n\nCONSIGNE NEWSJACKING : ce contenu rebondit sur cette actualité. Le HOOK / ACCROCHE doit partir de l'actualité elle-même (c'est elle qui capte l'attention car elle est dans l'air du temps). Ensuite seulement, fais le pont vers l'expertise, le vécu ou le positionnement de l'utilisatrice. L'actu n'est pas un prétexte en arrière-plan : c'est le point d'entrée visible du contenu.\n`
+      : "";
 
     // Determine channel from contentType for persona selection
     const channelFromType = contentType?.includes("linkedin") ? "linkedin" : contentType?.includes("instagram") || contentType?.includes("carousel") || contentType?.includes("reel") || contentType?.includes("stories") ? "instagram" : undefined;
 
     const profileBlock = profile ? buildProfileBlock(profile) : "";
-    const ctx = await getUserContext(supabase, user.id, workspace_id, channelFromType);
+    const ctx = await getUserContext(supabase, userId, workspace_id, channelFromType);
     const brandingContext = formatContextForAI(ctx, CONTEXT_PRESETS.content);
-    
-    // Fetch voice profile (personal, always user_id)
-    const { data: voiceData } = await supabase.from("voice_profile").select("*").eq("user_id", user.id).maybeSingle();
+
+    // Recent briefs context — fetched server-side as fallback if not provided.
+    // Used by `questions` step to avoid repeating angles already covered.
+    let recentBriefsContext = recentBriefsFromBody || "";
+    if (!recentBriefsContext && (step === "questions" || step === "follow-up")) {
+      recentBriefsContext = await getRecentBriefsContext(supabase, userId, workspace_id, 3);
+    }
+
+    // Extract vocabulary keywords from branding (offers names, target name, key expressions)
+    // → forces the AI to use the user's actual vocabulary in questions
+    const brandVocab: string[] = [];
+    if (ctx?.profile?.activite) brandVocab.push(`activité: ${ctx.profile.activite}`);
+    if (ctx?.profile?.cible) brandVocab.push(`cible: ${ctx.profile.cible}`);
+    if (ctx?.tone?.key_expressions) {
+      const keyExp = typeof ctx.tone.key_expressions === "string" ? ctx.tone.key_expressions : "";
+      if (keyExp) brandVocab.push(`expressions clés: ${keyExp.slice(0, 200)}`);
+    }
+    if (ctx?.brand_profile?.offer) {
+      const off = typeof ctx.brand_profile.offer === "string" ? ctx.brand_profile.offer : "";
+      if (off) brandVocab.push(`offre: ${off.slice(0, 150)}`);
+    }
+    const brandVocabBlock = brandVocab.length > 0
+      ? `\n\nVOCABULAIRE MÉTIER DE L'UTILISATRICE (à RÉUTILISER dans les questions) :\n${brandVocab.map(v => `- ${v}`).join("\n")}\n\nRÈGLE : au moins 2 questions sur 3 doivent réutiliser un mot/concept de ce vocabulaire (nom de l'offre, terme de la cible, expression clé). Les questions doivent montrer que tu connais SON univers, pas un univers générique.\n`
+      : "";
+
+    // Voice profile — already fetched by getUserContext() with correct workspace owner resolution.
+    // Do NOT re-fetch with userId (that would use the coach's voice instead of the client's).
     let voiceBlock = "";
-    if (voiceData) {
+    if (ctx.voice) {
+      const v = ctx.voice;
       const vl: string[] = ["PROFIL DE VOIX DE L'UTILISATRICE :"];
-      if (voiceData.structure_patterns?.length) vl.push(`- Structure : ${(voiceData.structure_patterns as string[]).join(", ")}`);
-      if (voiceData.tone_patterns?.length) vl.push(`- Ton : ${(voiceData.tone_patterns as string[]).join(", ")}`);
-      if (voiceData.signature_expressions?.length) vl.push(`- Expressions signature à utiliser : ${(voiceData.signature_expressions as string[]).join(", ")}`);
-      if (voiceData.banned_expressions?.length) vl.push(`- Expressions interdites (NE JAMAIS UTILISER) : ${(voiceData.banned_expressions as string[]).join(", ")}`);
-      if (voiceData.voice_summary) vl.push(`- Style résumé : ${voiceData.voice_summary}`);
+      if (v.structure_patterns?.length) vl.push(`- Structure : ${(Array.isArray(v.structure_patterns) ? v.structure_patterns : []).join(", ")}`);
+      if (v.tone_patterns?.length) vl.push(`- Ton : ${(Array.isArray(v.tone_patterns) ? v.tone_patterns : []).join(", ")}`);
+      if (v.signature_expressions?.length) vl.push(`- Expressions signature à utiliser : ${(Array.isArray(v.signature_expressions) ? v.signature_expressions : []).join(", ")}`);
+      if (v.banned_expressions?.length) vl.push(`- Expressions interdites (NE JAMAIS UTILISER) : ${(Array.isArray(v.banned_expressions) ? v.banned_expressions : []).join(", ")}`);
+      if (v.voice_summary) vl.push(`- Style résumé : ${v.voice_summary}`);
       vl.push("UTILISE ce profil de voix pour TOUT le contenu généré.");
       vl.push("PRIORITÉ VOIX : reproduis ce style. Réutilise les expressions signature. Respecte les expressions interdites. Le résultat doit sonner comme si l'utilisatrice l'avait écrit elle-même.");
       voiceBlock = "\n" + vl.join("\n") + "\n";
@@ -129,7 +174,14 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
 `;
 
     // COMMON_PREFIX: identical for ALL steps → maximizes Anthropic prompt caching
-    const COMMON_PREFIX = BASE_SYSTEM_RULES + "\n\n" + incarnationBlock + "\n\n" + `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :\n- Reproduis fidèlement le style décrit\n- Réutilise les expressions signature naturellement dans le texte\n- RESPECTE les expressions interdites : ne les utilise JAMAIS\n- Imite les patterns de ton et de structure\n- Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA\n\n` + CORE_PRINCIPLES + "\n\n" + ANTI_SLOP + "\n\n" + ETHICAL_GUARDRAILS + "\n\n" + fullContext;
+    const COMMON_PREFIX = BASE_SYSTEM_RULES + "\n\n" + incarnationBlock + "\n\n" + `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :\n- Reproduis fidèlement le style décrit\n- Réutilise les expressions signature naturellement dans le texte\n- RESPECTE les expressions interdites : ne les utilise JAMAIS\n- Imite les patterns de ton et de structure\n- Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA\n\n` + CORE_PRINCIPLES + "\n\n" + EMBEDDED_EDUCATION + "\n\n" + ANTI_SLOP + "\n\n" + ETHICAL_GUARDRAILS + "\n\n" + fullContext;
+
+    // QUESTIONS_PREFIX : version allégée pour les steps `questions` et `follow-up`.
+    // On retire CORE_PRINCIPLES / EMBEDDED_EDUCATION / ANTI_SLOP / ETHICAL_GUARDRAILS / bloc voix :
+    // ces règles concernent la RÉDACTION du contenu final, pas la formulation de questions.
+    // On garde : règles de base, incarnation (qui elle est), branding/profil (pour personnaliser).
+    // Objectif : passer de ~10 500 tokens à ~3 000-4 000 tokens d'input.
+    const QUESTIONS_PREFIX = BASE_SYSTEM_RULES + "\n\n" + incarnationBlock + "\n\n" + fullContext;
 
     // Build calendar context block
     let calendarBlock = "";
@@ -168,6 +220,18 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
 
     let systemPrompt = "";
     let userPrompt: string | null = "";
+
+    // ── Format detection (outer scope — used by generate + streaming) ──
+    const angleFormat = angle?.format_livraison?.toLowerCase() || "";
+    const formatHint = angleFormat || contentType?.toLowerCase() || "";
+    const isCarousel = formatHint.includes("carrousel") || formatHint.includes("carousel");
+    const isReel = formatHint.includes("reel") || formatHint.includes("script");
+    const isStories = formatHint.includes("stories") || formatHint.includes("story");
+    const isLinkedIn = formatHint.includes("linkedin") || contentType === "post_linkedin";
+    const isPinterest = formatHint.includes("pinterest") || contentType === "post_pinterest";
+    const isNewsletter = formatHint.includes("newsletter") || formatHint.includes("email") || contentType === "post_newsletter";
+    const isCaption = !isCarousel && !isReel && !isStories && !isLinkedIn && !isPinterest && !isNewsletter;
+    const isPhotoMode = body.photo_mode === true;
 
     // Format labels (used by recycle, declared here for broader scope)
     const formatLabels: Record<string, string> = {
@@ -227,28 +291,86 @@ Réponds UNIQUEMENT en JSON :
       userPrompt = `Propose-moi 3 angles éditoriaux pour : ${context}`;
 
     } else if (step === "questions") {
-      systemPrompt = `${COMMON_PREFIX}
+      const channelLabel = contentType === "linkedin" ? "LinkedIn" : contentType === "newsletter" ? "Newsletter" : "Instagram";
+      const channelGuidance = contentType === "linkedin"
+        ? "Questions orientées PRO : demande des situations professionnelles, des apprentissages business, des résultats concrets, des prises de position assumées."
+        : contentType === "newsletter"
+        ? "Questions orientées PROFONDEUR : demande des réflexions de fond, des convictions, des retours d'expérience détaillés."
+        : "Questions orientées ÉMOTION : demande des moments vécus, des ressentis, des transformations personnelles, des coulisses.";
 
-L'utilisatrice a choisi cet angle pour son contenu :
-- Sujet : ${context}
-- Canal : ${contentType}
+      systemPrompt = `${QUESTIONS_PREFIX}
+${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}\n` : ""}${brandVocabBlock}
+
+══════════════════════════════════════
+SUJET COURANT — PRIORITÉ ABSOLUE
+══════════════════════════════════════
+"${context}"
+
+Tout ce qui suit (angle, branding, historique) est SECONDAIRE par rapport à ce sujet.
+Les 3 questions doivent toutes porter sur CE sujet précis.
+Si une question pourrait concerner un autre sujet, elle est invalide.
+
+══════════════════════════════════════
+ANGLE & CANAL
+══════════════════════════════════════
+- Canal : ${channelLabel}
 ${editorialFormatLabel ? `- Format éditorial : ${editorialFormatLabel}` : ""}
 - Angle : ${angle.title}
 - Structure : ${(angle.structure || []).join(" → ")}
 - Ton : ${angle.tone}
 ${angle.format_livraison ? `- Format de livraison recommandé : ${angle.format_livraison}` : ""}
-${calendarBlock}${objectiveBlock}
+${calendarBlock}${objectiveBlock}${newsContextBlock}
+${recentBriefsContext}
+${newsContextBlock ? "\n⚠️ NEWSJACKING ACTIF : au moins 1 question sur 3 doit aider à faire le pont entre cette actualité et le vécu / l'opinion / l'expertise de l'utilisatrice (pas une question générique sur le sujet).\n" : ""}
 
-Pose exactement 2 questions pour récupérer SA matière première. Ces questions doivent extraire des anecdotes, des réflexions, des émotions PERSONNELLES qui rendront le contenu unique et impossible à reproduire par une IA seule.
+══ AVANT DE POSER LES QUESTIONS — RAISONNEMENT INTERNE (ne PAS afficher) ══
+
+Réfléchis silencieusement à :
+1. Quel est le SUJET COURANT ? (ré-extraire 1 mot-clé du bloc ci-dessus)
+2. Quel vocabulaire métier de l'utilisatrice puis-je intégrer naturellement ?
+3. Y a-t-il un sujet identique dans l'historique récent ? Si oui, quelle question NE PAS reposer ?
+
+Puis pose les 3 questions qui maximisent la matière personnelle apportée sur CE sujet.
+
+Pose exactement 3 questions pour récupérer SA matière première sur le sujet courant. Ces questions doivent extraire des éléments PERSONNELS (anecdotes, opinions, observations, process, convictions) qui rendront le contenu unique.
 
 RÈGLES :
-- LIS ATTENTIVEMENT LE SUJET ci-dessus. Les questions doivent être directement liées à CE sujet spécifique, pas à l'angle en général.
-- Questions OUVERTES (pas oui/non)
-- Demande des scènes, des moments, des détails concrets EN RAPPORT AVEC LE SUJET
-- Le ton des questions est chaleureux et curieux (comme une amie qui s'intéresse vraiment)
-- Chaque question a un placeholder qui donne un mini-exemple de réponse SPÉCIFIQUE au sujet
-- ORIENTÉES vers l'objectif : si "vente" → demande des résultats, transformations. Si "engagement" → demande des anecdotes, émotions.
-- INTERDIT : les questions génériques type "Qu'est-ce qui te passionne dans ton métier ?", "Quel est ton parcours ?", "Qu'est-ce qui te différencie ?". Ces questions sont trop vagues. Chaque question doit mentionner le sujet ou un aspect concret du sujet.
+1. ANCRAGE SUJET (règle n°1, non négociable) : chaque question DOIT contenir un mot du sujet courant ou un aspect concret directement déductible du sujet courant. Une question qui ne référence pas le sujet courant est invalide — réécris-la.
+2. AU MOINS 1 question sur 3 doit creuser le POURQUOI PROFOND : pourquoi elle pense ça, pourquoi c'est important pour elle, quelle conviction personnelle se cache derrière ce sujet.
+3. ${channelGuidance}
+4. Questions OUVERTES (pas oui/non).
+5. VARIÉTÉ DE TYPES DE QUESTIONS OBLIGATOIRE — les 3 questions doivent utiliser des TYPES DIFFÉRENTS parmi :
+   - ANECDOTE : "Raconte un moment précis où…" (une scène concrète vécue)
+   - OPINION TRANCHÉE : "C'est quoi ta position sur… ?" / "Tu penses quoi de… ?"
+   - PROCESS / MÉTHODE : "Comment tu fais concrètement quand… ?" / "C'est quoi ta méthode pour… ?"
+   - OBSERVATION : "Qu'est-ce que tu observes chez… ?" / "Qu'est-ce qui te frappe quand… ?"
+   - CONVICTION : "C'est quoi le truc que tu répètes toujours à ce sujet ?" / "Pourquoi t'es convaincue que… ?"
+   ⚠️ INTERDIT de faire 3 questions "Raconte-moi une fois où…". Maximum 1 question anecdote sur les 3.
+6. Le ton des questions est chaleureux et curieux (comme une amie qui s'intéresse vraiment).
+7. Chaque question a un placeholder qui donne un mini-exemple de réponse SPÉCIFIQUE au sujet courant.
+8. ORIENTÉES vers l'objectif : si "vente" → demande des résultats, process, transformations. Si "engagement" → demande des anecdotes, émotions. Si "visibilité" → demande des opinions clivantes, observations décalées. Si "crédibilité" → demande des méthodes, des preuves, des observations terrain.
+9. ${recentBriefsContext ? "MÉMOIRE ANTI-RÉPÉTITION : l'historique ci-dessus liste des sujets DIFFÉRENTS déjà traités. Tu ne dois JAMAIS importer leur contenu, leur vocabulaire spécifique ou leurs scènes dans tes questions sur le sujet courant. Ils servent uniquement à éviter de re-poser une question identique." : ""}
+
+INTERDIT — NE FAIS JAMAIS ÇA :
+- Questions génériques type "Qu'est-ce qui te passionne dans ton métier ?", "Quel est ton parcours ?", "Qu'est-ce qui te différencie ?"
+- Questions de coaching de vie déconnectées du sujet
+- Questions trop larges qui pourraient s'appliquer à N'IMPORTE QUEL sujet
+- 3 questions qui commencent toutes par "Raconte-moi" ou "Il y a eu un moment où"
+- Questions interchangeables d'un user à l'autre (= sans vocabulaire métier)
+- ⚠️ Questions qui mentionnent des éléments venus de l'historique des briefs précédents (scènes, lieux, personnages, anecdotes d'anciens briefs) — l'historique ne sert PAS de matière narrative pour le sujet courant
+- Chaque question DOIT mentionner le sujet courant ou un aspect concret du sujet courant
+
+EXEMPLES (pour le sujet "Pourquoi je ne fais plus de remises") :
+❌ MAUVAIS MIX :
+1. "Raconte-moi un moment où tu as dû défendre ta valeur."
+2. "Raconte-moi une fois où une cliente t'a demandé une remise."
+3. "Raconte-moi comment tu as changé ta relation à l'argent."
+(= 3x le même type "raconte-moi" → monotone)
+
+✅ BON MIX :
+1. (anecdote) "La dernière fois qu'on t'a demandé une remise, tu as répondu quoi exactement ?"
+2. (opinion) "C'est quoi le truc qui t'agace le plus dans la culture du 'prix cassé' ?"
+3. (process) "Concrètement, comment tu présentes tes tarifs maintenant pour éviter la négociation ?"
 
 Réponds UNIQUEMENT en JSON :
 {
@@ -259,18 +381,30 @@ Réponds UNIQUEMENT en JSON :
     }
   ]
 }`;
-      userPrompt = `Pose-moi des questions pour créer mon contenu${angle ? ` avec l'angle "${angle.title}"` : ""}.`;
+      userPrompt = `Pose-moi 3 questions pour créer mon contenu sur ce sujet précis : "${context}"${angle ? ` (angle "${angle.title}")` : ""}.`;
 
     } else if (step === "follow-up") {
       const answersBlock = answers.map((a: any, i: number) => `Q${i + 1} : "${a.question}" → "${a.answer}"`).join("\n");
-      systemPrompt = `${COMMON_PREFIX}
+      systemPrompt = `${QUESTIONS_PREFIX}
+${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}\n` : ""}${brandVocabBlock}
+SUJET du contenu : "${context}"
 
-L'utilisatrice a répondu à ces questions :
+L'utilisatrice a répondu à ces 3 questions initiales :
 ${answersBlock}
 
-Lis ses réponses. Identifie le détail le plus intéressant, le plus singulier, ou le plus émotionnel. Pose 1-2 questions de suivi pour creuser CE détail spécifique.
+══ TON RÔLE : creuser UN détail singulier ══
 
-Le but : aller chercher le truc que personne d'autre ne pourrait dire. L'anecdote, le ressenti, la conviction qui rend ce contenu UNIQUE.
+Lis ses réponses comme une amie experte qui veut sortir le contenu unique.
+Identifie LE détail le plus intéressant, le plus singulier, ou le plus émotionnel — celui qui mérite d'être creusé pour passer du "post correct" au "post mémorable".
+
+Pose 1 à 2 questions de suivi MAXIMUM pour creuser CE détail spécifique.
+
+RÈGLES :
+- Cite EXPLICITEMENT le détail que tu creuses (ex : "Tu dis que ta cliente a pleuré quand tu as livré : qu'est-ce qu'elle a dit exactement ?")
+- Sois PRÉCISE, pas générique. Pas "Peux-tu détailler ?" mais "Cette phrase '[citation]' — c'est arrivé dans quel contexte ?"
+- Si une réponse contient un chiffre, une scène, une citation, ou une émotion forte → c'est CETTE matière qu'il faut creuser
+- Si toutes les réponses sont déjà très complètes, pose 1 SEULE question (pas 2) — ne creuse pas pour creuser
+- Le ${"\""}why${"\""} explique en 1 phrase pourquoi cette question rendra le contenu plus singulier
 
 Réponds UNIQUEMENT en JSON :
 {
@@ -282,7 +416,7 @@ Réponds UNIQUEMENT en JSON :
     }
   ]
 }`;
-      userPrompt = "Pose-moi des questions d'approfondissement basées sur mes réponses.";
+      userPrompt = "Pose-moi 1 ou 2 questions d'approfondissement basées sur mes réponses.";
 
     } else if (step === "generate") {
       const answersBlock = answers?.length
@@ -292,200 +426,73 @@ Réponds UNIQUEMENT en JSON :
         ? "\n\nQUESTIONS D'APPROFONDISSEMENT :\n" + followUpAnswers.map((a: any, i: number) => `Q${i + 1} : "${a.question}" → "${a.answer}"`).join("\n")
         : "";
 
-      // Determine target format for depth instructions
-      // Priority: angle.format_livraison > contentType > canal detection
-      const angleFormat = angle?.format_livraison?.toLowerCase() || "";
-      const formatHint = angleFormat || contentType?.toLowerCase() || "";
-      const isCarousel = formatHint.includes("carrousel") || formatHint.includes("carousel");
-      const isReel = formatHint.includes("reel") || formatHint.includes("script");
-      const isStories = formatHint.includes("stories") || formatHint.includes("story");
-      const isLinkedIn = formatHint.includes("linkedin") || contentType === "post_linkedin";
-      const isPinterest = formatHint.includes("pinterest") || contentType === "post_pinterest";
-      const isNewsletter = formatHint.includes("newsletter") || formatHint.includes("email") || contentType === "post_newsletter";
-      const isCaption = !isCarousel && !isReel && !isStories && !isLinkedIn && !isPinterest && !isNewsletter;
-      const isPhotoMode = body.photo_mode === true;
+      // Format variables (isLinkedIn, isCarousel, etc.) are defined in outer scope
 
       // Build format-specific depth instructions
       let depthMandate = "";
+      let storiesGardeFouAlerte: string | null = null;
       if (isCarousel) {
-        depthMandate = `FORMAT : CARROUSEL INSTAGRAM (8 slides minimum)
-
-PROFONDEUR PAR SLIDE :
-- Chaque slide DÉVELOPPE son point. Une slide = 1 idée COMPLÈTE, pas un titre.
-- Slide 1 (hook) : courte et percutante, max 12 mots.
-- Slides 2-7 : chacune DOIT contenir 2-4 phrases qui développent le point. Pas juste un header et une ligne.
-- Au moins 2 slides doivent contenir un EXEMPLE CONCRET, un CHIFFRE, ou une ANECDOTE. Pas que de la théorie.
-- Slide finale : punchline mémorable + CTA.
-- TOTAL : le carrousel complet fait 1500-3000 caractères de contenu textuel (slides + caption).
-
-SLIDE DE PROFONDEUR (obligatoire) :
-Au moins 1 slide doit être un "zoom" : tu prends UN point et tu le creuses en profondeur avec un exemple terrain, un cas réel, ou une analyse fine. C'est cette slide qui fait la différence entre un carrousel "tips génériques" et un carrousel "elle sait de quoi elle parle".
-
-Formate le contenu avec des marqueurs clairs :
-📌 SLIDE 1 : [contenu]
-📌 SLIDE 2 : [contenu]
-etc.
-Après les slides, ajoute :
-📝 CAPTION : [hook différent de slide 1 + corps + CTA + hashtags]`;
+        depthMandate = carouselBrief();
       } else if (isReel) {
-        depthMandate = `FORMAT : SCRIPT REEL (30-60 secondes)
-
-Le reel n'est pas un résumé de carrousel. C'est UNE idée percutante, développée à l'oral.
-
-PROFONDEUR :
-- Hook (0-3s) : la phrase qui fait arrêter le scroll. Texte à l'écran + ce que tu dis.
-- Corps (3-45s) : développe l'idée avec des EXEMPLES CONCRETS. Pas de généralités. Raconte une scène, cite un chiffre, décris une situation.
-- Chaque section doit avoir assez de matière pour être dite à voix haute, pas juste des bullet points.
-- Indique les CUTS visuels et le texte à l'écran pour chaque section.
-- CTA (45-60s) : fermeture avec invitation au dialogue.
-- TOTAL : le script fait 150-300 mots (le rythme parlé = ~150 mots/minute).`;
+        depthMandate = reelBrief({
+          effectiveObjective,
+          face_cam: body.face_cam,
+          time_available: body.time_available,
+          is_launch: body.is_launch,
+          selected_hook: body.selected_hook,
+          pre_gen_answers: body.pre_gen_answers,
+          subject: context,
+          editorial_angle: body.editorial_angle,
+          content_structure: body.content_structure,
+          inspiration_context: body.inspiration_context,
+        });
       } else if (isStories) {
-        depthMandate = `FORMAT : SÉQUENCE STORIES (5-7 stories)
-
-Les stories sont le format le plus INTIME. Comme un message vocal à une amie.
-
-PROFONDEUR :
-- Story 1 : amorce qui donne envie de taper pour voir la suite. Pas de contexte, direct dans le vif.
-- Stories 2-4 : développement avec ton naturel, confidentiel. Chaque story = 1 écran, 2-4 lignes MAX + indication visuelle.
-- Story 4 ou 5 : INTERACTION obligatoire (sondage, question, quiz). Pas un sondage générique : un sondage qui révèle quelque chose.
-- Story finale : conclusion + CTA.
-- Pour chaque story, indique : le TEXTE affiché + le TYPE (texte seul, photo+texte, vidéo, sondage, quiz).`;
+        // Garde-fou : 3 séquences vente sur 7 jours (migré depuis stories-ai)
+        if (effectiveObjective === "vente") {
+          const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+          const gardeFouCol = workspace_id ? "workspace_id" : "user_id";
+          const gardeFouVal = workspace_id || userId;
+          const { count } = await supabase
+            .from("stories_sequences")
+            .select("id", { count: "exact", head: true })
+            .eq(gardeFouCol, gardeFouVal)
+            .eq("objective", "vente")
+            .gte("created_at", sevenDaysAgo);
+          if ((count ?? 0) >= 3) {
+            storiesGardeFouAlerte = "⚠️ Tes stories récentes sont très orientées vente. Reviens à de la connexion ou de l'éducation pour maintenir la confiance. Ratio sain : 80% connexion/éducation, 20% vente.";
+          }
+        }
+        depthMandate = storiesBrief({
+          objective: effectiveObjective,
+          price_range: body.price_range,
+          time_available: body.time_available,
+          face_cam: body.face_cam,
+          is_launch: body.is_launch,
+          gardeFouAlerte: storiesGardeFouAlerte,
+          pre_gen_answers: body.pre_gen_answers,
+          subject: context,
+        });
       } else if (isLinkedIn) {
-        // Inject enriched LinkedIn template if a matching editorial format was chosen
-        const linkedinTemplateContent = editorialFormat && (LINKEDIN_TEMPLATES as any)[editorialFormat]
-          ? (LINKEDIN_TEMPLATES as any)[editorialFormat]
-          : "";
-
-        depthMandate = `ANTI-BROETRY :
-Pas de phrases seules sur une ligne pour faire dramatique. Des paragraphes de 2-3 phrases qui développent une idée. Le rythme vient du contraste entre paragraphes et phrases courtes qui ponctuent, pas des sauts de ligne systématiques.
-
-FORMAT : POST LINKEDIN (1300-2000 caractères)
-
-LinkedIn ≠ tribune d'expert·e. C'est une conversation entre pro qui se respectent.
-
-${linkedinTemplateContent ? `STRUCTURE ÉDITORIALE CHOISIE :\n${linkedinTemplateContent}\n\nSuis cette structure pour organiser le post.` : ""}
-
-TU NE FAIS JAMAIS :
-- Storytelling fabriqué ("Et là, tout a basculé", "Le déclic ?", "Ce jour-là j'ai compris")
-- Phrases courtes en rafale pour faire dramatique ("C'est ton message. Ton message, ça se travaille. Avec méthode. Avec écoute.")
-- Listes à puces inspirationnelles (✅ Soyez authentique)
-- Avant/Après propret et symétrique sans détails concrets
-- "Et vous, qu'en pensez-vous ?" en CTA
-- Flex déguisé en humilité
-- Étirer une idée qui tient en 3 phrases sur 8 paragraphes
-
-TU FAIS :
-- Accroche dans les 210 premiers caractères : une AFFIRMATION FORTE ou un CONSTAT CONCRET. Pas un teaser.
-- Corps : 2-3 paragraphes de prose fluide. UNE idée creusée, pas 5 survolées. Le rythme vient naturellement (phrases longues qui déroulent + une courte qui claque), pas de rafales mécaniques.
-- Ton direct, chaleureux, engagé. L'oral est OK sur LinkedIn : "en vrai", "le truc c'est que", "sauf que".
-- Prendre position. Dire avec quoi tu n'es PAS d'accord.
-- CTA : une question PRÉCISE liée au sujet, ou rien du tout si le texte se suffit.
-- 0-2 hashtags en fin. Pas plus.
-- DENSE : 1300-2000 caractères. Chaque phrase apporte du NOUVEAU. Zéro reformulation.`;
+        depthMandate = linkedinBrief(editorialFormat);
       } else if (isPinterest) {
-        const pinterestContext = (pinterest_link || pinterest_board)
-          ? `\nDÉTAILS DE L'ÉPINGLE :\n${pinterest_link ? `- Lien de destination : ${pinterest_link}` : "- Pas de lien fourni"}\n${pinterest_board ? `- Tableau de destination : "${pinterest_board}"` : ""}\n${pinterest_link ? `\nLa description doit donner envie de cliquer sur ce lien. Mentionne ce que la personne va trouver en cliquant.` : ""}\n`
-          : "";
-
-        depthMandate = `FORMAT : ÉPINGLE PINTEREST (titre + description)
-
-Pinterest est un MOTEUR DE RECHERCHE VISUEL, pas un réseau social. Le contenu est optimisé pour la RECHERCHE.
-${pinterestContext}
-
-TITRE (max 100 caractères) :
-- Mot-clé principal dans les 3 premiers mots
-- Descriptif et utile, pas accrocheur clickbait
-- "Idées décoration salon bohème" > "Vous n'allez pas croire cette déco"
-- "Comment [verbe] [complément]" fonctionne très bien
-- Penser : qu'est-ce que ma cible taperait dans la barre de recherche Pinterest ?
-
-DESCRIPTION (100-200 mots, 2-3 paragraphes) :
-- Décrire CE QUE la personne va trouver en cliquant sur le lien
-- Intégrer les mots-clés naturellement dans le texte (pas de keyword stuffing)
-- Ton clair, utile, descriptif. Moins de personnalité qu'Instagram.
-- PAS de hashtags (inutiles sur Pinterest)
-- Inclure un appel à l'action doux en fin ("Découvre le guide complet", "Retrouve toutes les étapes sur le site", "Enregistre cette épingle pour plus tard")
-- Écriture inclusive avec point médian
-
-TU NE FAIS JAMAIS :
-- Hashtags (ça ne sert à rien sur Pinterest)
-- Titres clickbait ou accrocheurs style Instagram ("Vous n'allez pas croire...")
-- Jargon marketing (funnel, lead magnet, ROI)
-- Ton trop personnel ou émotionnel (c'est du SEO, pas du storytelling)
-- Tiret cadratin (—)
-
-STRUCTURE DE RÉPONSE :
-📌 TITRE : [titre SEO optimisé, max 100 caractères]
-
-📝 DESCRIPTION :
-[paragraphe 1 : ce que la personne va trouver/apprendre]
-[paragraphe 2 : détails, bénéfices concrets]
-[paragraphe 3 : appel à l'action doux]`;
+        depthMandate = pinterestBrief(pinterest_link, pinterest_board);
       } else if (isNewsletter) {
-        depthMandate = `FORMAT : NEWSLETTER / EMAIL (1500-3000 caractères)
-
-La newsletter est le format qui a le PLUS de place pour la profondeur.
-
-PROFONDEUR :
-- Objet d'email : accrocheur, max 50 caractères, pas clickbait.
-- Intro : hook personnel, anecdote ou question. 2-3 phrases.
-- Corps : développe l'idée en profondeur. Apartés en italique, exemples concrets, nuances. C'est le format France Culture de ta com.
-- Au moins 2 exemples concrets ou anecdotes dans le corps.
-- Conclusion : leçon ou ouverture (pas de résumé).
-- CTA : doux, en lien avec le sujet.
-- TOTAL : vise 2000+ caractères minimum.`;
+        depthMandate = newsletterBrief();
       } else if (isPhotoMode) {
-        depthMandate = `FORMAT : LÉGENDE PHOTO INSTAGRAM (400-800 caractères)
-
-La légende ACCOMPAGNE une photo. Elle ne la DÉCRIT PAS.
-La légende COMPLÈTE l'image : contexte invisible, émotion, pourquoi.
-
-${body.photo_description ? `PHOTO DÉCRITE PAR L'UTILISATRICE : "${body.photo_description}"` : ""}
-
-RÈGLES :
-- L'accroche fait ÉCHO à l'image sans la décrire
-- Le corps développe ce que la photo NE DIT PAS
-- Ton sensoriel : texture, lumière, chaleur, poids, odeur
-- Longueur : 400-800 caractères. La photo fait la moitié du travail.
-- CTA doux : invitation, pas de vente agressive
-- 5-10 hashtags
-
-✅ Raconte ce que la photo ne montre pas
-✅ Crée une émotion complémentaire
-❌ Ne décrit pas ce qu'on voit
-❌ Ne sonne pas comme une fiche produit`;
+        depthMandate = photoCaptionBrief(body.photo_description);
       } else {
-        depthMandate = `FORMAT : CAPTION INSTAGRAM
-${effectiveObjective === "visibilite" || effectiveObjective === "visibilité" ? `
-LONGUEUR : 300-600 caractères. Court, percutant. L'idée doit claquer en quelques phrases.
-Le hook fait tout le travail. Le corps développe UNE seule idée. Pas de remplissage.
-` : effectiveObjective === "engagement" ? `
-LONGUEUR : 400-800 caractères. Assez pour raconter, pas assez pour perdre l'attention.
-Le hook crée la connexion. Le corps partage du vécu ou pose une question qui touche. La fin invite au dialogue.
-` : effectiveObjective === "vente" || effectiveObjective === "conversion" ? `
-LONGUEUR : 600-1200 caractères. Assez pour dérouler la preuve et l'invitation.
-Le hook nomme le problème. Le corps montre la transformation (cas concret). La fin ouvre la porte sans forcer.
-` : `
-LONGUEUR : 600-1200 caractères. Adapte au sujet : si l'idée tient en 600 caractères, ne l'étire pas.
-`}
-PROFONDEUR :
-- Les 125 premiers caractères : hook (la phrase qui fait cliquer "voir plus"). C'est la phrase la plus importante.
-- Corps : développe UNE idée en profondeur. Pas 3 idées survolées : 1 idée CREUSÉE.
-- Au moins 1 exemple concret, 1 anecdote, ou 1 chiffre dans le corps.
-- Apartés entre parenthèses *(comme ça)*, bucket brigades naturelles.
-- Fin : ouverture (question ou invitation), pas un résumé.
-- NE PAS étirer pour atteindre une longueur cible. Si c'est dit en 400 caractères, c'est 400.`;
+        depthMandate = captionBrief(effectiveObjective);
       }
 
       systemPrompt = `${COMMON_PREFIX}
 
 ${ANTI_BIAS}
 
-${FORMAT_STRUCTURES}
+${isLinkedIn || isPinterest || isNewsletter ? "" : FORMAT_STRUCTURES}
 
-${WRITING_RESOURCES}
+${isLinkedIn || isPinterest ? "" : WRITING_RESOURCES}
 
-${VISUAL_ANALOGIES}
+${isLinkedIn || isPinterest || isNewsletter ? "" : VISUAL_ANALOGIES}
 
 ${angle ? `ANGLE CHOISI :
 - Titre : ${angle.title}
@@ -507,8 +514,12 @@ ${depthMandate}
 RÉPONSES DE L'UTILISATRICE :
 ${answersBlock}
 ${followUpBlock}
-${calendarBlock}${objectiveBlock}
+${calendarBlock}${objectiveBlock}${newsContextBlock}
 ${preGenBlock}
+
+RÈGLE ANTI-FABRICATION :
+N'invente JAMAIS une anecdote, un cas client ou un chiffre que l'utilisatrice n'a pas écrit.
+Pas de vécu fourni → angle expert : décryptage, constat décalé, prise de position.
 
 ${PREGEN_INJECTION_RULES}
 
@@ -574,35 +585,17 @@ Tu DOIS proposer une version SIGNIFICATIVEMENT DIFFÉRENTE :
 Rédige le contenu en suivant les INSTRUCTIONS DE RÉDACTION FINALE ci-dessus.
 Le contenu doit être PRÊT À POSTER (pas un brouillon).
 
-${isReel ? `Réponds UNIQUEMENT en JSON valide :
+${isReel || isStories ? `` : isNewsletter ? `Réponds UNIQUEMENT en JSON :
 {
-  "format_type": "le sous-format choisi (face_cam_confession, voix_off_b_roll, hook_loop, talking_head, transition_reveal, etc.)",
-  "duree_cible": "durée cible (ex: 45 sec, 30 sec, 60 sec)",
-  "sections": [
-    {
-      "timing": "0-3s",
-      "label": "Hook",
-      "format_visuel": "description de ce qu'on voit à l'écran (cadrage, décor, geste)",
-      "texte_parle": "le texte exact dit à voix haute",
-      "texte_overlay": "le texte affiché à l'écran (court, percutant, 3-8 mots max)",
-      "cut": "type de transition (cut sec, zoom, swipe, etc.)",
-      "tip": "conseil de tournage pour cette section (optionnel)"
-    }
-  ],
-  "personal_tip": "un conseil personnalisé pour le tournage, lié à l'activité de l'utilisatrice",
-  "pillar": "le pilier de contenu",
-  "objectif": "visibilité | confiance | vente",
-  "accroche": "le hook des 3 premières secondes (pour le calendrier)"
-}
-
-IMPORTANT pour les sections :
-- Minimum 4 sections, maximum 7
-- Chaque section a un timing réaliste qui s'enchaîne
-- texte_parle : le script COMPLET dit à voix haute (phrases complètes, pas des bullet points)
-- texte_overlay : COURT (3-8 mots max), le texte affiché à l'écran
-- format_visuel : description concrète du plan caméra
-- cut : la transition entre cette section et la suivante
-- Le total du texte parlé = 150-300 mots` : `Réponds UNIQUEMENT en JSON :
+  "subject": "objet de l'email (max 50 caractères, accrocheur, jamais 'Newsletter #N')",
+  "preview_text": "texte de preview (40-90 caractères, complète l'objet sans le répéter)",
+  "content": "corps complet de la newsletter (avec \\n\\n entre paragraphes)",
+  "accroche": "première phrase du corps",
+  "cta_suggestion": "suggestion de CTA doux si pertinent, sinon null",
+  "format": "newsletter",
+  "pillar": "...",
+  "objectif": "..."
+}` : `Réponds UNIQUEMENT en JSON :
 {
   "content": "...",
   "accroche": "...",
@@ -610,6 +603,11 @@ IMPORTANT pour les sections :
   "pillar": "...",
   "objectif": "..."
 }`}`;
+      // Inject launch context for stories AND reels (preserved from stories-ai / reels-ai)
+      if ((isStories || isReel) && body.launch_context) {
+        const lc = body.launch_context;
+        systemPrompt += `\n\nCONTEXTE LANCEMENT :\n- Phase : ${lc.phase || "?"}\n- Chapitre : ${lc.chapter_label || "?"}\n- Phase mentale audience : ${lc.audience_phase || "?"}\n- Objectif du slot : ${lc.objective || "?"}\n- Angle suggéré : ${lc.angle_suggestion || "?"}\nCONSIGNE : adapte le contenu à cette phase du lancement. Un contenu de phase "vente" n'a pas le même ton qu'un contenu de phase "teasing".`;
+      }
       userPrompt = "Rédige mon contenu à partir de mes réponses et de l'angle choisi.";
 
     } else if (step === "adjust") {
@@ -722,6 +720,7 @@ LONGUEURS OBLIGATOIRES :
 - Reel : script complet avec timecodes (0-3s hook, 3-15s contexte, 15-45s coeur, 45-60s CTA). Indique les cuts et le texte à l'écran.
 - Stories : séquence de 5-7 stories. Chaque story = ce qui est affiché (texte, sticker, sondage) + indication visuelle. Story 4 = interaction obligatoire.
 - LinkedIn : 1300-2000 caractères. Prose fluide, pas de listes à puces. Accroche dans les 210 premiers caractères. 0-2 hashtags en fin.
+- Instagram (Carrousel, Reel, Stories) : 3 hashtags maximum en fin de légende. Jamais plus, même si la légende est longue. Choisis-les ciblés (pas de #love #life génériques).
 - Newsletter : 1500-3000 caractères. Objet d'email accrocheur. Structure : hook personnel > développement > leçon > CTA.
 
 RÈGLE DE PROFONDEUR :
@@ -742,9 +741,27 @@ SELF-CHECK FINAL (fais-le en interne avant de répondre) :
 Réponds UNIQUEMENT en JSON valide :
 {
   "results": {
-    ${(formats || []).map((f: string) => `"${f}": "contenu complet ici"`).join(",\n    ")}
+    ${(formats || []).map((f: string) => f === "carrousel"
+      ? `"carrousel": {
+      "slides": [
+        { "slide_number": 1, "title": "hook court", "body": "2-4 phrases" },
+        { "slide_number": 2, "title": "...", "body": "..." },
+        { "slide_number": 3, "title": "...", "body": "..." },
+        { "slide_number": 4, "title": "...", "body": "..." },
+        { "slide_number": 5, "title": "...", "body": "..." },
+        { "slide_number": 6, "title": "...", "body": "..." },
+        { "slide_number": 7, "title": "...", "body": "..." },
+        { "slide_number": 8, "title": "punchline + CTA", "body": "2-4 phrases" }
+      ],
+      "caption": { "hook": "1-2 phrases d'accroche", "body": "développement de la légende", "cta": "appel à l'action final" }
+    }`
+      : `"${f}": "contenu complet ici"`).join(",\n    ")}
+  },
+  "topics": {
+    ${(formats || []).map((f: string) => `"${f}": "le sujet réel de ce contenu en 5-10 mots (pas 'recyclage', le VRAI sujet traité)"`).join(",\n    ")}
   }
-}`;
+}
+${(formats || []).includes("carrousel") ? `\nIMPORTANT pour le carrousel : tu DOIS renvoyer un OBJET structuré avec exactement 8 slides (slide_number 1 à 8, chaque slide a title + body de 2-4 phrases) et une caption {hook, body, cta}. Pas une string. Pas moins de 8 slides. Les règles de longueur et d'arc narratif (slide 1 = hook, 2-7 = développement, 8 = punchline + CTA) s'appliquent au champ body de chaque slide.` : ""}`;
 
       // Move source text to user message instead of system prompt
       userPrompt = sourceText
@@ -788,15 +805,27 @@ Réponds UNIQUEMENT en JSON :
 
     // COMMON_PREFIX already includes BASE_SYSTEM_RULES + voice priority + CORE_PRINCIPLES + ANTI_SLOP + ETHICAL_GUARDRAILS + fullContext
 
+    // ── Inject SERIES context (when this post belongs to a series) ──
+    if (series_id && step === "generate") {
+      try {
+        const channelForSeries = isLinkedIn ? "linkedin" : isPinterest ? "pinterest" : isNewsletter ? "newsletter" : "instagram";
+        const seriesCtx = await buildSeriesContext(supabase, series_id, episode_number, channelForSeries);
+        if (seriesCtx) {
+          console.log(`[creative-flow] series context injected (${contentType}): ${seriesCtx.seriesName} (ep #${seriesCtx.episodeNumber})`);
+          systemPrompt += `\n\n${seriesCtx.block}`;
+        }
+      } catch (e) {
+        console.error("[creative-flow] buildSeriesContext failed", e);
+      }
+    }
+
+
     // ── Deep Research (web search via Anthropic) ──
     if (deepResearch && step === "generate") {
       // Check deep_research quota
-      const drQuota = await checkQuota(user.id, "deep_research");
+      const drQuota = await checkQuota(userId, "deep_research");
       if (!drQuota.allowed) {
-        return new Response(
-          JSON.stringify({ error: "limit_reached", message: drQuota.message, remaining: 0 }),
-          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return quotaDeniedResponse(drQuota, corsHeaders);
       }
 
       const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
@@ -831,7 +860,7 @@ Réponds UNIQUEMENT en JSON :
         headers: {
           "Content-Type": "application/json",
           "x-api-key": apiKey!,
-          "anthropic-version": "2025-01-01",
+          "anthropic-version": "2023-06-01",
         },
         body: JSON.stringify({
           model: getModelForAction("content"),
@@ -873,15 +902,413 @@ Privilégie les sources françaises et européennes quand elles existent.`,
       }
 
       // Log deep research usage
-      await logUsage(user.id, "deep_research", "web_search", undefined, "claude-sonnet-4-5-20250929", workspace_id);
+      await logUsage(userId, "deep_research", "web_search", undefined, "claude-sonnet-4-5-20250929", workspace_id);
     }
 
-    // ── Streaming SSE (generate step only, no photo/deepResearch) ──
+    // ── Streaming SSE (generate step) ──
+    // Activé pour : texte pur, ET pour LinkedIn photo (sinon la socket casse pendant la vision).
     const wantsStream = req.headers.get("Accept") === "text/event-stream";
-    if (wantsStream && step === "generate" && !body.photo_mode && !deepResearch) {
+    const isLinkedInPhotoStream = !!body.photo_mode && isLinkedIn && !!body.photos?.[0]?.base64;
+    const canStreamPhoto = isLinkedInPhotoStream && !deepResearch;
+    if (wantsStream && step === "generate" && !deepResearch && !isStories && !isReel && (!body.photo_mode || canStreamPhoto)) {
       const apiKey = Deno.env.get("ANTHROPIC_API_KEY")!;
       const model = getModelForAction("content");
 
+      // ── LinkedIn + photos : streaming vision (évite la coupure de socket
+      //    pendant la latence vision). On émet immédiatement les tokens dès
+      //    qu'Anthropic les renvoie : la socket reste vivante.
+      if (canStreamPhoto) {
+        const validPhotos = body.photos!.filter((p: any) => p?.base64).slice(0, 10);
+        const isBeforeAfter = validPhotos.length === 2;
+        const isSeries = validPhotos.length >= 3;
+        const { formatBrief, jsonShape } = buildVisionGenerateBrief(contentType);
+
+        const photoContent: any[] = [];
+        photoContent.push({
+          type: "text",
+          text: `══ RÈGLES CRITIQUES À LIRE AVANT DE REGARDER LES IMAGES ══
+
+1. ANTI-PARAPHRASE VISUELLE : tu n'as PAS le droit d'écrire "Ce [adjectif] [objet], c'est…" pour désigner ce que tu vois.
+2. ANTI-CASCADE : pas de rafale de phrases courtes pour faire "punchy". Une seule pensée qui se déroule.
+3. ANTI-CTA FABRIQUÉ : pas de slogan-invitation en italique ou guillemets.
+4. CHIFFRES / NUMÉROS / DATES / NOMS VISIBLES : recopie EXACTEMENT.
+5. TU PARLES À "TU", pas "vous".
+
+══ MAINTENANT, REGARDE LES IMAGES ══
+`,
+        });
+        validPhotos.forEach((p: any, idx: number) => {
+          const { media_type, data } = extractImagePayload(String(p.base64), p.mimeType);
+          photoContent.push({
+            type: "image",
+            source: { type: "base64", media_type, data },
+          });
+          const ctx = p.context?.trim();
+          if (isBeforeAfter) {
+            const label = idx === 0 ? "↑ AVANT" : "↑ APRÈS";
+            photoContent.push({ type: "text", text: ctx ? `${label} — contexte : "${ctx}"` : label });
+          } else if (ctx) {
+            photoContent.push({ type: "text", text: `↑ Contexte sur l'image ci-dessus : "${ctx}"` });
+          }
+        });
+        const modeInstr = isBeforeAfter
+          ? `\n\n🔄 MODE AVANT / APRÈS : raconte LA transformation comme un récit unique.`
+          : isSeries
+          ? `\n\n📸 MODE SÉRIE (${validPhotos.length} images) : trouve le fil thématique commun. NE liste/NE numérote PAS.`
+          : "";
+        const answersBlockPhoto = (answers && Array.isArray(answers) && answers.length > 0)
+          ? answers.map((a: any, i: number) => `Q${i + 1} : "${a.question}"\n→ "${a.answer}"`).join("\n\n")
+          : "";
+        const userSubjectBlock = (context && String(context).trim())
+          ? `══ SUJET DÉCLARÉ PAR L'UTILISATRICE (PRIORITÉ ABSOLUE) ══\n"${String(context).trim()}"\n\nC'est CE sujet que le post doit traiter. Les photos ILLUSTRENT, elles ne dictent PAS l'angle.\n\n`
+          : "";
+        photoContent.push({
+          type: "text",
+          text: `${userSubjectBlock}${formatBrief}${body.photo_description ? `\nDescription complémentaire : "${body.photo_description}"` : ""}${answersBlockPhoto ? `\n\n══ RÉPONSES DE L'UTILISATRICE ══\n${answersBlockPhoto}` : ""}${modeInstr}\n\nRègle anti-fabrication : n'invente AUCUN détail non vérifiable. Si la matière manque, bascule sur registre RÉFLEXIF/MÉTA ancré sur LE SUJET DÉCLARÉ.\n\nRéponds UNIQUEMENT en JSON :\n${jsonShape}`,
+        });
+
+        const anthropicStream = await streamAnthropicSSE(
+          apiKey,
+          model,
+          systemPrompt,
+          [{ role: "user", content: photoContent }],
+          0.7,
+          4096,
+        );
+        return createClientSSEStream(anthropicStream, corsHeaders, async () => {
+          await logUsage(userId, "content", "creative_flow", undefined, undefined, workspace_id);
+        });
+      }
+
+      // LinkedIn (texte): disable streaming, use 2-step generation + correction
+      if (isLinkedIn) {
+        console.log("[CORRECTION DEBUG] LinkedIn correction pass STARTED");
+        const rawContent = await callAnthropicSimple(model, systemPrompt, userPrompt!, 0.85, 4096);
+        console.log("[CORRECTION DEBUG] First call done, rawContent length:", rawContent?.length);
+
+        // Parse the raw content to extract the post text
+        let postText = "";
+        try {
+          const parsed = JSON.parse(rawContent);
+          postText = parsed.content || parsed.full_text || rawContent;
+        } catch {
+          const match = rawContent.match(/\{[\s\S]*\}/);
+          if (match) {
+            try {
+              const parsed = JSON.parse(match[0]);
+              postText = parsed.content || parsed.full_text || rawContent;
+            } catch { postText = rawContent; }
+          } else {
+            postText = rawContent;
+          }
+        }
+
+        // Step 2: Correction pass — short, focused prompt
+        const correctionPrompt = `Tu es un éditeur LinkedIn exigeant. Tu reçois un post et tu dois le CORRIGER systématiquement. Ton job n'est PAS de juger si c'est "déjà bien" — c'est de traquer et corriger TOUS les patterns IA, même subtils.
+
+══ TEST FONDAMENTAL (à appliquer AVANT toute correction) ══
+
+Lis le post à voix haute mentalement. Pose-toi cette question :
+
+"Est-ce que ce post pourrait avoir été écrit par une assistante IA bien entraînée ?"
+
+Si la réponse est "oui, possiblement" → tu DOIS réécrire les passages qui te font hésiter.
+
+Si la réponse est "non, c'est clairement humain" → tu peux retourner la version corrigée.
+
+Le critère n'est pas "est-ce que c'est joli" mais "est-ce que c'est INDISTINGUABLE d'un humain".
+
+══ CORRECTIONS OBLIGATOIRES — APPLIQUE TOUTES CELLES QUI S'APPLIQUENT ══
+
+1. PHRASES COURTES CONSÉCUTIVES (compte-les) :
+   → COMPTE les phrases consécutives de moins de 10 mots.
+   → Si tu trouves 2 phrases courtes (< 10 mots) qui se suivent : FUSIONNE-LES.
+   → Si tu trouves 1 phrase isolée < 10 mots seule entre 2 sauts de ligne : INTÈGRE-LA dans le paragraphe précédent ou suivant.
+   → Le rythme vient de l'ALTERNANCE longue/courte, pas de la répétition courte/courte.
+   ❌ "C'était brillant. Trop brillant." → ✅ "C'était brillant. Tellement brillant que ça en devenait illisible."
+   ❌ "C'était beau. Vraiment." → ✅ "C'était objectivement beau, et c'est exactement là le problème."
+   ❌ "Et là, j'ai compris." → ✅ "Et là, j'ai compris ce qui clochait."
+
+2. ÉNUMÉRATIONS RYTHMIQUES PARFAITES :
+   → Une énumération de 3 éléments avec une structure parallèle ("Des X, des Y, des Z" ou "X qui A, Y qui B, Z qui C") est un marqueur IA.
+   → Casse la symétrie : varie les longueurs, ajoute une parenthèse, supprime un élément.
+   ❌ "Des couleurs pop, une typo qui claque, un univers visuel cohérent."
+   → ✅ "Les couleurs étaient pop, la typo claquait, et tout collait visuellement."
+   ❌ "Des métaphores partout, des jeux de mots subtils, une structure narrative en trois actes."
+   → ✅ "Plein de métaphores, des jeux de mots, une structure en trois actes : bref, du travail."
+
+3. FORMULES MANUFACTURÉES (mots-valises copywriting) :
+   → Détecte les expressions qui sonnent comme un livre de marketing.
+   → Liste non-exhaustive (cherche des variantes) : "noyé dans l'esthétique", "bruit joli", "vitrine sans produit", "fondations bancales", "habiller un message", "habillage du fond", "emballage sans contenu", "décorer la maison", "le squelette du contenu", "l'ADN de la marque", "le pilier de", "le socle de", "transformer notre manière de [verbe]".
+   → Si tu vois UNE de ces expressions OU UNE expression du même registre → réécris en plus brut, plus parlé.
+   ❌ "Le message était noyé dans l'esthétique." → ✅ "Le message était invisible derrière le visuel."
+   ❌ "transformer notre manière de consommer, de créer et de vivre" → ✅ "changer comment on consomme, comment on crée : et même comment on vit"
+
+4. RAFALES "PAS X. PAS Y. C'EST Z." :
+   → Cette structure parallèle est un marqueur IA.
+   → Réécris en prose continue.
+   ❌ "C'est pas sexy. C'est pas instagrammable. Ça ressemble à du travail de fond."
+   → ✅ "C'est pas sexy ni instagrammable, ça ressemble plus à du travail de fond ingrat."
+
+5. ANAPHORES (3+ phrases qui démarrent pareil) :
+   → Compte les débuts de phrase. Si 3+ commencent par le même mot/groupe : RÉÉCRIS.
+   ❌ "Par dire les choses. Par ne pas forcer. Par être direct·e."
+   → ✅ "En disant les choses sans forcer personne à deviner. En étant direct·e."
+   ❌ "Je parle de visibilité. Je parle du droit. Je parle de réhabiliter."
+   → ✅ "Je parle de visibilité, du droit de prendre sa place, de réhabiliter la communication."
+
+6. EMPILEMENT INSPIRATIONNEL (2+ phrases-valeurs sans exemple concret) :
+   → Si 2 phrases consécutives expriment des valeurs abstraites sans aucun fait : remplace par UN exemple concret.
+   ❌ "Les projets éthiques méritent d'être vus. Les créatrices ont le droit de prendre leur place."
+   → ✅ "Une céramiste qui fait un travail incroyable mais que personne ne connaît, c'est pas un choix de discrétion. C'est un problème de visibilité."
+
+7. ACCROCHE PROMESSE/SLOGAN :
+   → Si l'accroche promet quelque chose ("X n'aura plus de secrets", "Voici comment...", "5 erreurs à éviter") : remplace par un FAIT concret ou une scène vécue.
+
+8. CTA GÉNÉRIQUE :
+   → "Et toi/vous, qu'en penses-tu/pensez-vous ?" ou variante existentielle large : remplace par une question SPÉCIFIQUE au sujet du post, ou supprime.
+
+9. CONCLUSION QUI RÉSUME :
+   → Si la dernière phrase reformule ce qui a été dit : remplace par une ouverture (question, tension, invitation) ou supprime.
+   ❌ "Mais pour ça, elle doit d'abord être comprise." (résume)
+   → ✅ "Et c'est cette base, peut-être, qu'on a oubliée." (ouvre)
+
+10. GENRÉ NON INCLUSIF :
+    → Pas de point médian sur les noms communs : ajoute-le.
+
+11. REDONDANCE :
+    → Si 2+ paragraphes expriment la même idée sous angles différents : garde le plus CONCRET, fusionne ou supprime les autres.
+
+12. LONGUEUR :
+    → Cible : 1300-1700 caractères. Si > 1700 : supprime le paragraphe le plus abstrait.
+
+══ RÈGLES ABSOLUES ══
+
+- Garde le SENS et la CONVICTION du post. Tu corriges la FORME, pas le FOND.
+- N'invente pas de nouveaux faits. Garde les détails concrets de l'original.
+- Le post corrigé fait entre 1300 et 1700 caractères.
+- JAMAIS de tiret cadratin (—). Utilise : ou ; ou des virgules.
+- Écriture inclusive avec point médian.
+
+══ AUTO-VÉRIFICATION FINALE ══
+
+Avant de retourner le JSON, RELIS ton output et vérifie :
+
+□ Y a-t-il encore 2 phrases courtes consécutives ? → fusionne
+□ Y a-t-il encore une formule manufacturée ? → réécris
+□ La conclusion ouvre-t-elle vraiment ? → vérifie qu'elle ne résume pas
+□ Le post sonne-t-il INDISTINGUABLE d'un humain ? → si non, recommence
+
+Réponds UNIQUEMENT en JSON :
+{
+  "content": "le post complet corrigé",
+  "accroche": "les 210 premiers caractères",
+  "corrections_applied": ["liste courte des corrections faites"]
+}`;
+        const correctedRaw = await callAnthropicSimple(
+          getModelForAction("content"),
+          correctionPrompt,
+          `Voici le post LinkedIn à corriger :\n\n"""\n${postText}\n"""`,
+          0.3,
+          4096
+        );
+        console.log("[CORRECTION DEBUG] Correction call done, correctedRaw length:", correctedRaw?.length);
+
+        // Parse corrected content, fallback to original if correction fails
+        let finalResult: any = null;
+        try {
+          finalResult = JSON.parse(correctedRaw);
+        } catch {
+          const match = correctedRaw.match(/\{[\s\S]*\}/);
+          if (match) {
+            try { finalResult = JSON.parse(match[0]); } catch { finalResult = null; }
+          }
+        }
+
+        // If correction succeeded, use it; otherwise fall back to original
+        console.log("[CORRECTION DEBUG] finalResult.content present:", !!finalResult?.content);
+        if (finalResult?.content) {
+          let originalParsed: any = {};
+          try { originalParsed = JSON.parse(rawContent); } catch {
+            const m = rawContent.match(/\{[\s\S]*\}/);
+            if (m) try { originalParsed = JSON.parse(m[0]); } catch {}
+          }
+
+          const merged = {
+            ...originalParsed,
+            content: finalResult.content,
+            accroche: finalResult.accroche || originalParsed.accroche,
+            format: originalParsed.format || "linkedin",
+            pillar: originalParsed.pillar || "",
+            objectif: originalParsed.objectif || "",
+          };
+
+          await logUsage(userId, "content", "creative_flow", undefined, undefined, workspace_id);
+          return new Response(JSON.stringify(merged), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        console.log("[CORRECTION DEBUG] FALLBACK triggered — returning uncorrected post");
+        // Fallback: return original if correction failed
+        let fallbackParsed: any;
+        try { fallbackParsed = JSON.parse(rawContent); } catch {
+          const m = rawContent.match(/\{[\s\S]*\}/);
+          if (m) try { fallbackParsed = JSON.parse(m[0]); } catch { fallbackParsed = { content: rawContent }; }
+          else fallbackParsed = { content: rawContent };
+        }
+
+        await logUsage(userId, "content", "creative_flow", undefined, undefined, workspace_id);
+        return new Response(JSON.stringify(fallbackParsed), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Newsletter: disable streaming, use 2-step generation + correction (same pattern as LinkedIn)
+      if (isNewsletter) {
+        const rawContent = await callAnthropicSimple(model, systemPrompt, userPrompt!, 0.7, 4096);
+
+        let parsed: any;
+        try {
+          parsed = JSON.parse(rawContent);
+        } catch {
+          const match = rawContent.match(/\{[\s\S]*\}/);
+          if (match) {
+            try { parsed = JSON.parse(match[0]); } catch { parsed = { content: rawContent }; }
+          } else {
+            parsed = { content: rawContent };
+          }
+        }
+
+        console.log(
+          `[creative-flow newsletter] subject:`,
+          parsed.subject?.length,
+          "preview:",
+          parsed.preview_text?.length,
+        );
+
+        if (parsed.content && typeof parsed.content === "string" && parsed.content.length >= 200) {
+          try {
+            const corrected = await applyCorrectionPass(parsed.content, "newsletter", {
+              logger: (m) => console.log(`[creative-flow newsletter] ${m}`),
+            });
+            if (corrected && corrected.length >= 200) {
+              parsed.content = corrected;
+            }
+          } catch (e) {
+            console.error("[creative-flow newsletter] correction pass failed:", e);
+          }
+        }
+
+        if (parsed.content && typeof parsed.content === "string") {
+          parsed.word_count = parsed.content.split(/\s+/).filter(Boolean).length;
+        }
+
+        await logUsage(userId, "content", "creative_flow", undefined, undefined, workspace_id);
+        return new Response(JSON.stringify(parsed), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Carousel: disable streaming, use 2-step generation + correction
+      if (isCarousel) {
+        const rawContent = await callAnthropicSimple(model, systemPrompt, userPrompt!, 0.85, 4096);
+
+        // Parse the raw content
+        let parsedContent: any = null;
+        try {
+          parsedContent = JSON.parse(rawContent);
+        } catch {
+          const match = rawContent.match(/\{[\s\S]*\}/);
+          if (match) {
+            try { parsedContent = JSON.parse(match[0]); } catch {}
+          }
+        }
+
+        // Extract slides text for correction
+        const slidesText = parsedContent?.content || rawContent;
+
+        // Step 2: Correction pass for carousel
+        const carouselCorrectionPrompt = `Tu es un éditeur de carrousels Instagram exigeant. Tu reçois un carrousel et tu dois le CORRIGER slide par slide.
+
+CORRECTIONS OBLIGATOIRES — applique TOUTES celles qui s'appliquent :
+
+1. SLIDE-TITRE (slide qui ne contient qu'1 phrase ou moins de 15 mots) :
+   → Développer à 2-4 phrases. Ajouter un exemple, une nuance, un détail concret.
+   → Exception : Slide 1 (hook) DOIT être courte (1-2 phrases max).
+
+2. NUMÉROTATION DE CONSEILS ("Conseil 1", "Erreur n°2", "Étape 3", "Astuce") :
+   → Supprimer la numérotation. Reformuler comme un moment dans un arc narratif.
+   → "Conseil 1 : Soyez authentique" → "Ce que j'ai compris après 2 ans à copier les autres : l'authenticité n'est pas un style, c'est ce qui reste quand on arrête de performer."
+
+3. SLIDES REDONDANTES (2 slides qui disent la même chose différemment) :
+   → Fusionner en une seule slide plus dense, ou remplacer la plus faible par un nouvel angle.
+
+4. MANQUE DE CONCRET (slide entièrement abstraite, sans exemple ni chiffre ni situation) :
+   → Ajouter un détail concret : un cas, un chiffre, une phrase entendue, un avant/après.
+
+5. SLIDE FINALE QUI RÉSUME :
+   → Remplacer par une punchline qui OUVRE (question, tension non résolue, invitation) au lieu de fermer.
+
+6. CAPTION FAIBLE (caption qui répète le contenu des slides) :
+   → Le hook de la caption doit être DIFFÉRENT de la slide 1. La caption apporte un COMPLÉMENT, pas un résumé.
+
+RÈGLES :
+- Garde l'ARC NARRATIF du carrousel. Tu corriges les slides faibles, pas la structure globale.
+- Chaque slide corrigée fait 2-4 phrases (sauf slide 1 : 1-2 phrases max).
+- Le carrousel corrigé fait 1500-3000 caractères au total.
+- Retourne le même format JSON que l'original avec les slides corrigées.
+
+Réponds UNIQUEMENT en JSON :
+{
+  "content": "le carrousel complet corrigé avec les marqueurs 📌 SLIDE et 📝 CAPTION",
+  "accroche": "le hook de la slide 1",
+  "corrections_applied": ["liste courte des corrections faites"]
+}`;
+
+        const correctedRaw = await callAnthropicSimple(
+          getModelForAction("content"),
+          carouselCorrectionPrompt,
+          `Voici le carrousel à corriger :\n\n"""\n${slidesText}\n"""`,
+          0.3,
+          4096
+        );
+
+        // Parse corrected content, fallback to original if correction fails
+        let finalResult: any = null;
+        try {
+          finalResult = JSON.parse(correctedRaw);
+        } catch {
+          const match = correctedRaw.match(/\{[\s\S]*\}/);
+          if (match) {
+            try { finalResult = JSON.parse(match[0]); } catch { finalResult = null; }
+          }
+        }
+
+        if (finalResult?.content) {
+          const merged = {
+            ...(parsedContent || {}),
+            content: finalResult.content,
+            accroche: finalResult.accroche || parsedContent?.accroche,
+            format: parsedContent?.format || "carrousel",
+            pillar: parsedContent?.pillar || "",
+            objectif: parsedContent?.objectif || "",
+          };
+
+          await logUsage(userId, "content", "creative_flow", undefined, undefined, workspace_id);
+          return new Response(JSON.stringify(merged), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Fallback: return original
+        await logUsage(userId, "content", "creative_flow", undefined, undefined, workspace_id);
+        return new Response(JSON.stringify(parsedContent || { content: rawContent }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Non-LinkedIn, non-Carousel: stream as usual
       const anthropicStream = await streamAnthropicSSE(
         apiKey,
         model,
@@ -891,7 +1318,9 @@ Privilégie les sources françaises et européennes quand elles existent.`,
         4096,
       );
 
-      return createClientSSEStream(anthropicStream, corsHeaders);
+      return createClientSSEStream(anthropicStream, corsHeaders, async () => {
+        await logUsage(userId, "content", "creative_flow", undefined, undefined, workspace_id);
+      });
     }
 
     // ── Call Anthropic ──
@@ -950,33 +1379,143 @@ Privilégie les sources françaises et européennes quand elles existent.`,
         system: systemPrompt,
         messages: [{ role: "user", content }],
         temperature: 0.8,
-        max_tokens: 4096,
+        max_tokens: 8192,
+      });
+    } else if (step === "questions" && body.photo_mode && body.photos?.[0]?.base64) {
+      // Vision-anchored questions: let Claude SEE ALL photos (1..10) to ask grounded questions.
+      const validPhotosQ = body.photos.filter((p: any) => p?.base64).slice(0, 10);
+      const photoCountQ = validPhotosQ.length;
+      const seriesModeQ: "single" | "before_after" | "series" =
+        photoCountQ === 1 ? "single" : photoCountQ === 2 ? "before_after" : "series";
+
+      const perPhotoContextsQ = validPhotosQ.map((p: any) => p?.context?.trim() || null);
+
+      const visionQuestionsPrompt = buildVisionQuestionsPrompt({
+        contentType,
+        context,
+        objective,
+        photo_description: body.photo_description,
+        per_photo_context: perPhotoContextsQ[0] || null,
+        per_photo_contexts: perPhotoContextsQ,
+        photo_count: photoCountQ,
+        series_mode: seriesModeQ,
+      });
+
+      const questionsContent: any[] = [];
+      validPhotosQ.forEach((p: any, i: number) => {
+        const { media_type, data } = extractImagePayload(String(p.base64), p.mimeType);
+        if (photoCountQ > 1) {
+          questionsContent.push({ type: "text", text: `Photo ${i + 1}/${photoCountQ}${p?.context?.trim() ? ` — contexte : "${p.context.trim()}"` : ""} :` });
+        }
+        questionsContent.push({ type: "image", source: { type: "base64", media_type, data } });
+      });
+      questionsContent.push({ type: "text", text: visionQuestionsPrompt });
+
+      rawContent = await callAnthropic({
+        model: getModelForAction("content"),
+        system: systemPrompt,
+        messages: [{ role: "user", content: questionsContent }],
+        temperature: 0.8,
+        max_tokens: 1500,
       });
     } else if (step === "generate" && body.photo_mode && body.photos?.[0]?.base64) {
-      // Photo mode with vision: send the image to Claude
-      const photoBase64 = body.photos[0].base64.replace(/^data:image\/[a-z]+;base64,/, "");
-      const photoMimeType = body.photos[0].mimeType || "image/jpeg";
-      const photoContent: any[] = [
-        {
-          type: "image",
-          source: { type: "base64", media_type: photoMimeType, data: photoBase64 },
-        },
-        {
+      // Photo mode with vision: send 1 to 10 images to Claude — format-aware prompt.
+      // 1 = scène unique. 2 = "avant / après" (transformation). 3+ = "série / reportage".
+      const validPhotos = body.photos.filter((p: any) => p?.base64).slice(0, 10);
+      const isBeforeAfter = validPhotos.length === 2;
+      const isSeries = validPhotos.length >= 3;
+
+      const { formatBrief, jsonShape } = buildVisionGenerateBrief(contentType);
+      const isLinkedInPhoto = !!contentType?.includes("linkedin");
+
+      const photoContent: any[] = [];
+
+      // RÈGLES CRITIQUES placées AVANT les images (LinkedIn) : Claude lit les
+      // interdits avant de "voir" les photos, ce qui réduit l'amorçage descriptif.
+      if (isLinkedInPhoto) {
+        photoContent.push({
           type: "text",
-          text: `Rédige une légende Instagram pour cette photo.${body.photo_description ? `\nDescription de l'utilisatrice : "${body.photo_description}"` : ""}\nLa légende doit COMPLÉTER l'image, pas la décrire. Ton sensoriel. 400-800 caractères.\n\nRéponds UNIQUEMENT en JSON :\n{\n  "content": "...",\n  "accroche": "...",\n  "format": "caption_photo",\n  "pillar": "...",\n  "objectif": "..."\n}`,
-        },
-      ];
+          text: `══ RÈGLES CRITIQUES À LIRE AVANT DE REGARDER LES IMAGES ══
+
+1. ANTI-PARAPHRASE VISUELLE : tu n'as PAS le droit d'écrire "Ce [adjectif] [objet], c'est…" pour désigner ce que tu vois.
+   ❌ "Ce flyer orange et jaune, c'est l'événement Aire You Ready."
+   ❌ "Cette affiche colorée, c'est…"
+   ✅ Tu peux NOMMER le sujet directement : "Aire You Ready, c'est…" / "Vendredi soir, on était…"
+
+2. ANTI-CASCADE : pas de rafale de phrases courtes pour faire "punchy".
+   ❌ "Pas un musée à cocher. Un verre au comptoir. Une conversation qui s'étire."
+   ✅ Une seule pensée qui se déroule : "C'était pas un musée à cocher mais un verre au comptoir, une conversation qui s'étire."
+
+3. ANTI-CTA FABRIQUÉ : pas de slogan-invitation en italique ou guillemets.
+   ❌ « Ici, il se passe quelque chose. Venez. »
+   ✅ Une phrase qui coupe net, ou une question concrète liée au sujet.
+
+4. CHIFFRES / NUMÉROS / DATES / NOMS VISIBLES : recopie EXACTEMENT. Si tu vois "#3", écris "#3", jamais "#8".
+
+5. TU PARLES À "TU", pas "vous". Une amie au café, pas une audience.
+
+══ MAINTENANT, REGARDE LES IMAGES ══
+`,
+        });
+      }
+
+      validPhotos.forEach((p: any, idx: number) => {
+        const { media_type, data } = extractImagePayload(String(p.base64), p.mimeType);
+        photoContent.push({
+          type: "image",
+          source: { type: "base64", media_type, data },
+        });
+        // IMPORTANT : ne JAMAIS injecter "Photo 1/N" en texte — le modèle l'imite
+        // dans sa sortie. On garde un label uniquement pour le mode AVANT/APRÈS
+        // (sémantique nécessaire) et pour le contexte par photo s'il existe.
+        const ctx = p.context?.trim();
+        if (isBeforeAfter) {
+          const label = idx === 0 ? "↑ AVANT" : "↑ APRÈS";
+          photoContent.push({ type: "text", text: ctx ? `${label} — contexte : "${ctx}"` : label });
+        } else if (ctx) {
+          // Série ou single : on attache le contexte directement à l'image
+          // précédente, sans numéro, pour ne pas amorcer un phrasé "Photo X".
+          photoContent.push({ type: "text", text: `↑ Contexte sur l'image ci-dessus : "${ctx}"` });
+        }
+      });
+
+      const modeInstr = isBeforeAfter
+        ? `\n\n🔄 MODE AVANT / APRÈS : la 1ère image = état AVANT, la 2nde = état APRÈS. Raconte LA transformation comme un récit unique (le déclic, le geste, le résultat). Ne décris pas chaque image séparément.`
+        : isSeries
+        ? `\n\n📸 MODE SÉRIE (${validPhotos.length} images) : ces images traitent d'UN MÊME sujet. Trouve le fil thématique commun et écris UN SEUL message qui s'appuie sur l'ensemble. NE liste PAS les images. NE numérote PAS ("photo 1, photo 2" est interdit). Pas de structure "étape 1, étape 2". \n\nINTERDIT d'enchaîner des transitions descriptives type "Ce X visible sur une image, c'est… Ce Y visible sur une autre, c'est…". Le post doit parler du SUJET, pas faire le tour des images.\n\nSi tu n'identifies pas de fil commun évident, reste sur l'observation la plus universelle qui les relie — n'invente pas une chronologie ou un récit qui ne tient pas.`
+        : "";
+
+
+      const answersBlockPhoto = (answers && Array.isArray(answers) && answers.length > 0)
+        ? answers.map((a: any, i: number) => `Q${i + 1} : "${a.question}"\n→ "${a.answer}"`).join("\n\n")
+        : "";
+
+      const userSubjectBlock = (context && String(context).trim())
+        ? `══ SUJET DÉCLARÉ PAR L'UTILISATRICE (PRIORITÉ ABSOLUE) ══\n"${String(context).trim()}"\n\nC'est CE sujet que le post doit traiter. Les photos ILLUSTRENT / appuient, elles ne dictent PAS l'angle.\nSi une photo te suggère un angle différent de ce sujet, ignore-le et reste sur le sujet déclaré.\nLes réponses aux questions ci-dessous servent à ENRICHIR ce sujet, pas à le remplacer.\n\n`
+        : "";
+
+      photoContent.push({
+        type: "text",
+        text: `${userSubjectBlock}${formatBrief}${body.photo_description ? `\nDescription complémentaire des photos (contexte secondaire) : "${body.photo_description}"` : ""}${answersBlockPhoto ? `\n\n══ RÉPONSES DE L'UTILISATRICE (matière SOURCE pour enrichir le sujet ci-dessus) ══\n${answersBlockPhoto}` : ""}${modeInstr}\n\n══ RÈGLE ANTI-FABRICATION (CRITIQUE) ══\n- N'invente AUCUN détail non vérifiable : prénom, chiffre, citation, lieu, date, nom de client/projet, dialogue, sentiment précis, anecdote.\n- Si un chiffre, un numéro d'édition (ex. "#3"), une date, un nom propre, un slogan est VISIBLE sur une image, recopie-le EXACTEMENT. N'invente JAMAIS un numéro, une date ou un nom que tu n'as pas lu littéralement sur la photo (ex. ne transforme PAS "#3" en "#8").\n- Tu peux UNIQUEMENT t'appuyer sur : (1) le SUJET DÉCLARÉ ci-dessus, (2) ce que tu VOIS littéralement sur les photos, (3) la description complémentaire, (4) les réponses ci-dessus.\n- Si la matière manque pour étoffer, BASCULE sur un registre RÉFLEXIF / MÉTA lié AU SUJET DÉCLARÉ : observation sociologique, lecture culturelle, questionnement ouvert, constat sensoriel. C'est TOUJOURS préférable à une anecdote inventée.\n${answersBlockPhoto ? "" : "- Aucune réponse n'a été fournie : écris un post 100% RÉFLEXIF / MÉTA ancré sur LE SUJET DÉCLARÉ. INTERDICTION FORMELLE de récit fictif, de personnages, de scènes ou de dialogues inventés.\n"}- Évite absolument les formulations type "ce jour-là, X m'a dit…", "je me souviens quand…", "il y a 3 ans…", "j'ai croisé…" si ces éléments ne sont PAS explicitement dans les réponses.\n- En cas de doute entre raconter ou observer : OBSERVE. Mieux vaut un post un peu plus court et juste qu'un post étoffé d'éléments inventés.\n\n⚠️ INTERDICTION ABSOLUE de recopier un exemple textuel. Génère du contenu ORIGINAL ancré dans LE SUJET DÉCLARÉ + CES image(s) + les réponses fournies.\n\nRéponds UNIQUEMENT en JSON :\n${jsonShape}`,
+      });
 
       rawContent = await callAnthropic({
         model: getModelForAction("content"),
         system: systemPrompt,
         messages: [{ role: "user", content: photoContent }],
-        temperature: 0.85,
+        temperature: isLinkedInPhoto ? 0.7 : 0.85,
         max_tokens: 4096,
       });
     } else {
-      const maxTokens = step === "questions" ? 800 : undefined;
-      rawContent = await callAnthropicSimple(getModelForAction("content"), systemPrompt, userPrompt!, 0.85, maxTokens);
+      const maxTokens = step === "questions" ? 800 : step === "recycle" ? 12288 : undefined;
+      const isLinkedInText = !!contentType?.includes("linkedin") && step !== "questions";
+      const tempText = isLinkedInText ? 0.7 : 0.85;
+      // L1 : Haiku pour les steps `questions` et `follow-up` (3-5× plus rapide que Sonnet,
+      // suffisant pour des questions structurées en JSON). Sonnet reste pour la génération de contenu.
+      const modelForCall = (step === "questions" || step === "follow-up")
+        ? getModelForAction("questions")
+        : getModelForAction("content");
+      rawContent = await callAnthropicSimple(modelForCall, systemPrompt, userPrompt!, tempText, maxTokens);
     }
 
     let parsed;
@@ -991,10 +1530,66 @@ Privilégie les sources françaises et européennes quand elles existent.`,
       }
     }
 
-    await logUsage(user.id, "content", "creative_flow", undefined, undefined, workspace_id);
+    // Garde anti-échec silencieux : si la génération recycle renvoie un JSON
+    // tronqué / sans `results`, on retourne une 500 SANS logUsage (pas de
+    // crédit consommé sur une génération ratée).
+    if (step === "recycle") {
+      const hasResults = parsed && typeof parsed === "object"
+        && parsed.results && typeof parsed.results === "object"
+        && Object.keys(parsed.results).length > 0;
+      if (!hasResults) {
+        console.warn("[creative-flow] recycle returned empty results, raw=", String(rawContent || "").slice(0, 500));
+        return new Response(
+          JSON.stringify({ error: "La génération a échoué en cours de route. Réessaie, ou coche moins de formats à la fois." }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+
+    // ═══ PASSE DE CORRECTION LinkedIn ═══
+    // Pour TOUT post LinkedIn généré (photo ou texte), on rejoue une 2ᵉ passe
+    // spécialisée qui chasse cascades, anaphores, formules manufacturées, CTA génériques.
+    // En photo_mode, on SKIP la 2ᵉ passe pour éviter le double appel Anthropic
+    // (vision déjà coûteuse en wall-time). Les règles anti-broetry sont déjà
+    // injectées AVANT les images dans le prompt photo LinkedIn (lignes 1272+).
+    if (
+      step === "generate" &&
+      contentType?.includes("linkedin") &&
+      !body.photo_mode &&
+      parsed && typeof parsed === "object" &&
+      typeof parsed.content === "string" &&
+      parsed.content.length >= 200
+    ) {
+      try {
+        const corrected = await applyCorrectionPass(parsed.content, "linkedin", {
+          logger: (msg) => console.log(msg),
+        });
+        if (corrected && corrected.length >= 100) {
+          parsed.content = corrected;
+        }
+      } catch (corrErr) {
+        console.error("[creative-flow] correction-pass linkedin failed:", corrErr);
+      }
+    }
+
+    await logUsage(userId, "content", "creative_flow", undefined, undefined, workspace_id);
     return new Response(JSON.stringify(parsed), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: any) {
+    if (e instanceof ValidationError) {
+      return new Response(JSON.stringify({ error: e.message }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (e?.status === 429) {
+      return new Response(JSON.stringify({ error: "Trop de requêtes. Réessaie dans un moment." }), {
+        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     console.error("creative-flow error:", e);
-    return new Response(JSON.stringify({ error: "Erreur interne du serveur" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const userMessage = e?.message?.includes("API") || e?.message?.includes("IA")
+      ? e.message
+      : "L'IA a eu un blanc. Réessaie dans quelques instants.";
+    return new Response(JSON.stringify({ error: userMessage }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });

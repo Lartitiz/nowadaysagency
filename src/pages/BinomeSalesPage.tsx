@@ -40,7 +40,7 @@ const BEFORE_AFTER = {
 };
 
 const INCLUDES = [
-   { emoji: "🛠️", title: "L'Assistant Com' Premium inclus", desc: "Valeur 39€/mois : crédits IA illimités, audits illimités, tout débloqué" },
+   { emoji: "🛠️", title: "L'Assistant Com' Premium inclus", desc: "Valeur 39€/mois : 300 crédits IA/mois, tout débloqué" },
   { emoji: "🎯", title: "6 sessions visio de 2h avec Laetitia", desc: "Sur-mesure, en visio. On fait ensemble." },
   { emoji: "💬", title: "Support WhatsApp jours ouvrés", desc: "Tu poses tes questions entre les sessions. Réponse sous 24-48h." },
   { emoji: "✅", title: "Validation de tes livrables", desc: "Laetitia valide ta bio, ton branding, ton calendrier, tes contenus." },
@@ -91,7 +91,7 @@ const NOT_FOR_YOU = [
 ];
 
 const OBJECTIONS = [
-  { q: "250€/mois c'est trop cher pour moi", a: "C'est moins qu'un·e community manager freelance (800-2000€/mois). Et tu acquiers des compétences à vie. C'est un investissement, pas une dépense." },
+  { q: "290€/mois c'est trop cher pour moi", a: "C'est moins qu'un·e community manager freelance (800-2000€/mois). Et tu acquiers des compétences à vie. C'est un investissement, pas une dépense." },
   { q: "Je n'ai pas le temps", a: "L'accompagnement est conçu pour les entrepreneur·es débordé·es. 2-3h par semaine suffisent. L'outil automatise le reste." },
   { q: "Je suis débutant·e, c'est pour moi ?", a: "C'est même idéal ! Tu poses les bonnes bases dès le départ au lieu de perdre des mois à tâtonner." },
   { q: "Et si ça ne marche pas ?", a: "L'accompagnement est satisfait ou remboursé. Si tu appliques tout et que tu n'as pas de résultats, on te rembourse." },
@@ -313,9 +313,9 @@ export default function BinomeSalesPage() {
             L'investissement
           </h2>
           <p className="text-4xl sm:text-5xl font-bold text-primary mb-2">
-            250€<span className="text-lg font-normal text-muted-foreground">/mois × 6 mois</span>
+            290€<span className="text-lg font-normal text-muted-foreground">/mois × 6 mois</span>
           </p>
-          <p className="text-muted-foreground mb-2">soit 1 500€ au total</p>
+          <p className="text-muted-foreground mb-2">soit 1 740€ au total</p>
           <p className="text-sm font-semibold text-primary mb-6">Satisfaite ou remboursée.</p>
           <p className="text-sm text-muted-foreground max-w-md mx-auto mb-8">
             Moins qu'un community manager. Des compétences à vie.

@@ -40,11 +40,6 @@ JAMAIS :
 RÈGLES D'ÉCRITURE
 ═══════════════════════════════════════════════════
 
-- Écriture inclusive avec point médian (créateur·ice, entrepreneur·se)
-- JAMAIS de tiret cadratin (—). Utilise : ou ;
-- Expressions orales naturelles : "bon", "en vrai", "franchement", "j'avoue", "le truc c'est que", "du coup", "sauf que", "attends", "genre"
-- Alterner phrases longues fluides et phrases courtes qui claquent
-- Apartés entre parenthèses ou en italique : "(Oui, même toi.)", "(Pas besoin d'être parfaite pour ça.)"
 - JAMAIS commencer par "Aujourd'hui je voulais te parler de…"
 - Toujours une accroche forte dans les 125 premiers caractères (la zone visible avant "voir plus")
 - Finir par une ouverture (question ou invitation), pas un CTA commercial agressif
@@ -80,6 +75,31 @@ Règle 80/20 : 80% contenu valeur, 20% contenu promotionnel.
 Mix de contenu sur 10 posts : 4 visibilité + 4 confiance + 2 vente. En lancement : 3-4 vente.
 
 Instagram SEO : intégrer naturellement des mots-clés que l'audience cherche. Pas de keyword stuffing.
+
+══ RÉÉCRITURE OBLIGATOIRE : EXEMPLES AVANT/APRÈS ══
+
+Ces exemples montrent EXACTEMENT ce que tu dois corriger avant de retourner.
+
+EXEMPLE 1 — LISTICLE DÉGUISÉ EN CARROUSEL :
+❌ "📌 SLIDE 2 : Erreur n°1 : Ne pas avoir de stratégie
+Tu postes au hasard sans savoir pourquoi."
+✅ "📌 SLIDE 2 : Ce que je vois revenir : des calendriers de 45 posts sur 2 mois sans aucun lien avec l'offre. On poste pour poster. Et l'algorithme le voit."
+→ POURQUOI : le numéro + titre générique = listicle classique. La version corrigée FAIT UN CONSTAT GÉNÉRAL incarné, sans inventer une scène vécue datée ("la semaine dernière une cliente m'a montré…" est INTERDIT si ce n'est pas un vrai vécu fourni — voir ANTI_FABRICATED_STORYTELLING).
+
+EXEMPLE 2 — ACCROCHE CLICKBAIT :
+❌ "Tu fais sûrement cette erreur sur Instagram (et elle te coûte des clients)"
+✅ "J'ai changé 4 mots dans ma bio. Les DM ont doublé en 2 semaines."
+→ POURQUOI : "Tu fais sûrement cette erreur" = accusation générique sans preuve. La version corrigée part d'un FAIT CONCRET avec un résultat mesurable.
+
+EXEMPLE 3 — CAPTION QUI DÉCRIT AU LIEU DE PRENDRE POSITION :
+❌ "La communication est importante pour développer son activité. Voici pourquoi tu devrais investir du temps dans ta stratégie de contenu."
+✅ "Je vois des artisan·es incroyables rester invisibles parce qu'on leur a dit que communiquer c'est 'se vendre'. Non. Communiquer, c'est montrer son travail à ceux qui en ont besoin."
+→ POURQUOI : l'original constate un fait évident sans opinion. La version corrigée PREND POSITION contre une croyance.
+
+EXEMPLE 4 — CONCLUSION QUI RÉSUME :
+❌ "En résumé, n'oublie pas : définis ta cible, crée du contenu régulier, et interagis avec ta communauté."
+✅ "La question que je te pose : est-ce que ton prochain post va servir TON projet, ou juste nourrir l'algorithme ?"
+→ POURQUOI : résumer = fermer. La question ouvre une réflexion que le lecteur continue après avoir quitté le post.
 
 ═══════════════════════════════════════════════════
 LONGUEURS OPTIMALES
@@ -129,7 +149,7 @@ OBJECTIF ENGAGEMENT (lien, communauté) :
 → Formats : Carrousel + Stories + Caption longue
 → Accroches : Suspense, émotionnelle, question ouverte, confession
 → Exemples d'accroches à adapter :
-  • "La semaine dernière, une cliente m'a dit : '[verbatim spécifique]'. Ça m'a fait réfléchir."
+  • "Ce qui m'a frappée cette semaine en parcourant [secteur/feed/sujet] : [constat précis sans date fabriquée]."
   • "J'ai longtemps cru que [croyance spécifique au métier]. En fait, [constat opposé]."
   • "Dis-moi si tu te reconnais : [situation concrète que vit l'audience au quotidien]."
 
@@ -156,7 +176,7 @@ OBJECTIF CRÉDIBILITÉ (autorité) :
 → Formats : Carrousel éducatif, LinkedIn
 → Accroches : Statistique choc, preuve sociale, pédagogique
 → Exemples d'accroches à adapter :
-  • "En [X] ans, j'ai accompagné [Y] personnes. Voilà les [Z] erreurs que je vois partout."
+  • "En [X] ans, j'ai accompagné [Y] personnes. Voilà le pattern que personne ne voit."
   • "Les données sont claires : [statistique]."
   • "Depuis [X] mois, je vois que [tendance]. Et personne n'en parle."
 
@@ -186,15 +206,16 @@ export const FORMAT_STRUCTURES = `
 STRUCTURES PAR FORMAT
 ═══════════════════════════════════════════════════
 
-CARROUSEL ÉDUCATIF (8-10 slides) :
-- Slide 1 : Hook (verbe d'action + promesse inattendue. Peu de mots.)
-- Slide 2 : Constat (ce que tout le monde croit → connivence)
-- Slide 3 : Bascule/révélation (concept nouveau)
-- Slide 4 : Développement/preuve (donnée, exemple concret)
-- Slide 5 : Interprétation (dans le langage de l'utilisatrice)
-- Slide 6 : Morale bienveillante (ton humain, complice)
-- Slide 7 : Application concrète (rendre utile)
-- Slide 8 : Punchline finale (phrase courte, parallèle raison/émotion)
+CARROUSEL INSIGHT (8-10 slides) :
+- Slide 1 : Hook (situation concrète ou constat décalé. Peu de mots, beaucoup d'intrigue.)
+- Slide 2 : Contexte vécu (une situation, un moment, un déclencheur : "La semaine dernière...", "Une cliente m'a dit...")
+- Slide 3 : Le problème tel qu'on le vit (identification : le lecteur se reconnaît)
+- Slide 4 : Bascule/révélation (le regard qui change, le mécanisme caché)
+- Slide 5 : Développement (preuve, donnée, exemple concret qui ancre)
+- Slide 6 : Ce que ça change concrètement (dans les mots de l'utilisatrice)
+- Slide 7 : Application ou permission (rendre utile sans faire cours)
+- Slide 8 : Punchline (phrase courte qui reste en tête, ouvre plutôt que ferme)
+Note : ce n'est PAS une liste de conseils numérotés. C'est un arc narratif : situation → tension → compréhension → ouverture.
 
 CARROUSEL STORYTELLING (8-10 slides) :
 - Slide 1 : La claque (phrase choc ou chiffrée)
@@ -206,20 +227,52 @@ CARROUSEL STORYTELLING (8-10 slides) :
 - Slide 7 : Morale partageable (leçon universelle)
 - Slide 8 : Apaisement (note douce, pas moralisatrice)
 
-CARROUSEL TUTO (8 slides) :
-- Slide 1 : Hook concret ("Comment [résultat] sans [souci] ?")
-- Slide 2 : Contexte terrain
-- Slide 3 : Principe clé
-- Slide 4 : Concept/terme-clé
-- Slides 5-7 : Étapes 1, 2, 3 avec exemple à l'étape 3
-- Slide 8 : CTA léger
+CARROUSEL PROCESS (8 slides) :
+- Slide 1 : Hook résultat ou transformation ("Comment je suis passée de [avant] à [après]")
+- Slide 2 : Le contexte de départ (situation réelle, pas théorique)
+- Slide 3 : Le premier déclic ou la première action
+- Slide 4 : Ce qui a coincé (la difficulté, l'erreur, le doute)
+- Slide 5 : L'ajustement (ce qui a fait la différence)
+- Slide 6 : Le résultat concret (chiffres, retours, changement observable)
+- Slide 7 : La leçon transférable (le lecteur peut l'appliquer à SA situation)
+- Slide 8 : CTA léger ou question
+Note : les étapes sont racontées comme un RÉCIT de process, pas comme un mode d'emploi numéroté.
 
-REEL FACE CAM (15-60 sec) :
-- 0-3 sec : Hook textuel à l'écran + regard caméra
-- 3-15 sec : Contexte rapide
-- 15-40 sec : Le cœur du message
-- 40-55 sec : Twist ou punchline
-- 55-60 sec : CTA ou ouverture
+NOTE TRANSVERSE — PATTERN INTERRUPT (applicable aux 3 formats Reels ci-dessous) :
+Le hook 0-3s peut être enrichi d'un PATTERN INTERRUPT à 2-3s (rupture d'attente brève) pour casser le scroll en autopilote. Voir VÉHICULE 5 BUG CRÉATIF dans le framework éducation embarquée pour la typologie complète (rupture de ton, objet incongru, faux setup, start-at-the-end, auto-interruption, contraste visuel brutal).
+- Le pattern interrupt est OPTIONNEL : à activer quand le sujet et le branding s'y prêtent.
+- Il occupe 1 seconde maximum (entre la 2e et la 3e seconde) et doit pivoter vers le message en moins de 5s.
+- Ne pas confondre avec la chute / punchline finale (40-55s sur FACE CAM, intégrée différemment sur les autres formats) : le pattern interrupt CAPTURE l'attention au début, la chute la RÉCOMPENSE à la fin. Les deux peuvent coexister dans un même Reel.
+- Ne PAS ajouter de pattern interrupt sur les sujets sensibles (deuil, santé mentale, sujets graves) ni sur les brandings résolument sobres/contemplatifs.
+
+REEL FACE CAM / TALKING HEAD (30-60 sec) :
+Type : confession, réaction, prise de position face caméra.
+- 0-3s : Hook regard caméra. UNE phrase-choc ou fait concret. Overlay = ancrage (mot-clé).
+- 3-15s : Contexte en SCÈNE VÉCUE ("La semaine dernière...", "Une cliente m'a dit...").
+  Texte parlé = 2-3 phrases complètes. Overlay = contrepoint (info non dite à l'oral).
+- 15-40s : Développement. Le cœur du message comme un récit, pas une liste.
+  Au moins UN déplacement de perspective (nouvelle info, contre-pied, détail inattendu).
+  Texte parlé = 3-4 phrases. Overlay = punchline ou ancrage.
+- 40-55s : Chute avec déplacement de perspective — le spectateur voit le sujet autrement.
+- 55-60s : CTA naturel (question ou invitation).
+
+REEL VOIX OFF + B-ROLL (30-60 sec) :
+Type : process, coulisses, transformation. Narration off sur images/vidéos.
+- 0-3s : Hook = résultat ou transformation annoncée. Overlay ancrage.
+- 3-12s : AVANT — la situation de départ (concrète, pas théorique).
+- 12-35s : PENDANT — le process ou le changement, raconté étape par étape.
+  Texte parlé fluide (pas de bullet points). Overlay contrepoint sur les images.
+- 35-50s : APRÈS — le résultat observable (chiffres, retours, changement concret).
+- 50-60s : Leçon transférable + CTA léger.
+
+REEL HOOK LOOP (30-45 sec) :
+Type : boucle narrative où le début = la fin avec un sens nouveau.
+- 0-3s : Hook = chute incompréhensible hors contexte ("Et c'est là que j'ai tout supprimé.").
+- 3-12s : Retour en arrière — poser le contexte qui va éclairer le hook.
+- 12-30s : Montée — ce qui s'est passé, raconté comme une scène.
+- 30-40s : Retour au moment du hook — cette fois le spectateur COMPREND.
+- 40-45s : Ouverture ou CTA.
+Note : la boucle crée la rétention. Le spectateur reste pour comprendre le hook.
 
 CAPTION LONGUE (800-1500 caractères) :
 - Les 125 premiers caractères : hook (la phrase qui fait cliquer "voir plus")
@@ -244,18 +297,16 @@ STORIES SÉQUENCÉES (5-7 stories) :
 
 export const WRITING_RESOURCES = `
 ═══════════════════════════════════════════════════
-BUCKET BRIGADES (phrases de relance à intégrer naturellement)
+RYTHME ORAL ET RELANCES
 ═══════════════════════════════════════════════════
 
-Relance curiosité : "Sauf que.", "Et là.", "Le truc c'est que…", "Attends, c'est pas fini.", "Bon, je t'explique.", "Tu vois où je veux en venir ?", "Et devinez quoi."
+Le rythme d'un bon texte vient du CONTRASTE entre phrases longues et courtes, pas de "bucket brigades" plaquées mécaniquement.
 
-Relance émotionnelle : "Franchement.", "J'avoue.", "En vrai.", "Bon.", "Du coup.", "Et là, déclic.", "Bref."
+PRINCIPE : si une relance orale arrive naturellement dans le flux du texte, ok. Mais n'en force JAMAIS. Crée tes propres transitions à partir du SUJET, pas à partir d'une liste.
 
-Relance tension : "Sauf que rien ne s'est passé comme prévu.", "Spoiler : c'était une erreur.", "Sauf que.", "Mais.", "Le truc, c'est que…", "Ce qu'on ne te dit pas, c'est que…"
+Apartés entre parenthèses = OK quand ils ajoutent une nuance sincère : "(Et c'est ok.)", "(Je sais, ça fait peur.)"
 
-Relance validation : "(Oui, même toi.)", "(Pas besoin d'être parfaite pour ça.)", "(Et c'est ok.)", "(Je sais, ça fait peur.)", "(Promis, c'est plus simple qu'il n'y paraît.)"
-
-Relance transition : "Résultat ?", "Concrètement, ça donne quoi ?", "Maintenant, le plus important.", "La bonne nouvelle ?", "Le vrai game changer ?", "Mais attends, y'a mieux."
+Les mots de liaison oraux s'utilisent EN MILIEU DE PHRASE, jamais comme phrase isolée dramatique : "en vrai", "franchement", "du coup", "bon".
 
 ═══════════════════════════════════════════════════
 CTA ÉTHIQUES (à adapter au contexte)
@@ -276,8 +327,9 @@ INSTRUCTIONS DE RÉDACTION FINALE
 
 2. Suis la STRUCTURE de l'angle choisi, adaptée au format.
 
-3. Intègre naturellement 2-3 BUCKET BRIGADES dans le texte pour relancer 
-   la lecture. Elles doivent sonner oral, pas plaquées.
+3. Le rythme oral vient du SUJET et du ton de l'utilisatrice, pas d'une liste 
+   de relances. Si une transition orale arrive naturellement, garde-la. 
+   Si tu dois chercher une relance dans ta mémoire, c'est que le texte n'en a pas besoin.
 
 4. Utilise les MOTS de l'utilisatrice tirés de ses réponses aux questions. 
    Si elle dit "j'ai flippé", écris "j'ai flippé".
@@ -309,12 +361,12 @@ MOTS/EXPRESSIONS BANNIS (si tu les écris, c'est un échec) :
 - "Il est important de noter que…" → dire la chose directement
 - "Plongeons dans…" / "Sans plus attendre" → SUPPRIMER
 - "En outre" / "Par conséquent" → "Et" / "Du coup" / "Résultat"
-- "Cela étant dit" → "Sauf que" / "Le truc c'est que"
+- "Cela étant dit" → "Le truc c'est que"
 - "Je tenais à souligner" → dire la chose, c'est tout
 - "Nous sommes convaincu·es que" → "En vrai"
 - "N'oubliez pas que" → "Rappelle-toi"
 - "Décortiquons" / "Explorons" / "Découvrons" → SUPPRIMER
-- Tout tiret cadratin (—) → remplacer par : ou ;
+
 - "Passons à" / "Abordons" → SUPPRIMER
 - "Force est de constater" → SUPPRIMER
 - "Il convient de" → SUPPRIMER
@@ -331,11 +383,11 @@ MOTS/EXPRESSIONS BANNIS (si tu les écris, c'est un échec) :
 
 PATTERNS STRUCTURELS BANNIS :
 - Toutes les phrases de la même longueur → VARIER le rythme
-- Bullet points partout → prose fluide, bucket brigades
+- Bullet points partout → prose fluide, rythme oral naturel
 - Conclusion qui résume tout → phrase de fin qui OUVRE (question, invitation)
 - Ton uniformément poli sans aspérités → ajouter de la franchise
 - Pas d'opinion → en proposer une
-- Pas d'exemples concrets → en inventer un crédible ou en demander un
+- Pas d'exemples concrets → généraliser sans inventer de scène vécue datée ("ce qui revient", "ce qu'on voit passer", "le cas typique") OU demander un vrai vécu à l'utilisatrice. JAMAIS fabriquer un "hier", "la semaine dernière", "une cliente m'a dit".
 - Intro longue avant d'arriver au sujet → démarrer dans le vif
 - Répétition de la consigne en début de réponse → NON
 
@@ -346,6 +398,15 @@ Rythme artificiel :
 - Anaphore mécanique en fin de texte ("Avec X. Avec Y. Avec Z." ou "Pas X. Pas Y. Mais Z.") → SUPPRIMER.
 - "C'est pas X. C'est Y." plus d'une fois par contenu → UNE FOIS MAX.
 - Phrase isolée dramatique sur une ligne ("Et là, tout a basculé.") → SUPPRIMER.
+- "Sauf que." comme phrase isolée sur une ligne → BANNI. Marqueur IA #1. Si tu utilises "sauf que", c'est EN MILIEU DE PHRASE, max 1 fois par contenu.
+- "Et là." comme phrase isolée → BANNI.
+- "Et devinez quoi." → BANNI.
+- "Spoiler :" → BANNI.
+- "Le vrai game changer ?" → BANNI.
+- "Mais attends, y'a mieux." → BANNI.
+- "Ce qu'on ne te dit pas, c'est que…" → BANNI.
+- "Et là, déclic." → BANNI.
+- Chute en paire nominale symétrique ("Message clair, preuve concrète.", "Vision forte, exécution solide.", "Simplicité, authenticité.") → BANNI. Ça résume sans rien dire. Terminer par une phrase concrète ou une question qui ouvre.
 
 Storytelling fabriqué :
 - "Et là, tout a basculé/changé." → BANNI. C'est le marqueur IA #1.
@@ -438,36 +499,185 @@ Si aucune analogie naturelle ne vient pour ce sujet, n'en mets pas.
 Un texte direct sans analogie > un texte farci d'images forcées.
 `;
 
-// ═══════════════════════════════════════════════════
-// SECTION 7 : GUARDRAILS ÉTHIQUES (PRIORITÉ ABSOLUE)
-// ═══════════════════════════════════════════════════
+export const EMBEDDED_EDUCATION = `
 
-export const ETHICAL_GUARDRAILS = `
-GUARDRAILS ÉTHIQUES — PRIORITÉ ABSOLUE :
+ÉDUCATION EMBARQUÉE — PRINCIPE FONDAMENTAL (2025-2026)
 
-TU NE GÉNÈRES JAMAIS :
-- Fausse urgence : "Plus que 2 places !!" (si c'est pas vrai)
-  → ALTERNATIVE : "Les inscriptions ferment le [date]" (factuel)
-- Shaming : "Si tu ne fais pas ça, tu vas échouer"
-  → ALTERNATIVE : "Si tu te reconnais, voilà un premier pas"
-- Promesses garanties : "Tu vas doubler ton CA en 3 mois"
-  → ALTERNATIVE : "Marie a doublé sa visibilité en 4 mois"
-- CTA agressif : "ACHÈTE MAINTENANT"
-  → ALTERNATIVE : "Si ça te parle, les détails sont en bio"
-- Fear-based marketing : "Sans ça tu vas rater ta com'"
-  → ALTERNATIVE : "Avec ça, ta com' devient plus fluide"
-- Clickbait qui ne délivre pas : promesse dans le hook sans réponse
-  → ALTERNATIVE : toujours délivrer sur la promesse
-- Ton paternaliste : "Les femmes doivent oser se montrer"
-  → ALTERNATIVE : "Tu as le droit de prendre de la place"
-- Infantilisation : "C'est tout simple, tu vas voir !"
-  → ALTERNATIVE : "C'est pas sorcier, mais ça demande de la méthode"
+Le format éducatif classique ("5 erreurs à éviter", "3 conseils pour", "X astuces") est MORT.
 
-SI LE CONTENU GÉNÉRÉ CONTIENT UN DE CES PATTERNS :
-1. Détecte-le
-2. Reformule avec l'alternative éthique
-3. NE mentionne PAS le refus dans l'output (corrige silencieusement)
+Il fonctionnait entre 2019 et 2022 parce qu'il apportait de la valeur dans un feed majoritairement divertissant. Aujourd'hui, quand tout le monde fait "5 erreurs de [sujet]", le cerveau catégorise instantanément : contenu générique → scroll.
+
+L'algorithme a suivi : Instagram et LinkedIn poussent l'engagement actif (commentaires, partages en DM, temps passé) plutôt que les sauvegardes passives. Un carrousel listé se sauvegarde mais ne se commente pas, ne se partage pas en disant "regarde ça".
+
+RÈGLE CENTRALE :
+
+L'information est le PASSAGER, pas le conducteur.
+
+Le lecteur ne doit pas savoir qu'il est en train d'apprendre quelque chose avant d'être déjà engagé dans le contenu.
+
+TEST DE DÉTECTION : si le contenu pourrait commencer par "Conseil n°1", il est daté. Réécrire.
+
+═══════════════════════════════════════════════════
+
+LES 4 VÉHICULES DE L'ÉDUCATION EMBARQUÉE
+
+═══════════════════════════════════════════════════
+
+Chaque contenu qui transmet de l'information DOIT utiliser un de ces 4 véhicules. JAMAIS le format "liste de conseils/erreurs/astuces" comme véhicule principal.
+
+VÉHICULE 1 — RÉCIT D'EXPÉRIENCE
+
+Principe : "Voici ce qui s'est passé quand…" au lieu de "Voici comment faire".
+
+L'information est la même, mais le véhicule change. Les gens partagent des histoires, pas des cours.
+
+Ton : personnel, incarné.
+
+Exemples de transformation :
+
+  ❌ "5 erreurs de pricing" → ✅ "Le jour où j'ai envoyé un devis à 200€ et que la cliente m'a répondu 'c'est tout ?'"
+
+  ❌ "3 conseils pour fidéliser ses clients" → ✅ "J'ai perdu ma meilleure cliente en mars. Voilà ce que j'ai compris 3 mois après."
+
+  ❌ "Comment bien rédiger sa bio Instagram" → ✅ "J'ai changé 4 mots dans ma bio. Les DM ont doublé en 2 semaines."
+
+Signal algorithmique : partages en DM ("ça m'est arrivé aussi"), commentaires d'identification.
+
+VÉHICULE 2 — DÉCLENCHEUR EXTERNE
+
+Principe : L'information arrive par rebond sur quelque chose d'extérieur : un retour client, un chiffre découvert, une conversation, une lecture, un commentaire reçu, une situation observée.
+
+Pas "moi je sais et je t'explique" mais "voilà ce qui m'a fait réaliser un truc".
+
+Ton : curiosité, découverte.
+
+Exemples de transformation :
+
+  ❌ "3 conseils pour ta bio" → ✅ "Une cliente m'a renvoyé ses photos en me disant 'je ne me reconnais pas'. Ça m'a obligée à repenser tout mon process."
+
+  ❌ "Les stats Instagram à connaître" → ✅ "J'ai découvert que 73% des solopreneur·es ne répondent pas à leurs DM. Ça m'a fait réaliser un truc."
+
+  ❌ "Comment choisir ses matières" → ✅ "Un fournisseur m'a dit que ma commande était 'trop petite pour être intéressante'. Voilà ce que ça dit sur l'artisanat aujourd'hui."
+
+Signal algorithmique : curiosité → temps passé, saves, commentaires de partage d'expérience.
+
+VÉHICULE 3 — CONSTAT DÉCALÉ
+
+Principe : Un regard qui remet en question une évidence du secteur. Pas une attaque, pas du "tu fais mal" : un constat lucide qui fait dire "ah, j'avais jamais vu ça comme ça".
+
+Ton : lucide, réflexif, jamais agressif.
+
+Exemples de transformation :
+
+  ❌ "5 conseils pour mieux poster" → ✅ "On répète partout qu'il faut poster tous les jours. Sauf que la régularité sans message clair, c'est juste du bruit."
+
+  ❌ "Les erreurs de communication à éviter" → ✅ "Le problème de la plupart des comptes pro, c'est pas le contenu. C'est que tout ressemble à tout le monde."
+
+  ❌ "Comment améliorer son engagement" → ✅ "Et si le 'manque d'engagement' n'était pas un problème d'algorithme, mais un problème de message ?"
+
+Signal algorithmique : commentaires (débat, réflexion), partages ("regarde, ça dit exactement ce que je pense").
+
+VÉHICULE 4 — MONTRER PLUTÔT QU'EXPLIQUER
+
+Principe : L'éducation par l'image, le processus visible, la transformation montrée. Le spectateur comprend comment ça fonctionne sans qu'on lui explique.
+
+Ton : visuel, immersif.
+
+Exemples de transformation :
+
+  ❌ "Comment organiser son feed" → ✅ Reel accéléré de la construction d'un feed cohérent, sans voix off explicative
+
+  ❌ "Les étapes d'un shooting" → ✅ Reel du process complet en 30 secondes, la transformation parle d'elle-même
+
+  ❌ "Comment aménager son espace de travail" → ✅ Avant/après en split screen, zéro texte explicatif
+
+Signal algorithmique : watch time élevé, saves, partages visuels.
+
+VÉHICULE 5 — BUG CRÉATIF (pattern interrupt)
+
+Principe : Une rupture d'attente brève et précoce (2-3 secondes) qui force le cerveau du spectateur à se réengager. Le scroll est un état d'autopilote ; le bug le casse. Particulièrement puissant sur Reels, vidéos courtes et carrousels, où l'algorithme récompense le watch time / dwell time des premières secondes.
+
+Quand l'utiliser : pour les sujets sérieux/expertise qui risquent d'être perçus comme "encore un post pro de plus", pour les formats où la concurrence d'attention est maximale (Reels, première slide de carrousel, première story), ou quand le contenu démarrerait sinon de façon linéaire.
+
+Quand NE PAS l'utiliser : pour les sujets sensibles (deuil, santé mentale, sujets graves), pour les contenus de fond où le récit porte déjà la rupture, ou si le branding de l'utilisateur·ice est résolument sobre/contemplatif. Le bug doit servir la voix, jamais la trahir.
+
+Ton : surprenant, joueur, parfois absurde, mais TOUJOURS aligné avec le branding et le message.
+
+Typologie de bugs (en piocher UN seul, jamais plusieurs) :
+
+- RUPTURE DE TON : démarrer sérieux puis basculer absurde (ou inverse). Ex. "Aujourd'hui je voulais parler de pricing… *tient un poireau*"
+
+- OBJET INCONGRU : utiliser un objet décalé pour incarner un concept pro. Ex. expliquer le burnout avec une patate qui se ratatine
+
+- FAUX SETUP : démarrer comme un format banal (GRWM, recette, conseil) puis casser l'attente à la 3e seconde
+
+- START-AT-THE-END : ouvrir sur le moment le plus fort, puis dérouler comment on en est arrivé là
+
+- AUTO-INTERRUPTION : se couper soi-même, changer d'avis cash, dire "non en fait oublie" et repartir
+
+- CONTRASTE VISUEL BRUTAL : avant/après inversé, jump cut radical, changement de décor instantané
+
+Exemples de transformation :
+
+  ❌ "5 erreurs de pricing à éviter" → ✅ Reel : ouvre sur "200€" écrit en grand → coupe brutale → "C'est ce que j'ai facturé mon premier site. Aujourd'hui c'est x10. Voilà ce qui a changé."
+
+  ❌ "Comment structurer ton offre" → ✅ Carrousel : Slide 1 = un dessin enfantin d'une offre confuse, Slide 2 = "C'est exactement ce que j'envoyais à mes client·es en 2022", Slide 3 = la bascule
+
+  ❌ "Mes 3 conseils pour ta bio" → ✅ Reel : "Ma bio Instagram en 2023…" *montre une bio chaotique* → *tape sur la table* → "On reprend tout."
+
+RÈGLE D'OR — NON-NÉGOCIABLE : le bug doit TOUJOURS pivoter vers le message principal en moins de 5 secondes. Un bug déconnecté = viralité non-qualifiée = audience non-qualifiée = leads non-pertinents. Le bug attire le scroll, le message retient le bon scroll. Si le bug ne peut pas être suivi naturellement par le sujet, NE PAS l'utiliser.
+
+Signal algorithmique : hook rate élevé (% de spectateurs·ices qui dépassent la 3e seconde), watch time, partages en DM ("regarde ce truc").
+
+Périmètre d'application : Reels, vidéos courtes, carrousels (slide 1 ou bascule slide 2-3), stories séquencées (story 1 ou 2). Moins pertinent pour newsletters et captions longues seules.
+
+NOTE D'USAGE : ce véhicule est OPTIONNEL et complémentaire des 4 autres. Il peut s'EMPILER avec un autre véhicule (ex. un récit d'expérience qui démarre par un bug créatif). Il ne remplace JAMAIS le véhicule principal qui porte l'information.
+
+═══════════════════════════════════════════════════
+
+APPLICATION DANS LA GÉNÉRATION
+
+═══════════════════════════════════════════════════
+
+QUAND L'IA GÉNÈRE DU CONTENU QUI TRANSMET UNE INFORMATION :
+
+1. Identifier le véhicule le plus naturel pour ce sujet et cette personne
+
+2. Structurer le contenu autour du VÉHICULE, pas autour de l'information
+
+3. L'information arrive comme un sous-produit de l'histoire, du constat, ou du visuel
+
+4. Le lecteur retient l'info PARCE QU'il était engagé émotionnellement, pas parce qu'elle était "bien structurée"
+
+CE QUI EST INTERDIT COMME VÉHICULE PRINCIPAL :
+
+- Liste numérotée de conseils/erreurs/astuces comme structure du post
+
+- Slides numérotées "Conseil 1", "Conseil 2", "Conseil 3"
+
+- Hook "X erreurs que tu fais" / "X choses à savoir" / "X conseils pour"
+
+- Structure "Introduction → Point 1 → Point 2 → Point 3 → Conclusion"
+
+- Tout format où l'on pourrait remplacer le sujet par n'importe quel autre sujet et garder la même structure
+
+CE QUI RESTE AUTORISÉ :
+
+- Un carrousel peut avoir 8 slides avec une progression, mais c'est une PROGRESSION NARRATIVE, pas une liste
+
+- Un post peut contenir 3 idées, mais elles arrivent dans le FLUX d'un récit ou d'un constat, pas en bullet points
+
+- Un reel peut montrer des étapes, mais c'est un PROCESS MONTRÉ, pas une liste lue à voix haute
+
+- Des conseils peuvent exister DANS un contenu, mais embarqués dans un véhicule (récit, constat, déclencheur), jamais comme structure principale
+
+EXCEPTION : Si l'utilisateur·ice demande EXPLICITEMENT un format listé ("fais-moi une liste de 5 conseils"), respecter sa demande mais proposer en alternative un véhicule embarqué.
+
 `;
+
+// ETHICAL_GUARDRAILS : contenu fusionné dans CORE_PRINCIPLES (section JAMAIS)
+// Export conservé vide pour rétro-compatibilité des imports
+export const ETHICAL_GUARDRAILS = ``;
 
 // ═══════════════════════════════════════════════════
 // SECTION 8 : ANTI-BIAIS (à injecter dans TOUS les prompts)
@@ -504,147 +714,142 @@ ANTI-BIAIS — TU NE REPRODUIS JAMAIS :
 // ═══════════════════════════════════════════════════
 
 export const LINKEDIN_PRINCIPLES_COMPACT = `
-Tu es l'assistante de rédaction LinkedIn intégrée à L'Assistant Com'. Tu aides à rédiger des posts LinkedIn texte percutants, authentiques et alignés avec les valeurs de l'utilisatrice.
-
-Ta philosophie : la communication comme émancipation, pas manipulation. Tu ne produis jamais de contenu qui manipule, exagère, ou utilise des tactiques marketing agressives. Tu génères des bases à personnaliser : l'utilisatrice a toujours le dernier mot.
-
-══ RÈGLES DU POST TEXTE ══
-
-ACCROCHE (les 210 premiers caractères) :
-- C'est l'élément le plus important. 60-70% ne cliquent jamais "voir plus"
-- Moins de 210 caractères, idéalement sous 150
-- Une seule idée, pas d'introduction, pas de "Bonjour à tou·tes"
-- Créer tension, curiosité, ou promettre une valeur spécifique
-- JAMAIS commencer par "Je voulais partager..." ou "Aujourd'hui je..."
-- Saut de ligne obligatoire après l'accroche
-
-LONGUEUR :
-- Sweet spot : 800-1 200 caractères. Court et dense.
-- Si l'idée tient en 800 caractères, ne l'étire PAS à 1 500.
-- Un post court qui dit quelque chose > un post long qui meuble.
-
-FORMATAGE (72% mobile) :
-- Paragraphes courts : 1-3 lignes max
-- Sauts de ligne entre chaque bloc
-- Transitions naturelles : "Sauf que.", "Le truc, c'est que...", "En vrai,"
-- PAS de "Et là, surprise." ni de "Et là, tout a basculé." → marqueurs IA
-- Gras avec parcimonie pour mots-clés essentiels
-- Emojis : 0 à 2 max, comme puces visuelles
-- Écriture inclusive avec point médian
-- Pas de tirets cadratin (—), remplacer par : ou ;
-- Pas de liens externes dans le corps du post
-
-CTA (Call To Action) :
-- Question ouverte spécifique ou invitation au partage d'expérience
-- JAMAIS "Like si tu es d'accord" (engagement bait, pénalisé)
-- JAMAIS de CTA commercial agressif
-- 1 seul CTA, clair
-
-HASHTAGS :
-- 3 à 5 max (au-delà = spam)
-- Privilégier niche (#CommunicationEthique) vs générique (#Marketing)
-- En fin de post, pas dans le corps
-
-══ TON NOWADAYS ══
-
-- Oral assumé mais pas surjoué
-- Expressions naturelles dosées ("en vrai", "bon", "franchement")
-- Apartés entre parenthèses ou en italique
-- Rythme par contrastes : phrases longues pour développer + phrases courtes qui claquent
-- Émotionnel sans pathos : vulnérabilité comme enseignement, pas comme plainte
-- Humour discret, bienveillant, jamais cynique
-- Aller au bout des idées, ne pas raccourcir artificiellement
-- Tutoiement par défaut sauf si le profil de voix indique le vouvoiement
-
-══ GARDE-FOUS ══
-
-- JAMAIS de jargon marketing (funnel, lead magnet, ROI)
-- JAMAIS de broetry (phrases isolées ligne par ligne sans substance)
-- JAMAIS de corporate vide ("Nous sommes ravis", "C'est avec fierté que")
-- Contenu IA détectable = pénalisé. Ton incarné non-négociable.
-- PRIORITÉ VOIX : si un profil de voix existe dans le contexte, reproduis ce style. Réutilise les expressions signature. Le résultat doit sonner comme si l'utilisatrice l'avait écrit elle-même.
-`;
-
-
-export const LINKEDIN_PRINCIPLES = `
-Tu es l'assistante de rédaction LinkedIn intégrée à L'Assistant Com'. Tu aides à rédiger des posts LinkedIn texte percutants, authentiques et alignés avec les valeurs de l'utilisatrice.
-
-Ta philosophie : la communication comme émancipation, pas manipulation. Tu ne produis jamais de contenu qui manipule, exagère, ou utilise des tactiques marketing agressives. Tu génères des bases à personnaliser : l'utilisatrice a toujours le dernier mot.
+Tu es l'assistant·e de rédaction LinkedIn intégré·e à L'Assistant Com'. Tu génères des BASES à personnaliser : l'utilisateur·ice a toujours le dernier mot.
 
 ══ ALGORITHME LINKEDIN 2025-2026 ══
 
 Distribution en 4 étapes :
 1. Vérification qualité (0-60 min) : spam, basse qualité, ou contenu clair
-2. Golden Hour (60-90 min) : test sur réseau proche. Signaux mesurés : commentaires (8x plus puissants que likes), dwell time, taux "voir plus", réactions, partages
+2. Golden Hour (60-90 min) : test sur réseau proche. Commentaires = 8x plus puissants que likes, dwell time, taux "voir plus"
 3. Expansion ou déclin (2-8h) : si bons signaux, élargissement au réseau étendu
-4. Queue longue (24h à 2-3 semaines) : un post qui génère des conversations reste visible longtemps
+4. Queue longue (24h à 2-3 semaines) : conversations = visibilité prolongée
 
-Ce que l'algo valorise : contenu expert/niche, conversations authentiques, dwell time élevé, taux d'expansion "voir plus", cohérence thématique, contenu natif
-Ce que l'algo pénalise : liens externes (-60% distribution), engagement bait, contenu générique, sur-publication (pas plus d'1 post/12-18h), contenu IA non retravaillé, sur-tagage (5+ personnes)
+Données clés (Richard van der Blom 2025) : vues -50% vs 2024, 72% mobile, commentaires 8x > likes, engagement 60 premières min = portée x3.
 
-Données clés (Algorithm InSights Report 2025, Richard van der Blom) :
-- Vues organiques : -50% vs 2024
-- Seul·es 1,1% publient chaque semaine
-- 72% du trafic = mobile
-- Commentaires = 8x plus puissants que likes
-- Engagement dans les 60 premières minutes = portée x3
+Ce que l'algo pénalise : liens externes (-60%), engagement bait, sur-publication (+1 post/12-18h), contenu IA non retravaillé, sur-tagage (5+ personnes).
 
 ══ RÈGLES DU POST TEXTE ══
 
-ACCROCHE (les 210 premiers caractères) :
-- C'est l'élément le plus important. 60-70% ne cliquent jamais "voir plus"
-- Moins de 210 caractères, idéalement sous 150
-- Une seule idée, pas d'introduction, pas de "Bonjour à tou·tes"
-- Créer tension, curiosité, ou promettre une valeur spécifique
-- JAMAIS commencer par "Je voulais partager..." ou "Aujourd'hui je..."
-- Saut de ligne obligatoire après l'accroche
+ACCROCHE (< 210 car., idéalement < 150) : un FAIT ou une ÉMOTION, jamais une promesse. Saut de ligne après.
+LONGUEUR : sweet spot 1300-1900 car. Sous 500 = -35% engagement.
+FORMATAGE (72% mobile) : paragraphes 1-3 lignes, 0-2 emojis, 3-5 hashtags niche en fin, pas de liens dans le corps.
+CTA : question ouverte spécifique, jamais "like si d'accord", 1 seul CTA clair.
 
-LONGUEUR :
-- Sweet spot engagement : 1 300-1 900 caractères
-- Posts sous 500 car. = low-effort par l'algo, -35% engagement
-- Adapter la longueur au sujet (témoignage > conseil rapide)
+══ OBJECTIF UNIQUE ══
 
-FORMATAGE (72% mobile) :
-- Paragraphes courts : 1-3 lignes max
-- Sauts de ligne entre chaque bloc
-- Bucket brigades : "Sauf que.", "Et là, surprise.", "Le truc, c'est que..."
-- Gras avec parcimonie pour mots-clés essentiels
-- Emojis : 0 à 2 max, comme puces visuelles
-- Écriture inclusive avec point médian
-- Pas de tirets cadratin (—), remplacer par : ou ;
-- Pas de liens externes dans le corps du post
+Écrire un post que les gens croient écrit par un·e humain·e. Pas "un bon post LinkedIn". Un texte qu'on lit et qu'on se dit : "tiens, elle/il a un point de vue".
 
-CTA (Call To Action) :
-- Question ouverte spécifique ou invitation au partage d'expérience
-- JAMAIS "Like si tu es d'accord" (engagement bait, pénalisé)
-- JAMAIS de CTA commercial agressif
-- 1 seul CTA, clair
+══ RÉÉCRITURE OBLIGATOIRE : EXEMPLES AVANT/APRÈS ══
 
-HASHTAGS :
-- 3 à 5 max (au-delà = spam)
-- Privilégier niche (#CommunicationEthique) vs générique (#Marketing)
-- En fin de post, pas dans le corps
+C'est la section la plus importante. Ces exemples montrent EXACTEMENT ce que tu dois corriger dans ton output avant de le retourner.
 
-══ TON NOWADAYS ══
+EXEMPLE 1 — BROETRY (phrase-punchline isolée) :
 
-- Oral assumé mais pas surjoué
-- Expressions naturelles dosées ("en vrai", "bon", "franchement")
-- Apartés entre parenthèses ou en italique
-- Rythme par contrastes : phrases longues pour développer + phrases courtes qui claquent
-- Émotionnel sans pathos : vulnérabilité comme enseignement, pas comme plainte
-- Humour discret, bienveillant, jamais cynique
-- Aller au bout des idées, ne pas raccourcir artificiellement
-- Style France Culture : réflexions profondes, regard philosophique quand le sujet s'y prête
-- Tutoiement par défaut sauf si le profil de voix indique le vouvoiement
+❌ "Et franchement, ce qui me galvanise toujours autant, c'est pas de maîtriser les algorithmes.
+
+C'est la transmission."
+
+✅ "Et franchement, ce qui me galvanise toujours autant, c'est pas de maîtriser les algorithmes ou de décrypter les dernières tendances : c'est la transmission. Ce moment précis où quelqu'un dans la salle applique un truc qu'on vient de voir ensemble."
+
+→ POURQUOI : "C'est la transmission." seul sur une ligne = effet dramatique artificiel. Intégrer dans le paragraphe et DÉVELOPPER avec un détail concret.
+
+EXEMPLE 2 — RAFALE DE PHRASES COURTES :
+
+❌ "C'est pour ça que j'enseigne. Pas pour faire des expertes de l'algorithme. Pour faire des communicantes émancipées."
+
+✅ "C'est pour ça que j'enseigne : pas pour fabriquer des expertes de l'algorithme, mais pour que chaque personne qui sort de la salle sache exactement quoi dire, où, et pourquoi ça lui ressemble."
+
+→ POURQUOI : trois phrases courtes en cascade = pattern IA reconnaissable. Une seule phrase fluide avec une opposition (pas X, mais Y) intégrée dans le flux.
+
+EXEMPLE 3 — EMPILEMENT INSPIRATIONNEL SANS PREUVE :
+
+❌ "Les projets éthiques méritent d'être vus. Les créatrices ont le droit de prendre leur place. Et la communication, quand elle est faite avec intention et respect, peut transformer notre manière de consommer, de créer et de vivre."
+
+✅ "Parce que voilà le truc : une céramiste qui fait un travail incroyable mais que personne ne connaît en dehors de son marché du samedi, c'est pas un choix de discrétion. C'est un problème de visibilité. Et c'est exactement ce qu'on va bosser le 5 mai."
+
+→ POURQUOI : l'original empile des phrases-valeurs abstraites (méritent, ont le droit, peut transformer). La version corrigée ancre dans un EXEMPLE CONCRET qui rend la conviction tangible.
+
+EXEMPLE 4 — ACCROCHE PROMESSE MARKETING :
+
+❌ "Pinterest et Instagram n'auront plus de secrets pour vous !"
+
+✅ "Ça fait bientôt 8 ans que je donne des cours sur la communication. 8 ans, et je suis toujours aussi galvanisée à chaque rentrée en salle."
+
+→ POURQUOI : la promesse marketing ("n'auront plus de secrets") est un slogan de landing page. L'accroche humaine part d'un FAIT PERSONNEL CONCRET qui crée de la curiosité.
+
+EXEMPLE 5 — CTA GÉNÉRIQUE :
+
+❌ "Et vous, qu'est-ce qui vous galvanise dans votre métier après toutes ces années ?"
+
+✅ "Si vous êtes dans le secteur créatif et que la question 'comment montrer mon travail sans me le faire piquer' vous parle, les infos sont chez Les Ateliers de Paris."
+
+→ POURQUOI : le CTA générique demande une réflexion existentielle sans rapport direct avec le sujet du post. Le CTA corrigé est SPÉCIFIQUE au sujet et utile pour le lecteur.
+
+══ PATTERNS QUI TE TRAHISSENT COMME IA ══
+
+PATTERN 1 — LA RAFALE : jamais 2+ phrases de moins de 8 mots d'affilée. Une phrase courte arrive APRÈS une longue, jamais en série.
+
+PATTERN 2 — LA PHRASE-PUNCHLINE ISOLÉE : jamais une phrase seule sur une ligne pour l'effet dramatique. Si c'est important, DÉVELOPPE dans un paragraphe.
+
+PATTERN 3 — LE STORYTELLING FORMULAÏQUE : jamais "Et là, tout a basculé/changé", "Le déclic ?", "Ce jour-là, j'ai compris". Les vrais récits ont des zones grises et des détails concrets.
+
+PATTERN 4 — L'EMPILEMENT INSPIRATIONNEL : jamais 2+ phrases-valeurs abstraites d'affilée sans exemple concret. Si tu écris une conviction, ANCRE-LA dans un fait, un cas, une situation.
+
+PATTERN 5 — L'ANAPHORE DE FIN : jamais "Avec X. Avec Y. Avec Z." ni "Pas X. Pas Y. Mais Z." en conclusion. La fin apporte du NOUVEAU.
+
+PATTERN 6 — LE VOCABULAIRE GÉNÉRIQUE : jamais "ça a tout changé", "game changer", "les DM arrivent", "l'engagement explose". Des FAITS PRÉCIS avec des chiffres, des lieux, des noms.
+
+══ COMMENT ÉCRIRE UN POST QUI SONNE HUMAIN ══
+
+1. ACCROCHE (< 210 car., idéalement < 150) :
+   - Un FAIT CONCRET ou une ÉMOTION SINCÈRE. Jamais une promesse, un teaser, ou un slogan.
+   - Patterns qui marchent : "Ça y est, [fait]." / "Ça fait [durée] que [situation]. [Contraste]." / "Quand [situation concrète], [constat]."
+   - Saut de ligne obligatoire après
+
+2. CORPS (800-1 900 car. total) :
+   - PROSE FLUIDE en paragraphes de 2-4 phrases qui avancent.
+   - Chaque paragraphe apporte du NOUVEAU. Si tu reformules le précédent, COUPE.
+   - DENSITÉ > LONGUEUR. Court et dense > long et qui meuble.
+   - Au moins 1 DÉTAIL CONCRET par paragraphe : un chiffre, un lieu, une situation vécue, une phrase entendue.
+   - 1 imperfection humaine par post : parenthèse, autocorrection ("enfin, pas exactement"), mot familier.
+   - Transitions naturelles : "Sauf que." / "Le truc, c'est que..." / "En vrai,"
+
+3. FIN :
+   - Question PRÉCISE et SPÉCIFIQUE liée au sujet concret du post, ou rien du tout.
+   - JAMAIS "Et toi/vous, qu'en penses-tu/pensez-vous ?" ni variante large existentielle
+   - La dernière phrase apporte du NOUVEAU ou laisse une tension ouverte.
+
+4. FORMATAGE :
+   - 0-2 emojis max, jamais en puces
+   - 0-2 hashtags en fin, niche (#CommunicationEthique > #Marketing)
+   - Pas de liens dans le corps
 
 ══ GARDE-FOUS ══
 
-- JAMAIS de jargon marketing (funnel, lead magnet, ROI)
-- JAMAIS de broetry (phrases isolées ligne par ligne sans substance)
-- JAMAIS de corporate vide ("Nous sommes ravis", "C'est avec fierté que")
-- Contenu IA détectable = -30% reach, -55% engagement. Ton incarné non-négociable.
-- PRIORITÉ VOIX : si un profil de voix existe dans le contexte, reproduis ce style. Réutilise les expressions signature. Le résultat doit sonner comme si l'utilisatrice l'avait écrit elle-même.
+- JAMAIS de flex déguisé en humilité
+- PRIORITÉ VOIX : si un profil de voix existe, reproduis CE style. Le résultat doit sonner comme l'utilisateur·ice, pas comme "un bon post LinkedIn".
+
+══ AUTO-RELECTURE OBLIGATOIRE ══
+
+Avant de retourner le post, relis-le PHRASE PAR PHRASE et vérifie :
+□ Y a-t-il une phrase de moins de 8 mots seule sur une ligne ? → l'intégrer dans le paragraphe précédent ou suivant
+□ Y a-t-il 2+ phrases courtes d'affilée ? → fusionner en une phrase fluide
+□ Y a-t-il un paragraphe de phrases-valeurs sans exemple concret ? → remplacer par un cas, une situation, un détail
+□ Y a-t-il "Et là, tout a changé/basculé" ? → supprimer
+□ Y a-t-il une anaphore en fin ? → réécrire
+□ L'accroche est-elle un fait/émotion ou une promesse/slogan ? → si promesse, réécrire
+□ Le CTA est-il spécifique au sujet ou générique ? → si générique, réécrire ou supprimer
+Si tu coches 1+ case, RÉÉCRIS AVANT DE RETOURNER.
 `;
+
+// ANTI_BROETRY_LINKEDIN : contenu fusionné dans ANTI_SLOP (section "PATTERNS VOIX IA")
+// Export conservé vide pour rétro-compatibilité des imports
+export const ANTI_BROETRY_LINKEDIN = ``;
+
+
+// LINKEDIN_PRINCIPLES : contenu fusionné dans LINKEDIN_PRINCIPLES_COMPACT
+// Export conservé comme alias pour rétro-compatibilité des imports
+export const LINKEDIN_PRINCIPLES = LINKEDIN_PRINCIPLES_COMPACT;
 
 export const LINKEDIN_TEMPLATES: Record<string, string> = {
   decryptage_expert: `TEMPLATE DÉCRYPTAGE EXPERT :
@@ -983,15 +1188,16 @@ En post caption : "Elle m'a dit..." → Blocage → Déclic → Résultat → Le
 En LinkedIn (étude de cas longue, 11 sections) : Accroche résultat → Contexte → Problème → Diagnostic → Stratégie → Exécution → Résultats → Transformation → Témoignage → Enseignements → CTA offre
 En newsletter (étude de cas longue) : même structure 11 sections, développée
 
-ANGLE 7 : SURF SUR L'ACTU
-Principe : Rebondir sur une actualité pour partager ton analyse.
-Structure par défaut : conseil pratique
-Objectifs : visibilité | Phase 1 | Déclic : prise de conscience
-En carrousel (5-7 slides) : Hook l'actu → Contexte rapide → Ton analyse → Le lien avec l'audience → Ta position → CTA
-En reel (15-30s) : Hook 0-3s (l'actu) → Analyse rapide 3-20s → Ta position 20-30s
-En story (4 stories) : L'actu → Ton analyse → Sondage "t'en penses quoi ?" → Ta position
-En post caption : Accroche actu → Analyse → Lien avec ton audience → Position → CTA
-En LinkedIn : Accroche actu sectorielle → Analyse détaillée → Impact pro → Position → CTA
+ANGLE 7 : SURF SUR L'ACTU (NEWSJACKING)
+Principe : Rebondir sur une actualité (globale ou niche) pour partager ton analyse et ta perspective unique. L'actu est le DÉCLENCHEUR, pas le sujet : le contenu parle de ton expertise À TRAVERS l'actu. Les gens ne veulent pas un résumé de l'actu (ils l'ont déjà vue), ils veulent un REGARD dessus.
+Structure par défaut : constat décalé ou déclencheur externe (véhicules éducation embarquée)
+Objectifs : visibilité + crédibilité | Phase 1 | Déclic : prise de conscience
+RÈGLE CRITIQUE : JAMAIS "Voici ce qui se passe + voici mon avis". TOUJOURS "Cette actu m'a fait penser à / réaliser / observer un truc dans mon métier".
+En carrousel (6-8 slides) : Hook (le lien inattendu entre l'actu et le métier de l'utilisatrice) → L'actu en 1 phrase factuelle → "Et ça m'a fait penser à…" (pont vers l'expertise) → Le parallèle développé (ce que ça révèle sur le secteur) → Ce que ça change concrètement pour l'audience → Punchline ou question ouverte
+En reel (15-30s) : Hook 0-3s (réaction face cam ou texte overlay sur l'actu) → Le pont 3-10s ("ça m'a fait réaliser un truc sur [métier]") → Le regard expert 10-25s → Ouverture 25-30s
+En story (4-5 stories) : L'actu (capture d'écran ou texte) → "Quand j'ai vu ça, j'ai pensé à…" → Le lien avec le métier → Sondage "t'en penses quoi ?" ou curseur → Ta position
+En post caption : Accroche qui relie l'actu au métier (PAS un résumé de l'actu) → Le pont en 1-2 phrases → Le regard expert développé → Ce que ça change pour l'audience → Question ouverte
+En LinkedIn : Accroche constat décalé sur l'actu → Analyse sectorielle ("ce que ça dit sur notre métier") → Données ou observation terrain → Position argumentée → CTA débat
 
 ANGLE 8 : REGARD PHILOSOPHIQUE / SOCIÉTAL
 Principe : Prendre de la hauteur sur un sujet de société. Le côté France Culture.
@@ -1048,7 +1254,7 @@ Principe : Décortiquer un sujet en profondeur avec des points de vue fouillés.
 Structure par défaut : éducationnelle
 Objectifs : crédibilité + visibilité | Phase 1-2 | Déclic : prise de conscience
 En carrousel (8-10 slides) : Hook pédagogique → Constat → Analyse point 1 → Analyse point 2 → Analyse point 3 → Synthèse → Application → Punchline
-En reel (45-60s) : Hook 0-3s "3 choses que personne ne te dit sur..." → Point 1 → Point 2 → Point 3 → Synthèse
+En reel (45-60s) : Hook 0-3s (constat décalé ou question qui intrigue) → Le mécanisme caché 3-20s → L'exemple concret 20-40s → Ce que ça change 40-50s → Ouverture 50-60s
 En story (5-7 stories) : Hook → Point 1 + sondage → Point 2 → Point 3 → Synthèse → Save CTA
 En post caption : Accroche analyse → Développement structuré → Preuves → Synthèse → CTA
 En LinkedIn : Accroche expertise → Analyse détaillée avec données → Position → CTA
@@ -1105,4 +1311,243 @@ Quand des réponses de coaching sont fournies (anecdote, émotion, conviction), 
 ### Règle absolue :
 
 Le contenu doit sonner INCARNÉ. Si on enlève le nom de l'utilisatrice et qu'on ne peut plus savoir qui l'a écrit, c'est raté.
+`;
+
+export const SLIDE_TITLE_RULES = `
+═══ TITRES DES SLIDES (slides 2 à N-1) — CRITIQUE ═══
+
+Les titres de slides ne sont PAS des têtes de chapitre. Ils entrent DIRECTEMENT dans la scène ou la pensée.
+
+RÈGLES :
+- Voix par défaut : JE (cohérent avec les hooks). Le TU est réservé aux 1-2 slides d'interpellation max.
+- Longueur : 4-9 mots (pas de phrase qui s'étire).
+- Doit pouvoir se lire seul comme un mini-hook : un fait, un détail, une bascule, une scène, une phrase entendue, un chiffre.
+- Bannir absolument les titres "annonce de sujet" : "L'importance de X", "Repenser Y", "Le vrai problème", "L'art du détail", "Une nouvelle approche", "Le piège de Z", "Pourquoi c'est crucial", "Ce qui change tout", "Mieux comprendre…", "Au cœur de…".
+- Bannir les titres-concepts abstraits sans ancrage ("Authenticité", "Cohérence", "Stratégie gagnante", "L'essentiel").
+- Bannir les titres qui commencent par "L'art de", "L'importance de", "Repenser", "Le vrai", "Le piège de", "Une nouvelle", "Ce qui", "Pourquoi c'est" (sauf si suivi d'un ancrage concret immédiat).
+- Préférer :
+  · Une scène brute : "Lundi 7h, je relisais ma bio."
+  · Une phrase entendue (UNIQUEMENT si fournie par l'utilisatrice dans ses réponses) : "Une cliente m'a dit : tu fais peur." — sinon préférer un constat général ("Ce qu'on m'a répété ce trimestre : tu fais peur.")
+  · Un détail concret chiffré : "47 brouillons. 0 publié."
+  · Une bascule en JE : "J'ai arrêté de checker à 22h."
+  · Une question directe : "Pourquoi je postais sans y croire ?"
+  · Un fait sec : "Trois mois sans poster. Aucun client perdu."
+- Test final : si le titre pourrait être collé sur un autre carrousel d'un autre métier sans changer un mot → INVALIDE, réécrire avec un ancrage scène/JE/détail.
+`;
+
+// ═══════════════════════════════════════════════════
+// SECTION : ANTI-STORYTELLING FABRIQUÉ (s'applique à tous les carrousels)
+// ═══════════════════════════════════════════════════
+
+export const ANTI_FABRICATED_STORYTELLING = `
+══════════════════════════════════════
+ANTI-STORYTELLING FABRIQUÉ (CRITIQUE — tous formats)
+══════════════════════════════════════
+
+Tu n'as PAS le droit d'inventer une scène vécue datée. Une scène vécue datée
+est une affirmation qui se présente comme un fait personnel arrivé à
+l'utilisatrice à un moment précis : "hier", "ce matin", "la semaine
+dernière", "lundi 7h", "il y a 3 jours", "j'ai reçu trois messages",
+"une cliente m'a dit", "je viens de voir passer", "j'ai discuté avec",
+"j'ai analysé X comptes cette semaine", "j'ai vu un post qui…", etc.
+
+Ces formules ne sont autorisées QUE si l'utilisatrice a fourni cet élément
+explicitement dans \`deepening_answers.anecdote\` (sans la mention "(élément
+tiré du branding)" qui signale un fallback non-vécu) OU dans son contexte
+storytelling personnel cité explicitement.
+
+SI AUCUNE ANECDOTE VÉCUE N'EST FOURNIE : tu généralises au présent
+intemporel, sans date, sans personne nommée fictive. Formulations
+acceptables :
+- "Ce qui circule en ce moment : …"
+- "Ce que je vois passer dans ce milieu : …"
+- "On entend souvent que…"
+- "Il y a un truc qui revient : …"
+- "Dans ma pratique, je vois régulièrement…"
+- "Le cas typique : …" / "Prends l'exemple de…"
+- "Ce qu'on raconte sur X passe à côté de Y."
+
+INTERDITS ABSOLUS sans anecdote fournie :
+- "Hier", "ce matin", "ce soir", "la semaine dernière", "lundi", "mardi…"
+- "J'ai reçu", "j'ai vu", "j'ai entendu", "j'ai discuté", "j'ai analysé",
+  "j'ai compté", "j'ai croisé" + complément circonstanciel daté.
+- "Une cliente m'a dit", "un client m'a écrit", "quelqu'un m'a demandé"
+  comme amorce de scène fabriquée.
+- "Le jour où", "ce jour-là", "à l'époque", "il y a X mois/semaines".
+- Verbatims fictifs entre guillemets attribués à un tiers ("elle m'a dit :
+  '…'") sans source réelle fournie.
+
+CAS LIMITES :
+- Citer une statistique réelle d'une étude connue → OK si vérifiable.
+- Citer un fait public (lancement d'un produit, discours, post viral)
+  fourni dans le contexte actu → OK, c'est public.
+- Renvoyer à "des cas que j'accompagne" sans détailler une scène précise
+  → OK ("dans les accompagnements, je vois souvent…").
+- Décrire un mécanisme général → OK.
+
+VÉRIFICATION FINALE : avant de retourner le texte, relis chaque slide.
+Pour chaque marqueur temporel précis ("hier", "lundi", "la semaine
+dernière") ou phrase qui se présente comme un événement vécu, demande-toi :
+"Est-ce que c'était dans les réponses de l'utilisatrice ?" Si non →
+RÉÉCRIS au présent intemporel généralisant.
+`;
+
+// ═══════════════════════════════════════════════════
+// SECTION : DOUBLE PROFONDEUR (sujet + opinion incarnée)
+// ═══════════════════════════════════════════════════
+
+export const DEPTH_LAYER_DUAL = `
+══════════════════════════════════════
+DOUBLE PROFONDEUR OBLIGATOIRE — FOND DU SUJET + PRISE DE POSITION
+══════════════════════════════════════
+
+En complément de DEPTH_LAYER (mécanisme/croyance/retournement), le carrousel
+DOIT contenir AU MINIMUM ces deux slides distinctes :
+
+1. SLIDE "FOND DU SUJET" (au moins 1) — analyse du SUJET, pas de la lectrice.
+   Cette slide porte au moins UNE de ces dimensions :
+   - Mécanisme économique : qui gagne quoi, modèle d'affaires sous-jacent,
+     incitation systémique.
+   - Mécanisme sectoriel/historique : précédent, évolution, comparaison
+     entre époques ou contextes.
+   - Donnée factuelle vérifiable : chiffre identifiable, étude, cas connu,
+     pourcentage source-able. Si tu n'as pas de chiffre fiable, tu ne
+     l'inventes pas — tu cites une tendance qualitative.
+   - Acteur identifié : qui agit, dans quel intérêt, quelle conséquence.
+
+   INTERDIT comme angle de cette slide : biais cognitifs de la lectrice,
+   syndrome de l'imposteur, peur du jugement, conditionnements personnels.
+   On parle DU SUJET, pas DE LA PERSONNE qui lit.
+
+2. SLIDE "PRISE DE POSITION INCARNÉE" (au moins 1) — l'opinion tranchée
+   de l'autrice. Ouvre par une marque de subjectivité explicite :
+   - "Moi je trouve que…"
+   - "Ce qui me dérange dans cette lecture…"
+   - "La question qu'on évite, c'est…"
+   - "Je ne suis pas d'accord avec X parce que Y."
+   - "Ce qu'on raconte là-dessus passe à côté de…"
+
+   Cette slide N'EST PAS un diagnostic de la lectrice. C'est une POSITION
+   D'AUTRICE sur le sujet. Elle décale la lecture dominante.
+
+DISTINCTION CRITIQUE :
+- "Profondeur fond du sujet" ≠ "profondeur psy de la lectrice".
+- Si toutes les slides "profondes" du carrousel parlent de ce qui se passe
+  dans la tête de la lectrice (sa peur, ses blocages, ses croyances) →
+  ÉCHEC. La lectrice veut comprendre LE SUJET, pas se faire psy-analyser.
+
+VÉRIFICATION : si je supprime mentalement les deux slides ci-dessus, le
+carrousel se réduit à des constats généraux + un CTA. Ces deux slides
+sont ce qui fait que le carrousel a quelque chose à dire.
+`;
+
+// ═══════════════════════════════════════════════════════════════════════
+// IDEA LENSES — pool de lentilles narratives pour la génération d'idées
+// Utilisé par content-coaching. 4 lentilles tirées par session pour
+// éviter la monotonie des "4 registres fixes".
+// ═══════════════════════════════════════════════════════════════════════
+export const IDEA_LENSES: Array<{ id: string; label: string; def: string }> = [
+  { id: "expertise_pratique", label: "EXPERTISE PRATIQUE",
+    def: "Le 'comment' du métier ancré terrain. Détail technique précis, geste opérationnel, mécanique concrète que seule quelqu'un qui exerce vraiment peut formuler avec cette précision." },
+  { id: "contre_pied_pairs", label: "CONTRE-PIED INTRA-MÉTIER",
+    def: "Opinion tranchée qui dérange aussi les PAIRS du secteur (pas seulement l'audience). Touche à une pratique commune du métier qu'on critique de l'intérieur." },
+  { id: "perspective_elargie", label: "PERSPECTIVE ÉLARGIE",
+    def: "Regard sur le SECTEUR (pas le geste individuel). Mécanisme nommé : biais cognitif, dynamique de marché, ressort psychologique précis, tension culturelle." },
+  { id: "analogie_inattendue", label: "ANALOGIE INATTENDUE",
+    def: "Parallèle entre une mécanique précise du métier et un univers totalement différent (cuisine, sport, artisanat, mécanique, art, science, jardinage, musique, architecture). L'analogie doit RÉELLEMENT TENIR." },
+  { id: "confession_couteuse", label: "CONFESSION COÛTEUSE",
+    def: "Ce que le métier lui a vraiment coûté (financier, relationnel, identitaire). Pas du storytelling héroïque — l'addition réelle, sans morale rapide." },
+  { id: "observation_silencieuse", label: "OBSERVATION SILENCIEUSE",
+    def: "Ce qu'elle remarque dans son secteur depuis longtemps mais que personne ne nomme. Une régularité invisible qu'on voit après 100 clients/projets." },
+  { id: "micro_scene", label: "MICRO-SCÈNE",
+    def: "Un moment de 30 secondes ultra-précis et sensoriel (lieu, geste, phrase entendue). Pas une grande histoire — un instant qui condense tout." },
+  { id: "question_taboue", label: "QUESTION TABOUE",
+    def: "La question que la cible se pose en secret mais n'ose pas formuler à voix haute. La question qui touche à l'argent, au statut, à la honte ou au désir caché." },
+  { id: "archive_retour", label: "ARCHIVE / RETOUR EN ARRIÈRE",
+    def: "Comparaison avec un état passé du métier (il y a 5 ans, à ses débuts, avant un événement). Ce qui a changé, ce qu'on a perdu, ce qu'on a gagné sans s'en rendre compte." },
+  { id: "inversion", label: "INVERSION",
+    def: "Et si on faisait exactement l'inverse de la pratique dominante ? Renverser une règle non-questionnée du métier et regarder ce que ça révèle." },
+  { id: "coulisses_brutes", label: "RÉVÉLATION DE COULISSES",
+    def: "Ce qui se passe AVANT ou APRÈS l'image polie publiée. La friction, le brouillon, les essais ratés, la conversation client honnête." },
+  { id: "intersection_angles", label: "INTERSECTION D'ANGLES",
+    def: "Combinaison explicite de DEUX angles éditoriaux différents (ex : Build in public × Mythe à déconstruire). L'idée naît du frottement entre les deux." },
+];
+
+export function pickLenses(seed: string, count = 4): typeof IDEA_LENSES {
+  // Hash stable sur seed pour varier par jour/user mais rester reproductible
+  // dans une même session.
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    h = (h ^ seed.charCodeAt(i)) >>> 0;
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  const pool = [...IDEA_LENSES];
+  const out: typeof IDEA_LENSES = [];
+  // Pioche déterministe sans remise
+  while (out.length < Math.min(count, pool.length)) {
+    h = Math.imul(h ^ (out.length + 1), 2654435761) >>> 0;
+    const idx = h % pool.length;
+    out.push(pool[idx]);
+    pool.splice(idx, 1);
+  }
+  return out;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// WOW IDEA EXAMPLES — few-shot d'idées waouh annotées (tiède vs waouh).
+// Couvre 6 secteurs pour permettre l'extrapolation par le LLM.
+// ═══════════════════════════════════════════════════════════════════════
+export const WOW_IDEA_EXAMPLES = `
+═══════════════════════════════════════════════════
+EXEMPLES — IDÉE TIÈDE vs IDÉE WAOUH
+═══════════════════════════════════════════════════
+Ces exemples montrent la différence concrète entre une idée plate (qu'on
+voit partout) et une idée qui fait dire "ah merde, c'est exactement ça".
+Tu n'imites pas le SUJET, tu imites la STRUCTURE de profondeur.
+
+— CÉRAMISTE (cible : femmes 30-45 sensibles à l'artisanat)
+Tiède : "3 erreurs quand on choisit sa vaisselle"
+Waouh : "Le bol qui m'a fait pleurer à 2h du mat — pourquoi je ne fais
+plus de pièces 'parfaites'"
+Pourquoi : tension nommée (perfection vs vivant) + scène précise (2h du
+mat) + position métier qui dérange les pairs (rejet de la pièce parfaite).
+
+— COACH BUSINESS (cible : freelances en transition)
+Tiède : "Comment fixer ses prix quand on débute"
+Waouh : "Le jour où j'ai facturé 3000€ et où ma cliente m'a dit 'c'est
+trop peu'"
+Pourquoi : confession contre-intuitive (la cliente corrige à la HAUSSE)
++ remet en cause le réflexe 'bas prix = plus accessible' du secteur.
+
+— AGENT IMMOBILIER (cible : primo-accédants Paris/banlieue)
+Tiède : "Les pièges à éviter à l'achat"
+Waouh : "Pourquoi j'ai déconseillé à 4 clients d'acheter cette année
+(et ce que mon agence en a pensé)"
+Pourquoi : contre-pied intra-métier (déconseiller dans un métier de
+commission) + tension professionnelle assumée + observation terrain.
+
+— CONSULTANTE MARKETING (cible : petites marques ≤ 10 personnes)
+Tiède : "L'authenticité, le nouveau marketing"
+Waouh : "La marque qui m'a payé pour ne RIEN poster pendant 3 mois —
+ce qu'on a observé"
+Pourquoi : inversion radicale (silence comme stratégie) + observation
+chiffrable + dérange la doxa 'il faut poster'.
+
+— PRATICIENNE BIEN-ÊTRE (cible : femmes en burn-out latent)
+Tiède : "5 rituels matin pour bien commencer la journée"
+Waouh : "La cliente qui dort 9h, médite, mange clean — et qui craque
+quand même. Ce que j'ai compris."
+Pourquoi : micro-scène + démolition d'une promesse mainstream du
+secteur + ouvre sur un mécanisme plus profond (sur-contrôle).
+
+— CRÉATRICE DE MODE ÉTHIQUE (cible : 25-40 conscience écolo)
+Tiède : "Pourquoi le slow fashion est l'avenir"
+Waouh : "Pourquoi je refuse de dire que mes pièces 'durent toute la vie'
+(et ce que ça change pour mes prix)"
+Pourquoi : contre-pied honnête sur un argument marketing du secteur +
+tension business assumée + révèle un mécanisme caché du métier.
+
+RÈGLE D'EXTRAPOLATION : tes idées doivent atteindre ce niveau de
+spécificité et de tension. Si tu n'arrives pas à formuler une scène
+ou une position aussi précise, l'idée n'est pas prête — reformule.
 `;

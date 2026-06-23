@@ -1,7 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
+// (import logUsage retiré — l'enrichissement ne décompte plus de crédit, voir note dans le handler)
 
 /**
  * Phase 2 enrichment for deep-diagnostic.
@@ -135,6 +136,10 @@ Précisions importantes :
 
     const opusModel = getModelForAction("branding_audit");
     const enrichmentRaw = await callAnthropicSimple(opusModel, enrichmentSystemPrompt, userPrompt, 0.7, 8192);
+
+    // Pas de logUsage ici : le diagnostic = 1 acte métier = 1 crédit "audit", déjà
+    // décompté par deep-diagnostic (le parent). En logger un 2e ici facturait l'audit
+    // en double — et même 1 crédit parasite pendant l'onboarding (où le parent skippe).
 
     let enrichmentResult: any;
     try {

@@ -1,4 +1,4 @@
-import { Loader2, Pencil, CalendarDays, Copy, Download, RefreshCw, RotateCcw, Palette, ChevronDown, Lightbulb } from "lucide-react";
+import { Loader2, Pencil, CalendarDays, Copy, Download, RefreshCw, RotateCcw, Palette, ChevronDown, Lightbulb, Sparkles, ArrowUpRight } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import CarouselResult from "@/components/creer/formatRenderers/CarouselResult";
@@ -11,7 +11,9 @@ import NewsletterResult from "@/components/creer/formatRenderers/NewsletterResul
 import PinterestVisualResult from "@/components/creer/formatRenderers/PinterestVisualResult";
 import PinterestPhotoBriefResult from "@/components/creer/formatRenderers/PinterestPhotoBriefResult";
 
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
+import { DownloadMenuItems } from "@/components/exports/DownloadMenuItems";
+import { EDITORIAL_ANGLES, LINKEDIN_EDITORIAL_ANGLES, PINTEREST_EDITORIAL_ANGLES, type EditorialAngle } from "@/lib/content-structures";
 
 /**
  * Nettoie le contenu streamé en temps réel.
@@ -80,6 +82,20 @@ const PROGRESS_MESSAGES: Record<string, string[]> = {
     "Étude de la structure visuelle...",
     "Recherche d'angles d'adaptation...",
     "Personnalisation à ton projet...",
+  ],
+  linkedin: [
+    "Rédaction de ton post LinkedIn…",
+    "Personnalisation avec ta voix…",
+    "Passe de relecture : chasse aux tics d'écriture IA…",
+    "Vérification du rythme et des accroches…",
+    "Derniers ajustements…",
+  ],
+  newsletter: [
+    "Rédaction de l'objet d'email…",
+    "Construction du storytelling…",
+    "Développement de la réflexion en profondeur…",
+    "Relecture et correction du style…",
+    "Dernières retouches…",
   ],
   default: [
     "L'IA rédige ton contenu…",
@@ -150,6 +166,18 @@ function SkeletonPreview({ format }: { format: string }) {
     </div>
   );
 }
+// Cibles possibles pour "Transformer en…" — utilisent les format IDs internes
+// (cf. CreerUnifie paramFormat).
+const TRANSFORM_TARGETS: { id: string; emoji: string; label: string }[] = [
+  { id: "carousel", emoji: "🎠", label: "Carrousel Instagram" },
+  { id: "post", emoji: "📸", label: "Post Instagram" },
+  { id: "reel", emoji: "🎬", label: "Reel" },
+  { id: "story", emoji: "📱", label: "Stories" },
+  { id: "linkedin", emoji: "💼", label: "Post LinkedIn" },
+  { id: "newsletter", emoji: "📧", label: "Newsletter" },
+  { id: "pinterest_visual", emoji: "📌", label: "Pinterest visuel" },
+  { id: "pinterest_photo", emoji: "📌", label: "Pinterest photo" },
+];
 
 interface Props {
   result: any;
@@ -167,15 +195,27 @@ interface Props {
   visualLoading?: boolean;
   visualSlides?: { slide_number: number; html: string }[];
   onExportPptx?: () => void;
-  onExportVisualPptx?: () => void;
+  onExportHybridPptx?: () => void;
+  onExportVisualPng?: () => void;
   onSlidesUpdate?: (slides: any[], caption: any) => void;
   onStoriesUpdate?: (stories: any[]) => void;
   photos?: { preview: string; base64?: string; name?: string }[];
   pinterestPinHtml?: string | null;
   onExportPinterestPng?: () => void;
-  onExportPinterestPptx?: () => void;
   onExportPinterestEditablePptx?: () => void;
   photoBriefOverlayHtml?: string | null;
+  channel?: "linkedin" | "instagram";
+  captionLoading?: boolean;
+  onRegenerateCaption?: () => void;
+  onChangeAngle?: (angleId: string | null) => void;
+  currentAngle?: string | null;
+  currentChannel?: string;
+  /** Nombre de photos qui ont été envoyées à l'IA en vision (photo_mode). 0/undefined = pas de vision. */
+  usedPhotoCount?: number;
+  /** Brief source pour pré-remplir une duplication "Transformer en…". */
+  sourceIdea?: string;
+  sourceObjective?: string;
+  sourceAngle?: string | null;
 }
 
 export default function CreerStepResult({
@@ -194,15 +234,25 @@ export default function CreerStepResult({
   visualLoading,
   visualSlides,
   onExportPptx,
-  onExportVisualPptx,
+  onExportHybridPptx,
+  onExportVisualPng,
   onSlidesUpdate,
   onStoriesUpdate,
   photos,
   pinterestPinHtml,
   onExportPinterestPng,
-  onExportPinterestPptx,
   onExportPinterestEditablePptx,
   photoBriefOverlayHtml,
+  channel,
+  captionLoading,
+  onRegenerateCaption,
+  onChangeAngle,
+  currentAngle,
+  currentChannel,
+  usedPhotoCount,
+  sourceIdea,
+  sourceObjective,
+  sourceAngle,
 }: Props) {
   // ── Rotation des messages et tips pendant le loading ──
   const messages = PROGRESS_MESSAGES[format] || PROGRESS_MESSAGES.default;
@@ -296,11 +346,11 @@ export default function CreerStepResult({
   if (!result) return null;
 
   const renderResult = () => {
-    // Carousel photo gets its own renderer
+    // Carousel photo gets its own renderer — but only if we actually have photos
     const r = result?.raw || result;
-    if (format === "carousel" && (r?.carousel_type === "photo" || r?.carousel_type === "mix")) {
+    if (format === "carousel" && (r?.carousel_type === "photo" || r?.carousel_type === "mix") && photos && photos.length > 0) {
       return (
-        <CarouselPhotoResult result={result} photos={photos} onSlidesUpdate={onSlidesUpdate} visualSlides={visualSlides} />
+        <CarouselPhotoResult result={result} photos={photos} onSlidesUpdate={onSlidesUpdate} visualSlides={visualSlides} channel={channel} onRetry={onRegenerate} captionLoading={captionLoading} onRegenerateCaption={onRegenerateCaption} onRegenerateVisuals={onGenerateVisuals} visualLoading={visualLoading} />
       );
     }
 
@@ -314,7 +364,7 @@ export default function CreerStepResult({
       case "post":
         return <PostResult result={result} />;
       case "linkedin":
-        return <LinkedInResult result={result} />;
+        return <LinkedInResult result={result} photos={photos} />;
       case "newsletter":
         return <NewsletterResult result={result} />;
       case "pinterest_photo":
@@ -331,6 +381,23 @@ export default function CreerStepResult({
 
   return (
     <div className="space-y-4 animate-fade-in">
+      {/* Badge : confirme que la photo a bien été utilisée par l'IA */}
+      {usedPhotoCount && usedPhotoCount > 0 && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/5 border border-primary/20 text-xs text-foreground animate-fade-in">
+          <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
+          <span>
+            <strong>
+              Généré à partir de {usedPhotoCount === 1 ? "ta photo" : `tes ${usedPhotoCount} photos`}
+            </strong>
+            {usedPhotoCount === 2
+              ? " (mode avant / après)"
+              : usedPhotoCount >= 3
+              ? " (mode série / reportage)"
+              : ""} — l'IA s'est appuyée sur {usedPhotoCount === 1 ? "le visuel" : "les visuels"} pour rédiger le texte.
+          </span>
+        </div>
+      )}
+
       {/* 1. Contenu (slides, caption, visuels, etc.) */}
       {renderResult()}
 
@@ -435,65 +502,146 @@ export default function CreerStepResult({
         }} className="gap-1.5 text-xs text-muted-foreground">
           <Copy className="h-3.5 w-3.5" /> Copier
         </Button>
-        {isCarousel && hasVisuals && onExportPptx && (
-          onExportVisualPptx ? (
+        {sourceIdea && sourceIdea.trim().length > 0 && (() => {
+          const targets = TRANSFORM_TARGETS.filter((t) => t.id !== format);
+          return (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground">
-                  <Download className="h-3.5 w-3.5" /> Exporter <ChevronDown className="h-3 w-3 ml-0.5" />
+                  <ArrowUpRight className="h-3.5 w-3.5" /> Transformer en <ChevronDown className="h-3 w-3 ml-0.5" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={onExportVisualPptx}>
-                  Visuels (images fidèles)
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={onExportPptx}>
-                  Éditable (PowerPoint)
-                </DropdownMenuItem>
+              <DropdownMenuContent align="end" className="w-64">
+                <DropdownMenuLabel className="text-[11px] font-normal text-muted-foreground">
+                  Ouvre un nouvel onglet pré-rempli
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {targets.map((t) => (
+                  <DropdownMenuItem
+                    key={t.id}
+                    onClick={() => {
+                      const params = new URLSearchParams({
+                        sujet: sourceIdea,
+                        ...(sourceObjective ? { objectif: sourceObjective } : {}),
+                        format: t.id,
+                        ...(sourceAngle ? { angle: sourceAngle } : {}),
+                        from: "transform",
+                      });
+                      window.open(`/creer?${params.toString()}`, "_blank", "noopener,noreferrer");
+                    }}
+                    className="gap-2 cursor-pointer"
+                  >
+                    <span className="text-base">{t.emoji}</span>
+                    <span className="text-sm">{t.label}</span>
+                  </DropdownMenuItem>
+                ))}
               </DropdownMenuContent>
             </DropdownMenu>
-          ) : (
-            <Button variant="ghost" size="sm" onClick={onExportPptx} className="gap-1.5 text-xs text-muted-foreground">
-              <Download className="h-3.5 w-3.5" /> Export PPTX
-            </Button>
-          )
+          );
+        })()}
+        {isCarousel && hasVisuals && (onExportVisualPng || onExportHybridPptx) && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground">
+                <Download className="h-3.5 w-3.5" /> Télécharger <ChevronDown className="h-3 w-3 ml-0.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64">
+              <DownloadMenuItems
+                onPng={onExportVisualPng}
+                onPptxEditable={onExportHybridPptx}
+                count={visualSlides?.length ?? 1}
+              />
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+        {isCarousel && !hasVisuals && onExportPptx && (
+          <Button variant="ghost" size="sm" onClick={onExportPptx} className="gap-1.5 text-xs text-muted-foreground">
+            <Download className="h-3.5 w-3.5" /> Télécharger PPTX
+          </Button>
         )}
         {isCarousel && hasVisuals && onGenerateVisuals && (
           <Button variant="ghost" size="sm" onClick={onGenerateVisuals} className="gap-1.5 text-xs text-muted-foreground">
             <RefreshCw className="h-3.5 w-3.5" /> Regénérer visuels
           </Button>
         )}
-        {format === "pinterest_visual" && (result?.pin_html || result?.title) && (onExportPinterestPng || onExportPinterestEditablePptx || onExportPinterestPptx) && (
+        {isCarousel && !generating && result && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onRegenerate}
+            title="Régénère le carrousel sur le même sujet (consomme 1 crédit)."
+            className="gap-1.5 text-xs text-muted-foreground"
+          >
+            <RefreshCw className="h-3.5 w-3.5" /> Nouvelle proposition
+          </Button>
+        )}
+        {format === "pinterest_visual" && (result?.pin_html || result?.title) && (onExportPinterestPng || onExportPinterestEditablePptx) && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground">
-                <Download className="h-3.5 w-3.5" /> Exporter <ChevronDown className="h-3 w-3 ml-0.5" />
+                <Download className="h-3.5 w-3.5" /> Télécharger <ChevronDown className="h-3 w-3 ml-0.5" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {onExportPinterestEditablePptx && (
-                <DropdownMenuItem onClick={onExportPinterestEditablePptx}>
-                  Éditable (PowerPoint)
-                </DropdownMenuItem>
-              )}
-              {onExportPinterestPptx && (
-                <DropdownMenuItem onClick={onExportPinterestPptx}>
-                  Image fidèle (PPTX)
-                </DropdownMenuItem>
-              )}
-              {onExportPinterestPng && (
-                <DropdownMenuItem onClick={onExportPinterestPng}>
-                  Image PNG
-                </DropdownMenuItem>
-              )}
+            <DropdownMenuContent align="end" className="w-64">
+              <DownloadMenuItems
+                onPng={onExportPinterestPng}
+                onPptxEditable={onExportPinterestEditablePptx}
+                count={1}
+              />
             </DropdownMenuContent>
           </DropdownMenu>
         )}
         {format === "pinterest_photo" && result?.overlay_html && onExportPinterestPng && (
           <Button variant="ghost" size="sm" onClick={onExportPinterestPng} className="gap-1.5 text-xs text-muted-foreground">
-            <Download className="h-3.5 w-3.5" /> Exporter PNG
+            <Download className="h-3.5 w-3.5" /> Télécharger PNG
           </Button>
         )}
+        {onChangeAngle && !generating && result && (() => {
+          const angleList: EditorialAngle[] =
+            currentChannel === "linkedin" ? LINKEDIN_EDITORIAL_ANGLES :
+            currentChannel === "pinterest" ? PINTEREST_EDITORIAL_ANGLES :
+            EDITORIAL_ANGLES;
+          const currentLabel = currentAngle ? angleList.find(a => a.id === currentAngle)?.label : null;
+          return (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground">
+                  <Palette className="h-3.5 w-3.5" /> Changer d'angle <ChevronDown className="h-3 w-3 ml-0.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-72 max-h-96 overflow-y-auto">
+                {currentLabel && (
+                  <DropdownMenuLabel className="text-[10px] text-muted-foreground font-normal">
+                    Actuel : {currentLabel}
+                  </DropdownMenuLabel>
+                )}
+                <DropdownMenuItem onClick={() => onChangeAngle(null)} className="gap-2">
+                  <Sparkles className="h-4 w-4 text-primary shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold">Laisser l'IA choisir</p>
+                    <p className="text-[10px] text-muted-foreground">Selon ton idée et ta voix</p>
+                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                {angleList.map((a) => (
+                  <DropdownMenuItem
+                    key={a.id}
+                    onClick={() => onChangeAngle(a.id)}
+                    disabled={a.id === currentAngle}
+                    className="gap-2"
+                  >
+                    <span className="text-base shrink-0">{a.emoji}</span>
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold">{a.label}</p>
+                      <p className="text-[10px] text-muted-foreground line-clamp-2">{a.principle}</p>
+                    </div>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          );
+        })()}
         <Button variant="ghost" size="sm" onClick={onReset} className="gap-1.5 text-xs text-muted-foreground">
           <RotateCcw className="h-3.5 w-3.5" /> Nouveau contenu
         </Button>

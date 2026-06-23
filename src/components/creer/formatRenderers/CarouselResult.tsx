@@ -152,6 +152,11 @@ export default function CarouselResult({ result, visualSlides, onSlidesUpdate }:
 
   const prevSlidesSignature = useRef(JSON.stringify(rawSlides.map(s => s.slide_number)));
 
+  const slidesRef = useRef(slides);
+  slidesRef.current = slides;
+  const captionRef = useRef(caption);
+  captionRef.current = caption;
+
   // Sync only when slides are structurally different (new generation)
   useEffect(() => {
     const newSignature = JSON.stringify(rawSlides.map(s => s.slide_number));
@@ -166,18 +171,18 @@ export default function CarouselResult({ result, visualSlides, onSlidesUpdate }:
     setSlides(prev => {
       const updated = [...prev];
       updated[index] = { ...updated[index], [field]: value };
-      onSlidesUpdate?.(updated, caption);
+      onSlidesUpdate?.(updated, captionRef.current);
       return updated;
     });
-  }, [caption, onSlidesUpdate]);
+  }, [onSlidesUpdate]);
 
   const updateCaption = useCallback((field: "hook" | "body" | "cta", value: string) => {
     setCaption(prev => {
       const updated = { ...prev, [field]: value };
-      onSlidesUpdate?.(slides, updated);
+      onSlidesUpdate?.(slidesRef.current, updated);
       return updated;
     });
-  }, [slides, onSlidesUpdate]);
+  }, [onSlidesUpdate]);
 
   const fullText = [
     caption?.hook,

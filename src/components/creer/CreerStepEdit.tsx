@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, Copy, Save, CalendarDays, Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { toast } from "sonner";
 
 interface Props {
@@ -38,14 +38,14 @@ export default function CreerStepEdit({ content, format, onSave, onBack, onCopy,
   const handleAdjust = useCallback(async (adjustmentId: string) => {
     setAdjusting(adjustmentId);
     try {
-      const { data, error } = await supabase.functions.invoke("creative-flow", {
+      const { data, error } = await invokeWithTimeout("creative-flow", {
         body: {
           step: "adjust",
           contentType: format === "linkedin" ? "linkedin_post" : format === "newsletter" ? "newsletter" : "instagram_post",
           content: editedContent,
           adjustment: adjustmentId,
         },
-      });
+      }, 60000);
       if (error) throw new Error(error.message);
 
       const adjusted = typeof data === "string" ? data : data?.content || data?.text || data?.adjusted || editedContent;

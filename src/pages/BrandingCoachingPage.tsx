@@ -2,9 +2,9 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import BrandingCoachingFlow from "@/components/branding/BrandingCoachingFlow";
 import { LocalErrorBoundary } from "@/components/LocalErrorBoundary";
 
-type Section = "story" | "persona" | "tone_style" | "content_strategy" | "offers" | "charter";
+type Section = "story" | "persona" | "tone_style" | "content_strategy" | "offers" | "charter" | "content_series";
 
-const VALID_SECTIONS: Section[] = ["story", "persona", "tone_style", "content_strategy", "offers", "charter"];
+const VALID_SECTIONS: Section[] = ["story", "persona", "tone_style", "content_strategy", "offers", "charter", "content_series"];
 
 const SECTION_ALIAS: Record<string, string> = {
   storytelling: "story",
@@ -20,12 +20,14 @@ const RECAP_ROUTES: Record<Section, string> = {
   content_strategy: "/branding/section?section=content_strategy&tab=synthese",
   offers: "/branding/offres",
   charter: "/branding/charter",
+  content_series: "/branding/section?section=content_strategy&tab=series",
 };
 
 export default function BrandingCoachingPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const rawSection = searchParams.get("section");
+  const personaId = searchParams.get("personaId");
 
   // Resolve aliases
   const resolved = SECTION_ALIAS[rawSection || ""] || rawSection;
@@ -47,6 +49,7 @@ export default function BrandingCoachingPage() {
     <LocalErrorBoundary fallbackMessage="Le coaching branding a rencontré une erreur.">
       <BrandingCoachingFlow
         section={section}
+        personaId={personaId || undefined}
         onComplete={() => navigate(RECAP_ROUTES[section] || "/branding")}
         onBack={() => navigate("/branding")}
       />

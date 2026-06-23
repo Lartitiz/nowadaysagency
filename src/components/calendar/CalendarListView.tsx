@@ -16,6 +16,8 @@ interface CalendarListViewProps {
   onUpdateDraft?: (postId: string, draft: string) => void;
   canalFilter: string;
   categoryFilter: string;
+  seriesFilter?: string;
+  seriesNameById?: Record<string, string>;
 }
 
 type SortKey = "date" | "status" | "canal";
@@ -209,7 +211,7 @@ function MobileCard({ post, onEditPost, onStatusChange, onDeletePost, onDuplicat
   );
 }
 
-export function CalendarListView({ posts, onEditPost, onStatusChange, onDeletePost, onDuplicate, onUpdateDraft, canalFilter, categoryFilter }: CalendarListViewProps) {
+export function CalendarListView({ posts, onEditPost, onStatusChange, onDeletePost, onDuplicate, onUpdateDraft, canalFilter, categoryFilter, seriesFilter, seriesNameById }: CalendarListViewProps) {
   const isMobile = useIsMobile();
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
@@ -240,8 +242,10 @@ export function CalendarListView({ posts, onEditPost, onStatusChange, onDeletePo
     } else if (categoryFilter === "a_rediger") {
       result = result.filter((p) => p.status === "a_rediger");
     }
+    if (seriesFilter === "none") result = result.filter((p) => !(p as any).series_id);
+    else if (seriesFilter && seriesFilter !== "all") result = result.filter((p) => (p as any).series_id === seriesFilter);
     return result;
-  }, [posts, canalFilter, categoryFilter]);
+  }, [posts, canalFilter, categoryFilter, seriesFilter]);
 
   const sorted = useMemo(() => {
     const arr = [...filtered];

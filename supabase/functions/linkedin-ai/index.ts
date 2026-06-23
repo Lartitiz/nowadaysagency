@@ -1,14 +1,59 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { LINKEDIN_PRINCIPLES_COMPACT, LINKEDIN_TEMPLATES, ANTI_SLOP, CHAIN_OF_THOUGHT, ETHICAL_GUARDRAILS, ANTI_BIAS, EDITORIAL_ANGLES_REFERENCE, PREGEN_INJECTION_RULES } from "../_shared/copywriting-prompts.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
+import { LINKEDIN_PRINCIPLES_COMPACT, LINKEDIN_TEMPLATES, ANTI_SLOP, CHAIN_OF_THOUGHT, ETHICAL_GUARDRAILS, ANTI_BIAS, EDITORIAL_ANGLES_REFERENCE, PREGEN_INJECTION_RULES, ANTI_BROETRY_LINKEDIN, EMBEDDED_EDUCATION } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallback } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
+import { applyCorrectionPass } from "../_shared/correction-pass.ts";
+
+// JSON-aware correction: extract a long-text field, run correction-pass, reinject.
+async function correctJsonField(rawJson: string, field: string): Promise<string> {
+  try {
+    const match = rawJson.match(/\{[\s\S]*\}/);
+    if (!match) return rawJson;
+    const parsed = JSON.parse(match[0]);
+    const original = parsed?.[field];
+    if (typeof original !== "string" || original.length < 200) return rawJson;
+    const corrected = await applyCorrectionPass(original, "linkedin", {
+      logger: (m) => console.log(`[linkedin-ai] ${m}`),
+    });
+    if (!corrected || corrected === original) return rawJson;
+    parsed[field] = corrected;
+    return JSON.stringify(parsed);
+  } catch (e) {
+    console.error(`[linkedin-ai] correctJsonField(${field}) failed:`, e);
+    return rawJson;
+  }
+}
+
+// Crosspost-aware: correct versions.linkedin.full_text if present
+async function correctCrosspostJson(rawJson: string): Promise<string> {
+  try {
+    const match = rawJson.match(/\{[\s\S]*\}/);
+    if (!match) return rawJson;
+    const parsed = JSON.parse(match[0]);
+    const liText = parsed?.versions?.linkedin?.full_text;
+    if (typeof liText !== "string" || liText.length < 200) return rawJson;
+    const corrected = await applyCorrectionPass(liText, "linkedin", {
+      logger: (m) => console.log(`[linkedin-ai:crosspost] ${m}`),
+    });
+    if (!corrected || corrected === liText) return rawJson;
+    parsed.versions.linkedin.full_text = corrected;
+    if (typeof parsed.versions.linkedin.character_count === "number") {
+      parsed.versions.linkedin.character_count = corrected.length;
+    }
+    return JSON.stringify(parsed);
+  } catch (e) {
+    console.error(`[linkedin-ai] correctCrosspostJson failed:`, e);
+    return rawJson;
+  }
+}
 import { corsHeaders } from "../_shared/cors.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { buildSeriesContext } from "../_shared/series-context.ts";
 
 // Voice profile is fetched by getUserContext now
 
@@ -48,12 +93,19 @@ serve(async (req) => {
       existing_resume: z.string().max(5000).optional().nullable(),
       editorial_angle: z.string().max(100).optional().nullable(),
       content_structure: z.string().max(5000).optional().nullable(),
+      subject: z.string().max(5000).optional().nullable(),
+      chosen_angle: z.string().max(500).optional().nullable(),
+      slides_summary: z.string().max(8000).optional().nullable(),
+      objective: z.string().max(200).optional().nullable(),
+      series_id: z.string().uuid().optional().nullable(),
+      episode_number: z.number().int().min(1).optional().nullable(),
     }).passthrough());
-    const { action, workspace_id, ...params } = reqBody;
+    const { action, workspace_id, series_id, episode_number, ...params } = reqBody;
 
     // Determine category based on action
     const categoryMap: Record<string, string> = {
       "improve-post": "content",
+      "caption-for-carousel": "content",
       "adapt-instagram": "adaptation",
       "crosspost": "adaptation",
       "title": "bio_profile",
@@ -74,7 +126,7 @@ serve(async (req) => {
     }
     const ctx = await getUserContext(supabase, user.id, workspace_id, "linkedin");
     const context = formatContextForAI(ctx, CONTEXT_PRESETS.linkedin);
-    const qualityBlocks = `${ANTI_SLOP}\n\n${ETHICAL_GUARDRAILS}\n\n${ANTI_BIAS}\n\n${CHAIN_OF_THOUGHT}\n\nPRIORITÉ VOIX : si un profil de voix existe dans le contexte, reproduis ce style. Réutilise les expressions signature. Respecte les expressions interdites. Le résultat doit sonner comme si l'utilisatrice l'avait écrit elle-même.`;
+    const qualityBlocks = `${EMBEDDED_EDUCATION}\n\n${ANTI_SLOP}\n\n${ETHICAL_GUARDRAILS}\n\n${ANTI_BIAS}\n\n${CHAIN_OF_THOUGHT}\n\nPRIORITÉ VOIX : si un profil de voix existe dans le contexte, reproduis ce style. Réutilise les expressions signature. Respecte les expressions interdites. Le résultat doit sonner comme si l'utilisatrice l'avait écrit elle-même.`;
     const branding = { storytelling: ctx.storytelling };
 
     const VOICE_PRIORITY = `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :\n- Reproduis fidèlement le style décrit\n- Réutilise les expressions signature naturellement dans le texte\n- RESPECTE les expressions interdites : ne les utilise JAMAIS\n- Imite les patterns de ton et de structure\n- Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA\n\n`;
@@ -133,13 +185,15 @@ serve(async (req) => {
         });
 
         systemPrompt = BASE_SYSTEM_RULES + "\n\n" + VOICE_PRIORITY + crosspostSystemPrompt;
-        const content = await callAnthropic({
+        let content = await callAnthropic({
           model: getModelForAction("linkedin_post"),
           system: systemPrompt,
           messages: [{ role: "user", content: userContent }],
           temperature: 0.8,
           max_tokens: 4096,
         });
+
+        content = await correctCrosspostJson(content);
 
         await logUsage(user.id, category, `linkedin_crosspost_files`, undefined, undefined, workspace_id);
 
@@ -175,9 +229,14 @@ serve(async (req) => {
       systemPrompt = `${LINKEDIN_PRINCIPLES_COMPACT}\n\n${context}\n\n${qualityBlocks}\n\nRÉSUMÉ LINKEDIN ACTUEL :\n"""\n${existing_resume}\n"""\n\nANALYSE le résumé selon 5 éléments :\n1. HOOK (3 premières lignes)\n2. PASSION\n3. PARCOURS\n4. PROPOSITION\n5. CTA\n\nRETOURNE UNIQUEMENT un JSON valide :\n{\n  "score": 55,\n  "summary": { "positives": ["max 2"], "improvements": ["max 2"] },\n  "recommendations": [\n    { "number": 1, "title": "max 8 mots", "status": "good|partial|missing", "explanation": "max 2 phrases", "example": "optionnel" }\n  ],\n  "proposed_version": "Version améliorée complète, 1500-2000 caractères."\n}`;
       userPrompt = "Analyse et améliore mon résumé LinkedIn existant.";
 
+    } else if (action === "caption-for-carousel") {
+      const { subject, chosen_angle, slides_summary, editorial_angle, objective } = params;
+      systemPrompt = `${LINKEDIN_PRINCIPLES_COMPACT}\n\n${ANTI_BROETRY_LINKEDIN}\n\n${context}\n\n${qualityBlocks}\n\nTu rédiges UNIQUEMENT la légende (caption) qui accompagne un carrousel LinkedIn (PDF de slides). Les slides portent déjà la valeur structurée : la légende complète, contextualise, donne envie de cliquer le PDF.\n\nCONTEXTE DU CARROUSEL :\n- Sujet : "${subject || ""}"\n${chosen_angle ? `- Angle choisi : "${chosen_angle}"\n` : ""}${editorial_angle ? `- Angle éditorial : "${editorial_angle}"\n` : ""}${objective ? `- Objectif : "${objective}"\n` : ""}${slides_summary ? `- Résumé des slides du PDF :\n${slides_summary}\n` : ""}\n\nRÈGLES LINKEDIN STRICTES :\n1. HOOK (max 210 caractères) : phrase d'accroche AVANT le "voir plus". DOIT donner envie d'ouvrir le carrousel. PAS la même phrase que la slide 1 du PDF — elle complète, elle ne répète pas.\n2. BODY (800-1500 caractères) : développe le pourquoi de ce sujet, l'envers du décor, le contexte personnel ou professionnel, ce que le PDF ne montre pas. Phrases complètes, paragraphes courts (2-4 lignes), aérés. PAS de listicle. PAS de phrases isolées sur des lignes séparées (anti-broetry).\n3. CTA (1-2 phrases) : invitation concrète à la conversation. Exemples : "Quelle est votre expérience ?", "Partagez si cela résonne", "Envoyez à un·e collègue qui…". JAMAIS "Sauvegarde", "DM moi", "Tag une copine".\n4. HASHTAGS : EXACTEMENT 3 à 5 hashtags professionnels (secteur, métier, thématique). PAS de hashtags génériques type #motivation #life. Sans le "#" dans le tableau.\n5. PAS de tirets cadratins (—). Écriture inclusive (point médian quand pertinent).\n6. Ton : professionnel chaleureux, expert·e accessible. Vouvoiement par défaut sauf si la voix de marque dit le contraire.\n\nRETOURNE UNIQUEMENT un JSON valide sans backticks ni texte avant/après :\n{\n  "hook": "max 210 caractères",\n  "body": "800 à 1500 caractères",\n  "cta": "1-2 phrases",\n  "hashtags": ["mot1", "mot2", "mot3"]\n}`;
+      userPrompt = "Rédige la légende LinkedIn pour ce carrousel.";
+
     } else if (action === "improve-post") {
       const { postContent } = params;
-      systemPrompt = `${LINKEDIN_PRINCIPLES_COMPACT}\n\n${ANTI_BROETRY}${context}\n\n${qualityBlocks}\n\nANALYSE ce post LinkedIn et propose une version améliorée.\n\nPOST ORIGINAL :\n"""\n${postContent}\n"""\n\nCRITÈRES D'ANALYSE :\n1. ACCROCHE (210 premiers car.) : intrigue-t-elle ? Donne-t-elle envie de cliquer "voir plus" ?\n2. STRUCTURE : paragraphes courts ? Espacement ? Lisibilité ?\n3. LONGUEUR : dans le sweet spot 1300-1900 car. ?\n4. OPINION : le point de vue de l'auteur·ice est-il visible ?\n5. CONCRET : y a-t-il des exemples, des preuves, du vécu ?\n6. CTA : y a-t-il un appel à l'action ou une question ?\n7. TON : est-ce incarné ou ça pourrait être écrit par n'importe qui ?\n8. HASHTAGS : 0-2 max ? Pertinents ?\n9. EMOJIS : 0-2 max ? Pas excessifs ?\n10. ÉCRITURE INCLUSIVE : point médian utilisé ?\n\nRETOURNE UNIQUEMENT un JSON valide sans backticks :\n{\n  "score": 65,\n  "points_forts": ["...", "..."],\n  "points_faibles": ["...", "..."],\n  "accroche_analysis": "Les 210 premiers caractères sont... parce que...",\n  "improved_version": "Le post complet amélioré",\n  "hook_alternatives": ["Variante 1 d'accroche", "Variante 2 d'accroche"],\n  "character_count": 1450,\n  "checklist": [\n    { "item": "Accroche efficace", "ok": true },\n    { "item": "Structure aérée", "ok": true },\n    { "item": "Longueur sweet spot", "ok": true },\n    { "item": "Opinion visible", "ok": true },\n    { "item": "Exemples concrets", "ok": true },\n    { "item": "CTA présent", "ok": true },\n    { "item": "Ton incarné", "ok": true },\n    { "item": "Hashtags ok", "ok": true },\n    { "item": "Emojis ok", "ok": true },\n    { "item": "Écriture inclusive", "ok": true }\n  ]\n}`;
+      systemPrompt = `${LINKEDIN_PRINCIPLES_COMPACT}\n\n${ANTI_BROETRY_LINKEDIN}${context}\n\n${qualityBlocks}\n\nANALYSE ce post LinkedIn et propose une version améliorée.\n\nPOST ORIGINAL :\n"""\n${postContent}\n"""\n\nCRITÈRES D'ANALYSE :\n1. ACCROCHE (210 premiers car.) : intrigue-t-elle ? Donne-t-elle envie de cliquer "voir plus" ?\n2. STRUCTURE : paragraphes courts ? Espacement ? Lisibilité ?\n3. LONGUEUR : dans le sweet spot 1300-1900 car. ?\n4. OPINION : le point de vue de l'auteur·ice est-il visible ?\n5. CONCRET : y a-t-il des exemples, des preuves, du vécu ?\n6. CTA : y a-t-il un appel à l'action ou une question ?\n7. TON : est-ce incarné ou ça pourrait être écrit par n'importe qui ?\n8. HASHTAGS : 0-2 max ? Pertinents ?\n9. EMOJIS : 0-2 max ? Pas excessifs ?\n10. ÉCRITURE INCLUSIVE : point médian utilisé ?\n\nRETOURNE UNIQUEMENT un JSON valide sans backticks :\n{\n  "score": 65,\n  "points_forts": ["...", "..."],\n  "points_faibles": ["...", "..."],\n  "accroche_analysis": "Les 210 premiers caractères sont... parce que...",\n  "improved_version": "Le post complet amélioré",\n  "hook_alternatives": ["Variante 1 d'accroche", "Variante 2 d'accroche"],\n  "character_count": 1450,\n  "checklist": [\n    { "item": "Accroche efficace", "ok": true },\n    { "item": "Structure aérée", "ok": true },\n    { "item": "Longueur sweet spot", "ok": true },\n    { "item": "Opinion visible", "ok": true },\n    { "item": "Exemples concrets", "ok": true },\n    { "item": "CTA présent", "ok": true },\n    { "item": "Ton incarné", "ok": true },\n    { "item": "Hashtags ok", "ok": true },\n    { "item": "Emojis ok", "ok": true },\n    { "item": "Écriture inclusive", "ok": true }\n  ]\n}`;
       userPrompt = "Analyse et améliore ce post LinkedIn.";
 
     } else if (action === "suggest-template") {
@@ -219,7 +278,31 @@ serve(async (req) => {
     }
 
     systemPrompt = BASE_SYSTEM_RULES + "\n\n" + VOICE_PRIORITY + systemPrompt;
-    const content = await callAnthropicSimple(getModelForAction("linkedin_post"), systemPrompt, userPrompt, 0.8);
+
+    // Inject SERIES context for content-generating actions
+    const seriesActions = new Set(["caption-for-carousel", "improve-post", "adapt-instagram", "crosspost"]);
+    if (series_id && seriesActions.has(action)) {
+      try {
+        const seriesCtx = await buildSeriesContext(supabase, series_id, episode_number, "linkedin");
+        if (seriesCtx) {
+          console.log(`[linkedin-ai] series context injected: ${seriesCtx.seriesName} (ep #${seriesCtx.episodeNumber})`);
+          systemPrompt += `\n\n${seriesCtx.block}`;
+        }
+      } catch (e) {
+        console.error("[linkedin-ai] buildSeriesContext failed", e);
+      }
+    }
+
+    let content = await callAnthropicSimple(getModelForAction("linkedin_post"), systemPrompt, userPrompt, 0.8);
+
+    // LinkedIn correction pass — applied per action with awareness of output shape
+    if (action === "caption-for-carousel") {
+      content = await correctJsonField(content, "body");
+    } else if (action === "improve-post") {
+      content = await correctJsonField(content, "improved_version");
+    } else if (action === "crosspost") {
+      content = await correctCrosspostJson(content);
+    }
 
     await logUsage(user.id, category, `linkedin_${action}`, undefined, undefined, workspace_id);
 
@@ -227,10 +310,22 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: any) {
+    if (error instanceof ValidationError) {
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (error?.status === 429) {
+      return new Response(JSON.stringify({ error: "Trop de requêtes. Réessaie dans un moment." }), {
+        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     console.error("linkedin-ai error:", error);
-    return new Response(JSON.stringify({ error: "Erreur interne du serveur" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    const userMessage = error?.message?.includes("API") || error?.message?.includes("IA")
+      ? error.message
+      : "Erreur interne du serveur";
+    return new Response(JSON.stringify({ error: userMessage }), {
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });

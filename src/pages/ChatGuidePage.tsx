@@ -12,6 +12,7 @@ import { useGuideRecommendation } from "@/hooks/use-guide-recommendation";
 // useCoachingFlow removed — all interactions now go through the AI edge function
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { parseAIResponse } from "@/lib/parse-ai-response";
 import { LayoutGrid } from "lucide-react";
 import { useDemoContext } from "@/contexts/DemoContext";
@@ -867,7 +868,7 @@ export default function ChatGuidePage() {
                                 setExpressLoading(action.route);
                                 toast.info("⚡ Génération express du carrousel...");
                                 try {
-                                  const { data, error } = await supabase.functions.invoke("carousel-ai", {
+                                  const { data, error } = await invokeWithTimeout("carousel-ai", {
                                     body: {
                                       type: "express_full",
                                       carousel_type: carouselType,
@@ -876,8 +877,8 @@ export default function ChatGuidePage() {
                                       slide_count: 7,
                                       workspace_id: workspaceId,
                                     },
-                                  });
-                                  if (error) throw error;
+                                  }, 120000);
+                                  if (error) throw new Error(error.message);
                                   const parsed = parseAIResponse(data?.content || "");
                                   navigate("/creer?format=carousel", {
                                     state: {

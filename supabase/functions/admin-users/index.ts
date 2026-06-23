@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders, corsHeaders } from "../_shared/cors.ts";
 
 const ADMIN_EMAIL = "laetitia@nowadaysagency.com";
@@ -286,12 +286,12 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
     aiCountByUser.set(a.user_id, (aiCountByUser.get(a.user_id) || 0) + 1);
   }
 
-  // Near-limit free users (24+/30 credits)
+  // Near-limit free users (48+/60 credits)
   const nearLimitFree = [...aiCountByUser.entries()]
     .filter(([userId, count]) => {
       const sub = subsByUser.get(userId);
       const plan = sub?.plan || "free";
-      return plan === "free" && count >= 24 && userId !== adminUserId;
+      return plan === "free" && count >= 48 && userId !== adminUserId;
     })
     .map(([userId, count]) => {
       const prof = profiles.find((p: any) => p.user_id === userId);

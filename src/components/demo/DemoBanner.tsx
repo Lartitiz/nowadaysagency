@@ -21,19 +21,10 @@ export default function DemoBanner() {
         <span>🎬 Mode démo · {demoName}, {demoActivity}</span>
       </div>
 
-      <div className="flex items-center gap-3">
-        {/* Plan toggle tabs */}
+      <div className="flex items-center gap-3 flex-wrap">
         <div className="flex bg-background/60 rounded-full p-0.5 border border-border/50">
-          <PlanTab
-            label="Outil seul"
-            active={demoPlan === "free"}
-            onClick={() => setDemoPlan("free")}
-          />
-          <PlanTab
-            label="Binôme"
-            active={demoPlan === "binome"}
-            onClick={() => setDemoPlan("binome")}
-          />
+          <PlanTab label="Outil seul" active={demoPlan === "free"} onClick={() => setDemoPlan("free")} />
+          <PlanTab label="Binôme" active={demoPlan === "binome"} onClick={() => setDemoPlan("binome")} />
         </div>
 
         <button

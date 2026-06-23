@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useProfile } from "@/hooks/use-profile";
-import { useProfileUserId } from "@/hooks/use-workspace-query";
+import { useProfileUserId, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
@@ -61,6 +62,7 @@ export default function InstagramProfileCoaching({ open, onOpenChange, initialMo
   const { user } = useAuth();
   const { data: profileData } = useProfile();
   const profileUserId = useProfileUserId();
+  const workspaceId = useWorkspaceId();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
@@ -107,9 +109,9 @@ export default function InstagramProfileCoaching({ open, onOpenChange, initialMo
 
   const loadQuestions = async (mod: ModuleKey) => {
     try {
-      const { data, error } = await supabase.functions.invoke("instagram-profile-coaching", {
-        body: { phase: "questions", module: mod },
-      });
+      const { data, error } = await invokeWithTimeout("instagram-profile-coaching", {
+        body: { phase: "questions", module: mod, workspace_id: workspaceId !== user?.id ? workspaceId : undefined },
+      }, 60000);
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
       setQuestions(data.questions || []);
@@ -137,9 +139,9 @@ export default function InstagramProfileCoaching({ open, onOpenChange, initialMo
         question: q.question,
         answer: answers[i] || "",
       }));
-      const { data, error } = await supabase.functions.invoke("instagram-profile-coaching", {
-        body: { phase: "diagnostic", module: activeModule, answers: answersPayload },
-      });
+      const { data, error } = await invokeWithTimeout("instagram-profile-coaching", {
+        body: { phase: "diagnostic", module: activeModule, answers: answersPayload, workspace_id: workspaceId !== user?.id ? workspaceId : undefined },
+      }, 90000);
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
       setDiagnostic(data);

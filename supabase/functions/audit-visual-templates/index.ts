@@ -1,10 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropic, getModelForAction } from "../_shared/anthropic.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req); const cors = corsHeaders;
@@ -23,6 +25,9 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new Error("Non autorisé");
 
+    const rateCheck = checkRateLimit(user.id);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+
     // Check workspace
     const sbAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -37,23 +42,30 @@ serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
-    const workspaceId = wsMember?.workspace_id;
+    const ownerWorkspaceId = wsMember?.workspace_id;
 
-    // Check quota
+    const reqBody = await req.json();
+    const { template_urls } = validateInput(reqBody, z.object({
+      template_urls: z.array(z.string().url().max(2048)).min(1, "Au moins 1 URL requise").max(10),
+    }));
+
+    const sbGuard = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const membership = await assertWorkspaceMembership(sbGuard, user.id, reqBody.workspace_id);
+    if (!membership.ok) {
+      console.warn("[workspace-guard] denied", { userId: user.id, workspaceId: reqBody.workspace_id });
+      return workspaceDeniedResponse(corsHeaders);
+    }
+
+    // Priority: body workspace_id > owner lookup
+    const workspaceId = reqBody.workspace_id || ownerWorkspaceId;
+
+    // Check quota (workspace cible prioritaire)
     const quota = await checkQuota(user.id, "audit", workspaceId);
     if (!quota.allowed) {
       return new Response(JSON.stringify({ error: quota.message, quota }), {
         status: 429,
         headers: { ...cors, "Content-Type": "application/json" },
       });
-    }
-
-    const reqBody = await req.json();
-    const { template_urls } = validateInput(reqBody, z.object({
-      template_urls: z.array(z.string().url().max(2048)).min(1, "Au moins 1 URL requise").max(10),
-    }));
-    if (false) {
-      throw new Error("Aucun template fourni");
     }
 
     const urls = template_urls.slice(0, 5);
@@ -215,13 +227,26 @@ La description template_layout_description doit être TRÈS détaillée (200-500
       headers: { ...cors, "Content-Type": "application/json" },
     });
   } catch (err: any) {
+    if (err instanceof ValidationError) {
+      return new Response(JSON.stringify({ error: err.message }), {
+        status: 400, headers: { ...cors, "Content-Type": "application/json" },
+      });
+    }
     console.error("audit-visual-templates error:", err);
     if (err.message === "Non autorisé") {
       return new Response(JSON.stringify({ error: "Non autorisé" }), {
         status: 401, headers: { ...cors, "Content-Type": "application/json" },
       });
     }
-    return new Response(JSON.stringify({ error: "Erreur interne du serveur" }), {
+    if (err?.status === 429) {
+      return new Response(JSON.stringify({ error: "Trop de requêtes. Réessaie dans un moment." }), {
+        status: 429, headers: { ...cors, "Content-Type": "application/json" },
+      });
+    }
+    const userMessage = err?.message?.includes("API") || err?.message?.includes("IA")
+      ? err.message
+      : "Erreur interne du serveur";
+    return new Response(JSON.stringify({ error: userMessage }), {
       status: 500, headers: { ...cors, "Content-Type": "application/json" },
     });
   }

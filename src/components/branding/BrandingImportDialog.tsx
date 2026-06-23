@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { extractTextFromFile, ACCEPTED_MIME_TYPES } from "@/lib/file-extractors";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { toast } from "sonner";
@@ -78,14 +79,14 @@ export default function BrandingImportDialog({
     setStep("loading");
 
     try {
-      const { data, error } = await supabase.functions.invoke("import-branding-data", {
+      const { data, error } = await invokeWithTimeout("import-branding-data", {
         body: {
           section: sectionTable,
           text: text.trim(),
           fields: fields.map((f) => ({ key: f.key, label: f.label })),
           workspace_id: workspaceId,
         },
-      });
+      }, 120000);
 
       if (error) throw new Error(error.message || "Erreur lors de l'analyse");
       if (data?.error) throw new Error(data.error);

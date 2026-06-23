@@ -8,22 +8,25 @@ import { useProfile } from "@/hooks/use-profile";
 import { useSearchParams, useLocation, useNavigate } from "react-router-dom";
 import BrandingPrompt from "@/components/BrandingPrompt";
 import { useDemoContext } from "@/contexts/DemoContext";
-import { DEMO_DATA } from "@/lib/demo-data";
+
 import AuditRecommendationBanner from "@/components/AuditRecommendationBanner";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ChevronLeft, ChevronRight, Sparkles, Download, Link2, PenLine } from "lucide-react";
 import { CalendarShareDialog } from "@/components/calendar/CalendarShareDialog";
 
 import CalendarCoachingDialog from "@/components/calendar/CalendarCoachingDialog";
-import { CANAL_FILTERS, type CalendarPost } from "@/lib/calendar-constants";
+import { CANAL_FILTERS, STATUS_LABELS, type CalendarPost } from "@/lib/calendar-constants";
 import { CalendarGrid } from "@/components/calendar/CalendarGrid";
 import { CalendarWeekGrid } from "@/components/calendar/CalendarWeekGrid";
 import { CalendarPostDialog } from "@/components/calendar/CalendarPostDialog";
 import { CalendarCategoryFilters } from "@/components/calendar/CalendarCategoryFilters";
+import { CalendarSeriesFilter } from "@/components/calendar/CalendarSeriesFilter";
+import { useAllSeriesMap } from "@/hooks/use-active-series";
 import { SkeletonCard } from "@/components/ui/skeleton-card";
 
 import { CalendarKanbanView } from "@/components/calendar/CalendarKanbanView";
@@ -44,7 +47,7 @@ function getGeneratorRoute(post: CalendarPost): string | null {
   if (isStories || fmt === "story" || fmt === "story_serie") return "/creer?format=story";
   if (fmt === "reel") return "/creer?format=reel";
   if (fmt === "carousel" || fmt === "post_carrousel") return "/creer?format=carousel";
-  if (fmt === "linkedin") return "/linkedin";
+  if (fmt === "linkedin") return "/creer?canal=linkedin";
   if (fmt === "newsletter" || fmt === "newsletter_standard") return "/creer";
   if (fmt === "post" || fmt === "post_photo") return "/creer";
 
@@ -53,18 +56,22 @@ function getGeneratorRoute(post: CalendarPost): string | null {
   if (gct === "carousel") return "/creer?format=carousel";
   if (gct === "reel") return "/creer?format=reel";
   if (gct === "story") return "/creer?format=story";
-  if (gct === "linkedin") return "/linkedin";
+  if (gct === "linkedin") return "/creer?canal=linkedin";
 
   return null; // fallback to dialog
 }
 
-const STATUSES_MAP: Record<string, string> = { idea: "Idée", a_rediger: "À rédiger", drafting: "En rédaction", ready: "Prêt à publier", published: "Publié" };
-
-function postToRow(p: CalendarPost) {
-  return {
-    Date: p.date, Thème: p.theme, Canal: p.canal, Format: p.format || "",
-    Objectif: p.objectif || p.category || "", Statut: STATUSES_MAP[p.status] || p.status,
-    Notes: p.notes || "", Brouillon: (p.content_draft || "").slice(0, 200),
+function makePostToRow(seriesNameById: Record<string, string>) {
+  return (p: CalendarPost) => {
+    const sid = (p as any).series_id as string | null | undefined;
+    const ep = (p as any).episode_number as number | null | undefined;
+    return {
+      Date: p.date, Thème: p.theme, Canal: p.canal, Format: p.format || "",
+      Objectif: p.objectif || (p as any).category || "", Statut: STATUS_LABELS[p.status] || p.status,
+      Série: sid ? (seriesNameById[sid] || "") : "",
+      Épisode: ep ?? "",
+      Notes: p.notes || "", Brouillon: (p.content_draft || "").slice(0, 200),
+    };
   };
 }
 
@@ -88,13 +95,15 @@ function ShareButton() {
   );
 }
 
-function ExportSection({ filteredPosts, canalFilter, toast, onCoachingOpen, onQuickBatchOpen }: {
+function ExportSection({ filteredPosts, canalFilter, toast, onCoachingOpen, onQuickBatchOpen, seriesNameById }: {
   filteredPosts: CalendarPost[];
   canalFilter: string;
   toast: ReturnType<typeof useToast>["toast"];
   onCoachingOpen: () => void;
   onQuickBatchOpen: () => void;
+  seriesNameById: Record<string, string>;
 }) {
+  const postToRow = makePostToRow(seriesNameById);
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -180,7 +189,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const { toast } = useToast();
-  const { isDemoMode } = useDemoContext();
+  const { isDemoMode, demoData } = useDemoContext();
   const isMobile = useIsMobile();
   const location = useLocation();
   const navigate = useNavigate();
@@ -198,12 +207,14 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   const [kanbanPeriod, setKanbanPeriod] = useState<"week" | "month" | "all">("week");
   const [posts, setPosts] = useState<CalendarPost[]>([]);
   const [postsLoading, setPostsLoading] = useState(true);
+  const [ideasRefreshKey, setIdeasRefreshKey] = useState(0);
   const [canalFilter, setCanalFilter] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [editingPost, setEditingPost] = useState<CalendarPost | null>(null);
   const [prefillData, setPrefillData] = useState<{ theme?: string; notes?: string } | null>(null);
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [seriesFilter, setSeriesFilter] = useState<string>("all");
   const [mobileTab, setMobileTab] = useState<"calendar" | "ideas">("calendar");
   const [activeDragItem, setActiveDragItem] = useState<any>(null);
   const [postsPerWeek, setPostsPerWeek] = useState(3);
@@ -222,6 +233,8 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     if (urlCanal && CANAL_FILTERS.some((c) => c.id === urlCanal && c.enabled)) {
       setCanalFilter(urlCanal);
     }
+    const urlSerie = searchParams.get("serie");
+    if (urlSerie) setSeriesFilter(urlSerie);
     const prefillTheme = searchParams.get("prefill_theme");
     const prefillContent = searchParams.get("prefill_content");
     if (prefillTheme) {
@@ -229,11 +242,30 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       setSelectedDate(today);
       setPrefillData({ theme: prefillTheme, notes: prefillContent || "" });
       setDialogOpen(true);
+      // Clean up the params so reopening doesn't re-trigger
+      const next = new URLSearchParams(searchParams);
+      next.delete("prefill_theme");
+      next.delete("prefill_content");
+      navigate({ search: next.toString() }, { replace: true });
     }
     if (searchParams.get("coaching") === "1") {
       setCoachingOpen(true);
     }
   }, [searchParams]);
+
+  // Fetch all series names (for badge display)
+  const { data: seriesNameById = {} } = useAllSeriesMap();
+
+  // Sync seriesFilter to URL
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams);
+    if (seriesFilter && seriesFilter !== "all") next.set("serie", seriesFilter);
+    else next.delete("serie");
+    if (next.toString() !== searchParams.toString()) {
+      navigate({ search: next.toString() }, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seriesFilter]);
 
   // Fetch posts target from communication_plans
   useEffect(() => {
@@ -259,11 +291,11 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
 
   const fetchPosts = useCallback(async () => {
     setPostsLoading(true);
-    if (isDemoMode) {
-      // Build demo posts from DEMO_DATA.calendar_posts
-      const demoPosts: CalendarPost[] = DEMO_DATA.calendar_posts
-        .filter(p => p.planned_day)
-        .map((p, i) => ({
+    if (isDemoMode && demoData) {
+      // Build demo posts from demoData.calendar_posts
+      const demoPosts: CalendarPost[] = (demoData as any).calendar_posts
+        .filter((p: any) => p.planned_day)
+        .map((p: any, i: number) => ({
           id: `demo-post-${i}`,
           user_id: "demo",
           date: p.planned_day,
@@ -281,7 +313,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       setPostsLoading(false);
       return;
     }
-    if (!user) return;
+    if (!user) { setPostsLoading(false); return; }
 
     if ((viewMode === "kanban" || viewMode === "list") && kanbanPeriod === "all") {
       // No date filter — fetch all posts
@@ -376,8 +408,20 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     } else if (categoryFilter === "a_rediger") {
       result = result.filter((p) => p.status === "a_rediger");
     }
+    if (seriesFilter === "none") result = result.filter((p) => !(p as any).series_id);
+    else if (seriesFilter !== "all") result = result.filter((p) => (p as any).series_id === seriesFilter);
     return result;
-  }, [posts, canalFilter, categoryFilter]);
+  }, [posts, canalFilter, categoryFilter, seriesFilter]);
+
+  // Counts per series across all posts (not yet filtered) for the filter chip
+  const seriesCounts = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const p of posts) {
+      const sid = (p as any).series_id;
+      if (sid) map[sid] = (map[sid] || 0) + 1;
+    }
+    return map;
+  }, [posts]);
 
   const postsByDate = useMemo(() => {
     const map: Record<string, CalendarPost[]> = {};
@@ -403,27 +447,56 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     setDialogOpen(true);
   };
 
-  const handleSave = async (data: { theme: string; angle: string | null; status: string; notes: string; canal: string; objectif: string | null; format?: string | null; content_draft?: string | null; accroche?: string | null; media_urls?: string[] | null }) => {
+  const handleSave = async (data: { theme: string; angle: string | null; status: string; notes: string; canal: string; objectif: string | null; format?: string | null; content_draft?: string | null; accroche?: string | null; media_urls?: string[] | null; series_id?: string | null; episode_number?: number | null }) => {
     if (!user || !selectedDate) return;
     const payload: any = {
       theme: data.theme, angle: data.angle, status: data.status, notes: data.notes || null,
       canal: data.canal, objectif: data.objectif || null,
       format: data.format || null, content_draft: data.content_draft || null, accroche: data.accroche || null,
       media_urls: data.media_urls || null,
+      series_id: data.series_id || null, episode_number: data.episode_number ?? null,
     };
+    let error;
+    let createdPost: CalendarPost | null = null;
     if (editingPost) {
-      await supabase.from("calendar_posts").update(payload).eq("id", editingPost.id);
+      ({ error } = await supabase.from("calendar_posts").update(payload).eq("id", editingPost.id));
     } else {
-      await supabase.from("calendar_posts").insert({ ...payload, user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, date: selectedDate });
+      const { data: inserted, error: insertError } = await supabase.from("calendar_posts")
+        .insert({ ...payload, user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, date: selectedDate })
+        .select()
+        .single();
+      error = insertError;
+      createdPost = (inserted as CalendarPost) || null;
+    }
+    if (error) {
+      toast({ title: "Oups, ça n'a pas été enregistré", description: "Réessaie dans un instant.", variant: "destructive" });
+      fetchPosts();
+      return;
     }
     setDialogOpen(false);
     fetchPosts();
-    toast({ title: editingPost ? "Post modifié !" : "Post ajouté au calendrier !" });
+    if (editingPost) {
+      toast({ title: "Post modifié !" });
+    } else {
+      toast({
+        title: "Post ajouté au calendrier !",
+        action: createdPost ? (
+          <ToastAction altText="Générer maintenant" onClick={() => handleQuickGenerate(createdPost!)}>
+            ✨ Générer
+          </ToastAction>
+        ) : undefined,
+      });
+    }
   };
 
   const handleDelete = async () => {
     if (!editingPost) return;
-    await supabase.from("calendar_posts").delete().eq("id", editingPost.id);
+    const { error } = await supabase.from("calendar_posts").delete().eq("id", editingPost.id);
+    if (error) {
+      toast({ title: "Oups, ça n'a pas été enregistré", description: "Réessaie dans un instant.", variant: "destructive" });
+      fetchPosts();
+      return;
+    }
     setDialogOpen(false);
     fetchPosts();
     toast({ title: "Post supprimé" });
@@ -447,12 +520,14 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   };
 
   const handleQuickStatusChange = async (postId: string, newStatus: string) => {
-    await supabase.from("calendar_posts").update({ status: newStatus }).eq("id", postId);
+    const { error } = await supabase.from("calendar_posts").update({ status: newStatus }).eq("id", postId);
+    if (error) {
+      toast({ title: "Oups, ça n'a pas été enregistré", description: "Réessaie dans un instant.", variant: "destructive" });
+      fetchPosts();
+      return;
+    }
     setPosts(prev => prev.map(p => p.id === postId ? { ...p, status: newStatus } : p));
-    const statusLabels: Record<string, string> = {
-      a_rediger: "📝 À rédiger", drafting: "✏️ En rédaction", ready: "✅ Prêt", published: "🟢 Publié"
-    };
-    toast({ title: statusLabels[newStatus] || newStatus });
+    toast({ title: STATUS_LABELS[newStatus] || newStatus });
   };
 
   const handleQuickDuplicate = async (post: CalendarPost) => {
@@ -467,11 +542,17 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       format: post.format,
       notes: post.notes,
       angle: post.angle,
+      content_draft: (post as any).content_draft ?? null,
+      accroche: (post as any).accroche ?? null,
+      media_urls: (post as any).media_urls ?? null,
+      category: (post as any).category ?? null,
       ...(column !== "user_id" ? { [column]: value } : {}),
     }).select().single();
     if (!error && dupData) {
       setPosts(prev => [...prev, dupData as CalendarPost]);
       toast({ title: "📋 Post dupliqué !" });
+    } else {
+      toast({ title: "Oups, ça n'a pas été enregistré", description: "Réessaie dans un instant.", variant: "destructive" });
     }
   };
 
@@ -483,9 +564,14 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   };
 
   const handleUpdateDraft = async (postId: string, draft: string) => {
-    await (supabase.from("calendar_posts") as any)
+    const { error } = await (supabase.from("calendar_posts") as any)
       .update({ content_draft: draft, updated_at: new Date().toISOString() })
       .eq("id", postId);
+    if (error) {
+      toast({ title: "Oups, ça n'a pas été enregistré", description: "Réessaie dans un instant.", variant: "destructive" });
+      fetchPosts();
+      return;
+    }
     setPosts(prev => prev.map(p => p.id === postId ? { ...p, content_draft: draft } as any : p));
   };
 
@@ -501,7 +587,8 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
         params.set("format", "newsletter");
       }
 
-      navigate(`${route}?${params.toString()}`, { state: {
+      const sep = route.includes("?") ? "&" : "?";
+      navigate(`${route}${sep}${params.toString()}`, { state: {
         fromCalendar: true,
         postId: post.id,
         calendarPostId: post.id,
@@ -521,6 +608,8 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   };
 
   const handleMovePost = async (postId: string, newDate: string) => {
+    const originalPost = posts.find((p) => p.id === postId);
+    const originalDate = originalPost?.date ?? null;
     setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, date: newDate } : p)));
     const { error } = await supabase.from("calendar_posts")
       .update({ date: newDate, updated_at: new Date().toISOString() })
@@ -528,32 +617,106 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     if (error) { toast({ title: "Erreur", variant: "destructive" }); fetchPosts(); }
     else {
       const formatted = new Date(newDate + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
-      toast({ title: `Déplacé au ${formatted}` });
+      toast({
+        title: `Déplacé au ${formatted}`,
+        action: originalDate && originalDate !== newDate ? (
+          <ToastAction
+            altText="Annuler le déplacement"
+            onClick={async () => {
+              const { error: rollbackError } = await supabase.from("calendar_posts")
+                .update({ date: originalDate, updated_at: new Date().toISOString() })
+                .eq("id", postId);
+              if (rollbackError) {
+                toast({ title: "Oups, ça n'a pas été enregistré", description: "Réessaie dans un instant.", variant: "destructive" });
+              }
+              fetchPosts();
+            }}
+          >
+            Annuler
+          </ToastAction>
+        ) : undefined,
+      });
     }
+  };
+
+  /** Build idea insert payload from a calendar post, snapshotting carousel slides + visuals into content_data */
+  const buildIdeaPayloadFromPost = async (post: CalendarPost) => {
+    if (!user) return null;
+    // Fetch latest carousel linked to this post (if any)
+    const { data: carousel } = await supabase
+      .from("generated_carousels")
+      .select("slides, caption, hashtags, carousel_type, quality_score, hook_text, subject")
+      .eq("calendar_post_id", post.id)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const contentData: Record<string, any> = {};
+    if ((post as any).accroche) contentData.accroche = (post as any).accroche;
+    if (post.content_draft) contentData.content = post.content_draft;
+
+    if (carousel && Array.isArray((carousel as any).slides) && (carousel as any).slides.length > 0) {
+      contentData.carousel = {
+        slides: (carousel as any).slides,
+        caption: (carousel as any).caption ?? null,
+        hashtags: (carousel as any).hashtags ?? null,
+        carousel_type: (carousel as any).carousel_type ?? null,
+        quality_score: (carousel as any).quality_score ?? null,
+        hook_text: (carousel as any).hook_text ?? null,
+      };
+      // Compat racine pour lecteurs existants (IdeaDetailSheet, etc.)
+      contentData.slides = (carousel as any).slides;
+      if ((carousel as any).caption) contentData.caption = (carousel as any).caption;
+      if ((carousel as any).hashtags) contentData.hashtags = (carousel as any).hashtags;
+    }
+
+    if ((post as any).story_sequence_detail) {
+      contentData.story_sequence_detail = (post as any).story_sequence_detail;
+      if ((post as any).stories_count) contentData.stories_count = (post as any).stories_count;
+      if ((post as any).stories_objective) contentData.stories_objective = (post as any).stories_objective;
+      if ((post as any).stories_structure) contentData.stories_structure = (post as any).stories_structure;
+      if ((post as any).stories_timing) contentData.stories_timing = (post as any).stories_timing;
+    }
+
+    const mediaUrls = (post as any).media_urls;
+    if (Array.isArray(mediaUrls) && mediaUrls.length > 0) {
+      contentData.media_urls = mediaUrls;
+    }
+
+    return {
+      user_id: user.id,
+      workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+      titre: post.theme,
+      format: post.format || null,
+      objectif: post.objectif || null,
+      notes: post.notes || null,
+      status: "to_explore",
+      canal: post.canal || "instagram",
+      content_draft: post.content_draft || null,
+      angle: post.angle || "",
+      series_id: (post as any).series_id ?? null,
+      episode_number: (post as any).episode_number ?? null,
+      content_data: Object.keys(contentData).length > 0 ? contentData : null,
+    } as any;
   };
 
   /** Unplan a post: move it back to saved_ideas */
   const handleUnplan = async () => {
     if (!editingPost || !user) return;
-    // Create or restore idea in saved_ideas
-    await supabase.from("saved_ideas").insert({
-      user_id: user.id,
-      workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-      titre: editingPost.theme,
-      format: editingPost.format || null,
-      objectif: editingPost.objectif || null,
-      notes: editingPost.notes || null,
-      status: "idea",
-      canal: editingPost.canal || "instagram",
-      content_draft: editingPost.content_draft || null,
-      angle: editingPost.angle || "",
-    });
+    const payload = await buildIdeaPayloadFromPost(editingPost);
+    if (!payload) return;
+    const { error: insertError } = await supabase.from("saved_ideas").insert(payload);
+    if (insertError) {
+      toast({ title: "Oups, ça n'a pas été enregistré", description: "Réessaie dans un instant.", variant: "destructive" });
+      fetchPosts();
+      return;
+    }
     // Delete calendar post
     await supabase.from("calendar_posts").delete().eq("id", editingPost.id);
     setDialogOpen(false);
     fetchPosts();
     // Refresh sidebar
-    (window as any).__refreshIdeasSidebar?.();
+    setIdeasRefreshKey(k => k + 1);
     toast({ title: "Remis en idée !" });
   };
 
@@ -563,12 +726,12 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   };
 
   const handleIdeaUpdated = () => {
-    (window as any).__refreshIdeasSidebar?.();
+    setIdeasRefreshKey(k => k + 1);
   };
 
   const handleIdeaPlannedFromSheet = () => {
     fetchPosts();
-    (window as any).__refreshIdeasSidebar?.();
+    setIdeasRefreshKey(k => k + 1);
   };
 
   // Unified Drag & Drop handler (sidebar ideas + calendar post moves)
@@ -595,21 +758,12 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       const postId = active.id as string;
       const post = posts.find(p => p.id === postId);
       if (!post) return;
-      await supabase.from("saved_ideas").insert({
-        user_id: user.id,
-        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-        titre: post.theme,
-        format: post.format || null,
-        objectif: post.objectif || null,
-        notes: post.notes || null,
-        status: "idea",
-        canal: post.canal || "instagram",
-        content_draft: post.content_draft || null,
-        angle: post.angle || "",
-      });
+      const payload = await buildIdeaPayloadFromPost(post);
+      if (!payload) return;
+      await supabase.from("saved_ideas").insert(payload);
       await supabase.from("calendar_posts").delete().eq("id", post.id);
       fetchPosts();
-      (window as any).__refreshIdeasSidebar?.();
+      setIdeasRefreshKey(k => k + 1);
       toast({ title: "Remis en idée !" });
       return;
     }
@@ -640,12 +794,14 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
         format: idea.format,
         notes: idea.notes,
         content_draft: idea.content_draft,
-      }).select("id").single();
+        series_id: (idea as any).series_id ?? null,
+        episode_number: (idea as any).episode_number ?? null,
+      } as any).select("id").single();
       if (newPost) {
         await supabase.from("saved_ideas").update({ calendar_post_id: newPost.id, planned_date: newDate }).eq("id", idea.id);
       }
       fetchPosts();
-      (window as any).__refreshIdeasSidebar?.();
+      setIdeasRefreshKey(k => k + 1);
       toast({ title: `"${idea.titre}" planifié !` });
     } else {
       const postId = active.id as string;
@@ -678,7 +834,10 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
         ))}
       </div>
 
-      <CalendarCategoryFilters value={categoryFilter} onChange={setCategoryFilter} />
+      <div className="flex items-start gap-2 flex-wrap mb-1">
+        <CalendarCategoryFilters value={categoryFilter} onChange={setCategoryFilter} />
+        <CalendarSeriesFilter value={seriesFilter} onChange={setSeriesFilter} counts={seriesCounts} />
+      </div>
 
       {/* View toggle + Navigation */}
       <div className="flex items-center justify-between mb-4">
@@ -693,6 +852,10 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
               className={`px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === "week" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
               Semaine
             </button>
+            <button onClick={() => setViewMode("month")}
+              className={`px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === "month" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+              Mois
+            </button>
             <button onClick={() => setViewMode("kanban")}
               className={`px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === "kanban" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
               Kanban
@@ -700,10 +863,6 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
             <button onClick={() => setViewMode("list")}
               className={`px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
               Liste
-            </button>
-            <button onClick={() => setViewMode("month")}
-              className={`px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === "month" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
-              Mois
             </button>
           </div>
           {viewMode === "kanban" || viewMode === "list" ? (
@@ -747,11 +906,13 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
 
 
       {postsLoading ? (
-        <div className="grid grid-cols-2 gap-4">
-          <SkeletonCard variant="medium" />
-          <SkeletonCard variant="medium" />
-          <SkeletonCard variant="medium" />
-          <SkeletonCard variant="medium" />
+        <div className="space-y-3">
+          <div className="h-10 rounded-lg bg-muted animate-pulse" />
+          <div className="grid grid-cols-7 gap-2">
+            {Array.from({ length: 35 }).map((_, i) => (
+              <div key={i} className="h-24 rounded-[12px] bg-muted animate-pulse" />
+            ))}
+          </div>
         </div>
       ) : viewMode === "kanban" ? (
         <CalendarKanbanView
@@ -760,6 +921,8 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
           onStatusChange={handleQuickStatusChange}
           canalFilter={canalFilter}
           categoryFilter={categoryFilter}
+          seriesFilter={seriesFilter}
+          seriesNameById={seriesNameById}
         />
       ) : viewMode === "list" ? (
         <CalendarListView
@@ -771,12 +934,15 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
           onUpdateDraft={handleUpdateDraft}
           canalFilter={canalFilter}
           categoryFilter={categoryFilter}
+          seriesFilter={seriesFilter}
+          seriesNameById={seriesNameById}
         />
       ) : viewMode === "month" ? (
         <CalendarGrid
           calendarDays={calendarDays} postsByDate={postsByDate} todayStr={todayStr} isMobile={isMobile}
           onCreatePost={openCreateDialog} onEditPost={handlePostClick} onMovePost={handleMovePost}
           onAddIdea={openCreateDialog}
+          seriesNameById={seriesNameById}
         />
       ) : (
         <>
@@ -789,8 +955,10 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
             onQuickDuplicate={handleQuickDuplicate}
             onQuickDelete={handleQuickDelete}
             onQuickGenerate={handleQuickGenerate}
+            onQuickAttachSeries={(post) => { setEditingPost(post); setSelectedDate(post.date); setDialogOpen(true); }}
             ownerUsername={igUsername}
             ownerDisplayName={ownerName}
+            seriesNameById={seriesNameById}
           />
           
         </>
@@ -798,65 +966,120 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     </>
   );
 
-  if (embedded) {
-    return (
-      <div>
-        <AuditRecommendationBanner />
-        <ExportSection filteredPosts={filteredPosts} canalFilter={canalFilter} toast={toast} onCoachingOpen={() => setCoachingOpen(true)} onQuickBatchOpen={() => setQuickBatchOpen(true)} />
-        {isMobile && (
-          <div className="flex rounded-full border border-border overflow-hidden mb-4">
-            <button onClick={() => setMobileTab("calendar")} className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${mobileTab === "calendar" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>📅 Calendrier</button>
-            <button onClick={() => setMobileTab("ideas")} className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${mobileTab === "ideas" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>💡 Mes idées</button>
-          </div>
-        )}
-        {isMobile ? (
-          mobileTab === "calendar" ? calendarContent : <CalendarIdeasSidebar onIdeaPlanned={fetchPosts} onIdeaClick={handleIdeaClick} isMobile />
-        ) : (
-          <Suspense fallback={<div className="flex gap-6"><div className="flex-1 min-w-0">{calendarContent}</div></div>}>
-            <CalendarDndWrapper onDragStart={handleDragStart} onDragEnd={handleDragEnd} overlayContent={activeDragItem ? (
-                <div className="bg-card border border-primary/40 rounded-lg px-3 py-2 shadow-lg text-xs font-medium max-w-[180px]">
-                  <span className="truncate block">{activeDragItem.type === "idea" ? `💡 ${activeDragItem.idea.titre}` : `${activeDragItem.post?.content_type_emoji || ""} ${activeDragItem.post?.theme}`}</span>
-                </div>
-              ) : null}>
-              <div className="flex gap-6">
-                <div className="flex-1 min-w-0">{calendarContent}</div>
-                <div className={`shrink-0 transition-all duration-300 ${ideasCollapsed ? "w-10" : "w-[280px]"}`}>
-                  <div className="sticky top-24">
-                    {ideasCollapsed ? (
+  const body = (
+    <>
+      <AuditRecommendationBanner />
+      <ExportSection filteredPosts={filteredPosts} canalFilter={canalFilter} toast={toast} onCoachingOpen={() => setCoachingOpen(true)} onQuickBatchOpen={() => setQuickBatchOpen(true)} seriesNameById={seriesNameById} />
+
+      {/* Mobile tabs */}
+      {isMobile && (
+        <div className="flex rounded-full border border-border overflow-hidden mb-4">
+          <button onClick={() => setMobileTab("calendar")}
+            className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${mobileTab === "calendar" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
+            📅 Calendrier
+          </button>
+          <button onClick={() => setMobileTab("ideas")}
+            className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${mobileTab === "ideas" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
+            💡 Mes idées
+          </button>
+        </div>
+      )}
+
+      {isMobile ? (
+        mobileTab === "calendar" ? calendarContent : (
+          <CalendarIdeasSidebar onIdeaPlanned={fetchPosts} onIdeaClick={handleIdeaClick} isMobile refreshKey={ideasRefreshKey} />
+        )
+      ) : (
+        <Suspense fallback={<div className="flex gap-6"><div className="flex-1 min-w-0">{calendarContent}</div></div>}>
+          <CalendarDndWrapper onDragStart={handleDragStart} onDragEnd={handleDragEnd} overlayContent={activeDragItem ? (
+              <div className="bg-card border border-primary/40 rounded-lg px-3 py-2 shadow-lg text-xs font-medium max-w-[180px]">
+                <span className="truncate block">
+                  {activeDragItem.type === "idea"
+                    ? `💡 ${activeDragItem.idea.titre}`
+                    : `${activeDragItem.post?.content_type_emoji || ""} ${activeDragItem.post?.theme}`
+                  }
+                </span>
+              </div>
+            ) : null}>
+            <div className="flex gap-6">
+              <div className="flex-1 min-w-0">
+                {calendarContent}
+              </div>
+              <div className={`shrink-0 transition-all duration-300 ${ideasCollapsed ? "w-10" : "w-[280px]"}`}>
+                <div className="sticky top-24">
+                  {ideasCollapsed ? (
+                    <button
+                      onClick={() => setIdeasCollapsed(false)}
+                      className="w-10 h-10 rounded-xl border border-border bg-card flex items-center justify-center hover:bg-muted transition-colors"
+                      title="Afficher les idées"
+                    >
+                      💡
+                    </button>
+                  ) : (
+                    <div className="relative border border-border rounded-2xl bg-card p-4 max-h-[calc(100vh-120px)] overflow-hidden flex flex-col">
                       <button
-                        onClick={() => setIdeasCollapsed(false)}
-                        className="w-10 h-10 rounded-xl border border-border bg-card flex items-center justify-center hover:bg-muted transition-colors"
-                        title="Afficher les idées"
+                        onClick={() => setIdeasCollapsed(true)}
+                        className="absolute -top-2 -right-2 z-10 w-6 h-6 rounded-full bg-card border border-border shadow-sm flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                        title="Replier le panneau idées"
                       >
-                        💡
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                       </button>
-                    ) : (
-                      <div className="relative">
-                        <button
-                          onClick={() => setIdeasCollapsed(true)}
-                          className="absolute -top-2 -right-2 z-10 w-7 h-7 rounded-full bg-destructive border border-destructive shadow-md flex items-center justify-center text-destructive-foreground hover:opacity-90 transition-colors"
-                          title="Replier le panneau idées"
-                        >
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                        </button>
-                        <div className="border border-border rounded-2xl bg-card p-4 max-h-[calc(100vh-120px)] overflow-hidden flex flex-col">
-                          <CalendarIdeasSidebar onIdeaPlanned={fetchPosts} onIdeaClick={handleIdeaClick} />
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                      <CalendarIdeasSidebar onIdeaPlanned={fetchPosts} onIdeaClick={handleIdeaClick} refreshKey={ideasRefreshKey} />
+                    </div>
+                  )}
                 </div>
               </div>
-            </CalendarDndWrapper>
-          </Suspense>
-        )}
-        <LocalErrorBoundary fallbackMessage="Erreur dans le dialogue de post.">
-          <CalendarPostDialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setPrefillData(null); }} editingPost={editingPost} selectedDate={selectedDate} defaultCanal={canalFilter} onSave={handleSave} onDelete={handleDelete} onUnplan={editingPost ? handleUnplan : undefined} onDateChange={(postId, newDate) => { handleMovePost(postId, newDate); setSelectedDate(newDate); if (editingPost) setEditingPost({ ...editingPost, date: newDate }); }} prefillData={prefillData} />
-        </LocalErrorBoundary>
-        <IdeaDetailSheet idea={selectedIdea} open={ideaDetailOpen} onOpenChange={setIdeaDetailOpen} onUpdated={handleIdeaUpdated} onPlanned={handleIdeaPlannedFromSheet} />
-        <CalendarCoachingDialog open={coachingOpen} onOpenChange={setCoachingOpen} onPostAdded={fetchPosts} />
-      </div>
-    );
+            </div>
+          </CalendarDndWrapper>
+        </Suspense>
+      )}
+
+      <LocalErrorBoundary fallbackMessage="Erreur dans le dialogue de post.">
+        <CalendarPostDialog
+          open={dialogOpen}
+          onOpenChange={(open) => { setDialogOpen(open); if (!open) setPrefillData(null); }}
+          editingPost={editingPost}
+          selectedDate={selectedDate}
+          defaultCanal={canalFilter}
+          onSave={handleSave}
+          onDelete={handleDelete}
+          onUnplan={editingPost ? handleUnplan : undefined}
+          onDateChange={(postId, newDate) => {
+            handleMovePost(postId, newDate);
+            setSelectedDate(newDate);
+            if (editingPost) setEditingPost({ ...editingPost, date: newDate });
+          }}
+          prefillData={prefillData}
+        />
+      </LocalErrorBoundary>
+
+      <IdeaDetailSheet
+        idea={selectedIdea}
+        open={ideaDetailOpen}
+        onOpenChange={setIdeaDetailOpen}
+        onUpdated={handleIdeaUpdated}
+        onPlanned={handleIdeaPlannedFromSheet}
+      />
+
+      <CalendarCoachingDialog
+        open={coachingOpen}
+        onOpenChange={setCoachingOpen}
+        onPostAdded={fetchPosts}
+        existingPosts={weekPosts.map(p => ({ date: p.date, theme: p.theme, format: p.format || "post", canal: p.canal, objectif: p.objectif || null }))}
+      />
+
+      <QuickBatchAdd
+        open={quickBatchOpen}
+        onOpenChange={setQuickBatchOpen}
+        weekStartDate={toLocalDateStr(weekStart)}
+        defaultCanal={canalFilter !== "all" ? canalFilter : "instagram"}
+        onPostsAdded={fetchPosts}
+      />
+    </>
+  );
+
+  if (embedded) {
+    return <div>{body}</div>;
   }
 
   return (
@@ -866,115 +1089,9 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
         {isInstagramRoute && (
           <SubPageHeader parentLabel="Instagram" parentTo="/instagram" currentLabel="Calendrier éditorial" useFromParam />
         )}
-        <AuditRecommendationBanner />
-        <ExportSection filteredPosts={filteredPosts} canalFilter={canalFilter} toast={toast} onCoachingOpen={() => setCoachingOpen(true)} onQuickBatchOpen={() => setQuickBatchOpen(true)} />
-
-
-        {/* Mobile tabs */}
-        {isMobile && (
-          <div className="flex rounded-full border border-border overflow-hidden mb-4">
-            <button onClick={() => setMobileTab("calendar")}
-              className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${mobileTab === "calendar" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
-              📅 Calendrier
-            </button>
-            <button onClick={() => setMobileTab("ideas")}
-              className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${mobileTab === "ideas" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
-              💡 Mes idées
-            </button>
-          </div>
-        )}
-
-        {isMobile ? (
-          mobileTab === "calendar" ? calendarContent : (
-            <CalendarIdeasSidebar onIdeaPlanned={fetchPosts} onIdeaClick={handleIdeaClick} isMobile />
-          )
-        ) : (
-          <Suspense fallback={<div className="flex gap-6"><div className="flex-1 min-w-0">{calendarContent}</div></div>}>
-            <CalendarDndWrapper onDragStart={handleDragStart} onDragEnd={handleDragEnd} overlayContent={activeDragItem ? (
-                <div className="bg-card border border-primary/40 rounded-lg px-3 py-2 shadow-lg text-xs font-medium max-w-[180px]">
-                  <span className="truncate block">
-                    {activeDragItem.type === "idea"
-                      ? `💡 ${activeDragItem.idea.titre}`
-                      : `${activeDragItem.post?.content_type_emoji || ""} ${activeDragItem.post?.theme}`
-                    }
-                  </span>
-                </div>
-              ) : null}>
-              <div className="flex gap-6">
-                <div className="flex-1 min-w-0">
-                  {calendarContent}
-                </div>
-                <div className={`shrink-0 transition-all duration-300 ${ideasCollapsed ? "w-10" : "w-[280px]"}`}>
-                  <div className="sticky top-24">
-                    {ideasCollapsed ? (
-                      <button
-                        onClick={() => setIdeasCollapsed(false)}
-                        className="w-10 h-10 rounded-xl border border-border bg-card flex items-center justify-center hover:bg-muted transition-colors"
-                        title="Afficher les idées"
-                      >
-                        💡
-                      </button>
-                    ) : (
-                      <div className="relative border border-border rounded-2xl bg-card p-4 max-h-[calc(100vh-120px)] overflow-hidden flex flex-col">
-                        <button
-                          onClick={() => setIdeasCollapsed(true)}
-                          className="absolute -top-2 -right-2 z-10 w-6 h-6 rounded-full bg-card border border-border shadow-sm flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                          title="Replier le panneau idées"
-                        >
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                        </button>
-                        <CalendarIdeasSidebar onIdeaPlanned={fetchPosts} onIdeaClick={handleIdeaClick} />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </CalendarDndWrapper>
-          </Suspense>
-        )}
-
-        <LocalErrorBoundary fallbackMessage="Erreur dans le dialogue de post.">
-          <CalendarPostDialog
-            open={dialogOpen}
-            onOpenChange={(open) => { setDialogOpen(open); if (!open) setPrefillData(null); }}
-            editingPost={editingPost}
-            selectedDate={selectedDate}
-            defaultCanal={canalFilter}
-            onSave={handleSave}
-            onDelete={handleDelete}
-            onUnplan={editingPost ? handleUnplan : undefined}
-            onDateChange={(postId, newDate) => {
-              handleMovePost(postId, newDate);
-              setSelectedDate(newDate);
-              if (editingPost) setEditingPost({ ...editingPost, date: newDate });
-            }}
-            prefillData={prefillData}
-          />
-        </LocalErrorBoundary>
-
-        <IdeaDetailSheet
-          idea={selectedIdea}
-          open={ideaDetailOpen}
-          onOpenChange={setIdeaDetailOpen}
-          onUpdated={handleIdeaUpdated}
-          onPlanned={handleIdeaPlannedFromSheet}
-        />
-
-        <CalendarCoachingDialog
-          open={coachingOpen}
-          onOpenChange={setCoachingOpen}
-          onPostAdded={fetchPosts}
-          existingPosts={weekPosts.map(p => ({ date: p.date, theme: p.theme, format: p.format || "post", canal: p.canal, objectif: p.objectif || null }))}
-        />
-
-        <QuickBatchAdd
-          open={quickBatchOpen}
-          onOpenChange={setQuickBatchOpen}
-          weekStartDate={toLocalDateStr(weekStart)}
-          defaultCanal={canalFilter !== "all" ? canalFilter : "instagram"}
-          onPostsAdded={fetchPosts}
-        />
+        {body}
       </main>
     </div>
   );
 }
+

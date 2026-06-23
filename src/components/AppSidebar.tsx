@@ -1,24 +1,30 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ChevronRight, Home, PenLine, CalendarDays, MessageCircle, Palette, ClipboardList, Instagram, Briefcase, Globe, Search, Pin, Users, BarChart3, Brain, Settings, Film, GraduationCap, Wrench, CreditCard, HeartHandshake, LogOut, Menu, X } from "lucide-react";
+import { ChevronRight, ChevronDown, Check, Home, PenLine, CalendarDays, MessageCircle, Palette, ClipboardList, Instagram, Briefcase, Globe, Search, Pin, Users, BarChart3, Brain, Settings, Film, GraduationCap, Wrench, CreditCard, HeartHandshake, LogOut, Menu, X, Plus, Trash2, Image, Lightbulb } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserPlan } from "@/hooks/use-user-plan";
 import { useDemoContext } from "@/contexts/DemoContext";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { useAccountSwitcher } from "@/hooks/use-account-switcher";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { toast } from "sonner";
 
 interface NavItem {
   label: string;
   path: string;
   icon?: React.ReactNode;
   children?: { label: string; path: string }[];
+  freshStart?: boolean;
 }
 
 const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
   {
     label: "CRÉER",
     items: [
-      { label: "Nouveau contenu", path: "/creer", icon: <PenLine size={16} /> },
+      { label: "Nouveau contenu", path: "/creer", icon: <PenLine size={16} />, freshStart: true },
       { label: "Calendrier", path: "/calendrier", icon: <CalendarDays size={16} /> },
+      { label: "Mes idées", path: "/calendrier?tab=idees", icon: <Lightbulb size={16} /> },
       { label: "Routine engagement", path: "/instagram/routine", icon: <MessageCircle size={16} /> },
     ],
   },
@@ -79,6 +85,7 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
     label: "OUTILS",
     items: [
       { label: "Contacts", path: "/contacts", icon: <Users size={16} /> },
+      { label: "Photos", path: "/photos", icon: <Image size={16} /> },
       { label: "Mon plan", path: "/calendrier?tab=strategie", icon: <BarChart3 size={16} /> },
       { label: "Coach IA", path: "/dashboard/guide", icon: <Brain size={16} /> },
     ],
@@ -91,12 +98,13 @@ export default function AppSidebar() {
   const { plan } = useUserPlan();
   const { activateDemo } = useDemoContext();
   const navigate = useNavigate();
-  const planLabel = plan === "binome" ? "Binôme · Illimité ✨" : plan === "outil" ? "Outil · 39€/mois" : "Gratuit";
+  const planLabel = plan === "binome" ? "Binôme ✨" : plan === "outil" ? "Outil · 39€/mois" : "Gratuit";
   const isBinome = plan === "binome";
 
   const [open, setOpen] = useState(false);
   const [openSubs, setOpenSubs] = useState<Record<string, boolean>>({});
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wsPopoverRef = useRef(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
   const clearCloseTimer = useCallback(() => {
@@ -108,7 +116,9 @@ export default function AppSidebar() {
 
   const startCloseTimer = useCallback(() => {
     clearCloseTimer();
-    closeTimer.current = setTimeout(() => setOpen(false), 350);
+    closeTimer.current = setTimeout(() => {
+      if (!wsPopoverRef.current) setOpen(false);
+    }, 350);
   }, [clearCloseTimer]);
 
   const handleMouseEnterTrigger = useCallback(() => {
@@ -144,6 +154,11 @@ export default function AppSidebar() {
 
   const firstName = user?.user_metadata?.first_name || user?.user_metadata?.prenom || user?.email?.split("@")[0] || "Utilisateur";
   const initial = firstName.charAt(0).toUpperCase();
+
+  const { activeWorkspace, workspaces, isMultiWorkspace, switchWorkspace } = useWorkspace();
+  const { savedAccounts, switchToAccount, removeAccount } = useAccountSwitcher();
+  const [wsPopoverOpen, setWsPopoverOpen] = useState(false);
+  const [switching, setSwitching] = useState(false);
 
   return (
     <>
@@ -283,7 +298,7 @@ export default function AppSidebar() {
                     </>
                   ) : (
                     <Link
-                      to={item.path}
+                      to={item.path + (item.freshStart ? "?new=1" : "")}
                       onClick={() => setOpen(false)}
                       className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body transition-colors ${
                         isActive(item.path) ? "bg-rose-pale text-primary font-semibold" : "text-foreground hover:bg-rose-pale"
@@ -350,25 +365,121 @@ export default function AppSidebar() {
           </Link>
         </div>
 
-        <div className="border-t border-border px-4 py-3 flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-bordeaux flex items-center justify-center text-white font-semibold text-sm shrink-0">
-            {initial}
-          </div>
-          <div className="min-w-0">
-            <div className="text-[13px] font-semibold text-foreground truncate">{firstName}</div>
-            <div className="text-[11px] text-muted-foreground truncate">{planLabel || "Plan gratuit"}</div>
-          </div>
-        </div>
+        <Popover open={wsPopoverOpen} onOpenChange={(v) => { setWsPopoverOpen(v); wsPopoverRef.current = v; }}>
+          <PopoverTrigger asChild>
+            <button className="w-full border-t border-border px-4 py-3 flex items-center gap-2.5 hover:bg-muted/50 transition-colors cursor-pointer text-left">
+              <div className="w-8 h-8 rounded-lg bg-bordeaux flex items-center justify-center text-white font-semibold text-sm shrink-0">
+                {initial}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[13px] font-semibold text-foreground truncate">{firstName}</div>
+                <div className="text-[11px] text-muted-foreground truncate">{user?.email}</div>
+              </div>
+              <ChevronDown size={14} className="text-muted-foreground shrink-0" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent side="top" align="start" className="w-72 p-1.5 z-[400]">
+            {/* Current account */}
+            <div className="text-[11px] font-medium text-muted-foreground px-2 py-1.5 uppercase tracking-wider">Compte actif</div>
+            <div className="flex items-center gap-2.5 px-2 py-2 rounded-md bg-muted">
+              <div className="w-7 h-7 rounded-md bg-bordeaux flex items-center justify-center text-white font-semibold text-xs shrink-0">
+                {initial}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[13px] font-medium text-foreground truncate">{firstName}</div>
+                <div className="text-[11px] text-muted-foreground truncate">{user?.email}</div>
+              </div>
+              <Check size={14} className="text-primary shrink-0" />
+            </div>
 
-        <div className="border-t border-border px-2 py-2">
-          <button
-            onClick={() => signOut()}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body text-destructive hover:bg-destructive/10 transition-colors text-left"
-          >
-            <LogOut size={16} />
-            Déconnexion
-          </button>
-        </div>
+            {/* Other saved accounts */}
+            {savedAccounts.filter(a => a.userId !== user?.id).length > 0 && (
+              <>
+                <div className="text-[11px] font-medium text-muted-foreground px-2 py-1.5 mt-1 uppercase tracking-wider">Autres comptes</div>
+                {savedAccounts.filter(a => a.userId !== user?.id).map((account) => (
+                  <div key={account.userId} className="flex items-center gap-1">
+                    <button
+                      disabled={switching}
+                      onClick={async () => {
+                        setSwitching(true);
+                        try {
+                          await switchToAccount(account);
+                        } catch (e: any) {
+                          toast.error(e.message || "Impossible de basculer sur ce compte");
+                          setSwitching(false);
+                        }
+                      }}
+                      className="flex-1 flex items-center gap-2.5 px-2 py-2 rounded-md text-left transition-colors hover:bg-muted/50 disabled:opacity-50"
+                    >
+                      <div className="w-7 h-7 rounded-md bg-bordeaux/60 flex items-center justify-center text-white font-semibold text-xs shrink-0">
+                        {account.firstName.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[13px] font-medium text-foreground truncate">{account.firstName}</div>
+                        <div className="text-[11px] text-muted-foreground truncate">{account.email}</div>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => removeAccount(account.userId)}
+                      className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                      title="Retirer ce compte"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                ))}
+              </>
+            )}
+
+            {/* Workspace switcher if multi-workspace */}
+            {isMultiWorkspace && (
+              <>
+                <div className="border-t border-border mt-1.5 pt-1.5">
+                  <div className="text-[11px] font-medium text-muted-foreground px-2 py-1.5 uppercase tracking-wider">Mes espaces</div>
+                  {workspaces.map((ws) => (
+                    <button
+                      key={ws.id}
+                      onClick={() => { switchWorkspace(ws.id); setWsPopoverOpen(false); setOpen(false); }}
+                      className={`w-full flex items-center gap-2.5 px-2 py-2 rounded-md text-left transition-colors ${
+                        ws.id === activeWorkspace?.id ? "bg-muted" : "hover:bg-muted/50"
+                      }`}
+                    >
+                      <div className="w-7 h-7 rounded-md bg-accent flex items-center justify-center text-accent-foreground font-semibold text-xs shrink-0">
+                        {ws.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[13px] font-medium text-foreground truncate">{ws.name}</div>
+                      </div>
+                      {ws.id === activeWorkspace?.id && <Check size={14} className="text-primary shrink-0" />}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* Add account + Sign out */}
+            <div className="border-t border-border mt-1.5 pt-1.5 space-y-0.5">
+              <button
+                onClick={() => {
+                  setWsPopoverOpen(false);
+                  setOpen(false);
+                  navigate("/login?add_account=true");
+                }}
+                className="w-full flex items-center gap-2.5 px-2 py-2 rounded-md text-left text-[13px] font-medium text-foreground hover:bg-muted/50 transition-colors"
+              >
+                <Plus size={14} className="shrink-0" />
+                Ajouter un compte
+              </button>
+              <button
+                onClick={() => signOut()}
+                className="w-full flex items-center gap-2.5 px-2 py-2 rounded-md text-left text-[13px] font-medium text-destructive hover:bg-destructive/10 transition-colors"
+              >
+                <LogOut size={14} className="shrink-0" />
+                Déconnexion
+              </button>
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
     </>
   );

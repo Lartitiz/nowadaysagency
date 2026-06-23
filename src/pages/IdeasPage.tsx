@@ -6,14 +6,15 @@ import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Lightbulb, PenLine, CalendarDays, Trash2, Copy, ChevronDown, X, ExternalLink, Sparkles } from "lucide-react";
+import { Lightbulb, PenLine, CalendarDays, Trash2, Copy, ChevronDown, X, ExternalLink, Sparkles, SlidersHorizontal } from "lucide-react";
+import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import { ContentPreview, RevertToOriginalButton } from "@/components/ContentPreview";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { format as fnsFormat } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { SkeletonCard } from "@/components/ui/skeleton-card";
 
@@ -59,8 +60,9 @@ const OBJECTIF_OPTIONS = [
 
 const CANAL_OPTIONS = [
   { id: "instagram", label: "📱 Instagram", enabled: true },
-  { id: "linkedin", label: "LinkedIn", enabled: false },
-  { id: "newsletter", label: "Newsletter", enabled: false },
+  { id: "linkedin", label: "💼 LinkedIn", enabled: true },
+  { id: "newsletter", label: "✉️ Newsletter", enabled: true },
+  { id: "pinterest", label: "📌 Pinterest", enabled: true },
 ];
 
 const TYPE_OPTIONS = [
@@ -76,6 +78,50 @@ const SORT_OPTIONS = [
   { id: "by_objectif", label: "Par objectif" },
   { id: "by_status", label: "Par statut" },
 ];
+
+/* ─── Preview helpers ─── */
+function cleanSlideMarkers(text: string): string {
+  return text
+    .replace(/^SLIDE\s+\d+\s*(?:\[[^\]]*\])?\s*[:\-–]?\s*/gim, "")
+    .replace(/\n+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getIdeaPreview(idea: SavedIdea): { title?: string; text?: string } {
+  // a. content_data (objet ou string JSON)
+  let data: any = idea.content_data;
+  if (typeof data === "string") {
+    try { data = JSON.parse(data); } catch { data = null; }
+  }
+  if (data && typeof data === "object") {
+    const title = typeof data.chosen_angle?.title === "string" && data.chosen_angle.title.trim()
+      ? data.chosen_angle.title.trim()
+      : undefined;
+    const firstSlide = Array.isArray(data.slides) ? data.slides[0] : null;
+    const scriptHook = Array.isArray(data.script)
+      ? data.script.find((s: any) => s?.section === "hook")?.texte_parle
+      : undefined;
+    const rawText =
+      (typeof data.chosen_angle?.description === "string" && data.chosen_angle.description.trim()) ||
+      (firstSlide && (firstSlide.hook || firstSlide.text || firstSlide.titre || firstSlide.title || firstSlide.body || firstSlide.caption || firstSlide.overlay_text)) ||
+      scriptHook ||
+      (typeof data.hook === "object" ? data.hook?.texte_parle : data.hook) ||
+      (typeof data.caption === "object" ? (data.caption?.hook || data.caption?.body || data.caption?.text) : data.caption) ||
+      data.body ||
+      data.content ||
+      undefined;
+    const cleanText = typeof rawText === "string" && rawText.trim() ? cleanSlideMarkers(rawText) : undefined;
+    if (title || cleanText) return { title, text: cleanText };
+    // content_data inexploitable → on continue vers les fallbacks
+  }
+  // b. accroche_short
+  if (idea.accroche_short?.trim()) return { text: `🎣 ${idea.accroche_short.trim()}` };
+  // c. content_draft nettoyé
+  if (idea.content_draft?.trim()) return { text: cleanSlideMarkers(idea.content_draft) };
+  return {};
+}
+
 
 export default function IdeasPage({ embedded = false }: { embedded?: boolean }) {
   const { user } = useAuth();
@@ -94,15 +140,17 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
   const [canalFilter, setCanalFilter] = useState(searchParams.get("canal") || "all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [sort, setSort] = useState("newest");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const activeAdvancedCount = (objectifFilter !== "all" ? 1 : 0) + (canalFilter !== "all" ? 1 : 0) + (typeFilter !== "all" ? 1 : 0);
 
   // Detail panel
   const [selectedIdea, setSelectedIdea] = useState<SavedIdea | null>(null);
   const [detailNotes, setDetailNotes] = useState("");
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !value) return;
     fetchIdeas();
-  }, [user?.id]);
+  }, [user?.id, column, value]);
 
   const fetchIdeas = async () => {
     if (!user) return;
@@ -221,8 +269,8 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
   };
 
   const handleRediger = (idea: SavedIdea) => {
-    // Navigate to atelier/rediger — the RedactionPage will pick up via query params
-    const params = new URLSearchParams({ theme: idea.titre, angle: idea.angle, format: idea.format, canal: idea.canal, objectif: idea.objectif || "", idea_id: idea.id });
+    // Navigate to /creer with sujet+angle pré-remplis pour aller direct aux questions
+    const params = new URLSearchParams({ sujet: idea.titre, angle: idea.angle, format: idea.format, canal: idea.canal, objectif: idea.objectif || "", idea_id: idea.id });
     navigate(`/creer?${params.toString()}`);
   };
 
@@ -266,42 +314,71 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
 
         {/* Filters */}
         <div className="sticky top-14 z-30 bg-background py-3 -mx-6 px-6 max-md:-mx-4 max-md:px-4 border-b border-border mb-4 space-y-2">
-          {/* Status */}
-          <div className="flex gap-1.5 flex-wrap">
+          {/* Status (always visible) + sort + Filtres toggle */}
+          <div className="flex gap-1.5 flex-wrap items-center">
             <FilterChip active={statusFilter === "all"} onClick={() => setStatusFilter("all")}>Tout</FilterChip>
             {STATUS_OPTIONS.map((s) => (
               <FilterChip key={s.id} active={statusFilter === s.id} onClick={() => setStatusFilter(s.id)}>{s.label}</FilterChip>
             ))}
+            <div className="ml-auto flex items-center gap-2">
+              <select value={sort} onChange={(e) => setSort(e.target.value)}
+                className="text-[11px] font-mono-ui bg-card border border-border rounded-lg px-2 py-1 text-muted-foreground">
+                {SORT_OPTIONS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+              </select>
+              <button
+                type="button"
+                onClick={() => setFiltersOpen((v) => !v)}
+                className={`inline-flex items-center gap-1.5 text-[11px] font-mono-ui rounded-lg border px-2 py-1 transition-colors ${
+                  activeAdvancedCount > 0 || filtersOpen
+                    ? "bg-foreground text-background border-foreground"
+                    : "bg-card text-muted-foreground border-border hover:text-foreground"
+                }`}
+                aria-expanded={filtersOpen}
+              >
+                <SlidersHorizontal className="h-3 w-3" />
+                {activeAdvancedCount > 0 ? `Filtres · ${activeAdvancedCount}` : "Filtres"}
+              </button>
+            </div>
           </div>
-          {/* Objectif + Canal + Type + Sort */}
-          <div className="flex gap-1.5 flex-wrap items-center">
-            <span className="text-[11px] text-muted-foreground font-mono-ui mr-1">Objectif:</span>
-            <FilterChip active={objectifFilter === "all"} onClick={() => setObjectifFilter("all")}>Tout</FilterChip>
-            {OBJECTIF_OPTIONS.map((o) => (
-              <FilterChip key={o.id} active={objectifFilter === o.id} onClick={() => setObjectifFilter(o.id)}>{o.label}</FilterChip>
-            ))}
-            <span className="w-px h-4 bg-border mx-1" />
-            <span className="text-[11px] text-muted-foreground font-mono-ui mr-1">Canal:</span>
-            <FilterChip active={canalFilter === "all"} onClick={() => setCanalFilter("all")}>Tout</FilterChip>
-            {CANAL_OPTIONS.map((c) => (
-              <FilterChip key={c.id} active={canalFilter === c.id} onClick={() => c.enabled && setCanalFilter(c.id)} disabled={!c.enabled}>
-                {c.label}{!c.enabled && " (V2)"}
-              </FilterChip>
-            ))}
-          </div>
-          <div className="flex gap-1.5 flex-wrap items-center">
-            <span className="text-[11px] text-muted-foreground font-mono-ui mr-1">Type:</span>
-            <FilterChip active={typeFilter === "all"} onClick={() => setTypeFilter("all")}>Tout</FilterChip>
-            {TYPE_OPTIONS.map((t) => (
-              <FilterChip key={t.id} active={typeFilter === t.id} onClick={() => setTypeFilter(t.id)}>{t.label}</FilterChip>
-            ))}
-            <span className="w-px h-4 bg-border mx-1" />
-            <select value={sort} onChange={(e) => setSort(e.target.value)}
-              className="text-[11px] font-mono-ui bg-card border border-border rounded-lg px-2 py-1 text-muted-foreground">
-              {SORT_OPTIONS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
-            </select>
-          </div>
+
+          <Collapsible open={filtersOpen}>
+            <CollapsibleContent className="space-y-2 pt-2 overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
+              <div className="flex gap-1.5 flex-wrap items-center">
+                <span className="text-[11px] text-muted-foreground font-mono-ui mr-1">Objectif:</span>
+                <FilterChip active={objectifFilter === "all"} onClick={() => setObjectifFilter("all")}>Tout</FilterChip>
+                {OBJECTIF_OPTIONS.map((o) => (
+                  <FilterChip key={o.id} active={objectifFilter === o.id} onClick={() => setObjectifFilter(o.id)}>{o.label}</FilterChip>
+                ))}
+              </div>
+              <div className="flex gap-1.5 flex-wrap items-center">
+                <span className="text-[11px] text-muted-foreground font-mono-ui mr-1">Canal:</span>
+                <FilterChip active={canalFilter === "all"} onClick={() => setCanalFilter("all")}>Tout</FilterChip>
+                {CANAL_OPTIONS.map((c) => (
+                  <FilterChip key={c.id} active={canalFilter === c.id} onClick={() => c.enabled && setCanalFilter(c.id)} disabled={!c.enabled}>
+                    {c.label}{!c.enabled && " (V2)"}
+                  </FilterChip>
+                ))}
+              </div>
+              <div className="flex gap-1.5 flex-wrap items-center">
+                <span className="text-[11px] text-muted-foreground font-mono-ui mr-1">Type:</span>
+                <FilterChip active={typeFilter === "all"} onClick={() => setTypeFilter("all")}>Tout</FilterChip>
+                {TYPE_OPTIONS.map((t) => (
+                  <FilterChip key={t.id} active={typeFilter === t.id} onClick={() => setTypeFilter(t.id)}>{t.label}</FilterChip>
+                ))}
+                {activeAdvancedCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => { setObjectifFilter("all"); setCanalFilter("all"); setTypeFilter("all"); }}
+                    className="ml-auto text-[11px] font-mono-ui text-muted-foreground hover:text-foreground underline underline-offset-2"
+                  >
+                    Réinitialiser
+                  </button>
+                )}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
         </div>
+
 
         {/* Ideas list */}
         {loading ? (
@@ -336,18 +413,44 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
               return (
                 <div
                   key={idea.id}
-                  className="rounded-xl border border-[#F0E4EC] bg-card p-4 hover:shadow-md hover:border-rose-medium transition-all cursor-pointer animate-fade-in"
+                  className="relative rounded-xl border border-[#F0E4EC] bg-card p-4 hover:shadow-md hover:border-rose-medium transition-all cursor-pointer animate-fade-in"
                   style={{ animationDelay: `${idx * 0.05}s` }}
                   onClick={() => { setSelectedIdea(idea); setDetailNotes(idea.notes || ""); }}
                 >
+                  {/* Delete button — top right */}
+                  <div className="absolute top-2 right-2" onClick={(e) => e.stopPropagation()}>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0 rounded-full hover:bg-destructive/10 hover:text-destructive">
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Supprimer cette idée ?</AlertDialogTitle>
+                          <AlertDialogDescription>Tu veux vraiment supprimer cette idée ? Cette action est irréversible.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Annuler</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDelete(idea.id)}>Supprimer</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                   {/* Badges */}
                   <div className="flex gap-1.5 flex-wrap mb-2">
                     {statusBadge && (
-                      <StatusDropdown ideaId={idea.id} current={idea.status || "to_explore"} onSelect={handleStatusChange}>
-                        <span className={`font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill cursor-pointer ${statusBadge.bg} ${statusBadge.text}`}>
+                      idea.type === "brief" ? (
+                        <span className={`font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill ${statusBadge.bg} ${statusBadge.text}`}>
                           {statusBadge.label}
                         </span>
-                      </StatusDropdown>
+                      ) : (
+                        <StatusDropdown ideaId={idea.id} current={idea.status || "to_explore"} onSelect={handleStatusChange}>
+                          <span className={`font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill cursor-pointer ${statusBadge.bg} ${statusBadge.text}`}>
+                            {statusBadge.label}
+                          </span>
+                        </StatusDropdown>
+                      )
                     )}
                     {objBadge && (
                       <span className={`font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill ${objBadge.bg} ${objBadge.text}`}>
@@ -366,21 +469,21 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
 
                   {/* Title */}
                   <h3 className="font-display text-base font-bold text-foreground mb-1">{idea.titre}</h3>
-                  <p className="text-[13px] text-muted-foreground">Angle : {idea.angle}</p>
-                  <p className="text-[13px] text-muted-foreground">Format : {idea.format}</p>
+                  {idea.angle?.trim() && <p className="text-[13px] text-muted-foreground">Angle : {idea.angle}</p>}
+                  {idea.format?.trim() && <p className="text-[13px] text-muted-foreground">Format : {idea.format}</p>}
 
-                  {/* Preview */}
-                  {idea.content_data ? (
-                    <div className="mt-2">
-                      <ContentPreview contentData={idea.content_data} contentType={idea.format === "reel" ? "reel" : idea.format === "story_serie" ? "stories" : undefined} compact />
-                    </div>
-                  ) : idea.content_draft ? (
-                    <div className="mt-2">
-                      <ContentPreview contentData={null} contentDraft={idea.content_draft} contentType={idea.format === "reel" ? "reel" : idea.format === "story_serie" ? "stories" : undefined} compact />
-                    </div>
-                  ) : idea.accroche_short ? (
-                    <p className="text-[13px] text-foreground/70 mt-2 line-clamp-1 italic">🎣 {idea.accroche_short}</p>
-                  ) : null}
+                  {/* Preview (scannable, 2 lignes max) */}
+                  {(() => {
+                    const preview = getIdeaPreview(idea);
+                    if (!preview.title && !preview.text) return null;
+                    return (
+                      <div className="mt-2 space-y-0.5">
+                        {preview.title && <p className="font-semibold text-[13px] text-foreground line-clamp-1">{preview.title}</p>}
+                        {preview.text && <p className="text-[13px] text-foreground/70 line-clamp-2">{preview.text}</p>}
+                      </div>
+                    );
+                  })()}
+
 
                   {/* Date + planned */}
                   <div className="flex items-center gap-3 mt-2">
@@ -411,23 +514,6 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
                           <PenLine className="h-3 w-3" /> Rédiger
                         </Button>
                         <PlanifierPopover idea={idea} onPlan={handlePlan} />
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="outline" size="sm" className="rounded-pill text-xs gap-1 text-muted-foreground hover:text-destructive">
-                              <Trash2 className="h-3 w-3" /> Supprimer
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Supprimer cette idée ?</AlertDialogTitle>
-                              <AlertDialogDescription>Tu veux vraiment supprimer cette idée ? Cette action est irréversible.</AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Annuler</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDelete(idea.id)}>Supprimer</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
                       </>
                     )}
                   </div>
@@ -438,135 +524,174 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
         )}
 
         {/* Detail Sheet */}
-        <Sheet open={!!selectedIdea} onOpenChange={(open) => { if (!open) setSelectedIdea(null); }}>
-          <SheetContent className="w-full sm:max-w-[420px] overflow-y-auto">
+        <Dialog open={!!selectedIdea} onOpenChange={(open) => { if (!open) setSelectedIdea(null); }}>
+          <DialogContent className="max-w-2xl max-h-[90vh] p-0 gap-0 flex flex-col overflow-hidden">
             {selectedIdea && (
-              <div className="py-4">
-                <SheetHeader>
-                  <SheetTitle className="font-display text-xl text-left">{selectedIdea.titre}</SheetTitle>
-                  <SheetDescription className="sr-only">Détails de l'idée sauvegardée</SheetDescription>
-                </SheetHeader>
-
-                <div className="flex gap-1.5 flex-wrap mt-3 mb-4">
-                  {getStatusBadge(selectedIdea.status) && (() => {
-                    const sb = getStatusBadge(selectedIdea.status)!;
-                    return (
-                      <StatusDropdown ideaId={selectedIdea.id} current={selectedIdea.status || "to_explore"} onSelect={(id, s) => { handleStatusChange(id, s); setSelectedIdea((prev) => prev ? { ...prev, status: s } : null); }}>
-                        <span className={`font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill cursor-pointer ${sb.bg} ${sb.text}`}>{sb.label}</span>
-                      </StatusDropdown>
-                    );
-                  })()}
-                  {getObjectifBadge(selectedIdea.objectif) && (() => {
-                    const ob = getObjectifBadge(selectedIdea.objectif)!;
-                    return <span className={`font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill ${ob.bg} ${ob.text}`}>{ob.label}</span>;
-                  })()}
-                  <span className="font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-primary text-primary-foreground">📱 {selectedIdea.canal}</span>
-                  <span className="font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-rose-pale text-foreground">{(selectedIdea.type || "idea") === "idea" ? "💡 Idée" : (selectedIdea.type || "idea") === "draft" ? "✏️ Brouillon" : "🎣 Accroche"}</span>
-                </div>
-
-                <div className="space-y-3 text-sm">
-                  <div><span className="font-medium text-foreground">Angle :</span> <span className="text-muted-foreground">{selectedIdea.angle}</span></div>
-                  <div><span className="font-medium text-foreground">Format :</span> <span className="text-muted-foreground">{selectedIdea.format}</span></div>
-                  {selectedIdea.format_technique && <div><span className="font-medium text-foreground">Format technique :</span> <span className="text-muted-foreground">{selectedIdea.format_technique}</span></div>}
-                </div>
-
-                {/* Accroche */}
-                {(selectedIdea.accroche_short || selectedIdea.accroche_long) && (
-                  <div className="mt-4">
-                    <p className="text-xs font-mono-ui font-semibold text-muted-foreground mb-1">ACCROCHE</p>
-                    {selectedIdea.accroche_short && <p className="text-sm text-foreground font-semibold mb-1">{selectedIdea.accroche_short}</p>}
-                    {selectedIdea.accroche_long && <p className="text-sm text-foreground/80 italic">{selectedIdea.accroche_long}</p>}
+              <>
+                <DialogHeader className="px-6 pt-6 pb-4 space-y-0">
+                  <DialogTitle className="sr-only">Détail de l'idée sauvegardée</DialogTitle>
+                  <DialogDescription className="sr-only">Détails de l'idée sauvegardée</DialogDescription>
+                  <div className="flex gap-1.5 flex-wrap pr-8">
+                    {getStatusBadge(selectedIdea.status) && (() => {
+                      const sb = getStatusBadge(selectedIdea.status)!;
+                      return selectedIdea.type === "brief" ? (
+                        <span className={`font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill ${sb.bg} ${sb.text}`}>{sb.label}</span>
+                      ) : (
+                        <StatusDropdown ideaId={selectedIdea.id} current={selectedIdea.status || "to_explore"} onSelect={(id, s) => { handleStatusChange(id, s); setSelectedIdea((prev) => prev ? { ...prev, status: s } : null); }}>
+                          <span className={`font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill cursor-pointer ${sb.bg} ${sb.text}`}>{sb.label}</span>
+                        </StatusDropdown>
+                      );
+                    })()}
+                    {getObjectifBadge(selectedIdea.objectif) && (() => {
+                      const ob = getObjectifBadge(selectedIdea.objectif)!;
+                      return <span className={`font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill ${ob.bg} ${ob.text}`}>{ob.label}</span>;
+                    })()}
+                    <span className="font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-primary text-primary-foreground">📱 {selectedIdea.canal}</span>
+                    <span className="font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-rose-pale text-foreground">{(selectedIdea.type || "idea") === "idea" ? "💡 Idée" : (selectedIdea.type || "idea") === "draft" ? "✏️ Brouillon" : "🎣 Accroche"}</span>
                   </div>
-                )}
+                </DialogHeader>
 
-                {/* Draft / Content */}
-                {(selectedIdea.content_data || selectedIdea.content_draft) && (
-                  <div className="mt-4">
-                    <p className="text-xs font-mono-ui font-semibold text-muted-foreground mb-1">CONTENU</p>
-                    <div className="rounded-xl bg-rose-pale p-3 max-h-[400px] overflow-y-auto">
-                      <ContentPreview
-                        contentData={selectedIdea.content_data}
-                        contentDraft={selectedIdea.content_draft}
-                        contentType={selectedIdea.format === "reel" ? "reel" : selectedIdea.format === "story_serie" ? "stories" : undefined}
-                        editable
-                        onContentChange={async (updatedData) => {
-                          // Save to content_data or content_draft depending on type
-                          const isJson = typeof updatedData === "object";
-                          const updatePayload = isJson
-                            ? { content_data: updatedData, updated_at: new Date().toISOString() }
-                            : { content_draft: updatedData, updated_at: new Date().toISOString() };
-                          if (selectedIdea.type !== "brief") {
-                            await supabase.from("saved_ideas").update(updatePayload as any).eq("id", selectedIdea.id);
-                            setIdeas((prev) => prev.map((i) => i.id === selectedIdea.id ? { ...i, ...(isJson ? { content_data: updatedData } : { content_draft: updatedData }) } : i));
-                          }
-                          setSelectedIdea((prev) => prev ? { ...prev, ...(isJson ? { content_data: updatedData } : { content_draft: updatedData }) } : null);
-                        }}
-                      />
+                <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-8">
+                  {/* The Idea — focal point */}
+                  <p className="font-display text-xl md:text-2xl text-foreground leading-relaxed">
+                    {selectedIdea.titre}
+                  </p>
+
+                  {/* Accroche */}
+                  {(selectedIdea.accroche_short || selectedIdea.accroche_long) && (
+                    <section className="pt-6 border-t border-border/60 space-y-2">
+                      <p className="font-mono-ui text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Accroche</p>
+                      {selectedIdea.accroche_short && <p className="text-sm text-foreground font-semibold">{selectedIdea.accroche_short}</p>}
+                      {selectedIdea.accroche_long && <p className="text-sm text-foreground/80 italic">{selectedIdea.accroche_long}</p>}
+                    </section>
+                  )}
+
+                  {/* Draft / Content */}
+                  {(selectedIdea.content_data || selectedIdea.content_draft) && (
+                    <section className="pt-6 border-t border-border/60 space-y-2">
+                      <p className="font-mono-ui text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Contenu</p>
+                      <div className="rounded-xl bg-rose-pale p-3 max-h-[400px] overflow-y-auto">
+                        <ContentPreview
+                          contentData={selectedIdea.content_data}
+                          contentDraft={selectedIdea.content_draft}
+                          contentType={selectedIdea.format === "reel" ? "reel" : selectedIdea.format === "story_serie" ? "stories" : undefined}
+                          editable
+                          onContentChange={async (updatedData) => {
+                            const isJson = typeof updatedData === "object";
+                            const updatePayload = isJson
+                              ? { content_data: updatedData, updated_at: new Date().toISOString() }
+                              : { content_draft: updatedData, updated_at: new Date().toISOString() };
+                            if (selectedIdea.type !== "brief") {
+                              await supabase.from("saved_ideas").update(updatePayload as any).eq("id", selectedIdea.id);
+                              setIdeas((prev) => prev.map((i) => i.id === selectedIdea.id ? { ...i, ...(isJson ? { content_data: updatedData } : { content_draft: updatedData }) } : i));
+                            }
+                            setSelectedIdea((prev) => prev ? { ...prev, ...(isJson ? { content_data: updatedData } : { content_draft: updatedData }) } : null);
+                          }}
+                        />
+                      </div>
+                    </section>
+                  )}
+
+                  {/* Metadata grid */}
+                  <section className="pt-6 border-t border-border/60 grid grid-cols-2 gap-y-4 gap-x-8">
+                    <div className="space-y-1">
+                      <p className="font-mono-ui text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Angle</p>
+                      <p className="text-sm text-foreground">{selectedIdea.angle}</p>
                     </div>
-                  </div>
-                )}
+                    <div className="space-y-1">
+                      <p className="font-mono-ui text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Format</p>
+                      <p className="text-sm text-foreground">{selectedIdea.format}</p>
+                    </div>
+                    {selectedIdea.format_technique && (
+                      <div className="space-y-1 col-span-2">
+                        <p className="font-mono-ui text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Format technique</p>
+                        <p className="text-sm text-foreground">{selectedIdea.format_technique}</p>
+                      </div>
+                    )}
+                    <div className="space-y-1">
+                      <p className="font-mono-ui text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Créée le</p>
+                      <p className="text-xs text-muted-foreground">{fnsFormat(new Date(selectedIdea.created_at), "d MMMM yyyy", { locale: fr })}</p>
+                    </div>
+                    {selectedIdea.updated_at && (
+                      <div className="space-y-1">
+                        <p className="font-mono-ui text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Modifiée le</p>
+                        <p className="text-xs text-muted-foreground">{fnsFormat(new Date(selectedIdea.updated_at), "d MMMM yyyy", { locale: fr })}</p>
+                      </div>
+                    )}
+                    {selectedIdea.planned_date && (
+                      <div className="space-y-1 col-span-2">
+                        <p className="font-mono-ui text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Planifiée le</p>
+                        <p className="text-xs text-[#2E7D32]">📅 {fnsFormat(new Date(selectedIdea.planned_date), "d MMMM yyyy", { locale: fr })}</p>
+                      </div>
+                    )}
+                  </section>
 
-                {/* Dates */}
-                <div className="mt-4 text-xs text-muted-foreground space-y-1">
-                  <p>Créée le {fnsFormat(new Date(selectedIdea.created_at), "d MMMM yyyy", { locale: fr })}</p>
-                  {selectedIdea.updated_at && <p>Modifiée le {fnsFormat(new Date(selectedIdea.updated_at), "d MMMM yyyy", { locale: fr })}</p>}
-                  {selectedIdea.planned_date && <p className="text-[#2E7D32]">📅 Planifiée le {fnsFormat(new Date(selectedIdea.planned_date), "d MMMM yyyy", { locale: fr })}</p>}
+                  {/* Notes — accented block */}
+                  {selectedIdea.type !== "brief" && (
+                    <section className="bg-rose-pale/40 border-l-4 border-primary/40 rounded-r-lg p-5">
+                      <div className="flex justify-between items-center mb-3">
+                        <p className="font-mono-ui text-[10px] uppercase tracking-wider font-bold text-primary">Mes notes personnelles</p>
+                        <button
+                          type="button"
+                          onClick={() => handleSaveNotes(selectedIdea.id, detailNotes)}
+                          className="font-mono-ui text-[10px] uppercase tracking-wider font-bold text-primary hover:underline"
+                        >
+                          Sauvegarder
+                        </button>
+                      </div>
+                      <Textarea
+                        value={detailNotes}
+                        onChange={(e) => setDetailNotes(e.target.value)}
+                        placeholder="Ajoute tes notes personnelles ici..."
+                        className="bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none p-0 text-sm leading-relaxed text-foreground/90 min-h-[100px] resize-none"
+                      />
+                    </section>
+                  )}
                 </div>
 
-                {/* Notes */}
-                <div className="mt-4">
-                  <p className="text-xs font-mono-ui font-semibold text-muted-foreground mb-1">MES NOTES</p>
-                  <Textarea
-                    value={detailNotes}
-                    onChange={(e) => setDetailNotes(e.target.value)}
-                    placeholder="Ajoute tes notes personnelles ici..."
-                    className="rounded-xl text-sm min-h-[100px]"
-                  />
-                  <Button variant="outline" size="sm" className="rounded-pill text-xs mt-2"
-                    onClick={() => handleSaveNotes(selectedIdea.id, detailNotes)}>
-                    Sauvegarder les notes
-                  </Button>
-                </div>
-
-                {/* Actions */}
-                <div className="flex flex-col gap-2 mt-6">
+                {/* Sticky footer actions */}
+                <div className="px-6 py-4 border-t border-border bg-background flex flex-col gap-3">
                   <Button onClick={() => handleRediger(selectedIdea)} className="rounded-pill gap-2 w-full">
                     <PenLine className="h-4 w-4" /> Continuer la rédaction
                   </Button>
-                  <PlanifierPopover idea={selectedIdea} onPlan={handlePlan} fullWidth />
-                  {(selectedIdea.content_draft || selectedIdea.content_data) && !selectedIdea.content_data?.script && (
-                    <Button variant="outline" className="rounded-pill gap-2 w-full" onClick={async () => {
-                      const text = selectedIdea.content_draft && !selectedIdea.content_draft.startsWith("{")
-                        ? selectedIdea.content_draft
-                        : "Contenu copié depuis le composant de prévisualisation.";
-                      await navigator.clipboard.writeText(text);
-                      toast({ title: "Copié !" });
-                    }}>
-                      <Copy className="h-4 w-4" /> Copier le contenu
-                    </Button>
-                  )}
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="outline" className="rounded-pill gap-2 w-full text-muted-foreground hover:text-destructive">
-                        <Trash2 className="h-4 w-4" /> Supprimer
+                  <div className="flex gap-3">
+                    <div className="flex-1">
+                      <PlanifierPopover idea={selectedIdea} onPlan={handlePlan} fullWidth />
+                    </div>
+                    {(selectedIdea.content_draft || selectedIdea.content_data) && !selectedIdea.content_data?.script && (
+                      <Button variant="outline" size="sm" className="rounded-pill gap-1 text-xs" onClick={async () => {
+                        const text = selectedIdea.content_draft && !selectedIdea.content_draft.startsWith("{")
+                          ? selectedIdea.content_draft
+                          : "Contenu copié depuis le composant de prévisualisation.";
+                        await navigator.clipboard.writeText(text);
+                        toast({ title: "Copié !" });
+                      }}>
+                        <Copy className="h-3 w-3" /> Copier
                       </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Supprimer cette idée ?</AlertDialogTitle>
-                        <AlertDialogDescription>Cette action est irréversible.</AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Annuler</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => handleDelete(selectedIdea.id)}>Supprimer</AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                    )}
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="rounded-pill text-muted-foreground hover:text-destructive hover:bg-destructive/10" aria-label="Supprimer">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Supprimer cette idée ?</AlertDialogTitle>
+                          <AlertDialogDescription>Cette action est irréversible.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Annuler</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDelete(selectedIdea.id)}>Supprimer</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                 </div>
-              </div>
+              </>
             )}
-          </SheetContent>
-        </Sheet>
+          </DialogContent>
+        </Dialog>
       </>
     );
 

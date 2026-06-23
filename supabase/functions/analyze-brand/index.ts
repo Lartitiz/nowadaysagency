@@ -1,9 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { scrapeWebsite, scrapeInstagram, scrapeLinkedin, processDocuments, extractVisualInfo } from "../_shared/scraping.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
-import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
+import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
 const MAX_TEXT_PER_SOURCE = 8000;
 const GLOBAL_TIMEOUT_MS = 50000;
@@ -20,20 +22,29 @@ serve(async (req) => {
 
   try {
     const { userId } = await authenticateRequest(req);
-    const { websiteUrl, instagramHandle, linkedinUrl, documentIds, documentText } = await req.json();
+
+    const rateCheck = checkRateLimit(userId);
+    if (!rateCheck.allowed) { clearTimeout(timeout); return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders); }
+
+    const { websiteUrl, instagramHandle, linkedinUrl, documentIds, documentText, workspace_id: bodyWorkspaceId } = await req.json();
 
     const quota = await checkQuota(userId, "import");
     if (!quota.allowed) {
       clearTimeout(timeout);
-      return new Response(JSON.stringify({ error: quota.message, quota }), {
-        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return quotaDeniedResponse(quota, corsHeaders);
     }
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
+
+    const membership = await assertWorkspaceMembership(supabaseAdmin, userId, bodyWorkspaceId);
+    if (!membership.ok) {
+      console.warn("[workspace-guard] denied", { userId, workspaceId: bodyWorkspaceId });
+      clearTimeout(timeout);
+      return workspaceDeniedResponse(corsHeaders);
+    }
 
     const scrapedContent: Record<string, string> = {};
     const sourcesUsed: string[] = [];
@@ -154,7 +165,7 @@ serve(async (req) => {
       .from("branding_autofill")
       .insert({
         user_id: userId,
-        workspace_id: wsData?.workspace_id || null,
+        workspace_id: bodyWorkspaceId || wsData?.workspace_id || null,
         website_url: websiteUrl || null,
         instagram_handle: instagramHandle || null,
         linkedin_url: linkedinUrl || null,

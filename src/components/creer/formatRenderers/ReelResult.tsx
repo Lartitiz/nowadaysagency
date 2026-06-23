@@ -13,6 +13,7 @@ export default function ReelResult({ result }: Props) {
   const dureeCible = result?.duree_cible || result?.duration;
   const sections = result?.sections || (Array.isArray(result?.script) ? result.script : result?.script?.sections) || [];
   const personalTip = result?.personal_tip || result?.conseil_personnalise;
+  const lectureTest = result?.lecture_test;
 
   const fullText = sections
     .map((s: any) => [s.texte_parle, s.texte_overlay].filter(Boolean).join("\n"))
@@ -31,6 +32,17 @@ export default function ReelResult({ result }: Props) {
           <Badge variant="secondary" className="font-mono">{dureeCible}</Badge>
         )}
       </div>
+
+      {lectureTest && (
+        <div className="rounded-lg bg-accent/30 border border-accent p-4 space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-foreground uppercase tracking-wide">📖 Lecture face cam</span>
+            <Badge variant="secondary" className="text-[10px]">monologue continu</Badge>
+          </div>
+          <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{lectureTest}</p>
+          <p className="text-[10px] text-muted-foreground italic">Lis ce texte d'une traite à voix haute. S'il sonne fluide → tu peux tourner. S'il sonne robotique → relance la génération.</p>
+        </div>
+      )}
 
       <div className="space-y-2">
         {sections.map((section: any, i: number) => (

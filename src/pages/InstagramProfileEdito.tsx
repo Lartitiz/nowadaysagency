@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useBrandStrategy, useEditorialLine } from "@/hooks/use-branding";
 import { useQueryClient } from "@tanstack/react-query";
@@ -16,6 +17,7 @@ import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { Save, Loader2, Sparkles, Mic, MicOff, Plus, X, Lightbulb } from "lucide-react";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import AuditInsight from "@/components/AuditInsight";
+import { PillarsSyncBanner } from "@/components/edito/PillarsSyncBanner";
 
 /* ─── Types ─── */
 interface Pillar {
@@ -371,7 +373,7 @@ export default function InstagramProfileEdito() {
     if (!user) return;
     setSuggestingPillars(true);
     try {
-      const res = await supabase.functions.invoke("generate-content", {
+      const res = await invokeWithTimeout("generate-content", {
         body: {
           type: "instagram-edito-pillars",
           profile: {
@@ -381,7 +383,7 @@ export default function InstagramProfileEdito() {
           },
           workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
         },
-      });
+      }, 60000);
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
       let parsed: any;
@@ -404,7 +406,7 @@ export default function InstagramProfileEdito() {
     if (!user) return;
     setSuggestingFormats(true);
     try {
-      const res = await supabase.functions.invoke("generate-content", {
+      const res = await invokeWithTimeout("generate-content", {
         body: {
           type: "instagram-edito-formats",
           profile: {
@@ -414,7 +416,7 @@ export default function InstagramProfileEdito() {
           },
           workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
         },
-      });
+      }, 60000);
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
       let parsed: any;
@@ -438,7 +440,7 @@ export default function InstagramProfileEdito() {
     setSuggestingRhythm(true);
     setRhythmSuggestion(null);
     try {
-      const res = await supabase.functions.invoke("generate-content", {
+      const res = await invokeWithTimeout("generate-content", {
         body: {
           type: "instagram-rhythm-adapt",
           profile: {
@@ -451,7 +453,7 @@ export default function InstagramProfileEdito() {
           },
           workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
         },
-      });
+      }, 60000);
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
       let parsed: any;
@@ -615,6 +617,8 @@ export default function InstagramProfileEdito() {
           </section>
 
           {/* ── Section C: Piliers ── */}
+          <div>
+            <PillarsSyncBanner />
           <section className="rounded-2xl border border-border bg-card p-5">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-base font-display font-bold text-foreground">📊 Mes piliers et leur répartition</h2>
@@ -678,6 +682,7 @@ export default function InstagramProfileEdito() {
               )}
             </div>
           </section>
+          </div>
 
           {/* ── Section D: Formats ── */}
           <section className="rounded-2xl border border-border bg-card p-5">

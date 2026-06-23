@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import { friendlyError } from "@/lib/error-messages";
 import { useProfile, useBrandProfile } from "@/hooks/use-profile";
 import { usePersona, useBrandProposition, useBrandStrategy, useStorytelling } from "@/hooks/use-branding";
 import { useQueryClient } from "@tanstack/react-query";
@@ -208,20 +210,62 @@ export default function InstagramBio() {
     }
     setAnalyzingBio(true);
     try {
-      const res = await supabase.functions.invoke("generate-content", {
+      const res = await invokeWithTimeout("generate-content", {
         body: { type: "bio-audit", profile: profile || {}, bioText: currentBioText },
-      });
-      if (res.error) throw new Error(res.error.message);
-      const content = res.data?.content || "";
-      let parsed: BioAnalysis;
-      try { parsed = JSON.parse(content); } catch {
-        const match = content.match(/\{[\s\S]*\}/);
-        if (match) parsed = JSON.parse(match[0]);
-        else throw new Error("Format inattendu");
+      }, 90000);
+
+      if (res.error) {
+        console.error("[Bio Audit] Edge Function error:", JSON.stringify(res.error));
+        throw new Error(res.error.message || "Erreur serveur");
       }
+
+      const rawContent = res.data?.content || "";
+      console.log("[Bio Audit] Raw response length:", rawContent.length, "| Preview:", typeof rawContent === "string" ? rawContent.substring(0, 200) : "non-string");
+
+      let parsed: BioAnalysis;
+
+      if (typeof rawContent === "object" && rawContent.score !== undefined) {
+        parsed = rawContent as BioAnalysis;
+      } else {
+        const content = typeof rawContent === "string" ? rawContent : "";
+        const cleaned = content.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+
+        try {
+          parsed = JSON.parse(cleaned);
+        } catch {
+          const startIdx = cleaned.indexOf("{");
+          if (startIdx === -1) {
+            console.error("[Bio Audit] No JSON found in response:", cleaned.substring(0, 500));
+            throw new Error("parse_error");
+          }
+          let depth = 0;
+          let endIdx = -1;
+          for (let i = startIdx; i < cleaned.length; i++) {
+            if (cleaned[i] === "{") depth++;
+            else if (cleaned[i] === "}") { depth--; if (depth === 0) { endIdx = i; break; } }
+          }
+          if (endIdx === -1) {
+            console.error("[Bio Audit] Unbalanced JSON:", cleaned.substring(0, 500));
+            throw new Error("parse_error");
+          }
+          try {
+            parsed = JSON.parse(cleaned.substring(startIdx, endIdx + 1));
+          } catch (innerErr) {
+            console.error("[Bio Audit] JSON parse failed after extraction:", cleaned.substring(startIdx, startIdx + 500));
+            throw new Error("parse_error");
+          }
+        }
+      }
+
+      if (!parsed || parsed.score === undefined) {
+        console.error("[Bio Audit] Invalid parsed object:", JSON.stringify(parsed).substring(0, 500));
+        throw new Error("parse_error");
+      }
+
       setBioAnalysis(parsed);
     } catch (e: any) {
-      toast({ title: "Erreur d'analyse", description: e.message, variant: "destructive" });
+      console.error("[Bio Audit] Final error:", e?.message || e);
+      toast({ title: "Erreur d'analyse", description: friendlyError(e), variant: "destructive" });
     }
     setAnalyzingBio(false);
   };
@@ -240,7 +284,7 @@ export default function InstagramBio() {
       } as any).eq(column, value);
       queryClient.invalidateQueries({ queryKey: ["profile"] });
 
-      const res = await supabase.functions.invoke("generate-content", {
+      const res = await invokeWithTimeout("generate-content", {
         body: {
           type: "bio-generator",
           profile: profile || {},
@@ -249,19 +293,56 @@ export default function InstagramBio() {
           ctaInfo: { type: ctaType, text: ctaText },
           structureChoice: bioStructure,
         },
-      });
-      if (res.error) throw new Error(res.error.message);
-      const content = res.data?.content || "";
-      let parsed: { bios?: BioVersion[]; versions?: BioVersion[] };
-      try { parsed = JSON.parse(content); } catch {
-        const match = content.match(/\{[\s\S]*\}/);
-        if (match) parsed = JSON.parse(match[0]);
-        else throw new Error("Format inattendu");
+      }, 90000);
+
+      if (res.error) {
+        console.error("[Bio Generator] Edge Function error:", JSON.stringify(res.error));
+        throw new Error(res.error.message || "Erreur serveur");
       }
+
+      const rawContent = res.data?.content || "";
+      console.log("[Bio Generator] Raw response length:", rawContent.length, "| Preview:", typeof rawContent === "string" ? rawContent.substring(0, 200) : "non-string");
+
+      let parsed: { bios?: BioVersion[]; versions?: BioVersion[] };
+
+      if (typeof rawContent === "object" && (rawContent.bios || rawContent.versions)) {
+        parsed = rawContent;
+      } else {
+        const content = typeof rawContent === "string" ? rawContent : "";
+        const cleaned = content.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+
+        try {
+          parsed = JSON.parse(cleaned);
+        } catch {
+          const startIdx = cleaned.indexOf("{");
+          if (startIdx === -1) {
+            console.error("[Bio Generator] No JSON found in response:", cleaned.substring(0, 500));
+            throw new Error("parse_error");
+          }
+          let depth = 0;
+          let endIdx = -1;
+          for (let i = startIdx; i < cleaned.length; i++) {
+            if (cleaned[i] === "{") depth++;
+            else if (cleaned[i] === "}") { depth--; if (depth === 0) { endIdx = i; break; } }
+          }
+          if (endIdx === -1) {
+            console.error("[Bio Generator] Unbalanced JSON:", cleaned.substring(0, 500));
+            throw new Error("parse_error");
+          }
+          try {
+            parsed = JSON.parse(cleaned.substring(startIdx, endIdx + 1));
+          } catch (innerErr) {
+            console.error("[Bio Generator] JSON parse failed after extraction:", cleaned.substring(startIdx, startIdx + 500));
+            throw new Error("parse_error");
+          }
+        }
+      }
+
       setVersions(parsed.bios || parsed.versions || []);
       setView("results");
     } catch (e: any) {
-      toast({ title: "Erreur de génération", description: e.message, variant: "destructive" });
+      console.error("[Bio Generator] Final error:", e?.message || e);
+      toast({ title: "Erreur de génération", description: friendlyError(e), variant: "destructive" });
     }
     setGenerating(false);
   };

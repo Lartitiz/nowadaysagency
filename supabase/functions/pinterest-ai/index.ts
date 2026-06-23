@@ -1,12 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { CORE_PRINCIPLES } from "../_shared/copywriting-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildIdentityBlock } from "../_shared/user-context.ts";
-import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
+import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 const PINTEREST_PRINCIPLES = `
 Tu es expert·e en SEO Pinterest.
@@ -53,16 +54,10 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) return new Response(JSON.stringify({ error: "Auth invalide" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-    // Anthropic API key checked in shared helper
+    const rateCheck = checkRateLimit(user.id);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
 
-    // Check plan limits
-    const usageCheck = await checkQuota(user.id, "content");
-    if (!usageCheck.allowed) {
-      return new Response(
-        JSON.stringify({ error: "limit_reached", message: usageCheck.error, remaining: 0 }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    // Anthropic API key checked in shared helper
 
     const reqBody = await req.json();
     validateInput(reqBody, z.object({
@@ -72,6 +67,24 @@ serve(async (req) => {
       subject: z.string().max(5000).optional().nullable(),
     }).passthrough());
     const { action, workspace_id, ...params } = reqBody;
+
+    // Check plan limits (workspace-aware)
+    const usageCheck = await checkQuota(user.id, "content", workspace_id || undefined);
+    if (!usageCheck.allowed) {
+      return quotaDeniedResponse(usageCheck, corsHeaders);
+    }
+
+    // Resolve workspace owner's user_id for tables without workspace_id (e.g. pinterest_keywords)
+    let profileUserId = user.id;
+    if (workspace_id) {
+      const { data: ownerRow } = await supabase
+        .from("workspace_members")
+        .select("user_id")
+        .eq("workspace_id", workspace_id)
+        .eq("role", "owner")
+        .maybeSingle();
+      if (ownerRow?.user_id) profileUserId = ownerRow.user_id;
+    }
 
     // Fetch full user context server-side
     const ctx = await getUserContext(supabase, user.id, workspace_id);
@@ -91,14 +104,14 @@ serve(async (req) => {
 
     } else if (action === "board-description") {
       const { board_name, board_type } = params;
-      const kwRes = await supabase.from("pinterest_keywords").select("keywords_raw").eq("user_id", user.id).maybeSingle();
+      const kwRes = await supabase.from("pinterest_keywords").select("keywords_raw").eq("user_id", profileUserId).maybeSingle();
       const kw = kwRes.data?.keywords_raw || "";
       systemPrompt = `${PINTEREST_PRINCIPLES}\n\nNOM DU TABLEAU : "${board_name}"\nTYPE : ${board_type}\n\n${context}\n\nMOTS-CLÉS DISPONIBLES : ${kw}\n\nRédige une description optimisée SEO (50-100 mots).\n- Intègre les mots-clés naturellement dans des phrases fluides\n- Ton chaleureux, pas robotique\n- Pas de hashtags\n- La description doit donner envie d'explorer le tableau\n\nRéponds avec le texte seul.`;
       userPrompt = "Rédige la description du tableau.";
 
     } else if (action === "pin") {
       const { subject, board_name } = params;
-      const kwRes = await supabase.from("pinterest_keywords").select("keywords_raw").eq("user_id", user.id).maybeSingle();
+      const kwRes = await supabase.from("pinterest_keywords").select("keywords_raw").eq("user_id", profileUserId).maybeSingle();
       const kw = kwRes.data?.keywords_raw || "";
       systemPrompt = `${PINTEREST_PRINCIPLES}\n\nSUJET DE L'ÉPINGLE : "${subject}"\nTABLEAU : "${board_name}"\n\n${context}\n\nMOTS-CLÉS DISPONIBLES : ${kw}\n\nGénère 3 variantes titre + description pour cette épingle :\n\nVARIANTE 1 — SEO\nVARIANTE 2 — STORYTELLING\nVARIANTE 3 — BÉNÉFICE\n\nPour chaque variante :\n- Titre : max 100 caractères\n- Description : 100-200 mots, PAS de hashtags\n- Intégrer les mots-clés naturellement\n- Ton humain et engageant\n- Inclure un appel à l'action doux en fin\n\nRéponds UNIQUEMENT en JSON sans backticks :\n[{"title": "...", "description": "..."}, {"title": "...", "description": "..."}, {"title": "...", "description": "..."}]`;
       userPrompt = "Génère titre + description pour l'épingle.";
@@ -113,7 +126,7 @@ serve(async (req) => {
 
     systemPrompt = VOICE_PRIORITY + systemPrompt;
     const content = await callAnthropicSimple(getModelForAction("pinterest"), systemPrompt, userPrompt, 0.8);
-    await logUsage(user.id, "content", "pinterest");
+    await logUsage(user.id, "content", "pinterest", undefined, undefined, workspace_id || undefined);
     return new Response(JSON.stringify({ content }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error: any) {
     if (error instanceof ValidationError) {

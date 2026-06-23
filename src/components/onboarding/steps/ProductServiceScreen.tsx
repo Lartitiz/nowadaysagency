@@ -1,3 +1,5 @@
+import { Button } from "@/components/ui/button";
+
 const PRODUCT_OPTIONS = [
   { key: "produits", emoji: "🎁", label: "Des produits" },
   { key: "services", emoji: "🤝", label: "Des services" },
@@ -7,9 +9,10 @@ const PRODUCT_OPTIONS = [
 interface Props {
   value: string;
   onChange: (v: string) => void;
+  onNext?: () => void;
 }
 
-export default function ProductServiceScreen({ value, onChange }: Props) {
+export default function ProductServiceScreen({ value, onChange, onNext }: Props) {
   return (
     <div className="space-y-8">
       <div className="text-center space-y-2">
@@ -38,6 +41,13 @@ export default function ProductServiceScreen({ value, onChange }: Props) {
           </button>
         ))}
       </div>
+      {value && onNext && (
+        <div className="flex justify-center">
+          <Button type="button" onClick={onNext} className="rounded-full px-8">
+            Suivant →
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

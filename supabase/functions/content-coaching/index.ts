@@ -1,9 +1,22 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
+import { AnthropicError, callAnthropic, getModelForAction } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildIdentityBlock } from "../_shared/user-context.ts";
+import { IDEA_LENSES, pickLenses, WOW_IDEA_EXAMPLES } from "../_shared/copywriting-prompts.ts";
+import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
+
+const MAX_CONTEXT_CHARS = 12000;
+const MAX_LIVING_MATTER_CHARS = 4500;
+const MAX_HISTORY_CHARS = 2200;
+
+function truncateForPrompt(text: string, maxChars: number): string {
+  if (!text || text.length <= maxChars) return text;
+  return `${text.slice(0, maxChars).trim()}\n[… contexte tronqué pour garder la génération stable …]`;
+}
+
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req); const cors = corsHeaders;
@@ -31,6 +44,9 @@ Deno.serve(async (req) => {
       });
     }
 
+    const rateCheck = checkRateLimit(user.id);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+
     const quota = await checkQuota(user.id, "suggestion");
     if (!quota.allowed) {
       return new Response(JSON.stringify({ error: quota.message, quota }), {
@@ -39,14 +55,23 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { answers, workspace_id } = body;
+    const { answers, workspace_id, intensity, regenerate_lens } = body;
     const { objectif, sujet, canal, format, content_type, ton_envie } = answers || {};
+
+    const sbGuard = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const membership = await assertWorkspaceMembership(sbGuard, user.id, workspace_id);
+    if (!membership.ok) {
+      console.warn("[workspace-guard] denied", { userId: user.id, workspaceId: workspace_id });
+      return workspaceDeniedResponse(corsHeaders);
+    }
 
     if (!objectif || !ton_envie) {
       return new Response(JSON.stringify({ error: "Réponses incomplètes" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const isBold = intensity === "bold" || intensity === "provoc";
 
     // Map raw IDs to human-readable labels for better AI output
     const OBJECTIF_LABELS: Record<string, string> = {
@@ -129,14 +154,14 @@ Deno.serve(async (req) => {
     const filterCol = workspace_id ? "workspace_id" : "user_id";
     const filterVal = workspace_id || user.id;
 
-    // Fetch context, recent posts, generated content, and strategy in parallel
-    const [ctx, recentPostsRes, strategyRes, generatedRes] = await Promise.all([
+    // Fetch context, recent posts, generated content, strategy + LIVING MATTER (persona, storytelling, offers) in parallel
+    const [ctx, recentPostsRes, strategyRes, generatedRes, personaRes, storytellingRes, offersRes] = await Promise.all([
       getUserContext(sbService, user.id, workspace_id),
       sbService.from("calendar_posts")
         .select("theme, accroche, date, canal, format")
         .eq(filterCol, filterVal)
         .order("date", { ascending: false })
-        .limit(20),
+        .limit(8),
       sbService.from("brand_strategy")
         .select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3")
         .eq(filterCol, filterVal)
@@ -145,10 +170,74 @@ Deno.serve(async (req) => {
         .select("subject, hook_text, carousel_type, objective, created_at")
         .eq(filterCol === "workspace_id" ? "workspace_id" : "user_id", filterCol === "workspace_id" ? filterVal : user.id)
         .order("created_at", { ascending: false })
-        .limit(20),
+        .limit(8),
+      sbService.from("persona")
+        .select("portrait_prenom, description, step_1_frustrations, step_2_transformation, step_3a_objections, frustrations_detail, desires, objections, pitch_short")
+        .eq(filterCol, filterVal)
+        .order("is_primary", { ascending: false })
+        .order("updated_at", { ascending: false })
+        .limit(2),
+      sbService.from("storytelling")
+        .select("title, story_type, pitch_short, step_1_raw, step_6_full_story, is_primary")
+        .eq(filterCol, filterVal)
+        .order("is_primary", { ascending: false })
+        .order("updated_at", { ascending: false })
+        .limit(5),
+      sbService.from("offers")
+        .select("name, offer_type, problem_surface, problem_deep, promise, sales_line, price_text")
+        .eq(filterCol, filterVal)
+        .order("updated_at", { ascending: false })
+        .limit(3),
     ]);
 
-    const contextText = formatContextForAI(ctx, CONTEXT_PRESETS.content);
+    const contextText = truncateForPrompt(
+      formatContextForAI(ctx, {
+        ...CONTEXT_PRESETS.content,
+        includeStory: false,
+        includePersona: false,
+        includeOffers: false,
+        includeEditorial: false,
+        includeCharter: false,
+        includeMirror: false,
+      }),
+      MAX_CONTEXT_CHARS,
+    );
+
+    // ─── Build LIVING MATTER block ───
+    const livingMatterParts: string[] = [];
+    const personas = (personaRes.data || []).filter((p: any) => p && (p.description || p.step_1_frustrations || p.pitch_short));
+    if (personas.length > 0) {
+      const lines = personas.map((p: any, i: number) => {
+        const name = p.portrait_prenom ? `"${p.portrait_prenom}"` : `Persona ${i + 1}`;
+        const frust = (p.step_1_frustrations || "").trim().slice(0, 220);
+        const trans = (p.step_2_transformation || "").trim().slice(0, 180);
+        const objs = (p.step_3a_objections || "").trim().slice(0, 180);
+        const desc = (p.description || p.pitch_short || "").trim().slice(0, 180);
+        return `  • ${name}${desc ? ` — ${desc}` : ""}${frust ? `\n      Frustrations : ${frust}` : ""}${trans ? `\n      Transformation visée : ${trans}` : ""}${objs ? `\n      Objections : ${objs}` : ""}`;
+      }).join("\n");
+      livingMatterParts.push(`PERSONAS (cibles précises) :\n${lines}`);
+    }
+    const stories = (storytellingRes.data || []).filter((s: any) => s && (s.title || s.pitch_short || s.step_6_full_story || s.step_1_raw));
+    if (stories.length > 0) {
+      const lines = stories.map((s: any, i: number) => {
+        const title = s.title ? `"${s.title}"` : `Récit ${i + 1}`;
+        const teaser = (s.pitch_short || s.step_6_full_story || s.step_1_raw || "").trim().slice(0, 200);
+        return `  • ${title} (${s.story_type || "récit"})${teaser ? ` — ${teaser}` : ""}`;
+      }).join("\n");
+      livingMatterParts.push(`STORYTELLINGS DISPONIBLES (anecdotes vécues réutilisables) :\n${lines}`);
+    }
+    const offers = (offersRes.data || []).filter((o: any) => o && o.name);
+    if (offers.length > 0) {
+      const lines = offers.map((o: any) => {
+        const promise = (o.promise || o.sales_line || "").trim().slice(0, 160);
+        const problem = (o.problem_deep || o.problem_surface || "").trim().slice(0, 160);
+        return `  • "${o.name}" (${o.offer_type || "offre"})${promise ? ` — promet : ${promise}` : ""}${problem ? ` | résout : ${problem}` : ""}`;
+      }).join("\n");
+      livingMatterParts.push(`OFFRES (transformations promises) :\n${lines}`);
+    }
+    const livingMatterBlock = livingMatterParts.length > 0
+      ? `\n══════════════════════════════════════\nMATIÈRE VIVANTE DE L'UTILISATRICE\n══════════════════════════════════════\n${livingMatterParts.join("\n\n")}\n\nRÈGLE D'ANCRAGE : au moins 2 idées sur 4 doivent s'ancrer EXPLICITEMENT dans cette matière (citer un persona précis par son prénom OU rebondir sur une anecdote nommée OU servir une offre listée). Une idée trop générique qui ignore cette matière est invalide.\n`
+      : "";
 
     // Guard: if branding is too sparse, return helpful guidance instead of generic ideas
     if (!ctx.profile?.activite && !ctx.profile?.mission && !ctx.profile?.cible) {
@@ -173,10 +262,10 @@ Deno.serve(async (req) => {
     const generatedContent = (generatedRes.data || [])
       .map((g: any) => `- "${g.subject}"${g.hook_text ? ` → hook: "${g.hook_text}"` : ""} (${g.carousel_type}, ${g.objective || "?"})`)
       .join("\n");
-    const recentPosts = [
+    const recentPosts = truncateForPrompt([
       calendarPosts ? `Posts planifiés :\n${calendarPosts}` : "",
       generatedContent ? `Contenus générés :\n${generatedContent}` : "",
-    ].filter(Boolean).join("\n\n") || "Aucun historique";
+    ].filter(Boolean).join("\n\n") || "Aucun historique", MAX_HISTORY_CHARS);
 
     const strategy = strategyRes.data;
     const pillars = strategy
@@ -193,213 +282,235 @@ Deno.serve(async (req) => {
 
     // Random creative seed to force variety between sessions
     const CREATIVE_SEEDS = [
-      "Une idée doit utiliser une analogie avec la cuisine, le sport, ou le jardinage",
-      "Une idée doit s'appuyer sur un biais cognitif précis (effet Dunning-Kruger, biais de survie, paradoxe du choix, etc.)",
-      "Une idée doit faire un parallèle avec un film, une série ou un livre connu",
-      "Une idée doit partir d'un chiffre ou d'une statistique concrète (même approximative)",
-      "Une idée doit prendre le contre-pied EXACT d'un conseil mainstream dans le domaine de l'utilisatrice",
-      "Une idée doit raconter un micro-moment du quotidien (pas une grande histoire, un détail précis)",
-      "Une idée doit faire un parallèle inattendu avec un autre métier ou une autre industrie",
-      "Une idée doit utiliser le format 'confession' ou 'j'avoue que...'",
-      "Une idée doit poser une question que l'audience se pose en secret mais n'ose pas formuler",
-      "Une idée doit comparer deux époques (avant/maintenant) sur un aspect du métier de l'utilisatrice",
-      "Une idée doit décortiquer un mot ou un concept que tout le monde utilise sans le comprendre",
-      "Une idée doit s'inspirer d'une tendance sociétale actuelle (slow life, dé-croissance, IA, etc.)",
+      "Si l'angle s'y prête naturellement, une idée peut utiliser une analogie cuisine/sport/jardinage. Sinon ignore.",
+      "Si pertinent, une idée peut s'appuyer sur un biais cognitif précis (Dunning-Kruger, biais de survie, paradoxe du choix). Sinon ignore.",
+      "Si le parallèle tient vraiment, une idée peut faire un lien avec un film, série ou livre connu. Sinon ignore.",
+      "Si un chiffre FACTUEL et SOURÇABLE est disponible (étude publique, donnée du contexte branding), une idée peut s'appuyer dessus. JAMAIS de chiffre inventé.",
+      "Si un conseil mainstream précis du secteur est réellement faux ou nuancé, une idée peut prendre son contre-pied. Sinon ignore.",
+      "Une idée peut raconter un micro-moment du quotidien (un détail précis, pas une grande histoire).",
+      "Si le parallèle tient, une idée peut faire un lien inattendu avec un autre métier. Sinon ignore.",
+      "Une idée peut utiliser le format 'confession' ou 'j'avoue que...' à condition que ce soit cohérent avec le vécu de l'utilisatrice.",
+      "Une idée peut poser une question que l'audience se pose en secret mais n'ose pas formuler.",
+      "Une idée peut comparer deux époques (avant/maintenant) sur un aspect du métier de l'utilisatrice.",
+      "Une idée peut décortiquer un mot ou un concept que tout le monde utilise sans le comprendre.",
+      "Une idée peut s'inspirer d'une tendance sociétale actuelle (slow life, dé-croissance, IA, etc.) si elle touche réellement le métier.",
     ];
     const seed1 = CREATIVE_SEEDS[Math.floor(Math.random() * CREATIVE_SEEDS.length)];
     let seed2 = CREATIVE_SEEDS[Math.floor(Math.random() * CREATIVE_SEEDS.length)];
     while (seed2 === seed1) seed2 = CREATIVE_SEEDS[Math.floor(Math.random() * CREATIVE_SEEDS.length)];
 
-    // Random hook structures to force variety
-    const HOOK_STRUCTURES = [
-      "Question rhétorique qui pique : 'Pourquoi [paradoxe] ?'",
-      "Confession : 'J'ai longtemps cru que [croyance]. Jusqu'à [déclic].'",
-      "Chiffre choc : '[Stat]% des [cible] font [erreur]. Et personne n'en parle.'",
-      "Contradiction : '[Conseil mainstream]. Sauf que c'est faux.'",
-      "Micro-scène : 'Ce matin, en [action banale], j'ai réalisé que...'",
-      "Liste-appât : 'Les 3 [trucs] que [les experts] ne disent jamais'",
-      "Comparaison inattendue : '[Chose A] et [chose B] ont plus en commun qu'on croit'",
-      "Interpellation directe : Pointer une erreur courante que l'audience fait sans le savoir",
-      "Polarisation douce : Opposer deux postures face à un enjeu du métier et demander laquelle résonne",
-      "Promesse-mystère : Annoncer un changement de jeu inattendu dans son activité, sans le révéler tout de suite",
-    ];
-    const shuffledHooks = HOOK_STRUCTURES.sort(() => Math.random() - 0.5).slice(0, 3);
+    // Format-specific blocks (allégés — on génère juste l'idée, pas le hook ni le brief)
+    let formatBlock = "";
+    if (format === "reel") {
+      formatBlock = `\nFORMAT REEL : sujets qui se VIVENT en quelques secondes (scène jouée, process montré, transformation visuelle, démonstration). Éviter sujets purement conceptuels.\n`;
+    } else if (format === "story") {
+      formatBlock = `\nFORMAT STORY : sujets pour coulisses brutes, prise de position instantanée, séquence narrative courte, interaction (sondage, question).\n`;
+    } else if (format === "pinterest_visual") {
+      formatBlock = `\nFORMAT PINTEREST VISUEL : sujets qui se SCANNENT en 1s (infographie, checklist, schéma, comparatif, avant/après). Sujet = bénéfice concret + angle SEO cherchable.\n`;
+    }
 
-    const systemPrompt = `Tu es la meilleure directrice éditoriale du monde. Ton job : trouver THE idée de contenu qui fait dire "c'est exactement ça que je veux poster". Pas des idées tièdes. Pas des sujets génériques. Des angles qui surprennent, qui piquent, qui donnent envie de tout lâcher pour écrire.
-Tu ne dis JAMAIS de gros mots, de jurons ni de langage vulgaire. Tu restes courtois·e et professionnel·le.
+    const bugCreatifBlock = "";
 
-CONTEXTE BRANDING DE L'UTILISATRICE :
+    const cibleTxt = ctx?.profile?.cible || "non renseignée";
+    const activiteTxt = ctx?.profile?.activite || ctx?.profile?.type_activite || "non renseignée";
+
+    // ─── LENSES (4 tirées par session, déterministe sur user+jour) ───
+    const lensSeed = `${user.id}|${now.toISOString().slice(0, 10)}|${sujet || ""}|${objectif}`;
+    const chosenLenses = pickLenses(lensSeed, 4);
+    const lensesBlock = chosenLenses
+      .map((l, i) => `   ${i + 1}. ${l.label} — ${l.def}`)
+      .join("\n");
+
+    // ─── BOLD MODE (mode "Pousse plus loin") ───
+    const boldBlock = isBold ? `
+═══════════════════════════════════════════════
+🔥 MODE "POUSSE PLUS LOIN" ACTIVÉ — sors des sentiers battus
+═══════════════════════════════════════════════
+Les 4 idées doivent monter d'un cran en audace. Vise le niveau "boldness: bold" ou "provoc" pour AU MOINS 3 idées sur 4 :
+- Au moins 1 idée doit contredire FRONTALEMENT une opinion mainstream du secteur (pas un demi-désaccord poli — une position claire, argumentée).
+- Au moins 1 idée doit assumer une VULNÉRABILITÉ réelle (échec, doute, prix payé, erreur coûteuse) — sans pathos ni surenchère.
+- Au moins 1 idée doit prendre POSITION sur un sujet politique/éthique du métier (rapport au prix, à la diversité, à l'écologie, au pouvoir, à la transparence).
+- Tu peux utiliser plus librement la lentille "intersection_angles" pour combiner deux angles éditoriaux qui frottent.
+
+⚠ ETHICAL_GUARDRAILS reste prioritaire : pas de manipulation, pas de honte forcée, pas de discours qui blesse une cible. "Bold" ≠ "méchant" — c'est de la franchise utile, pas de la provocation gratuite.
+` : "";
+
+    const systemPrompt = `Tu es la meilleure directrice éditoriale du monde. Tu trouves THE idée qui fait dire "c'est exactement ça que je veux poster". Surprenante MAIS juste. Une idée surprenante mais fausse, malhonnête ou bancale est PIRE qu'une idée tiède : elle décrédibilise. Vise la justesse d'abord, la surprise ensuite.
+Tu ne dis JAMAIS de gros mots ni de langage vulgaire.
+
+═══════════════════════════════════════════════
+RÈGLE DE VÉRITÉ (non négociable, prime sur tout le reste)
+═══════════════════════════════════════════════
+- AUCUN chiffre inventé dans hooks/briefs ("+40% de prix", "3x plus de clients", "82% des gens"). Si chiffre nécessaire : soit factuel et sourçable (étude publique connue, donnée du contexte branding), soit reformulation qualitative ("nettement plus", "une majorité", "la plupart").
+- AUCUN faux retex à la 1re personne ("j'ai viré X et mes prix ont grimpé de Y%", "j'ai testé X pendant 30 jours") sauf si l'événement est attesté dans le contexte branding (story, retex existant, témoignage).
+- AUCUN exemple de marque/personnalité qui contredit un fait vérifiable. Exemples de pièges à éviter : "Netflix recommande mal" (faux, leur algo est référence), "Hermès ne fait pas de réseaux" (fausse simplification), "Apple ne fait pas de pub" (faux).
+- En cas de doute : reformule en JE narratif générique sans chiffre, ou en observation à la 3e personne sans nommer de marque.
+
+═══════════════════════════════════════════════
+AUDIENCE vs UTILISATRICE — ne JAMAIS confondre
+═══════════════════════════════════════════════
+- L'utilisatrice EXERCE l'activité : ${activiteTxt}
+- L'utilisatrice s'ADRESSE À : ${cibleTxt}
+- Les idées parlent À ${cibleTxt}, PAS aux personnes qui exercent ${activiteTxt}.
+- Exemple piège : si activite = "agence de communication" et cible = "petites marques de luxe", les hooks parlent AUX petites marques de luxe (leurs problèmes, leur quotidien, leurs blocages business), JAMAIS aux agences de com ni à "celles qui font de la com".
+- Test mental : remplace le "tu/vous/on" du hook par le profil de la cible. Si ça ne colle pas (le hook s'adresse en réalité aux pairs de l'utilisatrice), l'angle est faux et tu dois le retoquer.
+
+═══════════════════════════════════════════════
+ALIGNEMENT D'ÉCHELLE ET DE POSTURE
+═══════════════════════════════════════════════
+- Cible de l'utilisatrice : ${cibleTxt}
+- Si tu cites une marque/exemple, elle doit être de TAILLE COMPARABLE à l'utilisatrice OU à sa cible. Pas Hermès ni LVMH si elle s'adresse à des PETITES marques de luxe ; pas Patagonia ni Apple si elle est solopreneuse.
+- Exemples préférés : créateurs indépendants, petites marques de niche, artisanat, ateliers, studios de 1-10 personnes, success stories d'échelle humaine, anonymes du secteur.
+- INTERDIT de citer Hermès, LVMH, Apple, Netflix, Tesla, Patagonia, Glossier, Nike, Adidas comme modèle direct à imiter dans un hook. Ces marques ne sont mentionnables que dans un brief, et uniquement avec un angle "ce que les géants font et qu'on peut adapter à petite échelle" — pas en hook seul.
+- Ne JAMAIS contredire la posture de l'utilisatrice : si elle utilise les réseaux sociaux pour vivre de son activité, ne pas pondre des angles type "les vraies marques ne postent pas" ou "le luxe méprise Instagram".
+
+═══════════════════════════════════════════════
+EXIGENCE DE PROFONDEUR — anti-tiède (OBLIGATOIRE)
+═══════════════════════════════════════════════
+INTERDIT (sujets de surface qui n'apprennent rien) :
+- "Les 3 erreurs que…", "Top 3 / Top 5", "Voici pourquoi X marche", "La vérité sur Y", "Ce que personne ne dit sur Z", "Le piège du…", "Le mythe du…" sans angle réellement nouveau.
+
+CHAQUE idée DOIT cocher EXPLICITEMENT (en raisonnement interne, NE PAS afficher) ces 3 cases avant d'être validée :
+1. TENSION : un conflit / paradoxe / dilemme nommable en une phrase courte ("liberté vs structure", "transparence vs prix", "lenteur vs marché"…). Pas "le marché change" — flou.
+2. ENJEU PERSONNEL pour la lectrice : ce qui change concrètement pour elle si elle adopte ou refuse l'idée (un comportement, une croyance, un choix business).
+3. PREUVE D'ANCRAGE : un détail qui prouve que ce n'est pas une idée hors-sol. Au choix : (a) un détail technique du métier, (b) une scène précise, (c) une observation terrain, (d) un chiffre FACTUEL (jamais inventé), (e) un élément tiré de la MATIÈRE VIVANTE (persona, storytelling, offre).
+
+⚠ Si l'idée ne peut pas cocher les 3 cases, elle est INVALIDE. Reformule.
+Tu N'AFFICHES PAS ces 3 cases dans le JSON — elles sont ton chain-of-thought.
+
+CONTEXTE BRANDING :
 ${contextText}
-
-PILIERS DE CONTENU : ${pillars}
-
+${livingMatterBlock}
+PILIERS : ${pillars}
 DATE : ${dayOfWeek} ${now.getDate()} ${currentMonth} ${currentYear}
-Pense aux événements, saisons, tendances du moment.
 
 HISTORIQUE (NE PAS REPROPOSER ces sujets ni des variations proches) :
 ${recentPosts}
 
-RÉPONSES DE L'UTILISATRICE :
-- Canal : ${canalLabel}
-- Objectif : ${objectifLabel}
-- Sujet : ${sujet || "PAS DE SUJET → elle a besoin d'idées concrètes et surprenantes"}
-- Format préféré : ${formatLabel}${contentTypeLabel ? `\n- Angle demandé : ${contentTypeLabel}` : ""}
-- Ton souhaité : ${tonLabel}
+DEMANDE :
+- Canal : ${canalLabel} | Format : ${formatLabel} | Objectif : ${objectifLabel}
+- Sujet : ${sujet || "PAS DE SUJET → propose 4 idées concrètes et surprenantes"}
+- Ton : ${tonLabel}${contentTypeLabel ? ` | Angle demandé : ${contentTypeLabel}` : ""}
+${formatBlock}${bugCreatifBlock}
+RÈGLE D'OR — ANCRAGE MÉTIER (la plus importante) :
+Les idées parlent du MÉTIER de l'utilisatrice (photographie si photographe, céramique si céramiste, transformations accompagnées si coach, etc.), PAS de communication en général. NE JAMAIS proposer d'idées sur "comment communiquer", "l'authenticité sur Instagram", "oser se montrer", SAUF si elle travaille elle-même dans la communication/marketing.
+Test de spécificité : si l'idée pourrait fonctionner pour quelqu'un d'un autre secteur, elle est trop vague.
 
-══════════════════════════════════════
-ÉTAPE 0 — ANALYSE LE BRANDING (obligatoire avant de générer)
-══════════════════════════════════════
+═══════════════════════════════════════════════
+MÉTHODE — 4 LENTILLES NARRATIVES (tirées pour CETTE session)
+═══════════════════════════════════════════════
+Tu produis EXACTEMENT 4 idées, UNE par lentille, dans l'ordre ci-dessous.
+Chaque lentille est un angle d'attaque DIFFÉRENT sur le métier ou le sujet.
+Si tu sens qu'une lentille ne tient PAS pour ce métier précis, tu peux
+exceptionnellement la remplacer par EXPERTISE PRATIQUE — mais explique-le
+discrètement dans le champ "lens" (ex: "expertise_pratique (fallback)").
 
-AVANT de proposer la moindre idée, identifie en interne (ne montre PAS) :
-- Son ACTIVITÉ PRÉCISE : qu'est-ce qu'elle fait concrètement ? (ex : "photographe culinaire", "coach en reconversion", "céramiste", "consultant RH")
-- Sa CIBLE : à qui elle parle ? Quels sont leurs mots, leurs frustrations, leurs rêves ?
-- Ses OFFRES : qu'est-ce qu'elle vend ? À quel prix ? Quelle transformation ?
-- Ses COMBATS : contre quoi elle se bat dans son secteur ? Quelles sont ses convictions ?
-- Ses VERBATIMS : quels mots utilisent ses clientes ? Quelles phrases reviennent ?
-- Son TON : tutoiement ou vouvoiement ? Oral ou soutenu ? Chaleureux ou expert ?
+${lensesBlock}
 
-Les 3 idées DOIVENT être ancrées dans CES éléments. Une idée qui pourrait s'appliquer à n'importe quel·le entrepreneur·e est TROP GÉNÉRIQUE.
+CONTRAINTES CRÉATIVES OPTIONNELLES (à appliquer si pertinent à l'une des 4 lentilles, sinon ignore) :
+   🎲 ${seed1}
+   🎲 ${seed2}
 
-TEST DE SPÉCIFICITÉ : pour chaque idée, vérifie qu'elle ne pourrait PAS fonctionner pour quelqu'un dans un autre domaine. Si oui, l'idée est trop vague. Recommence.
+${WOW_IDEA_EXAMPLES}
 
-══════════════════════════════════════
-VOIX ET TON
-══════════════════════════════════════
+RÈGLE ANTI-TU :
+Le SUBJECT est rédigé en JE narratif ou IMPERSONNEL (3e personne, on, nominalisations). INTERDIT par défaut : "tu", "te", "t'", "toi", "ton", "ta", "tes", "vous", "votre", "vos".
 
-Les hooks et les briefs doivent refléter le ton de l'utilisatrice, PAS un ton par défaut.
+${sujet ? `Les 4 idées traitent toutes du sujet "${sujet}" mais sous les 4 lentilles ci-dessus, donc 4 angles RADICALEMENT différents (pas 4 variations du même angle).` : `Les 4 lentilles priment sur tout le reste. En bonus, vise une diversité d'objectifs parmi : visibilite, engagement, vente, credibilite, et touche des facettes différentes du métier.`}
 
-Si le contexte contient une section VOIX PERSONNELLE :
-- Adapte le niveau de langage (oral, soutenu, technique)
-- Respecte le tutoiement/vouvoiement indiqué
-- Utilise le registre décrit (humour, sérieux, chaleureux, expert)
-
-Si le contexte contient une section TON & STYLE :
-- Utilise le registre et le niveau indiqués
-
-Si AUCUN profil de voix : adapte au canal.
-- Instagram : ton direct, accrocheur
-- LinkedIn : ton professionnel, engagé
-
-Les hooks ne doivent PAS imposer de tutoiement ou vouvoiement si le profil de voix de l'utilisatrice n'est pas clair. Dans ce cas, formuler le hook de façon neutre ("Le problème des prix trop bas." plutôt que "Tu baisses tes prix." ou "Vous baissez vos prix.").
-
-══════════════════════════════════════
-MÉTHODE POUR GÉNÉRER 3 IDÉES EXCEPTIONNELLES
-══════════════════════════════════════
-
-RÈGLE D'OR : chaque idée doit passer le "test du screenshot".
-Si l'audience tombe dessus en scrollant, est-ce qu'elle fait une capture d'écran pour l'envoyer à quelqu'un ?
-
-ÉTAPE 1 — 3 ANGLES ÉDITORIAUX DIFFÉRENTS :
-Pioche parmi ces 13, en choisissant des angles VARIÉS :
-1. Enquête/décryptage ("et personne n'en parle")
-2. Test grandeur nature ("j'ai testé pour vous")
-3. Coup de gueule engagé ("j'en peux plus que...")
-4. Mythe à déconstruire ("on vous a menti")
-5. Storytelling + leçon (une galère → une leçon)
-6. Histoire cliente / cas réel (social proof incarné)
-7. Surf sur l'actu (rebondir sur une news/tendance)
-8. Regard philosophique (prendre de la hauteur)
-9. Conseil contre-intuitif ("et si on faisait l'inverse ?")
-10. Before/after (évolution concrète)
-11. Identification/quotidien (l'audience se reconnaît)
-12. Build in public (coulisses, transparence)
-13. Analyse en profondeur (data, décryptage)
-
-ÉTAPE 2 — CRÉATIVITÉ FORCÉE :
-🎲 Contrainte créative 1 : ${seed1}
-🎲 Contrainte créative 2 : ${seed2}
-Intègre ces contraintes dans AU MOINS 1 des 3 idées.
-
-ÉTAPE 3 — HOOKS QUI STOPPENT LE SCROLL :
-Chaque idée utilise une STRUCTURE DE HOOK DIFFÉRENTE :
-${shuffledHooks.map((h, i) => `Idée ${i + 1} → ${h}`).join("\n")}
-
-INTERDIT pour les hooks : "Et si je te disais", "Dans un monde où", "Spoiler alert", "Le secret de", "La clé c'est", toute formule IA générique.
-Les hooks font max 15 mots. Ils fonctionnent SEULS, sans contexte.
-
-ANTI-PATTERNS RÉCURRENTS (l'IA les sur-utilise, INTERDITS sauf exception rare) :
-- "Il y a 2 types de [X]" → formule sur-utilisée, trouver un autre angle
-- "Les X mensonges/erreurs que..." → idem
-- "Et personne n'en parle" → trop fréquent, créer la curiosité autrement
-- Les 3 hooks doivent utiliser des STRUCTURES RADICALEMENT DIFFÉRENTES entre eux
-
-ANCRAGE MÉTIER (CRITIQUE — la règle la plus importante de ce prompt) :
-Les idées parlent du MÉTIER et du SECTEUR de l'utilisatrice, pas de la communication en général.
-- Si elle est photographe → des idées sur la photographie, ses clientes, son regard, les enjeux de son secteur
-- Si elle est céramiste → des idées sur la céramique, le processus, ses matières, son marché
-- Si elle est coach → des idées sur les transformations qu'elle accompagne, les blocages de ses clientes
-- Si elle est naturopathe → des idées sur la santé naturelle, les idées reçues de son secteur, ses clientes
-La communication est le CANAL par lequel elle s'exprime, pas le SUJET de ses contenus.
-NE PROPOSE PAS d'idées sur "comment communiquer", "l'authenticité sur Instagram", "oser se montrer", "vendre sans manipuler" SAUF si l'utilisatrice travaille ELLE-MÊME dans la communication ou le marketing.
-Vérifie son activité dans le branding context. Si elle n'est PAS dans la com' → 0 idée sur la com'.
-
-ÉTAPE 4 — DENSITÉ ET PROFONDEUR :
-Chaque idée doit avoir dans son brief AU MOINS 1 de ces éléments :
-- Un MÉCANISME à expliquer (biais cognitif, dynamique de marché, paradoxe psychologique)
-- Une DONNÉE ou RÉFÉRENCE crédible (chiffre, étude, concept nommé)
-- Un RETOURNEMENT de perspective (ce qui fait dire "j'avais pas vu ça comme ça")
-- Une TENSION ou un PARADOXE (ce qui crée la curiosité)
-
-Un brief qui dit juste "on va parler de X sous l'angle Y" est TROP VAGUE. Le brief doit donner l'architecture intellectuelle du contenu.
-
-ÉTAPE 5 — VÉRIFICATION :
-Pour chaque idée, 3 tests obligatoires :
-✅ TEST DU SCREENSHOT : est-ce que l'audience capture et envoie à quelqu'un ?
-✅ TEST DE SPÉCIFICITÉ : cette idée ne PEUT exister QUE dans l'univers de cette utilisatrice ?
-✅ TEST DE TENSION : y a-t-il un paradoxe, une surprise, une contradiction ?
-
-${sujet ? `
-TOUTES les idées sont liées au sujet "${sujet}" mais avec des ANGLES RADICALEMENT DIFFÉRENTS.
-Ne fais pas 3 variations du même message. Chaque idée attaque le sujet par un côté inattendu.
-` : `
-Les 3 idées doivent couvrir AU MOINS 2 objectifs différents parmi : visibilite, engagement, vente, credibilite.
-Les idées doivent toucher des FACETTES DIFFÉRENTES du métier/positionnement de l'utilisatrice.
-`}
-
-══════════════════════════════════════
-FORMAT DE SORTIE
-══════════════════════════════════════
-
+${boldBlock}
 ROUTES :
-Instagram : Post → /creer, Carrousel → /creer?format=carousel, Reel → /creer?format=reel, Story → /creer?format=story
-LinkedIn : Post → /creer?format=linkedin, Carrousel → /creer?format=linkedin
-Pinterest : Épingle texte → /creer?canal=pinterest, Épingle visuelle → /creer?canal=pinterest&format=pinterest_visual
-Newsletter : Newsletter → /creer?format=newsletter
+Instagram : Post → /creer | Carrousel → /creer?format=carousel | Reel → /creer?format=reel | Story → /creer?format=story
+LinkedIn : Post/Carrousel → /creer?format=linkedin
+Pinterest : Texte → /creer?canal=pinterest | Visuelle → /creer?canal=pinterest&format=pinterest_visual
+Newsletter → /creer?format=newsletter
 
-Le format recommandé correspond au format choisi (${formatLabel}).
+═══════════════════════════════════════════════
+TEST DE SINGULARITÉ — applique-le sur CHAQUE idée AVANT le test de validité
+═══════════════════════════════════════════════
+Si quelqu'un qui suit 5 comptes du même secteur sur Insta/LinkedIn aurait déjà vu cette idée formulée à peu près comme ça → invalide, recommence.
 
-Retourne UNIQUEMENT ce JSON :
+Pour passer, l'idée doit avoir AU MOINS UN de ces caractères :
+- Un détail technique trop précis pour être générique
+- Un angle qu'aucun·e influenceur·euse du secteur ne prendrait (parce que ça ne flatte pas, parce que c'est trop nuancé pour Insta, parce que ça contredit la doxa du secteur lui-même)
+- Une formulation qui surprend par sa concrétude ou sa franchise
+
+Note spécifique CONTRE-PIED : si le contre-pied dit "tout le monde fait X mal, en vrai il faut Y", c'est probablement déjà vu. Cherche un contre-pied qui dérange les PAIRS du secteur, pas un contre-pied qui flatte l'audience contre les pairs.
+
+═══════════════════════════════════════════════
+TEST DE VALIDITÉ — applique-le sur CHAQUE idée AVANT de la sortir
+═══════════════════════════════════════════════
+1. PROFONDEUR 3-AXES : tension + enjeu personnel + preuve d'ancrage cochés.
+2. ANALOGIE : si l'idée en contient une, vérifie qu'elle tient vraiment. Sinon, change.
+3. CONTRE-PIED : la croyance citée doit être vraiment répandue ET le contre-pied factuellement vrai.
+4. CHIFFRE : aucun chiffre inventé (RÈGLE DE VÉRITÉ).
+5. RETEX en JE : cohérent avec le parcours réel visible dans le contexte branding.
+6. MARQUE citée : alignement d'échelle, pas de géants.
+
+CHAMP "lens" : utilise EXACTEMENT l'un de ces identifiants : ${IDEA_LENSES.map(l => l.id).join(", ")}.
+CHAMP "boldness" : "safe" (idée engageante mais consensuelle), "bold" (sort des sentiers battus, demande un peu de courage), "provoc" (assume une position qui dérange, vulnérabilité forte ou contre-pied frontal).
+
+Retourne UNIQUEMENT ce JSON (pas de markdown, pas de commentaires, pas de prose avant) :
 {
   "ideas": [
     {
-      "subject": "Le sujet ultra-concret (assez précis pour commencer à écrire immédiatement, ancré dans le métier de l'utilisatrice)",
-      "hook": "L'accroche prête à poster (max 15 mots, structure imposée ci-dessus, dans le ton de l'utilisatrice)",
-      "angle": "Nom de l'angle éditorial",
+      "subject": "Sujet ultra-concret, ancré dans le métier, prêt à écrire (1 phrase claire)",
+      "angle": "Nom court de l'angle éditorial (ex: Contre-pied factuel, Micro-scène, Décryptage de concept)",
+      "lens": "expertise_pratique|contre_pied_pairs|...",
+      "boldness": "safe|bold|provoc",
       "objective_tag": "visibilite|engagement|vente|credibilite",
-      "why_it_works": "1 phrase : POURQUOI ce sujet va résonner avec l'audience de cette utilisatrice SPÉCIFIQUEMENT (mentionne sa cible, son secteur, ou un verbatim)",
-      "brief": "2-3 phrases : l'architecture intellectuelle du contenu. Quel mécanisme on explore, quelle donnée on utilise, quel retournement on propose. Assez concret pour commencer à écrire."
+      "why_it_works": "1 phrase : pourquoi ça résonne avec SA cible spécifique (cite un persona ou une matière vivante quand applicable)"
     }
   ],
   "recommended_format": "${formatLabel}",
-  "format_reason": "Pourquoi ce format en 1 phrase",
   "redirect_route": "route correspondant au format et canal choisis"
 }`;
 
-    const raw = await callAnthropicSimple(
-      getModelForAction("coaching"),
-      systemPrompt,
-      "Génère 3 idées de contenu ultra-concrètes avec un hook irrésistible pour chaque.",
-      0.9,
-      2500,
-    );
+    const raw = await callAnthropic({
+      model: getModelForAction("coaching"),
+      system: truncateForPrompt(systemPrompt, MAX_CONTEXT_CHARS + MAX_LIVING_MATTER_CHARS + 12000),
+      messages: [
+        {
+          role: "user",
+          content: `Génère ${regenerate_lens ? "1" : "4"} idée(s) de contenu (sujet + angle uniquement, PAS de hook ni de brief)${regenerate_lens ? ` pour la lentille "${regenerate_lens}" uniquement, en plus radical que la version précédente` : `, UNE PAR LENTILLE dans l'ordre des 4 lentilles fournies (chaque idée renseigne le champ "lens" avec l'identifiant correspondant)`}. Applique successivement : (1) AUDIENCE vs UTILISATRICE, (2) RÈGLE DE VÉRITÉ, (3) RÈGLE D'OR métier, (4) PROFONDEUR 3-AXES (tension + enjeu + ancrage), (5) TEST DE SINGULARITÉ, (6) TEST DE VALIDITÉ. Si la MATIÈRE VIVANTE est fournie, au moins 2 idées sur 4 doivent l'utiliser explicitement. Réponds UNIQUEMENT avec le JSON demandé, SANS aucune prose, SANS markdown, SANS raisonnement, et commence directement par le caractère {.${isBold ? " MODE BOLD ACTIF — vise l'audace utile sans manipulation." : ""}`,
+        },
+      ],
+      temperature: 0.8,
+      max_tokens: 4000,
+    });
 
-    let result;
+
+    let result: any;
     try {
-      const jsonMatch = raw.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error("No JSON");
-      result = JSON.parse(jsonMatch[0]);
-    } catch {
-      console.error("Failed to parse content-coaching response:", raw);
+      // Strip markdown fences éventuelles puis isole le 1er { ... } équilibré.
+      let cleaned = (raw || "")
+        .replace(/```json\s*/gi, "")
+        .replace(/```\s*/g, "")
+        .trim();
+      const start = cleaned.indexOf("{");
+      const end = cleaned.lastIndexOf("}");
+      if (start === -1 || end === -1 || end <= start) {
+        throw new Error("No JSON object found");
+      }
+      cleaned = cleaned.slice(start, end + 1);
+      try {
+        result = JSON.parse(cleaned);
+      } catch {
+        // Réparations courantes : virgules trailing + caractères de contrôle.
+        const repaired = cleaned
+          .replace(/,(\s*[}\]])/g, "$1")
+          .replace(/[\x00-\x1F\x7F]/g, " ");
+        try {
+          result = JSON.parse(repaired);
+        } catch {
+          // Dernier recours : jsonrepair gère les guillemets non échappés,
+          // virgules manquantes, retours-ligne dans les strings, etc.
+          const { jsonrepair } = await import("npm:jsonrepair@3.8.1");
+          result = JSON.parse(jsonrepair(cleaned));
+        }
+      }
+    } catch (parseErr) {
+      console.error("Failed to parse content-coaching response:", parseErr, "raw:", raw?.slice(0, 800));
       return new Response(JSON.stringify({ error: "Erreur lors de l'analyse. Réessaie." }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -422,6 +533,12 @@ Retourne UNIQUEMENT ce JSON :
     });
   } catch (e) {
     console.error("content-coaching error:", e);
+    if (e instanceof AnthropicError) {
+      return new Response(JSON.stringify({ error: e.message }), {
+        status: e.status >= 400 && e.status < 600 ? e.status : 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     return new Response(JSON.stringify({ error: "Erreur interne du serveur" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

@@ -1,8 +1,49 @@
 // Shared scraping utilities for edge functions (analyze-brand, deep-diagnostic, etc.)
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 
 const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
+
+function isSafePublicUrl(rawUrl: string): boolean {
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
+
+    const hostname = parsed.hostname;
+
+    // Block localhost-like names
+    if (
+      hostname === "localhost" ||
+      hostname.endsWith(".local") ||
+      hostname.endsWith(".localhost") ||
+      hostname.endsWith(".internal")
+    ) {
+      return false;
+    }
+
+    // Block IPv4 private/reserved ranges
+    const ipv4Match = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+    if (ipv4Match) {
+      const [, a, b, c, d] = ipv4Match.map(Number);
+      if (a === 127) return false; // 127.0.0.0/8
+      if (a === 10) return false; // 10.0.0.0/8
+      if (a === 172 && b >= 16 && b <= 31) return false; // 172.16.0.0/12
+      if (a === 192 && b === 168) return false; // 192.168.0.0/16
+      if (a === 169 && b === 254) return false; // 169.254.0.0/16
+      if (a === 0 && b === 0 && c === 0 && d === 0) return false; // 0.0.0.0
+    }
+
+    // Block IPv6 private/reserved
+    const ipv6Lower = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+    if (ipv6Lower === "::1") return false;
+    if (ipv6Lower.startsWith("fc") || ipv6Lower.startsWith("fd")) return false; // fc00::/7
+    if (ipv6Lower.startsWith("fe80:")) return false; // fe80::/10
+
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export function extractTextFromHtml(html: string): string {
   // Remove scripts and styles only — keep nav/footer for conversion signals
@@ -337,6 +378,8 @@ export async function scrapeWebsite(url: string, signal: AbortSignal): Promise<s
   let formattedUrl = url.trim();
   if (!formattedUrl.startsWith("http")) formattedUrl = `https://${formattedUrl}`;
 
+  if (!isSafePublicUrl(formattedUrl)) return null;
+
   let mainText: string | null = null;
   let secondaryUrls: string[] = [];
   let jinaCallsUsed = 0;
@@ -490,6 +533,8 @@ export async function scrapeInstagram(handle: string, signal: AbortSignal): Prom
 
 export async function scrapeLinkedin(url: string, signal: AbortSignal): Promise<string | null> {
   try {
+    if (!isSafePublicUrl(url)) return null;
+
     const resp = await fetch(url, {
       signal,
       headers: {

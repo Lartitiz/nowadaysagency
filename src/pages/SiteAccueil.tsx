@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import { Link, useNavigate } from "react-router-dom";
@@ -88,8 +89,8 @@ export default function SiteAccueil() {
       if (coachingBrief?.summary) {
         body.pre_gen_brief = coachingBrief.summary;
       }
-      const { data: result, error } = await supabase.functions.invoke("website-ai", { body });
-      if (error) throw error;
+      const { data: result, error } = await invokeWithTimeout("website-ai", { body }, 90000);
+      if (error) throw new Error(error.message);
       const raw = result?.content || "";
       let parsed: any;
       try {

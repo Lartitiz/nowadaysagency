@@ -1,7 +1,9 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getModelForAction } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
 const ICON_MAP: Record<string, string> = {
   branding: "Palette",
@@ -76,12 +78,26 @@ async function buildContext(sb: any, userId: string, workspaceId?: string): Prom
   const col = workspaceId ? "workspace_id" : "user_id";
   const val = workspaceId || userId;
 
+  // Resolve workspace owner's user_id for tables without workspace_id (profiles)
+  let profileUserId = userId;
+  if (workspaceId) {
+    const { data: ownerRow } = await sb
+      .from("workspace_members")
+      .select("user_id")
+      .eq("workspace_id", workspaceId)
+      .eq("role", "owner")
+      .maybeSingle();
+    if (ownerRow?.user_id) {
+      profileUserId = ownerRow.user_id;
+    }
+  }
+
   const [
     profileRes, brandRes, storyRes, personaRes, propRes, toneRes, stratRes,
     offersRes, calendarCountRes, auditRes, usageRes,
     coachingRes, contentDraftsRes, upcomingPostsRes,
   ] = await Promise.all([
-    sb.from("profiles").select("prenom, activite, type_activite, channels, cible, probleme_principal, piliers, tons").eq("user_id", userId).maybeSingle(),
+    sb.from("profiles").select("prenom, activite, type_activite, channels, cible, probleme_principal, piliers, tons").eq("user_id", profileUserId).maybeSingle(),
     sb.from("brand_profile").select("mission, positioning, tone_description, content_pillars, story_origin, combats, content_editorial_line").eq(col, val).maybeSingle(),
     sb.from("storytelling").select("step_7_polished, step_6_full_story, title").eq(col, val).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     sb.from("persona").select("portrait_prenom, portrait, description, frustrations_detail, desires").eq(col, val).order("created_at", { ascending: false }).limit(1).maybeSingle(),
@@ -100,11 +116,11 @@ async function buildContext(sb: any, userId: string, workspaceId?: string): Prom
   let persona = personaRes.data;
   let story = storyRes.data;
   if (!persona && workspaceId) {
-    const fallback = await sb.from("persona").select("portrait_prenom, portrait, description, frustrations_detail, desires").eq("user_id", userId).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    const fallback = await sb.from("persona").select("portrait_prenom, portrait, description, frustrations_detail, desires").eq("user_id", profileUserId).order("created_at", { ascending: false }).limit(1).maybeSingle();
     persona = fallback.data;
   }
   if (!story && workspaceId) {
-    const fallback = await sb.from("storytelling").select("step_7_polished, step_6_full_story, title").eq("user_id", userId).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    const fallback = await sb.from("storytelling").select("step_7_polished, step_6_full_story, title").eq("user_id", profileUserId).order("created_at", { ascending: false }).limit(1).maybeSingle();
     story = fallback.data;
   }
 
@@ -310,6 +326,9 @@ Deno.serve(async (req) => {
     }
     const userId = user.id;
 
+    const rateCheck = checkRateLimit(userId);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, cors);
+
     const { message, conversationHistory, workspaceId } = await req.json();
     if (!message || typeof message !== "string" || message.length > 2000) {
       return new Response(JSON.stringify({ error: "Message invalide" }), { status: 400, headers: { ...cors, "Content-Type": "application/json" } });
@@ -337,12 +356,32 @@ Deno.serve(async (req) => {
     let contextBlock = "";
     let profileData: any = null;
     let stratData: any = null;
+
+    const sbGuard = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const membership = await assertWorkspaceMembership(sbGuard, userId, workspaceId);
+    if (!membership.ok) {
+      console.warn("[workspace-guard] denied", { userId, workspaceId });
+      return workspaceDeniedResponse(cors);
+    }
+
+    // Resolve workspace owner for profile-scoped tables
+    let profileUserId = userId;
+    if (workspaceId) {
+      const { data: ownerRow } = await sbService
+        .from("workspace_members")
+        .select("user_id")
+        .eq("workspace_id", workspaceId)
+        .eq("role", "owner")
+        .maybeSingle();
+      if (ownerRow?.user_id) profileUserId = ownerRow.user_id;
+    }
+
     try {
       contextBlock = await buildContext(sbService, userId, workspaceId);
       const col = workspaceId ? "workspace_id" : "user_id";
       const val = workspaceId || userId;
       const [pRes, sRes] = await Promise.all([
-        sbService.from("profiles").select("activite, type_activite, piliers").eq("user_id", userId).maybeSingle(),
+        sbService.from("profiles").select("activite, type_activite, piliers").eq("user_id", profileUserId).maybeSingle(),
         sbService.from("brand_strategy").select("pillar_major").eq(col, val).maybeSingle(),
       ]);
       profileData = pRes.data;

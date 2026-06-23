@@ -307,6 +307,7 @@ export type Database = {
           custom_colors: Json | null
           font_accent: string | null
           font_body: string | null
+          font_rationale: string | null
           font_title: string | null
           icon_style: string | null
           id: string
@@ -338,6 +339,7 @@ export type Database = {
           custom_colors?: Json | null
           font_accent?: string | null
           font_body?: string | null
+          font_rationale?: string | null
           font_title?: string | null
           icon_style?: string | null
           id?: string
@@ -369,6 +371,7 @@ export type Database = {
           custom_colors?: Json | null
           font_accent?: string | null
           font_body?: string | null
+          font_rationale?: string | null
           font_title?: string | null
           icon_style?: string | null
           id?: string
@@ -399,6 +402,8 @@ export type Database = {
       }
       brand_profile: {
         Row: {
+          brand_universe: Json | null
+          brand_universe_updated_at: string | null
           channels: string[] | null
           combat_alternative: string | null
           combat_cause: string | null
@@ -450,6 +455,8 @@ export type Database = {
           workspace_id: string | null
         }
         Insert: {
+          brand_universe?: Json | null
+          brand_universe_updated_at?: string | null
           channels?: string[] | null
           combat_alternative?: string | null
           combat_cause?: string | null
@@ -501,6 +508,8 @@ export type Database = {
           workspace_id?: string | null
         }
         Update: {
+          brand_universe?: Json | null
+          brand_universe_updated_at?: string | null
           channels?: string[] | null
           combat_alternative?: string | null
           combat_cause?: string | null
@@ -1106,6 +1115,7 @@ export type Database = {
           content_type_emoji: string | null
           created_at: string
           date: string
+          episode_number: number | null
           format: string | null
           generated_content_id: string | null
           generated_content_type: string | null
@@ -1115,6 +1125,7 @@ export type Database = {
           notes: string | null
           objectif: string | null
           objective: string | null
+          series_id: string | null
           status: string
           stories_count: number | null
           stories_objective: string | null
@@ -1142,6 +1153,7 @@ export type Database = {
           content_type_emoji?: string | null
           created_at?: string
           date: string
+          episode_number?: number | null
           format?: string | null
           generated_content_id?: string | null
           generated_content_type?: string | null
@@ -1151,6 +1163,7 @@ export type Database = {
           notes?: string | null
           objectif?: string | null
           objective?: string | null
+          series_id?: string | null
           status?: string
           stories_count?: number | null
           stories_objective?: string | null
@@ -1178,6 +1191,7 @@ export type Database = {
           content_type_emoji?: string | null
           created_at?: string
           date?: string
+          episode_number?: number | null
           format?: string | null
           generated_content_id?: string | null
           generated_content_type?: string | null
@@ -1187,6 +1201,7 @@ export type Database = {
           notes?: string | null
           objectif?: string | null
           objective?: string | null
+          series_id?: string | null
           status?: string
           stories_count?: number | null
           stories_objective?: string | null
@@ -1205,6 +1220,13 @@ export type Database = {
             columns: ["launch_id"]
             isOneToOne: false
             referencedRelation: "launches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_posts_series_id_fkey"
+            columns: ["series_id"]
+            isOneToOne: false
+            referencedRelation: "series"
             referencedColumns: ["id"]
           },
           {
@@ -2966,6 +2988,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      frontend_debug_logs: {
+        Row: {
+          created_at: string | null
+          event: string
+          id: string
+          payload: Json | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          event: string
+          id?: string
+          payload?: Json | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          event?: string
+          id?: string
+          payload?: Json | null
+          user_id?: string | null
+        }
+        Relationships: []
       }
       generated_carousels: {
         Row: {
@@ -6167,6 +6213,7 @@ export type Database = {
           content_data: Json | null
           content_draft: string | null
           created_at: string
+          episode_number: number | null
           format: string
           format_technique: string | null
           id: string
@@ -6174,6 +6221,7 @@ export type Database = {
           objectif: string | null
           personal_elements: Json | null
           planned_date: string | null
+          series_id: string | null
           source_module: string | null
           status: string | null
           titre: string
@@ -6191,6 +6239,7 @@ export type Database = {
           content_data?: Json | null
           content_draft?: string | null
           created_at?: string
+          episode_number?: number | null
           format: string
           format_technique?: string | null
           id?: string
@@ -6198,6 +6247,7 @@ export type Database = {
           objectif?: string | null
           personal_elements?: Json | null
           planned_date?: string | null
+          series_id?: string | null
           source_module?: string | null
           status?: string | null
           titre: string
@@ -6215,6 +6265,7 @@ export type Database = {
           content_data?: Json | null
           content_draft?: string | null
           created_at?: string
+          episode_number?: number | null
           format?: string
           format_technique?: string | null
           id?: string
@@ -6222,6 +6273,7 @@ export type Database = {
           objectif?: string | null
           personal_elements?: Json | null
           planned_date?: string | null
+          series_id?: string | null
           source_module?: string | null
           status?: string | null
           titre?: string
@@ -6236,6 +6288,13 @@ export type Database = {
             columns: ["calendar_post_id"]
             isOneToOne: false
             referencedRelation: "calendar_posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "saved_ideas_series_id_fkey"
+            columns: ["series_id"]
+            isOneToOne: false
+            referencedRelation: "series"
             referencedColumns: ["id"]
           },
           {
@@ -6276,6 +6335,68 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      series: {
+        Row: {
+          cadence: string | null
+          channels: string[] | null
+          created_at: string
+          format_template: string | null
+          id: string
+          name: string
+          notes: string | null
+          pillar_key: string | null
+          planned_episodes: number | null
+          promise: string
+          signature_description: string | null
+          status: string
+          updated_at: string
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          cadence?: string | null
+          channels?: string[] | null
+          created_at?: string
+          format_template?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          pillar_key?: string | null
+          planned_episodes?: number | null
+          promise: string
+          signature_description?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          cadence?: string | null
+          channels?: string[] | null
+          created_at?: string
+          format_template?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          pillar_key?: string | null
+          planned_episodes?: number | null
+          promise?: string
+          signature_description?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "series_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       shared_branding_links: {
         Row: {
@@ -6921,6 +7042,74 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      user_photos: {
+        Row: {
+          background_preset_key: string | null
+          background_prompt: string | null
+          created_at: string
+          error_message: string | null
+          file_size_bytes: number | null
+          height: number | null
+          id: string
+          name: string | null
+          original_storage_path: string
+          source_type: string
+          status: string
+          storage_path: string
+          tags: string[]
+          updated_at: string
+          user_id: string
+          width: number | null
+          workspace_id: string
+        }
+        Insert: {
+          background_preset_key?: string | null
+          background_prompt?: string | null
+          created_at?: string
+          error_message?: string | null
+          file_size_bytes?: number | null
+          height?: number | null
+          id?: string
+          name?: string | null
+          original_storage_path: string
+          source_type?: string
+          status?: string
+          storage_path: string
+          tags?: string[]
+          updated_at?: string
+          user_id: string
+          width?: number | null
+          workspace_id: string
+        }
+        Update: {
+          background_preset_key?: string | null
+          background_prompt?: string | null
+          created_at?: string
+          error_message?: string | null
+          file_size_bytes?: number | null
+          height?: number | null
+          id?: string
+          name?: string | null
+          original_storage_path?: string
+          source_type?: string
+          status?: string
+          storage_path?: string
+          tags?: string[]
+          updated_at?: string
+          user_id?: string
+          width?: number | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_photos_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_plan_config: {
         Row: {
@@ -7757,6 +7946,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      delete_workspace_with_cleanup: {
+        Args: { _workspace_id: string }
+        Returns: undefined
+      }
       get_dashboard_summary: {
         Args: { p_user_id: string; p_workspace_id?: string }
         Returns: Json

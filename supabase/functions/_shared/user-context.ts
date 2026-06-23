@@ -6,6 +6,8 @@
  * receiving branding_context from the client.
  */
 
+import { assertWorkspaceMembership } from "./workspace-guard.ts";
+
 export interface ContextOptions {
   includeStory?: boolean;
   includePersona?: boolean;
@@ -38,16 +40,21 @@ const DEFAULT_OPTIONS: ContextOptions = {
  * If workspaceId is provided, queries filter by workspace_id instead of user_id.
  */
 export async function getUserContext(supabase: any, userId: string, workspaceId?: string, channel?: string) {
-  const col = workspaceId ? "workspace_id" : "user_id";
-  const val = workspaceId || userId;
+  // Fail-closed workspace membership guard: if caller is not a member of the
+  // requested workspace, silently degrade to user_id scope (no data leak).
+  const guard = await assertWorkspaceMembership(supabase, userId, workspaceId);
+  const effectiveWorkspaceId = guard.ok && workspaceId ? workspaceId : undefined;
+
+  const col = effectiveWorkspaceId ? "workspace_id" : "user_id";
+  const val = effectiveWorkspaceId || userId;
 
   // Resolve the owner's user_id for tables without workspace_id (profiles, voice_profile)
   let profileUserId = userId;
-  if (workspaceId) {
+  if (effectiveWorkspaceId) {
     const { data: ownerRow } = await supabase
       .from("workspace_members")
       .select("user_id")
-      .eq("workspace_id", workspaceId)
+      .eq("workspace_id", effectiveWorkspaceId)
       .eq("role", "owner")
       .maybeSingle();
     if (ownerRow?.user_id) {
@@ -108,6 +115,7 @@ export async function getUserContext(supabase: any, userId: string, workspaceId?
   ]);
 
   return {
+    profileUserId,
     storytelling: stRes.data,
     persona,
     tone: toneRes.data,
@@ -432,6 +440,10 @@ export const CONTEXT_PRESETS: Record<string, ContextOptions> = {
   // Creative flow / content generation: full context
   content: { includeStory: true, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: true, includeAudit: false, includeVoice: true, includeCharter: true, includeMirror: true },
 
+  // Newsjacking — angle "primary" (ultra-light, ~2500 tokens): juste profil + persona, pas de voice/charter/mirror/editorial.
+  // On garde ce qu'il faut pour formuler un hook ancré (cible, combat, piliers, ton) sans tout le décor.
+  newsjacking: { includeStory: false, includePersona: true, includeOffers: false, includeProfile: true, includeEditorial: false, includeAudit: false, includeVoice: false, includeCharter: false, includeMirror: false },
+
   // Weekly suggestions: lighter context for speed (no story, no mirror, no charter, no editorial)
   weeklySuggestions: { includeStory: true, includePersona: true, includeOffers: true, includeProfile: true, includeEditorial: true, includeAudit: false, includeVoice: true, includeCharter: false, includeMirror: false },
 
@@ -532,20 +544,24 @@ export function buildProfileBlock(profile: any): string {
  * also empty (new user).
  */
 export function buildPreGenFallback(ctx: any): { anecdote?: string; emotion?: string; conviction?: string; _fromBranding: true } | null {
-  const story = ctx.storytelling?.step_7_polished;
   const tone = ctx.tone;
   const profile = ctx.profile;
   const proposition = ctx.proposition;
 
-  const anecdote = story || undefined;
+  // IMPORTANT : on ne renvoie PLUS d'anecdote depuis le branding.
+  // Le storytelling de marque (step_7_polished) est une bio générale, PAS un vécu daté.
+  // L'utiliser comme "anecdote à intégrer mot pour mot" forçait l'IA à fabriquer
+  // des scènes datées ("hier j'ai reçu un message…"). Sans anecdote fournie,
+  // l'IA bascule en mode généralisation (cf. ANTI_FABRICATED_STORYTELLING).
+  const anecdote = undefined;
 
-  // Emotion: derive from tone/mission
+  // Emotion: derive from tone/mission (tonalité, pas un fait)
   let emotion: string | undefined;
   if (tone?.tone_style) emotion = tone.tone_style;
   else if (profile?.tons?.length) emotion = Array.isArray(profile.tons) ? profile.tons.join(", ") : profile.tons;
   else if (profile?.mission) emotion = profile.mission;
 
-  // Conviction: derive from combat/proposition
+  // Conviction: derive from combat/proposition (position, pas un vécu)
   let conviction: string | undefined;
   if (tone?.combat_cause) conviction = tone.combat_cause;
   else if (tone?.combat_fights) conviction = tone.combat_fights;

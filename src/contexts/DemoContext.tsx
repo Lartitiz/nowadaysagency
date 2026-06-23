@@ -21,23 +21,11 @@ export interface DemoData {
     desires: string;
     phrase_signature: string;
   };
-  tone: {
-    keywords: string[];
-    description: string;
-    avoid: string[];
-  };
+  tone: { keywords: string[]; description: string; avoid: string[]; };
   offers: { name: string; price: string; description: string }[];
   story_summary: string;
-  editorial: {
-    pillars: string[];
-    frequency: string;
-  };
-  calendar_posts: {
-    title: string;
-    format: string;
-    objective: string;
-    planned_day: string;
-  }[];
+  editorial: { pillars: string[]; frequency: string; };
+  calendar_posts: { title: string; format: string; objective: string; planned_day: string; }[];
   contacts: { name: string; type: string; note: string }[];
   audit: {
     score: number;

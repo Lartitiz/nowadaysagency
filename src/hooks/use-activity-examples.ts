@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { getActivityExamples, type ActivityProfile } from "@/lib/activity-examples";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";

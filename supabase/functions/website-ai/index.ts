@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { WEBSITE_PRINCIPLES } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
@@ -196,10 +196,12 @@ serve(async (req) => {
       );
 
       // Try to find the user's latest audit
+      const diagFilterCol = workspace_id ? "workspace_id" : "user_id";
+      const diagFilterVal = workspace_id || user.id;
       const { data: auditRow } = await serviceClient
         .from("website_audit")
         .select("id")
-        .eq("user_id", user.id)
+        .eq(diagFilterCol, diagFilterVal)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -376,7 +378,20 @@ Réponds UNIQUEMENT en JSON sans backticks :
     await logUsage(user.id, "content", "website");
     return new Response(JSON.stringify({ content }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error: any) {
+    if (error instanceof ValidationError) {
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (error?.status === 429) {
+      return new Response(JSON.stringify({ error: "Trop de requêtes. Réessaie dans un moment." }), {
+        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     console.error("website-ai error:", error);
-    return new Response(JSON.stringify({ error: "Erreur interne du serveur" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const userMessage = error?.message?.includes("API") || error?.message?.includes("IA")
+      ? error.message
+      : "Erreur interne du serveur";
+    return new Response(JSON.stringify({ error: userMessage }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });
