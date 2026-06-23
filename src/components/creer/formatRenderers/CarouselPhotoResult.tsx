@@ -320,6 +320,19 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
     notify(next, caption);
   };
 
+  const moveSlide = (idx: number, direction: -1 | 1) => {
+    const target = idx + direction;
+    if (target < 0 || target >= slides.length) return;
+    const next = [...slides];
+    [next[idx], next[target]] = [next[target], next[idx]];
+    const renumbered = next.map((s, i) => ({ ...s, slide_number: i + 1 }));
+    setSlides(renumbered);
+    notify(renumbered, caption);
+    if (visualSlides && visualSlides.length > 0) {
+      setSlidesReorderedSinceVisuals(true);
+    }
+  };
+
   const updateCaption = (field: string, value: string) => {
     const next = { ...caption, [field]: value };
     if (field !== "fullText") {
