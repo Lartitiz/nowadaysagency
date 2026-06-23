@@ -1325,6 +1325,13 @@ export default function CreerUnifie() {
     const r = result?.raw || result;
     let text = "";
 
+    // Si une édition manuelle a déjà été sauvegardée, on la rouvre telle quelle.
+    if (r?.edited_text?.trim()) {
+      setEditContent(r.edited_text);
+      setStep("edit");
+      return;
+    }
+
     if (!r) {
       // Pas de résultat IA — utiliser le contenu existant du calendrier ou le brouillon
       text = existingCalendarContent || "";
@@ -1529,6 +1536,7 @@ export default function CreerUnifie() {
 
 
   const handleTransformToLinkedInCarousel = async () => {
+    if (generating) return; // garde anti double-clic (évite une 2e génération facturée)
     const r = result?.raw;
     if (!r) return;
     const linkedinText = r.full_text || r.content || [r.hook, r.body, r.cta].filter(Boolean).join("\n\n");
@@ -1611,6 +1619,7 @@ export default function CreerUnifie() {
       accroche = r.caption?.hook || "";
       contentDraft = (r.slides || []).map((s: any) => s.overlay_text ? `SLIDE ${s.slide_number}: ${s.overlay_text}` : `SLIDE ${s.slide_number}: (photo seule)`).join("\n") + "\n\n" + [r.caption?.hook, r.caption?.body, r.caption?.cta].filter(Boolean).join("\n");
       const storyDetail: any = { type: "carousel_photo", slides: r.slides, caption: r.caption, quality_check: r.quality_check };
+      if (r.edited_text?.trim()) contentDraft = r.edited_text;
       return { contentDraft, accroche, storyDetail };
     }
 
@@ -1623,6 +1632,7 @@ export default function CreerUnifie() {
         return `SLIDE ${s.slide_number} [📝]: ${s.title || ""} — ${s.body || ""}`;
       }).join("\n") + "\n\n" + [r.caption?.hook, r.caption?.body, r.caption?.cta].filter(Boolean).join("\n");
       const storyDetail: any = { type: "carousel_mix", slides: r.slides, caption: r.caption, quality_check: r.quality_check };
+      if (r.edited_text?.trim()) contentDraft = r.edited_text;
       return { contentDraft, accroche, storyDetail };
     }
 
@@ -1701,6 +1711,9 @@ export default function CreerUnifie() {
         personal_tip: r.personal_tip,
       };
     }
+
+    // Si l'utilisatrice a édité le texte (étape "edit"), il prime sur la version IA.
+    if (r.edited_text?.trim()) contentDraft = r.edited_text;
 
     return { contentDraft, accroche, storyDetail };
   };
@@ -2465,6 +2478,7 @@ export default function CreerUnifie() {
   // ── Launch sequence (5 chapters) ──
 
   const handleLaunchSequence = async (format: string, angle: string) => {
+    if (launchGenerating) return; // garde anti double-clic (chaque chapitre est facturé)
     const structureId = getStructureForCombo(format, angle);
     const structure = CONTENT_STRUCTURES[structureId];
     if (!structure) return;
@@ -2474,20 +2488,26 @@ export default function CreerUnifie() {
     const chapters = 5;
     const results: any[] = [];
 
-    for (let i = 0; i < chapters; i++) {
-      setLaunchIndex(i);
-      const chapterSubject = `${ideaText} — Chapitre ${i + 1}/${chapters}`;
-      const res = await generate({
-        format: format as any,
-        subject: chapterSubject,
-        objective: objective || undefined,
-        editorialAngle: angle,
-      });
-      results.push(res);
+    try {
+      for (let i = 0; i < chapters; i++) {
+        setLaunchIndex(i);
+        const chapterSubject = `${ideaText} — Chapitre ${i + 1}/${chapters}`;
+        const res = await generate({
+          format: format as any,
+          subject: chapterSubject,
+          objective: objective || undefined,
+          editorialAngle: angle,
+        });
+        results.push(res);
+      }
+      setLaunchResults(results);
+    } catch (e: any) {
+      // Sans ce filet, une erreur au chapitre N laissait le spinner tourner à l'infini.
+      if (results.length > 0) setLaunchResults(results); // garde les chapitres déjà générés
+      toast.error(e?.message || "Erreur pendant la génération de la séquence. Réessaie.");
+    } finally {
+      setLaunchGenerating(false);
     }
-
-    setLaunchResults(results);
-    setLaunchGenerating(false);
   };
 
   // ── Progress bar moved into <CreerStepper /> below ──
@@ -2763,6 +2783,7 @@ export default function CreerUnifie() {
                   variant="default"
                   size="sm"
                   onClick={handleTransformToLinkedInCarousel}
+                  disabled={generating}
                   className="gap-1.5 shrink-0"
                 >
                   <Palette className="h-3.5 w-3.5" /> Créer le carrousel
@@ -2820,8 +2841,12 @@ export default function CreerUnifie() {
                 content={editContent}
                 format={selectedFormat || "post"}
                 onSave={(edited) => {
-                  toast.success("Contenu sauvegardé !");
                   setEditContent(edited);
+                  // Persiste le texte édité DANS le résultat (auto-scopé : remplacé à chaque
+                  // nouvelle génération). Les chemins de sauvegarde (calendrier/idées) le
+                  // préfèrent à la version IA d'origine — sinon l'édition était perdue.
+                  setResult((prev) => (prev ? { ...prev, raw: { ...(prev.raw || {}), edited_text: edited } } : prev));
+                  toast.success("Contenu sauvegardé !");
                 }}
                 onBack={() => setStep("result")}
                 onCopy={() => {
