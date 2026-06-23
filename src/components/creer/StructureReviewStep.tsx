@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { ArrowUp, ArrowDown, X, Plus, Loader2, Check, Sparkles, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { resolvePhotoIndexes } from "@/lib/resolve-photo-index";
 
 export interface SlideProposal {
   slide_number: number;
@@ -157,24 +158,18 @@ export default function StructureReviewStep({
             i < totalPhotos ? { ...s, slide_type: "photo_full" as const } : s,
           );
 
-      let cursor = 0;
-      return seeded.map((s, i) => {
+      // On repose d'abord la proposition de l'IA sur les slides-photo, puis on laisse
+      // resolvePhotoIndexes décider : il garde une répartition valide ET variée, mais
+      // redistribue si l'IA a mis la même photo partout (ou un index invalide).
+      // Même filet que le chemin de génération → preview cohérente avec le rendu final.
+      const withAiProposed = seeded.map((s, i) => {
         const isPhotoSlide =
           s.slide_type === "photo_full" || s.slide_type === "photo_integrated";
         if (!isPhotoSlide) return s;
-
         const aiProposed = aiProposedIndices[i];
-        if (
-          Number.isInteger(aiProposed) &&
-          (aiProposed as number) >= 1 &&
-          (aiProposed as number) <= totalPhotos
-        ) {
-          return { ...s, photo_index: aiProposed as number };
-        }
-        const next = (cursor % totalPhotos) + 1;
-        cursor++;
-        return { ...s, photo_index: next };
+        return { ...s, photo_index: Number.isInteger(aiProposed) ? (aiProposed as number) : undefined };
       });
+      return resolvePhotoIndexes(withAiProposed, totalPhotos);
     });
     setSelectedPhotoIndex(null);
   };

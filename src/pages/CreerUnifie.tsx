@@ -2268,8 +2268,18 @@ export default function CreerUnifie() {
         return;
       }
 
+      // Filet anti-dégénéré — source unique de vérité avec l'export PPTX éditable.
+      // Si l'IA a mis la même photo partout (ou un index invalide) sur les slides-photo,
+      // resolvePhotoIndexes redistribue les photos de façon déterministe AVANT la
+      // génération du HTML — sinon la photo se répète sur PNG / hybride / visuel / calendrier
+      // (le HTML est figé une fois généré, on ne peut plus corriger à l'export).
+      const { resolvePhotoIndexes } = await import("@/lib/resolve-photo-index");
+      const slidesForVisuals = totalPhotos > 0
+        ? resolvePhotoIndexes(mappedSlides, totalPhotos)
+        : mappedSlides;
+
       const requestBody: any = {
-        slides: mappedSlides,
+        slides: slidesForVisuals,
         ...(hasPhotos && hasActualPhotos ? {
           photos: photosForVisuals.map(p => ({ base64: p.base64, mimeType: p.mimeType })),
           carousel_type: isMixCarousel ? "mix" : "photo",
