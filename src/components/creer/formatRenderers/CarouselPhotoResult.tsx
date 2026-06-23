@@ -239,6 +239,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
   const [slides, setSlides] = useState<any[]>(r?.slides || []);
   const [caption, setCaption] = useState<any>(buildCaptionWithFallback(r?.caption, r?.slides || []));
   const [hashtagInput, setHashtagInput] = useState((buildCaptionWithFallback(r?.caption, r?.slides || []).hashtags || []).join(" "));
+  const [slidesReorderedSinceVisuals, setSlidesReorderedSinceVisuals] = useState(false);
   
 
   const prevSignature = useRef(JSON.stringify({
