@@ -245,3 +245,6 @@ verify_jwt = false
 
 [functions.stock-photo-search]
 verify_jwt = false
+
+[functions.stock-photo-keywords]
+verify_jwt = false
