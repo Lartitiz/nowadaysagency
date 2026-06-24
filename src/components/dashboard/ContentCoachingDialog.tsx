@@ -322,20 +322,15 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
     const finalFormat = normalizeFormat(rawFormat);
 
     if (onSelect) {
-      if (!finalFormat) {
-        // Unknown format: bounce to /creer with subject/objective so the user
-        // can pick the format manually instead of triggering a generation crash.
-        onOpenChange(false);
-        const params = new URLSearchParams();
-        if (finalSubject) params.set("sujet", finalSubject);
-        if (finalObjective) params.set("objectif", finalObjective);
-        navigate(`/creer${params.toString() ? `?${params}` : ""}`);
-        toast.info("Choisis un format pour continuer.");
-        return;
-      }
+      // On délègue TOUJOURS au parent (CreerUnifie). Quand le format n'est pas
+      // résoluble — typiquement le mode « Surprise », où le coach renvoie
+      // recommended_format="auto" — on passe un format vide et handleCoachingSelect
+      // envoie l'utilisatrice vers l'étape format (choix canal + format).
+      // Avant, ce cas faisait un navigate() qui retombait sur l'étape « idée »
+      // avec un toast « Choisis un format » mais AUCUN sélecteur de format affiché.
       onSelect({
         subject: finalSubject,
-        format: finalFormat,
+        format: finalFormat || "",
         objective: finalObjective,
         carouselSubMode: finalFormat === "carousel" ? (carouselSubMode || "text") : undefined,
       });
