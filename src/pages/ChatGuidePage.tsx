@@ -537,19 +537,30 @@ export default function ChatGuidePage() {
       const token = session.data.session?.access_token;
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       
-      const resp = await fetch(`${supabaseUrl}/functions/v1/chat-guide`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-          "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-        },
-        body: JSON.stringify({
-          message: userMsg.content,
-          conversationHistory: history,
-          workspaceId: workspaceId !== user?.id ? workspaceId : undefined,
-        }),
-      });
+      // Timeout sur l'ÉTABLISSEMENT du flux (pas pendant le streaming) : si le
+      // serveur ne répond pas, on abandonne au lieu de laisser « écrit… » à
+      // l'infini. L'abort déclenche le catch plus bas (message FR + arrêt).
+      const controller = new AbortController();
+      const connectTimeout = setTimeout(() => controller.abort(), 30000);
+      let resp: Response;
+      try {
+        resp = await fetch(`${supabaseUrl}/functions/v1/chat-guide`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+            "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({
+            message: userMsg.content,
+            conversationHistory: history,
+            workspaceId: workspaceId !== user?.id ? workspaceId : undefined,
+          }),
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(connectTimeout);
+      }
 
       if (!resp.ok || !resp.body) {
         throw new Error("Stream failed");
