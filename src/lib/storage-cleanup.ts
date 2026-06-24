@@ -21,7 +21,11 @@ const SESSION_PREFIXES = [
 // Préfixes localStorage scopés par user (à balayer)
 const LOCAL_PREFIXES = [
   "creer_flow_state_backup", // matche "creer_flow_state_backup:{userId}"
+  "creer_flow_photos_backup", // manifeste photo de secours, "…:{userId}"
 ];
+
+// Bases IndexedDB applicatives à supprimer (base64 lourd des photos en cours)
+const IDB_NAMES = ["creer_photos"];
 
 function sweepByPrefix(storage: Storage, prefixes: string[]) {
   for (let i = storage.length - 1; i >= 0; i--) {
@@ -42,4 +46,9 @@ export function clearAppStorage() {
   try {
     sweepByPrefix(localStorage, LOCAL_PREFIXES);
   } catch { /* storage indisponible — ignore */ }
+  try {
+    if (typeof indexedDB !== "undefined") {
+      for (const name of IDB_NAMES) indexedDB.deleteDatabase(name);
+    }
+  } catch { /* IndexedDB indisponible — ignore */ }
 }
