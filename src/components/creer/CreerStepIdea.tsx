@@ -197,6 +197,7 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
             initialPhotos={localPhotos}
             initialDescription={localDescription}
             hideDescription
+            stockSearchSeed={localPhotoSubject}
           />
 
           <div className="space-y-2">

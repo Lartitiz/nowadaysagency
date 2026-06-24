@@ -95,6 +95,9 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
   const [pinterestSubMode, setPinterestSubMode] = useState<"text" | "visual" | "inspiration" | null>(null);
   const [inspirationPhotos, setInspirationPhotos] = useState<PhotoItem[]>([]);
   const [photoWarning, setPhotoWarning] = useState(false);
+  // Compteur : chaque incrément ouvre le sélecteur de photos libres de droit
+  // dans la PhotoUploadZone (depuis l'encart « Pas de photos sous la main ? »).
+  const [stockSignal, setStockSignal] = useState(0);
   const [expandAngles, setExpandAngles] = useState(false);
   const [forceShowAll, setForceShowAll] = useState(false);
   const hasPreloadedPhotos = (initialPhotos?.length ?? 0) > 0 && !forceShowAll;
@@ -765,23 +768,33 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
             onDescriptionChange={setPhotoDescription}
             title={uploadedPhotos.length > 0 ? `Vos photos (${uploadedPhotos.length})` : undefined}
             compact={uploadedPhotos.length > 0}
+            stockSearchSeed={idea}
+            openStockSignal={stockSignal}
           />
           {photoWarning && (
             <div className="mt-3 p-3 rounded-lg bg-amber-50 border border-amber-200 space-y-2 animate-fade-in">
               <p className="text-sm text-amber-800">
                 📸 Pour ce mode, il faut au moins une photo. Pas de photos sous la main ?
               </p>
-              <button
-                onClick={() => {
-                  setCarouselSubMode("text");
-                  setUploadedPhotos([]);
-                  setPhotoDescription("");
-                  setPhotoWarning(false);
-                }}
-                className="text-sm font-medium text-primary hover:underline"
-              >
-                → Passer en mode Texte (tu pourras toujours ajouter tes photos plus tard)
-              </button>
+              <div className="flex flex-col gap-1.5">
+                <button
+                  onClick={() => setStockSignal((s) => s + 1)}
+                  className="text-sm font-medium text-primary hover:underline text-left"
+                >
+                  → Trouver des photos libres de droit
+                </button>
+                <button
+                  onClick={() => {
+                    setCarouselSubMode("text");
+                    setUploadedPhotos([]);
+                    setPhotoDescription("");
+                    setPhotoWarning(false);
+                  }}
+                  className="text-sm font-medium text-primary hover:underline text-left"
+                >
+                  → Passer en mode Texte (tu pourras toujours ajouter tes photos plus tard)
+                </button>
+              </div>
             </div>
           )}
         </div>
