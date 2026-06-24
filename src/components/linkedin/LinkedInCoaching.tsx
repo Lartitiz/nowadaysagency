@@ -148,15 +148,19 @@ export default function LinkedInCoaching({ open, onOpenChange, initialModule, au
   };
 
   const handleCopyProposal = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success("Copié !");
+    navigator.clipboard.writeText(text)
+      .then(() => toast.success("Copié !"))
+      .catch(() => toast.error("Copie impossible — sélectionne et copie le texte manuellement."));
   };
 
   const handleUseResume = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success("Résumé copié ! Colle-le dans ta page Résumé LinkedIn.");
-    onOpenChange(false);
-    navigate("/linkedin/resume");
+    navigator.clipboard.writeText(text)
+      .then(() => {
+        toast.success("Résumé copié ! Colle-le dans ta page Résumé LinkedIn.");
+        onOpenChange(false);
+        navigate("/linkedin/resume");
+      })
+      .catch(() => toast.error("Copie impossible — sélectionne et copie le texte manuellement."));
   };
 
   const handleRestart = () => {

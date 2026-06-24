@@ -40,6 +40,27 @@ interface CrosspostResult {
   versions: Record<string, { full_text?: string; script?: string; sequence?: any[]; character_count?: number; angle_choisi: string; duration?: string }>;
 }
 
+// Rend une séquence Stories en texte lisible (sinon on copierait du JSON brut).
+function formatStoriesSequence(sequence: any[]): string {
+  if (!Array.isArray(sequence)) return String(sequence ?? "");
+  return sequence
+    .map((item, i) => {
+      if (typeof item === "string") return item;
+      if (item && typeof item === "object") {
+        const lines: string[] = [`Story ${i + 1}`];
+        for (const [, v] of Object.entries(item)) {
+          if (v === null || v === undefined || v === "") continue;
+          const line = typeof v === "string" ? v : typeof v === "number" ? String(v) : null;
+          if (line) lines.push(`${line}`);
+        }
+        return lines.join("\n");
+      }
+      return String(item ?? "");
+    })
+    .filter(Boolean)
+    .join("\n\n");
+}
+
 export default function LinkedInCrosspost() {
   const { user } = useAuth();
   
@@ -56,6 +77,7 @@ export default function LinkedInCrosspost() {
   const [showCalendarDialog, setShowCalendarDialog] = useState(false);
   const [showIdeasDialog, setShowIdeasDialog] = useState(false);
   const [activeVersionKey, setActiveVersionKey] = useState<string>("");
+  const [addingToCalendar, setAddingToCalendar] = useState(false);
 
   const toggleTarget = (id: string) => {
     const next = new Set(targets);
@@ -81,6 +103,7 @@ export default function LinkedInCrosspost() {
 
   const canGenerate = () => {
     if (targets.size === 0) return false;
+    if (sourceContent.length > 10000) return false; // borne alignée sur la validation serveur
     if (inputMode === "text") return sourceContent.trim().length > 0;
     if (inputMode === "files") return files.length > 0;
     return sourceContent.trim().length > 0 || files.length > 0;
@@ -107,6 +130,7 @@ export default function LinkedInCrosspost() {
           sourceType,
           targetChannels: Array.from(targets),
           fileUrls,
+          workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
         },
       }, 120000);
       if (res.error?.isRateLimit || res.data?.error === "limit_reached") {
@@ -131,16 +155,19 @@ export default function LinkedInCrosspost() {
   };
 
   const handleCopy = (text: string, key: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(key);
-    setTimeout(() => setCopied(null), 2000);
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(key);
+      setTimeout(() => setCopied(null), 2000);
+    }).catch(() => {
+      toast.error("Copie impossible — sélectionne et copie le texte manuellement.");
+    });
   };
 
   const getActiveVersion = () => result?.versions?.[activeVersionKey] || null;
   const getActiveVersionText = () => {
     const v = getActiveVersion();
     if (!v) return "";
-    return v.full_text || v.script || JSON.stringify(v.sequence, null, 2) || "";
+    return v.full_text || v.script || (v.sequence ? formatStoriesSequence(v.sequence) : "") || "";
   };
   const getActiveChannelLabel = () => TARGET_CHANNELS.find((c) => c.id === activeVersionKey)?.label || activeVersionKey;
   const getActiveChannelCanal = () => activeVersionKey === "linkedin" ? "linkedin" : "instagram";
@@ -152,7 +179,8 @@ export default function LinkedInCrosspost() {
   };
 
   const handleAddToCalendar = async (dateStr: string) => {
-    if (!user) return;
+    if (!user || addingToCalendar) return; // garde anti double-clic (évite les doublons)
+    setAddingToCalendar(true);
     const text = getActiveVersionText();
     const label = getActiveChannelLabel();
     const version = getActiveVersion();
@@ -177,13 +205,17 @@ export default function LinkedInCrosspost() {
     if (workspaceId && workspaceId !== profileUserId) {
       insertData.workspace_id = workspaceId;
     }
-    const { error } = await supabase.from("calendar_posts").insert(insertData);
-    setShowCalendarDialog(false);
-    if (error) {
-      console.error("calendar_posts insert error:", error);
-      toast.error(`Erreur : ${friendlyError(error)}`);
-    } else {
-      toast.success(`📅 Post enregistré dans ton calendrier au ${formattedDate}`);
+    try {
+      const { error } = await supabase.from("calendar_posts").insert(insertData);
+      if (error) {
+        console.error("calendar_posts insert error:", error);
+        toast.error(`Erreur : ${friendlyError(error)}`);
+      } else {
+        setShowCalendarDialog(false);
+        toast.success(`📅 Post enregistré dans ton calendrier au ${formattedDate}`);
+      }
+    } finally {
+      setAddingToCalendar(false);
     }
   };
 
@@ -344,6 +376,7 @@ export default function LinkedInCrosspost() {
               onConfirm={handleAddToCalendar}
               contentLabel={`🔄 Crosspost ${getActiveChannelLabel()}`}
               contentEmoji="🔄"
+              loading={addingToCalendar}
             />
             <SaveToIdeasDialog
               open={showIdeasDialog}

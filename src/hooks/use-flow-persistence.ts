@@ -23,6 +23,7 @@ interface FlowState {
   editingIdeaId?: string | null;
   carouselSubMode?: "text" | "photo" | "mix" | "pure_photo" | null;
   photoDescription?: string;
+  isLinkedInCarousel?: boolean;
   ts: number;
 }
 

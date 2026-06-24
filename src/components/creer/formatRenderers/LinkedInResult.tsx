@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface Props {
   result: any;
@@ -12,15 +12,24 @@ interface Props {
 
 export default function LinkedInResult({ result, photos }: Props) {
   const hook = result?.hook || result?.accroche || "";
-  const body = result?.body || result?.content || result?.text || "";
+  const rawBody = result?.body || result?.content || result?.text || "";
   const cta = result?.cta || result?.call_to_action || "";
   const hashtags = result?.hashtags || [];
   const characterCount = result?.character_count || result?.char_count;
   const checklist = result?.checklist || result?.quality_checklist || [];
   const hookAlternatives = result?.hook_alternatives || result?.alternatives || [];
 
+  // `content` inclut souvent déjà l'accroche en 1ʳᵉ ligne → on l'enlève du corps
+  // pour ne pas afficher (ni copier) deux fois l'accroche.
+  const body =
+    hook && rawBody.trimStart().startsWith(hook.trim())
+      ? rawBody.trimStart().slice(hook.trim().length).trimStart()
+      : rawBody;
+
   const fullText = [hook, body, cta].filter(Boolean).join("\n\n");
   const [checkedText, setCheckedText] = useState(fullText);
+  // Resynchronise quand le contenu change (ex. régénération de légende).
+  useEffect(() => { setCheckedText(fullText); }, [fullText]);
 
   const hookTruncated = hook.length > 210;
 

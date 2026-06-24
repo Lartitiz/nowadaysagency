@@ -190,7 +190,7 @@ export default function CreerUnifie() {
   const [photoMode, setPhotoMode] = useState(false);
   const [demoGenerating, setDemoGenerating] = useState(false);
   const [pinterestData, setPinterestData] = useState<{ link?: string; boardId?: string; boardName?: string } | null>(null);
-  const [isLinkedInCarousel, setIsLinkedInCarousel] = useState(false);
+  const [isLinkedInCarousel, setIsLinkedInCarousel] = useState(ps?.isLinkedInCarousel ?? false);
   const [pinterestPinHtml, setPinterestPinHtml] = useState<string | null>(null);
   const [pinterestVisualGenerating, setPinterestVisualGenerating] = useState(false);
   const [inspirationLoading, setInspirationLoading] = useState(false);
@@ -396,9 +396,10 @@ export default function CreerUnifie() {
         editingIdeaId,
         carouselSubMode,
         photoDescription,
+        isLinkedInCarousel,
       });
     }
-  }, [step, ideaText, objective, selectedFormat, editorialAngle, editContent, result, visualSlides?.length, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview, editingIdeaId, carouselSubMode, photoDescription]);
+  }, [step, ideaText, objective, selectedFormat, editorialAngle, editContent, result, visualSlides?.length, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview, editingIdeaId, carouselSubMode, photoDescription, isLinkedInCarousel]);
 
   // Pre-fill from URL/state & auto-advance (only when URL params are present)
   const initDone = useRef(false);

@@ -253,21 +253,36 @@ serve(async (req) => {
       ];
 
       // Use Gemini Flash for speed (classification task)
-      const geminiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${Deno.env.get("LOVABLE_API_KEY")}` },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash-lite",
-          messages: [
-            { role: "system", content: `Tu es un expert LinkedIn. Voici les templates disponibles :\n${templateList.map(t => `- ${t.id}: ${t.label} (${t.desc}) [objectif: ${t.objectif}]`).join("\n")}\n\nPour le sujet donné, choisis LE meilleur template et explique pourquoi en 1 phrase.\nRéponds UNIQUEMENT en JSON sans backticks :\n{"template_id": "...", "reason": "..."}` },
-            { role: "user", content: `Sujet : "${suggestSujet}"` },
-          ],
-          max_tokens: 200,
-          temperature: 0.3,
-        }),
-      });
-      const geminiData = await geminiRes.json();
-      const rawContent = geminiData?.choices?.[0]?.message?.content || "{}";
+      // Timeout + vérif du statut : sans ça, un hang de la gateway bloque l'edge function.
+      let rawContent = "{}";
+      const sugCtrl = new AbortController();
+      const sugTimer = setTimeout(() => sugCtrl.abort(), 15000);
+      try {
+        const geminiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${Deno.env.get("LOVABLE_API_KEY")}` },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash-lite",
+            messages: [
+              { role: "system", content: `Tu es un expert LinkedIn. Voici les templates disponibles :\n${templateList.map(t => `- ${t.id}: ${t.label} (${t.desc}) [objectif: ${t.objectif}]`).join("\n")}\n\nPour le sujet donné, choisis LE meilleur template et explique pourquoi en 1 phrase.\nRéponds UNIQUEMENT en JSON sans backticks :\n{"template_id": "...", "reason": "..."}` },
+              { role: "user", content: `Sujet : "${suggestSujet}"` },
+            ],
+            max_tokens: 200,
+            temperature: 0.3,
+          }),
+          signal: sugCtrl.signal,
+        });
+        if (geminiRes.ok) {
+          const geminiData = await geminiRes.json();
+          rawContent = geminiData?.choices?.[0]?.message?.content || "{}";
+        } else {
+          console.warn("[linkedin-ai] suggest-template gateway status", geminiRes.status);
+        }
+      } catch (e) {
+        console.warn("[linkedin-ai] suggest-template failed (timeout/réseau)", e);
+      } finally {
+        clearTimeout(sugTimer);
+      }
       // Don't log usage for this lightweight action
       return new Response(JSON.stringify({ content: rawContent }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
