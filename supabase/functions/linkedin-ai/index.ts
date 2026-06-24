@@ -49,6 +49,35 @@ async function correctCrosspostJson(rawJson: string): Promise<string> {
     return rawJson;
   }
 }
+
+// Validation anti-débit : un crédit ne doit être facturé que si la réponse IA
+// est exploitable. Pour les actions qui renvoient du JSON, on vérifie que le
+// contenu est parseable AVANT logUsage (tolérant : fences ```json, extraction
+// du 1er bloc {…} ou […]). Si non → erreur renvoyée SANS débit.
+function isParseableJson(raw: unknown): boolean {
+  if (typeof raw !== "string" || !raw.trim()) return false;
+  const s = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+  const tryParse = (t: string) => { try { JSON.parse(t); return true; } catch { return false; } };
+  if (tryParse(s)) return true;
+  const obj = s.match(/\{[\s\S]*\}/);
+  if (obj && tryParse(obj[0])) return true;
+  const arr = s.match(/\[[\s\S]*\]/);
+  if (arr && tryParse(arr[0])) return true;
+  return false;
+}
+
+// Actions dont la réponse est du JSON (les seules soumises au parse-gate).
+// Exclues volontairement : optimize-experience & draft-recommendation (texte
+// brut) et suggest-template (retour anticipé, ne facture pas).
+const JSON_ACTIONS = new Set([
+  "title", "summary", "adapt-instagram", "crosspost", "suggest-skills",
+  "personalize-message", "analyze-resume", "caption-for-carousel", "improve-post",
+]);
+
+const aiUnusableResponse = () => new Response(
+  JSON.stringify({ error: "ai_unusable", message: "La réponse de l'IA était inexploitable. Aucun crédit débité, réessaie." }),
+  { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+);
 import { corsHeaders } from "../_shared/cors.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
@@ -195,6 +224,11 @@ serve(async (req) => {
 
         content = await correctCrosspostJson(content);
 
+        if (!isParseableJson(content)) {
+          console.error("[linkedin-ai] crosspost (files): réponse IA inexploitable, pas de débit");
+          return aiUnusableResponse();
+        }
+
         await logUsage(user.id, category, `linkedin_crosspost_files`, undefined, undefined, workspace_id);
 
         return new Response(JSON.stringify({ content }), {
@@ -317,6 +351,11 @@ serve(async (req) => {
       content = await correctJsonField(content, "improved_version");
     } else if (action === "crosspost") {
       content = await correctCrosspostJson(content);
+    }
+
+    if (JSON_ACTIONS.has(action) && !isParseableJson(content)) {
+      console.error(`[linkedin-ai] ${action}: réponse IA inexploitable, pas de débit`);
+      return aiUnusableResponse();
     }
 
     await logUsage(user.id, category, `linkedin_${action}`, undefined, undefined, workspace_id);
