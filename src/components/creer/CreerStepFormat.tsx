@@ -9,6 +9,7 @@ import {
   CONTENT_STRUCTURES,
   getAnglesForType,
   getStructureForCombo,
+  normalizeObjective,
   type EditorialAngle,
 } from "@/lib/content-structures";
 import { PhotoUploadZone, type PhotoItem } from "@/components/creer/PhotoUploadZone";
@@ -143,7 +144,8 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
   const typeEntries = Object.entries(CONTENT_TYPE_SPECS).filter(
     ([, spec]) => selectedChannel === "instagram" ? spec.channel === "instagram" : true
   );
-  const priorityTypes = objective ? OBJECTIVE_RECOMMENDATIONS[objective]?.priorityTypes || [] : [];
+  const normObjective = normalizeObjective(objective);
+  const priorityTypes = normObjective ? OBJECTIVE_RECOMMENDATIONS[normObjective]?.priorityTypes || [] : [];
 
   const { recommended, others } = selectedFormat
     ? getAnglesForType(
