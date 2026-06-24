@@ -687,12 +687,46 @@ Si vraiment rien ne fonctionne (moins de 3 sujets connectés trouvables), retour
       }
     }
 
-    if (!parsed.actus || !Array.isArray(parsed.actus)) {
-      return new Response(JSON.stringify({ error: "Format de réponse invalide." }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // Tolérance : si le modèle renvoie un tableau racine au lieu de {actus:[...]},
+    // on le ré-enveloppe. Si "actus" est absent ou n'est pas un tableau, on dégrade
+    // PROPREMENT vers un résultat vide (écran "aucun pont solide" + porte de sortie
+    // côté front) au lieu d'un 500 — l'utilisatrice n'a pas à voir une erreur brute.
+    if (Array.isArray(parsed)) {
+      parsed = { actus: parsed };
     }
+    if (!parsed.actus || !Array.isArray(parsed.actus)) {
+      console.error("[newsjacking] réponse sans tableau actus, dégradation en vide. Aperçu:", JSON.stringify(parsed).slice(0, 300));
+      parsed = { actus: [], message: typeof parsed?.message === "string" ? parsed.message : undefined };
+    }
+
+    // Normalisation/whitelist des champs (mêmes listes que newsjacking-from-url) :
+    // si le modèle invente un axe/ton/force_pont/type hors config, le badge
+    // correspondant ne s'afficherait pas côté front. On clampe sur les valeurs
+    // connues pour garantir un rendu cohérent.
+    const ALLOWED_AXES = new Set(["mot_qui_revient","obsession_collective","comportement_emergent","debat_recurrent","objet_culturel","actu_connectable"]);
+    const ALLOWED_TONS = new Set(["confortable","entre_deux","decalant"]);
+    const ALLOWED_PONTS = new Set(["fort","moyen","fragile"]);
+    const ALLOWED_TYPES = new Set(["globale","niche"]);
+    parsed.actus = parsed.actus
+      .filter((a: any) => a && typeof a === "object")
+      .map((a: any) => ({
+        ...a,
+        titre: typeof a.titre === "string" ? a.titre.slice(0, 140) : "Actu",
+        resume: typeof a.resume === "string" ? a.resume : "",
+        source: typeof a.source === "string" ? a.source : "",
+        type: ALLOWED_TYPES.has(a.type) ? a.type : "globale",
+        axe: ALLOWED_AXES.has(a.axe) ? a.axe : "actu_connectable",
+        ton: ALLOWED_TONS.has(a.ton) ? a.ton : "entre_deux",
+        force_pont: ALLOWED_PONTS.has(a.force_pont) ? a.force_pont : "moyen",
+        pertinence: typeof a.pertinence === "string" ? a.pertinence : "",
+        faits_cles: Array.isArray(a.faits_cles)
+          ? a.faits_cles
+              .filter((f: unknown): f is string => typeof f === "string")
+              .map((f: string) => f.trim().slice(0, 200))
+              .filter((f: string) => f.length > 0)
+              .slice(0, 8)
+          : [],
+      }));
 
     // Post-validation : on retire tout sujet qui ressemble à un événement /
     // webinaire / replay / page evergreen, même si Claude l'a fait passer.
