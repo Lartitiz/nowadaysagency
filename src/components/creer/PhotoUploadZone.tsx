@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect, DragEvent as ReactDragEvent } from "react";
-import { Upload, X, GripVertical, Wand2, Undo2, Library, Loader2, Images } from "lucide-react";
+import { Upload, X, GripVertical, Wand2, Undo2, Library, Loader2, Images, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { PhotoEditDialog } from "./PhotoEditDialog";
 import { PhotoLibraryPickerDialog } from "@/components/photos/PhotoLibraryPickerDialog";
 import { StockPhotoPickerDialog } from "@/components/photos/StockPhotoPickerDialog";
-import type { StockKeywordContext } from "@/lib/stock-photos";
+import { autoSelectStockPhotos, type StockKeywordContext } from "@/lib/stock-photos";
 import { userPhotoToBase64, type UserPhotoRow } from "@/lib/photo-storage";
 
 const MAX_FILE_SIZE_MB = 25;
@@ -88,9 +88,15 @@ export interface PhotoUploadZoneProps {
   openStockSignal?: number;
   /**
    * Contexte du contenu à venir (sujet + angle + format). Si fourni, la recherche
-   * de photos libres de droit propose des mots-clés visuels suggérés par l'IA.
+   * de photos libres de droit propose des mots-clés visuels suggérés par l'IA,
+   * et le bouton « L'IA choisit les photos pour moi » s'affiche.
    */
   stockAiContext?: StockKeywordContext;
+  /**
+   * Nombre de photos que « L'IA choisit pour moi » sélectionne d'un coup (1 par
+   * slide-photo du plan). Dépend du type de carrousel. Défaut 6.
+   */
+  aiAutoPickCount?: number;
 }
 
 function resizeAndEncode(file: File, maxWidth = 1600, quality = 0.8): Promise<{ base64: string; preview: string }> {
@@ -130,6 +136,7 @@ export function PhotoUploadZone({
   stockSearchSeed,
   openStockSignal,
   stockAiContext,
+  aiAutoPickCount,
 }: PhotoUploadZoneProps) {
   const [photos, setPhotos] = useState<PhotoItem[]>(initialPhotos ?? []);
   const [description, setDescription] = useState(initialDescription ?? "");
@@ -140,6 +147,7 @@ export function PhotoUploadZone({
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [importingFromLibrary, setImportingFromLibrary] = useState(false);
   const [stockOpen, setStockOpen] = useState(false);
+  const [autoPicking, setAutoPicking] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const isFull = photos.length >= maxPhotos;
   const remainingSlots = Math.max(0, maxPhotos - photos.length);
@@ -254,6 +262,36 @@ export function PhotoUploadZone({
     },
     [photos, maxPhotos, updatePhotos],
   );
+
+  // « L'IA choisit les photos pour moi » : l'IA dérive le plan visuel du contenu,
+  // cherche sur Pexels et sélectionne automatiquement une photo par slide.
+  const handleAiAutoPick = useCallback(async () => {
+    const subject = stockAiContext?.subject?.trim();
+    if (!subject || autoPicking) return;
+    const remaining = maxPhotos - photos.length;
+    if (remaining <= 0) {
+      toast.error(`Tu as déjà ${maxPhotos} photos.`);
+      return;
+    }
+    setAutoPicking(true);
+    try {
+      const items = await autoSelectStockPhotos(stockAiContext!, {
+        count: Math.min(aiAutoPickCount ?? 6, remaining),
+      });
+      updatePhotos([...photos, ...items].slice(0, maxPhotos));
+      toast.success(
+        items.length > 1
+          ? `${items.length} photos choisies par l'IA. Tu peux en retirer ou en ajouter.`
+          : "1 photo choisie par l'IA. Tu peux en changer.",
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "L'IA n'a pas pu choisir de photos.");
+    } finally {
+      setAutoPicking(false);
+    }
+  }, [stockAiContext, aiAutoPickCount, autoPicking, photos, maxPhotos, updatePhotos]);
+
+  const showAiAutoPick = !!stockAiContext?.subject?.trim();
 
   const removePhoto = useCallback(
     (idx: number) => {
@@ -389,6 +427,33 @@ export function PhotoUploadZone({
         </div>
       )}
 
+      {/* ── « L'IA choisit les photos pour moi » (si contexte fourni) ───────── */}
+      {!compact && showAiAutoPick && (
+        <div className="flex flex-col items-center gap-1 -mt-1">
+          <button
+            type="button"
+            onClick={handleAiAutoPick}
+            disabled={isFull || autoPicking}
+            className="inline-flex items-center gap-2 rounded-full border-2 border-dashed border-primary/40 bg-primary/5 px-4 py-2 text-sm font-semibold text-primary transition-all hover:border-primary/60 hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {autoPicking ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                L'IA choisit tes photos…
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4" />
+                L'IA choisit les photos pour moi
+              </>
+            )}
+          </button>
+          <p className="text-[11px] text-muted-foreground">
+            L'IA va chercher des photos libres de droit adaptées à ton contenu.
+          </p>
+        </div>
+      )}
+
       {/* ── "Choose from library" / "Stock photos" links (non-compact mode) ───── */}
       {!compact && (
         <div className="flex flex-wrap justify-center items-center gap-x-4 gap-y-1.5 -mt-1">
@@ -480,6 +545,26 @@ export function PhotoUploadZone({
                     </>
                   )}
                 </button>
+                {showAiAutoPick && (
+                  <button
+                    type="button"
+                    onClick={handleAiAutoPick}
+                    disabled={autoPicking}
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline disabled:opacity-50 disabled:no-underline"
+                  >
+                    {autoPicking ? (
+                      <>
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        L'IA choisit…
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-3 w-3" />
+                        L'IA choisit
+                      </>
+                    )}
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setStockOpen(true)}

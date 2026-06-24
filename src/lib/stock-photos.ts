@@ -82,6 +82,7 @@ export interface StockKeywords {
  */
 export async function suggestStockKeywords(
   ctx: StockKeywordContext,
+  opts: { count?: number } = {},
 ): Promise<StockKeywords> {
   const subject = ctx.subject.trim();
   if (!subject) return { primary: "", keywords: [] };
@@ -92,6 +93,7 @@ export async function suggestStockKeywords(
       ...(ctx.angle ? { angle: ctx.angle } : {}),
       ...(ctx.objective ? { objective: ctx.objective } : {}),
       ...(ctx.slides && ctx.slides.length ? { slides: ctx.slides.slice(0, 15) } : {}),
+      ...(opts.count ? { count: opts.count } : {}),
     },
   });
   if (error) {
@@ -102,6 +104,68 @@ export async function suggestStockKeywords(
   if (data?.error) throw new Error(data.error);
   const keywords = Array.isArray(data?.keywords) ? (data.keywords as string[]) : [];
   return { primary: (data?.primary as string) || keywords[0] || "", keywords };
+}
+
+/**
+ * « L'IA choisit les photos pour moi » : à partir du plan visuel du contenu
+ * (un thème par slide, via suggestStockKeywords), va chercher sur Pexels et
+ * sélectionne automatiquement UNE photo pertinente par thème, prête à injecter
+ * dans le carrousel. Best-effort : ignore les thèmes sans résultat ; lève une
+ * erreur seulement si rien n'a pu être récupéré.
+ */
+export async function autoSelectStockPhotos(
+  ctx: StockKeywordContext,
+  opts: { count: number },
+): Promise<PhotoItem[]> {
+  const count = Math.max(1, Math.min(opts.count, 10));
+  const { keywords } = await suggestStockKeywords(ctx, { count });
+  const themes = (keywords.length ? keywords : [ctx.subject.trim()]).slice(0, count);
+
+  // Une recherche par thème (en parallèle), on garde le 1er résultat de chacune.
+  const results = await Promise.all(
+    themes.map(async (term) => {
+      try {
+        const photos = await searchStockPhotos(term, {
+          perPage: 6,
+          orientation: "portrait",
+          locale: "en-US",
+        });
+        return photos[0] ?? null;
+      } catch (e) {
+        console.warn("[autoSelectStockPhotos] recherche échouée pour", term, e);
+        return null;
+      }
+    }),
+  );
+
+  // Déduplication par id (deux thèmes peuvent retomber sur la même photo).
+  const seen = new Set<string>();
+  const picked: StockPhoto[] = [];
+  for (const p of results) {
+    if (p && !seen.has(p.id)) {
+      seen.add(p.id);
+      picked.push(p);
+    }
+  }
+  if (picked.length === 0) {
+    throw new Error(
+      "L'IA n'a pas trouvé de photos pertinentes. Réessaie ou ajoute tes propres photos.",
+    );
+  }
+
+  // Téléchargement + conversion en PhotoItem (comme une photo uploadée).
+  const settled = await Promise.allSettled(
+    picked.slice(0, count).map((p) => stockPhotoToPhotoItem(p)),
+  );
+  const items: PhotoItem[] = [];
+  settled.forEach((s) => {
+    if (s.status === "fulfilled") items.push(s.value);
+    else console.warn("[autoSelectStockPhotos] import échoué", s.reason);
+  });
+  if (items.length === 0) {
+    throw new Error("L'import des photos a échoué. Réessaie.");
+  }
+  return items;
 }
 
 const MAX_DIM = 1600;

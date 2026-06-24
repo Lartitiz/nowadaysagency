@@ -27,6 +27,8 @@ const BodySchema = z.object({
   objective: z.string().max(60).optional(),
   /** Texte des slides déjà générées, si disponible — affine encore les mots-clés. */
   slides: z.array(z.string().max(600)).max(15).optional(),
+  /** Nombre de thèmes/mots-clés visuels souhaités (1 par slide-photo). Défaut 5. */
+  count: z.number().int().min(1).max(10).optional(),
 });
 
 const FORMAT_HINTS: Record<string, string> = {
@@ -66,6 +68,7 @@ serve(async (req) => {
   }
 
   const formatHint = body.format ? FORMAT_HINTS[body.format] : undefined;
+  const n = body.count ?? 5;
   const slidesBlock =
     body.slides && body.slides.length
       ? `\n\nTexte des slides du carrousel :\n${body.slides.map((s, i) => `${i + 1}. ${s}`).join("\n")}`
@@ -73,14 +76,15 @@ serve(async (req) => {
 
   const prompt = `Une créatrice de contenu prépare un contenu sur les réseaux et veut illustrer avec des photos de banque d'images (Pexels). Pexels marche bien mieux avec des requêtes EN ANGLAIS et CONCRÈTES (des scènes, des objets, des personnes — pas des concepts abstraits).
 
-Ton job : à partir du sujet (souvent abstrait, en français), proposer des mots-clés de recherche photo qui correspondent à des IMAGES RÉELLES et PERTINENTES pour ce contenu.
+Ton job : à partir du sujet (souvent abstrait, en français), proposer des mots-clés de recherche photo qui correspondent à des IMAGES RÉELLES et PERTINENTES pour ce contenu. Pense « plan du carrousel » : chaque requête illustre un MOMENT/une slide différente du déroulé (accroche, problème, exemple concret, coulisses, conclusion…).
 
 Sujet : ${body.subject}${body.angle ? `\nAngle éditorial : ${body.angle}` : ""}${body.objective ? `\nObjectif : ${body.objective}` : ""}${formatHint ? `\nFormat visuel : ${formatHint}` : ""}${slidesBlock}
 
 Règles :
-- 5 requêtes, EN ANGLAIS, 2 à 4 mots chacune, décrivant une scène photographiable concrète.
+- ${n} requêtes, EN ANGLAIS, 2 à 4 mots chacune, décrivant une scène photographiable concrète.
+- Une requête = une slide/un moment différent du carrousel ; ensemble elles racontent visuellement le contenu.
 - Traduis les concepts abstraits en visuels (ex : "burn-out" → "tired woman desk", "lancement d'offre" → "laptop coffee workspace").
-- Varie les angles visuels (gros plan, ambiance, personne, objet, lieu) pour offrir du choix.
+- Varie les angles visuels (gros plan, ambiance, personne, objet, lieu) pour offrir du choix et éviter les doublons.
 - Évite le texte sur image, les logos, les captures d'écran.
 - "primary" = la requête la plus sûre pour ramener des résultats pertinents tout de suite.
 
@@ -146,7 +150,9 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown) :
   const clean = (s: unknown) => (typeof s === "string" ? s.trim() : "");
   const rawList = Array.isArray(parsed.keywords) ? parsed.keywords.map(clean) : [];
   const primary = clean(parsed.primary) || rawList[0] || "";
-  const keywords = Array.from(new Set([primary, ...rawList].filter(Boolean))).slice(0, 6);
+  // On renvoie jusqu'à `count` thèmes (au moins 6 pour garder du choix côté UI).
+  const limit = Math.max(n, 6);
+  const keywords = Array.from(new Set([primary, ...rawList].filter(Boolean))).slice(0, limit);
 
   if (!keywords.length) {
     return json({ error: "Aucun mot-clé proposé." }, 502);
