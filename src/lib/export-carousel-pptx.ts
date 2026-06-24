@@ -1,4 +1,5 @@
 import PptxGenJS from "pptxgenjs";
+import { mapFontToPptx, normalizeHex } from "./pptx-font-mapping";
 
 // ═══ TYPES ═══
 
@@ -35,8 +36,10 @@ export interface CharterColors {
 
 // ═══ HELPERS ═══
 
+// Délègue à normalizeHex (gère rgb()/rgba(), hex courts #abc, casse) au lieu d'un
+// simple strip de "#" qui corrompait les couleurs non-hex-6 de la charte.
 function hex(color: string): string {
-  return color.replace("#", "").padEnd(6, "0").slice(0, 6);
+  return normalizeHex(color);
 }
 
 /** Classify the slide role into a design category */
@@ -171,9 +174,12 @@ export async function exportCarouselPptx(
     bg: hex(charter?.color_background || "#FFF4F8"),
     text: hex(charter?.color_text || "#1A1A2E"),
   };
+  // mapFontToPptx : prend le 1er nom de la stack CSS et mappe les mots-clés génériques
+  // (serif/sans-serif/…) vers une police valide. Stratégie Canva-first : on conserve
+  // le nom Google Font tel quel (Canva le retrouve), comme l'exporter hybride.
   const f = {
-    title: charter?.font_title || "Libre Baskerville",
-    body: charter?.font_body || "IBM Plex Mono",
+    title: mapFontToPptx(charter?.font_title || "Libre Baskerville"),
+    body: mapFontToPptx(charter?.font_body || "IBM Plex Mono"),
   };
 
   const W = 7.5;
