@@ -776,6 +776,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
               angle: selectedAngle || undefined,
               objective: objective || undefined,
             }}
+            aiAutoPickCount={carouselSubMode === "mix" ? 3 : 6}
           />
           {photoWarning && (
             <div className="mt-3 p-3 rounded-lg bg-amber-50 border border-amber-200 space-y-2 animate-fade-in">
