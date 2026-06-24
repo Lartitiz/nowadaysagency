@@ -45,7 +45,7 @@ import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useBrandCharter } from "@/hooks/use-branding";
 import { useActivityExamples } from "@/hooks/use-activity-examples";
 import { supabase } from "@/integrations/supabase/client";
-import { loadFlowState, saveFlowState, clearFlowState, savePhotos, loadPhotos } from "@/hooks/use-flow-persistence";
+import { loadFlowState, saveFlowState, clearFlowState, savePhotos, loadPhotos, loadPhotosLocal } from "@/hooks/use-flow-persistence";
 import { isAurianaDemoEmail, AURIANA_DEMO_SUBJECT, AURIANA_DEMO_FLOW } from "@/lib/demo-auriana-data";
 
 // Phase 4: streaming SSE is now encapsulated inside useContentGenerator
@@ -166,11 +166,14 @@ export default function CreerUnifie() {
 
   // Photo states (carousel photo + post photo)
   const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | "mix" | "pure_photo" | null>(ps?.carouselSubMode ?? null);
-  const [uploadedPhotos, setUploadedPhotos] = useState<any[]>(shouldRestore ? loadPhotos() : []);
+  // Init à [] : le base64 n'est plus stocké inline (cf use-flow-persistence
+  // hybride). Les photos sont rehydratées en asynchrone par l'effet plus bas
+  // (IndexedDB pour les dépôts, refetch serveur pour la photothèque).
+  const [uploadedPhotos, setUploadedPhotos] = useState<any[]>([]);
   const [isLoadingLibraryPhotos, setIsLoadingLibraryPhotos] = useState(false);
   // Snapshot des photos au moment de la génération du carrousel.
   // Sert de source de vérité pour handleGenerateVisuals si le state UI est reset.
-  const [generatedWithPhotos, setGeneratedWithPhotos] = useState<any[]>(shouldRestore ? loadPhotos() : []);
+  const [generatedWithPhotos, setGeneratedWithPhotos] = useState<any[]>([]);
   // Dialog "photos manquantes" : remplace le downgrade silencieux.
   const [photoMissingDialog, setPhotoMissingDialog] = useState<{
     open: boolean;
@@ -541,6 +544,79 @@ export default function CreerUnifie() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspaceId]);
 
+
+  // ── Rehydrate les photos après restauration du flux (recyclage d'onglet,
+  // refresh). Base64 local depuis IndexedDB + originaux photothèque re-
+  // téléchargés depuis le serveur. Voir use-flow-persistence (hybride). ──
+  const photosRehydratedRef = useRef(false);
+  useEffect(() => {
+    if (photosRehydratedRef.current) return;
+    if (!shouldRestore) return;
+    // Le chemin "Partir de la photothèque" (locState.libraryPhotoIds) gère
+    // déjà son propre chargement — ne pas le doubler.
+    if (libraryPhotoIdsRef.current.length > 0) return;
+    const manifest = loadPhotos();
+    if (manifest.length === 0) { photosRehydratedRef.current = true; return; }
+    if (uploadedPhotos.length > 0) { photosRehydratedRef.current = true; return; }
+    // Les originaux photothèque ont besoin du workspace pour le refetch.
+    const needsWorkspace = manifest.some((m) => m.local === false);
+    if (needsWorkspace && !workspaceId) return; // attend que le workspace soit prêt
+
+    photosRehydratedRef.current = true;
+    let cancelled = false;
+    (async () => {
+      try {
+        const local = await loadPhotosLocal();
+        const needFetch = local.filter((p: any) => p.needsLibraryFetch && p.userPhotoId);
+        const byUserPhotoId: Record<string, { base64: string; mimeType?: string; name?: string }> = {};
+        if (needFetch.length > 0 && workspaceId) {
+          const ids = needFetch.map((p: any) => p.userPhotoId as string);
+          const { data } = await supabase
+            .from("user_photos")
+            .select("*")
+            .in("id", ids)
+            .eq("workspace_id", workspaceId)
+            .eq("status", "ready");
+          const rows = (data || []) as UserPhotoRow[];
+          const results = await Promise.allSettled(rows.map((r) => userPhotoToBase64(r)));
+          results.forEach((res, i) => {
+            if (res.status === "fulfilled") {
+              byUserPhotoId[rows[i].id] = {
+                base64: res.value.base64,
+                mimeType: res.value.mimeType,
+                name: res.value.name,
+              };
+            }
+          });
+        }
+        const merged = local
+          .map((p: any) => {
+            if (!p.needsLibraryFetch) return p;
+            const lib = p.userPhotoId ? byUserPhotoId[p.userPhotoId] : undefined;
+            if (!lib) return null; // refetch impossible → photo perdue
+            return {
+              ...p,
+              base64: lib.base64,
+              preview: lib.base64,
+              mimeType: p.mimeType || lib.mimeType,
+              name: p.name || lib.name,
+              needsLibraryFetch: undefined,
+            };
+          })
+          .filter(Boolean) as PhotoItem[];
+        if (cancelled || merged.length === 0) return;
+        setUploadedPhotos((prev) => (prev.length > 0 ? prev : merged));
+        setGeneratedWithPhotos((prev) => (prev.length > 0 ? prev : merged));
+        if (merged.length < manifest.length) {
+          toast.warning("Certaines photos n'ont pas pu être rechargées.");
+        }
+      } catch (e) {
+        console.warn("[creer] rehydrate photos failed", e);
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspaceId]);
 
   // Show error
   useEffect(() => {
