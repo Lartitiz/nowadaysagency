@@ -327,7 +327,30 @@ Renvoie EXACTEMENT ${expectedCount} angle${expectedCount > 1 ? "s" : ""}${expect
       }
     }
 
-    if (!parsed.angles || !Array.isArray(parsed.angles) || parsed.angles.length === 0) {
+    if (!parsed.angles || !Array.isArray(parsed.angles)) {
+      return new Response(JSON.stringify({ error: "Format de réponse invalide." }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Normalisation/whitelist des champs d'angle : vehicule et format_suggere
+    // doivent rester dans les valeurs connues du front (sinon badge ✨ générique
+    // et format suggéré ininterprétable à l'étape 2). On clampe sur des défauts
+    // sûrs et on jette les angles sans hook/développement exploitable.
+    const ALLOWED_VEHICULES = new Set(["recit_experience","declencheur_externe","constat_decale","montrer_plutot_quexpliquer","parallele_absurde"]);
+    const ALLOWED_FORMATS = new Set(["post","carousel","reel","story","linkedin"]);
+    parsed.angles = parsed.angles
+      .filter((a: any) => a && typeof a === "object")
+      .map((a: any) => ({
+        vehicule: ALLOWED_VEHICULES.has(a.vehicule) ? a.vehicule : "declencheur_externe",
+        hook: typeof a.hook === "string" ? a.hook.trim() : "",
+        description: typeof a.description === "string" ? a.description.trim() : "",
+        format_suggere: ALLOWED_FORMATS.has(a.format_suggere) ? a.format_suggere : "post",
+      }))
+      .filter((a: any) => a.hook && a.description);
+
+    if (parsed.angles.length === 0) {
       return new Response(JSON.stringify({ error: "Format de réponse invalide." }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
