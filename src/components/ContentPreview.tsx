@@ -4,6 +4,7 @@ import { Copy, Check, RotateCcw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import EditableTextStandalone from "@/components/EditableText";
+import { formatSlideRole } from "@/lib/slide-roles";
 
 interface ContentPreviewProps {
   contentData: any;
@@ -440,7 +441,7 @@ function CarouselPreview({ data, compact, editable, onContentChange }: { data: a
 
   const handleCopy = () => {
     const text = slides.map((s: any, i: number) => {
-      if (isPhoto) return `SLIDE ${s.slide_number || i + 1}${s.role ? ` (${s.role})` : ""}\n${s.overlay_text || "(photo seule)"}${s.note ? `\n💡 ${s.note}` : ""}`;
+      if (isPhoto) return `SLIDE ${s.slide_number || i + 1}${s.role ? ` (${formatSlideRole(s.role)})` : ""}\n${s.overlay_text || "(photo seule)"}${s.note ? `\n💡 ${s.note}` : ""}`;
       return `SLIDE ${i + 1}\n${s.title || ""}\n${s.body || ""}`;
     }).join("\n\n───\n\n");
     const captionText = caption ? `\n\n📝 LÉGENDE\n${[caption.hook, caption.body, caption.cta].filter(Boolean).join("\n")}` : "";
@@ -491,7 +492,7 @@ function CarouselPreview({ data, compact, editable, onContentChange }: { data: a
         <div key={idx} className="border-b border-border pb-3 last:border-0">
           <div className="flex items-center gap-2 mb-1">
             <span className="text-xs font-semibold text-muted-foreground uppercase">
-              Slide {slide.slide_number || idx + 1}{slide.role ? ` · ${slide.role}` : ""}
+              Slide {slide.slide_number || idx + 1}{slide.role ? ` · ${formatSlideRole(slide.role)}` : ""}
             </span>
           </div>
           {isPhoto ? (

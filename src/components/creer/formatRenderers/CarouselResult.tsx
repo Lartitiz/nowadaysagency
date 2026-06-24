@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import { useState, useRef, useEffect, useCallback } from "react";
+import { formatSlideRole } from "@/lib/slide-roles";
 
 interface SlideData {
   slide_number: number;
@@ -230,7 +231,7 @@ export default function CarouselResult({ result, visualSlides, onSlidesUpdate }:
                 </Badge>
                 {slide.role && (
                   <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] font-mono">
-                    {slide.role}
+                    {formatSlideRole(slide.role)}
                   </Badge>
                 )}
               </div>

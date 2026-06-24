@@ -1,5 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { formatSlideRole } from "@/lib/slide-roles";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import { useState, useCallback, useRef, useEffect } from "react";
@@ -88,7 +89,7 @@ export default function StoryResult({ result, onStoriesUpdate }: Props) {
                 )}
                 {story.role && (
                   <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] font-mono">
-                    {story.role}
+                    {formatSlideRole(story.role)}
                   </Badge>
                 )}
                 {story.format && (
