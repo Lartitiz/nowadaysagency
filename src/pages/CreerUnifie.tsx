@@ -1496,6 +1496,23 @@ export default function CreerUnifie() {
     }
   };
 
+  // Garde anti-perte : "Nouveau contenu" efface tout (texte généré + photos).
+  // Si un travail est en cours, on demande confirmation avant de vider.
+  const [confirmResetOpen, setConfirmResetOpen] = useState(false);
+  const requestReset = () => {
+    const hasWork =
+      uploadedPhotos.length > 0 ||
+      !!result ||
+      step === "edit" ||
+      visualSlides.length > 0 ||
+      !!editContent;
+    if (hasWork) {
+      setConfirmResetOpen(true);
+      return;
+    }
+    handleReset();
+  };
+
   const handleReset = () => {
     resetGenerator();
     streamReset();
@@ -2704,7 +2721,7 @@ export default function CreerUnifie() {
                     🔄 Réessayer
                   </button>
                   <button
-                    onClick={handleReset}
+                    onClick={requestReset}
                     className="px-4 py-2 rounded-lg bg-muted text-muted-foreground text-sm font-medium hover:opacity-90 transition"
                   >
                     ← Recommencer
@@ -2722,7 +2739,7 @@ export default function CreerUnifie() {
                 photos={(carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo" || (photoMode && uploadedPhotos.length > 0)) ? uploadedPhotos : undefined}
                 usedPhotoCount={photoMode && uploadedPhotos.length > 0 ? uploadedPhotos.length : undefined}
                 onEdit={handleEdit}
-                onReset={handleReset}
+                onReset={requestReset}
                 onRegenerate={handleRegenerate}
                 onCopy={handleCopy}
                 onSave={effectiveHandleSave}
@@ -2820,7 +2837,7 @@ export default function CreerUnifie() {
                           format={selectedFormat || "post"}
                           generating={false}
                           onEdit={handleEdit}
-                          onReset={handleReset}
+                          onReset={requestReset}
                           onRegenerate={handleRegenerate}
                           onCopy={handleCopy}
                           usedPhotoCount={photoMode && uploadedPhotos.length > 0 ? uploadedPhotos.length : undefined}
@@ -2939,6 +2956,47 @@ export default function CreerUnifie() {
               }}
             >
               Ajouter des photos
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      {/* Garde anti-perte : confirmation avant "Nouveau contenu" quand un
+          travail est en cours (texte généré et/ou photos uploadées). Évite
+          d'effacer photos + contenu par un clic réflexe. */}
+      <AlertDialog open={confirmResetOpen} onOpenChange={setConfirmResetOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Repartir de zéro ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {uploadedPhotos.length > 0 ? (
+                <>
+                  Tu as un contenu en cours avec{" "}
+                  <strong>
+                    {uploadedPhotos.length} photo{uploadedPhotos.length > 1 ? "s" : ""}
+                  </strong>
+                  . « Nouveau contenu » efface le texte généré et retire les
+                  photos. Cette action est irréversible.
+                </>
+              ) : (
+                <>
+                  Tu as un contenu en cours. « Nouveau contenu » efface le texte
+                  généré et repart d'une page blanche. Cette action est
+                  irréversible.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel onClick={() => setConfirmResetOpen(false)}>
+              Garder mon contenu
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmResetOpen(false);
+                handleReset();
+              }}
+            >
+              Repartir de zéro
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

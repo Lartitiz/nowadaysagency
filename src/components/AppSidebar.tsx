@@ -8,6 +8,17 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useAccountSwitcher } from "@/hooks/use-account-switcher";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { loadFlowState, loadPhotos } from "@/hooks/use-flow-persistence";
 import { toast } from "sonner";
 
 interface NavItem {
@@ -103,6 +114,25 @@ export default function AppSidebar() {
 
   const [open, setOpen] = useState(false);
   const [openSubs, setOpenSubs] = useState<Record<string, boolean>>({});
+  // Garde anti-perte : "Nouveau contenu" (fresh start) efface le flux + les
+  // photos en cours. Si un travail est en cours, on confirme avant de vider.
+  const [freshStartTarget, setFreshStartTarget] = useState<string | null>(null);
+  const freshStartPhotoCount = useRef(0);
+  const handleFreshStartNav = useCallback(
+    (e: React.MouseEvent, targetPath: string) => {
+      const fs = loadFlowState();
+      const photos = loadPhotos();
+      const hasWork = (!!fs && !!fs.step && fs.step !== "idea") || photos.length > 0;
+      if (hasWork) {
+        e.preventDefault();
+        freshStartPhotoCount.current = photos.length;
+        setFreshStartTarget(targetPath);
+        return;
+      }
+      setOpen(false);
+    },
+    [],
+  );
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wsPopoverRef = useRef(false);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -299,7 +329,11 @@ export default function AppSidebar() {
                   ) : (
                     <Link
                       to={item.path + (item.freshStart ? "?new=1" : "")}
-                      onClick={() => setOpen(false)}
+                      onClick={(e) =>
+                        item.freshStart
+                          ? handleFreshStartNav(e, item.path + "?new=1")
+                          : setOpen(false)
+                      }
                       className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body transition-colors ${
                         isActive(item.path) ? "bg-rose-pale text-primary font-semibold" : "text-foreground hover:bg-rose-pale"
                       }`}
@@ -481,6 +515,60 @@ export default function AppSidebar() {
           </PopoverContent>
         </Popover>
       </div>
+
+      <AlertDialog
+        open={freshStartTarget !== null}
+        onOpenChange={(o) => { if (!o) setFreshStartTarget(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Repartir de zéro ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {freshStartPhotoCount.current > 0 ? (
+                <>
+                  Tu as un contenu en cours avec{" "}
+                  <strong>
+                    {freshStartPhotoCount.current} photo
+                    {freshStartPhotoCount.current > 1 ? "s" : ""}
+                  </strong>
+                  . « Nouveau contenu » efface le travail en cours et retire les
+                  photos. Cette action est irréversible.
+                </>
+              ) : (
+                <>
+                  Tu as un contenu en cours. « Nouveau contenu » efface le
+                  travail en cours et repart d'une page blanche. Cette action est
+                  irréversible.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel
+              onClick={() => {
+                // "Garder mon contenu" : revenir au flux en cours (sans ?new=1,
+                // donc sans effacer), pour le reprendre là où il en était.
+                const resumePath = freshStartTarget?.split("?")[0] || "/creer";
+                setFreshStartTarget(null);
+                setOpen(false);
+                navigate(resumePath);
+              }}
+            >
+              Garder mon contenu
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const target = freshStartTarget || "/creer?new=1";
+                setFreshStartTarget(null);
+                setOpen(false);
+                navigate(target);
+              }}
+            >
+              Repartir de zéro
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
