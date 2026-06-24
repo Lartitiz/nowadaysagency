@@ -779,7 +779,10 @@ export function useContentGenerator() {
       }
 
       if (!fullText) {
-        // Empty result — let the caller decide whether to surface a toast
+        // Résultat vide = échec. On pose l'erreur ici pour que l'effet global
+        // (toast unique) l'affiche, au lieu d'un toast manuel côté appelant qui
+        // doublait l'affichage avec l'erreur du hook.
+        setError("La génération a échoué. Réessaie.");
         return null;
       }
 

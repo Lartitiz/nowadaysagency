@@ -602,6 +602,30 @@ export const OBJECTIVE_RECOMMENDATIONS: Record<string, ObjectiveRecommendation> 
   },
 };
 
+// Vocabulaires d'objectif venus de la coach (« Pas d'idée ? »), des tags d'idées
+// ou d'anciens flux → clés canoniques de OBJECTIVE_RECOMMENDATIONS. Sans ce
+// mapping, un objectif comme « engagement », « inspirer » ou « creer_du_lien »
+// ne correspond à aucune clé → aucune reco de format/angle (silencieux).
+const OBJECTIVE_ALIASES: Record<string, string> = {
+  inspirer: "visibilite",
+  eduquer: "credibilite",
+  vendre: "vente",
+  creer_du_lien: "confiance",
+  engagement: "confiance",
+};
+
+/**
+ * Ramène un objectif (quel que soit son vocabulaire d'origine) à une clé
+ * canonique de OBJECTIVE_RECOMMENDATIONS, ou null si non résoluble (ex: "auto").
+ */
+export function normalizeObjective(objective?: string | null): string | null {
+  if (!objective) return null;
+  const v = objective.trim().toLowerCase();
+  if (!v || v === "auto") return null;
+  if (OBJECTIVE_RECOMMENDATIONS[v]) return v;
+  return OBJECTIVE_ALIASES[v] || null;
+}
+
 // ── 5. getStructureForCombo ──
 
 export function getStructureForCombo(contentType: string, angleId: string): string {
@@ -651,11 +675,12 @@ export function getAnglesForType(
   const isPinterestVisual = contentType === "pinterest_visual";
   const angleSource = isLinkedIn ? LINKEDIN_EDITORIAL_ANGLES : isPinterestVisual ? PINTEREST_VISUAL_ANGLES : isPinterest ? PINTEREST_EDITORIAL_ANGLES : EDITORIAL_ANGLES;
 
-  if (!objective || !OBJECTIVE_RECOMMENDATIONS[objective]) {
+  const normObjective = normalizeObjective(objective);
+  if (!normObjective) {
     return { recommended: [], others: [...angleSource] };
   }
 
-  const reco = OBJECTIVE_RECOMMENDATIONS[objective];
+  const reco = OBJECTIVE_RECOMMENDATIONS[normObjective];
   const recommendedIds = new Set(reco.angles);
 
   const recommended = angleSource.filter((a) => recommendedIds.has(a.id));
