@@ -291,6 +291,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
 
   const fetchPosts = useCallback(async () => {
     setPostsLoading(true);
+    try {
     if (isDemoMode && demoData) {
       // Build demo posts from demoData.calendar_posts
       const demoPosts: CalendarPost[] = (demoData as any).calendar_posts
@@ -310,10 +311,9 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
           updated_at: new Date().toISOString(),
         } as unknown as CalendarPost));
       setPosts(demoPosts);
-      setPostsLoading(false);
       return;
     }
-    if (!user) { setPostsLoading(false); return; }
+    if (!user) { return; }
 
     if ((viewMode === "kanban" || viewMode === "list") && kanbanPeriod === "all") {
       // No date filter — fetch all posts
@@ -363,7 +363,9 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
         .order("date");
       if (data) setPosts(data as CalendarPost[]);
     }
-    setPostsLoading(false);
+    } finally {
+      setPostsLoading(false);
+    }
   }, [user, year, month, viewMode, weekStart, isDemoMode, kanbanPeriod, column, value]);
 
   useEffect(() => { fetchPosts(); }, [fetchPosts]);
@@ -559,7 +561,11 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
 
   const handleQuickDelete = async (postId: string) => {
     if (!window.confirm("Supprimer ce post ?")) return;
-    await supabase.from("calendar_posts").delete().eq("id", postId);
+    const { error } = await supabase.from("calendar_posts").delete().eq("id", postId);
+    if (error) {
+      toast({ title: "Suppression impossible", description: "Réessaie dans un instant.", variant: "destructive" });
+      return;
+    }
     setPosts(prev => prev.filter(p => p.id !== postId));
     toast({ title: "🗑️ Post supprimé" });
   };

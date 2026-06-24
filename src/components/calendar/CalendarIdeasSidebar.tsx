@@ -125,7 +125,11 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile, onC
   }, [ideas, filter, searchQuery, sortBy]);
 
   const handleDeleteIdea = async (id: string) => {
-    await supabase.from("saved_ideas").delete().eq("id", id);
+    const { error } = await supabase.from("saved_ideas").delete().eq("id", id);
+    if (error) {
+      toast({ title: "Suppression impossible", description: "Réessaie dans un instant.", variant: "destructive" });
+      return;
+    }
     setIdeas(prev => prev.filter(i => i.id !== id));
     toast({ title: "Idée supprimée" });
   };

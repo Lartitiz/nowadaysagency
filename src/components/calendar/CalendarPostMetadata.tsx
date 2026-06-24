@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { cn, toLocalDateStr } from "@/lib/utils";
 import { ChevronDown, CalendarIcon } from "lucide-react";
 import { ANGLES, STATUSES, OBJECTIFS } from "@/lib/calendar-constants";
-import { useActiveSeries } from "@/hooks/use-active-series";
+import { useActiveSeries, getNextEpisodeNumber } from "@/hooks/use-active-series";
 
 const FORMAT_OPTIONS_BY_CANAL: Record<string, { id: string; emoji: string; label: string }[]> = {
   instagram: [
@@ -133,10 +133,13 @@ export function CalendarPostMetadata({
           <label className="text-xs font-semibold block text-foreground">📚 Série</label>
           <select
             value={seriesId || ""}
-            onChange={(e) => {
+            onChange={async (e) => {
               const v = e.target.value || null;
               setSeriesId(v);
-              if (!v && setEpisodeNumber) setEpisodeNumber(null);
+              if (!setEpisodeNumber) return;
+              if (!v) { setEpisodeNumber(null); return; }
+              // Choix d'une série → propose le prochain n° d'épisode (modifiable à la main).
+              setEpisodeNumber(await getNextEpisodeNumber(v));
             }}
             className="w-full rounded-[10px] h-9 px-2 text-xs bg-card border border-border text-foreground"
           >

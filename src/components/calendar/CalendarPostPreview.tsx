@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Download, Loader2, Sparkles, ChevronDown, ChevronLeft, ChevronRight, Copy, Maximize2 } from "lucide-react";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { exportCarouselPng } from "@/lib/export-carousel-png";
 import { exportCarouselHybridPptx } from "@/lib/export-carousel-hybrid-pptx";
 import { SocialMockup } from "@/components/social-mockup/SocialMockup";
@@ -45,6 +45,9 @@ export function CalendarPostPreview({
   const [downloadingPng, setDownloadingPng] = useState(false);
   const [downloadingHybrid, setDownloadingHybrid] = useState(false);
   const [slideIndex, setSlideIndex] = useState(0);
+  // Repartir de la 1ʳᵉ slide quand on change de post (sinon on reste sur un index élevé
+  // d'un carrousel précédent — caption est un identifiant stable du contenu affiché).
+  useEffect(() => { setSlideIndex(0); }, [caption, format, canal]);
   const [includeLogo, setIncludeLogo] = useState(getIncludeLogoPref());
   const logoUrl = (charterData as any)?.logo_url || null;
   const handleIncludeLogoChange = (v: boolean) => { setIncludeLogo(v); setIncludeLogoPref(v); };

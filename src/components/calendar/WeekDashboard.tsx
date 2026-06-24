@@ -27,13 +27,15 @@ export function WeekDashboard({
   const total = weekPosts.length;
   const published = weekPosts.filter((p) => p.status === "published").length;
   const isComplete = total > 0 && published === total;
-  const [celebrated, setCelebrated] = useState(false);
+  const [celebratedWeek, setCelebratedWeek] = useState<string | null>(null);
   const [statsOpen, setStatsOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isComplete && !celebrated) {
-      setCelebrated(true);
+    // Ne célèbre qu'une seule fois par semaine réelle, et jamais sur une vue filtrée :
+    // sinon filtrer (→ semaine "vide") puis défiltrer redéclenchait les confettis.
+    if (isComplete && !activeFilter && celebratedWeek !== weekLabel) {
+      setCelebratedWeek(weekLabel);
       confetti({
         particleCount: 80,
         spread: 60,
@@ -41,8 +43,7 @@ export function WeekDashboard({
         colors: ["#E91E8C", "#FFD700", "#FF6B6B", "#4ECDC4"],
       });
     }
-    if (!isComplete) setCelebrated(false);
-  }, [isComplete]);
+  }, [isComplete, activeFilter, weekLabel, celebratedWeek]);
 
   const counts = OBJECTIFS.map((o) => ({
     ...o,
