@@ -10,6 +10,7 @@ import {
   extractEditableBlocks,
   extractAnnotatedBlocks,
   extractShapeBlocks,
+  extractHeuristicShapes,
   type EditableBlock,
   type ShapeBlock,
   type TextRun,
@@ -595,13 +596,36 @@ export async function exportCarouselHybridPptx(
         }
       }
 
+      // ---- FILET texte : balaye le texte visible NON encore capturé.
+      // Strategy A est "tout ou rien" : dès qu'un bloc est annoté data-pptx-editable,
+      // les légendes/textes NON annotés restaient cuits dans le PNG (non éditables).
+      // On complète donc avec le détecteur heuristique (déjà éprouvé en Strategy C),
+      // en n'ajoutant QUE ce qui n'a pas déjà été capturé (data-pptx-hide).
+      const supplementalText = extractEditableBlocks(doc, {
+        minFontPx: 12,
+        minTextLen: 2,
+        maxBlocks: 16,
+        skipAnnotated: true,
+      });
+      for (const eb of supplementalText) {
+        if (eb.rect.y > SLIDE_H_PX || eb.rect.x > SLIDE_W_PX) continue;
+        if (eb.rect.y + eb.rect.h < 0) continue;
+        // Déjà capturé par Strategy A/B/C (le texte porte alors data-pptx-hide).
+        if ((eb.el as HTMLElement).closest('[data-pptx-hide="true"]')) continue;
+        blocks.push({ text: eb.text, rect: eb.rect, style: eb.style, kind: eb.kind });
+        (eb.el as HTMLElement).setAttribute("data-pptx-hide", "true");
+      }
+
       // ---- Strategy D : extract structural shapes (background, card, pill, highlight)
       // Doit s'exécuter APRÈS extractAnnotatedBlocks (qui pose data-pptx-hide sur les
       // textes — sans impact sur la géométrie des shapes parents) et AVANT captureBody.
       // Le CSS [data-pptx-hide="true"] *  ne touche PAS aux background-color, donc lire
       // cs.backgroundColor sur un parent shape reste valide.
       const SHAPE_CAP_PER_SLIDE = 20;
-      const allShapes = extractShapeBlocks(doc);
+      // Annotés (data-pptx-shape) + FILET heuristique (traits/barres + pastilles
+      // non annotés). Les heuristiques passent par le même pipeline de masquage
+      // (data-pptx-shape-hide) et de rendu natif que les annotés.
+      const allShapes = [...extractShapeBlocks(doc), ...extractHeuristicShapes(doc)];
       const usableShapes: ShapeBlock[] = [];
       for (const sb of allShapes) {
         if (sb.type !== "background") {

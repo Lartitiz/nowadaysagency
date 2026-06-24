@@ -785,4 +785,93 @@ export function extractShapeBlocks(doc: Document): ShapeBlock[] {
   return blocks;
 }
 
+/**
+ * FILET (Strategy heuristique) : récupère en formes natives des éléments décoratifs
+ * NON annotés `data-pptx-shape` que l'IA a oublié de marquer — typiquement les
+ * traits/barres séparateurs et les petites pastilles/badges. Sans ça, ils restent
+ * cuits dans le PNG de fond (non éditables, non déplaçables).
+ *
+ * Règle de sûreté ABSOLUE : tout candidat qui ne passe pas TOUS les garde-fous
+ * (gradient, transform, fond transparent, bordure/ombre non convertible, taille hors
+ * gabarit) est ignoré → l'élément reste rasterisé = comportement actuel. Le filet ne
+ * peut donc qu'AJOUTER de l'éditabilité là où c'est sûr, jamais casser l'existant.
+ *
+ * Deux gabarits conservateurs uniquement :
+ *  - BAR  : élément fin + allongé, fond plein, SANS texte ni image (séparateur/trait).
+ *  - PILL : petit élément arrondi, fond plein, avec un texte court (badge type "OPINION").
+ *           Son texte est récupéré séparément par le sweep extractEditableBlocks.
+ */
+export function extractHeuristicShapes(doc: Document): ShapeBlock[] {
+  const win = doc.defaultView;
+  if (!win) return [];
+  const out: ShapeBlock[] = [];
+  const all = Array.from(doc.body.querySelectorAll<HTMLElement>("*"));
+
+  for (const el of all) {
+    // Déjà géré ailleurs : annotations explicites (shape/photo) ou zone photo.
+    if (el.closest("[data-pptx-shape]")) continue;
+    if (el.hasAttribute("data-pptx-photo") || el.closest("[data-pptx-photo]")) continue;
+
+    const cs = win.getComputedStyle(el);
+    if (cs.visibility === "hidden" || cs.display === "none") continue;
+    if (parseFloat(cs.opacity || "1") < 0.95) continue; // semi-transparent → rendu peu fiable
+
+    // Fond plein opaque obligatoire (pas de gradient, pas de transform, pas de photo de fond).
+    const bgColor = cs.backgroundColor || "transparent";
+    if (bgColor === "transparent" || bgColor === "rgba(0, 0, 0, 0)") continue;
+    if (/rgba\([^)]*,\s*0?\.\d+\s*\)/i.test(bgColor)) continue; // bg-color semi-transparent
+    const bgImage = cs.backgroundImage || "none";
+    if (bgImage !== "none") continue; // gradient ou image de fond → pas un aplat simple
+    if ((cs.transform || "none") !== "none") continue;
+    if (el.querySelector("img, svg, picture, video")) continue;
+
+    const r = el.getBoundingClientRect();
+    if (r.width < 5 || r.height < 5) continue;
+    const minSide = Math.min(r.width, r.height);
+    const maxSide = Math.max(r.width, r.height);
+    const text = (el.textContent || "").trim();
+    const borderRadiusPx = parseFloat(cs.borderTopLeftRadius || cs.borderRadius || "0px") || 0;
+
+    // Garde-fous de conversion réutilisés (bordure/ombre). null = non convertible → skip.
+    const border = parseUniformBorder(cs);
+    if (border === null) continue;
+    const rawShadow = cs.boxShadow || "none";
+    let shadow: ShapeBlock["shadow"] | undefined = undefined;
+    if (rawShadow !== "none") {
+      const parsed = parseSimpleBoxShadow(rawShadow);
+      if (!parsed) continue;
+      shadow = parsed;
+    }
+
+    // BAR : fin (≤ 16px) et allongé (≥ 40px), aucun texte.
+    const isBar = !text && minSide <= 16 && maxSide >= 40;
+    // PILL : petite (≤ 460×120px), arrondie (radius ≥ 8px ou ≥ moitié hauteur), texte court.
+    const isPill =
+      !!text &&
+      !el.hasAttribute("data-pptx-hide") && // déjà capturé comme texte → bg laissé tel quel (sûr)
+      text.length <= 28 &&
+      r.width <= 460 &&
+      r.height <= 120 &&
+      r.width >= 24 &&
+      (borderRadiusPx >= 8 || borderRadiusPx >= r.height / 2 - 1);
+    if (!isBar && !isPill) continue;
+
+    out.push({
+      el,
+      type: isPill ? "pill" : "card",
+      rect: { x: r.left, y: r.top, w: r.width, h: r.height },
+      fill: normalizeHex(bgColor, "FFFFFF"),
+      borderRadiusPx,
+      shadow,
+      border,
+    });
+  }
+
+  // Garde l'élément le plus interne quand deux candidats sont imbriqués (évite de
+  // masquer un conteneur qui engloberait un autre shape).
+  return out.filter(
+    (c) => !out.some((other) => other !== c && c.el !== other.el && c.el.contains(other.el)),
+  );
+}
+
 
