@@ -37,7 +37,7 @@ import type { SlideProposal, StructureProposal } from "@/components/creer/Struct
 
 import { useContentGenerator } from "@/hooks/use-content-generator";
 import { normalizeFormat } from "@/lib/format-normalizer";
-import { CONTENT_STRUCTURES, EDITORIAL_ANGLES, LINKEDIN_EDITORIAL_ANGLES, PINTEREST_EDITORIAL_ANGLES, PINTEREST_VISUAL_ANGLES, getStructureForCombo } from "@/lib/content-structures";
+import { CONTENT_STRUCTURES, EDITORIAL_ANGLES, LINKEDIN_EDITORIAL_ANGLES, PINTEREST_EDITORIAL_ANGLES, PINTEREST_VISUAL_ANGLES, getStructureForCombo, normalizeObjective } from "@/lib/content-structures";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 // DEMO_DATA n'est plus importé directement — on utilise demoData du context
@@ -413,7 +413,7 @@ export default function CreerUnifie() {
     const obj = paramObjectif || locState.objectif || locState.objective || null;
 
     if (subject) setIdeaText(subject);
-    if (obj) setObjective(obj);
+    if (obj) setObjective(normalizeObjective(obj) ?? obj);
     if (locState?.existingContent) setExistingCalendarContent(locState.existingContent);
 
     // Newsjacking context arriving from "Créer depuis cette actu" (IdeaDetailSheet)
@@ -652,7 +652,10 @@ export default function CreerUnifie() {
     setLaunchResults([]);
 
     setIdeaText(data.subject);
-    if (data.objective) setObjective(data.objective);
+    // Normalise à la source : la coach émet un vocabulaire non-canonique
+    // (engagement/inspirer/eduquer/vendre/creer_du_lien) qui, stocké tel quel,
+    // décale les recos, les couleurs calendrier et les stats. On canonicalise.
+    if (data.objective) setObjective(normalizeObjective(data.objective) ?? data.objective);
 
     // Defensive: if the coach returned an unknown/auto format, send the user
     // to the format picker instead of triggering a "Format non supporté" crash.
