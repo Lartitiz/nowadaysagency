@@ -1,11 +1,12 @@
 import { useState, useRef, useCallback, useEffect, DragEvent as ReactDragEvent } from "react";
-import { Upload, X, GripVertical, Wand2, Undo2, Library, Loader2 } from "lucide-react";
+import { Upload, X, GripVertical, Wand2, Undo2, Library, Loader2, Images } from "lucide-react";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { PhotoEditDialog } from "./PhotoEditDialog";
 import { PhotoLibraryPickerDialog } from "@/components/photos/PhotoLibraryPickerDialog";
+import { StockPhotoPickerDialog } from "@/components/photos/StockPhotoPickerDialog";
 import { userPhotoToBase64, type UserPhotoRow } from "@/lib/photo-storage";
 
 const MAX_FILE_SIZE_MB = 25;
@@ -43,6 +44,12 @@ export interface PhotoItem {
   id?: string;
   /** Si la photo vient de la photothèque (user_photos.id), pour tracker la conversion. */
   userPhotoId?: string;
+  /** Banque d'images d'origine si la photo est libre de droit (ex : "pexels"). */
+  stockSource?: string;
+  /** Photographe à créditer (crédit optionnel chez Pexels). */
+  stockPhotographer?: string;
+  /** URL de la fiche source, pour le crédit. */
+  stockSourceUrl?: string;
 }
 
 function mimeFromBase64(input: string, fallback = "image/jpeg"): string {
@@ -67,6 +74,17 @@ export interface PhotoUploadZoneProps {
   compact?: boolean;
   /** Hide the "Ou décris tes photos en quelques mots" textarea. */
   hideDescription?: boolean;
+  /**
+   * Requête initiale pour la recherche de photos libres de droit (ex : le sujet du
+   * contenu). Si absent, on retombe sur la description saisie dans la zone.
+   */
+  stockSearchSeed?: string;
+  /**
+   * Signal (compteur) pour ouvrir le sélecteur de photos libres de droit depuis
+   * l'extérieur (ex : l'encart « Pas de photos sous la main ? »). Incrémenter la
+   * valeur ouvre le dialog.
+   */
+  openStockSignal?: number;
 }
 
 function resizeAndEncode(file: File, maxWidth = 1600, quality = 0.8): Promise<{ base64: string; preview: string }> {
@@ -103,6 +121,8 @@ export function PhotoUploadZone({
   title,
   compact = false,
   hideDescription = false,
+  stockSearchSeed,
+  openStockSignal,
 }: PhotoUploadZoneProps) {
   const [photos, setPhotos] = useState<PhotoItem[]>(initialPhotos ?? []);
   const [description, setDescription] = useState(initialDescription ?? "");
@@ -112,6 +132,7 @@ export function PhotoUploadZone({
   const [editIdx, setEditIdx] = useState<number | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [importingFromLibrary, setImportingFromLibrary] = useState(false);
+  const [stockOpen, setStockOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const isFull = photos.length >= maxPhotos;
   const remainingSlots = Math.max(0, maxPhotos - photos.length);
@@ -122,6 +143,12 @@ export function PhotoUploadZone({
   useEffect(() => {
     if (initialPhotos) setPhotos(initialPhotos);
   }, [initialPhotos]);
+
+  // Ouverture du sélecteur de photos libres de droit pilotée par le parent.
+  // openStockSignal vaut 0 au montage (aucune ouverture) puis s'incrémente au clic.
+  useEffect(() => {
+    if (openStockSignal) setStockOpen(true);
+  }, [openStockSignal]);
 
   const updatePhotos = useCallback(
     (next: PhotoItem[]) => {
@@ -208,6 +235,15 @@ export function PhotoUploadZone({
       } finally {
         setImportingFromLibrary(false);
       }
+    },
+    [photos, maxPhotos, updatePhotos],
+  );
+
+  // Photos libres de droit (Pexels) : le dialog renvoie déjà des PhotoItem prêts.
+  const importStockPhotos = useCallback(
+    (items: PhotoItem[]) => {
+      if (items.length === 0) return;
+      updatePhotos([...photos, ...items].slice(0, maxPhotos));
     },
     [photos, maxPhotos, updatePhotos],
   );
@@ -346,9 +382,9 @@ export function PhotoUploadZone({
         </div>
       )}
 
-      {/* ── "Choose from library" link (non-compact mode) ───── */}
+      {/* ── "Choose from library" / "Stock photos" links (non-compact mode) ───── */}
       {!compact && (
-        <div className="flex justify-center -mt-1">
+        <div className="flex flex-wrap justify-center items-center gap-x-4 gap-y-1.5 -mt-1">
           <button
             type="button"
             onClick={() => setLibraryOpen(true)}
@@ -366,6 +402,15 @@ export function PhotoUploadZone({
                 Choisir dans mes photos
               </>
             )}
+          </button>
+          <button
+            type="button"
+            onClick={() => setStockOpen(true)}
+            disabled={isFull}
+            className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline font-medium disabled:opacity-50 disabled:no-underline disabled:cursor-not-allowed"
+          >
+            <Images className="h-3.5 w-3.5" />
+            Photos libres de droit
           </button>
         </div>
       )}
@@ -427,6 +472,14 @@ export function PhotoUploadZone({
                       Choisir dans mes photos
                     </>
                   )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStockOpen(true)}
+                  className="inline-flex items-center gap-1 text-xs text-primary hover:underline font-medium"
+                >
+                  <Images className="h-3 w-3" />
+                  Libres de droit
                 </button>
               </div>
             ) : (
@@ -547,6 +600,15 @@ export function PhotoUploadZone({
         onOpenChange={setLibraryOpen}
         maxSelectable={remainingSlots}
         onConfirm={importFromLibrary}
+      />
+
+      {/* ── Stock photo picker (Pexels) ─────────────────── */}
+      <StockPhotoPickerDialog
+        open={stockOpen}
+        onOpenChange={setStockOpen}
+        maxSelectable={remainingSlots}
+        onConfirm={importStockPhotos}
+        initialQuery={(stockSearchSeed || description || "").trim() || undefined}
       />
     </div>
   );
