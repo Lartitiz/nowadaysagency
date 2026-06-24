@@ -56,17 +56,7 @@ export const PLAN_LIMITS: Record<string, Record<string, number>> = {
     deep_research: 30,
     photo_retouch: 100,
   },
-  pro: {
-    total: 500,
-    content: 250,
-    audit: 25,
-    dm_comment: 100,
-    bio_profile: 25,
-    suggestion: 50,
-    coach: 100,
-    import: 15,
-    adaptation: 50,
-    deep_research: 50,
-    photo_retouch: 50,
-  },
+  // NB: plan « pro » retiré (reliquat, pas un plan vendu) — le backend
+  // (_shared/plan-limiter.ts) ne le connaît pas non plus. Ce fichier doit
+  // rester le miroir exact du serveur (free / outil / binome).
 };

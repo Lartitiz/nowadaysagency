@@ -49,6 +49,35 @@ async function correctCrosspostJson(rawJson: string): Promise<string> {
     return rawJson;
   }
 }
+
+// Validation anti-débit : un crédit ne doit être facturé que si la réponse IA
+// est exploitable. Pour les actions qui renvoient du JSON, on vérifie que le
+// contenu est parseable AVANT logUsage (tolérant : fences ```json, extraction
+// du 1er bloc {…} ou […]). Si non → erreur renvoyée SANS débit.
+function isParseableJson(raw: unknown): boolean {
+  if (typeof raw !== "string" || !raw.trim()) return false;
+  const s = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+  const tryParse = (t: string) => { try { JSON.parse(t); return true; } catch { return false; } };
+  if (tryParse(s)) return true;
+  const obj = s.match(/\{[\s\S]*\}/);
+  if (obj && tryParse(obj[0])) return true;
+  const arr = s.match(/\[[\s\S]*\]/);
+  if (arr && tryParse(arr[0])) return true;
+  return false;
+}
+
+// Actions dont la réponse est du JSON (les seules soumises au parse-gate).
+// Exclues volontairement : optimize-experience & draft-recommendation (texte
+// brut) et suggest-template (retour anticipé, ne facture pas).
+const JSON_ACTIONS = new Set([
+  "title", "summary", "adapt-instagram", "crosspost", "suggest-skills",
+  "personalize-message", "analyze-resume", "caption-for-carousel", "improve-post",
+]);
+
+const aiUnusableResponse = () => new Response(
+  JSON.stringify({ error: "ai_unusable", message: "La réponse de l'IA était inexploitable. Aucun crédit débité, réessaie." }),
+  { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+);
 import { corsHeaders } from "../_shared/cors.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
@@ -195,6 +224,11 @@ serve(async (req) => {
 
         content = await correctCrosspostJson(content);
 
+        if (!isParseableJson(content)) {
+          console.error("[linkedin-ai] crosspost (files): réponse IA inexploitable, pas de débit");
+          return aiUnusableResponse();
+        }
+
         await logUsage(user.id, category, `linkedin_crosspost_files`, undefined, undefined, workspace_id);
 
         return new Response(JSON.stringify({ content }), {
@@ -253,21 +287,36 @@ serve(async (req) => {
       ];
 
       // Use Gemini Flash for speed (classification task)
-      const geminiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${Deno.env.get("LOVABLE_API_KEY")}` },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash-lite",
-          messages: [
-            { role: "system", content: `Tu es un expert LinkedIn. Voici les templates disponibles :\n${templateList.map(t => `- ${t.id}: ${t.label} (${t.desc}) [objectif: ${t.objectif}]`).join("\n")}\n\nPour le sujet donné, choisis LE meilleur template et explique pourquoi en 1 phrase.\nRéponds UNIQUEMENT en JSON sans backticks :\n{"template_id": "...", "reason": "..."}` },
-            { role: "user", content: `Sujet : "${suggestSujet}"` },
-          ],
-          max_tokens: 200,
-          temperature: 0.3,
-        }),
-      });
-      const geminiData = await geminiRes.json();
-      const rawContent = geminiData?.choices?.[0]?.message?.content || "{}";
+      // Timeout + vérif du statut : sans ça, un hang de la gateway bloque l'edge function.
+      let rawContent = "{}";
+      const sugCtrl = new AbortController();
+      const sugTimer = setTimeout(() => sugCtrl.abort(), 15000);
+      try {
+        const geminiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${Deno.env.get("LOVABLE_API_KEY")}` },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash-lite",
+            messages: [
+              { role: "system", content: `Tu es un expert LinkedIn. Voici les templates disponibles :\n${templateList.map(t => `- ${t.id}: ${t.label} (${t.desc}) [objectif: ${t.objectif}]`).join("\n")}\n\nPour le sujet donné, choisis LE meilleur template et explique pourquoi en 1 phrase.\nRéponds UNIQUEMENT en JSON sans backticks :\n{"template_id": "...", "reason": "..."}` },
+              { role: "user", content: `Sujet : "${suggestSujet}"` },
+            ],
+            max_tokens: 200,
+            temperature: 0.3,
+          }),
+          signal: sugCtrl.signal,
+        });
+        if (geminiRes.ok) {
+          const geminiData = await geminiRes.json();
+          rawContent = geminiData?.choices?.[0]?.message?.content || "{}";
+        } else {
+          console.warn("[linkedin-ai] suggest-template gateway status", geminiRes.status);
+        }
+      } catch (e) {
+        console.warn("[linkedin-ai] suggest-template failed (timeout/réseau)", e);
+      } finally {
+        clearTimeout(sugTimer);
+      }
       // Don't log usage for this lightweight action
       return new Response(JSON.stringify({ content: rawContent }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -302,6 +351,11 @@ serve(async (req) => {
       content = await correctJsonField(content, "improved_version");
     } else if (action === "crosspost") {
       content = await correctCrosspostJson(content);
+    }
+
+    if (JSON_ACTIONS.has(action) && !isParseableJson(content)) {
+      console.error(`[linkedin-ai] ${action}: réponse IA inexploitable, pas de débit`);
+      return aiUnusableResponse();
     }
 
     await logUsage(user.id, category, `linkedin_${action}`, undefined, undefined, workspace_id);

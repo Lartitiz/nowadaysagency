@@ -160,14 +160,18 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
       .select("*")
       .eq(column, value)
       .order("created_at", { ascending: false });
-    if (!error && data) setIdeas(data as unknown as SavedIdea[]);
+    if (error) console.error("[IdeasPage] saved_ideas fetch failed:", error);
+    else if (data) setIdeas(data as unknown as SavedIdea[]);
 
-    // Charger les briefs créatifs
-    const { data: briefsData } = await supabase
+    // Charger les briefs créatifs.
+    // En cas d'échec, on NE vide PAS la liste (sinon le total saute, ex. 34↔35) :
+    // on garde les briefs déjà affichés et on logue l'erreur.
+    const { data: briefsData, error: briefsError } = await supabase
       .from("content_briefs" as any)
       .select("*")
       .eq(column, value)
       .order("created_at", { ascending: false });
+    if (briefsError) console.error("[IdeasPage] content_briefs fetch failed:", briefsError);
     if (briefsData) {
       const briefsAsIdeas: SavedIdea[] = (briefsData as any[]).map((b: any) => ({
         id: b.id,
@@ -180,7 +184,10 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
         status: b.calendar_post_id ? "planned" : "to_explore",
         content_draft: Object.entries(b.answers || {})
           .filter(([, v]) => v && (v as string).trim())
-          .map(([k, v]) => `Q: ${k}\nR: ${v}`)
+          .map(([k, v]) => {
+            const q = Array.isArray(b.questions) ? b.questions.find((qq: any) => qq?.id === k) : null;
+            return q?.question ? `${q.question}\n${v}` : `${v}`;
+          })
           .join("\n\n"),
         content_data: { questions: b.questions, answers: b.answers },
         source_module: "creer",
@@ -218,13 +225,15 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
 
   const handleDelete = async (id: string) => {
     const isBrief = briefs.some(b => b.id === id);
-    if (isBrief) {
-      await supabase.from("content_briefs").delete().eq("id", id);
-      setBriefs(prev => prev.filter(b => b.id !== id));
-    } else {
-      await supabase.from("saved_ideas").delete().eq("id", id);
-      setIdeas(prev => prev.filter(i => i.id !== id));
+    const { error } = isBrief
+      ? await supabase.from("content_briefs").delete().eq("id", id)
+      : await supabase.from("saved_ideas").delete().eq("id", id);
+    if (error) {
+      toast({ title: "Suppression impossible", description: friendlyError(error), variant: "destructive" });
+      return;
     }
+    if (isBrief) setBriefs(prev => prev.filter(b => b.id !== id));
+    else setIdeas(prev => prev.filter(i => i.id !== id));
     if (selectedIdea?.id === id) setSelectedIdea(null);
     toast({ title: isBrief ? "Brief supprimé" : "Idée supprimée" });
   };
@@ -271,8 +280,22 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
 
   const handleRediger = (idea: SavedIdea) => {
     // Navigate to /creer with sujet+angle pré-remplis pour aller direct aux questions
-    const params = new URLSearchParams({ sujet: idea.titre, angle: idea.angle, format: idea.format, canal: idea.canal, objectif: idea.objectif || "", idea_id: idea.id });
+    const params = new URLSearchParams({ sujet: idea.titre.replace(/^📋 /, ""), angle: idea.angle, format: idea.format, canal: idea.canal, objectif: idea.objectif || "", idea_id: idea.id });
     navigate(`/creer?${params.toString()}`);
+  };
+
+  // Brief créatif → /creer en réutilisant les questions/réponses déjà saisies
+  // (atterrit sur l'étape questions pré-remplie au lieu de tout recommencer).
+  const handleCreateFromBrief = (idea: SavedIdea) => {
+    const subject = idea.titre.replace(/^📋 /, "");
+    let data: any = idea.content_data;
+    if (typeof data === "string") { try { data = JSON.parse(data); } catch { data = null; } }
+    const questions = Array.isArray(data?.questions) ? data.questions : [];
+    const answers = data?.answers && typeof data.answers === "object" ? data.answers : {};
+    navigate(
+      `/creer?sujet=${encodeURIComponent(subject)}&objectif=${idea.objectif || ""}`,
+      { state: { fromBrief: true, format: idea.format, angle: idea.angle, canal: idea.canal, questions, answers, briefId: idea.id } },
+    );
   };
 
   const handleSaveNotes = async (id: string, notes: string) => {
@@ -305,7 +328,7 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
           <h1 className="font-display text-[22px] sm:text-[26px] font-bold text-foreground">Ma boîte à idées</h1>
           <p className="text-[15px] text-muted-foreground mt-1">Tout ce que tu as généré, sauvegardé, commencé. Rien ne se perd.</p>
         </div>
-        <Link to="/creer">
+        <Link to="/creer?new=1">
           <Button className="rounded-pill bg-primary text-primary-foreground hover:bg-bordeaux shrink-0">
             💡 Nouvelle idée
           </Button>
@@ -401,7 +424,7 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
               {ideas.length === 0 ? "Commence par générer des idées dans l'atelier. Elles atterriront ici automatiquement." : "Essaie de modifier tes filtres."}
             </p>
             {ideas.length === 0 && (
-              <Link to="/creer">
+              <Link to="/creer?new=1">
                 <Button className="rounded-pill">💡 Aller à l'atelier →</Button>
               </Link>
             )}
@@ -459,7 +482,7 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
                       </span>
                     )}
                     <span className="font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-primary text-primary-foreground">
-                      📱 {idea.canal || "Instagram"}
+                      {CANAL_OPTIONS.find((c) => c.id === (idea.canal || "instagram"))?.label || "📱 Instagram"}
                     </span>
                     {idea.type === "brief" && (
                       <span className="font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-accent text-accent-foreground">
@@ -505,7 +528,7 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
                         variant="default"
                         size="sm"
                         className="rounded-pill text-xs gap-1.5 w-full"
-                        onClick={() => navigate(`/creer?sujet=${encodeURIComponent(idea.titre.replace("📋 ", ""))}&objectif=${idea.objectif || ""}`)}
+                        onClick={() => handleCreateFromBrief(idea)}
                       >
                         <Sparkles className="h-3.5 w-3.5" /> Créer à partir de ce brief
                       </Button>
@@ -547,8 +570,8 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
                       const ob = getObjectifBadge(selectedIdea.objectif)!;
                       return <span className={`font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill ${ob.bg} ${ob.text}`}>{ob.label}</span>;
                     })()}
-                    <span className="font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-primary text-primary-foreground">📱 {selectedIdea.canal}</span>
-                    <span className="font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-rose-pale text-foreground">{(selectedIdea.type || "idea") === "idea" ? "💡 Idée" : (selectedIdea.type || "idea") === "draft" ? "✏️ Brouillon" : "🎣 Accroche"}</span>
+                    <span className="font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-primary text-primary-foreground">{CANAL_OPTIONS.find((c) => c.id === (selectedIdea.canal || "instagram"))?.label || "📱 Instagram"}</span>
+                    <span className="font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-rose-pale text-foreground">{TYPE_OPTIONS.find((t) => t.id === (selectedIdea.type || "idea"))?.label || "💡 Idée"}</span>
                   </div>
                 </DialogHeader>
 
@@ -567,8 +590,18 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
                     </section>
                   )}
 
+                  {/* Brief créatif → on affiche les réponses telles quelles (pas via ContentPreview) */}
+                  {selectedIdea.type === "brief" && selectedIdea.content_draft?.trim() && (
+                    <section className="pt-6 border-t border-border/60 space-y-2">
+                      <p className="font-mono-ui text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Ton brief</p>
+                      <div className="rounded-xl bg-rose-pale p-3 max-h-[400px] overflow-y-auto whitespace-pre-wrap text-sm text-foreground/90">
+                        {selectedIdea.content_draft}
+                      </div>
+                    </section>
+                  )}
+
                   {/* Draft / Content */}
-                  {(selectedIdea.content_data || selectedIdea.content_draft) && (
+                  {selectedIdea.type !== "brief" && (selectedIdea.content_data || selectedIdea.content_draft) && (
                     <section className="pt-6 border-t border-border/60 space-y-2">
                       <p className="font-mono-ui text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Contenu</p>
                       <div className="rounded-xl bg-rose-pale p-3 max-h-[400px] overflow-y-auto">
@@ -652,19 +685,18 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
 
                 {/* Sticky footer actions */}
                 <div className="px-6 py-4 border-t border-border bg-background flex flex-col gap-3">
-                  <Button onClick={() => handleRediger(selectedIdea)} className="rounded-pill gap-2 w-full">
-                    <PenLine className="h-4 w-4" /> Continuer la rédaction
+                  <Button onClick={() => selectedIdea.type === "brief" ? handleCreateFromBrief(selectedIdea) : handleRediger(selectedIdea)} className="rounded-pill gap-2 w-full">
+                    <PenLine className="h-4 w-4" /> {selectedIdea.type === "brief"
+                      ? "Créer à partir de ce brief"
+                      : (selectedIdea.content_draft || selectedIdea.content_data) ? "Continuer la rédaction" : "Rédiger ce contenu"}
                   </Button>
                   <div className="flex gap-3">
                     <div className="flex-1">
                       <PlanifierPopover idea={selectedIdea} onPlan={handlePlan} fullWidth />
                     </div>
-                    {(selectedIdea.content_draft || selectedIdea.content_data) && !selectedIdea.content_data?.script && (
+                    {selectedIdea.content_draft?.trim() && !selectedIdea.content_draft.trim().startsWith("{") && (
                       <Button variant="outline" size="sm" className="rounded-pill gap-1 text-xs" onClick={async () => {
-                        const text = selectedIdea.content_draft && !selectedIdea.content_draft.startsWith("{")
-                          ? selectedIdea.content_draft
-                          : "Contenu copié depuis le composant de prévisualisation.";
-                        await navigator.clipboard.writeText(text);
+                        await navigator.clipboard.writeText(selectedIdea.content_draft!.trim());
                         toast({ title: "Copié !" });
                       }}>
                         <Copy className="h-3 w-3" /> Copier

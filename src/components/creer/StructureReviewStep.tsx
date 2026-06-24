@@ -3,6 +3,7 @@ import { ArrowUp, ArrowDown, X, Plus, Loader2, Check, Sparkles, AlertTriangle } 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { resolvePhotoIndexes } from "@/lib/resolve-photo-index";
+import { formatSlideRole } from "@/lib/slide-roles";
 
 export interface SlideProposal {
   slide_number: number;
@@ -336,7 +337,7 @@ export default function StructureReviewStep({
                 {slide.slide_number}
               </span>
               <span className="bg-gray-100 text-gray-500 text-xs px-2 py-0.5 rounded-full">
-                {slide.role}
+                {formatSlideRole(slide.role)}
               </span>
 
               {slide.photo_index && photos && photos[slide.photo_index - 1] && (

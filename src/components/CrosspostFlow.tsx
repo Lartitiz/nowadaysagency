@@ -20,7 +20,8 @@ import { toast } from "sonner";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 
 const SOURCE_TYPES = [
-  { id: "newsletter", label: "📧 Ma newsletter" },
+  // TODO: à réactiver quand le générateur newsletter sera prêt (aligné avec LinkedInCrosspost)
+  // { id: "newsletter", label: "📧 Ma newsletter" },
   { id: "instagram", label: "📸 Mon post Instagram" },
   { id: "linkedin", label: "💼 Mon post LinkedIn" },
   { id: "libre", label: "📝 Texte libre" },
@@ -71,6 +72,7 @@ export default function CrosspostFlow() {
   const [showCalendarDialog, setShowCalendarDialog] = useState(false);
   const [showIdeasDialog, setShowIdeasDialog] = useState(false);
   const [activeVersionKey, setActiveVersionKey] = useState<string>("");
+  const [addingToCalendar, setAddingToCalendar] = useState(false);
 
   const toggleTarget = (id: string) => {
     const next = new Set(targets);
@@ -146,9 +148,12 @@ export default function CrosspostFlow() {
   };
 
   const handleCopy = (text: string, key: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(key);
-    setTimeout(() => setCopied(null), 2000);
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(key);
+      setTimeout(() => setCopied(null), 2000);
+    }).catch(() => {
+      toast.error("Copie impossible — sélectionne et copie le texte manuellement.");
+    });
   };
 
   const getActiveVersion = () => result?.versions?.[activeVersionKey] || null;
@@ -167,7 +172,8 @@ export default function CrosspostFlow() {
   };
 
   const handleAddToCalendar = async (dateStr: string) => {
-    if (!user) return;
+    if (!user || addingToCalendar) return; // garde anti double-clic (évite les doublons)
+    setAddingToCalendar(true);
     const text = getActiveVersionText();
     const label = getActiveChannelLabel();
     const version = getActiveVersion();
@@ -179,7 +185,7 @@ export default function CrosspostFlow() {
       format: getActiveFormat(),
       content_draft: text,
       accroche: text.split("\n")[0]?.slice(0, 200) || "",
-      status: "ready",
+      status: "drafting",
       story_sequence_detail: {
         type: "crosspost",
         source_type: sourceType,
@@ -191,12 +197,16 @@ export default function CrosspostFlow() {
     if (workspaceId && workspaceId !== user.id) {
       insertData.workspace_id = workspaceId;
     }
-    const { error } = await supabase.from("calendar_posts").insert(insertData);
-    setShowCalendarDialog(false);
-    if (error) {
-      toast.error("Erreur lors de la planification");
-    } else {
-      toast.success("📅 Planifié dans ton calendrier !");
+    try {
+      const { error } = await supabase.from("calendar_posts").insert(insertData);
+      if (error) {
+        toast.error("Erreur lors de la planification");
+      } else {
+        setShowCalendarDialog(false);
+        toast.success("📅 Planifié dans ton calendrier !");
+      }
+    } finally {
+      setAddingToCalendar(false);
     }
   };
 
@@ -361,6 +371,7 @@ export default function CrosspostFlow() {
             onConfirm={handleAddToCalendar}
             contentLabel={`🔄 Crosspost ${getActiveChannelLabel()}`}
             contentEmoji="🔄"
+            loading={addingToCalendar}
           />
           <SaveToIdeasDialog
             open={showIdeasDialog}

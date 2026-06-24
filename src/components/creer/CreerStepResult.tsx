@@ -496,9 +496,15 @@ export default function CreerStepResult({
           }
           if (format === "pinterest_visual" && result?.title) {
             onCopy(`${result.title}\n\n${result.description || ""}`);
-          } else {
-            onCopy(JSON.stringify(result, null, 2));
+            return;
           }
+          // Post texte (LinkedIn, Instagram, carrousel…) : copier le texte du post,
+          // pas l'objet JSON brut. Fallback JSON seulement si vraiment aucun texte.
+          const cleanText =
+            result?.full_text ||
+            result?.content ||
+            [result?.hook, result?.body, result?.cta].filter(Boolean).join("\n\n").trim();
+          onCopy(cleanText || JSON.stringify(result, null, 2));
         }} className="gap-1.5 text-xs text-muted-foreground">
           <Copy className="h-3.5 w-3.5" /> Copier
         </Button>

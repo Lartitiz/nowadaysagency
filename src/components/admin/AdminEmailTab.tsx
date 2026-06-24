@@ -64,8 +64,8 @@ interface EmailSend {
 
 // ── Helpers ──
 
-const PLAN_FILTERS = ["all", "free", "outil", "pro", "binome"] as const;
-const PLAN_LABELS: Record<string, string> = { all: "Toutes", free: "Free", outil: "Assistant Com'", pro: "Pro", binome: "Binôme" };
+const PLAN_FILTERS = ["all", "free", "outil", "binome"] as const;
+const PLAN_LABELS: Record<string, string> = { all: "Toutes", free: "Free", outil: "Assistant Com'", binome: "Binôme" };
 
 function planBadge(plan: string) {
   switch (plan) {

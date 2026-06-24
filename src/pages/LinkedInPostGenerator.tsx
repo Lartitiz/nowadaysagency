@@ -48,6 +48,7 @@ export default function LinkedInPostGenerator() {
   const [copiedImprove, setCopiedImprove] = useState<string | null>(null);
   const [showIdeasDialog, setShowIdeasDialog] = useState(false);
   const [ideasContent, setIdeasContent] = useState("");
+  const [addingToCalendar, setAddingToCalendar] = useState(false);
 
   const improvePost = async () => {
     if (!existingPost.trim()) return;
@@ -62,8 +63,19 @@ export default function LinkedInPostGenerator() {
       }
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
-      let parsed: ImproveResult = parseAIResponse(content);
-      setImproveResult(parsed);
+      const parsed: any = parseAIResponse(content);
+      // Réponse IA possiblement partielle → on garantit la forme pour éviter un crash au rendu.
+      const safe: ImproveResult = {
+        score: typeof parsed?.score === "number" ? parsed.score : 0,
+        points_forts: Array.isArray(parsed?.points_forts) ? parsed.points_forts : [],
+        points_faibles: Array.isArray(parsed?.points_faibles) ? parsed.points_faibles : [],
+        accroche_analysis: parsed?.accroche_analysis || "",
+        improved_version: parsed?.improved_version || existingPost,
+        hook_alternatives: Array.isArray(parsed?.hook_alternatives) ? parsed.hook_alternatives : [],
+        character_count: typeof parsed?.character_count === "number" ? parsed.character_count : (parsed?.improved_version || "").length,
+        checklist: Array.isArray(parsed?.checklist) ? parsed.checklist : [],
+      };
+      setImproveResult(safe);
     } catch (e: any) {
       console.error("Erreur technique:", e);
       toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
@@ -73,10 +85,13 @@ export default function LinkedInPostGenerator() {
   };
 
   const copyImproveText = (text: string, key: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedImprove(key);
-    setTimeout(() => setCopiedImprove(null), 2000);
-    toast({ title: "📋 Copié !" });
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedImprove(key);
+      setTimeout(() => setCopiedImprove(null), 2000);
+      toast({ title: "📋 Copié !" });
+    }).catch(() => {
+      toast({ title: "Copie impossible", description: "Sélectionne et copie le texte manuellement.", variant: "destructive" });
+    });
   };
 
   const useHookAlternative = (hook: string) => {
@@ -112,39 +127,48 @@ export default function LinkedInPostGenerator() {
   };
 
   const handleCalendar = async (text: string) => {
-    if (!user) return;
+    if (!user || addingToCalendar) return; // garde anti double-clic (évite les doublons)
+    setAddingToCalendar(true);
+    try {
+      if (calendarState?.fromCalendar && calendarState?.calendarPostId) {
+        const { error } = await supabase.from("calendar_posts").update({
+          content_draft: text,
+          accroche: text.split(/[.\n]/)[0]?.trim()?.slice(0, 200) || "",
+          status: "drafting",
+          format: "post_texte",
+        }).eq("id", calendarState.calendarPostId);
+        if (error) {
+          console.error("calendar_posts update error:", error);
+          toast({ title: "Erreur", description: friendlyError(error), variant: "destructive" });
+          return;
+        }
+        toast({ title: "✅ Post LinkedIn mis à jour dans ton calendrier !" });
+        navigate("/calendrier");
+        return;
+      }
 
-    if (calendarState?.fromCalendar && calendarState?.calendarPostId) {
-      await supabase.from("calendar_posts").update({
+      const dateStr = getNextOptimalDate();
+      const formattedDate = new Date(dateStr + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
+      const { error } = await supabase.from("calendar_posts").insert({
+        user_id: profileUserId,
+        workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
+        date: dateStr,
+        theme: "Post LinkedIn amélioré",
+        angle: "improve",
+        canal: "linkedin",
+        status: "drafting",
         content_draft: text,
         accroche: text.split(/[.\n]/)[0]?.trim()?.slice(0, 200) || "",
-        status: "drafting",
         format: "post_texte",
-      }).eq("id", calendarState.calendarPostId);
-      toast({ title: "✅ Post LinkedIn mis à jour dans ton calendrier !" });
-      navigate("/calendrier");
-      return;
-    }
-
-    const dateStr = getNextOptimalDate();
-    const formattedDate = new Date(dateStr + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
-    const { error } = await supabase.from("calendar_posts").insert({
-      user_id: profileUserId,
-      workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
-      date: dateStr,
-      theme: "Post LinkedIn amélioré",
-      angle: "improve",
-      canal: "linkedin",
-      status: "drafting",
-      content_draft: text,
-      accroche: text.split(/[.\n]/)[0]?.trim()?.slice(0, 200) || "",
-      format: "post_texte",
-    });
-    if (error) {
-      console.error("calendar_posts insert error:", error);
-      toast({ title: "Erreur", description: friendlyError(error), variant: "destructive" });
-    } else {
-      toast({ title: `📅 Post enregistré dans ton calendrier au ${formattedDate}` });
+      });
+      if (error) {
+        console.error("calendar_posts insert error:", error);
+        toast({ title: "Erreur", description: friendlyError(error), variant: "destructive" });
+      } else {
+        toast({ title: `📅 Post enregistré dans ton calendrier au ${formattedDate}` });
+      }
+    } finally {
+      setAddingToCalendar(false);
     }
   };
 
@@ -278,7 +302,7 @@ export default function LinkedInPostGenerator() {
                     {copiedImprove === "improved" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                     {copiedImprove === "improved" ? "Copié !" : "Copier"}
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => handleCalendar(improveResult.improved_version)} className="rounded-full gap-1.5">
+                  <Button variant="outline" size="sm" disabled={addingToCalendar} onClick={() => handleCalendar(improveResult.improved_version)} className="rounded-full gap-1.5">
                     <CalendarDays className="h-3.5 w-3.5" /> Calendrier
                    </Button>
                    <Button variant="outline" size="sm" onClick={() => { setIdeasContent(improveResult.improved_version); setShowIdeasDialog(true); }} className="rounded-full gap-1.5">

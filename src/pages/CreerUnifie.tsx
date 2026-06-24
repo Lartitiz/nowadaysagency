@@ -190,7 +190,7 @@ export default function CreerUnifie() {
   const [photoMode, setPhotoMode] = useState(false);
   const [demoGenerating, setDemoGenerating] = useState(false);
   const [pinterestData, setPinterestData] = useState<{ link?: string; boardId?: string; boardName?: string } | null>(null);
-  const [isLinkedInCarousel, setIsLinkedInCarousel] = useState(false);
+  const [isLinkedInCarousel, setIsLinkedInCarousel] = useState(ps?.isLinkedInCarousel ?? false);
   const [pinterestPinHtml, setPinterestPinHtml] = useState<string | null>(null);
   const [pinterestVisualGenerating, setPinterestVisualGenerating] = useState(false);
   const [inspirationLoading, setInspirationLoading] = useState(false);
@@ -201,6 +201,12 @@ export default function CreerUnifie() {
   const [inspirationImagePreview, setInspirationImagePreview] = useState<string | null>(ps?.inspirationImagePreview || null);
   const [photoBriefResult, setPhotoBriefResult] = useState<any>(null);
   const [currentBriefId, setCurrentBriefId] = useState<string | null>(null);
+  // Réponses pré-remplies quand on arrive depuis « Créer à partir de ce brief »
+  // (boîte à idées) — affichées telles quelles sur l'étape questions.
+  const [briefPrefillAnswers, setBriefPrefillAnswers] = useState<Record<string, string> | null>(null);
+  // Id du brief d'origine quand on vient de « Créer à partir de ce brief » :
+  // on met à jour ce brief au lieu d'en créer un doublon à la génération.
+  const [incomingBriefId, setIncomingBriefId] = useState<string | null>(null);
   const [briefsCount, setBriefsCount] = useState(0);
   const [photoBriefOverlayHtml, setPhotoBriefOverlayHtml] = useState<string | null>(null);
   const [structureProposal, setStructureProposal] = useState<StructureProposal | null>(null);
@@ -393,9 +399,10 @@ export default function CreerUnifie() {
         editingIdeaId,
         carouselSubMode,
         photoDescription,
+        isLinkedInCarousel,
       });
     }
-  }, [step, ideaText, objective, selectedFormat, editorialAngle, editContent, result, visualSlides?.length, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview, editingIdeaId, carouselSubMode, photoDescription]);
+  }, [step, ideaText, objective, selectedFormat, editorialAngle, editContent, result, visualSlides?.length, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview, editingIdeaId, carouselSubMode, photoDescription, isLinkedInCarousel]);
 
   // Pre-fill from URL/state & auto-advance (only when URL params are present)
   const initDone = useRef(false);
@@ -443,6 +450,24 @@ export default function CreerUnifie() {
 
     if (fmt) setSelectedFormat(fmt);
     if (paramCarouselSubMode) setCarouselSubMode(paramCarouselSubMode);
+
+    // « Créer à partir de ce brief » (boîte à idées) : on réutilise les questions
+    // et réponses déjà saisies et on atterrit directement sur l'étape questions
+    // pré-remplie, au lieu de tout recommencer.
+    if (locState?.fromBrief && Array.isArray(locState.questions) && locState.questions.length > 0) {
+      const briefAngle = locState?.angle || paramAngle || undefined;
+      if (briefAngle) setEditorialAngle(briefAngle);
+      setQuestions(locState.questions as any);
+      if (locState.answers && typeof locState.answers === "object") {
+        setBriefPrefillAnswers(locState.answers as Record<string, string>);
+      }
+      if (locState.briefId) setIncomingBriefId(locState.briefId as string);
+      setStep("questions");
+      if (location.state) {
+        window.history.replaceState({}, "", window.location.href);
+      }
+      return;
+    }
 
     if (fmt && subject.trim()) {
       // Build enriched subject directly from locState to avoid race condition
@@ -894,17 +919,30 @@ export default function CreerUnifie() {
     // récent envoyé à l'IA et provoquent des questions hors-sujet.
     if (session?.user?.id && Object.keys(ans).length > 0 && ideaText.trim().length > 0) {
       try {
-        const { data: briefData } = await supabase.from("content_briefs").insert({
-          user_id: session.user.id,
-          workspace_id: workspaceId && workspaceId !== session.user.id ? workspaceId : null,
-          subject: ideaText,
-          objective: objective || null,
-          format: selectedFormat || null,
-          editorial_angle: editorialAngle || null,
-          questions: questions.map(q => ({ id: q.id, question: q.question })),
-          answers: ans,
-        } as any).select("id").maybeSingle();
-        if (briefData?.id) setCurrentBriefId(briefData.id);
+        if (incomingBriefId) {
+          // Vient de « Créer à partir de ce brief » : on met à jour le brief
+          // existant au lieu d'en créer un doublon.
+          await supabase.from("content_briefs").update({
+            objective: objective || null,
+            format: selectedFormat || null,
+            editorial_angle: editorialAngle || null,
+            questions: questions.map(q => ({ id: q.id, question: q.question })),
+            answers: ans,
+          } as any).eq("id", incomingBriefId);
+          setCurrentBriefId(incomingBriefId);
+        } else {
+          const { data: briefData } = await supabase.from("content_briefs").insert({
+            user_id: session.user.id,
+            workspace_id: workspaceId && workspaceId !== session.user.id ? workspaceId : null,
+            subject: ideaText,
+            objective: objective || null,
+            format: selectedFormat || null,
+            editorial_angle: editorialAngle || null,
+            questions: questions.map(q => ({ id: q.id, question: q.question })),
+            answers: ans,
+          } as any).select("id").maybeSingle();
+          if (briefData?.id) setCurrentBriefId(briefData.id);
+        }
       } catch (e) {
         console.error("[CreerUnifie] Failed to save content brief:", e);
       }
@@ -2741,7 +2779,7 @@ export default function CreerUnifie() {
                 onSkip={handleSkipQuestions}
                 onBack={() => setStep("format")}
                 previousBriefsCount={briefsCount}
-                initialAnswers={aurianaDemoActive && ideaText === AURIANA_DEMO_SUBJECT && carouselSubMode === "text" && uploadedPhotos.length === 0 ? AURIANA_DEMO_FLOW.answers : undefined}
+                initialAnswers={briefPrefillAnswers ?? (aurianaDemoActive && ideaText === AURIANA_DEMO_SUBJECT && carouselSubMode === "text" && uploadedPhotos.length === 0 ? AURIANA_DEMO_FLOW.answers : undefined)}
                 onRequestFollowUp={async (currentAnswers) => {
                   return await generateFollowUp({
                     subject: ideaText,
