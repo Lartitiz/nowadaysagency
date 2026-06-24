@@ -138,8 +138,14 @@ export default function CreerUnifie() {
     if (!ps?.step) return "idea";
     if (ps.step === "result" && ps.result) return "result";
     if (ps.step === "edit" && ps.editContent) return "edit";
+    // structure_review dépend de `structureProposal`, qui n'est PAS persisté →
+    // au reload il repart à null et l'écran serait vide. On retombe donc sur
+    // l'étape format (ou idée) plutôt que sur un écran mort.
+    if (ps.step === "structure_review") {
+      return ps.selectedFormat ? "format" : "idea";
+    }
     // Si flow photo/mix/pure_photo avec photos retrouvées, garder le step en cours
-    if (["questions", "structure_review", "inspiration_proposals"].includes(ps.step)) {
+    if (["questions", "inspiration_proposals"].includes(ps.step)) {
       const isPhotoFlow = ps.carouselSubMode === "photo" || ps.carouselSubMode === "mix" || ps.carouselSubMode === "pure_photo";
       if (isPhotoFlow && loadPhotos().length > 0) return ps.step as Step;
       return ps.selectedFormat ? "format" : "idea";
@@ -313,7 +319,6 @@ export default function CreerUnifie() {
     streamingContent,
     streaming,
     streamDone,
-    streamError,
     streamReset,
   } = useContentGenerator();
 
@@ -728,6 +733,7 @@ export default function CreerUnifie() {
   };
 
   const handleFormatNext = async (format: string, angle?: string, options?: { carouselSubMode?: "text" | "photo" | "mix" | "pure_photo"; photos?: any[]; photoDescription?: string; photoMode?: boolean; overrideSubject?: string; linkedinCarousel?: boolean }) => {
+    if (loadingQuestions || generating || structureLoading) return; // garde anti double-clic (évite une 2e génération facturée)
     const { carouselSubMode: sub, photos, photoDescription: desc, photoMode: pm, overrideSubject, linkedinCarousel: linkedinCarLocal } = options || {};
 
     // Auriana demo account: let the flow continue through all steps (no bypass)
@@ -877,6 +883,7 @@ export default function CreerUnifie() {
   };
 
   const handleQuestionsNext = async (ans: Record<string, string>) => {
+    if (generating || structureLoading || streaming) return; // garde anti double-clic (évite une 2e génération facturée)
     setAnswers(ans);
 
     // Sauvegarder le brief en base pour les futures créations
@@ -908,6 +915,7 @@ export default function CreerUnifie() {
   };
 
   const handleSkipQuestions = async () => {
+    if (generating || structureLoading || streaming) return; // garde anti double-clic (évite une 2e génération facturée)
     setAnswers({});
     setStep("result");
     await doGenerate({});
@@ -915,6 +923,7 @@ export default function CreerUnifie() {
 
   const doGenerate = async (ans: Record<string, string>) => {
     if (!selectedFormat) return;
+    if (generating || structureLoading || streaming) return; // garde anti double-clic / réentrance (évite une 2e génération facturée)
 
     // Auriana demo account: instant pre-built result ONLY if user followed the scripted path
     // (carrousel texte sur sujet pré-rempli, sans photos). Sinon → vraie génération IA.
@@ -1003,7 +1012,9 @@ export default function CreerUnifie() {
             setStep("format");
             return;
           }
-          toast.error(streamError || "La génération a échoué. Réessaie.");
+          // L'erreur est affichée par l'effet global (toast unique sur `error`),
+          // y compris le cas "résultat vide" (le hook pose désormais l'erreur).
+          // On évite ainsi le double toast rouge.
           setStep("format");
           return;
         }
