@@ -6,7 +6,7 @@ import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { isDemoUser } from "../_shared/guard-demo.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { getModelForAction, callAnthropicSimple } from "../_shared/anthropic.ts";
-import { fetchHotNews, EVERGREEN_PATTERNS, type PerplexityActu } from "../_shared/perplexity.ts";
+import { fetchHotNews, evergreenPatternsForMode, type PerplexityActu } from "../_shared/perplexity.ts";
 
 // Brand universe cache TTL — regenerate after 30 days or when branding changes
 const BRAND_UNIVERSE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -395,7 +395,8 @@ DEMANDE EXPLICITE DE LA CRÉATRICE — PRIORITÉ ABSOLUE
 ${intentVibeLabels.length > 0 ? `Vibes recherchés : ${intentVibeLabels.join(", ")}` : ""}${intentVibeLabels.length > 0 && intentCustom ? "\n" : ""}${intentCustom ? `Précision libre : "${intentCustom}"` : ""}
 
 → Les actus que tu proposes DOIVENT correspondre à cette demande, en plus de respecter le pont vers le profil.
-→ Si tu ne trouves rien d'aligné après recherche, dis-le franchement (renvoie moins de sujets, ou la sortie vide avec message) plutôt que de forcer des sujets hors-sujet.\n`
+→ Si tu ne trouves pas assez de sujets PARFAITEMENT alignés, ÉLARGIS d'abord ta recherche autour de cette intention (sujets voisins, angle plus large, terme d'univers de niveau 2) AVANT d'abandonner. Pour les sujets issus de cette intention, un pont "moyen" est acceptable.
+→ Ne renvoie le résultat vide qu'en TOUT DERNIER RECOURS, quand vraiment AUCUN sujet connectable n'existe — jamais par excès de prudence. Mieux vaut 3 sujets corrects que zéro.\n`
       : "";
 
     // Bloc "mode macro" — la créatrice veut explicitement de l'actu grand public,
@@ -697,9 +698,13 @@ Si vraiment rien ne fonctionne (moins de 3 sujets connectés trouvables), retour
     // webinaire / replay / page evergreen, même si Claude l'a fait passer.
     // Ces patterns sont les mêmes que côté Perplexity pour cohérence.
     const beforeCount = parsed.actus.length;
+    // En mode scoop, on applique la MÊME whitelist que Perplexity (conférence,
+    // table ronde, événement annuel…) : sinon une actu choc pré-sourcée et gardée
+    // par Perplexity se faisait re-jeter ici → "Actu choc à rebondir" vide.
+    const evergreenList = evergreenPatternsForMode(scoopMode ? "scoop" : "default");
     parsed.actus = parsed.actus.filter((a: any) => {
       const blob = `${a?.titre || ""} ${a?.resume || ""} ${a?.pertinence || ""}`;
-      const isEvergreen = EVERGREEN_PATTERNS.some((rx) => rx.test(blob));
+      const isEvergreen = evergreenList.some((rx) => rx.test(blob));
       if (isEvergreen) {
         console.log(`[newsjacking] dropped (evergreen): "${String(a?.titre || "").slice(0, 80)}"`);
         return false;
@@ -709,6 +714,42 @@ Si vraiment rien ne fonctionne (moins de 3 sujets connectés trouvables), retour
     if (parsed.actus.length < beforeCount) {
       console.log(`[newsjacking] filtered ${beforeCount - parsed.actus.length}/${beforeCount} actus (evergreen)`);
     }
+
+    // Filet anti-vide SCOOP : si après tri il ne reste rien (Claude a flanché ou
+    // le post-filtre a tout raboté) mais que Perplexity avait pré-sourcé des actus
+    // chaudes, on les réinjecte directement. Le mode scoop n'est pas censé se
+    // vider — c'est littéralement "montre-moi du chaud à rebondir".
+    if (scoopMode && parsed.actus.length === 0 && hotNews.length > 0) {
+      const scoopEvergreen = evergreenPatternsForMode("scoop");
+      const excludedSet = new Set(excludedUrls.map((u) => u.trim().toLowerCase()));
+      const fallback = hotNews
+        .filter((a) => {
+          const blob = `${a.titre || ""} ${a.resume || ""}`;
+          if (scoopEvergreen.some((rx) => rx.test(blob))) return false;
+          if (a.source_url && excludedSet.has(a.source_url.trim().toLowerCase())) return false;
+          return true;
+        })
+        .slice(0, 5)
+        .map((a) => ({
+          titre: a.titre,
+          resume: a.resume,
+          source: a.source,
+          source_url: a.source_url,
+          type: "globale",
+          axe: "actu_connectable",
+          ton: "entre_deux",
+          force_pont: "moyen",
+          pertinence:
+            "Actu chaude du moment : réagis comme témoin de ton époque — ce que ça t'évoque, le débat que ça ouvre, sans forcer ton métier.",
+          angle_mode: "reaction",
+        }));
+      if (fallback.length > 0) {
+        console.log(`[newsjacking:scoop] filet anti-vide : réinjection de ${fallback.length} actu(s) pré-sourcée(s)`);
+        parsed.actus = fallback;
+        delete parsed.message;
+      }
+    }
+
     if (parsed.actus.length === 0) {
       parsed.message = parsed.message || "Pas d'actu vraiment fraîche cette fois. Réessaie dans quelques jours.";
     }

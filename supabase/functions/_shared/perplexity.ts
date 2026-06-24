@@ -95,12 +95,20 @@ const SCOOP_EVERGREEN_WHITELIST = new Set<string>([
   /\bsalon\s+(du|de\s+la|professionnel)/i,
 ].map((rx) => rx.source));
 
-function looksEvergreen(a: PerplexityActu, mode: "default" | "scoop" = "default"): boolean {
-  const blob = `${a.titre} ${a.resume}`;
-  const patterns = mode === "scoop"
+// Liste de patterns evergreen applicable selon le mode. En scoop, on retire la
+// whitelist (conférence, table ronde, événement annuel…) car beaucoup d'actus
+// chocs viennent de prises de parole publiques. Exporté pour que le post-filtre
+// de newsjacking-ai applique EXACTEMENT le même tri qu'ici — sinon une actu choc
+// gardée à cette étape se faisait re-jeter là-bas (cause de "Actu choc" vide).
+export function evergreenPatternsForMode(mode: "default" | "scoop" = "default"): RegExp[] {
+  return mode === "scoop"
     ? EVERGREEN_PATTERNS.filter((rx) => !SCOOP_EVERGREEN_WHITELIST.has(rx.source))
     : EVERGREEN_PATTERNS;
-  return patterns.some((rx) => rx.test(blob));
+}
+
+function looksEvergreen(a: PerplexityActu, mode: "default" | "scoop" = "default"): boolean {
+  const blob = `${a.titre} ${a.resume}`;
+  return evergreenPatternsForMode(mode).some((rx) => rx.test(blob));
 }
 
 
