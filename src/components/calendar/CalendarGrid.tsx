@@ -53,12 +53,14 @@ function DroppableDay({
   const isPast = new Date(dateStr + "T00:00:00") < new Date(toLocalDateStr(new Date()) + "T00:00:00");
   const { setNodeRef, isOver } = useDroppable({ id: dateStr });
   const maxVisible = 3;
+  const [expanded, setExpanded] = useState(false);
 
   return (
     <div
       ref={setNodeRef}
       className={cn(
-        "min-h-[110px] max-h-[150px] overflow-hidden border-b border-r border-border p-1.5 group relative transition-colors",
+        "min-h-[110px] border-b border-r border-border p-1.5 group relative transition-colors",
+        !expanded && "max-h-[150px] overflow-hidden",
         !inMonth && "opacity-40",
         isToday && "bg-rose-pale",
         isOver && "bg-primary/10 ring-2 ring-primary/30 ring-inset",
@@ -73,15 +75,15 @@ function DroppableDay({
         )}
       </div>
       <div className="space-y-0">
-        {posts.slice(0, maxVisible).map((p) => (
+        {posts.slice(0, expanded ? posts.length : maxVisible).map((p) => (
           <DraggableCard key={p.id} post={p} onClick={() => onEditPost(p)} seriesNameById={seriesNameById} />
         ))}
         {posts.length > maxVisible && (
           <button
-            onClick={() => posts[maxVisible] && onEditPost(posts[maxVisible])}
+            onClick={() => setExpanded((v) => !v)}
             className="text-[10px] text-muted-foreground hover:text-primary cursor-pointer px-1"
           >
-            +{posts.length - maxVisible} autre{posts.length - maxVisible > 1 ? "s" : ""}
+            {expanded ? "Réduire" : `+${posts.length - maxVisible} autre${posts.length - maxVisible > 1 ? "s" : ""}`}
           </button>
         )}
       </div>
@@ -208,6 +210,9 @@ export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, on
   for (let i = 0; i < calendarDays.length; i += 7) {
     const weekPosts: CalendarPost[] = [];
     for (let j = i; j < i + 7 && j < calendarDays.length; j++) {
+      // Ne compter que les jours du mois affiché (pas les cases grisées des mois voisins),
+      // sinon le récap de la 1ʳᵉ/dernière semaine gonfle le total.
+      if (!calendarDays[j].inMonth) continue;
       const dateStr = toLocalDateStr(calendarDays[j].date);
       weekPosts.push(...(postsByDate[dateStr] || []));
     }

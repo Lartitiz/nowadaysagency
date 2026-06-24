@@ -31,6 +31,7 @@ export function PostCommentsSection({ postId, ownerName }: Props) {
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
   const [showResolved, setShowResolved] = useState(false);
+  const [fallbackShareId, setFallbackShareId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!postId) return;
@@ -45,12 +46,26 @@ export function PostCommentsSection({ postId, ownerName }: Props) {
       });
   }, [postId]);
 
+  // share_id de repli : permet au proprio d'écrire même sur un post sans commentaire,
+  // dès qu'un lien de partage actif existe (sinon le fil ne pouvait jamais démarrer).
+  useEffect(() => {
+    if (!user) return;
+    (supabase.from("calendar_shares") as any)
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("is_active", true)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .then(({ data }: any) => setFallbackShareId(data?.[0]?.id ?? null));
+  }, [user]);
+
   if (!postId) return null;
 
   const unresolvedComments = comments.filter(c => !c.is_resolved);
   const resolvedComments = comments.filter(c => c.is_resolved);
 
-  if (comments.length === 0 && !loading) return null;
+  // On masque seulement s'il n'y a ni commentaire ni lien de partage où rattacher une note.
+  if (comments.length === 0 && !loading && !fallbackShareId) return null;
 
   const toggleResolved = async (commentId: string, current: boolean) => {
     await (supabase.from("calendar_comments") as any)
@@ -63,8 +78,8 @@ export function PostCommentsSection({ postId, ownerName }: Props) {
     if (!reply.trim() || !user) return;
     setSending(true);
 
-    // Get first share for this post
-    const shareForPost = comments[0]?.share_id;
+    // share du fil existant, sinon lien de partage actif du proprio
+    const shareForPost = comments[0]?.share_id || fallbackShareId;
     if (!shareForPost) { setSending(false); return; }
 
     const { data } = await (supabase.from("calendar_comments") as any)
