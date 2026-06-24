@@ -148,9 +148,12 @@ export default function CrosspostFlow() {
   };
 
   const handleCopy = (text: string, key: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(key);
-    setTimeout(() => setCopied(null), 2000);
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(key);
+      setTimeout(() => setCopied(null), 2000);
+    }).catch(() => {
+      toast.error("Copie impossible — sélectionne et copie le texte manuellement.");
+    });
   };
 
   const getActiveVersion = () => result?.versions?.[activeVersionKey] || null;
