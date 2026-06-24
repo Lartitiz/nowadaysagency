@@ -2,13 +2,15 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 
 import { getCorsHeaders } from "../_shared/cors.ts";
 
-const VALID_STATUSES = ["idea", "to_write", "writing", "ready", "published"];
+// Doit rester aligné avec les statuts envoyés par le front (SharedCalendarPage / calendar-constants).
+const VALID_STATUSES = ["idea", "a_rediger", "drafting", "ready", "draft_ready", "published"];
 const STATUS_LABELS: Record<string, string> = {
-  idea: "Pas commencé",
-  to_write: "À rédiger",
-  writing: "En cours",
-  ready: "Validé",
-  published: "Posté",
+  idea: "Idée",
+  a_rediger: "À rédiger",
+  drafting: "En rédaction",
+  ready: "À valider",
+  draft_ready: "Validé",
+  published: "Publié",
 };
 
 Deno.serve(async (req) => {

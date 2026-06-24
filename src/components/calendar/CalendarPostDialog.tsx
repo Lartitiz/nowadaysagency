@@ -380,6 +380,8 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       angle={angle} setAngle={setAngle} showAdvanced={showAdvanced} setShowAdvanced={setShowAdvanced}
       editingPostId={editingPost?.id} selectedDate={selectedDate} onDateChange={onDateChange}
       onUnplan={onUnplan}
+      seriesId={seriesId} setSeriesId={setSeriesId}
+      episodeNumber={episodeNumber} setEpisodeNumber={setEpisodeNumber}
     />
 
   );

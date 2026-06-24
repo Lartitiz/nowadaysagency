@@ -130,11 +130,18 @@ Deno.serve(async (req) => {
           show_columns: share.show_columns ?? ["theme", "status", "date", "wording", "canal", "format", "phase"],
         },
         profile: profile || {},
-        posts: (posts || []).map((p: any) => ({
-          ...p,
-          phase: p.category || p.audience_phase || null,
-          wording: p.content_draft || null,
-        })),
+        // Le wording (brouillon) ne doit fuiter que si la propriétaire l'a explicitement autorisé.
+        posts: (posts || []).map((p: any) => {
+          const showDraft = share.show_content_draft === true;
+          const { content_draft, accroche, ...rest } = p;
+          return {
+            ...rest,
+            phase: p.category || p.audience_phase || null,
+            ...(showDraft
+              ? { content_draft, accroche, wording: content_draft || null }
+              : { wording: null }),
+          };
+        }),
         comments,
         last_updated: lastUpdated || null,
       }),

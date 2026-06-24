@@ -12,9 +12,11 @@ export const STATUSES = [
   { id: "published", label: "Publié" },
 ];
 
-export const STATUS_LABELS: Record<string, string> = Object.fromEntries(
-  STATUSES.map((s) => [s.id, s.label])
-);
+export const STATUS_LABELS: Record<string, string> = {
+  ...Object.fromEntries(STATUSES.map((s) => [s.id, s.label])),
+  // Statut posé par le client depuis le calendrier partagé (« Validé »).
+  draft_ready: "Validé",
+};
 
 export const CANAL_FILTERS = [
   { id: "all", label: "Tout", enabled: true },
@@ -37,6 +39,7 @@ export const statusStyles: Record<string, string> = {
   a_rediger: "bg-cal-idea border-dashed border-cal-idea-border text-foreground",
   drafting: "bg-cal-drafting border-cal-drafting-border text-foreground",
   ready: "bg-cal-ready border-cal-ready-border text-foreground",
+  draft_ready: "bg-cal-published border-cal-published-border text-foreground",
   published: "bg-cal-published border-cal-published-border text-foreground line-through",
 };
 

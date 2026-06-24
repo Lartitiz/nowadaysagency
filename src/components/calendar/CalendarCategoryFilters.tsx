@@ -11,6 +11,7 @@ const OBJECTIVE_FILTERS = [
   { id: "visibilite", emoji: "👁️", label: "Visibilité" },
   { id: "confiance", emoji: "🤝", label: "Confiance" },
   { id: "vente", emoji: "💰", label: "Vente" },
+  { id: "credibilite", emoji: "🏆", label: "Crédibilité" },
   { id: "launch", emoji: "🚀", label: "Lancement" },
   { id: "a_rediger", emoji: "📝", label: "À rédiger" },
 ];

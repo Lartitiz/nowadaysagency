@@ -401,8 +401,9 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   const filteredPosts = useMemo(() => {
     let result = posts;
     if (canalFilter !== "all") result = result.filter((p) => p.canal === canalFilter);
-    if (categoryFilter === "visibilite" || categoryFilter === "confiance" || categoryFilter === "vente") {
-      result = result.filter((p) => p.category === categoryFilter);
+    if (["visibilite", "confiance", "vente", "credibilite"].includes(categoryFilter)) {
+      // L'objectif peut être stocké dans `objectif` (dialog) ou `category` (flux Créer) — on couvre les deux.
+      result = result.filter((p) => p.objectif === categoryFilter || p.category === categoryFilter);
     } else if (categoryFilter === "launch") {
       result = result.filter((p) => !!p.launch_id);
     } else if (categoryFilter === "a_rediger") {

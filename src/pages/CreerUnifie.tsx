@@ -104,6 +104,7 @@ export default function CreerUnifie() {
   const paramFrom = searchParams.get("from");
   const paramAngle = searchParams.get("angle");
   const paramIdeaId = searchParams.get("idea_id");
+  const paramCalendarDate = searchParams.get("calendar_date") || "";
 
   const isFreshStart = searchParams.get("new") === "1";
   const clearedFreshStart = useRef(false);
@@ -261,7 +262,7 @@ export default function CreerUnifie() {
   const [savedId, setSavedId] = useState<string | null>(ps?.savedId || null);
   const [editingIdeaId, setEditingIdeaId] = useState<string | null>(ps?.editingIdeaId ?? paramIdeaId ?? null);
   const [calendarDialogOpen, setCalendarDialogOpen] = useState(false);
-  const [calendarDate, setCalendarDate] = useState("");
+  const [calendarDate, setCalendarDate] = useState(paramCalendarDate);
   const [savingToCalendar, setSavingToCalendar] = useState(false);
 
   // Visual states (carousel only)
@@ -2175,11 +2176,18 @@ export default function CreerUnifie() {
         
         if (Object.keys(updates).length > 0) {
           const currentDetail = storyDetail || {};
+          // Surface les visuels/photos dans la colonne top-level media_urls :
+          // c'est elle que lisent la vue partagée et la vue liste (pas story_sequence_detail).
+          const mediaForColumn =
+            (updates.visual_urls && updates.visual_urls.length > 0)
+              ? updates.visual_urls
+              : (updates.photo_urls && updates.photo_urls.length > 0 ? updates.photo_urls : null);
           await supabase.from("calendar_posts").update({
             story_sequence_detail: {
               ...currentDetail,
               ...updates,
             },
+            ...(mediaForColumn ? { media_urls: mediaForColumn } : {}),
           }).eq("id", postId);
         }
       }
