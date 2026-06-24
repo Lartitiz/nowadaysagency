@@ -13,7 +13,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { Check, Search, Loader2, ImageOff } from "lucide-react";
+import { Check, Search, Loader2, ImageOff, Sparkles, AlertCircle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -28,8 +28,10 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
   searchStockPhotos,
+  suggestStockKeywords,
   stockPhotoToPhotoItem,
   type StockPhoto,
+  type StockKeywordContext,
 } from "@/lib/stock-photos";
 import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
 
@@ -40,6 +42,12 @@ interface StockPhotoPickerDialogProps {
   onConfirm: (photos: PhotoItem[]) => void;
   /** Requête pré-remplie (sujet / description) — lance une recherche à l'ouverture. */
   initialQuery?: string;
+  /**
+   * Contexte du contenu à venir (sujet + angle + format du carrousel). Si fourni,
+   * l'IA propose des mots-clés visuels pertinents et lance la 1re recherche avec.
+   * Best-effort : en cas d'échec, on retombe sur `initialQuery`.
+   */
+  aiContext?: StockKeywordContext;
 }
 
 export function StockPhotoPickerDialog({
@@ -48,6 +56,7 @@ export function StockPhotoPickerDialog({
   maxSelectable,
   onConfirm,
   initialQuery,
+  aiContext,
 }: StockPhotoPickerDialogProps) {
   const [query, setQuery] = useState(initialQuery ?? "");
   const [results, setResults] = useState<StockPhoto[]>([]);
@@ -55,45 +64,84 @@ export function StockPhotoPickerDialog({
   const [searching, setSearching] = useState(false);
   const [importing, setImporting] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // Mots-clés visuels proposés par l'IA (chips cliquables).
+  const [aiKeywords, setAiKeywords] = useState<string[]>([]);
+  const [suggesting, setSuggesting] = useState(false);
   // Évite une double recherche auto en mode React StrictMode (double effet).
   const autoSearchedFor = useRef<string | null>(null);
 
-  async function runSearch(q: string) {
+  // locale: pour les mots-clés IA (anglais) on cible Pexels en en-US ; pour une
+  // requête tapée à la main on reste en fr-FR (défaut côté edge function).
+  async function runSearch(q: string, locale?: string) {
     const term = q.trim();
     if (!term) return;
     setSearching(true);
     setSearched(true);
+    setError(null);
     try {
       const photos = await searchStockPhotos(term, {
         perPage: 24,
         orientation: "portrait",
+        ...(locale ? { locale } : {}),
       });
       setResults(photos);
       setSelectedIds([]);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "La recherche a échoué.");
+      const msg = e instanceof Error ? e.message : "La recherche a échoué.";
+      toast.error(msg);
+      setError(msg);
       setResults([]);
     } finally {
       setSearching(false);
     }
   }
 
-  // Reset à chaque ouverture, et recherche auto si une requête initiale est fournie.
+  // Reset à chaque ouverture. Si un contexte IA est fourni → suggestions de
+  // mots-clés + recherche auto. Sinon, recherche auto sur la requête initiale.
   useEffect(() => {
     if (!open) {
       autoSearchedFor.current = null;
       return;
     }
     const seed = (initialQuery ?? "").trim();
+    const aiSubject = aiContext?.subject?.trim() || "";
     setSelectedIds([]);
     setQuery(initialQuery ?? "");
     setResults([]);
     setSearched(false);
-    if (seed && autoSearchedFor.current !== seed) {
-      autoSearchedFor.current = seed;
+    setError(null);
+    setAiKeywords([]);
+
+    const signature = aiSubject ? `ai:${aiSubject}` : seed;
+    if (!signature || autoSearchedFor.current === signature) return;
+    autoSearchedFor.current = signature;
+
+    if (aiSubject) {
+      setSuggesting(true);
+      void (async () => {
+        try {
+          const { primary, keywords } = await suggestStockKeywords(aiContext!);
+          if (keywords.length) setAiKeywords(keywords);
+          const first = primary || keywords[0];
+          if (first) {
+            setQuery(first);
+            await runSearch(first, "en-US");
+            return;
+          }
+          // Pas de mots-clés exploitables → repli sur le sujet brut.
+          if (seed) await runSearch(seed);
+        } catch (e) {
+          console.warn("[stock-keywords] échec, repli sur le sujet brut", e);
+          if (seed) await runSearch(seed);
+        } finally {
+          setSuggesting(false);
+        }
+      })();
+    } else if (seed) {
       void runSearch(seed);
     }
-  }, [open, initialQuery]);
+  }, [open, initialQuery, aiContext?.subject]);
 
   const atMax = selectedIds.length >= maxSelectable;
 
@@ -166,11 +214,48 @@ export function StockPhotoPickerDialog({
           </Button>
         </form>
 
+        {/* Mots-clés visuels proposés par l'IA d'après le contenu du carrousel */}
+        {(suggesting || aiKeywords.length > 0) && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="inline-flex items-center gap-1 text-xs font-medium text-primary">
+              <Sparkles className="h-3.5 w-3.5" />
+              {suggesting ? "L'IA cherche des pistes…" : "Suggestions IA"}
+            </span>
+            {aiKeywords.map((kw) => {
+              const active = query.trim().toLowerCase() === kw.toLowerCase();
+              return (
+                <button
+                  key={kw}
+                  type="button"
+                  disabled={searching}
+                  onClick={() => {
+                    setQuery(kw);
+                    void runSearch(kw, "en-US");
+                  }}
+                  className={cn(
+                    "rounded-full border px-2.5 py-1 text-xs transition",
+                    active
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-primary",
+                  )}
+                >
+                  {kw}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         <div className="min-h-[220px] max-h-[55vh] overflow-y-auto">
           {searching ? (
             <div className="flex items-center justify-center py-12 text-muted-foreground">
               <Loader2 className="h-5 w-5 animate-spin mr-2" />
               Recherche…
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center gap-2 text-muted-foreground">
+              <AlertCircle className="h-8 w-8 text-destructive/70" />
+              <p className="text-sm max-w-sm">{error}</p>
             </div>
           ) : results.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center gap-2 text-muted-foreground">

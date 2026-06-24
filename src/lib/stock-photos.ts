@@ -25,6 +25,8 @@ export interface StockPhoto {
 export interface StockSearchOptions {
   perPage?: number;
   orientation?: "portrait" | "landscape" | "square";
+  /** Locale Pexels (ex: "fr-FR", "en-US"). Pour des mots-clés anglais, passer "en-US". */
+  locale?: string;
 }
 
 export async function searchStockPhotos(
@@ -38,11 +40,55 @@ export async function searchStockPhotos(
       query: q,
       per_page: opts.perPage ?? 24,
       orientation: opts.orientation ?? "portrait",
+      ...(opts.locale ? { locale: opts.locale } : {}),
     },
   });
   if (error) throw new Error(error.message || "La recherche d'images a échoué.");
   if (data?.error) throw new Error(data.error);
   return (data?.photos ?? []) as StockPhoto[];
+}
+
+/** Contexte du contenu à venir, pour des mots-clés photo pertinents. */
+export interface StockKeywordContext {
+  subject: string;
+  format?: string;
+  angle?: string;
+  objective?: string;
+  /** Texte des slides déjà générées, si disponible. */
+  slides?: string[];
+}
+
+export interface StockKeywords {
+  /** Requête la plus sûre, à lancer en premier. */
+  primary: string;
+  /** Toutes les suggestions (inclut primary en tête). */
+  keywords: string[];
+}
+
+/**
+ * Demande à l'IA des mots-clés visuels (anglais, concrets) à partir du sujet /
+ * angle / format du contenu — pour que la recherche Pexels colle à ce que le
+ * carrousel raconte plutôt qu'au sujet brut souvent abstrait. Best-effort : en
+ * cas d'échec, l'appelant retombe sur le sujet brut.
+ */
+export async function suggestStockKeywords(
+  ctx: StockKeywordContext,
+): Promise<StockKeywords> {
+  const subject = ctx.subject.trim();
+  if (!subject) return { primary: "", keywords: [] };
+  const { data, error } = await supabase.functions.invoke("stock-photo-keywords", {
+    body: {
+      subject,
+      ...(ctx.format ? { format: ctx.format } : {}),
+      ...(ctx.angle ? { angle: ctx.angle } : {}),
+      ...(ctx.objective ? { objective: ctx.objective } : {}),
+      ...(ctx.slides && ctx.slides.length ? { slides: ctx.slides.slice(0, 15) } : {}),
+    },
+  });
+  if (error) throw new Error(error.message || "Suggestion de mots-clés indisponible.");
+  if (data?.error) throw new Error(data.error);
+  const keywords = Array.isArray(data?.keywords) ? (data.keywords as string[]) : [];
+  return { primary: (data?.primary as string) || keywords[0] || "", keywords };
 }
 
 const MAX_DIM = 1600;

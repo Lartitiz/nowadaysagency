@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { PhotoEditDialog } from "./PhotoEditDialog";
 import { PhotoLibraryPickerDialog } from "@/components/photos/PhotoLibraryPickerDialog";
 import { StockPhotoPickerDialog } from "@/components/photos/StockPhotoPickerDialog";
+import type { StockKeywordContext } from "@/lib/stock-photos";
 import { userPhotoToBase64, type UserPhotoRow } from "@/lib/photo-storage";
 
 const MAX_FILE_SIZE_MB = 25;
@@ -85,6 +86,11 @@ export interface PhotoUploadZoneProps {
    * valeur ouvre le dialog.
    */
   openStockSignal?: number;
+  /**
+   * Contexte du contenu à venir (sujet + angle + format). Si fourni, la recherche
+   * de photos libres de droit propose des mots-clés visuels suggérés par l'IA.
+   */
+  stockAiContext?: StockKeywordContext;
 }
 
 function resizeAndEncode(file: File, maxWidth = 1600, quality = 0.8): Promise<{ base64: string; preview: string }> {
@@ -123,6 +129,7 @@ export function PhotoUploadZone({
   hideDescription = false,
   stockSearchSeed,
   openStockSignal,
+  stockAiContext,
 }: PhotoUploadZoneProps) {
   const [photos, setPhotos] = useState<PhotoItem[]>(initialPhotos ?? []);
   const [description, setDescription] = useState(initialDescription ?? "");
@@ -609,6 +616,13 @@ export function PhotoUploadZone({
         maxSelectable={remainingSlots}
         onConfirm={importStockPhotos}
         initialQuery={(stockSearchSeed || description || "").trim() || undefined}
+        aiContext={
+          stockAiContext?.subject?.trim()
+            ? stockAiContext
+            : (stockSearchSeed || description || "").trim()
+              ? { subject: (stockSearchSeed || description || "").trim() }
+              : undefined
+        }
       />
     </div>
   );

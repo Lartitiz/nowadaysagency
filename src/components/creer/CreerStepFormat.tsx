@@ -770,6 +770,12 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
             compact={uploadedPhotos.length > 0}
             stockSearchSeed={idea}
             openStockSignal={stockSignal}
+            stockAiContext={{
+              subject: idea,
+              format: selectedFormat || undefined,
+              angle: selectedAngle || undefined,
+              objective: objective || undefined,
+            }}
           />
           {photoWarning && (
             <div className="mt-3 p-3 rounded-lg bg-amber-50 border border-amber-200 space-y-2 animate-fade-in">
