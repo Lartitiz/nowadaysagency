@@ -11,6 +11,7 @@ import {
   extractAnnotatedBlocks,
   extractShapeBlocks,
   extractHeuristicShapes,
+  extractGradientDecoZones,
   type EditableBlock,
   type ShapeBlock,
   type TextRun,
@@ -648,6 +649,37 @@ export async function exportCarouselHybridPptx(
         (sb.el as HTMLElement).setAttribute("data-pptx-shape-hide", "true");
       }
 
+      // ---- Dégradés déco → IMAGES séparées déplaçables (décision produit).
+      // pptxgenjs ne fait pas de fond dégradé natif : au lieu de laisser ces éléments
+      // cuits dans le PNG de fond monolithique, on capture chacun en image indépendante
+      // (déplaçable dans Canva). On capture AVANT de masquer (sinon l'élément est vidé) ;
+      // en cas d'échec on NE masque PAS → l'élément reste dans le fond = sûr (pas de trou).
+      const gradientImages: { data: string; x: number; y: number; w: number; h: number }[] = [];
+      for (const gz of extractGradientDecoZones(doc)) {
+        try {
+          const gcanvas = await html2canvas(gz.el, {
+            scale: 3,
+            backgroundColor: null,
+            useCORS: true,
+            allowTaint: true,
+            logging: false,
+          });
+          const gdata = gcanvas.toDataURL("image/png");
+          if (!gdata || gdata.length < 64) continue; // capture vide → laissé cuit (sûr)
+          const x = Math.max(0, pxToInches(gz.rect.x, PX_PER_IN));
+          const y = Math.max(0, pxToInches(gz.rect.y, PX_PER_IN));
+          const w = Math.min(PPTX_W_IN - x, pxToInches(gz.rect.w, PX_PER_IN));
+          const h = Math.min(PPTX_H_IN - y, pxToInches(gz.rect.h, PX_PER_IN));
+          if (w <= 0 || h <= 0) continue;
+          // Succès → masquer du PNG de fond (data-pptx-shape-hide vide background/bg-image)
+          // puis mémoriser pour pose en couche séparée après le fond.
+          (gz.el as HTMLElement).setAttribute("data-pptx-shape-hide", "true");
+          gradientImages.push({ data: gdata, x, y, w, h });
+        } catch (e) {
+          console.warn("[hybrid] capture dégradé déco échouée, laissé dans le fond", e);
+        }
+      }
+
       // ---- Photo zones extraction + filtering on availability
       // Si originalPhotos n'est pas fourni → usableZones vide → fallback total :
       // les photos restent visibles dans le rasterisé (comportement legacy).
@@ -786,6 +818,16 @@ export async function exportCarouselHybridPptx(
 
 
       slide.addImage({ data: bg, x: 0, y: 0, w: PPTX_W_IN, h: PPTX_H_IN });
+
+      // Dégradés déco : posés APRÈS le fond (donc visibles + déplaçables individuellement
+      // dans Canva) et AVANT le texte (qui reste au-dessus).
+      for (const gi of gradientImages) {
+        try {
+          slide.addImage({ data: gi.data, x: gi.x, y: gi.y, w: gi.w, h: gi.h });
+        } catch (e) {
+          console.warn("[hybrid] addImage(dégradé déco) failed", e);
+        }
+      }
 
       for (const b of blocks) {
         try {

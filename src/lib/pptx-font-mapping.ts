@@ -843,8 +843,14 @@ export function extractHeuristicShapes(doc: Document): ShapeBlock[] {
       shadow = parsed;
     }
 
-    // BAR : fin (≤ 16px) et allongé (≥ 40px), aucun texte.
-    const isBar = !text && minSide <= 16 && maxSide >= 40;
+    // Surface quasi pleine-slide exclue : c'est le fond de page (géré via slide.background),
+    // pas un élément déco. Coordonnées dans le repère iframe 1080×1350.
+    const isFullSlide = r.width >= 1000 && r.height >= 1250;
+    // BAR : fin (≤ 16px) et allongé (≥ 40px), aucun texte (peut avoir des enfants).
+    const isBar = !text && minSide <= 16 && maxSide >= 40 && !isFullSlide;
+    // BLOC : aplat de couleur plein, SANS texte ni enfant (bloc déco, surligneur, encart de
+    // couleur), de TOUTE épaisseur → attrape ce que isBar (trop fin) ratait (ex. bloc jaune).
+    const isBlock = !text && el.children.length === 0 && maxSide >= 24 && !isFullSlide;
     // PILL : petite (≤ 460×120px), arrondie (radius ≥ 8px ou ≥ moitié hauteur), texte court.
     const isPill =
       !!text &&
@@ -854,7 +860,7 @@ export function extractHeuristicShapes(doc: Document): ShapeBlock[] {
       r.height <= 120 &&
       r.width >= 24 &&
       (borderRadiusPx >= 8 || borderRadiusPx >= r.height / 2 - 1);
-    if (!isBar && !isPill) continue;
+    if (!isBar && !isBlock && !isPill) continue;
 
     out.push({
       el,
@@ -869,6 +875,53 @@ export function extractHeuristicShapes(doc: Document): ShapeBlock[] {
 
   // Garde l'élément le plus interne quand deux candidats sont imbriqués (évite de
   // masquer un conteneur qui engloberait un autre shape).
+  return out.filter(
+    (c) => !out.some((other) => other !== c && c.el !== other.el && c.el.contains(other.el)),
+  );
+}
+
+export interface ImageZone {
+  el: HTMLElement;
+  rect: { x: number; y: number; w: number; h: number };
+}
+
+/**
+ * Détecte les éléments décoratifs à fond EN DÉGRADÉ (linear/radial/conic), sans texte.
+ * pptxgenjs ne sait pas faire de fond dégradé natif (ShapeFillProps = solid only), donc
+ * ces éléments ne peuvent pas devenir des formes natives. Décision produit : les sortir
+ * en IMAGES séparées déplaçables (au lieu de les laisser fondus dans le PNG de fond
+ * monolithique → non déplaçables). L'appelant capture chaque élément via html2canvas
+ * et le pose comme image indépendante ; en cas d'échec il le LAISSE cuit (sûr).
+ *
+ * Exclut : photos (url(data:...)), éléments avec texte/média, surface quasi pleine-slide
+ * (= fond de page), éléments hors cadre. Coordonnées dans le repère iframe 1080×1350.
+ */
+export function extractGradientDecoZones(doc: Document): ImageZone[] {
+  const win = doc.defaultView;
+  if (!win) return [];
+  const out: ImageZone[] = [];
+  for (const el of Array.from(doc.body.querySelectorAll<HTMLElement>("*"))) {
+    if (el.closest("[data-pptx-shape]")) continue;
+    if (el.hasAttribute("data-pptx-photo") || el.closest("[data-pptx-photo]")) continue;
+    if ((el.textContent || "").trim() !== "") continue; // décoratif pur (pas de texte)
+    if (el.querySelector("img, svg, picture, video")) continue;
+
+    const cs = win.getComputedStyle(el);
+    if (cs.visibility === "hidden" || cs.display === "none") continue;
+    if (parseFloat(cs.opacity || "1") < 0.5) continue;
+
+    const bgImage = cs.backgroundImage || "none";
+    if (!/gradient\(/i.test(bgImage)) continue; // doit contenir un dégradé
+    if (/url\(\s*["']?data:image\//i.test(bgImage)) continue; // pas une photo
+
+    const r = el.getBoundingClientRect();
+    if (r.width < 8 || r.height < 8) continue;
+    if (r.width >= 1000 && r.height >= 1250) continue; // fond de page, pas un déco
+    if (r.y > 1350 || r.x > 1080 || r.y + r.height < 0 || r.x + r.width < 0) continue;
+
+    out.push({ el, rect: { x: r.left, y: r.top, w: r.width, h: r.height } });
+  }
+  // Garde le plus interne si imbriqués.
   return out.filter(
     (c) => !out.some((other) => other !== c && c.el !== other.el && c.el.contains(other.el)),
   );
