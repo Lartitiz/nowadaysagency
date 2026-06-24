@@ -461,8 +461,10 @@ export default function CreerUnifie() {
       // Calendar fallback path (already handled above with FORMAT_MAP)
       if (locState.angle) setEditorialAngle(locState.angle);
       setStep("format");
-    } else if (fmt || (fmtRaw && subject.trim())) {
-      // Format inconnu/non-supporté mais sujet présent → laisser choisir le format
+    } else if (subject.trim()) {
+      // Sujet présent mais format absent ou non-supporté (ex : coach « Surprise »
+      // qui renvoie recommended_format="auto") → ouvrir l'étape format pour
+      // choisir canal + format, au lieu de retomber sur l'étape « idée ».
       setStep("format");
     } else if (fmt) {
       setStep("format");
