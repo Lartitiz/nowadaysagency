@@ -201,6 +201,9 @@ export default function CreerUnifie() {
   const [inspirationImagePreview, setInspirationImagePreview] = useState<string | null>(ps?.inspirationImagePreview || null);
   const [photoBriefResult, setPhotoBriefResult] = useState<any>(null);
   const [currentBriefId, setCurrentBriefId] = useState<string | null>(null);
+  // Réponses pré-remplies quand on arrive depuis « Créer à partir de ce brief »
+  // (boîte à idées) — affichées telles quelles sur l'étape questions.
+  const [briefPrefillAnswers, setBriefPrefillAnswers] = useState<Record<string, string> | null>(null);
   const [briefsCount, setBriefsCount] = useState(0);
   const [photoBriefOverlayHtml, setPhotoBriefOverlayHtml] = useState<string | null>(null);
   const [structureProposal, setStructureProposal] = useState<StructureProposal | null>(null);
@@ -443,6 +446,23 @@ export default function CreerUnifie() {
 
     if (fmt) setSelectedFormat(fmt);
     if (paramCarouselSubMode) setCarouselSubMode(paramCarouselSubMode);
+
+    // « Créer à partir de ce brief » (boîte à idées) : on réutilise les questions
+    // et réponses déjà saisies et on atterrit directement sur l'étape questions
+    // pré-remplie, au lieu de tout recommencer.
+    if (locState?.fromBrief && Array.isArray(locState.questions) && locState.questions.length > 0) {
+      const briefAngle = locState?.angle || paramAngle || undefined;
+      if (briefAngle) setEditorialAngle(briefAngle);
+      setQuestions(locState.questions as any);
+      if (locState.answers && typeof locState.answers === "object") {
+        setBriefPrefillAnswers(locState.answers as Record<string, string>);
+      }
+      setStep("questions");
+      if (location.state) {
+        window.history.replaceState({}, "", window.location.href);
+      }
+      return;
+    }
 
     if (fmt && subject.trim()) {
       // Build enriched subject directly from locState to avoid race condition
@@ -2740,7 +2760,7 @@ export default function CreerUnifie() {
                 onSkip={handleSkipQuestions}
                 onBack={() => setStep("format")}
                 previousBriefsCount={briefsCount}
-                initialAnswers={aurianaDemoActive && ideaText === AURIANA_DEMO_SUBJECT && carouselSubMode === "text" && uploadedPhotos.length === 0 ? AURIANA_DEMO_FLOW.answers : undefined}
+                initialAnswers={briefPrefillAnswers ?? (aurianaDemoActive && ideaText === AURIANA_DEMO_SUBJECT && carouselSubMode === "text" && uploadedPhotos.length === 0 ? AURIANA_DEMO_FLOW.answers : undefined)}
                 onRequestFollowUp={async (currentAnswers) => {
                   return await generateFollowUp({
                     subject: ideaText,

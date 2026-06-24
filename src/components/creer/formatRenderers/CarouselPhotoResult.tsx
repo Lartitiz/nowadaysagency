@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { formatSlideRole } from "@/lib/slide-roles";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -392,7 +393,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                 </span>
                 {slide.role && (
                   <Badge variant="secondary" className="text-[10px]">
-                    {slide.role}
+                    {formatSlideRole(slide.role)}
                   </Badge>
                 )}
                 {slide.slide_type && (
