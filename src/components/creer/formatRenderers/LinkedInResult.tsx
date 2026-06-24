@@ -10,6 +10,27 @@ interface Props {
   photos?: { preview: string; base64?: string; name?: string }[];
 }
 
+// Retire du corps le préfixe couvert par l'accroche, en tolérant les différences
+// d'espaces / retours à la ligne (l'IA reformate parfois l'accroche vs le contenu)
+// et la troncature (l'accroche peut être un préfixe coupé du contenu).
+// En cas de divergence réelle, ne touche pas au corps (retour tel quel).
+function stripHookPrefix(body: string, hook: string): string {
+  const h = hook.replace(/\s+/g, " ").trim();
+  if (!h) return body;
+  let i = 0; // index dans body (whitespace d'origine)
+  let j = 0; // index dans h (espaces normalisés)
+  while (i < body.length && j < h.length) {
+    const bWs = /\s/.test(body[i]);
+    const hWs = h[j] === " ";
+    if (bWs && hWs) { while (i < body.length && /\s/.test(body[i])) i++; j++; continue; }
+    if (bWs) { i++; continue; }       // espace en plus côté corps
+    if (hWs) { j++; continue; }       // espace en plus côté accroche
+    if (body[i] === h[j]) { i++; j++; continue; }
+    return body;                       // vraie divergence → on ne strip pas
+  }
+  return j >= h.length ? body.slice(i).replace(/^\s+/, "") : body;
+}
+
 export default function LinkedInResult({ result, photos }: Props) {
   const hook = result?.hook || result?.accroche || "";
   const rawBody = result?.body || result?.content || result?.text || "";
@@ -21,10 +42,7 @@ export default function LinkedInResult({ result, photos }: Props) {
 
   // `content` inclut souvent déjà l'accroche en 1ʳᵉ ligne → on l'enlève du corps
   // pour ne pas afficher (ni copier) deux fois l'accroche.
-  const body =
-    hook && rawBody.trimStart().startsWith(hook.trim())
-      ? rawBody.trimStart().slice(hook.trim().length).trimStart()
-      : rawBody;
+  const body = hook ? stripHookPrefix(rawBody, hook) : rawBody;
 
   const fullText = [hook, body, cta].filter(Boolean).join("\n\n");
   const [checkedText, setCheckedText] = useState(fullText);
