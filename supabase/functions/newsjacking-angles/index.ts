@@ -122,8 +122,21 @@ serve(async (req) => {
     const axeLabel = AXE_LABELS[actu.axe] || actu.axe || "actu";
     const tonLabel = TON_LABELS[actu.ton] || "marquant";
 
+    // "reaction" = actu choisie en mode élargi (macro/scoop) ou lien collé sans
+    // pont fort : la pertinence est une PISTE DE RÉACTION, pas une citation métier.
+    // On relâche le pivot pour ne pas re-fabriquer le pont forcé que ces modes
+    // évitent par design (cf. newsjacking-ai macroBlock/scoopBlock).
+    const isReaction = actu.angle_mode === "reaction";
     const isGlobale = actu.type === "globale";
-    const pontRule = isGlobale
+    const pontRule = isReaction
+      ? `▶ ACTU "RÉACTION" — PONT RELÂCHÉ (actu grand public, mode élargi) :
+Cette actu a été choisie pour sa RÉSONANCE GRAND PUBLIC, pas pour un lien direct au métier de "${nicheLabel}". N'essaie PAS de forcer un retour à l'expertise métier.
+- L'angle est une RÉACTION authentique : la personne réagit comme citoyenne / spectatrice / témoin de son époque, partage un ressenti, ouvre un débat, raconte ce que ça lui évoque.
+- Le pont peut être une valeur, une émotion, une conviction, un parti pris — PAS forcément la cible, l'offre ou le métier.
+- Reste fidèle à la "Pertinence" ci-dessus (c'est une piste de réaction, pas une accroche commerciale).
+- Privilégie "declencheur_externe", "constat_decale" ou "recit_experience". Évite le pivot commercial appuyé.
+- Interdit quand même : le pont 100% hors-sol type "ça nous rappelle l'importance de la communication". Une réaction sincère oui ; un slogan marketing plaqué, non.`
+      : isGlobale
       ? `▶ ACTU GLOBALE — RÈGLE DU PONT (impérative) :
 Cette actu n'est PAS dans le secteur de la personne. Chaque angle DOIT s'appuyer sur le PONT déjà identifié ci-dessus (champ "Pertinence") — ne dérive PAS vers une autre connexion plus lointaine.
 - Le hook part de l'actu (ce que tout le monde a vu/entendu)
@@ -220,9 +233,13 @@ RÈGLES ABSOLUES :
 ══════════════════════════════════════════════
 CHECK FINAL — pour CHAQUE angle, avant de l'écrire :
 ══════════════════════════════════════════════
-Demande-toi : "Quel élément précis du profil cet angle utilise-t-il ?" (cible / activité / combat / pilier / valeur)
+${isReaction
+  ? `- Est-ce une RÉACTION sincère et incarnée (pas un slogan marketing plaqué) ? Si c'est creux ou générique → REFORMULE.
+- Reste-t-il fidèle à la piste de réaction donnée dans "Pertinence" ? Si l'angle part ailleurs → REFORMULE.
+(Pas besoin de citer la cible ou l'offre : ici la personne réagit à une actu grand public. Ne force PAS un pivot métier.)`
+  : `Demande-toi : "Quel élément précis du profil cet angle utilise-t-il ?" (cible / activité / combat / pilier / valeur)
 - Si tu ne peux pas nommer l'élément → l'angle dérive, REFORMULE-le pour qu'il s'ancre dans la pertinence donnée plus haut.
-- Si l'angle ramène à un autre sujet plus lointain que celui de la pertinence → REFORMULE.
+- Si l'angle ramène à un autre sujet plus lointain que celui de la pertinence → REFORMULE.`}
 
 ══════════════════════════════════════════════
 FORMAT DE RÉPONSE — JSON STRICT (pas de markdown)

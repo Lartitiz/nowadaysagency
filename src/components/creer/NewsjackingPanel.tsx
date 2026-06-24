@@ -28,6 +28,10 @@ interface Actu {
   pertinence: string;
   faits_cles?: string[];
   from_url?: boolean;
+  // "reaction" = actu choisie en mode élargi (macro/scoop) ou lien sans pont fort :
+  // le générateur d'angles relâche le pivot métier. Transite tel quel vers
+  // newsjacking-angles (le panel renvoie l'actu entière).
+  angle_mode?: "reaction";
   // angles are now generated on demand
 }
 

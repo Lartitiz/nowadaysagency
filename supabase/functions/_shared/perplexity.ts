@@ -326,10 +326,16 @@ export async function fetchHotNews(opts: {
 
   let kept = filterPipeline(first.actus, mode === "scoop" ? 21 : 14);
 
-  // Retry si trop peu d'actus survivent
+  // Retry si trop peu d'actus survivent.
+  // ⚠️ Le retry doit ÉLARGIR la fenêtre, jamais la rétrécir : le filtre de date
+  // est `search_after_date_filter` (= "publié après afterDate"), donc plus la
+  // fenêtre est grande (afterDate ancien), plus on a de candidats. Le 1er appel
+  // couvre 10j (default) / 14j (scoop) avec un post-filtre à 14j / 21j ; le retry
+  // doit donc aller PLUS loin sur les deux axes. (Avant : default retry = 5j +
+  // post-filtre 10j → plus restrictif que le 1er appel, le filet ne servait à rien.)
   if (kept.length < 2) {
-    const retryDays = mode === "scoop" ? 21 : 5;
-    const retryRecency: "day" | "week" | "month" = mode === "scoop" ? "month" : "week";
+    const retryDays = mode === "scoop" ? 28 : 21;
+    const retryRecency: "day" | "week" | "month" = "month";
     console.log(`[perplexity${mode === "scoop" ? ":scoop" : ""}] only ${kept.length} actu(s) après filtre, retry élargi (-${retryDays}j, ${retryRecency})`);
     try {
       const retryAfter = new Date(today.getTime() - retryDays * 86_400_000);
@@ -344,7 +350,7 @@ export async function fetchHotNews(opts: {
         signal,
         mode,
       });
-      const keptSecond = filterPipeline(second.actus, mode === "scoop" ? 28 : 10);
+      const keptSecond = filterPipeline(second.actus, mode === "scoop" ? 35 : 21);
       const urls = new Set(kept.map((a) => (a.source_url || "").toLowerCase()));
       for (const a of keptSecond) {
         const u = (a.source_url || "").toLowerCase();

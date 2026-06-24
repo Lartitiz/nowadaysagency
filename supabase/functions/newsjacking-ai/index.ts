@@ -713,6 +713,18 @@ Si vraiment rien ne fonctionne (moins de 3 sujets connectés trouvables), retour
       parsed.message = parsed.message || "Pas d'actu vraiment fraîche cette fois. Réessaie dans quelques jours.";
     }
 
+    // Mode élargi (macro/scoop) : ici le pont est une PISTE DE RÉACTION, pas une
+    // citation littérale du métier (cf. macroBlock/scoopBlock). On tague les actus
+    // concernées pour que le générateur d'angles (newsjacking-angles) relâche son
+    // pivot au lieu de forcer un retour à l'expertise — sinon l'angle re-fabrique
+    // exactement le pont forcé qu'on évite ici. En macro, l'unique actu niche
+    // garde le pont strict ; en scoop, tout est en mode réaction.
+    if (macroMode || scoopMode) {
+      for (const a of parsed.actus) {
+        if (a && (scoopMode || a.type === "globale")) a.angle_mode = "reaction";
+      }
+    }
+
     // Log usage
     await logUsage(user.id, "deep_research", "newsjacking", undefined, model, workspace_id);
 

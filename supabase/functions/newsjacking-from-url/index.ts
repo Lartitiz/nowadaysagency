@@ -213,6 +213,12 @@ Analyse maintenant.`;
             .slice(0, 8)
         : [],
       from_url: true,
+      // Pont pas "fort" (= pas de citation littérale du métier) → angle en mode
+      // réaction : on ne force pas un pivot métier sur un article que
+      // l'utilisatrice a choisi elle-même. Pont "fort" garde le pivot classique.
+      ...(ALLOWED_PONTS.has(parsed.force_pont) && parsed.force_pont === "fort"
+        ? {}
+        : { angle_mode: "reaction" as const }),
     };
 
     // 4. Log usage (1 crédit, même catégorie que la recherche)
