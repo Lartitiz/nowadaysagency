@@ -243,13 +243,20 @@ export default function CreerUnifie() {
     }
   }, [isFreshStart, setSearchParams]);
 
-  // If canal param is set, pre-select the format
+  // Si un canal est demandé via l'URL (cartes « Créer un post X » du hub), il
+  // PRIME sur un brouillon restauré d'un AUTRE canal : on change juste de canal
+  // (le sujet/les réponses sont conservés). No-op si on est déjà sur ce canal,
+  // donc ça ne contrarie pas les choix de format faits dans le flux.
   useEffect(() => {
-    if (paramCanal && !selectedFormat) {
-      if (paramCanal === "linkedin" || paramCanal === "pinterest" || paramCanal === "newsletter") {
-        setSelectedFormat(paramCanal);
-      }
+    if (!paramCanal) return;
+    if (paramCanal === "linkedin") {
+      if (selectedFormat !== "linkedin" && !isLinkedInCarousel) setSelectedFormat("linkedin");
+    } else if (paramCanal === "pinterest") {
+      if (!(selectedFormat || "").startsWith("pinterest")) setSelectedFormat("pinterest");
+    } else if (paramCanal === "newsletter") {
+      if (selectedFormat !== "newsletter") setSelectedFormat("newsletter");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paramCanal]);
 
   // Charger le nombre de briefs existants quand on arrive sur les questions
