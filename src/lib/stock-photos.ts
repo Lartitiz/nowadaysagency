@@ -43,7 +43,16 @@ export async function searchStockPhotos(
       ...(opts.locale ? { locale: opts.locale } : {}),
     },
   });
-  if (error) throw new Error(error.message || "La recherche d'images a échoué.");
+  if (error) {
+    // Le client Supabase renvoie un message technique en anglais (ex.
+    // « Failed to send a request to the Edge Function » quand la fonction n'est
+    // pas déployée). On le garde en console pour le debug, mais on n'expose à
+    // l'utilisatrice qu'un message clair en français.
+    console.error("[searchStockPhotos] échec de l'appel à stock-photo-search:", error);
+    throw new Error(
+      "La recherche de photos est momentanément indisponible. Réessaie dans un instant, ou ajoute tes propres photos.",
+    );
+  }
   if (data?.error) throw new Error(data.error);
   return (data?.photos ?? []) as StockPhoto[];
 }
@@ -85,7 +94,11 @@ export async function suggestStockKeywords(
       ...(ctx.slides && ctx.slides.length ? { slides: ctx.slides.slice(0, 15) } : {}),
     },
   });
-  if (error) throw new Error(error.message || "Suggestion de mots-clés indisponible.");
+  if (error) {
+    // Même logique que searchStockPhotos : message technique en console, pas à l'écran.
+    console.error("[suggestStockKeywords] échec de l'appel à stock-photo-keywords:", error);
+    throw new Error("Suggestion de mots-clés indisponible.");
+  }
   if (data?.error) throw new Error(data.error);
   const keywords = Array.isArray(data?.keywords) ? (data.keywords as string[]) : [];
   return { primary: (data?.primary as string) || keywords[0] || "", keywords };
