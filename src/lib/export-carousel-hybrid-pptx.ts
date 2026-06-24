@@ -373,7 +373,7 @@ function stripDataUrlsFromBackground(bgImage: string): string {
  * masquage / capture / unmask en fonction de la disponibilité des
  * originalPhotos correspondants.
  */
-function extractPhotoZones(doc: Document): PhotoZone[] {
+function extractPhotoZones(doc: Document, fallbackPhotoIndex?: number): PhotoZone[] {
   const win = doc.defaultView;
   if (!win) return [];
 
@@ -422,7 +422,13 @@ function extractPhotoZones(doc: Document): PhotoZone[] {
   }
 
   // Strategy B (fallback) — détection défensive
-  let autoIndex = 1;
+  // BUG FIX : on traite UN slide par iframe, donc autoIndex repartait à 1 à chaque
+  // slide → toutes les slides récupéraient originalPhotos[0] (même photo partout dans
+  // le PPTX alors que l'aperçu était correct). On amorce le compteur sur le photo_index
+  // réel de la slide (fourni par slidesData) pour réinjecter la bonne photo native.
+  let autoIndex = Number.isInteger(fallbackPhotoIndex) && (fallbackPhotoIndex as number) >= 1
+    ? (fallbackPhotoIndex as number)
+    : 1;
 
   // <img> base64
   const imgs = Array.from(doc.querySelectorAll<HTMLImageElement>("img"));
@@ -621,7 +627,7 @@ export async function exportCarouselHybridPptx(
       // ---- Photo zones extraction + filtering on availability
       // Si originalPhotos n'est pas fourni → usableZones vide → fallback total :
       // les photos restent visibles dans le rasterisé (comportement legacy).
-      const allZones = extractPhotoZones(doc);
+      const allZones = extractPhotoZones(doc, (data as any)?.photo_index);
       const usableZones: PhotoZone[] = [];
       for (const zone of allZones) {
         const photo = originalPhotos?.[zone.photoIndex - 1];
