@@ -160,14 +160,18 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
       .select("*")
       .eq(column, value)
       .order("created_at", { ascending: false });
-    if (!error && data) setIdeas(data as unknown as SavedIdea[]);
+    if (error) console.error("[IdeasPage] saved_ideas fetch failed:", error);
+    else if (data) setIdeas(data as unknown as SavedIdea[]);
 
-    // Charger les briefs créatifs
-    const { data: briefsData } = await supabase
+    // Charger les briefs créatifs.
+    // En cas d'échec, on NE vide PAS la liste (sinon le total saute, ex. 34↔35) :
+    // on garde les briefs déjà affichés et on logue l'erreur.
+    const { data: briefsData, error: briefsError } = await supabase
       .from("content_briefs" as any)
       .select("*")
       .eq(column, value)
       .order("created_at", { ascending: false });
+    if (briefsError) console.error("[IdeasPage] content_briefs fetch failed:", briefsError);
     if (briefsData) {
       const briefsAsIdeas: SavedIdea[] = (briefsData as any[]).map((b: any) => ({
         id: b.id,
@@ -221,13 +225,15 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
 
   const handleDelete = async (id: string) => {
     const isBrief = briefs.some(b => b.id === id);
-    if (isBrief) {
-      await supabase.from("content_briefs").delete().eq("id", id);
-      setBriefs(prev => prev.filter(b => b.id !== id));
-    } else {
-      await supabase.from("saved_ideas").delete().eq("id", id);
-      setIdeas(prev => prev.filter(i => i.id !== id));
+    const { error } = isBrief
+      ? await supabase.from("content_briefs").delete().eq("id", id)
+      : await supabase.from("saved_ideas").delete().eq("id", id);
+    if (error) {
+      toast({ title: "Suppression impossible", description: friendlyError(error), variant: "destructive" });
+      return;
     }
+    if (isBrief) setBriefs(prev => prev.filter(b => b.id !== id));
+    else setIdeas(prev => prev.filter(i => i.id !== id));
     if (selectedIdea?.id === id) setSelectedIdea(null);
     toast({ title: isBrief ? "Brief supprimé" : "Idée supprimée" });
   };
@@ -476,7 +482,7 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
                       </span>
                     )}
                     <span className="font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-primary text-primary-foreground">
-                      📱 {idea.canal || "Instagram"}
+                      {CANAL_OPTIONS.find((c) => c.id === (idea.canal || "instagram"))?.label || "📱 Instagram"}
                     </span>
                     {idea.type === "brief" && (
                       <span className="font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-accent text-accent-foreground">
@@ -564,7 +570,7 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
                       const ob = getObjectifBadge(selectedIdea.objectif)!;
                       return <span className={`font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill ${ob.bg} ${ob.text}`}>{ob.label}</span>;
                     })()}
-                    <span className="font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-primary text-primary-foreground">📱 {selectedIdea.canal}</span>
+                    <span className="font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-primary text-primary-foreground">{CANAL_OPTIONS.find((c) => c.id === (selectedIdea.canal || "instagram"))?.label || "📱 Instagram"}</span>
                     <span className="font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-rose-pale text-foreground">{TYPE_OPTIONS.find((t) => t.id === (selectedIdea.type || "idea"))?.label || "💡 Idée"}</span>
                   </div>
                 </DialogHeader>
