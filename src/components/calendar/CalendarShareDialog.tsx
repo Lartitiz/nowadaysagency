@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Copy, Trash2, Loader2, Link2, Plus, AlertTriangle, FileSpreadsheet, ChevronDown, ChevronUp } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { friendlyError } from "@/lib/error-messages";
 
 
 interface Share {
@@ -233,7 +234,7 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
 
     if (error) {
       console.error("calendar_shares insert error:", error);
-      toast({ title: "Erreur lors de la création", description: error.message, variant: "destructive" });
+      toast({ title: "Erreur lors de la création", description: friendlyError(error), variant: "destructive" });
     } else {
       setCreatedToken(data.share_token);
       setShares(prev => [{ ...data, unresolved_count: 0, edit_count: 0, to_validate_count: 0, edit_logs: [] }, ...prev]);

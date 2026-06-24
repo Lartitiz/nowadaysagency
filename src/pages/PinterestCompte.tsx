@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Sparkles, Copy, Check } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
+import { friendlyError } from "@/lib/error-messages";
 
 export default function PinterestCompte() {
   const { user } = useAuth();
@@ -96,7 +97,7 @@ export default function PinterestCompte() {
       let parsed: string[];
       try { parsed = JSON.parse(c); } catch { const m = c.match(/\[[\s\S]*\]/); parsed = m ? JSON.parse(m[0]) : []; }
       setNameSuggestions(parsed);
-    } catch (e: any) { toast({ title: "Erreur", description: e.message, variant: "destructive" }); }
+    } catch (e: any) { toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" }); }
     finally { setGeneratingName(false); }
   };
 
@@ -109,7 +110,7 @@ export default function PinterestCompte() {
       let parsed: string[];
       try { parsed = JSON.parse(c); } catch { const m = c.match(/\[[\s\S]*\]/); parsed = m ? JSON.parse(m[0]) : []; }
       setBioSuggestions(parsed);
-    } catch (e: any) { toast({ title: "Erreur", description: e.message, variant: "destructive" }); }
+    } catch (e: any) { toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" }); }
     finally { setGeneratingBio(false); }
   };
 

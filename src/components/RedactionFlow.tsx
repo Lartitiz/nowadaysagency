@@ -9,6 +9,7 @@ import { Check, ChevronLeft, ChevronRight, Copy, RefreshCw, Sparkles, X, BookOpe
 import type { UserProfile } from "@/pages/Dashboard";
 import { getGuide } from "@/lib/production-guides";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
+import { friendlyError } from "@/lib/error-messages";
 
 interface RedactionIdea {
   titre: string;
@@ -103,7 +104,7 @@ export default function RedactionFlow({ idea, profile, canal, objectif, onClose 
       if (res.error) throw res.error;
       setStructure(res.data?.content || "");
     } catch (e: any) {
-      toast({ title: e?.isTimeout ? "Ça prend plus longtemps que prévu" : "Erreur", description: e.message, variant: "destructive" });
+      toast({ title: e?.isTimeout ? "Ça prend plus longtemps que prévu" : "Erreur", description: friendlyError(e), variant: "destructive" });
     } finally {
       setLoadingStructure(false);
     }
@@ -135,7 +136,7 @@ export default function RedactionFlow({ idea, profile, canal, objectif, onClose 
       }
       setAccroches(parsed.slice(0, 3));
     } catch (e: any) {
-      toast({ title: e?.isTimeout ? "Ça prend plus longtemps que prévu" : "Erreur", description: e.message, variant: "destructive" });
+      toast({ title: e?.isTimeout ? "Ça prend plus longtemps que prévu" : "Erreur", description: friendlyError(e), variant: "destructive" });
     } finally {
       setLoadingAccroches(false);
     }
@@ -164,7 +165,7 @@ export default function RedactionFlow({ idea, profile, canal, objectif, onClose 
       setDraft(content);
       setEditedContent(content);
     } catch (e: any) {
-      toast({ title: e?.isTimeout ? "Ça prend plus longtemps que prévu" : "Erreur", description: e.message, variant: "destructive" });
+      toast({ title: e?.isTimeout ? "Ça prend plus longtemps que prévu" : "Erreur", description: friendlyError(e), variant: "destructive" });
     } finally {
       setLoadingDraft(false);
     }

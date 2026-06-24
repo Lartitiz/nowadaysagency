@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Sparkles, Copy, Check, Loader2 } from "lucide-react";
 import AuditInsight from "@/components/AuditInsight";
+import { friendlyError } from "@/lib/error-messages";
 export default function InstagramProfileNom() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -37,7 +38,7 @@ export default function InstagramProfileNom() {
       }
       setSuggestions(parsed.slice(0, 3));
     } catch (e: any) {
-      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
     } finally {
       setGenerating(false);
     }

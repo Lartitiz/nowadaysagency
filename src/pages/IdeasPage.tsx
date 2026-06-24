@@ -17,6 +17,7 @@ import { fr } from "date-fns/locale";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { SkeletonCard } from "@/components/ui/skeleton-card";
+import { friendlyError } from "@/lib/error-messages";
 
 /* ─── Types ─── */
 interface SavedIdea {
@@ -257,7 +258,7 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
       })
       .select("id")
       .single();
-    if (error) { toast({ title: "Erreur", description: error.message, variant: "destructive" }); return; }
+    if (error) { toast({ title: "Erreur", description: friendlyError(error), variant: "destructive" }); return; }
     if (!isBrief) {
       await supabase.from("saved_ideas").update({ status: "planned", planned_date: dateStr, calendar_post_id: calPost.id } as any).eq("id", idea.id);
       setIdeas(prev => prev.map(i => i.id === idea.id ? { ...i, status: "planned", planned_date: dateStr, calendar_post_id: calPost.id } : i));

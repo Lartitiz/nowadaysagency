@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { useAutoSave, SaveIndicator } from "@/hooks/use-auto-save";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import OfferSynthesisCard from "@/components/branding/OfferSynthesisCard";
+import { friendlyError } from "@/lib/error-messages";
 
 const STEPS = [
   { num: 1, label: "Bases" },
@@ -185,7 +186,7 @@ export default function OfferWorkshopPage() {
       }
     } catch (e: any) {
       console.error("offer-coaching error:", e);
-      toast.error(e.message || "Une erreur est survenue. Réessaie.");
+      toast.error(friendlyError(e));
     }
     setAiLoading(false);
   };

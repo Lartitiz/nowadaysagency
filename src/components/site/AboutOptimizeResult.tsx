@@ -6,6 +6,7 @@ import { Copy, Pencil, Check, ChevronDown, RotateCcw, Save, ArrowRight } from "l
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { friendlyError } from "@/lib/error-messages";
 
 interface ValueBlock { title: string; description: string }
 
@@ -106,7 +107,7 @@ export default function AboutOptimizeResult({ result, originalText, onRetry, use
       }
       toast.success("Sauvegardé comme ta page À propos !");
     } catch (e: any) {
-      toast.error(e.message || "Erreur");
+      toast.error(friendlyError(e));
     } finally {
       setSaving(false);
     }

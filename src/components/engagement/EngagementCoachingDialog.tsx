@@ -7,6 +7,7 @@ import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2, Copy, Check, Sparkles } from "lucide-react";
+import { friendlyError } from "@/lib/error-messages";
 
 interface Props {
   open: boolean;
@@ -69,7 +70,7 @@ export default function EngagementCoachingDialog({ open, onOpenChange, platform 
       if (error) throw new Error(error.message);
       setResult(data);
     } catch (e: any) {
-      toast({ title: "Erreur", description: e.message || "Impossible de générer", variant: "destructive" });
+      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
     } finally {
       setLoading(false);
     }

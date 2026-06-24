@@ -17,6 +17,7 @@ import { Link, useNavigate } from "react-router-dom";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import QuotaExhaustedCard from "@/components/QuotaExhaustedCard";
 import { useUserPlan } from "@/hooks/use-user-plan";
+import { friendlyError } from "@/lib/error-messages";
 
 // ── Types ──
 type ScreenshotType = "profile" | "about" | "feed" | "experience" | "other";
@@ -295,7 +296,7 @@ export default function LinkedInAudit() {
       if (/quota|crédit|limit_reached|limit/i.test(errStr)) {
         setQuotaExhausted({ message: "" });
       } else {
-        toast({ title: "Erreur", description: e.message, variant: "destructive" });
+        toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
       }
     } finally {
       setAnalyzing(false);

@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { toast } from "sonner";
 import { toLocalDateStr } from "@/lib/utils";
+import { friendlyError } from "@/lib/error-messages";
 
 interface PlanningItem {
   day: string;
@@ -132,7 +133,7 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
       setResult(data);
     } catch (e: any) {
       if (e?.isTimeout) { toast.error("Le coaching prend plus de temps que prévu. Réessaie."); }
-      else toast.error(e.message || "Erreur lors de la génération");
+      else toast.error(friendlyError(e));
     } finally {
       setLoading(false);
     }

@@ -12,6 +12,7 @@ import { Loader2, RefreshCw, Download, Copy, Sparkles, AlertTriangle, FileText }
 import { toast } from "sonner";
 import EditableText from "@/components/EditableText";
 import { parseToArray, safeParseJson } from "@/lib/branding-utils";
+import { friendlyError } from "@/lib/error-messages";
 
 type Section = "story" | "persona" | "value_proposition" | "tone_style" | "content_strategy";
 
@@ -828,7 +829,7 @@ export default function SynthesisRenderer({ section, data, table, onSynthesisGen
       onSynthesisGenerated?.();
     } catch (e: any) {
       if (e?.isTimeout) toast.error("La synthèse prend plus de temps que prévu. Réessaie.");
-      else toast.error(e.message || "Erreur lors de la génération");
+      else toast.error(friendlyError(e));
     }
     setGenerating(false);
   };

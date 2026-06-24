@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useUserPlan } from "@/hooks/use-user-plan";
+import { friendlyError } from "@/lib/error-messages";
 
 export default function PromoCodeInput() {
   const [code, setCode] = useState("");
@@ -29,7 +30,7 @@ export default function PromoCodeInput() {
         await refresh();
       }
     } catch (e: any) {
-      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
     } finally {
       setLoading(false);
     }

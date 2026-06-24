@@ -142,7 +142,7 @@ export default function LinkedInPostGenerator() {
     });
     if (error) {
       console.error("calendar_posts insert error:", error);
-      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+      toast({ title: "Erreur", description: friendlyError(error), variant: "destructive" });
     } else {
       toast({ title: `📅 Post enregistré dans ton calendrier au ${formattedDate}` });
     }

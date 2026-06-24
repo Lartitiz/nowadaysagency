@@ -12,6 +12,7 @@ import {
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useNavigate } from "react-router-dom";
+import { friendlyError } from "@/lib/error-messages";
 
 interface AuditCoachingPanelProps {
   open: boolean;
@@ -109,7 +110,7 @@ export default function AuditCoachingPanel({
       setAnswers(new Array(data.questions?.length || 4).fill(""));
       setPhase("intro");
     } catch (e: any) {
-      toast.error(e.message || "Erreur de chargement");
+      toast.error(friendlyError(e));
       setPhase("intro");
     }
   };
@@ -140,7 +141,7 @@ export default function AuditCoachingPanel({
       setEditedProposals(edited);
       setPhase("diagnostic");
     } catch (e: any) {
-      toast.error(e.message || "Erreur lors de l'analyse");
+      toast.error(friendlyError(e));
       setPhase("questions");
     }
   };
@@ -192,7 +193,7 @@ export default function AuditCoachingPanel({
         onComplete();
       }, 1500);
     } catch (e: any) {
-      toast.error(e.message || "Erreur de sauvegarde");
+      toast.error(friendlyError(e));
       setPhase("diagnostic");
     }
   };

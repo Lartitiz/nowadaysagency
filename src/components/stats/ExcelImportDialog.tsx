@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Upload, Check, AlertTriangle, Loader2, FileSpreadsheet, X } from "lucide-react";
+import { friendlyError } from "@/lib/error-messages";
 
 
 const METRIC_LABELS: Record<string, { label: string; emoji: string }> = {
@@ -285,7 +286,7 @@ export default function ExcelImportDialog({ open, onOpenChange, userId, onImport
       setStep("validate");
     } catch (err: any) {
       console.error("Import analysis error:", err);
-      toast({ title: "Erreur d'analyse", description: err.message || "Impossible d'analyser le fichier.", variant: "destructive" });
+      toast({ title: "Erreur d'analyse", description: friendlyError(err), variant: "destructive" });
       setStep("upload");
     }
 
@@ -387,7 +388,7 @@ export default function ExcelImportDialog({ open, onOpenChange, userId, onImport
       setStep("done");
       onImportComplete();
     } catch (err: any) {
-      toast({ title: "Erreur lors de l'import", description: err.message, variant: "destructive" });
+      toast({ title: "Erreur lors de l'import", description: friendlyError(err), variant: "destructive" });
       setStep("preview");
     }
   };

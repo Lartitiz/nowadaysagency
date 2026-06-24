@@ -154,7 +154,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       }
       setMediaUrls(prev => [...prev, ...newUrls]);
     } catch (err: any) {
-      toast({ title: "Erreur upload", description: err.message, variant: "destructive" });
+      toast({ title: "Erreur upload", description: friendlyError(err), variant: "destructive" });
     } finally {
       setUploading(false);
     }
@@ -200,7 +200,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       if (status === "idea" || status === "a_rediger") setStatus("drafting");
       toast({ title: "Contenu généré !" });
     } catch (e: any) {
-      toast({ title: e?.isTimeout ? "Ça prend plus longtemps que prévu" : "Erreur de génération", description: e?.isTimeout ? e.message : friendlyError(e), variant: "destructive" });
+      toast({ title: e?.isTimeout ? "Ça prend plus longtemps que prévu" : "Erreur de génération", description: friendlyError(e), variant: "destructive" });
     } finally { setIsGenerating(false); }
   };
 

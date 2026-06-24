@@ -10,6 +10,7 @@ import SubPageHeader from "@/components/SubPageHeader";
 import { Sparkles, RefreshCw, Copy, Download, Loader2, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
+import { friendlyError } from "@/lib/error-messages";
 
 interface VoiceGuide {
   brand_name: string;
@@ -60,7 +61,7 @@ export default function VoiceGuidePage() {
       toast.success("✨ Guide de voix généré !");
     } catch (e: any) {
       console.error(e);
-      toast.error(e.message || "Erreur lors de la génération");
+      toast.error(friendlyError(e));
     } finally {
       setGenerating(false);
     }

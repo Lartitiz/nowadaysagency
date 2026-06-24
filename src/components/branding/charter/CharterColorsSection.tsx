@@ -8,6 +8,7 @@ import { type Emotion, type Universe, type StyleAxis, type GeneratedPalette } fr
 import { SECTOR_PALETTES, DEFAULT_SECTOR } from "@/lib/charter-palettes";
 import { toast } from "sonner";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import { friendlyError } from "@/lib/error-messages";
 
 const NEUTRAL_FALLBACKS: Record<string, string> = {
   color_primary: "#888888",
@@ -138,7 +139,7 @@ export default function CharterColorsSection({
       }
     } catch (e: any) {
       console.error("Palette generation error:", e?.name, e?.message, e);
-      toast.error(e.message || "Erreur lors de la génération. Réessaie.");
+      toast.error(friendlyError(e));
     } finally {
       setIsGenerating(false);
     }

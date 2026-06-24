@@ -181,7 +181,7 @@ export default function LinkedInCrosspost() {
     setShowCalendarDialog(false);
     if (error) {
       console.error("calendar_posts insert error:", error);
-      toast.error(`Erreur : ${error.message}`);
+      toast.error(`Erreur : ${friendlyError(error)}`);
     } else {
       toast.success(`📅 Post enregistré dans ton calendrier au ${formattedDate}`);
     }

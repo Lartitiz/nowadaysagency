@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Save, CalendarDays, ChevronDown } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Link } from "react-router-dom";
+import { friendlyError } from "@/lib/error-messages";
 
 const SLOT_OPTIONS = [
   "Lundi matin", "Lundi après-midi", "Lundi soir",
@@ -103,7 +104,7 @@ export default function InstagramRythme() {
       ? await supabase.from("user_rhythm").update(payload).eq("id", existingId)
       : await supabase.from("user_rhythm").insert(payload);
     setSaving(false);
-    if (error) { toast({ title: "Erreur", description: error.message, variant: "destructive" }); return; }
+    if (error) { toast({ title: "Erreur", description: friendlyError(error), variant: "destructive" }); return; }
     toast({ title: "💾 Rythme enregistré !" });
   };
 

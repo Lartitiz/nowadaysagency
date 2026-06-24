@@ -17,6 +17,7 @@ import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
+import { friendlyError } from "@/lib/error-messages";
 
 interface ValueBlock { title: string; description: string }
 
@@ -147,7 +148,7 @@ export default function SiteAPropos() {
       setMode("display");
       toast({ title: "Page à propos générée !" });
     } catch (e: any) {
-      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
     } finally {
       setGenerating(false);
     }
@@ -202,7 +203,7 @@ export default function SiteAPropos() {
       if (!text && url) setOriginalText("(contenu extrait de " + url + ")");
       setMode("optimize-result");
     } catch (e: any) {
-      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
       setMode("optimize-input");
     }
   };

@@ -16,6 +16,7 @@ import { ChevronDown, ChevronUp, Copy, Pencil, Check, RotateCcw, ArrowRight, Zap
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
+import { friendlyError } from "@/lib/error-messages";
 
 /* ─── Types ─── */
 interface Section {
@@ -150,7 +151,7 @@ export default function SalesPageOptimizer() {
         console.warn("[SalesPageOptimizer] persistance de l'analyse échouée:", saveErr);
       }
     } catch (e: any) {
-      toast.error(e.message || "Erreur lors de l'analyse");
+      toast.error(friendlyError(e));
       setStep("input");
     }
   };

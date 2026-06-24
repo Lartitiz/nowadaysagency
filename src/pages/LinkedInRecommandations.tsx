@@ -15,6 +15,7 @@ import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Sparkles, Copy, Check } from "lucide-react";
+import { friendlyError } from "@/lib/error-messages";
 
 const PERSON_TYPES = [
   { value: "client", label: "Client·e" },
@@ -121,7 +122,7 @@ ${prenom || "[Ton prénom]"}`;
       try { parsed = JSON.parse(content); } catch { const m = content.match(/\[[\s\S]*\]/); parsed = m ? JSON.parse(m[0]) : []; }
       setMessageVariants(parsed);
     } catch (e: any) {
-      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
     } finally {
       setGeneratingMsg(false);
     }
@@ -139,7 +140,7 @@ ${prenom || "[Ton prénom]"}`;
       if (res.error) throw new Error(res.error.message);
       setDraftResult(res.data?.content || "");
     } catch (e: any) {
-      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
     } finally {
       setGeneratingDraft(false);
     }

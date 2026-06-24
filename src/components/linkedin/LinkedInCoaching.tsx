@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { handleQuotaError } from "@/lib/quota-error-handler";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useNavigate } from "react-router-dom";
+import { friendlyError } from "@/lib/error-messages";
 
 type ModuleKey = "profil" | "resume" | "strategie";
 
@@ -104,7 +105,7 @@ export default function LinkedInCoaching({ open, onOpenChange, initialModule, au
       setAnswers(new Array(data.questions?.length || 3).fill(""));
       setPhase("intro");
     } catch (e: any) {
-      toast.error(e.message || "Erreur de chargement");
+      toast.error(friendlyError(e));
       setPhase("intro");
     }
   };
@@ -141,7 +142,7 @@ export default function LinkedInCoaching({ open, onOpenChange, initialModule, au
       setEditedProposals(edited);
       setPhase("diagnostic");
     } catch (e: any) {
-      toast.error(e.message || "Erreur lors de l'analyse");
+      toast.error(friendlyError(e));
       setPhase("questions");
     }
   };

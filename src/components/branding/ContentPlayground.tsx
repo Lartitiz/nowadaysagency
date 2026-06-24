@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Sparkles, Copy, RefreshCw, Loader2, Check, CalendarPlus } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { friendlyError } from "@/lib/error-messages";
 
 interface PlaygroundAction {
   label: string;
@@ -83,7 +84,7 @@ export default function ContentPlayground({ section }: Props) {
       setResult(typeof content === "string" ? content : JSON.stringify(content, null, 2));
     } catch (e: any) {
       console.error(e);
-      toast.error(e.message || "Erreur lors de la génération");
+      toast.error(friendlyError(e));
     } finally {
       setLoading(false);
     }
@@ -117,7 +118,7 @@ export default function ContentPlayground({ section }: Props) {
         action: { label: "Voir", onClick: () => navigate("/idees") },
       });
     } catch (e: any) {
-      toast.error(e.message || "Erreur lors de la sauvegarde");
+      toast.error(friendlyError(e));
     } finally {
       setSaving(false);
     }

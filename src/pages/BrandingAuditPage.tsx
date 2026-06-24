@@ -21,6 +21,7 @@ import { useDiagnosticCache } from "@/hooks/use-diagnostic-cache";
 import DiagnosticCacheBanner from "@/components/audit/DiagnosticCacheBanner";
 import QuotaExhaustedCard from "@/components/QuotaExhaustedCard";
 import { useUserPlan } from "@/hooks/use-user-plan";
+import { friendlyError } from "@/lib/error-messages";
 
 /* ─── Types ─── */
 interface PillarDetail {
@@ -219,7 +220,7 @@ export default function BrandingAuditPage() {
       if (/quota|crédit|limit_reached|limit/i.test(errStr)) {
         setQuotaExhausted({ message: "" });
       } else {
-        toast.error(e.message || "Erreur lors de l'audit. Réessaie.");
+        toast.error(friendlyError(e));
       }
     } finally {
       setLoading(false);
@@ -340,7 +341,7 @@ export default function BrandingAuditPage() {
       toast.success("Branding pré-rempli avec les données de ton audit !");
       navigate("/branding");
     } catch (e: any) {
-      toast.error("Erreur lors du pré-remplissage : " + (e.message || "Réessaie."));
+      toast.error("Erreur lors du pré-remplissage : " + (friendlyError(e)));
     } finally {
       setAutofilling(false);
     }

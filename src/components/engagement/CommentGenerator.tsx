@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Copy, Loader2, ImageIcon, X } from "lucide-react";
 import type { Contact } from "./ContactsSection";
+import { friendlyError } from "@/lib/error-messages";
 
 interface GeneratedComment {
   type: string;
@@ -123,7 +124,7 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
       if (data?.comments) setComments(data.comments);
       else throw new Error("Réponse inattendue");
     } catch (err: any) {
-      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+      toast({ title: "Erreur", description: friendlyError(err), variant: "destructive" });
     } finally {
       setLoading(false);
     }

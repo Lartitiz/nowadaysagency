@@ -12,6 +12,7 @@ import { Loader2, ArrowRight, ArrowLeft, Check, Lightbulb, Sparkles, RotateCcw, 
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useNavigate } from "react-router-dom";
+import { friendlyError } from "@/lib/error-messages";
 
 type ModuleKey = "bio" | "feed" | "epingles" | "alaune" | "nom_edito";
 
@@ -119,7 +120,7 @@ export default function InstagramProfileCoaching({ open, onOpenChange, initialMo
       setAnswers(new Array(data.questions?.length || 3).fill(""));
       setPhase("intro");
     } catch (e: any) {
-      toast.error(e.message || "Erreur de chargement");
+      toast.error(friendlyError(e));
       setPhase("intro");
     }
   };
@@ -150,7 +151,7 @@ export default function InstagramProfileCoaching({ open, onOpenChange, initialMo
       setEditedProposals(edited);
       setPhase("diagnostic");
     } catch (e: any) {
-      toast.error(e.message || "Erreur lors de l'analyse");
+      toast.error(friendlyError(e));
       setPhase("questions");
     }
   };

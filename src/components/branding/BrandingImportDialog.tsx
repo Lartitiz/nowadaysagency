@@ -9,6 +9,7 @@ import { extractTextFromFile, ACCEPTED_MIME_TYPES } from "@/lib/file-extractors"
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { toast } from "sonner";
 import { Upload, Loader2, FileText } from "lucide-react";
+import { friendlyError } from "@/lib/error-messages";
 
 interface FieldDef {
   key: string;
@@ -66,7 +67,7 @@ export default function BrandingImportDialog({
       setText(content);
       setFileName(file.name);
     } catch (err: any) {
-      toast.error(err.message || "Erreur lors de la lecture du fichier");
+      toast.error(friendlyError(err));
     }
   };
 
@@ -107,7 +108,7 @@ export default function BrandingImportDialog({
       setEditedValues(initialEdited);
       setStep("review");
     } catch (err: any) {
-      toast.error(err.message || "Erreur lors de l'analyse");
+      toast.error(friendlyError(err));
       setStep("input");
     }
   };
@@ -137,7 +138,7 @@ export default function BrandingImportDialog({
       reset();
       onOpenChange(false);
     } catch (err: any) {
-      toast.error("Erreur lors de la sauvegarde : " + (err.message || ""));
+      toast.error("Erreur lors de la sauvegarde : " + (friendlyError(err)));
     }
   };
 
