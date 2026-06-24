@@ -2716,6 +2716,7 @@ export default function CreerUnifie() {
                 idea={ideaText}
                 objective={objective || undefined}
                 initialFormat={selectedFormat || undefined}
+                initialCarouselSubMode={carouselSubMode || undefined}
                 suggestedFormat={newsjackingSuggestedFormat || undefined}
                 initialPhotos={uploadedPhotos.length > 0 ? uploadedPhotos : undefined}
                 initialPhotoDescription={photoDescription || undefined}

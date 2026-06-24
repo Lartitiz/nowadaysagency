@@ -65,6 +65,7 @@ interface Props {
   idea: string;
   objective?: string;
   initialFormat?: string;
+  initialCarouselSubMode?: "text" | "photo" | "mix" | "pure_photo";
   suggestedFormat?: string;
   initialPhotos?: PhotoItem[];
   initialPhotoDescription?: string;
@@ -72,13 +73,13 @@ interface Props {
   onBack: () => void;
 }
 
-export default function CreerStepFormat({ idea, objective, initialFormat, suggestedFormat, initialPhotos, initialPhotoDescription, onNext, onBack }: Props) {
+export default function CreerStepFormat({ idea, objective, initialFormat, initialCarouselSubMode, suggestedFormat, initialPhotos, initialPhotoDescription, onNext, onBack }: Props) {
   const [selectedChannel, setSelectedChannel] = useState<ChannelId | null>(
     initialFormat ? deduceChannel(initialFormat) : null
   );
   const [selectedFormat, setSelectedFormat] = useState<string | null>(initialFormat || null);
   const [selectedAngle, setSelectedAngle] = useState<string | undefined>(undefined);
-  const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | "mix" | "pure_photo" | null>(null);
+  const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | "mix" | "pure_photo" | null>(initialCarouselSubMode ?? null);
   const [uploadedPhotos, setUploadedPhotos] = useState<PhotoItem[]>(initialPhotos ?? []);
   const [photoDescription, setPhotoDescription] = useState(initialPhotoDescription ?? "");
   const [photoMode, setPhotoMode] = useState(false);
@@ -88,6 +89,18 @@ export default function CreerStepFormat({ idea, objective, initialFormat, sugges
     initialPhotos ?? []
   );
   const [postPhotoDescription, setPostPhotoDescription] = useState(initialPhotoDescription ?? "");
+  // Les photos restaurées (IndexedDB / photothèque) arrivent en ASYNCHRONE après
+  // le montage : initialPhotos est vide au premier rendu puis se remplit. On les
+  // recopie une seule fois dans le state local pour ne pas perdre la sélection au
+  // reload, sans écraser une saisie utilisateur déjà en cours.
+  const initialPhotosSyncedRef = useRef(false);
+  useEffect(() => {
+    if (initialPhotosSyncedRef.current) return;
+    if ((initialPhotos?.length ?? 0) === 0) return;
+    initialPhotosSyncedRef.current = true;
+    setUploadedPhotos((prev) => (prev.length > 0 ? prev : initialPhotos!));
+    setPostPhoto((prev) => (prev.length > 0 ? prev : initialPhotos!));
+  }, [initialPhotos]);
   const hasUserChangedFormat = useRef(false);
   const [pinterestLink, setPinterestLink] = useState("");
   const [pinterestBoardId, setPinterestBoardId] = useState("");
