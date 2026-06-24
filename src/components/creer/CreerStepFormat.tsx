@@ -70,10 +70,14 @@ interface Props {
   initialPhotos?: PhotoItem[];
   initialPhotoDescription?: string;
   onNext: (format: string, editorialAngle?: string, carouselSubMode?: "text" | "photo" | "mix" | "pure_photo", photos?: PhotoItem[], photoDescription?: string, photoMode?: boolean, pinterestData?: { link?: string; boardId?: string; boardName?: string }, linkedinCarousel?: boolean) => void;
+  // Remonte les sélections EN COURS (format + sous-mode carrousel) au parent pour
+  // qu'elles soient persistées, même avant le clic « Suivant ». Sans ça, un reload
+  // sur l'étape format repart à zéro (le parent ignorait le format/sous-mode choisi).
+  onSelectionChange?: (sel: { format: string | null; carouselSubMode: "text" | "photo" | "mix" | "pure_photo" | null }) => void;
   onBack: () => void;
 }
 
-export default function CreerStepFormat({ idea, objective, initialFormat, initialCarouselSubMode, suggestedFormat, initialPhotos, initialPhotoDescription, onNext, onBack }: Props) {
+export default function CreerStepFormat({ idea, objective, initialFormat, initialCarouselSubMode, suggestedFormat, initialPhotos, initialPhotoDescription, onNext, onSelectionChange, onBack }: Props) {
   const [selectedChannel, setSelectedChannel] = useState<ChannelId | null>(
     initialFormat ? deduceChannel(initialFormat) : null
   );
@@ -101,6 +105,13 @@ export default function CreerStepFormat({ idea, objective, initialFormat, initia
     setUploadedPhotos((prev) => (prev.length > 0 ? prev : initialPhotos!));
     setPostPhoto((prev) => (prev.length > 0 ? prev : initialPhotos!));
   }, [initialPhotos]);
+  // Remonte les sélections en cours au parent (pour persistance), sans dépendre de
+  // l'identité de la callback (ref) afin de ne déclencher que sur un vrai changement.
+  const onSelectionChangeRef = useRef(onSelectionChange);
+  onSelectionChangeRef.current = onSelectionChange;
+  useEffect(() => {
+    onSelectionChangeRef.current?.({ format: selectedFormat, carouselSubMode });
+  }, [selectedFormat, carouselSubMode]);
   const hasUserChangedFormat = useRef(false);
   const [pinterestLink, setPinterestLink] = useState("");
   const [pinterestBoardId, setPinterestBoardId] = useState("");

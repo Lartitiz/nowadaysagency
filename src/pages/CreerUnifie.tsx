@@ -2771,6 +2771,11 @@ export default function CreerUnifie() {
                   else setIsLinkedInCarousel(false);
                   handleFormatNext(fmt, angle, { carouselSubMode: sub, photos, photoDescription: desc, photoMode: pm, linkedinCarousel: !!linkedinCar });
                 }}
+                onSelectionChange={({ format, carouselSubMode: sub }) => {
+                  // Persiste les choix en cours pour les restaurer au reload (avant « Suivant »).
+                  setSelectedFormat((prev) => (prev === format ? prev : format));
+                  setCarouselSubMode((prev) => (prev === sub ? prev : sub));
+                }}
                 onBack={() => { setStep("idea"); setNewsjackingContext(null); }}
               />
             )}
