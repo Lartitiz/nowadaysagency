@@ -122,6 +122,11 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
   const [started, setStarted] = useState(false);
   const [actus, setActus] = useState<Actu[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Résultat vide "propre" (pas une erreur) : le moteur a cherché mais n'a trouvé
+  // aucun pont assez solide. On affiche un écran dédié avec une porte de sortie
+  // (relancer en mode élargi) plutôt que de coincer l'utilisatrice.
+  const [emptyMsg, setEmptyMsg] = useState<string | null>(null);
+  const [broadenedEmpty, setBroadenedEmpty] = useState(false);
   const [expandedActu, setExpandedActu] = useState<number | null>(null);
   const [isQuotaError, setIsQuotaError] = useState(false);
   const [filter, setFilter] = useState<"all" | "globale" | "niche">("all");
@@ -160,10 +165,13 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
     });
   };
 
-  const fetchActus = useCallback(async () => {
+  const fetchActus = useCallback(async (opts?: { broaden?: boolean }) => {
+    const broaden = opts?.broaden === true;
     setStarted(true);
     setLoading(true);
     setError(null);
+    setEmptyMsg(null);
+    setBroadenedEmpty(false);
     setActus(null);
     setExpandedActu(null);
     setIsQuotaError(false);
@@ -180,9 +188,10 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
         vibes: selectedVibes,
         custom: customIntent.trim() || undefined,
       };
-      // Si on est explicitement sur l'onglet "Globale" au moment de relancer,
-      // on demande au serveur de désancrer la recherche de la niche.
-      const force_macro = filter === "globale";
+      // "broaden" = porte de sortie depuis un résultat vide : on désancre de la
+      // niche et on relâche le pont (mode macro côté serveur). Sinon, on désancre
+      // aussi quand l'utilisatrice est sur l'onglet "Globale" au moment de relancer.
+      const force_macro = broaden || filter === "globale";
       const excluded_urls = Array.from(seenUrlsRef.current).slice(-50);
       const { data, error: fnError } = await invokeWithTimeout("newsjacking-ai", {
         body: { workspace_id: workspaceId || undefined, intent, force_macro, excluded_urls },
@@ -221,8 +230,14 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
       }
 
       setActus(data.actus);
-      if (data.actus.length === 0 && data.message) {
-        setError(data.message);
+      if (data.actus.length === 0) {
+        // Pas une erreur : recherche réussie mais aucun pont assez solide.
+        // On bascule sur l'écran dédié (avec porte de sortie "élargir").
+        setEmptyMsg(
+          data.message ||
+            "Pas de phénomène assez connectable cette fois — aucun pont solide vers ta marque."
+        );
+        setBroadenedEmpty(broaden);
       }
 
       // Pré-calcul des angles "primary" pour les premières actus visibles.
@@ -255,6 +270,8 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
     setStarted(true);
     setLoading(true);
     setError(null);
+    setEmptyMsg(null);
+    setBroadenedEmpty(false);
     setActus(null);
     setExpandedActu(null);
     setIsQuotaError(false);
@@ -554,7 +571,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
           <ArrowLeft className="h-4 w-4" /> Retour
         </Button>
         {started && !loading && (
-          <Button variant="outline" size="sm" onClick={fetchActus} className="gap-1.5">
+          <Button variant="outline" size="sm" onClick={() => fetchActus()} className="gap-1.5">
             <RefreshCw className="h-3.5 w-3.5" /> Relancer
           </Button>
         )}
@@ -682,7 +699,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
           </div>
 
           <div className="flex justify-center">
-            <Button size="sm" onClick={fetchActus} className="gap-1.5">
+            <Button size="sm" onClick={() => fetchActus()} className="gap-1.5">
               <Sparkles className="h-3.5 w-3.5" /> Lancer la recherche
             </Button>
           </div>
@@ -776,9 +793,57 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
               Voir les plans
             </Button>
           ) : (
-            <Button variant="outline" size="sm" onClick={fetchActus} className="gap-1.5">
+            <Button variant="outline" size="sm" onClick={() => fetchActus()} className="gap-1.5">
               <RefreshCw className="h-3.5 w-3.5" /> Réessayer
             </Button>
+          )}
+        </div>
+      )}
+
+      {/* Empty — recherche réussie mais aucun pont assez solide.
+          Porte de sortie : relancer en mode élargi (pont relâché). */}
+      {started && !loading && !error && actus && actus.length === 0 && emptyMsg && (
+        <div className="text-center py-10 space-y-5">
+          <div className="flex justify-center">
+            <div className="rounded-full bg-muted p-3">
+              <Newspaper className="h-6 w-6 text-muted-foreground" />
+            </div>
+          </div>
+          <div className="space-y-1.5 max-w-md mx-auto">
+            <p className="text-sm font-semibold text-foreground">
+              {broadenedEmpty ? "Toujours rien de net cette fois" : "Aucun pont solide cette fois"}
+            </p>
+            <p className="text-xs text-muted-foreground leading-relaxed">{emptyMsg}</p>
+          </div>
+
+          {broadenedEmpty ? (
+            // On a DÉJÀ élargi et c'est toujours vide : on ne repropose pas la
+            // même relance (qui recoûterait un crédit pour rien).
+            <div className="flex flex-col items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => setStarted(false)} className="gap-1.5">
+                <RefreshCw className="h-3.5 w-3.5" /> Changer d'intention
+              </Button>
+              <p className="text-[10px] text-muted-foreground max-w-xs leading-relaxed">
+                Tu peux aussi coller le lien d'une actu que tu as déjà en tête : l'IA en tirera des angles connectés à ta marque.
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-2">
+              <Button size="sm" onClick={() => fetchActus({ broaden: true })} className="gap-1.5">
+                <Sparkles className="h-3.5 w-3.5" /> Montre-moi quand même les actus chaudes
+              </Button>
+              <p className="text-[10px] text-muted-foreground max-w-xs leading-relaxed">
+                On relâche le filtre : des actus grand public avec une piste de réaction, même sans lien direct à ta marque. Consomme 1 crédit.
+              </p>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setStarted(false)}
+                className="gap-1.5 text-muted-foreground"
+              >
+                Affiner mon intention
+              </Button>
+            </div>
           )}
         </div>
       )}
@@ -1052,7 +1117,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
                 })}
               </AnimatePresence>
 
-              <Button variant="outline" size="sm" onClick={fetchActus} className="w-full gap-1.5 mt-2">
+              <Button variant="outline" size="sm" onClick={() => fetchActus()} className="w-full gap-1.5 mt-2">
                 <RefreshCw className="h-3.5 w-3.5" /> Relancer la recherche
               </Button>
             </div>

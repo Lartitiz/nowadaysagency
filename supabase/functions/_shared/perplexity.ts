@@ -79,7 +79,11 @@ function isFreshEnough(dateStr: string | undefined, maxAgeDays: number): boolean
 // Patterns evergreen retirés en mode scoop : conférence/masterclass/colloque/
 // table ronde/événement/journées nationales sont autorisés car beaucoup
 // d'actus chocs viennent de prises de parole publiques.
-const SCOOP_EVERGREEN_WHITELIST = new Set<RegExp>([
+// On compare par `.source` (pas par référence d'objet) : un littéral regex
+// recopié ici est un OBJET différent de celui de EVERGREEN_PATTERNS, donc un
+// Set<RegExp> + .has(rx) ne matcherait jamais (whitelist morte → scoop filtrait
+// encore conférences/masterclass). La source textuelle, elle, est identique.
+const SCOOP_EVERGREEN_WHITELIST = new Set<string>([
   /\bconf[ée]rence\b/i,
   /\bmasterclass\b/i,
   /\bcolloque\b/i,
@@ -89,12 +93,12 @@ const SCOOP_EVERGREEN_WHITELIST = new Set<RegExp>([
   /\b[ée]v[ée]nement\s+(\dème|annuel|de\s+l|du)/i,
   /\borganise\s+(un|une|le|la)\s+(webinaire|conf|masterclass|colloque|s[ée]minaire|[ée]v[ée]nement|table)/i,
   /\bsalon\s+(du|de\s+la|professionnel)/i,
-]);
+].map((rx) => rx.source));
 
 function looksEvergreen(a: PerplexityActu, mode: "default" | "scoop" = "default"): boolean {
   const blob = `${a.titre} ${a.resume}`;
   const patterns = mode === "scoop"
-    ? EVERGREEN_PATTERNS.filter((rx) => !SCOOP_EVERGREEN_WHITELIST.has(rx))
+    ? EVERGREEN_PATTERNS.filter((rx) => !SCOOP_EVERGREEN_WHITELIST.has(rx.source))
     : EVERGREEN_PATTERNS;
   return patterns.some((rx) => rx.test(blob));
 }
