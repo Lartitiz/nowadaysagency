@@ -214,24 +214,32 @@ export default function InstagramHighlights() {
   const handleSave = async () => {
     if (!user) return;
     setSaving(true);
+    // On construit les nouvelles lignes AVANT toute écriture.
+    const toInsert = RECOMMENDED_HIGHLIGHTS.map((h, i) => ({
+      user_id: user.id,
+      workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+      title: h.label,
+      emoji: h.emoji,
+      role: h.description,
+      stories: h.structure.map((s) => ({ content: s.text, format: "", tip: "" })) as unknown as Json,
+      sort_order: i,
+      is_selected: statuses[h.type] === "done",
+    }));
     try {
-      // Delete existing
-      await (supabase.from("instagram_highlights") as any).delete().eq(column, value);
-      // Insert statuses as highlights
-      const toInsert = RECOMMENDED_HIGHLIGHTS.map((h, i) => ({
-        user_id: user.id,
-        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-        title: h.label,
-        emoji: h.emoji,
-        role: h.description,
-        stories: h.structure.map((s) => ({ content: s.text, format: "", tip: "" })) as unknown as Json,
-        sort_order: i,
-        is_selected: statuses[h.type] === "done",
-      }));
-      await supabase.from("instagram_highlights").insert(toInsert);
+      // Snapshot des lignes existantes : pas de transaction côté client, donc si l'insert
+      // échoue après le delete, on remet l'ancien état au lieu de tout perdre.
+      const { data: backup } = await (supabase.from("instagram_highlights") as any).select("*").eq(column, value);
+      const { error: delErr } = await (supabase.from("instagram_highlights") as any).delete().eq(column, value);
+      if (delErr) throw delErr;
+      const { error: insErr } = await supabase.from("instagram_highlights").insert(toInsert);
+      if (insErr) {
+        if (backup?.length) await supabase.from("instagram_highlights").insert(backup);
+        throw insErr;
+      }
       toast({ title: "Sauvegardé !", description: "Ta progression highlights est enregistrée." });
-    } catch {
-      toast({ title: "Erreur", description: "Impossible de sauvegarder.", variant: "destructive" });
+    } catch (e) {
+      console.error("Erreur sauvegarde highlights:", e);
+      toast({ title: "Erreur", description: "Impossible de sauvegarder. Tes highlights précédents ont été conservés.", variant: "destructive" });
     } finally {
       setSaving(false);
     }

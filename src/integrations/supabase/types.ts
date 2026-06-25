@@ -2727,6 +2727,7 @@ export type Database = {
           follower_5_name: string | null
           id: string
           user_id: string
+          workspace_id: string | null
         }
         Insert: {
           completed?: boolean | null
@@ -2743,6 +2744,7 @@ export type Database = {
           follower_5_name?: string | null
           id?: string
           user_id: string
+          workspace_id?: string | null
         }
         Update: {
           completed?: boolean | null
@@ -2759,8 +2761,17 @@ export type Database = {
           follower_5_name?: string | null
           id?: string
           user_id?: string
+          workspace_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "engagement_exercise_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       engagement_metrics: {
         Row: {
@@ -3422,6 +3433,7 @@ export type Database = {
           subject: string | null
           user_explanation: string | null
           user_id: string
+          workspace_id: string | null
         }
         Insert: {
           ai_analysis?: string | null
@@ -3439,6 +3451,7 @@ export type Database = {
           subject?: string | null
           user_explanation?: string | null
           user_id: string
+          workspace_id?: string | null
         }
         Update: {
           ai_analysis?: string | null
@@ -3456,6 +3469,7 @@ export type Database = {
           subject?: string | null
           user_explanation?: string | null
           user_id?: string
+          workspace_id?: string | null
         }
         Relationships: [
           {
@@ -3463,6 +3477,13 @@ export type Database = {
             columns: ["audit_id"]
             isOneToOne: false
             referencedRelation: "instagram_audit"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "instagram_audit_posts_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]

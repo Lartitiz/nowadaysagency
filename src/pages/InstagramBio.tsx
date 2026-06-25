@@ -351,18 +351,9 @@ export default function InstagramBio() {
   const handleValidate = async (bioText: string) => {
     if (!user) return;
     try {
-      // Save to bio history
-      await (supabase.from("bio_versions") as any).insert({
-        user_id: user.id,
-        workspace_id: workspaceId !== user.id ? workspaceId : null,
-        platform: "instagram",
-        bio_text: bioText,
-        score: bioAnalysis?.score || null,
-        structure_type: bioStructure || null,
-        source: "generated",
-      });
-
-      await supabase.from("audit_validations").upsert({
+      // Écritures critiques d'abord (l'état "validé" en dépend) — toutes idempotentes,
+      // donc un retry après échec partiel reconverge sans doublon.
+      const { error: valErr } = await supabase.from("audit_validations").upsert({
         user_id: user.id,
         workspace_id: workspaceId !== user.id ? workspaceId : undefined,
         section: "bio",
@@ -371,16 +362,37 @@ export default function InstagramBio() {
         validated_content: { bio: bioText },
         updated_at: new Date().toISOString(),
       }, { onConflict: "user_id,section" });
-      await (supabase.from("profiles") as any).update({
+      if (valErr) throw valErr;
+
+      const { error: profErr } = await (supabase.from("profiles") as any).update({
         validated_bio: bioText,
         validated_bio_at: new Date().toISOString(),
       } as any).eq(column, value);
+      if (profErr) throw profErr;
+
+      // Historique = best-effort : une panne ici ne doit PAS faire échouer la validation
+      // ni créer une fausse erreur alors que la bio est déjà enregistrée.
+      try {
+        await (supabase.from("bio_versions") as any).insert({
+          user_id: user.id,
+          workspace_id: workspaceId !== user.id ? workspaceId : null,
+          platform: "instagram",
+          bio_text: bioText,
+          score: bioAnalysis?.score || null,
+          structure_type: bioStructure || null,
+          source: "generated",
+        });
+      } catch (histErr) {
+        console.error("Historique bio non enregistré (non bloquant):", histErr);
+      }
+
       queryClient.invalidateQueries({ queryKey: ["profile"] });
       setValidatedBio(bioText);
       setValidatedAt(new Date().toISOString());
       setView("validated");
       toast({ title: "✅ Bio sauvegardée. Tu peux la copier-coller dans Instagram." });
-    } catch {
+    } catch (e) {
+      console.error("Erreur de sauvegarde bio:", e);
       toast({ title: "Erreur de sauvegarde", variant: "destructive" });
     }
   };

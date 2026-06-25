@@ -79,15 +79,22 @@ export default function InstagramStats() {
   /* ── Data loaders ── */
   const loadConfig = useCallback(async () => {
     if (!user) return;
-    const { data } = await (supabase.from("stats_config" as any) as any)
-      .select("*").eq(column, value).maybeSingle();
-    if (data) {
-      const cfg = data as any as StatsConfig;
-      setConfig(cfg); setDraftConfig(cfg);
-    } else {
-      setShowOnboarding(true);
+    try {
+      const { data, error } = await (supabase.from("stats_config" as any) as any)
+        .select("*").eq(column, value).maybeSingle();
+      if (error) throw error;
+      if (data) {
+        const cfg = data as any as StatsConfig;
+        setConfig(cfg); setDraftConfig(cfg);
+      } else {
+        setShowOnboarding(true);
+      }
+    } catch (e) {
+      console.error("Erreur chargement config stats:", e);
+      toast({ title: "Impossible de charger ta configuration", description: "Réessaie dans un instant.", variant: "destructive" });
+    } finally {
+      setConfigLoaded(true);
     }
-    setConfigLoaded(true);
   }, [user?.id]);
 
   const loadStats = useCallback(async () => {
