@@ -16,7 +16,9 @@ interface BrandingImportProps {
 
 const MAX_FILES = 5;
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
-const ACCEPTED_EXTENSIONS = ".pdf,.docx,.doc,.txt,.md,.png,.jpg,.jpeg";
+// Keep in sync with file-extractors.ts — images aren't supported (no OCR),
+// so don't offer them here or they'd be silently dropped after analysis.
+const ACCEPTED_EXTENSIONS = ".pdf,.docx,.doc,.txt,.md";
 
 export default function BrandingImport({ onAnalyze, onSkip, loading = false, initialWebsite = "", reanalyzeWarning = false }: BrandingImportProps) {
   const [website, setWebsite] = useState(initialWebsite);
@@ -33,7 +35,7 @@ export default function BrandingImport({ onAnalyze, onSkip, loading = false, ini
       if (files.length + accepted.length >= MAX_FILES) { toast.error(`Maximum ${MAX_FILES} fichiers`); break; }
       if (file.size > MAX_FILE_SIZE) { toast.error(`${file.name} dépasse 10 Mo`); continue; }
       const ext = file.name.split(".").pop()?.toLowerCase();
-      if (!["pdf", "docx", "doc", "txt", "md", "png", "jpg", "jpeg"].includes(ext || "")) { toast.error(`Format non supporté : .${ext}`); continue; }
+      if (!["pdf", "docx", "doc", "txt", "md"].includes(ext || "")) { toast.error(`Format non supporté : .${ext}`); continue; }
       accepted.push(file);
     }
     if (accepted.length) setFiles((prev) => [...prev, ...accepted]);
@@ -113,7 +115,7 @@ export default function BrandingImport({ onAnalyze, onSkip, loading = false, ini
                   Glisse tes fichiers ici ou{" "}
                   <button type="button" className="text-primary underline underline-offset-2" onClick={() => fileInputRef.current?.click()}>parcourir</button>
                 </p>
-                <p className="text-[11px] text-muted-foreground">PDF, Word, texte ou images • Max 5 fichiers, 10 Mo chacun</p>
+                <p className="text-[11px] text-muted-foreground">PDF, Word ou texte • Max 5 fichiers, 10 Mo chacun</p>
                 <input ref={fileInputRef} type="file" className="hidden" accept={ACCEPTED_EXTENSIONS} multiple onChange={(e) => e.target.files && handleFiles(e.target.files)} />
               </div>
               {files.length > 0 && (
