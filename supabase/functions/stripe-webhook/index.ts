@@ -280,6 +280,7 @@ serve(async (req) => {
     }
   } catch (err) {
     log("Error processing event", { error: String(err) });
+    await supabase.from("webhook_events").delete().eq("stripe_event_id", event.id);
     return new Response("Processing error", { status: 500 });
   }
 
