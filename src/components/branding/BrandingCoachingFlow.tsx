@@ -273,7 +273,12 @@ export default function BrandingCoachingFlow({ section, personaId, onComplete, o
     try {
       // Charter section uses a different edge function with step-based flow
       if (section === "charter") {
-        const stepNum = charterStepRef.current + 1;
+        // charterStepRef.current already holds the 1-based number of the question
+        // just answered (it's set to nextIndex in handleNext). The edge function and
+        // the CHARTER_TOPICS/QUESTIONS mapping below are both 1-based on that number,
+        // so it must NOT be incremented again — doing so skipped the "colors" question
+        // and shifted every answer onto the next step's interpretation.
+        const stepNum = charterStepRef.current;
         const lastUserMsg = [...msgs].reverse().find(m => m.role === "user");
         const answer = lastUserMsg?.content || "Commence la session.";
 
@@ -561,6 +566,9 @@ export default function BrandingCoachingFlow({ section, personaId, onComplete, o
         if (hasExistingSession && messagesRef.current.length > 0) {
           const userMsgs = messagesRef.current.filter(m => m.role === "user").length;
           charterStepRef.current = userMsgs;
+          // Keep questionIndex in sync so the next answer computes the right step
+          // (otherwise it stays at 0 and resets charterStepRef on the next answer).
+          setQuestionIndex(userMsgs);
           if (userMsgs < CHARTER_QUESTIONS.length) {
             setCurrentQuestion({
               question: CHARTER_QUESTIONS[userMsgs],
