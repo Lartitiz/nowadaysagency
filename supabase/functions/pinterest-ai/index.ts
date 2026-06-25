@@ -32,7 +32,7 @@ Règles SEO Pinterest :
 - TITRE : mot-clé principal dans les 3 premiers mots. Descriptif et utile, pas accrocheur. "Idées décoration salon bohème" > "Vous n'allez pas croire cette déco"
 - DESCRIPTION : 2-3 phrases descriptives avec des mots-clés naturels. Décrire CE QUE la personne va trouver. Penser : qu'est-ce que ma cible taperait dans la barre de recherche ?
 - TON : clair, utile, descriptif. Moins de personnalité qu'Instagram. On aide, on ne performe pas.
-- HASHTAGS : 2-5 tags descriptifs pertinents (pas de hashtags créatifs ou de marque)
+- PAS DE HASHTAGS : inutiles pour le SEO Pinterest. Mets les mots-clés dans le titre et la description, pas en hashtags.
 
 PRINCIPES DE COPY ÉTHIQUE :
 - IDENTIFICATION plutôt que MANIPULATION

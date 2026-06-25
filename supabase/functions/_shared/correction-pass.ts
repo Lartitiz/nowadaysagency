@@ -64,7 +64,7 @@ Le critère : INDISTINGUABLE d'un humain.
 
 11. REDONDANCE : 2+ paragraphes même idée → garde le plus CONCRET.
 
-12. LONGUEUR : cible 1300-1700 caractères.
+12. LONGUEUR : cible 1300-2000 caractères. Ne raccourcis PAS un post déjà dans cette fourchette.
 
 ══ RÈGLES ABSOLUES ══
 - Garde le SENS et la CONVICTION. Tu corriges la FORME, pas le FOND.

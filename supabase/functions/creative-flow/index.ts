@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOURCES, ANTI_SLOP, CHAIN_OF_THOUGHT, ETHICAL_GUARDRAILS, ANTI_BIAS, PREGEN_INJECTION_RULES, EDITORIAL_ANGLES_REFERENCE, VISUAL_ANALOGIES, LINKEDIN_TEMPLATES, ANTI_BROETRY_LINKEDIN, EMBEDDED_EDUCATION } from "../_shared/copywriting-prompts.ts";
+import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOURCES, ANTI_SLOP, CHAIN_OF_THOUGHT, ANTI_BIAS, PREGEN_INJECTION_RULES, EDITORIAL_ANGLES_REFERENCE, VISUAL_ANALOGIES, LINKEDIN_TEMPLATES, EMBEDDED_EDUCATION } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildProfileBlock, buildPreGenFallback } from "../_shared/user-context.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
@@ -182,10 +182,10 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
 `;
 
     // COMMON_PREFIX: identical for ALL steps → maximizes Anthropic prompt caching
-    const COMMON_PREFIX = BASE_SYSTEM_RULES + "\n\n" + incarnationBlock + "\n\n" + `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :\n- Reproduis fidèlement le style décrit\n- Réutilise les expressions signature naturellement dans le texte\n- RESPECTE les expressions interdites : ne les utilise JAMAIS\n- Imite les patterns de ton et de structure\n- Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA\n\n` + CORE_PRINCIPLES + "\n\n" + EMBEDDED_EDUCATION + "\n\n" + ANTI_SLOP + "\n\n" + ETHICAL_GUARDRAILS + "\n\n" + fullContext;
+    const COMMON_PREFIX = BASE_SYSTEM_RULES + "\n\n" + incarnationBlock + "\n\n" + `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :\n- Reproduis fidèlement le style décrit\n- Réutilise les expressions signature naturellement dans le texte\n- RESPECTE les expressions interdites : ne les utilise JAMAIS\n- Imite les patterns de ton et de structure\n- Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA\n\n` + CORE_PRINCIPLES + "\n\n" + EMBEDDED_EDUCATION + "\n\n" + ANTI_SLOP + "\n\n" + fullContext;
 
     // QUESTIONS_PREFIX : version allégée pour les steps `questions` et `follow-up`.
-    // On retire CORE_PRINCIPLES / EMBEDDED_EDUCATION / ANTI_SLOP / ETHICAL_GUARDRAILS / bloc voix :
+    // On retire CORE_PRINCIPLES / EMBEDDED_EDUCATION / ANTI_SLOP / bloc voix :
     // ces règles concernent la RÉDACTION du contenu final, pas la formulation de questions.
     // On garde : règles de base, incarnation (qui elle est), branding/profil (pour personnaliser).
     // Objectif : passer de ~10 500 tokens à ~3 000-4 000 tokens d'input.
@@ -811,7 +811,7 @@ Réponds UNIQUEMENT en JSON :
       return new Response(JSON.stringify({ error: "Step non reconnu" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // COMMON_PREFIX already includes BASE_SYSTEM_RULES + voice priority + CORE_PRINCIPLES + ANTI_SLOP + ETHICAL_GUARDRAILS + fullContext
+    // COMMON_PREFIX already includes BASE_SYSTEM_RULES + voice priority + CORE_PRINCIPLES + ANTI_SLOP + fullContext
 
     // ── Inject SERIES context (when this post belongs to a series) ──
     if (series_id && step === "generate") {
@@ -1088,7 +1088,7 @@ Le critère n'est pas "est-ce que c'est joli" mais "est-ce que c'est INDISTINGUA
     → Si 2+ paragraphes expriment la même idée sous angles différents : garde le plus CONCRET, fusionne ou supprime les autres.
 
 12. LONGUEUR :
-    → Cible : 1300-1700 caractères. Si > 1700 : supprime le paragraphe le plus abstrait.
+    → Cible : 1300-2000 caractères. Si > 2000 : supprime le paragraphe le plus abstrait. Ne raccourcis PAS un post déjà dans cette fourchette.
 
 ══ RÈGLES ABSOLUES ══
 

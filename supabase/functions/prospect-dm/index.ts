@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { CORE_PRINCIPLES, ANTI_SLOP, ETHICAL_GUARDRAILS } from "../_shared/copywriting-prompts.ts";
+import { CORE_PRINCIPLES, ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
@@ -105,8 +105,6 @@ La relation est chaude, tu proposes directement un appel découverte ou ton offr
 ${CORE_PRINCIPLES}
 
 ${ANTI_SLOP}
-
-${ETHICAL_GUARDRAILS}
 
 ${contextStr}
 ${offerBlock}

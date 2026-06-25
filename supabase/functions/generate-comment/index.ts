@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { CORE_PRINCIPLES, ANTI_SLOP, ETHICAL_GUARDRAILS } from "../_shared/copywriting-prompts.ts";
+import { CORE_PRINCIPLES, ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { callAnthropic, AnthropicError, getModelForAction } from "../_shared/anthropic.ts";
@@ -58,8 +58,6 @@ Deno.serve(async (req) => {
 ${CORE_PRINCIPLES}
 
 ${ANTI_SLOP}
-
-${ETHICAL_GUARDRAILS}
 
 Tu dois générer des commentaires Instagram stratégiques pour le post d'un contact.
 
