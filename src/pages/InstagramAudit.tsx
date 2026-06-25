@@ -376,8 +376,8 @@ export default function InstagramAudit() {
       console.error("Erreur technique:", e);
       const errStr = e?.message || String(e);
 
-      // Quota errors
-      if (/quota|crédit|limit_reached|limit/i.test(errStr)) {
+      // Quota errors (ne PAS matcher "timeout limit" → on exige "limite"/"limit_reached", pas le bare "limit")
+      if (/quota|crédit|limit_reached|limite/i.test(errStr)) {
         setQuotaExhausted({ message: "" });
         setAnalyzing(false);
         return;

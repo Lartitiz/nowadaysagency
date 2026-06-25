@@ -404,50 +404,74 @@ Réponds en JSON :
 
     const textOnlyUserPrompt = "Analyse mon profil Instagram et donne-moi un audit complet avec audit visuel annoté et analyse de performance des contenus.";
 
-    // Build user message (multimodal if screenshots available)
-    if (visionImages && visionImages.length > 0) {
-      const userContent: any[] = visionImages.map((img: any) => ({
+    // Message user partagé par les sous-appels (multimodal si captures fournies).
+    const hasImages = !!(visionImages && visionImages.length > 0);
+    const userText = "Analyse mon profil Instagram avec les données ci-dessus" + (hasImages ? " et les captures fournies." : ".");
+    const buildUserContent = (): any => {
+      if (!hasImages) return userText;
+      const uc: any[] = visionImages.map((img: any) => ({
         type: "image",
         source: { type: "base64", media_type: img.media_type, data: img.data },
       }));
-      userContent.push({
-        type: "text",
-        text: "Analyse mon profil Instagram en détail avec les captures fournies et les données textuelles ci-dessus.",
-      });
+      uc.push({ type: "text", text: userText });
+      return uc;
+    };
 
-      let visionResult: string;
+    // L'audit complet est trop long pour tenir sous le timeout edge (150s) en un seul appel.
+    // On le découpe en 3 sous-appels PLUS LÉGERS lancés EN PARALLÈLE (chacun bien sous 150s),
+    // puis on recolle côté serveur. Le schéma complet (finalSystemPrompt) reste la source de
+    // vérité — on restreint seulement la SORTIE de chaque appel → aucune perte de qualité.
+    const PARTS: { label: string; instr: string }[] = [
+      { label: "visual", instr: 'POUR CET APPEL UNIQUEMENT : retourne UNIQUEMENT la clé "visual_audit" (toute sa structure : elements, priorite_1, resume). N\'inclus AUCUNE autre clé du schéma.' },
+      { label: "sections", instr: 'POUR CET APPEL UNIQUEMENT : retourne UNIQUEMENT la clé "sections" (les 6 sections nom, bio, stories, epingles, feed, edito, complètes). N\'inclus AUCUNE autre clé du schéma.' },
+      { label: "overview", instr: 'POUR CET APPEL UNIQUEMENT : retourne UNIQUEMENT les clés "score_global", "resume", "content_analysis", "content_dna", "combo_gagnant" et "editorial_recommendations". N\'inclus NI "visual_audit" NI "sections".' },
+    ];
+
+    const runPart = async (instr: string, label: string): Promise<string> => {
+      const sys = finalSystemPrompt + "\n\n" + instr;
       try {
-        visionResult = await callAnthropic({
-          model: getModelForAction("audit"),
-          system: finalSystemPrompt,
-          messages: [{ role: "user", content: userContent }],
-          temperature: 0.7,
-          max_tokens: 16384,
-        });
+        if (hasImages) {
+          return await callAnthropic({
+            model: getModelForAction("audit"),
+            system: sys,
+            messages: [{ role: "user", content: buildUserContent() }],
+            temperature: 0.7,
+            max_tokens: 8192,
+          });
+        }
+        return await callAnthropicSimple(getModelForAction("audit"), sys, userText, 0.7, 8192);
       } catch (anthropicErr: any) {
-        console.error("[audit-instagram-ai] Anthropic vision failed:", anthropicErr.message);
-        visionResult = await fallbackToGemini(finalSystemPrompt, textOnlyUserPrompt);
+        console.error(`[audit-instagram-ai] part ${label} failed:`, anthropicErr.message);
+        return await fallbackToGemini(sys, textOnlyUserPrompt);
       }
+    };
 
-      await logUsage(user.id, "audit", "audit_instagram", undefined, undefined, workspace_id);
-      return new Response(
-        JSON.stringify({ content: visionResult }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    const extractJson = (raw: string): any => {
+      if (!raw) return {};
+      const s = raw.trim();
+      const start = s.indexOf("{");
+      const end = s.lastIndexOf("}");
+      if (start === -1 || end === -1 || end <= start) return {};
+      try { return JSON.parse(s.substring(start, end + 1)); } catch { return {}; }
+    };
 
-    // Fallback: text-only audit if no screenshots
-    let content: string;
-    try {
-      content = await callAnthropicSimple(getModelForAction("audit"), finalSystemPrompt, textOnlyUserPrompt, 0.7, 16384);
-    } catch (anthropicErr: any) {
-      console.error("[audit-instagram-ai] Anthropic text-only failed:", anthropicErr.message);
-      content = await fallbackToGemini(finalSystemPrompt, textOnlyUserPrompt);
-    }
+    const [visualRaw, sectionsRaw, overviewRaw] = await Promise.all(
+      PARTS.map((p) => runPart(p.instr, p.label))
+    );
+
+    const visualObj = extractJson(visualRaw);
+    const sectionsObj = extractJson(sectionsRaw);
+    const overviewObj = extractJson(overviewRaw);
+
+    const merged = {
+      ...overviewObj,
+      sections: sectionsObj.sections ?? overviewObj.sections,
+      visual_audit: visualObj.visual_audit,
+    };
 
     await logUsage(user.id, "audit", "audit_instagram", undefined, undefined, workspace_id);
     return new Response(
-      JSON.stringify({ content }),
+      JSON.stringify({ content: JSON.stringify(merged) }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e: any) {
