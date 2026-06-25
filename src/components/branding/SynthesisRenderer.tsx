@@ -870,9 +870,22 @@ export default function SynthesisRenderer({ section, data, table, onSynthesisGen
       const canvas = await html2canvas(synthRef.current, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
       const pdf = new jsPDF("p", "mm", "a4");
       const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
       const imgWidth = pageWidth - 20;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      pdf.addImage(canvas.toDataURL("image/png"), "PNG", 10, 10, imgWidth, imgHeight);
+      const imgData = canvas.toDataURL("image/png");
+      // Paginate: a long synthesis exceeds one A4 page, so slice the image
+      // across as many pages as needed instead of clipping at the first page.
+      let heightLeft = imgHeight;
+      let position = 10;
+      pdf.addImage(imgData, "PNG", 10, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight + 10;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", 10, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
       pdf.save(`synthese-${section}-${new Date().toISOString().slice(0, 10)}.pdf`);
       toast.success("PDF téléchargé !");
     } catch {
