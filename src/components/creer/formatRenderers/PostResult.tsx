@@ -1,7 +1,7 @@
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
+import FeedPreview from "@/components/creer/formatRenderers/FeedPreview";
 import { useState } from "react";
 
 interface Props {
@@ -14,12 +14,14 @@ export default function PostResult({ result, content }: Props) {
   const accroche = result?.accroche || result?.hook || "";
   const format = result?.format || result?.content_type;
   const objective = result?.objective || result?.objectif;
+  const hashtags = Array.isArray(result?.hashtags) ? result.hashtags : undefined;
 
   const [checkedText, setCheckedText] = useState(postText);
 
-  const bodyText = accroche && postText.startsWith(accroche)
-    ? postText.slice(accroche.length).trim()
-    : postText;
+  // Légende complète telle qu'elle sera publiée (accroche incluse une seule fois).
+  const caption = accroche && !checkedText.startsWith(accroche)
+    ? `${accroche}\n\n${checkedText}`
+    : checkedText;
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -34,21 +36,8 @@ export default function PostResult({ result, content }: Props) {
         </div>
       )}
 
-      <Card className="border-border">
-        <CardContent className="p-4 space-y-2">
-          {accroche && !postText.startsWith(accroche) && (
-            <p className="text-sm font-bold text-foreground leading-relaxed">{accroche}</p>
-          )}
-          {accroche && postText.startsWith(accroche) ? (
-            <div className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
-              <span className="font-bold">{accroche}</span>
-              {bodyText && <>{"\n\n"}{bodyText}</>}
-            </div>
-          ) : (
-            <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{checkedText}</p>
-          )}
-        </CardContent>
-      </Card>
+      {/* Aperçu réaliste « comme dans le feed » */}
+      <FeedPreview variant="instagram" text={caption} hashtags={hashtags} />
 
       <RedFlagsChecker content={checkedText} onFix={setCheckedText} />
 
