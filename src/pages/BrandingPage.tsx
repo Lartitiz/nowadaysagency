@@ -705,8 +705,8 @@ export default function BrandingPage() {
                     canShowMirror={canShowMirror}
                     auditSuggestions={auditSuggestions}
                     onApplySuggestion={async (sectionKey: string, suggestion: string) => {
-                      const fCol = workspaceId ? "workspace_id" : "user_id";
-                      const fVal = workspaceId || user?.id;
+                      const fCol = column;
+                      const fVal = value;
                       if (!fVal) return;
                       try {
                         if (sectionKey === "proposition") {

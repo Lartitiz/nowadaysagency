@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBrandProfile } from "@/hooks/use-profile";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -54,6 +55,12 @@ const FIELD_DB_MAP: Record<string, { table: string; column: string }> = {
 export default function BrandingImportReview({ extraction, onDone, onCancel, workspaceId }: Props) {
   const { user } = useAuth();
   const { data: hookBrandProfile } = useBrandProfile();
+  const wsFilter = useWorkspaceFilter();
+  // Respect an explicit workspaceId prop (client onboarding writes into a
+  // specific workspace), otherwise fall back to the canonical scope helper —
+  // the same one the branding read paths use — so writes land where reads look.
+  const filterCol = workspaceId ? "workspace_id" : wsFilter.column;
+  const filterVal = workspaceId || wsFilter.value;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [comparisons, setComparisons] = useState<FieldComparison[]>([]);
@@ -64,8 +71,6 @@ export default function BrandingImportReview({ extraction, onDone, onCancel, wor
 
   const loadExistingData = async () => {
     if (!user) return;
-    const filterCol = workspaceId ? "workspace_id" : "user_id";
-    const filterVal = workspaceId || user.id;
     try {
       const brandRes = { data: hookBrandProfile || null };
       const [personaRes, propRes, stratRes, storyRes] = await Promise.all([
@@ -137,10 +142,8 @@ export default function BrandingImportReview({ extraction, onDone, onCancel, wor
 
     try {
       const uid = user.id;
-      const filterCol = workspaceId ? "workspace_id" : "user_id";
-      const filterVal = workspaceId || uid;
-      const insertBase: Record<string, string> = workspaceId
-        ? { user_id: uid, workspace_id: workspaceId }
+      const insertBase: Record<string, string> = filterCol === "workspace_id"
+        ? { user_id: uid, workspace_id: filterVal }
         : { user_id: uid };
       const updates: Record<string, Record<string, string>> = {};
 
