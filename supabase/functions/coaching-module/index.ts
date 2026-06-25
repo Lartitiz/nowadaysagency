@@ -173,7 +173,7 @@ Retourne UNIQUEMENT un JSON :
         };
       }
 
-      await logUsage(user.id, "suggestion", "coaching_questions");
+      await logUsage(user.id, "suggestion", "coaching_questions", undefined, undefined, workspace_id);
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -254,7 +254,7 @@ Pour le module editorial, propose piliers de contenu.`;
           4000,
         );
         return createClientSSEStream(anthropicStream, corsHeaders, async () => {
-          await logUsage(user.id, "content", "coaching_diagnostic");
+          await logUsage(user.id, "content", "coaching_diagnostic", undefined, undefined, workspace_id);
         });
       }
 
@@ -272,7 +272,7 @@ Pour le module editorial, propose piliers de contenu.`;
         });
       }
 
-      await logUsage(user.id, "content", "coaching_diagnostic");
+      await logUsage(user.id, "content", "coaching_diagnostic", undefined, undefined, workspace_id);
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -362,7 +362,7 @@ Pour le module editorial, propose piliers de contenu.`;
           4000,
         );
         return createClientSSEStream(anthropicStream, corsHeaders, async () => {
-          await logUsage(user.id, "suggestion", "coaching_adjust");
+          await logUsage(user.id, "suggestion", "coaching_adjust", undefined, undefined, workspace_id);
         });
       }
 
@@ -380,7 +380,7 @@ Pour le module editorial, propose piliers de contenu.`;
         });
       }
 
-      await logUsage(user.id, "suggestion", "coaching_adjust");
+      await logUsage(user.id, "suggestion", "coaching_adjust", undefined, undefined, workspace_id);
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

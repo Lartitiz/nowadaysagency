@@ -311,7 +311,7 @@ serve(async (req) => {
         }
 
         content = normalizePhotoIndexes(content, body.photos?.length || 0);
-        await logUsage(userId, category, "carousel_mix");
+        await logUsage(userId, category, "carousel_mix", undefined, undefined, workspace_id);
         return new Response(JSON.stringify({ content }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -382,7 +382,7 @@ serve(async (req) => {
         }
 
         content = normalizePhotoIndexes(content, body.photos?.length || 0);
-        await logUsage(userId, category, "carousel_photo");
+        await logUsage(userId, category, "carousel_photo", undefined, undefined, workspace_id);
         return new Response(JSON.stringify({ content }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -686,7 +686,7 @@ Réponds UNIQUEMENT en JSON valide :
           max_tokens: 4096,
         });
 
-        await logUsage(userId, category, `carousel_deepening_${body.carousel_type}`);
+        await logUsage(userId, category, `carousel_deepening_${body.carousel_type}`, undefined, undefined, workspace_id);
         return new Response(JSON.stringify({ content }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -736,7 +736,7 @@ Réponds UNIQUEMENT en JSON valide :
       }
     }
 
-    await logUsage(userId, category, `carousel_${type}`);
+    await logUsage(userId, category, `carousel_${type}`, undefined, undefined, workspace_id);
 
     return new Response(JSON.stringify({ content }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

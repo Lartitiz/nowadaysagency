@@ -152,7 +152,7 @@ Retourne UNIQUEMENT un JSON :
         };
       }
 
-      await logUsage(user.id, "suggestion", "ig_profile_coaching_questions");
+      await logUsage(user.id, "suggestion", "ig_profile_coaching_questions", undefined, undefined, workspace_id);
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -219,7 +219,7 @@ Sois directe, bienveillante, et concrète. Pas de jargon. Tutoiement.`;
         });
       }
 
-      await logUsage(user.id, "suggestion", "ig_profile_coaching_diagnostic");
+      await logUsage(user.id, "suggestion", "ig_profile_coaching_diagnostic", undefined, undefined, workspace_id);
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

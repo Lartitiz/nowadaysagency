@@ -75,7 +75,7 @@ export interface QuotaResult {
   plan: string;
   remaining?: number;
   remaining_total?: number;
-  reason?: "category" | "total" | "not_available";
+  reason?: "category" | "total" | "not_available" | "error";
   message?: string;
   usage?: Record<string, { used: number; limit: number }>;
 }
@@ -210,7 +210,16 @@ export async function checkQuota(
     query.eq("user_id", userId);
   }
 
-  const { data: usageRows } = await query;
+  const { data: usageRows, error: usageError } = await query;
+
+  if (usageError) {
+    return {
+      allowed: false,
+      plan,
+      reason: "error",
+      message: "Impossible de vérifier tes crédits pour le moment. Réessaie dans un instant.",
+    };
+  }
 
   const rows = usageRows || [];
   const totalUsed = rows.length;
