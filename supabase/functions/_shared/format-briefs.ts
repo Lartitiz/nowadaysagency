@@ -706,7 +706,7 @@ Chaque séquence de stories doit avoir UN angle de narration dominant. C'est l'a
 
 2. 💭 RÉFLEXION PERSO ("J'ai tilté sur un truc")
    Voix : pensée à voix haute, introspective
-   Story 1 : "Ce matin j'ai réalisé un truc sur [thème]…"
+   Story 1 : entrer par la prise de conscience elle-même : "J'ai tilté sur un truc à propos de [thème]…" (sans date fabriquée si ce n'est pas un vrai moment vécu)
    Le fil : une prise de conscience qui se déroule story après story
    Idéal pour : partager une leçon, un déclic, un changement de perspective
 
@@ -724,7 +724,7 @@ Chaque séquence de stories doit avoir UN angle de narration dominant. C'est l'a
 
 5. 💬 STORYTIME CLIENT ("Je vous raconte")
    Voix : narrateur·ice d'une histoire vraie (anonymisée)
-   Story 1 : "La semaine dernière une cliente m'a dit un truc…"
+   Story 1 : la situation client réelle (anonymisée) SI l'utilisatrice l'a fournie. Sinon, ne pas fabriquer : généraliser ("ce qui revient souvent chez mes clientes…"). Pas de "la semaine dernière" inventé.
    Le fil : situation client → problème → ce qu'on a fait → résultat
    Idéal pour : preuve sociale, démontrer son expertise, humaniser
 
@@ -754,7 +754,7 @@ TYPES DE HOOKS STORIES (adaptés à l'angle choisi) :
 2. Confidence / pensée à voix haute : "J'ai réalisé un truc ce matin." / "Faut que je vous parle de quelque chose."
 3. Question communautaire : "Qui ici a déjà [situation] ?" / "Est-ce que ça vous fait ça aussi ?"
 4. Retour d'expérience : "Pendant longtemps je faisais [erreur]." / "Ce que j'aurais aimé savoir il y a 6 mois."
-5. Storytime : "La semaine dernière une cliente m'a dit un truc…" / "Il s'est passé un truc hier."
+5. Storytime : un vécu réel fourni par l'utilisatrice, anonymisé. Si rien n'est fourni, ne pas fabriquer de date ni d'anecdote : généraliser ("ce qui revient souvent…").
 6. Prise de position : "Un truc qui me fatigue dans [secteur]." / "Je vais dire un truc qui ne va pas plaire à tout le monde."
 IMPORTANT : Le hook par défaut est en "JE" ou en "VOUS inclusif". Le "TU" direct est réservé UNIQUEMENT à l'angle "interpellation communauté" et doit rester rare.
 

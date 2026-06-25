@@ -208,7 +208,7 @@ STRUCTURES PAR FORMAT
 
 CARROUSEL INSIGHT (8-10 slides) :
 - Slide 1 : Hook (situation concrète ou constat décalé. Peu de mots, beaucoup d'intrigue.)
-- Slide 2 : Contexte vécu (une situation, un moment, un déclencheur : "La semaine dernière...", "Une cliente m'a dit...")
+- Slide 2 : Contexte. Si l'utilisatrice a fourni un vécu réel, ancre-le. SINON, un constat général incarné, sans date ni citation fabriquée ("ce qui revient", "le cas typique", "ce qu'on voit passer"). JAMAIS inventer "la semaine dernière" / "une cliente m'a dit".
 - Slide 3 : Le problème tel qu'on le vit (identification : le lecteur se reconnaît)
 - Slide 4 : Bascule/révélation (le regard qui change, le mécanisme caché)
 - Slide 5 : Développement (preuve, donnée, exemple concret qui ancre)
@@ -248,7 +248,7 @@ Le hook 0-3s peut être enrichi d'un PATTERN INTERRUPT à 2-3s (rupture d'attent
 REEL FACE CAM / TALKING HEAD (30-60 sec) :
 Type : confession, réaction, prise de position face caméra.
 - 0-3s : Hook regard caméra. UNE phrase-choc ou fait concret. Overlay = ancrage (mot-clé).
-- 3-15s : Contexte en SCÈNE VÉCUE ("La semaine dernière...", "Une cliente m'a dit...").
+- 3-15s : Contexte. Scène vécue RÉELLE si fournie par l'utilisatrice ; sinon constat général, sans date ni citation fabriquée. Jamais inventer "la semaine dernière" / "une cliente m'a dit".
   Texte parlé = 2-3 phrases complètes. Overlay = contrepoint (info non dite à l'oral).
 - 15-40s : Développement. Le cœur du message comme un récit, pas une liste.
   Au moins UN déplacement de perspective (nouvelle info, contre-pied, détail inattendu).
@@ -1133,10 +1133,10 @@ ANGLE 6 : HISTOIRE CLIENTE + DÉCLIC
 Principe : Illustrer un blocage commun via un cas réel. Social proof déguisé.
 Structure par défaut : storytelling (court format) ou étude de cas (long format)
 Objectifs : confiance + vente | Phase 3-4 | Déclic : projection
-En carrousel (8 slides) : Hook "Elle m'a dit..." → Le blocage → Le contexte → Le déclic → Les actions → Le résultat → La leçon universelle → CTA
-En reel (30-45s) : Hook 0-3s "Une cliente..." → Blocage 3-10s → Déclic 10-25s → Résultat 25-35s → CTA 35-45s
+En carrousel (8 slides) : Hook = la phrase/situation déclencheure SI fournie par l'utilisatrice (sinon un constat général, sans citation inventée) → Le blocage → Le contexte → Le déclic → Les actions → Le résultat → La leçon universelle → CTA
+En reel (30-45s) : Hook 0-3s = le déclencheur réel SI fourni (sinon un constat général) → Blocage 3-10s → Déclic 10-25s → Résultat 25-35s → CTA 35-45s
 En story (5 stories) : Hook "Je te raconte l'histoire de..." → Avant → Le travail ensemble → Après → Sondage "tu te reconnais ?"
-En post caption : "Elle m'a dit..." → Blocage → Déclic → Résultat → Leçon → CTA doux
+En post caption : le déclencheur réel SI fourni (sinon un constat général) → Blocage → Déclic → Résultat → Leçon → CTA doux
 En LinkedIn (étude de cas longue, 11 sections) : Accroche résultat → Contexte → Problème → Diagnostic → Stratégie → Exécution → Résultats → Transformation → Témoignage → Enseignements → CTA offre
 En newsletter (étude de cas longue) : même structure 11 sections, développée
 
