@@ -499,9 +499,51 @@ Réponds en JSON :
       );
     }
 
+    // Sauvegarde serveur de l'audit AVANT de rendre la main. Le crédit est débité
+    // côté serveur (logUsage juste après) : si on laissait l'insert au client (comme
+    // avant), un rechargement pendant les ~3 min d'analyse débitait le crédit SANS
+    // jamais sauver le résultat. En insérant ici, l'audit survit à la disparition du
+    // client. Non bloquant : si l'insert échoue, le client retombe sur son propre insert.
+    let savedAuditId: string | null = null;
+    let savedAuditDate: string | null = null;
+    try {
+      const m = merged as any;
+      const wsId = workspace_id && workspace_id !== user.id ? workspace_id : undefined;
+      const findEl = (name: string) =>
+        m.visual_audit?.elements?.find((e: any) => e.element === name)?.score;
+      const bestPosts = (atd?.bestPostUrls || []).map((url: string, i: number) => ({
+        image_url: url, comment: i === 0 ? (atd?.bestPostsComment || null) : null,
+      }));
+      const worstPosts = (atd?.worstPostUrls || []).map((url: string, i: number) => ({
+        image_url: url, comment: i === 0 ? (atd?.worstPostsComment || null) : null,
+      }));
+      const { data: ins } = await supabase.from("instagram_audit").insert({
+        user_id: user.id,
+        workspace_id: wsId,
+        score_global: m.score_global,
+        score_nom: m.sections?.nom?.score ?? findEl("nom") ?? 0,
+        score_bio: m.sections?.bio?.score ?? findEl("bio") ?? 0,
+        score_stories: m.sections?.stories?.score ?? findEl("highlights") ?? 0,
+        score_epingles: m.sections?.epingles?.score ?? findEl("posts_epingles") ?? 0,
+        score_feed: m.sections?.feed?.score ?? findEl("feed") ?? 0,
+        score_edito: m.sections?.edito?.score ?? 0,
+        resume: m.resume,
+        details: m,
+        best_posts: bestPosts.length ? bestPosts : null,
+        worst_posts: worstPosts.length ? worstPosts : null,
+        best_posts_comment: atd?.bestPostsComment || null,
+        worst_posts_comment: atd?.worstPostsComment || null,
+        posts_analysis: m.posts_analysis || null,
+        profile_url: pu || null,
+      } as any).select("id, created_at").single();
+      if (ins) { savedAuditId = (ins as any).id; savedAuditDate = (ins as any).created_at; }
+    } catch (insErr: any) {
+      console.error("[audit-instagram-ai] insert audit échoué (non bloquant):", insErr?.message || insErr);
+    }
+
     await logUsage(user.id, "audit", "audit_instagram", undefined, undefined, workspace_id);
     return new Response(
-      JSON.stringify({ content: JSON.stringify(merged) }),
+      JSON.stringify({ content: JSON.stringify(merged), auditId: savedAuditId, auditDate: savedAuditDate }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e: any) {

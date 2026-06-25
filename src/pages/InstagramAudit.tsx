@@ -61,6 +61,9 @@ export default function InstagramAudit() {
   const [lastSubmitData, setLastSubmitData] = useState<AuditFormData | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
   const [quotaExhausted, setQuotaExhausted] = useState<{ message?: string } | null>(null);
+  // Reprise après un rechargement survenu pendant un audit : "done" = il a abouti
+  // côté serveur entre-temps, "interrupted" = il a été coupé, on réinvite à relancer.
+  const [resumeNotice, setResumeNotice] = useState<null | "done" | "interrupted">(null);
 
   // Progressive loading messages during audit
   useEffect(() => {
@@ -112,6 +115,27 @@ export default function InstagramAudit() {
         if (rows.length > 1) setPreviousAudit(rows[1]);
       }
 
+      // Reprise après un rechargement survenu pendant un audit (marqueur posé dans
+      // handleSubmit). Si un audit plus récent que le départ existe → il a abouti côté
+      // serveur entre-temps, on va aux résultats. Sinon → il a été coupé, on réaffiche
+      // le formulaire (déjà pré-rempli depuis le profil) avec une invite à relancer.
+      let inProg: { startedAt?: string; userId?: string } | null = null;
+      try { const raw = sessionStorage.getItem("ig_audit_in_progress"); if (raw) inProg = JSON.parse(raw); } catch { /* noop */ }
+      if (inProg && inProg.userId === user.id) {
+        try { sessionStorage.removeItem("ig_audit_in_progress"); } catch { /* noop */ }
+        const latestDate = rows?.[0]?.created_at;
+        const completedDuringReload = !!(latestDate && inProg.startedAt && new Date(latestDate) > new Date(inProg.startedAt));
+        if (completedDuringReload) {
+          setResumeNotice("done");
+          if (paramView !== "form") setView("results");
+        } else {
+          setResumeNotice("interrupted");
+          if (paramView !== "results") setView("form");
+        }
+        setLoadingExisting(false);
+        return;
+      }
+
       // Auto-navigate based on params or state
       if (paramView === "form" || paramView === "results") {
         setView(paramView);
@@ -151,7 +175,15 @@ export default function InstagramAudit() {
     setLastSubmitData(form);
     setLastError(null);
     setQuotaExhausted(null);
+    setResumeNotice(null);
     setAnalyzing(true);
+    // Marqueur « audit en cours » : permet, après un rechargement pendant les ~3 min
+    // d'analyse, de savoir qu'un audit tournait (cf. détection au remontage). Le texte
+    // du formulaire n'a pas besoin d'être stocké ici : il est déjà sauvé dans `profiles`
+    // plus bas, donc rechargé tel quel par `initialForm`.
+    try {
+      sessionStorage.setItem("ig_audit_in_progress", JSON.stringify({ startedAt: new Date().toISOString(), userId: user.id }));
+    } catch { /* sessionStorage indisponible : non bloquant */ }
 
     try {
       // Refresh session preemptively to avoid JWT expiry during long audit
@@ -343,31 +375,41 @@ export default function InstagramAudit() {
 
       }
 
-      // 5. Save audit to DB
-      const bestPostsJson = bestPostUrls.map((url, i) => ({ image_url: url, comment: i === 0 ? form.bestPostsComment : null }));
-      const worstPostsJson = worstPostUrls.map((url, i) => ({ image_url: url, comment: i === 0 ? form.worstPostsComment : null }));
+      // 5. Sauvegarde de l'audit.
+      // Chemin principal : l'edge function l'a déjà inséré côté serveur et nous a
+      // renvoyé son id (survit à un rechargement pendant l'analyse). On ne refait
+      // l'insert côté client QUE si la sauvegarde serveur a échoué (fallback).
+      let newAuditId: string | null = res.data?.auditId ?? null;
+      let newAuditDate: string | null = res.data?.auditDate ?? null;
 
-      const { data: insertData } = await supabase.from("instagram_audit").insert({
-        user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-        score_global: parsed.score_global,
-        score_nom: parsed.sections?.nom?.score ?? parsed.visual_audit?.elements?.find((e: any) => e.element === "nom")?.score ?? 0,
-        score_bio: parsed.sections?.bio?.score ?? parsed.visual_audit?.elements?.find((e: any) => e.element === "bio")?.score ?? 0,
-        score_stories: parsed.sections?.stories?.score ?? parsed.visual_audit?.elements?.find((e: any) => e.element === "highlights")?.score ?? 0,
-        score_epingles: parsed.sections?.epingles?.score ?? parsed.visual_audit?.elements?.find((e: any) => e.element === "posts_epingles")?.score ?? 0,
-        score_feed: parsed.sections?.feed?.score ?? parsed.visual_audit?.elements?.find((e: any) => e.element === "feed")?.score ?? 0,
-        score_edito: parsed.sections?.edito?.score ?? 0,
-        resume: parsed.resume,
-        details: parsed,
-        best_posts: bestPostsJson.length ? bestPostsJson : null,
-        worst_posts: worstPostsJson.length ? worstPostsJson : null,
-        best_posts_comment: form.bestPostsComment || null,
-        worst_posts_comment: form.worstPostsComment || null,
-        posts_analysis: parsed.posts_analysis || null,
-        profile_url: null,
-      } as any).select("id").single();
+      if (!newAuditId) {
+        const bestPostsJson = bestPostUrls.map((url, i) => ({ image_url: url, comment: i === 0 ? form.bestPostsComment : null }));
+        const worstPostsJson = worstPostUrls.map((url, i) => ({ image_url: url, comment: i === 0 ? form.worstPostsComment : null }));
 
-      if (insertData) setAuditId(insertData.id);
-      setAuditDate(new Date().toISOString());
+        const { data: insertData } = await supabase.from("instagram_audit").insert({
+          user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+          score_global: parsed.score_global,
+          score_nom: parsed.sections?.nom?.score ?? parsed.visual_audit?.elements?.find((e: any) => e.element === "nom")?.score ?? 0,
+          score_bio: parsed.sections?.bio?.score ?? parsed.visual_audit?.elements?.find((e: any) => e.element === "bio")?.score ?? 0,
+          score_stories: parsed.sections?.stories?.score ?? parsed.visual_audit?.elements?.find((e: any) => e.element === "highlights")?.score ?? 0,
+          score_epingles: parsed.sections?.epingles?.score ?? parsed.visual_audit?.elements?.find((e: any) => e.element === "posts_epingles")?.score ?? 0,
+          score_feed: parsed.sections?.feed?.score ?? parsed.visual_audit?.elements?.find((e: any) => e.element === "feed")?.score ?? 0,
+          score_edito: parsed.sections?.edito?.score ?? 0,
+          resume: parsed.resume,
+          details: parsed,
+          best_posts: bestPostsJson.length ? bestPostsJson : null,
+          worst_posts: worstPostsJson.length ? worstPostsJson : null,
+          best_posts_comment: form.bestPostsComment || null,
+          worst_posts_comment: form.worstPostsComment || null,
+          posts_analysis: parsed.posts_analysis || null,
+          profile_url: null,
+        } as any).select("id, created_at").single();
+        newAuditId = insertData?.id ?? null;
+        newAuditDate = (insertData as any)?.created_at ?? null;
+      }
+
+      if (newAuditId) setAuditId(newAuditId);
+      setAuditDate(newAuditDate || new Date().toISOString());
       setAuditResult(parsed);
       setHasExistingAudit(true);
       setView("results");
@@ -407,6 +449,9 @@ export default function InstagramAudit() {
       toast({ title: "Erreur", description: msg, variant: "destructive" });
     } finally {
       setAnalyzing(false);
+      // L'audit est retombé (succès, erreur ou quota) : on retire le marqueur. S'il
+      // restait posé, c'est qu'un rechargement a coupé l'await → détecté au remontage.
+      try { sessionStorage.removeItem("ig_audit_in_progress"); } catch { /* noop */ }
     }
   };
 
@@ -583,6 +628,14 @@ export default function InstagramAudit() {
             )}
           </div>
 
+          {resumeNotice === "done" && (
+            <div className="rounded-2xl border border-green-300/40 bg-green-50/60 dark:bg-green-950/20 p-4 mb-6">
+              <p className="text-sm text-foreground">
+                ✅ Ton audit a bien abouti pendant le rechargement de la page — le voici.
+              </p>
+            </div>
+          )}
+
           {liveScore !== null && auditResult.score_global && liveScore > auditResult.score_global && (
             <div className="rounded-2xl border border-border bg-green-50/50 dark:bg-green-950/20 p-4 mb-6">
               <p className="text-sm text-foreground">
@@ -699,6 +752,14 @@ export default function InstagramAudit() {
         {showDiagBanner && (
           <div className="mb-6">
             <DiagnosticCacheBanner diagnosticData={diagCache} domain="instagram" onRelaunch={() => {}} />
+          </div>
+        )}
+        {resumeNotice === "interrupted" && !analyzing && (
+          <div className="rounded-2xl border border-amber-300/40 bg-amber-50/60 p-4 mb-6">
+            <p className="text-sm text-foreground">
+              ⏸️ Ton audit a été interrompu par un rechargement de la page. Tes infos sont conservées —
+              re-dépose tes captures et relance l'analyse. S'il a malgré tout abouti, il apparaîtra dans tes résultats.
+            </p>
           </div>
         )}
         {lastError && !analyzing && (

@@ -108,9 +108,11 @@ Retourne EXACTEMENT ce JSON (pas de texte autour) :
     if (screenshot_base64) {
       messageContent = [
         {
-          type: "image_url",
-          image_url: {
-            url: `data:${screenshot_media_type || "image/png"};base64,${screenshot_base64}`,
+          type: "image",
+          source: {
+            type: "base64",
+            media_type: screenshot_media_type || "image/png",
+            data: screenshot_base64,
           },
         },
         { type: "text", text: textPrompt },

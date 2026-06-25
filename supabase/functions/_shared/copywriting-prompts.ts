@@ -1013,23 +1013,6 @@ Longueur cible : 1300-2000 caractères`,
 };
 
 
-export const LINKEDIN_TIPS = [
-  { text: "Les 210 premiers caractères décident de tout. 60-70% des lecteur·ices ne cliquent jamais 'voir plus'.", source: "Algorithm InSights 2025" },
-  { text: "Les commentaires pèsent 8x plus que les likes dans l'algorithme. Pose des questions qui appellent des réponses longues.", source: "van der Blom 2025" },
-  { text: "La 'Golden Hour' : les 60-90 premières minutes sont décisives. Un bon démarrage = portée x3.", source: "Algorithm InSights 2025" },
-  { text: "Le dwell time (temps passé à lire) est un signal silencieux mais très puissant. Le storytelling qui tient en haleine performe.", source: "LinkedIn Engineering 2025" },
-  { text: "Les liens externes coûtent ~60% de distribution. Mets-les en commentaire.", source: "van der Blom 2025" },
-  { text: "Le contenu IA non retravaillé subit -43% d'engagement. Le ton incarné est non-négociable.", source: "Socialinsider 2025" },
-  { text: "Sweet spot engagement : 1 300-1 900 caractères. Les posts sous 500 car. perdent 35% d'engagement.", source: "AuthoredUp 2025" },
-  { text: "3-5 hashtags max et de niche. LinkedIn détecte les sujets sémantiquement maintenant.", source: "van der Blom 2025" },
-  { text: "Un post LinkedIn peut vivre 2-3 semaines. Privilégie le contenu evergreen qui génère des conversations.", source: "Hootsuite 2025" },
-  { text: "Réponds aux commentaires dans les 30 premières minutes. Ça relance l'algorithme.", source: "Closely 2025" },
-  { text: "Profil personnel = 561% plus de reach que page entreprise. Publie en ton nom.", source: "Ordinal 2026" },
-  { text: "Ne publie pas 2 posts en moins de 18-24h. Le nouveau tue la portée de l'ancien.", source: "AuthoredUp 2025" },
-  { text: "Le contenu expert et de niche est valorisé par l'algo. La cohérence thématique construit l'autorité.", source: "Algorithm InSights 2025" },
-  { text: "72% du trafic LinkedIn vient du mobile. Aère ton texte : paragraphes courts, sauts de ligne.", source: "LinkedIn 2025" },
-  { text: "Meilleurs jours : mardi, mercredi, jeudi. Meilleures heures : 8h-9h et 14h-15h.", source: "Buffer 2025" },
-];
 
 
 export const WEBSITE_PRINCIPLES = `
@@ -1088,38 +1071,7 @@ RÈGLES CTA :
 - Le CTA doit être cohérent avec le niveau d'engagement demandé
 `;
 
-export const WEBSITE_LANDING_TIPS = [
-  { text: "Le trafic email convertit le mieux. Ta newsletter est ton meilleur levier pour remplir tes pages de vente.", source: "Unbounce 2024" },
-  { text: "Instagram Ads convertit à 17,9% en moyenne sur les landing pages : le meilleur canal social payant.", source: "Unbounce 2024" },
-  { text: "LinkedIn Ads ne convertit qu'à 3,1% en volume, mais l'audience est souvent plus qualifiée pour du B2B.", source: "Unbounce 2024" },
-  { text: "Pour une offre à 1 740 euros (type Now Studio), un taux de 2-5% sur la page de vente est réaliste. 5%+ est excellent.", source: "Benchmarks high-ticket" },
-  { text: "Les pages avec un 'Plan en 3 étapes' convertissent mieux : ça réduit la complexité perçue et rassure.", source: "StoryBrand / Donald Miller" },
-  { text: "L'élément 'échec' (ce qui se passe si on ne fait rien) est puissant mais à utiliser comme du sel : une pincée suffit.", source: "StoryBrand" },
-  { text: "Le top 10% des popups de sortie convertissent à 42%. Mais seulement si elles apportent de la vraie valeur, pas du shaming.", source: "Wisepops 2025" },
-  { text: "Une page de vente 10x plus longue que l'originale a converti 363% mieux. Pour les offres >500 euros, la longueur rassure.", source: "SolidGigs 2025" },
-  { text: "8 personnes sur 10 lisent le titre. Seulement 2 sur 10 lisent le reste. Ton titre est ta meilleure chance.", source: "Copyblogger" },
-  { text: "Les pages rédigées en langage simple (niveau 5e-7e) convertissent 2x mieux que celles en langage soutenu.", source: "Unbounce 2024" },
-  { text: "Les CTA personnalisés ('Je réserve mon appel') convertissent 202% mieux que les génériques ('En savoir plus').", source: "HubSpot" },
-  { text: "Chaque champ supplémentaire dans un formulaire réduit les conversions de 4%. Prénom + email suffisent.", source: "HubSpot 2024" },
-  { text: "Les témoignages augmentent la conversion de 34%. 3-5 sur la page est l'équilibre optimal.", source: "Invesp 2024" },
-  { text: "53% des visiteur-ices mobiles quittent si le chargement dépasse 3 secondes. Vitesse = conversion.", source: "Google" },
-  { text: "Les FAQ sur une page de vente augmentent la conversion de 10-20%. Elles répondent aux objections silencieuses.", source: "ConvertLab 2025" },
-  { text: "Desktop convertit 8% mieux que mobile malgré 62,5% du trafic mobile. Optimise d'abord le mobile.", source: "Unbounce 2024" },
-  { text: "Le micro-copy sous le bouton ('Gratuit, Sans engagement') peut faire la différence entre un clic et un abandon.", source: "Best practice CRO" },
-  { text: "Un seul type d'action par page, répété plusieurs fois. Ne mélange pas 'acheter' et 's'inscrire à la newsletter'.", source: "Unbounce" },
-  { text: "Les produits avec une note de 4,2-4,5 étoiles convertissent mieux que 5/5. L'authenticité bat la perfection.", source: "Trustmary 2025" },
-  { text: "L'espacement blanc augmente l'engagement de 14% et la lisibilité de 25%. Laisse respirer ta page.", source: "SQ Magazine 2025" },
-];
 
-export const LANDING_PAGE_RED_FLAGS = [
-  { pattern: "Valeur réelle de|Vaut \\\\d+", label: "prix gonflé", fix: "Dire le prix réel et ce qui est inclus" },
-  { pattern: "Plus que \\\\d+ places?", label: "possible fausse urgence", fix: "Vérifier que c'est vrai. Si non, supprimer." },
-  { pattern: "Ne ratez? pas|Ne manquez? pas", label: "CTA culpabilisant", fix: "Si ca te parle, bienvenue" },
-  { pattern: "Soumett?re|Submit", label: "CTA générique", fix: "Je télécharge / Je réserve / J'y vais" },
-  { pattern: "En savoir plus$", label: "CTA vague", fix: "Dire exactement ce qui se passe au clic" },
-  { pattern: "Nous sommes ravis|C'est avec fierté", label: "corporate vide", fix: "Supprimer ou reformuler en ton direct" },
-  { pattern: "Offre exclusive|Opportunité unique", label: "fausse exclusivité", fix: "Décrire l'offre simplement" },
-];
 
 export const EDITORIAL_ANGLES_REFERENCE = `
 
