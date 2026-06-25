@@ -513,7 +513,11 @@ function ToneStyleSynthesis({ data, onSaveDirect, forceOpen = false }: {
               <p className="font-display text-base font-bold text-emerald-700 mb-4 flex items-center gap-2">
                 <span className="text-lg">✅</span> Mes expressions clés
               </p>
-              <CappedList items={doList} cap={6} forceOpen={forceOpen} onSave={(i, v) => onSaveDirect("key_expressions", doList.map((it, idx) => (idx === i ? v : it)).join("\n"))} bulletColor="#2E7D32" />
+              {doList.length <= 2 ? (
+                <ClampField value={data.key_expressions} onSave={(v) => onSaveDirect("key_expressions", v)} lines={5} forceOpen={forceOpen} className="text-[13px] text-foreground/80 leading-relaxed" />
+              ) : (
+                <CappedList items={doList} cap={6} forceOpen={forceOpen} onSave={(i, v) => onSaveDirect("key_expressions", doList.map((it, idx) => (idx === i ? v : it)).join("\n"))} bulletColor="#2E7D32" />
+              )}
             </SynthCard>
           )}
           {dontList.length > 0 && (
@@ -521,7 +525,11 @@ function ToneStyleSynthesis({ data, onSaveDirect, forceOpen = false }: {
               <p className="font-display text-base font-bold text-red-600 mb-4 flex items-center gap-2">
                 <span className="text-lg">❌</span> Ce que j'évite toujours
               </p>
-              <CappedList items={dontList} cap={6} forceOpen={forceOpen} onSave={(i, v) => onSaveDirect("things_to_avoid", dontList.map((it, idx) => (idx === i ? v : it)).join("\n"))} bulletColor="#e53935" />
+              {dontList.length <= 2 ? (
+                <ClampField value={data.things_to_avoid} onSave={(v) => onSaveDirect("things_to_avoid", v)} lines={5} forceOpen={forceOpen} className="text-[13px] text-foreground/80 leading-relaxed" />
+              ) : (
+                <CappedList items={dontList} cap={6} forceOpen={forceOpen} onSave={(i, v) => onSaveDirect("things_to_avoid", dontList.map((it, idx) => (idx === i ? v : it)).join("\n"))} bulletColor="#e53935" />
+              )}
             </SynthCard>
           )}
         </div>
