@@ -4,6 +4,8 @@
  * Pattern copié depuis chat-guide/index.ts (déjà en production).
  */
 
+import { sanitizeDashes } from "./anthropic.ts";
+
 export async function streamAnthropicSSE(
   apiKey: string,
   model: string,
@@ -60,11 +62,13 @@ export function createClientSSEStream(
           const { done, value } = await reader.read();
 
           if (done) {
-            // Send final event
+            // Send final event. On nettoie les tirets cadratin sur le texte
+            // ASSEMBLÉ (le contenu sauvegardé/affiché final est garanti sans —).
+            const cleanFull = sanitizeDashes(fullText);
             if (onDone) {
-              try { await onDone(fullText); } catch (e) { console.error("onDone error:", e); }
+              try { await onDone(cleanFull); } catch (e) { console.error("onDone error:", e); }
             }
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done", full: fullText })}\n\n`));
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done", full: cleanFull })}\n\n`));
             controller.close();
             return;
           }
