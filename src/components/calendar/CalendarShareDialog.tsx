@@ -13,6 +13,19 @@ import { formatDistanceToNow, format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { friendlyError } from "@/lib/error-messages";
 
+// Génère un token de partage URL-safe (base64url, sans padding).
+// On le fournit explicitement à l'insert plutôt que de dépendre du DEFAULT
+// SQL : si la migration base64url n'est pas déployée, le DEFAULT produit du
+// base64 standard avec « / » et « + », et un « / » dans le token casse la
+// route /calendrier/partage/:token → lien mort (404). Côté front, on est sûrs.
+const generateShareToken = (): string => {
+  const bytes = new Uint8Array(24);
+  crypto.getRandomValues(bytes);
+  let binary = "";
+  for (const b of bytes) binary += String.fromCharCode(b);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+};
+
 
 interface Share {
   id: string;
@@ -220,6 +233,7 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
       .insert({
         user_id: profileUserId,
         workspace_id: workspaceId || null,
+        share_token: generateShareToken(),
         label: label.trim() || null,
         canal_filter: canal,
         show_content_draft: showDraft,

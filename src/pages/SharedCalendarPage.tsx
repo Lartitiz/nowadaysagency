@@ -143,7 +143,9 @@ function parseSlides(post: Post) {
 // ══════════════════════════════════════════
 
 export default function SharedCalendarPage() {
-  const { token } = useParams<{ token: string }>();
+  // Route splat (/calendrier/partage/*) : le token est dans params["*"], ce qui
+  // préserve un éventuel « / » d'un ancien token base64 (un param :token l'aurait coupé).
+  const token = useParams()["*"] || "";
   const isMobile = useIsMobile();
 
   // Data state
