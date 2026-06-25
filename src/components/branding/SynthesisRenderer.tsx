@@ -73,6 +73,50 @@ function EditableList({ items, onSave, bulletColor = "#fb3d80" }: { items: strin
   );
 }
 
+// Long text field: shows a clamped preview + "voir plus". When expanded (or
+// forced open for PDF), shows the full text — editable if onSave is provided.
+function ClampField({ value, onSave, lines = 4, className = "", forceOpen = false }: { value: string; onSave?: (v: string) => Promise<void>; lines?: number; className?: string; forceOpen?: boolean }) {
+  const [open, setOpen] = useState(false);
+  if (!value) return null;
+  const expanded = open || forceOpen;
+  const isLong = value.length > 200;
+  const full = onSave
+    ? <EditableText value={value} onSave={onSave} className={className} />
+    : <p className={className} style={{ whiteSpace: "pre-line" }}>{value}</p>;
+  if (!isLong) return <div>{full}</div>;
+  return (
+    <div>
+      {expanded ? full : (
+        <p className={`${className} overflow-hidden`} style={{ display: "-webkit-box", WebkitLineClamp: lines, WebkitBoxOrient: "vertical" }}>{value}</p>
+      )}
+      {!forceOpen && (
+        <button onClick={() => setOpen((o) => !o)} className="mt-1.5 block font-mono-ui text-[11px] font-semibold text-primary hover:opacity-70 transition-opacity">
+          {expanded ? "voir moins" : "voir plus"}
+        </button>
+      )}
+    </div>
+  );
+}
+
+// List that shows the first `cap` items + a "voir tout (N)" toggle. Items stay
+// editable (indices match the full array since the slice starts at 0).
+function CappedList({ items, onSave, cap = 6, bulletColor, forceOpen = false }: { items: string[]; onSave: (i: number, v: string) => Promise<void>; cap?: number; bulletColor?: string; forceOpen?: boolean }) {
+  const [showAll, setShowAll] = useState(false);
+  if (!items?.length) return null;
+  const all = showAll || forceOpen;
+  const visible = all ? items : items.slice(0, cap);
+  return (
+    <div>
+      <EditableList items={visible} onSave={onSave} bulletColor={bulletColor} />
+      {items.length > cap && !forceOpen && (
+        <button onClick={() => setShowAll((s) => !s)} className="mt-2 block font-mono-ui text-[11px] font-semibold text-primary hover:opacity-70 transition-opacity">
+          {showAll ? "voir moins" : `voir tout (${items.length})`}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function TimelineCard({ emoji, label, text, color, onSave }: { emoji: string; label: string; text: string; color: string; onSave: (v: string) => Promise<void> }) {
   return (
     <div className="rounded-xl p-5 flex flex-col" style={{ backgroundColor: color }}>
@@ -396,8 +440,8 @@ function ValuePropSynthesis({ data, onSaveDirect }: {
 }
 
 /* ── TONE & STYLE SYNTHESIS ── */
-function ToneStyleSynthesis({ data, onSaveDirect }: {
-  data: any; onSaveDirect: (field: string, value: string) => Promise<void>;
+function ToneStyleSynthesis({ data, onSaveDirect, forceOpen = false }: {
+  data: any; onSaveDirect: (field: string, value: string) => Promise<void>; forceOpen?: boolean;
 }) {
   const toneTags = [data.tone_register, data.tone_style, data.tone_level, data.tone_humor, data.tone_engagement].filter(Boolean);
   const doList = parseToArray(data.key_expressions);
@@ -408,15 +452,18 @@ function ToneStyleSynthesis({ data, onSaveDirect }: {
 
   return (
     <div className="space-y-6">
-      {/* Hero — Voice description */}
+      {/* Hero — Voice description (left-aligned + clamped preview) */}
       {data.voice_description && (
-        <div className="rounded-xl p-6 sm:p-8 bg-[#FFF4F8] border border-[#ffa7c6]/30">
-          <p className="font-display text-lg sm:text-xl italic text-foreground leading-relaxed text-center">
-            "{data.voice_description}"
-          </p>
-          <p className="font-mono-ui text-[10px] uppercase tracking-wider text-muted-foreground text-center mt-3">
+        <div className="rounded-xl p-5 sm:p-6 bg-[#FFF4F8] border border-[#ffa7c6]/30">
+          <p className="font-mono-ui text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
             🗣️ Comment je parle
           </p>
+          <ClampField
+            value={data.voice_description}
+            lines={4}
+            forceOpen={forceOpen}
+            className="font-display text-base sm:text-lg italic text-foreground leading-relaxed"
+          />
         </div>
       )}
 
@@ -439,19 +486,19 @@ function ToneStyleSynthesis({ data, onSaveDirect }: {
             {data.combat_cause && (
               <div className="rounded-xl p-4 bg-[#FFF4F8] border-l-4 border-l-primary">
                 <p className="font-display text-sm font-bold text-foreground mb-2">✊ Ma cause</p>
-                <EditableText value={data.combat_cause} onSave={(v) => onSaveDirect("combat_cause", v)} className="text-[13px] text-foreground/80 leading-relaxed" />
+                <ClampField value={data.combat_cause} onSave={(v) => onSaveDirect("combat_cause", v)} lines={5} forceOpen={forceOpen} className="text-[13px] text-foreground/80 leading-relaxed" />
               </div>
             )}
             {fightsList.length > 0 && (
               <div className="rounded-xl p-4 bg-[#E8F5E9] border-l-4 border-l-emerald-500">
                 <p className="font-display text-sm font-bold text-foreground mb-2">🛡️ Ce que je défends</p>
-                <EditableList items={fightsList} onSave={(i, v) => onSaveDirect("combat_fights", fightsList.map((it, idx) => (idx === i ? v : it)).join("\n"))} bulletColor="#2E7D32" />
+                <CappedList items={fightsList} cap={3} forceOpen={forceOpen} onSave={(i, v) => onSaveDirect("combat_fights", fightsList.map((it, idx) => (idx === i ? v : it)).join("\n"))} bulletColor="#2E7D32" />
               </div>
             )}
             {refusalsList.length > 0 && (
               <div className="rounded-xl p-4 bg-[#FFF3E0] border-l-4 border-l-orange-400">
                 <p className="font-display text-sm font-bold text-foreground mb-2">🚫 Ce que je refuse</p>
-                <EditableList items={refusalsList} onSave={(i, v) => onSaveDirect("combat_refusals", refusalsList.map((it, idx) => (idx === i ? v : it)).join("\n"))} bulletColor="#e65100" />
+                <CappedList items={refusalsList} cap={3} forceOpen={forceOpen} onSave={(i, v) => onSaveDirect("combat_refusals", refusalsList.map((it, idx) => (idx === i ? v : it)).join("\n"))} bulletColor="#e65100" />
               </div>
             )}
           </div>
@@ -466,7 +513,7 @@ function ToneStyleSynthesis({ data, onSaveDirect }: {
               <p className="font-display text-base font-bold text-emerald-700 mb-4 flex items-center gap-2">
                 <span className="text-lg">✅</span> Mes expressions clés
               </p>
-              <EditableList items={doList} onSave={(i, v) => onSaveDirect("key_expressions", doList.map((it, idx) => (idx === i ? v : it)).join("\n"))} bulletColor="#2E7D32" />
+              <CappedList items={doList} cap={6} forceOpen={forceOpen} onSave={(i, v) => onSaveDirect("key_expressions", doList.map((it, idx) => (idx === i ? v : it)).join("\n"))} bulletColor="#2E7D32" />
             </SynthCard>
           )}
           {dontList.length > 0 && (
@@ -474,7 +521,7 @@ function ToneStyleSynthesis({ data, onSaveDirect }: {
               <p className="font-display text-base font-bold text-red-600 mb-4 flex items-center gap-2">
                 <span className="text-lg">❌</span> Ce que j'évite toujours
               </p>
-              <EditableList items={dontList} onSave={(i, v) => onSaveDirect("things_to_avoid", dontList.map((it, idx) => (idx === i ? v : it)).join("\n"))} bulletColor="#e53935" />
+              <CappedList items={dontList} cap={6} forceOpen={forceOpen} onSave={(i, v) => onSaveDirect("things_to_avoid", dontList.map((it, idx) => (idx === i ? v : it)).join("\n"))} bulletColor="#e53935" />
             </SynthCard>
           )}
         </div>
@@ -724,6 +771,9 @@ export default function SynthesisRenderer({ section, data, table, onSynthesisGen
   const [isStale, setIsStale] = useState(false);
   const synthRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
+  // When true, ClampField/CappedList render fully expanded — used during PDF
+  // export so the file holds everything while the on-screen view stays compact.
+  const [forceExpand, setForceExpand] = useState(false);
 
   useEffect(() => { setLocalData(data); }, [data]);
 
@@ -864,34 +914,41 @@ export default function SynthesisRenderer({ section, data, table, onSynthesisGen
   const exportPDF = async () => {
     if (!synthRef.current) return;
     setExporting(true);
+    // Expand all collapsed/capped sections so the PDF holds the full content
+    // even though the on-screen view stays compact, then let the DOM repaint.
+    setForceExpand(true);
+    await new Promise((r) => setTimeout(r, 80));
     try {
       const html2canvas = (await import("html2canvas")).default;
       const jsPDF = (await import("jspdf")).default;
-      const canvas = await html2canvas(synthRef.current, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
+      // scale 1.5 + JPEG keeps the file light (PNG at scale 2 produced ~70 Mo).
+      const canvas = await html2canvas(synthRef.current, { scale: 1.5, backgroundColor: "#ffffff", useCORS: true });
       const pdf = new jsPDF("p", "mm", "a4");
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
       const imgWidth = pageWidth - 20;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      const imgData = canvas.toDataURL("image/png");
+      const imgData = canvas.toDataURL("image/jpeg", 0.82);
       // Paginate: a long synthesis exceeds one A4 page, so slice the image
       // across as many pages as needed instead of clipping at the first page.
       let heightLeft = imgHeight;
       let position = 10;
-      pdf.addImage(imgData, "PNG", 10, position, imgWidth, imgHeight);
+      pdf.addImage(imgData, "JPEG", 10, position, imgWidth, imgHeight);
       heightLeft -= pageHeight;
       while (heightLeft > 0) {
         position = heightLeft - imgHeight + 10;
         pdf.addPage();
-        pdf.addImage(imgData, "PNG", 10, position, imgWidth, imgHeight);
+        pdf.addImage(imgData, "JPEG", 10, position, imgWidth, imgHeight);
         heightLeft -= pageHeight;
       }
       pdf.save(`synthese-${section}-${new Date().toISOString().slice(0, 10)}.pdf`);
       toast.success("PDF téléchargé !");
     } catch {
       toast.error("Erreur lors de l'export");
+    } finally {
+      setForceExpand(false);
+      setExporting(false);
     }
-    setExporting(false);
   };
 
   // Empty state
@@ -940,7 +997,7 @@ export default function SynthesisRenderer({ section, data, table, onSynthesisGen
         {section === "story" && <StorySynthesis data={localData} onSaveRecap={saveRecapField} onSaveDirect={saveDirectField} copyText={copyText} />}
         {section === "persona" && <PersonaSynthesis data={localData} onSavePortrait={saveRecapField} />}
         {section === "value_proposition" && <ValuePropSynthesis data={localData} onSaveDirect={saveDirectField} />}
-        {section === "tone_style" && <ToneStyleSynthesis data={localData} onSaveDirect={saveDirectField} />}
+        {section === "tone_style" && <ToneStyleSynthesis data={localData} onSaveDirect={saveDirectField} forceOpen={forceExpand} />}
         {section === "content_strategy" && <StrategySynthesis data={localData} onSaveRecap={saveRecapField} />}
       </div>
     </div>
