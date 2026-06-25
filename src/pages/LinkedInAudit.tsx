@@ -205,8 +205,10 @@ export default function LinkedInAudit() {
       const path = `${user.id}/${s.type}-${safeName}`;
       const { error } = await supabase.storage.from("linkedin-audit-screenshots").upload(path, s.file, { contentType: s.file.type, upsert: false });
       if (error) throw error;
-      const { data } = supabase.storage.from("linkedin-audit-screenshots").getPublicUrl(path);
-      uploaded.push({ url: data.publicUrl, type: s.type });
+      // Bucket privé : URL signée (l'IA fetch l'image dans son TTL). getPublicUrl ne marchait pas sur ce bucket privé.
+      const { data: signed, error: signErr } = await supabase.storage.from("linkedin-audit-screenshots").createSignedUrl(path, 3600);
+      if (signErr || !signed?.signedUrl) throw signErr ?? new Error("Échec de la génération de l'URL signée");
+      uploaded.push({ url: signed.signedUrl, type: s.type });
     }
     return uploaded;
   };

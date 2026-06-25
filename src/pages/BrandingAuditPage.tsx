@@ -257,11 +257,12 @@ export default function BrandingAuditPage() {
       }
 
       if (Object.keys(brandUpdate).length > 0) {
-        const { data: existing } = await supabase
+        const { data: existing } = await (supabase
           .from("brand_profile")
-          .select("id, positioning, mission, voice_description, offer, values, content_pillars")
+          .select("id, positioning, mission, voice_description, offer, values, content_pillars") as any)
           .eq(column, value)
           .maybeSingle();
+
 
         if (existing) {
           const safeUpdate: Record<string, any> = {};
@@ -286,11 +287,12 @@ export default function BrandingAuditPage() {
       // 2. persona: description
       const personaDesc = ext.for_whom?.value || ext.target_description?.value;
       if (personaDesc) {
-        const { data: existingPersona } = await supabase
+        const { data: existingPersona } = await (supabase
           .from("persona")
-          .select("id, description")
+          .select("id, description") as any)
           .eq(column, value)
           .maybeSingle();
+
 
         if (existingPersona) {
           if (!existingPersona.description || existingPersona.description.trim() === "") {
@@ -307,11 +309,12 @@ export default function BrandingAuditPage() {
 
       // 3. storytelling: imported_text
       if (ext.story?.value) {
-        const { data: existingStory } = await supabase
+        const { data: existingStory } = await (supabase
           .from("storytelling")
-          .select("id, imported_text, step_1_raw")
+          .select("id, imported_text, step_1_raw") as any)
           .eq(column, value)
           .maybeSingle();
+
 
         if (existingStory) {
           if (!existingStory.imported_text && !existingStory.step_1_raw) {

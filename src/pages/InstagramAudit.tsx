@@ -133,8 +133,10 @@ export default function InstagramAudit() {
     const path = `${user.id}/${prefix}-${sanitizeFileName(file.name)}`;
     const { error } = await supabase.storage.from(bucket).upload(path, file, { contentType: file.type, upsert: false });
     if (error) throw error;
-    // Use public URL (buckets are public for read access)
-    return supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+    // Buckets privés : URL signée (fetchable par l'IA dans son TTL). 1h suffit largement pour l'audit.
+    const { data: signed, error: signErr } = await supabase.storage.from(bucket).createSignedUrl(path, 3600);
+    if (signErr || !signed?.signedUrl) throw signErr ?? new Error("Échec de la génération de l'URL signée");
+    return signed.signedUrl;
   };
 
   const handleSubmit = async (form: AuditFormData, retryCount = 0) => {

@@ -2540,7 +2540,7 @@ export default function CreerUnifie() {
       // (ou pas) renseigné photo_index. Couvre aussi les carrousels déjà sauvegardés.
       const normalizedSlides = resolvePhotoIndexes(result.raw.slides, photosForExport?.length ?? 0);
       await exportCarouselPptx(
-        normalizedSlides,
+        normalizedSlides as any,
         ideaText || "carrousel",
         visualSlides.length > 0 ? visualSlides : undefined,
         charterData,
