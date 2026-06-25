@@ -7,6 +7,7 @@ import { posthog } from "@/lib/posthog";
 import { clearAppStorage } from "@/lib/storage-cleanup";
 import { setFlowUserId } from "@/hooks/use-flow-persistence";
 import { resolveOnboardingStatus } from "@/lib/onboarding-status";
+import { invalidateUserPlanCache } from "@/hooks/use-user-plan";
 
 interface AuthContextType {
   user: User | null;
@@ -220,6 +221,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     clearAppStorage();
+    invalidateUserPlanCache();
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
   }, []);

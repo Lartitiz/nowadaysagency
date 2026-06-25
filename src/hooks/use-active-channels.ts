@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -70,14 +71,20 @@ export function useActiveChannels(): ActiveChannels {
 
   const setChannels = useCallback(async (newChannels: ChannelId[]) => {
     if (!user?.id) return;
-    setChannelsState(newChannels);
+    const previous = channels;
+    setChannelsState(newChannels); // optimistic
 
-    // Sync both tables in parallel
-    await Promise.all([
+    // Sync both tables; if either write fails, roll back the optimistic update
+    const [profileRes, planRes] = await Promise.all([
       supabase.from("profiles").update({ canaux: newChannels }).eq("user_id", profileUserId),
       supabase.from("user_plan_config").update({ channels: newChannels }).eq("user_id", profileUserId),
     ]);
-  }, [user?.id, profileUserId]);
+    if (profileRes.error || planRes.error) {
+      console.error("setChannels: échec de la synchro des canaux", profileRes.error || planRes.error);
+      setChannelsState(previous); // rollback
+      toast.error("Tes canaux n'ont pas pu être enregistrés. Réessaie.");
+    }
+  }, [user?.id, profileUserId, channels]);
 
   return {
     channels,
