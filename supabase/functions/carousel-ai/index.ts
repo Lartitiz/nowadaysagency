@@ -282,6 +282,7 @@ serve(async (req) => {
             system: systemPrompt + "\n\n" + mixPrompt,
             messages: [{ role: "user", content: messageContent }],
             max_tokens: 8192,
+            temperature: 0.85,
           });
         } else {
           const textPrompt = mixPrompt + `\n\nBRIEF CRÉATIF : "${body.subject || "non précisé"}". Ce concept doit structurer tout le carrousel.\n\nDescription des photos : "${body.photo_description || "non fournie"}"\nNombre de slides estimé : ${body.slide_count || 8}\nObjectif : ${body.objective || "engagement"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${body.slide_structure ? `\nStructure imposée : ${body.slide_structure.length} slides définies par l'utilisateur·ice.` : ""}`;
@@ -291,6 +292,7 @@ serve(async (req) => {
             system: systemPrompt,
             messages: [{ role: "user", content: textPrompt }],
             max_tokens: 8192,
+            temperature: 0.85,
           });
         }
 
@@ -350,6 +352,7 @@ serve(async (req) => {
             system: systemPrompt + "\n\n" + photoPrompt,
             messages: [{ role: "user", content: messageContent }],
             max_tokens: 8192,
+            temperature: 0.85,
           });
         } else {
           // Text-only mode: description without actual photos
@@ -360,6 +363,7 @@ serve(async (req) => {
             system: systemPrompt,
             messages: [{ role: "user", content: textPrompt }],
             max_tokens: 8192,
+            temperature: 0.85,
           });
         }
 
@@ -710,6 +714,10 @@ Réponds UNIQUEMENT en JSON valide :
       system: systemPrompt,
       messages: [{ role: "user", content: userPrompt }],
       max_tokens: type === "deepening_questions" ? 1024 : 8192,
+      // Le carrousel tournait au défaut API (1.0), plus chaud que les autres
+      // canaux (0.8) → on cadre la créativité du format vitrine. Les questions
+      // (Haiku, tâche bornée) gardent le comportement par défaut.
+      ...(type === "deepening_questions" ? {} : { temperature: 0.85 }),
     });
 
     // JSON-aware correction pass for carousels

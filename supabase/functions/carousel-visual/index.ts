@@ -1068,13 +1068,18 @@ Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de con
     // On remplace tous les @import Google Fonts par un <link> en tête du HTML.
     if (result?.slides_html) {
       const fontsLink = `<link href="https://fonts.googleapis.com/css2?family=${encodeURIComponent(safeFontTitle)}:ital,wght@0,400;0,700;1,400&family=${encodeURIComponent(safeFontBody)}:wght@400;500;600;700&display=swap" rel="stylesheet">`;
-      
+      // Reset défensif : empêche le débordement horizontal du texte hors du cadre
+      // 1080px. Cause classique = carte en width:100% + padding sans box-sizing
+      // border-box → la carte dépasse et se fait couper à droite (slides chargées
+      // en texte). Corrige l'aperçu ET l'export (même HTML source).
+      const safetyReset = `<style>*{box-sizing:border-box;}html,body{margin:0;padding:0;}h1,h2,h3,h4,h5,p,span,li,div{overflow-wrap:break-word;}</style>`;
+
       result.slides_html = result.slides_html.map((slide: any) => {
         let html = slide.html || "";
         // Supprimer les @import Google Fonts existants (ils ne marchent pas dans les iframes)
         html = html.replace(/<style>\s*@import\s+url\([^)]*fonts\.googleapis\.com[^)]*\)\s*;?\s*<\/style>/gi, "");
-        // Ajouter le <link> au tout début
-        html = fontsLink + html;
+        // Ajouter le <link> police + le reset défensif au tout début
+        html = fontsLink + safetyReset + html;
         return { ...slide, html };
       });
     }

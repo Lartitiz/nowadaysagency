@@ -10,6 +10,7 @@ import LinkedInResult from "@/components/creer/formatRenderers/LinkedInResult";
 import NewsletterResult from "@/components/creer/formatRenderers/NewsletterResult";
 import PinterestVisualResult from "@/components/creer/formatRenderers/PinterestVisualResult";
 import PinterestPhotoBriefResult from "@/components/creer/formatRenderers/PinterestPhotoBriefResult";
+import Confetti from "@/components/Confetti";
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { DownloadMenuItems } from "@/components/exports/DownloadMenuItems";
@@ -114,6 +115,18 @@ const VISUAL_PROGRESS_MESSAGES = [
   "Peaufinage des détails…",
   "Presque fini…",
 ];
+
+// ── Libellé de célébration à l'apparition du résultat ──
+const FORMAT_DONE_LABELS: Record<string, string> = {
+  carousel: "Ton carrousel est prêt",
+  reel: "Ton script de reel est prêt",
+  story: "Ta séquence de stories est prête",
+  post: "Ton post est prêt",
+  linkedin: "Ton post LinkedIn est prêt",
+  newsletter: "Ta newsletter est prête",
+  pinterest_visual: "Ton épingle est prête",
+  pinterest_photo: "Ton brief photo est prêt",
+};
 
 const TIPS = [
   "💡 Un bon hook = une promesse. Pas un clickbait.",
@@ -262,6 +275,12 @@ export default function CreerStepResult({
   const [visualProgressIndex, setVisualProgressIndex] = useState(0);
   const startTimeRef = useRef(Date.now());
 
+  // ── Célébration à l'apparition du résultat ──
+  // Ne se déclenche que sur la transition génération → résultat (pas sur un
+  // reload qui restaure un résultat déjà existant).
+  const prevGenerating = useRef(generating);
+  const [showCelebration, setShowCelebration] = useState(false);
+
   useEffect(() => {
     if (!generating) {
       setProgress(0);
@@ -303,6 +322,16 @@ export default function CreerStepResult({
     }, 5000);
     return () => clearInterval(interval);
   }, [visualLoading]);
+
+  // Détecte la fin de génération (true → false avec un résultat) → célèbre.
+  useEffect(() => {
+    const justFinished = prevGenerating.current && !generating && !!result;
+    prevGenerating.current = generating;
+    if (!justFinished) return;
+    setShowCelebration(true);
+    const t = setTimeout(() => setShowCelebration(false), 4500);
+    return () => clearTimeout(t);
+  }, [generating, result]);
 
   if (generating) {
     // Mode streaming : le contenu texte arrive progressivement
@@ -381,6 +410,18 @@ export default function CreerStepResult({
 
   return (
     <div className="space-y-4 animate-fade-in">
+      {showCelebration && <Confetti />}
+
+      {/* Moment de victoire : matérialise le résultat après l'attente */}
+      {showCelebration && (
+        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-primary/10 to-accent/40 border border-primary/20 animate-fade-in">
+          <Sparkles className="h-4 w-4 text-primary shrink-0" />
+          <p className="text-sm font-semibold text-foreground">
+            {(FORMAT_DONE_LABELS[format] || "Ton contenu est prêt")} ✨
+          </p>
+        </div>
+      )}
+
       {/* Badge : confirme que la photo a bien été utilisée par l'IA */}
       {usedPhotoCount && usedPhotoCount > 0 && (
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/5 border border-primary/20 text-xs text-foreground animate-fade-in">
