@@ -238,8 +238,8 @@ function generateFallbackSuggestions(contextBlock: string, profile: any, strat: 
   if (contextBlock.includes("Histoire : ❌")) suggestions.push("Travailler mon storytelling");
   if (contextBlock.includes("Persona : ❌") && suggestions.length < 3) suggestions.push("Définir mon client·e idéal·e");
   if (contextBlock.includes("Proposition de valeur : ❌") && suggestions.length < 3) suggestions.push("Clarifier ma proposition de valeur");
-  if (contextBlock.includes("Ton et style : ❌") && suggestions.length < 3) suggestions.push("Trouver mon ton de communication");
-  if (contextBlock.includes("Stratégie : ❌") && suggestions.length < 3) suggestions.push("Définir ma stratégie de contenu");
+  if (contextBlock.includes("Ton & style : ❌") && suggestions.length < 3) suggestions.push("Trouver mon ton de communication");
+  if (contextBlock.includes("Stratégie contenu : ❌") && suggestions.length < 3) suggestions.push("Définir ma stratégie de contenu");
 
   // Priorité 2 : branding OK mais pas de contenu
   if (suggestions.length === 0 && contextBlock.includes("calendrier vide")) {
@@ -498,7 +498,7 @@ Règles pour les suggestions :
     const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
     if (!apiKey) throw new Error("ANTHROPIC_API_KEY not configured");
 
-    const model = getModelForAction("suggestion");
+    const model = getModelForAction("assistant_chat");
 
     // Stream the response as SSE
     // Detect if the user is asking for content creation to allow longer output
