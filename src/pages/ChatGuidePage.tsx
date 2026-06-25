@@ -211,6 +211,10 @@ export default function ChatGuidePage() {
   const [isTyping, setIsTyping] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const sendingRef = useRef(false);
+  // Stream en cours : permet d'annuler proprement (démontage, changement de
+  // conversation) pour éviter les écritures en arrière-plan sur un message périmé.
+  const activeControllerRef = useRef<AbortController | null>(null);
+  const cancelledRef = useRef(false);
   const [conversationId, setConversationId] = useState<string>("");
   const [suggestionsVisible, setSuggestionsVisible] = useState(true);
   const [loaded, setLoaded] = useState(false);
@@ -440,6 +444,22 @@ export default function ChatGuidePage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
+  // Annule le stream en cours (changement de conversation / démontage)
+  const cancelActiveStream = useCallback(() => {
+    if (activeControllerRef.current) {
+      cancelledRef.current = true;
+      activeControllerRef.current.abort();
+      activeControllerRef.current = null;
+    }
+  }, []);
+
+  // Abandonne le stream si on quitte la page pendant une réponse
+  useEffect(() => {
+    return () => {
+      activeControllerRef.current?.abort();
+    };
+  }, []);
+
   // Auto-resize textarea
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
@@ -489,6 +509,7 @@ export default function ChatGuidePage() {
     if (sendingRef.current) return;
     sendingRef.current = true;
     setIsSending(true);
+    cancelledRef.current = false;
 
     const userMsg: ChatMessage = {
       id: crypto.randomUUID(),
@@ -550,6 +571,7 @@ export default function ChatGuidePage() {
       // serveur ne répond pas, on abandonne au lieu de laisser « écrit… » à
       // l'infini. L'abort déclenche le catch plus bas (message FR + arrêt).
       const controller = new AbortController();
+      activeControllerRef.current = controller;
       const connectTimeout = setTimeout(() => controller.abort(), 30000);
       let resp: Response;
       try {
@@ -679,6 +701,12 @@ export default function ChatGuidePage() {
         }
       }
     } catch (err) {
+      // Annulation volontaire (changement de conversation / démontage) :
+      // on s'arrête sans afficher d'erreur ni écrire dans l'ancien message.
+      if (cancelledRef.current) {
+        setIsTyping(false);
+        return;
+      }
       console.error("Chat guide error:", err);
       setIsTyping(false);
 
@@ -705,6 +733,7 @@ export default function ChatGuidePage() {
     } finally {
       sendingRef.current = false;
       setIsSending(false);
+      activeControllerRef.current = null;
     }
   }, [saveMessage, messages, workspaceId, user, updateConversationTitle, isDemoMode, getDemoResponse, queryClient]);
 
@@ -718,6 +747,7 @@ export default function ChatGuidePage() {
 
   // New conversation
   const startNewConversation = useCallback(async () => {
+    cancelActiveStream();
     const newId = crypto.randomUUID();
     setMessages([]);
     setConversationId(newId);
@@ -728,7 +758,7 @@ export default function ChatGuidePage() {
       if (workspaceId && workspaceId !== user.id) convRow.workspace_id = workspaceId;
       await supabase.from("chat_guide_conversations").insert(convRow);
     }
-  }, [user, isDemoMode, workspaceId]);
+  }, [user, isDemoMode, workspaceId, cancelActiveStream]);
 
   // Load conversations for drawer
   const loadConversations = useCallback(async () => {
@@ -744,6 +774,7 @@ export default function ChatGuidePage() {
 
   // Load a specific conversation
   const loadConversation = useCallback(async (conv: Conversation) => {
+    cancelActiveStream();
     setConversationId(conv.id);
     setDrawerOpen(false);
     setShowOldDivider(false);
@@ -767,7 +798,7 @@ export default function ChatGuidePage() {
       setMessages([]);
       setSuggestionsVisible(true);
     }
-  }, []);
+  }, [cancelActiveStream]);
 
   // All messages including welcome
   const allMessages = useMemo(() => {

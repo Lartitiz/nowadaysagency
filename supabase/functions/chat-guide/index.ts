@@ -578,19 +578,40 @@ Règles pour les suggestions :
           })}\n\n`));
 
           controller.close();
+
+          // Parse-gate facturation : on ne décompte le crédit QU'APRÈS une
+          // réponse complète et non vide (avant, c'était un fire-and-forget
+          // qui facturait même un stream cassé en route).
+          if (fullText.trim()) {
+            logUsage(userId, "coach", "chat_guide", undefined, model, workspaceId).catch(console.error);
+          }
         } catch (err) {
           console.error("Stream processing error:", err);
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({
-            type: "error",
-            error: "Erreur pendant la génération",
-          })}\n\n`));
+          // Stream interrompu : si du texte a déjà été produit, on le persiste
+          // (via un event "done" marqué interrompu) au lieu de le perdre — et on
+          // NE facture PAS (sortie cassée). Sinon, message d'erreur classique.
+          const partial = fullText.trim();
+          if (partial) {
+            const { cleanText: ta, actions: partialActions } = parseActionLinks(fullText);
+            const { cleanText: partialClean } = parseSuggestions(ta);
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+              type: "done",
+              cleanText: partialClean + "\n\n*(Réponse interrompue : réessaie pour la suite.)*",
+              actions: partialActions,
+              suggestions: [],
+              creditsUsed: 0,
+              interrupted: true,
+            })}\n\n`));
+          } else {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+              type: "error",
+              error: "Erreur pendant la génération",
+            })}\n\n`));
+          }
           controller.close();
         }
       },
     });
-
-    // Log usage (fire and forget)
-    logUsage(userId, "coach", "chat_guide", undefined, model, workspaceId).catch(console.error);
 
     return new Response(outputStream, {
       headers: {
