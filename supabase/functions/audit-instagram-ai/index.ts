@@ -442,7 +442,14 @@ Réponds en JSON :
         return await callAnthropicSimple(getModelForAction("audit"), sys, userText, 0.7, 8192);
       } catch (anthropicErr: any) {
         console.error(`[audit-instagram-ai] part ${label} failed:`, anthropicErr.message);
-        return await fallbackToGemini(sys, textOnlyUserPrompt);
+        // Filet : si le fallback Gemini échoue AUSSI, on ne jette pas — sinon le Promise.all
+        // rejette et tout l'audit tombe. On rend "" → cette part sera vide, les 2 autres passent.
+        try {
+          return await fallbackToGemini(sys, textOnlyUserPrompt);
+        } catch (geminiErr: any) {
+          console.error(`[audit-instagram-ai] part ${label} fallback (Gemini) failed:`, geminiErr.message);
+          return "";
+        }
       }
     };
 
@@ -468,6 +475,29 @@ Réponds en JSON :
       sections: sectionsObj.sections ?? overviewObj.sections,
       visual_audit: visualObj.visual_audit,
     };
+
+    // Parse-gate : ne JAMAIS facturer un audit cassé. Si les 3 parts sont revenues vides
+    // (JSON illisible des 2 modèles, sans planter), on renvoie une erreur réessayable
+    // SANS décompter le crédit. Si au moins une part a abouti, on facture et on rend le partiel.
+    const nonEmpty = (v: any) =>
+      v != null && (typeof v === "object"
+        ? Object.keys(v).length > 0
+        : typeof v === "string"
+          ? v.trim().length > 0
+          : true);
+    const hasContent =
+      nonEmpty(merged.sections) ||
+      nonEmpty(merged.visual_audit) ||
+      merged.score_global != null ||
+      nonEmpty((merged as any).resume);
+
+    if (!hasContent) {
+      console.error("[audit-instagram-ai] les 3 parts sont vides — audit non facturé");
+      return new Response(
+        JSON.stringify({ error: "L'audit n'a pas pu être généré, réessaie dans un instant.", retryable: true }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     await logUsage(user.id, "audit", "audit_instagram", undefined, undefined, workspace_id);
     return new Response(
