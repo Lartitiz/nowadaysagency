@@ -248,3 +248,18 @@ verify_jwt = false
 
 [functions.stock-photo-keywords]
 verify_jwt = false
+
+[functions.social-oauth-start]
+verify_jwt = false
+
+[functions.social-oauth-callback]
+verify_jwt = false
+
+[functions.social-instagram-publish]
+verify_jwt = false
+
+[functions.social-status]
+verify_jwt = false
+
+[functions.social-disconnect]
+verify_jwt = false
