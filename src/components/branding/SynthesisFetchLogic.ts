@@ -111,7 +111,9 @@ export function useSynthesisFetch() {
   useEffect(() => {
     loadData();
     loadSummaries();
-  }, [user?.id]);
+    // Re-run when the active workspace changes (column/value), not just on
+    // login — otherwise switching client workspace kept showing stale data.
+  }, [user?.id, column, value]);
 
   const handleCopy = useCallback(() => {
     if (!sheetRef.current) return;
