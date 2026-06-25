@@ -45,6 +45,11 @@ describe("parseToArray", () => {
   it("11. Mix de séparateurs → split sur tous", () => {
     expect(parseToArray("a\n• b - c")).toEqual(["a", "b", "c"]);
   });
+
+  it("12. Mot composé → ne casse PAS sur le trait d'union interne", () => {
+    expect(parseToArray("Lead-magnet\nE-commerce")).toEqual(["Lead-magnet", "E-commerce"]);
+    expect(parseToArray("- Lead-magnet - 50-60 ans")).toEqual(["Lead-magnet", "50-60 ans"]);
+  });
 });
 
 // ── parseToTags ──
