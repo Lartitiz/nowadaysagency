@@ -4574,6 +4574,27 @@ export type Database = {
           },
         ]
       }
+      mini_audit_attempts: {
+        Row: {
+          created_at: string
+          handle: string
+          id: string
+          ip: string
+        }
+        Insert: {
+          created_at?: string
+          handle: string
+          id?: string
+          ip: string
+        }
+        Update: {
+          created_at?: string
+          handle?: string
+          id?: string
+          ip?: string
+        }
+        Relationships: []
+      }
       monthly_stats: {
         Row: {
           accounts_engaged: number | null
