@@ -296,7 +296,7 @@ export default function CarouselResult({ result, visualSlides, onSlidesUpdate }:
               />
             )}
             {caption.hashtags && (
-              <p className="text-xs text-muted-foreground">{Array.isArray(caption.hashtags) ? caption.hashtags.join(" ") : caption.hashtags}</p>
+              <p className="text-xs text-muted-foreground">{Array.isArray(caption.hashtags) ? caption.hashtags.map((t: string) => (t.startsWith("#") ? t : `#${t}`)).join(" ") : caption.hashtags}</p>
             )}
           </CardContent>
         </Card>

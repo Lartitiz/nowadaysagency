@@ -128,16 +128,25 @@ const FORMAT_DONE_LABELS: Record<string, string> = {
   pinterest_photo: "Ton brief photo est prêt",
 };
 
-const TIPS = [
+// Tips universels (valables quel que soit le format).
+const TIPS_GENERIC = [
   "💡 Un bon hook = une promesse. Pas un clickbait.",
   "💡 L'algorithme favorise les contenus sauvegardés. Éducatif = jackpot.",
-  "💡 Le premier slide détermine 80% de l'engagement.",
   "💡 Un CTA doux performe 2x mieux qu'un CTA directif.",
   "💡 Les posts qui prennent position = 3x plus de commentaires.",
   "💡 2x/semaine avec intention > tous les jours sans stratégie.",
-  "💡 Un bon reel = un hook en 3s + une seule idée claire.",
-  "💡 Les stories avec sondage = +40% d'engagement.",
 ];
+
+// Tips spécifiques à un format (évite ex. un tip "stories" pendant un LinkedIn).
+const TIPS_BY_FORMAT: Record<string, string[]> = {
+  carousel: ["💡 Le premier slide détermine 80% de l'engagement."],
+  reel: ["💡 Un bon reel = un hook en 3s + une seule idée claire."],
+  story: ["💡 Les stories avec sondage = +40% d'engagement."],
+};
+
+function getTipsForFormat(format: string): string[] {
+  return [...TIPS_GENERIC, ...(TIPS_BY_FORMAT[format] ?? [])];
+}
 
 // ── Skeleton adapté au format ──
 function SkeletonPreview({ format }: { format: string }) {
@@ -269,8 +278,9 @@ export default function CreerStepResult({
 }: Props) {
   // ── Rotation des messages et tips pendant le loading ──
   const messages = PROGRESS_MESSAGES[format] || PROGRESS_MESSAGES.default;
+  const tips = getTipsForFormat(format);
   const [messageIndex, setMessageIndex] = useState(0);
-  const [tipIndex, setTipIndex] = useState(() => Math.floor(Math.random() * TIPS.length));
+  const [tipIndex, setTipIndex] = useState(() => Math.floor(Math.random() * getTipsForFormat(format).length));
   const [progress, setProgress] = useState(0);
   const [visualProgressIndex, setVisualProgressIndex] = useState(0);
   const startTimeRef = useRef(Date.now());
@@ -294,7 +304,7 @@ export default function CreerStepResult({
     }, 4000);
 
     const tipInterval = setInterval(() => {
-      setTipIndex((prev) => (prev + 1) % TIPS.length);
+      setTipIndex((prev) => (prev + 1) % tips.length);
     }, 6000);
 
     const progressInterval = setInterval(() => {
@@ -366,7 +376,7 @@ export default function CreerStepResult({
               style={{ width: `${progress}%` }}
             />
           </div>
-          <p className="text-xs text-center text-muted-foreground">{TIPS[tipIndex]}</p>
+          <p className="text-xs text-center text-muted-foreground">{tips[tipIndex % tips.length]}</p>
         </div>
       </div>
     );
