@@ -9,6 +9,7 @@ import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { RefreshCw, ArrowRight, CheckCircle2, AlertTriangle, XCircle, Info, Loader2 } from "lucide-react";
+import SocialConnectionsCard from "@/components/SocialConnectionsCard";
 
 interface Check {
   category: string;
@@ -190,6 +191,8 @@ export default function ConnectionCheckPage() {
           <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground">🔧 Vérification des connexions</h1>
           <p className="mt-1 text-sm text-muted-foreground">Scanne ton compte pour vérifier que tout est bien connecté.</p>
         </div>
+
+        <SocialConnectionsCard />
 
         <div className="flex items-center justify-between mb-6">
           <p className="text-xs text-muted-foreground">
