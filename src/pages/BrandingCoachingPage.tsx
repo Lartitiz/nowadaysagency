@@ -1,4 +1,4 @@
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useSearchParams, useNavigate, Navigate } from "react-router-dom";
 import BrandingCoachingFlow from "@/components/branding/BrandingCoachingFlow";
 import { LocalErrorBoundary } from "@/components/LocalErrorBoundary";
 
@@ -32,17 +32,17 @@ export default function BrandingCoachingPage() {
   // Resolve aliases
   const resolved = SECTION_ALIAS[rawSection || ""] || rawSection;
 
-  // Redirect value_proposition to its recap page
+  // Redirect value_proposition to its recap page.
+  // Use <Navigate> rather than calling navigate() during render (which triggers a
+  // "Cannot update a component while rendering" warning and unstable redirects).
   if (resolved === "value_proposition") {
-    navigate("/branding/proposition/recap", { replace: true });
-    return null;
+    return <Navigate to="/branding/proposition/recap" replace />;
   }
 
   const section = resolved as Section;
 
   if (!section || !VALID_SECTIONS.includes(section)) {
-    navigate("/branding");
-    return null;
+    return <Navigate to="/branding" replace />;
   }
 
   return (
