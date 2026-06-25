@@ -2272,7 +2272,7 @@ export default function CreerUnifie() {
     }
   };
 
-  const handleGenerateVisuals = async (opts?: { forceText?: boolean }) => {
+  const handleGenerateVisuals = async (opts?: { forceText?: boolean; background?: boolean }) => {
     if (!result?.raw?.slides || visualLoading) return;
     setVisualLoading(true);
 
@@ -2507,28 +2507,59 @@ export default function CreerUnifie() {
       // Quota épuisé : ouvrir le QuotaWallModal avec l'objet quota complet,
       // avant le throw générique qui perdrait data.quota.
       if (data?.error === "limit_reached" || data?.quota) {
+        // Pré-génération silencieuse : ne pas faire surgir le mur quota sans clic.
+        if (opts?.background) return;
         if (handleQuotaError({ data })) return;
       }
       if (data?.error) throw new Error(data.error);
       setVisualSlides(data.result?.slides_html || []);
-      if (downgradeReason === "user_chose_text") {
-        toast.success("Carrousel généré en mode texte (aucune photo disponible).");
-      } else {
-        toast.success("Visuels générés !");
+      if (!opts?.background) {
+        if (downgradeReason === "user_chose_text") {
+          toast.success("Carrousel généré en mode texte (aucune photo disponible).");
+        } else {
+          toast.success("Visuels générés !");
+        }
       }
     } catch (e: any) {
       // Quota remonté par throw : ouvrir le mur quota au lieu d'un toast brut.
-      if (handleQuotaError(e)) return;
+      // En pré-génération (background), on reste silencieux : pas de mur ni de toast
+      // surgissant sans clic — l'utilisatrice pourra relancer manuellement.
+      if (!opts?.background && handleQuotaError(e)) return;
       posthog.capture("carousel_visual_error", {
         error_message: e?.message || "unknown",
         had_slides: !!result?.raw?.slides,
         slides_count: result?.raw?.slides?.length || 0,
+        background: !!opts?.background,
       });
-      toast.error(e?.message || "Erreur lors de la génération des visuels");
+      if (!opts?.background) {
+        toast.error(e?.message || "Erreur lors de la génération des visuels");
+      }
     } finally {
       setVisualLoading(false);
     }
   };
+
+  // ═══ Pré-génération des visuels du carrousel ═══
+  // Dès que le texte du carrousel est prêt, on lance la génération des visuels
+  // en arrière-plan pendant que l'utilisatrice lit, pour qu'ils soient déjà là
+  // (ou en cours) quand elle scrolle. Frontend only — ne touche pas l'edge.
+  const autoVisualsForResultRef = useRef<any>(null);
+  useEffect(() => {
+    if (selectedFormat !== "carousel") return;
+    if (step !== "result") return;
+    if (!result?.raw?.slides) return;
+    if (visualLoading || visualSlides.length > 0) return;
+    if (autoVisualsForResultRef.current === result) return; // déjà lancé pour ce résultat
+    // Ne PAS auto-déclencher si ça ouvrirait le dialog "photos manquantes"
+    // (carrousel photo/mix sans photo dispo) — la décision reste à l'utilisatrice.
+    const rawType = result?.raw?.carousel_type;
+    const photosAvail = uploadedPhotos.length > 0 || generatedWithPhotos.length > 0;
+    const wouldOpenPhotoDialog = (rawType === "photo" || rawType === "mix") && !photosAvail;
+    if (wouldOpenPhotoDialog) return;
+    autoVisualsForResultRef.current = result;
+    handleGenerateVisuals({ background: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result, selectedFormat, step, visualLoading, visualSlides.length, uploadedPhotos.length, generatedWithPhotos.length]);
 
   const handleExportPptx = async () => {
     if (!result?.raw?.slides) return;
