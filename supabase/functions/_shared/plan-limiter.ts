@@ -121,6 +121,21 @@ async function getWorkspacePlan(workspaceId: string): Promise<string> {
   return resolvePlan(data?.plan || "free");
 }
 
+// Un programme d'accompagnement actif (Binôme) donne droit au plan binôme,
+// même sans abonnement Stripe. Cohérent avec check-subscription (qui upgrade
+// free -> binome quand un coaching_program actif existe). Sans ça, le quota
+// traite en "free" une cliente binôme et la bloque à tort.
+async function getCoachingPlan(userId: string): Promise<string> {
+  const sb = getServiceClient();
+  const { data } = await sb
+    .from("coaching_programs")
+    .select("id")
+    .eq("client_user_id", userId)
+    .eq("status", "active")
+    .maybeSingle();
+  return data ? "binome" : "free";
+}
+
 /** Compare two plans and return the one with the highest total limit */
 function bestPlan(planA: string, planB: string): string {
   const limitsA = PLAN_LIMITS[planA] || PLAN_LIMITS.free;
@@ -155,11 +170,15 @@ export async function checkQuota(
     return { allowed: true, plan: "admin", remaining: 9999, remaining_total: 9999 };
   }
 
-  // Toujours vérifier le plan personnel de l'utilisatrice (subscriptions)
-  // + le plan du workspace si applicable, et garder le meilleur
+  // Plan effectif = le meilleur entre le plan perso (subscriptions),
+  // le plan du workspace, et un éventuel programme d'accompagnement actif
+  // (coaching_program) — pour rester cohérent avec check-subscription qui
+  // pilote l'affichage. Sans le coaching_program, une cliente Binôme sans
+  // abonnement Stripe était traitée en "free" et bloquée à tort.
   const userPlan = await getUserPlan(userId);
   const workspacePlan = workspaceId ? await getWorkspacePlan(workspaceId) : "free";
-  const plan = bestPlan(userPlan, workspacePlan);
+  const coachingPlan = await getCoachingPlan(userId);
+  const plan = bestPlan(bestPlan(userPlan, workspacePlan), coachingPlan);
   const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
 
   // Check if category is available for this plan
