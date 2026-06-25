@@ -159,7 +159,7 @@ export default function BrandingAuditResultPage() {
     } finally {
       setLoading(false);
     }
-  }, [user, id]);
+  }, [user, id, column, value]);
 
   const loadAuditRecs = useCallback(async () => {
     if (!user || !id) return;
@@ -170,7 +170,7 @@ export default function BrandingAuditResultPage() {
       .eq("audit_id", id)
       .order("position", { ascending: true });
     if (data) setAuditRecs(data as AuditRec[]);
-  }, [user, id]);
+  }, [user, id, column, value]);
 
   // Build a lookup by module for pillar section
   const completedRecs: Record<string, AuditRec> = {};
@@ -185,7 +185,7 @@ export default function BrandingAuditResultPage() {
       .limit(1)
       .maybeSingle();
     if (data) setIgScores(data);
-  }, [user]);
+  }, [user, column, value]);
 
   useEffect(() => {
     loadAuditData();

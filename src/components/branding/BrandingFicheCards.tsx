@@ -99,7 +99,8 @@ function StoryCards() {
         setStories((data as StorytellingRow[]) || []);
         setLoading(false);
       });
-  }, [user?.id]);
+    // Reload when the active workspace changes, not just on login.
+  }, [user?.id, column, value]);
 
   if (loading) return <div className="py-8 text-center text-muted-foreground text-sm">Chargement…</div>;
 
