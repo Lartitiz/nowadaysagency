@@ -81,7 +81,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const quota = await checkQuota(user.id, "suggestion");
+    const quota = await checkQuota(user.id, "suggestion", workspace_id);
     if (!quota.allowed) {
       return new Response(JSON.stringify({ error: quota.message, quota }), {
         status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
