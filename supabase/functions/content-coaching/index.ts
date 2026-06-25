@@ -47,13 +47,6 @@ Deno.serve(async (req) => {
     const rateCheck = checkRateLimit(user.id);
     if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
 
-    const quota = await checkQuota(user.id, "suggestion");
-    if (!quota.allowed) {
-      return new Response(JSON.stringify({ error: quota.message, quota }), {
-        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     const body = await req.json();
     const { answers, workspace_id, intensity, regenerate_lens } = body;
     const { objectif, sujet, canal, format, content_type, ton_envie } = answers || {};
@@ -63,6 +56,13 @@ Deno.serve(async (req) => {
     if (!membership.ok) {
       console.warn("[workspace-guard] denied", { userId: user.id, workspaceId: workspace_id });
       return workspaceDeniedResponse(corsHeaders);
+    }
+
+    const quota = await checkQuota(user.id, "suggestion", workspace_id);
+    if (!quota.allowed) {
+      return new Response(JSON.stringify({ error: quota.message, quota }), {
+        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     if (!objectif || !ton_envie) {
@@ -527,7 +527,7 @@ Retourne UNIQUEMENT ce JSON (pas de markdown, pas de commentaires, pas de prose 
       };
     }
 
-    await logUsage(user.id, "suggestion", "content_coaching");
+    await logUsage(user.id, "suggestion", "content_coaching", undefined, getModelForAction("coaching"), workspace_id);
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

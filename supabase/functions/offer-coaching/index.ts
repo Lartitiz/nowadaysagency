@@ -9,6 +9,7 @@ import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -37,12 +38,6 @@ serve(async (req) => {
     const rateCheck = checkRateLimit(user.id);
     if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
 
-    // Check plan limits
-    const usageCheck = await checkQuota(user.id, "content");
-    if (!usageCheck.allowed) {
-      return quotaDeniedResponse(usageCheck, corsHeaders);
-    }
-
     const reqBody = await req.json();
     validateInput(reqBody, z.object({
       step: z.number().min(1).max(20),
@@ -50,6 +45,20 @@ serve(async (req) => {
       workspace_id: z.string().uuid().optional().nullable(),
     }).passthrough());
     const { step, answer, offerData, workspace_id } = reqBody;
+
+    // Garde d'appartenance workspace (défense en profondeur, en plus de la RLS)
+    const sbGuard = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const membership = await assertWorkspaceMembership(sbGuard, user.id, workspace_id);
+    if (!membership.ok) {
+      console.warn("[workspace-guard] denied", { userId: user.id, workspaceId: workspace_id });
+      return workspaceDeniedResponse(corsHeaders);
+    }
+
+    // Check plan limits (décompté sur le bon workspace)
+    const usageCheck = await checkQuota(user.id, "content", workspace_id);
+    if (!usageCheck.allowed) {
+      return quotaDeniedResponse(usageCheck, corsHeaders);
+    }
 
     // Fetch full user context server-side for richer coaching
     const ctx = await getUserContext(supabase, user.id, workspace_id);
@@ -194,7 +203,7 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks.`;
       parsed = { reaction: content };
     }
 
-    await logUsage(user.id, "content", "offer_coaching");
+    await logUsage(user.id, "content", "offer_coaching", undefined, getModelForAction("offer"), workspace_id);
 
     return new Response(JSON.stringify(parsed), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

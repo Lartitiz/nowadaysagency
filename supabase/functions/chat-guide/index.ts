@@ -238,8 +238,8 @@ function generateFallbackSuggestions(contextBlock: string, profile: any, strat: 
   if (contextBlock.includes("Histoire : ❌")) suggestions.push("Travailler mon storytelling");
   if (contextBlock.includes("Persona : ❌") && suggestions.length < 3) suggestions.push("Définir mon client·e idéal·e");
   if (contextBlock.includes("Proposition de valeur : ❌") && suggestions.length < 3) suggestions.push("Clarifier ma proposition de valeur");
-  if (contextBlock.includes("Ton et style : ❌") && suggestions.length < 3) suggestions.push("Trouver mon ton de communication");
-  if (contextBlock.includes("Stratégie : ❌") && suggestions.length < 3) suggestions.push("Définir ma stratégie de contenu");
+  if (contextBlock.includes("Ton & style : ❌") && suggestions.length < 3) suggestions.push("Trouver mon ton de communication");
+  if (contextBlock.includes("Stratégie contenu : ❌") && suggestions.length < 3) suggestions.push("Définir ma stratégie de contenu");
 
   // Priorité 2 : branding OK mais pas de contenu
   if (suggestions.length === 0 && contextBlock.includes("calendrier vide")) {
@@ -498,7 +498,7 @@ Règles pour les suggestions :
     const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
     if (!apiKey) throw new Error("ANTHROPIC_API_KEY not configured");
 
-    const model = getModelForAction("suggestion");
+    const model = getModelForAction("assistant_chat");
 
     // Stream the response as SSE
     // Detect if the user is asking for content creation to allow longer output
@@ -578,19 +578,40 @@ Règles pour les suggestions :
           })}\n\n`));
 
           controller.close();
+
+          // Parse-gate facturation : on ne décompte le crédit QU'APRÈS une
+          // réponse complète et non vide (avant, c'était un fire-and-forget
+          // qui facturait même un stream cassé en route).
+          if (fullText.trim()) {
+            logUsage(userId, "coach", "chat_guide", undefined, model, workspaceId).catch(console.error);
+          }
         } catch (err) {
           console.error("Stream processing error:", err);
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({
-            type: "error",
-            error: "Erreur pendant la génération",
-          })}\n\n`));
+          // Stream interrompu : si du texte a déjà été produit, on le persiste
+          // (via un event "done" marqué interrompu) au lieu de le perdre — et on
+          // NE facture PAS (sortie cassée). Sinon, message d'erreur classique.
+          const partial = fullText.trim();
+          if (partial) {
+            const { cleanText: ta, actions: partialActions } = parseActionLinks(fullText);
+            const { cleanText: partialClean } = parseSuggestions(ta);
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+              type: "done",
+              cleanText: partialClean + "\n\n*(Réponse interrompue : réessaie pour la suite.)*",
+              actions: partialActions,
+              suggestions: [],
+              creditsUsed: 0,
+              interrupted: true,
+            })}\n\n`));
+          } else {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+              type: "error",
+              error: "Erreur pendant la génération",
+            })}\n\n`));
+          }
           controller.close();
         }
       },
     });
-
-    // Log usage (fire and forget)
-    logUsage(userId, "coach", "chat_guide", undefined, model, workspaceId).catch(console.error);
 
     return new Response(outputStream, {
       headers: {
