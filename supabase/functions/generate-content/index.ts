@@ -658,7 +658,7 @@ FORMAT :
         systemPrompt,
         userPrompt,
         0.85,
-        500
+        2000
       );
 
       let suggestions;

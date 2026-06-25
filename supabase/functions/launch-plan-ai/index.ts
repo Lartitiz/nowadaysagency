@@ -148,7 +148,7 @@ Réponds UNIQUEMENT en JSON :
   ]
 }`;
 
-    const content = await callAnthropicSimple(getModelForAction("launch"), systemPrompt + "\n\n" + ANTI_SLOP, "Génère mon plan de slots de lancement.", 0.7);
+    const content = await callAnthropicSimple(getModelForAction("launch"), systemPrompt + "\n\n" + ANTI_SLOP, "Génère mon plan de slots de lancement.", 0.7, 8192);
 
     let parsed: any;
     try {

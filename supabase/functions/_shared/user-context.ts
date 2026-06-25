@@ -519,15 +519,16 @@ export function buildIdentityBlock(
 }
 
 export function buildProfileBlock(profile: any): string {
-  const lines = [
-    `- Prénom : ${profile.prenom || "?"}`,
-    `- Activité : ${profile.activite || "?"}`,
-    `- Type : ${profile.type_activite || "?"}`,
-    `- Cible : ${profile.cible || "?"}`,
-    `- Problème qu'elle résout : ${profile.probleme_principal || "?"}`,
-    `- Thématiques : ${(profile.piliers || []).join(", ") || "?"}`,
-    `- Ton souhaité : ${(profile.tons || []).join(", ") || "?"}`,
-  ];
+  // On n'injecte une ligne que si la valeur existe : un "?" dans le prompt
+  // pousse le modèle à inventer ou à recopier le "?" tel quel.
+  const lines: string[] = [];
+  if (profile.prenom) lines.push(`- Prénom : ${profile.prenom}`);
+  if (profile.activite) lines.push(`- Activité : ${profile.activite}`);
+  if (profile.type_activite) lines.push(`- Type : ${profile.type_activite}`);
+  if (profile.cible) lines.push(`- Cible : ${profile.cible}`);
+  if (profile.probleme_principal) lines.push(`- Problème qu'elle résout : ${profile.probleme_principal}`);
+  if ((profile.piliers || []).length) lines.push(`- Thématiques : ${profile.piliers.join(", ")}`);
+  if ((profile.tons || []).length) lines.push(`- Ton souhaité : ${profile.tons.join(", ")}`);
   if (profile.mission) lines.push(`- Mission : ${profile.mission}`);
   if (profile.offre) lines.push(`- Offre (ce qu'elle vend) : ${profile.offre}`);
   if (profile.croyances_limitantes) lines.push(`- Croyances limitantes de sa cible : ${profile.croyances_limitantes}`);
