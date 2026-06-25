@@ -238,9 +238,6 @@ export default function BrandingAuditPage() {
     setAutofilling(true);
     try {
       const ext = result.extraction_branding;
-      const wId = workspaceId;
-      const fCol = wId ? "workspace_id" : "user_id";
-      const fVal = wId || user.id;
 
       // 1. brand_profile: positioning, mission, values, voice, offer, content_pillars
       const brandUpdate: Record<string, any> = {};
@@ -263,7 +260,7 @@ export default function BrandingAuditPage() {
         const { data: existing } = await supabase
           .from("brand_profile")
           .select("id, positioning, mission, voice_description, offer, values, content_pillars")
-          .eq(fCol, fVal)
+          .eq(column, value)
           .maybeSingle();
 
         if (existing) {
@@ -280,7 +277,7 @@ export default function BrandingAuditPage() {
         } else {
           await supabase.from("brand_profile").insert({
             user_id: user.id,
-            workspace_id: wId || null,
+            workspace_id: column === "workspace_id" ? value : null,
             ...brandUpdate,
           } as any);
         }
@@ -292,7 +289,7 @@ export default function BrandingAuditPage() {
         const { data: existingPersona } = await supabase
           .from("persona")
           .select("id, description")
-          .eq(fCol, fVal)
+          .eq(column, value)
           .maybeSingle();
 
         if (existingPersona) {
@@ -302,7 +299,7 @@ export default function BrandingAuditPage() {
         } else {
           await supabase.from("persona").insert({
             user_id: user.id,
-            workspace_id: wId || null,
+            workspace_id: column === "workspace_id" ? value : null,
             description: personaDesc,
           } as any);
         }
@@ -313,7 +310,7 @@ export default function BrandingAuditPage() {
         const { data: existingStory } = await supabase
           .from("storytelling")
           .select("id, imported_text, step_1_raw")
-          .eq(fCol, fVal)
+          .eq(column, value)
           .maybeSingle();
 
         if (existingStory) {
@@ -326,7 +323,7 @@ export default function BrandingAuditPage() {
         } else {
           await supabase.from("storytelling").insert({
             user_id: user.id,
-            workspace_id: wId || null,
+            workspace_id: column === "workspace_id" ? value : null,
             imported_text: ext.story.value,
             source: "audit",
           } as any);

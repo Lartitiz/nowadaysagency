@@ -387,7 +387,7 @@ function ValuePropSynthesis({ data, onSaveDirect }: {
         {proofs.length > 0 && (
           <div>
             <SectionLabel emoji="🏆" title="Mes preuves" />
-            <EditableList items={proofs} onSave={async (i, v) => { /* proofs are concatenated, skip individual save */ }} />
+            <EditableList items={proofs} onSave={(i, v) => onSaveDirect("step_2c_feedback", proofs.map((it, idx) => (idx === i ? v : it)).join("\n"))} />
           </div>
         )}
       </SynthCard>
@@ -445,13 +445,13 @@ function ToneStyleSynthesis({ data, onSaveDirect }: {
             {fightsList.length > 0 && (
               <div className="rounded-xl p-4 bg-[#E8F5E9] border-l-4 border-l-emerald-500">
                 <p className="font-display text-sm font-bold text-foreground mb-2">🛡️ Ce que je défends</p>
-                <EditableList items={fightsList} onSave={async () => {}} bulletColor="#2E7D32" />
+                <EditableList items={fightsList} onSave={(i, v) => onSaveDirect("combat_fights", fightsList.map((it, idx) => (idx === i ? v : it)).join("\n"))} bulletColor="#2E7D32" />
               </div>
             )}
             {refusalsList.length > 0 && (
               <div className="rounded-xl p-4 bg-[#FFF3E0] border-l-4 border-l-orange-400">
                 <p className="font-display text-sm font-bold text-foreground mb-2">🚫 Ce que je refuse</p>
-                <EditableList items={refusalsList} onSave={async () => {}} bulletColor="#e65100" />
+                <EditableList items={refusalsList} onSave={(i, v) => onSaveDirect("combat_refusals", refusalsList.map((it, idx) => (idx === i ? v : it)).join("\n"))} bulletColor="#e65100" />
               </div>
             )}
           </div>
@@ -466,7 +466,7 @@ function ToneStyleSynthesis({ data, onSaveDirect }: {
               <p className="font-display text-base font-bold text-emerald-700 mb-4 flex items-center gap-2">
                 <span className="text-lg">✅</span> Mes expressions clés
               </p>
-              <EditableList items={doList} onSave={async () => {}} bulletColor="#2E7D32" />
+              <EditableList items={doList} onSave={(i, v) => onSaveDirect("key_expressions", doList.map((it, idx) => (idx === i ? v : it)).join("\n"))} bulletColor="#2E7D32" />
             </SynthCard>
           )}
           {dontList.length > 0 && (
@@ -474,7 +474,7 @@ function ToneStyleSynthesis({ data, onSaveDirect }: {
               <p className="font-display text-base font-bold text-red-600 mb-4 flex items-center gap-2">
                 <span className="text-lg">❌</span> Ce que j'évite toujours
               </p>
-              <EditableList items={dontList} onSave={async () => {}} bulletColor="#e53935" />
+              <EditableList items={dontList} onSave={(i, v) => onSaveDirect("things_to_avoid", dontList.map((it, idx) => (idx === i ? v : it)).join("\n"))} bulletColor="#e53935" />
             </SynthCard>
           )}
         </div>

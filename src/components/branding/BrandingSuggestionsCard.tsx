@@ -93,24 +93,26 @@ export default function BrandingSuggestionsCard({
       }
     }
 
-    // 2. Mark suggestion set as applied
-    try {
-      if (suggestionId && user) {
-        await (supabase.from("branding_suggestions" as any) as any)
-          .update({ status: "applied", resolved_at: new Date().toISOString() })
-          .eq("id", suggestionId);
-      }
-    } catch {
-      // non-blocking
-    }
-
+    // 2. Mark suggestion set as applied — only when everything succeeded,
+    // otherwise keep the card open so the failed suggestions aren't lost.
     if (!hasError) {
+      try {
+        if (suggestionId && user) {
+          await (supabase.from("branding_suggestions" as any) as any)
+            .update({ status: "applied", resolved_at: new Date().toISOString() })
+            .eq("id", suggestionId);
+        }
+      } catch {
+        // non-blocking
+      }
       toast.success("Suggestions appliquées ! 🌸");
+      onApplied?.();
+      setShowPreview(false);
+      onDismiss();
+    } else {
+      toast.error("Certaines suggestions n'ont pas pu être appliquées. Réessaie.");
     }
 
-    onApplied?.();
-    setShowPreview(false);
-    onDismiss();
     setIsApplying(false);
   };
 
