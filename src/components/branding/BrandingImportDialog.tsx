@@ -47,6 +47,7 @@ export default function BrandingImportDialog({
   const [extracted, setExtracted] = useState<Record<string, string | null>>({});
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const [editedValues, setEditedValues] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const workspaceId = useWorkspaceId();
 
@@ -91,6 +92,7 @@ export default function BrandingImportDialog({
 
       if (error) throw new Error(error.message || "Erreur lors de l'analyse");
       if (data?.error) throw new Error(data.error);
+      if (!data?.extracted) throw new Error("Réponse inattendue de l'analyse. Réessaie.");
 
       const result = data.extracted as Record<string, string | null>;
       setExtracted(result);
@@ -114,6 +116,7 @@ export default function BrandingImportDialog({
   };
 
   const handleValidate = async () => {
+    if (saving) return;
     const updates: Record<string, string> = {};
     for (const [key, isChecked] of Object.entries(checked)) {
       if (isChecked && editedValues[key]) {
@@ -126,6 +129,7 @@ export default function BrandingImportDialog({
       return;
     }
 
+    setSaving(true);
     try {
       const { error } = await (supabase.from(sectionTable as any) as any)
         .update(updates)
@@ -139,6 +143,8 @@ export default function BrandingImportDialog({
       onOpenChange(false);
     } catch (err: any) {
       toast.error("Erreur lors de la sauvegarde : " + (friendlyError(err)));
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -247,11 +253,11 @@ export default function BrandingImportDialog({
                 </div>
 
                 <div className="flex gap-2 pt-2">
-                  <Button variant="outline" className="flex-1" onClick={() => setStep("input")}>
+                  <Button variant="outline" className="flex-1" onClick={() => setStep("input")} disabled={saving}>
                     ← Retour
                   </Button>
-                  <Button className="flex-1" onClick={handleValidate}>
-                    Valider l'import
+                  <Button className="flex-1" onClick={handleValidate} disabled={saving}>
+                    {saving ? "Import en cours…" : "Valider l'import"}
                   </Button>
                 </div>
               </>
