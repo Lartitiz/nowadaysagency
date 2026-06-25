@@ -1,4 +1,5 @@
-import { Loader2, Pencil, CalendarDays, Copy, Download, RefreshCw, RotateCcw, Palette, ChevronDown, Lightbulb, Sparkles, ArrowUpRight } from "lucide-react";
+import { Loader2, Pencil, CalendarDays, Copy, Download, RefreshCw, RotateCcw, Palette, ChevronDown, Lightbulb, Sparkles, ArrowUpRight, Instagram } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import CarouselResult from "@/components/creer/formatRenderers/CarouselResult";
@@ -229,6 +230,10 @@ interface Props {
   sourceIdea?: string;
   sourceObjective?: string;
   sourceAngle?: string | null;
+  /** Phase 1 publication directe Instagram. Si défini, affiche le bouton. */
+  onPublishInstagram?: () => void;
+  publishInstagramLoading?: boolean;
+  publishInstagramDisabledReason?: string | null;
 }
 
 export default function CreerStepResult({
@@ -266,6 +271,9 @@ export default function CreerStepResult({
   sourceIdea,
   sourceObjective,
   sourceAngle,
+  onPublishInstagram,
+  publishInstagramLoading,
+  publishInstagramDisabledReason,
 }: Props) {
   // ── Rotation des messages et tips pendant le loading ──
   const messages = PROGRESS_MESSAGES[format] || PROGRESS_MESSAGES.default;
