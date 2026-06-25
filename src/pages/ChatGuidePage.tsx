@@ -941,6 +941,15 @@ export default function ChatGuidePage() {
                                 "/dashboard", "/dashboard/guide", "/profil",
                                 "/idees", "/pricing", "/abonnement",
                               ];
+                              // Seuls ces parents ont de vrais sous-chemins
+                              // (ex: /branding/offres/:id, /atelier/rediger).
+                              // PAS /creer : il ne prend que des query params, donc
+                              // /creer/story n'existe pas et doit être rabattu, pas
+                              // laissé filer vers une 404.
+                              const prefixRoutes = ["/branding/offres", "/atelier"];
+                              const queryString = action.route.includes("?")
+                                ? "?" + action.route.split("?").slice(1).join("?")
+                                : "";
 
                               // Express carousel generation
                               if (baseRoute === "/creer" && action.route.includes("format=carousel")) {
@@ -986,12 +995,24 @@ export default function ChatGuidePage() {
                                 return;
                               }
 
-                              if (validRoutes.includes(baseRoute) || validRoutes.some(r => baseRoute.startsWith(r + "/"))) {
+                              const isValidRoute =
+                                validRoutes.includes(baseRoute) ||
+                                prefixRoutes.some(r => baseRoute.startsWith(r + "/"));
+
+                              if (isValidRoute) {
                                 navigate(action.route);
                               } else {
-                                console.warn("Route inconnue dans le chat:", action.route);
-                                navigate("/creer");
-                                toast("La page demandée n'existe pas encore, voici les options disponibles.");
+                                // Rabattement gracieux : si le 1er segment est une route
+                                // valide (ex: /creer/story → /creer), on y va en gardant
+                                // les query params, au lieu d'atterrir sur une 404.
+                                const firstSeg = "/" + baseRoute.split("/").filter(Boolean)[0];
+                                if (baseRoute !== firstSeg && validRoutes.includes(firstSeg)) {
+                                  navigate(firstSeg + queryString);
+                                } else {
+                                  console.warn("Route inconnue dans le chat:", action.route);
+                                  navigate("/creer");
+                                  toast("La page demandée n'existe pas encore, voici les options disponibles.");
+                                }
                               }
                             }}
                             className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all bg-primary/10 text-primary hover:bg-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/30"
