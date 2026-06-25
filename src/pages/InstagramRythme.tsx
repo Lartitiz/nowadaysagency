@@ -42,7 +42,13 @@ export default function InstagramRythme() {
   // Load existing data
   useEffect(() => {
     if (!user) return;
-    (supabase.from("user_rhythm") as any).select("*").eq(column, value).maybeSingle().then(({ data }) => {
+    (supabase.from("user_rhythm") as any).select("*").eq(column, value).maybeSingle().then(({ data, error }) => {
+      if (error) {
+        console.error("Erreur chargement rythme:", error);
+        toast({ title: "Impossible de charger ton rythme", description: "Réessaie dans un instant.", variant: "destructive" });
+        setLoading(false);
+        return;
+      }
       if (data) {
         setExistingId(data.id);
         setTimeIdeas(data.time_ideas_monthly ?? 60);
@@ -55,6 +61,10 @@ export default function InstagramRythme() {
           setSelectedSlots(data.preferred_slots ? JSON.parse(data.preferred_slots) : []);
         } catch { setSelectedSlots([]); }
       }
+      setLoading(false);
+    }, (err: any) => {
+      console.error("Erreur chargement rythme:", err);
+      toast({ title: "Impossible de charger ton rythme", description: "Réessaie dans un instant.", variant: "destructive" });
       setLoading(false);
     });
   }, [user?.id]);

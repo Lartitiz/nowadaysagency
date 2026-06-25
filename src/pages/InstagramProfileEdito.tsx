@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
@@ -221,6 +221,7 @@ export default function InstagramProfileEdito() {
   const { data: strategyData } = useBrandStrategy();
   const { data: editorialLineData, isLoading: editorialLoading } = useEditorialLine();
   const [editorial, setEditorial] = useState<EditorialLine>({ ...EMPTY_LINE });
+  const rhythmSuggestionRef = useRef<any>(null);
   const [saving, setSaving] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [suggestingPillars, setSuggestingPillars] = useState(false);
@@ -464,7 +465,7 @@ export default function InstagramProfileEdito() {
       const text = parsed.suggestion || parsed.text || content;
       setRhythmSuggestion(text);
       // Store parsed recommendations for "Apply" button
-      if (parsed.posts_frequency) (window as any).__rhythmSuggestion = parsed;
+      if (parsed.posts_frequency) rhythmSuggestionRef.current = parsed;
     } catch (e: any) {
       console.error("Erreur technique:", e);
       toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
@@ -474,7 +475,7 @@ export default function InstagramProfileEdito() {
   };
 
   const applyRhythmSuggestion = () => {
-    const s = (window as any).__rhythmSuggestion;
+    const s = rhythmSuggestionRef.current;
     if (s) {
       setEditorial((prev) => ({
         ...prev,
@@ -482,7 +483,7 @@ export default function InstagramProfileEdito() {
         stories_frequency: s.stories_frequency || prev.stories_frequency,
       }));
       setRhythmSuggestion(null);
-      delete (window as any).__rhythmSuggestion;
+      rhythmSuggestionRef.current = null;
       toast({ title: "Rythme mis à jour !" });
     }
   };
