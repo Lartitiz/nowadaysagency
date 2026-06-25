@@ -6,6 +6,7 @@ import React, {
   useRef,
   useCallback,
 } from "react";
+import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import {
@@ -233,7 +234,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const startSession = useCallback(async () => {
     if (!user) return;
-    const tasks = await buildTasks(user.id, wf);
+    let tasks;
+    try {
+      tasks = await buildTasks(user.id, wf);
+    } catch (e) {
+      console.error("startSession: échec de la construction des tâches", e);
+      toast.error("Impossible de démarrer la session. Réessaie dans un instant.");
+      return;
+    }
     setState({
       isActive: true,
       tasks,

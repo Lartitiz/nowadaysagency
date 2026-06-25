@@ -94,8 +94,8 @@ async function fetchSubscription(): Promise<any> {
   return _inflightPromise;
 }
 
-/** Force cache invalidation (called by refresh) */
-function invalidateCache() {
+/** Force cache invalidation (called by refresh and on sign-out to avoid cross-user leak) */
+export function invalidateUserPlanCache() {
   _cachedData = null;
   _cacheTimestamp = 0;
 }
@@ -142,7 +142,7 @@ export function useUserPlan(): UserPlanState {
   }, [user, isDemoMode]);
 
   const refresh = useCallback(async () => {
-    invalidateCache();
+    invalidateUserPlanCache();
     await load();
   }, [load]);
 
