@@ -522,6 +522,34 @@ export default function CreerStepResult({
         )
       )}
 
+      {/* Publication directe Instagram (phase 1 : 1 image) */}
+      {onPublishInstagram && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="w-full inline-block">
+                <Button
+                  variant="outline"
+                  onClick={onPublishInstagram}
+                  disabled={!!publishInstagramDisabledReason || publishInstagramLoading}
+                  className="w-full gap-2 h-10 text-sm"
+                >
+                  {publishInstagramLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Instagram className="h-4 w-4" />
+                  )}
+                  Publier sur Instagram
+                </Button>
+              </span>
+            </TooltipTrigger>
+            {publishInstagramDisabledReason && (
+              <TooltipContent>{publishInstagramDisabledReason}</TooltipContent>
+            )}
+          </Tooltip>
+        </TooltipProvider>
+      )}
+
       {/* 4. Actions secondaires */}
       <div className="flex items-center justify-center gap-2 sm:gap-3 flex-wrap">
         {onSave && (
