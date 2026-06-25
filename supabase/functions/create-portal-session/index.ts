@@ -26,12 +26,28 @@ serve(async (req) => {
       apiVersion: "2025-08-27.basil",
     });
 
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-    if (customers.data.length === 0) throw new Error("Aucun compte client Stripe trouvé");
+    const supabaseService = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+
+    const { data: subRow } = await supabaseService
+      .from("subscriptions")
+      .select("stripe_customer_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    let customerId = subRow?.stripe_customer_id as string | undefined;
+
+    if (!customerId) {
+      const customers = await stripe.customers.list({ email: user.email, limit: 1 });
+      if (customers.data.length === 0) throw new Error("Aucun compte client Stripe trouvé");
+      customerId = customers.data[0].id;
+    }
 
     const origin = req.headers.get("origin") || "https://nowadaysagency.lovable.app";
     const portalSession = await stripe.billingPortal.sessions.create({
-      customer: customers.data[0].id,
+      customer: customerId,
       return_url: `${origin}/parametres`,
     });
 

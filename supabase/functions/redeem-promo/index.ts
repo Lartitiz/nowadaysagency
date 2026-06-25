@@ -82,11 +82,18 @@ serve(async (req) => {
     }
 
     // Create redemption
-    await supabase.from("promo_redemptions").insert({
+    const { error: redemptionError } = await supabase.from("promo_redemptions").insert({
       user_id: userId,
       promo_code_id: promo.id,
       expires_at: expiresAt,
     });
+
+    if (redemptionError) {
+      return new Response(JSON.stringify({ error: "Tu as déjà utilisé ce code." }), {
+        headers: { ...cors, "Content-Type": "application/json" },
+        status: 400,
+      });
+    }
 
     // Atomic increment uses
     await supabase.rpc("increment_promo_uses", { promo_id: promo.id });
