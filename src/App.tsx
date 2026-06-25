@@ -278,7 +278,8 @@ function AnimatedRoutes() {
               <Route path="/unsubscribe" element={<UnsubscribePage />} />
               <Route path="/invite/:token" element={<InvitePage />} />
               <Route path="/share/branding/:token" element={<SharedBrandingPage />} />
-              <Route path="/calendrier/partage/:token" element={<SharedCalendarPage />} />
+              {/* Splat (et non :token) pour tolérer les anciens tokens base64 contenant un « / ». */}
+              <Route path="/calendrier/partage/*" element={<SharedCalendarPage />} />
               <Route element={<ErrorBoundaryLayout />}>
                 <Route path="/instagram" element={<ProtectedRoute><InstagramHub /></ProtectedRoute>} />
                 <Route path="/instagram/profil" element={<ProtectedRoute><InstagramProfile /></ProtectedRoute>} />
