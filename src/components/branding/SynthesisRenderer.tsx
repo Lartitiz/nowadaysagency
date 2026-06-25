@@ -492,13 +492,13 @@ function ToneStyleSynthesis({ data, onSaveDirect, forceOpen = false }: {
             {fightsList.length > 0 && (
               <div className="rounded-xl p-4 bg-[#E8F5E9] border-l-4 border-l-emerald-500">
                 <p className="font-display text-sm font-bold text-foreground mb-2">🛡️ Ce que je défends</p>
-                <CappedList items={fightsList} cap={3} forceOpen={forceOpen} onSave={(i, v) => onSaveDirect("combat_fights", fightsList.map((it, idx) => (idx === i ? v : it)).join("\n"))} bulletColor="#2E7D32" />
+                <ClampField value={data.combat_fights} onSave={(v) => onSaveDirect("combat_fights", v)} lines={5} forceOpen={forceOpen} className="text-[13px] text-foreground/80 leading-relaxed" />
               </div>
             )}
             {refusalsList.length > 0 && (
               <div className="rounded-xl p-4 bg-[#FFF3E0] border-l-4 border-l-orange-400">
                 <p className="font-display text-sm font-bold text-foreground mb-2">🚫 Ce que je refuse</p>
-                <CappedList items={refusalsList} cap={3} forceOpen={forceOpen} onSave={(i, v) => onSaveDirect("combat_refusals", refusalsList.map((it, idx) => (idx === i ? v : it)).join("\n"))} bulletColor="#e65100" />
+                <ClampField value={data.combat_refusals} onSave={(v) => onSaveDirect("combat_refusals", v)} lines={5} forceOpen={forceOpen} className="text-[13px] text-foreground/80 leading-relaxed" />
               </div>
             )}
           </div>
