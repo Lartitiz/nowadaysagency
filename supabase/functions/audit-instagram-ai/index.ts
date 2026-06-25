@@ -422,7 +422,7 @@ Réponds en JSON :
           system: finalSystemPrompt,
           messages: [{ role: "user", content: userContent }],
           temperature: 0.7,
-          max_tokens: 8192,
+          max_tokens: 16384,
         });
       } catch (anthropicErr: any) {
         console.error("[audit-instagram-ai] Anthropic vision failed:", anthropicErr.message);
@@ -439,7 +439,7 @@ Réponds en JSON :
     // Fallback: text-only audit if no screenshots
     let content: string;
     try {
-      content = await callAnthropicSimple(getModelForAction("audit"), finalSystemPrompt, textOnlyUserPrompt, 0.7, 8192);
+      content = await callAnthropicSimple(getModelForAction("audit"), finalSystemPrompt, textOnlyUserPrompt, 0.7, 16384);
     } catch (anthropicErr: any) {
       console.error("[audit-instagram-ai] Anthropic text-only failed:", anthropicErr.message);
       content = await fallbackToGemini(finalSystemPrompt, textOnlyUserPrompt);
