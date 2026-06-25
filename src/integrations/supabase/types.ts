@@ -4821,6 +4821,30 @@ export type Database = {
           },
         ]
       }
+      oauth_states: {
+        Row: {
+          created_at: string
+          platform: string
+          state: string
+          user_id: string
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          platform?: string
+          state: string
+          user_id: string
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          platform?: string
+          state?: string
+          user_id?: string
+          workspace_id?: string | null
+        }
+        Relationships: []
+      }
       offers: {
         Row: {
           benefits: Json | null
