@@ -1,5 +1,18 @@
 // Shared Anthropic API helper for edge functions
 
+/**
+ * Règle de marque : JAMAIS de tiret cadratin (—) en sortie. Le modèle en produit
+ * malgré l'instruction (incises) ; ce nettoyage déterministe le garantit.
+ * Remplace tiret cadratin (—) et demi-cadratin (–) par une virgule.
+ * Ne touche PAS le trait d'union "-" (donc "30-45 mots", puces "- ", dates intacts).
+ */
+export function sanitizeDashes(text: string): string {
+  if (!text) return text;
+  return text
+    .replace(/ *[—–] */g, ", ") // tiret (entouré ou non d'espaces) -> virgule
+    .replace(/,\s*,/g, ",");    // évite ",," si deux tirets se suivaient
+}
+
 export type AnthropicModel = "claude-opus-4-6" | "claude-sonnet-4-5-20250929" | "claude-haiku-4-5";
 
 export function getDefaultModel(): AnthropicModel {
@@ -140,7 +153,7 @@ export async function callAnthropicWithMeta(options: AnthropicOptions): Promise<
     if (response.ok) {
       const data = await response.json();
       return {
-        text: data.content?.[0]?.text || "",
+        text: sanitizeDashes(data.content?.[0]?.text || ""),
         stop_reason: data.stop_reason || null,
       };
     }
@@ -185,7 +198,7 @@ export async function callAnthropicWithMeta(options: AnthropicOptions): Promise<
       if (fallbackRes.ok) {
         const data = await fallbackRes.json();
         return {
-          text: data.content?.[0]?.text || "",
+          text: sanitizeDashes(data.content?.[0]?.text || ""),
           stop_reason: data.stop_reason || null,
         };
       }
@@ -265,7 +278,7 @@ export async function callAnthropic(options: AnthropicOptions): Promise<string> 
 
     if (response.ok) {
       const data = await response.json();
-      return data.content?.[0]?.text || "";
+      return sanitizeDashes(data.content?.[0]?.text || "");
     }
 
     const errorText = await response.text();
@@ -307,7 +320,7 @@ export async function callAnthropic(options: AnthropicOptions): Promise<string> 
       });
       if (fallbackRes.ok) {
         const data = await fallbackRes.json();
-        return data.content?.[0]?.text || "";
+        return sanitizeDashes(data.content?.[0]?.text || "");
       }
       await fallbackRes.text(); // consume body
     }
