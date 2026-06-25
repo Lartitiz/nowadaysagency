@@ -21,7 +21,9 @@ export function parseToArray(value: unknown): string[] {
     }
 
     return value
-      .split(/[\n•\-●]/)
+      // Split on newlines/bullets, and on hyphens used as bullets (at a word
+      // boundary), but NOT inside compound words like "Lead-magnet" or "50-60".
+      .split(/[\n•●]|(?<=\s)-|-(?=\s)|^-/)
       .map((s) => s.replace(/^\s*\d+[.)]\s*/, "").trim())
       .filter(Boolean);
   }
@@ -88,7 +90,9 @@ export function parseStringList(value: unknown): string[] {
     }
 
     return value
-      .split(/[\n•\-●–—]/)
+      // Long dashes always split; short hyphens only at word boundaries so
+      // compound words ("e-commerce", "2024-2025") aren't broken apart.
+      .split(/[\n•●–—]|(?<=\s)-|-(?=\s)|^-/)
       .map((s) => s.replace(/^\s*\d+[.)]\s*/, "").trim())
       .filter(Boolean);
   }

@@ -74,8 +74,10 @@ function filled(val: unknown): boolean {
 }
 
 export function calculateBrandingCompletion(data: BrandingRawData): BrandingCompletion {
-  // STORYTELLING: complete if at least 1 exists with polished text or imported text
-  const hasStory = data.storytellingList && data.storytellingList.length > 0;
+  // STORYTELLING: complete if at least 1 exists with polished text or imported text.
+  // An auto-created empty draft row must NOT count as 100% (it gonflait le score).
+  const hasStory = Array.isArray(data.storytellingList) &&
+    data.storytellingList.some((s: any) => filled(s?.step_7_polished) || filled(s?.imported_text));
   const storytelling = hasStory ? 100 : 0;
 
   // PERSONA: 5 steps
