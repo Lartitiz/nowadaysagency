@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
+import FeedPreview from "@/components/creer/formatRenderers/FeedPreview";
 import { useState, useEffect } from "react";
 
 interface Props {
@@ -53,6 +54,9 @@ export default function LinkedInResult({ result, photos }: Props) {
 
   return (
     <div className="space-y-4 animate-fade-in">
+      {/* Aperçu réaliste « comme dans le feed » LinkedIn */}
+      {checkedText && <FeedPreview variant="linkedin" text={checkedText} photos={photos} />}
+
       {photos && photos.length > 0 && (
         <Card className="border-border">
           <CardContent className="p-3 space-y-2">
