@@ -1,31 +1,35 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { getServiceClient } from "../_shared/auth.ts";
 
-// Simple in-memory rate limiting
-const ipCounts = new Map<string, { count: number; resetAt: number }>();
-const handleCounts = new Map<string, number>();
+// Rate-limit DURABLE (table Postgres) : survit aux cold starts, contrairement à une Map en mémoire.
+const RATE_WINDOW_MS = 3600000; // 1h
+const MAX_PER_IP = 3;
 
-function checkRateLimit(ip: string, handle: string): string | null {
-  const now = Date.now();
-  
-  // IP: max 3/hour
-  const ipEntry = ipCounts.get(ip);
-  if (ipEntry && ipEntry.resetAt > now) {
-    if (ipEntry.count >= 3) {
-      return "Tu as déjà testé 3 profils. Crée ton compte pour des analyses illimitées 😉";
-    }
-    ipEntry.count++;
-  } else {
-    ipCounts.set(ip, { count: 1, resetAt: now + 3600000 });
+async function checkRateLimit(
+  admin: ReturnType<typeof getServiceClient>,
+  ip: string,
+  handle: string,
+): Promise<string | null> {
+  const sinceIso = new Date(Date.now() - RATE_WINDOW_MS).toISOString();
+  // Purge les tentatives expirées de cette IP (garde la table bornée)
+  await admin.from("mini_audit_attempts").delete().eq("ip", ip).lt("created_at", sinceIso);
+
+  const { count, error } = await admin
+    .from("mini_audit_attempts")
+    .select("id", { count: "exact", head: true })
+    .eq("ip", ip)
+    .gte("created_at", sinceIso);
+
+  if (error) {
+    console.error("mini-audit rate-limit count error:", error);
+    return null; // fail-open : ne pas bloquer un vrai prospect si la DB hoquette
   }
-  
-  // Handle: max 1/hour
-  const handleTime = handleCounts.get(handle);
-  if (handleTime && now - handleTime < 3600000) {
-    return null; // silently return cached-like result
+  if ((count ?? 0) >= MAX_PER_IP) {
+    return "Tu as déjà testé 3 profils. Crée ton compte pour des analyses illimitées 😉";
   }
-  handleCounts.set(handle, now);
-  
+
+  await admin.from("mini_audit_attempts").insert({ ip, handle });
   return null;
 }
 
@@ -44,9 +48,10 @@ serve(async (req) => {
     }
 
     const cleanHandle = handle.trim().replace(/^@/, "").toLowerCase();
-    const ip = req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip") || "unknown";
+    const ip = (req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip") || "unknown")
+      .split(",")[0].trim();
     
-    const rateLimitMsg = checkRateLimit(ip, cleanHandle);
+    const rateLimitMsg = await checkRateLimit(getServiceClient(), ip, cleanHandle);
     if (rateLimitMsg) {
       return new Response(JSON.stringify({ error: rateLimitMsg, rate_limited: true }), {
         status: 429,
