@@ -187,9 +187,6 @@ serve(async (req) => {
 
       case "customer.subscription.updated": {
         const sub = event.data.object as Stripe.Subscription;
-        const userId = sub.metadata?.user_id;
-        if (!userId) break;
-
         await supabase.from("subscriptions").update({
           status: sub.status === "active" ? "active" : sub.status,
           current_period_start: new Date(sub.current_period_start * 1000).toISOString(),
@@ -197,25 +194,30 @@ serve(async (req) => {
           cancel_at: sub.cancel_at ? new Date(sub.cancel_at * 1000).toISOString() : null,
           canceled_at: sub.canceled_at ? new Date(sub.canceled_at * 1000).toISOString() : null,
           updated_at: new Date().toISOString(),
-        }).eq("user_id", userId);
+        }).eq("stripe_subscription_id", sub.id);
 
-        log("Subscription updated", { userId, status: sub.status });
+        log("Subscription updated", { subId: sub.id, status: sub.status });
         break;
       }
 
       case "customer.subscription.deleted": {
         const sub = event.data.object as Stripe.Subscription;
-        const userId = sub.metadata?.user_id;
-        if (!userId) break;
+        const { data: canceledSub } = await supabase
+          .from("subscriptions")
+          .select("user_id")
+          .eq("stripe_subscription_id", sub.id)
+          .maybeSingle();
 
         await supabase.from("subscriptions").update({
           status: "canceled",
           canceled_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-        }).eq("user_id", userId);
+        }).eq("stripe_subscription_id", sub.id);
 
-        await supabase.from("profiles").update({ current_plan: "free" }).eq("user_id", userId);
-        log("Subscription canceled", { userId });
+        if (canceledSub?.user_id) {
+          await supabase.from("profiles").update({ current_plan: "free" }).eq("user_id", canceledSub.user_id);
+        }
+        log("Subscription canceled", { subId: sub.id, userId: canceledSub?.user_id });
         break;
       }
 
