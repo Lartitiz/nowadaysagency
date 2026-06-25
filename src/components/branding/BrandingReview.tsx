@@ -342,7 +342,8 @@ async function savePersona(data: AnalysisResult["persona"], userId: string, work
 
   if (data.name) payload.portrait_prenom = data.name;
   if (data.age_range) payload.portrait_age = data.age_range;
-  if (data.job) payload.description = data.job;
+  // Le métier va dans portrait.qui_elle_est.metier (sa vraie place, affichée
+  // dans la synthèse), pas dans description — sinon il écrasait la description.
   if (data.description) payload.description = data.description;
   if (data.frustrations?.length) payload.step_1_frustrations = data.frustrations.join("\n");
   if (data.desires?.length) payload.step_2_transformation = data.desires.join("\n");
@@ -356,11 +357,20 @@ async function savePersona(data: AnalysisResult["persona"], userId: string, work
   const filterVal = workspaceId && workspaceId !== userId ? workspaceId : userId;
 
   const { data: existing } = await (supabase.from("persona") as any)
-    .select("id")
+    .select("id, portrait")
     .eq(filterCol, filterVal)
     .eq("is_primary", true)
     .limit(1)
     .maybeSingle();
+
+  // Merge le métier dans le JSON portrait.qui_elle_est sans écraser le reste.
+  if (data.job) {
+    const basePortrait = (existing?.portrait && typeof existing.portrait === "object" && !Array.isArray(existing.portrait))
+      ? { ...existing.portrait }
+      : {};
+    basePortrait.qui_elle_est = { ...(basePortrait.qui_elle_est || {}), metier: data.job };
+    payload.portrait = basePortrait;
+  }
 
   if (existing?.id) {
     await (supabase.from("persona") as any).update(payload).eq("id", existing.id);
