@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { callAnthropic, callAnthropicWithMeta, getDefaultModel, getModelForAction } from "../_shared/anthropic.ts";
+import { callAnthropic, callAnthropicWithMeta, getModelForAction } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
@@ -454,7 +454,7 @@ serve(async (req) => {
       }
 
       const rawStory = await callAnthropic({
-        model: getDefaultModel(),
+        model: getModelForAction("coaching"),
         system: storySystemPrompt,
         messages: merged,
         temperature: 0.8,
@@ -522,7 +522,7 @@ RÈGLES DE CONTENU :
       }
 
       const rawFill = await callAnthropic({
-        model: getDefaultModel(),
+        model: getModelForAction("coaching"),
         system: fillSystemPrompt,
         messages: merged,
         temperature: 0.5,
@@ -602,7 +602,7 @@ Ton job : remplir la LIGNE ÉDITORIALE de ${prenom} — c'est-à-dire les facett
       }
 
       const rawFill = await callAnthropic({
-        model: getDefaultModel(),
+        model: getModelForAction("coaching"),
         system: fillSystemPrompt,
         messages: merged,
         temperature: 0.6,
