@@ -51,6 +51,12 @@ Deno.serve(async (req) => {
     }
 
     const userId = link.user_id;
+    // Branding tables are scoped by workspace_id in the app (useWorkspaceFilter),
+    // so when the link carries a workspace_id we must read those tables by it —
+    // reading by user_id alone returns the wrong data (or nothing) in a workspace.
+    // `profiles` has no workspace_id column and stays scoped to the owner's user_id.
+    const brandCol = link.workspace_id ? "workspace_id" : "user_id";
+    const brandVal = link.workspace_id ? link.workspace_id : userId;
 
     // Increment views_count
     await supabase
@@ -63,12 +69,12 @@ Deno.serve(async (req) => {
       profileRes, storyRes, personaRes, brandRes, propRes, stratRes, offersRes,
     ] = await Promise.all([
       supabase.from("profiles").select("prenom, activite, mission").eq("user_id", userId).maybeSingle(),
-      supabase.from("storytelling").select("step_7_polished, pitch_short, pitch_medium, pitch_long").eq("user_id", userId).eq("is_primary", true).maybeSingle(),
-      supabase.from("persona").select("step_1_frustrations, step_2_transformation, step_3a_objections, step_3b_cliches, step_4_beautiful, step_4_inspiring, step_4_repulsive, step_4_feeling, portrait").eq("user_id", userId).maybeSingle(),
-      supabase.from("brand_profile").select("voice_description, combat_cause, combat_fights, combat_alternative, combat_refusals, tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims, mission").eq("user_id", userId).maybeSingle(),
-      supabase.from("brand_proposition").select("version_final, version_one_liner, version_bio, version_pitch_naturel, version_site_web, version_engagee").eq("user_id", userId).maybeSingle(),
-      supabase.from("brand_strategy").select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3, creative_concept, facet_1, facet_2, facet_3").eq("user_id", userId).maybeSingle(),
-      supabase.from("offers").select("name, offer_type, price_text, promise, sales_line, target_ideal").eq("user_id", userId).order("created_at"),
+      supabase.from("storytelling").select("step_7_polished, pitch_short, pitch_medium, pitch_long").eq(brandCol, brandVal).eq("is_primary", true).maybeSingle(),
+      supabase.from("persona").select("step_1_frustrations, step_2_transformation, step_3a_objections, step_3b_cliches, step_4_beautiful, step_4_inspiring, step_4_repulsive, step_4_feeling, portrait").eq(brandCol, brandVal).maybeSingle(),
+      supabase.from("brand_profile").select("voice_description, combat_cause, combat_fights, combat_alternative, combat_refusals, tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims, mission").eq(brandCol, brandVal).maybeSingle(),
+      supabase.from("brand_proposition").select("version_final, version_one_liner, version_bio, version_pitch_naturel, version_site_web, version_engagee").eq(brandCol, brandVal).maybeSingle(),
+      supabase.from("brand_strategy").select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3, creative_concept, facet_1, facet_2, facet_3").eq(brandCol, brandVal).maybeSingle(),
+      supabase.from("offers").select("name, offer_type, price_text, promise, sales_line, target_ideal").eq(brandCol, brandVal).order("created_at"),
     ]);
 
     const result = {
