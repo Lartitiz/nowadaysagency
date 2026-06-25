@@ -75,7 +75,7 @@ export interface QuotaResult {
   plan: string;
   remaining?: number;
   remaining_total?: number;
-  reason?: "category" | "total" | "not_available";
+  reason?: "category" | "total" | "not_available" | "error";
   message?: string;
   usage?: Record<string, { used: number; limit: number }>;
 }
