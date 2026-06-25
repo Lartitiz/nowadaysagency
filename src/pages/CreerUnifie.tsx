@@ -3044,6 +3044,9 @@ export default function CreerUnifie() {
                 sourceIdea={ideaText}
                 sourceObjective={objective}
                 sourceAngle={editorialAngle}
+                onPublishInstagram={handlePublishInstagram}
+                publishInstagramLoading={publishingInstagram}
+                publishInstagramDisabledReason={publishInstagramDisabledReason}
               />
             )}
 
