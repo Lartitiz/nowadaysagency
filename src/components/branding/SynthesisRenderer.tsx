@@ -161,9 +161,9 @@ function StaleBanner({ onRegenerate, generating }: { onRegenerate: () => void; g
 }
 
 /* ── STORYTELLING SYNTHESIS ── */
-function StorySynthesis({ data, onSaveRecap, onSaveDirect, copyText }: {
+function StorySynthesis({ data, onSaveRecap, onSaveDirect, copyText, forceOpen = false }: {
   data: any; onSaveRecap: (path: string[], value: string) => Promise<void>;
-  onSaveDirect: (field: string, value: string) => Promise<void>; copyText: (t: string) => void;
+  onSaveDirect: (field: string, value: string) => Promise<void>; copyText: (t: string) => void; forceOpen?: boolean;
 }) {
   const summary = safeParseJson(data.recap_summary);
   if (!summary) return null;
@@ -202,13 +202,13 @@ function StorySynthesis({ data, onSaveRecap, onSaveDirect, copyText }: {
         {summary.values?.length > 0 && (
           <div className="rounded-xl p-5 bg-[#FFF4F8]">
             <p className="font-display text-base font-semibold text-foreground mb-4">❤️ Mes valeurs</p>
-            <EditableList items={summary.values} onSave={(i, v) => onSaveRecap(["values", String(i)], v)} />
+            <CappedList items={summary.values} cap={6} forceOpen={forceOpen} onSave={(i, v) => onSaveRecap(["values", String(i)], v)} />
           </div>
         )}
         {summary.unique?.length > 0 && (
           <div className="rounded-xl p-5 bg-[#FFF4F8]">
             <p className="font-display text-base font-semibold text-foreground mb-4">💪 Ce qui me rend unique</p>
-            <EditableList items={summary.unique} onSave={(i, v) => onSaveRecap(["unique", String(i)], v)} />
+            <CappedList items={summary.unique} cap={6} forceOpen={forceOpen} onSave={(i, v) => onSaveRecap(["unique", String(i)], v)} />
           </div>
         )}
       </div>
@@ -217,7 +217,7 @@ function StorySynthesis({ data, onSaveRecap, onSaveDirect, copyText }: {
         <div className="px-6 sm:px-8 mb-6">
           <div className="rounded-xl p-5 bg-[#FFF8F0]">
             <p className="font-display text-base font-semibold text-foreground mb-4">⚡ Mes erreurs qui m'ont construite</p>
-            <EditableList items={summary.mistakes} onSave={(i, v) => onSaveRecap(["mistakes", String(i)], v)} bulletColor="#e67e22" />
+            <CappedList items={summary.mistakes} cap={6} forceOpen={forceOpen} onSave={(i, v) => onSaveRecap(["mistakes", String(i)], v)} bulletColor="#e67e22" />
           </div>
         </div>
       )}
@@ -232,7 +232,7 @@ function StorySynthesis({ data, onSaveRecap, onSaveDirect, copyText }: {
                 <span className="font-mono-ui text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">☕ Naturel</span>
                 <button onClick={() => copyText(data.pitch_medium)} className="text-[11px] font-semibold text-primary hover:opacity-70 inline-flex items-center gap-1"><Copy className="h-3 w-3" /> Copier</button>
               </div>
-              <EditableText value={data.pitch_medium} onSave={(v) => onSaveDirect("pitch_medium", v)} className="font-body text-[14px] italic leading-relaxed" />
+              <ClampField value={data.pitch_medium} onSave={(v) => onSaveDirect("pitch_medium", v)} lines={4} forceOpen={forceOpen} className="font-body text-[14px] italic leading-relaxed" />
             </div>
           )}
           {data.pitch_long && (
@@ -241,7 +241,7 @@ function StorySynthesis({ data, onSaveRecap, onSaveDirect, copyText }: {
                 <span className="font-mono-ui text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">🎤 Networking</span>
                 <button onClick={() => copyText(data.pitch_long)} className="text-[11px] font-semibold text-primary hover:opacity-70 inline-flex items-center gap-1"><Copy className="h-3 w-3" /> Copier</button>
               </div>
-              <EditableText value={data.pitch_long} onSave={(v) => onSaveDirect("pitch_long", v)} className="font-body text-[14px] italic leading-relaxed" />
+              <ClampField value={data.pitch_long} onSave={(v) => onSaveDirect("pitch_long", v)} lines={4} forceOpen={forceOpen} className="font-body text-[14px] italic leading-relaxed" />
             </div>
           )}
         </div>
@@ -255,8 +255,8 @@ function StorySynthesis({ data, onSaveRecap, onSaveDirect, copyText }: {
 }
 
 /* ── PERSONA SYNTHESIS ── */
-function PersonaSynthesis({ data, onSavePortrait }: {
-  data: any; onSavePortrait: (path: string[], value: string) => Promise<void>;
+function PersonaSynthesis({ data, onSavePortrait, forceOpen = false }: {
+  data: any; onSavePortrait: (path: string[], value: string) => Promise<void>; forceOpen?: boolean;
 }) {
   const portrait = safeParseJson(data.portrait);
   if (!portrait) return null;
@@ -296,7 +296,7 @@ function PersonaSynthesis({ data, onSavePortrait }: {
       {portrait.frustrations?.length > 0 && (
         <div className="mb-6">
           <SectionLabel emoji="😤" title="Ses frustrations" />
-          <EditableList items={portrait.frustrations} onSave={(i, v) => onSavePortrait(["frustrations", String(i)], v)} />
+          <CappedList items={portrait.frustrations} cap={6} forceOpen={forceOpen} onSave={(i, v) => onSavePortrait(["frustrations", String(i)], v)} />
         </div>
       )}
 
@@ -304,7 +304,7 @@ function PersonaSynthesis({ data, onSavePortrait }: {
       {portrait.objectifs?.length > 0 && (
         <div className="mb-6">
           <SectionLabel emoji="✨" title="Ce qu'elle veut vraiment" />
-          <EditableList items={portrait.objectifs} onSave={(i, v) => onSavePortrait(["objectifs", String(i)], v)} />
+          <CappedList items={portrait.objectifs} cap={6} forceOpen={forceOpen} onSave={(i, v) => onSavePortrait(["objectifs", String(i)], v)} />
         </div>
       )}
 
@@ -312,7 +312,7 @@ function PersonaSynthesis({ data, onSavePortrait }: {
       {portrait.blocages?.length > 0 && (
         <div className="mb-6">
           <SectionLabel emoji="🚫" title="Ce qui la bloque" />
-          <EditableList items={portrait.blocages} onSave={(i, v) => onSavePortrait(["blocages", String(i)], v)} />
+          <CappedList items={portrait.blocages} cap={6} forceOpen={forceOpen} onSave={(i, v) => onSavePortrait(["blocages", String(i)], v)} />
         </div>
       )}
 
@@ -377,8 +377,8 @@ function PersonaSynthesis({ data, onSavePortrait }: {
 }
 
 /* ── VALUE PROPOSITION SYNTHESIS ── */
-function ValuePropSynthesis({ data, onSaveDirect }: {
-  data: any; onSaveDirect: (field: string, value: string) => Promise<void>;
+function ValuePropSynthesis({ data, onSaveDirect, forceOpen = false }: {
+  data: any; onSaveDirect: (field: string, value: string) => Promise<void>; forceOpen?: boolean;
 }) {
   const values = parseToArray(data.step_2b_values);
   const proofs = parseToArray(data.step_2c_feedback);
@@ -394,14 +394,14 @@ function ValuePropSynthesis({ data, onSaveDirect }: {
         {data.step_1_what && (
           <div className="mb-5">
             <SectionLabel emoji="🎯" title="Ma mission" />
-            <EditableText value={data.step_1_what} onSave={(v) => onSaveDirect("step_1_what", v)} className="text-sm text-foreground" />
+            <ClampField value={data.step_1_what} onSave={(v) => onSaveDirect("step_1_what", v)} lines={4} forceOpen={forceOpen} className="text-sm text-foreground" />
           </div>
         )}
 
         {data.step_2a_process && (
           <div className="mb-5">
             <SectionLabel emoji="💎" title="Ce qui me rend unique" />
-            <EditableText value={data.step_2a_process} onSave={(v) => onSaveDirect("step_2a_process", v)} className="text-sm text-foreground" />
+            <ClampField value={data.step_2a_process} onSave={(v) => onSaveDirect("step_2a_process", v)} lines={4} forceOpen={forceOpen} className="text-sm text-foreground" />
           </div>
         )}
 
@@ -417,13 +417,13 @@ function ValuePropSynthesis({ data, onSaveDirect }: {
           {data.step_3_for_whom && (
             <div className="rounded-xl p-4 bg-[#FFF4F8]">
               <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wider mb-2 text-muted-foreground">Le problème que je résous</p>
-              <EditableText value={data.step_3_for_whom} onSave={(v) => onSaveDirect("step_3_for_whom", v)} className="text-sm text-foreground" />
+              <ClampField value={data.step_3_for_whom} onSave={(v) => onSaveDirect("step_3_for_whom", v)} lines={4} forceOpen={forceOpen} className="text-sm text-foreground" />
             </div>
           )}
           {data.step_2d_refuse && (
             <div className="rounded-xl p-4 bg-[#E8F5E9]">
               <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wider mb-2 text-muted-foreground">Ma solution</p>
-              <EditableText value={data.step_2d_refuse} onSave={(v) => onSaveDirect("step_2d_refuse", v)} className="text-sm text-foreground" />
+              <ClampField value={data.step_2d_refuse} onSave={(v) => onSaveDirect("step_2d_refuse", v)} lines={4} forceOpen={forceOpen} className="text-sm text-foreground" />
             </div>
           )}
         </div>
@@ -431,7 +431,11 @@ function ValuePropSynthesis({ data, onSaveDirect }: {
         {proofs.length > 0 && (
           <div>
             <SectionLabel emoji="🏆" title="Mes preuves" />
-            <EditableList items={proofs} onSave={(i, v) => onSaveDirect("step_2c_feedback", proofs.map((it, idx) => (idx === i ? v : it)).join("\n"))} />
+            {proofs.length <= 2 ? (
+              <ClampField value={data.step_2c_feedback} onSave={(v) => onSaveDirect("step_2c_feedback", v)} lines={5} forceOpen={forceOpen} className="text-[13px] text-foreground/80 leading-relaxed" />
+            ) : (
+              <CappedList items={proofs} cap={6} forceOpen={forceOpen} onSave={(i, v) => onSaveDirect("step_2c_feedback", proofs.map((it, idx) => (idx === i ? v : it)).join("\n"))} />
+            )}
           </div>
         )}
       </SynthCard>
@@ -572,25 +576,28 @@ function ToneStyleSynthesis({ data, onSaveDirect, forceOpen = false }: {
 }
 
 /* ── STRATEGY SYNTHESIS ── */
-function ExpandableText({ text, lines = 3 }: { text: string; lines?: number }) {
-  const [expanded, setExpanded] = useState(false);
+function ExpandableText({ text, lines = 3, forceOpen = false }: { text: string; lines?: number; forceOpen?: boolean }) {
+  const [open, setOpen] = useState(false);
+  const expanded = open || forceOpen;
   return (
     <div>
       <p className={`text-sm text-muted-foreground leading-relaxed whitespace-pre-line ${expanded ? "" : `line-clamp-${lines}`}`}>
         {text}
       </p>
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="text-xs font-semibold text-primary mt-1.5 hover:opacity-70 transition-opacity"
-      >
-        {expanded ? "Réduire" : "Lire la suite →"}
-      </button>
+      {!forceOpen && (
+        <button
+          onClick={() => setOpen(!open)}
+          className="text-xs font-semibold text-primary mt-1.5 hover:opacity-70 transition-opacity"
+        >
+          {open ? "Réduire" : "Lire la suite →"}
+        </button>
+      )}
     </div>
   );
 }
 
-function StrategySynthesis({ data, onSaveRecap }: {
-  data: any; onSaveRecap: (path: string[], value: string) => Promise<void>;
+function StrategySynthesis({ data, onSaveRecap, forceOpen = false }: {
+  data: any; onSaveRecap: (path: string[], value: string) => Promise<void>; forceOpen?: boolean;
 }) {
   const summary = safeParseJson(data.recap_summary);
   const facets = [data.facet_1, data.facet_2, data.facet_3].filter(Boolean);
@@ -618,7 +625,7 @@ function StrategySynthesis({ data, onSaveRecap }: {
           </p>
           {summary?.concept_full && (
             <div className="mt-3">
-              <ExpandableText text={summary.concept_full} lines={3} />
+              <ExpandableText text={summary.concept_full} lines={3} forceOpen={forceOpen} />
             </div>
           )}
         </div>
@@ -1002,11 +1009,11 @@ export default function SynthesisRenderer({ section, data, table, onSynthesisGen
       {isStale && <StaleBanner onRegenerate={generateSynthesis} generating={generating} />}
 
       <div ref={synthRef} data-selection-enabled="true">
-        {section === "story" && <StorySynthesis data={localData} onSaveRecap={saveRecapField} onSaveDirect={saveDirectField} copyText={copyText} />}
-        {section === "persona" && <PersonaSynthesis data={localData} onSavePortrait={saveRecapField} />}
-        {section === "value_proposition" && <ValuePropSynthesis data={localData} onSaveDirect={saveDirectField} />}
+        {section === "story" && <StorySynthesis data={localData} onSaveRecap={saveRecapField} onSaveDirect={saveDirectField} copyText={copyText} forceOpen={forceExpand} />}
+        {section === "persona" && <PersonaSynthesis data={localData} onSavePortrait={saveRecapField} forceOpen={forceExpand} />}
+        {section === "value_proposition" && <ValuePropSynthesis data={localData} onSaveDirect={saveDirectField} forceOpen={forceExpand} />}
         {section === "tone_style" && <ToneStyleSynthesis data={localData} onSaveDirect={saveDirectField} forceOpen={forceExpand} />}
-        {section === "content_strategy" && <StrategySynthesis data={localData} onSaveRecap={saveRecapField} />}
+        {section === "content_strategy" && <StrategySynthesis data={localData} onSaveRecap={saveRecapField} forceOpen={forceExpand} />}
       </div>
     </div>
   );
