@@ -74,7 +74,7 @@ export interface ReelBriefParams {
 }
 
 /**
- * reelBrief — accepte SOIT une string (legacy: objectif seul), SOIT un objet ReelBriefParams complet.
+ * reelBrief, accepte SOIT une string (legacy: objectif seul), SOIT un objet ReelBriefParams complet.
  * Quand des params reels-spécifiques sont fournis (subject, selected_hook, pre_gen_answers, etc.),
  * impose le JSON de sortie complet (caption, hashtags, cover_text, alt_text, amplification_stories, checklist).
  */
@@ -94,19 +94,19 @@ percutante, développée à l'oral, en 30-60 secondes.
 
 Un reel n'est PAS une liste de constats filmée. C'est une réflexion qui CREUSE
 un sujet en 30-60s, comme une amie qui prend le temps de t'expliquer ce qu'elle
-a compris. La densité de pensée doit être COMPARABLE à celle d'un carrousel —
+a compris. La densité de pensée doit être COMPARABLE à celle d'un carrousel,
 mais dite à l'oral, pas écrite.
 
 3 COUCHES OBLIGATOIRES dans le script (peuvent se chevaucher entre sections) :
 
-1. LE SYMPTÔME — ce qu'on observe, ce qui coince, le constat de surface.
+1. LE SYMPTÔME : ce qu'on observe, ce qui coince, le constat de surface.
    (1 section, souvent le hook.)
 
-2. LE MÉCANISME — POURQUOI ça se passe comme ça : le rouage caché, le truc
+2. LE MÉCANISME, POURQUOI ça se passe comme ça : le rouage caché, le truc
    psychologique, la croyance de fond, la mécanique économique/sociale derrière.
    (1-2 sections, le CŒUR du reel. C'est ici que se joue la profondeur.)
 
-3. LA REFORMULATION — comment on regarde ça AUTREMENT : le déplacement de
+3. LA REFORMULATION, comment on regarde ça AUTREMENT : le déplacement de
    regard, la nuance, le contre-pied, la conséquence pratique nouvelle.
    (1 section, souvent le CTA ou juste avant.)
 
@@ -148,7 +148,7 @@ L'utilisatrice va lire ce script FACE CAM, en une prise, comme si elle parlait
 à une amie en visio. Le découpage par sections est TECHNIQUE (pour le tournage),
 mais le texte parlé doit s'enchaîner comme UN SEUL monologue continu.
 
-CONTINUITÉ ENTRE SECTIONS — règle stricte :
+CONTINUITÉ ENTRE SECTIONS, règle stricte :
 - Le texte_parle de chaque section body DOIT commencer par un connecteur qui
   enchaîne sur la section précédente ("Et là…", "Sauf que…", "Le truc c'est
   que…", "Donc…", "Attends…").
@@ -188,9 +188,9 @@ AVANT D'ÉCRIRE, identifie aussi :
 
 5. À QUI CE REEL DONNE ENVIE D'ÊTRE ENVOYÉ EN DM, ET POURQUOI ?
    Trois leviers possibles (en choisir UN dominant) :
-     • RECONNAISSANCE — "C'est exactement ce qu'elle vit"
-     • VALIDATION — "Ça va lui faire du bien d'entendre ça"
-     • CONTRE-INTUITION DÉBATTABLE — "Tiens, ça va la faire réagir"
+     • RECONNAISSANCE : "C'est exactement ce qu'elle vit"
+     • VALIDATION : "Ça va lui faire du bien d'entendre ça"
+     • CONTRE-INTUITION DÉBATTABLE : "Tiens, ça va la faire réagir"
    La qualité send-worthy doit être INTRINSÈQUE au contenu, pas un CTA explicite.
 
 ══ RÈGLES DE SCRIPT ══
@@ -204,7 +204,7 @@ STRUCTURE :
   télégraphique). Au moins UNE section body explique le POURQUOI (mécanisme).
 - CTA (45-60s) : reformulation finale. Pas de répétition du hook.
 
-OVERLAY — 3 RÔLES POSSIBLES (choisir 1 par section) :
+OVERLAY, 3 RÔLES POSSIBLES (choisir 1 par section) :
 - ANCRAGE : mot-clé ou concept qui reste à l'écran (ex: "POSITIONNEMENT")
 - CONTREPOINT : info que le texte parlé ne dit PAS (un chiffre, un fait complémentaire)
 - PUNCHLINE : chute visuelle, phrase d'impact différente du texte parlé
@@ -270,7 +270,7 @@ INTERDITS :
   if (effectiveObjective === "visibilite") {
     calibrage = `
 
-══ CALIBRAGE DURÉE — OBJECTIF VISIBILITÉ (REACH) ══
+══ CALIBRAGE DURÉE : OBJECTIF VISIBILITÉ (REACH) ══
 
 Pour ce Reel, l'objectif est d'atteindre des NON-ABONNÉS. L'algo Instagram pousse
 vers les non-followers les Reels avec un FORT COMPLETION RATE (% de viewers qui
@@ -292,7 +292,7 @@ Privilégier la structure REEL FACE CAM ramassée OU REEL HOOK LOOP court.
   } else if (effectiveObjective === "confiance" || effectiveObjective === "vente" || effectiveObjective === "credibilite") {
     calibrage = `
 
-══ CALIBRAGE DURÉE — OBJECTIF ${effectiveObjective.toUpperCase()} (NURTURE) ══
+══ CALIBRAGE DURÉE : OBJECTIF ${effectiveObjective.toUpperCase()} (NURTURE) ══
 
 Pour ce Reel, l'objectif est de NOURRIR la relation avec l'audience existante
 (abonnés, prospects chauds). L'algo autorise et récompense les Reels plus longs
@@ -303,7 +303,7 @@ CONTRAINTES SPÉCIFIQUES :
 - TEXTE PARLÉ : 110-190 mots (rythme parlé naturel ~150 mots/min).
 - STRUCTURE NARRATIVE DÉVELOPPÉE :
   • Hook (0-3s) : ouvre une boucle de curiosité forte.
-  • Corps (3-60s) : développe la SCÈNE COMPLÈTE — contexte, déclic, déplacement,
+  • Corps (3-60s) : développe la SCÈNE COMPLÈTE, contexte, déclic, déplacement,
     résolution. Le viewer doit ressentir une progression émotionnelle.
   • CTA (60-75s) : invitation cohérente avec l'objectif (dialogue / offre / approfondissement).
 - ATTENTION : ne JAMAIS dépasser 90 secondes (au-delà = pénalité de distribution).
@@ -360,7 +360,7 @@ HOOK CHOISI :
   const subject = params.subject || "";
   const subjectBlock = `
 
-ANCRAGE SUJET — RÈGLE CRITIQUE :
+ANCRAGE SUJET, RÈGLE CRITIQUE :
 Le script ENTIER doit rester ancré dans le sujet "${subject || '(basé sur le hook)'}".
 Ne PAS élargir au sujet général.`;
 
@@ -601,7 +601,7 @@ Génère normalement. Ajoute un champ "personal_tip" dans le JSON :
 
   const hookBlock = isQuick
     ? (face_cam === "oui"
-      ? `HOOK STORY 1 — RÈGLES :
+      ? `HOOK STORY 1, RÈGLES :
 
 La story 1 décide de TOUT. 24% de l'audience part après.
 Le hook doit arrêter le swipe en 1-2 secondes.
@@ -612,7 +612,7 @@ FORMAT : face cam
 - Ton conversationnel : "Bon, faut qu'on parle de..."
 - Sous-titres OBLIGATOIRES (60-80% regardent sans le son)
 `
-      : `HOOK STORY 1 — RÈGLES :
+      : `HOOK STORY 1, RÈGLES :
 
 La story 1 décide de TOUT. 24% de l'audience part après.
 Le hook doit arrêter le swipe en 1-2 secondes.
@@ -623,7 +623,7 @@ FORMAT : texte sur fond
 - Doit créer l'identification OU la curiosité immédiate
 - Le sondage/sticker complète le hook (pas l'inverse)
 `)
-    : `HOOK STORY 1 — RÈGLES :
+    : `HOOK STORY 1, RÈGLES :
 
 La story 1 décide de TOUT. 24% de l'audience part après.
 Le hook doit arrêter le swipe en 1-2 secondes.
@@ -672,7 +672,7 @@ Les stories sont le format LE PLUS INTIME d'Instagram. Le spectateur les regarde
 
 AVANT DE RÉDIGER, RÉFLÉCHIS EN INTERNE (ne montre PAS) : Quel est le problème ? Quelle émotion ? Quelle accroche est la MEILLEURE ? Mon output a-t-il du slop ?
 
-ANALOGIES VISUELLES — DOSAGE :
+ANALOGIES VISUELLES, DOSAGE :
 1 analogie max dans la séquence. Parfois 0. Si l'idée est claire sans, n'en mets pas.
 L'analogie doit être du QUOTIDIEN et VISUELLE. Jamais forcée.
 
@@ -694,7 +694,7 @@ CORRESPONDANCE objectif x temps :
 - Amplification + 5min → repartage+question 2 | + 15min → teasing 3-5
 
 
-ANGLE DE NARRATION — CHOISIS LE PLUS ADAPTÉ AU SUJET :
+ANGLE DE NARRATION, CHOISIS LE PLUS ADAPTÉ AU SUJET :
 
 Chaque séquence de stories doit avoir UN angle de narration dominant. C'est l'angle qui détermine la VOIX de toute la séquence.
 
