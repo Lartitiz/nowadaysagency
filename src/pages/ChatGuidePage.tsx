@@ -209,6 +209,12 @@ export default function ChatGuidePage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const sendingRef = useRef(false);
+  // Stream en cours : permet d'annuler proprement (démontage, changement de
+  // conversation) pour éviter les écritures en arrière-plan sur un message périmé.
+  const activeControllerRef = useRef<AbortController | null>(null);
+  const cancelledRef = useRef(false);
   const [conversationId, setConversationId] = useState<string>("");
   const [suggestionsVisible, setSuggestionsVisible] = useState(true);
   const [loaded, setLoaded] = useState(false);
@@ -438,6 +444,22 @@ export default function ChatGuidePage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
+  // Annule le stream en cours (changement de conversation / démontage)
+  const cancelActiveStream = useCallback(() => {
+    if (activeControllerRef.current) {
+      cancelledRef.current = true;
+      activeControllerRef.current.abort();
+      activeControllerRef.current = null;
+    }
+  }, []);
+
+  // Abandonne le stream si on quitte la page pendant une réponse
+  useEffect(() => {
+    return () => {
+      activeControllerRef.current?.abort();
+    };
+  }, []);
+
   // Auto-resize textarea
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
@@ -482,6 +504,12 @@ export default function ChatGuidePage() {
   // Send message
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim()) return;
+    // Verrou anti-double-envoi : empêche un 2e message tant que le précédent
+    // n'a pas fini de streamer (sinon 2 flux concurrents + double facturation).
+    if (sendingRef.current) return;
+    sendingRef.current = true;
+    setIsSending(true);
+    cancelledRef.current = false;
 
     const userMsg: ChatMessage = {
       id: crypto.randomUUID(),
@@ -516,6 +544,8 @@ export default function ChatGuidePage() {
         created_at: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, aiMsg]);
+      sendingRef.current = false;
+      setIsSending(false);
       return;
     }
 
@@ -541,6 +571,7 @@ export default function ChatGuidePage() {
       // serveur ne répond pas, on abandonne au lieu de laisser « écrit… » à
       // l'infini. L'abort déclenche le catch plus bas (message FR + arrêt).
       const controller = new AbortController();
+      activeControllerRef.current = controller;
       const connectTimeout = setTimeout(() => controller.abort(), 30000);
       let resp: Response;
       try {
@@ -564,6 +595,34 @@ export default function ChatGuidePage() {
 
       if (!resp.ok || !resp.body) {
         throw new Error("Stream failed");
+      }
+
+      // Réponse JSON non-streamée (quota dépassé, ou erreur serveur gérée) :
+      // l'edge renvoie { reply, actions, suggestions } en application/json.
+      // On l'affiche tel quel au lieu de lire le corps comme un flux SSE
+      // (sinon : bulle vide + message de quota jamais montré).
+      const contentType = resp.headers.get("content-type") || "";
+      if (contentType.includes("application/json")) {
+        const payload = await resp.json().catch(() => null);
+        setIsTyping(false);
+        const replyText = payload?.reply || "Je suis un peu dans les choux là... Réessaie dans quelques secondes !";
+        const jsonActions: ActionLink[] = Array.isArray(payload?.actions) ? payload.actions : [];
+        const jsonSuggestions = Array.isArray(payload?.suggestions) && payload.suggestions.length > 0
+          ? payload.suggestions.map((s: string) => ({ icon: guessIconForSuggestion(s), label: s }))
+          : undefined;
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: aiMsgId,
+            role: "assistant" as const,
+            content: replyText,
+            actions: jsonActions,
+            suggestions: jsonSuggestions,
+            created_at: new Date().toISOString(),
+          },
+        ]);
+        await saveMessage({ role: "assistant", content: replyText, actions: jsonActions });
+        return;
       }
 
       setIsTyping(false);
@@ -642,6 +701,12 @@ export default function ChatGuidePage() {
         }
       }
     } catch (err) {
+      // Annulation volontaire (changement de conversation / démontage) :
+      // on s'arrête sans afficher d'erreur ni écrire dans l'ancien message.
+      if (cancelledRef.current) {
+        setIsTyping(false);
+        return;
+      }
       console.error("Chat guide error:", err);
       setIsTyping(false);
 
@@ -665,6 +730,10 @@ export default function ChatGuidePage() {
           },
         ];
       });
+    } finally {
+      sendingRef.current = false;
+      setIsSending(false);
+      activeControllerRef.current = null;
     }
   }, [saveMessage, messages, workspaceId, user, updateConversationTitle, isDemoMode, getDemoResponse, queryClient]);
 
@@ -678,6 +747,7 @@ export default function ChatGuidePage() {
 
   // New conversation
   const startNewConversation = useCallback(async () => {
+    cancelActiveStream();
     const newId = crypto.randomUUID();
     setMessages([]);
     setConversationId(newId);
@@ -688,7 +758,7 @@ export default function ChatGuidePage() {
       if (workspaceId && workspaceId !== user.id) convRow.workspace_id = workspaceId;
       await supabase.from("chat_guide_conversations").insert(convRow);
     }
-  }, [user, isDemoMode, workspaceId]);
+  }, [user, isDemoMode, workspaceId, cancelActiveStream]);
 
   // Load conversations for drawer
   const loadConversations = useCallback(async () => {
@@ -704,6 +774,7 @@ export default function ChatGuidePage() {
 
   // Load a specific conversation
   const loadConversation = useCallback(async (conv: Conversation) => {
+    cancelActiveStream();
     setConversationId(conv.id);
     setDrawerOpen(false);
     setShowOldDivider(false);
@@ -727,7 +798,7 @@ export default function ChatGuidePage() {
       setMessages([]);
       setSuggestionsVisible(true);
     }
-  }, []);
+  }, [cancelActiveStream]);
 
   // All messages including welcome
   const allMessages = useMemo(() => {
@@ -860,11 +931,13 @@ export default function ChatGuidePage() {
                                  "/creer", "/calendrier", "/branding", "/branding/section",
                                 "/branding/coaching", "/branding/proposition/recap",
                                 "/branding/charter", "/branding/offres",
-                                "/instagram/profil/bio", "/creer",
+                                "/instagram", "/instagram/profil/bio",
                                 "/instagram/audit", "/instagram/stats",
                                 "/instagram/routine", "/instagram/profil",
+                                "/instagram/carousel", "/instagram/reels", "/instagram/stories",
+                                "/atelier",
                                 "/linkedin", "/linkedin/post", "/linkedin/audit",
-                                "/plan", "/mon-plan", "/contacts", "/creer", "/transformer",
+                                "/plan", "/mon-plan", "/contacts", "/transformer",
                                 "/dashboard", "/dashboard/guide", "/profil",
                                 "/idees", "/pricing", "/abonnement",
                               ];
@@ -1018,17 +1091,17 @@ export default function ChatGuidePage() {
 
             <button
               onClick={() => sendMessage(input)}
-              disabled={!input.trim()}
+              disabled={!input.trim() || isSending}
               className={cn(
                 "flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all text-primary-foreground bg-primary",
-                input.trim()
+                input.trim() && !isSending
                   ? "opacity-100 hover:opacity-90"
                   : "opacity-40 cursor-not-allowed"
               )}
               title="Envoyer"
               aria-label="Envoyer le message"
             >
-              <Send className="h-5 w-5" />
+              {isSending ? <span className="h-4 w-4 border-2 border-primary-foreground/40 border-t-primary-foreground rounded-full animate-spin" /> : <Send className="h-5 w-5" />}
             </button>
           </div>
         </div>

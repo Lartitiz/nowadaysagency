@@ -730,6 +730,21 @@ export default function BrandingCoachingFlow({ section, personaId, onComplete, o
     const { data: existingSession } = await (supabase.from("branding_coaching_sessions") as any)
       .select("id").eq(column, value).eq("section", section).maybeSingle();
 
+    // Écrire la fiche (insights) AVANT de marquer la session complète : sinon
+    // un échec d'écriture laisse une session "complète" mais une fiche à moitié
+    // remplie. On ne passe is_complete=true que si la fiche a bien été persistée.
+    let insightsPersisted = true;
+    if (response.extracted_insights && Object.keys(response.extracted_insights).length > 0) {
+      try {
+        await saveInsights(section, response.extracted_insights);
+      } catch (e) {
+        console.error("[BrandingCoaching] Failed to save insights:", e);
+        insightsPersisted = false;
+        toast.error("Tes réponses sont enregistrées dans la conversation mais la fiche n'a pas pu être mise à jour. Clique sur 'Affiner avec l'IA' pour réessayer.");
+      }
+    }
+    const markComplete = response.is_complete && insightsPersisted;
+
     const sessionPayload = {
       user_id: user!.id,
       workspace_id: wsId,
@@ -742,8 +757,8 @@ export default function BrandingCoachingFlow({ section, personaId, onComplete, o
         covered_topics: newCovered,
       },
       question_count: nextIndex,
-      is_complete: response.is_complete,
-      completed_at: response.is_complete ? new Date().toISOString() : null,
+      is_complete: markComplete,
+      completed_at: markComplete ? new Date().toISOString() : null,
       updated_at: new Date().toISOString(),
       covered_topics: newCovered as any,
     };
@@ -760,16 +775,6 @@ export default function BrandingCoachingFlow({ section, personaId, onComplete, o
       }
     } catch (e) {
       console.error("[BrandingCoaching] Save session critical error:", e);
-    }
-
-    // Save extracted insights — MUST await to guarantee persistence before showing completion
-    if (response.extracted_insights && Object.keys(response.extracted_insights).length > 0) {
-      try {
-        await saveInsights(section, response.extracted_insights);
-      } catch (e) {
-        console.error("[BrandingCoaching] Failed to save insights:", e);
-        toast.error("Tes réponses sont enregistrées dans la conversation mais la fiche n'a pas pu être mise à jour. Clique sur 'Affiner avec l'IA' pour réessayer.");
-      }
     }
 
     if (response.is_complete) {

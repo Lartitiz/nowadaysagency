@@ -2561,6 +2561,82 @@ export default function CreerUnifie() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result, selectedFormat, step, visualLoading, visualSlides.length, uploadedPhotos.length, generatedWithPhotos.length]);
 
+  // ═══ Publication directe Instagram (phase 1 : 1 image publique) ═══
+  const [publishingInstagram, setPublishingInstagram] = useState(false);
+
+  const publishableImageUrl = (() => {
+    const r: any = result?.raw || result;
+    if (!r) return null;
+    const candidates: any[] = [
+      r.image_url, r.imageUrl, r.cover_url, r.coverUrl, r.photo_url, r.photoUrl,
+      r.photo?.url, r.pexels?.url, r.image?.url,
+      r.slides?.[0]?.image_url, r.slides?.[0]?.imageUrl, r.slides?.[0]?.photo?.url,
+      uploadedPhotos?.[0]?.preview,
+    ];
+    for (const c of candidates) {
+      if (typeof c === "string" && /^https:\/\//i.test(c) && !c.startsWith("blob:") && !c.startsWith("data:")) {
+        return c;
+      }
+    }
+    return null;
+  })();
+
+  const publishInstagramDisabledReason = (() => {
+    if (selectedFormat?.startsWith("pinterest") || selectedFormat === "linkedin" || selectedFormat === "newsletter") {
+      return "Publication Instagram disponible uniquement pour les formats Instagram.";
+    }
+    if (selectedFormat === "carousel") return "Publication carrousel bientôt — phase 1 supporte 1 image.";
+    if (!publishableImageUrl) return "Aucune image publique trouvée. Phase 1 : 1 image avec URL https publique requise.";
+    return null;
+  })();
+
+  const handlePublishInstagram = async () => {
+    if (!session?.user) {
+      toast.error("Tu dois être connecté.");
+      return;
+    }
+    if (publishInstagramDisabledReason || !publishableImageUrl) {
+      toast.error(publishInstagramDisabledReason || "Image non disponible");
+      return;
+    }
+    const r: any = result?.raw || result;
+    const caption: string =
+      r?.edited_text ||
+      r?.full_text ||
+      r?.content ||
+      [r?.hook, r?.body, r?.cta].filter(Boolean).join("\n\n").trim() ||
+      "";
+
+    setPublishingInstagram(true);
+    try {
+      const { data, error } = await invokeWithTimeout("social-instagram-publish", {
+        body: {
+          caption,
+          imageUrl: publishableImageUrl,
+          workspace_id: workspaceId && workspaceId !== session.user.id ? workspaceId : undefined,
+        },
+      }, 60000);
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      const permalink = (data as any)?.permalink;
+      toast.success(
+        permalink
+          ? "Publié sur Instagram ! Ouvre ton profil pour le voir."
+          : "Publié sur Instagram !",
+        permalink ? { action: { label: "Voir", onClick: () => window.open(permalink, "_blank") } } : undefined,
+      );
+    } catch (e: any) {
+      const msg = e?.message || "Échec de la publication Instagram.";
+      if (msg.toLowerCase().includes("aucun compte instagram")) {
+        toast.error(msg, { action: { label: "Connecter", onClick: () => window.location.assign("/parametres/connexions") } });
+      } else {
+        toast.error(msg);
+      }
+    } finally {
+      setPublishingInstagram(false);
+    }
+  };
+
   const handleExportPptx = async () => {
     if (!result?.raw?.slides) return;
     try {
@@ -2968,6 +3044,9 @@ export default function CreerUnifie() {
                 sourceIdea={ideaText}
                 sourceObjective={objective}
                 sourceAngle={editorialAngle}
+                onPublishInstagram={handlePublishInstagram}
+                publishInstagramLoading={publishingInstagram}
+                publishInstagramDisabledReason={publishInstagramDisabledReason}
               />
             )}
 

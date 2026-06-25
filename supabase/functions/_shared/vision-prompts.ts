@@ -66,7 +66,7 @@ export function buildVisionQuestionsPrompt(p: VisionQuestionsParams): string {
 "${p.context.trim()}"
 
 C'est CE sujet qu'elle veut traiter. Les photos sont des ILLUSTRATIONS, pas le sujet.
-Tes 3 questions doivent l'aider à creuser CE sujet — pas à décrire les photos.
+Tes 3 questions doivent l'aider à creuser CE sujet : pas à décrire les photos.
 Si les photos évoquent un autre angle, ignore-le : reste sur le sujet déclaré.
 
 `
@@ -122,22 +122,22 @@ STRUCTURE EN 3 TEMPS (sans titres, sans bullet, sans emoji-puce) :
 
 FIN : pas de CTA fabriqué. Soit une phrase ouverte qui invite naturellement à réagir, soit on coupe net.
 
-══ INTERDIT — DÉSIGNER LES IMAGES (même sans les numéroter) ══
+══ INTERDIT : DÉSIGNER LES IMAGES (même sans les numéroter) ══
 Le contournement le plus fréquent : remplacer "Photo 1" par une désignation visuelle ("ce flyer X", "ce comptoir Y"). C'est la MÊME erreur.
 ❌ "Ce flyer orange et jaune, c'est l'événement Aire You Ready."
 ❌ "Ce comptoir bleu avec ses illustrations de tartines, c'est l'intérieur des Petits Pâtis."
 ❌ "Sur la première, on voit… sur la seconde…"
 ✅ NOMMER directement le sujet sans le présenter comme une image : "Aire You Ready, c'est…", "Aux Petits Pâtis, on…".
-Règle simple : si tu retires la phrase, le lecteur ne doit PAS perdre une info — sinon c'est une légende, pas un post.
+Règle simple : si tu retires la phrase, le lecteur ne doit PAS perdre une info, sinon c'est une légende, pas un post.
 
-══ INTERDIT — CASCADES / PHRASES-LISTES PARALLÈLES ══
+══ INTERDIT : CASCADES / PHRASES-LISTES PARALLÈLES ══
 Même déguisées en "oral" ou "rythme", elles sonnent IA.
 ❌ "Pas un musée à cocher. Un verre au comptoir. Une conversation qui s'étire."
 ❌ "Pas pour faire joli. Pour créer du lien."
 ❌ "Pas X. Pas Y. C'est Z."
 ✅ Une seule pensée qui se déroule en phrases complètes, avec des connecteurs réels.
 
-══ INTERDIT — CTA FABRIQUÉ ══
+══ INTERDIT : CTA FABRIQUÉ ══
 ❌ « Ici, il se passe quelque chose. Venez. »
 ❌ "Et vous, qu'en pensez-vous ?"
 ❌ "Spoiler :", "Plot twist :", "Et si je vous disais que…"

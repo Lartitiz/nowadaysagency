@@ -940,7 +940,7 @@ Privilégie les sources françaises et européennes quand elles existent.`,
 2. ANTI-CASCADE : pas de rafale de phrases courtes pour faire "punchy". Une seule pensée qui se déroule.
 3. ANTI-CTA FABRIQUÉ : pas de slogan-invitation en italique ou guillemets.
 4. CHIFFRES / NUMÉROS / DATES / NOMS VISIBLES : recopie EXACTEMENT.
-5. TU PARLES À "TU", pas "vous".
+5. VOIX = JE (ton vécu) + NOUS/ON inclusif pour embarquer. Le "TU" reste rare, pour une interpellation ponctuelle : jamais comme adresse de tout le texte, jamais de "vous". Ton d'une amie au café, pas d'une audience. (Sauf si la voix de marque indique un autre registre.)
 
 ══ MAINTENANT, REGARDE LES IMAGES ══
 `,
@@ -1460,7 +1460,7 @@ Réponds UNIQUEMENT en JSON :
 
 4. CHIFFRES / NUMÉROS / DATES / NOMS VISIBLES : recopie EXACTEMENT. Si tu vois "#3", écris "#3", jamais "#8".
 
-5. TU PARLES À "TU", pas "vous". Une amie au café, pas une audience.
+5. VOIX = JE (ton vécu) + NOUS/ON inclusif. Le "TU" reste rare, pour une interpellation ponctuelle : jamais comme adresse de tout le texte, jamais de "vous". Une amie au café, pas une audience. (Sauf si la voix de marque indique un autre registre.)
 
 ══ MAINTENANT, REGARDE LES IMAGES ══
 `,

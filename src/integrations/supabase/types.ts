@@ -6484,6 +6484,56 @@ export type Database = {
           },
         ]
       }
+      social_connections: {
+        Row: {
+          access_token: string
+          created_at: string
+          id: string
+          platform: string
+          platform_account_id: string | null
+          platform_account_name: string | null
+          scopes: string | null
+          token_expires_at: string | null
+          updated_at: string
+          user_id: string
+          workspace_id: string | null
+        }
+        Insert: {
+          access_token: string
+          created_at?: string
+          id?: string
+          platform: string
+          platform_account_id?: string | null
+          platform_account_name?: string | null
+          scopes?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id: string
+          workspace_id?: string | null
+        }
+        Update: {
+          access_token?: string
+          created_at?: string
+          id?: string
+          platform?: string
+          platform_account_id?: string | null
+          platform_account_name?: string | null
+          scopes?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_connections_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stats_config: {
         Row: {
           business_metrics: Json | null

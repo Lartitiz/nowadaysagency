@@ -1,4 +1,5 @@
-import { Loader2, Pencil, CalendarDays, Copy, Download, RefreshCw, RotateCcw, Palette, ChevronDown, Lightbulb, Sparkles, ArrowUpRight } from "lucide-react";
+import { Loader2, Pencil, CalendarDays, Copy, Download, RefreshCw, RotateCcw, Palette, ChevronDown, Lightbulb, Sparkles, ArrowUpRight, Instagram } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import CarouselResult from "@/components/creer/formatRenderers/CarouselResult";
@@ -238,6 +239,10 @@ interface Props {
   sourceIdea?: string;
   sourceObjective?: string;
   sourceAngle?: string | null;
+  /** Phase 1 publication directe Instagram. Si défini, affiche le bouton. */
+  onPublishInstagram?: () => void;
+  publishInstagramLoading?: boolean;
+  publishInstagramDisabledReason?: string | null;
 }
 
 export default function CreerStepResult({
@@ -275,6 +280,9 @@ export default function CreerStepResult({
   sourceIdea,
   sourceObjective,
   sourceAngle,
+  onPublishInstagram,
+  publishInstagramLoading,
+  publishInstagramDisabledReason,
 }: Props) {
   // ── Rotation des messages et tips pendant le loading ──
   const messages = PROGRESS_MESSAGES[format] || PROGRESS_MESSAGES.default;
@@ -522,6 +530,34 @@ export default function CreerStepResult({
             <CalendarDays className="h-4 w-4" /> {calendarLabel || "Ajouter au calendrier"}
           </Button>
         )
+      )}
+
+      {/* Publication directe Instagram (phase 1 : 1 image) */}
+      {onPublishInstagram && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="w-full inline-block">
+                <Button
+                  variant="outline"
+                  onClick={onPublishInstagram}
+                  disabled={!!publishInstagramDisabledReason || publishInstagramLoading}
+                  className="w-full gap-2 h-10 text-sm"
+                >
+                  {publishInstagramLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Instagram className="h-4 w-4" />
+                  )}
+                  Publier sur Instagram
+                </Button>
+              </span>
+            </TooltipTrigger>
+            {publishInstagramDisabledReason && (
+              <TooltipContent>{publishInstagramDisabledReason}</TooltipContent>
+            )}
+          </Tooltip>
+        </TooltipProvider>
       )}
 
       {/* 4. Actions secondaires */}

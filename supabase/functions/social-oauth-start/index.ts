@@ -1,0 +1,81 @@
+// Build the Instagram Business Login authorization URL for the current user.
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { authenticateRequest, AuthError } from "../_shared/auth.ts";
+import { signState } from "../_shared/oauth-state.ts";
+
+const IG_SCOPES = "instagram_business_basic,instagram_business_content_publish";
+
+Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  try {
+    const { userId } = await authenticateRequest(req);
+    const body = await req.json().catch(() => ({}));
+    const platform = body?.platform;
+    const workspaceId: string | null = body?.workspace_id ?? null;
+    const returnTo: string | null =
+      typeof body?.return_to === "string" ? body.return_to : null;
+
+    if (platform !== "instagram") {
+      return new Response(JSON.stringify({ error: "Plateforme non supportée pour l'instant." }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const appId = Deno.env.get("INSTAGRAM_APP_ID");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const stateSecret = Deno.env.get("OAUTH_STATE_SECRET");
+    if (!appId || !supabaseUrl || !stateSecret) {
+      return new Response(JSON.stringify({ error: "Configuration serveur incomplète." }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Origin of the app for the post-callback redirect.
+    const origin =
+      returnTo ||
+      req.headers.get("origin") ||
+      req.headers.get("referer")?.replace(/\/[^/]*$/, "") ||
+      Deno.env.get("ALLOWED_ORIGIN") ||
+      "https://nowadays-assistant.fr";
+
+    const redirectUri = `${supabaseUrl}/functions/v1/social-oauth-callback`;
+    const state = await signState(
+      {
+        user_id: userId,
+        workspace_id: workspaceId,
+        platform,
+        origin,
+        nonce: crypto.randomUUID(),
+        ts: Date.now(),
+      },
+      stateSecret,
+    );
+
+    const url = new URL("https://www.instagram.com/oauth/authorize");
+    url.searchParams.set("client_id", appId);
+    url.searchParams.set("redirect_uri", redirectUri);
+    url.searchParams.set("response_type", "code");
+    url.searchParams.set("scope", IG_SCOPES);
+    url.searchParams.set("state", state);
+
+    return new Response(JSON.stringify({ url: url.toString() }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (e: any) {
+    if (e instanceof AuthError) {
+      return new Response(JSON.stringify({ error: e.message }), {
+        status: e.status,
+        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+      });
+    }
+    console.error("social-oauth-start error:", e);
+    return new Response(JSON.stringify({ error: "Erreur interne du serveur" }), {
+      status: 500,
+      headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+    });
+  }
+});

@@ -54,8 +54,9 @@ serve(async (req) => {
       generation_type: z.string().max(50).optional().nullable(),
     }).passthrough());
 
-    // Quota check
-    const quota = await checkQuota(userId, "content", workspace_id);
+    // Quota check (catégorie "coach" : c'est le compteur dédié au coaching,
+    // pas celui de génération de contenu)
+    const quota = await checkQuota(userId, "coach", workspace_id);
     if (!quota.allowed) {
       return new Response(JSON.stringify({ error: quota.message, quota }), {
         status: 429,
@@ -193,16 +194,29 @@ LIMITES :
       content: String(m.content).slice(0, 3000),
     }));
 
+    const model = getModelForAction("assistant_chat");
     const response = await callAnthropic({
-      model: getModelForAction("content"),
+      model,
       system: systemPrompt,
       messages: recentMessages,
       temperature: 0.8,
-      max_tokens: 4096,
+      max_tokens: 1024,
     });
 
-    // Log usage
-    await logUsage(userId, "content", "coach_chat", undefined, "claude-sonnet", workspace_id);
+    // Réponse vide (stop_reason anormal, content absent) : on NE facture PAS
+    // et on renvoie une erreur non décomptée plutôt qu'une bulle vide payée.
+    if (!response || !response.trim()) {
+      return new Response(JSON.stringify({ error: "Réponse vide, réessaie." }), {
+        status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Log usage — best-effort : ne doit jamais faire échouer une réponse déjà générée
+    try {
+      await logUsage(userId, "coach", "coach_chat", undefined, model, workspace_id);
+    } catch (logErr) {
+      console.error("[coach-chat] logUsage failed (non-blocking):", logErr);
+    }
 
     return new Response(JSON.stringify({
       response,
