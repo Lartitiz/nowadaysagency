@@ -8119,6 +8119,7 @@ export type Database = {
         Returns: undefined
       }
       increment_promo_uses: { Args: { promo_id: string }; Returns: undefined }
+      trigger_publish_due_posts: { Args: never; Returns: undefined }
       user_has_workspace_access: { Args: { ws_id: string }; Returns: boolean }
       user_workspace_role: { Args: { ws_id: string }; Returns: string }
     }
