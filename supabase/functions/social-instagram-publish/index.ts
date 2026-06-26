@@ -1,3 +1,4 @@
+// redeploy 2026-06-26
 // Publie sur le compte Instagram Business connecté :
 //  - une image simple (body.imageUrl), ou
 //  - un carrousel de 2 à 10 images (body.imageUrls[]).
