@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallback, buildIdentityBlock } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
-import { callAnthropic, getModelForAction, getModelForRichContent } from "../_shared/anthropic.ts";
+import { callAnthropic, getModelForAction } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { ANTI_SLOP, EDITORIAL_ANGLES_REFERENCE, CHAIN_OF_THOUGHT, DEPTH_LAYER, PREGEN_INJECTION_RULES, EMBEDDED_EDUCATION, SLIDE_TITLE_RULES, ANTI_FABRICATED_STORYTELLING, DEPTH_LAYER_DUAL } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
@@ -13,6 +13,14 @@ import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
 import { extractImagePayload } from "../_shared/image-utils.ts";
+
+// Choix du modèle de RÉDACTION du carrousel.
+// Par défaut Sonnet (rapide). Opus seulement si l'utilisatrice a coché
+// explicitement "Mode qualité Max" (quality_max) — plus soigné mais ~2-3x plus
+// lent. Fini l'escalade silencieuse vers Opus basée sur la longueur des réponses.
+function pickCarouselModel(body: any) {
+  return body?.quality_max ? "claude-opus-4-6" : getModelForAction("carousel");
+}
 
 // ── Helpers contexte par photo ──
 // L'ordre des photos correspond à l'ordre d'envoi côté front (post-reorder UX).
@@ -278,7 +286,7 @@ serve(async (req) => {
           });
 
           content = await callAnthropic({
-            model: getModelForRichContent("carousel", !!(body.deepening_answers && Object.values(body.deepening_answers).some(v => v && (v as string).trim().length > 50))),
+            model: pickCarouselModel(body),
             system: systemPrompt + "\n\n" + mixPrompt,
             messages: [{ role: "user", content: messageContent }],
             max_tokens: 8192,
@@ -288,7 +296,7 @@ serve(async (req) => {
           const textPrompt = mixPrompt + `\n\nBRIEF CRÉATIF : "${body.subject || "non précisé"}". Ce concept doit structurer tout le carrousel.\n\nDescription des photos : "${body.photo_description || "non fournie"}"\nNombre de slides estimé : ${body.slide_count || 8}\nObjectif : ${body.objective || "engagement"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${body.slide_structure ? `\nStructure imposée : ${body.slide_structure.length} slides définies par l'utilisateur·ice.` : ""}`;
 
           content = await callAnthropic({
-            model: getModelForRichContent("carousel", !!(body.deepening_answers && Object.values(body.deepening_answers).some(v => v && (v as string).trim().length > 50))),
+            model: pickCarouselModel(body),
             system: systemPrompt,
             messages: [{ role: "user", content: textPrompt }],
             max_tokens: 8192,
@@ -348,7 +356,7 @@ serve(async (req) => {
           });
 
           content = await callAnthropic({
-            model: getModelForAction("carousel"),
+            model: pickCarouselModel(body),
             system: systemPrompt + "\n\n" + photoPrompt,
             messages: [{ role: "user", content: messageContent }],
             max_tokens: 8192,
@@ -359,7 +367,7 @@ serve(async (req) => {
           const textPrompt = photoPrompt + `\n\nSujet : "${body.subject || "non précisé"}"\nDescription des photos : "${body.photo_description || "non fournie"}"\nNombre de slides estimé : ${body.slide_count || 6}\nObjectif : ${body.objective || "engagement"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}`;
 
           content = await callAnthropic({
-            model: getModelForAction("carousel"),
+            model: pickCarouselModel(body),
             system: systemPrompt,
             messages: [{ role: "user", content: textPrompt }],
             max_tokens: 8192,
@@ -708,7 +716,9 @@ Réponds UNIQUEMENT en JSON valide :
     // L1 : Haiku pour les deepening_questions (tâche structurée et bornée).
     const modelForCall = type === "deepening_questions"
       ? getModelForAction("questions")
-      : getModelForAction("carousel");
+      : type === "express_full"
+        ? pickCarouselModel(body)
+        : getModelForAction("carousel");
     let content = await callAnthropic({
       model: modelForCall,
       system: systemPrompt,
