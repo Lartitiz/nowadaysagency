@@ -329,7 +329,6 @@ export default function CreerUnifie() {
     error,
     reset: resetGenerator,
     generateQuestions,
-    generateFollowUp,
     loadingQuestions,
     questions,
     setQuestions,
@@ -974,9 +973,24 @@ export default function CreerUnifie() {
     await doGenerate({});
   };
 
-  const doGenerate = async (ans: Record<string, string>) => {
+  const doGenerate = async (ansInput: Record<string, string>) => {
     if (!selectedFormat) return;
     if (generating || structureLoading || streaming) return; // garde anti double-clic / réentrance (évite une 2e génération facturée)
+
+    // Les réponses arrivent indexées par ID de question (`q_0`, `q_1`…) car l'IA
+    // ne renvoie pas d'`id`. On les ré-indexe par LE TEXTE de la question pour que
+    // le moteur de génération reçoive "vraie question → réponse" (et non "q_0 → réponse",
+    // qui faisait perdre tout le cadrage des questions au modèle qui rédige).
+    // Fallback sur l'ID si une réponse n'a pas de question connue (briefs rechargés).
+    const ans: Record<string, string> = (() => {
+      const textById = new Map(questions.map((q) => [q.id, q.question]));
+      const out: Record<string, string> = {};
+      for (const [id, v] of Object.entries(ansInput)) {
+        if (!v || !v.trim()) continue;
+        out[textById.get(id) || id] = v;
+      }
+      return out;
+    })();
 
     // Auriana demo account: instant pre-built result ONLY if user followed the scripted path
     // (carrousel texte sur sujet pré-rempli, sans photos). Sinon → vraie génération IA.
@@ -3073,20 +3087,6 @@ export default function CreerUnifie() {
                 onBack={() => setStep("format")}
                 previousBriefsCount={briefsCount}
                 initialAnswers={briefPrefillAnswers ?? (aurianaDemoActive && ideaText === AURIANA_DEMO_SUBJECT && carouselSubMode === "text" && uploadedPhotos.length === 0 ? AURIANA_DEMO_FLOW.answers : undefined)}
-                onRequestFollowUp={async (currentAnswers) => {
-                  return await generateFollowUp({
-                    subject: ideaText,
-                    answers: currentAnswers,
-                    questions,
-                    contentType: selectedFormat || "instagram_post",
-                    objective: objective || undefined,
-                    photos: photoMode && uploadedPhotos.length > 0
-                      ? uploadedPhotos.slice(0, 10).map((p) => ({ base64: p.base64, mimeType: p.mimeType, context: p.context }))
-                      : undefined,
-                    photoMode: photoMode || undefined,
-                    photoDescription: photoMode ? photoDescription : undefined,
-                  });
-                }}
               />
             )}
 

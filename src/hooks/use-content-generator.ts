@@ -533,7 +533,11 @@ export function useContentGenerator() {
           }
 
           const hasPhotosCF = (params.photos?.length ?? 0) > 0 && !!params.photos?.[0]?.base64;
-          const photoModeCF = hasPhotosCF && (params.photoMode === true || format === "post" || format === "linkedin");
+          // Aligné sur le déclenchement vision de la génération (qui exige photoMode).
+          // `photoMode` est de toute façon auto-activé dès qu'une photo est présente
+          // sur un format compatible (cf. CreerStepFormat), donc post/linkedin sont couverts.
+          // Évite le cas "questions ancrées sur la photo" puis "génération sans la photo".
+          const photoModeCF = hasPhotosCF && params.photoMode === true;
 
           const res = await invokeWithTimeout("creative-flow", {
             body: {
@@ -612,62 +616,6 @@ export function useContentGenerator() {
     []
   );
 
-  const generateFollowUp = useCallback(
-    async (params: {
-      subject: string;
-      answers: Record<string, string>;
-      questions: Question[];
-      contentType?: string;
-      objective?: string;
-      photos?: { base64: string; mimeType?: string; context?: string }[];
-      photoMode?: boolean;
-      photoDescription?: string;
-    }): Promise<Question[]> => {
-      try {
-        const answersArray = params.questions.map((q) => ({
-          question: q.question,
-          answer: params.answers[q.id] || "",
-        })).filter((a) => a.answer.trim());
-
-        if (answersArray.length === 0) return [];
-
-        // Follow-up ne fait PAS d'appel vision côté serveur (cf. creative-flow step="follow-up").
-        // On évite donc de retransmettre les base64 (jusqu'à 10 × ~250 KB), qui ne servent à rien
-        // et fragilisent la requête réseau. On garde photo_description comme contexte texte.
-        const hasPhotosFU = (params.photos?.length ?? 0) > 0 && !!params.photos?.[0]?.base64;
-        const photoModeFU = hasPhotosFU && params.photoMode === true;
-
-        const res = await invokeWithTimeout("creative-flow", {
-          body: {
-            step: "follow-up",
-            contentType: params.contentType || "instagram_post",
-            context: params.subject,
-            answers: answersArray,
-            objective: params.objective || null,
-            photo_mode: photoModeFU || undefined,
-            photo_description: photoModeFU ? params.photoDescription || undefined : undefined,
-          },
-        }, 45000);
-
-        if (res.error) throw new Error(res.error.message || "Erreur follow-up");
-        const rawContent = res.data?.content ?? res.data;
-        const parsed = parseAIJson(rawContent);
-        const list = parsed?.follow_up_questions || parsed?.questions || [];
-        if (!Array.isArray(list)) return [];
-
-        return list.map((q: any, i: number) => ({
-          id: q.id || `fu_${i}`,
-          question: q.question || q.label || String(q),
-          placeholder: q.placeholder || q.hint || "",
-        }));
-      } catch (e: any) {
-        console.error("[generateFollowUp] error:", e);
-        return [];
-      }
-    },
-    []
-  );
-
   // ── Streaming generation (text formats: post / linkedin / newsletter / pinterest) ──
   // Encapsulates the SSE flow that used to live inline in CreerUnifie.tsx.
   // Mirrors EXACTLY the previous behavior: contentType mapping, body shape,
@@ -723,6 +671,10 @@ export function useContentGenerator() {
 
       const ans = answers || {};
       const hasAnswers = Object.keys(ans).length > 0;
+      // `ans` est désormais indexé par le TEXTE de la question (ré-indexé en amont
+      // dans CreerUnifie). Le bloc anecdote/émotion/conviction reste positionnel
+      // (1re/2e/3e réponse) — comme avant, mais via les valeurs et non les clés `q_0`.
+      const ansValues = Object.values(ans);
 
       const streamBody: any = {
         step: "generate",
@@ -734,9 +686,9 @@ export function useContentGenerator() {
           : undefined,
         preGenAnswers: hasAnswers
           ? {
-              anecdote: ans.anecdote || ans.q_0 || undefined,
-              emotion: ans.emotion || ans.q_1 || undefined,
-              conviction: ans.conviction || ans.q_2 || undefined,
+              anecdote: (ans as any).anecdote || ansValues[0] || undefined,
+              emotion: (ans as any).emotion || ansValues[1] || undefined,
+              conviction: (ans as any).conviction || ansValues[2] || undefined,
             }
           : undefined,
         workspace_id: workspaceId || undefined,
@@ -813,7 +765,6 @@ export function useContentGenerator() {
     error,
     reset,
     generateQuestions,
-    generateFollowUp,
     loadingQuestions,
     questions,
     setQuestions,
