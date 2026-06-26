@@ -15,11 +15,13 @@ import { ChevronDown } from "lucide-react";
 
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import LinkedInCaptionEditor from "@/components/linkedin/LinkedInCaptionEditor";
-import { AlertTriangle, RefreshCw, ArrowUp, ArrowDown } from "lucide-react";
+import { AlertTriangle, RefreshCw, ArrowUp, ArrowDown, ImageIcon } from "lucide-react";
+import PhotoSwapDialog from "@/components/creer/PhotoSwapDialog";
+import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
 
 interface CarouselPhotoResultProps {
   result: any;
-  photos?: { preview: string }[];
+  photos?: PhotoItem[];
   onSlidesUpdate?: (slides: any[], caption: any) => void;
   visualSlides?: { slide_number: number; html: string }[];
   channel?: "linkedin" | "instagram";
@@ -28,6 +30,8 @@ interface CarouselPhotoResultProps {
   onRegenerateCaption?: () => void;
   onRegenerateVisuals?: () => void;
   visualLoading?: boolean;
+  /** Ajoute une photo au set du carrousel (ou retrouve une existante) et renvoie son index 1-based. */
+  onAddPhoto?: (photo: PhotoItem) => number;
 }
 
 // ─── VisualSlidesCarousel (unchanged) ───
@@ -174,7 +178,7 @@ const OVERLAY_STYLE_CLASS: Record<string, string> = {
   technique: "text-sm font-mono",
 };
 
-export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, visualSlides, channel = "instagram", onRetry, captionLoading = false, onRegenerateCaption, onRegenerateVisuals, visualLoading = false }: CarouselPhotoResultProps) {
+export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, visualSlides, channel = "instagram", onRetry, captionLoading = false, onRegenerateCaption, onRegenerateVisuals, visualLoading = false, onAddPhoto }: CarouselPhotoResultProps) {
   const r = result?.raw || result;
 
   // Construit la version "fullText" mono-bloc à partir des sous-champs
@@ -240,8 +244,30 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
   const [slides, setSlides] = useState<any[]>(r?.slides || []);
   const [caption, setCaption] = useState<any>(buildCaptionWithFallback(r?.caption, r?.slides || []));
   const [hashtagInput, setHashtagInput] = useState((buildCaptionWithFallback(r?.caption, r?.slides || []).hashtags || []).join(" "));
-  const [slidesReorderedSinceVisuals, setSlidesReorderedSinceVisuals] = useState(false);
-  
+  // Dialog de remplacement de photo : index 1-based de la slide ciblée (null = fermé).
+  const [swapSlideIdx, setSwapSlideIdx] = useState<number | null>(null);
+
+  // Signature des champs éditables d'un slide (texte + photo + type + ordre).
+  // Sert à détecter de façon fiable qu'on a édité DEPUIS le dernier rendu visuel —
+  // l'ancienne comparaison lisait les slides vivants des deux côtés et ratait les
+  // éditions de texte ET les changements de photo.
+  const slidesSignature = useCallback(
+    (sl: any[]) =>
+      JSON.stringify(
+        (sl || []).map((s: any) => [
+          s.slide_number ?? null,
+          s.overlay_text || "",
+          s.title || "",
+          s.body || "",
+          s.photo_index ?? null,
+          s.slide_type || "",
+        ]),
+      ),
+    [],
+  );
+  // Signature du contenu au moment où les visuels affichés ont été générés.
+  const renderedSigRef = useRef<string>("");
+
 
   const prevSignature = useRef(JSON.stringify({
     slides: (r?.slides || []).map((s: any) => s.slide_number),
@@ -276,10 +302,15 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // À chaque nouveau rendu visuel, on photographie la signature des slides DU MOMENT :
+  // tout ce qui change ensuite (texte, photo, ordre) marquera l'aperçu comme à régénérer.
+  // Volontairement déclenché par le seul changement de `visualSlides` (on capture l'état
+  // au moment du rendu, pas à chaque édition).
   useEffect(() => {
     if (visualSlides && visualSlides.length > 0) {
-      setSlidesReorderedSinceVisuals(false);
+      renderedSigRef.current = slidesSignature(slides);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visualSlides]);
 
   // P2 : Quality check calculé côté front (au lieu de faire confiance à l'IA)
@@ -329,9 +360,19 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
     const renumbered = next.map((s, i) => ({ ...s, slide_number: i + 1 }));
     setSlides(renumbered);
     notify(renumbered, caption);
-    if (visualSlides && visualSlides.length > 0) {
-      setSlidesReorderedSinceVisuals(true);
-    }
+  };
+
+  // Remplacement de la photo d'une slide : ajoute la photo au set (ou retrouve son
+  // index si elle y est déjà), pointe la slide dessus, et laisse la bannière
+  // « Mettre à jour les visuels » apparaître via la signature.
+  const handleSwapPhoto = (slideIdx: number, photo: PhotoItem) => {
+    const newIndex = onAddPhoto?.(photo);
+    if (!newIndex) return;
+    const next = slides.map((s, i) =>
+      i === slideIdx ? { ...s, photo_index: newIndex } : s,
+    );
+    setSlides(next);
+    notify(next, caption);
   };
 
   const updateCaption = (field: string, value: string) => {
@@ -491,13 +532,32 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                     ? slide.photo_index
                     : idx + 1;
                 const photo = photos?.[photoNum - 1];
-                if (!photo?.preview) return null;
                 return (
-                  <img
-                    src={photo.preview}
-                    alt={`Photo ${photoNum}`}
-                    className="h-32 w-auto rounded-md object-cover border border-border"
-                  />
+                  <div className="flex items-end gap-2">
+                    {photo?.preview ? (
+                      <img
+                        src={photo.preview}
+                        alt={`Photo ${photoNum}`}
+                        className="h-32 w-auto rounded-md object-cover border border-border"
+                      />
+                    ) : (
+                      <div className="h-32 w-24 rounded-md border border-dashed border-border bg-muted/30 flex items-center justify-center text-muted-foreground">
+                        <ImageIcon size={20} />
+                      </div>
+                    )}
+                    {onAddPhoto && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => setSwapSlideIdx(idx)}
+                      >
+                        <ImageIcon size={13} className="mr-1" />
+                        {photo?.preview ? "Changer la photo" : "Ajouter une photo"}
+                      </Button>
+                    )}
+                  </div>
                 );
               })()}
 
@@ -656,39 +716,12 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
         </div>
       )}
 
-      {slidesReorderedSinceVisuals && (
-        <div className="flex items-center justify-between gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-3">
-          <div className="flex items-center gap-2 text-sm text-foreground">
-            <AlertTriangle size={16} className="text-primary shrink-0" />
-            <span>Ordre modifié — régénère les visuels pour les mettre à jour.</span>
-          </div>
-          {onRegenerateVisuals && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={visualLoading}
-              onClick={onRegenerateVisuals}
-            >
-              <RefreshCw size={14} className={visualLoading ? "animate-spin" : ""} />
-              Régénérer les visuels
-            </Button>
-          )}
-        </div>
-      )}
-
-      {!slidesReorderedSinceVisuals && visualSlides && visualSlides.length > 0 && (() => {
-        // Hash du contenu textuel actuel des slides (overlay_text + title + body)
-        const currentHash = JSON.stringify(
-          slides.map((s: any) => [s.overlay_text || "", s.title || "", s.body || ""])
-        );
-        const lastRenderedHash = JSON.stringify(
-          visualSlides.map((vs: any) => {
-            const s = slides[vs.slide_number - 1] || {};
-            return [s.overlay_text || "", s.title || "", s.body || ""];
-          })
-        );
-        const isStale = currentHash !== lastRenderedHash;
+      {visualSlides && visualSlides.length > 0 && (() => {
+        // Édité depuis le dernier rendu visuel ? Compare la signature courante
+        // (texte + photo + ordre) à celle photographiée au moment du rendu.
+        const isStale =
+          renderedSigRef.current !== "" &&
+          slidesSignature(slides) !== renderedSigRef.current;
         return (
           <>
             {isStale && onRegenerateVisuals && (
@@ -696,7 +729,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                 <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
                 <div className="flex-1 space-y-1.5">
                   <p className="text-xs font-medium text-amber-900 dark:text-amber-200">
-                    Tu as édité des slides depuis le dernier rendu visuel.
+                    Tu as modifié des slides depuis le dernier rendu visuel.
                   </p>
                   <p className="text-[11px] text-amber-800 dark:text-amber-300">
                     Mets à jour les visuels pour que l'aperçu et l'export reflètent tes modifications.
@@ -718,6 +751,20 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
           </>
         );
       })()}
+
+      {onAddPhoto && swapSlideIdx !== null && (
+        <PhotoSwapDialog
+          open={swapSlideIdx !== null}
+          onOpenChange={(o) => { if (!o) setSwapSlideIdx(null); }}
+          currentPhotos={photos}
+          currentIndex={(() => {
+            const s = slides[swapSlideIdx];
+            return Number.isInteger(s?.photo_index) && s.photo_index >= 1 ? s.photo_index : swapSlideIdx + 1;
+          })()}
+          defaultQuery={r?.subject || result?.subject || ""}
+          onSelect={(photo) => handleSwapPhoto(swapSlideIdx, photo)}
+        />
+      )}
 
       <AiGeneratedMention />
     </div>

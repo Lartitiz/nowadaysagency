@@ -2273,6 +2273,23 @@ export default function CreerUnifie() {
     }
   };
 
+  // Remplacement de la photo d'une slide de carrousel (depuis CarouselPhotoResult).
+  // Ajoute la photo choisie au set du carrousel si elle est nouvelle (ou retrouve son
+  // index si elle y est déjà) et renvoie son index 1-based. Les visuels seront
+  // régénérés ensuite par l'utilisatrice via la bannière « Mettre à jour les visuels ».
+  const handleAddCarouselPhoto = useCallback(
+    (photo: PhotoItem): number => {
+      const matches = (p: any) =>
+        (photo.id && p.id === photo.id) || (p.base64 && p.base64 === photo.base64);
+      const existingIdx = uploadedPhotos.findIndex(matches);
+      if (existingIdx >= 0) return existingIdx + 1;
+      const newIndex = uploadedPhotos.length + 1;
+      setUploadedPhotos((prev) => (prev.some(matches) ? prev : [...prev, photo]));
+      return newIndex;
+    },
+    [uploadedPhotos],
+  );
+
   const handleGenerateVisuals = async (opts?: { forceText?: boolean; background?: boolean }) => {
     if (!result?.raw?.slides || visualLoading) return;
     setVisualLoading(true);
@@ -3036,6 +3053,7 @@ export default function CreerUnifie() {
                     else if (result.raw.carousel?.caption) result.raw.carousel.caption = caption;
                   }
                 } : undefined}
+                onAddPhoto={selectedFormat === "carousel" ? handleAddCarouselPhoto : undefined}
                 onStoriesUpdate={selectedFormat === "story" ? (stories) => {
                   if (result?.raw) {
                     if (result.raw.stories) result.raw.stories = stories;
