@@ -266,7 +266,9 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
     [],
   );
   // Signature du contenu au moment où les visuels affichés ont été générés.
-  const renderedSigRef = useRef<string>("");
+  // En STATE (pas en ref) : sa mise à jour doit re-render pour recalculer isStale,
+  // sinon la bannière « Mettre à jour les visuels » ne se referme pas après régénération.
+  const [renderedSig, setRenderedSig] = useState<string>("");
 
 
   const prevSignature = useRef(JSON.stringify({
@@ -308,7 +310,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
   // au moment du rendu, pas à chaque édition).
   useEffect(() => {
     if (visualSlides && visualSlides.length > 0) {
-      renderedSigRef.current = slidesSignature(slides);
+      setRenderedSig(slidesSignature(slides));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visualSlides]);
@@ -720,8 +722,8 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
         // Édité depuis le dernier rendu visuel ? Compare la signature courante
         // (texte + photo + ordre) à celle photographiée au moment du rendu.
         const isStale =
-          renderedSigRef.current !== "" &&
-          slidesSignature(slides) !== renderedSigRef.current;
+          renderedSig !== "" &&
+          slidesSignature(slides) !== renderedSig;
         return (
           <>
             {isStale && onRegenerateVisuals && (
