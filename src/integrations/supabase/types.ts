@@ -8091,6 +8091,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      debug_vault_secret_names: {
+        Args: never
+        Returns: {
+          name: string
+        }[]
+      }
       delete_workspace_with_cleanup: {
         Args: { _workspace_id: string }
         Returns: undefined

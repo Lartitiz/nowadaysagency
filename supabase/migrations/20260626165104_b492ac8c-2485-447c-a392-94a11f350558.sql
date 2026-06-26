@@ -1,0 +1,1 @@
+GRANT EXECUTE ON FUNCTION public.debug_vault_secret_names() TO PUBLIC;
