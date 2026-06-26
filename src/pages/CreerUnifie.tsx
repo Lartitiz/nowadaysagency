@@ -2513,7 +2513,11 @@ export default function CreerUnifie() {
       const requestBody: any = {
         slides: slidesForVisuals,
         ...(hasPhotos && hasActualPhotos ? {
-          photos: photosForVisuals.map(p => ({ base64: p.base64, mimeType: p.mimeType })),
+          // Photos envoyées en VISION uniquement (l'IA les regarde pour concevoir le
+          // layout ; le vrai placement se fait côté client via les placeholders {{PHOTO_N}}).
+          // → version allégée ~1024px : upload + analyse plus rapides, zéro impact sur le
+          // rendu final qui réutilise le plein format.
+          photos: await downscalePhotosForVision(photosForVisuals.map(p => ({ base64: p.base64, mimeType: p.mimeType }))),
           carousel_type: isMixCarousel ? "mix" : "photo",
         } : {
           template_style: null,
