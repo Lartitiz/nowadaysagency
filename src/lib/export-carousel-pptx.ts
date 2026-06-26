@@ -304,34 +304,6 @@ function buildPhotoFullSlide(
   const isBottom = position === "bottom_left" || position === "bottom_center" || !position;
   const isTop = position === "top_left" || position === "top_center";
 
-  // Gradient overlay sombre (simulé en 3 bandes superposées) pour lisibilité du texte
-  if (isBottom) {
-    // Bande sombre intense en bas + dégradé vers le haut
-    slide.addShape("rect", {
-      x: 0, y: H - 4.5, w: W, h: 4.5,
-      fill: { color: "000000", transparency: 65 },
-    });
-    slide.addShape("rect", {
-      x: 0, y: H - 3.0, w: W, h: 3.0,
-      fill: { color: "000000", transparency: 35 },
-    });
-  } else if (isTop) {
-    slide.addShape("rect", {
-      x: 0, y: 0, w: W, h: 4.0,
-      fill: { color: "000000", transparency: 65 },
-    });
-    slide.addShape("rect", {
-      x: 0, y: 0, w: W, h: 2.5,
-      fill: { color: "000000", transparency: 35 },
-    });
-  } else {
-    slide.addShape("roundRect", {
-      x: 0.5, y: textY - 0.3, w: W - 1.0, h: textH + 0.6,
-      fill: { color: "000000", transparency: 45 },
-      rectRadius: 0.15,
-    });
-  }
-
   let fontSize: number, fontFace: string, bold: boolean, italic: boolean;
   switch (style) {
     case "sensoriel":
@@ -346,21 +318,69 @@ function buildPhotoFullSlide(
       fontSize = 24; fontFace = f.title; bold = false; italic = true;
   }
 
-  // Highlight du dernier mot significatif (rose charte)
-  if (style === "narratif" || style === "minimal") {
-    const accentColor = c.primary;
-    const parts = highlightLastSignificantWord(overlayText, accentColor, "FFFFFF");
+  // STYLE "narratif" : bandeau CLAIR + texte FONCÉ (fidèle à l'aperçu HTML).
+  // Les autres styles : voile SOMBRE + texte blanc.
+  if (style === "narratif") {
+    // Bandeau blanc qui épouse le texte (pas toute la slide), positionné selon overlay_position
+    const bandH = 2.4;
+    let bandY: number;
+    if (isTop) bandY = 0.5;
+    else if (isBottom) bandY = H - 0.6 - bandH;
+    else bandY = (H - bandH) / 2;
+    slide.addShape("roundRect", {
+      x: 0.8, y: bandY, w: W - 1.6, h: bandH,
+      fill: { color: "FFFFFF", transparency: 6 },
+      rectRadius: 0.12,
+    });
+    const parts = highlightLastSignificantWord(overlayText, c.primary, c.text);
     slide.addText(parts, {
-      x: 0.6, y: textY, w: W - 1.2, h: textH,
+      x: 1.1, y: bandY + 0.15, w: W - 2.2, h: bandH - 0.3,
       fontSize, fontFace, bold, italic,
-      align, valign, wrap: true, lineSpacingMultiple: 1.3,
+      align, valign: "middle", wrap: true, lineSpacingMultiple: 1.3,
     });
   } else {
-    slide.addText(overlayText, {
-      x: 0.6, y: textY, w: W - 1.2, h: textH,
-      fontSize, fontFace, bold, italic, color: "FFFFFF",
-      align, valign, wrap: true, lineSpacingMultiple: 1.3,
-    });
+    // Voile sombre (simulé en 2 bandes superposées) pour lisibilité du texte blanc
+    if (isBottom) {
+      slide.addShape("rect", {
+        x: 0, y: H - 4.5, w: W, h: 4.5,
+        fill: { color: "000000", transparency: 65 },
+      });
+      slide.addShape("rect", {
+        x: 0, y: H - 3.0, w: W, h: 3.0,
+        fill: { color: "000000", transparency: 35 },
+      });
+    } else if (isTop) {
+      slide.addShape("rect", {
+        x: 0, y: 0, w: W, h: 4.0,
+        fill: { color: "000000", transparency: 65 },
+      });
+      slide.addShape("rect", {
+        x: 0, y: 0, w: W, h: 2.5,
+        fill: { color: "000000", transparency: 35 },
+      });
+    } else {
+      slide.addShape("roundRect", {
+        x: 0.5, y: textY - 0.3, w: W - 1.0, h: textH + 0.6,
+        fill: { color: "000000", transparency: 45 },
+        rectRadius: 0.15,
+      });
+    }
+
+    // Highlight du dernier mot significatif (rose charte) pour "minimal"
+    if (style === "minimal") {
+      const parts = highlightLastSignificantWord(overlayText, c.primary, "FFFFFF");
+      slide.addText(parts, {
+        x: 0.6, y: textY, w: W - 1.2, h: textH,
+        fontSize, fontFace, bold, italic,
+        align, valign, wrap: true, lineSpacingMultiple: 1.3,
+      });
+    } else {
+      slide.addText(overlayText, {
+        x: 0.6, y: textY, w: W - 1.2, h: textH,
+        fontSize, fontFace, bold, italic, color: "FFFFFF",
+        align, valign, wrap: true, lineSpacingMultiple: 1.3,
+      });
+    }
   }
 
   // Signature : barre rose charte en bas (3pt)
