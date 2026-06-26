@@ -8139,6 +8139,10 @@ export type Database = {
       trigger_publish_due_posts: { Args: never; Returns: undefined }
       user_has_workspace_access: { Args: { ws_id: string }; Returns: boolean }
       user_workspace_role: { Args: { ws_id: string }; Returns: string }
+      vault_upsert_service_role_key: {
+        Args: { p_value: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "coach" | "admin"
