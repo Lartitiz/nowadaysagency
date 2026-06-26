@@ -1419,9 +1419,18 @@ Réponds UNIQUEMENT en JSON :
       });
       questionsContent.push({ type: "text", text: visionQuestionsPrompt });
 
+      // En mode photo, les RÈGLES de questions (sujet-boussole, variété, JSON…) sont
+      // déjà portées par `visionQuestionsPrompt` (message user). On n'envoie donc PAS le
+      // gros system prompt du step `questions` non-photo, qui les dupliquait et entrait en
+      // léger conflit (ex. « chaque question DOIT contenir un mot du sujet » vs « 1 des 3
+      // peut s'appuyer sur la photo »). On conserve uniquement ce que le vision prompt
+      // n'a pas : la voix de marque, le vocabulaire métier et la mémoire anti-répétition.
+      const visionSystemPrompt = `${QUESTIONS_PREFIX}
+${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}\n` : ""}${brandVocabBlock}${recentBriefsContext ? `\n══ MÉMOIRE ANTI-RÉPÉTITION ══\nSujets DIFFÉRENTS déjà traités récemment :\n${recentBriefsContext}\nN'importe JAMAIS leur contenu, vocabulaire ou scènes dans tes questions sur le sujet courant — sert uniquement à ne pas reposer une question identique.\n` : ""}`;
+
       rawContent = await callAnthropic({
         model: getModelForAction("content"),
-        system: systemPrompt,
+        system: visionSystemPrompt,
         messages: [{ role: "user", content: questionsContent }],
         temperature: 0.8,
         max_tokens: 1500,
