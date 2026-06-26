@@ -36,6 +36,23 @@ export async function signState(payload: Record<string, unknown>, secret: string
   return `${data}.${b64urlEncode(sig)}`;
 }
 
+// ── PKCE (requis par Canva Connect, code_challenge_method=S256) ──
+// Le code_verifier doit revenir au callback. On le glisse dans le `state` signé
+// (HMAC, anti-falsification, TTL 10 min). Acceptable ici car le client est
+// confidentiel (client_secret requis pour l'échange) : le verifier seul ne suffit pas.
+export function generateCodeVerifier(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return b64urlEncode(bytes); // 43 caractères base64url
+}
+
+export async function codeChallengeS256(verifier: string): Promise<string> {
+  const digest = new Uint8Array(
+    await crypto.subtle.digest("SHA-256", enc.encode(verifier)),
+  );
+  return b64urlEncode(digest);
+}
+
 export async function verifyState<T = Record<string, unknown>>(
   state: string,
   secret: string,

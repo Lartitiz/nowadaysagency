@@ -1,13 +1,13 @@
 import { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Instagram, Linkedin, Loader2, CheckCircle2, ExternalLink } from "lucide-react";
+import { Instagram, Linkedin, Loader2, CheckCircle2, ExternalLink, Palette } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 
 type Connection = {
-  platform: "instagram" | "linkedin" | "pinterest";
+  platform: "instagram" | "linkedin" | "canva" | "pinterest";
   connected: boolean;
   accountName?: string | null;
   expiresAt?: string | null;
@@ -56,8 +56,12 @@ export default function SocialConnectionsCard() {
     // Toast au retour OAuth
     const params = new URLSearchParams(window.location.search);
     const connected = params.get("connected");
-    if (connected === "instagram" || connected === "linkedin") {
-      toast.success(connected === "linkedin" ? "LinkedIn connecté !" : "Instagram connecté !");
+    if (connected === "instagram" || connected === "linkedin" || connected === "canva") {
+      toast.success(
+        connected === "linkedin" ? "LinkedIn connecté !"
+          : connected === "canva" ? "Canva connecté !"
+          : "Instagram connecté !",
+      );
       params.delete("connected");
       const qs = params.toString();
       window.history.replaceState({}, "", window.location.pathname + (qs ? `?${qs}` : ""));
@@ -70,7 +74,7 @@ export default function SocialConnectionsCard() {
     }
   }, [reload]);
 
-  const handleConnect = async (platform: "instagram" | "linkedin") => {
+  const handleConnect = async (platform: "instagram" | "linkedin" | "canva") => {
     setConnecting(platform);
     try {
       const { data, error } = await supabase.functions.invoke("social-oauth-start", {
@@ -109,6 +113,7 @@ export default function SocialConnectionsCard() {
 
   const ig = connections.instagram;
   const li = connections.linkedin;
+  const canva = connections.canva;
 
   return (
     <section className="mb-6">
@@ -216,6 +221,56 @@ export default function SocialConnectionsCard() {
                 <ExternalLink className="h-3.5 w-3.5" />
               )}
               Connecter LinkedIn
+            </Button>
+          )}
+        </div>
+
+        {/* Canva — pour ouvrir/éditer un carrousel dans Canva */}
+        <div className="flex items-center justify-between gap-3 px-4 py-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-cyan-400 to-violet-500 text-white flex items-center justify-center shrink-0">
+              <Palette className="h-4 w-4" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground">Canva</p>
+              {loading ? (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Loader2 className="h-3 w-3 animate-spin" /> Chargement…
+                </p>
+              ) : canva?.connected ? (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                  Connecté{canva.accountName ? ` : ${canva.accountName}` : ""}
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Non connecté — pour ouvrir tes carrousels dans Canva
+                </p>
+              )}
+            </div>
+          </div>
+          {canva?.connected ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleDisconnect("canva")}
+              disabled={disconnecting === "canva"}
+            >
+              {disconnecting === "canva" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Déconnecter"}
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              onClick={() => handleConnect("canva")}
+              disabled={connecting === "canva"}
+              className="gap-1.5"
+            >
+              {connecting === "canva" ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <ExternalLink className="h-3.5 w-3.5" />
+              )}
+              Connecter Canva
             </Button>
           )}
         </div>
