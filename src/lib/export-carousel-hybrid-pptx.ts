@@ -245,19 +245,37 @@ async function waitReady(iframe: HTMLIFrameElement): Promise<void> {
 // capture
 // ---------------------------------------------------------------------------
 
+// html2canvas peut, sur certains contenus, ne JAMAIS résoudre (rendu async qui pend) —
+// `imageTimeout` ne borne que le chargement d'images, pas le rendu. On borne donc chaque
+// capture : au-delà du délai, on abandonne CETTE capture et on continue, pour qu'une seule
+// slide ne puisse pas bloquer tout l'export (cf. blocage observé en live sur une slide-schéma).
+function raceTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms)),
+  ]);
+}
+
+const CAPTURE_TIMEOUT_MS = 25000;
+
 async function captureBody(doc: Document): Promise<string> {
-  const canvas = await html2canvas(doc.body, {
-    width: SLIDE_W_PX,
-    height: SLIDE_H_PX,
-    windowWidth: SLIDE_W_PX,
-    windowHeight: SLIDE_H_PX,
-    scale: 3,
-    useCORS: true,
-    allowTaint: true,
-    backgroundColor: null,
-    logging: false,
-    imageTimeout: 8000,
-  });
+  const canvas = await raceTimeout(
+    html2canvas(doc.body, {
+      width: SLIDE_W_PX,
+      height: SLIDE_H_PX,
+      windowWidth: SLIDE_W_PX,
+      windowHeight: SLIDE_H_PX,
+      scale: 3,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: null,
+      logging: false,
+      imageTimeout: 8000,
+    }),
+    CAPTURE_TIMEOUT_MS,
+    null,
+  );
+  if (!canvas) throw new Error("La capture du fond (html2canvas) a expiré.");
   return canvas.toDataURL("image/png");
 }
 
@@ -658,13 +676,19 @@ export async function exportCarouselHybridPptx(
       const gradientImages: { data: string; x: number; y: number; w: number; h: number }[] = [];
       for (const gz of extractGradientDecoZones(doc)) {
         try {
-          const gcanvas = await html2canvas(gz.el, {
-            scale: 3,
-            backgroundColor: null,
-            useCORS: true,
-            allowTaint: true,
-            logging: false,
-          });
+          const gcanvas = await raceTimeout(
+            html2canvas(gz.el, {
+              scale: 3,
+              backgroundColor: null,
+              useCORS: true,
+              allowTaint: true,
+              logging: false,
+              imageTimeout: 8000,
+            }),
+            15000,
+            null,
+          );
+          if (!gcanvas) continue; // capture trop longue → laissé cuit dans le fond (sûr)
           const gdata = gcanvas.toDataURL("image/png");
           if (!gdata || gdata.length < 64) continue; // capture vide → laissé cuit (sûr)
           const x = Math.max(0, pxToInches(gz.rect.x, PX_PER_IN));
