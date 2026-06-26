@@ -35,6 +35,7 @@ import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
 import { userPhotoToBase64, type UserPhotoRow } from "@/lib/photo-storage";
 import StructureReviewStep from "@/components/creer/StructureReviewStep";
 import CarouselStructureLoader from "@/components/creer/CarouselStructureLoader";
+import { downscalePhotosForVision } from "@/lib/image-vision";
 import type { SlideProposal, StructureProposal } from "@/components/creer/StructureReviewStep";
 
 import { useContentGenerator } from "@/hooks/use-content-generator";
@@ -1202,9 +1203,13 @@ export default function CreerUnifie() {
           photo_description: photoDescription || undefined,
           ...(newsjackingContext ? { news_context: newsjackingContext.slice(0, 3800) } : {}),
         };
-        // En mode photo/mix, envoyer les photos pour analyse visuelle
+        // En mode photo/mix, envoyer les photos pour analyse visuelle.
+        // Version allégée (~1024px) pour l'analyse uniquement — le rendu/export
+        // garde le plein format via uploadedPhotos / generatedWithPhotos.
         if ((carouselSubMode === "photo" || carouselSubMode === "mix") && uploadedPhotos.length > 0) {
-          structureBody.photos = uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType }));
+          structureBody.photos = await downscalePhotosForVision(
+            uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType }))
+          );
           // Snapshot pour handleGenerateVisuals (résiste aux resets de state UI)
           setGeneratedWithPhotos(uploadedPhotos);
         }

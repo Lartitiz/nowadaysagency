@@ -3,6 +3,7 @@ import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { invokeWithHeartbeat } from "@/lib/invoke-with-heartbeat";
 import { supabase } from "@/integrations/supabase/client";
 import { handleQuotaError } from "@/lib/quota-error-handler";
+import { downscalePhotosForVision } from "@/lib/image-vision";
 import { useStreamingInvoke } from "@/hooks/use-streaming-invoke";
 import {
   EDITORIAL_ANGLES,
@@ -251,7 +252,7 @@ export function useContentGenerator() {
               // (structure_proposal), Claude a déjà analysé les photos en vision. Inutile
               // de les renvoyer en base64 — la structure encode déjà photo_index + slide_type.
               // Évite que Sonnet refasse une analyse vision (~3 min → ~40 s).
-              photos: (!params.confirmedStructure && (params.carouselType === "photo" || params.carouselType === "mix")) ? params.photos : undefined,
+              photos: (!params.confirmedStructure && (params.carouselType === "photo" || params.carouselType === "mix")) ? await downscalePhotosForVision(params.photos) : undefined,
               photo_description: (params.carouselType === "photo" || params.carouselType === "mix") ? params.photoDescription : undefined,
               slide_structure: params.slideStructure || null,
               confirmed_structure: params.confirmedStructure || null,
