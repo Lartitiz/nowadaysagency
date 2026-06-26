@@ -275,7 +275,7 @@ export default function DiagnosticLoading({
         }
 
 
-        const result = mapEdgeResponseToDiagnostic(data);
+        const result = mapEdgeResponseToDiagnostic(data, answers);
         diagnosticDataRef.current = result;
         setChecks({ ig: true, web: true, docs: true });
 
@@ -389,7 +389,7 @@ export default function DiagnosticLoading({
   );
 }
 
-function mapEdgeResponseToDiagnostic(data: any): DiagnosticData {
+function mapEdgeResponseToDiagnostic(data: any, answers?: { canaux?: string[] }): DiagnosticData {
   const analysis = data.diagnostic || data.analysis || data;
 
   const strengths = (analysis.strengths || []).map((s: any) => ({
@@ -415,6 +415,28 @@ function mapEdgeResponseToDiagnostic(data: any): DiagnosticData {
   if (scores.instagram != null) channelScores.push({ emoji: "📱", label: "Instagram", score: scores.instagram });
   if (scores.website != null) channelScores.push({ emoji: "🌐", label: "Site web", score: scores.website });
   if (scores.linkedin != null) channelScores.push({ emoji: "💼", label: "LinkedIn", score: scores.linkedin });
+
+  // Surface the channels the user told us she's on, even when the AI couldn't
+  // score them (no screenshot / no link) — shown as "À auditer" so the
+  // "canal par canal" section reflects her real channels, not just "Identité".
+  const CHANNEL_META: Record<string, { emoji: string; label: string }> = {
+    instagram: { emoji: "📱", label: "Instagram" },
+    website: { emoji: "🌐", label: "Site web" },
+    newsletter: { emoji: "✉️", label: "Newsletter" },
+    linkedin: { emoji: "💼", label: "LinkedIn" },
+    pinterest: { emoji: "📌", label: "Pinterest" },
+    tiktok: { emoji: "🎵", label: "TikTok" },
+    podcast: { emoji: "🎙️", label: "Podcast" },
+    youtube: { emoji: "▶️", label: "YouTube" },
+  };
+  const seenLabels = new Set(channelScores.map((c) => c.label));
+  for (const canal of answers?.canaux || []) {
+    const meta = CHANNEL_META[canal];
+    if (meta && !seenLabels.has(meta.label)) {
+      channelScores.push({ emoji: meta.emoji, label: meta.label, score: null });
+      seenLabels.add(meta.label);
+    }
+  }
 
   const priorities = (analysis.priorities || []).map((p: any) => ({
     title: p.title || "",
