@@ -10,6 +10,8 @@ const LI_SCOPES = "openid profile w_member_social";
 // Canva Connect : importer un design (PPTX) + lire son URL d'édition + le profil.
 const CANVA_SCOPES =
   "design:content:read design:content:write design:meta:read asset:read asset:write profile:read";
+// Pinterest API v5 : lire le compte + les tableaux, et créer des épingles. Scopes séparés par des virgules.
+const PI_SCOPES = "user_accounts:read,boards:read,pins:read,pins:write";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -23,7 +25,12 @@ Deno.serve(async (req) => {
     const returnTo: string | null =
       typeof body?.return_to === "string" ? body.return_to : null;
 
-    if (platform !== "instagram" && platform !== "linkedin" && platform !== "canva") {
+    if (
+      platform !== "instagram" &&
+      platform !== "linkedin" &&
+      platform !== "canva" &&
+      platform !== "pinterest"
+    ) {
       return new Response(JSON.stringify({ error: "Plateforme non supportée pour l'instant." }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -35,6 +42,8 @@ Deno.serve(async (req) => {
         ? Deno.env.get("CANVA_CLIENT_ID")
         : platform === "linkedin"
         ? Deno.env.get("LINKEDIN_CLIENT_ID")
+        : platform === "pinterest"
+        ? Deno.env.get("PINTEREST_CLIENT_ID")
         : Deno.env.get("INSTAGRAM_APP_ID");
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const stateSecret = Deno.env.get("OAUTH_STATE_SECRET");
@@ -77,13 +86,21 @@ Deno.serve(async (req) => {
         ? new URL("https://www.canva.com/api/oauth/authorize")
         : platform === "linkedin"
         ? new URL("https://www.linkedin.com/oauth/v2/authorization")
+        : platform === "pinterest"
+        ? new URL("https://www.pinterest.com/oauth/")
         : new URL("https://www.instagram.com/oauth/authorize");
     url.searchParams.set("client_id", appId);
     url.searchParams.set("redirect_uri", redirectUri);
     url.searchParams.set("response_type", "code");
     url.searchParams.set(
       "scope",
-      platform === "canva" ? CANVA_SCOPES : platform === "linkedin" ? LI_SCOPES : IG_SCOPES,
+      platform === "canva"
+        ? CANVA_SCOPES
+        : platform === "linkedin"
+        ? LI_SCOPES
+        : platform === "pinterest"
+        ? PI_SCOPES
+        : IG_SCOPES,
     );
     url.searchParams.set("state", state);
     if (platform === "canva" && codeVerifier) {

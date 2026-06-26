@@ -7,7 +7,7 @@ import { verifyState } from "../_shared/oauth-state.ts";
 interface StatePayload {
   user_id: string;
   workspace_id: string | null;
-  platform: "instagram" | "linkedin" | "canva";
+  platform: "instagram" | "linkedin" | "canva" | "pinterest";
   origin: string;
   nonce: string;
   ts: number;
@@ -149,6 +149,47 @@ Deno.serve(async (req) => {
       }
       accountId = String(meJson.sub);
       accountName = String(meJson.name || meJson.given_name || "LinkedIn");
+    } else if (payload.platform === "pinterest") {
+      const clientId = Deno.env.get("PINTEREST_CLIENT_ID")!;
+      const clientSecret = Deno.env.get("PINTEREST_CLIENT_SECRET")!;
+
+      // 1. Échange code -> tokens (client confidentiel : auth Basic).
+      // Jeton d'accès court (~30 j) + refresh_token (~1 an) pour rafraîchir.
+      const basic = btoa(`${clientId}:${clientSecret}`);
+      const form = new URLSearchParams();
+      form.set("grant_type", "authorization_code");
+      form.set("code", code);
+      form.set("redirect_uri", redirectUri);
+      const tokRes = await fetch("https://api.pinterest.com/v5/oauth/token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: `Basic ${basic}`,
+        },
+        body: form.toString(),
+      });
+      const tokJson = await tokRes.json();
+      if (!tokRes.ok || !tokJson.access_token) {
+        console.error("Pinterest token error:", tokJson);
+        return errorRedirect(origin, tokJson?.error_description || tokJson?.message || "Échange du code Pinterest échoué.");
+      }
+      accessToken = tokJson.access_token;
+      refreshToken = tokJson.refresh_token || null;
+      const expiresIn = Number(tokJson.expires_in || 30 * 24 * 3600);
+      expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
+      scopes = String(tokJson.scope || "user_accounts:read,boards:read,pins:read,pins:write");
+
+      // 2. Lecture du compte (nom d'utilisateur).
+      const meRes = await fetch("https://api.pinterest.com/v5/user_account", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const meJson = await meRes.json();
+      if (!meRes.ok) {
+        console.error("Pinterest user_account error:", meJson);
+        return errorRedirect(origin, meJson?.message || "Lecture du compte Pinterest échouée.");
+      }
+      accountId = String(meJson?.username || "");
+      accountName = String(meJson?.username || "Pinterest");
     } else {
       const appId = Deno.env.get("INSTAGRAM_APP_ID")!;
       const appSecret = Deno.env.get("INSTAGRAM_APP_SECRET")!;
