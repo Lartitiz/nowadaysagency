@@ -8,6 +8,17 @@ import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/
 import { getModelForAction, callAnthropicSimple } from "../_shared/anthropic.ts";
 import { fetchHotNews, evergreenPatternsForMode, type PerplexityActu } from "../_shared/perplexity.ts";
 
+// Perplexity insère parfois ses balises de citation (<cite index="40-3">…</cite>)
+// dans les champs texte. On les retire à la normalisation pour ne jamais les
+// stocker ni les renvoyer au front. Inline (pas dans _shared) pour éviter le piège
+// de redéploiement des consommateurs d'un module partagé.
+function stripCitations(text: string): string {
+  return text
+    .replace(/<\/?cite[^>]*>/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 // Brand universe cache TTL — regenerate after 30 days or when branding changes
 const BRAND_UNIVERSE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -711,18 +722,18 @@ Si vraiment rien ne fonctionne (moins de 3 sujets connectés trouvables), retour
       .filter((a: any) => a && typeof a === "object")
       .map((a: any) => ({
         ...a,
-        titre: typeof a.titre === "string" ? a.titre.slice(0, 140) : "Actu",
-        resume: typeof a.resume === "string" ? a.resume : "",
+        titre: typeof a.titre === "string" ? stripCitations(a.titre).slice(0, 140) : "Actu",
+        resume: typeof a.resume === "string" ? stripCitations(a.resume) : "",
         source: typeof a.source === "string" ? a.source : "",
         type: ALLOWED_TYPES.has(a.type) ? a.type : "globale",
         axe: ALLOWED_AXES.has(a.axe) ? a.axe : "actu_connectable",
         ton: ALLOWED_TONS.has(a.ton) ? a.ton : "entre_deux",
         force_pont: ALLOWED_PONTS.has(a.force_pont) ? a.force_pont : "moyen",
-        pertinence: typeof a.pertinence === "string" ? a.pertinence : "",
+        pertinence: typeof a.pertinence === "string" ? stripCitations(a.pertinence) : "",
         faits_cles: Array.isArray(a.faits_cles)
           ? a.faits_cles
               .filter((f: unknown): f is string => typeof f === "string")
-              .map((f: string) => f.trim().slice(0, 200))
+              .map((f: string) => stripCitations(f).slice(0, 200))
               .filter((f: string) => f.length > 0)
               .slice(0, 8)
           : [],
@@ -765,8 +776,8 @@ Si vraiment rien ne fonctionne (moins de 3 sujets connectés trouvables), retour
         })
         .slice(0, 5)
         .map((a) => ({
-          titre: a.titre,
-          resume: a.resume,
+          titre: stripCitations(a.titre || ""),
+          resume: stripCitations(a.resume || ""),
           source: a.source,
           source_url: a.source_url,
           type: "globale",

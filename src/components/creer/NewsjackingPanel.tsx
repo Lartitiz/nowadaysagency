@@ -121,6 +121,26 @@ const VIBES: { id: string; emoji: string; label: string }[] = [
 const MAX_VIBES = 3;
 const MAX_INTENT_CHARS = 200;
 
+// Perplexity renvoie parfois ses balises de citation (<cite index="40-3">…</cite>)
+// dans le résumé/la pertinence. On les retire à l'affichage — filet de sécurité ;
+// le strip principal est fait côté edge à la normalisation.
+function stripCitations(text?: string): string {
+  if (!text) return "";
+  return text
+    .replace(/<\/?cite[^>]*>/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+// Étapes de progression affichées pendant la recherche (~30-90 s) pour
+// remplacer le spinner muet : rassure que ça avance, pas que ça a planté.
+function searchStageLabel(elapsed: number): string {
+  if (elapsed < 12) return "Je cherche les actus fraîches du moment…";
+  if (elapsed < 30) return "Je croise avec l'univers de ta marque…";
+  if (elapsed < 60) return "Je prépare les premiers angles pour toi…";
+  return "Encore un instant, je fouille en profondeur…";
+}
+
 export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: NewsjackingPanelProps) {
   const [loading, setLoading] = useState(false);
   const [started, setStarted] = useState(false);
@@ -593,7 +613,10 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
             <div className="space-y-1">
               <h3 className="text-sm font-semibold text-foreground">Trouver des actus à surfer pour ta marque</h3>
               <p className="text-xs text-muted-foreground max-w-md mx-auto">
-                L'IA explore l'actu fraîche et croise avec l'univers de ta marque. La recherche prend 30 à 60 secondes et consomme 1 crédit, + 1 crédit par actu dont les angles sont générés (les 2 premières sont préparées automatiquement).
+                L'IA explore l'actu fraîche et la croise avec l'univers de ta marque (30 à 60 secondes).
+              </p>
+              <p className="text-[11px] text-muted-foreground/80 max-w-md mx-auto">
+                💳 1 crédit pour lancer la recherche. Ensuite, voir les angles d'une actu = 1 crédit — mais les 2 premières sont déjà prêtes. Tu ne dépenses que pour ce que tu explores.
               </p>
             </div>
           </div>
@@ -631,7 +654,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
               </Button>
             </div>
             <p className="text-[10px] text-muted-foreground">
-              L'IA lit l'article et te propose des angles connectés à ta marque. 2 crédits (lecture + premier angle). Articles web uniquement (pas YouTube ni réseaux sociaux).
+              L'IA lit l'article et te propose des angles connectés à ta marque. 💳 2 crédits (lecture + 1ᵉʳ angle). Articles web uniquement (pas YouTube ni réseaux sociaux).
             </p>
           </div>
 
@@ -777,13 +800,22 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
       {loading && (
         <div className="flex flex-col items-center justify-center py-16 gap-3">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground animate-pulse">
-            L'IA explore l'univers de ta marque et l'actu…
-          </p>
+          <AnimatePresence mode="wait">
+            <motion.p
+              key={searchStageLabel(searchElapsed)}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.25 }}
+              className="text-sm text-muted-foreground text-center"
+            >
+              {searchStageLabel(searchElapsed)}
+            </motion.p>
+          </AnimatePresence>
           <p className="text-xs text-muted-foreground/80 tabular-nums">
             {searchElapsed < 30
               ? `Recherche en cours… ${searchElapsed}s`
-              : `L'IA fouille le web, ça peut prendre jusqu'à 2 min… ${searchElapsed}s`}
+              : `Ça peut prendre jusqu'à 2 min, c'est normal… ${searchElapsed}s`}
           </p>
         </div>
       )}
@@ -893,8 +925,8 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
                       <div className="flex items-start gap-3">
                         <span className="text-lg mt-0.5 shrink-0">{actu.type === "globale" ? "📰" : "🎯"}</span>
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-sm leading-snug">{actu.titre}</h4>
-                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{actu.resume}</p>
+                          <h4 className="font-medium text-sm leading-snug">{stripCitations(actu.titre)}</h4>
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{stripCitations(actu.resume)}</p>
                           <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                             {actu.from_url ? (
                               <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/15 text-primary font-medium">
@@ -935,7 +967,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
                               <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{actu.source}</span>
                             )}
                           </div>
-                          <p className="text-xs text-muted-foreground mt-2 italic">💡 {actu.pertinence}</p>
+                          <p className="text-xs text-muted-foreground mt-2 italic">💡 {stripCitations(actu.pertinence)}</p>
                         </div>
                       </div>
 
