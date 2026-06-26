@@ -3,7 +3,11 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 import { signState, generateCodeVerifier, codeChallengeS256 } from "../_shared/oauth-state.ts";
 
-const IG_SCOPES = "instagram_business_basic,instagram_business_content_publish";
+// instagram_business_manage_insights = lire les stats du compte + des posts (reach,
+// engagement, croissance d'abonnés) pour nourrir l'audit avec des données réelles.
+// ⚠️ Permission en accès avancé : nécessite une revue Meta (App Review).
+const IG_SCOPES =
+  "instagram_business_basic,instagram_business_content_publish,instagram_business_manage_insights";
 // OpenID Connect + partage sur le profil membre (les anciens r_liteprofile/r_emailaddress
 // sont supprimés depuis 2026). w_member_social = publier au nom du membre.
 const LI_SCOPES = "openid profile w_member_social";
