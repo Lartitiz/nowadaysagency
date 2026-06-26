@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Button } from "@/components/ui/button";
-import { Upload, X, Sparkles, Loader2, ImagePlus } from "lucide-react";
+import { Upload, X, Sparkles, Loader2, ImagePlus, RotateCcw } from "lucide-react";
 
 const FREQUENCY_OPTIONS = ["Tous les jours", "3-4x/semaine", "1-2x/semaine", "Moins d'1x/semaine", "Irrégulier"];
 
@@ -44,6 +44,10 @@ interface AuditInputFormProps {
   onSubmit: (data: AuditFormData) => void;
   loading: boolean;
   isRedo?: boolean;
+  // Compte Instagram connecté → on propose de récupérer les vraies stats. Le callback
+  // renvoie un pré-remplissage (abonnés, fréquence) à fusionner dans le formulaire.
+  instagramConnected?: boolean;
+  onFetchLiveMetrics?: () => Promise<Partial<AuditFormData> | null>;
 }
 
 function FileUploadGrid({ files, onAdd, onRemove, maxFiles = 5, label }: {
@@ -91,8 +95,10 @@ function FileUploadGrid({ files, onAdd, onRemove, maxFiles = 5, label }: {
   );
 }
 
-export default function AuditInputForm({ initial, onSubmit, loading, isRedo }: AuditInputFormProps) {
+export default function AuditInputForm({ initial, onSubmit, loading, isRedo, instagramConnected, onFetchLiveMetrics }: AuditInputFormProps) {
   const [rapidMode, setRapidMode] = useState(!isRedo);
+  const [fetchingLive, setFetchingLive] = useState(false);
+  const [liveDone, setLiveDone] = useState(false);
   const [form, setForm] = useState<AuditFormData>({
     displayName: initial?.displayName || "",
     username: initial?.username || "",
@@ -131,6 +137,21 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo }: A
 
   const set = (field: keyof AuditFormData | string, value: any) => setForm((p) => ({ ...p, [field]: value }));
 
+  const handleFetchLive = async () => {
+    if (!onFetchLiveMetrics) return;
+    setFetchingLive(true);
+    try {
+      const prefill = await onFetchLiveMetrics();
+      if (prefill) {
+        const clean = Object.fromEntries(Object.entries(prefill).filter(([, v]) => v !== undefined));
+        setForm((p) => ({ ...p, ...clean }));
+        setLiveDone(true);
+      }
+    } finally {
+      setFetchingLive(false);
+    }
+  };
+
   const handleProfileFiles = (fl: FileList | null) => {
     if (!fl) return;
     const arr = Array.from(fl).filter((f) => f.size <= 10 * 1024 * 1024).slice(0, 5);
@@ -151,6 +172,35 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo }: A
           <p className="text-sm text-foreground">
             🔄 Tes infos du dernier audit sont <strong>pré-remplies</strong>. Mets à jour ce qui a changé.
           </p>
+        </div>
+      )}
+
+      {instagramConnected && onFetchLiveMetrics && (
+        <div className="rounded-2xl border border-primary/30 bg-rose-pale p-4 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium text-foreground">📊 Utiliser tes vraies statistiques Instagram</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {liveDone
+                ? "Stats récupérées : abonnés, fréquence et tes posts les plus/moins performants sont pris en compte."
+                : "Récupère automatiquement ton reach, ta croissance d'abonnés et tes meilleurs/pires posts pour un audit basé sur des données réelles."}
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant={liveDone ? "outline" : "default"}
+            size="sm"
+            onClick={handleFetchLive}
+            disabled={fetchingLive}
+            className="shrink-0"
+          >
+            {fetchingLive ? (
+              <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />Récupération...</>
+            ) : liveDone ? (
+              <><RotateCcw className="h-3.5 w-3.5 mr-1.5" />Actualiser</>
+            ) : (
+              <><Sparkles className="h-3.5 w-3.5 mr-1.5" />Récupérer mes stats</>
+            )}
+          </Button>
         </div>
       )}
 

@@ -64,6 +64,50 @@ export default function InstagramAudit() {
   // Reprise après un rechargement survenu pendant un audit : "done" = il a abouti
   // côté serveur entre-temps, "interrupted" = il a été coupé, on réinvite à relancer.
   const [resumeNotice, setResumeNotice] = useState<null | "done" | "interrupted">(null);
+  // Connexion Instagram + stats réelles récupérées via l'API (instagram-insights-fetch).
+  const [igConnected, setIgConnected] = useState(false);
+  const [liveMetrics, setLiveMetrics] = useState<any>(null);
+
+  // Sait si un compte Instagram est connecté (pour proposer la récupération des stats).
+  useEffect(() => {
+    if (!user) return;
+    supabase.functions.invoke("social-status", {
+      body: { workspace_id: workspaceId !== user.id ? workspaceId : undefined },
+    }).then(({ data }) => {
+      const conns = (data as any)?.connections || [];
+      setIgConnected(conns.some((c: any) => c.platform === "instagram" && c.connected));
+    }).catch(() => { /* non bloquant */ });
+  }, [user?.id, workspaceId]);
+
+  // Récupère les statistiques réelles du compte et renvoie un pré-remplissage du
+  // formulaire (abonnés, fréquence). Les top/flop posts sont gardés dans liveMetrics
+  // pour être envoyés à l'audit au moment de la soumission.
+  const fetchLiveMetrics = async (): Promise<Partial<AuditFormData> | null> => {
+    if (!user) return null;
+    const { data, error } = await supabase.functions.invoke("instagram-insights-fetch", {
+      body: { workspace_id: workspaceId !== user.id ? workspaceId : undefined },
+    });
+    if (error || !(data as any)?.metrics) {
+      const ctxBody = (error as any)?.context?.body;
+      const msg = ctxBody?.error || (data as any)?.error || "";
+      if (msg.includes("Reconnecte")) {
+        toast({ title: "Reconnexion requise", description: "Reconnecte ton compte Instagram pour autoriser la lecture de tes statistiques.", variant: "destructive" });
+      } else {
+        toast({ title: "Stats indisponibles", description: msg || "Impossible de récupérer tes statistiques Instagram pour le moment.", variant: "destructive" });
+      }
+      return null;
+    }
+    const m = (data as any).metrics;
+    setLiveMetrics(m);
+    if (m.partial) {
+      toast({ title: "Stats partiellement récupérées", description: "Certaines métriques manquaient, mais l'essentiel est là." });
+    }
+    return {
+      followers: typeof m.followers === "number" ? String(m.followers) : undefined,
+      postsPerMonth: typeof m.postsLast30d === "number" ? String(m.postsLast30d) : undefined,
+      frequency: m.frequencyLabel || undefined,
+    };
+  };
 
   // Progressive loading messages during audit
   useEffect(() => {
@@ -257,6 +301,15 @@ export default function InstagramAudit() {
             bestPostsComment: form.bestPostsComment || null,
             worstPostsComment: form.worstPostsComment || null,
           },
+          // Statistiques réelles (si récupérées) : alimentent le bloc factuel du prompt
+          // + les top/flop posts mesurés deviennent les données structurées de l'audit.
+          liveMetrics: liveMetrics || undefined,
+          successPostsData: liveMetrics?.topPosts?.length
+            ? liveMetrics.topPosts.map((p: any) => ({ format: p.format, subject: p.subject, reach: p.reach, likes: p.likes, comments: p.comments, saves: p.saves, shares: p.shares }))
+            : undefined,
+          failPostsData: liveMetrics?.flopPosts?.length
+            ? liveMetrics.flopPosts.map((p: any) => ({ format: p.format, subject: p.subject, reach: p.reach, likes: p.likes, comments: p.comments, saves: p.saves, shares: p.shares }))
+            : undefined,
           workspace_id: workspaceId !== user.id ? workspaceId : undefined,
         },
       }, 180000);
@@ -786,7 +839,7 @@ export default function InstagramAudit() {
           </div>
         )}
         <div className={analyzing ? "hidden" : ""}>
-          <AuditInputForm initial={initialForm} onSubmit={handleSubmit} loading={analyzing} isRedo={hasExistingAudit} />
+          <AuditInputForm initial={initialForm} onSubmit={handleSubmit} loading={analyzing} isRedo={hasExistingAudit} instagramConnected={igConnected} onFetchLiveMetrics={fetchLiveMetrics} />
         </div>
       </main>
     </div>

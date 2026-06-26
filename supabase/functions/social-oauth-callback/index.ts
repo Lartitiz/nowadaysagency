@@ -227,7 +227,7 @@ Deno.serve(async (req) => {
       accessToken = longJson.access_token;
       const expiresIn: number = Number(longJson.expires_in || 60 * 24 * 3600);
       expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
-      scopes = "instagram_business_basic,instagram_business_content_publish";
+      scopes = "instagram_business_basic,instagram_business_content_publish,instagram_business_manage_insights";
 
       // 3. Fetch account info
       const meUrl = new URL("https://graph.instagram.com/v21.0/me");

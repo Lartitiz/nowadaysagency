@@ -34,6 +34,8 @@ const AuditInstagramSchema = z.object({
   screenshotUrls: z.array(z.string()).optional().nullable(),
   successPostsData: z.array(z.record(z.unknown())).optional().nullable(),
   failPostsData: z.array(z.record(z.unknown())).optional().nullable(),
+  // Statistiques réelles tirées de l'API Instagram (instagram-insights-fetch).
+  liveMetrics: z.record(z.unknown()).optional().nullable(),
   workspace_id: z.string().uuid().optional().nullable(),
   // Legacy fields
   bestContent: z.string().optional().nullable(),
@@ -112,7 +114,7 @@ serve(async (req) => {
       );
     }
     const body = parseResult.data;
-    const { auditTextData: atd, screenshotImages, successPostsData, failPostsData, workspace_id } = body;
+    const { auditTextData: atd, screenshotImages, successPostsData, failPostsData, liveMetrics, workspace_id } = body;
     // Legacy fields (optional)
     const { bestContent: bc, worstContent: wc, rhythm: rh, objective: obj, profileUrl: pu } = body;
 
@@ -207,6 +209,40 @@ serve(async (req) => {
       profileTextBlock = "\nPROFIL INSTAGRAM (saisi par l'utilisatrice) :\n" + lines.join("\n");
     }
 
+    // Bloc statistiques RÉELLES (API Instagram). Priorité au factuel sur le déclaratif.
+    let liveMetricsBlock = "";
+    if (liveMetrics && typeof liveMetrics === "object") {
+      const lm: any = liveMetrics;
+      const lines: string[] = [];
+      const pct = (v: any) => (typeof v === "number" ? `${(v * 100).toFixed(1)}%` : null);
+      if (typeof lm.followers === "number") lines.push(`- Abonnés : ${lm.followers}`);
+      if (typeof lm.followerGrowth30d === "number") lines.push(`- Croissance d'abonnés (30 j) : ${lm.followerGrowth30d >= 0 ? "+" : ""}${lm.followerGrowth30d}`);
+      if (typeof lm.reach30d === "number") lines.push(`- Reach (28 j) : ${lm.reach30d}`);
+      if (typeof lm.profileViews30d === "number") lines.push(`- Vues de profil (28 j) : ${lm.profileViews30d}`);
+      if (typeof lm.postsLast30d === "number") lines.push(`- Posts publiés sur 30 j : ${lm.postsLast30d}${lm.frequencyLabel ? ` (${lm.frequencyLabel})` : ""}`);
+      if (pct(lm.avgEngagementRate)) lines.push(`- Taux d'engagement moyen par post : ${pct(lm.avgEngagementRate)}`);
+      const fmtPost = (p: any) => {
+        const s: string[] = [];
+        if (p.format) s.push(p.format);
+        if (typeof p.reach === "number") s.push(`reach ${p.reach}`);
+        if (pct(p.engagementRate)) s.push(`eng. ${pct(p.engagementRate)}`);
+        const stats = s.length ? ` [${s.join(", ")}]` : "";
+        return `  · "${p.subject || "(sans légende)"}"${stats}`;
+      };
+      if (Array.isArray(lm.topPosts) && lm.topPosts.length) {
+        lines.push(`- Posts les plus performants (mesurés) :\n${lm.topPosts.map(fmtPost).join("\n")}`);
+      }
+      if (Array.isArray(lm.flopPosts) && lm.flopPosts.length) {
+        lines.push(`- Posts les moins performants (mesurés) :\n${lm.flopPosts.map(fmtPost).join("\n")}`);
+      }
+      if (lines.length) {
+        liveMetricsBlock =
+          "\nSTATISTIQUES RÉELLES (API Instagram — ces chiffres sont factuels, appuie-toi dessus en priorité sur le déclaratif) :\n" +
+          lines.join("\n") +
+          (lm.partial ? "\n(Certaines métriques n'ont pas pu être récupérées.)" : "");
+      }
+    }
+
     const systemPrompt = `${CORE_PRINCIPLES}
 ${profileTextBlock}
 
@@ -216,6 +252,7 @@ ${wc ? `- Contenus qui ne marchent pas : "${wc}"` : ""}
 ${rh ? `- Rythme actuel : "${rh}"` : ""}
 ${obj ? `- Objectif principal : "${obj}"` : ""}` : ""}
 ${pu ? `- URL du profil : ${pu}` : ""}
+${liveMetricsBlock}
 ${successPostsBlock}
 ${failPostsBlock}
 
