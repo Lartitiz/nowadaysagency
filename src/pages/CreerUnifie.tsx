@@ -34,6 +34,7 @@ import PinterestInspirationStep from "@/components/creer/PinterestInspirationSte
 import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
 import { userPhotoToBase64, type UserPhotoRow } from "@/lib/photo-storage";
 import StructureReviewStep from "@/components/creer/StructureReviewStep";
+import CarouselStructureLoader from "@/components/creer/CarouselStructureLoader";
 import type { SlideProposal, StructureProposal } from "@/components/creer/StructureReviewStep";
 
 import { useContentGenerator } from "@/hooks/use-content-generator";
@@ -3135,11 +3136,7 @@ export default function CreerUnifie() {
             )}
 
             {step === "result" && structureLoading && (
-              <div className="py-16 text-center space-y-4 animate-fade-in">
-                <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto" />
-                <p className="text-sm font-medium text-foreground">Préparation de la structure de ton carrousel…</p>
-                <p className="text-xs text-muted-foreground">L'IA organise tes idées en slides. Ça prend quelques secondes.</p>
-              </div>
+              <CarouselStructureLoader hasPhotos={uploadedPhotos.length > 0} />
             )}
 
             {step === "result" && !isLaunchMode && !generating && !demoGenerating && !streaming && !pinterestVisualGenerating && !structureLoading && !result && (
