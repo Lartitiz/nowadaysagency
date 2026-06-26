@@ -600,6 +600,13 @@ Retourne UNIQUEMENT le JSON, pas de texte avant ou après.`;
 
 Chaque slide utilise la PHOTO de l'utilisatrice comme image de fond, et tu poses le texte OVERLAY par-dessus avec sa charte graphique.
 
+═══ RÈGLE D'OR — ZÉRO TEXTE INVENTÉ ═══
+Le SEUL texte que tu écris sur une slide est l'overlay_text fourni dans le JSON (mot pour mot). Tu n'AJOUTES jamais le moindre autre mot. Concrètement, INTERDIT de poser au-dessus, en dessous ou à côté de l'overlay :
+- un SURTITRE / kicker / eyebrow / intertitre ;
+- une étiquette de CATÉGORIE ou de THÈME, même si elle résume bien la slide (PAS de « LE VRAI PROBLÈME », « LA MÉTHODE », « LE DÉCLIC », « HISTOIRE VRAIE », « ÉTAPE 1 », « CONVERSATION #2 », « 3 SEMAINES PLUS TARD »…) ;
+- un numéro de slide, un numéro de chapitre, un label de section.
+Le carrousel photo se lit comme une histoire qui coule : le fil vit DANS les phrases, jamais dans des stamps posés par-dessus. Une pilule/un badge ne sert QU'À porter l'overlay_text lui-même (style « minimal »), jamais un mot que tu rajoutes. SEULE exception autorisée : sur la TOUTE DERNIÈRE slide uniquement, un CTA court (ex « Enregistre ce post », « On en parle ? »). En cas de doute : tu n'écris que l'overlay_text, rien d'autre.
+
 ═══ RÈGLES HTML/CSS POUR LES PHOTOS ═══
 - Chaque slide = un <div> EXACTEMENT 1080px × 1350px
 - La photo est en background-image: url() en base64, avec background-size: cover; background-position: center
