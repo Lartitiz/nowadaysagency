@@ -15,9 +15,22 @@ import { ChevronDown } from "lucide-react";
 
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import LinkedInCaptionEditor from "@/components/linkedin/LinkedInCaptionEditor";
-import { AlertTriangle, RefreshCw, ArrowUp, ArrowDown, ImageIcon, Palette, RotateCcw } from "lucide-react";
+import { AlertTriangle, RefreshCw, ArrowUp, ArrowDown, ImageIcon, Palette, RotateCcw, Trash2, Plus } from "lucide-react";
 import PhotoSwapDialog from "@/components/creer/PhotoSwapDialog";
 import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+const MAX_SLIDES = 20;
+const MIN_SLIDES = 2;
 
 export interface CarouselColors {
   primary: string;
@@ -258,6 +271,8 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
   const [hashtagInput, setHashtagInput] = useState((buildCaptionWithFallback(r?.caption, r?.slides || []).hashtags || []).join(" "));
   // Dialog de remplacement de photo : index 1-based de la slide ciblée (null = fermé).
   const [swapSlideIdx, setSwapSlideIdx] = useState<number | null>(null);
+  // Confirmation de suppression : index de la slide à supprimer (null = fermé).
+  const [deleteIdx, setDeleteIdx] = useState<number | null>(null);
 
   // Signature des champs éditables d'un slide (texte + photo + type + ordre).
   // Sert à détecter de façon fiable qu'on a édité DEPUIS le dernier rendu visuel —
@@ -388,6 +403,27 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
     const next = slides.map((s, i) =>
       i === slideIdx ? { ...s, photo_index: newIndex } : s,
     );
+    setSlides(next);
+    notify(next, caption);
+  };
+
+  // Ajout d'une slide texte vide à la fin (l'utilisatrice peut ensuite changer
+  // son type, lui mettre une photo, la réordonner). Renumérote tout.
+  const addSlide = () => {
+    if (slides.length >= MAX_SLIDES) return;
+    const next = [
+      ...slides,
+      { slide_type: "text_only", title: "", body: "", role: "" },
+    ].map((s, i) => ({ ...s, slide_number: i + 1 }));
+    setSlides(next);
+    notify(next, caption);
+  };
+
+  const deleteSlide = (idx: number) => {
+    if (slides.length <= MIN_SLIDES) return;
+    const next = slides
+      .filter((_, i) => i !== idx)
+      .map((s, i) => ({ ...s, slide_number: i + 1 }));
     setSlides(next);
     notify(next, caption);
   };
@@ -592,6 +628,18 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                   >
                     <ArrowDown size={14} />
                   </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                    disabled={slides.length <= MIN_SLIDES}
+                    onClick={() => setDeleteIdx(idx)}
+                    aria-label="Supprimer la slide"
+                    title={slides.length <= MIN_SLIDES ? `Minimum ${MIN_SLIDES} slides` : "Supprimer la slide"}
+                  >
+                    <Trash2 size={14} />
+                  </Button>
                 </div>
               </div>
 
@@ -674,9 +722,12 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                 </>
               ) : (
                 <div className="space-y-2">
-                  {slide.title && (
+                  {/* Pour une slide texte, on affiche toujours les deux champs (même vides,
+                      ex. slide ajoutée à la main). Pour photo_integrated, seulement s'ils existent. */}
+                  {(slide.slide_type === "text_only" || slide.title) && (
                     <Textarea
-                      value={slide.title}
+                      value={slide.title || ""}
+                      placeholder="Titre de la slide"
                       onChange={(e) => {
                         const next = slides.map((s: any, i: number) => (i === idx ? { ...s, title: e.target.value } : s));
                         setSlides(next);
@@ -686,9 +737,10 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                       rows={1}
                     />
                   )}
-                  {slide.body && (
+                  {(slide.slide_type === "text_only" || slide.body) && (
                     <Textarea
-                      value={slide.body}
+                      value={slide.body || ""}
+                      placeholder="Texte de la slide (optionnel)"
                       onChange={(e) => {
                         const next = slides.map((s: any, i: number) => (i === idx ? { ...s, body: e.target.value } : s));
                         setSlides(next);
@@ -708,6 +760,18 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
           </Card>
         );
       })}
+
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full border-dashed"
+        disabled={slides.length >= MAX_SLIDES}
+        onClick={addSlide}
+        title={slides.length >= MAX_SLIDES ? `Maximum ${MAX_SLIDES} slides` : "Ajouter une slide"}
+      >
+        <Plus size={15} className="mr-1" />
+        Ajouter une slide
+      </Button>
 
       {/* Alerte légende incomplète (Action 4) — masquée pendant le chargement de la légende LinkedIn */}
       {!captionLoading && (
@@ -843,6 +907,29 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
           onSelect={(photo) => handleSwapPhoto(swapSlideIdx, photo)}
         />
       )}
+
+      <AlertDialog open={deleteIdx !== null} onOpenChange={(o) => { if (!o) setDeleteIdx(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer cette slide ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              La slide {deleteIdx !== null ? deleteIdx + 1 : ""} et son texte seront retirés du carrousel.
+              Pense à mettre à jour les visuels ensuite.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deleteIdx !== null) deleteSlide(deleteIdx);
+                setDeleteIdx(null);
+              }}
+            >
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AiGeneratedMention />
     </div>
