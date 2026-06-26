@@ -2833,6 +2833,10 @@ export default function CreerUnifie() {
   const [openingCanva, setOpeningCanva] = useState(false);
   const handleOpenInCanva = async () => {
     if (visualSlides.length === 0 || openingCanva) return;
+    // On ouvre l'onglet TOUT DE SUITE (dans le contexte du clic) avec un placeholder,
+    // sinon le window.open() après l'import (plusieurs secondes) est bloqué par le
+    // bloqueur de pop-up. On y chargera l'URL Canva une fois l'import terminé.
+    const canvaTab = window.open("", "_blank");
     setOpeningCanva(true);
     try {
       toast.info("Préparation du carrousel pour Canva…");
@@ -2872,15 +2876,26 @@ export default function CreerUnifie() {
       );
       if (error) throw error;
       if ((data as any)?.error === "not_connected") {
+        if (canvaTab && !canvaTab.closed) canvaTab.close();
         toast.error("Connecte d'abord ton compte Canva dans Paramètres → Réseaux sociaux.");
         return;
       }
       if ((data as any)?.error) throw new Error((data as any).error);
       const editUrl = (data as any)?.editUrl;
       if (!editUrl) throw new Error("URL d'édition Canva manquante.");
-      window.open(editUrl, "_blank", "noopener");
-      toast.success("Carrousel ouvert dans Canva !");
+      if (canvaTab && !canvaTab.closed) {
+        // L'onglet a été ouvert au clic → on y charge le design Canva.
+        canvaTab.location.href = editUrl;
+        toast.success("Carrousel ouvert dans Canva !");
+      } else {
+        // Onglet bloqué malgré tout → on propose un bouton cliquable (geste utilisateur).
+        toast.success("Carrousel prêt dans Canva", {
+          action: { label: "Ouvrir", onClick: () => window.open(editUrl, "_blank", "noopener") },
+          duration: 15000,
+        });
+      }
     } catch (e: any) {
+      if (canvaTab && !canvaTab.closed) canvaTab.close();
       toast.error(e?.message || "Impossible d'ouvrir dans Canva.");
     } finally {
       setOpeningCanva(false);
