@@ -26,6 +26,7 @@ import CreerStepIdea from "@/components/creer/CreerStepIdea";
 import CreerStepFormat from "@/components/creer/CreerStepFormat";
 import CreerStepQuestions from "@/components/creer/CreerStepQuestions";
 import CreerStepResult from "@/components/creer/CreerStepResult";
+import type { CarouselColors } from "@/components/creer/formatRenderers/CarouselPhotoResult";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import CreerStepEdit from "@/components/creer/CreerStepEdit";
 import CreerStepper, { type StepperKey } from "@/components/creer/CreerStepper";
@@ -288,6 +289,8 @@ export default function CreerUnifie() {
   // Visual states (carousel only)
   const [visualSlides, setVisualSlides] = useState<{ slide_number: number; html: string }[]>(ps?.visualSlides || []);
   const [visualLoading, setVisualLoading] = useState(false);
+  // Surcharge de couleurs du carrousel (null = couleurs de la charte). Réinitialisée à chaque nouvelle génération.
+  const [carouselColors, setCarouselColors] = useState<CarouselColors | null>(null);
   
 
   // ── Persist generated result to sessionStorage ──
@@ -1013,6 +1016,7 @@ export default function CreerUnifie() {
     // Reset post-generation state on new generation
     setSavedId(null);
     setVisualSlides([]);
+    setCarouselColors(null);
     setPinterestPinHtml(null);
     setPhotoBriefOverlayHtml(null);
     setPhotoBriefResult(null);
@@ -2485,6 +2489,17 @@ export default function CreerUnifie() {
         } : {
           template_style: null,
         }),
+        // Surcharge de couleurs : on renvoie la charte COMPLÈTE (select * de useBrandCharter)
+        // avec seulement les 3 couleurs remplacées, pour ne rien perdre (polices, brief,
+        // templates…). L'edge `carousel-visual` utilise `charter` du body avant la DB.
+        ...(carouselColors && charterData ? {
+          charter: {
+            ...charterData,
+            color_primary: carouselColors.primary,
+            color_secondary: carouselColors.secondary,
+            color_accent: carouselColors.accent,
+          },
+        } : {}),
         workspace_id: workspaceId !== session.user.id ? workspaceId : undefined,
       };
 
@@ -3054,6 +3069,17 @@ export default function CreerUnifie() {
                   }
                 } : undefined}
                 onAddPhoto={selectedFormat === "carousel" ? handleAddCarouselPhoto : undefined}
+                carouselColors={selectedFormat === "carousel" ? carouselColors : undefined}
+                onCarouselColorsChange={selectedFormat === "carousel" ? setCarouselColors : undefined}
+                charterColors={
+                  selectedFormat === "carousel" && charterData?.color_primary
+                    ? {
+                        primary: charterData.color_primary,
+                        secondary: charterData.color_secondary || charterData.color_primary,
+                        accent: charterData.color_accent || charterData.color_primary,
+                      }
+                    : undefined
+                }
                 onStoriesUpdate={selectedFormat === "story" ? (stories) => {
                   if (result?.raw) {
                     if (result.raw.stories) result.raw.stories = stories;

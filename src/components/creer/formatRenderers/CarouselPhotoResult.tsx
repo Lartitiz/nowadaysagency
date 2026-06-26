@@ -15,9 +15,15 @@ import { ChevronDown } from "lucide-react";
 
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import LinkedInCaptionEditor from "@/components/linkedin/LinkedInCaptionEditor";
-import { AlertTriangle, RefreshCw, ArrowUp, ArrowDown, ImageIcon } from "lucide-react";
+import { AlertTriangle, RefreshCw, ArrowUp, ArrowDown, ImageIcon, Palette, RotateCcw } from "lucide-react";
 import PhotoSwapDialog from "@/components/creer/PhotoSwapDialog";
 import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
+
+export interface CarouselColors {
+  primary: string;
+  secondary: string;
+  accent: string;
+}
 
 interface CarouselPhotoResultProps {
   result: any;
@@ -32,6 +38,12 @@ interface CarouselPhotoResultProps {
   visualLoading?: boolean;
   /** Ajoute une photo au set du carrousel (ou retrouve une existante) et renvoie son index 1-based. */
   onAddPhoto?: (photo: PhotoItem) => number;
+  /** Surcharge de couleurs pour CE carrousel (null = couleurs de la charte). */
+  colors?: CarouselColors | null;
+  /** Met à jour la surcharge de couleurs (null = revenir à la charte). */
+  onColorsChange?: (colors: CarouselColors | null) => void;
+  /** Couleurs par défaut de la charte (pré-remplissent les sélecteurs). */
+  charterColors?: CarouselColors;
 }
 
 // ─── VisualSlidesCarousel (unchanged) ───
@@ -178,7 +190,7 @@ const OVERLAY_STYLE_CLASS: Record<string, string> = {
   technique: "text-sm font-mono",
 };
 
-export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, visualSlides, channel = "instagram", onRetry, captionLoading = false, onRegenerateCaption, onRegenerateVisuals, visualLoading = false, onAddPhoto }: CarouselPhotoResultProps) {
+export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, visualSlides, channel = "instagram", onRetry, captionLoading = false, onRegenerateCaption, onRegenerateVisuals, visualLoading = false, onAddPhoto, colors, onColorsChange, charterColors }: CarouselPhotoResultProps) {
   const r = result?.raw || result;
 
   // Construit la version "fullText" mono-bloc à partir des sous-champs
@@ -252,9 +264,9 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
   // l'ancienne comparaison lisait les slides vivants des deux côtés et ratait les
   // éditions de texte ET les changements de photo.
   const slidesSignature = useCallback(
-    (sl: any[]) =>
-      JSON.stringify(
-        (sl || []).map((s: any) => [
+    (sl: any[], cols?: CarouselColors | null) =>
+      JSON.stringify({
+        slides: (sl || []).map((s: any) => [
           s.slide_number ?? null,
           s.overlay_text || "",
           s.title || "",
@@ -262,7 +274,10 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
           s.photo_index ?? null,
           s.slide_type || "",
         ]),
-      ),
+        // Les couleurs font partie du rendu : les changer doit aussi marquer
+        // l'aperçu comme à régénérer.
+        colors: cols || null,
+      }),
     [],
   );
   // Signature du contenu au moment où les visuels affichés ont été générés.
@@ -310,7 +325,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
   // au moment du rendu, pas à chaque édition).
   useEffect(() => {
     if (visualSlides && visualSlides.length > 0) {
-      setRenderedSig(slidesSignature(slides));
+      setRenderedSig(slidesSignature(slides, colors));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visualSlides]);
@@ -417,6 +432,26 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
       ? "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400"
       : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
 
+  // ─── Couleurs du carrousel : surcharge optionnelle de la charte ───
+  // Défaut = couleurs de la charte (ou, à défaut, les couleurs par défaut du moteur visuel).
+  const DEFAULT_COLORS: CarouselColors = charterColors || {
+    primary: "#FB3D80",
+    secondary: "#91014b",
+    accent: "#FFE561",
+  };
+  const effectiveColors: CarouselColors = {
+    primary: colors?.primary ?? DEFAULT_COLORS.primary,
+    secondary: colors?.secondary ?? DEFAULT_COLORS.secondary,
+    accent: colors?.accent ?? DEFAULT_COLORS.accent,
+  };
+  const colorSwatches: { key: keyof CarouselColors; label: string }[] = [
+    { key: "primary", label: "Principale" },
+    { key: "secondary", label: "Secondaire" },
+    { key: "accent", label: "Accent" },
+  ];
+  const setColor = (key: keyof CarouselColors, value: string) => {
+    onColorsChange?.({ ...effectiveColors, [key]: value });
+  };
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -424,6 +459,47 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
         <Badge className="bg-primary/10 text-primary border-primary/20">
           {r.chosen_angle.title}
         </Badge>
+      )}
+
+      {onColorsChange && (
+        <Card className="border-border">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                <Palette size={15} className="text-primary" />
+                Couleurs du carrousel
+              </p>
+              {colors && (
+                <button
+                  type="button"
+                  onClick={() => onColorsChange(null)}
+                  className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                  title="Revenir aux couleurs de la charte"
+                >
+                  <RotateCcw size={11} />
+                  Couleurs de la charte
+                </button>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-4">
+              {colorSwatches.map(({ key, label }) => (
+                <label key={key} className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="color"
+                    value={effectiveColors[key]}
+                    onChange={(e) => setColor(key, e.target.value)}
+                    className="h-8 w-8 rounded-md border border-border bg-transparent p-0.5 cursor-pointer"
+                    aria-label={`Couleur ${label}`}
+                  />
+                  <span className="text-xs text-muted-foreground">{label}</span>
+                </label>
+              ))}
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Modifie les couleurs puis « Mettre à jour les visuels » pour les appliquer. Par défaut, ce sont les couleurs de ta charte.
+            </p>
+          </CardContent>
+        </Card>
       )}
 
       {slides.map((slide: any, idx: number) => {
@@ -723,7 +799,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
         // (texte + photo + ordre) à celle photographiée au moment du rendu.
         const isStale =
           renderedSig !== "" &&
-          slidesSignature(slides) !== renderedSig;
+          slidesSignature(slides, colors) !== renderedSig;
         return (
           <>
             {isStale && onRegenerateVisuals && (
