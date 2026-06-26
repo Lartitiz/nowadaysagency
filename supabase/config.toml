@@ -258,6 +258,9 @@ verify_jwt = false
 [functions.social-instagram-publish]
 verify_jwt = false
 
+[functions.social-linkedin-publish]
+verify_jwt = false
+
 [functions.social-status]
 verify_jwt = false
 

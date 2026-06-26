@@ -4,6 +4,9 @@ import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 import { signState } from "../_shared/oauth-state.ts";
 
 const IG_SCOPES = "instagram_business_basic,instagram_business_content_publish";
+// OpenID Connect + partage sur le profil membre (les anciens r_liteprofile/r_emailaddress
+// sont supprimés depuis 2026). w_member_social = publier au nom du membre.
+const LI_SCOPES = "openid profile w_member_social";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -17,14 +20,17 @@ Deno.serve(async (req) => {
     const returnTo: string | null =
       typeof body?.return_to === "string" ? body.return_to : null;
 
-    if (platform !== "instagram") {
+    if (platform !== "instagram" && platform !== "linkedin") {
       return new Response(JSON.stringify({ error: "Plateforme non supportée pour l'instant." }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const appId = Deno.env.get("INSTAGRAM_APP_ID");
+    const appId =
+      platform === "linkedin"
+        ? Deno.env.get("LINKEDIN_CLIENT_ID")
+        : Deno.env.get("INSTAGRAM_APP_ID");
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const stateSecret = Deno.env.get("OAUTH_STATE_SECRET");
     if (!appId || !supabaseUrl || !stateSecret) {
@@ -55,11 +61,14 @@ Deno.serve(async (req) => {
       stateSecret,
     );
 
-    const url = new URL("https://www.instagram.com/oauth/authorize");
+    const url =
+      platform === "linkedin"
+        ? new URL("https://www.linkedin.com/oauth/v2/authorization")
+        : new URL("https://www.instagram.com/oauth/authorize");
     url.searchParams.set("client_id", appId);
     url.searchParams.set("redirect_uri", redirectUri);
     url.searchParams.set("response_type", "code");
-    url.searchParams.set("scope", IG_SCOPES);
+    url.searchParams.set("scope", platform === "linkedin" ? LI_SCOPES : IG_SCOPES);
     url.searchParams.set("state", state);
 
     return new Response(JSON.stringify({ url: url.toString() }), {
