@@ -618,28 +618,44 @@ Police corps : ${ch.font_body}
 Ambiance : ${ch.mood_keywords}
 Border-radius : ${ch.border_radius}${ch.visual_donts ? `\n\n⛔ INTERDITS VISUELS :\n${ch.visual_donts}` : ""}${ch.ai_generated_brief ? `\n\nBRIEF CRÉATIF :\n${ch.ai_generated_brief}` : ""}${ch.template_layout_description ? `\n\n═══ LAYOUT DE RÉFÉRENCE (des templates uploadés par l'utilisatrice) ═══\n${ch.template_layout_description}\n\nIMPORTANT : Inspire-toi de ce layout pour le placement des éléments, le ratio photo/texte, le style des blocs. Mais adapte-le au format carrousel photo (1080×1350).` : ""}
 
+═══ LISIBILITÉ AVANT TOUT (analyse VISUELLE de chaque photo fournie) ═══
+
+Tu VOIS chaque photo. Avant de poser le texte, analyse-la :
+- Repère la zone CLAIRE et la zone SOMBRE. Pose l'overlay là où le contraste avec ta couleur de texte est maximal :
+  · Texte clair (blanc) → sur zone sombre, ou pose un voile/bandeau sombre derrière.
+  · Texte foncé → sur zone claire, ou pose un bandeau clair derrière.
+- Repère le SUJET PRINCIPAL (visage, mains, produit, point focal). N'écris JAMAIS dessus : décale le texte vers le 1/3 opposé de la photo.
+- Si la photo est globalement CLAIRE, texturée, floue ou multicolore sous la zone de texte : un simple gradient ne suffit pas → IMPOSE un bandeau OPAQUE (rgba 0.92) ou un voile dense.
+- La position du JSON (overlay_position) est une PRÉFÉRENCE : adapte-la si le sujet principal y est, ou si le contraste y est insuffisant.
+
+SAFE ZONES Instagram (impératif) :
+- 80px de marge en haut (zone tronquée par certains crops du feed).
+- 200px de marge en bas (icône carrousel Instagram + crop mobile).
+- Aucun texte critique (overlay) dans ces zones. Les éléments décoratifs (voile, photo qui dépasse) sont OK.
+
 ═══ DESIGN DES OVERLAYS TEXTE SUR PHOTO ═══
 
 L'overlay_text doit être LISIBLE sur la photo. Utilise UN des styles suivants selon overlay_style :
 
 STYLE "sensoriel" (phrases évocatrices) :
-- Position : en bas de la slide (bottom: 0)
-- Bandeau gradient : fond linear-gradient(transparent, rgba(0,0,0,0.7)) sur les 40% inférieurs
+- Position : selon overlay_position (par défaut en bas)
+- Voile sombre ADAPTATIF : un linear-gradient(transparent, rgba(0,0,0,0.7)) dont la hauteur ÉPOUSE le bloc texte (≈ hauteur du texte + 120px de marge) et démarre du bord où est posé le texte (bas, haut OU centre). Le voile ne couvre que ce qu'il faut pour lire — pas plus, pas moins.
+- Si le texte est en haut ou au centre : le gradient part de ce bord-là (en haut : rgba(0,0,0,0.7) → transparent ; au centre : voile radial/horizontal centré). NE laisse JAMAIS un texte blanc sans voile parce que le gradient n'était "prévu qu'en bas".
 - Texte : font-family: ${ch.font_title}; font-size: 42-48px; color: white; font-weight: normal; font-style: italic
-- Padding : 80px côtés, 60px bas
-- Ombre texte subtile : text-shadow: 0 2px 20px rgba(0,0,0,0.5)
+- Padding : 80px côtés, 60px du bord
+- Ombre texte : text-shadow: 0 2px 20px rgba(0,0,0,0.6)
 
 STYLE "narratif" (phrases d'histoire) :
-- Position : en bas ou au centre selon overlay_position
-- Bandeau : background rgba(255,255,255,0.92); border-radius: ${ch.border_radius}; backdrop-filter: blur(8px)
-- Texte : font-family: ${ch.font_body}; font-size: 32-36px; color: ${ch.color_text}
+- Position : selon overlay_position
+- Bandeau CLAIR : background rgba(255,255,255,0.92); border-radius: ${ch.border_radius}; backdrop-filter: blur(8px)
+- Texte FONCÉ : font-family: ${ch.font_body}; font-size: 32-36px; color: ${ch.color_text}
 - Padding : 28px 40px
 - Le bandeau ne fait PAS toute la largeur : max-width: 85%, centré ou aligné
 
 STYLE "minimal" (phrases courtes percutantes) :
 - Position : selon overlay_position
 - Badge pilule : background ${ch.color_primary}; color white; font-family: ${ch.font_body}; font-size: 24-28px; text-transform: uppercase; letter-spacing: 2px; padding: 12px 32px; border-radius: 100px
-- Ou texte nu en blanc très grand (60-72px) avec ombre forte : text-shadow: 0 4px 30px rgba(0,0,0,0.8)
+- Ou texte nu en blanc très grand (60-72px) avec ombre forte : text-shadow: 0 4px 30px rgba(0,0,0,0.8) ET un voile sombre adaptatif derrière si la zone est claire
 
 STYLE "technique" (détails produit) :
 - Position : coin ou bord selon overlay_position
@@ -658,8 +674,10 @@ QUAND overlay_text est null :
 "center" : contenu centré (align-items: center; justify-content: center)
 
 ═══ ANTI-PATTERNS ═══
-- ❌ Texte illisible sur photo claire (TOUJOURS un fond/gradient/ombre)
-- ❌ Bandeau qui cache plus de 40% de la photo
+- ❌ Texte blanc posé sur une zone claire SANS voile (illisibilité n°1) — toujours vérifier le contraste réel sous le texte
+- ❌ Voile "prévu en bas" alors que le texte est en haut/centre → le texte flotte sans fond
+- ❌ Texte par-dessus le visage / le sujet principal de la photo
+- ❌ Bandeau qui cache plus de 45% de la photo (le voile doit épouser le texte, pas noyer l'image)
 - ❌ Texte trop petit (< 22px)
 - ❌ Toutes les slides avec le même traitement (varier les styles)
 - ❌ Cercles ou ronds décoratifs
