@@ -2835,8 +2835,17 @@ export default function CreerUnifie() {
     if (visualSlides.length === 0 || openingCanva) return;
     // On ouvre l'onglet TOUT DE SUITE (dans le contexte du clic) avec un placeholder,
     // sinon le window.open() après l'import (plusieurs secondes) est bloqué par le
-    // bloqueur de pop-up. On y chargera l'URL Canva une fois l'import terminé.
+    // bloqueur de pop-up. On y affiche un message d'attente (au lieu d'un about:blank
+    // déroutant) puis on bascule sur l'URL Canva une fois l'import terminé.
     const canvaTab = window.open("", "_blank");
+    if (canvaTab) {
+      try {
+        canvaTab.document.write(
+          `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>Préparation… · Canva</title></head><body style="margin:0;font-family:system-ui,-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#FFF4F8;color:#1A1A2E"><div style="text-align:center;padding:24px;max-width:420px"><div style="font-size:40px;margin-bottom:12px">🎨</div><div style="font-size:18px;font-weight:600">Préparation de ton carrousel dans Canva…</div><div style="margin-top:10px;color:#6b6b80;line-height:1.5">Ça prend une trentaine de secondes.<br>Ne ferme pas cet onglet : ton carrousel va apparaître ici.</div></div></body></html>`,
+        );
+        canvaTab.document.close();
+      } catch { /* noop */ }
+    }
     setOpeningCanva(true);
     try {
       toast.info("Préparation du carrousel pour Canva…");
