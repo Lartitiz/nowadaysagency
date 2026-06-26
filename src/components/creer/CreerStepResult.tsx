@@ -208,6 +208,10 @@ interface Props {
   format: string;
   generating: boolean;
   streamingContent?: string;
+  // Carrousel passé par l'étape structure → la rédaction est l'étape 2/2.
+  step2of2?: boolean;
+  // "Mode qualité Max" activé → rédaction Opus (plus longue) : on prévient pendant l'attente.
+  qualityMax?: boolean;
   onEdit: () => void;
   onReset: () => void;
   onRegenerate: () => void;
@@ -265,6 +269,8 @@ export default function CreerStepResult({
   format,
   generating,
   streamingContent,
+  step2of2,
+  qualityMax,
   onEdit,
   onReset,
   onRegenerate,
@@ -396,6 +402,14 @@ export default function CreerStepResult({
     // Mode skeleton : formats structurés (carousel, reel, story)
     return (
       <div className="py-8 animate-fade-in space-y-5">
+        {step2of2 && (
+          <div className="text-center">
+            <span className="inline-block text-[11px] font-semibold uppercase tracking-wide text-primary/70 bg-primary/10 rounded-full px-3 py-1">
+              Étape 2 / 2 · Rédaction
+            </span>
+          </div>
+        )}
+
         <SkeletonPreview format={format} />
 
         <div className="space-y-3">
@@ -408,7 +422,13 @@ export default function CreerStepResult({
               style={{ width: `${progress}%` }}
             />
           </div>
-          <p className="text-xs text-center text-muted-foreground">{tips[tipIndex % tips.length]}</p>
+          {qualityMax ? (
+            <p className="text-xs text-center text-primary/80 font-medium">
+              ✨ Mode qualité Max activé — c'est plus long, mais plus soigné.
+            </p>
+          ) : (
+            <p className="text-xs text-center text-muted-foreground">{tips[tipIndex % tips.length]}</p>
+          )}
         </div>
       </div>
     );
