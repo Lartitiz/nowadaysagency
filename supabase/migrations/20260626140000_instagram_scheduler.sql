@@ -61,16 +61,20 @@ exception when others then
 end;
 $$;
 
--- Planifie le job toutes les 5 minutes (idempotent : on retire l'ancien d'abord).
+-- Planifie le job toutes les 5 minutes. ENTIÈREMENT défensif : si pg_cron n'est pas
+-- accessible à ce rôle de migration, on n'échoue PAS la migration (les colonnes + la
+-- fonction doivent passer quoi qu'il arrive ; le cron sera mis en place autrement).
 do $$
 begin
-  perform cron.unschedule('publish-due-instagram');
+  begin
+    perform cron.unschedule('publish-due-instagram');
+  exception when others then null;
+  end;
+  perform cron.schedule(
+    'publish-due-instagram',
+    '*/5 * * * *',
+    'select public.trigger_publish_due_posts();'
+  );
 exception when others then
-  null;
+  raise warning 'pg_cron scheduling unavailable in migration: %', sqlerrm;
 end $$;
-
-select cron.schedule(
-  'publish-due-instagram',
-  '*/5 * * * *',
-  $$ select public.trigger_publish_due_posts(); $$
-);
