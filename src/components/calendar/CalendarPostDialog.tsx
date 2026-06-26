@@ -18,7 +18,7 @@ import { getGuide } from "@/lib/production-guides";
 import { type CalendarPost } from "@/lib/calendar-constants";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
-import { publishImageToInstagram, isPublicImageUrl, isNotConnectedError } from "@/lib/instagram-publish";
+import { publishToInstagram, isPublicImageUrl, isNotConnectedError } from "@/lib/instagram-publish";
 import { useToast } from "@/hooks/use-toast";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { ContentPreview, RevertToOriginalButton } from "@/components/ContentPreview";
@@ -172,31 +172,31 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     if (contentDraft) { navigator.clipboard.writeText(contentDraft); toast({ title: "Texte copié !" }); }
   };
 
-  // ── Publication directe Instagram (image simple ; carrousel = lot suivant) ──
+  // ── Publication directe Instagram (image simple OU carrousel : media_urls déjà publiques) ──
   const igValidImages = mediaUrls.filter(isPublicImageUrl);
   const instagramPublishDisabledReason = (() => {
     if (postCanal !== "instagram") return "Publication directe réservée aux posts Instagram.";
     if (igValidImages.length === 0) return "Ajoute un visuel (image) pour publier.";
-    if (igValidImages.length > 1) return "Carrousel bientôt — pour l'instant, publication d'une seule image.";
+    if (igValidImages.length > 10) return "Instagram limite les carrousels à 10 images.";
     return null;
   })();
 
   const handlePublishInstagram = async () => {
     if (!user) { toast({ title: "Tu dois être connectée.", variant: "destructive" }); return; }
-    if (instagramPublishDisabledReason || igValidImages.length !== 1) {
+    if (instagramPublishDisabledReason || igValidImages.length === 0) {
       toast({ title: instagramPublishDisabledReason || "Image non disponible", variant: "destructive" });
       return;
     }
     setPublishingInstagram(true);
     try {
-      const { permalink } = await publishImageToInstagram({
+      const { permalink } = await publishToInstagram({
         caption: contentDraft || theme || "",
-        imageUrl: igValidImages[0],
+        imageUrls: igValidImages,
         workspaceId,
         userId: user.id,
       });
       toast({
-        title: "Publié sur Instagram ! 🎉",
+        title: igValidImages.length > 1 ? "Carrousel publié sur Instagram ! 🎉" : "Publié sur Instagram ! 🎉",
         description: permalink ? "Ouvre ton profil Instagram pour le voir." : undefined,
       });
     } catch (e: any) {
