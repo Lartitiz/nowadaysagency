@@ -16,7 +16,7 @@ export default function OnboardingPhase2Import({ answers, set, files, uploading,
 
 }: {answers: Answers;set: <K extends keyof Answers>(k: K, v: Answers[K]) => void;files: UploadedFile[];uploading: boolean;onUpload: (files: FileList | null) => void;onRemove: (id: string) => void;onNext: () => void;onLeave?: () => void;isDemoMode?: boolean;}) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const hasAnyLink = !!(answers.website || answers.linkedin);
+  const hasAnyLink = !!(answers.website || answers.linkedin_summary);
   const hasAnything = hasAnyLink || files.length > 0;
 
   const webStatus: "valid" | "warn" | "none" = !answers.website ? "none" :
