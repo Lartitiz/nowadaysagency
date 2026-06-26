@@ -529,7 +529,8 @@ export async function exportCarouselHybridPptx(
   fileName = "carrousel-editable",
   originalPhotos?: OriginalPhoto[],
   logoUrl?: string | null,
-) {
+  opts?: { returnBlob?: boolean },
+): Promise<Blob | void> {
   const pptx = new PptxGenJS();
   pptx.defineLayout({ name: "INSTAGRAM", width: PPTX_W_IN, height: PPTX_H_IN });
   pptx.layout = "INSTAGRAM";
@@ -859,5 +860,10 @@ export async function exportCarouselHybridPptx(
     }
   }
 
+  // Pour le pont Canva : renvoyer le PPTX en Blob (à uploader puis importer) plutôt
+  // que de déclencher un téléchargement.
+  if (opts?.returnBlob) {
+    return (await pptx.write({ outputType: "blob" })) as Blob;
+  }
   await pptx.writeFile({ fileName: fileName + ".pptx" });
 }

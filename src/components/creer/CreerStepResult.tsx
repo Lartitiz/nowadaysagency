@@ -220,6 +220,9 @@ interface Props {
   visualSlides?: { slide_number: number; html: string }[];
   onExportPptx?: () => void;
   onExportHybridPptx?: () => void;
+  /** Pont Canva : exporte le PPTX et l'ouvre comme design éditable dans Canva. */
+  onOpenInCanva?: () => void;
+  openingCanva?: boolean;
   onExportVisualPng?: () => void;
   onSlidesUpdate?: (slides: any[], caption: any) => void;
   onStoriesUpdate?: (stories: any[]) => void;
@@ -274,6 +277,8 @@ export default function CreerStepResult({
   visualSlides,
   onExportPptx,
   onExportHybridPptx,
+  onOpenInCanva,
+  openingCanva,
   onExportVisualPng,
   onSlidesUpdate,
   onStoriesUpdate,
@@ -698,6 +703,22 @@ export default function CreerStepResult({
         {isCarousel && !hasVisuals && onExportPptx && (
           <Button variant="ghost" size="sm" onClick={onExportPptx} className="gap-1.5 text-xs text-muted-foreground">
             <Download className="h-3.5 w-3.5" /> Télécharger PPTX
+          </Button>
+        )}
+        {isCarousel && hasVisuals && onOpenInCanva && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onOpenInCanva}
+            disabled={openingCanva}
+            className="gap-1.5 text-xs text-muted-foreground"
+          >
+            {openingCanva ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Palette className="h-3.5 w-3.5" />
+            )}
+            {openingCanva ? "Ouverture…" : "Ouvrir dans Canva"}
           </Button>
         )}
         {isCarousel && hasVisuals && onGenerateVisuals && (

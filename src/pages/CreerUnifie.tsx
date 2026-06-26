@@ -2800,6 +2800,74 @@ export default function CreerUnifie() {
     }
   };
 
+  // Pont Canva : exporte le carrousel en PPTX hybride, le dépose dans un bucket
+  // public, puis l'importe dans le Canva connecté et ouvre l'URL d'édition.
+  const [openingCanva, setOpeningCanva] = useState(false);
+  const handleOpenInCanva = async () => {
+    if (visualSlides.length === 0 || openingCanva) return;
+    setOpeningCanva(true);
+    let uploadedPath: string | null = null;
+    try {
+      toast.info("Préparation du carrousel pour Canva…");
+      const { exportCarouselHybridPptx } = await import("@/lib/export-carousel-hybrid-pptx");
+      const { getIncludeLogoPref } = await import("@/lib/export-logo");
+      const logoUrl = getIncludeLogoPref() ? (charterData as any)?.logo_url : null;
+      const blob = (await exportCarouselHybridPptx(
+        visualSlides,
+        result?.raw?.slides || null,
+        charterData || null,
+        ideaText || "carrousel",
+        generatedWithPhotos.length > 0 ? generatedWithPhotos : uploadedPhotos,
+        logoUrl,
+        { returnBlob: true },
+      )) as Blob;
+
+      // Dépôt dans le bucket public (Canva récupère le fichier via cette URL).
+      const path = `${session.user.id}/canva-${Date.now()}-${Math.random().toString(36).slice(2)}.pptx`;
+      const { error: upErr } = await supabase.storage.from("canva-import").upload(path, blob, {
+        contentType:
+          "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        upsert: true,
+      });
+      if (upErr) throw new Error("Upload du fichier échoué : " + upErr.message);
+      uploadedPath = path;
+      const { data: pub } = supabase.storage.from("canva-import").getPublicUrl(path);
+      const fileUrl = pub?.publicUrl;
+      if (!fileUrl) throw new Error("URL publique introuvable.");
+
+      toast.info("Import dans Canva en cours…");
+      const { data, error } = await invokeWithTimeout(
+        "social-canva-import",
+        {
+          body: {
+            file_url: fileUrl,
+            title: ideaText || "Carrousel Nowadays",
+            workspace_id: workspaceId !== session.user.id ? workspaceId : undefined,
+          },
+        },
+        90000,
+      );
+      if (error) throw error;
+      if ((data as any)?.error === "not_connected") {
+        toast.error("Connecte d'abord ton compte Canva dans Paramètres → Réseaux sociaux.");
+        return;
+      }
+      if ((data as any)?.error) throw new Error((data as any).error);
+      const editUrl = (data as any)?.editUrl;
+      if (!editUrl) throw new Error("URL d'édition Canva manquante.");
+      window.open(editUrl, "_blank", "noopener");
+      toast.success("Carrousel ouvert dans Canva !");
+    } catch (e: any) {
+      toast.error(e?.message || "Impossible d'ouvrir dans Canva.");
+    } finally {
+      // Le fichier a été récupéré par Canva pendant le job → on peut le supprimer.
+      if (uploadedPath) {
+        supabase.storage.from("canva-import").remove([uploadedPath]).then(() => {}, () => {});
+      }
+      setOpeningCanva(false);
+    }
+  };
+
   const handleExportPinterestPng = async () => {
     if (!pinterestPinHtml) return;
     try {
@@ -3115,6 +3183,8 @@ export default function CreerUnifie() {
                 onExportPptx={selectedFormat === "carousel" ? effectiveHandleExportPptx : undefined}
                 onExportVisualPng={selectedFormat === "carousel" && visualSlides.length > 0 ? effectiveHandleExportVisualPng : undefined}
                 onExportHybridPptx={selectedFormat === "carousel" && visualSlides.length > 0 ? effectiveHandleExportHybridPptx : undefined}
+                onOpenInCanva={selectedFormat === "carousel" && visualSlides.length > 0 && !isDemoMode ? handleOpenInCanva : undefined}
+                openingCanva={openingCanva}
                 pinterestPinHtml={pinterestPinHtml}
                 onExportPinterestPng={selectedFormat === "pinterest_visual" ? handleExportPinterestPng : selectedFormat === "pinterest_photo" ? handleExportPhotoBriefPng : undefined}
                 onExportPinterestEditablePptx={selectedFormat === "pinterest_visual" ? handleExportPinterestEditablePptx : undefined}
