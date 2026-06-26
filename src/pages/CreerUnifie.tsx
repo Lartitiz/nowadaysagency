@@ -3207,6 +3207,8 @@ export default function CreerUnifie() {
                 format={selectedFormat || "post"}
                 generating={generating || demoGenerating || streaming || pinterestVisualGenerating}
                 streamingContent={streaming ? streamingContent : undefined}
+                step2of2={selectedFormat === "carousel" && !!lastConfirmedStructure && (carouselSubMode === "photo" || carouselSubMode === "mix")}
+                qualityMax={qualityMax}
                 photos={(carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo" || (photoMode && uploadedPhotos.length > 0)) ? uploadedPhotos : undefined}
                 usedPhotoCount={photoMode && uploadedPhotos.length > 0 ? uploadedPhotos.length : undefined}
                 onEdit={handleEdit}
