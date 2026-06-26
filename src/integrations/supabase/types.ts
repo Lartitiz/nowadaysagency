@@ -8091,6 +8091,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      debug_service_role_sources: {
+        Args: never
+        Returns: {
+          is_present: boolean
+          source_name: string
+          value_length: number
+        }[]
+      }
       debug_vault_secret_names: {
         Args: never
         Returns: {
