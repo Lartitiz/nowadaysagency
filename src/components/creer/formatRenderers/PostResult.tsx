@@ -7,9 +7,10 @@ import { useState } from "react";
 interface Props {
   result: any;
   content?: string;
+  photos?: { preview?: string; base64?: string; name?: string }[];
 }
 
-export default function PostResult({ result, content }: Props) {
+export default function PostResult({ result, content, photos }: Props) {
   const postText = content || result?.content || result?.post || result?.text || "";
   const accroche = result?.accroche || result?.hook || "";
   const format = result?.format || result?.content_type;
@@ -37,7 +38,7 @@ export default function PostResult({ result, content }: Props) {
       )}
 
       {/* Aperçu réaliste « comme dans le feed » */}
-      <FeedPreview variant="instagram" text={caption} hashtags={hashtags} />
+      <FeedPreview variant="instagram" text={caption} hashtags={hashtags} photos={photos} />
 
       <RedFlagsChecker content={checkedText} onFix={setCheckedText} />
 
