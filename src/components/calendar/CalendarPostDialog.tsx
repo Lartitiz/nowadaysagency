@@ -40,6 +40,13 @@ interface Props {
   prefillData?: { theme?: string; notes?: string } | null;
 }
 
+/** ISO → valeur d'un <input type="datetime-local"> (heure locale, "YYYY-MM-DDTHH:mm"). */
+function isoToLocalInput(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDate, defaultCanal, onSave, onDelete, onUnplan, onDateChange, prefillData }: Props) {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -53,6 +60,13 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   const [mediaUrls, setMediaUrls] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [publishingInstagram, setPublishingInstagram] = useState(false);
+  // Publication programmée
+  const [scheduleInput, setScheduleInput] = useState("");
+  const [publishStatus, setPublishStatus] = useState<string | null>(null);
+  const [scheduledAt, setScheduledAt] = useState<string | null>(null);
+  const [publishError, setPublishError] = useState<string | null>(null);
+  const [publishedPostId, setPublishedPostId] = useState<string | null>(null);
+  const [savingSchedule, setSavingSchedule] = useState(false);
 
   const [theme, setTheme] = useState("");
   const [angle, setAngle] = useState<string | null>(null);
@@ -104,17 +118,25 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       setMediaUrls((editingPost as any).media_urls || []);
       setSeriesId((editingPost as any).series_id || null);
       setEpisodeNumber((editingPost as any).episode_number ?? null);
+      const sched = (editingPost as any).scheduled_publish_at ?? null;
+      setScheduledAt(sched);
+      setPublishStatus((editingPost as any).publish_status ?? null);
+      setPublishError((editingPost as any).publish_error ?? null);
+      setPublishedPostId((editingPost as any).published_post_id ?? null);
+      setScheduleInput(sched ? isoToLocalInput(sched) : "");
     } else if (prefillData) {
       setTheme(prefillData.theme || "");
       setAngle(null); setStatus("idea"); setNotes(prefillData.notes || "");
       setObjectif(null); setPostCanal(defaultCanal !== "all" ? defaultCanal : "instagram");
       setFormat(null); setContentDraft(null); setSavedDraft(null); setAccroche(null); setMediaUrls([]);
       setSeriesId(null); setEpisodeNumber(null);
+      setScheduledAt(null); setPublishStatus(null); setPublishError(null); setPublishedPostId(null); setScheduleInput("");
     } else {
       setTheme(""); setAngle(null); setStatus("idea"); setNotes("");
       setObjectif(null); setPostCanal(defaultCanal !== "all" ? defaultCanal : "instagram");
       setFormat(null); setContentDraft(null); setSavedDraft(null); setAccroche(null); setMediaUrls([]);
       setSeriesId(null); setEpisodeNumber(null);
+      setScheduledAt(null); setPublishStatus(null); setPublishError(null); setPublishedPostId(null); setScheduleInput("");
     }
     setDialogTab("edit");
     setShowAdvanced(false);
@@ -209,6 +231,46 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     } finally {
       setPublishingInstagram(false);
     }
+  };
+
+  // ── Publication PROGRAMMÉE (auto-publication à une date/heure) ──
+  const handleSchedulePublish = async () => {
+    if (!editingPost?.id) { toast({ title: "Enregistre d'abord le post pour le programmer.", variant: "destructive" }); return; }
+    if (postCanal !== "instagram") { toast({ title: "Programmation disponible pour les posts Instagram.", variant: "destructive" }); return; }
+    if (igValidImages.length === 0) { toast({ title: "Ajoute au moins un visuel (image) avant de programmer.", variant: "destructive" }); return; }
+    if (igValidImages.length > 10) { toast({ title: "Instagram limite les carrousels à 10 images.", variant: "destructive" }); return; }
+    if (!scheduleInput) { toast({ title: "Choisis une date et une heure.", variant: "destructive" }); return; }
+    const when = new Date(scheduleInput);
+    if (isNaN(when.getTime())) { toast({ title: "Date invalide.", variant: "destructive" }); return; }
+    if (when.getTime() < Date.now() + 60000) { toast({ title: "Choisis une date/heure dans le futur.", variant: "destructive" }); return; }
+    setSavingSchedule(true);
+    try {
+      const iso = when.toISOString();
+      const { error } = await supabase.from("calendar_posts").update({
+        scheduled_publish_at: iso, auto_publish: true, publish_status: "scheduled",
+        publish_error: null, updated_at: new Date().toISOString(),
+      } as any).eq("id", editingPost.id);
+      if (error) throw error;
+      setScheduledAt(iso); setPublishStatus("scheduled"); setPublishError(null);
+      toast({ title: "Publication programmée ! 🗓️", description: "Instagram publiera ce post automatiquement à l'heure prévue." });
+    } catch (e: any) {
+      toast({ title: "Échec de la programmation", description: friendlyError(e), variant: "destructive" });
+    } finally { setSavingSchedule(false); }
+  };
+
+  const handleCancelSchedule = async () => {
+    if (!editingPost?.id) return;
+    setSavingSchedule(true);
+    try {
+      const { error } = await supabase.from("calendar_posts").update({
+        auto_publish: false, publish_status: null, updated_at: new Date().toISOString(),
+      } as any).eq("id", editingPost.id);
+      if (error) throw error;
+      setPublishStatus(null); setScheduledAt(null);
+      toast({ title: "Programmation annulée." });
+    } catch (e: any) {
+      toast({ title: "Échec", description: friendlyError(e), variant: "destructive" });
+    } finally { setSavingSchedule(false); }
   };
 
   const ANGLE_TO_CAROUSEL: Record<string, string> = {
@@ -389,6 +451,45 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
           <input type="file" accept="image/*" multiple className="hidden" onChange={handleMediaUpload} disabled={uploading} />
         </label>
       </div>
+
+      {postCanal === "instagram" && (
+        <div className="space-y-2 rounded-[10px] border border-border p-3">
+          <p className="text-xs font-semibold text-foreground">🗓️ Publication automatique sur Instagram</p>
+          {!editingPost?.id ? (
+            <p className="text-xs text-muted-foreground">Enregistre le post et ajoute un visuel pour pouvoir programmer la publication.</p>
+          ) : publishStatus === "published" ? (
+            <p className="text-xs text-green-600">✅ Publié automatiquement sur Instagram{scheduledAt ? ` (programmé pour le ${new Date(scheduledAt).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" })})` : ""}.</p>
+          ) : publishStatus === "publishing" ? (
+            <p className="text-xs text-muted-foreground">⏳ Publication en cours…</p>
+          ) : publishStatus === "scheduled" ? (
+            <div className="space-y-2">
+              <p className="text-xs text-foreground">🗓️ Programmé pour le <strong>{scheduledAt ? new Date(scheduledAt).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" }) : "?"}</strong>. Instagram publiera ce post tout seul.</p>
+              <Button type="button" variant="outline" size="sm" onClick={handleCancelSchedule} disabled={savingSchedule} className="rounded-pill text-xs">Annuler la programmation</Button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {publishStatus === "failed" && (
+                <p className="text-xs text-destructive">❌ Échec de la dernière tentative{publishError ? ` : ${publishError}` : ""}. Reprogramme pour réessayer.</p>
+              )}
+              <p className="text-xs text-muted-foreground">Choisis quand publier ce post ({igValidImages.length > 1 ? `carrousel de ${igValidImages.length} images` : "1 image"}) — il partira automatiquement.</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  type="datetime-local"
+                  value={scheduleInput}
+                  onChange={(e) => setScheduleInput(e.target.value)}
+                  className="rounded-[8px] border border-border bg-background px-2 py-1.5 text-xs text-foreground"
+                />
+                <Button type="button" size="sm" onClick={handleSchedulePublish} disabled={savingSchedule || igValidImages.length === 0} className="rounded-pill text-xs bg-primary text-primary-foreground hover:bg-primary/90">
+                  {savingSchedule ? "…" : "Programmer"}
+                </Button>
+              </div>
+              {igValidImages.length === 0 && (
+                <p className="text-[11px] text-muted-foreground">Ajoute au moins un visuel (image) pour pouvoir programmer.</p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {guide && (
         <Collapsible>

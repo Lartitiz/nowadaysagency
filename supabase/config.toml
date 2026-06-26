@@ -263,3 +263,6 @@ verify_jwt = false
 
 [functions.social-disconnect]
 verify_jwt = false
+
+[functions.social-publish-scheduled]
+verify_jwt = false
