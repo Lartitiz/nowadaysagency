@@ -1,5 +1,7 @@
-// Publish a single image + caption to the user's Instagram Business account.
-// Phase 1: one publicly-accessible image URL.
+// Publie sur le compte Instagram Business connecté :
+//  - une image simple (body.imageUrl), ou
+//  - un carrousel de 2 à 10 images (body.imageUrls[]).
+// Toutes les images doivent être à une URL https publique (Instagram les cURL).
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { authenticateRequest, AuthError, getServiceClient } from "../_shared/auth.ts";
 
@@ -45,6 +47,34 @@ async function pollStatus(creationId: string, token: string, maxMs = 30000): Pro
   return lastStatus;
 }
 
+// Crée un container média et renvoie son id (lève une Error avec le message Meta sinon).
+async function createContainer(igUserId: string, token: string, params: Record<string, string>): Promise<string> {
+  const u = new URL(`${GRAPH}/${igUserId}/media`);
+  for (const [k, v] of Object.entries(params)) u.searchParams.set(k, v);
+  u.searchParams.set("access_token", token);
+  const res = await fetch(u, { method: "POST" });
+  const json = await res.json();
+  if (!res.ok || !json.id) throw new Error(json?.error?.message || "Création du média échouée.");
+  return String(json.id);
+}
+
+async function publishContainer(igUserId: string, token: string, creationId: string): Promise<string> {
+  const u = new URL(`${GRAPH}/${igUserId}/media_publish`);
+  u.searchParams.set("creation_id", creationId);
+  u.searchParams.set("access_token", token);
+  const res = await fetch(u, { method: "POST" });
+  const json = await res.json();
+  if (!res.ok || !json.id) throw new Error(json?.error?.message || "Publication échouée.");
+  return String(json.id);
+}
+
+function jsonError(message: string, corsHeaders: Record<string, string>, status = 400) {
+  return new Response(JSON.stringify({ error: message }), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -53,14 +83,19 @@ Deno.serve(async (req) => {
     const { userId } = await authenticateRequest(req);
     const body = await req.json().catch(() => ({}));
     const caption: string = typeof body?.caption === "string" ? body.caption : "";
-    const imageUrl: string = typeof body?.imageUrl === "string" ? body.imageUrl : "";
     const workspaceId: string | null = body?.workspace_id ?? null;
 
-    if (!imageUrl || !/^https?:\/\//.test(imageUrl)) {
-      return new Response(
-        JSON.stringify({ error: "Une URL d'image publique (https) est requise." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+    // Liste d'images : imageUrls[] (carrousel) ou imageUrl (image simple).
+    const rawList: unknown[] = Array.isArray(body?.imageUrls)
+      ? body.imageUrls
+      : (typeof body?.imageUrl === "string" ? [body.imageUrl] : []);
+    const urls = rawList.filter((u): u is string => typeof u === "string" && /^https?:\/\//.test(u));
+
+    if (urls.length === 0) {
+      return jsonError("Au moins une URL d'image publique (https) est requise.", corsHeaders);
+    }
+    if (urls.length > 10) {
+      return jsonError("Un carrousel Instagram accepte au maximum 10 images.", corsHeaders);
     }
 
     const supabase = getServiceClient();
@@ -76,53 +111,58 @@ Deno.serve(async (req) => {
     const { data: conn, error: connErr } = await q.maybeSingle();
 
     if (connErr || !conn) {
-      return new Response(
-        JSON.stringify({ error: "Aucun compte Instagram connecté. Connecte-le dans Paramètres > Connexions." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      return jsonError("Aucun compte Instagram connecté. Connecte-le dans Paramètres > Connexions.", corsHeaders);
     }
 
     const token = await refreshTokenIfNeeded(supabase, conn);
     const igUserId = conn.platform_account_id;
 
-    // 1. Create media container
-    const createUrl = new URL(`${GRAPH}/${igUserId}/media`);
-    createUrl.searchParams.set("image_url", imageUrl);
-    if (caption) createUrl.searchParams.set("caption", caption);
-    createUrl.searchParams.set("access_token", token);
-    const createRes = await fetch(createUrl, { method: "POST" });
-    const createJson = await createRes.json();
-    if (!createRes.ok || !createJson.id) {
-      const msg = createJson?.error?.message || "Création du média échouée.";
-      return new Response(JSON.stringify({ error: msg, details: createJson?.error }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // 1. Préparer le container à publier (image simple ou carrousel).
+    let creationId: string;
+    try {
+      if (urls.length === 1) {
+        creationId = await createContainer(igUserId, token, {
+          image_url: urls[0],
+          ...(caption ? { caption } : {}),
+        });
+        const status = await pollStatus(creationId, token);
+        if (status !== "FINISHED") {
+          throw new Error(`Instagram n'a pas pu traiter l'image (status: ${status}).`);
+        }
+      } else {
+        // Carrousel : un container enfant par image, puis le container CAROUSEL.
+        const childIds: string[] = [];
+        for (const url of urls) {
+          childIds.push(await createContainer(igUserId, token, { image_url: url, is_carousel_item: "true" }));
+        }
+        for (const childId of childIds) {
+          const st = await pollStatus(childId, token, 20000);
+          if (st !== "FINISHED") {
+            throw new Error(`Instagram n'a pas pu traiter une image du carrousel (status: ${st}).`);
+          }
+        }
+        creationId = await createContainer(igUserId, token, {
+          media_type: "CAROUSEL",
+          children: childIds.join(","),
+          ...(caption ? { caption } : {}),
+        });
+        const status = await pollStatus(creationId, token);
+        if (status !== "FINISHED") {
+          throw new Error(`Instagram n'a pas pu assembler le carrousel (status: ${status}).`);
+        }
+      }
+    } catch (e: any) {
+      return jsonError(e?.message || "Échec de la préparation du média.", corsHeaders);
     }
-    const creationId = String(createJson.id);
 
-    // 2. Poll status
-    const status = await pollStatus(creationId, token);
-    if (status !== "FINISHED") {
-      return new Response(
-        JSON.stringify({ error: `Instagram n'a pas pu traiter l'image (status: ${status}).` }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+    // 2. Publier.
+    let postId: string;
+    try {
+      postId = await publishContainer(igUserId, token, creationId);
+    } catch (e: any) {
+      return jsonError(e?.message || "Publication échouée.", corsHeaders);
     }
 
-    // 3. Publish
-    const pubUrl = new URL(`${GRAPH}/${igUserId}/media_publish`);
-    pubUrl.searchParams.set("creation_id", creationId);
-    pubUrl.searchParams.set("access_token", token);
-    const pubRes = await fetch(pubUrl, { method: "POST" });
-    const pubJson = await pubRes.json();
-    if (!pubRes.ok || !pubJson.id) {
-      const msg = pubJson?.error?.message || "Publication échouée.";
-      return new Response(JSON.stringify({ error: msg, details: pubJson?.error }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const postId = String(pubJson.id);
     const accountName = conn.platform_account_name;
     const permalink = accountName ? `https://www.instagram.com/${accountName}/` : null;
 

@@ -218,6 +218,26 @@ async function captureSlideWithRetry(html: string, logoOverlayHtml: string): Pro
 }
 
 /**
+ * Rend les visualSlides en PNG (1080x1350) et renvoie les Blobs, SANS téléchargement.
+ * Réutilisé par la publication directe Instagram (carrousel) : les Blobs sont ensuite
+ * uploadés dans un bucket public pour qu'Instagram puisse les récupérer.
+ */
+export async function renderCarouselSlidesToBlobs(
+  visualSlides: VisualSlide[],
+  logoUrl?: string | null,
+): Promise<{ slide_number: number; blob: Blob }[]> {
+  if (!visualSlides || visualSlides.length === 0) return [];
+  const logoBase64 = await fetchLogoAsBase64(logoUrl);
+  const logoOverlayHtml = logoBase64 ? buildLogoOverlayHtml(logoBase64, SLIDE_W) : "";
+  const out: { slide_number: number; blob: Blob }[] = [];
+  for (const vs of visualSlides) {
+    const blob = await captureSlideWithRetry(vs.html, logoOverlayHtml);
+    if (blob) out.push({ slide_number: vs.slide_number, blob });
+  }
+  return out;
+}
+
+/**
  * Capture les visualSlides HTML en PNG (1080x1350, scale 2 = ~2160x2700)
  * et les télécharge :
  * - 1 slide → PNG seul

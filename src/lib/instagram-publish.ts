@@ -1,4 +1,7 @@
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import { supabase } from "@/integrations/supabase/client";
+
+const PUBLISH_BUCKET = "instagram-publish";
 
 export interface InstagramPublishResult {
   success: boolean;
@@ -26,6 +29,32 @@ export function isPublicImageUrl(url: unknown): url is string {
 }
 
 /**
+ * Cœur de publication : envoie 1 à 10 images publiques à l'edge social-instagram-publish
+ * (1 image = post simple ; 2 à 10 = carrousel). Lève une erreur lisible en cas d'échec.
+ */
+export async function publishToInstagram(opts: {
+  caption: string;
+  imageUrls: string[];
+  workspaceId?: string | null;
+  userId?: string | null;
+  timeoutMs?: number;
+}): Promise<InstagramPublishResult> {
+  const { caption, imageUrls, workspaceId, userId, timeoutMs = 120000 } = opts;
+  const { data, error } = await invokeWithTimeout(
+    "social-instagram-publish",
+    { body: { caption, imageUrls, workspace_id: resolveWorkspaceParam(workspaceId, userId) } },
+    timeoutMs,
+  );
+  if (error) throw error;
+  if ((data as any)?.error) throw new Error((data as any).error);
+  return {
+    success: true,
+    permalink: (data as any)?.permalink,
+    postId: (data as any)?.postId,
+  };
+}
+
+/**
  * Publie une image simple sur le feed Instagram connecté.
  * Lève une erreur avec un message lisible en cas d'échec (à afficher en toast).
  */
@@ -37,18 +66,62 @@ export async function publishImageToInstagram(opts: {
   timeoutMs?: number;
 }): Promise<InstagramPublishResult> {
   const { caption, imageUrl, workspaceId, userId, timeoutMs = 60000 } = opts;
-  const { data, error } = await invokeWithTimeout(
-    "social-instagram-publish",
-    { body: { caption, imageUrl, workspace_id: resolveWorkspaceParam(workspaceId, userId) } },
-    timeoutMs,
-  );
-  if (error) throw error;
-  if ((data as any)?.error) throw new Error((data as any).error);
-  return {
-    success: true,
-    permalink: (data as any)?.permalink,
-    postId: (data as any)?.postId,
-  };
+  return publishToInstagram({ caption, imageUrls: [imageUrl], workspaceId, userId, timeoutMs });
+}
+
+interface VisualSlideInput {
+  slide_number: number;
+  html: string;
+}
+
+/** Upload des PNG de slides dans le bucket public, renvoie les URLs publiques + chemins. */
+async function uploadSlideBlobs(
+  blobs: { slide_number: number; blob: Blob }[],
+  userId: string,
+): Promise<{ urls: string[]; paths: string[] }> {
+  const urls: string[] = [];
+  const paths: string[] = [];
+  for (const { slide_number, blob } of blobs) {
+    const path = `${userId}/ig-${Date.now()}-${slide_number}-${Math.random().toString(36).slice(2)}.png`;
+    const { error } = await supabase.storage
+      .from(PUBLISH_BUCKET)
+      .upload(path, blob, { contentType: "image/png", upsert: true });
+    if (error) throw new Error(`Upload d'une slide échoué : ${error.message}`);
+    const { data } = supabase.storage.from(PUBLISH_BUCKET).getPublicUrl(path);
+    if (!data?.publicUrl) throw new Error("URL publique introuvable pour une slide.");
+    urls.push(data.publicUrl);
+    paths.push(path);
+  }
+  return { urls, paths };
+}
+
+/**
+ * Publie un carrousel à partir des visualSlides (HTML) : rend chaque slide en PNG
+ * (1080x1350, ratio 4:5 accepté par Instagram), l'héberge dans le bucket public, puis
+ * publie le carrousel. Nettoie les fichiers ensuite (Instagram a déjà récupéré les
+ * images au moment du publish).
+ */
+export async function publishRenderedCarouselToInstagram(opts: {
+  caption: string;
+  visualSlides: VisualSlideInput[];
+  logoUrl?: string | null;
+  workspaceId?: string | null;
+  userId: string;
+  timeoutMs?: number;
+}): Promise<InstagramPublishResult> {
+  const { caption, visualSlides, logoUrl, workspaceId, userId, timeoutMs = 120000 } = opts;
+  const { renderCarouselSlidesToBlobs } = await import("@/lib/export-carousel-png");
+  const blobs = await renderCarouselSlidesToBlobs(visualSlides, logoUrl);
+  if (blobs.length < 2) throw new Error("Le carrousel doit contenir au moins 2 visuels valides.");
+  if (blobs.length > 10) {
+    throw new Error(`Instagram limite les carrousels à 10 images (celui-ci en a ${blobs.length}).`);
+  }
+  const { urls, paths } = await uploadSlideBlobs(blobs, userId);
+  try {
+    return await publishToInstagram({ caption, imageUrls: urls, workspaceId, userId, timeoutMs });
+  } finally {
+    supabase.storage.from(PUBLISH_BUCKET).remove(paths).then(undefined, () => {});
+  }
 }
 
 /** Vrai si le message d'erreur correspond à « aucun compte Instagram connecté ». */

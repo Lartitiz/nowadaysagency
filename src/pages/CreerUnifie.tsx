@@ -42,6 +42,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 // DEMO_DATA n'est plus importé directement — on utilise demoData du context
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
+import { publishImageToInstagram, publishRenderedCarouselToInstagram } from "@/lib/instagram-publish";
 import { useBrandCharter } from "@/hooks/use-branding";
 import { useActivityExamples } from "@/hooks/use-activity-examples";
 import { supabase } from "@/integrations/supabase/client";
@@ -2561,7 +2562,7 @@ export default function CreerUnifie() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result, selectedFormat, step, visualLoading, visualSlides.length, uploadedPhotos.length, generatedWithPhotos.length]);
 
-  // ═══ Publication directe Instagram (phase 1 : 1 image publique) ═══
+  // ═══ Publication directe Instagram (image simple OU carrousel) ═══
   const [publishingInstagram, setPublishingInstagram] = useState(false);
 
   const publishableImageUrl = (() => {
@@ -2581,12 +2582,15 @@ export default function CreerUnifie() {
     return null;
   })();
 
+  const isCarouselPublish = selectedFormat === "carousel";
   const publishInstagramDisabledReason = (() => {
     if (selectedFormat?.startsWith("pinterest") || selectedFormat === "linkedin" || selectedFormat === "newsletter") {
       return "Publication Instagram disponible uniquement pour les formats Instagram.";
     }
-    if (selectedFormat === "carousel") return "Publication carrousel bientôt — phase 1 supporte 1 image.";
-    if (!publishableImageUrl) return "Aucune image publique trouvée. Phase 1 : 1 image avec URL https publique requise.";
+    if (isCarouselPublish) {
+      return visualSlides.length >= 2 ? null : "Génère les visuels du carrousel pour pouvoir le publier.";
+    }
+    if (!publishableImageUrl) return "Aucune image publique trouvée. Une image avec une URL https publique est requise.";
     return null;
   })();
 
@@ -2595,8 +2599,8 @@ export default function CreerUnifie() {
       toast.error("Tu dois être connecté.");
       return;
     }
-    if (publishInstagramDisabledReason || !publishableImageUrl) {
-      toast.error(publishInstagramDisabledReason || "Image non disponible");
+    if (publishInstagramDisabledReason) {
+      toast.error(publishInstagramDisabledReason);
       return;
     }
     const r: any = result?.raw || result;
@@ -2604,21 +2608,34 @@ export default function CreerUnifie() {
       r?.edited_text ||
       r?.full_text ||
       r?.content ||
+      (typeof r?.caption === "string" ? r.caption : (r?.caption?.text || r?.caption?.full || "")) ||
       [r?.hook, r?.body, r?.cta].filter(Boolean).join("\n\n").trim() ||
       "";
 
     setPublishingInstagram(true);
     try {
-      const { data, error } = await invokeWithTimeout("social-instagram-publish", {
-        body: {
+      let permalink: string | undefined;
+      if (isCarouselPublish) {
+        const { getIncludeLogoPref } = await import("@/lib/export-logo");
+        const logoUrl = getIncludeLogoPref() ? (charterData as any)?.logo_url : null;
+        toast.info("Préparation du carrousel… (rendu des visuels en images)");
+        const res = await publishRenderedCarouselToInstagram({
           caption,
-          imageUrl: publishableImageUrl,
-          workspace_id: workspaceId && workspaceId !== session.user.id ? workspaceId : undefined,
-        },
-      }, 60000);
-      if (error) throw error;
-      if ((data as any)?.error) throw new Error((data as any).error);
-      const permalink = (data as any)?.permalink;
+          visualSlides,
+          logoUrl,
+          workspaceId,
+          userId: session.user.id,
+        });
+        permalink = res.permalink;
+      } else {
+        const res = await publishImageToInstagram({
+          caption,
+          imageUrl: publishableImageUrl!,
+          workspaceId,
+          userId: session.user.id,
+        });
+        permalink = res.permalink;
+      }
       toast.success(
         permalink
           ? "Publié sur Instagram ! Ouvre ton profil pour le voir."
