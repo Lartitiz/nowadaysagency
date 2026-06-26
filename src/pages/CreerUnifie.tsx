@@ -3189,11 +3189,17 @@ export default function CreerUnifie() {
                 onExportPinterestPng={selectedFormat === "pinterest_visual" ? handleExportPinterestPng : selectedFormat === "pinterest_photo" ? handleExportPhotoBriefPng : undefined}
                 onExportPinterestEditablePptx={selectedFormat === "pinterest_visual" ? handleExportPinterestEditablePptx : undefined}
                 onSlidesUpdate={selectedFormat === "carousel" ? (slides, caption) => {
-                  if (result?.raw) {
-                    result.raw.slides = slides;
-                    if (result.raw.caption) result.raw.caption = caption;
-                    else if (result.raw.carousel?.caption) result.raw.carousel.caption = caption;
-                  }
+                  // Important : on remplace `result` par une NOUVELLE référence (et pas une
+                  // mutation en place de result.raw.slides) sinon l'effet d'auto-persistance,
+                  // qui dépend de l'identité de `result`, ne se redéclenche pas → les éditions
+                  // de slide (swap photo, réordo, add/delete, texte) sont perdues au reload.
+                  setResult((prev: any) => {
+                    if (!prev?.raw) return prev;
+                    const nextRaw = { ...prev.raw, slides };
+                    if (prev.raw.caption) nextRaw.caption = caption;
+                    else if (prev.raw.carousel?.caption) nextRaw.carousel = { ...prev.raw.carousel, caption };
+                    return { ...prev, raw: nextRaw };
+                  });
                 } : undefined}
                 onAddPhoto={selectedFormat === "carousel" ? handleAddCarouselPhoto : undefined}
                 carouselColors={selectedFormat === "carousel" ? carouselColors : undefined}

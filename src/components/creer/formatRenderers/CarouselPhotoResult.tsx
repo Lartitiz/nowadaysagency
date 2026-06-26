@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatSlideRole } from "@/lib/slide-roles";
+import { sanitizeInternalLabels } from "@/lib/sanitize-internal-labels";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -358,14 +359,15 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
     const slides_without_text = slides.filter(
       (s: any) => isPhotoSlide(s) && !s.overlay_text,
     ).length;
-    const all_photos_used =
+    const unused_photo_numbers =
       photos && photos.length > 0
-        ? photos.every((_, i) =>
-            slides.some((s: any) => s.photo_index === i + 1),
-          )
-        : true;
+        ? photos
+            .map((_, i) => i + 1)
+            .filter((n) => !slides.some((s: any) => s.photo_index === n))
+        : [];
+    const all_photos_used = unused_photo_numbers.length === 0;
 
-    return { slides_with_text, slides_without_text, all_photos_used };
+    return { slides_with_text, slides_without_text, all_photos_used, unused_photo_numbers };
   }, [slides, photos]);
 
   const qualityCheck = r?.quality_check;
@@ -754,7 +756,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
               )}
 
               {slide.note && (
-                <p className="text-xs text-muted-foreground">💡 {slide.note}</p>
+                <p className="text-xs text-muted-foreground">💡 {sanitizeInternalLabels(slide.note)}</p>
               )}
             </CardContent>
           </Card>
@@ -851,8 +853,16 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
             {computedQuality.slides_with_text} slide{computedQuality.slides_with_text > 1 ? "s" : ""} avec texte, {computedQuality.slides_without_text} sans
           </span>
           {!computedQuality.all_photos_used && (
-            <Badge variant="outline" className="text-[10px] border-orange-300 text-orange-700">
-              ⚠ photos non utilisées
+            <Badge
+              variant="outline"
+              className="text-[10px] border-orange-300 text-orange-700 cursor-help"
+              title={`${
+                computedQuality.unused_photo_numbers.length === 1
+                  ? `La photo n°${computedQuality.unused_photo_numbers[0]} n'est posée sur aucune slide`
+                  : `Les photos n°${computedQuality.unused_photo_numbers.join(", ")} ne sont posées sur aucune slide`
+              }. Assigne-la à une slide via « Changer la photo », ou ignore si c'est voulu (ex. après avoir remplacé une photo).`}
+            >
+              ⚠ {computedQuality.unused_photo_numbers.length === 1 ? "1 photo non utilisée" : `${computedQuality.unused_photo_numbers.length} photos non utilisées`}
             </Badge>
           )}
         </div>

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { resolvePhotoIndexes } from "@/lib/resolve-photo-index";
 import { formatSlideRole } from "@/lib/slide-roles";
+import { sanitizeInternalLabels } from "@/lib/sanitize-internal-labels";
 
 export interface SlideProposal {
   slide_number: number;
@@ -226,7 +227,7 @@ export default function StructureReviewStep({
 
         <div className="bg-[#FFF4F8] border-l-[3px] border-[#FB3D80] p-4 rounded-xl">
           <p className="text-sm italic text-gray-600" style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}>
-            {structureProposal.strategic_rationale}
+            {sanitizeInternalLabels(structureProposal.strategic_rationale)}
           </p>
         </div>
       </div>
@@ -409,7 +410,7 @@ export default function StructureReviewStep({
             />
 
             {/* C) Note stratégique */}
-            <p className="mt-1.5 text-xs italic text-gray-400">{slide.strategic_note}</p>
+            <p className="mt-1.5 text-xs italic text-gray-400">{sanitizeInternalLabels(slide.strategic_note)}</p>
           </div>
         ))}
 
