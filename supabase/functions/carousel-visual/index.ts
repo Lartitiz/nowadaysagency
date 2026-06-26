@@ -683,6 +683,7 @@ QUAND overlay_text est null :
 - ❌ Toutes les slides avec le même traitement (varier les styles)
 - ❌ Cercles ou ronds décoratifs
 - ❌ Font-weight bold sur ${ch.font_title}
+- ❌ INVENTER un SURTITRE / une étiquette de catégorie / un intertitre de section au-dessus ou en dessous de la phrase (ex : "HISTOIRE VRAIE", "CONVERSATION #2", "3 SEMAINES PLUS TARD", "ÉTAPE 1"). En carrousel photo, tu ne poses RIEN d'autre que l'overlay_text fourni : pas de label de section, pas de tag de catégorie, pas de numéro de chapitre. Le fil narratif vit DANS les phrases, pas dans des stamps qui transforment l'histoire en galerie d'images légendées. SEULE exception : la toute dernière slide peut porter un CTA court et discret (ex : "Enregistre ce post").
 
 ═══ SLIDE 1 = HERO D'OUVERTURE ═══
 La slide 1 est la vignette qui doit STOPPER le scroll. Traite-la comme une affiche, pas comme une slide ordinaire :
