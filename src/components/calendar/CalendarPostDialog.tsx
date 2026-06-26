@@ -13,12 +13,13 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
-import { Trash2, ChevronDown, Upload, Instagram, Loader2 } from "lucide-react";
+import { Trash2, ChevronDown, Upload, Instagram, Linkedin, Loader2 } from "lucide-react";
 import { getGuide } from "@/lib/production-guides";
 import { type CalendarPost } from "@/lib/calendar-constants";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { publishToInstagram, isPublicImageUrl, isNotConnectedError } from "@/lib/instagram-publish";
+import { publishTextToLinkedIn, isLinkedInNotConnectedError } from "@/lib/linkedin-publish";
 import { useToast } from "@/hooks/use-toast";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { ContentPreview, RevertToOriginalButton } from "@/components/ContentPreview";
@@ -60,6 +61,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   const [mediaUrls, setMediaUrls] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [publishingInstagram, setPublishingInstagram] = useState(false);
+  const [publishingLinkedIn, setPublishingLinkedIn] = useState(false);
   // Publication programmée
   const [scheduleInput, setScheduleInput] = useState("");
   const [publishStatus, setPublishStatus] = useState<string | null>(null);
@@ -233,12 +235,55 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     }
   };
 
+  // ── Publication directe LinkedIn (post texte : content_draft) ──
+  const linkedInText = (contentDraft || "").trim();
+  const linkedInPublishDisabledReason = (() => {
+    if (postCanal !== "linkedin") return "Publication directe réservée aux posts LinkedIn.";
+    if (!linkedInText) return "Rédige le texte du post pour publier.";
+    return null;
+  })();
+
+  const handlePublishLinkedIn = async () => {
+    if (!user) { toast({ title: "Tu dois être connectée.", variant: "destructive" }); return; }
+    if (linkedInPublishDisabledReason) {
+      toast({ title: linkedInPublishDisabledReason, variant: "destructive" });
+      return;
+    }
+    setPublishingLinkedIn(true);
+    try {
+      const { permalink } = await publishTextToLinkedIn({
+        text: linkedInText,
+        workspaceId,
+        userId: user.id,
+      });
+      toast({
+        title: "Publié sur LinkedIn ! 🎉",
+        description: permalink ? "Ouvre ton profil LinkedIn pour le voir." : undefined,
+      });
+    } catch (e: any) {
+      const msg = e?.message as string | undefined;
+      toast({
+        title: isLinkedInNotConnectedError(msg) ? "Compte LinkedIn non connecté" : "Échec de la publication",
+        description: isLinkedInNotConnectedError(msg) ? "Connecte-le dans Paramètres › Connexions." : friendlyError(e),
+        variant: "destructive",
+      });
+    } finally {
+      setPublishingLinkedIn(false);
+    }
+  };
+
   // ── Publication PROGRAMMÉE (auto-publication à une date/heure) ──
+  // Canaux publiables : Instagram (image/carrousel) et LinkedIn (texte).
+  const canSchedule = postCanal === "instagram" || postCanal === "linkedin";
   const handleSchedulePublish = async () => {
     if (!editingPost?.id) { toast({ title: "Enregistre d'abord le post pour le programmer.", variant: "destructive" }); return; }
-    if (postCanal !== "instagram") { toast({ title: "Programmation disponible pour les posts Instagram.", variant: "destructive" }); return; }
-    if (igValidImages.length === 0) { toast({ title: "Ajoute au moins un visuel (image) avant de programmer.", variant: "destructive" }); return; }
-    if (igValidImages.length > 10) { toast({ title: "Instagram limite les carrousels à 10 images.", variant: "destructive" }); return; }
+    if (!canSchedule) { toast({ title: "Programmation disponible pour Instagram et LinkedIn.", variant: "destructive" }); return; }
+    if (postCanal === "instagram") {
+      if (igValidImages.length === 0) { toast({ title: "Ajoute au moins un visuel (image) avant de programmer.", variant: "destructive" }); return; }
+      if (igValidImages.length > 10) { toast({ title: "Instagram limite les carrousels à 10 images.", variant: "destructive" }); return; }
+    } else if (postCanal === "linkedin") {
+      if (!linkedInText) { toast({ title: "Rédige le texte du post avant de programmer.", variant: "destructive" }); return; }
+    }
     if (!scheduleInput) { toast({ title: "Choisis une date et une heure.", variant: "destructive" }); return; }
     const when = new Date(scheduleInput);
     if (isNaN(when.getTime())) { toast({ title: "Date invalide.", variant: "destructive" }); return; }
@@ -252,7 +297,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       } as any).eq("id", editingPost.id);
       if (error) throw error;
       setScheduledAt(iso); setPublishStatus("scheduled"); setPublishError(null);
-      toast({ title: "Publication programmée ! 🗓️", description: "Instagram publiera ce post automatiquement à l'heure prévue." });
+      toast({ title: "Publication programmée ! 🗓️", description: `${postCanal === "linkedin" ? "LinkedIn" : "Instagram"} publiera ce post automatiquement à l'heure prévue.` });
     } catch (e: any) {
       toast({ title: "Échec de la programmation", description: friendlyError(e), variant: "destructive" });
     } finally { setSavingSchedule(false); }
@@ -491,6 +536,45 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
         </div>
       )}
 
+      {postCanal === "linkedin" && (
+        <div className="space-y-2 rounded-[10px] border border-border p-3">
+          <p className="text-xs font-semibold text-foreground">🗓️ Publication automatique sur LinkedIn</p>
+          {!editingPost?.id ? (
+            <p className="text-xs text-muted-foreground">Enregistre le post et rédige son texte pour pouvoir programmer la publication.</p>
+          ) : publishStatus === "published" ? (
+            <p className="text-xs text-green-600">✅ Publié automatiquement sur LinkedIn{scheduledAt ? ` (programmé pour le ${new Date(scheduledAt).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" })})` : ""}.</p>
+          ) : publishStatus === "publishing" ? (
+            <p className="text-xs text-muted-foreground">⏳ Publication en cours…</p>
+          ) : publishStatus === "scheduled" ? (
+            <div className="space-y-2">
+              <p className="text-xs text-foreground">🗓️ Programmé pour le <strong>{scheduledAt ? new Date(scheduledAt).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" }) : "?"}</strong>. LinkedIn publiera ce post tout seul.</p>
+              <Button type="button" variant="outline" size="sm" onClick={handleCancelSchedule} disabled={savingSchedule} className="rounded-pill text-xs">Annuler la programmation</Button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {publishStatus === "failed" && (
+                <p className="text-xs text-destructive">❌ Échec de la dernière tentative{publishError ? ` : ${publishError}` : ""}. Reprogramme pour réessayer.</p>
+              )}
+              <p className="text-xs text-muted-foreground">Choisis quand publier ce post texte — il partira automatiquement.</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  type="datetime-local"
+                  value={scheduleInput}
+                  onChange={(e) => setScheduleInput(e.target.value)}
+                  className="rounded-[8px] border border-border bg-background px-2 py-1.5 text-xs text-foreground"
+                />
+                <Button type="button" size="sm" onClick={handleSchedulePublish} disabled={savingSchedule || !linkedInText} className="rounded-pill text-xs bg-primary text-primary-foreground hover:bg-primary/90">
+                  {savingSchedule ? "…" : "Programmer"}
+                </Button>
+              </div>
+              {!linkedInText && (
+                <p className="text-[11px] text-muted-foreground">Rédige le texte du post pour pouvoir programmer.</p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {guide && (
         <Collapsible>
           <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary transition-colors w-full">
@@ -561,6 +645,20 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
         >
           {publishingInstagram ? <Loader2 className="h-4 w-4 animate-spin" /> : <Instagram className="h-4 w-4" />}
           <span className="ml-1.5 hidden sm:inline">{publishingInstagram ? "Publication…" : "Publier"}</span>
+        </Button>
+      )}
+
+      {postCanal === "linkedin" && linkedInText && (
+        <Button
+          type="button"
+          variant="outline"
+          onClick={handlePublishLinkedIn}
+          disabled={publishingLinkedIn || !!linkedInPublishDisabledReason}
+          title={linkedInPublishDisabledReason || "Publier directement sur LinkedIn"}
+          className="rounded-pill"
+        >
+          {publishingLinkedIn ? <Loader2 className="h-4 w-4 animate-spin" /> : <Linkedin className="h-4 w-4" />}
+          <span className="ml-1.5 hidden sm:inline">{publishingLinkedIn ? "Publication…" : "Publier"}</span>
         </Button>
       )}
 

@@ -1,4 +1,4 @@
-import { Loader2, Pencil, CalendarDays, Copy, Download, RefreshCw, RotateCcw, Palette, ChevronDown, Lightbulb, Sparkles, ArrowUpRight, Instagram } from "lucide-react";
+import { Loader2, Pencil, CalendarDays, Copy, Download, RefreshCw, RotateCcw, Palette, ChevronDown, Lightbulb, Sparkles, ArrowUpRight, Instagram, Linkedin } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
@@ -251,6 +251,10 @@ interface Props {
   onPublishInstagram?: () => void;
   publishInstagramLoading?: boolean;
   publishInstagramDisabledReason?: string | null;
+  /** Publication directe LinkedIn (texte). Si défini, affiche le bouton. */
+  onPublishLinkedIn?: () => void;
+  publishLinkedInLoading?: boolean;
+  publishLinkedInDisabledReason?: string | null;
 }
 
 export default function CreerStepResult({
@@ -295,6 +299,9 @@ export default function CreerStepResult({
   onPublishInstagram,
   publishInstagramLoading,
   publishInstagramDisabledReason,
+  onPublishLinkedIn,
+  publishLinkedInLoading,
+  publishLinkedInDisabledReason,
 }: Props) {
   // ── Rotation des messages et tips pendant le loading ──
   const messages = PROGRESS_MESSAGES[format] || PROGRESS_MESSAGES.default;
@@ -567,6 +574,34 @@ export default function CreerStepResult({
             </TooltipTrigger>
             {publishInstagramDisabledReason && (
               <TooltipContent>{publishInstagramDisabledReason}</TooltipContent>
+            )}
+          </Tooltip>
+        </TooltipProvider>
+      )}
+
+      {/* Publication directe LinkedIn (texte) */}
+      {onPublishLinkedIn && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="w-full inline-block">
+                <Button
+                  variant="outline"
+                  onClick={onPublishLinkedIn}
+                  disabled={!!publishLinkedInDisabledReason || publishLinkedInLoading}
+                  className="w-full gap-2 h-10 text-sm"
+                >
+                  {publishLinkedInLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Linkedin className="h-4 w-4" />
+                  )}
+                  Publier sur LinkedIn
+                </Button>
+              </span>
+            </TooltipTrigger>
+            {publishLinkedInDisabledReason && (
+              <TooltipContent>{publishLinkedInDisabledReason}</TooltipContent>
             )}
           </Tooltip>
         </TooltipProvider>

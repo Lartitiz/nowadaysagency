@@ -44,6 +44,7 @@ import { useDemoContext } from "@/contexts/DemoContext";
 // DEMO_DATA n'est plus importé directement — on utilise demoData du context
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { publishImageToInstagram, publishRenderedCarouselToInstagram } from "@/lib/instagram-publish";
+import { publishTextToLinkedIn, isLinkedInNotConnectedError } from "@/lib/linkedin-publish";
 import { useBrandCharter } from "@/hooks/use-branding";
 import { useActivityExamples } from "@/hooks/use-activity-examples";
 import { supabase } from "@/integrations/supabase/client";
@@ -2596,6 +2597,7 @@ export default function CreerUnifie() {
 
   // ═══ Publication directe Instagram (image simple OU carrousel) ═══
   const [publishingInstagram, setPublishingInstagram] = useState(false);
+  const [publishingLinkedIn, setPublishingLinkedIn] = useState(false);
 
   const publishableImageUrl = (() => {
     const r: any = result?.raw || result;
@@ -2683,6 +2685,61 @@ export default function CreerUnifie() {
       }
     } finally {
       setPublishingInstagram(false);
+    }
+  };
+
+  // ═══ Publication directe LinkedIn (post texte) ═══
+  // Disponible pour un post LinkedIn texte (hors carrousel LinkedIn, qui est visuel).
+  const isLinkedInTextPost = selectedFormat === "linkedin" && !isLinkedInCarousel;
+  const publishLinkedInDisabledReason = (() => {
+    if (!isLinkedInTextPost) return null; // bouton non affiché dans ce cas
+    const r: any = result?.raw || result;
+    const text =
+      r?.edited_text || r?.full_text || r?.content ||
+      [r?.hook, r?.body, r?.cta].filter(Boolean).join("\n\n").trim() || "";
+    if (!text.trim()) return "Génère ton post LinkedIn pour pouvoir le publier.";
+    return null;
+  })();
+
+  const handlePublishLinkedIn = async () => {
+    if (!session?.user) {
+      toast.error("Tu dois être connecté.");
+      return;
+    }
+    if (publishLinkedInDisabledReason) {
+      toast.error(publishLinkedInDisabledReason);
+      return;
+    }
+    const r: any = result?.raw || result;
+    const text: string =
+      r?.edited_text ||
+      r?.full_text ||
+      r?.content ||
+      [r?.hook, r?.body, r?.cta].filter(Boolean).join("\n\n").trim() ||
+      "";
+
+    setPublishingLinkedIn(true);
+    try {
+      const res = await publishTextToLinkedIn({
+        text,
+        workspaceId,
+        userId: session.user.id,
+      });
+      toast.success(
+        res.permalink
+          ? "Publié sur LinkedIn ! Ouvre ton profil pour le voir."
+          : "Publié sur LinkedIn !",
+        res.permalink ? { action: { label: "Voir", onClick: () => window.open(res.permalink, "_blank") } } : undefined,
+      );
+    } catch (e: any) {
+      const msg = e?.message || "Échec de la publication LinkedIn.";
+      if (isLinkedInNotConnectedError(msg)) {
+        toast.error(msg, { action: { label: "Connecter", onClick: () => window.location.assign("/parametres/connexions") } });
+      } else {
+        toast.error(msg);
+      }
+    } finally {
+      setPublishingLinkedIn(false);
     }
   };
 
@@ -3108,6 +3165,9 @@ export default function CreerUnifie() {
                 onPublishInstagram={handlePublishInstagram}
                 publishInstagramLoading={publishingInstagram}
                 publishInstagramDisabledReason={publishInstagramDisabledReason}
+                onPublishLinkedIn={isLinkedInTextPost ? handlePublishLinkedIn : undefined}
+                publishLinkedInLoading={publishingLinkedIn}
+                publishLinkedInDisabledReason={publishLinkedInDisabledReason}
               />
             )}
 

@@ -56,8 +56,8 @@ export default function SocialConnectionsCard() {
     // Toast au retour OAuth
     const params = new URLSearchParams(window.location.search);
     const connected = params.get("connected");
-    if (connected === "instagram") {
-      toast.success("Instagram connecté !");
+    if (connected === "instagram" || connected === "linkedin") {
+      toast.success(connected === "linkedin" ? "LinkedIn connecté !" : "Instagram connecté !");
       params.delete("connected");
       const qs = params.toString();
       window.history.replaceState({}, "", window.location.pathname + (qs ? `?${qs}` : ""));
@@ -70,12 +70,12 @@ export default function SocialConnectionsCard() {
     }
   }, [reload]);
 
-  const handleConnectInstagram = async () => {
-    setConnecting("instagram");
+  const handleConnect = async (platform: "instagram" | "linkedin") => {
+    setConnecting(platform);
     try {
       const { data, error } = await supabase.functions.invoke("social-oauth-start", {
         body: {
-          platform: "instagram",
+          platform,
           workspace_id: wsParam,
           return_to: window.location.origin,
         },
@@ -108,6 +108,7 @@ export default function SocialConnectionsCard() {
   };
 
   const ig = connections.instagram;
+  const li = connections.linkedin;
 
   return (
     <section className="mb-6">
@@ -152,7 +153,7 @@ export default function SocialConnectionsCard() {
           ) : (
             <Button
               size="sm"
-              onClick={handleConnectInstagram}
+              onClick={() => handleConnect("instagram")}
               disabled={connecting === "instagram"}
               className="gap-1.5"
             >
@@ -166,20 +167,57 @@ export default function SocialConnectionsCard() {
           )}
         </div>
 
-        {/* LinkedIn — bientôt */}
-        <div className="flex items-center justify-between gap-3 px-4 py-3 opacity-60">
+        {/* LinkedIn */}
+        <div className="flex items-center justify-between gap-3 px-4 py-3">
           <div className="flex items-center gap-3 min-w-0">
             <div className="h-9 w-9 rounded-lg bg-[#0a66c2] text-white flex items-center justify-center shrink-0">
               <Linkedin className="h-4 w-4" />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-sm font-medium text-foreground">LinkedIn</p>
-              <p className="text-xs text-muted-foreground">Bientôt</p>
+              {loading ? (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Loader2 className="h-3 w-3 animate-spin" /> Chargement…
+                </p>
+              ) : li?.connected ? (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                  Connecté : {li.accountName}
+                  {li.expiresAt && (
+                    <span className="ml-1">
+                      · expire le {new Date(li.expiresAt).toLocaleDateString("fr-FR")}
+                    </span>
+                  )}
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">Non connecté</p>
+              )}
             </div>
           </div>
-          <Button variant="outline" size="sm" disabled>
-            Bientôt
-          </Button>
+          {li?.connected ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleDisconnect("linkedin")}
+              disabled={disconnecting === "linkedin"}
+            >
+              {disconnecting === "linkedin" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Déconnecter"}
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              onClick={() => handleConnect("linkedin")}
+              disabled={connecting === "linkedin"}
+              className="gap-1.5"
+            >
+              {connecting === "linkedin" ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <ExternalLink className="h-3.5 w-3.5" />
+              )}
+              Connecter LinkedIn
+            </Button>
+          )}
         </div>
 
         {/* Pinterest — bientôt */}
