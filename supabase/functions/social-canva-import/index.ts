@@ -125,7 +125,7 @@ Deno.serve(async (req) => {
     let uploadedPath: string | null = null;
     if (fileBase64) {
       const bytes = Uint8Array.from(atob(fileBase64), (c) => c.charCodeAt(0));
-      // S'assure que le bucket public existe (no-op s'il existe déjà).
+      // Crée le bucket s'il n'existe pas (no-op s'il existe).
       await supabase.storage.createBucket(BUCKET, { public: true }).catch(() => {});
       const path = `${userId}/canva-${Date.now()}-${Math.random().toString(36).slice(2)}.pptx`;
       const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, bytes, {
@@ -137,9 +137,16 @@ Deno.serve(async (req) => {
         return json({ error: "Dépôt du fichier échoué : " + upErr.message }, 500, corsHeaders);
       }
       uploadedPath = path;
-      const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
-      fileUrl = pub?.publicUrl || "";
-      if (!fileUrl) return json({ error: "URL publique introuvable." }, 500, corsHeaders);
+      // URL SIGNÉE (valable 10 min) plutôt que publique : Canva peut télécharger le
+      // fichier que le bucket soit public ou non (le bucket n'était en fait pas public).
+      const { data: signed, error: signErr } = await supabase.storage
+        .from(BUCKET)
+        .createSignedUrl(path, 600);
+      if (signErr || !signed?.signedUrl) {
+        console.error("Canva signed-url error:", signErr);
+        return json({ error: "Génération de l'URL du fichier échouée." }, 500, corsHeaders);
+      }
+      fileUrl = signed.signedUrl;
     }
 
     // 1. Lance l'import depuis l'URL publique du PPTX.
