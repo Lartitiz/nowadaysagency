@@ -13,11 +13,12 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
-import { Trash2, ChevronDown, Upload } from "lucide-react";
+import { Trash2, ChevronDown, Upload, Instagram, Loader2 } from "lucide-react";
 import { getGuide } from "@/lib/production-guides";
 import { type CalendarPost } from "@/lib/calendar-constants";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import { publishImageToInstagram, isPublicImageUrl, isNotConnectedError } from "@/lib/instagram-publish";
 import { useToast } from "@/hooks/use-toast";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { ContentPreview, RevertToOriginalButton } from "@/components/ContentPreview";
@@ -51,6 +52,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   const [igUsername, setIgUsername] = useState("");
   const [mediaUrls, setMediaUrls] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [publishingInstagram, setPublishingInstagram] = useState(false);
 
   const [theme, setTheme] = useState("");
   const [angle, setAngle] = useState<string | null>(null);
@@ -168,6 +170,45 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
 
   const handleCopy = () => {
     if (contentDraft) { navigator.clipboard.writeText(contentDraft); toast({ title: "Texte copié !" }); }
+  };
+
+  // ── Publication directe Instagram (image simple ; carrousel = lot suivant) ──
+  const igValidImages = mediaUrls.filter(isPublicImageUrl);
+  const instagramPublishDisabledReason = (() => {
+    if (postCanal !== "instagram") return "Publication directe réservée aux posts Instagram.";
+    if (igValidImages.length === 0) return "Ajoute un visuel (image) pour publier.";
+    if (igValidImages.length > 1) return "Carrousel bientôt — pour l'instant, publication d'une seule image.";
+    return null;
+  })();
+
+  const handlePublishInstagram = async () => {
+    if (!user) { toast({ title: "Tu dois être connectée.", variant: "destructive" }); return; }
+    if (instagramPublishDisabledReason || igValidImages.length !== 1) {
+      toast({ title: instagramPublishDisabledReason || "Image non disponible", variant: "destructive" });
+      return;
+    }
+    setPublishingInstagram(true);
+    try {
+      const { permalink } = await publishImageToInstagram({
+        caption: contentDraft || theme || "",
+        imageUrl: igValidImages[0],
+        workspaceId,
+        userId: user.id,
+      });
+      toast({
+        title: "Publié sur Instagram ! 🎉",
+        description: permalink ? "Ouvre ton profil Instagram pour le voir." : undefined,
+      });
+    } catch (e: any) {
+      const msg = e?.message as string | undefined;
+      toast({
+        title: isNotConnectedError(msg) ? "Compte Instagram non connecté" : "Échec de la publication",
+        description: isNotConnectedError(msg) ? "Connecte-le dans Paramètres › Connexions." : friendlyError(e),
+        variant: "destructive",
+      });
+    } finally {
+      setPublishingInstagram(false);
+    }
   };
 
   const ANGLE_TO_CAROUSEL: Record<string, string> = {
@@ -407,6 +448,20 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   const actionsBlock = (
     <div className="flex gap-2 pt-4 mt-4 border-t border-border">
       <Button onClick={handleSave} disabled={!theme.trim()} className="flex-1 rounded-pill bg-primary text-primary-foreground hover:bg-primary/90">💾 Enregistrer</Button>
+
+      {postCanal === "instagram" && igValidImages.length > 0 && (
+        <Button
+          type="button"
+          variant="outline"
+          onClick={handlePublishInstagram}
+          disabled={publishingInstagram || !!instagramPublishDisabledReason}
+          title={instagramPublishDisabledReason || "Publier directement sur Instagram"}
+          className="rounded-pill"
+        >
+          {publishingInstagram ? <Loader2 className="h-4 w-4 animate-spin" /> : <Instagram className="h-4 w-4" />}
+          <span className="ml-1.5 hidden sm:inline">{publishingInstagram ? "Publication…" : "Publier"}</span>
+        </Button>
+      )}
 
       {editingPost && (
         <Button variant="outline" size="icon" onClick={() => { if (window.confirm("Supprimer ce post du calendrier ? Cette action est irréversible.")) onDelete(); }} className="rounded-full text-destructive hover:bg-destructive/10">
