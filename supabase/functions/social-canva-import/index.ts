@@ -88,12 +88,15 @@ Deno.serve(async (req) => {
   try {
     const { userId } = await authenticateRequest(req);
     const body = await req.json().catch(() => ({}));
-    const fileUrl: string = body?.file_url;
+    // On accepte soit le fichier en base64 (déposé côté serveur, robuste aux RLS),
+    // soit une URL https déjà publique (rétro-compat).
+    const fileBase64: string | undefined = typeof body?.file_base64 === "string" ? body.file_base64 : undefined;
+    const fileUrlIn: string | undefined = typeof body?.file_url === "string" ? body.file_url : undefined;
     const title: string = (body?.title || "Carrousel Nowadays").toString().slice(0, 120);
     const workspaceId: string | null = body?.workspace_id ?? null;
 
-    if (!fileUrl || !/^https:\/\//.test(fileUrl)) {
-      return json({ error: "URL de fichier (https) requise." }, 400, corsHeaders);
+    if (!fileBase64 && !(fileUrlIn && /^https:\/\//.test(fileUrlIn))) {
+      return json({ error: "Fichier (base64) ou URL https requis." }, 400, corsHeaders);
     }
 
     // Lecture de la connexion Canva (service-role, jamais exposée au client).
@@ -114,6 +117,30 @@ Deno.serve(async (req) => {
     }
 
     const token = await refreshCanvaTokenIfNeeded(supabase, conn);
+
+    // Si le fichier arrive en base64, on le dépose côté serveur (service-role :
+    // pas de RLS, et on crée le bucket public au besoin) puis on importe par URL.
+    const BUCKET = "canva-import";
+    let fileUrl = fileUrlIn || "";
+    let uploadedPath: string | null = null;
+    if (fileBase64) {
+      const bytes = Uint8Array.from(atob(fileBase64), (c) => c.charCodeAt(0));
+      // S'assure que le bucket public existe (no-op s'il existe déjà).
+      await supabase.storage.createBucket(BUCKET, { public: true }).catch(() => {});
+      const path = `${userId}/canva-${Date.now()}-${Math.random().toString(36).slice(2)}.pptx`;
+      const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, bytes, {
+        contentType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        upsert: true,
+      });
+      if (upErr) {
+        console.error("Canva upload (service-role) error:", upErr);
+        return json({ error: "Dépôt du fichier échoué : " + upErr.message }, 500, corsHeaders);
+      }
+      uploadedPath = path;
+      const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
+      fileUrl = pub?.publicUrl || "";
+      if (!fileUrl) return json({ error: "URL publique introuvable." }, 500, corsHeaders);
+    }
 
     // 1. Lance l'import depuis l'URL publique du PPTX.
     const importRes = await fetch(`${CANVA_API}/url-imports`, {
@@ -136,6 +163,11 @@ Deno.serve(async (req) => {
 
     // 2. Attend la fin du job.
     const designId = await pollImport(importJson.job.id, token);
+
+    // Le fichier a été récupéré par Canva pendant le job → on peut le supprimer.
+    if (uploadedPath) {
+      await supabase.storage.from("canva-import").remove([uploadedPath]).catch(() => {});
+    }
 
     // 3. Récupère l'URL d'édition du design.
     const designRes = await fetch(`${CANVA_API}/designs/${designId}`, {
