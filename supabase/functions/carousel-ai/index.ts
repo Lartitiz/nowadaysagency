@@ -509,7 +509,7 @@ Retourne UNIQUEMENT un objet JSON valide (pas de texte avant ou après, pas de b
       "story_beat": "Ce que CETTE slide FAIT VIVRE dans le récit, en 1 phrase. Une INTENTION NARRATIVE — pas une description de la photo. Exemples : « ici on installe le doute », « ici la bascule : le client rappelle », « ici on paie le prix de la décision ». JAMAIS « on voit un chantier », « la photo montre… »."${hasPhotos ? `,
       "photo_index": 1,
       "slide_type": "photo_full",
-      "visual_anchor": "OPTIONNEL — uniquement pour les slides avec photo_index. 3-8 mots qui pointent UN détail concret de la photo, mobilisable par le pass d'écriture comme matière première (ex : « la poussière sur les bottes », « les deux tasses encore pleines »). C'est UN détail, JAMAIS un résumé de l'image."` : ""}
+      "visual_anchor": "OBLIGATOIRE pour toute slide avec photo_index. 3-8 mots qui pointent UN détail concret VISIBLE dans CETTE photo, mobilisable par le pass d'écriture comme matière première (ex : « la poussière sur les bottes », « les deux tasses encore pleines »). C'est UN détail précis, JAMAIS un résumé de l'image. Ne l'omets que si la photo est vraiment sans aucun détail saisissable."` : ""}
     }
   ],
   "total_slides": 7,
@@ -519,7 +519,7 @@ Retourne UNIQUEMENT un objet JSON valide (pas de texte avant ou après, pas de b
 RAPPEL CRITIQUE sur les nouveaux champs :
 - "narrative_thread" = LE récit que le pass d'écriture exécutera. C'est la colonne vertébrale.
 - "story_beat" (par slide) = ce que la slide RACONTE dans ce récit, pas ce que la photo MONTRE. Une intention narrative.
-- "visual_anchor" (slides photo uniquement) = UN détail mobilisable, optionnel. Pas une description. Si rien d'évident à pointer, omets le champ.
+- "visual_anchor" (slides photo uniquement) = UN détail concret mobilisable, ATTENDU sur chaque slide photo. Pas une description. Ne l'omets qu'en dernier recours, si la photo n'offre vraiment aucun détail saisissable.
 - story_beat et visual_anchor SERVENT le narrative_thread : chaque story_beat est UNE étape du récit global ; les visual_anchors fournissent la matière sensorielle qui ancre cette étape.`;
 
       const structureUserPrompt = `Sujet du carrousel : "${subject || "non précisé"}"
@@ -1786,6 +1786,7 @@ RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
       "overlay_text": "Une vraie phrase courte qui complète l'image",
       "overlay_position": "bottom_left",
       "overlay_style": "sensoriel",
+      "visual_anchor": "3-8 mots pointant UN détail concret de CETTE photo (matière de composition pour la DA). Attendu sur chaque slide photo ; omets seulement si la photo n'offre aucun détail saisissable.",
       "note": "Note de direction artistique pour cette slide"
     }
   ],
@@ -1979,6 +1980,7 @@ RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
       "overlay_text": "Phrase qui part de l'actu, pas de la photo (5-25 mots)",
       "overlay_position": "bottom_left",
       "overlay_style": "sensoriel",
+      "visual_anchor": "3-8 mots pointant UN détail concret de CETTE photo (matière de composition pour la DA). Attendu sur chaque slide photo.",
       "note": "Note de direction artistique"
     }
   ],
@@ -2258,6 +2260,7 @@ RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
       "overlay_text": "placeholder — phrase courte ancrée dans CETTE photo",
       "overlay_position": "bottom_center",
       "overlay_style": "sensoriel",
+      "visual_anchor": "3-8 mots pointant UN détail concret de CETTE photo (matière de composition pour la DA). Attendu sur chaque slide photo.",
       "note": "placeholder — note DA"
     },
     {
@@ -2499,6 +2502,7 @@ RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
       "overlay_text": "placeholder — détail/phrase/image qui m'a frappée dans cette actu (5-20 mots)",
       "overlay_position": "bottom_center",
       "overlay_style": "sensoriel",
+      "visual_anchor": "3-8 mots pointant UN détail concret de CETTE photo (matière de composition pour la DA). Attendu sur chaque slide photo.",
       "note": "placeholder — note DA"
     },
     {
