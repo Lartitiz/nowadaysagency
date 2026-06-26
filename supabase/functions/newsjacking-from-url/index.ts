@@ -12,6 +12,16 @@ import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/w
 const MAX_ARTICLE_CHARS = 8000;
 const GLOBAL_TIMEOUT_MS = 50_000;
 
+// Retire les balises de citation (<cite index="…">…</cite>) que le modèle peut
+// recopier depuis le contexte web. Inline (pas dans _shared) pour éviter le piège
+// de redéploiement des consommateurs d'un module partagé.
+function stripCitations(text: string): string {
+  return text
+    .replace(/<\/?cite[^>]*>/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 function isHttpUrl(s: string): boolean {
   try {
     const u = new URL(s);
@@ -196,19 +206,19 @@ Analyse maintenant.`;
     const ALLOWED_PONTS = new Set(["fort","moyen","fragile"]);
 
     const actu = {
-      titre: typeof parsed.titre === "string" ? parsed.titre.slice(0, 140) : "Article",
-      resume: typeof parsed.resume === "string" ? parsed.resume : "",
+      titre: typeof parsed.titre === "string" ? stripCitations(parsed.titre).slice(0, 140) : "Article",
+      resume: typeof parsed.resume === "string" ? stripCitations(parsed.resume) : "",
       source: sourceFromUrl(url),
       source_url: url,
       type: "globale" as const,
       axe: ALLOWED_AXES.has(parsed.axe) ? parsed.axe : "actu_connectable",
       ton: ALLOWED_TONS.has(parsed.ton) ? parsed.ton : "entre_deux",
       force_pont: ALLOWED_PONTS.has(parsed.force_pont) ? parsed.force_pont : "moyen",
-      pertinence: typeof parsed.pertinence === "string" ? parsed.pertinence : "",
+      pertinence: typeof parsed.pertinence === "string" ? stripCitations(parsed.pertinence) : "",
       faits_cles: Array.isArray(parsed.faits_cles)
         ? parsed.faits_cles
             .filter((f: unknown): f is string => typeof f === "string")
-            .map((f: string) => f.trim().slice(0, 200))
+            .map((f: string) => stripCitations(f).slice(0, 200))
             .filter((f: string) => f.length > 0)
             .slice(0, 8)
         : [],

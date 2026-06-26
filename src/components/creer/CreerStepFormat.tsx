@@ -78,8 +78,12 @@ interface Props {
 }
 
 export default function CreerStepFormat({ idea, objective, initialFormat, initialCarouselSubMode, suggestedFormat, initialPhotos, initialPhotoDescription, onNext, onSelectionChange, onBack }: Props) {
+  // Pré-sélection du canal : on déduit du format déjà choisi, sinon du format
+  // suggéré par le newsjacking. Évite de juxtaposer « L'IA suggère : Carrousel »
+  // (un format) avec « Sur quel canal publier ? » (un canal) — la suggestion
+  // s'affiche alors DANS le bon canal, plus de confusion format/canal.
   const [selectedChannel, setSelectedChannel] = useState<ChannelId | null>(
-    initialFormat ? deduceChannel(initialFormat) : null
+    initialFormat ? deduceChannel(initialFormat) : suggestedFormat ? deduceChannel(suggestedFormat) : null
   );
   const [selectedFormat, setSelectedFormat] = useState<string | null>(initialFormat || null);
   const [selectedAngle, setSelectedAngle] = useState<string | undefined>(undefined);
@@ -363,7 +367,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, initia
             <p className="text-xs text-muted-foreground">C'est une suggestion basée sur l'actu. Tu peux choisir un autre format.</p>
           </div>
           <Button
-            variant="outline"
+            variant="default"
             size="sm"
             onClick={() => {
               const channel = deduceChannel(suggestedFormat);
@@ -371,7 +375,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, initia
               setSelectedFormat(suggestedFormat);
             }}
           >
-            Appliquer
+            Utiliser ce format
           </Button>
         </div>
       )}
