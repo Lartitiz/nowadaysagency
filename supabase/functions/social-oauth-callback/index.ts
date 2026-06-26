@@ -7,10 +7,12 @@ import { verifyState } from "../_shared/oauth-state.ts";
 interface StatePayload {
   user_id: string;
   workspace_id: string | null;
-  platform: "instagram" | "linkedin";
+  platform: "instagram" | "linkedin" | "canva";
   origin: string;
   nonce: string;
   ts: number;
+  /** PKCE : présent pour Canva, réutilisé à l'échange du code. */
+  code_verifier?: string;
 }
 
 function redirect(url: string): Response {
@@ -53,10 +55,64 @@ Deno.serve(async (req) => {
     let accountId = "";
     let accountName = "";
     let accessToken = "";
+    let refreshToken: string | null = null;
     let expiresAt: string;
     let scopes: string;
 
-    if (payload.platform === "linkedin") {
+    if (payload.platform === "canva") {
+      const clientId = Deno.env.get("CANVA_CLIENT_ID")!;
+      const clientSecret = Deno.env.get("CANVA_CLIENT_SECRET")!;
+      if (!payload.code_verifier) {
+        return errorRedirect(origin, "PKCE manquant pour Canva.");
+      }
+
+      // 1. Échange code -> tokens (client confidentiel : auth Basic + PKCE).
+      const basic = btoa(`${clientId}:${clientSecret}`);
+      const form = new URLSearchParams();
+      form.set("grant_type", "authorization_code");
+      form.set("code", code);
+      form.set("code_verifier", payload.code_verifier);
+      form.set("redirect_uri", redirectUri);
+      const tokRes = await fetch("https://api.canva.com/rest/v1/oauth/token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: `Basic ${basic}`,
+        },
+        body: form.toString(),
+      });
+      const tokJson = await tokRes.json();
+      if (!tokRes.ok || !tokJson.access_token) {
+        console.error("Canva token error:", tokJson);
+        return errorRedirect(origin, tokJson?.error_description || tokJson?.error || "Échange du code Canva échoué.");
+      }
+      accessToken = tokJson.access_token;
+      // Jeton d'accès court (~4 h) → on garde le refresh_token (long) pour rafraîchir.
+      refreshToken = tokJson.refresh_token || null;
+      const expiresIn = Number(tokJson.expires_in || 4 * 3600);
+      expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
+      scopes = String(tokJson.scope || "design:content:write design:meta:read asset:write profile:read");
+
+      // 2. Lecture du compte (id + nom d'affichage). Best-effort sur le nom.
+      const meRes = await fetch("https://api.canva.com/rest/v1/users/me", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const meJson = await meRes.json();
+      if (!meRes.ok) {
+        console.error("Canva users/me error:", meJson);
+        return errorRedirect(origin, meJson?.message || "Lecture du compte Canva échouée.");
+      }
+      accountId = String(meJson?.team_user?.user_id || meJson?.user_id || "");
+      try {
+        const profRes = await fetch("https://api.canva.com/rest/v1/users/me/profile", {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        const profJson = await profRes.json();
+        accountName = String(profJson?.display_name || "Canva");
+      } catch {
+        accountName = "Canva";
+      }
+    } else if (payload.platform === "linkedin") {
       const clientId = Deno.env.get("LINKEDIN_CLIENT_ID")!;
       const clientSecret = Deno.env.get("LINKEDIN_CLIENT_SECRET")!;
 
@@ -155,6 +211,7 @@ Deno.serve(async (req) => {
       platform_account_id: accountId,
       platform_account_name: accountName,
       access_token: accessToken,
+      refresh_token: refreshToken,
       token_expires_at: expiresAt,
       scopes,
       updated_at: new Date().toISOString(),
