@@ -18,7 +18,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2, CalendarDays, Palette } from "lucide-react";
+import { Loader2, CalendarDays, Palette, Sparkles } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import BrandingStatusBanner from "@/components/content/BrandingStatusBanner";
@@ -215,6 +216,9 @@ export default function CreerUnifie() {
   const [briefsCount, setBriefsCount] = useState(0);
   const [photoBriefOverlayHtml, setPhotoBriefOverlayHtml] = useState<string | null>(null);
   const [structureProposal, setStructureProposal] = useState<StructureProposal | null>(null);
+  // "Mode qualité Max" : rédaction du carrousel par Opus (plus soigné, ~2-3x plus lent).
+  // Off par défaut → Sonnet (rapide), plus d'escalade silencieuse.
+  const [qualityMax, setQualityMax] = useState(false);
   const [structureLoading, setStructureLoading] = useState(false);
   const [lastConfirmedStructure, setLastConfirmedStructure] = useState<SlideProposal[] | null>(null);
   const [lastNarrativeThread, setLastNarrativeThread] = useState<string | null>(null);
@@ -1243,6 +1247,7 @@ export default function CreerUnifie() {
             ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
             ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
             ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })) : undefined, photoDescription } : {}),
+            ...(qualityMax ? { qualityMax: true } : {}),
             ...(newsjackingContext ? { newsContext: newsjackingContext } : {}),
           });
         }
@@ -1268,6 +1273,7 @@ export default function CreerUnifie() {
         ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
         ...(carouselSubMode === "pure_photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
         ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })) : undefined, photoDescription } : {}),
+        ...(qualityMax ? { qualityMax: true } : {}),
         ...(newsjackingContext ? { newsContext: newsjackingContext } : {}),
       });
       return;
@@ -1287,6 +1293,7 @@ export default function CreerUnifie() {
       ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
       ...(carouselSubMode === "pure_photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
       ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })) : undefined, photoDescription } : {}),
+      ...(qualityMax ? { qualityMax: true } : {}),
       ...(newsjackingContext ? { newsContext: newsjackingContext } : {}),
     });
   };
@@ -1472,6 +1479,7 @@ export default function CreerUnifie() {
       ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
       ...(carouselSubMode === "pure_photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
       ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })) : undefined, photoDescription } : {}),
+      ...(qualityMax ? { qualityMax: true } : {}),
       ...(newsjackingContext ? { newsContext: newsjackingContext } : {}),
     });
   };
@@ -3070,6 +3078,20 @@ export default function CreerUnifie() {
                 }}
                 onBack={() => { setStep("idea"); setNewsjackingContext(null); }}
               />
+            )}
+
+            {step === "questions" && selectedFormat === "carousel" && (
+              <label className="flex items-start gap-3 rounded-xl border border-border bg-card/60 p-3 mb-4 cursor-pointer animate-fade-in">
+                <Sparkles className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm font-medium text-foreground">Mode qualité Max</span>
+                  <p className="text-xs text-muted-foreground">
+                    Rédaction plus soignée par le modèle le plus puissant. À activer pour les contenus
+                    importants — c'est environ 2 à 3× plus long. Désactivé = rapide (qualité déjà très bonne).
+                  </p>
+                </div>
+                <Switch checked={qualityMax} onCheckedChange={setQualityMax} className="mt-0.5 shrink-0" />
+              </label>
             )}
 
             {step === "questions" && (

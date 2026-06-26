@@ -57,6 +57,8 @@ export interface GenerateParams {
   narrativeThread?: string;
   // Newsjacking — separate field to avoid bloating `subject`
   newsContext?: string;
+  // "Mode qualité Max" : escalade vers Opus pour la rédaction (plus soigné, plus lent)
+  qualityMax?: boolean;
 }
 
 export interface GenerateQuestionsParams {
@@ -256,6 +258,7 @@ export function useContentGenerator() {
               photo_description: (params.carouselType === "photo" || params.carouselType === "mix") ? params.photoDescription : undefined,
               slide_structure: params.slideStructure || null,
               confirmed_structure: params.confirmedStructure || null,
+              quality_max: params.qualityMax || undefined,
               ...(params.narrativeThread && params.narrativeThread.trim() ? { narrative_thread: params.narrativeThread } : {}),
               ...(newsContext && newsContext.trim() ? { news_context: newsContext.slice(0, 3800) } : {}),
             },
