@@ -6534,6 +6534,7 @@ export type Database = {
           platform: string
           platform_account_id: string | null
           platform_account_name: string | null
+          refresh_token: string | null
           scopes: string | null
           token_expires_at: string | null
           updated_at: string
@@ -6547,6 +6548,7 @@ export type Database = {
           platform: string
           platform_account_id?: string | null
           platform_account_name?: string | null
+          refresh_token?: string | null
           scopes?: string | null
           token_expires_at?: string | null
           updated_at?: string
@@ -6560,6 +6562,7 @@ export type Database = {
           platform?: string
           platform_account_id?: string | null
           platform_account_name?: string | null
+          refresh_token?: string | null
           scopes?: string | null
           token_expires_at?: string | null
           updated_at?: string
