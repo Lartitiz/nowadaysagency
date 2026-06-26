@@ -3,7 +3,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import CarouselResult from "@/components/creer/formatRenderers/CarouselResult";
-import CarouselPhotoResult from "@/components/creer/formatRenderers/CarouselPhotoResult";
+import CarouselPhotoResult, { type CarouselColors } from "@/components/creer/formatRenderers/CarouselPhotoResult";
 import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
 import ReelResult from "@/components/creer/formatRenderers/ReelResult";
 import StoryResult from "@/components/creer/formatRenderers/StoryResult";
@@ -226,6 +226,11 @@ interface Props {
   photos?: PhotoItem[];
   /** Remplacement de photo d'une slide de carrousel : ajoute la photo au set et renvoie son index 1-based. */
   onAddPhoto?: (photo: PhotoItem) => number;
+  /** Surcharge de couleurs du carrousel (null = couleurs de la charte). */
+  carouselColors?: CarouselColors | null;
+  onCarouselColorsChange?: (colors: CarouselColors | null) => void;
+  /** Couleurs de la charte, pour pré-remplir les sélecteurs. */
+  charterColors?: CarouselColors;
   pinterestPinHtml?: string | null;
   onExportPinterestPng?: () => void;
   onExportPinterestEditablePptx?: () => void;
@@ -270,6 +275,9 @@ export default function CreerStepResult({
   onStoriesUpdate,
   photos,
   onAddPhoto,
+  carouselColors,
+  onCarouselColorsChange,
+  charterColors,
   pinterestPinHtml,
   onExportPinterestPng,
   onExportPinterestEditablePptx,
@@ -401,7 +409,7 @@ export default function CreerStepResult({
     const r = result?.raw || result;
     if (format === "carousel" && (r?.carousel_type === "photo" || r?.carousel_type === "mix") && photos && photos.length > 0) {
       return (
-        <CarouselPhotoResult result={result} photos={photos} onSlidesUpdate={onSlidesUpdate} visualSlides={visualSlides} channel={channel} onRetry={onRegenerate} captionLoading={captionLoading} onRegenerateCaption={onRegenerateCaption} onRegenerateVisuals={onGenerateVisuals} visualLoading={visualLoading} onAddPhoto={onAddPhoto} />
+        <CarouselPhotoResult result={result} photos={photos} onSlidesUpdate={onSlidesUpdate} visualSlides={visualSlides} channel={channel} onRetry={onRegenerate} captionLoading={captionLoading} onRegenerateCaption={onRegenerateCaption} onRegenerateVisuals={onGenerateVisuals} visualLoading={visualLoading} onAddPhoto={onAddPhoto} colors={carouselColors} onColorsChange={onCarouselColorsChange} charterColors={charterColors} />
       );
     }
 
