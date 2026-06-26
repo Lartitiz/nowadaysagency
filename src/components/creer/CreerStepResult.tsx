@@ -433,7 +433,7 @@ export default function CreerStepResult({
       case "story":
         return <StoryResult result={result} onStoriesUpdate={onStoriesUpdate} />;
       case "post":
-        return <PostResult result={result} />;
+        return <PostResult result={result} photos={photos} />;
       case "linkedin":
         return <LinkedInResult result={result} photos={photos} />;
       case "newsletter":
@@ -443,7 +443,7 @@ export default function CreerStepResult({
       case "pinterest_visual":
         return <PinterestVisualResult result={{ raw: result }} pinHtml={pinterestPinHtml || null} />;
       default:
-        return <PostResult result={result} />;
+        return <PostResult result={result} photos={photos} />;
     }
   };
 
