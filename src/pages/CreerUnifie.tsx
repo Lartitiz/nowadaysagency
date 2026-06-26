@@ -2837,15 +2837,19 @@ export default function CreerUnifie() {
       )) as Blob;
 
       // Dépôt dans le bucket public (Canva récupère le fichier via cette URL).
+      // On réutilise `instagram-publish` : bucket public déjà éprouvé (mêmes policies
+      // user-folder que les publications Insta) — le bucket dédié `canva-import` a une
+      // RLS d'insertion qui ne s'est pas appliquée correctement à la migration.
+      const CANVA_TMP_BUCKET = "instagram-publish";
       const path = `${session.user.id}/canva-${Date.now()}-${Math.random().toString(36).slice(2)}.pptx`;
-      const { error: upErr } = await supabase.storage.from("canva-import").upload(path, blob, {
+      const { error: upErr } = await supabase.storage.from(CANVA_TMP_BUCKET).upload(path, blob, {
         contentType:
           "application/vnd.openxmlformats-officedocument.presentationml.presentation",
         upsert: true,
       });
       if (upErr) throw new Error("Upload du fichier échoué : " + upErr.message);
       uploadedPath = path;
-      const { data: pub } = supabase.storage.from("canva-import").getPublicUrl(path);
+      const { data: pub } = supabase.storage.from(CANVA_TMP_BUCKET).getPublicUrl(path);
       const fileUrl = pub?.publicUrl;
       if (!fileUrl) throw new Error("URL publique introuvable.");
 
@@ -2876,7 +2880,7 @@ export default function CreerUnifie() {
     } finally {
       // Le fichier a été récupéré par Canva pendant le job → on peut le supprimer.
       if (uploadedPath) {
-        supabase.storage.from("canva-import").remove([uploadedPath]).then(() => {}, () => {});
+        supabase.storage.from("instagram-publish").remove([uploadedPath]).then(() => {}, () => {});
       }
       setOpeningCanva(false);
     }
