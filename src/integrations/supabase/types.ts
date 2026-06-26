@@ -1106,6 +1106,7 @@ export type Database = {
           angle: string | null
           angle_suggestion: string | null
           audience_phase: string | null
+          auto_publish: boolean
           canal: string
           category: string | null
           chapter: number | null
@@ -1125,6 +1126,11 @@ export type Database = {
           notes: string | null
           objectif: string | null
           objective: string | null
+          publish_error: string | null
+          publish_status: string | null
+          published_at: string | null
+          published_post_id: string | null
+          scheduled_publish_at: string | null
           series_id: string | null
           status: string
           stories_count: number | null
@@ -1144,6 +1150,7 @@ export type Database = {
           angle?: string | null
           angle_suggestion?: string | null
           audience_phase?: string | null
+          auto_publish?: boolean
           canal?: string
           category?: string | null
           chapter?: number | null
@@ -1163,6 +1170,11 @@ export type Database = {
           notes?: string | null
           objectif?: string | null
           objective?: string | null
+          publish_error?: string | null
+          publish_status?: string | null
+          published_at?: string | null
+          published_post_id?: string | null
+          scheduled_publish_at?: string | null
           series_id?: string | null
           status?: string
           stories_count?: number | null
@@ -1182,6 +1194,7 @@ export type Database = {
           angle?: string | null
           angle_suggestion?: string | null
           audience_phase?: string | null
+          auto_publish?: boolean
           canal?: string
           category?: string | null
           chapter?: number | null
@@ -1201,6 +1214,11 @@ export type Database = {
           notes?: string | null
           objectif?: string | null
           objective?: string | null
+          publish_error?: string | null
+          publish_status?: string | null
+          published_at?: string | null
+          published_post_id?: string | null
+          scheduled_publish_at?: string | null
           series_id?: string | null
           status?: string
           stories_count?: number | null
