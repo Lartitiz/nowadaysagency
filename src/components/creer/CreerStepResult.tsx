@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import CarouselResult from "@/components/creer/formatRenderers/CarouselResult";
 import CarouselPhotoResult from "@/components/creer/formatRenderers/CarouselPhotoResult";
+import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
 import ReelResult from "@/components/creer/formatRenderers/ReelResult";
 import StoryResult from "@/components/creer/formatRenderers/StoryResult";
 import PostResult from "@/components/creer/formatRenderers/PostResult";
@@ -222,7 +223,9 @@ interface Props {
   onExportVisualPng?: () => void;
   onSlidesUpdate?: (slides: any[], caption: any) => void;
   onStoriesUpdate?: (stories: any[]) => void;
-  photos?: { preview: string; base64?: string; name?: string }[];
+  photos?: PhotoItem[];
+  /** Remplacement de photo d'une slide de carrousel : ajoute la photo au set et renvoie son index 1-based. */
+  onAddPhoto?: (photo: PhotoItem) => number;
   pinterestPinHtml?: string | null;
   onExportPinterestPng?: () => void;
   onExportPinterestEditablePptx?: () => void;
@@ -266,6 +269,7 @@ export default function CreerStepResult({
   onSlidesUpdate,
   onStoriesUpdate,
   photos,
+  onAddPhoto,
   pinterestPinHtml,
   onExportPinterestPng,
   onExportPinterestEditablePptx,
@@ -397,7 +401,7 @@ export default function CreerStepResult({
     const r = result?.raw || result;
     if (format === "carousel" && (r?.carousel_type === "photo" || r?.carousel_type === "mix") && photos && photos.length > 0) {
       return (
-        <CarouselPhotoResult result={result} photos={photos} onSlidesUpdate={onSlidesUpdate} visualSlides={visualSlides} channel={channel} onRetry={onRegenerate} captionLoading={captionLoading} onRegenerateCaption={onRegenerateCaption} onRegenerateVisuals={onGenerateVisuals} visualLoading={visualLoading} />
+        <CarouselPhotoResult result={result} photos={photos} onSlidesUpdate={onSlidesUpdate} visualSlides={visualSlides} channel={channel} onRetry={onRegenerate} captionLoading={captionLoading} onRegenerateCaption={onRegenerateCaption} onRegenerateVisuals={onGenerateVisuals} visualLoading={visualLoading} onAddPhoto={onAddPhoto} />
       );
     }
 
