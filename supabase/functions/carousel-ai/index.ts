@@ -1659,6 +1659,7 @@ RÈGLES ABSOLUES :
 - Le JSON retourné doit contenir exactement ${confirmed_structure.length} slides
 - Si une slide a un photo_index, le champ photo_index doit être présent dans le JSON de sortie
 - INTERDIT de décrire la photo. L'overlay écrit l'étape du récit définie par le story_beat ; le visual_anchor est une matière optionnelle (un détail à glisser dans la phrase si naturel), JAMAIS un contenu à réciter.
+- Cette structure fixe l'ORDRE et le rôle des slides — PAS la permission d'écrire des légendes indépendantes. Tu écris les overlays comme UN SEUL récit continu qui se lit d'une traite (voir "CHAÎNAGE DES TEXTES" plus bas) : chaque overlay reprend/prolonge le précédent et tient les promesses de décompte dans la phrase.
 
 `;
   }
@@ -1735,11 +1736,17 @@ L'objectif est qu'en lisant les overlays slide après slide, on suive une vraie 
 ═══ CHAÎNAGE DES TEXTES — RÈGLE ABSOLUE ═══
 Les overlay_text doivent se lire à la suite comme UN SEUL mini-récit continu. Chaque slide REPREND, PROLONGE ou FAIT BASCULER ce que la précédente a posé.
 
+MÉTHODE D'ÉCRITURE (la plus importante) : n'écris PAS slide par slide comme si tu remplissais des cases. Écris D'ABORD l'histoire entière comme UN SEUL texte courant qui se lit d'une traite, à voix haute, du début à la fin — PUIS découpe ce texte en overlays. Chaque overlay est un morceau d'un même paragraphe, pas une légende autonome. Si tu sens que tu "titres" chaque image, tu t'es trompé de mode.
+
+TENIR LES PROMESSES : si une slide (souvent la 1re) annonce une liste ou un nombre ("il y a trois conversations…", "j'ai fait 2 erreurs…", "trois étapes…"), les overlays SUIVANTS DOIVENT tenir cette promesse explicitement DANS LA PHRASE ("Première conversation : …", "La deuxième : …", "Et la troisième…"). Une promesse ouverte qu'on ne paie pas dans le texte (ou qu'on renvoie à un décor / un badge) = raté. Le lecteur doit pouvoir suivre le décompte sans rien d'autre que les phrases.
+
 RÈGLE DE SURFACE VÉRIFIABLE : à partir de la slide 2, CHAQUE overlay DOIT contenir au moins l'UN des deux éléments suivants :
-  (a) un connecteur narratif en début ou milieu de phrase : "Puis", "Et puis", "Sauf que", "C'est là que", "Alors", "Du coup", "Mais", "Sauf que", "Sauf qu'en vrai", "Trois mois plus tard", "Au début", "Maintenant", "Résultat", "Ce qu'on n'a pas vu venir", "Ce que personne ne dit".
+  (a) un connecteur narratif en début ou milieu de phrase : "Puis", "Et puis", "Sauf que", "C'est là que", "Alors", "Du coup", "Mais", "Sauf qu'en vrai", "Trois mois plus tard", "Au début", "Maintenant", "Résultat", "Ce qu'on n'a pas vu venir", "Ce que personne ne dit".
   (b) une reprise lexicale d'un mot/groupe-clé de la slide précédente (le même mot, ou un synonyme évident qui boucle la référence).
 
 Test interne : si on permute deux slides au hasard et que le carrousel "marche encore", c'est raté → recommence. Une slide qui pourrait vivre seule sur ${isLinkedIn ? "LinkedIn" : "Instagram"} = mauvais signe. On veut une slide qui n'a de sens QUE parce qu'on a lu la précédente.
+
+RELECTURE FINALE OBLIGATOIRE (avant de répondre) : relis la suite des overlays d'une traite. (1) Est-ce que ça raconte UNE histoire qui coule, ou des phrases posées côte à côte ? (2) Chaque overlay à partir de la slide 2 a-t-il son connecteur OU sa reprise lexicale ? (3) Toute promesse de décompte est-elle tenue dans la prose ? (4) Aucun overlay n'est une suite de groupes nominaux sans verbe conjugué (ex INTERDIT vu en vrai : "Dix formations ouvertes sur l'ordi. Zéro post publié." → à réécrire en phrase : "J'avais dix formations ouvertes sur l'ordi et toujours zéro post publié."). Si une seule réponse cloche, RÉÉCRIS avant de renvoyer le JSON.
 
 ═══ CAS PARTICULIERS SELON LE NOMBRE DE PHOTOS ═══
 - 1 photo unique → elle apparaît sur toutes les slides. Tout repose sur les textes qui racontent l'histoire en plusieurs temps (contexte → tension → bascule → résolution → ouverture). Cible 4-6 slides, pas 8.
@@ -1938,9 +1945,11 @@ ${photoCountBlock}
 
 ═══ CHAÎNAGE DES TEXTES — RÈGLE ABSOLUE ═══
 Les overlay_text doivent se lire à la suite comme UN MONOLOGUE de l'autrice qui réagit. Chaque slide REPREND, PROLONGE ou FAIT BASCULER ce que la précédente a posé.
+MÉTHODE : n'écris pas slide par slide. Écris d'abord le monologue entier comme un seul texte courant qui se déroule d'une traite, PUIS découpe-le en overlays. Chaque overlay est un morceau du même flux, pas une légende autonome.
 À partir de la slide 2, chaque overlay DOIT contenir au moins l'UN des deux :
   (a) un connecteur narratif ("Puis", "Sauf que", "C'est là que", "Ce qui me frappe", "Ce que personne ne dit"…)
   (b) une reprise lexicale d'un mot/groupe-clé de la slide précédente.
+Aucun overlay n'est une suite de groupes nominaux sans verbe conjugué (ex INTERDIT : "Dix formations ouvertes. Zéro post publié." → réécris en phrase complète). Si une slide annonce un décompte ("trois choses…"), tiens-le explicitement dans les phrases suivantes.
 
 ${SLIDE_TITLE_RULES}
 
@@ -2060,6 +2069,7 @@ RÈGLES ABSOLUES :
 - Le JSON retourné doit contenir exactement ${confirmed_structure.length} slides
 - Si une slide a un photo_index, le champ photo_index doit être présent dans le JSON de sortie
 - INTERDIT de décrire la photo. L'overlay écrit l'étape du récit définie par le story_beat ; le visual_anchor est une matière optionnelle (un détail à glisser dans la phrase si naturel), JAMAIS un contenu à réciter.
+- Cette structure fixe l'ORDRE et le rôle des slides — PAS la permission d'écrire des légendes indépendantes. Tu écris les overlays comme UN SEUL récit continu qui se lit d'une traite (voir "CHAÎNAGE DES TEXTES" plus bas) : chaque overlay reprend/prolonge le précédent et tient les promesses de décompte dans la phrase.
 
 `;
   }
