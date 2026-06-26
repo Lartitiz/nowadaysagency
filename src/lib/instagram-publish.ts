@@ -42,7 +42,17 @@ export async function publishToInstagram(opts: {
   const { caption, imageUrls, workspaceId, userId, timeoutMs = 120000 } = opts;
   const { data, error } = await invokeWithTimeout(
     "social-instagram-publish",
-    { body: { caption, imageUrls, workspace_id: resolveWorkspaceParam(workspaceId, userId) } },
+    {
+      body: {
+        caption,
+        imageUrls,
+        // Rétro-compatibilité : l'ancienne edge ne lit que `imageUrl`. On envoie aussi la
+        // 1re image pour que la publication image simple marche même si la nouvelle edge
+        // (qui lit `imageUrls`) n'est pas encore déployée.
+        imageUrl: imageUrls[0],
+        workspace_id: resolveWorkspaceParam(workspaceId, userId),
+      },
+    },
     timeoutMs,
   );
   if (error) throw error;
