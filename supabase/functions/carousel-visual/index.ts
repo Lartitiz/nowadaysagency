@@ -625,6 +625,7 @@ Tu VOIS chaque photo. Avant de poser le texte, analyse-la :
   · Texte clair (blanc) → sur zone sombre, ou pose un voile/bandeau sombre derrière.
   · Texte foncé → sur zone claire, ou pose un bandeau clair derrière.
 - Repère le SUJET PRINCIPAL (visage, mains, produit, point focal). N'écris JAMAIS dessus : décale le texte vers le 1/3 opposé de la photo.
+- Si une slide porte un "visual_anchor" (un détail concret de la photo, ex : « les deux tasses encore pleines »), COMPOSE pour le laisser respirer : ne pose pas le texte par-dessus ce détail, cadre/positionne le texte de façon à le mettre en valeur.
 - Si la photo est globalement CLAIRE, texturée, floue ou multicolore sous la zone de texte : un simple gradient ne suffit pas → IMPOSE un bandeau OPAQUE (rgba 0.92) ou un voile dense.
 - La position du JSON (overlay_position) est une PRÉFÉRENCE : adapte-la si le sujet principal y est, ou si le contraste y est insuffisant.
 
@@ -683,12 +684,27 @@ QUAND overlay_text est null :
 - ❌ Cercles ou ronds décoratifs
 - ❌ Font-weight bold sur ${ch.font_title}
 
+═══ SLIDE 1 = HERO D'OUVERTURE ═══
+La slide 1 est la vignette qui doit STOPPER le scroll. Traite-la comme une affiche, pas comme une slide ordinaire :
+- Choisis la photo la plus forte et pose-la plein écran.
+- Si son overlay_text est court (≤ 12 mots) OU si overlay_text est null : joue l'impact maximal — texte TRÈS grand (style accroche : 64-88px, sur 2-3 lignes max) avec un voile/bandeau franc, ou photo nue si elle se suffit. Pas de petit texte timide en slide 1.
+- Si l'overlay est plus long, applique le style demandé mais soigne la hiérarchie (un mot-clé peut être agrandi/coloré en ${ch.color_accent}).
+- La slide 1 doit se distinguer visuellement des suivantes (échelle de texte plus grande, composition plus aérée).
+
+═══ VÉRIFICATION FINALE DE LISIBILITÉ (OBLIGATOIRE, slide par slide) ═══
+Tu VOIS chaque photo. Avant de finaliser CHAQUE slide, regarde la zone réelle de pixels SOUS ton texte :
+- Le contraste texte/fond est-il suffisant pour lire sans effort sur un petit écran mobile ?
+- Si NON (ou au moindre doute) : tu DOIS d'abord corriger — ajoute ou renforce le voile/bandeau (jusqu'à rgba opaque 0.92), déplace le texte vers une zone plus contrastée, ou agrandis l'ombre. Ne livre JAMAIS une slide au contraste douteux.
+- Renseigne ensuite honnêtement le champ "contrast_ok" : true seulement si, APRÈS ta correction, le texte est franchement lisible. false si un doute subsiste malgré tout.
+
 Retourne un JSON :
 {
   "slides_html": [
-    { "slide_number": 1, "html": "<style>@import url(...);</style><div style=\\"width:1080px;height:1350px;...\\">...</div>" }
+    { "slide_number": 1, "html": "<style>@import url(...);</style><div style=\\"width:1080px;height:1350px;...\\">...</div>", "contrast_ok": true, "legibility": "voile sombre adaptatif sous le texte (zone claire en haut)" }
   ]
 }
+
+Chaque entrée de slides_html DOIT inclure "contrast_ok" (booléen) et "legibility" (courte note sur le traitement de lisibilité appliqué).
 
 IMPORTANT : Pour chaque slide, utilise le placeholder {{PHOTO_N}} dans le background-image, où N est le photo_index fourni dans le JSON de la slide (PAS son numéro de slide — une même photo peut être réutilisée sur plusieurs slides).
 Exemple : slide 1 avec photo_index 1 → background-image: url({{PHOTO_1}})
@@ -1057,6 +1073,64 @@ Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de con
         }
       } catch {
         throw new Error("L'IA n'a pas retourné un format valide. Réessaie.");
+      }
+    }
+
+    // ═══ D1 — Passe de correction du contraste (carrousel photo uniquement) ═══
+    // Chaque slide s'auto-évalue (contrast_ok). Pour celles que l'IA signale encore
+    // douteuses, UNE passe ciblée de régénération impose un bandeau opaque. Tout est
+    // gardé : au moindre échec on conserve les slides d'origine (jamais de régression).
+    if (isPhotoCarousel && Array.isArray(result?.slides_html)) {
+      const flagged = result.slides_html.filter((s: any) => s?.contrast_ok === false);
+      if (flagged.length > 0) {
+        console.warn(
+          `carousel-visual: ${flagged.length} slide(s) au contraste douteux → passe de correction`,
+          flagged.map((s: any) => s.slide_number)
+        );
+        try {
+          const fixContent: any[] = [];
+          for (let i = 0; i < reqBody.photos.length; i++) {
+            const photo = reqBody.photos[i];
+            if (photo?.base64) {
+              const { media_type, data } = extractImagePayload(photo.base64, photo.mimeType);
+              fixContent.push({ type: "image", source: { type: "base64", media_type, data } });
+              fixContent.push({ type: "text", text: `↑ Photo ${i + 1}` });
+            }
+          }
+          fixContent.push({
+            type: "text",
+            text: `Ces slides ont un contraste texte/photo INSUFFISANT. Régénère leur HTML (même format, mêmes placeholders {{PHOTO_N}}, même charte) en IMPOSANT un bandeau/voile OPAQUE derrière le texte (rgba opaque jusqu'à 0,92), dimensionné sur le bloc texte, pour une lisibilité franche sur mobile. Ne change rien d'autre que la lisibilité.
+
+SLIDES À CORRIGER :
+${JSON.stringify(flagged.map((s: any) => ({ slide_number: s.slide_number, html: s.html })), null, 2)}
+
+Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": "...", "contrast_ok": true, "legibility": "..." } ] }`,
+          });
+
+          const fixRaw = await callAnthropic({
+            model,
+            system: systemPromptWithAnnotations,
+            messages: [{ role: "user", content: fixContent }],
+            temperature: 0.4,
+            max_tokens: 16384,
+          });
+          const fixCleaned = fixRaw.replace(/```(?:json)?\s*/gi, "").replace(/```\s*$/gi, "");
+          const fixMatch = fixCleaned.match(/\{[\s\S]*\}/);
+          const fixed = fixMatch ? JSON.parse(fixMatch[0]) : null;
+          if (fixed?.slides_html && Array.isArray(fixed.slides_html)) {
+            const fixedById = new Map<number, any>();
+            for (const s of fixed.slides_html) {
+              if (s?.html) fixedById.set(s.slide_number, s);
+            }
+            result.slides_html = result.slides_html.map((s: any) => {
+              const repl = fixedById.get(s.slide_number);
+              return repl ? { ...s, html: repl.html, contrast_ok: true, legibility: repl.legibility || s.legibility } : s;
+            });
+            console.log(`carousel-visual: ${fixedById.size} slide(s) corrigée(s) pour le contraste`);
+          }
+        } catch (fixErr) {
+          console.error("carousel-visual: passe de correction du contraste échouée (slides d'origine conservées)", fixErr);
+        }
       }
     }
 
