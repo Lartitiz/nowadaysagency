@@ -13,20 +13,37 @@ interface GuidedTourProps {
   storageKey: string;
 }
 
+// Approximate tooltip footprint — used to keep it fully inside the viewport.
+const TOOLTIP_W = 280;
+const TOOLTIP_H = 200;
+
 function getTooltipPosition(rect: DOMRect, position: string): React.CSSProperties {
   const gap = 12;
+  let left: number;
+  let top: number;
   switch (position) {
     case "top":
-      return { left: rect.left + rect.width / 2 - 140, bottom: window.innerHeight - rect.top + gap };
-    case "bottom":
-      return { left: Math.max(8, Math.min(rect.left + rect.width / 2 - 140, window.innerWidth - 296)), top: rect.bottom + gap };
+      left = rect.left + rect.width / 2 - TOOLTIP_W / 2;
+      top = rect.top - TOOLTIP_H - gap;
+      break;
     case "left":
-      return { right: window.innerWidth - rect.left + gap, top: rect.top + rect.height / 2 - 50 };
+      left = rect.left - TOOLTIP_W - gap;
+      top = rect.top + rect.height / 2 - TOOLTIP_H / 2;
+      break;
     case "right":
-      return { left: rect.right + gap, top: rect.top + rect.height / 2 - 50 };
+      left = rect.right + gap;
+      top = rect.top + rect.height / 2 - TOOLTIP_H / 2;
+      break;
+    case "bottom":
     default:
-      return { left: rect.left, top: rect.bottom + gap };
+      left = rect.left + rect.width / 2 - TOOLTIP_W / 2;
+      top = rect.bottom + gap;
+      break;
   }
+  // Clamp so the tooltip is always fully on-screen, whatever the target's position.
+  left = Math.max(8, Math.min(left, window.innerWidth - TOOLTIP_W - 8));
+  top = Math.max(8, Math.min(top, window.innerHeight - TOOLTIP_H - 8));
+  return { left, top };
 }
 
 
@@ -52,43 +69,69 @@ export default function GuidedTour({ steps, onComplete, storageKey }: GuidedTour
     let retryCount = 0;
     const maxRetries = 8;
     let retryInterval: ReturnType<typeof setInterval> | null = null;
+    let didScroll = false;
+
+    // A target is only usable if it's actually rendered and visible. Some
+    // data-tour anchors live in layouts that are hidden on the current viewport
+    // (e.g. the desktop nav header) — those must be skipped, not pointed at.
+    const isUsable = (el: Element) => {
+      const r = el.getBoundingClientRect();
+      return r.width > 1 && r.height > 1 && el.getClientRects().length > 0;
+    };
+
+    const stopRetry = () => {
+      if (retryInterval) { clearInterval(retryInterval); retryInterval = null; }
+    };
+
+    const skipStep = () => {
+      stopRetry();
+      setTargetRect(null);
+      if (currentStep === steps.length - 1) {
+        localStorage.setItem(storageKey, "true");
+        setVisible(false);
+        onComplete();
+      } else {
+        setCurrentStep((s) => s + 1);
+      }
+    };
 
     const findTarget = () => {
       const el = document.querySelector(`[data-tour="${step.target}"]`);
-      if (el) {
-        const rect = el.getBoundingClientRect();
-        setTargetRect(rect);
-        if (retryInterval) { clearInterval(retryInterval); retryInterval = null; }
+      if (el && isUsable(el)) {
+        // Bring the target into view once, then measure where it landed.
+        if (!didScroll) {
+          didScroll = true;
+          el.scrollIntoView({ block: "center", inline: "nearest" });
+        }
+        setTargetRect(el.getBoundingClientRect());
+        stopRetry();
+      } else if (el) {
+        // Present but hidden on this layout → skip immediately.
+        skipStep();
       } else {
+        // Not in the DOM yet → retry a few times, then skip.
         setTargetRect(null);
         retryCount++;
-        if (retryCount >= maxRetries) {
-          if (retryInterval) { clearInterval(retryInterval); retryInterval = null; }
-          if (currentStep === steps.length - 1) {
-            localStorage.setItem(storageKey, "true");
-            setVisible(false);
-            onComplete();
-          } else {
-            setCurrentStep((s) => s + 1);
-          }
-        }
+        if (retryCount >= maxRetries) skipStep();
       }
     };
 
     findTarget();
-    if (!targetRect) {
-      retryInterval = setInterval(findTarget, 400);
-    }
+    retryInterval = setInterval(findTarget, 400);
 
-    const handleResize = () => findTarget();
-    const handleScroll = () => findTarget();
-    window.addEventListener("resize", handleResize);
-    window.addEventListener("scroll", handleScroll, { passive: true });
+    // On scroll/resize, only re-measure the (already located) target — never
+    // re-scroll, to avoid fighting the user.
+    const remeasure = () => {
+      const el = document.querySelector(`[data-tour="${step.target}"]`);
+      if (el && isUsable(el)) setTargetRect(el.getBoundingClientRect());
+    };
+    window.addEventListener("resize", remeasure);
+    window.addEventListener("scroll", remeasure, { passive: true });
 
     return () => {
-      if (retryInterval) clearInterval(retryInterval);
-      window.removeEventListener("resize", handleResize);
-      window.removeEventListener("scroll", handleScroll);
+      stopRetry();
+      window.removeEventListener("resize", remeasure);
+      window.removeEventListener("scroll", remeasure);
     };
   }, [currentStep, visible, steps]);
 

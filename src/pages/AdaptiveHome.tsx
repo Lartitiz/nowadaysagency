@@ -192,8 +192,6 @@ const TOUR_STEPS = [
   { target: "card-next-step", title: "Ta prochaine étape", text: "Chaque jour, l'outil te recommande l'action qui aura le plus d'impact. Pas besoin de réfléchir par où commencer : c'est ici.", position: "bottom" as const },
   { target: "card-ideas", title: "Tes idées sauvegardées", text: "Toutes les idées que tu mets de côté atterrissent ici. Tu peux les transformer en contenu en un clic.", position: "top" as const },
   { target: "card-mini-actions", title: "Approfondir", text: "Affine ton identité de marque et lance des audits pour aller plus loin quand tu en as l'envie.", position: "top" as const },
-  { target: "nav-creer", title: "Créer", text: "C'est ici que tu génères tes contenus : posts, carrousels, newsletters, Reels. L'IA connaît ton branding et écrit avec ta voix.", position: "bottom" as const },
-  { target: "nav-calendrier", title: "Organiser", text: "Ton calendrier éditorial. Tu planifies tes contenus, tu vois ta semaine d'un coup d'œil, et tu sais toujours quoi poster.", position: "bottom" as const },
   { target: "card-missions", title: "Tes premiers pas", text: "5 petites étapes pour bien démarrer. Avance à ton rythme, coche au fur et à mesure. Rien d'obligatoire, tout est utile.", position: "bottom" as const },
   { target: "card-assistant", title: "Ta coach de com'", text: "Un doute, une question, besoin d'un coup de pouce ? Elle connaît ton projet et te répond de façon personnalisée.", position: "bottom" as const },
 ];
