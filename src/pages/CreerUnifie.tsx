@@ -2820,7 +2820,6 @@ export default function CreerUnifie() {
   const handleOpenInCanva = async () => {
     if (visualSlides.length === 0 || openingCanva) return;
     setOpeningCanva(true);
-    let uploadedPath: string | null = null;
     try {
       toast.info("Préparation du carrousel pour Canva…");
       const { exportCarouselHybridPptx } = await import("@/lib/export-carousel-hybrid-pptx");
@@ -2836,34 +2835,26 @@ export default function CreerUnifie() {
         { returnBlob: true },
       )) as Blob;
 
-      // Dépôt dans le bucket public (Canva récupère le fichier via cette URL).
-      // On réutilise `instagram-publish` : bucket public déjà éprouvé (mêmes policies
-      // user-folder que les publications Insta) — le bucket dédié `canva-import` a une
-      // RLS d'insertion qui ne s'est pas appliquée correctement à la migration.
-      const CANVA_TMP_BUCKET = "instagram-publish";
-      const path = `${session.user.id}/canva-${Date.now()}-${Math.random().toString(36).slice(2)}.pptx`;
-      const { error: upErr } = await supabase.storage.from(CANVA_TMP_BUCKET).upload(path, blob, {
-        contentType:
-          "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-        upsert: true,
+      // On envoie le PPTX en base64 à l'edge, qui le dépose côté serveur
+      // (service-role : pas de souci de RLS/bucket côté client) puis l'importe.
+      const fileBase64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result).split(",")[1] || "");
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(blob);
       });
-      if (upErr) throw new Error("Upload du fichier échoué : " + upErr.message);
-      uploadedPath = path;
-      const { data: pub } = supabase.storage.from(CANVA_TMP_BUCKET).getPublicUrl(path);
-      const fileUrl = pub?.publicUrl;
-      if (!fileUrl) throw new Error("URL publique introuvable.");
 
       toast.info("Import dans Canva en cours…");
       const { data, error } = await invokeWithTimeout(
         "social-canva-import",
         {
           body: {
-            file_url: fileUrl,
+            file_base64: fileBase64,
             title: ideaText || "Carrousel Nowadays",
             workspace_id: workspaceId !== session.user.id ? workspaceId : undefined,
           },
         },
-        90000,
+        120000,
       );
       if (error) throw error;
       if ((data as any)?.error === "not_connected") {
@@ -2878,10 +2869,6 @@ export default function CreerUnifie() {
     } catch (e: any) {
       toast.error(e?.message || "Impossible d'ouvrir dans Canva.");
     } finally {
-      // Le fichier a été récupéré par Canva pendant le job → on peut le supprimer.
-      if (uploadedPath) {
-        supabase.storage.from("instagram-publish").remove([uploadedPath]).then(() => {}, () => {});
-      }
       setOpeningCanva(false);
     }
   };
