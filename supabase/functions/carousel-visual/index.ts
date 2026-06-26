@@ -655,7 +655,7 @@ STYLE "sensoriel" (phrases évocatrices) :
 
 STYLE "narratif" (phrases d'histoire) :
 - Position : selon overlay_position
-- Bandeau CLAIR : background rgba(255,255,255,0.92); border-radius: ${ch.border_radius}; backdrop-filter: blur(8px)
+- Bandeau CLAIR, annoté data-pptx-shape="card" : background: #FFFFFF (BLANC OPAQUE — JAMAIS rgba semi-transparent ni backdrop-filter : ils ne s'exportent pas et laissent voir la photo au travers) ; border-radius: ${ch.border_radius}; box-shadow: 0 8px 28px rgba(0,0,0,0.18)
 - Texte FONCÉ : font-family: ${ch.font_body}; font-size: 32-36px; color: ${ch.color_text}
 - Padding : 28px 40px
 - Le bandeau ne fait PAS toute la largeur : max-width: 85%, centré ou aligné
@@ -762,7 +762,7 @@ TYPE "photo_full" — Photo plein écran + overlay
 - Le div principal a : background-image: url({{PHOTO_N}}); background-size: cover; background-position: center
 - Le texte overlay est posé dessus avec un traitement de lisibilité :
   · Style "sensoriel" : gradient sombre en bas (linear-gradient transparent → rgba(0,0,0,0.7) sur 40% de la hauteur), texte blanc italic en ${ch.font_title}
-  · Style "narratif" : bandeau blanc semi-transparent (rgba(255,255,255,0.92), backdrop-filter blur(8px)), texte en ${ch.font_body}, padding 32px
+  · Style "narratif" : bandeau blanc OPAQUE (background #FFFFFF, data-pptx-shape="card", box-shadow 0 8px 28px rgba(0,0,0,0.18) ; JAMAIS rgba semi-transparent ni backdrop-filter), texte en ${ch.font_body}, padding 32px
   · Style "minimal" : badge pilule ${ch.color_primary} ou texte blanc grand avec text-shadow: 0 4px 16px rgba(0,0,0,0.6)
 
 RÈGLES DE LISIBILITÉ (analyse VISUELLE de chaque photo fournie) :
