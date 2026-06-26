@@ -56,10 +56,16 @@ export default function SocialConnectionsCard() {
     // Toast au retour OAuth
     const params = new URLSearchParams(window.location.search);
     const connected = params.get("connected");
-    if (connected === "instagram" || connected === "linkedin" || connected === "canva") {
+    if (
+      connected === "instagram" ||
+      connected === "linkedin" ||
+      connected === "canva" ||
+      connected === "pinterest"
+    ) {
       toast.success(
         connected === "linkedin" ? "LinkedIn connecté !"
           : connected === "canva" ? "Canva connecté !"
+          : connected === "pinterest" ? "Pinterest connecté !"
           : "Instagram connecté !",
       );
       params.delete("connected");
@@ -74,7 +80,7 @@ export default function SocialConnectionsCard() {
     }
   }, [reload]);
 
-  const handleConnect = async (platform: "instagram" | "linkedin" | "canva") => {
+  const handleConnect = async (platform: "instagram" | "linkedin" | "canva" | "pinterest") => {
     setConnecting(platform);
     try {
       const { data, error } = await supabase.functions.invoke("social-oauth-start", {
@@ -114,6 +120,7 @@ export default function SocialConnectionsCard() {
   const ig = connections.instagram;
   const li = connections.linkedin;
   const canva = connections.canva;
+  const pin = connections.pinterest;
 
   return (
     <section className="mb-6">
@@ -275,20 +282,57 @@ export default function SocialConnectionsCard() {
           )}
         </div>
 
-        {/* Pinterest — bientôt */}
-        <div className="flex items-center justify-between gap-3 px-4 py-3 opacity-60">
+        {/* Pinterest */}
+        <div className="flex items-center justify-between gap-3 px-4 py-3">
           <div className="flex items-center gap-3 min-w-0">
             <div className="h-9 w-9 rounded-lg bg-[#e60023] text-white flex items-center justify-center shrink-0">
               <PinterestIcon className="h-4 w-4" />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-sm font-medium text-foreground">Pinterest</p>
-              <p className="text-xs text-muted-foreground">Bientôt</p>
+              {loading ? (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Loader2 className="h-3 w-3 animate-spin" /> Chargement…
+                </p>
+              ) : pin?.connected ? (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                  Connecté : @{pin.accountName}
+                  {pin.expiresAt && (
+                    <span className="ml-1">
+                      · expire le {new Date(pin.expiresAt).toLocaleDateString("fr-FR")}
+                    </span>
+                  )}
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">Non connecté</p>
+              )}
             </div>
           </div>
-          <Button variant="outline" size="sm" disabled>
-            Bientôt
-          </Button>
+          {pin?.connected ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleDisconnect("pinterest")}
+              disabled={disconnecting === "pinterest"}
+            >
+              {disconnecting === "pinterest" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Déconnecter"}
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              onClick={() => handleConnect("pinterest")}
+              disabled={connecting === "pinterest"}
+              className="gap-1.5"
+            >
+              {connecting === "pinterest" ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <ExternalLink className="h-3.5 w-3.5" />
+              )}
+              Connecter Pinterest
+            </Button>
+          )}
         </div>
       </div>
     </section>
