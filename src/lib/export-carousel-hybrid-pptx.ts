@@ -258,6 +258,20 @@ function raceTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
 
 const CAPTURE_TIMEOUT_MS = 25000;
 
+// Échelle de rastérisation html2canvas. À 2 → 2160px de large pour une slide de
+// 7.5" = 288 DPI : déjà très net pour un PPTX, alors que le texte, les formes et
+// les photos sont posés en NATIF (le PNG ne porte que le résiduel décoratif).
+// Passé de 3 à 2 : ~56% de pixels en moins à peindre par capture (perf export,
+// surtout sur les carrousels TEXTE à slides-schéma riches en éléments).
+const RASTER_SCALE = 2;
+
+// Plafond de zones de dégradé déco capturées en image séparée (déplaçable dans
+// Canva) PAR SLIDE. Chaque capture est une passe html2canvas qui re-clone tout le
+// DOM → coût qui explose sur les slides-schéma. Au-delà du plafond, les dégradés
+// restants sont laissés « cuits » dans le PNG de fond (toujours visibles, juste
+// non déplaçables individuellement). On garde les plus GRANDS (les plus visibles).
+const MAX_GRADIENT_CAPTURES = 6;
+
 async function captureBody(doc: Document): Promise<string> {
   const canvas = await raceTimeout(
     html2canvas(doc.body, {
@@ -265,7 +279,7 @@ async function captureBody(doc: Document): Promise<string> {
       height: SLIDE_H_PX,
       windowWidth: SLIDE_W_PX,
       windowHeight: SLIDE_H_PX,
-      scale: 3,
+      scale: RASTER_SCALE,
       useCORS: true,
       allowTaint: true,
       backgroundColor: null,
@@ -678,11 +692,24 @@ export async function exportCarouselHybridPptx(
       // (déplaçable dans Canva). On capture AVANT de masquer (sinon l'élément est vidé) ;
       // en cas d'échec on NE masque PAS → l'élément reste dans le fond = sûr (pas de trou).
       const gradientImages: { data: string; x: number; y: number; w: number; h: number }[] = [];
-      for (const gz of extractGradientDecoZones(doc)) {
+      // Plafonné aux N plus GRANDES zones (les plus visibles) : chaque capture est
+      // une passe html2canvas (re-clone DOM complet) → coût qui explose sinon sur
+      // les slides-schéma. Le reste est laissé cuit dans le fond (sûr, juste non
+      // déplaçable individuellement dans Canva).
+      const allGradientZones = extractGradientDecoZones(doc);
+      const gradientZones = [...allGradientZones]
+        .sort((a, b) => b.rect.w * b.rect.h - a.rect.w * a.rect.h)
+        .slice(0, MAX_GRADIENT_CAPTURES);
+      if (allGradientZones.length > gradientZones.length) {
+        console.warn(
+          `[hybrid] slide ${vs.slide_number} : ${allGradientZones.length} dégradés déco, ${gradientZones.length} capturés (déplaçables), ${allGradientZones.length - gradientZones.length} laissés dans le fond (perf)`,
+        );
+      }
+      for (const gz of gradientZones) {
         try {
           const gcanvas = await raceTimeout(
             html2canvas(gz.el, {
-              scale: 3,
+              scale: RASTER_SCALE,
               backgroundColor: null,
               useCORS: true,
               allowTaint: true,
