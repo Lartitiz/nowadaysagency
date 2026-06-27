@@ -257,7 +257,12 @@ CHARTE : primary ${ch.color_primary}, secondary ${ch.color_secondary}, accent ${
     if (result?.overlay_html) {
       const fontsLink = `<link href="https://fonts.googleapis.com/css2?family=${encodeURIComponent(ch.font_title)}:ital,wght@0,400;0,700;1,400&family=${encodeURIComponent(ch.font_body)}:wght@400;500;600;700&display=swap" rel="stylesheet">`;
       let html = result.overlay_html;
-      html = html.replace(/<style>\s*@import\s+url\([^)]*fonts\.googleapis\.com[^)]*\)\s*;?\s*<\/style>/gi, "");
+      // Retirer le @import Google Fonts OÙ QU'IL SOIT (nu ou dans un <style> plus
+      // large) — sinon il fuite en TEXTE VISIBLE quand le modèle oublie le wrapper
+      // <style>. La police reste fournie par le <link> ci-dessous.
+      html = html
+        .replace(/@import\s+url\(\s*['"]?[^)]*fonts\.googleapis\.com[^)]*['"]?\s*\)\s*;?/gi, "")
+        .replace(/<style>\s*<\/style>/gi, "");
       result.overlay_html = fontsLink + html;
     }
 

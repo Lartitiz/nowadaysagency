@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Copy } from "lucide-react";
 import { toast } from "sonner";
+import { stripFontImportLeak } from "@/lib/strip-font-import-leak";
 
 interface Props {
   result: any; // { raw: { pin_html, title, description } }
@@ -16,7 +17,7 @@ export default function PinterestVisualResult({ result, pinHtml }: Props) {
 
   const title = result?.raw?.title || "";
   const description = result?.raw?.description || "";
-  const html = pinHtml || result?.raw?.pin_html || "";
+  const html = stripFontImportLeak(pinHtml || result?.raw?.pin_html || "");
 
   useEffect(() => {
     const el = containerRef.current;
