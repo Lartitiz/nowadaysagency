@@ -1249,8 +1249,14 @@ Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": ".
 
       result.slides_html = result.slides_html.map((slide: any) => {
         let html = slide.html || "";
-        // Supprimer les @import Google Fonts existants (ils ne marchent pas dans les iframes)
-        html = html.replace(/<style>\s*@import\s+url\([^)]*fonts\.googleapis\.com[^)]*\)\s*;?\s*<\/style>/gi, "");
+        // Supprimer les @import Google Fonts existants (ils ne marchent pas dans les
+        // iframes srcDoc — et fuitent en TEXTE VISIBLE sur la slide quand le modèle
+        // émet le @import sans wrapper <style> ou mélangé à d'autres CSS).
+        // On retire le @import OÙ QU'IL SOIT (nu ou dans un <style> plus large), puis
+        // on nettoie les <style> devenus vides. La police reste fournie par le <link>.
+        html = html
+          .replace(/@import\s+url\(\s*['"]?[^)]*fonts\.googleapis\.com[^)]*['"]?\s*\)\s*;?/gi, "")
+          .replace(/<style>\s*<\/style>/gi, "");
         // Ajouter le <link> police + le reset défensif au tout début
         html = fontsLink + safetyReset + html;
         return { ...slide, html };
