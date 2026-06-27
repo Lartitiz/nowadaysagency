@@ -1278,8 +1278,21 @@ Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": ".
     if (result?.slides_html) {
       // Compose une couleur (#hex 3/6/8 ou rgb/rgba) sur un fond hex6 → hex6 RENDU.
       // Gère l'alpha (rgba + #rrggbbaa) ET les couleurs claires solides de la même façon.
+      // Couleurs CSS NOMMÉES → hex. Indispensable : le modèle écrit souvent `color:white`
+      // (vu en prod : titre blanc sur fond rose CLAIR #ffa7c6 = ~1.8:1, illisible, qui
+      // passait à travers la garde car non parsé). On couvre les noms réalistes sur des
+      // titres ; un nom inconnu reste non parsé (la garde l'ignore, comportement sûr).
+      const NAMED: Record<string, string> = {
+        white: "#FFFFFF", black: "#000000", red: "#FF0000", green: "#008000",
+        blue: "#0000FF", yellow: "#FFFF00", gray: "#808080", grey: "#808080",
+        pink: "#FFC0CB", purple: "#800080", orange: "#FFA500", brown: "#A52A2A",
+        navy: "#000080", teal: "#008080", silver: "#C0C0C0", gold: "#FFD700",
+        beige: "#F5F5DC", ivory: "#FFFFF0", transparent: "",
+      };
       const hexOnBg = (raw: string, bg6: string): string | null => {
-        const v = (raw || "").trim();
+        let v = (raw || "").trim();
+        const named = NAMED[v.toLowerCase()];
+        if (named !== undefined) { if (named === "") return null; v = named; }
         let r: number, g: number, b: number, a = 1;
         const m = v.match(/rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)(?:[,\s/]+([\d.]+))?/i);
         if (m) {
