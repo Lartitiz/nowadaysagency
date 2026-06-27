@@ -321,6 +321,7 @@ export default function CreerStepResult({
   const [tipIndex, setTipIndex] = useState(() => Math.floor(Math.random() * getTipsForFormat(format).length));
   const [progress, setProgress] = useState(0);
   const [visualProgressIndex, setVisualProgressIndex] = useState(0);
+  const [visualProgress, setVisualProgress] = useState(0);
   const startTimeRef = useRef(Date.now());
 
   // ── Célébration à l'apparition du résultat ──
@@ -359,16 +360,28 @@ export default function CreerStepResult({
     };
   }, [generating, messages.length]);
 
-  // ── Rotation des messages pour génération visuels ──
+  // ── Rotation des messages + barre de progression pour génération visuels ──
   useEffect(() => {
     if (!visualLoading) {
       setVisualProgressIndex(0);
+      setVisualProgress(0);
       return;
     }
+    const start = Date.now();
     const interval = setInterval(() => {
       setVisualProgressIndex((prev) => (prev + 1) % VISUAL_PROGRESS_MESSAGES.length);
     }, 5000);
-    return () => clearInterval(interval);
+    // Barre calibrée sur ~50 s (durée réelle mesurée) : avance vite puis ralentit
+    // en approchant 92 % jusqu'à l'arrivée réelle des visuels.
+    const progressInterval = setInterval(() => {
+      const elapsed = (Date.now() - start) / 1000;
+      const p = Math.min(92, 92 * (1 - Math.exp(-elapsed / 22)));
+      setVisualProgress(Math.round(p));
+    }, 300);
+    return () => {
+      clearInterval(interval);
+      clearInterval(progressInterval);
+    };
   }, [visualLoading]);
 
   // Détecte la fin de génération (true → false avec un résultat) → célèbre.
@@ -531,9 +544,18 @@ export default function CreerStepResult({
                 </p>
               </div>
 
-              {/* Tip */}
+              {/* Barre de progression (calibrée ~50 s) */}
+              <div className="w-full bg-primary/10 rounded-full h-2">
+                <div
+                  className="bg-primary h-2 rounded-full transition-all duration-500 ease-out"
+                  style={{ width: `${visualProgress}%` }}
+                />
+              </div>
+
+              {/* Attente honnête + rassurante */}
               <p className="text-[11px] text-muted-foreground">
-                💡 L'IA crée chaque slide avec ta charte graphique. Ça prend environ 30 secondes.
+                💡 L'IA dessine chaque slide avec ta charte graphique — compte une cinquantaine de secondes.
+                Pas besoin d'attendre ici : tu peux relire ton texte au-dessus, les visuels s'affichent dès qu'ils sont prêts.
               </p>
             </div>
           ) : (

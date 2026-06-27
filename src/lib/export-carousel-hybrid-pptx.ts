@@ -565,10 +565,14 @@ export async function exportCarouselHybridPptx(
 
 
 
-  for (let i = 0; i < visualSlides.length; i++) {
+  // Pré-création des slides DANS L'ORDRE → l'ordre du carrousel est figé, même si les
+  // rendus (parallélisés plus bas) se terminent dans le désordre.
+  const slideObjs = visualSlides.map(() => pptx.addSlide());
+
+  async function renderSlideAt(i: number) {
     const vs = visualSlides[i];
     const data = slidesData?.find((s) => s.slide_number === vs.slide_number) || slidesData?.[i];
-    const slide = pptx.addSlide();
+    const slide = slideObjs[i];
 
     const iframe = await mountIframe(vs.html);
     try {
@@ -882,6 +886,19 @@ export async function exportCarouselHybridPptx(
     } finally {
       iframe.remove();
     }
+  }
+
+  // Rendu par LOTS CONCURRENTS : la rastérisation html2canvas (scale 3) est le poste le
+  // plus lourd ; en traiter quelques-unes en parallèle réduit fortement le temps total.
+  // L'ordre du deck est garanti par la pré-création des slides ci-dessus, et chaque slide
+  // a son propre iframe (aucun état partagé hormis cropCache, sûr en mono-thread JS).
+  const RENDER_CONCURRENCY = 3;
+  for (let start = 0; start < visualSlides.length; start += RENDER_CONCURRENCY) {
+    await Promise.all(
+      visualSlides
+        .slice(start, start + RENDER_CONCURRENCY)
+        .map((_, k) => renderSlideAt(start + k)),
+    );
   }
 
   // Pour le pont Canva : renvoyer le PPTX en Blob (à uploader puis importer) plutôt
