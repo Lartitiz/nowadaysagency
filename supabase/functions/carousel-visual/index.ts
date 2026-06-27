@@ -239,6 +239,7 @@ serve(async (req) => {
       photos: z.array(z.object({ base64: z.string(), context: z.string().max(200).optional(), mimeType: z.string().max(50).optional() })).max(10).optional(),
       carousel_type: z.string().max(50).optional().nullable(),
       workspace_id: z.string().uuid().optional().nullable(),
+      quality_max: z.boolean().optional(),
     }).passthrough());
     const { slides, template_style, charter: bodyCharter, custom_overrides, template_reference_urls } = reqBody;
 
@@ -940,7 +941,10 @@ Retourne UNIQUEMENT le JSON.`;
     }
     } // end else (text mode)
 
-    const model: AnthropicModel = "claude-opus-4-6";
+    // Modèle des visuels branché sur « Mode qualité Max » : Sonnet par défaut (rapide,
+    // ~2x plus court à générer), Opus seulement si l'utilisatrice a coché le toggle
+    // (rendu le plus soigné, plus lent). Le pass de correction réutilise ce `model`.
+    const model: AnthropicModel = reqBody.quality_max ? "claude-opus-4-6" : "claude-sonnet-4-5-20250929";
 
     // ═══ Append PPTX-editable annotation rules + invariants to ALL modes ═══
     // Discipline issue de l'étude "Le design via Claude" :
