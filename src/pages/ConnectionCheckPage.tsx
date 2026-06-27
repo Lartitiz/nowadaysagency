@@ -176,7 +176,7 @@ export default function ConnectionCheckPage() {
     setSuggestions(sugs);
     setLastRun(new Date());
     setLoading(false);
-  }, [user, isDemoMode]);
+  }, [user, isDemoMode, hookProfile, hookBrandProfile, propositionHookData, column, value]);
 
   const errors = checks.filter(c => c.status === "error");
   const warnings = checks.filter(c => c.status === "warning");
