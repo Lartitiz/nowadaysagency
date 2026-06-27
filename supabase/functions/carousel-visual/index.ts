@@ -1302,35 +1302,36 @@ Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": ".
         const la = lum(a6), lb = lum(b6);
         return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
       };
-      // Seuil VOLONTAIREMENT bas (2.8) : on ne corrige que les titres FRANCHEMENT illisibles
-      // (rose clair sur fond clair, ratio mesuré ~1.8), SANS toucher aux choix de design
-      // intentionnels qui sont seulement « moyens » au sens WCAG mais voulus et lisibles —
-      // typiquement le titre BLANC sur slide à fond plein (ratio ~3.4) ou un titre primary
-      // solide (~3.2). Le défaut réel (~1.8) et le design voulu (≥3.2) sont nettement séparés.
-      const TITLE_MIN_CONTRAST = 2.8;
+      // Règle (validée avec Laetitia, option « stricte ») : la couleur du TITRE est imposée
+      // par la luminance du FOND, pas laissée au hasard du modèle (qui dévie souvent vers la
+      // primary vive #FB3D80 ~3.2:1, voire semi-transparente ~1.8:1 illisible). Fond CLAIR →
+      // titre franchement foncé (secondary rose foncé = couleur de titre voulue par la charte) ;
+      // fond SOMBRE/PLEIN → titre clair (blanc). On n'agit QUE si le contraste est insuffisant
+      // pour le type de fond → les titres déjà foncés sur fond clair, et déjà blancs sur fond
+      // plein, restent intacts.
+      const LIGHT_BG_FLOOR = 4.5; // fond clair : on exige un titre NET (au-dessus de AA-large)
+      const DARK_BG_FLOOR = 3.0;  // fond plein : blanc sur rose vif (~3.4) est voulu → toléré
       const norm = (x: string | null | undefined, fb: string) => hexOnBg(x || "", "FFFFFF") || fb;
       const secondary6 = norm(ch.color_secondary, "91014B");
       const text6 = norm(ch.color_text, "1A1A2E");
       const bgDefault6 = norm(ch.color_background, "FFF4F8");
-      // Couleur de remplacement : on PRIVILÉGIE la charte (secondary rose foncé = couleur de
-      // titre voulue), puis text, puis blanc — premier candidat franchement lisible (≥4.5).
-      // Si aucun n'atteint le confort (fond atypique), on prend le plus contrasté possible.
-      const bestTitle = (bg6: string): string => {
-        const prefs = [secondary6, text6, "FFFFFF"];
-        for (const c of prefs) if (ratio(c, bg6) >= 4.5) return c;
-        let best = prefs[0], bestR = ratio(prefs[0], bg6);
-        for (const c of [...prefs, "1A1A2E"]) { const r = ratio(c, bg6); if (r > bestR) { best = c; bestR = r; } }
-        return best;
+      // Remplacement sur fond clair : secondary (rose foncé de charte) en priorité, sinon text,
+      // sinon le plus contrasté des deux. Sur fond sombre : blanc.
+      const bestDark = (bg6: string): string => {
+        if (ratio(secondary6, bg6) >= LIGHT_BG_FLOOR) return secondary6;
+        if (ratio(text6, bg6) >= LIGHT_BG_FLOOR) return text6;
+        return ratio(text6, bg6) >= ratio(secondary6, bg6) ? text6 : secondary6;
       };
       let titlesFixed = 0;
       result.slides_html = result.slides_html.map((slide: any) => {
         let html: string = slide.html || "";
         // Fond réel de la slide = 1ère couleur de fond UNIE rencontrée (le regex n'attrape
         // pas `background:linear-gradient(...)` car la valeur ne commence pas par #/rgb) ;
-        // sinon on retombe sur le fond de charte (clair) → titre foncé = choix sûr.
+        // sinon on retombe sur le fond de charte (clair).
         let bg6 = bgDefault6;
         const bgm = html.match(/background(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))/i);
         if (bgm) { const c = hexOnBg(bgm[1], "FFFFFF"); if (c) bg6 = c; }
+        const bgIsLight = lum(bg6) > 0.5;
         html = html.replace(
           /<([a-z0-9]+)([^>]*\bdata-pptx-editable\s*=\s*["']title["'][^>]*)>/gi,
           (full: string) =>
@@ -1338,8 +1339,14 @@ Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": ".
               const cm = style.match(/(?:^|;)\s*color\s*:\s*([^;]+)/i);
               if (!cm) return sm;
               const eff = hexOnBg(cm[1], bg6);
-              if (!eff || ratio(eff, bg6) >= TITLE_MIN_CONTRAST) return sm;
-              const repl = bestTitle(bg6);
+              if (!eff) return sm;
+              let repl: string | null = null;
+              if (bgIsLight) {
+                if (ratio(eff, bg6) < LIGHT_BG_FLOOR) repl = bestDark(bg6);
+              } else {
+                if (ratio(eff, bg6) < DARK_BG_FLOOR) repl = "FFFFFF";
+              }
+              if (!repl || repl === eff) return sm;
               titlesFixed++;
               const newStyle = style.replace(/((?:^|;)\s*)color\s*:\s*[^;]+/i, `$1color:#${repl}`);
               return `style="${newStyle}"`;
