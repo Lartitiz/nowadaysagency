@@ -41,6 +41,7 @@ import type { SlideProposal, StructureProposal } from "@/components/creer/Struct
 
 import { useContentGenerator } from "@/hooks/use-content-generator";
 import { normalizeFormat } from "@/lib/format-normalizer";
+import { stripFontImportLeakFromSlides } from "@/lib/strip-font-import-leak";
 import { CONTENT_STRUCTURES, EDITORIAL_ANGLES, LINKEDIN_EDITORIAL_ANGLES, PINTEREST_EDITORIAL_ANGLES, PINTEREST_VISUAL_ANGLES, getStructureForCombo, normalizeObjective } from "@/lib/content-structures";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
@@ -294,7 +295,7 @@ export default function CreerUnifie() {
   const [savingToCalendar, setSavingToCalendar] = useState(false);
 
   // Visual states (carousel only)
-  const [visualSlides, setVisualSlides] = useState<{ slide_number: number; html: string }[]>(ps?.visualSlides || []);
+  const [visualSlides, setVisualSlides] = useState<{ slide_number: number; html: string }[]>(stripFontImportLeakFromSlides(ps?.visualSlides || []));
   const [visualLoading, setVisualLoading] = useState(false);
   // Surcharge de couleurs du carrousel (null = couleurs de la charte). Réinitialisée à chaque nouvelle génération.
   const [carouselColors, setCarouselColors] = useState<CarouselColors | null>(null);
@@ -312,7 +313,7 @@ export default function CreerUnifie() {
       const raw = sessionStorage.getItem(CREER_RESULT_KEY);
       if (!raw) return;
       const saved = JSON.parse(raw);
-      if (saved.visualSlides?.length) setVisualSlides(saved.visualSlides);
+      if (saved.visualSlides?.length) setVisualSlides(stripFontImportLeakFromSlides(saved.visualSlides));
       if (saved.launchResults?.length) setLaunchResults(saved.launchResults);
     } catch { /* corrupt — ignore */ }
   }, []);
@@ -2581,7 +2582,7 @@ export default function CreerUnifie() {
         if (handleQuotaError({ data })) return;
       }
       if (data?.error) throw new Error(data.error);
-      setVisualSlides(data.result?.slides_html || []);
+      setVisualSlides(stripFontImportLeakFromSlides(data.result?.slides_html || []));
       if (!opts?.background) {
         if (downgradeReason === "user_chose_text") {
           toast.success("Carrousel généré en mode texte (aucune photo disponible).");
