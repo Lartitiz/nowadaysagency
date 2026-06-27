@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Copy } from "lucide-react";
 import { toast } from "sonner";
+import { stripFontImportLeak } from "@/lib/strip-font-import-leak";
 
 interface Props {
   result: any; // { raw: { photo_brief, overlay_html, title, description } }
@@ -15,7 +16,7 @@ export default function PinterestPhotoBriefResult({ result, overlayHtml }: Props
   const brief = r.photo_brief || {};
   const title = r.title || "";
   const description = r.description || "";
-  const html = overlayHtml || r.overlay_html || "";
+  const html = stripFontImportLeak(overlayHtml || r.overlay_html || "");
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0);

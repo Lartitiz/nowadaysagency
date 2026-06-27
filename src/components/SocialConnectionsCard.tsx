@@ -1,13 +1,15 @@
 import { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Instagram, Linkedin, Loader2, CheckCircle2, ExternalLink, Palette } from "lucide-react";
+import { Instagram, Linkedin, Loader2, CheckCircle2, ExternalLink, Palette, RefreshCw, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 
+type Platform = "instagram" | "linkedin" | "canva" | "pinterest";
+
 type Connection = {
-  platform: "instagram" | "linkedin" | "canva" | "pinterest";
+  platform: Platform;
   connected: boolean;
   accountName?: string | null;
   expiresAt?: string | null;
@@ -21,10 +23,52 @@ function PinterestIcon(props: any) {
   );
 }
 
+type PlatformMeta = {
+  key: Platform;
+  label: string;
+  icon: React.ReactNode;
+  iconWrapClass: string;
+  /** Affiche @ devant le nom du compte (Instagram / Pinterest). */
+  atHandle?: boolean;
+  /** Texte « non connecté » spécifique (Canva). */
+  notConnectedHint?: string;
+};
+
+const PLATFORMS: PlatformMeta[] = [
+  {
+    key: "instagram",
+    label: "Instagram",
+    icon: <Instagram className="h-4 w-4" />,
+    iconWrapClass: "bg-gradient-to-br from-fuchsia-500 to-orange-400",
+    atHandle: true,
+  },
+  {
+    key: "linkedin",
+    label: "LinkedIn",
+    icon: <Linkedin className="h-4 w-4" />,
+    iconWrapClass: "bg-[#0a66c2]",
+  },
+  {
+    key: "canva",
+    label: "Canva",
+    icon: <Palette className="h-4 w-4" />,
+    iconWrapClass: "bg-gradient-to-br from-cyan-400 to-violet-500",
+    notConnectedHint: "Non connecté — pour ouvrir tes carrousels dans Canva",
+  },
+  {
+    key: "pinterest",
+    label: "Pinterest",
+    icon: <PinterestIcon className="h-4 w-4" />,
+    iconWrapClass: "bg-[#e60023]",
+    atHandle: true,
+  },
+];
+
 export default function SocialConnectionsCard() {
   const { session } = useAuth();
   const workspaceId = useWorkspaceId();
   const [loading, setLoading] = useState(true);
+  const [errored, setErrored] = useState(false);
   const [connecting, setConnecting] = useState<string | null>(null);
   const [disconnecting, setDisconnecting] = useState<string | null>(null);
   const [connections, setConnections] = useState<Record<string, Connection>>({});
@@ -34,6 +78,7 @@ export default function SocialConnectionsCard() {
 
   const reload = useCallback(async () => {
     setLoading(true);
+    setErrored(false);
     try {
       const { data, error } = await supabase.functions.invoke("social-status", {
         body: { workspace_id: wsParam },
@@ -45,7 +90,11 @@ export default function SocialConnectionsCard() {
       });
       setConnections(map);
     } catch (e: any) {
+      // Ne PAS afficher « Non connecté » sur une simple erreur réseau / cold start :
+      // ce serait un faux négatif anxiogène (« mes comptes sont déconnectés ?! »).
+      // On bascule sur un état d'erreur explicite avec « Réessayer ».
       console.error(e);
+      setErrored(true);
     } finally {
       setLoading(false);
     }
@@ -80,7 +129,7 @@ export default function SocialConnectionsCard() {
     }
   }, [reload]);
 
-  const handleConnect = async (platform: "instagram" | "linkedin" | "canva" | "pinterest") => {
+  const handleConnect = async (platform: Platform) => {
     setConnecting(platform);
     try {
       const { data, error } = await supabase.functions.invoke("social-oauth-start", {
@@ -117,223 +166,87 @@ export default function SocialConnectionsCard() {
     }
   };
 
-  const ig = connections.instagram;
-  const li = connections.linkedin;
-  const canva = connections.canva;
-  const pin = connections.pinterest;
+  // Tant que le statut n'est pas connu (chargement OU erreur), on n'affiche NI
+  // « Connecté » NI « Non connecté » NI le bouton Connecter/Déconnecter — pour ne
+  // pas faire clignoter un faux « Non connecté + Connecter » avant la réponse.
+  const statusUnknown = loading || errored;
 
   return (
     <section className="mb-6">
-      <h2 className="font-display text-sm font-bold text-foreground mb-2">🌐 Réseaux sociaux</h2>
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="font-display text-sm font-bold text-foreground">🌐 Réseaux sociaux</h2>
+        {errored && (
+          <Button variant="ghost" size="sm" onClick={() => reload()} className="gap-1.5 text-xs h-7">
+            <RefreshCw className="h-3 w-3" /> Réessayer
+          </Button>
+        )}
+      </div>
       <div className="rounded-xl border border-border bg-card divide-y">
-        {/* Instagram */}
-        <div className="flex items-center justify-between gap-3 px-4 py-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-fuchsia-500 to-orange-400 text-white flex items-center justify-center shrink-0">
-              <Instagram className="h-4 w-4" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-foreground">Instagram</p>
-              {loading ? (
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Loader2 className="h-3 w-3 animate-spin" /> Chargement…
-                </p>
-              ) : ig?.connected ? (
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-                  Connecté : @{ig.accountName}
-                  {ig.expiresAt && (
-                    <span className="ml-1">
-                      · expire le {new Date(ig.expiresAt).toLocaleDateString("fr-FR")}
-                    </span>
+        {PLATFORMS.map((p) => {
+          const conn = connections[p.key];
+          const isConnected = !statusUnknown && conn?.connected;
+          return (
+            <div key={p.key} className="flex items-center justify-between gap-3 px-4 py-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className={`h-9 w-9 rounded-lg ${p.iconWrapClass} text-white flex items-center justify-center shrink-0`}>
+                  {p.icon}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground">{p.label}</p>
+                  {loading ? (
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Loader2 className="h-3 w-3 animate-spin" /> Chargement…
+                    </p>
+                  ) : errored ? (
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3 text-amber-500" /> Statut indisponible
+                    </p>
+                  ) : isConnected ? (
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                      Connecté{conn?.accountName ? ` : ${p.atHandle ? "@" : ""}${conn.accountName}` : ""}
+                      {conn?.expiresAt && (
+                        <span className="ml-1">
+                          · expire le {new Date(conn.expiresAt).toLocaleDateString("fr-FR")}
+                        </span>
+                      )}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      {p.notConnectedHint || "Non connecté"}
+                    </p>
                   )}
-                </p>
-              ) : (
-                <p className="text-xs text-muted-foreground">Non connecté</p>
-              )}
-            </div>
-          </div>
-          {ig?.connected ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleDisconnect("instagram")}
-              disabled={disconnecting === "instagram"}
-            >
-              {disconnecting === "instagram" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Déconnecter"}
-            </Button>
-          ) : (
-            <Button
-              size="sm"
-              onClick={() => handleConnect("instagram")}
-              disabled={connecting === "instagram"}
-              className="gap-1.5"
-            >
-              {connecting === "instagram" ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <ExternalLink className="h-3.5 w-3.5" />
-              )}
-              Connecter Instagram
-            </Button>
-          )}
-        </div>
+                </div>
+              </div>
 
-        {/* LinkedIn */}
-        <div className="flex items-center justify-between gap-3 px-4 py-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="h-9 w-9 rounded-lg bg-[#0a66c2] text-white flex items-center justify-center shrink-0">
-              <Linkedin className="h-4 w-4" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-foreground">LinkedIn</p>
-              {loading ? (
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Loader2 className="h-3 w-3 animate-spin" /> Chargement…
-                </p>
-              ) : li?.connected ? (
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-                  Connecté : {li.accountName}
-                  {li.expiresAt && (
-                    <span className="ml-1">
-                      · expire le {new Date(li.expiresAt).toLocaleDateString("fr-FR")}
-                    </span>
+              {/* Pas de bouton tant que le statut est inconnu (évite le faux « Connecter »). */}
+              {statusUnknown ? null : isConnected ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDisconnect(p.key)}
+                  disabled={disconnecting === p.key}
+                >
+                  {disconnecting === p.key ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Déconnecter"}
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  onClick={() => handleConnect(p.key)}
+                  disabled={connecting === p.key}
+                  className="gap-1.5"
+                >
+                  {connecting === p.key ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <ExternalLink className="h-3.5 w-3.5" />
                   )}
-                </p>
-              ) : (
-                <p className="text-xs text-muted-foreground">Non connecté</p>
+                  Connecter {p.label}
+                </Button>
               )}
             </div>
-          </div>
-          {li?.connected ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleDisconnect("linkedin")}
-              disabled={disconnecting === "linkedin"}
-            >
-              {disconnecting === "linkedin" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Déconnecter"}
-            </Button>
-          ) : (
-            <Button
-              size="sm"
-              onClick={() => handleConnect("linkedin")}
-              disabled={connecting === "linkedin"}
-              className="gap-1.5"
-            >
-              {connecting === "linkedin" ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <ExternalLink className="h-3.5 w-3.5" />
-              )}
-              Connecter LinkedIn
-            </Button>
-          )}
-        </div>
-
-        {/* Canva — pour ouvrir/éditer un carrousel dans Canva */}
-        <div className="flex items-center justify-between gap-3 px-4 py-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-cyan-400 to-violet-500 text-white flex items-center justify-center shrink-0">
-              <Palette className="h-4 w-4" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-foreground">Canva</p>
-              {loading ? (
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Loader2 className="h-3 w-3 animate-spin" /> Chargement…
-                </p>
-              ) : canva?.connected ? (
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-                  Connecté{canva.accountName ? ` : ${canva.accountName}` : ""}
-                </p>
-              ) : (
-                <p className="text-xs text-muted-foreground">
-                  Non connecté — pour ouvrir tes carrousels dans Canva
-                </p>
-              )}
-            </div>
-          </div>
-          {canva?.connected ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleDisconnect("canva")}
-              disabled={disconnecting === "canva"}
-            >
-              {disconnecting === "canva" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Déconnecter"}
-            </Button>
-          ) : (
-            <Button
-              size="sm"
-              onClick={() => handleConnect("canva")}
-              disabled={connecting === "canva"}
-              className="gap-1.5"
-            >
-              {connecting === "canva" ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <ExternalLink className="h-3.5 w-3.5" />
-              )}
-              Connecter Canva
-            </Button>
-          )}
-        </div>
-
-        {/* Pinterest */}
-        <div className="flex items-center justify-between gap-3 px-4 py-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="h-9 w-9 rounded-lg bg-[#e60023] text-white flex items-center justify-center shrink-0">
-              <PinterestIcon className="h-4 w-4" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-foreground">Pinterest</p>
-              {loading ? (
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Loader2 className="h-3 w-3 animate-spin" /> Chargement…
-                </p>
-              ) : pin?.connected ? (
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-                  Connecté : @{pin.accountName}
-                  {pin.expiresAt && (
-                    <span className="ml-1">
-                      · expire le {new Date(pin.expiresAt).toLocaleDateString("fr-FR")}
-                    </span>
-                  )}
-                </p>
-              ) : (
-                <p className="text-xs text-muted-foreground">Non connecté</p>
-              )}
-            </div>
-          </div>
-          {pin?.connected ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleDisconnect("pinterest")}
-              disabled={disconnecting === "pinterest"}
-            >
-              {disconnecting === "pinterest" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Déconnecter"}
-            </Button>
-          ) : (
-            <Button
-              size="sm"
-              onClick={() => handleConnect("pinterest")}
-              disabled={connecting === "pinterest"}
-              className="gap-1.5"
-            >
-              {connecting === "pinterest" ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <ExternalLink className="h-3.5 w-3.5" />
-              )}
-              Connecter Pinterest
-            </Button>
-          )}
-        </div>
+          );
+        })}
       </div>
     </section>
   );
