@@ -371,18 +371,20 @@ export default function CreerStepResult({
     const interval = setInterval(() => {
       setVisualProgressIndex((prev) => (prev + 1) % VISUAL_PROGRESS_MESSAGES.length);
     }, 5000);
-    // Barre calibrée sur ~50 s (durée réelle mesurée) : avance vite puis ralentit
-    // en approchant 92 % jusqu'à l'arrivée réelle des visuels.
+    // Barre calibrée sur la durée réelle mesurée : ~50 s en Mode qualité Max (Opus),
+    // ~25 s sinon (Sonnet). Avance vite puis ralentit en approchant 92 % jusqu'à
+    // l'arrivée réelle des visuels.
+    const tau = qualityMax ? 22 : 11;
     const progressInterval = setInterval(() => {
       const elapsed = (Date.now() - start) / 1000;
-      const p = Math.min(92, 92 * (1 - Math.exp(-elapsed / 22)));
+      const p = Math.min(92, 92 * (1 - Math.exp(-elapsed / tau)));
       setVisualProgress(Math.round(p));
     }, 300);
     return () => {
       clearInterval(interval);
       clearInterval(progressInterval);
     };
-  }, [visualLoading]);
+  }, [visualLoading, qualityMax]);
 
   // Détecte la fin de génération (true → false avec un résultat) → célèbre.
   useEffect(() => {
@@ -552,9 +554,9 @@ export default function CreerStepResult({
                 />
               </div>
 
-              {/* Attente honnête + rassurante */}
+              {/* Attente honnête + rassurante (durée selon le mode) */}
               <p className="text-[11px] text-muted-foreground">
-                💡 L'IA dessine chaque slide avec ta charte graphique — compte une cinquantaine de secondes.
+                💡 L'IA dessine chaque slide avec ta charte graphique — compte {qualityMax ? "une cinquantaine de secondes" : "une vingtaine de secondes"}.
                 Pas besoin d'attendre ici : tu peux relire ton texte au-dessus, les visuels s'affichent dès qu'ils sont prêts.
               </p>
             </div>

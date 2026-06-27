@@ -2534,6 +2534,9 @@ export default function CreerUnifie() {
           },
         } : {}),
         workspace_id: workspaceId !== session.user.id ? workspaceId : undefined,
+        // "Mode qualité Max" : Opus pour le rendu des visuels (plus soigné, ~2x plus lent).
+        // Par défaut (toggle off) → Sonnet, nettement plus rapide.
+        quality_max: qualityMax || undefined,
       };
 
       console.log("[carousel-visual] request body keys:", Object.keys(requestBody), "slides count:", requestBody.slides?.length);
@@ -3114,8 +3117,8 @@ export default function CreerUnifie() {
                 <div className="flex-1 min-w-0">
                   <span className="text-sm font-medium text-foreground">Mode qualité Max</span>
                   <p className="text-xs text-muted-foreground">
-                    Rédaction plus soignée par le modèle le plus puissant. À activer pour les contenus
-                    importants — c'est environ 2 à 3× plus long. Désactivé = rapide (qualité déjà très bonne).
+                    Texte <strong>et</strong> visuels dessinés par le modèle le plus puissant. À activer pour
+                    les contenus importants — c'est nettement plus long. Désactivé = rapide (qualité déjà très bonne).
                   </p>
                 </div>
                 <Switch checked={qualityMax} onCheckedChange={setQualityMax} className="mt-0.5 shrink-0" />
