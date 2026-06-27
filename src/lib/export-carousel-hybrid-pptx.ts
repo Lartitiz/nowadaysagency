@@ -258,19 +258,20 @@ function raceTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
 
 const CAPTURE_TIMEOUT_MS = 25000;
 
-// Échelle de rastérisation html2canvas. À 2 → 2160px de large pour une slide de
-// 7.5" = 288 DPI : déjà très net pour un PPTX, alors que le texte, les formes et
-// les photos sont posés en NATIF (le PNG ne porte que le résiduel décoratif).
-// Passé de 3 à 2 : ~56% de pixels en moins à peindre par capture (perf export,
-// surtout sur les carrousels TEXTE à slides-schéma riches en éléments).
-const RASTER_SCALE = 2;
+// Échelle de rastérisation html2canvas. Le PNG de fond ne porte QUE le résiduel
+// décoratif (texte, formes et photos sont posés en NATIF) → 1.5 suffit largement
+// (1620px de large pour une slide de 7.5" = 216 DPI, net pour un PPTX). Baissé de
+// 2 à 1.5 : ~44% de pixels en moins à peindre par capture. Historique : 3 → 2 → 1.5.
+const RASTER_SCALE = 1.5;
 
-// Plafond de zones de dégradé déco capturées en image séparée (déplaçable dans
-// Canva) PAR SLIDE. Chaque capture est une passe html2canvas qui re-clone tout le
-// DOM → coût qui explose sur les slides-schéma. Au-delà du plafond, les dégradés
-// restants sont laissés « cuits » dans le PNG de fond (toujours visibles, juste
-// non déplaçables individuellement). On garde les plus GRANDS (les plus visibles).
-const MAX_GRADIENT_CAPTURES = 6;
+// Captures de dégradés déco en image séparée (déplaçable dans Canva) PAR SLIDE.
+// DÉSACTIVÉ (0, décision produit 27/06) : chaque capture est une passe html2canvas
+// qui re-clone tout le DOM → sur les slides-schéma il y en a beaucoup → le temps
+// d'export explosait (>4 min observé, cascades de timeouts). Les dégradés restent
+// VISIBLES (cuits dans le PNG de fond, rendu identique), juste plus déplaçables
+// individuellement dans Canva — ce qu'on ne fait jamais en pratique. C'était LE
+// goulot principal de l'export hybride. Remettre >0 réintroduit le coût.
+const MAX_GRADIENT_CAPTURES = 0;
 
 async function captureBody(doc: Document): Promise<string> {
   const canvas = await raceTimeout(
@@ -587,6 +588,7 @@ export async function exportCarouselHybridPptx(
     const vs = visualSlides[i];
     const data = slidesData?.find((s) => s.slide_number === vs.slide_number) || slidesData?.[i];
     const slide = slideObjs[i];
+    const tSlide0 = performance.now(); // perf instrumentation
 
     const iframe = await mountIframe(vs.html);
     try {
@@ -696,15 +698,13 @@ export async function exportCarouselHybridPptx(
       // une passe html2canvas (re-clone DOM complet) → coût qui explose sinon sur
       // les slides-schéma. Le reste est laissé cuit dans le fond (sûr, juste non
       // déplaçable individuellement dans Canva).
-      const allGradientZones = extractGradientDecoZones(doc);
-      const gradientZones = [...allGradientZones]
-        .sort((a, b) => b.rect.w * b.rect.h - a.rect.w * a.rect.h)
-        .slice(0, MAX_GRADIENT_CAPTURES);
-      if (allGradientZones.length > gradientZones.length) {
-        console.warn(
-          `[hybrid] slide ${vs.slide_number} : ${allGradientZones.length} dégradés déco, ${gradientZones.length} capturés (déplaçables), ${allGradientZones.length - gradientZones.length} laissés dans le fond (perf)`,
-        );
-      }
+      // Court-circuit perf : si plafond = 0, on saute TOUT (même le DOM-walk) → les
+      // dégradés restent cuits dans le PNG de fond (rendu identique). C'était le goulot.
+      const gradientZones = MAX_GRADIENT_CAPTURES > 0
+        ? [...extractGradientDecoZones(doc)]
+            .sort((a, b) => b.rect.w * b.rect.h - a.rect.w * a.rect.h)
+            .slice(0, MAX_GRADIENT_CAPTURES)
+        : [];
       for (const gz of gradientZones) {
         try {
           const gcanvas = await raceTimeout(
@@ -912,6 +912,7 @@ export async function exportCarouselHybridPptx(
       slide.background = { color: normalizeHex(charter?.color_background, "FFFFFF") };
     } finally {
       iframe.remove();
+      console.log(`[hybrid][perf] slide ${vs.slide_number} rendue en ${Math.round(performance.now() - tSlide0)}ms`);
     }
   }
 
@@ -920,6 +921,7 @@ export async function exportCarouselHybridPptx(
   // L'ordre du deck est garanti par la pré-création des slides ci-dessus, et chaque slide
   // a son propre iframe (aucun état partagé hormis cropCache, sûr en mono-thread JS).
   const RENDER_CONCURRENCY = 3;
+  const tAll0 = performance.now(); // perf instrumentation
   for (let start = 0; start < visualSlides.length; start += RENDER_CONCURRENCY) {
     await Promise.all(
       visualSlides
@@ -927,6 +929,7 @@ export async function exportCarouselHybridPptx(
         .map((_, k) => renderSlideAt(start + k)),
     );
   }
+  console.log(`[hybrid][perf] ${visualSlides.length} slides rasterisées en ${Math.round(performance.now() - tAll0)}ms (scale ${RASTER_SCALE}, gradient-captures ${MAX_GRADIENT_CAPTURES})`);
 
   // Pour le pont Canva : renvoyer le PPTX en Blob (à uploader puis importer) plutôt
   // que de déclencher un téléchargement.
