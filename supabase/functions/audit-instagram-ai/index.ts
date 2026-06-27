@@ -444,13 +444,17 @@ Réponds en JSON :
     };
 
     // L'audit complet est trop long pour tenir sous le timeout edge (150s) en un seul appel.
-    // On le découpe en 3 sous-appels PLUS LÉGERS lancés EN PARALLÈLE (chacun bien sous 150s),
+    // On le découpe en sous-appels PLUS LÉGERS lancés EN PARALLÈLE (chacun bien sous 150s),
     // puis on recolle côté serveur. Le schéma complet (finalSystemPrompt) reste la source de
     // vérité — on restreint seulement la SORTIE de chaque appel → aucune perte de qualité.
+    // 4 sous-appels parallèles (le temps total = le plus lent). "overview" a été scindé
+    // en deux ("overview" + "reco") car, nourri des vraies stats (analyse de perf, combo,
+    // recommandations), il dépassait à lui seul les 150s. Chaque part reste bien en-dessous.
     const PARTS: { label: string; instr: string }[] = [
       { label: "visual", instr: 'POUR CET APPEL UNIQUEMENT : retourne UNIQUEMENT la clé "visual_audit" (toute sa structure : elements, priorite_1, resume). N\'inclus AUCUNE autre clé du schéma.' },
       { label: "sections", instr: 'POUR CET APPEL UNIQUEMENT : retourne UNIQUEMENT la clé "sections" (les 6 sections nom, bio, stories, epingles, feed, edito, complètes). N\'inclus AUCUNE autre clé du schéma.' },
-      { label: "overview", instr: 'POUR CET APPEL UNIQUEMENT : retourne UNIQUEMENT les clés "score_global", "resume", "content_analysis", "content_dna", "combo_gagnant" et "editorial_recommendations". N\'inclus NI "visual_audit" NI "sections".' },
+      { label: "overview", instr: 'POUR CET APPEL UNIQUEMENT : retourne UNIQUEMENT les clés "score_global", "resume" et "content_analysis". N\'inclus AUCUNE autre clé du schéma.' },
+      { label: "reco", instr: 'POUR CET APPEL UNIQUEMENT : retourne UNIQUEMENT les clés "content_dna", "combo_gagnant" et "editorial_recommendations". N\'inclus AUCUNE autre clé du schéma.' },
     ];
 
     const runPart = async (instr: string, label: string): Promise<string> => {
@@ -488,21 +492,23 @@ Réponds en JSON :
       try { return JSON.parse(s.substring(start, end + 1)); } catch { return {}; }
     };
 
-    const [visualRaw, sectionsRaw, overviewRaw] = await Promise.all(
+    const [visualRaw, sectionsRaw, overviewRaw, recoRaw] = await Promise.all(
       PARTS.map((p) => runPart(p.instr, p.label))
     );
 
     const visualObj = extractJson(visualRaw);
     const sectionsObj = extractJson(sectionsRaw);
     const overviewObj = extractJson(overviewRaw);
+    const recoObj = extractJson(recoRaw);
 
     const merged = {
       ...overviewObj,
+      ...recoObj,
       sections: sectionsObj.sections ?? overviewObj.sections,
       visual_audit: visualObj.visual_audit,
     };
 
-    // Parse-gate : ne JAMAIS facturer un audit cassé. Si les 3 parts sont revenues vides
+    // Parse-gate : ne JAMAIS facturer un audit cassé. Si les parts sont revenues vides
     // (JSON illisible des 2 modèles, sans planter), on renvoie une erreur réessayable
     // SANS décompter le crédit. Si au moins une part a abouti, on facture et on rend le partiel.
     const nonEmpty = (v: any) =>
@@ -518,7 +524,7 @@ Réponds en JSON :
       nonEmpty((merged as any).resume);
 
     if (!hasContent) {
-      console.error("[audit-instagram-ai] les 3 parts sont vides — audit non facturé");
+      console.error("[audit-instagram-ai] toutes les parts sont vides — audit non facturé");
       return new Response(
         JSON.stringify({ error: "L'audit n'a pas pu être généré, réessaie dans un instant.", retryable: true }),
         { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
