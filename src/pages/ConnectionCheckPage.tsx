@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { RefreshCw, ArrowRight, CheckCircle2, AlertTriangle, XCircle, Info, Loader2 } from "lucide-react";
 import SocialConnectionsCard from "@/components/SocialConnectionsCard";
+import { fetchBrandingData, calculateBrandingCompletion } from "@/lib/branding-completion";
 
 interface Check {
   category: string;
@@ -106,15 +107,30 @@ export default function ConnectionCheckPage() {
       results.push({ category: "Profil", name: "Plan actif", status: profile.current_plan ? "ok" : "info", detail: `Plan : ${profile.current_plan || "free"}` });
     }
 
-    // Branding
+    // Branding — aligné sur la MÊME source de vérité que la page /branding
+    // (calculateBrandingCompletion), au lieu de tester des colonnes brand_profile
+    // héritées (positioning/values/tone_keywords) que le flux branding actuel ne
+    // remplit plus → ça remontait des "Vide" trompeurs alors que la marque est complète.
     const brand = hookBrandProfile as any;
     results.push({ category: "Identité", name: "Identité de marque existe", status: brand ? "ok" : "warning", detail: brand ? "OK" : "Pas d'identité en base" });
-    if (brand) {
-      for (const field of ["positioning", "mission", "values", "tone_keywords"] as const) {
-        const val = brand[field];
-        const filled = val && (typeof val === "string" ? val.trim() !== "" : Array.isArray(val) ? (val as any[]).length > 0 : true);
-        results.push({ category: "Identité", name: `Champ "${field}"`, status: filled ? "ok" : "warning", detail: filled ? "Rempli" : "Vide" });
+    try {
+      const brandingData = await fetchBrandingData({ column, value });
+      const comp = calculateBrandingCompletion(brandingData);
+      const sections: [string, number][] = [
+        ["Storytelling", comp.storytelling],
+        ["Persona", comp.persona],
+        ["Proposition de valeur", comp.proposition],
+        ["Ton & voix", comp.tone],
+        ["Stratégie", comp.strategy],
+        ["Offres", comp.offers],
+        ["Charte graphique", comp.charter],
+      ];
+      for (const [label, pct] of sections) {
+        results.push({ category: "Identité", name: label, status: pct >= 80 ? "ok" : pct > 0 ? "warning" : "info", detail: `${pct}%` });
       }
+      results.push({ category: "Identité", name: "Complétude branding", status: comp.total >= 70 ? "ok" : comp.total > 0 ? "warning" : "info", detail: `${comp.total}%` });
+    } catch (e: any) {
+      results.push({ category: "Identité", name: "Complétude branding", status: "error", detail: e?.message || "Erreur de calcul" });
     }
 
     // Persona
