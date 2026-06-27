@@ -29,7 +29,6 @@ export interface IgLiveMetrics {
   follows?: number;
   mediaCount?: number;
   reach30d?: number;
-  profileViews30d?: number;
   followerGrowth30d?: number;
   postsLast30d?: number;
   frequencyLabel?: string;
@@ -99,11 +98,14 @@ export async function fetchInstagramInsights(
     partial = true;
   }
 
-  // 2. Insights du compte sur 28 jours (reach + vues de profil).
+  // 2. Reach du compte sur 28 jours. (profile_views écarté : peu fiable dans cette
+  //    version de l'API — renvoyait des valeurs aberrantes type "4 vues / 28 j".)
+  //    On privilégie total_value (agrégat) ; à défaut on SOMME la série journalière
+  //    plutôt que de lire la 1re journée (cause des reach sous-évalués observés).
   const acct = await getJson(
     (() => {
       const u = new URL(`${GRAPH}/${igId}/insights`);
-      u.searchParams.set("metric", "reach,profile_views");
+      u.searchParams.set("metric", "reach");
       u.searchParams.set("period", "days_28");
       u.searchParams.set("metric_type", "total_value");
       u.searchParams.set("access_token", token);
@@ -112,15 +114,20 @@ export async function fetchInstagramInsights(
   );
   if (acct?.data) {
     for (const m of acct.data) {
-      const val = m?.total_value?.value ?? m?.values?.[0]?.value;
-      if (m.name === "reach") result.reach30d = val;
-      if (m.name === "profile_views") result.profileViews30d = val;
+      if (m.name !== "reach") continue;
+      const total = m?.total_value?.value;
+      const summed = Array.isArray(m?.values)
+        ? m.values.reduce((s: number, v: any) => s + (Number(v?.value) || 0), 0)
+        : undefined;
+      result.reach30d = typeof total === "number" ? total : summed;
     }
   } else {
     partial = true;
   }
 
-  // 3. Croissance d'abonnés sur 30 jours (somme des deltas journaliers).
+  // 3. Croissance d'abonnés sur 30 jours. follower_count (period=day) renvoie le nb
+  //    de nouveaux abonnés par jour → on somme. On ne garde la valeur QUE si la série
+  //    existe vraiment (sinon reduce([]) = 0 ferait passer "pas de données" pour "+0").
   const growth = await getJson(
     (() => {
       const u = new URL(`${GRAPH}/${igId}/insights`);
@@ -130,8 +137,9 @@ export async function fetchInstagramInsights(
       return u;
     })(),
   );
-  if (growth?.data?.[0]?.values) {
-    result.followerGrowth30d = growth.data[0].values.reduce(
+  const growthValues = growth?.data?.[0]?.values;
+  if (Array.isArray(growthValues) && growthValues.length > 0) {
+    result.followerGrowth30d = growthValues.reduce(
       (sum: number, v: any) => sum + (Number(v?.value) || 0),
       0,
     );
@@ -207,6 +215,15 @@ export async function fetchInstagramInsights(
     result.flopPosts = ranked.slice(-3).reverse();
     result.avgEngagementRate =
       ranked.reduce((s, p) => s + (p.engagementRate || 0), 0) / ranked.length;
+  }
+
+  // Garde-fou de cohérence : l'API renvoie parfois un reach compte aberrant (sous le
+  // reach d'un seul post). Un compte ne peut pas avoir un reach inférieur à celui d'un
+  // de ses posts → si c'est le cas, la valeur n'est pas fiable, on ne l'expose pas à
+  // l'audit (mieux vaut une métrique absente qu'un chiffre impossible).
+  const maxPostReach = Math.max(0, ...measured.map((p) => p.reach || 0));
+  if (typeof result.reach30d === "number" && result.reach30d < maxPostReach) {
+    result.reach30d = undefined;
   }
 
   result.partial = partial;
