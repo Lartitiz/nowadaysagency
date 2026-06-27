@@ -218,7 +218,6 @@ serve(async (req) => {
       if (typeof lm.followers === "number") lines.push(`- Abonnés : ${lm.followers}`);
       if (typeof lm.followerGrowth30d === "number") lines.push(`- Croissance d'abonnés (30 j) : ${lm.followerGrowth30d >= 0 ? "+" : ""}${lm.followerGrowth30d}`);
       if (typeof lm.reach30d === "number") lines.push(`- Reach (28 j) : ${lm.reach30d}`);
-      if (typeof lm.profileViews30d === "number") lines.push(`- Vues de profil (28 j) : ${lm.profileViews30d}`);
       if (typeof lm.postsLast30d === "number") lines.push(`- Posts publiés sur 30 j : ${lm.postsLast30d}${lm.frequencyLabel ? ` (${lm.frequencyLabel})` : ""}`);
       if (pct(lm.avgEngagementRate)) lines.push(`- Taux d'engagement moyen par post : ${pct(lm.avgEngagementRate)}`);
       const fmtPost = (p: any) => {
