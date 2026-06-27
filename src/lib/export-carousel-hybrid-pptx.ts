@@ -589,10 +589,14 @@ export async function exportCarouselHybridPptx(
     const data = slidesData?.find((s) => s.slide_number === vs.slide_number) || slidesData?.[i];
     const slide = slideObjs[i];
     const tSlide0 = performance.now(); // perf instrumentation
+    const perf: Record<string, number> = {}; // perf instrumentation (sous-phases)
 
     const iframe = await mountIframe(vs.html);
+    perf.mount = Math.round(performance.now() - tSlide0);
     try {
+      const tReady = performance.now();
       await waitReady(iframe);
+      perf.waitReady = Math.round(performance.now() - tReady);
       const doc = iframe.contentDocument!;
       const win = doc.defaultView!;
 
@@ -783,7 +787,9 @@ export async function exportCarouselHybridPptx(
       void win.document.body.offsetHeight;
       await new Promise((r) => setTimeout(r, 50));
 
+      const tCapture = performance.now();
       const bg = await captureBody(doc);
+      perf.captureBody = Math.round(performance.now() - tCapture);
 
       // ---- Z-ORDER (bottom → top) :
       // 1. Photos natives (couche bottom)
@@ -912,7 +918,7 @@ export async function exportCarouselHybridPptx(
       slide.background = { color: normalizeHex(charter?.color_background, "FFFFFF") };
     } finally {
       iframe.remove();
-      console.log(`[hybrid][perf] slide ${vs.slide_number} rendue en ${Math.round(performance.now() - tSlide0)}ms`);
+      console.log(`[hybrid][perf] slide ${vs.slide_number} rendue en ${Math.round(performance.now() - tSlide0)}ms — mount=${perf.mount ?? "?"} waitReady=${perf.waitReady ?? "?"} captureBody=${perf.captureBody ?? "?"}`);
     }
   }
 
