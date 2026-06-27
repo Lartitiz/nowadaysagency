@@ -1740,8 +1740,8 @@ Test mental : si on retire les points, l'overlay doit pouvoir se prononcer d'un 
 
 ═══ PROGRESSION NARRATIVE ═══
 L'objectif est qu'en lisant les overlays slide après slide, on suive une vraie histoire qui se déploie, comme un mini-récit qu'on raconterait à l'oral. Pas une galerie d'images légendées.
-- Slide 1 (hook) : phrase qui arrête le scroll. Crée une tension, une question, une émotion.
-- Slides 2-3 : contexte, développement. On entre dans l'histoire.
+- Slide 1 (hook) : phrase qui arrête le scroll ET qui ENTRE DÉJÀ dans la scène ou dans la voix du récit. Si le carrousel raconte une histoire incarnée, ouvre DEDANS — pas sur une maxime générale qui s'adresse au lecteur ("ton corps dit stop avant ta tête…") puis bascule en "je/elle" dès la slide 2 (ce saut de voix casse la fluidité). Exemples d'accroches qui entrent dans la scène : "Léa est arrivée à notre rendez-vous en lâchant : 'je bloque'.", "Ce matin-là, elle fixait l'écran sans réussir à poster.". La tension naît DE la scène, pas d'une phrase d'accroche détachée du récit qui suit.
+- Slides 2-3 : contexte, développement. On reste dans la même scène/voix, on enfonce le récit.
 - Slides milieu : le cœur. Détails, processus, tournant émotionnel.
 - Avant-dernière : le climax ou la révélation.
 - Dernière (CTA) : phrase qui ouvre vers l'action ou la conversation.
