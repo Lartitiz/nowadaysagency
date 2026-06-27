@@ -8,7 +8,7 @@ import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { friendlyError } from "@/lib/error-messages";
-import { Settings, KeyRound, Trash2, Bell, Mail, Sparkles, Shield, Bot, CreditCard, Loader2, ShoppingBag, Gift, ArrowRight, Cookie, RotateCcw, Map } from "lucide-react";
+import { Settings, KeyRound, Trash2, Bell, Mail, Sparkles, Shield, Bot, CreditCard, Loader2, ShoppingBag, Gift, ArrowRight, Cookie, RotateCcw, Map, Share2 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Link, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
@@ -269,6 +269,18 @@ export default function SettingsPage() {
         {/* ─── Purchases ─── */}
         <Section icon={<ShoppingBag className="h-4 w-4" />} title="Mes achats">
           <PurchaseHistory />
+        </Section>
+
+        {/* ─── Connexions réseaux ─── */}
+        <Section icon={<Share2 className="h-4 w-4" />} title="Mes connexions">
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Connecte tes comptes Instagram, LinkedIn, Pinterest et Canva pour publier et récupérer tes statistiques directement depuis l'app.
+            </p>
+            <Button asChild className="rounded-full bg-primary text-primary-foreground hover:bg-bordeaux">
+              <Link to="/parametres/connexions">Gérer mes connexions</Link>
+            </Button>
+          </div>
         </Section>
 
         {/* ─── Account info ─── */}
