@@ -225,6 +225,12 @@ export async function fetchInstagramInsights(
   if (typeof result.reach30d === "number" && result.reach30d < maxPostReach) {
     result.reach30d = undefined;
   }
+  // De même, une croissance à 0 sur 30 j pour un compte qui publie est presque
+  // toujours un "pas de données" de l'API (le metric follower_count compte les
+  // NOUVEAUX abonnés, jamais négatif) → on ne l'expose pas comme une vraie stagnation.
+  if (result.followerGrowth30d === 0) {
+    result.followerGrowth30d = undefined;
+  }
 
   result.partial = partial;
   return result;
