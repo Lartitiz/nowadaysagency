@@ -220,20 +220,10 @@ serve(async (req) => {
       if (typeof lm.reach30d === "number") lines.push(`- Reach (28 j) : ${lm.reach30d}`);
       if (typeof lm.postsLast30d === "number") lines.push(`- Posts publiés sur 30 j : ${lm.postsLast30d}${lm.frequencyLabel ? ` (${lm.frequencyLabel})` : ""}`);
       if (pct(lm.avgEngagementRate)) lines.push(`- Taux d'engagement moyen par post : ${pct(lm.avgEngagementRate)}`);
-      const fmtPost = (p: any) => {
-        const s: string[] = [];
-        if (p.format) s.push(p.format);
-        if (typeof p.reach === "number") s.push(`reach ${p.reach}`);
-        if (pct(p.engagementRate)) s.push(`eng. ${pct(p.engagementRate)}`);
-        const stats = s.length ? ` [${s.join(", ")}]` : "";
-        return `  · "${p.subject || "(sans légende)"}"${stats}`;
-      };
-      if (Array.isArray(lm.topPosts) && lm.topPosts.length) {
-        lines.push(`- Posts les plus performants (mesurés) :\n${lm.topPosts.map(fmtPost).join("\n")}`);
-      }
-      if (Array.isArray(lm.flopPosts) && lm.flopPosts.length) {
-        lines.push(`- Posts les moins performants (mesurés) :\n${lm.flopPosts.map(fmtPost).join("\n")}`);
-      }
+      // NB : les top/flop posts mesurés ne sont PAS re-listés ici — ils sont déjà
+      // détaillés (avec leurs stats) dans les blocs POSTS QUI MARCHENT / NE MARCHENT PAS
+      // (successPostsData / failPostsData). On évite la double présentation qui gonflait
+      // l'entrée et allongeait la génération de l'audit.
       if (lines.length) {
         liveMetricsBlock =
           "\nSTATISTIQUES RÉELLES (API Instagram — ces chiffres sont factuels, appuie-toi dessus en priorité sur le déclaratif) :\n" +
