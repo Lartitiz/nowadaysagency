@@ -1146,6 +1146,75 @@ Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": ".
       }
     }
 
+    // ═══ Kill DÉTERMINISTE des surtitres inventés (carrousel PHOTO uniquement) ═══
+    // En mode photo, la prose DOIT porter le fil narratif. Tout label/badge de section
+    // inventé par le modèle ("CONVERSATION N°1", "LA MÉTHODE", "LE VRAI BLOCAGE"…) vide la
+    // prose et hache la lecture. Le prompt l'interdit mais le modèle le contourne (1 fois
+    // sur 5). On le retire donc par code, sans dépendre du modèle.
+    // Handle fiable : le modèle annote ces badges `data-pptx-editable="caption"` (cf. règles
+    // d'annotation PPTX) et l'overlay réel `data-pptx-editable="overlay"` ; un élément ne
+    // porte jamais les deux. On supprime les "caption" qui ne sont NI un numéro de slide NI
+    // l'overlay réel, sauf sur la DERNIÈRE slide (CTA toléré).
+    if (isPhotoCarousel && Array.isArray(result?.slides_html)) {
+      const overlayBySlide = new Map<number, string>();
+      if (Array.isArray(slides)) {
+        slides.forEach((s: any) => {
+          const ov = s?.overlay_text ?? s?.overlay ?? s?.text ?? s?.body;
+          if (s && s.slide_number != null && typeof ov === "string") {
+            overlayBySlide.set(Number(s.slide_number), ov);
+          }
+        });
+      }
+      const lastNum = Math.max(
+        ...result.slides_html.map((s: any) => Number(s?.slide_number) || 0),
+      );
+      const norm = (t: string) =>
+        (t || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]/g, "");
+      const isSlideNumber = (t: string) =>
+        /^\s*\d{1,2}\s*([\/.\-]\s*\d{1,2}\s*)?$/.test((t || "").trim());
+      let stripped = 0;
+      const stripFromHtml = (rawHtml: string, overlayText: string): string => {
+        const overlayNorm = norm(overlayText);
+        const shouldDrop = (txt: string): boolean => {
+          const t = (txt || "").trim();
+          if (!t) return false;
+          if (isSlideNumber(t)) return false; // garder les numéros de slide
+          const tn = norm(t);
+          if (!tn) return false;
+          // ne JAMAIS retirer l'overlay réel (sécurité si le modèle l'a mal annoté)
+          if (overlayNorm && (overlayNorm.includes(tn) || tn.includes(overlayNorm))) return false;
+          return true;
+        };
+        let html = rawHtml;
+        // 1) Pilule canonique enveloppant une caption : <span pill><span caption>TXT</span></span>
+        html = html.replace(
+          /<span\b[^>]*data-pptx-shape="pill"[^>]*>\s*<span\b[^>]*data-pptx-editable="caption"[^>]*>([^<]*)<\/span>\s*<\/span>/gi,
+          (m: string, txt: string) => {
+            if (shouldDrop(txt)) { stripped++; return ""; }
+            return m;
+          },
+        );
+        // 2) Caption autonome (non enveloppée) : <tag caption>TXT</tag>
+        html = html.replace(
+          /<(\w+)\b[^>]*data-pptx-editable="caption"[^>]*>([^<]*)<\/\1>/gi,
+          (m: string, _tag: string, txt: string) => {
+            if (shouldDrop(txt)) { stripped++; return ""; }
+            return m;
+          },
+        );
+        return html;
+      };
+      result.slides_html = result.slides_html.map((slide: any) => {
+        const num = Number(slide?.slide_number) || 0;
+        if (num === lastNum) return slide; // dernière slide : CTA toléré
+        const html = stripFromHtml(slide.html || "", overlayBySlide.get(num) || "");
+        return { ...slide, html };
+      });
+      if (stripped > 0) {
+        console.log(`carousel-visual: ${stripped} surtitre(s) inventé(s) retiré(s) (kill déterministe mode photo)`);
+      }
+    }
+
     // ═══ Post-processing : injecter les photos base64 dans le HTML ═══
     if ((isPhotoCarousel || isMixCarousel) && result?.slides_html && reqBody.photos) {
       result.slides_html = result.slides_html.map((slide: any) => {
