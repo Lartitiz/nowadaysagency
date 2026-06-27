@@ -252,6 +252,13 @@ export function extractEditableBlocks(
     const text = textContentWithBreaks(el).trim();
     if (text.length < minTextLen) continue;
 
+    // Emoji ISOLÉ (le texte n'est QUE des emojis) : ne pas l'exporter en texte natif.
+    // Canva rastérise un texte-emoji isolé à l'import (= image non éditable). Ces
+    // éléments sont gérés à part par extractStandaloneEmojiZones → image détourée
+    // déplaçable. Les emojis COLLÉS à du texte ("❌ Marque lisse") ne sont PAS isolés
+    // → ils restent ici en texte éditable (Canva les conserve).
+    if (isEmojiOnly(text)) continue;
+
     // Skip nodes already covered by an annotated ancestor (avoid double-render)
     if (skipAnnotated && el.closest("[data-pptx-editable]")) continue;
 
@@ -927,4 +934,86 @@ export function extractGradientDecoZones(doc: Document): ImageZone[] {
   );
 }
 
+// Caractères "emoji" au sens pictographique (❌ ✅ 🧠 💡 …). On exclut volontairement
+// les dingbats simples (✓ ✗ → ★) qui NE sont PAS Extended_Pictographic : ceux-là
+// rendent comme des glyphes de police normaux et restent éditables dans Canva.
+const PICTOGRAPHIC_RE = /\p{Extended_Pictographic}/u;
+// Modificateurs à ignorer pour décider si un texte est "100% emoji" :
+// pictographiques + ZWJ (‍) + sélecteurs de variation (︎/️)
+// + tons de peau + tags + espaces.
+const EMOJI_STRIP_RE =
+  /[\p{Extended_Pictographic}‍︎️\u{1F3FB}-\u{1F3FF}\u{E0020}-\u{E007F}\s]/gu;
+
+/**
+ * Vrai si `text` ne contient QUE des emojis pictographiques (+ modificateurs/espaces),
+ * avec au moins un emoji. Sert à isoler les emojis "seuls dans leur case" — ceux que
+ * Canva transforme en image à l'import d'un .pptx.
+ */
+export function isEmojiOnly(text: string): boolean {
+  const t = text.trim();
+  if (!t) return false;
+  if (!PICTOGRAPHIC_RE.test(t)) return false;
+  return t.replace(EMOJI_STRIP_RE, "") === "";
+}
+
+export interface EmojiZone {
+  el: HTMLElement;
+  /** Content-box dans le repère iframe (1080×1350). */
+  rect: { x: number; y: number; w: number; h: number };
+  emoji: string;
+  fontSizePx: number;
+  fontFamily: string;
+  fontWeight: number;
+  fontStyle: string;
+  textAlign: "left" | "center" | "right";
+}
+
+/**
+ * Détecte les emojis ISOLÉS (un élément dont tout le texte est emoji, ex. la grosse
+ * icône d'une grille). pptxgenjs pourrait les sortir en texte, mais Canva rastérise un
+ * texte-emoji isolé à l'import → image non éditable. L'appelant les rend plutôt en
+ * petite image PNG détourée (canvas 2D `fillText`, pas html2canvas) et déplaçable dans
+ * Canva, à la place du texte. En cas d'échec de rendu il les LAISSE dans le fond (sûr).
+ *
+ * Renvoie le style nécessaire au dessin canvas (police, taille, alignement) + le
+ * content-box pour positionner. Coordonnées dans le repère iframe 1080×1350.
+ */
+export function extractStandaloneEmojiZones(doc: Document): EmojiZone[] {
+  const win = doc.defaultView;
+  if (!win) return [];
+  const out: EmojiZone[] = [];
+  for (const el of Array.from(doc.body.querySelectorAll<HTMLElement>("*"))) {
+    if (el.hasAttribute("data-pptx-photo") || el.closest("[data-pptx-photo]")) continue;
+    if (el.querySelector("img, svg, picture, video")) continue;
+
+    const text = (el.textContent || "").trim();
+    if (!isEmojiOnly(text)) continue;
+
+    // Ne garder que le porteur le plus interne (éviter un wrapper qui engloberait l'emoji).
+    if (Array.from(el.children).some((c) => (c.textContent || "").trim() !== "")) continue;
+
+    const cs = win.getComputedStyle(el);
+    if (cs.visibility === "hidden" || cs.display === "none") continue;
+    if (parseFloat(cs.opacity || "1") < 0.05) continue;
+
+    const rect = contentBoxRect(el, cs);
+    if (rect.w < 4 || rect.h < 4) continue;
+    if (rect.y > 1350 || rect.x > 1080 || rect.y + rect.h < 0 || rect.x + rect.w < 0) continue;
+
+    out.push({
+      el,
+      rect,
+      emoji: text,
+      fontSizePx: parseFloat(cs.fontSize) || 32,
+      fontFamily: cs.fontFamily || "sans-serif",
+      fontWeight: parseFontWeight(cs.fontWeight),
+      fontStyle: cs.fontStyle || "normal",
+      textAlign: parseAlign(cs.textAlign || "left"),
+    });
+  }
+  // Garde le plus interne si imbriqués.
+  return out.filter(
+    (c) => !out.some((other) => other !== c && c.el !== other.el && c.el.contains(other.el)),
+  );
+}
 

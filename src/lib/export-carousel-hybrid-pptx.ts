@@ -12,9 +12,11 @@ import {
   extractShapeBlocks,
   extractHeuristicShapes,
   extractGradientDecoZones,
+  extractStandaloneEmojiZones,
   type EditableBlock,
   type ShapeBlock,
   type TextRun,
+  type EmojiZone,
 } from "./pptx-font-mapping";
 import { fetchLogoAsBase64, getPptxLogoRect } from "./export-logo";
 
@@ -272,6 +274,90 @@ const RASTER_SCALE = 1.5;
 // individuellement dans Canva — ce qu'on ne fait jamais en pratique. C'était LE
 // goulot principal de l'export hybride. Remettre >0 réintroduit le coût.
 const MAX_GRADIENT_CAPTURES = 0;
+
+// Emojis ISOLÉS rendus en petite image détourée par slide. Contrairement aux dégradés
+// (html2canvas = clone DOM coûteux, désactivé ci-dessus), un emoji est dessiné via
+// canvas 2D `fillText` → coût négligeable, pas de clone DOM. Plafond par sécurité.
+const MAX_EMOJI_CAPTURES = 24;
+
+/**
+ * Rend un emoji ISOLÉ en petite image PNG détourée au plus près du glyphe (canvas 2D,
+ * pas html2canvas). On dessine l'emoji dans un canvas à la taille du content-box (en
+ * respectant l'alignement), puis on rogne les marges transparentes → l'image colle
+ * pile au dessin (pas un grand bloc vide). Renvoie la position/taille DÉTOURÉE en px
+ * (repère iframe), ou null si rien n'a été peint (emoji non rendu) → l'appelant le
+ * laisse alors dans le PNG de fond (filet de sûreté, jamais de trou).
+ */
+function renderEmojiImage(
+  zone: EmojiZone,
+  scale: number,
+): { data: string; x: number; y: number; w: number; h: number } | null {
+  const cw = Math.max(1, Math.ceil(zone.rect.w * scale));
+  const ch = Math.max(1, Math.ceil(zone.rect.h * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = cw;
+  canvas.height = ch;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  ctx.scale(scale, scale);
+  ctx.textBaseline = "middle";
+  ctx.textAlign = zone.textAlign;
+  ctx.font = `${zone.fontStyle} ${zone.fontWeight} ${zone.fontSizePx}px ${zone.fontFamily}`;
+  const tx =
+    zone.textAlign === "center"
+      ? zone.rect.w / 2
+      : zone.textAlign === "right"
+        ? zone.rect.w
+        : 0;
+  try {
+    ctx.fillText(zone.emoji, tx, zone.rect.h / 2);
+  } catch {
+    return null;
+  }
+
+  // Détourage : bbox des pixels non transparents.
+  let img: ImageData;
+  try {
+    img = ctx.getImageData(0, 0, cw, ch);
+  } catch {
+    return null; // canvas "tainted" (ne devrait pas arriver : aucun pixel externe)
+  }
+  const d = img.data;
+  let minX = cw;
+  let minY = ch;
+  let maxX = -1;
+  let maxY = -1;
+  for (let y = 0; y < ch; y++) {
+    for (let x = 0; x < cw; x++) {
+      if (d[(y * cw + x) * 4 + 3] > 8) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+  if (maxX < minX || maxY < minY) return null; // rien dessiné → laissé dans le fond (sûr)
+
+  const tcw = maxX - minX + 1;
+  const tch = maxY - minY + 1;
+  const trimmed = document.createElement("canvas");
+  trimmed.width = tcw;
+  trimmed.height = tch;
+  const tctx = trimmed.getContext("2d");
+  if (!tctx) return null;
+  tctx.drawImage(canvas, minX, minY, tcw, tch, 0, 0, tcw, tch);
+  const data = trimmed.toDataURL("image/png");
+  if (!data || data.length < 64) return null;
+
+  return {
+    data,
+    x: zone.rect.x + minX / scale,
+    y: zone.rect.y + minY / scale,
+    w: tcw / scale,
+    h: tch / scale,
+  };
+}
 
 async function captureBody(doc: Document): Promise<string> {
   const canvas = await raceTimeout(
@@ -736,6 +822,32 @@ export async function exportCarouselHybridPptx(
         }
       }
 
+      // ---- Emojis ISOLÉS → petite image détourée déplaçable (au lieu d'un texte-emoji
+      // que Canva rastérise à l'import). Rendu via canvas 2D `fillText` (PAS html2canvas
+      // → aucun clone DOM, coût négligeable). Les emojis COLLÉS à du texte restent en
+      // texte éditable (gérés par les blocs texte, pas ici). On rend AVANT de masquer ;
+      // en cas d'échec de rendu on NE masque PAS → l'emoji reste cuit dans le fond (sûr).
+      const emojiImages: { data: string; x: number; y: number; w: number; h: number }[] = [];
+      const emojiZones = extractStandaloneEmojiZones(doc).slice(0, MAX_EMOJI_CAPTURES);
+      for (const ez of emojiZones) {
+        // Anti-doublon : un emoji déjà à l'intérieur d'un bloc texte capturé (annoté ou
+        // via le filet → l'ancêtre porte data-pptx-hide) est rendu en texte natif. On
+        // tourne APRÈS les passes texte, donc ce test attrape ces cas → pas de double.
+        if (ez.el.closest('[data-pptx-hide="true"]')) continue;
+        const rendered = renderEmojiImage(ez, RASTER_SCALE);
+        if (!rendered) continue; // emoji non rendu → laissé dans le fond (sûr)
+        const x = Math.max(0, pxToInches(rendered.x, PX_PER_IN));
+        const y = Math.max(0, pxToInches(rendered.y, PX_PER_IN));
+        const w = Math.min(PPTX_W_IN - x, pxToInches(rendered.w, PX_PER_IN));
+        const h = Math.min(PPTX_H_IN - y, pxToInches(rendered.h, PX_PER_IN));
+        if (w <= 0 || h <= 0) continue;
+        // Succès → masquer l'emoji du PNG de fond (visibility : préserve le layout, et
+        // cache bien un emoji COULEUR, contrairement à color:transparent qui ne le
+        // masquerait pas) puis mémoriser pour pose en image séparée après le fond.
+        ez.el.style.setProperty("visibility", "hidden", "important");
+        emojiImages.push({ data: rendered.data, x, y, w, h });
+      }
+
       // ---- Photo zones extraction + filtering on availability
       // Si originalPhotos n'est pas fourni → usableZones vide → fallback total :
       // les photos restent visibles dans le rasterisé (comportement legacy).
@@ -882,6 +994,16 @@ export async function exportCarouselHybridPptx(
           slide.addImage({ data: gi.data, x: gi.x, y: gi.y, w: gi.w, h: gi.h });
         } catch (e) {
           console.warn("[hybrid] addImage(dégradé déco) failed", e);
+        }
+      }
+
+      // Emojis isolés : petites images détourées, posées après le fond → élément
+      // indépendant déplaçable/redimensionnable dans Canva (vrai emoji couleur).
+      for (const ei of emojiImages) {
+        try {
+          slide.addImage({ data: ei.data, x: ei.x, y: ei.y, w: ei.w, h: ei.h });
+        } catch (e) {
+          console.warn("[hybrid] addImage(emoji) failed", e);
         }
       }
 
