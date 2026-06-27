@@ -1257,6 +1257,101 @@ Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": ".
       });
     }
 
+    // ═══ Post-processing 2bis : garde de contraste DÉTERMINISTE sur les titres ═══
+    // Diagnostic prod (27/06, mesuré sur un import Canva réel) : sur fond clair, le LLM
+    // colore parfois le TITRE ENTIER en rose clair (couleur rendue ≈ rgb(252,156,192),
+    // soit la primary semi-transparente) → contraste ~1.3:1, illisible. Ça se voit dans
+    // l'aperçu, l'export PPTX ET Canva (l'export reproduit fidèlement la couleur du HTML ;
+    // ce n'est donc PAS un bug Canva/export mais la génération). Correctif déterministe
+    // (pas une N-ième règle de prompt qui se concurrence) : si la couleur d'un titre
+    // éditable échoue le contraste contre le FOND RÉEL de sa slide, on la remplace par la
+    // meilleure couleur de charte (foncée sur fond clair, blanche sur fond sombre). On ne
+    // touche QUE la couleur du cadre titre → les mots-accent (spans internes en primary/
+    // accent) sont préservés. Slides déjà lisibles (titre foncé, ou blanc sur fond plein)
+    // = contraste OK → non modifiées.
+    if (result?.slides_html) {
+      // Compose une couleur (#hex 3/6/8 ou rgb/rgba) sur un fond hex6 → hex6 RENDU.
+      // Gère l'alpha (rgba + #rrggbbaa) ET les couleurs claires solides de la même façon.
+      const hexOnBg = (raw: string, bg6: string): string | null => {
+        const v = (raw || "").trim();
+        let r: number, g: number, b: number, a = 1;
+        const m = v.match(/rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)(?:[,\s/]+([\d.]+))?/i);
+        if (m) {
+          r = +m[1]; g = +m[2]; b = +m[3];
+          if (m[4] !== undefined) a = parseFloat(m[4]);
+        } else {
+          let h = v.replace("#", "");
+          if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+          if (h.length === 8) { a = parseInt(h.slice(6, 8), 16) / 255; h = h.slice(0, 6); }
+          if (!/^[0-9a-fA-F]{6}$/.test(h)) return null;
+          r = parseInt(h.slice(0, 2), 16); g = parseInt(h.slice(2, 4), 16); b = parseInt(h.slice(4, 6), 16);
+        }
+        const B = (i: number) => parseInt(bg6.slice(i, i + 2), 16);
+        const comp = (c: number, bc: number) => Math.round(a * c + (1 - a) * bc);
+        return [comp(r, B(0)), comp(g, B(2)), comp(b, B(4))]
+          .map((x) => x.toString(16).padStart(2, "0")).join("").toUpperCase();
+      };
+      const lum = (h6: string): number => {
+        const c = (i: number) => {
+          const x = parseInt(h6.slice(i, i + 2), 16) / 255;
+          return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
+        };
+        return 0.2126 * c(0) + 0.7152 * c(2) + 0.0722 * c(4);
+      };
+      const ratio = (a6: string, b6: string): number => {
+        const la = lum(a6), lb = lum(b6);
+        return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+      };
+      // Seuil VOLONTAIREMENT bas (2.8) : on ne corrige que les titres FRANCHEMENT illisibles
+      // (rose clair sur fond clair, ratio mesuré ~1.8), SANS toucher aux choix de design
+      // intentionnels qui sont seulement « moyens » au sens WCAG mais voulus et lisibles —
+      // typiquement le titre BLANC sur slide à fond plein (ratio ~3.4) ou un titre primary
+      // solide (~3.2). Le défaut réel (~1.8) et le design voulu (≥3.2) sont nettement séparés.
+      const TITLE_MIN_CONTRAST = 2.8;
+      const norm = (x: string | null | undefined, fb: string) => hexOnBg(x || "", "FFFFFF") || fb;
+      const secondary6 = norm(ch.color_secondary, "91014B");
+      const text6 = norm(ch.color_text, "1A1A2E");
+      const bgDefault6 = norm(ch.color_background, "FFF4F8");
+      // Couleur de remplacement : on PRIVILÉGIE la charte (secondary rose foncé = couleur de
+      // titre voulue), puis text, puis blanc — premier candidat franchement lisible (≥4.5).
+      // Si aucun n'atteint le confort (fond atypique), on prend le plus contrasté possible.
+      const bestTitle = (bg6: string): string => {
+        const prefs = [secondary6, text6, "FFFFFF"];
+        for (const c of prefs) if (ratio(c, bg6) >= 4.5) return c;
+        let best = prefs[0], bestR = ratio(prefs[0], bg6);
+        for (const c of [...prefs, "1A1A2E"]) { const r = ratio(c, bg6); if (r > bestR) { best = c; bestR = r; } }
+        return best;
+      };
+      let titlesFixed = 0;
+      result.slides_html = result.slides_html.map((slide: any) => {
+        let html: string = slide.html || "";
+        // Fond réel de la slide = 1ère couleur de fond UNIE rencontrée (le regex n'attrape
+        // pas `background:linear-gradient(...)` car la valeur ne commence pas par #/rgb) ;
+        // sinon on retombe sur le fond de charte (clair) → titre foncé = choix sûr.
+        let bg6 = bgDefault6;
+        const bgm = html.match(/background(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))/i);
+        if (bgm) { const c = hexOnBg(bgm[1], "FFFFFF"); if (c) bg6 = c; }
+        html = html.replace(
+          /<([a-z0-9]+)([^>]*\bdata-pptx-editable\s*=\s*["']title["'][^>]*)>/gi,
+          (full: string) =>
+            full.replace(/style\s*=\s*"([^"]*)"/i, (sm: string, style: string) => {
+              const cm = style.match(/(?:^|;)\s*color\s*:\s*([^;]+)/i);
+              if (!cm) return sm;
+              const eff = hexOnBg(cm[1], bg6);
+              if (!eff || ratio(eff, bg6) >= TITLE_MIN_CONTRAST) return sm;
+              const repl = bestTitle(bg6);
+              titlesFixed++;
+              const newStyle = style.replace(/((?:^|;)\s*)color\s*:\s*[^;]+/i, `$1color:#${repl}`);
+              return `style="${newStyle}"`;
+            }),
+        );
+        return { ...slide, html };
+      });
+      if (titlesFixed > 0) {
+        console.log(`carousel-visual: ${titlesFixed} titre(s) à faible contraste corrigé(s) (garde déterministe)`);
+      }
+    }
+
     // P0-3 : remplacer les placeholders {{PHOTO_N}} non substitués par un fallback
     // (sinon l'iframe affiche `url({{PHOTO_2}})` cassé → slide vide).
     if ((isPhotoCarousel || isMixCarousel) && result?.slides_html) {
