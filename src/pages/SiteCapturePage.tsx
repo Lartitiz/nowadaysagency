@@ -48,9 +48,9 @@ export default function SiteCapturePage() {
     } catch { /* quota localStorage plein : non bloquant */ }
   }, [result, workspaceId]);
 
-  const copyText = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success("Copié !");
+  const copyText = async (text: string) => {
+    try { await navigator.clipboard.writeText(text); toast.success("Copié !"); }
+    catch { toast.error("Impossible de copier — sélectionne et copie le texte manuellement."); }
   };
 
   const generate = async () => {

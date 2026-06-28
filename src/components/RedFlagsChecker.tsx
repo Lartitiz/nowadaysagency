@@ -28,6 +28,17 @@ const AI_RED_FLAGS: RedFlag[] = [
   { pattern: /[Aa]bordons/g, label: "transition IA", fix: "" },
 ];
 
+// Applies all red-flag replacements to a single piece of text. Exported so callers can
+// fix individual fields (rather than a concatenation they can't split back reliably).
+export function fixRedFlags(text: string): string {
+  let fixed = text;
+  for (const flag of AI_RED_FLAGS) {
+    flag.pattern.lastIndex = 0;
+    fixed = fixed.replace(flag.pattern, flag.fix);
+  }
+  return fixed.replace(/  +/g, " ").replace(/\n\s*\n\s*\n/g, "\n\n");
+}
+
 interface DetectedFlag {
   match: string;
   label: string;
@@ -91,15 +102,9 @@ export default function RedFlagsChecker({ content, onFix }: RedFlagsCheckerProps
 
   const handleAutoFix = () => {
     const count = flags.length;
-    let fixed = content;
-    for (const flag of AI_RED_FLAGS) {
-      flag.pattern.lastIndex = 0;
-      fixed = fixed.replace(flag.pattern, flag.fix);
-    }
-    fixed = fixed.replace(/  +/g, " ").replace(/\n\s*\n\s*\n/g, "\n\n");
     setFixCount(count);
     setFixApplied(true);
-    onFix(fixed);
+    onFix(fixRedFlags(content));
   };
 
   return (

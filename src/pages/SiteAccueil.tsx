@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
 import PreGenCoaching, { type PreGenBrief } from "@/components/coach/PreGenCoaching";
-import RedFlagsChecker from "@/components/RedFlagsChecker";
+import RedFlagsChecker, { fixRedFlags } from "@/components/RedFlagsChecker";
 import {
   HomepageData, EMPTY, STEPS, FRAMEWORKS, PAGE_TYPES,
 } from "@/components/site/SiteShared";
@@ -139,7 +139,9 @@ export default function SiteAccueil() {
         toast.success("Page StoryBrand générée ! Parcours chaque étape pour peaufiner.");
       }
     } else {
-      const result = await callAI("generate-all");
+      // "emotional" (défaut) → generate-all ; "pas" → action PAS dédiée (même schéma JSON).
+      const action = data.framework === "pas" ? "pas" : "generate-all";
+      const result = await callAI(action);
       if (result && typeof result === "object") {
         const updates: Partial<HomepageData> = {
           hook_title: result.titre || "",
@@ -153,14 +155,26 @@ export default function SiteAccueil() {
           cta_secondary: Array.isArray(result.cta) ? result.cta[1] || "" : "",
         };
         save(updates);
-        toast.success("Page générée ! Parcours chaque étape pour peaufiner.");
+        toast.success(data.framework === "pas" ? "Page PAS générée ! Parcours chaque étape pour peaufiner." : "Page générée ! Parcours chaque étape pour peaufiner.");
       }
     }
   };
 
-  const copyText = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success("Copié !");
+  const copyText = async (text: string) => {
+    try { await navigator.clipboard.writeText(text); toast.success("Copié !"); }
+    catch { toast.error("Impossible de copier — sélectionne et copie le texte manuellement."); }
+  };
+
+  // Apply the red-flag fixes to each generated field individually, then persist.
+  // (The checker runs on a concatenation of fields, which can't be split back reliably.)
+  const applyRedFlagFixes = () => {
+    const fields = ["hook_title", "hook_subtitle", "problem_block", "benefits_block", "offer_block", "presentation_block", "guarantee_text"] as const;
+    const updates: Partial<HomepageData> = {};
+    for (const f of fields) {
+      const val = (data as any)[f];
+      if (typeof val === "string" && val) (updates as any)[f] = fixRedFlags(val);
+    }
+    if (Object.keys(updates).length > 0) save(updates);
   };
 
   const goStep = (s: number) => {
@@ -342,7 +356,7 @@ export default function SiteAccueil() {
           <div className="mt-4">
             <RedFlagsChecker
               content={[data.hook_title, data.problem_block, data.benefits_block, data.offer_block, data.presentation_block, data.guarantee_text].filter(Boolean).join("\n\n")}
-              onFix={() => {}}
+              onFix={applyRedFlagFixes}
             />
           </div>
         )}

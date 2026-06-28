@@ -16,7 +16,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Loader2, Copy, RefreshCw, FileText, Pencil, Check, ArrowRight, Sparkles, Wrench, Lightbulb } from "lucide-react";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
-import RedFlagsChecker from "@/components/RedFlagsChecker";
+import RedFlagsChecker, { fixRedFlags } from "@/components/RedFlagsChecker";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import { friendlyError } from "@/lib/error-messages";
@@ -72,7 +72,6 @@ export default function SiteAPropos() {
   const [optimizeFocus, setOptimizeFocus] = useState("");
   const [optimizeResult, setOptimizeResult] = useState<any>(null);
   const [originalText, setOriginalText] = useState("");
-  const [useAudit, setUseAudit] = useState(true);
   const [auditScore, setAuditScore] = useState<number | null>(null);
 
   useEffect(() => {
@@ -460,14 +459,10 @@ export default function SiteAPropos() {
             </div>
 
             {auditScore !== null && (
-              <div className="rounded-xl border border-primary/20 bg-rose-pale p-4 space-y-2">
+              <div className="rounded-xl border border-primary/20 bg-rose-pale p-4">
                 <p className="text-sm text-foreground">
-                  💡 Tu as un audit site avec un score confiance de <strong>{auditScore}/100</strong>. L'IA va utiliser ces recommandations pour améliorer ta page.
+                  💡 Tu as un audit site avec un score confiance de <strong>{auditScore}/100</strong>. L'IA s'appuie automatiquement sur ces recommandations pour améliorer ta page.
                 </p>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={useAudit} onChange={(e) => setUseAudit(e.target.checked)} className="rounded border-border text-primary focus:ring-primary h-4 w-4" />
-                  <span className="text-sm text-foreground">Utiliser les recommandations de mon audit</span>
-                </label>
               </div>
             )}
 
@@ -506,7 +501,11 @@ export default function SiteAPropos() {
           <div className="mt-6">
             <RedFlagsChecker
               content={optimizeResult?.sections?.map((s: any) => s.improved || s.original || "").join("\n\n") || optimizeResult?.summary || ""}
-              onFix={() => {}}
+              onFix={() => setOptimizeResult((prev: any) => prev ? {
+                ...prev,
+                sections: Array.isArray(prev.sections) ? prev.sections.map((s: any) => ({ ...s, improved: fixRedFlags(s.improved || s.original || "") })) : prev.sections,
+                summary: prev.summary ? fixRedFlags(prev.summary) : prev.summary,
+              } : prev)}
             />
           </div>
           <AiGeneratedMention />

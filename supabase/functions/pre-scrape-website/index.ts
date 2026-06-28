@@ -61,7 +61,9 @@ serve(async (req) => {
           headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandAnalyzer/1.0)" },
         });
         // Re-validate the final URL after redirects (a public URL may 30x to an internal one).
-        if (resp.ok && isSafePublicUrl(resp.url || formattedUrl)) {
+        // Skip absurdly large declared bodies (visual hints are optional anyway).
+        const contentLength = Number(resp.headers.get("content-length") || 0);
+        if (resp.ok && contentLength <= 5_000_000 && isSafePublicUrl(resp.url || formattedUrl)) {
           const html = await resp.text();
           styleHints = extractVisualInfo(html);
         }
