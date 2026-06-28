@@ -15,6 +15,25 @@ const log = (step: string, details?: unknown) => {
   console.log(`[STRIPE-WEBHOOK] ${step}`, details ? JSON.stringify(details) : "");
 };
 
+// Déclenche une séquence e-mail (via email-trigger). Fire-and-forget : ne bloque jamais le webhook.
+async function fireEmailEvent(event: string, userId: string | null | undefined) {
+  if (!userId) return;
+  try {
+    const url = `${Deno.env.get("SUPABASE_URL")}/functions/v1/email-trigger`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+      },
+      body: JSON.stringify({ event, user_id: userId }),
+    });
+    if (!res.ok) log("fireEmailEvent non-OK", { event, userId, status: res.status });
+  } catch (e) {
+    log("fireEmailEvent error", { event, userId, error: String(e) });
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200 });
@@ -103,6 +122,7 @@ serve(async (req) => {
           const displayPlan = plan === "studio" ? "binome" : plan;
           await supabase.from("profiles").update({ current_plan: displayPlan }).eq("user_id", userId);
           log("Subscription activated", { userId, plan });
+          await fireEmailEvent("subscription_activated", userId);
 
         } else if (session.mode === "payment") {
           // One-time purchase
@@ -216,6 +236,7 @@ serve(async (req) => {
 
         if (canceledSub?.user_id) {
           await supabase.from("profiles").update({ current_plan: "free" }).eq("user_id", canceledSub.user_id);
+          await fireEmailEvent("subscription_cancelled", canceledSub.user_id);
         }
         log("Subscription canceled", { subId: sub.id, userId: canceledSub?.user_id });
         break;
@@ -248,6 +269,7 @@ serve(async (req) => {
             link: "/parametres",
             read: false,
           });
+          await fireEmailEvent("payment_failed", failedSub.user_id);
         }
 
         log("Payment failed", { subId, userId: failedSub?.user_id });
