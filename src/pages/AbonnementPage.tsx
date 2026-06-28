@@ -314,7 +314,7 @@ export default function AbonnementPage() {
             <div className="mt-5 pt-4 border-t border-border">
               <p className="text-sm font-semibold text-foreground mb-1">Envie de plus de crédits ?</p>
               <p className="text-xs text-muted-foreground mb-3">
-                Le plan Premium te donne 300 crédits IA/mois + la communauté active.
+                Le plan Premium débloque la création illimitée + la publication automatique sur tes réseaux.
               </p>
               <Link to="/pricing">
                 <Button size="sm" variant="outline" className="rounded-full text-xs">
@@ -332,7 +332,7 @@ export default function AbonnementPage() {
             <PlanCard
               name="Gratuit"
               price="0€"
-              credits="60 crédits IA/mois"
+              credits="Pour démarrer"
               active={plan === "free"}
               onSelect={() => {}}
               disabled
@@ -340,7 +340,7 @@ export default function AbonnementPage() {
             <PlanCard
               name="Premium"
               price="39€/mois"
-              credits="300 crédits IA/mois"
+              credits="Création illimitée"
               active={plan === "outil"}
               onSelect={() => handleCheckout(STRIPE_PLANS.outil.priceId)}
               disabled={plan === "outil" || portalLoading}
@@ -352,7 +352,7 @@ export default function AbonnementPage() {
               <p className="text-lg font-semibold text-primary mt-1">290€/mois</p>
               <p className="text-xs text-muted-foreground mt-0.5">Engagement 6 mois</p>
               <div className="text-2xs text-muted-foreground mt-1 space-y-0.5 text-left">
-                <p>✅ L'outil complet (300 crédits/mois)</p>
+                <p>✅ L'outil complet en illimité</p>
                 <p>✅ 3 sessions fondations</p>
                 <p>✅ 4 sessions focus personnalisées</p>
                 <p>✅ WhatsApp illimité 6 mois</p>
