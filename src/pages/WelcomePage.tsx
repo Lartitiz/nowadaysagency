@@ -138,7 +138,7 @@ function buildBrandingCards(
     if (persona.step_1_frustrations) personaParts.push(`Frustrations : ${persona.step_1_frustrations}`);
     if (persona.step_2_transformation) personaParts.push(`Transformation : ${persona.step_2_transformation}`);
     const personaContent = personaParts.filter(Boolean).join(" · ");
-    if (personaContent) cards.push({ emoji: "🎭", title: "Persona", content: personaContent, route: "/branding/section?section=persona" });
+    if (personaContent) cards.push({ emoji: "🎭", title: "Mon·a client·e idéal·e", content: personaContent, route: "/branding/section?section=persona" });
   }
 
   const offers = ((offersData as any[]) || []);

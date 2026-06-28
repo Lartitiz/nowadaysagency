@@ -117,13 +117,13 @@ export default function ConnectionCheckPage() {
       const brandingData = await fetchBrandingData({ column, value });
       const comp = calculateBrandingCompletion(brandingData);
       const sections: [string, number][] = [
-        ["Storytelling", comp.storytelling],
-        ["Persona", comp.persona],
-        ["Proposition de valeur", comp.proposition],
-        ["Ton & voix", comp.tone],
-        ["Stratégie", comp.strategy],
-        ["Offres", comp.offers],
-        ["Charte graphique", comp.charter],
+        ["Mon histoire", comp.storytelling],
+        ["Mon·a client·e idéal·e", comp.persona],
+        ["Ma proposition de valeur", comp.proposition],
+        ["Ma voix & mes combats", comp.tone],
+        ["Ma ligne éditoriale", comp.strategy],
+        ["Mes offres", comp.offers],
+        ["Ma charte graphique", comp.charter],
       ];
       for (const [label, pct] of sections) {
         results.push({ category: "Identité", name: label, status: pct >= 80 ? "ok" : pct > 0 ? "warning" : "info", detail: `${pct}%` });

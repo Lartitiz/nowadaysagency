@@ -15,12 +15,12 @@ interface FocusItem {
 }
 
 const SECTION_META: Record<string, { emoji: string; label: string; route: string }> = {
-  storytelling: { emoji: "📖", label: "Storytelling", route: "/branding/section?section=story" },
-  persona: { emoji: "👩‍💻", label: "Persona", route: "/branding/section?section=persona" },
-  proposition: { emoji: "❤️", label: "Proposition de valeur", route: "/branding/section?section=value_proposition" },
-  tone: { emoji: "🗣️", label: "Ton & style", route: "/branding/section?section=tone" },
-  strategy: { emoji: "📐", label: "Stratégie", route: "/branding/section?section=strategy" },
-  charter: { emoji: "🎨", label: "Charte graphique", route: "/branding/charter" },
+  storytelling: { emoji: "📖", label: "Mon histoire", route: "/branding/section?section=story" },
+  persona: { emoji: "👩‍💻", label: "Mon·a client·e idéal·e", route: "/branding/section?section=persona" },
+  proposition: { emoji: "❤️", label: "Ma proposition de valeur", route: "/branding/section?section=value_proposition" },
+  tone: { emoji: "🗣️", label: "Ma voix & mes combats", route: "/branding/section?section=tone" },
+  strategy: { emoji: "📐", label: "Ma ligne éditoriale", route: "/branding/section?section=strategy" },
+  charter: { emoji: "🎨", label: "Ma charte graphique", route: "/branding/charter" },
 };
 
 function getSmartFocus(
