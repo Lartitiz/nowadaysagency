@@ -161,7 +161,7 @@ export default function LinkedInEngagement() {
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
         <SubPageHeader parentTo="/linkedin" parentLabel="LinkedIn" currentLabel="Mon engagement" />
 
-        <h1 className="font-display text-[22px] font-bold text-foreground mb-1">Ton engagement LinkedIn</h1>
+        <h1 className="font-display text-2xl font-bold text-foreground mb-1">Ton engagement LinkedIn</h1>
         <p className="text-sm text-muted-foreground italic mb-4">Sur LinkedIn, les commentaires sont rois. C'est là que tu te rends visible et que tu crées des connexions.</p>
 
         <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between gap-3 mb-6">

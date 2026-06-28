@@ -92,7 +92,7 @@ export default function DiscoveryCoachingCard({ animationDelay = 0 }: { animatio
             <ArrowRight className="h-3.5 w-3.5" />
           </Button>
 
-          <p className="mt-2 text-[13px] text-muted-foreground italic">
+          <p className="mt-2 text-sm text-muted-foreground italic">
             Gratuit, 30 min, sans engagement.
           </p>
         </div>

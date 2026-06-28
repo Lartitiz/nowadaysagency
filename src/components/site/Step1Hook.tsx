@@ -41,7 +41,7 @@ export default function Step1Hook({ data, save, callAI, aiLoading, aiResults, co
       </div>
       <div>
         <h3 className="font-display text-base font-bold mb-2">C. Ton image principale</h3>
-        <div className="rounded-xl bg-rose-pale p-4 text-[13px] text-foreground mb-3">
+        <div className="rounded-xl bg-rose-pale p-4 text-sm text-foreground mb-3">
           📸 <strong>Conseils :</strong> Garde ton produit/service au premier plan. Montre-le en train d'être utilisé. Pas de photo random.
         </div>
         <label className="flex items-center gap-2 text-sm">

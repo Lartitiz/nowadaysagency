@@ -53,7 +53,7 @@ export function AISuggestions({ items, onSelect }: { items: string[]; onSelect: 
   return (
     <div className="flex flex-wrap gap-2 mt-3">
       {items.map((item, i) => (
-        <button key={i} onClick={() => onSelect(item)} className="text-left text-[13px] px-3 py-2 rounded-xl border border-border bg-card hover:border-primary hover:bg-rose-pale transition-all">
+        <button key={i} onClick={() => onSelect(item)} className="text-left text-sm px-3 py-2 rounded-xl border border-border bg-card hover:border-primary hover:bg-rose-pale transition-all">
           {item}
         </button>
       ))}
@@ -69,7 +69,7 @@ export function HelpBlock({ title, children }: { title: string; children: React.
         {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         {title}
       </CollapsibleTrigger>
-      <CollapsibleContent className="rounded-xl bg-rose-pale p-4 text-[13px] text-foreground leading-relaxed mb-4">
+      <CollapsibleContent className="rounded-xl bg-rose-pale p-4 text-sm text-foreground leading-relaxed mb-4">
         {children}
       </CollapsibleContent>
     </Collapsible>

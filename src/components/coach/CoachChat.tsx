@@ -246,7 +246,7 @@ export default function CoachChat() {
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
         <div className="flex items-center gap-2">
-          <span className="font-semibold text-foreground text-[15px]">💬 Coach Com'</span>
+          <span className="font-semibold text-foreground text-base">💬 Coach Com'</span>
           <span className="text-xs text-muted-foreground">
             {used} msg
           </span>

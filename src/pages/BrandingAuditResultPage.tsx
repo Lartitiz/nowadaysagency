@@ -323,7 +323,7 @@ export default function BrandingAuditResultPage() {
                   <div key={i} className="rounded-xl border border-success/30 bg-success-bg p-4">
                     <p className="text-sm font-medium text-foreground">✅ {p.titre}</p>
                     <p className="text-xs text-muted-foreground mt-1">{p.detail}</p>
-                    <p className="text-[10px] text-muted-foreground/70 mt-1">Source : {p.source}</p>
+                    <p className="text-2xs text-muted-foreground/70 mt-1">Source : {p.source}</p>
                   </div>
                 ))}
               </div>
@@ -339,7 +339,7 @@ export default function BrandingAuditResultPage() {
                   <div key={i} className={`rounded-xl border p-4 ${p.priorite === "haute" ? "border-error/30 bg-error-bg" : "border-warning/30 bg-warning-bg"}`}>
                     <p className="text-sm font-medium text-foreground">{p.priorite === "haute" ? "🔴" : "🟡"} {p.titre}</p>
                     <p className="text-xs text-muted-foreground mt-1">{p.detail}</p>
-                    <p className="text-[10px] text-muted-foreground/70 mt-1">Priorité : {p.priorite}</p>
+                    <p className="text-2xs text-muted-foreground/70 mt-1">Priorité : {p.priorite}</p>
                   </div>
                 ))}
               </div>
@@ -376,13 +376,13 @@ export default function BrandingAuditResultPage() {
                       {isExpanded && (
                         <div className="px-4 pb-4 space-y-3 border-t border-border pt-3">
                           {pillar.ce_qui_existe && (
-                            <div><p className="text-[10px] font-semibold text-success uppercase">Ce qui existe</p><p className="text-xs text-muted-foreground">{pillar.ce_qui_existe}</p></div>
+                            <div><p className="text-2xs font-semibold text-success uppercase">Ce qui existe</p><p className="text-xs text-muted-foreground">{pillar.ce_qui_existe}</p></div>
                           )}
                           {pillar.ce_qui_manque && (
-                            <div><p className="text-[10px] font-semibold text-warning uppercase">Ce qui manque</p><p className="text-xs text-muted-foreground">{pillar.ce_qui_manque}</p></div>
+                            <div><p className="text-2xs font-semibold text-warning uppercase">Ce qui manque</p><p className="text-xs text-muted-foreground">{pillar.ce_qui_manque}</p></div>
                           )}
                           {pillar.recommandation && (
-                            <div><p className="text-[10px] font-semibold text-primary uppercase">Recommandation</p><p className="text-xs text-muted-foreground">{pillar.recommandation}</p></div>
+                            <div><p className="text-2xs font-semibold text-primary uppercase">Recommandation</p><p className="text-xs text-muted-foreground">{pillar.recommandation}</p></div>
                           )}
 
                           {/* Action button with coaching state */}
@@ -494,7 +494,7 @@ export default function BrandingAuditResultPage() {
                           <p className={`text-sm font-medium truncate ${rec.completed ? "line-through text-muted-foreground" : "text-foreground"}`}>
                             {rec.label}
                           </p>
-                          <p className="text-[10px] text-muted-foreground">
+                          <p className="text-2xs text-muted-foreground">
                             {rec.completed && completedDateStr ? `Fait le ${completedDateStr}` : (matchingAction?.temps_estime || "")}
                           </p>
                         </div>
@@ -567,7 +567,7 @@ export default function BrandingAuditResultPage() {
                       <span className="w-6 h-6 rounded-lg bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0">{a.priorite}</span>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{a.action}</p>
-                        <p className="text-[10px] text-muted-foreground">{a.temps_estime}</p>
+                        <p className="text-2xs text-muted-foreground">{a.temps_estime}</p>
                       </div>
                       {isExternal ? <ExternalLink className="h-4 w-4 text-muted-foreground shrink-0" /> : <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />}
                     </button>
@@ -601,7 +601,7 @@ export default function BrandingAuditResultPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <p className="text-sm font-medium text-foreground">{item.emoji} {item.label}</p>
-                          {i === 0 && <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-pill font-semibold">Priorité #1</span>}
+                          {i === 0 && <span className="text-2xs bg-primary/10 text-primary px-2 py-0.5 rounded-pill font-semibold">Priorité #1</span>}
                         </div>
                         <p className="text-xs text-muted-foreground">{item.score}/20</p>
                       </div>

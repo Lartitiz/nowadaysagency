@@ -71,7 +71,7 @@ export function CalendarFilterBar({
             <SlidersHorizontal className="h-3.5 w-3.5" />
             Filtrer
             {hasActive && (
-              <span className="ml-0.5 inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold">
+              <span className="ml-0.5 inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-primary text-primary-foreground text-2xs font-bold">
                 {activeCount}
               </span>
             )}
@@ -93,7 +93,7 @@ export function CalendarFilterBar({
         <div className="mt-3 space-y-3 rounded-xl border border-border bg-card p-3">
           {/* Canal */}
           <div>
-            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Canal</p>
+            <p className="mb-1.5 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">Canal</p>
             <div className="flex gap-1.5 flex-wrap">
               {CANAL_FILTERS.map((ch) => (
                 <button
@@ -105,7 +105,7 @@ export function CalendarFilterBar({
                   }`}
                 >
                   {ch.label}
-                  {!ch.enabled && <span className="ml-1 text-[10px]">(Bientôt)</span>}
+                  {!ch.enabled && <span className="ml-1 text-2xs">(Bientôt)</span>}
                 </button>
               ))}
             </div>
@@ -113,7 +113,7 @@ export function CalendarFilterBar({
 
           {/* Objectif */}
           <div>
-            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Objectif</p>
+            <p className="mb-1.5 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">Objectif</p>
             <div className="flex gap-1.5 flex-wrap">
               <button
                 onClick={() => onCategoryChange("all")}
@@ -136,7 +136,7 @@ export function CalendarFilterBar({
 
           {/* Série */}
           <div>
-            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Série</p>
+            <p className="mb-1.5 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">Série</p>
             <CalendarSeriesFilter value={seriesFilter} onChange={onSeriesChange} counts={seriesCounts} />
           </div>
         </div>

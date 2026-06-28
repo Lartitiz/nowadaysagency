@@ -27,7 +27,7 @@ export function WeekRecapBar({ posts, compact = true }: Props) {
 
   if (compact) {
     return (
-      <div className="text-[10px] px-1.5 py-1 flex items-center gap-2 flex-wrap text-muted-foreground">
+      <div className="text-2xs px-1.5 py-1 flex items-center gap-2 flex-wrap text-muted-foreground">
         <span className="font-medium">{posts.length} contenus</span>
         {statusCounts.published > 0 && <span>· ✅ {statusCounts.published} publiés</span>}
       </div>

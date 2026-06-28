@@ -51,7 +51,7 @@ export default function CreerStepper({ current, onStepClick, rightSlot }: Props)
                 aria-current={isCurrent ? "step" : undefined}
                 aria-label={`Étape ${i + 1} sur ${STEPS.length} — ${s.label}`}
                 className={cn(
-                  "flex items-center justify-center h-6 w-6 rounded-full text-[10px] font-bold shrink-0 transition-all",
+                  "flex items-center justify-center h-6 w-6 rounded-full text-2xs font-bold shrink-0 transition-all",
                   isPast && "bg-primary/40 text-primary-foreground hover:bg-primary/60 cursor-pointer",
                   isCurrent && "bg-primary text-primary-foreground shadow-sm scale-110",
                   !isPast && !isCurrent && "bg-muted text-muted-foreground",

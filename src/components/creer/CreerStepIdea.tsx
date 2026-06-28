@@ -112,7 +112,7 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
                     <Camera className="h-4 w-4 text-primary" />
                     <span className="text-sm font-semibold text-foreground">Partir de photos</span>
                   </div>
-                  <p className="text-[11px] text-muted-foreground">J'ai des photos, on construit autour.</p>
+                  <p className="text-2xs text-muted-foreground">J'ai des photos, on construit autour.</p>
                 </button>
               )}
               <button
@@ -124,7 +124,7 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
                   <Newspaper className="h-4 w-4 text-primary" />
                   <span className="text-sm font-semibold text-foreground">Surfer sur l'actu</span>
                 </div>
-                <p className="text-[11px] text-muted-foreground">Réagir à une news fraîche.</p>
+                <p className="text-2xs text-muted-foreground">Réagir à une news fraîche.</p>
               </button>
               <button
                 type="button"
@@ -135,7 +135,7 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
                   <Repeat className="h-4 w-4 text-primary" />
                   <span className="text-sm font-semibold text-foreground">Transformer un contenu</span>
                 </div>
-                <p className="text-[11px] text-muted-foreground">Recycler un post existant.</p>
+                <p className="text-2xs text-muted-foreground">Recycler un post existant.</p>
               </button>
               <button
                 type="button"
@@ -146,7 +146,7 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
                   <HelpCircle className="h-4 w-4 text-primary" />
                   <span className="text-sm font-semibold text-foreground">Pas d'idée ?</span>
                 </div>
-                <p className="text-[11px] text-muted-foreground">Laisse-toi guider par la coach.</p>
+                <p className="text-2xs text-muted-foreground">Laisse-toi guider par la coach.</p>
               </button>
 
             </div>
@@ -210,7 +210,7 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
               rows={3}
               className="resize-none"
             />
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-2xs text-muted-foreground">
               Pas d'idée précise ? Laisse vide : on te posera 2-3 questions à partir de tes photos pour faire émerger ton angle.
             </p>
           </div>

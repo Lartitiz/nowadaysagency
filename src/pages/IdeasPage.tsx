@@ -324,8 +324,8 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
       {/* Header */}
       <div className="flex items-start justify-between mb-2">
         <div>
-          <h1 className="font-display text-[22px] sm:text-[26px] font-bold text-foreground">Ma boîte à idées</h1>
-          <p className="text-[15px] text-muted-foreground mt-1">Tout ce que tu as généré, sauvegardé, commencé. Rien ne se perd.</p>
+          <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground">Ma boîte à idées</h1>
+          <p className="text-base text-muted-foreground mt-1">Tout ce que tu as généré, sauvegardé, commencé. Rien ne se perd.</p>
         </div>
         <Link to="/creer?new=1">
           <Button className="rounded-pill bg-primary text-primary-foreground hover:bg-bordeaux shrink-0">
@@ -333,7 +333,7 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
           </Button>
         </Link>
       </div>
-        <p className="font-mono-ui text-[12px] text-muted-foreground mb-4">{filtered.length} idée{filtered.length !== 1 ? "s" : ""}{statusFilter !== "all" || objectifFilter !== "all" || canalFilter !== "all" || typeFilter !== "all" ? " filtrées" : " au total"}</p>
+        <p className="font-mono-ui text-xs text-muted-foreground mb-4">{filtered.length} idée{filtered.length !== 1 ? "s" : ""}{statusFilter !== "all" || objectifFilter !== "all" || canalFilter !== "all" || typeFilter !== "all" ? " filtrées" : " au total"}</p>
 
         {/* Filters */}
         <div className="sticky top-14 z-30 bg-background py-3 -mx-6 px-6 max-md:-mx-4 max-md:px-4 border-b border-border mb-4 space-y-2">
@@ -345,13 +345,13 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
             ))}
             <div className="ml-auto flex items-center gap-2">
               <select value={sort} onChange={(e) => setSort(e.target.value)}
-                className="text-[11px] font-mono-ui bg-card border border-border rounded-lg px-2 py-1 text-muted-foreground">
+                className="text-2xs font-mono-ui bg-card border border-border rounded-lg px-2 py-1 text-muted-foreground">
                 {SORT_OPTIONS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
               </select>
               <button
                 type="button"
                 onClick={() => setFiltersOpen((v) => !v)}
-                className={`inline-flex items-center gap-1.5 text-[11px] font-mono-ui rounded-lg border px-2 py-1 transition-colors ${
+                className={`inline-flex items-center gap-1.5 text-2xs font-mono-ui rounded-lg border px-2 py-1 transition-colors ${
                   activeAdvancedCount > 0 || filtersOpen
                     ? "bg-foreground text-background border-foreground"
                     : "bg-card text-muted-foreground border-border hover:text-foreground"
@@ -367,14 +367,14 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
           <Collapsible open={filtersOpen}>
             <CollapsibleContent className="space-y-2 pt-2 overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
               <div className="flex gap-1.5 flex-wrap items-center">
-                <span className="text-[11px] text-muted-foreground font-mono-ui mr-1">Objectif:</span>
+                <span className="text-2xs text-muted-foreground font-mono-ui mr-1">Objectif:</span>
                 <FilterChip active={objectifFilter === "all"} onClick={() => setObjectifFilter("all")}>Tout</FilterChip>
                 {OBJECTIF_OPTIONS.map((o) => (
                   <FilterChip key={o.id} active={objectifFilter === o.id} onClick={() => setObjectifFilter(o.id)}>{o.label}</FilterChip>
                 ))}
               </div>
               <div className="flex gap-1.5 flex-wrap items-center">
-                <span className="text-[11px] text-muted-foreground font-mono-ui mr-1">Canal:</span>
+                <span className="text-2xs text-muted-foreground font-mono-ui mr-1">Canal:</span>
                 <FilterChip active={canalFilter === "all"} onClick={() => setCanalFilter("all")}>Tout</FilterChip>
                 {CANAL_OPTIONS.map((c) => (
                   <FilterChip key={c.id} active={canalFilter === c.id} onClick={() => c.enabled && setCanalFilter(c.id)} disabled={!c.enabled}>
@@ -383,7 +383,7 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
                 ))}
               </div>
               <div className="flex gap-1.5 flex-wrap items-center">
-                <span className="text-[11px] text-muted-foreground font-mono-ui mr-1">Type:</span>
+                <span className="text-2xs text-muted-foreground font-mono-ui mr-1">Type:</span>
                 <FilterChip active={typeFilter === "all"} onClick={() => setTypeFilter("all")}>Tout</FilterChip>
                 {TYPE_OPTIONS.map((t) => (
                   <FilterChip key={t.id} active={typeFilter === t.id} onClick={() => setTypeFilter(t.id)}>{t.label}</FilterChip>
@@ -392,7 +392,7 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
                   <button
                     type="button"
                     onClick={() => { setObjectifFilter("all"); setCanalFilter("all"); setTypeFilter("all"); }}
-                    className="ml-auto text-[11px] font-mono-ui text-muted-foreground hover:text-foreground underline underline-offset-2"
+                    className="ml-auto text-2xs font-mono-ui text-muted-foreground hover:text-foreground underline underline-offset-2"
                   >
                     Réinitialiser
                   </button>
@@ -464,27 +464,27 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
                   <div className="flex gap-1.5 flex-wrap mb-2">
                     {statusBadge && (
                       idea.type === "brief" ? (
-                        <span className={`font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill ${statusBadge.bg} ${statusBadge.text}`}>
+                        <span className={`font-mono-ui text-2xs font-semibold px-2 py-0.5 rounded-pill ${statusBadge.bg} ${statusBadge.text}`}>
                           {statusBadge.label}
                         </span>
                       ) : (
                         <StatusDropdown ideaId={idea.id} current={idea.status || "to_explore"} onSelect={handleStatusChange}>
-                          <span className={`font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill cursor-pointer ${statusBadge.bg} ${statusBadge.text}`}>
+                          <span className={`font-mono-ui text-2xs font-semibold px-2 py-0.5 rounded-pill cursor-pointer ${statusBadge.bg} ${statusBadge.text}`}>
                             {statusBadge.label}
                           </span>
                         </StatusDropdown>
                       )
                     )}
                     {objBadge && (
-                      <span className={`font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill ${objBadge.bg} ${objBadge.text}`}>
+                      <span className={`font-mono-ui text-2xs font-semibold px-2 py-0.5 rounded-pill ${objBadge.bg} ${objBadge.text}`}>
                         {objBadge.label}
                       </span>
                     )}
-                    <span className="font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-primary text-primary-foreground">
+                    <span className="font-mono-ui text-2xs font-semibold px-2 py-0.5 rounded-pill bg-primary text-primary-foreground">
                       {CANAL_OPTIONS.find((c) => c.id === (idea.canal || "instagram"))?.label || "📱 Instagram"}
                     </span>
                     {idea.type === "brief" && (
-                      <span className="font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-accent text-accent-foreground">
+                      <span className="font-mono-ui text-2xs font-semibold px-2 py-0.5 rounded-pill bg-accent text-accent-foreground">
                         📋 Brief créatif
                       </span>
                     )}
@@ -492,8 +492,8 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
 
                   {/* Title */}
                   <h3 className="font-display text-base font-bold text-foreground mb-1">{idea.titre}</h3>
-                  {idea.angle?.trim() && <p className="text-[13px] text-muted-foreground">Angle : {idea.angle}</p>}
-                  {idea.format?.trim() && <p className="text-[13px] text-muted-foreground">Format : {idea.format}</p>}
+                  {idea.angle?.trim() && <p className="text-sm text-muted-foreground">Angle : {idea.angle}</p>}
+                  {idea.format?.trim() && <p className="text-sm text-muted-foreground">Format : {idea.format}</p>}
 
                   {/* Preview (scannable, 2 lignes max) */}
                   {(() => {
@@ -501,8 +501,8 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
                     if (!preview.title && !preview.text) return null;
                     return (
                       <div className="mt-2 space-y-0.5">
-                        {preview.title && <p className="font-semibold text-[13px] text-foreground line-clamp-1">{preview.title}</p>}
-                        {preview.text && <p className="text-[13px] text-foreground/70 line-clamp-2">{preview.text}</p>}
+                        {preview.title && <p className="font-semibold text-sm text-foreground line-clamp-1">{preview.title}</p>}
+                        {preview.text && <p className="text-sm text-foreground/70 line-clamp-2">{preview.text}</p>}
                       </div>
                     );
                   })()}
@@ -510,11 +510,11 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
 
                   {/* Date + planned */}
                   <div className="flex items-center gap-3 mt-2">
-                    <span className="font-mono-ui text-[11px] text-muted-foreground">
+                    <span className="font-mono-ui text-2xs text-muted-foreground">
                       Créée le {fnsFormat(new Date(idea.created_at), "d MMM yyyy", { locale: fr })}
                     </span>
                     {idea.planned_date && (
-                      <span className="font-mono-ui text-[11px] text-[#2E7D32]">
+                      <span className="font-mono-ui text-2xs text-[#2E7D32]">
                         📅 {fnsFormat(new Date(idea.planned_date), "d MMM yyyy", { locale: fr })}
                       </span>
                     )}
@@ -558,19 +558,19 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
                     {getStatusBadge(selectedIdea.status) && (() => {
                       const sb = getStatusBadge(selectedIdea.status)!;
                       return selectedIdea.type === "brief" ? (
-                        <span className={`font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill ${sb.bg} ${sb.text}`}>{sb.label}</span>
+                        <span className={`font-mono-ui text-2xs font-semibold px-2 py-0.5 rounded-pill ${sb.bg} ${sb.text}`}>{sb.label}</span>
                       ) : (
                         <StatusDropdown ideaId={selectedIdea.id} current={selectedIdea.status || "to_explore"} onSelect={(id, s) => { handleStatusChange(id, s); setSelectedIdea((prev) => prev ? { ...prev, status: s } : null); }}>
-                          <span className={`font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill cursor-pointer ${sb.bg} ${sb.text}`}>{sb.label}</span>
+                          <span className={`font-mono-ui text-2xs font-semibold px-2 py-0.5 rounded-pill cursor-pointer ${sb.bg} ${sb.text}`}>{sb.label}</span>
                         </StatusDropdown>
                       );
                     })()}
                     {getObjectifBadge(selectedIdea.objectif) && (() => {
                       const ob = getObjectifBadge(selectedIdea.objectif)!;
-                      return <span className={`font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill ${ob.bg} ${ob.text}`}>{ob.label}</span>;
+                      return <span className={`font-mono-ui text-2xs font-semibold px-2 py-0.5 rounded-pill ${ob.bg} ${ob.text}`}>{ob.label}</span>;
                     })()}
-                    <span className="font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-primary text-primary-foreground">{CANAL_OPTIONS.find((c) => c.id === (selectedIdea.canal || "instagram"))?.label || "📱 Instagram"}</span>
-                    <span className="font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-rose-pale text-foreground">{TYPE_OPTIONS.find((t) => t.id === (selectedIdea.type || "idea"))?.label || "💡 Idée"}</span>
+                    <span className="font-mono-ui text-2xs font-semibold px-2 py-0.5 rounded-pill bg-primary text-primary-foreground">{CANAL_OPTIONS.find((c) => c.id === (selectedIdea.canal || "instagram"))?.label || "📱 Instagram"}</span>
+                    <span className="font-mono-ui text-2xs font-semibold px-2 py-0.5 rounded-pill bg-rose-pale text-foreground">{TYPE_OPTIONS.find((t) => t.id === (selectedIdea.type || "idea"))?.label || "💡 Idée"}</span>
                   </div>
                 </DialogHeader>
 
@@ -583,7 +583,7 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
                   {/* Accroche */}
                   {(selectedIdea.accroche_short || selectedIdea.accroche_long) && (
                     <section className="pt-6 border-t border-border/60 space-y-2">
-                      <p className="font-mono-ui text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Accroche</p>
+                      <p className="font-mono-ui text-2xs uppercase tracking-wider font-semibold text-muted-foreground">Accroche</p>
                       {selectedIdea.accroche_short && <p className="text-sm text-foreground font-semibold">{selectedIdea.accroche_short}</p>}
                       {selectedIdea.accroche_long && <p className="text-sm text-foreground/80 italic">{selectedIdea.accroche_long}</p>}
                     </section>
@@ -592,7 +592,7 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
                   {/* Brief créatif → on affiche les réponses telles quelles (pas via ContentPreview) */}
                   {selectedIdea.type === "brief" && selectedIdea.content_draft?.trim() && (
                     <section className="pt-6 border-t border-border/60 space-y-2">
-                      <p className="font-mono-ui text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Ton brief</p>
+                      <p className="font-mono-ui text-2xs uppercase tracking-wider font-semibold text-muted-foreground">Ton brief</p>
                       <div className="rounded-xl bg-rose-pale p-3 max-h-[400px] overflow-y-auto whitespace-pre-wrap text-sm text-foreground/90">
                         {selectedIdea.content_draft}
                       </div>
@@ -602,7 +602,7 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
                   {/* Draft / Content */}
                   {selectedIdea.type !== "brief" && (selectedIdea.content_data || selectedIdea.content_draft) && (
                     <section className="pt-6 border-t border-border/60 space-y-2">
-                      <p className="font-mono-ui text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Contenu</p>
+                      <p className="font-mono-ui text-2xs uppercase tracking-wider font-semibold text-muted-foreground">Contenu</p>
                       <div className="rounded-xl bg-rose-pale p-3 max-h-[400px] overflow-y-auto">
                         <ContentPreview
                           contentData={selectedIdea.content_data}
@@ -628,32 +628,32 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
                   {/* Metadata grid */}
                   <section className="pt-6 border-t border-border/60 grid grid-cols-2 gap-y-4 gap-x-8">
                     <div className="space-y-1">
-                      <p className="font-mono-ui text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Angle</p>
+                      <p className="font-mono-ui text-2xs uppercase tracking-wider font-semibold text-muted-foreground">Angle</p>
                       <p className="text-sm text-foreground">{selectedIdea.angle}</p>
                     </div>
                     <div className="space-y-1">
-                      <p className="font-mono-ui text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Format</p>
+                      <p className="font-mono-ui text-2xs uppercase tracking-wider font-semibold text-muted-foreground">Format</p>
                       <p className="text-sm text-foreground">{selectedIdea.format}</p>
                     </div>
                     {selectedIdea.format_technique && (
                       <div className="space-y-1 col-span-2">
-                        <p className="font-mono-ui text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Format technique</p>
+                        <p className="font-mono-ui text-2xs uppercase tracking-wider font-semibold text-muted-foreground">Format technique</p>
                         <p className="text-sm text-foreground">{selectedIdea.format_technique}</p>
                       </div>
                     )}
                     <div className="space-y-1">
-                      <p className="font-mono-ui text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Créée le</p>
+                      <p className="font-mono-ui text-2xs uppercase tracking-wider font-semibold text-muted-foreground">Créée le</p>
                       <p className="text-xs text-muted-foreground">{fnsFormat(new Date(selectedIdea.created_at), "d MMMM yyyy", { locale: fr })}</p>
                     </div>
                     {selectedIdea.updated_at && (
                       <div className="space-y-1">
-                        <p className="font-mono-ui text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Modifiée le</p>
+                        <p className="font-mono-ui text-2xs uppercase tracking-wider font-semibold text-muted-foreground">Modifiée le</p>
                         <p className="text-xs text-muted-foreground">{fnsFormat(new Date(selectedIdea.updated_at), "d MMMM yyyy", { locale: fr })}</p>
                       </div>
                     )}
                     {selectedIdea.planned_date && (
                       <div className="space-y-1 col-span-2">
-                        <p className="font-mono-ui text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Planifiée le</p>
+                        <p className="font-mono-ui text-2xs uppercase tracking-wider font-semibold text-muted-foreground">Planifiée le</p>
                         <p className="text-xs text-[#2E7D32]">📅 {fnsFormat(new Date(selectedIdea.planned_date), "d MMMM yyyy", { locale: fr })}</p>
                       </div>
                     )}
@@ -663,11 +663,11 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
                   {selectedIdea.type !== "brief" && (
                     <section className="bg-rose-pale/40 border-l-4 border-primary/40 rounded-r-lg p-5">
                       <div className="flex justify-between items-center mb-3">
-                        <p className="font-mono-ui text-[10px] uppercase tracking-wider font-bold text-primary">Mes notes personnelles</p>
+                        <p className="font-mono-ui text-2xs uppercase tracking-wider font-bold text-primary">Mes notes personnelles</p>
                         <button
                           type="button"
                           onClick={() => handleSaveNotes(selectedIdea.id, detailNotes)}
-                          className="font-mono-ui text-[10px] uppercase tracking-wider font-bold text-primary hover:underline"
+                          className="font-mono-ui text-2xs uppercase tracking-wider font-bold text-primary hover:underline"
                         >
                           Sauvegarder
                         </button>
@@ -747,7 +747,7 @@ function FilterChip({ active, onClick, disabled, children }: { active: boolean; 
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`font-mono-ui text-[11px] font-semibold px-2.5 py-1 rounded-pill transition-all whitespace-nowrap ${
+      className={`font-mono-ui text-2xs font-semibold px-2.5 py-1 rounded-pill transition-all whitespace-nowrap ${
         active
           ? "bg-primary text-primary-foreground"
           : disabled

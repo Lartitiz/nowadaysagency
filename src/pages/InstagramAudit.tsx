@@ -620,7 +620,7 @@ export default function InstagramAudit() {
         <AppHeader />
         <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
           <SubPageHeader parentLabel="Mon profil" parentTo="/instagram/profil" currentLabel="Audit" useFromParam />
-          <h1 className="font-display text-[22px] sm:text-[26px] font-bold text-foreground mb-2">🔍 Audit de ton profil Instagram</h1>
+          <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-2">🔍 Audit de ton profil Instagram</h1>
 
           <div className="rounded-2xl border border-border bg-card p-6 mt-6">
             {score !== null && (
@@ -672,7 +672,7 @@ export default function InstagramAudit() {
         <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
           <SubPageHeader parentLabel="Mon profil" parentTo="/instagram/profil" currentLabel="Résultats audit" useFromParam />
           <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
-            <h1 className="font-display text-[26px] font-bold text-foreground">🔍 Résultat de ton audit</h1>
+            <h1 className="font-display text-3xl font-bold text-foreground">🔍 Résultat de ton audit</h1>
             {auditDate && (
               <span className="text-xs text-muted-foreground">
                 {new Date(auditDate).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
@@ -786,7 +786,7 @@ export default function InstagramAudit() {
       <AppHeader />
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
         <SubPageHeader parentLabel="Mon profil" parentTo="/instagram/profil" currentLabel={hasExistingAudit ? "Refaire l'audit" : "Audit"} useFromParam />
-        <h1 className="font-display text-[26px] font-bold text-foreground">
+        <h1 className="font-display text-3xl font-bold text-foreground">
           {hasExistingAudit ? "🔄 Refaire l'audit" : "🔍 Audit de ton profil Instagram"}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground italic mb-8">

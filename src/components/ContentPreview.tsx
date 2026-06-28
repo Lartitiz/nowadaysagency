@@ -503,7 +503,7 @@ function CarouselPreview({ data, compact, editable, onContentChange }: { data: a
               ) : (
                 <p className="text-xs text-muted-foreground italic">(Photo seule)</p>
               )}
-              {slide.overlay_position && <span className="text-[10px] text-muted-foreground">{slide.overlay_position.replace(/_/g, " ")}</span>}
+              {slide.overlay_position && <span className="text-2xs text-muted-foreground">{slide.overlay_position.replace(/_/g, " ")}</span>}
             </>
           ) : (
             <>
@@ -631,7 +631,7 @@ function FallbackPreview({ data, editable, onContentChange }: { data: any; edita
           {chipEntries.map(([key, val]) => (
             <span
               key={key}
-              className="inline-flex items-center gap-1 rounded-pill bg-muted px-2 py-0.5 text-[10px] font-mono-ui text-foreground/80"
+              className="inline-flex items-center gap-1 rounded-pill bg-muted px-2 py-0.5 text-2xs font-mono-ui text-foreground/80"
             >
               <span className="uppercase tracking-wide text-muted-foreground">{formatLabel(key)}</span>
               <span className="text-foreground">{val}</span>
@@ -647,7 +647,7 @@ function FallbackPreview({ data, editable, onContentChange }: { data: any; edita
               key={key}
               className={idx > 0 ? "border-t border-border/40 pt-3" : ""}
             >
-              <p className="text-[11px] font-mono-ui uppercase tracking-wide text-muted-foreground mb-1">
+              <p className="text-2xs font-mono-ui uppercase tracking-wide text-muted-foreground mb-1">
                 {formatLabel(key)}
               </p>
               {renderValue(key, val)}

@@ -133,13 +133,13 @@ function StoryCards() {
           >
             <div className="flex items-start justify-between gap-3 mb-2">
               <h3 className="font-display text-sm font-bold text-foreground">{label}</h3>
-              {s.is_primary && <Badge variant="default" className="text-[10px] shrink-0">Principal</Badge>}
+              {s.is_primary && <Badge variant="default" className="text-2xs shrink-0">Principal</Badge>}
             </div>
-            <p className={`text-[13px] text-muted-foreground leading-relaxed ${single ? "" : "line-clamp-3"}`}>
+            <p className={`text-sm text-muted-foreground leading-relaxed ${single ? "" : "line-clamp-3"}`}>
               {preview}
             </p>
             {s.updated_at && (
-              <p className="text-[11px] text-muted-foreground/60 mt-2">
+              <p className="text-2xs text-muted-foreground/60 mt-2">
                 Mis à jour le {format(new Date(s.updated_at), "d MMM yyyy", { locale: fr })}
               </p>
             )}
@@ -791,11 +791,11 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
                   </div>
                 </div>
               ) : isFilled ? (
-                <p className="text-[13px] text-muted-foreground leading-relaxed whitespace-pre-line">
+                <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
                   {rawValue}
                 </p>
               ) : (
-                <p className="text-[13px] text-muted-foreground/50 italic">
+                <p className="text-sm text-muted-foreground/50 italic">
                   Pas encore renseigné ·{" "}
                   <button onClick={() => handleStartEdit(f)} className="text-primary hover:underline">
                     Remplir manuellement

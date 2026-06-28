@@ -72,7 +72,7 @@ export default function PinterestInspirationStep({
               {analysis.keywords.map((kw, i) => (
                 <span
                   key={i}
-                  className="inline-block rounded-full border border-border bg-muted/50 px-2 py-0.5 text-[11px] text-muted-foreground"
+                  className="inline-block rounded-full border border-border bg-muted/50 px-2 py-0.5 text-2xs text-muted-foreground"
                 >
                   {kw}
                 </span>
@@ -104,11 +104,11 @@ export default function PinterestInspirationStep({
                 {p.subject}
               </p>
               {p.recommended_output === "visual" ? (
-                <span className="flex-shrink-0 inline-block rounded-full bg-primary px-2.5 py-0.5 text-[11px] font-semibold text-primary-foreground whitespace-nowrap">
+                <span className="flex-shrink-0 inline-block rounded-full bg-primary px-2.5 py-0.5 text-2xs font-semibold text-primary-foreground whitespace-nowrap">
                   🎨 Visuel
                 </span>
               ) : (
-                <span className="flex-shrink-0 inline-block rounded-full bg-accent px-2.5 py-0.5 text-[11px] font-semibold text-accent-foreground whitespace-nowrap">
+                <span className="flex-shrink-0 inline-block rounded-full bg-accent px-2.5 py-0.5 text-2xs font-semibold text-accent-foreground whitespace-nowrap">
                   📷 Photo
                 </span>
               )}

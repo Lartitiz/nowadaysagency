@@ -209,7 +209,7 @@ export default function KickoffPreparation({ open, onOpenChange, coachUserId, on
           </section>
           <section>
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Les {focusSessions.length} sessions focus</p>
-            <p className="text-[11px] text-muted-foreground mb-3">💡 Les focus seront décidés lors de l'Atelier Stratégique.</p>
+            <p className="text-2xs text-muted-foreground mb-3">💡 Les focus seront décidés lors de l'Atelier Stratégique.</p>
             <div className="space-y-3">
               {focusSessions.map((fs, i) => (
                 <div key={i} className="rounded-xl border border-border p-3 space-y-2">

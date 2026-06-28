@@ -348,7 +348,7 @@ export function PhotoEditDialog({
             disabled={promptDisabled}
             className="min-h-[60px] resize-none text-sm"
           />
-          <p className="text-[10px] text-muted-foreground text-right">
+          <p className="text-2xs text-muted-foreground text-right">
             {prompt.length} / 300
           </p>
         </div>

@@ -110,7 +110,7 @@ function VisualSlidesCarousel({ slides }: { slides: { slide_number: number; html
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
           Aperçu des visuels ({slides.length} slides)
         </p>
-        <p className="text-[10px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           ← Défiler →
         </p>
       </div>
@@ -170,7 +170,7 @@ function VisualSlidesCarousel({ slides }: { slides: { slide_number: number; html
               />
             </div>
 
-            <p className="text-[10px] font-mono text-muted-foreground text-center mt-2">
+            <p className="text-2xs font-mono text-muted-foreground text-center mt-2">
               {vs.slide_number} / {slides.length}
             </p>
           </div>
@@ -513,7 +513,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                 <button
                   type="button"
                   onClick={() => onColorsChange(null)}
-                  className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                  className="inline-flex items-center gap-1 text-2xs text-muted-foreground hover:text-foreground transition-colors"
                   title="Revenir aux couleurs de la charte"
                 >
                   <RotateCcw size={11} />
@@ -535,7 +535,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                 </label>
               ))}
             </div>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-2xs text-muted-foreground">
               Modifie les couleurs puis « Mettre à jour les visuels » pour les appliquer. Par défaut, ce sont les couleurs de ta charte.
             </p>
           </CardContent>
@@ -551,7 +551,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                   SLIDE {slide.slide_number || idx + 1} / {slides.length}
                 </span>
                 {slide.role && (
-                  <Badge variant="secondary" className="text-[10px]">
+                  <Badge variant="secondary" className="text-2xs">
                     {formatSlideRole(slide.role)}
                   </Badge>
                 )}
@@ -560,7 +560,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                     <DropdownMenuTrigger asChild>
                       <button
                         type="button"
-                        className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-medium hover:bg-muted transition-colors"
+                        className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-2xs font-medium hover:bg-muted transition-colors"
                         title="Changer le type de slide"
                       >
                         {slide.slide_type === "photo_full" ? "📸 Photo plein écran"
@@ -692,7 +692,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
               })()}
 
               {slide.slide_type === "photo_integrated" && slide.photo_layout && (
-                <Badge variant="outline" className="text-[10px]">
+                <Badge variant="outline" className="text-2xs">
                   Layout : {slide.photo_layout.replace(/_/g, " ")}
                 </Badge>
               )}
@@ -716,7 +716,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                         rows={2}
                       />
                       {slide.overlay_position && (
-                        <Badge variant="outline" className="text-[10px]">
+                        <Badge variant="outline" className="text-2xs">
                           {slide.overlay_position.replace(/_/g, " ")}
                         </Badge>
                       )}
@@ -792,7 +792,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
             <p className="text-xs font-medium text-warning">
               ⚠ La légende n'a pas été générée correctement.
             </p>
-            <p className="text-[11px] text-warning">
+            <p className="text-2xs text-warning">
               Tu peux la rédiger à la main ci-dessous{onRegenerateCaption ? ", relancer uniquement la légende," : ""}{onRetry ? " ou relancer la génération du carrousel." : "."}
             </p>
             <div className="flex flex-wrap gap-2">
@@ -838,7 +838,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
         <Card className="border-border">
           <CardContent className="p-4 space-y-3">
             <p className="text-sm font-semibold text-foreground">📝 Légende du carrousel</p>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-2xs text-muted-foreground">
               Hook, corps, CTA et hashtags réunis dans un seul bloc éditable. Modifie librement.
             </p>
             <Textarea
@@ -861,7 +861,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
           {!computedQuality.all_photos_used && (
             <Badge
               variant="outline"
-              className="text-[10px] border-warning/30 text-warning cursor-help"
+              className="text-2xs border-warning/30 text-warning cursor-help"
               title={`${
                 computedQuality.unused_photo_numbers.length === 1
                   ? `La photo n°${computedQuality.unused_photo_numbers[0]} n'est posée sur aucune slide`
@@ -889,7 +889,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                   <p className="text-xs font-medium text-warning">
                     Tu as modifié des slides depuis le dernier rendu visuel.
                   </p>
-                  <p className="text-[11px] text-warning">
+                  <p className="text-2xs text-warning">
                     Mets à jour les visuels pour que l'aperçu et l'export reflètent tes modifications.
                   </p>
                   <Button

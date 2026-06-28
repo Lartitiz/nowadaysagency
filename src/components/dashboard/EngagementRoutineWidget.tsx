@@ -114,7 +114,7 @@ export default function EngagementRoutineWidget({ animationDelay = 0 }: Props) {
       <div className="flex items-center justify-between gap-2">
         {dayLabels.map((label, i) => (
           <div key={i} className="flex flex-col items-center gap-1.5">
-            <span className="text-[10px] font-mono-ui text-muted-foreground">{label}</span>
+            <span className="text-2xs font-mono-ui text-muted-foreground">{label}</span>
             <span className="text-base leading-none">
               {weekDots[i] ? "🔥" : "·"}
             </span>

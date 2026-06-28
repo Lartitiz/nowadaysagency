@@ -54,7 +54,7 @@ export default function CarouselStructureLoader({ hasPhotos = false }: { hasPhot
 
   return (
     <div className="py-16 text-center space-y-5 animate-fade-in max-w-md mx-auto">
-      <span className="inline-block text-[11px] font-semibold uppercase tracking-wide text-primary/70 bg-primary/10 rounded-full px-3 py-1">
+      <span className="inline-block text-2xs font-semibold uppercase tracking-wide text-primary/70 bg-primary/10 rounded-full px-3 py-1">
         Étape 1 / 2 · Structure
       </span>
 

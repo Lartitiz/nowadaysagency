@@ -211,7 +211,7 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
                   <p className="text-xs text-muted-foreground text-center">
                     Glisse le screenshot du post ici<br />ou clique pour uploader
                   </p>
-                  <p className="text-[10px] text-muted-foreground/60">PNG, JPG · 5 Mo max</p>
+                  <p className="text-2xs text-muted-foreground/60">PNG, JPG · 5 Mo max</p>
                 </div>
               )}
               <input
@@ -225,7 +225,7 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
                   if (file) handleFile(file);
                 }}
               />
-              <p className="text-[10px] text-muted-foreground italic">
+              <p className="text-2xs text-muted-foreground italic">
                 📷 L'IA analyse le visuel pour générer un commentaire plus pertinent
               </p>
             </div>
@@ -254,7 +254,7 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
               />
             </div>
 
-            <p className="text-[10px] text-muted-foreground italic">💡 Plus tu donnes de contexte, plus le commentaire sera pertinent.</p>
+            <p className="text-2xs text-muted-foreground italic">💡 Plus tu donnes de contexte, plus le commentaire sera pertinent.</p>
 
             {/* Angle selection */}
             <div className="space-y-1.5">
@@ -264,7 +264,7 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
                   <button
                     key={a.value}
                     onClick={() => setAngle(a.value)}
-                    className={`text-[11px] px-3 py-1 rounded-full border transition-all ${
+                    className={`text-2xs px-3 py-1 rounded-full border transition-all ${
                       angle === a.value ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border text-muted-foreground hover:border-primary/40"
                     }`}
                   >
@@ -285,7 +285,7 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
 
             {comments.map((c, idx) => (
               <div key={idx} className="space-y-2">
-                <p className="text-[11px] font-semibold text-muted-foreground">{c.emoji} {c.label}</p>
+                <p className="text-2xs font-semibold text-muted-foreground">{c.emoji} {c.label}</p>
                 {editingIdx === idx ? (
                   <div className="space-y-2">
                     <Textarea
@@ -310,7 +310,7 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
                       {c.text}
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-muted-foreground">{c.word_count} mots</span>
+                      <span className="text-2xs text-muted-foreground">{c.word_count} mots</span>
                       <Button size="sm" variant="ghost" className="text-xs h-7" onClick={() => copyText(c.text)}>
                         <Copy className="h-3 w-3 mr-1" /> Copier
                       </Button>

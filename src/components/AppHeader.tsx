@@ -190,7 +190,7 @@ function AppHeaderInner() {
           <div className="flex items-center gap-2 shrink-0">
             <Link to="/dashboard" className="flex items-center gap-2 shrink-0">
               <span className="font-display text-sm font-bold text-foreground">L'Assistant Com'</span>
-              <span className="font-mono-ui text-[10px] font-semibold bg-primary text-primary-foreground px-2 py-0.5 rounded-md">beta</span>
+              <span className="font-mono-ui text-2xs font-semibold bg-primary text-primary-foreground px-2 py-0.5 rounded-md">beta</span>
             </Link>
             {isMultiWorkspace && <WorkspaceSwitcher activeWorkspace={activeWorkspace} workspaces={workspaces} switchWorkspace={switchWorkspace} navigate={navigate} />}
           </div>
@@ -202,7 +202,7 @@ function AppHeaderInner() {
                   key={item.to}
                   to={item.to}
                   data-tour={`nav-${item.to.replace(/\//g, "") || "dashboard"}`}
-                  className={`flex items-center gap-1.5 rounded-pill px-2.5 py-1.5 text-[13px] font-semibold transition-all duration-200 whitespace-nowrap shrink-0 ${
+                  className={`flex items-center gap-1.5 rounded-pill px-2.5 py-1.5 text-sm font-semibold transition-all duration-200 whitespace-nowrap shrink-0 ${
                     isActive(item)
                       ? "bg-card text-primary shadow-[0_2px_8px_hsl(338_96%_61%/0.1)]"
                       : "text-muted-foreground hover:bg-secondary"
@@ -245,7 +245,7 @@ function AppHeaderInner() {
           <div className="flex items-center gap-2 shrink-0">
             <Link to="/dashboard" className="flex items-center gap-2 shrink-0">
               <span className="font-display text-sm font-bold text-foreground">L'Assistant Com'</span>
-              <span className="font-mono-ui text-[10px] font-semibold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-md">beta</span>
+              <span className="font-mono-ui text-2xs font-semibold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-md">beta</span>
             </Link>
             {isMultiWorkspace && <WorkspaceSwitcher activeWorkspace={activeWorkspace} workspaces={workspaces} switchWorkspace={switchWorkspace} navigate={navigate} />}
           </div>
@@ -299,7 +299,7 @@ function AppHeaderInner() {
           <div className="flex items-center gap-2 shrink-0">
             <Link to="/dashboard" className="flex items-center gap-2 shrink-0">
               <span className="font-display text-sm font-bold text-foreground">L'Assistant Com'</span>
-              <span className="font-mono-ui text-[10px] font-semibold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-md">beta</span>
+              <span className="font-mono-ui text-2xs font-semibold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-md">beta</span>
             </Link>
             {isMultiWorkspace && <WorkspaceSwitcher activeWorkspace={activeWorkspace} workspaces={workspaces} switchWorkspace={switchWorkspace} navigate={navigate} />}
           </div>
@@ -339,7 +339,7 @@ function AppHeaderInner() {
               <Link
                 key={item.to}
                 to={item.to}
-                className={`flex flex-col items-center gap-0.5 py-1 px-2 text-[10px] font-semibold transition-colors ${
+                className={`flex flex-col items-center gap-0.5 py-1 px-2 text-2xs font-semibold transition-colors ${
                   active ? "text-primary" : "text-muted-foreground"
                 }`}
               >
@@ -418,7 +418,7 @@ function AvatarMenu({ initial, firstName, planLabel, planBadge, totalUsed, total
         >
           {initial}
           {planBadge && (
-            <span className="text-[10px] font-semibold bg-primary-foreground/20 px-1.5 py-0.5 rounded-md">
+            <span className="text-2xs font-semibold bg-primary-foreground/20 px-1.5 py-0.5 rounded-md">
               {planBadge}
             </span>
           )}
@@ -430,7 +430,7 @@ function AvatarMenu({ initial, firstName, planLabel, planBadge, totalUsed, total
           <div className="flex items-center gap-2">
             <p className="text-sm font-semibold text-foreground">Salut {firstName} 👋</p>
             {planBadge && (
-              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${isBinome ? "bg-primary/10 text-primary" : "bg-secondary text-muted-foreground"}`}>
+              <span className={`text-2xs font-semibold px-1.5 py-0.5 rounded-md ${isBinome ? "bg-primary/10 text-primary" : "bg-secondary text-muted-foreground"}`}>
                 {planBadge}
               </span>
             )}
@@ -443,7 +443,7 @@ function AvatarMenu({ initial, firstName, planLabel, planBadge, totalUsed, total
             onClick={() => navigate("/abonnement")}
             className="w-full mt-2 group/credits"
           >
-            <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1">
+            <div className="flex items-center justify-between text-2xs text-muted-foreground mb-1">
               <span className="flex items-center gap-1">⚡ Crédits IA</span>
               <span className={`font-mono-ui font-semibold ${isLow ? "text-destructive" : totalPercent >= 70 ? "text-warning" : ""}`}>
                 {remaining}/{totalLimit}
@@ -451,7 +451,7 @@ function AvatarMenu({ initial, firstName, planLabel, planBadge, totalUsed, total
             </div>
             <Progress value={totalPercent} className="h-1.5" />
             {isLow && (
-              <p className="text-[10px] text-destructive mt-0.5 text-left">Crédits presque épuisés</p>
+              <p className="text-2xs text-destructive mt-0.5 text-left">Crédits presque épuisés</p>
             )}
           </button>
         </div>

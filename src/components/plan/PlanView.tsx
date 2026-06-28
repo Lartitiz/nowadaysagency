@@ -201,17 +201,17 @@ function StepCard({ step, navigate, onToggleStep }: { step: PlanStep; navigate: 
           <div className="flex items-center gap-2">
             <span className="font-medium text-sm text-foreground">{step.label}</span>
             {step.isCoachExercise && (
-              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-primary/10 text-primary flex items-center gap-1">
+              <span className="text-2xs font-medium px-1.5 py-0.5 rounded-full bg-primary/10 text-primary flex items-center gap-1">
                 👩‍🏫 Coach
               </span>
             )}
             {step.comingSoon && (
-              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground flex items-center gap-1">
+              <span className="text-2xs font-medium px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground flex items-center gap-1">
                 <Construction className="h-3 w-3" /> Bientôt
               </span>
             )}
             {isOverdue && (
-              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive flex items-center gap-1">
+              <span className="text-2xs font-medium px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive flex items-center gap-1">
                 ⏰ En retard
               </span>
             )}

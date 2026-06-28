@@ -116,7 +116,7 @@ export default function BinomeSalesPage() {
           <span className="inline-block mb-4 text-sm font-semibold text-primary bg-primary/10 px-4 py-1.5 rounded-pill">
             🤝 Ta binôme de com
           </span>
-          <h1 className="font-display text-[32px] sm:text-[48px] font-bold text-foreground leading-[1.15] mb-5">
+          <h1 className="font-display text-4xl sm:text-5xl font-bold text-foreground leading-[1.15] mb-5">
             6 mois pour poser
             <br />
             <span className="text-primary">toute ta com'.</span>

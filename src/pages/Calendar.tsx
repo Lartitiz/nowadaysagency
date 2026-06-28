@@ -133,10 +133,10 @@ function ExportSection({ filteredPosts, canalFilter, onCoachingOpen, onQuickBatc
   return (
     <div className="mb-6 flex items-start justify-between gap-4">
       <div>
-        <h1 className="font-display text-[22px] sm:text-3xl md:text-4xl font-bold text-foreground">
+        <h1 className="font-display text-2xl sm:text-3xl md:text-4xl font-bold text-foreground">
           📅 Mon calendrier éditorial
         </h1>
-        <p className="mt-1 text-[15px] text-muted-foreground">Planifie tes contenus, visualise ta semaine, ne te demande plus jamais « je poste quoi aujourd'hui ».</p>
+        <p className="mt-1 text-base text-muted-foreground">Planifie tes contenus, visualise ta semaine, ne te demande plus jamais « je poste quoi aujourd'hui ».</p>
       </div>
       <div className="flex items-center gap-2 shrink-0">
         <DropdownMenu>
@@ -899,7 +899,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
                       aria-label="Afficher le panneau d'idées"
                     >
                       <span className="text-base leading-none">💡</span>
-                      <span className="text-[10px] font-semibold text-muted-foreground [writing-mode:vertical-rl] rotate-180">
+                      <span className="text-2xs font-semibold text-muted-foreground [writing-mode:vertical-rl] rotate-180">
                         Mes idées
                       </span>
                     </button>

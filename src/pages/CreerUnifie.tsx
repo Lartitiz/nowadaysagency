@@ -3018,7 +3018,7 @@ export default function CreerUnifie() {
             };
             const credits =
               !planLoading && remainingTotal() < 9000 ? (
-                <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+                <span className="text-2xs text-muted-foreground whitespace-nowrap">
                   ✨ {remainingTotal()} restantes
                 </span>
               ) : null;

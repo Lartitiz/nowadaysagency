@@ -47,7 +47,7 @@ export default function NewsletterResult({ result }: Props) {
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                 <Mail className="h-3 w-3" /> Objet de l'email
               </p>
-              <Button variant="ghost" size="sm" onClick={copySubject} className="h-6 px-2 text-[10px] gap-1 text-muted-foreground">
+              <Button variant="ghost" size="sm" onClick={copySubject} className="h-6 px-2 text-2xs gap-1 text-muted-foreground">
                 <Copy className="h-3 w-3" /> Copier
               </Button>
             </div>
@@ -62,7 +62,7 @@ export default function NewsletterResult({ result }: Props) {
           <CardContent className="p-3 space-y-1">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Preview text</p>
             <p className="text-sm text-muted-foreground italic">{previewText}</p>
-            <p className="text-[10px] text-muted-foreground">{previewText.length} caractères</p>
+            <p className="text-2xs text-muted-foreground">{previewText.length} caractères</p>
           </CardContent>
         </Card>
       )}

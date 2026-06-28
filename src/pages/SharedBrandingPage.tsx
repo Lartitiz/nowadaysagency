@@ -32,7 +32,7 @@ function Field({ label, value }: { label: string; value?: string | null }) {
   return (
     <div>
       <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">{label}</p>
-      <p className="text-[15px] text-foreground/80 leading-relaxed whitespace-pre-line">{value}</p>
+      <p className="text-base text-foreground/80 leading-relaxed whitespace-pre-line">{value}</p>
     </div>
   );
 }
@@ -183,8 +183,8 @@ export default function SharedBrandingPage() {
                       <span className="text-xs font-medium text-muted-foreground">{offer.price_text}</span>
                     )}
                   </div>
-                  {offer.promise && <p className="text-[13px] text-foreground/70">{offer.promise}</p>}
-                  {offer.sales_line && <p className="text-[13px] italic text-foreground/60">{offer.sales_line}</p>}
+                  {offer.promise && <p className="text-sm text-foreground/70">{offer.promise}</p>}
+                  {offer.sales_line && <p className="text-sm italic text-foreground/60">{offer.sales_line}</p>}
                 </div>
               ))}
             </div>

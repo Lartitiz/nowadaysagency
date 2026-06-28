@@ -125,10 +125,10 @@ export default function AiLoadingIndicator({
       {/* Timer + hint */}
       <div className="flex items-center justify-between">
         <span className="font-mono text-xs text-muted-foreground">⏱️ {timerStr}</span>
-        <span className="text-[11px] text-muted-foreground">{Math.round(progress)}%</span>
+        <span className="text-2xs text-muted-foreground">{Math.round(progress)}%</span>
       </div>
 
-      <p className="text-center text-[11px] text-muted-foreground">
+      <p className="text-center text-2xs text-muted-foreground">
         Les analyses complètes prennent généralement 30 à 90 secondes.
       </p>
     </div>

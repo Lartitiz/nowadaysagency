@@ -116,8 +116,8 @@ export default function LinkedInHub() {
         </Link>
 
         <div className="mb-8">
-          <h1 className="font-display text-[26px] sm:text-3xl font-bold text-foreground">💼 Mon LinkedIn</h1>
-          <p className="mt-1 text-[15px] text-muted-foreground">
+          <h1 className="font-display text-3xl sm:text-3xl font-bold text-foreground">💼 Mon LinkedIn</h1>
+          <p className="mt-1 text-base text-muted-foreground">
             Optimise ton profil, crée des posts pro, développe ton réseau : LinkedIn c'est pas ennuyeux, promis.
           </p>
         </div>

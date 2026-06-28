@@ -38,7 +38,7 @@ export function CarouselSlider({ slides, mediaUrls }: CarouselSliderProps) {
       onTouchEnd={onTouchEnd}
     >
       {/* Counter */}
-      <span className="absolute top-3 right-3 z-10 text-[10px] font-semibold bg-black/50 text-white px-2 py-0.5 rounded-full">
+      <span className="absolute top-3 right-3 z-10 text-2xs font-semibold bg-black/50 text-white px-2 py-0.5 rounded-full">
         {current + 1}/{total}
       </span>
 

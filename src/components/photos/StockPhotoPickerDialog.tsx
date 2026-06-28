@@ -299,7 +299,7 @@ export function StockPhotoPickerDialog({
                       </div>
                     )}
                     {p.photographer && (
-                      <span className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent px-1.5 py-1 text-[9px] text-white/90 truncate opacity-0 group-hover:opacity-100 transition">
+                      <span className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent px-1.5 py-1 text-2xs text-white/90 truncate opacity-0 group-hover:opacity-100 transition">
                         © {p.photographer}
                       </span>
                     )}

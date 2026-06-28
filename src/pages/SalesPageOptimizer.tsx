@@ -204,8 +204,8 @@ export default function SalesPageOptimizer() {
         {step === "input" && (
           <div className="space-y-6">
             <div>
-              <h1 className="font-display text-[26px] sm:text-3xl font-bold text-foreground">🔧 Optimise ta page de vente</h1>
-              <p className="mt-2 text-[15px] text-muted-foreground max-w-2xl">
+              <h1 className="font-display text-3xl sm:text-3xl font-bold text-foreground">🔧 Optimise ta page de vente</h1>
+              <p className="mt-2 text-base text-muted-foreground max-w-2xl">
                 Tu as déjà une page ? Parfait. Colle ton URL, dis-moi ce qui te chiffonne, et l'IA te propose des améliorations concrètes, section par section.
               </p>
             </div>
@@ -236,7 +236,7 @@ export default function SalesPageOptimizer() {
                     <button
                       key={chip}
                       onClick={() => setFocus((prev) => prev ? `${prev}, ${chip}` : chip)}
-                      className="font-mono-ui text-[11px] font-semibold px-3 py-1 rounded-pill border border-border bg-card hover:border-primary hover:bg-rose-pale transition-colors"
+                      className="font-mono-ui text-2xs font-semibold px-3 py-1 rounded-pill border border-border bg-card hover:border-primary hover:bg-rose-pale transition-colors"
                     >
                       {chip}
                     </button>
@@ -306,7 +306,7 @@ export default function SalesPageOptimizer() {
                             <span className="text-lg">{section.emoji}</span>
                             <span className="text-sm font-medium text-foreground flex-1 truncate">{section.nom}</span>
                             <span className={`text-lg font-bold ${scoreColor(section.score)}`}>{section.score}</span>
-                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-pill ${statutBadge(section.statut)}`}>
+                            <span className={`text-2xs font-semibold px-2 py-0.5 rounded-pill ${statutBadge(section.statut)}`}>
                               {section.statut === "bon" ? "Bon" : section.statut === "moyen" ? "Moyen" : "Faible"}
                             </span>
                             {isOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
@@ -382,7 +382,7 @@ export default function SalesPageOptimizer() {
                   <div key={i} className="rounded-2xl border border-border bg-card p-5 space-y-3">
                     <div className="flex items-center gap-2">
                       <h4 className="text-sm font-bold text-foreground flex-1">{ms.nom}</h4>
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-pill ${ms.importance === "forte" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+                      <span className={`text-2xs font-semibold px-2 py-0.5 rounded-pill ${ms.importance === "forte" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
                         Importance {ms.importance}
                       </span>
                     </div>

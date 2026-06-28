@@ -73,7 +73,7 @@ export default function LinkedInResult({ result, photos }: Props) {
                 />
               ))}
             </div>
-            <p className="text-[10px] text-muted-foreground">À joindre manuellement à ton post LinkedIn. Elles sont sauvegardées dans le calendrier.</p>
+            <p className="text-2xs text-muted-foreground">À joindre manuellement à ton post LinkedIn. Elles sont sauvegardées dans le calendrier.</p>
           </CardContent>
         </Card>
       )}
@@ -84,7 +84,7 @@ export default function LinkedInResult({ result, photos }: Props) {
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Accroche</p>
             <p className="text-sm font-bold text-foreground">{hook}</p>
             {hookTruncated && (
-              <p className="text-[10px] text-warning">⚠️ {hook.length} caractères — LinkedIn tronque à ~210 car.</p>
+              <p className="text-2xs text-warning">⚠️ {hook.length} caractères — LinkedIn tronque à ~210 car.</p>
             )}
           </CardContent>
         </Card>
@@ -111,7 +111,7 @@ export default function LinkedInResult({ result, photos }: Props) {
       {hashtags.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {(Array.isArray(hashtags) ? hashtags : [hashtags]).map((tag: string, i: number) => (
-            <Badge key={i} variant="secondary" className="text-[10px]">
+            <Badge key={i} variant="secondary" className="text-2xs">
               {tag.startsWith("#") ? tag : `#${tag}`}
             </Badge>
           ))}

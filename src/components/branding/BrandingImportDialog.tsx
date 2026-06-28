@@ -245,7 +245,7 @@ export default function BrandingImportDialog({
                         onChange={(e) =>
                           setEditedValues((prev) => ({ ...prev, [f.key]: e.target.value }))
                         }
-                        className="text-[13px] min-h-[60px]"
+                        className="text-sm min-h-[60px]"
                         disabled={!checked[f.key]}
                       />
                     </div>

@@ -121,8 +121,8 @@ export default function PinterestCompte() {
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
         <SubPageHeader parentTo="/pinterest" parentLabel="Pinterest" currentLabel="Optimiser mon compte" useFromParam />
 
-         <h1 className="font-display text-[22px] font-bold text-foreground mb-1">Optimise ton compte Pinterest</h1>
-         <p className="mt-1 text-[15px] text-muted-foreground mb-8">Configure ton compte pro, ta photo, ton nom et ta bio pour que Pinterest te mette en avant.</p>
+         <h1 className="font-display text-2xl font-bold text-foreground mb-1">Optimise ton compte Pinterest</h1>
+         <p className="mt-1 text-base text-muted-foreground mb-8">Configure ton compte pro, ta photo, ton nom et ta bio pour que Pinterest te mette en avant.</p>
 
         <div className="space-y-6">
           {/* 1. Pro account */}
@@ -148,7 +148,7 @@ export default function PinterestCompte() {
             <h3 className="font-display text-base font-bold">3. Ton nom + mot-clé</h3>
             <p className="text-sm text-muted-foreground">Sur Pinterest, ton nom apparaît partout. Ajoute un mot-clé principal pour être trouvée.</p>
             <div className="rounded-xl bg-rose-pale p-4 text-sm space-y-1.5">
-              <span className="inline-block font-mono-ui text-[10px] font-semibold uppercase tracking-wider bg-jaune text-[#2D2235] px-2.5 py-0.5 rounded-pill mb-1">📖 Exemple</span>
+              <span className="inline-block font-mono-ui text-2xs font-semibold uppercase tracking-wider bg-jaune text-[#2D2235] px-2.5 py-0.5 rounded-pill mb-1">📖 Exemple</span>
               <p className="text-muted-foreground">Format : [Prénom] — [Mot-clé principal]</p>
               <p className="italic text-[#6B5E7B] border-l-[3px] border-l-primary pl-3">Ex : "Lucie — Céramique artisanale & déco éthique"</p>
             </div>
@@ -170,7 +170,7 @@ export default function PinterestCompte() {
             <h3 className="font-display text-base font-bold">4. Ta bio</h3>
             <p className="text-sm text-muted-foreground">Une phrase : qui tu es, ce que tu proposes, à qui tu t'adresses.</p>
             <div className="rounded-xl bg-rose-pale p-4 text-sm space-y-1.5">
-              <span className="inline-block font-mono-ui text-[10px] font-semibold uppercase tracking-wider bg-jaune text-[#2D2235] px-2.5 py-0.5 rounded-pill mb-1">📖 Exemple</span>
+              <span className="inline-block font-mono-ui text-2xs font-semibold uppercase tracking-wider bg-jaune text-[#2D2235] px-2.5 py-0.5 rounded-pill mb-1">📖 Exemple</span>
               <p className="italic text-[#6B5E7B] border-l-[3px] border-l-primary pl-3">Ex : "Créatrice de pièces artisanales en cuir végétal 🌿 Pour un quotidien slow & élégant."</p>
             </div>
             {propValue && <div className="rounded-xl bg-accent/30 border border-accent p-4 text-sm">💡 Ta proposition de valeur : "<strong>{propValue}</strong>" — tu peux l'adapter pour Pinterest !</div>}

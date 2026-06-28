@@ -71,7 +71,7 @@ export default function SiteAccueilRecap() {
         </Link>
 
         <div className="mb-6">
-          <h1 className="font-display text-[26px] font-bold text-foreground">📋 Récap de ta page d'accueil</h1>
+          <h1 className="font-display text-3xl font-bold text-foreground">📋 Récap de ta page d'accueil</h1>
           <p className="mt-2 text-sm text-muted-foreground">Ta page d'accueil est rédigée. Tu n'as plus qu'à copier-coller chaque section dans {cmsLabel}. Reviens la modifier quand ton offre ou ton positionnement évolue.</p>
         </div>
 

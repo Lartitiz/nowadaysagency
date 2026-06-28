@@ -152,7 +152,7 @@ export function QuickBatchAdd({ open, onOpenChange, weekStartDate, defaultCanal,
                       type="button"
                       onClick={() => updateRow(index, "dayIndex", row.dayIndex === di ? null : di)}
                       className={cn(
-                        "text-[11px] font-medium px-1.5 py-0.5 rounded-md transition-colors",
+                        "text-2xs font-medium px-1.5 py-0.5 rounded-md transition-colors",
                         row.dayIndex === di
                           ? "bg-primary text-primary-foreground"
                           : "bg-muted/50 text-muted-foreground hover:bg-muted"

@@ -81,7 +81,7 @@ export function CalendarSeriesFilter({ value, onChange, counts }: Props) {
             >
               <span className="flex-1 truncate">📺 {s.name}</span>
               {count > 0 && (
-                <span className="text-[10px] text-muted-foreground ml-2 shrink-0">
+                <span className="text-2xs text-muted-foreground ml-2 shrink-0">
                   {count}
                 </span>
               )}

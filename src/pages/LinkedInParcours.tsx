@@ -151,7 +151,7 @@ export default function LinkedInParcours() {
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
         <SubPageHeader parentTo="/linkedin" parentLabel="LinkedIn" currentLabel="Mon parcours" />
 
-        <h1 className="font-display text-[22px] font-bold text-foreground mb-1">Ton parcours professionnel</h1>
+        <h1 className="font-display text-2xl font-bold text-foreground mb-1">Ton parcours professionnel</h1>
         <p className="text-sm text-muted-foreground italic mb-8">Chaque expérience doit montrer ce que tu as apporté, pas juste ce que tu as fait.</p>
 
         <Accordion type="multiple" defaultValue={["experiences"]} className="space-y-4">

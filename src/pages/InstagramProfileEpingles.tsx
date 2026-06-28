@@ -171,7 +171,7 @@ export default function InstagramProfileEpingles() {
           currentLabel="Posts épinglés"
         />
 
-        <h1 className="font-display text-[26px] font-bold text-foreground">
+        <h1 className="font-display text-3xl font-bold text-foreground">
           📌 Tes 3 posts épinglés
         </h1>
         <p className="mt-2 text-sm text-muted-foreground mb-6">

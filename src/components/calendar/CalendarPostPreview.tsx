@@ -165,7 +165,7 @@ export function CalendarPostPreview({
       <div className="flex items-center justify-between gap-2 mb-2">
         <div className="flex items-center gap-1.5">
           {syncStatus && (
-            <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full ${syncStatus === "synced" ? "bg-success/10 text-success" : "bg-warning/10 text-warning"}`}>
+            <span className={`inline-flex items-center gap-1 text-2xs font-medium px-2 py-0.5 rounded-full ${syncStatus === "synced" ? "bg-success/10 text-success" : "bg-warning/10 text-warning"}`}>
               <span className={`w-1.5 h-1.5 rounded-full ${syncStatus === "synced" ? "bg-success" : "bg-warning"}`} />
               {syncStatus === "synced" ? "Synchronisé" : "Modifs en cours"}
             </span>
@@ -274,7 +274,7 @@ export function CalendarPostPreview({
         <div className="space-y-2">
           <Toolbar />
           <div className="relative rounded-xl border border-border overflow-hidden bg-card">
-            <span className="absolute top-2 right-2 z-10 text-[10px] font-semibold bg-black/60 text-white px-2 py-0.5 rounded-full">
+            <span className="absolute top-2 right-2 z-10 text-2xs font-semibold bg-black/60 text-white px-2 py-0.5 rounded-full">
               {idx + 1}/{visualUrls.length}
             </span>
             {idx > 0 && (
@@ -296,7 +296,7 @@ export function CalendarPostPreview({
           </div>
           {caption && (
             <div className="mt-3 pt-3 border-t border-border">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Légende</p>
+              <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Légende</p>
               <div className="text-xs text-foreground whitespace-pre-wrap line-clamp-6 leading-relaxed">{caption}</div>
             </div>
           )}
@@ -327,7 +327,7 @@ export function CalendarPostPreview({
         <div className="space-y-2">
           <Toolbar />
           <div className="relative rounded-xl border border-border overflow-hidden bg-card">
-            <span className="absolute top-2 right-2 z-10 text-[10px] font-semibold bg-black/60 text-white px-2 py-0.5 rounded-full">
+            <span className="absolute top-2 right-2 z-10 text-2xs font-semibold bg-black/60 text-white px-2 py-0.5 rounded-full">
               {idx + 1}/{visualHtml.length}
             </span>
             {idx > 0 && (
@@ -353,7 +353,7 @@ export function CalendarPostPreview({
           </div>
           {caption && (
             <div className="mt-3 pt-3 border-t border-border">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Légende</p>
+              <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Légende</p>
               <div className="text-xs text-foreground whitespace-pre-wrap line-clamp-6 leading-relaxed">{caption}</div>
             </div>
           )}

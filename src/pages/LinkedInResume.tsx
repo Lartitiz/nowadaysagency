@@ -272,7 +272,7 @@ export default function LinkedInResume() {
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
         <SubPageHeader parentTo="/linkedin" parentLabel="LinkedIn" currentLabel="Mon résumé (À propos)" />
 
-        <h1 className="font-display text-[22px] font-bold text-foreground mb-1">Ton résumé LinkedIn (À propos)</h1>
+        <h1 className="font-display text-2xl font-bold text-foreground mb-1">Ton résumé LinkedIn (À propos)</h1>
         <p className="text-sm text-muted-foreground italic mb-6">Ton titre attire. Ton résumé donne envie de te contacter. Pas besoin de lister ton CV : raconte.</p>
 
         {/* ─── STATE: Saved resume exists ─── */}
@@ -588,7 +588,7 @@ function AnalysisCards({ analysis, onSaveVersion, copyText, copied, onBack }: {
               <span className="flex-shrink-0 w-7 h-7 rounded-full bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center">
                 {reco.number}
               </span>
-              <h4 className="text-[15px] font-semibold text-foreground leading-tight">
+              <h4 className="text-base font-semibold text-foreground leading-tight">
                 {statusIcon(reco.status)} {reco.title}
               </h4>
             </div>

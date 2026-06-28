@@ -154,7 +154,7 @@ export default function VoiceGuidePage() {
         <SubPageHeader parentLabel="Ton style" parentTo="/branding/style" currentLabel="Guide de voix" />
 
         <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-          <h1 className="font-display text-[22px] sm:text-[26px] font-bold text-foreground">🎤 Mon guide de voix</h1>
+          <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground">🎤 Mon guide de voix</h1>
           {guide && (
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={handleCopy}>
@@ -193,7 +193,7 @@ export default function VoiceGuidePage() {
 
               {/* Voice summary */}
               <Section emoji="💬" title="Ma voix en résumé">
-                <p className="text-[15px] text-foreground/80 leading-relaxed">{guide.voice_summary}</p>
+                <p className="text-base text-foreground/80 leading-relaxed">{guide.voice_summary}</p>
               </Section>
 
               {/* Tone keywords */}
@@ -253,7 +253,7 @@ export default function VoiceGuidePage() {
 
               {/* Rhythm */}
               <Section emoji="🎵" title="Mon rythme">
-                <p className="text-[15px] text-foreground/80 leading-relaxed">{guide.rhythm}</p>
+                <p className="text-base text-foreground/80 leading-relaxed">{guide.rhythm}</p>
               </Section>
 
               {/* Emotions */}

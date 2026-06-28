@@ -145,7 +145,7 @@ export default function InstagramRythme() {
               </div>
               <p className="text-xs text-muted-foreground">{help}</p>
               <Slider value={[value]} onValueChange={([v]) => set(v)} min={min} max={max} step={step} className="[&_[role=slider]]:bg-primary" />
-              <div className="flex justify-between text-[10px] text-muted-foreground">
+              <div className="flex justify-between text-2xs text-muted-foreground">
                 <span>{formatMin(min)}</span>
                 <span>{unit}</span>
                 <span>{formatMin(max)}</span>
@@ -169,7 +169,7 @@ export default function InstagramRythme() {
               <span className="text-sm font-mono text-primary font-bold">{formatMin(timeWeekly)}</span>
             </div>
             <Slider value={[timeWeekly]} onValueChange={([v]) => setTimeWeekly(v)} min={30} max={600} step={30} className="[&_[role=slider]]:bg-primary" />
-            <div className="flex justify-between text-[10px] text-muted-foreground">
+            <div className="flex justify-between text-2xs text-muted-foreground">
               <span>30 min</span>
               <span>10h</span>
             </div>

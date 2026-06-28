@@ -10,7 +10,7 @@ export default function Step2Problem({ data, save, callAI, aiLoading, aiResults,
       <h2 className="font-display text-xl font-bold">😩 Montre que tu comprends sa douleur</h2>
       <p className="text-sm text-muted-foreground">Ta visiteuse doit se dire « Oui, c'est exactement moi ! »</p>
       {data.framework === "storybrand" && (
-        <div className="rounded-xl bg-rose-pale p-4 text-[13px] text-foreground mb-3">
+        <div className="rounded-xl bg-rose-pale p-4 text-sm text-foreground mb-3">
           📖 <strong>StoryBrand — Le problème à 3 niveaux :</strong>
           <ul className="list-disc pl-4 mt-2 space-y-1">
             <li><strong>Externe :</strong> le truc concret</li>
@@ -26,8 +26,8 @@ export default function Step2Problem({ data, save, callAI, aiLoading, aiResults,
         <div className="space-y-3 mt-3">
           {["empathique", "directe"].map((v) => aiResults.problem[v] && (
             <div key={v}>
-              <p className="font-mono-ui text-[11px] font-semibold text-primary mb-1">Version {v} :</p>
-              <div className="rounded-xl bg-rose-pale p-3 text-[13px] cursor-pointer hover:ring-2 ring-primary transition-all" onClick={() => save({ problem_block: aiResults.problem[v] })}>{aiResults.problem[v]}</div>
+              <p className="font-mono-ui text-2xs font-semibold text-primary mb-1">Version {v} :</p>
+              <div className="rounded-xl bg-rose-pale p-3 text-sm cursor-pointer hover:ring-2 ring-primary transition-all" onClick={() => save({ problem_block: aiResults.problem[v] })}>{aiResults.problem[v]}</div>
             </div>
           ))}
         </div>

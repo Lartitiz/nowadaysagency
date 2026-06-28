@@ -200,7 +200,7 @@ export default function BrandingSuggestionsCard({
                   <span>{s.icon}</span>
                   <span className="font-medium text-sm text-foreground">{s.title}</span>
                   {s.impact === "fort" && (
-                    <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-medium">Impact fort</span>
+                    <span className="text-2xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-medium">Impact fort</span>
                   )}
                 </div>
                 {s.current_value && (

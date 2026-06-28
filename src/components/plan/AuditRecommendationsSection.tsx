@@ -173,7 +173,7 @@ export default function AuditRecommendationsSection() {
                     {rec.titre || rec.label}
                   </span>
                   {rec.completed && (
-                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-success-bg text-success">
+                    <span className="text-2xs font-medium px-1.5 py-0.5 rounded-full bg-success-bg text-success">
                       Fait ✓
                     </span>
                   )}
@@ -185,12 +185,12 @@ export default function AuditRecommendationsSection() {
                     </p>
                     <div className="flex items-center gap-3 mt-1">
                       {rec.priorite && (
-                        <span className={`text-[10px] font-medium ${prioriteStyle(rec.priorite)}`}>
+                        <span className={`text-2xs font-medium ${prioriteStyle(rec.priorite)}`}>
                           Priorité {rec.priorite}
                         </span>
                       )}
                       {rec.temps_estime && (
-                        <span className="text-[10px] text-muted-foreground">{rec.temps_estime}</span>
+                        <span className="text-2xs text-muted-foreground">{rec.temps_estime}</span>
                       )}
                     </div>
                   </>

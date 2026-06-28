@@ -655,7 +655,7 @@ export default function WelcomePage() {
                           {rec.titre || rec.label}
                         </p>
                         {rec.priorite && (
-                          <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${IMPACT_COLORS[rec.priorite] || IMPACT_COLORS.medium}`}>
+                          <span className={`text-2xs font-bold uppercase px-2 py-0.5 rounded-full ${IMPACT_COLORS[rec.priorite] || IMPACT_COLORS.medium}`}>
                             {rec.priorite === "high" ? "prioritaire" : rec.priorite === "medium" ? "important" : "bonus"}
                           </span>
                         )}
@@ -665,7 +665,7 @@ export default function WelcomePage() {
                       )}
                       {rec.temps_estime && (
                         <div className="mt-2">
-                          <span className="text-[11px] text-muted-foreground">⏱️ {rec.temps_estime}</span>
+                          <span className="text-2xs text-muted-foreground">⏱️ {rec.temps_estime}</span>
                         </div>
                       )}
                     </div>

@@ -135,7 +135,7 @@ export default function VoiceOnboarding({ onComplete, existingProfile }: VoiceOn
           ))}
         </div>
 
-        <p className="text-[11px] text-muted-foreground italic">
+        <p className="text-2xs text-muted-foreground italic">
           Ce profil est injecté dans toutes les générations IA pour reproduire ton style.
         </p>
       </div>

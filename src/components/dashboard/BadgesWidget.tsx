@@ -78,7 +78,7 @@ export default function BadgesWidget({ animationDelay = 0 }: { animationDelay?: 
                 <PopoverContent className="w-56 p-3" side="top">
                   <p className="font-heading text-sm font-bold mb-0.5">{badge.emoji} {badge.title}</p>
                   <p className="text-xs text-muted-foreground mb-1">{badge.description}</p>
-                  <p className="text-[10px] font-mono-ui text-muted-foreground">
+                  <p className="text-2xs font-mono-ui text-muted-foreground">
                     Débloqué le {format(new Date(unlockedData.unlocked_at), "d MMM yyyy", { locale: fr })}
                   </p>
                 </PopoverContent>

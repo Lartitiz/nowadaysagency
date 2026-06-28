@@ -97,7 +97,7 @@ export default function BioHistoryDrawer({ platform, open, onOpenChange, onReuse
                     </span>
                   )}
                   {entry.structure_type && (
-                    <span className="text-[10px] bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
+                    <span className="text-2xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
                       {entry.structure_type}
                     </span>
                   )}

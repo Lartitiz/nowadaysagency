@@ -155,7 +155,7 @@ export default function AdminFeedbackTab() {
             >
               {label}
               {val === "new" && newCount > 0 && (
-                <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold">
+                <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 rounded-full bg-destructive text-destructive-foreground text-2xs font-bold">
                   {newCount}
                 </span>
               )}
@@ -186,7 +186,7 @@ export default function AdminFeedbackTab() {
                   <div className="flex items-center gap-2 flex-wrap min-w-0">
                     <span className="text-lg">{fb.type === "bug" ? "🐛" : "💡"}</span>
                     {fb.type === "bug" && fb.severity && (
-                      <Badge className={cn("text-[10px] px-1.5 py-0", SEVERITY_COLORS[fb.severity] || "bg-muted")}>
+                      <Badge className={cn("text-2xs px-1.5 py-0", SEVERITY_COLORS[fb.severity] || "bg-muted")}>
                         {fb.severity}
                       </Badge>
                     )}
@@ -195,7 +195,7 @@ export default function AdminFeedbackTab() {
                       {formatDistanceToNow(new Date(fb.created_at), { addSuffix: true, locale: fr })}
                     </span>
                   </div>
-                  <Badge className={cn("text-[10px] shrink-0", statusBadgeClass(fb.status))}>
+                  <Badge className={cn("text-2xs shrink-0", statusBadgeClass(fb.status))}>
                     {STATUS_OPTIONS.find(o => o.value === fb.status)?.label || fb.status}
                   </Badge>
                 </div>
@@ -237,7 +237,7 @@ export default function AdminFeedbackTab() {
                 {/* Admin actions */}
                 <div className="flex items-end gap-3 pt-2 border-t border-border/50">
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Statut</label>
+                    <label className="text-2xs text-muted-foreground uppercase tracking-wider">Statut</label>
                     <select
                       value={fb.status}
                       onChange={e => updateStatus(fb.id, e.target.value)}
@@ -249,7 +249,7 @@ export default function AdminFeedbackTab() {
                     </select>
                   </div>
                   <div className="flex-1 flex flex-col gap-1">
-                    <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Notes admin</label>
+                    <label className="text-2xs text-muted-foreground uppercase tracking-wider">Notes admin</label>
                     <input
                       type="text"
                       value={noteDrafts[fb.id] ?? ""}

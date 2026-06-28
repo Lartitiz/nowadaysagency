@@ -82,7 +82,7 @@ export default function LinkedInCommentStrategy() {
 
         <div className="flex items-center gap-3 mb-2">
           <MessageCircle className="h-6 w-6 text-primary" />
-          <h1 className="font-display text-[22px] font-bold text-foreground">Ma stratégie commentaires</h1>
+          <h1 className="font-display text-2xl font-bold text-foreground">Ma stratégie commentaires</h1>
         </div>
         <p className="text-sm text-muted-foreground mb-6">
           Commenter chez les autres = la stratégie la plus sous-estimée. 20-40 min/jour suffisent.

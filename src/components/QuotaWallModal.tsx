@@ -132,7 +132,7 @@ export default function QuotaWallModal({ open, onClose, plan, usage }: QuotaWall
           )}
 
           {plan === "free" && (
-            <p className="text-center text-[11px] text-muted-foreground">
+            <p className="text-center text-2xs text-muted-foreground">
               À partir de 39€/mois · Sans engagement · Annulable à tout moment
             </p>
           )}

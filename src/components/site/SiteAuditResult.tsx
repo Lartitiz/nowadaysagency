@@ -239,7 +239,7 @@ export default function SiteAuditResult({
             {scoreLabel.emoji} {scoreLabel.label}
           </p>
           <p className="text-sm text-muted-foreground max-w-md">{scoreLabel.message}</p>
-          <p className="text-[11px] italic text-muted-foreground mt-1">Score de site : bonnes pratiques et conversion</p>
+          <p className="text-2xs italic text-muted-foreground mt-1">Score de site : bonnes pratiques et conversion</p>
         </div>
       </div>
 
@@ -303,10 +303,10 @@ export default function SiteAuditResult({
               return (
                 <div key={i} className="rounded-xl border border-border p-4 space-y-2">
                   <div className="flex flex-wrap gap-2">
-                    <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-pill ${pBadge?.className}`}>
+                    <span className={`inline-flex items-center gap-1 text-2xs font-semibold px-2 py-0.5 rounded-pill ${pBadge?.className}`}>
                       {pBadge?.icon} {pBadge?.label}
                     </span>
-                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-pill bg-muted text-muted-foreground">
+                    <span className="inline-flex items-center gap-1 text-2xs font-semibold px-2 py-0.5 rounded-pill bg-muted text-muted-foreground">
                       {eBadge?.icon} {eBadge?.label}
                     </span>
                   </div>
@@ -359,7 +359,7 @@ export default function SiteAuditResult({
                     <div className="flex items-center gap-3">
                       <span className="flex items-center justify-center h-7 w-7 rounded-full bg-primary/10 text-primary text-sm font-bold">{i + 1}</span>
                       <h4 className="text-sm font-bold text-foreground flex-1">{prio.titre}</h4>
-                      <span className={`inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-pill ${
+                      <span className={`inline-flex items-center text-2xs font-semibold px-2 py-0.5 rounded-pill ${
                         prio.impact === "fort"
                           ? "bg-primary/10 text-primary"
                           : "bg-warning-bg text-warning"

@@ -465,7 +465,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
                     >
                       <span className="text-lg block mb-0.5">{sub.emoji}</span>
                       <span className="text-xs font-semibold text-foreground">{sub.label}</span>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">{sub.desc}</p>
+                      <p className="text-2xs text-muted-foreground mt-0.5">{sub.desc}</p>
                     </button>
                   ))}
                 </div>
@@ -527,7 +527,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
                           </p>
                           {idea.angle && (
                             <p
-                              className={`mt-2 text-[11px] leading-relaxed text-muted-foreground border-l-2 border-primary/40 pl-2 ${
+                              className={`mt-2 text-2xs leading-relaxed text-muted-foreground border-l-2 border-primary/40 pl-2 ${
                                 isSelected ? "" : "line-clamp-3"
                               }`}
                             >
@@ -537,7 +537,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
                         </div>
                         <div className="flex items-center gap-2 mt-2 flex-wrap">
                           {idea.boldness && (
-                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                            <span className={`text-2xs font-semibold px-2 py-0.5 rounded-full ${
                               idea.boldness === "provoc" ? "bg-rose-pale text-primary" :
                               idea.boldness === "bold" ? "bg-[#FFF9DB] text-[#92400E]" :
                               "bg-muted text-muted-foreground"
@@ -545,11 +545,11 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
                               {idea.boldness === "provoc" ? "💥 Provoc" : idea.boldness === "bold" ? "🔥 Audacieux" : "🌱 Sûr"}
                             </span>
                           )}
-                          <span className="text-[10px] text-muted-foreground">
+                          <span className="text-2xs text-muted-foreground">
                             {objectiveEmojis[idea.objective_tag] || "✨"} {idea.objective_tag}
                           </span>
                           {!isSelected && (
-                            <span className="ml-auto text-[10px] text-muted-foreground/70">Voir le détail →</span>
+                            <span className="ml-auto text-2xs text-muted-foreground/70">Voir le détail →</span>
                           )}
                           <span
                             role="button"
@@ -566,7 +566,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
                               }
                             }}
                             title={!idea.lens ? "Indisponible pour cette idée" : "Régénérer un autre angle pour cette idée (consomme 1 crédit)"}
-                            className={`${isSelected || !idea.lens ? "" : ""} ${!isSelected ? "" : "ml-auto"} inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium transition-all ${
+                            className={`${isSelected || !idea.lens ? "" : ""} ${!isSelected ? "" : "ml-auto"} inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-2xs font-medium transition-all ${
                               !idea.lens || (regeneratingIdx !== null && regeneratingIdx !== i)
                                 ? "border-border bg-card text-muted-foreground/50 cursor-not-allowed"
                                 : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-primary"
@@ -589,7 +589,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
                               }
                             }}
                             title={savedIdeas.has(i) ? "Idée sauvegardée" : "Sauvegarder dans Mes idées"}
-                            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium transition-all ${
+                            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-2xs font-medium transition-all ${
                               savedIdeas.has(i)
                                 ? "border-primary bg-primary/10 text-primary"
                                 : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-primary"
@@ -604,7 +604,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
                         </div>
                         {isSelected && idea.why_it_works && (
                           <div className="mt-3 pt-3 border-t border-border/50 animate-fade-in">
-                            <p className="text-[11px] text-muted-foreground italic">💡 {idea.why_it_works}</p>
+                            <p className="text-2xs text-muted-foreground italic">💡 {idea.why_it_works}</p>
                           </div>
                         )}
                       </button>

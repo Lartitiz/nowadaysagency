@@ -69,7 +69,7 @@ export default function PinterestMotsCles() {
   const renderCategory = (label: string, emoji: string, words: string[]) => (
     <div className="rounded-xl border border-border p-4">
       <h4 className="text-sm font-bold text-foreground mb-2">{emoji} {label}</h4>
-      <div className="flex flex-wrap gap-1.5">{words.map((w, i) => <span key={i} className="font-mono-ui text-[11px] bg-rose-pale text-bordeaux px-2 py-0.5 rounded-md">{w}</span>)}</div>
+      <div className="flex flex-wrap gap-1.5">{words.map((w, i) => <span key={i} className="font-mono-ui text-2xs bg-rose-pale text-bordeaux px-2 py-0.5 rounded-md">{w}</span>)}</div>
     </div>
   );
 
@@ -78,7 +78,7 @@ export default function PinterestMotsCles() {
       <AppHeader />
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
         <SubPageHeader parentTo="/pinterest" parentLabel="Pinterest" currentLabel="Mes mots-clés" useFromParam />
-        <h1 className="font-display text-[22px] font-bold text-foreground mb-1">Tes mots-clés Pinterest</h1>
+        <h1 className="font-display text-2xl font-bold text-foreground mb-1">Tes mots-clés Pinterest</h1>
         <p className="text-sm text-muted-foreground italic mb-6">Comment tes clientes décrivent tes produits ? Ces mots doivent être partout : titres, descriptions, tableaux.</p>
 
         <section className="space-y-4 mb-8">

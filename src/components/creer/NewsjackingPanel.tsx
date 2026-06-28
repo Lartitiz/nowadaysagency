@@ -615,7 +615,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
               <p className="text-xs text-muted-foreground max-w-md mx-auto">
                 L'IA explore l'actu fraîche et la croise avec l'univers de ta marque (30 à 60 secondes).
               </p>
-              <p className="text-[11px] text-muted-foreground/80 max-w-md mx-auto">
+              <p className="text-2xs text-muted-foreground/80 max-w-md mx-auto">
                 💳 1 crédit pour lancer la recherche. Ensuite, voir les angles d'une actu = 1 crédit — mais les 2 premières sont déjà prêtes. Tu ne dépenses que pour ce que tu explores.
               </p>
             </div>
@@ -653,13 +653,13 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
                 <Sparkles className="h-3.5 w-3.5" /> Analyser ce lien
               </Button>
             </div>
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-2xs text-muted-foreground">
               L'IA lit l'article et te propose des angles connectés à ta marque. 💳 2 crédits (lecture + 1ᵉʳ angle). Articles web uniquement (pas YouTube ni réseaux sociaux).
             </p>
           </div>
 
           <div className="text-center">
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">ou</span>
+            <span className="text-2xs uppercase tracking-wider text-muted-foreground">ou</span>
           </div>
 
 
@@ -674,7 +674,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
                 <button
                   type="button"
                   onClick={() => setSelectedVibes([])}
-                  className="text-[10px] text-muted-foreground hover:text-foreground underline underline-offset-2"
+                  className="text-2xs text-muted-foreground hover:text-foreground underline underline-offset-2"
                 >
                   Réinitialiser
                 </button>
@@ -704,7 +704,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
               })}
             </div>
             <div className="space-y-1">
-              <label className="text-[11px] text-muted-foreground">Ou précise toi-même :</label>
+              <label className="text-2xs text-muted-foreground">Ou précise toi-même :</label>
               <textarea
                 value={customIntent}
                 onChange={(e) => setCustomIntent(e.target.value.slice(0, MAX_INTENT_CHARS))}
@@ -713,14 +713,14 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
                 className="w-full text-xs rounded-lg border border-border bg-background px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
               <div className="flex justify-end">
-                <span className="text-[10px] text-muted-foreground">{customIntent.length}/{MAX_INTENT_CHARS}</span>
+                <span className="text-2xs text-muted-foreground">{customIntent.length}/{MAX_INTENT_CHARS}</span>
               </div>
             </div>
           </div>
 
           <div className="flex items-start gap-2 rounded-xl bg-primary/5 px-3.5 py-2.5">
             <Lightbulb className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
-            <p className="text-[11px] leading-relaxed text-muted-foreground">
+            <p className="text-2xs leading-relaxed text-muted-foreground">
               <span className="font-medium text-foreground">Petit secret :</span> pas besoin que l'actu soit "dans ton secteur". Ce qui compte, c'est le lien que tu crées. Et souvent, c'est l'angle inattendu qui marque le plus.
             </p>
           </div>
@@ -737,19 +737,19 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
       {/* Récap intention — visible dès qu'une recherche a été lancée avec une intention */}
       {started && !loading && actus && (selectedVibes.length > 0 || customIntent.trim()) && (
         <div className="rounded-xl bg-muted/30 border border-border px-3 py-2 flex items-start gap-2 flex-wrap">
-          <span className="text-[11px] text-muted-foreground shrink-0 mt-0.5">🎯 Intention :</span>
+          <span className="text-2xs text-muted-foreground shrink-0 mt-0.5">🎯 Intention :</span>
           <div className="flex flex-wrap gap-1 flex-1 min-w-0">
             {selectedVibes.map((id) => {
               const v = VIBES.find((x) => x.id === id);
               if (!v) return null;
               return (
-                <span key={id} className="text-[11px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                <span key={id} className="text-2xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">
                   {v.emoji} {v.label}
                 </span>
               );
             })}
             {customIntent.trim() && (
-              <span className="text-[11px] px-2 py-0.5 rounded-full bg-background border border-border text-foreground/80 truncate max-w-full">
+              <span className="text-2xs px-2 py-0.5 rounded-full bg-background border border-border text-foreground/80 truncate max-w-full">
                 "{customIntent.trim()}"
               </span>
             )}
@@ -757,7 +757,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
           <button
             type="button"
             onClick={() => setStarted(false)}
-            className="text-[11px] text-muted-foreground hover:text-foreground underline underline-offset-2 shrink-0"
+            className="text-2xs text-muted-foreground hover:text-foreground underline underline-offset-2 shrink-0"
           >
             Modifier
           </button>
@@ -787,7 +787,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
               >
                 {tab.emoji} {tab.label}
                 <span className={cn(
-                  "text-[10px] px-1.5 py-0.5 rounded-full",
+                  "text-2xs px-1.5 py-0.5 rounded-full",
                   filter === tab.id ? "bg-primary/20" : "bg-muted"
                 )}>{count}</span>
               </button>
@@ -859,7 +859,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
               <Button variant="outline" size="sm" onClick={() => setStarted(false)} className="gap-1.5">
                 <RefreshCw className="h-3.5 w-3.5" /> Changer d'intention
               </Button>
-              <p className="text-[10px] text-muted-foreground max-w-xs leading-relaxed">
+              <p className="text-2xs text-muted-foreground max-w-xs leading-relaxed">
                 Tu peux aussi coller le lien d'une actu que tu as déjà en tête : l'IA en tirera des angles connectés à ta marque.
               </p>
             </div>
@@ -868,7 +868,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
               <Button size="sm" onClick={() => fetchActus({ broaden: true })} className="gap-1.5">
                 <Sparkles className="h-3.5 w-3.5" /> Montre-moi quand même les actus chaudes
               </Button>
-              <p className="text-[10px] text-muted-foreground max-w-xs leading-relaxed">
+              <p className="text-2xs text-muted-foreground max-w-xs leading-relaxed">
                 On relâche le filtre : des actus grand public avec une piste de réaction, même sans lien direct à ta marque. Consomme 1 crédit.
               </p>
               <Button
@@ -929,26 +929,26 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
                           <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{stripCitations(actu.resume)}</p>
                           <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                             {actu.from_url ? (
-                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/15 text-primary font-medium">
+                              <span className="text-2xs px-2 py-0.5 rounded-full bg-primary/15 text-primary font-medium">
                                 🔗 D'après ton lien
                               </span>
                             ) : (
-                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                              <span className="text-2xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">
                                 {actu.type === "globale" ? "Globale" : "Niche"}
                               </span>
                             )}
                             {axe && (
-                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-secondary/40 text-secondary-foreground">
+                              <span className="text-2xs px-2 py-0.5 rounded-full bg-secondary/40 text-secondary-foreground">
                                 {axe.emoji} {axe.label}
                               </span>
                             )}
                             {ton && (
-                              <span className={cn("text-[10px] px-2 py-0.5 rounded-full", ton.className)}>
+                              <span className={cn("text-2xs px-2 py-0.5 rounded-full", ton.className)}>
                                 {ton.emoji} {ton.label}
                               </span>
                             )}
                             {pont && (
-                              <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium", pont.className)} title="Force du lien entre l'actu et ton univers de marque">
+                              <span className={cn("text-2xs px-2 py-0.5 rounded-full font-medium", pont.className)} title="Force du lien entre l'actu et ton univers de marque">
                                 {pont.emoji} {pont.label}
                               </span>
                             )}
@@ -958,13 +958,13 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 onClick={(e) => e.stopPropagation()}
-                                className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors underline-offset-2 hover:underline"
+                                className="text-2xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors underline-offset-2 hover:underline"
                                 title="Voir l'article source"
                               >
                                 {actu.source} ↗
                               </a>
                             ) : (
-                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{actu.source}</span>
+                              <span className="text-2xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{actu.source}</span>
                             )}
                           </div>
                           <p className="text-xs text-muted-foreground mt-2 italic">💡 {stripCitations(actu.pertinence)}</p>
@@ -1038,7 +1038,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
                                     <span className="animate-pulse">Génération des angles…</span>
                                   </div>
                                   {anglesState.slow && (
-                                    <p className="pl-6 text-[11px] text-muted-foreground/80">
+                                    <p className="pl-6 text-2xs text-muted-foreground/80">
                                       L'IA met plus de temps que prévu (jusqu'à 60 s parfois). Tu peux attendre encore un peu.
                                     </p>
                                   )}
@@ -1072,10 +1072,10 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
                                     return (
                                       <div key={j} className="rounded-2xl border bg-background p-3 space-y-2">
                                         <div className="flex items-center gap-2 flex-wrap">
-                                          <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium", vc.className)}>
+                                          <span className={cn("text-2xs px-2 py-0.5 rounded-full font-medium", vc.className)}>
                                             {vc.emoji} {vc.label}
                                           </span>
-                                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted/50 text-muted-foreground/70 italic">
+                                          <span className="text-2xs px-2 py-0.5 rounded-full bg-muted/50 text-muted-foreground/70 italic">
                                             💡 idéal en {FORMAT_LABELS[angle.format_suggere] || angle.format_suggere}
                                           </span>
                                         </div>
@@ -1118,7 +1118,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
                                         <span className="animate-pulse">Recherche de 2 autres angles…</span>
                                       </div>
                                       {anglesState.variantsSlow && (
-                                        <p className="pl-6 text-[11px] text-muted-foreground/80">
+                                        <p className="pl-6 text-2xs text-muted-foreground/80">
                                           L'IA met plus de temps que prévu. Tu peux attendre encore un peu.
                                         </p>
                                       )}

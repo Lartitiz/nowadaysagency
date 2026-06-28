@@ -320,7 +320,7 @@ function DeliverableRow({ deliverable, onUpload, onDeleteFile, onUnlock }: {
         <span>{isDelivered ? "✅" : "🔒"}</span>
         <span className="text-sm font-medium text-foreground flex-1">{deliverable.title}</span>
         {deliverable.unlocked_at && (
-          <span className="text-[10px] text-muted-foreground">
+          <span className="text-2xs text-muted-foreground">
             {format(new Date(deliverable.unlocked_at), "d MMM", { locale: fr })}
           </span>
         )}
@@ -336,20 +336,20 @@ function DeliverableRow({ deliverable, onUpload, onDeleteFile, onUnlock }: {
         ) : (
           <>
             <input ref={fileInputRef} type="file" className="hidden" onChange={e => { if (e.target.files?.[0]) onUpload(deliverable.id, e.target.files[0]); }} />
-            <Button size="sm" variant="outline" className="rounded-full text-[11px] gap-1 h-7" onClick={() => fileInputRef.current?.click()}>
+            <Button size="sm" variant="outline" className="rounded-full text-2xs gap-1 h-7" onClick={() => fileInputRef.current?.click()}>
               <Upload className="h-3 w-3" /> Uploader un fichier
             </Button>
           </>
         )}
 
         {deliverable.route && (
-          <span className="text-[10px] text-muted-foreground ml-auto">→ {deliverable.route}</span>
+          <span className="text-2xs text-muted-foreground ml-auto">→ {deliverable.route}</span>
         )}
       </div>
 
       {!isDelivered && (
         <div className="ml-6">
-          <Button size="sm" variant="ghost" className="rounded-full text-[11px] gap-1 h-7 text-primary hover:bg-primary/10" onClick={() => onUnlock(deliverable.id)}>
+          <Button size="sm" variant="ghost" className="rounded-full text-2xs gap-1 h-7 text-primary hover:bg-primary/10" onClick={() => onUnlock(deliverable.id)}>
             <Unlock className="h-3 w-3" /> Débloquer maintenant
           </Button>
         </div>

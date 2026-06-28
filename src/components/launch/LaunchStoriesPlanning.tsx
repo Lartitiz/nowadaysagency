@@ -179,7 +179,7 @@ export default function LaunchStoriesPlanning({ launchName }: Props) {
               {STRUCTURE_DETAILS[day.id].map((line, i) => (
                 <p key={i} className="text-xs text-foreground">{line}</p>
               ))}
-              <p className="text-[10px] text-muted-foreground mt-2 italic">
+              <p className="text-2xs text-muted-foreground mt-2 italic">
                 💡 Clique sur "Générer" pour que l'IA crée cette séquence complète avec tes textes personnalisés.
               </p>
             </div>

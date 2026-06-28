@@ -35,7 +35,7 @@ function SynthCard({ children, className = "" }: { children: React.ReactNode; cl
 
 function SectionLabel({ emoji, title }: { emoji: string; title: string }) {
   return (
-    <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wider mb-3 text-muted-foreground flex items-center gap-1.5">
+    <p className="font-mono-ui text-2xs font-semibold uppercase tracking-wider mb-3 text-muted-foreground flex items-center gap-1.5">
       <span>{emoji}</span> {title}
     </p>
   );
@@ -47,9 +47,9 @@ function HeroQuote({ text, label, onCopy }: { text: string; label?: string; onCo
       <p className="font-display text-base sm:text-lg font-bold text-foreground italic text-center leading-relaxed">"{text}"</p>
       {(label || onCopy) && (
         <div className="flex items-center justify-between mt-3">
-          {label && <span className="font-mono-ui text-[10px] uppercase tracking-wide text-muted-foreground">{label}</span>}
+          {label && <span className="font-mono-ui text-2xs uppercase tracking-wide text-muted-foreground">{label}</span>}
           {onCopy && (
-            <button onClick={onCopy} className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:opacity-70 transition-opacity">
+            <button onClick={onCopy} className="inline-flex items-center gap-1 text-2xs font-semibold text-primary hover:opacity-70 transition-opacity">
               <Copy className="h-3 w-3" /> Copier
             </button>
           )}
@@ -65,8 +65,8 @@ function EditableList({ items, onSave, bulletColor = "#fb3d80" }: { items: strin
     <div className="space-y-2">
       {items.map((item, i) => (
         <div key={i} className="flex items-start gap-2">
-          <span className="mt-1.5 text-[8px] shrink-0" style={{ color: bulletColor }}>●</span>
-          <EditableText value={item} onSave={(v) => onSave(i, v)} type="input" className="font-body text-[13px] leading-relaxed" />
+          <span className="mt-1.5 text-2xs shrink-0" style={{ color: bulletColor }}>●</span>
+          <EditableText value={item} onSave={(v) => onSave(i, v)} type="input" className="font-body text-sm leading-relaxed" />
         </div>
       ))}
     </div>
@@ -90,7 +90,7 @@ function ClampField({ value, onSave, lines = 4, className = "", forceOpen = fals
         <p className={`${className} overflow-hidden`} style={{ display: "-webkit-box", WebkitLineClamp: lines, WebkitBoxOrient: "vertical" }}>{value}</p>
       )}
       {!forceOpen && (
-        <button onClick={() => setOpen((o) => !o)} className="mt-1.5 block font-mono-ui text-[11px] font-semibold text-primary hover:opacity-70 transition-opacity">
+        <button onClick={() => setOpen((o) => !o)} className="mt-1.5 block font-mono-ui text-2xs font-semibold text-primary hover:opacity-70 transition-opacity">
           {expanded ? "voir moins" : "voir plus"}
         </button>
       )}
@@ -109,7 +109,7 @@ function CappedList({ items, onSave, cap = 6, bulletColor, forceOpen = false }: 
     <div>
       <EditableList items={visible} onSave={onSave} bulletColor={bulletColor} />
       {items.length > cap && !forceOpen && (
-        <button onClick={() => setShowAll((s) => !s)} className="mt-2 block font-mono-ui text-[11px] font-semibold text-primary hover:opacity-70 transition-opacity">
+        <button onClick={() => setShowAll((s) => !s)} className="mt-2 block font-mono-ui text-2xs font-semibold text-primary hover:opacity-70 transition-opacity">
           {showAll ? "voir moins" : `voir tout (${items.length})`}
         </button>
       )}
@@ -120,8 +120,8 @@ function CappedList({ items, onSave, cap = 6, bulletColor, forceOpen = false }: 
 function TimelineCard({ emoji, label, text, color, onSave }: { emoji: string; label: string; text: string; color: string; onSave: (v: string) => Promise<void> }) {
   return (
     <div className="rounded-xl p-5 flex flex-col" style={{ backgroundColor: color }}>
-      <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wider mb-3 text-muted-foreground">{emoji} {label}</p>
-      <EditableText value={text} onSave={onSave} className="font-body text-[13px] leading-relaxed flex-1" />
+      <p className="font-mono-ui text-2xs font-semibold uppercase tracking-wider mb-3 text-muted-foreground">{emoji} {label}</p>
+      <EditableText value={text} onSave={onSave} className="font-body text-sm leading-relaxed flex-1" />
     </div>
   );
 }
@@ -172,8 +172,8 @@ function StorySynthesis({ data, onSaveRecap, onSaveDirect, copyText, forceOpen =
     <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
       <div className="px-6 pt-6 pb-4 sm:px-8 sm:pt-8">
         <div className="flex items-center justify-between flex-wrap gap-2">
-          <h2 className="font-display text-[22px] font-bold text-foreground">👑 Mon histoire</h2>
-          <Badge className="bg-primary text-primary-foreground text-[11px]">👩 {data.story_type || "Fondatrice"}</Badge>
+          <h2 className="font-display text-2xl font-bold text-foreground">👑 Mon histoire</h2>
+          <Badge className="bg-primary text-primary-foreground text-2xs">👩 {data.story_type || "Fondatrice"}</Badge>
         </div>
       </div>
 
@@ -229,26 +229,26 @@ function StorySynthesis({ data, onSaveRecap, onSaveDirect, copyText, forceOpen =
           {data.pitch_medium && (
             <div className="mb-4">
               <div className="flex items-center justify-between mb-2">
-                <span className="font-mono-ui text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">☕ Naturel</span>
-                <button onClick={() => copyText(data.pitch_medium)} className="text-[11px] font-semibold text-primary hover:opacity-70 inline-flex items-center gap-1"><Copy className="h-3 w-3" /> Copier</button>
+                <span className="font-mono-ui text-2xs font-semibold uppercase tracking-wide text-muted-foreground">☕ Naturel</span>
+                <button onClick={() => copyText(data.pitch_medium)} className="text-2xs font-semibold text-primary hover:opacity-70 inline-flex items-center gap-1"><Copy className="h-3 w-3" /> Copier</button>
               </div>
-              <ClampField value={data.pitch_medium} onSave={(v) => onSaveDirect("pitch_medium", v)} lines={4} forceOpen={forceOpen} className="font-body text-[14px] italic leading-relaxed" />
+              <ClampField value={data.pitch_medium} onSave={(v) => onSaveDirect("pitch_medium", v)} lines={4} forceOpen={forceOpen} className="font-body text-sm italic leading-relaxed" />
             </div>
           )}
           {data.pitch_long && (
             <div>
               <div className="flex items-center justify-between mb-2">
-                <span className="font-mono-ui text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">🎤 Networking</span>
-                <button onClick={() => copyText(data.pitch_long)} className="text-[11px] font-semibold text-primary hover:opacity-70 inline-flex items-center gap-1"><Copy className="h-3 w-3" /> Copier</button>
+                <span className="font-mono-ui text-2xs font-semibold uppercase tracking-wide text-muted-foreground">🎤 Networking</span>
+                <button onClick={() => copyText(data.pitch_long)} className="text-2xs font-semibold text-primary hover:opacity-70 inline-flex items-center gap-1"><Copy className="h-3 w-3" /> Copier</button>
               </div>
-              <ClampField value={data.pitch_long} onSave={(v) => onSaveDirect("pitch_long", v)} lines={4} forceOpen={forceOpen} className="font-body text-[14px] italic leading-relaxed" />
+              <ClampField value={data.pitch_long} onSave={(v) => onSaveDirect("pitch_long", v)} lines={4} forceOpen={forceOpen} className="font-body text-sm italic leading-relaxed" />
             </div>
           )}
         </div>
       )}
 
       <div className="px-6 sm:px-8 py-4 border-t border-border">
-        <p className="text-center font-mono-ui text-[10px] uppercase tracking-wider text-muted-foreground">L'Assistant Com' × Nowadays Agency</p>
+        <p className="text-center font-mono-ui text-2xs uppercase tracking-wider text-muted-foreground">L'Assistant Com' × Nowadays Agency</p>
       </div>
     </div>
   );
@@ -416,13 +416,13 @@ function ValuePropSynthesis({ data, onSaveDirect, forceOpen = false }: {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
           {data.step_3_for_whom && (
             <div className="rounded-xl p-4 bg-[#FFF4F8]">
-              <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wider mb-2 text-muted-foreground">Le problème que je résous</p>
+              <p className="font-mono-ui text-2xs font-semibold uppercase tracking-wider mb-2 text-muted-foreground">Le problème que je résous</p>
               <ClampField value={data.step_3_for_whom} onSave={(v) => onSaveDirect("step_3_for_whom", v)} lines={4} forceOpen={forceOpen} className="text-sm text-foreground" />
             </div>
           )}
           {data.step_2d_refuse && (
             <div className="rounded-xl p-4 bg-[#E8F5E9]">
-              <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wider mb-2 text-muted-foreground">Ma solution</p>
+              <p className="font-mono-ui text-2xs font-semibold uppercase tracking-wider mb-2 text-muted-foreground">Ma solution</p>
               <ClampField value={data.step_2d_refuse} onSave={(v) => onSaveDirect("step_2d_refuse", v)} lines={4} forceOpen={forceOpen} className="text-sm text-foreground" />
             </div>
           )}
@@ -432,7 +432,7 @@ function ValuePropSynthesis({ data, onSaveDirect, forceOpen = false }: {
           <div>
             <SectionLabel emoji="🏆" title="Mes preuves" />
             {proofs.length <= 2 ? (
-              <ClampField value={data.step_2c_feedback} onSave={(v) => onSaveDirect("step_2c_feedback", v)} lines={5} forceOpen={forceOpen} className="text-[13px] text-foreground/80 leading-relaxed" />
+              <ClampField value={data.step_2c_feedback} onSave={(v) => onSaveDirect("step_2c_feedback", v)} lines={5} forceOpen={forceOpen} className="text-sm text-foreground/80 leading-relaxed" />
             ) : (
               <CappedList items={proofs} cap={6} forceOpen={forceOpen} onSave={(i, v) => onSaveDirect("step_2c_feedback", proofs.map((it, idx) => (idx === i ? v : it)).join("\n"))} />
             )}
@@ -459,7 +459,7 @@ function ToneStyleSynthesis({ data, onSaveDirect, forceOpen = false }: {
       {/* Hero — Voice description (left-aligned + clamped preview) */}
       {data.voice_description && (
         <div className="rounded-xl p-5 sm:p-6 bg-[#FFF4F8] border border-[#ffa7c6]/30">
-          <p className="font-mono-ui text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
+          <p className="font-mono-ui text-2xs uppercase tracking-wider text-muted-foreground mb-2">
             🗣️ Comment je parle
           </p>
           <ClampField
@@ -490,19 +490,19 @@ function ToneStyleSynthesis({ data, onSaveDirect, forceOpen = false }: {
             {data.combat_cause && (
               <div className="rounded-xl p-4 bg-[#FFF4F8] border-l-4 border-l-primary">
                 <p className="font-display text-sm font-bold text-foreground mb-2">✊ Ma cause</p>
-                <ClampField value={data.combat_cause} onSave={(v) => onSaveDirect("combat_cause", v)} lines={5} forceOpen={forceOpen} className="text-[13px] text-foreground/80 leading-relaxed" />
+                <ClampField value={data.combat_cause} onSave={(v) => onSaveDirect("combat_cause", v)} lines={5} forceOpen={forceOpen} className="text-sm text-foreground/80 leading-relaxed" />
               </div>
             )}
             {fightsList.length > 0 && (
               <div className="rounded-xl p-4 bg-[#E8F5E9] border-l-4 border-l-success">
                 <p className="font-display text-sm font-bold text-foreground mb-2">🛡️ Ce que je défends</p>
-                <ClampField value={data.combat_fights} onSave={(v) => onSaveDirect("combat_fights", v)} lines={5} forceOpen={forceOpen} className="text-[13px] text-foreground/80 leading-relaxed" />
+                <ClampField value={data.combat_fights} onSave={(v) => onSaveDirect("combat_fights", v)} lines={5} forceOpen={forceOpen} className="text-sm text-foreground/80 leading-relaxed" />
               </div>
             )}
             {refusalsList.length > 0 && (
               <div className="rounded-xl p-4 bg-[#FFF3E0] border-l-4 border-l-warning">
                 <p className="font-display text-sm font-bold text-foreground mb-2">🚫 Ce que je refuse</p>
-                <ClampField value={data.combat_refusals} onSave={(v) => onSaveDirect("combat_refusals", v)} lines={5} forceOpen={forceOpen} className="text-[13px] text-foreground/80 leading-relaxed" />
+                <ClampField value={data.combat_refusals} onSave={(v) => onSaveDirect("combat_refusals", v)} lines={5} forceOpen={forceOpen} className="text-sm text-foreground/80 leading-relaxed" />
               </div>
             )}
           </div>
@@ -518,7 +518,7 @@ function ToneStyleSynthesis({ data, onSaveDirect, forceOpen = false }: {
                 <span className="text-lg">✅</span> Mes expressions clés
               </p>
               {doList.length <= 2 ? (
-                <ClampField value={data.key_expressions} onSave={(v) => onSaveDirect("key_expressions", v)} lines={5} forceOpen={forceOpen} className="text-[13px] text-foreground/80 leading-relaxed" />
+                <ClampField value={data.key_expressions} onSave={(v) => onSaveDirect("key_expressions", v)} lines={5} forceOpen={forceOpen} className="text-sm text-foreground/80 leading-relaxed" />
               ) : (
                 <CappedList items={doList} cap={6} forceOpen={forceOpen} onSave={(i, v) => onSaveDirect("key_expressions", doList.map((it, idx) => (idx === i ? v : it)).join("\n"))} bulletColor="#2E7D32" />
               )}
@@ -530,7 +530,7 @@ function ToneStyleSynthesis({ data, onSaveDirect, forceOpen = false }: {
                 <span className="text-lg">❌</span> Ce que j'évite toujours
               </p>
               {dontList.length <= 2 ? (
-                <ClampField value={data.things_to_avoid} onSave={(v) => onSaveDirect("things_to_avoid", v)} lines={5} forceOpen={forceOpen} className="text-[13px] text-foreground/80 leading-relaxed" />
+                <ClampField value={data.things_to_avoid} onSave={(v) => onSaveDirect("things_to_avoid", v)} lines={5} forceOpen={forceOpen} className="text-sm text-foreground/80 leading-relaxed" />
               ) : (
                 <CappedList items={dontList} cap={6} forceOpen={forceOpen} onSave={(i, v) => onSaveDirect("things_to_avoid", dontList.map((it, idx) => (idx === i ? v : it)).join("\n"))} bulletColor="#e53935" />
               )}
@@ -558,7 +558,7 @@ function ToneStyleSynthesis({ data, onSaveDirect, forceOpen = false }: {
                     const label = key.replace(/_/g, " ").replace(/^\w/, c => c.toUpperCase());
                     return (
                       <div key={key}>
-                        <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">{label}</p>
+                        <p className="font-mono-ui text-2xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">{label}</p>
                         <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-line">
                           {typeof val === "string" ? val : JSON.stringify(val, null, 2)}
                         </p>
@@ -642,7 +642,7 @@ function StrategySynthesis({ data, onSaveRecap, forceOpen = false }: {
                   <div className="flex items-center justify-between mb-2">
                     <p className="font-display text-sm font-bold text-foreground">{p.name}</p>
                     {p.percentage != null && (
-                      <Badge variant={p.type === "major" ? "default" : "secondary"} className="text-[10px]">
+                      <Badge variant={p.type === "major" ? "default" : "secondary"} className="text-2xs">
                         {p.percentage}%
                       </Badge>
                     )}
@@ -659,7 +659,7 @@ function StrategySynthesis({ data, onSaveRecap, forceOpen = false }: {
                     <ul className="space-y-1 mt-2">
                       {p.content_ideas.map((idea: string, j: number) => (
                         <li key={j} className="text-xs text-muted-foreground flex items-start gap-1.5">
-                          <span className="text-[8px] text-primary mt-1">●</span> {idea}
+                          <span className="text-2xs text-primary mt-1">●</span> {idea}
                         </li>
                       ))}
                     </ul>
@@ -678,7 +678,7 @@ function StrategySynthesis({ data, onSaveRecap, forceOpen = false }: {
                   }}
                 >
                   <div className="flex items-center gap-2 mb-1">
-                    <Badge variant={p.type === "major" ? "default" : "secondary"} className="text-[10px]">
+                    <Badge variant={p.type === "major" ? "default" : "secondary"} className="text-2xs">
                       {p.type === "major" ? "🔥 Majeur" : "🌱 Mineur"}
                     </Badge>
                   </div>

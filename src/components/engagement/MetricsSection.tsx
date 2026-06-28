@@ -107,9 +107,9 @@ export default function MetricsSection({
                 onChange={e => onChange(key, parseInt(e.target.value) || 0)}
                 className="w-24 h-8 text-sm text-center"
               />
-              {v && <span className={`text-[10px] ${v.positive ? "text-success" : "text-error"}`}>{v.text}</span>}
+              {v && <span className={`text-2xs ${v.positive ? "text-success" : "text-error"}`}>{v.text}</span>}
               {diff(metrics[key], prevMetrics?.[key as keyof PrevMetrics]) && (
-                <span className="text-[10px] text-muted-foreground">({diff(metrics[key], prevMetrics?.[key as keyof PrevMetrics])})</span>
+                <span className="text-2xs text-muted-foreground">({diff(metrics[key], prevMetrics?.[key as keyof PrevMetrics])})</span>
               )}
             </div>
           );
@@ -153,7 +153,7 @@ export default function MetricsSection({
             const label = key === "avg_reach" ? "Reach" : key === "avg_saves" ? "Saves" : "DM";
             return (
               <div key={key} className="flex items-center gap-2">
-                <span className="text-[10px] text-muted-foreground w-12">{label}</span>
+                <span className="text-2xs text-muted-foreground w-12">{label}</span>
                 <MiniBar values={vals} maxVal={max} />
               </div>
             );

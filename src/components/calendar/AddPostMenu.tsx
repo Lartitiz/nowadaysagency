@@ -37,7 +37,7 @@ export function AddPostMenu({ dateStr, onAddIdea, onImport, children }: Props) {
         )}
       </PopoverTrigger>
       <PopoverContent className="w-44 p-1.5" align="start">
-        <p className="text-[10px] font-semibold text-muted-foreground px-2 py-1">
+        <p className="text-2xs font-semibold text-muted-foreground px-2 py-1">
           + Ajouter pour le {new Date(dateStr + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
         </p>
         {FORMATS.map(f => (

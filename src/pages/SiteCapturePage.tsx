@@ -77,7 +77,7 @@ export default function SiteCapturePage() {
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
         <SubPageHeader parentLabel="Mon Site Web" parentTo="/site" currentLabel="Page de capture" />
 
-        <h1 className="font-display text-[26px] font-bold text-foreground mb-2">🎁 Ta page de capture</h1>
+        <h1 className="font-display text-3xl font-bold text-foreground mb-2">🎁 Ta page de capture</h1>
         <p className="text-sm text-muted-foreground mb-8">
           Récolte des emails avec un lead magnet. Structure minimale : titre bénéfice + 3-4 bullets + formulaire (prénom + email) + CTA.
           <br />
@@ -105,7 +105,7 @@ export default function SiteCapturePage() {
           <div className="rounded-2xl border border-border bg-card p-6 space-y-6">
             {/* Title */}
             <div>
-              <p className="font-mono-ui text-[11px] font-semibold text-primary mb-1">🎯 TITRE</p>
+              <p className="font-mono-ui text-2xs font-semibold text-primary mb-1">🎯 TITRE</p>
               <p className="text-xl font-bold text-foreground">{result.title}</p>
               {result.subtitle && <p className="text-sm text-muted-foreground mt-1">{result.subtitle}</p>}
               <RedFlagsChecker content={result.title} onFix={(fixed) => setResult({ ...result, title: fixed })} />
@@ -114,7 +114,7 @@ export default function SiteCapturePage() {
             {/* Bullets */}
             {result.bullets && (
               <div>
-                <p className="font-mono-ui text-[11px] font-semibold text-primary mb-2">📋 CE QUE TU VAS RECEVOIR</p>
+                <p className="font-mono-ui text-2xs font-semibold text-primary mb-2">📋 CE QUE TU VAS RECEVOIR</p>
                 <ul className="space-y-2">
                   {result.bullets.map((b: string, i: number) => (
                     <li key={i} className="flex items-start gap-2 text-sm text-foreground">
@@ -129,7 +129,7 @@ export default function SiteCapturePage() {
             {/* CTA */}
             <div className="rounded-xl bg-rose-pale p-4 text-center">
               <p className="font-display text-base font-bold text-foreground mb-1">{result.cta_text}</p>
-              {result.micro_copy && <p className="text-[12px] text-muted-foreground">{result.micro_copy}</p>}
+              {result.micro_copy && <p className="text-xs text-muted-foreground">{result.micro_copy}</p>}
             </div>
 
             {/* Copy all */}

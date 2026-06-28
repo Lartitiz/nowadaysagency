@@ -195,7 +195,7 @@ export default function ProspectionSection() {
           {stageCounts.map(s => (
             <div key={s.key} className={`rounded-lg p-2.5 text-center ${s.color}`}>
               <div className="text-lg font-bold">{s.count}</div>
-              <div className="text-[10px] leading-tight">{s.label.split(" ").slice(1).join(" ")}</div>
+              <div className="text-2xs leading-tight">{s.label.split(" ").slice(1).join(" ")}</div>
             </div>
           ))}
         </div>
@@ -226,10 +226,10 @@ export default function ProspectionSection() {
                       <span className="text-muted-foreground text-xs"> · {p.next_reminder_text}</span>
                     )}
                   </span>
-                  <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px]" onClick={() => openDmForProspect(p)}>
+                  <Button size="sm" variant="ghost" className="h-7 px-2 text-2xs" onClick={() => openDmForProspect(p)}>
                     <MessageCircle className="h-3 w-3 mr-1" /> Générer un DM
                   </Button>
-                  <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px]" onClick={async () => {
+                  <Button size="sm" variant="ghost" className="h-7 px-2 text-2xs" onClick={async () => {
                     const tomorrow = new Date();
                     tomorrow.setDate(tomorrow.getDate() + 1);
                     await updateProspect(p.id, { next_reminder_at: tomorrow.toISOString() });
@@ -245,7 +245,7 @@ export default function ProspectionSection() {
 
           {/* Free DM button */}
           <div className="border-t border-primary/10 pt-2">
-            <p className="text-[11px] text-muted-foreground mb-2">Ou choisis un prospect dans le pipeline ci-dessous pour lui écrire un DM personnalisé.</p>
+            <p className="text-2xs text-muted-foreground mb-2">Ou choisis un prospect dans le pipeline ci-dessous pour lui écrire un DM personnalisé.</p>
           </div>
         </div>
       )}

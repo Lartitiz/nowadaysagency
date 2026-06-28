@@ -61,7 +61,7 @@ export function PillarsSyncBanner() {
 
             <div className="grid sm:grid-cols-2 gap-3 text-xs">
               <div className="rounded-lg bg-background/60 border border-border p-3">
-                <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
+                <div className="text-2xs uppercase tracking-wide text-muted-foreground mb-1">
                   Branding (source)
                 </div>
                 <ul className="space-y-0.5 text-foreground">
@@ -73,7 +73,7 @@ export function PillarsSyncBanner() {
                 </ul>
               </div>
               <div className="rounded-lg bg-background/60 border border-border p-3">
-                <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
+                <div className="text-2xs uppercase tracking-wide text-muted-foreground mb-1">
                   Ligne éditoriale (actuel)
                 </div>
                 <ul className="space-y-0.5 text-foreground">

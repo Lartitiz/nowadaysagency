@@ -528,7 +528,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
                 </Button>
               </div>
               {igValidImages.length === 0 && (
-                <p className="text-[11px] text-muted-foreground">Ajoute au moins un visuel (image) pour pouvoir programmer.</p>
+                <p className="text-2xs text-muted-foreground">Ajoute au moins un visuel (image) pour pouvoir programmer.</p>
               )}
             </div>
           )}
@@ -567,7 +567,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
                 </Button>
               </div>
               {!linkedInText && (
-                <p className="text-[11px] text-muted-foreground">Rédige le texte du post pour pouvoir programmer.</p>
+                <p className="text-2xs text-muted-foreground">Rédige le texte du post pour pouvoir programmer.</p>
               )}
             </div>
           )}
@@ -581,7 +581,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
             <ChevronDown className="h-4 w-4 transition-transform data-[state=open]:rotate-180" />
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-3">
-            <ol className="space-y-3 text-[13px] leading-relaxed text-foreground">
+            <ol className="space-y-3 text-sm leading-relaxed text-foreground">
               {guide.map((step, i) => (
                 <li key={i}>
                   <span className="font-semibold text-primary">{step.label}</span>
@@ -652,12 +652,12 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
             <span className="text-xs text-muted-foreground">{dateLabel}</span>
           </>
         )}
-        <span className={cn("ml-auto rounded-pill border px-2.5 py-0.5 text-[11px] font-medium", statusStyles[status] || "bg-card border-border text-foreground")}>
+        <span className={cn("ml-auto rounded-pill border px-2.5 py-0.5 text-2xs font-medium", statusStyles[status] || "bg-card border-border text-foreground")}>
           {STATUS_LABELS[status] || status}
         </span>
       </div>
       {(objectifMeta || angle) && (
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           {objectifMeta && <span>{objectifMeta.emoji} {objectifMeta.label}</span>}
           {objectifMeta && angle && <span className="mx-1.5 text-border">·</span>}
           {angle && <span>{angle}</span>}
@@ -766,7 +766,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
                 {/* Aperçu live (sticky) */}
                 <aside className="space-y-2">
                   <div className="sticky top-0">
-                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Aperçu live</p>
+                    <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Aperçu live</p>
                     {previewBlock(true)}
                   </div>
                 </aside>

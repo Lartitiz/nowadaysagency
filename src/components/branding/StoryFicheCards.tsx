@@ -75,10 +75,10 @@ export default function StoryFicheCards() {
 
         <div className="flex items-center gap-2 mb-2">
           {selectedStory.is_primary && (
-            <Badge variant="default" className="text-[10px]">✨ Principal</Badge>
+            <Badge variant="default" className="text-2xs">✨ Principal</Badge>
           )}
           {selectedStory.updated_at && (
-            <span className="text-[11px] text-muted-foreground">
+            <span className="text-2xs text-muted-foreground">
               Modifié le {format(new Date(selectedStory.updated_at), "d MMM yyyy", { locale: fr })}
             </span>
           )}
@@ -87,14 +87,14 @@ export default function StoryFicheCards() {
         {selectedStory.pitch_short && (
           <Card className="p-5">
             <h4 className="text-xs font-semibold text-foreground uppercase tracking-wide mb-2">Pitch court</h4>
-            <p className="text-[13px] text-muted-foreground leading-relaxed whitespace-pre-wrap">{selectedStory.pitch_short}</p>
+            <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{selectedStory.pitch_short}</p>
           </Card>
         )}
 
         {selectedStory.step_7_polished && (
           <Card className="p-5">
             <h4 className="text-xs font-semibold text-foreground uppercase tracking-wide mb-2">Histoire complète</h4>
-            <p className="text-[13px] text-muted-foreground leading-relaxed whitespace-pre-wrap">{selectedStory.step_7_polished}</p>
+            <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{selectedStory.step_7_polished}</p>
           </Card>
         )}
 
@@ -149,19 +149,19 @@ export default function StoryFicheCards() {
             <div className="flex items-start justify-between gap-3 mb-2">
               <div className="flex items-center gap-2">
                 {s.is_primary && (
-                  <Badge variant="default" className="text-[10px] shrink-0">✨ Principal</Badge>
+                  <Badge variant="default" className="text-2xs shrink-0">✨ Principal</Badge>
                 )}
               </div>
             </div>
 
             {preview ? (
-              <p className="text-[13px] text-muted-foreground leading-relaxed line-clamp-3">{preview}</p>
+              <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">{preview}</p>
             ) : (
-              <p className="text-[13px] text-muted-foreground italic">Storytelling en cours...</p>
+              <p className="text-sm text-muted-foreground italic">Storytelling en cours...</p>
             )}
 
             {s.updated_at && (
-              <p className="text-[11px] text-muted-foreground/60 mt-2">
+              <p className="text-2xs text-muted-foreground/60 mt-2">
                 Modifié le {format(new Date(s.updated_at), "d MMM yyyy", { locale: fr })}
               </p>
             )}

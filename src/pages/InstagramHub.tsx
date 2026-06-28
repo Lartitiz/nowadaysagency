@@ -102,8 +102,8 @@ export default function InstagramHub() {
         </Link>
 
         <div className="mb-8">
-         <h1 className="font-display text-[26px] sm:text-3xl font-bold text-bordeaux">📱 Mon Instagram</h1>
-          <p className="mt-1 text-[15px] text-muted-foreground">
+         <h1 className="font-display text-3xl sm:text-3xl font-bold text-bordeaux">📱 Mon Instagram</h1>
+          <p className="mt-1 text-base text-muted-foreground">
             Audite ton profil, génère des contenus, optimise ta bio : tout pour qu'Instagram bosse pour toi (et pas l'inverse).
           </p>
         </div>
@@ -113,7 +113,7 @@ export default function InstagramHub() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <button onClick={() => setCoachingOpen(true)} className="text-left">
               <div className="relative rounded-2xl border-2 border-primary bg-primary/5 p-5 hover:bg-primary/10 hover:shadow-md transition-all group">
-                <span className="absolute top-3 right-3 font-mono-ui text-[10px] font-semibold text-primary bg-rose-pale px-2.5 py-0.5 rounded-pill">
+                <span className="absolute top-3 right-3 font-mono-ui text-2xs font-semibold text-primary bg-rose-pale px-2.5 py-0.5 rounded-pill">
                   IA · 10 min
                 </span>
                 <span className="text-2xl mb-2 block">✨</span>

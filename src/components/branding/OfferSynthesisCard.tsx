@@ -14,7 +14,7 @@ function SynthCard({ children, className = "" }: { children: React.ReactNode; cl
 
 function SectionLabel({ emoji, title }: { emoji: string; title: string }) {
   return (
-    <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wider mb-3 text-muted-foreground flex items-center gap-1.5">
+    <p className="font-mono-ui text-2xs font-semibold uppercase tracking-wider mb-3 text-muted-foreground flex items-center gap-1.5">
       <span>{emoji}</span> {title}
     </p>
   );
@@ -26,7 +26,7 @@ function HeroQuote({ text, onCopy }: { text: string; onCopy?: () => void }) {
       <p className="font-display text-base sm:text-lg font-bold text-foreground italic text-center leading-relaxed">"{text}"</p>
       {onCopy && (
         <div className="flex justify-end mt-3">
-          <button onClick={onCopy} className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:opacity-70 transition-opacity">
+          <button onClick={onCopy} className="inline-flex items-center gap-1 text-2xs font-semibold text-primary hover:opacity-70 transition-opacity">
             <Copy className="h-3 w-3" /> Copier
           </button>
         </div>
@@ -106,13 +106,13 @@ export default function OfferSynthesisCard({ offer, onEdit }: OfferSynthesisCard
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {offer.emotional_before && (
               <div className="rounded-lg p-4 bg-muted/30">
-                <p className="font-mono-ui text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Avant</p>
+                <p className="font-mono-ui text-2xs uppercase tracking-wider text-muted-foreground mb-2">Avant</p>
                 <p className="text-sm text-foreground italic">{offer.emotional_before}</p>
               </div>
             )}
             {offer.emotional_after && (
               <div className="rounded-lg p-4 bg-rose-pale">
-                <p className="font-mono-ui text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Après</p>
+                <p className="font-mono-ui text-2xs uppercase tracking-wider text-muted-foreground mb-2">Après</p>
                 <p className="text-sm text-foreground italic">{offer.emotional_after}</p>
               </div>
             )}
@@ -152,19 +152,19 @@ export default function OfferSynthesisCard({ offer, onEdit }: OfferSynthesisCard
           <SectionLabel emoji="👤" title="Pour qui" />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="rounded-lg p-4 bg-success-bg/50">
-              <p className="font-mono-ui text-[10px] uppercase tracking-wider text-success mb-2">✅ C'est pour elle si…</p>
+              <p className="font-mono-ui text-2xs uppercase tracking-wider text-success mb-2">✅ C'est pour elle si…</p>
               <p className="text-sm text-foreground">{offer.target_ideal}</p>
             </div>
             {offer.target_not_for && (
               <div className="rounded-lg p-4 bg-error-bg/50">
-                <p className="font-mono-ui text-[10px] uppercase tracking-wider text-error mb-2">🚫 C'est pas pour elle si…</p>
+                <p className="font-mono-ui text-2xs uppercase tracking-wider text-error mb-2">🚫 C'est pas pour elle si…</p>
                 <p className="text-sm text-foreground">{offer.target_not_for}</p>
               </div>
             )}
           </div>
           {offer.trigger_situation && (
             <div className="rounded-lg p-4 bg-warning-bg/50 mt-3">
-              <p className="font-mono-ui text-[10px] uppercase tracking-wider text-warning mb-2">💡 Le déclic</p>
+              <p className="font-mono-ui text-2xs uppercase tracking-wider text-warning mb-2">💡 Le déclic</p>
               <p className="text-sm text-foreground">{offer.trigger_situation}</p>
             </div>
           )}
@@ -179,8 +179,8 @@ export default function OfferSynthesisCard({ offer, onEdit }: OfferSynthesisCard
             <table className="w-full text-sm border border-border rounded-lg overflow-hidden">
               <thead>
                 <tr className="bg-muted/30">
-                  <th className="text-left p-2.5 font-mono-ui text-[10px] uppercase tracking-wider text-muted-foreground">Feature</th>
-                  <th className="text-left p-2.5 font-mono-ui text-[10px] uppercase tracking-wider text-muted-foreground">Bénéfice</th>
+                  <th className="text-left p-2.5 font-mono-ui text-2xs uppercase tracking-wider text-muted-foreground">Feature</th>
+                  <th className="text-left p-2.5 font-mono-ui text-2xs uppercase tracking-wider text-muted-foreground">Bénéfice</th>
                 </tr>
               </thead>
               <tbody>
@@ -233,7 +233,7 @@ export default function OfferSynthesisCard({ offer, onEdit }: OfferSynthesisCard
             <Pencil className="h-3.5 w-3.5" /> Modifier cette offre
           </Button>
         )}
-        <p className="font-mono-ui text-[10px] text-muted-foreground">L'Assistant Com' × Nowadays Agency</p>
+        <p className="font-mono-ui text-2xs text-muted-foreground">L'Assistant Com' × Nowadays Agency</p>
       </div>
     </div>
   );

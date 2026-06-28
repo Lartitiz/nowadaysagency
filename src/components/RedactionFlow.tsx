@@ -264,7 +264,7 @@ export default function RedactionFlow({ idea, profile, canal, objectif, onClose 
                     </div>
                     <ol className="space-y-2">
                       {guide.map((s, i) => (
-                        <li key={i} className="text-[13px] leading-relaxed">
+                        <li key={i} className="text-sm leading-relaxed">
                           <span className="font-semibold text-primary">{s.label}</span>
                           <span className="text-muted-foreground"> — {s.detail}</span>
                         </li>

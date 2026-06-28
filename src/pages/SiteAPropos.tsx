@@ -271,8 +271,8 @@ export default function SiteAPropos() {
         <AppHeader />
         <main className="mx-auto max-w-[700px] px-6 py-8 max-md:px-4">
           <SubPageHeader parentLabel="Mon Site Web" parentTo="/site" currentLabel="Page à propos" />
-          <h1 className="font-display text-[22px] sm:text-[26px] font-bold text-foreground mb-2">📖 Ma page À propos</h1>
-          <p className="text-[15px] text-muted-foreground mb-8">
+          <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-2">📖 Ma page À propos</h1>
+          <p className="text-base text-muted-foreground mb-8">
             Raconte ton histoire pour créer du lien. L'IA t'aide à trouver les mots.
           </p>
 
@@ -288,7 +288,7 @@ export default function SiteAPropos() {
                 </span>
                 <div className="flex-1">
                   <p className="font-display text-base font-bold text-foreground">✨ Rédiger ma page de zéro</p>
-                  <p className="text-[13px] text-muted-foreground mt-1">Tu n'as pas encore de page À propos ? On la crée ensemble.</p>
+                  <p className="text-sm text-muted-foreground mt-1">Tu n'as pas encore de page À propos ? On la crée ensemble.</p>
                 </div>
                 <ArrowRight className="h-5 w-5 text-muted-foreground mt-1 group-hover:text-primary transition-colors" />
               </div>
@@ -305,7 +305,7 @@ export default function SiteAPropos() {
                 </span>
                 <div className="flex-1">
                   <p className="font-display text-base font-bold text-foreground">🔧 Améliorer ma page existante</p>
-                  <p className="text-[13px] text-muted-foreground mt-1">Tu as déjà une page ? Colle ton URL ou ton texte, l'IA l'améliore.</p>
+                  <p className="text-sm text-muted-foreground mt-1">Tu as déjà une page ? Colle ton URL ou ton texte, l'IA l'améliore.</p>
                 </div>
                 <ArrowRight className="h-5 w-5 text-muted-foreground mt-1 group-hover:text-primary transition-colors" />
               </div>
@@ -330,8 +330,8 @@ export default function SiteAPropos() {
         <main className="mx-auto max-w-[700px] px-6 py-8 max-md:px-4">
           <SubPageHeader parentLabel="Mon Site Web" parentTo="/site" currentLabel="Page à propos" />
           <button onClick={() => setMode("entry")} className="text-sm text-primary hover:underline mb-4 inline-block">← Retour</button>
-          <h1 className="font-display text-[22px] font-bold text-foreground mb-2">💬 On cadre ta page ensemble</h1>
-          <p className="text-[15px] text-muted-foreground mb-6">
+          <h1 className="font-display text-2xl font-bold text-foreground mb-2">💬 On cadre ta page ensemble</h1>
+          <p className="text-base text-muted-foreground mb-6">
             Quelques questions rapides pour que l'IA rédige une page qui te ressemble vraiment.
           </p>
           <PreGenCoaching
@@ -356,8 +356,8 @@ export default function SiteAPropos() {
         <main className="mx-auto max-w-[700px] px-6 py-8 max-md:px-4">
           <SubPageHeader parentLabel="Mon Site Web" parentTo="/site" currentLabel="Page à propos" />
           <button onClick={() => setMode("entry")} className="text-sm text-primary hover:underline mb-4 inline-block">← Retour</button>
-          <h1 className="font-display text-[22px] sm:text-[26px] font-bold text-foreground mb-2">✨ Rédiger ma page de zéro</h1>
-          <p className="text-[15px] text-muted-foreground mb-4">
+          <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-2">✨ Rédiger ma page de zéro</h1>
+          <p className="text-base text-muted-foreground mb-4">
             L'IA rédige ta page à propos à partir de ton branding. Choisis un angle.
           </p>
 
@@ -390,10 +390,10 @@ export default function SiteAPropos() {
                     <div className="flex items-center gap-2">
                       <p className="font-display text-base font-bold text-foreground">{a.label}</p>
                       {recommendedAngle === a.id && !generating && (
-                        <span className="font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-primary text-primary-foreground">recommandé</span>
+                        <span className="font-mono-ui text-2xs font-semibold px-2 py-0.5 rounded-pill bg-primary text-primary-foreground">recommandé</span>
                       )}
                     </div>
-                    <p className="text-[13px] text-muted-foreground">{a.desc}</p>
+                    <p className="text-sm text-muted-foreground">{a.desc}</p>
                   </div>
                   {generating && selectedAngle === a.id && <Loader2 className="h-5 w-5 animate-spin text-primary" />}
                 </div>
@@ -419,8 +419,8 @@ export default function SiteAPropos() {
         <main className="mx-auto max-w-[700px] px-6 py-8 max-md:px-4">
           <SubPageHeader parentLabel="Mon Site Web" parentTo="/site" currentLabel="Page à propos" />
           <button onClick={() => setMode("entry")} className="text-sm text-primary hover:underline mb-4 inline-block">← Retour</button>
-          <h1 className="font-display text-[22px] sm:text-[26px] font-bold text-foreground mb-2">🔧 Améliorer ma page existante</h1>
-          <p className="text-[15px] text-muted-foreground mb-6">
+          <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-2">🔧 Améliorer ma page existante</h1>
+          <p className="text-base text-muted-foreground mb-6">
             Colle ton URL ou ton texte, l'IA l'analyse et te propose une version améliorée.
           </p>
 
@@ -450,7 +450,7 @@ export default function SiteAPropos() {
               <Textarea id="optimize-focus" value={optimizeFocus} onChange={(e) => setOptimizeFocus(e.target.value)} placeholder="Ex: Mon histoire sonne faux, c'est trop long, on dirait une fiche Wikipedia..." className="rounded-xl min-h-[70px]" />
               <div className="flex flex-wrap gap-1.5">
                 {FOCUS_CHIPS.map(chip => (
-                  <button key={chip} onClick={() => setOptimizeFocus(prev => prev ? `${prev}, ${chip}` : chip)} className="font-mono-ui text-[11px] font-semibold px-3 py-1 rounded-pill border border-border bg-card hover:border-primary hover:bg-rose-pale transition-colors">
+                  <button key={chip} onClick={() => setOptimizeFocus(prev => prev ? `${prev}, ${chip}` : chip)} className="font-mono-ui text-2xs font-semibold px-3 py-1 rounded-pill border border-border bg-card hover:border-primary hover:bg-rose-pale transition-colors">
                     {chip}
                   </button>
                 ))}
@@ -499,7 +499,7 @@ export default function SiteAPropos() {
         <main className="mx-auto max-w-4xl px-6 py-8 max-md:px-4">
           <SubPageHeader parentLabel="Mon Site Web" parentTo="/site" currentLabel="Page à propos" />
           <button onClick={() => setMode("entry")} className="text-sm text-primary hover:underline mb-4 inline-block">← Retour</button>
-          <h1 className="font-display text-[22px] font-bold text-foreground mb-6">🔧 Résultats de l'optimisation</h1>
+          <h1 className="font-display text-2xl font-bold text-foreground mb-6">🔧 Résultats de l'optimisation</h1>
           <AboutOptimizeResult result={optimizeResult} originalText={originalText} onRetry={() => setMode("optimize-input")} userId={profileUserId} />
           <div className="mt-6">
             <RedFlagsChecker

@@ -572,7 +572,7 @@ function AuditResults({ result, previousAudit, expandedPillar, setExpandedPillar
               <div key={i} className="rounded-xl border border-success/30 bg-success-bg p-4">
                 <p className="text-sm font-medium text-foreground">✅ {p.titre}</p>
                 <p className="text-xs text-muted-foreground mt-1">{p.detail}</p>
-                <p className="text-[10px] text-muted-foreground/70 mt-1">Source : {p.source}</p>
+                <p className="text-2xs text-muted-foreground/70 mt-1">Source : {p.source}</p>
               </div>
             ))}
           </div>
@@ -588,7 +588,7 @@ function AuditResults({ result, previousAudit, expandedPillar, setExpandedPillar
               <div key={i} className={`rounded-xl border p-4 ${p.priorite === "haute" ? "border-error/30 bg-error-bg" : "border-warning/30 bg-warning-bg"}`}>
                 <p className="text-sm font-medium text-foreground">{p.priorite === "haute" ? "🔴" : "🟡"} {p.titre}</p>
                 <p className="text-xs text-muted-foreground mt-1">{p.detail}</p>
-                <p className="text-[10px] text-muted-foreground/70 mt-1">Priorité : {p.priorite}</p>
+                <p className="text-2xs text-muted-foreground/70 mt-1">Priorité : {p.priorite}</p>
                 {p.action && (
                   <div className="mt-3 pt-3 border-t border-border/50">
                     <p className="text-xs text-muted-foreground mb-2">💡 {p.action.conseil}</p>
@@ -630,13 +630,13 @@ function AuditResults({ result, previousAudit, expandedPillar, setExpandedPillar
                 {isExpanded && (
                   <div className="px-4 pb-4 space-y-2 border-t border-border pt-3">
                     {pillar.ce_qui_existe && (
-                      <div><p className="text-[10px] font-semibold text-success uppercase">Ce qui existe</p><p className="text-xs text-muted-foreground">{pillar.ce_qui_existe}</p></div>
+                      <div><p className="text-2xs font-semibold text-success uppercase">Ce qui existe</p><p className="text-xs text-muted-foreground">{pillar.ce_qui_existe}</p></div>
                     )}
                     {pillar.ce_qui_manque && (
-                      <div><p className="text-[10px] font-semibold text-warning uppercase">Ce qui manque</p><p className="text-xs text-muted-foreground">{pillar.ce_qui_manque}</p></div>
+                      <div><p className="text-2xs font-semibold text-warning uppercase">Ce qui manque</p><p className="text-xs text-muted-foreground">{pillar.ce_qui_manque}</p></div>
                     )}
                     {pillar.recommandation && (
-                      <div><p className="text-[10px] font-semibold text-primary uppercase">Recommandation</p><p className="text-xs text-muted-foreground">{pillar.recommandation}</p></div>
+                      <div><p className="text-2xs font-semibold text-primary uppercase">Recommandation</p><p className="text-xs text-muted-foreground">{pillar.recommandation}</p></div>
                     )}
                   </div>
                 )}
@@ -657,7 +657,7 @@ function AuditResults({ result, previousAudit, expandedPillar, setExpandedPillar
                 <span className="w-6 h-6 rounded-lg bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0">{a.priorite}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{a.action}</p>
-                  <p className="text-[10px] text-muted-foreground">{a.temps_estime}</p>
+                  <p className="text-2xs text-muted-foreground">{a.temps_estime}</p>
                 </div>
                 <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
               </button>

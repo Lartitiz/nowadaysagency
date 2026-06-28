@@ -61,10 +61,10 @@ export default function BrandingPrompt({ section = "global", message, linkText, 
 
   return (
     <div className="rounded-xl border border-accent bg-accent/20 px-4 py-3 mb-6 flex items-center justify-between gap-3 animate-fade-in">
-      <p className="text-[13px] text-foreground">{message || d.msg}</p>
+      <p className="text-sm text-foreground">{message || d.msg}</p>
       <Link
         to={linkTo || d.to}
-        className="shrink-0 inline-flex items-center gap-1 text-[12px] font-semibold text-primary hover:underline"
+        className="shrink-0 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
       >
         {linkText || d.link}
         <ArrowRight className="h-3 w-3" />

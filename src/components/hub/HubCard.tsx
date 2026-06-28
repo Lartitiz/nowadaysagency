@@ -25,7 +25,7 @@ export default function HubCard({
   const content = (
     <div className={`relative rounded-2xl border border-border bg-card p-5 transition-all ${disabled ? "opacity-60 cursor-not-allowed" : "hover:border-primary hover:shadow-md group"}`}>
       {displayTag && (
-        <span className="absolute top-3 right-3 font-mono-ui text-[10px] font-semibold text-muted-foreground bg-rose-pale px-2 py-0.5 rounded-pill">
+        <span className="absolute top-3 right-3 font-mono-ui text-2xs font-semibold text-muted-foreground bg-rose-pale px-2 py-0.5 rounded-pill">
           {displayTag}
         </span>
       )}

@@ -156,7 +156,7 @@ ${prenom || "[Ton prénom]"}`;
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
         <SubPageHeader parentTo="/linkedin" parentLabel="LinkedIn" currentLabel="Mes recommandations" />
 
-        <h1 className="font-display text-[22px] font-bold text-foreground mb-1">Tes recommandations</h1>
+        <h1 className="font-display text-2xl font-bold text-foreground mb-1">Tes recommandations</h1>
         <p className="text-sm text-muted-foreground italic mb-6">Les recommandations LinkedIn sont de vraies preuves sociales. Elles rassurent et renforcent ta crédibilité.</p>
 
         {/* Exercise */}

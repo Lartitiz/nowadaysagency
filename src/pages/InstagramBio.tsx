@@ -440,7 +440,7 @@ export default function InstagramBio() {
         <SubPageHeader parentLabel="Mon profil" parentTo="/instagram/profil" currentLabel="Optimiser ma bio" useFromParam />
         <AuditRecommendationBanner />
 
-        <h1 className="font-display text-[26px] font-bold text-foreground">✍️ Optimiser ma bio</h1>
+        <h1 className="font-display text-3xl font-bold text-foreground">✍️ Optimiser ma bio</h1>
         <p className="mt-2 text-sm text-muted-foreground mb-6">
           Ta bio, c'est ta première impression. Elle doit montrer en quelques mots : à qui tu t'adresses, ce que tu proposes, et pourquoi toi.
         </p>
@@ -725,7 +725,7 @@ export default function InstagramBio() {
                       {String.fromCharCode(65 + i)} · {v.label}
                     </h3>
                     {v.structure && (
-                      <span className="text-[10px] bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
+                      <span className="text-2xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
                         {BIO_STRUCTURES_LOOKUP[v.structure] || v.structure}
                       </span>
                     )}
@@ -843,7 +843,7 @@ export default function InstagramBio() {
         {/* Guide */}
         {(view === "audit" || view === "validated") && (
           <div className="rounded-2xl border-l-4 border-l-primary bg-rose-pale p-5 mt-8">
-            <span className="inline-block font-mono-ui text-[11px] font-semibold uppercase tracking-wider bg-jaune text-[#2D2235] px-3 py-1 rounded-pill mb-2">
+            <span className="inline-block font-mono-ui text-2xs font-semibold uppercase tracking-wider bg-jaune text-[#2D2235] px-3 py-1 rounded-pill mb-2">
               📖 Guide
             </span>
             <p className="text-sm text-foreground leading-relaxed">

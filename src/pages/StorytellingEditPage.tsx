@@ -58,7 +58,7 @@ export default function StorytellingEditPage() {
       <main className="mx-auto max-w-[640px] px-6 py-8 max-md:px-4">
         <SubPageHeader breadcrumbs={[{ label: "Mon identité", to: "/branding" }, { label: "Mon histoire", to: "/branding/section?section=story" }]} currentLabel="Modifier" />
 
-        <h1 className="font-display text-[26px] font-bold text-foreground mb-6">Modifier le storytelling</h1>
+        <h1 className="font-display text-3xl font-bold text-foreground mb-6">Modifier le storytelling</h1>
 
         <div className="space-y-4">
           <div>
@@ -70,7 +70,7 @@ export default function StorytellingEditPage() {
             <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
-              className="w-full min-h-[400px] rounded-xl border-2 border-input bg-card px-4 py-3 text-[15px] leading-relaxed focus:outline-none focus:border-primary transition-colors resize-none"
+              className="w-full min-h-[400px] rounded-xl border-2 border-input bg-card px-4 py-3 text-base leading-relaxed focus:outline-none focus:border-primary transition-colors resize-none"
             />
           </div>
           <Button onClick={handleSave} disabled={saving} className="rounded-pill w-full">

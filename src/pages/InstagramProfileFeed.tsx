@@ -24,7 +24,7 @@ export default function InstagramProfileFeed() {
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
         <SubPageHeader parentLabel="Mon profil" parentTo="/instagram/profil" currentLabel="Mon feed" />
 
-        <h1 className="font-display text-[26px] font-bold text-foreground">🎨 Mon feed</h1>
+        <h1 className="font-display text-3xl font-bold text-foreground">🎨 Mon feed</h1>
         <p className="mt-2 text-sm text-muted-foreground mb-6">
           La cohérence visuelle de ton feed renforce ta crédibilité. Voici les points à vérifier.
         </p>

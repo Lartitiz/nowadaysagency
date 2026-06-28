@@ -394,7 +394,7 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
                         <p className="text-sm font-medium text-foreground truncate">
                           {share.label || "Sans nom"}
                         </p>
-                        <p className="text-[11px] text-muted-foreground">
+                        <p className="text-2xs text-muted-foreground">
                           Créé {formatDistanceToNow(new Date(share.created_at), { addSuffix: true, locale: fr })}
                           {share.canal_filter !== "all" && ` · ${share.canal_filter}`}
                           {share.guest_name && ` · ${share.guest_name}`}
@@ -402,17 +402,17 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
                         {(share.edit_count || 0) > 0 && (
-                          <span className="text-[10px] font-semibold bg-info-bg text-info px-1.5 py-0.5 rounded-full">
+                          <span className="text-2xs font-semibold bg-info-bg text-info px-1.5 py-0.5 rounded-full">
                             ✏️ {share.edit_count}
                           </span>
                         )}
                         {(share.to_validate_count || 0) > 0 && (
-                          <span className="text-[10px] font-semibold bg-warning-bg text-warning px-1.5 py-0.5 rounded-full">
+                          <span className="text-2xs font-semibold bg-warning-bg text-warning px-1.5 py-0.5 rounded-full">
                             ⏳ {share.to_validate_count}
                           </span>
                         )}
                         {(share.unresolved_count || 0) > 0 && (
-                          <span className="text-[10px] font-semibold bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
+                          <span className="text-2xs font-semibold bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
                             💬 {share.unresolved_count}
                           </span>
                         )}
@@ -453,7 +453,7 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
                     {isExpanded && (share.edit_logs || []).length > 0 && (
                       <div className="mt-2 pt-2 border-t border-border space-y-1.5">
                         {share.edit_logs!.map((log, i) => (
-                          <p key={i} className="text-[11px] text-muted-foreground leading-snug">
+                          <p key={i} className="text-2xs text-muted-foreground leading-snug">
                             <span className="font-medium text-foreground">{log.author_name}</span>{" "}
                             {log.content.replace("[EDIT] ", "").toLowerCase()}{" "}
                             <span className="text-muted-foreground/60">
@@ -497,7 +497,7 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
               <div className="flex items-center justify-between">
                 <div>
                   <label className="text-sm font-medium block">Montrer les brouillons</label>
-                  <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                  <p className="text-2xs text-muted-foreground flex items-center gap-1 mt-0.5">
                     <AlertTriangle className="h-3 w-3 text-warning" />
                     Le/la client·e verra le texte de tes posts
                   </p>
@@ -508,7 +508,7 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
               <div className="flex items-center justify-between">
                 <div>
                   <label className="text-sm font-medium block">Peut changer les statuts</label>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">Valider, mettre en révision, etc.</p>
+                  <p className="text-2xs text-muted-foreground mt-0.5">Valider, mettre en révision, etc.</p>
                 </div>
                 <Switch checked={guestCanEditStatus} onCheckedChange={setGuestCanEditStatus} />
               </div>
@@ -516,7 +516,7 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
               <div className="flex items-center justify-between">
                 <div>
                   <label className="text-sm font-medium block">Peut modifier les textes</label>
-                  <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                  <p className="text-2xs text-muted-foreground flex items-center gap-1 mt-0.5">
                     <AlertTriangle className="h-3 w-3 text-warning" />
                     Le/la client·e pourra éditer le wording
                   </p>

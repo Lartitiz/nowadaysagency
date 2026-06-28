@@ -26,7 +26,7 @@ export default function Step9FaqCta({ data, save, callAI, aiLoading, aiResults, 
 
         <div className="flex flex-wrap gap-2 mb-3">
           {OFFER_TYPES.map((t) => (
-            <button key={t.value} onClick={() => setOfferType(t.value)} className={`font-mono-ui text-[12px] font-semibold px-3 py-1.5 rounded-pill border-2 transition-colors ${offerType === t.value ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card hover:border-primary"}`}>{t.label}</button>
+            <button key={t.value} onClick={() => setOfferType(t.value)} className={`font-mono-ui text-xs font-semibold px-3 py-1.5 rounded-pill border-2 transition-colors ${offerType === t.value ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card hover:border-primary"}`}>{t.label}</button>
           ))}
         </div>
 
@@ -63,7 +63,7 @@ export default function Step9FaqCta({ data, save, callAI, aiLoading, aiResults, 
         <p className="text-sm font-semibold mb-2">Objectif principal :</p>
         <div className="flex flex-wrap gap-2 mb-4">
           {CTA_OBJECTIVES.map((obj) => (
-            <button key={obj.value} onClick={() => save({ cta_objective: obj.value })} className={`font-mono-ui text-[12px] font-semibold px-3 py-1.5 rounded-pill border-2 transition-colors ${data.cta_objective === obj.value ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card hover:border-primary"}`}>{obj.label}</button>
+            <button key={obj.value} onClick={() => save({ cta_objective: obj.value })} className={`font-mono-ui text-xs font-semibold px-3 py-1.5 rounded-pill border-2 transition-colors ${data.cta_objective === obj.value ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card hover:border-primary"}`}>{obj.label}</button>
           ))}
         </div>
 

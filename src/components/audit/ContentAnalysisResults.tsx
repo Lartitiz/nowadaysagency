@@ -92,7 +92,7 @@ export default function ContentAnalysisResults({
                 <span className="flex-shrink-0 w-7 h-7 rounded-full bg-success text-white text-sm font-bold flex items-center justify-center">
                   {p.number}
                 </span>
-                <h4 className="text-[15px] font-semibold text-foreground leading-tight">{p.title}</h4>
+                <h4 className="text-base font-semibold text-foreground leading-tight">{p.title}</h4>
               </div>
               <p className="text-sm text-muted-foreground leading-relaxed pl-10">{p.explanation}</p>
               {p.metric_highlight && (
@@ -126,7 +126,7 @@ export default function ContentAnalysisResults({
                 <span className="flex-shrink-0 w-7 h-7 rounded-full bg-warning text-white text-sm font-bold flex items-center justify-center">
                   {p.number}
                 </span>
-                <h4 className="text-[15px] font-semibold text-foreground leading-tight">{p.title}</h4>
+                <h4 className="text-base font-semibold text-foreground leading-tight">{p.title}</h4>
               </div>
               <p className="text-sm text-muted-foreground leading-relaxed pl-10">{p.explanation}</p>
               {p.alternative && (

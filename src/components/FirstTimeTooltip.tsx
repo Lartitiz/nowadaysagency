@@ -54,7 +54,7 @@ export default function FirstTimeTooltip({
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); handleMouseEnter(); }}
-            className="absolute -top-1 -right-1 z-40 h-5 w-5 rounded-full bg-primary/80 text-primary-foreground text-[10px] font-bold flex items-center justify-center shadow-sm"
+            className="absolute -top-1 -right-1 z-40 h-5 w-5 rounded-full bg-primary/80 text-primary-foreground text-2xs font-bold flex items-center justify-center shadow-sm"
             aria-label="Info"
           >
             ?

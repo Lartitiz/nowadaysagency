@@ -187,7 +187,7 @@ export default function AuditInsight({ section }: AuditInsightProps) {
                 <span className="flex-shrink-0 w-7 h-7 rounded-full bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center">
                   {rec.number}
                 </span>
-                <h4 className="text-[15px] font-semibold text-foreground leading-tight">{stripMarkdown(rec.title)}</h4>
+                <h4 className="text-base font-semibold text-foreground leading-tight">{stripMarkdown(rec.title)}</h4>
               </div>
               {rec.explanation && (
                 <p className="text-sm text-muted-foreground leading-relaxed pl-10">{stripMarkdown(rec.explanation)}</p>

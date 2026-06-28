@@ -109,7 +109,7 @@ export default function CrosspostFileUploader({ files, onFilesChange, maxFiles =
                     <FileText className="h-8 w-8 text-muted-foreground" />
                   </div>
                 )}
-                <p className="text-[10px] text-muted-foreground truncate px-1.5 py-1">{f.name}</p>
+                <p className="text-2xs text-muted-foreground truncate px-1.5 py-1">{f.name}</p>
                 {f.uploading && (
                   <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
                     <Loader2 className="h-5 w-5 animate-spin text-primary" />

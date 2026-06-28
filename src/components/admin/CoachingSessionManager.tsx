@@ -238,7 +238,7 @@ export default function CoachingSessionManager({ program, sessions: initialSessi
               <div key={a.id} className="flex items-center gap-2 text-sm">
                 <Checkbox checked={a.completed} onCheckedChange={c => toggleAction(a.id, !!c)} />
                 <span className={`flex-1 ${a.completed ? "line-through text-muted-foreground" : "text-foreground"}`}>{a.title}</span>
-                {a.session_id && <span className="text-[10px] text-muted-foreground">S{sessions.find(s => s.id === a.session_id)?.session_number}</span>}
+                {a.session_id && <span className="text-2xs text-muted-foreground">S{sessions.find(s => s.id === a.session_id)?.session_number}</span>}
                 {a.due_date && <span className="text-xs text-muted-foreground">{format(new Date(a.due_date), "d MMM", { locale: fr })}</span>}
                 <button onClick={() => deleteAction(a.id)} className="text-muted-foreground hover:text-destructive transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
               </div>
@@ -315,7 +315,7 @@ function SortableSessionRow({ session, onEdit, savedField }: { session: SessionD
       <span className="text-xs text-muted-foreground">{formatDuration(session.duration_minutes)}</span>
       {session.scheduled_date && <span className="text-xs text-muted-foreground">{format(new Date(session.scheduled_date), "d MMM", { locale: fr })}</span>}
       <span className="text-sm">{statusIcon}</span>
-      {savedField === "session-" + session.id && <span className="text-[11px] text-primary animate-fade-in">💾</span>}
+      {savedField === "session-" + session.id && <span className="text-2xs text-primary animate-fade-in">💾</span>}
       <button onClick={onEdit} className="text-xs text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity" title="Modifier">✏️</button>
     </div>
   );
@@ -424,14 +424,14 @@ function SessionEditDialog({ session, sessions, deliverables, actions, onUpdate,
                 <div key={d.id} className="flex items-center gap-2 text-sm">
                   <span>{d.status === "delivered" ? "✅" : "🔒"}</span>
                   <span className="text-foreground">{d.title}</span>
-                  {d.file_name && <span className="text-[10px] text-muted-foreground">📎 {d.file_name}</span>}
+                  {d.file_name && <span className="text-2xs text-muted-foreground">📎 {d.file_name}</span>}
                 </div>
               ))}
             </div>
           ) : (
             <p className="text-xs text-muted-foreground italic">Aucun livrable assigné à cette session.</p>
           )}
-          <p className="text-[11px] text-muted-foreground mt-1">
+          <p className="text-2xs text-muted-foreground mt-1">
             Pour ajouter ou modifier des livrables, utilise la section Livrables sur la page principale.
           </p>
 
@@ -474,21 +474,21 @@ function AdminDeliverableRow({ deliverable, sessions, onUpdate, onDelete, onUplo
     <div className={`rounded-lg border p-2.5 flex items-center gap-2 ${isDelivered ? "border-success/50" : "border-border"}`}>
       <span className="text-sm">{isDelivered ? "✅" : "🔒"}</span>
       <input aria-label="Titre du livrable" className="text-sm font-medium text-foreground flex-1 bg-transparent border-none focus:outline-none focus-visible:ring-2 focus-visible:ring-ring min-w-0" value={editTitle} onChange={e => setEditTitle(e.target.value)} onBlur={() => { if (editTitle !== deliverable.title) onUpdate(deliverable.id, { title: editTitle }); }} />
-      {assignedSession && <span className="text-[10px] text-muted-foreground shrink-0">S{assignedSession.session_number}</span>}
+      {assignedSession && <span className="text-2xs text-muted-foreground shrink-0">S{assignedSession.session_number}</span>}
       <Select value={deliverable.assigned_session_id || "none"} onValueChange={v => onUpdate(deliverable.id, { assigned_session_id: v === "none" ? null : v })}>
-        <SelectTrigger aria-label="Session assignée au livrable" className="h-6 text-[10px] w-20 shrink-0"><SelectValue placeholder="Session" /></SelectTrigger>
+        <SelectTrigger aria-label="Session assignée au livrable" className="h-6 text-2xs w-20 shrink-0"><SelectValue placeholder="Session" /></SelectTrigger>
         <SelectContent>
           <SelectItem value="none">—</SelectItem>
           {sessions.map(s => (<SelectItem key={s.id} value={s.id}>S{s.session_number}</SelectItem>))}
         </SelectContent>
       </Select>
       {!isDelivered && (
-        <Button size="sm" variant="ghost" className="h-6 px-1.5 text-[10px] text-primary shrink-0" onClick={() => onUpdate(deliverable.id, { status: "delivered", delivered_at: new Date().toISOString(), seen_by_client: false })}>
+        <Button size="sm" variant="ghost" className="h-6 px-1.5 text-2xs text-primary shrink-0" onClick={() => onUpdate(deliverable.id, { status: "delivered", delivered_at: new Date().toISOString(), seen_by_client: false })}>
           <Unlock className="h-3 w-3" />
         </Button>
       )}
       {deliverable.file_url ? (
-        <span className="text-[10px] text-muted-foreground shrink-0">📎</span>
+        <span className="text-2xs text-muted-foreground shrink-0">📎</span>
       ) : (
         <>
           <input ref={fileRef} type="file" className="hidden" onChange={e => { if (e.target.files?.[0]) onUpload(deliverable.id, e.target.files[0]); }} />

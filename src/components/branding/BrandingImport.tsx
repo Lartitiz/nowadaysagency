@@ -63,10 +63,10 @@ export default function BrandingImport({ onAnalyze, onSkip, loading = false, ini
       <motion.div className="w-full max-w-[560px]" variants={stagger} initial="hidden" animate="visible">
         {/* Header */}
         <motion.div variants={fadeUp} className="text-center mb-10">
-          <h1 className="font-display text-[28px] sm:text-[34px] text-foreground leading-tight mb-3">
+          <h1 className="font-display text-3xl sm:text-4xl text-foreground leading-tight mb-3">
             {reanalyzeWarning ? "Réanalyser mes liens" : "Dis-moi où te trouver"}
           </h1>
-          <p className="font-mono-ui text-[14px] text-muted-foreground leading-relaxed max-w-[480px] mx-auto">
+          <p className="font-mono-ui text-sm text-muted-foreground leading-relaxed max-w-[480px] mx-auto">
             {reanalyzeWarning
               ? "Modifie tes liens si besoin, puis relance l'analyse. Les sections que tu as verrouillées ne seront pas touchées."
               : "Dépose tes liens et je m'occupe du reste. Je vais analyser ta présence en ligne et pré-remplir ton branding. Tu n'auras qu'à ajuster."}
@@ -88,7 +88,7 @@ export default function BrandingImport({ onAnalyze, onSkip, loading = false, ini
         </motion.div>
 
         {reanalyzeWarning && (
-          <motion.div variants={fadeUp} className="bg-warning-bg border border-warning/30 rounded-[16px] p-4 mb-4 text-[13px] text-warning">
+          <motion.div variants={fadeUp} className="bg-warning-bg border border-warning/30 rounded-[16px] p-4 mb-4 text-sm text-warning">
             ⚠️ Attention : relancer l'analyse va proposer de nouvelles données pour les sections que tu n'as pas verrouillées. Les sections validées ne seront pas touchées.
           </motion.div>
         )}
@@ -99,7 +99,7 @@ export default function BrandingImport({ onAnalyze, onSkip, loading = false, ini
           <Collapsible open={docsOpen} onOpenChange={setDocsOpen}>
             <CollapsibleTrigger className="w-full text-left">
               <div className="rounded-[20px] border border-dashed border-border bg-card/60 hover:bg-card transition-colors p-4 cursor-pointer">
-                <p className="text-[13px] text-muted-foreground flex items-center gap-2">
+                <p className="text-sm text-muted-foreground flex items-center gap-2">
                   <FileText className="h-4 w-4 text-primary" /> Tu as aussi des documents ? (plaquette, business plan, présentation...)
                 </p>
               </div>
@@ -116,7 +116,7 @@ export default function BrandingImport({ onAnalyze, onSkip, loading = false, ini
                   Glisse tes fichiers ici ou{" "}
                   <button type="button" className="text-primary underline underline-offset-2" onClick={() => fileInputRef.current?.click()}>parcourir</button>
                 </p>
-                <p className="text-[11px] text-muted-foreground">PDF, Word ou texte • Max 5 fichiers, 10 Mo chacun</p>
+                <p className="text-2xs text-muted-foreground">PDF, Word ou texte • Max 5 fichiers, 10 Mo chacun</p>
                 <input ref={fileInputRef} type="file" className="hidden" accept={ACCEPTED_EXTENSIONS} multiple onChange={(e) => e.target.files && handleFiles(e.target.files)} />
               </div>
               {files.length > 0 && (
@@ -125,7 +125,7 @@ export default function BrandingImport({ onAnalyze, onSkip, loading = false, ini
                     <div key={idx} className="flex items-center gap-2 bg-card rounded-lg border border-border px-3 py-2 text-sm">
                       <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
                       <span className="truncate flex-1 text-foreground">{file.name}</span>
-                      <span className="text-[11px] text-muted-foreground shrink-0">{(file.size / 1024 / 1024).toFixed(1)} Mo</span>
+                      <span className="text-2xs text-muted-foreground shrink-0">{(file.size / 1024 / 1024).toFixed(1)} Mo</span>
                       <button type="button" onClick={() => removeFile(idx)} className="text-muted-foreground hover:text-destructive transition-colors"><X className="h-4 w-4" /></button>
                     </div>
                   ))}
@@ -149,7 +149,7 @@ export default function BrandingImport({ onAnalyze, onSkip, loading = false, ini
               </span>
             ) : reanalyzeWarning ? "Réanalyser ✨" : "Analyse mon projet ✨"}
           </Button>
-          <button onClick={onSkip} className="block mx-auto font-mono-ui text-[13px] text-muted-foreground hover:text-foreground transition-colors">
+          <button onClick={onSkip} className="block mx-auto font-mono-ui text-sm text-muted-foreground hover:text-foreground transition-colors">
             {reanalyzeWarning ? "← Retour au branding" : "Je préfère remplir manuellement →"}
           </button>
         </motion.div>

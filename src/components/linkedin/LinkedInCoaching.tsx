@@ -212,7 +212,7 @@ export default function LinkedInCoaching({ open, onOpenChange, initialModule, au
                   <span className="text-lg">{m.emoji}</span>
                   <span>{m.label}</span>
                   {isRecommended && !isActive && (
-                    <span className="absolute -top-1.5 -right-1 text-[9px] bg-primary text-primary-foreground px-1.5 rounded-full">
+                    <span className="absolute -top-1.5 -right-1 text-2xs bg-primary text-primary-foreground px-1.5 rounded-full">
                       Recommandé ✨
                     </span>
                   )}

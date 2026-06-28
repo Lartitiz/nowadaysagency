@@ -63,22 +63,22 @@ export default function BrandingAnalysisLoader({
           className="w-full max-w-[480px] text-center"
         >
           <div className="text-4xl mb-4">😕</div>
-          <p className="font-display text-[22px] text-foreground mb-3">
+          <p className="font-display text-2xl text-foreground mb-3">
             Oups, j'ai eu du mal à analyser tes liens.
           </p>
-          <p className="font-mono-ui text-[14px] text-muted-foreground mb-8 leading-relaxed">
+          <p className="font-mono-ui text-sm text-muted-foreground mb-8 leading-relaxed">
             Ça peut arriver ! Tu peux réessayer ou remplir ton branding manuellement.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <button
               onClick={onRetry}
-              className="bg-primary hover:bg-bordeaux text-white rounded-[12px] px-8 py-3 text-[15px] font-semibold transition-all duration-200 hover:scale-[1.02]"
+              className="bg-primary hover:bg-bordeaux text-white rounded-[12px] px-8 py-3 text-base font-semibold transition-all duration-200 hover:scale-[1.02]"
             >
               Réessayer
             </button>
             <button
               onClick={onSkip}
-              className="font-mono-ui text-[13px] text-muted-foreground hover:text-foreground transition-colors"
+              className="font-mono-ui text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               Remplir manuellement →
             </button>
@@ -105,7 +105,7 @@ export default function BrandingAnalysisLoader({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.3 }}
-              className="font-mono-ui text-[16px] text-bordeaux"
+              className="font-mono-ui text-base text-bordeaux"
             >
               {messages[messageIndex]}
             </motion.p>
@@ -132,7 +132,7 @@ export default function BrandingAnalysisLoader({
         </div>
 
         {/* Sub-text */}
-        <p className="font-mono-ui text-[12px] text-muted-foreground">
+        <p className="font-mono-ui text-xs text-muted-foreground">
           Ça prend entre 15 et 45 secondes. Le temps d'un café ☕
         </p>
       </motion.div>

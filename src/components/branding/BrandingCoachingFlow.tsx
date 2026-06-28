@@ -1310,7 +1310,7 @@ export default function BrandingCoachingFlow({ section, personaId, onComplete, o
         <div className="flex-1 flex flex-col items-center justify-center px-6 max-w-lg mx-auto text-center">
           <span className="text-5xl mb-6">{meta.emoji}</span>
           <h1 className="font-display text-2xl font-bold text-foreground mb-3">{meta.title}</h1>
-          <p className="text-muted-foreground text-[15px] mb-6 leading-relaxed">{meta.description}</p>
+          <p className="text-muted-foreground text-base mb-6 leading-relaxed">{meta.description}</p>
 
           {hasExistingSession && (
             <p className="text-sm text-primary mb-4">On avait commencé la dernière fois. On reprend ? 🌸</p>

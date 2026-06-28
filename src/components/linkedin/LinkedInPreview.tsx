@@ -14,7 +14,7 @@ export default function LinkedInPreview({ text, cutoff, label }: LinkedInPreview
   return (
     <div className="rounded-xl border border-border bg-card p-5 space-y-1">
       {label && (
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+        <p className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
           👁️ Prévisualisation {label} LinkedIn
         </p>
       )}
@@ -27,7 +27,7 @@ export default function LinkedInPreview({ text, cutoff, label }: LinkedInPreview
           </>
         )}
       </div>
-      <p className="text-[10px] text-muted-foreground pt-2 border-t border-border mt-3">
+      <p className="text-2xs text-muted-foreground pt-2 border-t border-border mt-3">
         ✂️ Coupure à {cutoff} caractères — {hasCut ? `${before.length} visibles sans clic` : "Tout est visible"}
       </p>
     </div>

@@ -482,7 +482,7 @@ function ChannelSelector() {
               <span className="text-lg">{ch.emoji}</span>
               <span className="flex-1">{ch.label}</span>
               {ch.comingSoon && (
-                <span className="text-[10px] font-bold text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">🔜</span>
+                <span className="text-2xs font-bold text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">🔜</span>
               )}
               <span className={`text-xs font-semibold ${active ? "text-primary" : "text-muted-foreground"}`}>
                 {active ? "✅" : ""}

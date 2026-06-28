@@ -72,7 +72,7 @@ export function DownloadMenuItems({
           )}
           <div className="flex flex-col">
             <span>Images PNG{count > 1 ? " (ZIP)" : ""}</span>
-            <span className="text-[10px] text-muted-foreground">
+            <span className="text-2xs text-muted-foreground">
               À publier directement
             </span>
           </div>
@@ -87,7 +87,7 @@ export function DownloadMenuItems({
           )}
           <div className="flex flex-col">
             <span>PowerPoint — éditable ✨</span>
-            <span className="text-[10px] text-muted-foreground">
+            <span className="text-2xs text-muted-foreground">
               Modifie le texte dans PowerPoint, fond préservé
             </span>
           </div>
@@ -99,7 +99,7 @@ export function DownloadMenuItems({
             <FileText className="h-4 w-4 mr-2" />
             <div className="flex flex-col">
               <span>PowerPoint — éditable ✨</span>
-              <span className="text-[10px] text-muted-foreground whitespace-normal max-w-[220px] leading-snug">
+              <span className="text-2xs text-muted-foreground whitespace-normal max-w-[220px] leading-snug">
                 {pptxDisabledReason}
               </span>
             </div>

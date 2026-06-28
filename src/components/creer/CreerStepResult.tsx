@@ -420,7 +420,7 @@ export default function CreerStepResult({
       <div className="py-8 animate-fade-in space-y-5">
         {step2of2 && (
           <div className="text-center">
-            <span className="inline-block text-[11px] font-semibold uppercase tracking-wide text-primary/70 bg-primary/10 rounded-full px-3 py-1">
+            <span className="inline-block text-2xs font-semibold uppercase tracking-wide text-primary/70 bg-primary/10 rounded-full px-3 py-1">
               Étape 2 / 2 · Rédaction
             </span>
           </div>
@@ -597,7 +597,7 @@ export default function CreerStepResult({
               </div>
 
               {/* Attente honnête + rassurante (durée selon le mode) */}
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-2xs text-muted-foreground">
                 💡 L'IA dessine chaque slide avec ta charte graphique — compte {qualityMax ? "une cinquantaine de secondes" : "une vingtaine de secondes"}.
                 Pas besoin d'attendre ici : tu peux relire ton texte au-dessus, les visuels s'affichent dès qu'ils sont prêts.
               </p>
@@ -704,7 +704,7 @@ export default function CreerStepResult({
       {/* ── Récupérer le visuel ── */}
       <div className="space-y-1.5">
         {isCarousel && hasVisuals && (
-          <p className="text-[11px] text-muted-foreground text-center">Récupérer le visuel</p>
+          <p className="text-2xs text-muted-foreground text-center">Récupérer le visuel</p>
         )}
         <div className="flex items-center justify-center gap-2 sm:gap-3 flex-wrap">
           {isCarousel && hasVisuals && (onExportVisualPng || onExportHybridPptx) && (
@@ -781,7 +781,7 @@ export default function CreerStepResult({
       {/* ── Affiner ── */}
       <div className="space-y-1.5">
         {isCarousel && (
-          <p className="text-[11px] text-muted-foreground text-center">Affiner</p>
+          <p className="text-2xs text-muted-foreground text-center">Affiner</p>
         )}
         <div className="flex items-center justify-center gap-2 sm:gap-3 flex-wrap">
           {isCarousel && hasVisuals && onGenerateVisuals && (
@@ -819,7 +819,7 @@ export default function CreerStepResult({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-72 max-h-96 overflow-y-auto">
                   {currentLabel && (
-                    <DropdownMenuLabel className="text-[10px] text-muted-foreground font-normal">
+                    <DropdownMenuLabel className="text-2xs text-muted-foreground font-normal">
                       Actuel : {currentLabel}
                     </DropdownMenuLabel>
                   )}
@@ -827,7 +827,7 @@ export default function CreerStepResult({
                     <Sparkles className="h-4 w-4 text-primary shrink-0" />
                     <div className="min-w-0">
                       <p className="text-xs font-semibold">Laisser l'IA choisir</p>
-                      <p className="text-[10px] text-muted-foreground">Selon ton idée et ta voix</p>
+                      <p className="text-2xs text-muted-foreground">Selon ton idée et ta voix</p>
                     </div>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
@@ -841,7 +841,7 @@ export default function CreerStepResult({
                       <span className="text-base shrink-0">{a.emoji}</span>
                       <div className="min-w-0">
                         <p className="text-xs font-semibold">{a.label}</p>
-                        <p className="text-[10px] text-muted-foreground line-clamp-2">{a.principle}</p>
+                        <p className="text-2xs text-muted-foreground line-clamp-2">{a.principle}</p>
                       </div>
                     </DropdownMenuItem>
                   ))}
@@ -859,7 +859,7 @@ export default function CreerStepResult({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-64">
-                  <DropdownMenuLabel className="text-[11px] font-normal text-muted-foreground">
+                  <DropdownMenuLabel className="text-2xs font-normal text-muted-foreground">
                     Ouvre un nouvel onglet pré-rempli
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />

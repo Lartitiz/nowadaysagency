@@ -87,7 +87,7 @@ export default function PinterestTableaux() {
       <AppHeader />
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
         <SubPageHeader parentTo="/pinterest" parentLabel="Pinterest" currentLabel="Mes tableaux" useFromParam />
-        <h1 className="font-display text-[22px] font-bold text-foreground mb-1">Tes tableaux Pinterest</h1>
+        <h1 className="font-display text-2xl font-bold text-foreground mb-1">Tes tableaux Pinterest</h1>
         <p className="text-sm text-muted-foreground italic mb-6">Crée 3 à 5 tableaux en lien avec ton univers. Chaque tableau est une porte d'entrée vers ta marque.</p>
 
         <div className="rounded-xl bg-rose-pale p-5 text-sm mb-6 space-y-1">

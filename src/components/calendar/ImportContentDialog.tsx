@@ -38,7 +38,7 @@ function SortableThumb({ url, index, onRemove }: { url: string; index: number; o
       {...listeners}
     >
       <img src={url} alt={`Visuel ${index + 1}`} className="w-full h-full object-cover pointer-events-none" />
-      <span className="absolute bottom-0.5 left-0.5 text-[9px] font-semibold bg-black/60 text-white px-1 rounded">{index + 1}</span>
+      <span className="absolute bottom-0.5 left-0.5 text-2xs font-semibold bg-black/60 text-white px-1 rounded">{index + 1}</span>
       <span className="absolute bottom-0.5 right-0.5 text-white/80 opacity-0 group-hover:opacity-100 transition-opacity"><GripVertical className="h-3 w-3" /></span>
       <button
         type="button"
@@ -285,7 +285,7 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
           {uploading ? uploadLabel : "Ajouter des visuels ou un PDF"}
           <input type="file" accept="image/*,application/pdf" multiple className="hidden" onChange={handleUpload} disabled={uploading} />
         </label>
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           {canal === "instagram"
             ? (igValidImages.length > 1
                 ? `Carrousel de ${igValidImages.length} images · glisse les vignettes pour les réordonner`
@@ -351,11 +351,11 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
           )}
         </div>
         {mode === "schedule" ? (
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-2xs text-muted-foreground">
             Publié automatiquement sur {canal === "linkedin" ? "LinkedIn" : "Instagram"} à l'heure prévue.
           </p>
         ) : (
-          <p className="text-[11px] text-muted-foreground">Placé dans le calendrier au statut « prêt ». Pas de publication automatique.</p>
+          <p className="text-2xs text-muted-foreground">Placé dans le calendrier au statut « prêt ». Pas de publication automatique.</p>
         )}
       </div>
     </div>
@@ -363,7 +363,7 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
 
   const previewBlock = (
     <div>
-      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Aperçu</p>
+      <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Aperçu</p>
       {text || igValidImages.length > 0 ? (
         <SocialMockup
           canal={canal}
@@ -389,7 +389,7 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
 
   const footer = (
     <div className="flex items-center justify-between gap-3 pt-4 mt-2 border-t border-border">
-      <span className="text-[11px] text-muted-foreground hidden sm:block">
+      <span className="text-2xs text-muted-foreground hidden sm:block">
         {validationError
           ? validationError
           : `Au ${new Date(`${dateStr}T00:00:00`).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}${mode === "schedule" ? ` · ${time}` : ""}`}

@@ -264,7 +264,7 @@ export default function IntakeQuestionnaire({ programId, onComplete, onBack }: I
       <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6 max-w-lg mx-auto text-center">
         <span className="text-5xl mb-6">📋</span>
         <h1 className="font-display text-2xl font-bold text-foreground mb-3">Questionnaire de préparation</h1>
-        <p className="text-muted-foreground text-[15px] mb-6 leading-relaxed">
+        <p className="text-muted-foreground text-base mb-6 leading-relaxed">
           Avant notre premier appel, j'ai besoin de mieux te connaître.
           Plus tu es précise, plus notre kick-off sera utile. Ça prend ~10 minutes.
         </p>

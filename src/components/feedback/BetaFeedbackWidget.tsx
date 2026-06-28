@@ -139,7 +139,7 @@ export default function BetaFeedbackWidget() {
           aria-label="Donner un feedback"
         >
           <MessageSquarePlus className="h-6 w-6 text-primary" />
-          <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground font-mono text-[9px] px-1.5 py-0.5 rounded-full leading-none">
+          <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground font-mono text-2xs px-1.5 py-0.5 rounded-full leading-none">
             BÊTA
           </span>
         </button>

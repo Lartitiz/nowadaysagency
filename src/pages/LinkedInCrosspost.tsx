@@ -225,7 +225,7 @@ export default function LinkedInCrosspost() {
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
         <SubPageHeader parentTo="/linkedin" parentLabel="LinkedIn" currentLabel="Crossposting" />
 
-        <h1 className="font-display text-[22px] font-bold text-foreground mb-1">🔄 Crossposting intelligent</h1>
+        <h1 className="font-display text-2xl font-bold text-foreground mb-1">🔄 Crossposting intelligent</h1>
         <p className="text-sm text-muted-foreground mb-6">Un contenu source → adapté pour chaque canal. Pas du copier-coller : chaque version apporte un angle spécifique.</p>
 
         {/* Input mode toggle */}

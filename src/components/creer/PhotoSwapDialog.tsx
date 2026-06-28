@@ -201,7 +201,7 @@ export default function PhotoSwapDialog({
                 >
                   <img src={p.preview} alt={p.name || `Photo ${i + 1}`} className="w-full h-full object-cover" />
                   {isCurrent && (
-                    <span className="absolute bottom-1 left-1 rounded bg-primary/90 px-1.5 py-0.5 text-[9px] font-medium text-primary-foreground">
+                    <span className="absolute bottom-1 left-1 rounded bg-primary/90 px-1.5 py-0.5 text-2xs font-medium text-primary-foreground">
                       Actuelle
                     </span>
                   )}

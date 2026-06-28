@@ -126,7 +126,7 @@ export default function OnboardingPhase2Import({ answers, set, files, uploading,
                 
                     <X className="h-3.5 w-3.5" />
                   </button>
-                  <p className="absolute bottom-0 left-0 right-0 bg-background/70 text-[10px] text-foreground truncate px-1.5 py-0.5">{f.name}</p>
+                  <p className="absolute bottom-0 left-0 right-0 bg-background/70 text-2xs text-foreground truncate px-1.5 py-0.5">{f.name}</p>
                 </div>
             )}
             </div>

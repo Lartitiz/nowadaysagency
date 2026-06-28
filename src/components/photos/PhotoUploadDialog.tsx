@@ -216,7 +216,7 @@ export function PhotoUploadDialog({ open, onOpenChange }: PhotoUploadDialogProps
                   type="button"
                   onClick={() => setPrompt(s)}
                   disabled={isPending}
-                  className="text-[11px] px-2 py-1 rounded-full bg-muted hover:bg-muted/70 text-muted-foreground hover:text-foreground transition-colors"
+                  className="text-2xs px-2 py-1 rounded-full bg-muted hover:bg-muted/70 text-muted-foreground hover:text-foreground transition-colors"
                 >
                   {s}
                 </button>

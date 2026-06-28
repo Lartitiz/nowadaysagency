@@ -176,7 +176,7 @@ export default function PricingPage() {
       <main className="mx-auto max-w-6xl px-4 py-12 sm:py-16">
         {/* ── Header ── */}
         <div className="text-center mb-12">
-          <h1 className="font-display text-[28px] sm:text-[40px] font-bold text-foreground leading-tight">
+          <h1 className="font-display text-3xl sm:text-5xl font-bold text-foreground leading-tight">
             Un plan pour chaque étape
             <br />
             de ton projet
