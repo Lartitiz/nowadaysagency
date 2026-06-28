@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { PostCommentsSection } from "@/components/calendar/PostCommentsSection";
@@ -11,9 +11,16 @@ import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voi
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
-import { Trash2, ChevronDown, Upload, Instagram, Linkedin, Loader2 } from "lucide-react";
+import { Trash2, ChevronDown, Upload, Instagram, Linkedin, Loader2, Send, CalendarClock, Lightbulb, Check, Cloud } from "lucide-react";
 import { getGuide } from "@/lib/production-guides";
 import { type CalendarPost, STATUS_LABELS, statusStyles, OBJECTIFS } from "@/lib/calendar-constants";
 import { format as formatDate } from "date-fns";
@@ -41,6 +48,8 @@ interface Props {
   onUnplan?: () => void;
   onDateChange?: (postId: string, newDate: string) => void;
   prefillData?: { theme?: string; notes?: string } | null;
+  /** Appelé après une sauvegarde auto réussie (création ou mise à jour) — le parent rafraîchit la grille et adopte le post créé. */
+  onPersisted?: (post: CalendarPost) => void;
 }
 
 /** ISO → valeur d'un <input type="datetime-local"> (heure locale, "YYYY-MM-DDTHH:mm"). */
@@ -50,7 +59,7 @@ function isoToLocalInput(iso: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDate, defaultCanal, onSave, onDelete, onUnplan, onDateChange, prefillData }: Props) {
+export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDate, defaultCanal, onSave, onDelete, onUnplan, onDateChange, prefillData, onPersisted }: Props) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -94,6 +103,12 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   const [savedDraft, setSavedDraft] = useState<string | null>(null);
   const [seriesId, setSeriesId] = useState<string | null>(null);
   const [episodeNumber, setEpisodeNumber] = useState<number | null>(null);
+  // Auto-save silencieux
+  const [currentPostId, setCurrentPostId] = useState<string | null>(null);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [schedulerOpen, setSchedulerOpen] = useState(false);
+  const hydratedKeyRef = useRef<string | null>(null);
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!profileData) return;
@@ -102,6 +117,13 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   }, [profileData]);
 
   useEffect(() => {
+    if (!open) { hydratedKeyRef.current = null; return; }
+    // Clé d'hydratation : on ne re-remplit le formulaire que si on ouvre un AUTRE post.
+    // Sinon (ex : le parent adopte le post qu'on vient d'auto-créer), on NE réinitialise PAS
+    // — sinon ce que l'utilisatrice est en train de taper serait effacé.
+    const hydrationKey = editingPost?.id ?? "new";
+    if (hydratedKeyRef.current === hydrationKey) return;
+    hydratedKeyRef.current = hydrationKey;
     if (editingPost) {
       setTheme(editingPost.theme);
       setAngle(editingPost.angle);
@@ -142,6 +164,10 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       setSeriesId(null); setEpisodeNumber(null);
       setScheduledAt(null); setPublishStatus(null); setPublishError(null); setPublishedPostId(null); setScheduleInput("");
     }
+    setCurrentPostId(editingPost?.id ?? null);
+    setSaveState("idle");
+    setSchedulerOpen(false);
+    justHydratedRef.current = true;
     setDialogTab("edit");
     setShowAdvanced(false);
     // Détails (statut, canal, format, série) : ouverts pour un nouveau post (on les renseigne),
@@ -196,6 +222,78 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     onSave({ theme, angle, status, notes, canal: postCanal, objectif, format, content_draft: contentDraft, accroche, media_urls: mediaUrls.length > 0 ? mediaUrls : null, series_id: seriesId, episode_number: episodeNumber });
     setSavedDraft(contentDraft);
   };
+
+  // ── Auto-save silencieux ────────────────────────────────────────────────
+  // Dès qu'il y a un thème, le post se crée puis se met à jour tout seul (debounce).
+  // Géré directement ici (le dialog fait déjà des appels Supabase) pour ne PAS
+  // fermer la fenêtre ni réinitialiser le formulaire pendant la frappe.
+  const snapshotRef = useRef<string>("");
+  const justHydratedRef = useRef(true);
+  const savingRef = useRef(false);
+
+  const buildSnapshot = () => JSON.stringify({
+    theme: theme.trim(), angle, status, notes, postCanal, objectif, format,
+    contentDraft, accroche, mediaUrls, seriesId, episodeNumber,
+  });
+
+  const persist = async () => {
+    if (!user || !theme.trim() || savingRef.current) return;
+    const snap = buildSnapshot();
+    savingRef.current = true;
+    setSaveState("saving");
+    try {
+      const payload: any = {
+        theme: theme.trim(), angle, status, notes: notes || null, canal: postCanal,
+        objectif: objectif || null, format: format || null, content_draft: contentDraft || null,
+        accroche: accroche || null, media_urls: mediaUrls.length > 0 ? mediaUrls : null,
+        series_id: seriesId || null, episode_number: episodeNumber ?? null,
+      };
+      if (currentPostId) {
+        const { error } = await supabase.from("calendar_posts")
+          .update({ ...payload, updated_at: new Date().toISOString() }).eq("id", currentPostId);
+        if (error) throw error;
+        snapshotRef.current = snap;
+        setSavedDraft(contentDraft);
+        setSaveState("saved");
+        onPersisted?.({ ...(editingPost as any), id: currentPostId, ...payload, date: selectedDate } as CalendarPost);
+      } else {
+        if (!selectedDate) { setSaveState("idle"); return; }
+        const { data, error } = await supabase.from("calendar_posts")
+          .insert({ ...payload, user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, date: selectedDate })
+          .select().single();
+        if (error) throw error;
+        const created = data as CalendarPost;
+        setCurrentPostId(created.id);
+        hydratedKeyRef.current = created.id; // le parent va adopter ce post : ne pas re-hydrater
+        snapshotRef.current = snap;
+        setSavedDraft(contentDraft);
+        setSaveState("saved");
+        onPersisted?.(created);
+      }
+    } catch {
+      setSaveState("error");
+    } finally {
+      savingRef.current = false;
+    }
+  };
+
+  // Force une sauvegarde immédiate (ex : à la fermeture, avant la fin du debounce).
+  const flushSave = () => {
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    if (theme.trim() && buildSnapshot() !== snapshotRef.current) persist();
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    // Premier passage après hydratation : on mémorise l'état de référence, sans sauvegarder.
+    if (justHydratedRef.current) { justHydratedRef.current = false; snapshotRef.current = buildSnapshot(); return; }
+    if (!theme.trim()) return;
+    if (buildSnapshot() === snapshotRef.current) return; // rien de neuf
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    autosaveTimerRef.current = setTimeout(() => { persist(); }, 800);
+    return () => { if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, theme, angle, status, notes, postCanal, objectif, format, contentDraft, accroche, mediaUrls, seriesId, episodeNumber]);
 
   const handleCopy = () => {
     if (contentDraft) { navigator.clipboard.writeText(contentDraft); toast.success("Texte copié !"); }
@@ -275,7 +373,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   // Canaux publiables : Instagram (image/carrousel) et LinkedIn (texte).
   const canSchedule = postCanal === "instagram" || postCanal === "linkedin";
   const handleSchedulePublish = async () => {
-    if (!editingPost?.id) { toast.error("Enregistre d'abord le post pour le programmer."); return; }
+    if (!currentPostId) { toast.error("Ajoute un thème pour pouvoir programmer le post."); return; }
     if (!canSchedule) { toast.error("Programmation disponible pour Instagram et LinkedIn."); return; }
     if (postCanal === "instagram") {
       if (igValidImages.length === 0) { toast.error("Ajoute au moins un visuel (image) avant de programmer."); return; }
@@ -293,7 +391,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       const { error } = await supabase.from("calendar_posts").update({
         scheduled_publish_at: iso, auto_publish: true, publish_status: "scheduled",
         publish_error: null, updated_at: new Date().toISOString(),
-      } as any).eq("id", editingPost.id);
+      } as any).eq("id", currentPostId);
       if (error) throw error;
       setScheduledAt(iso); setPublishStatus("scheduled"); setPublishError(null);
       toast.success("Publication programmée ! 🗓️", { description: `${postCanal === "linkedin" ? "LinkedIn" : "Instagram"} publiera ce post automatiquement à l'heure prévue.` });
@@ -303,12 +401,12 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   };
 
   const handleCancelSchedule = async () => {
-    if (!editingPost?.id) return;
+    if (!currentPostId) return;
     setSavingSchedule(true);
     try {
       const { error } = await supabase.from("calendar_posts").update({
         auto_publish: false, publish_status: null, updated_at: new Date().toISOString(),
-      } as any).eq("id", editingPost.id);
+      } as any).eq("id", currentPostId);
       if (error) throw error;
       setPublishStatus(null); setScheduledAt(null);
       toast.success("Programmation annulée.");
@@ -447,36 +545,6 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
         onShowContentViewer={isMobile ? () => setShowContentViewer(true) : undefined}
       />
 
-      {linkedBrief && (
-        <Collapsible>
-          <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-foreground w-full py-2">
-            <span>📋 Brief créatif</span>
-            <span className="text-xs text-muted-foreground font-normal ml-auto">
-              {Object.values(linkedBrief.answers).filter(v => v?.trim()).length} réponse(s)
-            </span>
-            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-          </CollapsibleTrigger>
-          <CollapsibleContent className="space-y-3 pt-2">
-            <p className="text-xs text-muted-foreground">Les réponses que tu as données pour créer ce contenu :</p>
-            {linkedBrief.questions.map((q: any) => {
-              const answer = linkedBrief.answers[q.id] || linkedBrief.answers[q.question] || "";
-              if (!answer.trim()) return null;
-              return (
-                <div key={q.id} className="rounded-lg bg-muted/30 border border-border p-3">
-                  <p className="text-xs font-medium text-foreground mb-1">{q.question}</p>
-                  <p className="text-xs text-muted-foreground whitespace-pre-wrap">{answer}</p>
-                </div>
-              );
-            })}
-          </CollapsibleContent>
-        </Collapsible>
-      )}
-
-      <div>
-        <label className="text-xs font-semibold mb-1.5 block text-foreground">📝 Notes</label>
-        <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Idées, brouillon, remarques..." className="rounded-[10px] min-h-[80px]" />
-      </div>
-
       <div className="space-y-2">
         <label className="text-xs font-medium text-foreground">🖼️ Visuels</label>
         {mediaUrls.length > 0 && (
@@ -496,81 +564,117 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
         </label>
       </div>
 
-      {/* Programmation auto IG/LinkedIn — un seul bloc paramétré par canal (avant : 2 copies quasi identiques). */}
-      {canSchedule && (() => {
-        const channelLabel = postCanal === "linkedin" ? "LinkedIn" : "Instagram";
-        const isReady = postCanal === "linkedin" ? !!linkedInText : igValidImages.length > 0;
-        const notReadyHintSave = postCanal === "linkedin"
-          ? "Enregistre le post et rédige son texte pour pouvoir programmer la publication."
-          : "Enregistre le post et ajoute un visuel pour pouvoir programmer la publication.";
-        const composeHint = postCanal === "linkedin"
-          ? "Choisis quand publier ce post texte — il partira automatiquement."
-          : `Choisis quand publier ce post (${igValidImages.length > 1 ? `carrousel de ${igValidImages.length} images` : "1 image"}) — il partira automatiquement.`;
-        const notReadyHintCompose = postCanal === "linkedin"
-          ? "Rédige le texte du post pour pouvoir programmer."
-          : "Ajoute au moins un visuel (image) pour pouvoir programmer.";
-        return (
-          <div className="space-y-2 rounded-[10px] border border-border p-3">
-            <p className="text-xs font-semibold text-foreground">🗓️ Publication automatique sur {channelLabel}</p>
-            {!editingPost?.id ? (
-              <p className="text-xs text-muted-foreground">{notReadyHintSave}</p>
-            ) : publishStatus === "published" ? (
-              <p className="text-xs text-success">✅ Publié automatiquement sur {channelLabel}{scheduledAt ? ` (programmé pour le ${new Date(scheduledAt).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" })})` : ""}.</p>
-            ) : publishStatus === "publishing" ? (
-              <p className="text-xs text-muted-foreground">⏳ Publication en cours…</p>
-            ) : publishStatus === "scheduled" ? (
-              <div className="space-y-2">
-                <p className="text-xs text-foreground">🗓️ Programmé pour le <strong>{scheduledAt ? new Date(scheduledAt).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" }) : "?"}</strong>. {channelLabel} publiera ce post tout seul.</p>
-                <Button type="button" variant="outline" size="sm" onClick={handleCancelSchedule} disabled={savingSchedule} className="rounded-pill text-xs">Annuler la programmation</Button>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {publishStatus === "failed" && (
-                  <p className="text-xs text-destructive">❌ Échec de la dernière tentative{publishError ? ` : ${publishError}` : ""}. Reprogramme pour réessayer.</p>
-                )}
-                <p className="text-xs text-muted-foreground">{composeHint}</p>
-                <div className="flex flex-wrap items-center gap-2">
-                  <input
-                    type="datetime-local"
-                    value={scheduleInput}
-                    onChange={(e) => setScheduleInput(e.target.value)}
-                    className="rounded-[8px] border border-border bg-background px-2 py-1.5 text-xs text-foreground"
-                  />
-                  <Button type="button" size="sm" onClick={handleSchedulePublish} disabled={savingSchedule || !isReady} className="rounded-pill text-xs bg-primary text-primary-foreground hover:bg-primary/90">
-                    {savingSchedule ? "…" : "Programmer"}
-                  </Button>
-                </div>
-                {!isReady && (
-                  <p className="text-2xs text-muted-foreground">{notReadyHintCompose}</p>
-                )}
-              </div>
-            )}
-          </div>
-        );
-      })()}
-
-      {guide && (
-        <Collapsible>
-          <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary transition-colors w-full">
-            <span>📝 Comment produire ce post</span>
-            <ChevronDown className="h-4 w-4 transition-transform data-[state=open]:rotate-180" />
+      {/* Détails de production repliables : brief, notes, guide, commentaires (secondaires, fermés par défaut) */}
+      {(linkedBrief || guide || currentPostId) && (
+        <Collapsible className="rounded-[10px] border border-border bg-card/30">
+          <CollapsibleTrigger className="group flex w-full items-center gap-2 px-3 py-2.5 text-sm font-medium text-foreground hover:text-primary transition-colors">
+            <span>🗂️ Détails de production</span>
+            <span className="text-2xs text-muted-foreground font-normal">notes, brief, guide, commentaires</span>
+            <ChevronDown className="h-4 w-4 ml-auto transition-transform group-data-[state=open]:rotate-180" />
           </CollapsibleTrigger>
-          <CollapsibleContent className="mt-3">
-            <ol className="space-y-3 text-sm leading-relaxed text-foreground">
-              {guide.map((step, i) => (
-                <li key={i}>
-                  <span className="font-semibold text-primary">{step.label}</span>
-                  <p className="mt-0.5 text-muted-foreground">{step.detail}</p>
-                </li>
-              ))}
-            </ol>
+          <CollapsibleContent className="px-3 pb-3 space-y-4">
+            <div>
+              <label className="text-xs font-semibold mb-1.5 block text-foreground">📝 Notes</label>
+              <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Idées, brouillon, remarques..." className="rounded-[10px] min-h-[80px]" />
+            </div>
+
+            {linkedBrief && (
+              <Collapsible>
+                <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-foreground w-full py-2">
+                  <span>📋 Brief créatif</span>
+                  <span className="text-xs text-muted-foreground font-normal ml-auto">
+                    {Object.values(linkedBrief.answers).filter(v => v?.trim()).length} réponse(s)
+                  </span>
+                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-3 pt-2">
+                  <p className="text-xs text-muted-foreground">Les réponses que tu as données pour créer ce contenu :</p>
+                  {linkedBrief.questions.map((q: any) => {
+                    const answer = linkedBrief.answers[q.id] || linkedBrief.answers[q.question] || "";
+                    if (!answer.trim()) return null;
+                    return (
+                      <div key={q.id} className="rounded-lg bg-muted/30 border border-border p-3">
+                        <p className="text-xs font-medium text-foreground mb-1">{q.question}</p>
+                        <p className="text-xs text-muted-foreground whitespace-pre-wrap">{answer}</p>
+                      </div>
+                    );
+                  })}
+                </CollapsibleContent>
+              </Collapsible>
+            )}
+
+            {guide && (
+              <Collapsible>
+                <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary transition-colors w-full">
+                  <span>📝 Comment produire ce post</span>
+                  <ChevronDown className="h-4 w-4 transition-transform data-[state=open]:rotate-180" />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-3">
+                  <ol className="space-y-3 text-sm leading-relaxed text-foreground">
+                    {guide.map((step, i) => (
+                      <li key={i}>
+                        <span className="font-semibold text-primary">{step.label}</span>
+                        <p className="mt-0.5 text-muted-foreground">{step.detail}</p>
+                      </li>
+                    ))}
+                  </ol>
+                </CollapsibleContent>
+              </Collapsible>
+            )}
+
+            {editingPost && <PostCommentsSection postId={editingPost.id} ownerName={ownerName} />}
           </CollapsibleContent>
         </Collapsible>
       )}
-
-      {editingPost && <PostCommentsSection postId={editingPost.id} ownerName={ownerName} />}
     </div>
   );
+
+  // Panneau de programmation (révélé par le menu « Publier ▾ » ou affiché si un statut est actif)
+  const channelLabel = postCanal === "linkedin" ? "LinkedIn" : "Instagram";
+  const schedulingReady = postCanal === "linkedin" ? !!linkedInText : igValidImages.length > 0;
+  const showSchedulingPanel = canSchedule && (schedulerOpen || ["scheduled", "publishing", "published", "failed"].includes(publishStatus || ""));
+  const schedulingPanel = showSchedulingPanel ? (
+    <div className="space-y-2 rounded-[10px] border border-border bg-card p-3">
+      <p className="text-xs font-semibold text-foreground">🗓️ Publication automatique sur {channelLabel}</p>
+      {publishStatus === "published" ? (
+        <p className="text-xs text-success">✅ Publié automatiquement sur {channelLabel}{scheduledAt ? ` (programmé pour le ${new Date(scheduledAt).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" })})` : ""}.</p>
+      ) : publishStatus === "publishing" ? (
+        <p className="text-xs text-muted-foreground">⏳ Publication en cours…</p>
+      ) : publishStatus === "scheduled" ? (
+        <div className="space-y-2">
+          <p className="text-xs text-foreground">🗓️ Programmé pour le <strong>{scheduledAt ? new Date(scheduledAt).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" }) : "?"}</strong>. {channelLabel} publiera ce post tout seul.</p>
+          <Button type="button" variant="outline" size="sm" onClick={handleCancelSchedule} disabled={savingSchedule} className="rounded-pill text-xs">Annuler la programmation</Button>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {publishStatus === "failed" && (
+            <p className="text-xs text-destructive">❌ Échec de la dernière tentative{publishError ? ` : ${publishError}` : ""}. Reprogramme pour réessayer.</p>
+          )}
+          <p className="text-xs text-muted-foreground">
+            {postCanal === "linkedin"
+              ? "Choisis quand publier ce post texte — il partira automatiquement."
+              : `Choisis quand publier ce post (${igValidImages.length > 1 ? `carrousel de ${igValidImages.length} images` : "1 image"}) — il partira automatiquement.`}
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="datetime-local"
+              value={scheduleInput}
+              onChange={(e) => setScheduleInput(e.target.value)}
+              className="rounded-[8px] border border-border bg-background px-2 py-1.5 text-xs text-foreground"
+            />
+            <Button type="button" size="sm" onClick={handleSchedulePublish} disabled={savingSchedule || !schedulingReady} className="rounded-pill text-xs bg-primary text-primary-foreground hover:bg-primary/90">
+              {savingSchedule ? "…" : "Programmer"}
+            </Button>
+          </div>
+          {!schedulingReady && (
+            <p className="text-2xs text-muted-foreground">
+              {postCanal === "linkedin" ? "Rédige le texte du post pour pouvoir programmer." : "Ajoute au moins un visuel (image) pour pouvoir programmer."}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  ) : null;
 
   // Bloc métadonnées
   const metaBlock = (
@@ -656,50 +760,73 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     </Collapsible>
   );
 
-  // Footer actions
+  // Indicateur d'auto-save (remplace le bouton « Enregistrer »)
+  const saveIndicator = (
+    <span className="text-2xs text-muted-foreground flex items-center gap-1" aria-live="polite">
+      {saveState === "saving" ? (<><Loader2 className="h-3 w-3 animate-spin" /> Enregistrement…</>)
+        : saveState === "saved" ? (<><Check className="h-3 w-3 text-success" /> Enregistré</>)
+        : saveState === "error" ? (<span className="text-destructive">Échec de l'enregistrement — réessaie</span>)
+        : currentPostId ? (<><Cloud className="h-3 w-3" /> Sauvegarde auto</>)
+        : null}
+    </span>
+  );
+
+  const canPublishNow = (postCanal === "instagram" && !instagramPublishDisabledReason) || (postCanal === "linkedin" && !linkedInPublishDisabledReason);
+  const publishingNow = publishingInstagram || publishingLinkedIn;
+  const handlePublishNow = () => { if (postCanal === "linkedin") handlePublishLinkedIn(); else handlePublishInstagram(); };
+
+  // Footer actions : indicateur d'enregistrement auto + UN seul bouton « Publier ▾ »
   const actionsBlock = (
-    <div className="flex gap-2 pt-4 mt-4 border-t border-border">
-      <Button onClick={handleSave} disabled={!theme.trim()} className="flex-1 rounded-pill bg-primary text-primary-foreground hover:bg-primary/90">💾 Enregistrer</Button>
-
-      {postCanal === "instagram" && igValidImages.length > 0 && (
-        <Button
-          type="button"
-          variant="outline"
-          onClick={handlePublishInstagram}
-          disabled={publishingInstagram || !!instagramPublishDisabledReason}
-          title={instagramPublishDisabledReason || "Publier directement sur Instagram"}
-          className="rounded-pill"
-        >
-          {publishingInstagram ? <Loader2 className="h-4 w-4 animate-spin" /> : <Instagram className="h-4 w-4" />}
-          <span className="ml-1.5 hidden sm:inline">{publishingInstagram ? "Publication…" : "Publier"}</span>
-        </Button>
-      )}
-
-      {postCanal === "linkedin" && linkedInText && (
-        <Button
-          type="button"
-          variant="outline"
-          onClick={handlePublishLinkedIn}
-          disabled={publishingLinkedIn || !!linkedInPublishDisabledReason}
-          title={linkedInPublishDisabledReason || "Publier directement sur LinkedIn"}
-          className="rounded-pill"
-        >
-          {publishingLinkedIn ? <Loader2 className="h-4 w-4 animate-spin" /> : <Linkedin className="h-4 w-4" />}
-          <span className="ml-1.5 hidden sm:inline">{publishingLinkedIn ? "Publication…" : "Publier"}</span>
-        </Button>
-      )}
-
-      {editingPost && (
-        <Button variant="outline" size="icon" onClick={() => { if (window.confirm("Supprimer ce post du calendrier ? Cette action est irréversible.")) onDelete(); }} className="rounded-full text-destructive hover:bg-destructive/10" aria-label="Supprimer ce post">
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      )}
+    <div className="flex items-center gap-3 pt-4 mt-4 border-t border-border">
+      {saveIndicator}
+      <div className="ml-auto">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button disabled={!theme.trim()} className="rounded-pill bg-primary text-primary-foreground hover:bg-primary/90 gap-1.5">
+              {publishingNow ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              Publier
+              <ChevronDown className="h-3.5 w-3.5 opacity-80" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-64">
+            {canSchedule ? (
+              <>
+                <DropdownMenuItem onClick={handlePublishNow} disabled={!canPublishNow || publishingNow} className="cursor-pointer gap-2">
+                  {postCanal === "linkedin" ? <Linkedin className="h-4 w-4" /> : <Instagram className="h-4 w-4" />}
+                  Publier maintenant
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSchedulerOpen(true)} className="cursor-pointer gap-2">
+                  <CalendarClock className="h-4 w-4" /> Programmer…
+                </DropdownMenuItem>
+              </>
+            ) : (
+              <DropdownMenuItem disabled className="gap-2">
+                <CalendarClock className="h-4 w-4" /> Publication auto : Instagram / LinkedIn
+              </DropdownMenuItem>
+            )}
+            {(onUnplan || editingPost) && <DropdownMenuSeparator />}
+            {onUnplan && (
+              <DropdownMenuItem onClick={onUnplan} className="cursor-pointer gap-2">
+                <Lightbulb className="h-4 w-4" /> Remettre en idée
+              </DropdownMenuItem>
+            )}
+            {editingPost && (
+              <DropdownMenuItem
+                onClick={() => { if (window.confirm("Supprimer ce post du calendrier ? Cette action est irréversible.")) onDelete(); }}
+                className="cursor-pointer gap-2 text-destructive focus:text-destructive"
+              >
+                <Trash2 className="h-4 w-4" /> Supprimer
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </div>
   );
 
   return (
     <>
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(o) => { if (!o) flushSave(); onOpenChange(o); }}>
       <DialogContent className={cn(
         "overflow-hidden flex flex-col p-0",
         isMobile
@@ -725,6 +852,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
               <TabsContent value="preview" className="mt-0">{previewBlock(true)}</TabsContent>
               <TabsContent value="meta" className="mt-0 space-y-4">{metaBlock}</TabsContent>
             </div>
+            {schedulingPanel && <div className="mt-3 shrink-0">{schedulingPanel}</div>}
             {actionsBlock}
           </Tabs>
         ) : (
@@ -747,6 +875,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
                 </aside>
               </div>
             </div>
+            {schedulingPanel && <div className="mt-3 shrink-0">{schedulingPanel}</div>}
             {actionsBlock}
           </div>
         )}

@@ -938,6 +938,13 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
             if (editingPost) setEditingPost({ ...editingPost, date: newDate });
           }}
           prefillData={prefillData}
+          onPersisted={(post) => {
+            // Auto-save : on adopte le post créé (sans rouvrir/réinitialiser) et on rafraîchit la grille.
+            setPosts((prev) => prev.some((p) => p.id === post.id)
+              ? prev.map((p) => (p.id === post.id ? { ...p, ...post } : p))
+              : [...prev, post]);
+            setEditingPost((prev) => (prev && prev.id === post.id ? prev : post));
+          }}
         />
       </LocalErrorBoundary>
 
