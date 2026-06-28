@@ -230,7 +230,7 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
     listAllAuthUsers(supabase),
     // Lifetime (tunnel d'activation + adoption par fonctionnalité)
     supabase.from("ai_usage").select("user_id, category"),
-    supabase.from("calendar_posts").select("user_id, status"),
+    supabase.from("calendar_posts").select("user_id, status, publish_status, published_at"),
   ]);
 
   // Auth map
@@ -466,10 +466,12 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
   const aiLifetime = (aiLifetimeRes.data || []).filter((a: any) => clientIds.has(a.user_id));
   const calLifetime = (calLifetimeRes.data || []).filter((c: any) => clientIds.has(c.user_id));
 
+  // Une publication réelle = publish_status "published" (cron + publication directe) OU status "published" (marquage manuel).
+  const isPublished = (c: any) => c.publish_status === "published" || c.status === "published";
   const everGeneratedUsers = new Set(aiLifetime.map((a: any) => a.user_id));
   const everCreatedPostUsers = new Set(calLifetime.map((c: any) => c.user_id));
   const everPublishedUsers = new Set(
-    calLifetime.filter((c: any) => c.status === "published").map((c: any) => c.user_id)
+    calLifetime.filter(isPublished).map((c: any) => c.user_id)
   );
 
   const activationFunnel = [
@@ -494,9 +496,10 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
     }))
     .sort((a, b) => b.users - a.users);
 
-  // ── Publications réelles (calendar_posts status=published) ──
-  const publishedThisMonth = calPosts.filter((c: any) => c.status === "published").length;
-  const publishedTotal = calLifetime.filter((c: any) => c.status === "published").length;
+  // ── Publications réelles (publish_status/status = published) ──
+  const publishedTotal = calLifetime.filter(isPublished).length;
+  // Ce mois = publiées dont published_at tombe dans le mois courant (posé par le cron + la publication directe)
+  const publishedThisMonth = calLifetime.filter((c: any) => isPublished(c) && c.published_at && c.published_at >= monthStart).length;
 
   return {
     // Existing

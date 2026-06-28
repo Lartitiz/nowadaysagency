@@ -271,6 +271,25 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     return null;
   })();
 
+  // Enregistre la publication réussie sur le post (sinon : invisible dans les stats + risque de re-publier en double)
+  const markPostPublished = async (permalink: string | null) => {
+    if (!effectiveId) return;
+    try {
+      const nowIso = new Date().toISOString();
+      await supabase.from("calendar_posts").update({
+        publish_status: "published",
+        published_at: nowIso,
+        published_post_id: permalink,
+        publish_error: null,
+        updated_at: nowIso,
+      } as any).eq("id", effectiveId);
+      setPublishStatus("published");
+      setPublishedPostId(permalink);
+    } catch (e) {
+      console.error("Maj statut publication échouée:", e);
+    }
+  };
+
   const handlePublishInstagram = async () => {
     if (!user) { toast.error("Tu dois être connectée."); return; }
     if (instagramPublishDisabledReason || igValidImages.length === 0) {
@@ -285,6 +304,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
         workspaceId,
         userId: user.id,
       });
+      await markPostPublished(permalink ?? null);
       toast.success(igValidImages.length > 1 ? "Carrousel publié sur Instagram ! 🎉" : "Publié sur Instagram ! 🎉", {
         description: permalink ? "Ouvre ton profil Instagram pour le voir." : undefined,
       });
@@ -319,6 +339,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
         workspaceId,
         userId: user.id,
       });
+      await markPostPublished(permalink ?? null);
       toast.success("Publié sur LinkedIn ! 🎉", {
         description: permalink ? "Ouvre ton profil LinkedIn pour le voir." : undefined,
       });
