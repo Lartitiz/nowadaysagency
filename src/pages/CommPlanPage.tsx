@@ -12,8 +12,7 @@ import { Loader2, ClipboardList, BarChart3, Construction, Settings2 } from "luci
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { useDemoContext } from "@/contexts/DemoContext";
-import { toast } from "@/hooks/use-toast";
-import { toast as sonnerToast } from "sonner";
+import { toast } from "sonner";
 import GuidedTour from "@/components/GuidedTour";
 
 const PLAN_TOUR_STEPS = [
@@ -193,7 +192,7 @@ export default function CommPlanPage({ embedded = false }: { embedded?: boolean 
         .upsert(payload, { onConflict: "user_id" });
       if (error) {
         console.error("Plan config save error:", error);
-        sonnerToast.error("Erreur de sauvegarde");
+        toast.error("Erreur de sauvegarde");
         return;
       }
 
@@ -219,7 +218,7 @@ export default function CommPlanPage({ embedded = false }: { embedded?: boolean 
       await (supabase.from("coach_exercises" as any).update({ status: dbStatus, updated_at: new Date().toISOString() }).eq("id", exerciseId) as any);
       const newExercises = coachExercises.map(e => e.id === exerciseId ? { ...e, status: dbStatus } : e);
       setCoachExercises(newExercises);
-      toast({ title: newStatus === "done" ? "✅ Étape cochée !" : "Étape décochée", duration: 2000 });
+      toast.success(newStatus === "done" ? "✅ Étape cochée !" : "Étape décochée", { duration: 2000 });
       await recompute(overrides, newExercises, hiddenSteps);
       return;
     }
@@ -227,7 +226,7 @@ export default function CommPlanPage({ embedded = false }: { embedded?: boolean 
     // Standard step override
     const newOverrides = [...overrides.filter(o => o.step_id !== stepId), { step_id: stepId, status: newStatus }];
     setOverrides(newOverrides);
-    toast({ title: newStatus === "done" ? "✅ Étape cochée !" : "Étape décochée", duration: 2000 });
+    toast.success(newStatus === "done" ? "✅ Étape cochée !" : "Étape décochée", { duration: 2000 });
     await recompute(newOverrides, coachExercises, hiddenSteps);
 
     // Persist

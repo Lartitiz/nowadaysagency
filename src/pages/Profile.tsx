@@ -6,6 +6,7 @@ import { useProfile } from "@/hooks/use-profile";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
+import { PageLoader } from "@/components/ui/spinner";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { useToast } from "@/hooks/use-toast";
@@ -268,7 +269,7 @@ export default function Profile() {
   if (loading) return (
     <div className="min-h-screen bg-background">
       <AppHeader />
-      <div className="flex justify-center py-20"><p className="text-muted-foreground">Chargement...</p></div>
+      <PageLoader label="Chargement…" />
     </div>
   );
 
@@ -276,7 +277,7 @@ export default function Profile() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       
-      <main className="mx-auto max-w-2xl px-4 py-8 pb-28 animate-fade-in">
+      <main className="mx-auto max-w-2xl px-4 py-8 pb-40 md:pb-28 animate-fade-in">
         <h1 className="font-display text-3xl font-bold text-bordeaux mb-2">Mon profil</h1>
         <p className="text-sm text-muted-foreground mb-6">Tes infos de base. Pour tout ce qui concerne ta marque (mission, ton, positionnement), c'est dans le module Branding.</p>
 
@@ -295,8 +296,8 @@ export default function Profile() {
         <div className="rounded-2xl bg-card p-6 border border-border space-y-5">
           {/* Prénom */}
           <div>
-            <label className="text-sm font-medium mb-1.5 block">Prénom</label>
-            <Input value={current.prenom} onChange={(e) => update("prenom", e.target.value)} className="rounded-[10px] h-12" />
+            <label htmlFor="profile-prenom" className="text-sm font-medium mb-1.5 block">Prénom</label>
+            <Input id="profile-prenom" value={current.prenom} onChange={(e) => update("prenom", e.target.value)} className="rounded-[10px] h-12" />
           </div>
 
           {/* Activité */}
@@ -407,16 +408,16 @@ export default function Profile() {
         <div className="rounded-2xl bg-card p-6 border border-border space-y-4 mt-6">
           <label className="text-sm font-medium mb-1 block">🔗 Mes liens</label>
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Site web</label>
-            <Input value={current.websiteUrl} onChange={(e) => update("websiteUrl", e.target.value)} className="rounded-[10px] h-11" placeholder="https://monsite.com" />
+            <label htmlFor="profile-website" className="text-xs text-muted-foreground mb-1 block">Site web</label>
+            <Input id="profile-website" value={current.websiteUrl} onChange={(e) => update("websiteUrl", e.target.value)} className="rounded-[10px] h-11" placeholder="https://monsite.com" />
           </div>
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Instagram</label>
-            <Input value={current.instagramUrl} onChange={(e) => update("instagramUrl", e.target.value)} className="rounded-[10px] h-11" placeholder="https://instagram.com/moncompte" />
+            <label htmlFor="profile-instagram" className="text-xs text-muted-foreground mb-1 block">Instagram</label>
+            <Input id="profile-instagram" value={current.instagramUrl} onChange={(e) => update("instagramUrl", e.target.value)} className="rounded-[10px] h-11" placeholder="https://instagram.com/moncompte" />
           </div>
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">LinkedIn</label>
-            <Input value={current.linkedinUrl} onChange={(e) => update("linkedinUrl", e.target.value)} className="rounded-[10px] h-11" placeholder="https://linkedin.com/in/monprofil" />
+            <label htmlFor="profile-linkedin" className="text-xs text-muted-foreground mb-1 block">LinkedIn</label>
+            <Input id="profile-linkedin" value={current.linkedinUrl} onChange={(e) => update("linkedinUrl", e.target.value)} className="rounded-[10px] h-11" placeholder="https://linkedin.com/in/monprofil" />
           </div>
         </div>
 
@@ -428,8 +429,8 @@ export default function Profile() {
         </div>
       </main>
 
-      {/* Sticky save button */}
-      <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-sm border-t border-border p-4 z-40">
+      {/* Sticky save button — au-dessus de la barre d'onglets mobile */}
+      <div className="fixed bottom-14 md:bottom-0 left-0 right-0 bg-background/95 backdrop-blur-sm border-t border-border p-4 z-40">
         <div className="mx-auto max-w-2xl">
           <SaveButton hasChanges={hasChanges} saving={saving} onSave={handleSave} />
         </div>

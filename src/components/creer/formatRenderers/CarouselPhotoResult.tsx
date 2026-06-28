@@ -612,7 +612,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7"
+                    className="h-9 w-9"
                     disabled={idx === 0}
                     onClick={() => moveSlide(idx, -1)}
                     aria-label="Monter la slide"
@@ -624,7 +624,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7"
+                    className="h-9 w-9"
                     disabled={idx === slides.length - 1}
                     onClick={() => moveSlide(idx, 1)}
                     aria-label="Descendre la slide"
@@ -636,7 +636,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                    className="h-9 w-9 text-muted-foreground hover:text-destructive"
                     disabled={slides.length <= MIN_SLIDES}
                     onClick={() => setDeleteIdx(idx)}
                     aria-label="Supprimer la slide"

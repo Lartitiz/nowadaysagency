@@ -15,11 +15,14 @@
     --popover: 0 0% 100%;
     --popover-foreground: 270 25% 17%;
 
-    --primary: 338 96% 61%;
+    /* Framboise foncée à L52% : contraste AA (blanc sur framboise & framboise sur fond clair ≥ 4.5:1).
+       L'ancienne teinte vive (61%) reste dispo via --primary-light pour le décoratif. */
+    --primary: 338 90% 52%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 330 100% 91%;
-    --secondary-foreground: 338 96% 61%;
+    /* Texte framboise sur fond rose : foncé pour rester lisible */
+    --secondary-foreground: 338 72% 42%;
 
     --muted: 330 40% 96%;
     --muted-foreground: 266 15% 36%;
@@ -32,7 +35,7 @@
 
     --border: 330 30% 92%;
     --input: 330 30% 92%;
-    --ring: 338 96% 61%;
+    --ring: 338 90% 52%;
 
     --radius: 1rem;
 
@@ -51,6 +54,8 @@
     --warning-bg: 33 100% 96%;
     --error: 0 91% 71%;
     --error-bg: 0 86% 97%;
+    --info: 217 91% 55%;
+    --info-bg: 214 95% 96%;
 
     /* ── Primary shades ────────────────────── */
     --primary-hover: 338 78% 53%;
@@ -94,19 +99,19 @@
     /* ── Sidebar ───────────────────────────── */
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 270 25% 17%;
-    --sidebar-primary: 338 96% 61%;
+    --sidebar-primary: 338 90% 52%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 330 100% 91%;
     --sidebar-accent-foreground: 270 25% 17%;
     --sidebar-border: 330 30% 92%;
-    --sidebar-ring: 338 96% 61%;
+    --sidebar-ring: 338 90% 52%;
 
     /* ── Shadows ────────────────────────────── */
     --shadow-card: 0 2px 20px rgba(145, 1, 75, 0.08);
     --shadow-card-hover: 0 4px 24px rgba(145, 1, 75, 0.12);
     --shadow-strong: 0 8px 40px rgba(145, 1, 75, 0.12);
     --shadow-cta: 0 4px 16px rgba(251, 61, 128, 0.3);
-    --shadow-focus: 0 0 0 3px hsl(338 96% 61% / 0.2);
+    --shadow-focus: 0 0 0 3px hsl(338 90% 52% / 0.2);
 
     /* ── Glassmorphism ─────────────────────── */
     --glass-bg: hsl(0 0% 100% / 0.95);
@@ -266,8 +271,10 @@
   animation: btn-pulse 0.4s ease-out;
 }
 
-/* Mobile bottom tab bar spacing — add padding so content isn't hidden behind fixed tab bar */
-@media (max-width: 1023px) {
+/* Mobile bottom tab bar spacing — add padding so content isn't hidden behind fixed tab bar.
+   Aligné sur le breakpoint de la barre d'onglets (md:hidden = < 768px) pour éviter
+   une bande morte de 3.5rem sur tablette portrait (768–1023px). */
+@media (max-width: 767px) {
   body {
     padding-bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px));
   }

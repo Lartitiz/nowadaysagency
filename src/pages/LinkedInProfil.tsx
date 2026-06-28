@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { toast as sonnerToast } from "sonner";
+import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
@@ -13,7 +13,6 @@ import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
-import { useToast } from "@/hooks/use-toast";
 import { friendlyError } from "@/lib/error-messages";
 import { handleQuotaError } from "@/lib/quota-error-handler";
 import { Sparkles, Copy, Check } from "lucide-react";
@@ -23,7 +22,6 @@ const TOTAL_SECTIONS = 6;
 
 export default function LinkedInProfil() {
   const { user } = useAuth();
-  const { toast } = useToast();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const { data: propositionData } = useBrandProposition();
@@ -85,13 +83,13 @@ export default function LinkedInProfil() {
     };
     if (profileId) {
       const { error } = await supabase.from("linkedin_profile").update(payload).eq("id", profileId);
-      if (error) { sonnerToast.error("Erreur de sauvegarde"); return; }
+      if (error) { toast.error("Erreur de sauvegarde"); return; }
     } else {
       const { data, error } = await supabase.from("linkedin_profile").insert(payload).select("id").single();
-      if (error) { sonnerToast.error("Erreur de sauvegarde"); return; }
+      if (error) { toast.error("Erreur de sauvegarde"); return; }
       if (data) setProfileId(data.id);
     }
-    toast({ title: "✅ Profil sauvegardé !" });
+    toast.success("✅ Profil sauvegardé !");
   };
 
   const generateTitle = async () => {
@@ -108,7 +106,7 @@ export default function LinkedInProfil() {
       setTitleSuggestions(parsed);
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(e) });
     } finally {
       setGenerating(false);
     }

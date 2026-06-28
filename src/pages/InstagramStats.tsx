@@ -6,8 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
-import { useToast } from "@/hooks/use-toast";
-import { toast as sonnerToast } from "sonner";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -39,7 +38,6 @@ import {
 
 export default function InstagramStats() {
   const { user } = useAuth();
-  const { toast } = useToast();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
 
@@ -91,7 +89,7 @@ export default function InstagramStats() {
       }
     } catch (e) {
       console.error("Erreur chargement config stats:", e);
-      toast({ title: "Impossible de charger ta configuration", description: "Réessaie dans un instant.", variant: "destructive" });
+      toast.error("Impossible de charger ta configuration", { description: "Réessaie dans un instant." });
     } finally {
       setConfigLoaded(true);
     }
@@ -244,13 +242,13 @@ export default function InstagramStats() {
     try {
       if (formId) {
         const { error } = await supabase.from("monthly_stats" as any).update(payload).eq("id", formId);
-        if (error) { sonnerToast.error("Erreur de sauvegarde"); setSaving(false); return; }
+        if (error) { toast.error("Erreur de sauvegarde"); setSaving(false); return; }
       } else {
         const { data: ins, error } = await supabase.from("monthly_stats" as any).insert(payload).select("id").single();
-        if (error) { sonnerToast.error("Erreur de sauvegarde"); setSaving(false); return; }
+        if (error) { toast.error("Erreur de sauvegarde"); setSaving(false); return; }
         if (ins) setFormId((ins as any).id);
       }
-      toast({ title: `✅ Stats de ${monthLabel(selectedMonth)} enregistrées.` });
+      toast.success(`✅ Stats de ${monthLabel(selectedMonth)} enregistrées.`);
       
       // Auto-adjust period to include the saved month
       const currentRange = getPeriodRange(periodPreset, now);
@@ -265,15 +263,15 @@ export default function InstagramStats() {
         } else {
           setPeriodPreset("all");
         }
-        sonnerToast.info("📊 Période ajustée pour afficher tes nouvelles stats.");
+        toast.info("📊 Période ajustée pour afficher tes nouvelles stats.");
       }
       
       loadStats();
     } catch {
-      toast({ title: "Erreur lors de la sauvegarde", variant: "destructive" });
+      toast.error("Erreur lors de la sauvegarde");
     }
     setSaving(false);
-  }, [user, formData, formId, selectedMonth, workspaceId, loadStats, toast, periodPreset, now]);
+  }, [user, formData, formId, selectedMonth, workspaceId, loadStats, periodPreset, now]);
 
   const handleAnalyze = useCallback(async () => {
     if (!user) return;
@@ -290,13 +288,13 @@ export default function InstagramStats() {
         const { error: updErr } = await supabase.from("monthly_stats" as any).update({
           ai_analysis: insight, ai_analyzed_at: new Date().toISOString(),
         }).eq("id", formId);
-        if (updErr) { sonnerToast.error("Erreur de sauvegarde de l'analyse"); }
+        if (updErr) { toast.error("Erreur de sauvegarde de l'analyse"); }
       }
     } catch {
-      toast({ title: "Erreur lors de l'analyse", variant: "destructive" });
+      toast.error("Erreur lors de l'analyse");
     }
     setIsGenerating(false);
-  }, [user, allStats, formData, formId, toast]);
+  }, [user, allStats, formData, formId]);
 
   const saveConfig = useCallback(async (cfg: StatsConfig) => {
     if (!user) return;
@@ -304,10 +302,10 @@ export default function InstagramStats() {
     delete payload.id;
     if (config?.id) {
       const { error } = await supabase.from("stats_config" as any).update(payload).eq("id", config.id);
-      if (error) { sonnerToast.error("Erreur de sauvegarde"); return; }
+      if (error) { toast.error("Erreur de sauvegarde"); return; }
     } else {
       const { data, error } = await supabase.from("stats_config" as any).insert(payload).select("id").single();
-      if (error) { sonnerToast.error("Erreur de sauvegarde"); return; }
+      if (error) { toast.error("Erreur de sauvegarde"); return; }
       if (data) payload.id = (data as any).id;
     }
     setConfig({ ...cfg, id: config?.id || payload.id });
@@ -407,7 +405,7 @@ export default function InstagramStats() {
                         pages[i] = { ...pages[i], url: e.target.value };
                         setDraftConfig(c => ({ ...c, sales_pages: pages }));
                       }} className="flex-1" />
-                    <Button variant="ghost" size="icon" onClick={() => {
+                    <Button variant="ghost" size="icon" aria-label="Supprimer cette page de vente" onClick={() => {
                       setDraftConfig(c => ({ ...c, sales_pages: (c.sales_pages || []).filter((_, j) => j !== i) }));
                     }}><Trash2 className="h-4 w-4" /></Button>
                   </div>
@@ -444,7 +442,7 @@ export default function InstagramStats() {
                   <Button className="flex-1" onClick={async () => {
                     await saveConfig(draftConfig);
                     setShowOnboarding(false);
-                    toast({ title: "✅ Configuration enregistrée !" });
+                    toast.success("✅ Configuration enregistrée !");
                   }}>
                     ✅ C'est prêt, montrer mes stats
                   </Button>

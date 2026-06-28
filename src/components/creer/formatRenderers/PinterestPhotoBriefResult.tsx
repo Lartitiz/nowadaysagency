@@ -166,7 +166,7 @@ export default function PinterestPhotoBriefResult({ result, overlayHtml }: Props
         </label>
         <div className="flex gap-2">
           <Input value={title} readOnly className="flex-1" />
-          <Button variant="outline" size="icon" onClick={() => copyText(title, "Titre")}>
+          <Button variant="outline" size="icon" onClick={() => copyText(title, "Titre")} aria-label="Copier le titre">
             <Copy className="h-4 w-4" />
           </Button>
         </div>
@@ -185,6 +185,7 @@ export default function PinterestPhotoBriefResult({ result, overlayHtml }: Props
             size="icon"
             className="mt-0"
             onClick={() => copyText(description, "Description")}
+            aria-label="Copier la description"
           >
             <Copy className="h-4 w-4" />
           </Button>

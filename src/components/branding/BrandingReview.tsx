@@ -10,6 +10,7 @@ import Confetti from "@/components/Confetti";
 import BrandingCoachingFlow from "@/components/branding/BrandingCoachingFlow";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 
 // ─── Types ───────────────────────────────────────────────────
 export interface AnalysisResult {
@@ -650,7 +651,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
   const hasPreFilled = preFilledSections && preFilledSections.size > 0;
 
   return (
-    <div className="pb-24">
+    <div className="pb-40 md:pb-24">
       {showConfetti && <Confetti />}
 
       {/* Header */}
@@ -812,7 +813,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
                               {!isValidated && (
                                 <div className="flex flex-col sm:flex-row gap-2">
                                   <button onClick={() => handleValidate(sec.key)} disabled={isSaving} className="inline-flex items-center justify-center gap-2 border-[1.5px] border-emerald-500 text-emerald-600 rounded-[12px] px-5 py-2 text-[14px] font-semibold hover:bg-emerald-50 transition-all disabled:opacity-50">
-                                    {isSaving ? <span className="inline-block h-4 w-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                                    {isSaving ? <Spinner className="h-4 w-4 text-emerald-500" /> : <CheckCircle2 className="h-4 w-4" />}
                                     C'est bon ✓
                                   </button>
                                   <button onClick={() => setCoachingSection(sec.key)} className={`inline-flex items-center justify-center gap-2 rounded-[12px] px-5 py-2 text-[14px] font-semibold transition-all ${conf === "low" ? "bg-[#fb3d80] text-white hover:scale-[1.02] hover:shadow-lg" : "border-[1.5px] border-[#fb3d80] text-[#fb3d80] hover:bg-[#fce4ec]"}`}>
@@ -836,12 +837,12 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
         </div>
       )}
 
-      {/* Sticky bottom bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-card/95 backdrop-blur-sm border-t border-border px-4 py-3">
+      {/* Sticky bottom bar — décalée au-dessus de la barre d'onglets mobile (bottom-14 = 3.5rem) */}
+      <div className="fixed bottom-14 md:bottom-0 left-0 right-0 z-40 bg-card/95 backdrop-blur-sm border-t border-border px-4 py-3">
         <div className="mx-auto max-w-[900px] flex items-center gap-4">
           <div className="flex-1">
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[13px] font-semibold text-foreground">
+              <span className="text-sm font-semibold text-foreground">
                 {allDone ? "Branding complété ! 🎉" : `${validatedCount}/7 sections validées`}
               </span>
               {allDone && (

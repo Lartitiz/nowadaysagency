@@ -322,6 +322,7 @@ export default function CoachChat() {
             className="shrink-0 h-9 w-9 rounded-xl"
             onClick={() => sendMessage(input)}
             disabled={!input.trim() || loading}
+            aria-label="Envoyer"
           >
             <Send className="h-4 w-4" />
           </Button>

@@ -157,6 +157,7 @@ export default function LoginPage() {
                   <Input
                     type="email"
                     placeholder="ton@email.com"
+                    aria-label="Adresse email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -207,6 +208,7 @@ export default function LoginPage() {
                 <Input
                   type="email"
                   placeholder="ton@email.com"
+                  aria-label="Adresse email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -215,6 +217,7 @@ export default function LoginPage() {
                 <Input
                   type="password"
                   placeholder="Mot de passe"
+                  aria-label="Mot de passe"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required

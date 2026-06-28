@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceFilter, useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
+import { PageLoader } from "@/components/ui/spinner";
 import SubPageHeader from "@/components/SubPageHeader";
 import AiLoadingIndicator from "@/components/AiLoadingIndicator";
 import AboutOptimizeResult from "@/components/site/AboutOptimizeResult";
@@ -260,7 +261,7 @@ export default function SiteAPropos() {
   if (loading) return (
     <div className="min-h-screen bg-background">
       <AppHeader />
-      <div className="flex justify-center py-20"><p className="text-muted-foreground">Chargement...</p></div>
+      <PageLoader label="Chargement…" />
     </div>
   );
 
@@ -593,7 +594,7 @@ export default function SiteAPropos() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-[700px] px-6 py-8 max-md:px-4">
-        <p className="text-muted-foreground">Chargement...</p>
+        <PageLoader label="Chargement…" />
       </main>
     </div>
   );

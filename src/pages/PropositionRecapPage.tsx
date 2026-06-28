@@ -8,6 +8,7 @@ import { Link } from "react-router-dom";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { useQueryClient } from "@tanstack/react-query";
 import AppHeader from "@/components/AppHeader";
+import { PageLoader } from "@/components/ui/spinner";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -133,7 +134,7 @@ export default function PropositionRecapPage() {
   if (loading) return (
     <div className="min-h-screen bg-background">
       <AppHeader />
-      <div className="flex justify-center py-20"><p className="text-muted-foreground">Chargement...</p></div>
+      <PageLoader label="Chargement…" />
     </div>
   );
 

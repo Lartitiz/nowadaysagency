@@ -19,6 +19,7 @@ import { useDemoContext } from "@/contexts/DemoContext";
 import AppHeader from "@/components/AppHeader";
 import SuggestedContents from "@/components/dashboard/SuggestedContents";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import { MarkdownText } from "@/components/ui/markdown-text";
 import { format, isAfter, subHours, startOfWeek as dateFnsStartOfWeek, endOfWeek as dateFnsEndOfWeek } from "date-fns";
@@ -1020,7 +1021,7 @@ export default function ChatGuidePage() {
                           >
                             {expressLoading === action.route ? (
                               <span className="flex items-center gap-2">
-                                <span className="h-3.5 w-3.5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                                <Spinner className="h-3.5 w-3.5" />
                                 Génération...
                               </span>
                             ) : (
@@ -1122,7 +1123,7 @@ export default function ChatGuidePage() {
               title="Envoyer"
               aria-label="Envoyer le message"
             >
-              {isSending ? <span className="h-4 w-4 border-2 border-primary-foreground/40 border-t-primary-foreground rounded-full animate-spin" /> : <Send className="h-5 w-5" />}
+              {isSending ? <Spinner className="h-4 w-4 text-primary-foreground" /> : <Send className="h-5 w-5" />}
             </button>
           </div>
         </div>

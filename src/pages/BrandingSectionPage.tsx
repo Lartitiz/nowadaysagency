@@ -528,7 +528,7 @@ export default function BrandingSectionPage() {
         {hasRecap ? (
           <div>
             {/* Toggle bar */}
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
               <div className="flex items-center gap-1 bg-muted rounded-full p-1">
                 <button
                   onClick={() => {

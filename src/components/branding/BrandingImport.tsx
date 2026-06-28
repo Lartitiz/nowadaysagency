@@ -4,6 +4,7 @@ import { Globe, Upload, FileText, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
 
 interface BrandingImportProps {
@@ -143,7 +144,7 @@ export default function BrandingImport({ onAnalyze, onSkip, loading = false, ini
           >
             {loading ? (
               <span className="flex items-center gap-2">
-                <span className="h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                <Spinner className="h-4 w-4 text-primary-foreground" />
                 Analyse en cours...
               </span>
             ) : reanalyzeWarning ? "Réanalyser ✨" : "Analyse mon projet ✨"}

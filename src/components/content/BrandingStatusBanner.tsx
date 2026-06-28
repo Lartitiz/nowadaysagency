@@ -60,7 +60,7 @@ export default function BrandingStatusBanner() {
       <Banner onDismiss={() => setDismissed(true)}>
         💡 Ton contenu sera plus pertinent si tu complètes ton identité de marque.
         {missing.length > 0 && <> Il te manque : {missing.join(", ")}. </>}
-        <Link to="/branding" className="text-[#FB3D80] hover:underline font-medium ml-1">
+        <Link to="/branding" className="text-primary hover:underline font-medium ml-1">
           Compléter →
         </Link>
       </Banner>
@@ -68,9 +68,9 @@ export default function BrandingStatusBanner() {
   }
 
   return (
-    <Banner onDismiss={() => setDismissed(true)} borderClass="border-[#FB3D80]/20">
+    <Banner onDismiss={() => setDismissed(true)} borderClass="border-primary/20">
       🎯 Pour que l'IA génère du contenu qui te ressemble, commence par remplir ton identité de marque.{" "}
-      <Link to="/branding" className="text-[#FB3D80] hover:underline font-medium">
+      <Link to="/branding" className="text-primary hover:underline font-medium">
         Commencer →
       </Link>
     </Banner>
@@ -80,7 +80,7 @@ export default function BrandingStatusBanner() {
 function Banner({
   children,
   onDismiss,
-  borderClass = "border-[#FFD6E8]",
+  borderClass = "border-secondary",
 }: {
   children: React.ReactNode;
   onDismiss: () => void;
@@ -90,10 +90,10 @@ function Banner({
     <motion.div
       initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`bg-[#FFF4F8] border ${borderClass} rounded-2xl px-4 py-3 flex items-start gap-3 font-sans text-sm text-foreground`}
+      className={`bg-rose-pale border ${borderClass} rounded-2xl px-4 py-3 flex items-start gap-3 font-sans text-sm text-foreground`}
     >
       <div className="flex-1">{children}</div>
-      <button onClick={onDismiss} className="text-muted-foreground hover:text-foreground flex-shrink-0 mt-0.5">
+      <button onClick={onDismiss} aria-label="Fermer" className="text-muted-foreground hover:text-foreground flex-shrink-0 mt-0.5">
         <X size={14} />
       </button>
     </motion.div>
