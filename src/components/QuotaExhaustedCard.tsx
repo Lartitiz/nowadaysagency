@@ -17,11 +17,11 @@ export default function QuotaExhaustedCard({
   const navigate = useNavigate();
 
   return (
-    <div className="rounded-2xl border border-[#FFD6E8] bg-gradient-to-br from-[#FFF4F8] to-white p-6 sm:p-8 max-w-lg mx-auto mb-6">
+    <div className="rounded-2xl border border-secondary bg-gradient-to-br from-[#FFF4F8] to-white p-6 sm:p-8 max-w-lg mx-auto mb-6">
       {/* Icon */}
       <div className="flex justify-center mb-4">
-        <div className="w-12 h-12 rounded-full bg-[#FB3D80]/10 flex items-center justify-center">
-          <Sparkles className="h-6 w-6 text-[#FB3D80]" />
+        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+          <Sparkles className="h-6 w-6 text-primary" />
         </div>
       </div>
 
@@ -41,7 +41,7 @@ export default function QuotaExhaustedCard({
       </p>
 
       {/* Separator */}
-      <hr className="my-5 border-[#FFD6E8]/60" />
+      <hr className="my-5 border-secondary/60" />
 
       {/* Suggestions */}
       <div className="space-y-2">
@@ -62,7 +62,7 @@ export default function QuotaExhaustedCard({
         <div className="mt-6 text-center">
           <button
             onClick={() => navigate("/mon-plan")}
-            className="inline-flex items-center gap-2 rounded-full bg-[#FB3D80] px-6 py-2.5 text-sm font-medium text-white hover:bg-[#e0326f] transition-colors"
+            className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-white hover:bg-primary transition-colors"
           >
             Passer au Premium — 300 crédits/mois ✨
           </button>

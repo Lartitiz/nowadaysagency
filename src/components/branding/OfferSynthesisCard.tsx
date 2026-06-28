@@ -22,7 +22,7 @@ function SectionLabel({ emoji, title }: { emoji: string; title: string }) {
 
 function HeroQuote({ text, onCopy }: { text: string; onCopy?: () => void }) {
   return (
-    <div className="rounded-xl p-5 sm:p-6 bg-[#FFF4F8] border border-[#ffa7c6]/30">
+    <div className="rounded-xl p-5 sm:p-6 bg-rose-pale border border-[#ffa7c6]/30">
       <p className="font-display text-base sm:text-lg font-bold text-foreground italic text-center leading-relaxed">"{text}"</p>
       {onCopy && (
         <div className="flex justify-end mt-3">
@@ -111,7 +111,7 @@ export default function OfferSynthesisCard({ offer, onEdit }: OfferSynthesisCard
               </div>
             )}
             {offer.emotional_after && (
-              <div className="rounded-lg p-4 bg-[#FFF4F8]">
+              <div className="rounded-lg p-4 bg-rose-pale">
                 <p className="font-mono-ui text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Après</p>
                 <p className="text-sm text-foreground italic">{offer.emotional_after}</p>
               </div>
@@ -120,7 +120,7 @@ export default function OfferSynthesisCard({ offer, onEdit }: OfferSynthesisCard
           {offer.feelings_after && offer.feelings_after.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-3">
               {offer.feelings_after.map((f, i) => (
-                <span key={i} className="text-xs px-2.5 py-1 rounded-full bg-[#FFF4F8] text-primary font-medium">{f}</span>
+                <span key={i} className="text-xs px-2.5 py-1 rounded-full bg-rose-pale text-primary font-medium">{f}</span>
               ))}
             </div>
           )}

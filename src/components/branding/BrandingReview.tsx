@@ -72,19 +72,19 @@ function ConfidenceBadge({ level }: { level: string }) {
   const map: Record<string, { bg: string; text: string; label: string }> = {
     high: { bg: "bg-success-bg", text: "text-success", label: "Confiant·e" },
     medium: { bg: "bg-warning-bg", text: "text-warning", label: "À vérifier" },
-    low: { bg: "bg-[#fce4ec]", text: "text-[#91014b]", label: "À compléter" },
+    low: { bg: "bg-rose-pale", text: "text-bordeaux", label: "À compléter" },
   };
   const s = map[level] || map.low;
   return (
     <span className={`inline-flex items-center gap-1.5 text-[12px] font-medium px-2.5 py-0.5 rounded-full ${s.bg} ${s.text}`}>
-      <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: level === "high" ? "#22c55e" : level === "medium" ? "#f59e0b" : "#fb3d80" }} />
+      <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: level === "high" ? "#22c55e" : level === "medium" ? "#f59e0b" : "hsl(var(--primary))" }} />
       {s.label}
     </span>
   );
 }
 
 function Chip({ children }: { children: React.ReactNode }) {
-  return <span className="inline-block px-3 py-1 text-[13px] rounded-[8px] bg-[#ffa7c6]/20 text-[#91014b] font-medium">{children}</span>;
+  return <span className="inline-block px-3 py-1 text-[13px] rounded-[8px] bg-[#ffa7c6]/20 text-bordeaux font-medium">{children}</span>;
 }
 
 function SourceTag({ name, ok }: { name: string; ok: boolean }) {
@@ -104,11 +104,11 @@ function StorySection({ data }: { data: AnalysisResult["story"] }) {
       {data.full_story && <p className="text-[14px] leading-relaxed text-foreground whitespace-pre-line">{data.full_story}</p>}
       {!data.full_story && (
         <div className="space-y-2 text-[14px] text-foreground">
-          {data.origin && <p><span className="font-semibold text-[#91014b]">Origine :</span> {data.origin}</p>}
-          {data.trigger && <p><span className="font-semibold text-[#91014b]">Déclic :</span> {data.trigger}</p>}
-          {data.struggles && <p><span className="font-semibold text-[#91014b]">Épreuves :</span> {data.struggles}</p>}
-          {data.uniqueness && <p><span className="font-semibold text-[#91014b]">Ce qui te rend unique :</span> {data.uniqueness}</p>}
-          {data.vision && <p><span className="font-semibold text-[#91014b]">Vision :</span> {data.vision}</p>}
+          {data.origin && <p><span className="font-semibold text-bordeaux">Origine :</span> {data.origin}</p>}
+          {data.trigger && <p><span className="font-semibold text-bordeaux">Déclic :</span> {data.trigger}</p>}
+          {data.struggles && <p><span className="font-semibold text-bordeaux">Épreuves :</span> {data.struggles}</p>}
+          {data.uniqueness && <p><span className="font-semibold text-bordeaux">Ce qui te rend unique :</span> {data.uniqueness}</p>}
+          {data.vision && <p><span className="font-semibold text-bordeaux">Vision :</span> {data.vision}</p>}
         </div>
       )}
     </div>
@@ -124,10 +124,10 @@ function PersonaSection({ data }: { data: AnalysisResult["persona"] }) {
         {data.age_range && <Chip>{data.age_range} ans</Chip>}
         {data.job && <Chip>{data.job}</Chip>}
       </div>
-      {data.goals?.length ? <div><p className="text-[12px] font-semibold text-[#91014b] mb-1">Objectifs</p><div className="flex flex-wrap gap-1.5">{data.goals.map((g, i) => <Chip key={i}>{g}</Chip>)}</div></div> : null}
-      {data.frustrations?.length ? <div><p className="text-[12px] font-semibold text-[#91014b] mb-1">Frustrations</p><div className="flex flex-wrap gap-1.5">{data.frustrations.map((f, i) => <Chip key={i}>{f}</Chip>)}</div></div> : null}
-      {data.desires?.length ? <div><p className="text-[12px] font-semibold text-[#91014b] mb-1">Désirs</p><div className="flex flex-wrap gap-1.5">{data.desires.map((d, i) => <Chip key={i}>{d}</Chip>)}</div></div> : null}
-      {data.channels?.length ? <div><p className="text-[12px] font-semibold text-[#91014b] mb-1">Canaux</p><div className="flex flex-wrap gap-1.5">{data.channels.map((c, i) => <Chip key={i}>{c}</Chip>)}</div></div> : null}
+      {data.goals?.length ? <div><p className="text-[12px] font-semibold text-bordeaux mb-1">Objectifs</p><div className="flex flex-wrap gap-1.5">{data.goals.map((g, i) => <Chip key={i}>{g}</Chip>)}</div></div> : null}
+      {data.frustrations?.length ? <div><p className="text-[12px] font-semibold text-bordeaux mb-1">Frustrations</p><div className="flex flex-wrap gap-1.5">{data.frustrations.map((f, i) => <Chip key={i}>{f}</Chip>)}</div></div> : null}
+      {data.desires?.length ? <div><p className="text-[12px] font-semibold text-bordeaux mb-1">Désirs</p><div className="flex flex-wrap gap-1.5">{data.desires.map((d, i) => <Chip key={i}>{d}</Chip>)}</div></div> : null}
+      {data.channels?.length ? <div><p className="text-[12px] font-semibold text-bordeaux mb-1">Canaux</p><div className="flex flex-wrap gap-1.5">{data.channels.map((c, i) => <Chip key={i}>{c}</Chip>)}</div></div> : null}
     </div>
   );
 }
@@ -138,7 +138,7 @@ function ValuePropSection({ data }: { data: AnalysisResult["value_proposition"] 
     <div className="space-y-3">
       {data.key_phrase && <p className="font-display text-[18px] text-foreground leading-snug">{data.key_phrase}</p>}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-[13px]">
-        {data.problem && <div className="p-3 rounded-[12px] bg-[#fce4ec]"><p className="font-semibold text-[#91014b] mb-1">Problème</p><p className="text-foreground">{data.problem}</p></div>}
+        {data.problem && <div className="p-3 rounded-[12px] bg-rose-pale"><p className="font-semibold text-bordeaux mb-1">Problème</p><p className="text-foreground">{data.problem}</p></div>}
         {data.solution && <div className="p-3 rounded-[12px] bg-success-bg"><p className="font-semibold text-success mb-1">Solution</p><p className="text-foreground">{data.solution}</p></div>}
         {data.differentiator && <div className="p-3 rounded-[12px] bg-warning-bg"><p className="font-semibold text-warning mb-1">Différenciateur</p><p className="text-foreground">{data.differentiator}</p></div>}
       </div>
@@ -164,11 +164,11 @@ function ToneSection({ data }: { data: AnalysisResult["tone_style"] }) {
       )}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[13px]">
         {data.i_do?.length ? <div className="p-3 rounded-[12px] bg-success-bg"><p className="font-semibold text-success mb-2">✅ Je fais</p><ul className="space-y-1">{data.i_do.map((d, i) => <li key={i}>• {d}</li>)}</ul></div> : null}
-        {data.i_never_do?.length ? <div className="p-3 rounded-[12px] bg-[#fce4ec]"><p className="font-semibold text-[#91014b] mb-2">🚫 Je ne fais jamais</p><ul className="space-y-1">{data.i_never_do.map((d, i) => <li key={i}>• {d}</li>)}</ul></div> : null}
+        {data.i_never_do?.length ? <div className="p-3 rounded-[12px] bg-rose-pale"><p className="font-semibold text-bordeaux mb-2">🚫 Je ne fais jamais</p><ul className="space-y-1">{data.i_never_do.map((d, i) => <li key={i}>• {d}</li>)}</ul></div> : null}
       </div>
-      {data.fights?.length ? <div><p className="text-[12px] font-semibold text-[#91014b] mb-1">Combats</p><div className="flex flex-wrap gap-1.5">{data.fights.map((f, i) => <Chip key={i}>{f}</Chip>)}</div></div> : null}
-      {data.key_expressions && <p className="text-[13px]"><span className="font-semibold text-[#91014b]">Expressions clés :</span> {data.key_expressions}</p>}
-      {data.channels?.length ? <div><p className="text-[12px] font-semibold text-[#91014b] mb-1">Canaux</p><div className="flex flex-wrap gap-1.5">{data.channels.map((c, i) => <Chip key={i}>{c}</Chip>)}</div></div> : null}
+      {data.fights?.length ? <div><p className="text-[12px] font-semibold text-bordeaux mb-1">Combats</p><div className="flex flex-wrap gap-1.5">{data.fights.map((f, i) => <Chip key={i}>{f}</Chip>)}</div></div> : null}
+      {data.key_expressions && <p className="text-[13px]"><span className="font-semibold text-bordeaux">Expressions clés :</span> {data.key_expressions}</p>}
+      {data.channels?.length ? <div><p className="text-[12px] font-semibold text-bordeaux mb-1">Canaux</p><div className="flex flex-wrap gap-1.5">{data.channels.map((c, i) => <Chip key={i}>{c}</Chip>)}</div></div> : null}
       {data.visual_style && <p className="text-[13px] text-muted-foreground italic">{data.visual_style}</p>}
     </div>
   );
@@ -178,11 +178,11 @@ function StrategySection({ data }: { data: AnalysisResult["content_strategy"] })
   if (!data) return null;
   return (
     <div className="space-y-3">
-      {data.pillars?.length ? <div><p className="text-[12px] font-semibold text-[#91014b] mb-1">Piliers</p><div className="flex flex-wrap gap-1.5">{data.pillars.map((p, i) => <Chip key={i}>{p}</Chip>)}</div></div> : null}
-      {data.creative_twist && <p className="text-[14px]"><span className="font-semibold text-[#91014b]">Angle créatif :</span> {data.creative_twist}</p>}
-      {data.formats?.length ? <div><p className="text-[12px] font-semibold text-[#91014b] mb-1">Formats</p><div className="flex flex-wrap gap-1.5">{data.formats.map((f, i) => <Chip key={i}>{f}</Chip>)}</div></div> : null}
+      {data.pillars?.length ? <div><p className="text-[12px] font-semibold text-bordeaux mb-1">Piliers</p><div className="flex flex-wrap gap-1.5">{data.pillars.map((p, i) => <Chip key={i}>{p}</Chip>)}</div></div> : null}
+      {data.creative_twist && <p className="text-[14px]"><span className="font-semibold text-bordeaux">Angle créatif :</span> {data.creative_twist}</p>}
+      {data.formats?.length ? <div><p className="text-[12px] font-semibold text-bordeaux mb-1">Formats</p><div className="flex flex-wrap gap-1.5">{data.formats.map((f, i) => <Chip key={i}>{f}</Chip>)}</div></div> : null}
       {data.rhythm && <p className="text-[13px] text-muted-foreground">{data.rhythm}</p>}
-      {data.editorial_line && <p className="text-[14px]"><span className="font-semibold text-[#91014b]">Ligne éditoriale :</span> {data.editorial_line}</p>}
+      {data.editorial_line && <p className="text-[14px]"><span className="font-semibold text-bordeaux">Ligne éditoriale :</span> {data.editorial_line}</p>}
     </div>
   );
 }
@@ -234,11 +234,11 @@ function OffersSection({ data, onUpdate, onDelete }: { data: AnalysisResult["off
               )}
               <div className="flex items-baseline justify-between mb-2 pr-14">
                 <p className="font-display text-[15px]">{o.name || "Offre"}</p>
-                {o.price && <span className="text-[13px] font-semibold text-[#fb3d80]">{o.price}</span>}
+                {o.price && <span className="text-[13px] font-semibold text-primary">{o.price}</span>}
               </div>
               {o.description && <p className="text-[13px] text-muted-foreground mb-1">{o.description}</p>}
-              {o.target && <p className="text-[12px]"><span className="font-semibold text-[#91014b]">Pour :</span> {o.target}</p>}
-              {o.promise && <p className="text-[12px]"><span className="font-semibold text-[#91014b]">Promesse :</span> {o.promise}</p>}
+              {o.target && <p className="text-[12px]"><span className="font-semibold text-bordeaux">Pour :</span> {o.target}</p>}
+              {o.promise && <p className="text-[12px]"><span className="font-semibold text-bordeaux">Promesse :</span> {o.promise}</p>}
             </>
           )}
         </div>
@@ -260,7 +260,7 @@ function CharterSection({ data }: { data: AnalysisResult["charter"] }) {
     <div className="space-y-3">
       {colors.length > 0 && (
         <div>
-          <p className="text-[12px] font-semibold text-[#91014b] mb-2">Couleurs détectées</p>
+          <p className="text-[12px] font-semibold text-bordeaux mb-2">Couleurs détectées</p>
           <div className="flex flex-wrap gap-3">
             {colors.map((c, i) => (
               <div key={i} className="flex items-center gap-2">
@@ -276,7 +276,7 @@ function CharterSection({ data }: { data: AnalysisResult["charter"] }) {
       )}
       {(data.font_title || data.font_body) && (
         <div>
-          <p className="text-[12px] font-semibold text-[#91014b] mb-1">Typographies</p>
+          <p className="text-[12px] font-semibold text-bordeaux mb-1">Typographies</p>
           <div className="flex flex-wrap gap-1.5">
             {data.font_title && <Chip>Titres : {data.font_title}</Chip>}
             {data.font_body && <Chip>Corps : {data.font_body}</Chip>}
@@ -285,7 +285,7 @@ function CharterSection({ data }: { data: AnalysisResult["charter"] }) {
       )}
       {data.mood_keywords?.length ? (
         <div>
-          <p className="text-[12px] font-semibold text-[#91014b] mb-1">Ambiance</p>
+          <p className="text-[12px] font-semibold text-bordeaux mb-1">Ambiance</p>
           <div className="flex flex-wrap gap-1.5">{data.mood_keywords.map((k, i) => <Chip key={i}>{k}</Chip>)}</div>
         </div>
       ) : null}
@@ -692,7 +692,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
               </p>
             </div>
             {!showIgBioInput ? (
-              <button onClick={() => setShowIgBioInput(true)} className="text-[13px] font-semibold text-[#fb3d80] hover:underline">
+              <button onClick={() => setShowIgBioInput(true)} className="text-[13px] font-semibold text-primary hover:underline">
                 Coller ma bio Instagram →
               </button>
             ) : (
@@ -707,7 +707,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
                   size="sm"
                   disabled={!igBio.trim()}
                   onClick={() => onReanalyzeWithBio?.(igBio.trim())}
-                  className="bg-[#fb3d80] hover:bg-[#91014b] text-white text-[13px]"
+                  className="bg-primary hover:bg-bordeaux text-white text-[13px]"
                 >
                   Réanalyser avec ma bio
                 </Button>
@@ -799,7 +799,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
                           ) : isLow ? (
                             <div className="text-center py-6">
                               <p className="text-[14px] text-muted-foreground mb-4">Je n'ai pas assez d'éléments pour cette section. On la remplit ensemble ?</p>
-                              <button onClick={() => setCoachingSection(sec.key)} className="inline-flex items-center gap-2 bg-[#fb3d80] text-white rounded-[12px] px-6 py-2.5 text-[14px] font-semibold transition-all hover:scale-[1.02] hover:shadow-lg">
+                              <button onClick={() => setCoachingSection(sec.key)} className="inline-flex items-center gap-2 bg-primary text-white rounded-[12px] px-6 py-2.5 text-[14px] font-semibold transition-all hover:scale-[1.02] hover:shadow-lg">
                                 <Sparkles className="h-4 w-4" /> On la remplit ensemble →
                               </button>
                             </div>
@@ -816,7 +816,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
                                     {isSaving ? <Spinner className="h-4 w-4 text-success" /> : <CheckCircle2 className="h-4 w-4" />}
                                     C'est bon ✓
                                   </button>
-                                  <button onClick={() => setCoachingSection(sec.key)} className={`inline-flex items-center justify-center gap-2 rounded-[12px] px-5 py-2 text-[14px] font-semibold transition-all ${conf === "low" ? "bg-[#fb3d80] text-white hover:scale-[1.02] hover:shadow-lg" : "border-[1.5px] border-[#fb3d80] text-[#fb3d80] hover:bg-[#fce4ec]"}`}>
+                                  <button onClick={() => setCoachingSection(sec.key)} className={`inline-flex items-center justify-center gap-2 rounded-[12px] px-5 py-2 text-[14px] font-semibold transition-all ${conf === "low" ? "bg-primary text-white hover:scale-[1.02] hover:shadow-lg" : "border-[1.5px] border-primary text-primary hover:bg-rose-pale"}`}>
                                     <Sparkles className="h-4 w-4" /> On affine ensemble →
                                   </button>
                                 </div>
@@ -846,12 +846,12 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
                 {allDone ? "Branding complété ! 🎉" : `${validatedCount}/7 sections validées`}
               </span>
               {allDone && (
-                <motion.button initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} onClick={onDone} className="text-[13px] font-semibold text-[#fb3d80] hover:underline">
+                <motion.button initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} onClick={onDone} className="text-[13px] font-semibold text-primary hover:underline">
                   Voir mon branding complet →
                 </motion.button>
               )}
             </div>
-            <div className="h-[6px] rounded-full bg-[#fce4ec] overflow-hidden">
+            <div className="h-[6px] rounded-full bg-rose-pale overflow-hidden">
               <motion.div className="h-full rounded-full" style={{ background: "linear-gradient(90deg, #ffa7c6, #fb3d80)" }} animate={{ width: `${(validatedCount / 7) * 100}%` }} transition={{ type: "spring", stiffness: 60, damping: 20 }} />
             </div>
           </div>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-const COLORS = ["#fb3d80", "#FFE561", "#ffa7c6", "#91014b", "#FFD6E8"];
+const COLORS = ["hsl(var(--primary))", "#FFE561", "#ffa7c6", "hsl(var(--bordeaux))", "hsl(var(--secondary))"];
 
 export default function Confetti() {
   const [pieces, setPieces] = useState<{ id: number; left: number; color: string; delay: number; size: number }[]>([]);

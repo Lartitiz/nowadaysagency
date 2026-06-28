@@ -15,7 +15,7 @@ export default function FollowersChart({ data }: FollowersChartProps) {
         <XAxis dataKey="month" fontSize={11} stroke="hsl(var(--muted-foreground))" />
         <YAxis fontSize={11} stroke="hsl(var(--muted-foreground))" />
         <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))" }} />
-        <Line type="monotone" dataKey="followers" stroke="#fb3d80" name="Abonné·es" strokeWidth={2.5} dot={{ r: 4 }} />
+        <Line type="monotone" dataKey="followers" stroke="hsl(var(--primary))" name="Abonné·es" strokeWidth={2.5} dot={{ r: 4 }} />
       </LineChart>
     </ResponsiveContainer>
   );

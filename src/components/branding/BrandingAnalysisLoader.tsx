@@ -72,7 +72,7 @@ export default function BrandingAnalysisLoader({
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <button
               onClick={onRetry}
-              className="bg-[#fb3d80] hover:bg-[#91014b] text-white rounded-[12px] px-8 py-3 text-[15px] font-semibold transition-all duration-200 hover:scale-[1.02]"
+              className="bg-primary hover:bg-bordeaux text-white rounded-[12px] px-8 py-3 text-[15px] font-semibold transition-all duration-200 hover:scale-[1.02]"
             >
               Réessayer
             </button>
@@ -105,7 +105,7 @@ export default function BrandingAnalysisLoader({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.3 }}
-              className="font-mono-ui text-[16px] text-[#91014b]"
+              className="font-mono-ui text-[16px] text-bordeaux"
             >
               {messages[messageIndex]}
             </motion.p>
@@ -114,7 +114,7 @@ export default function BrandingAnalysisLoader({
 
         {/* Progress bar */}
         <div className="w-full max-w-[320px] mx-auto mb-6">
-          <div className="h-[8px] rounded-full bg-[#fce4ec] overflow-hidden">
+          <div className="h-[8px] rounded-full bg-rose-pale overflow-hidden">
             <motion.div
               className="h-full rounded-full"
               style={{

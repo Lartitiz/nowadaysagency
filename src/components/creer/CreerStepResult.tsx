@@ -543,7 +543,7 @@ export default function CreerStepResult({
         <Button
           onClick={onOpenInCanva}
           disabled={openingCanva}
-          className="w-full gap-2 h-12 text-base font-semibold bg-[#FB3D80] hover:bg-[#e0326f] text-white border-none"
+          className="w-full gap-2 h-12 text-base font-semibold bg-primary hover:bg-primary text-white border-none"
         >
           {openingCanva ? (
             <Loader2 className="h-5 w-5 animate-spin" />
