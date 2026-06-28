@@ -217,7 +217,7 @@ CHARTE : primary ${ch.color_primary}, secondary ${ch.color_secondary}, accent ${
         }]
       : [{ role: "user", content: userPrompt }];
 
-    const model = "claude-opus-4-6" as any;
+    const model = "claude-opus-4-8" as any;
 
     const rawResponse = await callAnthropic({
       model,
