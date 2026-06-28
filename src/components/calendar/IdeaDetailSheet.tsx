@@ -328,7 +328,7 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
             value={contentDraft}
             onChange={(e) => setContentDraft(e.target.value)}
             placeholder="Le contenu généré apparaîtra ici..."
-            className="rounded-[10px] min-h-[120px] text-sm"
+            className="rounded-[10px] min-h-[120px] max-h-[260px] overflow-y-auto text-sm"
           />
         </div>
       )}
