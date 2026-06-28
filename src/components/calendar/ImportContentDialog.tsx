@@ -23,6 +23,8 @@ interface Props {
   /** Date pré-sélectionnée (depuis le menu "+" d'un jour) ; sinon aujourd'hui. */
   selectedDate: string | null;
   defaultCanal: string;
+  /** Fichiers déposés sur une case du calendrier — traités automatiquement à l'ouverture. */
+  initialFiles?: File[] | null;
   /** Rafraîchir le calendrier après ajout. */
   onSaved: () => void;
 }
@@ -36,7 +38,7 @@ function deriveTheme(text: string): string {
   return firstLine.slice(0, 80) || "Contenu importé";
 }
 
-export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultCanal, onSaved }: Props) {
+export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultCanal, initialFiles, onSaved }: Props) {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
   const { toast } = useToast();
@@ -72,16 +74,16 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
   const igValidImages = useMemo(() => mediaUrls.filter(isPublicImageUrl), [mediaUrls]);
   const text = contentText.trim();
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
+  /** Traite des fichiers (images + PDF) : expansion PDF → upload calendar-media. */
+  const processFiles = async (rawFiles: File[], baseCount: number) => {
+    if (rawFiles.length === 0) return;
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) return;
     setUploading(true);
     try {
       // 1) Étendre : un PDF est rendu en une image JPEG par page (côté navigateur).
       const imageFiles: File[] = [];
-      for (const file of Array.from(files)) {
+      for (const file of rawFiles) {
         if (isPdfFile(file)) {
           setUploadLabel("Conversion du PDF…");
           const { files: pages, totalPages } = await pdfToImageFiles(file, { maxPages: MAX_IMAGES });
@@ -99,7 +101,7 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
       }
 
       // 2) Plafonner à 10 visuels au total (limite carrousel Instagram).
-      const remaining = Math.max(0, MAX_IMAGES - mediaUrls.length);
+      const remaining = Math.max(0, MAX_IMAGES - baseCount);
       const toUpload = imageFiles.slice(0, remaining);
       if (imageFiles.length > remaining) {
         toast({ title: "Maximum 10 visuels", description: "Les visuels en trop n'ont pas été ajoutés." });
@@ -121,9 +123,23 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
     } finally {
       setUploading(false);
       setUploadLabel("Ajouter des visuels ou un PDF");
-      e.target.value = "";
     }
   };
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    await processFiles(Array.from(files), mediaUrls.length);
+    e.target.value = "";
+  };
+
+  // Fichiers déposés sur une case du calendrier : traités dès l'ouverture.
+  useEffect(() => {
+    if (open && initialFiles && initialFiles.length > 0) {
+      void processFiles(initialFiles, 0);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialFiles]);
 
   // ── Validation ──
   const validationError = (() => {
