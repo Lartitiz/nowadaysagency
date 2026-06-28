@@ -284,7 +284,7 @@ Précisions sur charter :
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 8192,
         system: systemPrompt,
         messages: [{ role: "user", content: userPrompt }],

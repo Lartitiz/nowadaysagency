@@ -910,7 +910,7 @@ Privilégie les sources françaises et européennes quand elles existent.`,
       }
 
       // Log deep research usage
-      await logUsage(userId, "deep_research", "web_search", undefined, "claude-sonnet-4-5-20250929", workspace_id);
+      await logUsage(userId, "deep_research", "web_search", undefined, "claude-sonnet-4-6", workspace_id);
     }
 
     // ── Streaming SSE (generate step) ──

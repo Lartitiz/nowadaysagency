@@ -13,10 +13,10 @@ export function sanitizeDashes(text: string): string {
     .replace(/,\s*,/g, ",");    // évite ",," si deux tirets se suivaient
 }
 
-export type AnthropicModel = "claude-opus-4-6" | "claude-sonnet-4-5-20250929" | "claude-haiku-4-5";
+export type AnthropicModel = "claude-opus-4-6" | "claude-sonnet-4-6" | "claude-haiku-4-5";
 
 export function getDefaultModel(): AnthropicModel {
-  return (Deno.env.get("AI_MODEL_DEFAULT") as AnthropicModel) || "claude-sonnet-4-5-20250929";
+  return (Deno.env.get("AI_MODEL_DEFAULT") as AnthropicModel) || "claude-sonnet-4-6";
 }
 
 export interface AnthropicMessage {
@@ -35,37 +35,37 @@ export interface AnthropicOptions {
 // Modèle par type d'action — Sonnet pour le contenu courant, Opus pour les tâches complexes
 const MODEL_MAP: Record<string, AnthropicModel> = {
   // Opus : tâches complexes qui nécessitent un raisonnement profond
-  "audit": "claude-sonnet-4-5-20250929",
+  "audit": "claude-sonnet-4-6",
   "coaching": "claude-opus-4-6",
-  "coaching_light": "claude-sonnet-4-5-20250929",
+  "coaching_light": "claude-sonnet-4-6",
   "strategy": "claude-opus-4-6",
   "branding_audit": "claude-opus-4-6",
   "assistant_chat": "claude-opus-4-6",
 
   // Sonnet : contenu courant, génération rapide
-  "content": "claude-sonnet-4-5-20250929",
-  "bio": "claude-sonnet-4-5-20250929",
-  "caption": "claude-sonnet-4-5-20250929",
-  "carousel": "claude-sonnet-4-5-20250929",
-  "reels": "claude-sonnet-4-5-20250929",
-  "stories": "claude-sonnet-4-5-20250929",
-  "dm_comment": "claude-sonnet-4-5-20250929",
-  "highlights": "claude-sonnet-4-5-20250929",
-  "linkedin_post": "claude-sonnet-4-5-20250929",
-  "pinterest": "claude-sonnet-4-5-20250929",
-  "website": "claude-sonnet-4-5-20250929",
-  "suggestion": "claude-sonnet-4-5-20250929",
-  "adaptation": "claude-sonnet-4-5-20250929",
-  "text_action": "claude-sonnet-4-5-20250929",
-  "niche": "claude-sonnet-4-5-20250929",
-  "persona": "claude-sonnet-4-5-20250929",
-  "proposition": "claude-sonnet-4-5-20250929",
-  "import": "claude-sonnet-4-5-20250929",
-  "storytelling": "claude-sonnet-4-5-20250929",
-  "launch": "claude-sonnet-4-5-20250929",
-  "offer": "claude-sonnet-4-5-20250929",
-  "scoring": "claude-sonnet-4-5-20250929",
-  "voice": "claude-sonnet-4-5-20250929",
+  "content": "claude-sonnet-4-6",
+  "bio": "claude-sonnet-4-6",
+  "caption": "claude-sonnet-4-6",
+  "carousel": "claude-sonnet-4-6",
+  "reels": "claude-sonnet-4-6",
+  "stories": "claude-sonnet-4-6",
+  "dm_comment": "claude-sonnet-4-6",
+  "highlights": "claude-sonnet-4-6",
+  "linkedin_post": "claude-sonnet-4-6",
+  "pinterest": "claude-sonnet-4-6",
+  "website": "claude-sonnet-4-6",
+  "suggestion": "claude-sonnet-4-6",
+  "adaptation": "claude-sonnet-4-6",
+  "text_action": "claude-sonnet-4-6",
+  "niche": "claude-sonnet-4-6",
+  "persona": "claude-sonnet-4-6",
+  "proposition": "claude-sonnet-4-6",
+  "import": "claude-sonnet-4-6",
+  "storytelling": "claude-sonnet-4-6",
+  "launch": "claude-sonnet-4-6",
+  "offer": "claude-sonnet-4-6",
+  "scoring": "claude-sonnet-4-6",
+  "voice": "claude-sonnet-4-6",
 
   // Haiku : tâches courtes et structurées (génération de questions, classification)
   // Override possible via env AI_MODEL_QUESTIONS pour revenir à Sonnet en cas de souci.
@@ -184,7 +184,7 @@ export async function callAnthropicWithMeta(options: AnthropicOptions): Promise<
     // Fallback Opus → Sonnet
     if ((response.status === 529 || response.status === 500) && options.model === "claude-opus-4-6") {
       console.log("Opus overloaded after retries (meta) — falling back to Sonnet...");
-      const fallbackBody = { ...body, model: "claude-sonnet-4-5-20250929" };
+      const fallbackBody = { ...body, model: "claude-sonnet-4-6" };
       const fallbackRes = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
@@ -307,7 +307,7 @@ export async function callAnthropic(options: AnthropicOptions): Promise<string> 
     // Fallback: if Opus is overloaded (500/529) after all retries, try Sonnet
     if ((response.status === 529 || response.status === 500) && options.model === "claude-opus-4-6") {
       console.log("Opus overloaded after retries — falling back to Sonnet...");
-      const fallbackBody = { ...body, model: "claude-sonnet-4-5-20250929" };
+      const fallbackBody = { ...body, model: "claude-sonnet-4-6" };
       const fallbackRes = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
