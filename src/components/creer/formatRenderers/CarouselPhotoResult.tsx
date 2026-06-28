@@ -471,11 +471,13 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
       : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
 
   // ─── Couleurs du carrousel : surcharge optionnelle de la charte ───
-  // Défaut = couleurs de la charte (ou, à défaut, les couleurs par défaut du moteur visuel).
+  // Défaut = couleurs de la charte (ou, à défaut, la palette NEUTRE & éditoriale
+  // du moteur visuel — volontairement appropriable, pas aux couleurs de Nowadays).
+  // Doit rester synchronisé avec carousel-visual/index.ts.
   const DEFAULT_COLORS: CarouselColors = charterColors || {
-    primary: "#FB3D80",
-    secondary: "#91014b",
-    accent: "#FFE561",
+    primary: "#1C1C20",
+    secondary: "#6E6A66",
+    accent: "#C9BFB2",
   };
   const effectiveColors: CarouselColors = {
     primary: colors?.primary ?? DEFAULT_COLORS.primary,
