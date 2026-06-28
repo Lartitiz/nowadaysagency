@@ -94,9 +94,36 @@ export function getModelForRichContent(
 const MAX_RETRIES = 2;
 const RETRY_DELAYS = [3000, 6000]; // ms
 
+/**
+ * Tokens réellement consommés par un appel Anthropic (remontés par l'API dans
+ * `usage`). `model` reflète le modèle EFFECTIVEMENT utilisé (donc Sonnet en cas
+ * de fallback Opus→Sonnet), pour que le calcul de coût admin pondère juste.
+ */
+export interface AnthropicUsage {
+  input_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+  model: string;
+}
+
+/**
+ * Réceptacle optionnel passé par l'appelant : le wrapper le remplit avec le
+ * usage réel. On le mute (plutôt que de changer le type de retour) pour ne pas
+ * casser les ~50 appelants existants de callAnthropic/callAnthropicSimple.
+ */
+export type UsageSink = Partial<AnthropicUsage>;
+
+/** Extrait input/output tokens d'une réponse API Anthropic non-stream. */
+export function extractUsage(data: any, model: string): AnthropicUsage {
+  const input = data?.usage?.input_tokens ?? 0;
+  const output = data?.usage?.output_tokens ?? 0;
+  return { input_tokens: input, output_tokens: output, total_tokens: input + output, model };
+}
+
 export interface AnthropicResult {
   text: string;
   stop_reason: string | null;
+  usage?: AnthropicUsage;
 }
 
 export async function callAnthropicWithMeta(options: AnthropicOptions): Promise<AnthropicResult> {
@@ -155,6 +182,7 @@ export async function callAnthropicWithMeta(options: AnthropicOptions): Promise<
       return {
         text: sanitizeDashes(data.content?.[0]?.text || ""),
         stop_reason: data.stop_reason || null,
+        usage: extractUsage(data, options.model),
       };
     }
 
@@ -200,6 +228,7 @@ export async function callAnthropicWithMeta(options: AnthropicOptions): Promise<
         return {
           text: sanitizeDashes(data.content?.[0]?.text || ""),
           stop_reason: data.stop_reason || null,
+          usage: extractUsage(data, "claude-sonnet-4-6"),
         };
       }
       await fallbackRes.text();
@@ -251,7 +280,7 @@ function extractValidatedText(data: any): string {
   return text;
 }
 
-export async function callAnthropic(options: AnthropicOptions): Promise<string> {
+export async function callAnthropic(options: AnthropicOptions, usageOut?: UsageSink): Promise<string> {
   const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not configured");
 
@@ -306,6 +335,7 @@ export async function callAnthropic(options: AnthropicOptions): Promise<string> 
 
     if (response.ok) {
       const data = await response.json();
+      if (usageOut) Object.assign(usageOut, extractUsage(data, options.model));
       return extractValidatedText(data);
     }
 
@@ -348,6 +378,7 @@ export async function callAnthropic(options: AnthropicOptions): Promise<string> 
       });
       if (fallbackRes.ok) {
         const data = await fallbackRes.json();
+        if (usageOut) Object.assign(usageOut, extractUsage(data, "claude-sonnet-4-6"));
         return extractValidatedText(data);
       }
       await fallbackRes.text(); // consume body
@@ -385,7 +416,8 @@ export async function callAnthropicSimple(
   systemPrompt: string,
   userPrompt: string,
   temperature = 0.8,
-  max_tokens = 4096
+  max_tokens = 4096,
+  usageOut?: UsageSink
 ): Promise<string> {
   return callAnthropic({
     model,
@@ -393,5 +425,5 @@ export async function callAnthropicSimple(
     messages: [{ role: "user", content: userPrompt }],
     temperature,
     max_tokens,
-  });
+  }, usageOut);
 }
