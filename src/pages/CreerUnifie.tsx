@@ -48,6 +48,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 // DEMO_DATA n'est plus importé directement — on utilise demoData du context
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useOpenInCanva } from "@/hooks/use-open-in-canva";
 import { publishImageToInstagram, publishRenderedCarouselToInstagram } from "@/lib/instagram-publish";
 import { publishTextToLinkedIn, isLinkedInNotConnectedError } from "@/lib/linkedin-publish";
 import { useBrandCharter } from "@/hooks/use-branding";
@@ -2847,31 +2848,17 @@ export default function CreerUnifie() {
     }
   };
 
-  // Pont Canva : exporte le carrousel en PPTX hybride, le dépose dans un bucket
-  // public, puis l'importe dans le Canva connecté et ouvre l'URL d'édition.
-  const [openingCanva, setOpeningCanva] = useState(false);
-  const handleOpenInCanva = async () => {
-    if (visualSlides.length === 0 || openingCanva) return;
-    // On ouvre l'onglet TOUT DE SUITE (dans le contexte du clic) avec un placeholder,
-    // sinon le window.open() après l'import (plusieurs secondes) est bloqué par le
-    // bloqueur de pop-up. On y affiche un message d'attente (au lieu d'un about:blank
-    // déroutant) puis on bascule sur l'URL Canva une fois l'import terminé.
-    const canvaTab = window.open("", "_blank");
-    if (canvaTab) {
-      try {
-        canvaTab.document.write(
-          `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>Préparation… · Canva</title></head><body style="margin:0;font-family:system-ui,-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#FFF4F8;color:#1A1A2E"><div style="text-align:center;padding:24px;max-width:420px"><div style="font-size:40px;margin-bottom:12px">🎨</div><div style="font-size:18px;font-weight:600">Préparation de ton carrousel dans Canva…</div><div style="margin-top:10px;color:#6b6b80;line-height:1.5">Ça peut prendre une à deux minutes (Canva traite ton fichier).<br>Ne ferme pas cet onglet : ton carrousel va apparaître ici tout seul.</div></div></body></html>`,
-        );
-        canvaTab.document.close();
-      } catch { /* noop */ }
-    }
-    setOpeningCanva(true);
-    try {
-      toast.info("Préparation du carrousel pour Canva…");
+  // Pont Canva : exporte le carrousel en PPTX hybride, le dépose côté serveur
+  // (edge `social-canva-import`), l'importe dans le Canva connecté et ouvre
+  // l'URL d'édition. Logique partagée avec le calendrier via `useOpenInCanva`.
+  const { openInCanva, openingCanva } = useOpenInCanva();
+  const handleOpenInCanva = () => {
+    if (visualSlides.length === 0) return;
+    return openInCanva(async () => {
       const { exportCarouselHybridPptx } = await import("@/lib/export-carousel-hybrid-pptx");
       const { getIncludeLogoPref } = await import("@/lib/export-logo");
       const logoUrl = getIncludeLogoPref() ? (charterData as any)?.logo_url : null;
-      const blob = (await exportCarouselHybridPptx(
+      return (await exportCarouselHybridPptx(
         visualSlides,
         result?.raw?.slides || null,
         charterData || null,
@@ -2880,60 +2867,7 @@ export default function CreerUnifie() {
         logoUrl,
         { returnBlob: true },
       )) as Blob;
-
-      // On envoie le PPTX en base64 à l'edge, qui le dépose côté serveur
-      // (service-role : pas de souci de RLS/bucket côté client) puis l'importe.
-      const fileBase64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result).split(",")[1] || "");
-        reader.onerror = () => reject(reader.error);
-        reader.readAsDataURL(blob);
-      });
-
-      toast.info("Import dans Canva en cours…");
-      const { data, error } = await invokeWithTimeout(
-        "social-canva-import",
-        {
-          body: {
-            file_base64: fileBase64,
-            title: ideaText || "Carrousel Nowadays",
-            workspace_id: workspaceId !== session.user.id ? workspaceId : undefined,
-          },
-        },
-        120000,
-      );
-      if (error) throw error;
-      if ((data as any)?.error === "not_connected") {
-        if (canvaTab && !canvaTab.closed) canvaTab.close();
-        toast.error("Connecte d'abord ton compte Canva dans Paramètres → Réseaux sociaux.");
-        return;
-      }
-      if ((data as any)?.error) throw new Error((data as any).error);
-      const editUrl = (data as any)?.editUrl;
-      if (!editUrl) throw new Error("URL d'édition Canva manquante.");
-      // Best-effort : si l'onglet pré-ouvert est encore vivant, on le navigue vers Canva
-      // (ouverture automatique). MAIS c'est PEU FIABLE sur un import long : pendant les
-      // ~1-2 min d'import, l'onglet « Préparation… » reste en arrière-plan et Chrome le
-      // throttle / le « discarde » → le `location.href` ne prend pas et l'onglet reste
-      // FIGÉ sur « Préparation… » alors que le carrousel est prêt.
-      if (canvaTab && !canvaTab.closed) {
-        try { canvaTab.location.href = editUrl; } catch { /* onglet discardé : on s'appuie sur le bouton ci-dessous */ }
-      }
-      // Donc on propose TOUJOURS un bouton « Ouvrir » fiable (le clic = geste utilisateur →
-      // window.open n'est jamais bloqué, contrairement à la nav d'un onglet d'arrière-plan).
-      // Ainsi, même si l'onglet auto reste figé, l'utilisatrice accède au carrousel SANS
-      // avoir à fermer l'onglet bloqué. Persistance longue pour qu'elle le voie au retour.
-      toast.success("Ton carrousel est prêt dans Canva 🎨", {
-        description: "L'onglet Canva devrait s'ouvrir tout seul. S'il reste sur « Préparation… », clique ici :",
-        action: { label: "Ouvrir dans Canva", onClick: () => window.open(editUrl, "_blank", "noopener") },
-        duration: 60000,
-      });
-    } catch (e: any) {
-      if (canvaTab && !canvaTab.closed) canvaTab.close();
-      toast.error(e?.message || "Impossible d'ouvrir dans Canva.");
-    } finally {
-      setOpeningCanva(false);
-    }
+    }, ideaText || "Carrousel Nowadays");
   };
 
   const handleExportPinterestPng = async () => {

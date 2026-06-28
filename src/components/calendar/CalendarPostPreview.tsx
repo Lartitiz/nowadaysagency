@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Download, Loader2, Sparkles, ChevronDown, ChevronLeft, ChevronRight, Copy, Maximize2 } from "lucide-react";
+import { Download, Loader2, Sparkles, ChevronDown, ChevronLeft, ChevronRight, Copy, Maximize2, ExternalLink } from "lucide-react";
 import { useState, useCallback, useEffect } from "react";
 import { exportCarouselPng } from "@/lib/export-carousel-png";
 import { exportCarouselHybridPptx } from "@/lib/export-carousel-hybrid-pptx";
@@ -10,6 +10,7 @@ import { DownloadMenuItems } from "@/components/exports/DownloadMenuItems";
 import { useToast } from "@/hooks/use-toast";
 import { useBrandCharter } from "@/hooks/use-branding";
 import { getIncludeLogoPref, setIncludeLogoPref } from "@/lib/export-logo";
+import { useOpenInCanva } from "@/hooks/use-open-in-canva";
 
 interface Props {
   canal: string;
@@ -42,6 +43,7 @@ export function CalendarPostPreview({
     : (photoUrls && photoUrls.length > 0 ? photoUrls : undefined);
   const { toast } = useToast();
   const { data: charterData } = useBrandCharter();
+  const { openInCanva, openingCanva } = useOpenInCanva();
   const [downloadingPng, setDownloadingPng] = useState(false);
   const [downloadingHybrid, setDownloadingHybrid] = useState(false);
   const [slideIndex, setSlideIndex] = useState(0);
@@ -134,6 +136,23 @@ export function CalendarPostPreview({
     }
   }, [visualHtml, slidesData, charterData, downloadingHybrid, theme, toast, includeLogo, logoUrl]);
 
+  // ── Pont Canva : même PPTX hybride que le téléchargement, importé dans Canva ──
+  const handleOpenInCanva = useCallback(() => {
+    if (!visualHtml || visualHtml.length === 0) return;
+    return openInCanva(async () => {
+      const fileName = sanitize(`editable-${theme || "carrousel"}`);
+      return (await exportCarouselHybridPptx(
+        visualHtml,
+        slidesData || null,
+        charterData || null,
+        fileName,
+        undefined,
+        includeLogo ? logoUrl : null,
+        { returnBlob: true },
+      )) as Blob;
+    }, theme || "Carrousel Nowadays");
+  }, [visualHtml, slidesData, charterData, theme, includeLogo, logoUrl, openInCanva]);
+
   const handleCopyCaption = useCallback(() => {
     if (!caption) return;
     navigator.clipboard.writeText(caption);
@@ -157,6 +176,22 @@ export function CalendarPostPreview({
           {caption && (
             <Button variant="ghost" size="icon" onClick={handleCopyCaption} className="h-7 w-7" title="Copier la légende" aria-label="Copier la légende">
               <Copy className="h-3.5 w-3.5" />
+            </Button>
+          )}
+          {visualHtml && visualHtml.length > 0 && (
+            <Button
+              size="sm"
+              onClick={handleOpenInCanva}
+              disabled={openingCanva}
+              className="gap-1.5 h-7 text-xs text-white border-0 hover:opacity-90"
+              style={{ backgroundColor: "#FB3D80" }}
+              title="Ouvrir ce carrousel dans Canva pour le retoucher"
+              aria-label="Ouvrir dans Canva"
+            >
+              {openingCanva
+                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                : <ExternalLink className="h-3.5 w-3.5" />}
+              Canva
             </Button>
           )}
           {hasVisuals && (
