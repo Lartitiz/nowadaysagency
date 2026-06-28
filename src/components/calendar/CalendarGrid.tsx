@@ -20,7 +20,7 @@ interface Props {
   onEditPost: (post: CalendarPost) => void;
   onMovePost?: (postId: string, newDate: string) => void;
   onAddIdea?: (dateStr: string) => void;
-  onImport?: (dateStr: string) => void;
+  onImport?: (dateStr: string, files?: File[]) => void;
   seriesNameById?: Record<string, string>;
 }
 
@@ -49,23 +49,35 @@ function DroppableDay({
   dateStr: string; dayNum: number; inMonth: boolean; isToday: boolean;
   posts: CalendarPost[]; onCreatePost: (dateStr: string) => void; onEditPost: (p: CalendarPost) => void;
   onAddIdea: (dateStr: string) => void;
-  onImport?: (dateStr: string) => void;
+  onImport?: (dateStr: string, files?: File[]) => void;
   seriesNameById?: Record<string, string>;
 }) {
   const isPast = new Date(dateStr + "T00:00:00") < new Date(toLocalDateStr(new Date()) + "T00:00:00");
   const { setNodeRef, isOver } = useDroppable({ id: dateStr });
   const maxVisible = 3;
   const [expanded, setExpanded] = useState(false);
+  const [fileOver, setFileOver] = useState(false);
+
+  // Drop natif d'un fichier (image/PDF) depuis le bureau → ouvre l'import pré-rempli.
+  const fileDnd = onImport ? {
+    onDragOver: (e: React.DragEvent) => { if (Array.from(e.dataTransfer.types).includes("Files")) { e.preventDefault(); setFileOver(true); } },
+    onDragLeave: () => setFileOver(false),
+    onDrop: (e: React.DragEvent) => {
+      if (e.dataTransfer.files?.length) { e.preventDefault(); setFileOver(false); onImport(dateStr, Array.from(e.dataTransfer.files)); }
+    },
+  } : {};
 
   return (
     <div
       ref={setNodeRef}
+      {...fileDnd}
       className={cn(
         "min-h-[110px] border-b border-r border-border p-1.5 group relative transition-colors",
         !expanded && "max-h-[150px] overflow-hidden",
         !inMonth && "opacity-40",
         isToday && "bg-rose-pale",
         isOver && "bg-primary/10 ring-2 ring-primary/30 ring-inset",
+        fileOver && "bg-primary/10 ring-2 ring-primary/50 ring-inset",
       )}
     >
       <div className="flex items-center justify-between mb-1">

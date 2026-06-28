@@ -230,6 +230,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   const [quickBatchOpen, setQuickBatchOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [importDate, setImportDate] = useState<string | null>(null);
+  const [importFiles, setImportFiles] = useState<File[] | null>(null);
 
   const { data: profileData } = useProfile();
   const ownerName = (profileData as any)?.prenom || "";
@@ -443,9 +444,10 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     return weekDays.flatMap(d => postsByDate[toLocalDateStr(d)] || []);
   }, [weekDays, postsByDate]);
 
-  /** Open the import dialog (contenu déjà prêt). Optional date from a day's "+" menu. */
-  const openImportDialog = (dateStr?: string) => {
+  /** Open the import dialog (contenu déjà prêt). Optional date (day "+" menu) + files (drop on a cell). */
+  const openImportDialog = (dateStr?: string, files?: File[]) => {
     setImportDate(dateStr || null);
+    setImportFiles(files && files.length > 0 ? files : null);
     setImportOpen(true);
   };
 
@@ -1099,9 +1101,10 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
 
       <ImportContentDialog
         open={importOpen}
-        onOpenChange={setImportOpen}
+        onOpenChange={(open) => { setImportOpen(open); if (!open) setImportFiles(null); }}
         selectedDate={importDate}
         defaultCanal={canalFilter !== "all" ? canalFilter : "instagram"}
+        initialFiles={importFiles}
         onSaved={fetchPosts}
       />
     </>

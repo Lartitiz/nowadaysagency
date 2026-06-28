@@ -20,7 +20,7 @@ interface Props {
   onEditPost: (post: CalendarPost) => void;
   onMovePost?: (postId: string, newDate: string) => void;
   onAddIdea?: (dateStr: string) => void;
-  onImport?: (dateStr: string) => void;
+  onImport?: (dateStr: string, files?: File[]) => void;
   onQuickCreate: (dateStr: string, title: string) => void;
   onQuickStatusChange?: (postId: string, newStatus: string) => void;
   onQuickDuplicate?: (post: CalendarPost) => void;
@@ -77,7 +77,7 @@ function DroppableWeekDay({
 }: {
   date: Date; dateStr: string; isToday: boolean;
   posts: CalendarPost[]; onCreatePost: (dateStr: string) => void; onEditPost: (p: CalendarPost) => void;
-  onAddIdea: (dateStr: string) => void; onImport?: (dateStr: string) => void; onQuickCreate: (dateStr: string, title: string) => void;
+  onAddIdea: (dateStr: string) => void; onImport?: (dateStr: string, files?: File[]) => void; onQuickCreate: (dateStr: string, title: string) => void;
   onQuickStatusChange?: (postId: string, newStatus: string) => void;
   onQuickDuplicate?: (post: CalendarPost) => void;
   onQuickDelete?: (postId: string) => void;
@@ -90,10 +90,20 @@ function DroppableWeekDay({
 }) {
   const [inlineInput, setInlineInput] = useState(false);
   const [inlineValue, setInlineValue] = useState("");
+  const [fileOver, setFileOver] = useState(false);
   const { setNodeRef, isOver } = useDroppable({ id: dateStr });
 
   const dayName = date.toLocaleDateString("fr-FR", { weekday: "short" });
   const dayNum = date.getDate();
+
+  // Drop natif d'un fichier (image/PDF) depuis le bureau → ouvre l'import pré-rempli.
+  const fileDnd = onImport ? {
+    onDragOver: (e: React.DragEvent) => { if (Array.from(e.dataTransfer.types).includes("Files")) { e.preventDefault(); setFileOver(true); } },
+    onDragLeave: () => setFileOver(false),
+    onDrop: (e: React.DragEvent) => {
+      if (e.dataTransfer.files?.length) { e.preventDefault(); setFileOver(false); onImport(dateStr, Array.from(e.dataTransfer.files)); }
+    },
+  } : {};
 
   return (
     <div
@@ -101,10 +111,12 @@ function DroppableWeekDay({
         setNodeRef(node);
         if (isToday && todayRef) (todayRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
       }}
+      {...fileDnd}
       className={cn(
         "flex-1 min-w-0 border-r last:border-r-0 border-border p-2 group relative transition-colors",
         isToday && "bg-primary/5 ring-2 ring-primary/20 ring-inset",
         isOver && "bg-primary/10 ring-2 ring-primary/30 ring-inset",
+        fileOver && "bg-primary/10 ring-2 ring-primary/50 ring-inset",
       )}
       style={{ minHeight: 140 }}
     >
@@ -232,7 +244,7 @@ function DroppableWeekDay({
 function MobileWeekDay({ date, dateStr, isToday, posts, onCreatePost, onEditPost, onMove, onAddIdea, onImport, seriesNameById }: {
   date: Date; dateStr: string; isToday: boolean;
   posts: CalendarPost[]; onCreatePost: (dateStr: string) => void; onEditPost: (p: CalendarPost) => void;
-  onMove: (post: CalendarPost) => void; onAddIdea: (dateStr: string) => void; onImport?: (dateStr: string) => void;
+  onMove: (post: CalendarPost) => void; onAddIdea: (dateStr: string) => void; onImport?: (dateStr: string, files?: File[]) => void;
   seriesNameById?: Record<string, string>;
 }) {
   const dayLabel = date.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric" });
