@@ -663,7 +663,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       )}
 
       {editingPost && (
-        <Button variant="outline" size="icon" onClick={() => { if (window.confirm("Supprimer ce post du calendrier ? Cette action est irréversible.")) onDelete(); }} className="rounded-full text-destructive hover:bg-destructive/10">
+        <Button variant="outline" size="icon" onClick={() => { if (window.confirm("Supprimer ce post du calendrier ? Cette action est irréversible.")) onDelete(); }} className="rounded-full text-destructive hover:bg-destructive/10" aria-label="Supprimer ce post">
           <Trash2 className="h-4 w-4" />
         </Button>
       )}

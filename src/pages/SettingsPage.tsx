@@ -295,12 +295,12 @@ export default function SettingsPage() {
         <Section icon={<KeyRound className="h-4 w-4" />} title="Changer de mot de passe">
           <div className="space-y-3">
             <div>
-              <label className="text-sm font-medium mb-1.5 block">Nouveau mot de passe</label>
-              <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="6 caractères minimum" className="rounded-[10px] h-11" />
+              <label htmlFor="settings-new-password" className="text-sm font-medium mb-1.5 block">Nouveau mot de passe</label>
+              <Input id="settings-new-password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="6 caractères minimum" className="rounded-[10px] h-11" />
             </div>
             <div>
-              <label className="text-sm font-medium mb-1.5 block">Confirmer</label>
-              <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Répète ton nouveau mot de passe" className="rounded-[10px] h-11" />
+              <label htmlFor="settings-confirm-password" className="text-sm font-medium mb-1.5 block">Confirmer</label>
+              <Input id="settings-confirm-password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Répète ton nouveau mot de passe" className="rounded-[10px] h-11" />
             </div>
             <Button onClick={handleChangePassword} disabled={changingPassword || !newPassword} className="rounded-full bg-primary text-primary-foreground hover:bg-bordeaux">
               {changingPassword ? "Modification..." : "Mettre à jour"}

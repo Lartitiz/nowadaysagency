@@ -155,7 +155,7 @@ export function CalendarPostPreview({
         </div>
         <div className="flex items-center gap-1">
           {caption && (
-            <Button variant="ghost" size="icon" onClick={handleCopyCaption} className="h-7 w-7" title="Copier la légende">
+            <Button variant="ghost" size="icon" onClick={handleCopyCaption} className="h-7 w-7" title="Copier la légende" aria-label="Copier la légende">
               <Copy className="h-3.5 w-3.5" />
             </Button>
           )}
@@ -202,7 +202,7 @@ export function CalendarPostPreview({
             </DropdownMenu>
           )}
           {onFullscreen && (
-            <Button variant="ghost" size="icon" onClick={onFullscreen} className="h-7 w-7" title="Plein écran">
+            <Button variant="ghost" size="icon" onClick={onFullscreen} className="h-7 w-7" title="Plein écran" aria-label="Plein écran">
               <Maximize2 className="h-3.5 w-3.5" />
             </Button>
           )}

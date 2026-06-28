@@ -849,7 +849,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       {/* View toggle + Navigation */}
       <div className="flex items-center justify-between mb-4">
         {viewMode !== "kanban" && viewMode !== "list" ? (
-          <Button variant="outline" size="icon" onClick={viewMode === "month" ? prevMonth : prevWeek} className="rounded-full">
+          <Button variant="outline" size="icon" onClick={viewMode === "month" ? prevMonth : prevWeek} className="rounded-full" aria-label={viewMode === "month" ? "Mois précédent" : "Semaine précédente"}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
         ) : <div />}
@@ -905,7 +905,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
           )}
         </div>
         {viewMode !== "kanban" && viewMode !== "list" ? (
-          <Button variant="outline" size="icon" onClick={viewMode === "month" ? nextMonth : nextWeek} className="rounded-full">
+          <Button variant="outline" size="icon" onClick={viewMode === "month" ? nextMonth : nextWeek} className="rounded-full" aria-label={viewMode === "month" ? "Mois suivant" : "Semaine suivante"}>
             <ChevronRight className="h-4 w-4" />
           </Button>
         ) : <div />}

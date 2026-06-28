@@ -443,7 +443,7 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
                             <Button variant="outline" size="sm" className="h-8 text-xs rounded-full" onClick={() => setConfirmDeleteId(null)}>Annuler</Button>
                           </div>
                         ) : (
-                          <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive" onClick={() => setConfirmDeleteId(share.id)}>
+                          <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive" onClick={() => setConfirmDeleteId(share.id)} aria-label="Supprimer ce partage">
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         )}

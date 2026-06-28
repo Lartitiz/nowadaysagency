@@ -230,18 +230,18 @@ export default function CoachPlanManager({
                   </div>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleReorder(idx, -1)} disabled={idx === 0}>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleReorder(idx, -1)} disabled={idx === 0} aria-label="Monter">
                     <ArrowUp className="h-3.5 w-3.5" />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleReorder(idx, 1)} disabled={idx === exercises.length - 1}>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleReorder(idx, 1)} disabled={idx === exercises.length - 1} aria-label="Descendre">
                     <ArrowDown className="h-3.5 w-3.5" />
                   </Button>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(ex)}>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(ex)} aria-label="Modifier">
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(ex.id)}>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(ex.id)} aria-label="Supprimer">
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>

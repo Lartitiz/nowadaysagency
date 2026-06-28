@@ -418,7 +418,7 @@ export default function InstagramLaunchPlan() {
                           className="h-8 w-40 text-sm font-medium"
                         />
                       </div>
-                      <Button variant="ghost" size="icon" onClick={() => removePhase(idx)} className="text-destructive h-8 w-8">
+                      <Button variant="ghost" size="icon" onClick={() => removePhase(idx)} className="text-destructive h-8 w-8" aria-label="Supprimer cette phase">
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -716,7 +716,7 @@ function SlotCard({ slot, onDelete, onDateChange }: { slot: LaunchSlot; onDelete
           <Badge variant="secondary" className="text-xs">{formatLabel}</Badge>
           {cat && <Badge className={cn("text-[10px]", cat.bg, cat.text)}>{cat.label}</Badge>}
         </div>
-        <Button variant="ghost" size="icon" onClick={onDelete} className="h-7 w-7 text-destructive shrink-0">
+        <Button variant="ghost" size="icon" onClick={onDelete} className="h-7 w-7 text-destructive shrink-0" aria-label="Supprimer cette phase">
           <Trash2 className="h-3.5 w-3.5" />
         </Button>
       </div>

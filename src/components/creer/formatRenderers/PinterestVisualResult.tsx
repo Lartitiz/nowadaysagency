@@ -91,6 +91,7 @@ export default function PinterestVisualResult({ result, pinHtml }: Props) {
             variant="outline"
             size="icon"
             onClick={() => copyText(title, "Titre")}
+            aria-label="Copier le titre"
           >
             <Copy className="h-4 w-4" />
           </Button>
@@ -116,6 +117,7 @@ export default function PinterestVisualResult({ result, pinHtml }: Props) {
             size="icon"
             className="mt-0"
             onClick={() => copyText(description, "Description")}
+            aria-label="Copier la description"
           >
             <Copy className="h-4 w-4" />
           </Button>

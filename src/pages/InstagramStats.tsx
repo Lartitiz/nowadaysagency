@@ -407,7 +407,7 @@ export default function InstagramStats() {
                         pages[i] = { ...pages[i], url: e.target.value };
                         setDraftConfig(c => ({ ...c, sales_pages: pages }));
                       }} className="flex-1" />
-                    <Button variant="ghost" size="icon" onClick={() => {
+                    <Button variant="ghost" size="icon" aria-label="Supprimer cette page de vente" onClick={() => {
                       setDraftConfig(c => ({ ...c, sales_pages: (c.sales_pages || []).filter((_, j) => j !== i) }));
                     }}><Trash2 className="h-4 w-4" /></Button>
                   </div>

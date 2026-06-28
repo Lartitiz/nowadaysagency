@@ -295,8 +295,8 @@ export default function Profile() {
         <div className="rounded-2xl bg-card p-6 border border-border space-y-5">
           {/* Prénom */}
           <div>
-            <label className="text-sm font-medium mb-1.5 block">Prénom</label>
-            <Input value={current.prenom} onChange={(e) => update("prenom", e.target.value)} className="rounded-[10px] h-12" />
+            <label htmlFor="profile-prenom" className="text-sm font-medium mb-1.5 block">Prénom</label>
+            <Input id="profile-prenom" value={current.prenom} onChange={(e) => update("prenom", e.target.value)} className="rounded-[10px] h-12" />
           </div>
 
           {/* Activité */}
@@ -407,16 +407,16 @@ export default function Profile() {
         <div className="rounded-2xl bg-card p-6 border border-border space-y-4 mt-6">
           <label className="text-sm font-medium mb-1 block">🔗 Mes liens</label>
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Site web</label>
-            <Input value={current.websiteUrl} onChange={(e) => update("websiteUrl", e.target.value)} className="rounded-[10px] h-11" placeholder="https://monsite.com" />
+            <label htmlFor="profile-website" className="text-xs text-muted-foreground mb-1 block">Site web</label>
+            <Input id="profile-website" value={current.websiteUrl} onChange={(e) => update("websiteUrl", e.target.value)} className="rounded-[10px] h-11" placeholder="https://monsite.com" />
           </div>
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Instagram</label>
-            <Input value={current.instagramUrl} onChange={(e) => update("instagramUrl", e.target.value)} className="rounded-[10px] h-11" placeholder="https://instagram.com/moncompte" />
+            <label htmlFor="profile-instagram" className="text-xs text-muted-foreground mb-1 block">Instagram</label>
+            <Input id="profile-instagram" value={current.instagramUrl} onChange={(e) => update("instagramUrl", e.target.value)} className="rounded-[10px] h-11" placeholder="https://instagram.com/moncompte" />
           </div>
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">LinkedIn</label>
-            <Input value={current.linkedinUrl} onChange={(e) => update("linkedinUrl", e.target.value)} className="rounded-[10px] h-11" placeholder="https://linkedin.com/in/monprofil" />
+            <label htmlFor="profile-linkedin" className="text-xs text-muted-foreground mb-1 block">LinkedIn</label>
+            <Input id="profile-linkedin" value={current.linkedinUrl} onChange={(e) => update("linkedinUrl", e.target.value)} className="rounded-[10px] h-11" placeholder="https://linkedin.com/in/monprofil" />
           </div>
         </div>
 

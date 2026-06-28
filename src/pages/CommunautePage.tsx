@@ -219,7 +219,7 @@ const CommunautePage = () => {
                         <span className="text-xs text-muted-foreground">{timeAgo(post.created_at)}</span>
                       </div>
                       {post.user_id === user?.id && (
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deletePost(post.id)}>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deletePost(post.id)} aria-label="Supprimer ce post">
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       )}
