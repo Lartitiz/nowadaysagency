@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Copy, Check, ExternalLink } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Link } from "react-router-dom";
 
 // ── Types ──
@@ -97,12 +97,11 @@ const LINE_STATUS_STYLE: Record<ElementStatus, string> = {
 };
 
 function CopyButton({ text }: { text: string }) {
-  const { toast } = useToast();
   const [copied, setCopied] = useState(false);
   const handleCopy = async () => {
     await navigator.clipboard.writeText(text);
     setCopied(true);
-    toast({ title: "Copié !" });
+    toast.success("Copié !");
     setTimeout(() => setCopied(false), 2000);
   };
   return (

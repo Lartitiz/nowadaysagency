@@ -4,7 +4,7 @@ import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query"
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useBrandProfile } from "@/hooks/use-profile";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
@@ -43,7 +43,6 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
-  const { toast } = useToast();
   const { data: hookBrandProfile } = useBrandProfile();
   const [caption, setCaption] = useState("");
   const [intent, setIntent] = useState("");
@@ -62,11 +61,11 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
 
   const handleFile = (file: File) => {
     if (!ACCEPTED_TYPES.includes(file.type)) {
-      toast({ title: "Format non supporté", description: "Utilise PNG ou JPG.", variant: "destructive" });
+      toast.error("Format non supporté", { description: "Utilise PNG ou JPG." });
       return;
     }
     if (file.size > MAX_FILE_SIZE) {
-      toast({ title: "Fichier trop lourd", description: "5 Mo maximum.", variant: "destructive" });
+      toast.error("Fichier trop lourd", { description: "5 Mo maximum." });
       return;
     }
     setScreenshotMediaType(file.type);
@@ -94,7 +93,7 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
 
   const generate = async () => {
     if (!user || !caption.trim()) {
-      toast({ title: "Ajoute la légende du post", variant: "destructive" });
+      toast.error("Ajoute la légende du post");
       return;
     }
     setLoading(true);
@@ -124,7 +123,7 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
       if (data?.comments) setComments(data.comments);
       else throw new Error("Réponse inattendue");
     } catch (err: any) {
-      toast({ title: "Erreur", description: friendlyError(err), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(err) });
     } finally {
       setLoading(false);
     }
@@ -132,7 +131,7 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
 
   const copyText = (text: string) => {
     navigator.clipboard.writeText(text).then(() => {
-      toast({ title: "📋 Commentaire copié !" });
+      toast.success("📋 Commentaire copié !");
     });
   };
 
@@ -161,7 +160,7 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
       });
     }
     onCommentPosted(contact.id);
-    toast({ title: "✅ Commentaire noté !" });
+    toast.success("✅ Commentaire noté !");
     onOpenChange(false);
     setComments([]);
     setCaption("");

@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Check, ChevronLeft, ChevronRight, Copy, RefreshCw, Sparkles, X, BookOpen } from "lucide-react";
 import type { UserProfile } from "@/pages/Dashboard";
 import { getGuide } from "@/lib/production-guides";
@@ -45,7 +45,6 @@ const CHECKLIST_ITEMS = [
 ];
 
 export default function RedactionFlow({ idea, profile, canal, objectif, onClose }: Props) {
-  const { toast } = useToast();
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
   const [step, setStep] = useState(1);
@@ -104,7 +103,7 @@ export default function RedactionFlow({ idea, profile, canal, objectif, onClose 
       if (res.error) throw res.error;
       setStructure(res.data?.content || "");
     } catch (e: any) {
-      toast({ title: e?.isTimeout ? "Ça prend plus longtemps que prévu" : "Erreur", description: friendlyError(e), variant: "destructive" });
+      toast.error(e?.isTimeout ? "Ça prend plus longtemps que prévu" : "Erreur", { description: friendlyError(e) });
     } finally {
       setLoadingStructure(false);
     }
@@ -136,7 +135,7 @@ export default function RedactionFlow({ idea, profile, canal, objectif, onClose 
       }
       setAccroches(parsed.slice(0, 3));
     } catch (e: any) {
-      toast({ title: e?.isTimeout ? "Ça prend plus longtemps que prévu" : "Erreur", description: friendlyError(e), variant: "destructive" });
+      toast.error(e?.isTimeout ? "Ça prend plus longtemps que prévu" : "Erreur", { description: friendlyError(e) });
     } finally {
       setLoadingAccroches(false);
     }
@@ -165,7 +164,7 @@ export default function RedactionFlow({ idea, profile, canal, objectif, onClose 
       setDraft(content);
       setEditedContent(content);
     } catch (e: any) {
-      toast({ title: e?.isTimeout ? "Ça prend plus longtemps que prévu" : "Erreur", description: friendlyError(e), variant: "destructive" });
+      toast.error(e?.isTimeout ? "Ça prend plus longtemps que prévu" : "Erreur", { description: friendlyError(e) });
     } finally {
       setLoadingDraft(false);
     }
@@ -173,7 +172,7 @@ export default function RedactionFlow({ idea, profile, canal, objectif, onClose 
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(editedContent || draft);
-    toast({ title: "Contenu copié !" });
+    toast.success("Contenu copié !");
   };
 
   const goToStep = (s: number) => {

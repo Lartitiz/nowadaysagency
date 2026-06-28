@@ -11,7 +11,7 @@ import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Sparkles, Copy, Check } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
@@ -19,7 +19,6 @@ import { friendlyError } from "@/lib/error-messages";
 
 export default function PinterestCompte() {
   const { user } = useAuth();
-  const { toast } = useToast();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const { data: propositionHookData } = useBrandProposition();
@@ -85,7 +84,7 @@ export default function PinterestCompte() {
       const { data } = await supabase.from("pinterest_profile").insert(payload).select("id").single();
       if (data) setProfileId(data.id);
     }
-    toast({ title: "✅ Compte sauvegardé !" });
+    toast.success("✅ Compte sauvegardé !");
   };
 
   const generateName = async () => {
@@ -97,7 +96,7 @@ export default function PinterestCompte() {
       let parsed: string[];
       try { parsed = JSON.parse(c); } catch { const m = c.match(/\[[\s\S]*\]/); parsed = m ? JSON.parse(m[0]) : []; }
       setNameSuggestions(parsed);
-    } catch (e: any) { toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" }); }
+    } catch (e: any) { toast.error("Erreur", { description: friendlyError(e) }); }
     finally { setGeneratingName(false); }
   };
 
@@ -110,7 +109,7 @@ export default function PinterestCompte() {
       let parsed: string[];
       try { parsed = JSON.parse(c); } catch { const m = c.match(/\[[\s\S]*\]/); parsed = m ? JSON.parse(m[0]) : []; }
       setBioSuggestions(parsed);
-    } catch (e: any) { toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" }); }
+    } catch (e: any) { toast.error("Erreur", { description: friendlyError(e) }); }
     finally { setGeneratingBio(false); }
   };
 

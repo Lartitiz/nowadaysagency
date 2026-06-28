@@ -6,7 +6,7 @@ import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { Switch } from "@/components/ui/switch";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
 import { Settings, KeyRound, Trash2, Bell, Mail, Sparkles, Shield, Bot, CreditCard, Loader2, ShoppingBag, Gift, ArrowRight, Cookie, RotateCcw, Map, Share2 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
@@ -33,7 +33,6 @@ import {
 
 export default function SettingsPage() {
   const { user, signOut, isAdmin } = useAuth();
-  const { toast } = useToast();
   const { plan, isPaid, isBinome, refresh: refreshPlan } = useUserPlan();
 
   // Password change
@@ -68,18 +67,18 @@ export default function SettingsPage() {
       if (!error && data) setSubInfo(data);
     } catch (e) {
       console.error("Settings error:", e);
-      toast({ title: "Erreur", description: "Une erreur est survenue. Réessaie.", variant: "destructive" });
+      toast.error("Erreur", { description: "Une erreur est survenue. Réessaie." });
     }
     setLoadingSub(false);
   };
 
   const handleChangePassword = async () => {
     if (newPassword.length < 6) {
-      toast({ title: "Mot de passe trop court", description: "6 caractères minimum.", variant: "destructive" });
+      toast.error("Mot de passe trop court", { description: "6 caractères minimum." });
       return;
     }
     if (newPassword !== confirmPassword) {
-      toast({ title: "Les mots de passe ne correspondent pas", variant: "destructive" });
+      toast.error("Les mots de passe ne correspondent pas");
       return;
     }
     setChangingPassword(true);
@@ -87,9 +86,9 @@ export default function SettingsPage() {
     setChangingPassword(false);
     if (error) {
       console.error("Erreur technique:", error);
-      toast({ title: "Erreur", description: friendlyError(error), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(error) });
     } else {
-      toast({ title: "Mot de passe mis à jour ✓" });
+      toast.success("Mot de passe mis à jour ✓");
       setNewPassword("");
       setConfirmPassword("");
     }
@@ -98,7 +97,7 @@ export default function SettingsPage() {
   const togglePref = (key: string, value: boolean, setter: (v: boolean) => void) => {
     localStorage.setItem(key, String(value));
     setter(value);
-    toast({ title: "Préférence enregistrée ✓" });
+    toast.success("Préférence enregistrée ✓");
   };
 
   const handleManageSubscription = async () => {
@@ -108,7 +107,7 @@ export default function SettingsPage() {
       if (error) throw new Error(error.message);
       if (data?.url) window.open(data.url, "_blank");
     } catch {
-      toast({ title: "Erreur", description: "Impossible d'ouvrir le portail.", variant: "destructive" });
+      toast.error("Erreur", { description: "Impossible d'ouvrir le portail." });
     }
     setPortalLoading(false);
   };
@@ -122,7 +121,7 @@ export default function SettingsPage() {
       if (error) throw new Error(error.message);
       if (data?.url) window.location.href = data.url;
     } catch {
-      toast({ title: "Erreur", description: "Impossible d'ouvrir le paiement.", variant: "destructive" });
+      toast.error("Erreur", { description: "Impossible d'ouvrir le paiement." });
     }
     setPortalLoading(false);
   };
@@ -149,14 +148,12 @@ export default function SettingsPage() {
 
       console.log("[delete-account] Success, tables cleaned:", data?.tables_cleaned);
       await signOut();
-      toast({ title: "Compte supprimé. À bientôt peut-être 💛" });
+      toast.success("Compte supprimé. À bientôt peut-être 💛");
       window.location.href = "/";
     } catch (e: any) {
       console.error("[delete-account] Fatal error:", e);
-      toast({
-        title: "Erreur lors de la suppression",
+      toast.error("Erreur lors de la suppression", {
         description: e?.message || "La suppression a rencontré un problème. Ouvre la console (F12) pour voir le détail.",
-        variant: "destructive",
       });
     } finally {
       setDeleting(false);
@@ -341,7 +338,7 @@ export default function SettingsPage() {
                   disablePostHog();
                   disableSentryReplays();
                   setCookieConsent("refused");
-                  toast({ title: "Consentement révoqué. Les cookies analytics sont désactivés." });
+                  toast("Consentement révoqué. Les cookies analytics sont désactivés.");
                 }}
               >
                 Révoquer mon consentement
@@ -355,7 +352,7 @@ export default function SettingsPage() {
                   enablePostHog();
                   enableSentryReplays();
                   setCookieConsent("accepted");
-                  toast({ title: "Cookies analytics activés. Merci !" });
+                  toast.success("Cookies analytics activés. Merci !");
                 }}
               >
                 Accepter les cookies analytics
@@ -409,7 +406,7 @@ export default function SettingsPage() {
               localStorage.removeItem("lac_tour_dashboard_seen");
               localStorage.removeItem("lac_plan_welcomed");
               localStorage.removeItem("lac_dashboard_tour_seen");
-              toast({ title: "🎉 Tour réactivé", description: "Tu verras la visite guidée à ta prochaine visite du dashboard." });
+              toast.success("🎉 Tour réactivé", { description: "Tu verras la visite guidée à ta prochaine visite du dashboard." });
             }}
           >
             <RotateCcw className="h-4 w-4 mr-2" />
@@ -471,8 +468,7 @@ export default function SettingsPage() {
                       localStorage.removeItem("lac_plan_welcomed");
                       localStorage.removeItem("lac_plan_tour_seen");
 
-                      toast({
-                        title: "✅ Reset effectué",
+                      toast.success("✅ Reset effectué", {
                         description: "Tu vas être redirigée vers l'onboarding.",
                       });
 
@@ -482,10 +478,8 @@ export default function SettingsPage() {
                       }, 500);
                     } catch (e: any) {
                       console.error("[reset-onboarding] Error:", e);
-                      toast({
-                        title: "Erreur lors de la réinitialisation",
+                      toast.error("Erreur lors de la réinitialisation", {
                         description: e?.message || "Réessaie ou contacte le support.",
-                        variant: "destructive",
                       });
                     } finally {
                       setResettingOnboarding(false);

@@ -11,7 +11,7 @@ import AppHeader from "@/components/AppHeader";
 import { PageLoader } from "@/components/ui/spinner";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
 import { Copy, FileText, Loader2, RefreshCw, Pencil } from "lucide-react";
 import EditableText from "@/components/EditableText";
@@ -28,7 +28,6 @@ interface RecapSummary {
 export default function PropositionRecapPage() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
-  const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: profileData } = useProfile();
   const { data: brandProfileData } = useBrandProfile();
@@ -97,17 +96,17 @@ export default function PropositionRecapPage() {
       await supabase.from("brand_proposition").update({ recap_summary: parsed } as any).eq("id", data.id);
       setData({ ...data, recap_summary: parsed });
       queryClient.invalidateQueries({ queryKey: ["brand-proposition"] });
-      toast({ title: "Synthèse générée !" });
+      toast.success("Synthèse générée !");
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(e) });
     }
     setGenerating(false);
   };
 
   const copyText = async (text: string) => {
     await navigator.clipboard.writeText(text);
-    toast({ title: "Copié !" });
+    toast.success("Copié !");
   };
 
   const exportPDF = async () => {
@@ -126,7 +125,7 @@ export default function PropositionRecapPage() {
       pdf.save("ma-proposition-de-valeur.pdf");
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast({ title: "Erreur export", description: friendlyError(e), variant: "destructive" });
+      toast.error("Erreur export", { description: friendlyError(e) });
     }
     setExporting(false);
   };

@@ -8,7 +8,7 @@ import ContentCoachingDialog from "@/components/dashboard/ContentCoachingDialog"
 import NewsjackingPanel from "./NewsjackingPanel";
 import CreerTransformTab from "./CreerTransformTab";
 import { PhotoUploadZone, type PhotoItem } from "./PhotoUploadZone";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 interface Props {
   onNext: (idea: string) => void;
@@ -34,7 +34,6 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
   const [localPhotos, setLocalPhotos] = useState<PhotoItem[]>(initialPhotos || []);
   const [localDescription, setLocalDescription] = useState(initialPhotoDescription || "");
   const [localPhotoSubject, setLocalPhotoSubject] = useState(initialPhotoSubject || "");
-  const { toast } = useToast();
   const navigate = useNavigate();
 
   // Si on arrive via un legacy redirect (?mode=transform), nettoyer le param
@@ -231,8 +230,7 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
         <NewsjackingPanel
           onSelect={(data) => {
             setShowNewsjacking(false);
-            toast({
-              title: "📡 Actu chargée",
+            toast("📡 Actu chargée", {
               description: "Choisis maintenant ton format et ton angle.",
             });
             if (onNewsjackingSelect) {

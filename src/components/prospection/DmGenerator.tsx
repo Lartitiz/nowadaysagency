@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
@@ -90,7 +90,6 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
-  const { toast } = useToast();
 
   // Step state
   const [step, setStep] = useState<Step>(1);
@@ -195,7 +194,7 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
       setVariants(data);
     } catch (err: any) {
       console.error("Erreur technique:", err);
-      toast({ title: "Erreur", description: friendlyError(err), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(err) });
       setStep(3);
     } finally {
       setLoading(false);
@@ -203,7 +202,7 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
   };
 
   const copyText = (text: string) => {
-    navigator.clipboard.writeText(text).then(() => toast({ title: "📋 Copié !" }));
+    navigator.clipboard.writeText(text).then(() => toast.success("📋 Copié !"));
   };
 
   const handleSent = async (text: string) => {

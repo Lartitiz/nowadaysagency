@@ -3,13 +3,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
 import PasswordStrengthIndicator from "@/components/ui/PasswordStrengthIndicator";
 
 export default function ResetPassword() {
   const navigate = useNavigate();
-  const { toast } = useToast();
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [ready, setReady] = useState(false);
@@ -47,11 +46,11 @@ export default function ResetPassword() {
     try {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
-      toast({ title: "Mot de passe mis à jour !", description: "Connecte-toi avec ton nouveau mot de passe." });
+      toast.success("Mot de passe mis à jour !", { description: "Connecte-toi avec ton nouveau mot de passe." });
       navigate("/login");
     } catch (error: any) {
       console.error("Erreur technique:", error);
-      toast({ title: "Erreur", description: friendlyError(error), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(error) });
     } finally {
       setLoading(false);
     }

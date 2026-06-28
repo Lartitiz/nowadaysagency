@@ -8,14 +8,13 @@ import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
 import { Sparkles } from "lucide-react";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 
 export default function PinterestMotsCles() {
   const { user } = useAuth();
-  const { toast } = useToast();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const [kwId, setKwId] = useState<string | null>(null);
@@ -47,7 +46,7 @@ export default function PinterestMotsCles() {
       let parsed: any;
       try { parsed = JSON.parse(c); } catch { const m = c.match(/\{[\s\S]*\}/); parsed = m ? JSON.parse(m[0]) : null; }
       if (parsed) setGenerated(parsed);
-    } catch (e: any) { console.error("Erreur technique:", e); toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" }); }
+    } catch (e: any) { console.error("Erreur technique:", e); toast.error("Erreur", { description: friendlyError(e) }); }
     finally { setGenerating(false); }
   };
 
@@ -64,7 +63,7 @@ export default function PinterestMotsCles() {
     };
     if (kwId) { await supabase.from("pinterest_keywords").update(payload).eq("id", kwId); }
     else { const { data } = await supabase.from("pinterest_keywords").insert(payload).select("id").single(); if (data) setKwId(data.id); }
-    toast({ title: "✅ Mots-clés sauvegardés !" });
+    toast.success("✅ Mots-clés sauvegardés !");
   };
 
   const renderCategory = (label: string, emoji: string, words: string[]) => (

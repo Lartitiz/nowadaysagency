@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Copy, Check, Pencil } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import type { BioLine, ElementStatus } from "./AuditVisualResult";
 
 const STATUS_DOT: Record<ElementStatus, string> = { ok: "🟢", improve: "🟡", critical: "🔴" };
@@ -28,7 +28,6 @@ interface Props {
 }
 
 export default function AuditBioBeforeAfter({ currentBio, lignes, proposedBio, recommendations, onAdoptBio }: Props) {
-  const { toast } = useToast();
   const [editableBio, setEditableBio] = useState(proposedBio);
   const [appliedRecs, setAppliedRecs] = useState<Set<number>>(new Set());
   const [copied, setCopied] = useState(false);
@@ -36,7 +35,7 @@ export default function AuditBioBeforeAfter({ currentBio, lignes, proposedBio, r
   const handleCopy = async () => {
     await navigator.clipboard.writeText(editableBio);
     setCopied(true);
-    toast({ title: "Bio copiée !" });
+    toast.success("Bio copiée !");
     setTimeout(() => setCopied(false), 2000);
   };
 

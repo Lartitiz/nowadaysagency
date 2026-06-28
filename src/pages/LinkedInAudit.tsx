@@ -8,7 +8,7 @@ import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { Progress } from "@/components/ui/progress";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { Sparkles, Upload, X, Loader2, ArrowRight, ArrowLeft, ChevronRight, Download, RotateCcw } from "lucide-react";
 import AiLoadingIndicator from "@/components/AiLoadingIndicator";
@@ -109,7 +109,6 @@ function impactEmoji(impact: string) {
 
 export default function LinkedInAudit() {
   const { user } = useAuth();
-  const { toast } = useToast();
   const navigate = useNavigate();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
@@ -292,13 +291,13 @@ export default function LinkedInAudit() {
       } as any);
 
       setStep(5); // results
-      toast({ title: "Audit terminé ! 🎉" });
+      toast.success("Audit terminé ! 🎉");
     } catch (e: any) {
       const errStr = e?.message || String(e);
       if (/quota|crédit|limit_reached|limit/i.test(errStr)) {
         setQuotaExhausted({ message: "" });
       } else {
-        toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
+        toast.error("Erreur", { description: friendlyError(e) });
       }
     } finally {
       setAnalyzing(false);

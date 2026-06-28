@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
@@ -32,7 +32,6 @@ function getUsername(p: Prospect) { return p.instagram_username || p.username ||
 
 export default function ProspectDetailDialog({ prospect, open, onOpenChange, onUpdate, onDelete }: Props) {
   const { user } = useAuth();
-  const { toast } = useToast();
   const [interactions, setInteractions] = useState<ProspectInteraction[]>([]);
   const [showDmGen, setShowDmGen] = useState(false);
   const [addingInteraction, setAddingInteraction] = useState(false);
@@ -177,7 +176,7 @@ export default function ProspectDetailDialog({ prospect, open, onOpenChange, onU
                 next_reminder_text: reminderText,
               });
               setShowDmGen(false);
-              toast({ title: "✅ Message noté dans l'historique !" });
+              toast.success("✅ Message noté dans l'historique !");
             }}
           />
         </DialogContent>

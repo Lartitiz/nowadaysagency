@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
 import { Sparkles, Plus, Trash2, Copy, Check } from "lucide-react";
 
@@ -28,7 +28,6 @@ interface Board { id?: string; name: string; description: string; board_type: st
 
 export default function PinterestTableaux() {
   const { user } = useAuth();
-  const { toast } = useToast();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const [boards, setBoards] = useState<Board[]>([]);
@@ -52,7 +51,7 @@ export default function PinterestTableaux() {
     const b = boards[idx];
     if (b.id) await supabase.from("pinterest_boards").delete().eq("id", b.id);
     setBoards(prev => prev.filter((_, i) => i !== idx));
-    toast({ title: "Tableau supprimé" });
+    toast.success("Tableau supprimé");
   };
 
   const optimizeDescription = async (idx: number) => {
@@ -63,7 +62,7 @@ export default function PinterestTableaux() {
       const res = await invokeWithTimeout("pinterest-ai", { body: { action: "board-description", board_name: b.name, board_type: b.board_type, workspace_id: workspaceId !== user?.id ? workspaceId : undefined } }, 60000);
       if (res.error) throw new Error(res.error.message);
       updateBoard(idx, "description", res.data?.content || "");
-    } catch (e: any) { console.error("Erreur technique:", e); toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" }); }
+    } catch (e: any) { console.error("Erreur technique:", e); toast.error("Erreur", { description: friendlyError(e) }); }
     finally { setGeneratingIdx(null); }
   };
 
@@ -80,7 +79,7 @@ export default function PinterestTableaux() {
         sort_order: i 
       })));
     }
-    toast({ title: "✅ Tableaux sauvegardés !" });
+    toast.success("✅ Tableaux sauvegardés !");
   };
 
   return (
@@ -124,7 +123,7 @@ export default function PinterestTableaux() {
                   <Sparkles className="h-4 w-4" />{generatingIdx === idx ? "Optimisation..." : "✨ Optimiser la description SEO"}
                 </Button>
                 {b.description && (
-                  <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(b.description); setCopied(idx); setTimeout(() => setCopied(null), 2000); toast({ title: "📋 Copié !" }); }} className="gap-1">
+                  <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(b.description); setCopied(idx); setTimeout(() => setCopied(null), 2000); toast.success("📋 Copié !"); }} className="gap-1">
                     {copied === idx ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />} Copier
                   </Button>
                 )}

@@ -11,13 +11,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
 import { usePillarsSync } from "@/hooks/use-pillars-sync";
 
 export function PillarsSyncBanner() {
   const { isOutOfSync, isDismissed, brandingPillars, editoPillars, resync, dismiss } = usePillarsSync();
-  const { toast } = useToast();
   const [busy, setBusy] = useState<null | "rename_only" | "full_replace">(null);
   const [showReplaceConfirm, setShowReplaceConfirm] = useState(false);
 
@@ -27,15 +26,17 @@ export function PillarsSyncBanner() {
     setBusy(mode);
     try {
       await resync(mode);
-      toast({
-        title: mode === "rename_only" ? "Noms mis à jour ✅" : "Piliers remplacés ✅",
-        description:
-          mode === "rename_only"
-            ? "Les descriptions et pourcentages ont été préservés."
-            : "Les piliers ont été régénérés depuis le Branding.",
-      });
+      toast.success(
+        mode === "rename_only" ? "Noms mis à jour ✅" : "Piliers remplacés ✅",
+        {
+          description:
+            mode === "rename_only"
+              ? "Les descriptions et pourcentages ont été préservés."
+              : "Les piliers ont été régénérés depuis le Branding.",
+        },
+      );
     } catch (e: any) {
-      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(e) });
     } finally {
       setBusy(null);
       setShowReplaceConfirm(false);

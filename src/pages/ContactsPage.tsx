@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
@@ -103,7 +103,6 @@ export default function ContactsPage() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
-  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [tab, setTab] = useState("network");
@@ -135,7 +134,7 @@ export default function ContactsPage() {
 
     if (updates.prospect_stage === "converted" && prev?.prospect_stage !== "converted") {
       setShowConfetti(true);
-      toast({ title: "🎉 Bravo ! Nouvelle cliente !" });
+      toast("🎉 Bravo ! Nouvelle cliente !");
       setTimeout(() => setShowConfetti(false), 4000);
     }
   };
@@ -204,17 +203,17 @@ export default function ContactsPage() {
                 } as any).select("*").single();
                 if (data) {
                   setContacts(prev => [data as unknown as Contact, ...prev]);
-                  toast({ title: "👥 Contact ajouté !" });
+                  toast.success("👥 Contact ajouté !");
                 }
               }}
               onInteract={async (id) => {
                 await updateContact(id, { last_interaction_at: new Date().toISOString() });
-                toast({ title: "✅ Fait !" });
+                toast.success("✅ Fait !");
               }}
               onDelete={deleteContact}
               onPromoteToProspect={async (id) => {
                 await updateContact(id, { contact_type: "prospect" as any, prospect_stage: "to_contact" });
-                toast({ title: "🎯 Passé en prospect !" });
+                toast("🎯 Passé en prospect !");
               }}
             />
           </TabsContent>
@@ -238,7 +237,7 @@ export default function ContactsPage() {
                   } as any).select("*").single();
                   if (data) {
                     setContacts(prev => [data as unknown as Contact, ...prev]);
-                    toast({ title: "🎯 Prospect ajouté !" });
+                    toast.success("🎯 Prospect ajouté !");
                   }
                 }}
                 onSelect={setSelectedProspect}
@@ -295,7 +294,7 @@ export default function ContactsPage() {
                   next_followup_text: `Vérifier si @${dmContact.username} a répondu`,
                 });
                 setDmContact(null);
-                toast({ title: "✅ Message noté !" });
+                toast.success("✅ Message noté !");
               }}
             />
           </DialogContent>

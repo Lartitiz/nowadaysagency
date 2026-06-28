@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
 import { Button } from "@/components/ui/button";
 import { Plus, MessageCircle, SkipForward } from "lucide-react";
@@ -61,7 +61,6 @@ export { STAGES };
 export default function ProspectionSection() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
-  const { toast } = useToast();
   const [prospects, setProspects] = useState<Prospect[]>([]);
   const [adding, setAdding] = useState(false);
   const [selectedProspect, setSelectedProspect] = useState<Prospect | null>(null);
@@ -96,13 +95,13 @@ export default function ProspectionSection() {
       .single();
     if (error) {
       console.error("Erreur technique:", error);
-      toast({ title: "Erreur", description: friendlyError(error), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(error) });
       return;
     }
     if (data) {
       setProspects(prev => [data as Prospect, ...prev]);
       setAdding(false);
-      toast({ title: "🎯 Prospect ajouté·e !" });
+      toast.success("🎯 Prospect ajouté·e !");
 
       const reminderDate = new Date();
       reminderDate.setDate(reminderDate.getDate() + 2);
@@ -120,7 +119,7 @@ export default function ProspectionSection() {
 
     if (updates.stage === "converted" && prevStage !== "converted") {
       setShowConfetti(true);
-      toast({ title: "🎉 Bravo ! Nouveau·elle client·e !" });
+      toast("🎉 Bravo ! Nouveau·elle client·e !");
       setTimeout(() => setShowConfetti(false), 4000);
     }
   };
@@ -177,7 +176,7 @@ export default function ProspectionSection() {
       next_reminder_text: `Vérifier si @${dmProspect.instagram_username} a répondu`,
     });
     setDmProspect(null);
-    toast({ title: "✅ Message noté dans l'historique !" });
+    toast.success("✅ Message noté dans l'historique !");
   };
 
   return (

@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 
@@ -71,7 +71,6 @@ export function PhotoEditDialog({
   name,
   onApply,
 }: PhotoEditDialogProps) {
-  const { toast } = useToast();
   const { activeWorkspace } = useWorkspace();
 
   const [prompt, setPrompt] = useState("");
@@ -110,18 +109,14 @@ export function PhotoEditDialog({
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {
-      toast({
-        title: "Format non supporté",
+      toast.error("Format non supporté", {
         description: "Choisis un fichier image (JPG, PNG, WEBP).",
-        variant: "destructive",
       });
       return;
     }
     if (file.size > MAX_BG_SIZE_BYTES) {
-      toast({
-        title: "Image trop lourde",
+      toast.error("Image trop lourde", {
         description: "Maximum 5 Mo. Réduis la taille puis réessaie.",
-        variant: "destructive",
       });
       return;
     }
@@ -132,10 +127,8 @@ export function PhotoEditDialog({
       setSelectedPreset(null);
       setPrompt("");
     } catch {
-      toast({
-        title: "Lecture impossible",
+      toast.error("Lecture impossible", {
         description: "Cette image n'a pas pu être lue.",
-        variant: "destructive",
       });
     }
   };
@@ -159,11 +152,9 @@ export function PhotoEditDialog({
       mode = "replace_bg";
       finalPrompt = "";
     } else if (finalPrompt.length < 3) {
-      toast({
-        title: "Décris d'abord ton fond",
+      toast.error("Décris d'abord ton fond", {
         description:
           "Choisis un preset, uploade une image de fond, ou écris quelques mots (ex : plage au coucher du soleil).",
-        variant: "destructive",
       });
       return;
     }
@@ -191,10 +182,8 @@ export function PhotoEditDialog({
     setIsGenerating(false);
 
     if (error || !data?.image_base64) {
-      toast({
-        title: "Édition impossible",
+      toast.error("Édition impossible", {
         description: error?.message || "Réessaie dans quelques instants.",
-        variant: "destructive",
       });
       return;
     }

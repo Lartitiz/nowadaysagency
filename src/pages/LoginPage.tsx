@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
 
 const isValidRedirect = (path: string | null): path is string => {
@@ -16,7 +16,6 @@ const isValidRedirect = (path: string | null): path is string => {
 
 export default function LoginPage() {
   const { user, loading: authLoading } = useAuth();
-  const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const redirectTo = searchParams.get("redirect");
   const isAddAccount = searchParams.get("add_account") === "true";
@@ -80,8 +79,7 @@ export default function LoginPage() {
       if (error) throw error;
     } catch (error: any) {
       const msg = error.message;
-      toast({
-        title: "Oups !",
+      toast.error("Oups !", {
         description:
           msg === "Invalid login credentials"
             ? "Email ou mot de passe incorrect."
@@ -94,7 +92,6 @@ export default function LoginPage() {
             : msg === "Unable to validate email address: invalid format"
             ? "Vérifie le format de ton adresse email."
             : friendlyError(error),
-        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -104,7 +101,7 @@ export default function LoginPage() {
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim()) {
-      toast({ title: "Oups !", description: "Entre ton email.", variant: "destructive" });
+      toast.error("Oups !", { description: "Entre ton email." });
       return;
     }
     setLoading(true);
@@ -114,10 +111,10 @@ export default function LoginPage() {
       });
       if (error) throw error;
       setForgotSent(true);
-      toast({ title: "C'est envoyé !", description: "Vérifie ta boîte mail pour réinitialiser ton mot de passe." });
+      toast.success("C'est envoyé !", { description: "Vérifie ta boîte mail pour réinitialiser ton mot de passe." });
     } catch (error: any) {
       console.error("Erreur technique:", error);
-      toast({ title: "Erreur", description: friendlyError(error), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(error) });
     } finally {
       setLoading(false);
     }
@@ -189,7 +186,7 @@ export default function LoginPage() {
                     redirect_uri: window.location.origin,
                   });
                   if (error) {
-                    toast({ title: "Erreur", description: "Impossible de se connecter avec Google.", variant: "destructive" });
+                    toast.error("Erreur", { description: "Impossible de se connecter avec Google." });
                   }
                 }}
                 className="w-full h-12 flex items-center justify-center gap-3 rounded-[10px] border border-border bg-card hover:bg-muted transition-colors text-sm font-medium text-foreground mb-4"

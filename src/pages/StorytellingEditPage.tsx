@@ -9,14 +9,13 @@ import { PageLoader } from "@/components/ui/spinner";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
 export default function StorytellingEditPage() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const { id } = useParams();
-  const { toast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [title, setTitle] = useState("");
@@ -41,7 +40,7 @@ export default function StorytellingEditPage() {
     await supabase.from("storytelling").update({ title, imported_text: text } as any).eq("id", id);
     queryClient.invalidateQueries({ queryKey: ["storytelling-primary"] });
     queryClient.invalidateQueries({ queryKey: ["storytelling-list"] });
-    toast({ title: "Modifications enregistrées !" });
+    toast.success("Modifications enregistrées !");
     setSaving(false);
     navigate("/branding/section?section=story");
   };

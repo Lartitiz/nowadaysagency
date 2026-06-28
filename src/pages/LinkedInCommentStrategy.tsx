@@ -6,7 +6,7 @@ import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Plus, Trash2, MessageCircle } from "lucide-react";
 
 interface CommentAccount {
@@ -16,7 +16,6 @@ interface CommentAccount {
 
 export default function LinkedInCommentStrategy() {
   const { user } = useAuth();
-  const { toast } = useToast();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const [loading, setLoading] = useState(true);
@@ -64,7 +63,7 @@ export default function LinkedInCommentStrategy() {
     setNewName("");
     setNewNiche("");
     save(updated);
-    toast({ title: "Compte ajouté !" });
+    toast.success("Compte ajouté !");
   };
 
   const removeAccount = (idx: number) => {

@@ -2,7 +2,7 @@ import { useState } from "react";
 import CoachingShell from "@/components/coaching/CoachingShell";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useAuth } from "@/contexts/AuthContext";
@@ -34,7 +34,6 @@ const TYPE_LABELS: Record<string, { badge: string; color: string }> = {
 };
 
 export default function EngagementCoachingDialog({ open, onOpenChange, platform }: Props) {
-  const { toast } = useToast();
   const [step, setStep] = useState(1);
   const [postText, setPostText] = useState("");
   const [objectif, setObjectif] = useState("");
@@ -70,7 +69,7 @@ export default function EngagementCoachingDialog({ open, onOpenChange, platform 
       if (error) throw new Error(error.message);
       setResult(data);
     } catch (e: any) {
-      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(e) });
     } finally {
       setLoading(false);
     }
@@ -84,7 +83,7 @@ export default function EngagementCoachingDialog({ open, onOpenChange, platform 
   const copyComment = (text: string, idx: number) => {
     navigator.clipboard.writeText(text);
     setCopiedIdx(idx);
-    toast({ title: "📋 Commentaire copié !" });
+    toast.success("📋 Commentaire copié !");
     setTimeout(() => setCopiedIdx(null), 2000);
   };
 

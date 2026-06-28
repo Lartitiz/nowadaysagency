@@ -5,7 +5,7 @@ import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query"
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Lightbulb, PenLine, CalendarDays, Trash2, Copy, ChevronDown, X, ExternalLink, Sparkles, SlidersHorizontal } from "lucide-react";
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import { ContentPreview, RevertToOriginalButton } from "@/components/ContentPreview";
@@ -128,7 +128,6 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
-  const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [ideas, setIdeas] = useState<SavedIdea[]>([]);
@@ -229,13 +228,13 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
       ? await supabase.from("content_briefs").delete().eq("id", id)
       : await supabase.from("saved_ideas").delete().eq("id", id);
     if (error) {
-      toast({ title: "Suppression impossible", description: friendlyError(error), variant: "destructive" });
+      toast.error("Suppression impossible", { description: friendlyError(error) });
       return;
     }
     if (isBrief) setBriefs(prev => prev.filter(b => b.id !== id));
     else setIdeas(prev => prev.filter(i => i.id !== id));
     if (selectedIdea?.id === id) setSelectedIdea(null);
-    toast({ title: isBrief ? "Brief supprimé" : "Idée supprimée" });
+    toast.success(isBrief ? "Brief supprimé" : "Idée supprimée");
   };
 
   const handleStatusChange = async (id: string, newStatus: string) => {
@@ -267,7 +266,7 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
       })
       .select("id")
       .single();
-    if (error) { toast({ title: "Erreur", description: friendlyError(error), variant: "destructive" }); return; }
+    if (error) { toast.error("Erreur", { description: friendlyError(error) }); return; }
     if (!isBrief) {
       await supabase.from("saved_ideas").update({ status: "planned", planned_date: dateStr, calendar_post_id: calPost.id } as any).eq("id", idea.id);
       setIdeas(prev => prev.map(i => i.id === idea.id ? { ...i, status: "planned", planned_date: dateStr, calendar_post_id: calPost.id } : i));
@@ -275,7 +274,7 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
       await supabase.from("content_briefs").update({ calendar_post_id: calPost.id } as any).eq("id", idea.id);
       setBriefs(prev => prev.map(b => b.id === idea.id ? { ...b, status: "planned", calendar_post_id: calPost.id } : b));
     }
-    toast({ title: `Planifiée le ${fnsFormat(date, "d MMM yyyy", { locale: fr })}` });
+    toast.success(`Planifiée le ${fnsFormat(date, "d MMM yyyy", { locale: fr })}`);
   };
 
   const handleRediger = (idea: SavedIdea) => {
@@ -306,7 +305,7 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
       await supabase.from("saved_ideas").update({ notes } as any).eq("id", id);
       setIdeas(prev => prev.map(i => i.id === id ? { ...i, notes } : i));
     }
-    toast({ title: "Notes sauvegardées" });
+    toast.success("Notes sauvegardées");
   };
 
   const getStatusBadge = (status: string | null) => {
@@ -697,7 +696,7 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
                     {selectedIdea.content_draft?.trim() && !selectedIdea.content_draft.trim().startsWith("{") && (
                       <Button variant="outline" size="sm" className="rounded-pill gap-1 text-xs" onClick={async () => {
                         await navigator.clipboard.writeText(selectedIdea.content_draft!.trim());
-                        toast({ title: "Copié !" });
+                        toast.success("Copié !");
                       }}>
                         <Copy className="h-3 w-3" /> Copier
                       </Button>

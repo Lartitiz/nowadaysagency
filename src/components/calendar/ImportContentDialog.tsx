@@ -4,7 +4,7 @@ import { useProfile } from "@/hooks/use-profile";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
 import { isPublicImageUrl } from "@/lib/instagram-publish";
 import { toLocalDateStr, cn } from "@/lib/utils";
@@ -75,7 +75,6 @@ function deriveTheme(text: string): string {
 export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultCanal, initialFiles, onSaved }: Props) {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
-  const { toast } = useToast();
   const isMobile = useIsMobile();
   const { data: profileData } = useProfile();
 
@@ -138,16 +137,16 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
         if (isPdfFile(file)) {
           setUploadLabel("Conversion du PDF…");
           const { files: pages, totalPages } = await pdfToImageFiles(file, { maxPages: MAX_IMAGES });
-          if (pages.length === 0) { toast({ title: "PDF illisible", description: "Aucune page n'a pu être convertie.", variant: "destructive" }); continue; }
+          if (pages.length === 0) { toast.error("PDF illisible", { description: "Aucune page n'a pu être convertie." }); continue; }
           if (totalPages > MAX_IMAGES) {
-            toast({ title: `PDF de ${totalPages} pages`, description: `Seules les ${MAX_IMAGES} premières ont été importées (limite carrousel Instagram).` });
+            toast(`PDF de ${totalPages} pages`, { description: `Seules les ${MAX_IMAGES} premières ont été importées (limite carrousel Instagram).` });
           }
           imageFiles.push(...pages);
         } else if (file.type.startsWith("image/")) {
-          if (file.size > 10 * 1024 * 1024) { toast({ title: "Image trop lourde (max 10 Mo)", variant: "destructive" }); continue; }
+          if (file.size > 10 * 1024 * 1024) { toast.error("Image trop lourde (max 10 Mo)"); continue; }
           imageFiles.push(file);
         } else {
-          toast({ title: "Format non géré", description: "Ajoute des images ou un PDF.", variant: "destructive" });
+          toast.error("Format non géré", { description: "Ajoute des images ou un PDF." });
         }
       }
 
@@ -155,7 +154,7 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
       const remaining = Math.max(0, MAX_IMAGES - baseCount);
       const toUpload = imageFiles.slice(0, remaining);
       if (imageFiles.length > remaining) {
-        toast({ title: "Maximum 10 visuels", description: "Les visuels en trop n'ont pas été ajoutés." });
+        toast("Maximum 10 visuels", { description: "Les visuels en trop n'ont pas été ajoutés." });
       }
 
       // 3) Upload vers le bucket public calendar-media.
@@ -170,7 +169,7 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
       }
       if (newUrls.length > 0) setMediaUrls((prev) => [...prev, ...newUrls]);
     } catch (err: any) {
-      toast({ title: "Erreur à l'import", description: friendlyError(err), variant: "destructive" });
+      toast.error("Erreur à l'import", { description: friendlyError(err) });
     } finally {
       setUploading(false);
       setUploadLabel("Ajouter des visuels ou un PDF");
@@ -209,8 +208,8 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
   })();
 
   const handleSave = async () => {
-    if (!user) { toast({ title: "Tu dois être connectée.", variant: "destructive" }); return; }
-    if (validationError) { toast({ title: validationError, variant: "destructive" }); return; }
+    if (!user) { toast.error("Tu dois être connectée."); return; }
+    if (validationError) { toast.error(validationError); return; }
     setSaving(true);
     try {
       const payload: any = {
@@ -232,16 +231,18 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
       }
       const { error } = await supabase.from("calendar_posts").insert(payload);
       if (error) throw error;
-      toast({
-        title: mode === "schedule" ? "Publication programmée ! 🗓️" : "Contenu ajouté au calendrier !",
-        description: mode === "schedule"
-          ? `${canal === "linkedin" ? "LinkedIn" : "Instagram"} publiera ce post automatiquement à l'heure prévue.`
-          : undefined,
-      });
+      toast.success(
+        mode === "schedule" ? "Publication programmée ! 🗓️" : "Contenu ajouté au calendrier !",
+        {
+          description: mode === "schedule"
+            ? `${canal === "linkedin" ? "LinkedIn" : "Instagram"} publiera ce post automatiquement à l'heure prévue.`
+            : undefined,
+        }
+      );
       onSaved();
       onOpenChange(false);
     } catch (err: any) {
-      toast({ title: "Échec de l'enregistrement", description: friendlyError(err), variant: "destructive" });
+      toast.error("Échec de l'enregistrement", { description: friendlyError(err) });
     } finally {
       setSaving(false);
     }

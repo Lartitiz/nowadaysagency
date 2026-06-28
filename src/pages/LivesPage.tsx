@@ -9,7 +9,7 @@ import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import UpgradeGate from "@/components/UpgradeGate";
 import {
   Video, CalendarDays, Clock, Bell, BellOff, Send,
@@ -34,7 +34,6 @@ export default function LivesPage() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const { isPaid, isBinome, loading: planLoading } = useUserPlan();
-  const { toast } = useToast();
 
   const [lives, setLives] = useState<Live[]>([]);
   const [reminders, setReminders] = useState<Set<string>>(new Set());
@@ -71,11 +70,11 @@ export default function LivesPage() {
     if (reminders.has(liveId)) {
       await (supabase.from("live_reminders") as any).delete().eq("live_id", liveId).eq(column, value);
       setReminders((prev) => { const n = new Set(prev); n.delete(liveId); return n; });
-      toast({ title: "Rappel retiré" });
+      toast("Rappel retiré");
     } else {
       await supabase.from("live_reminders").insert({ live_id: liveId, user_id: user.id });
       setReminders((prev) => new Set(prev).add(liveId));
-      toast({ title: "🔔 Rappel activé !" });
+      toast.success("🔔 Rappel activé !");
     }
   };
 
@@ -90,7 +89,7 @@ export default function LivesPage() {
     setSendingQuestion(false);
     setQuestionText("");
     setQuestionLiveId(null);
-    toast({ title: "Question envoyée ✓" });
+    toast.success("Question envoyée ✓");
   };
 
   // Gate: free users can't access

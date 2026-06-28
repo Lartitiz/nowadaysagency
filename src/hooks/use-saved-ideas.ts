@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter } from "./use-workspace-query";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 const QUERY_KEY = "saved-ideas";
 
@@ -29,7 +29,6 @@ export function useSavedIdeas(filters?: { canal?: string; tag?: string }) {
 
 export function useCreateIdea() {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
 
   return useMutation({
     mutationFn: async (idea: Record<string, unknown>) => {
@@ -42,10 +41,10 @@ export function useCreateIdea() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
-      toast({ title: "Idée sauvegardée ✨" });
+      toast.success("Idée sauvegardée ✨");
     },
     onError: () => {
-      toast({ title: "Erreur", description: "Impossible de sauvegarder l'idée.", variant: "destructive" });
+      toast.error("Erreur", { description: "Impossible de sauvegarder l'idée." });
     },
   });
 }

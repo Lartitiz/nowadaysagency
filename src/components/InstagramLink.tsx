@@ -1,5 +1,5 @@
 import { type ReactNode } from "react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 interface InstagramLinkProps {
   username: string;
@@ -34,13 +34,11 @@ function buildUrl(username: string): string {
 }
 
 function InstagramLinkInner({ username, children, className, onClick, showCopy = false }: InstagramLinkProps) {
-  const { toast } = useToast();
   const url = buildUrl(username);
 
   const copyUrl = () => {
     navigator.clipboard.writeText(url).then(() => {
-      toast({
-        title: "📋 Lien copié !",
+      toast.success("📋 Lien copié !", {
         description: "Colle-le dans ton navigateur → " + url,
       });
     }).catch(() => {

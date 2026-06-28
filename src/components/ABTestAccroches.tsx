@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Copy, FlaskConical } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 interface ABTestAccrochesProps {
   accroches: string[];
@@ -9,7 +9,6 @@ interface ABTestAccrochesProps {
 }
 
 export default function ABTestAccroches({ accroches }: ABTestAccrochesProps) {
-  const { toast } = useToast();
   const [open, setOpen] = useState(false);
 
   if (!accroches || accroches.length < 2) return null;
@@ -26,7 +25,7 @@ export default function ABTestAccroches({ accroches }: ABTestAccrochesProps) {
   const copyAll = () => {
     const text = stories.map((s, i) => `Story ${i + 1} :\n"${s.text}"\n🎯 Sondage : "${s.poll}" [Oui / Bof]\n`).join("\n");
     navigator.clipboard.writeText(text);
-    toast({ title: "3 stories copiées !" });
+    toast.success("3 stories copiées !");
   };
 
   if (!open) {

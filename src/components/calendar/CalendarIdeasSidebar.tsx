@@ -11,7 +11,7 @@ import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voi
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -62,7 +62,6 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile, onC
   const { isDemoMode, demoData } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
-  const { toast } = useToast();
   const [ideas, setIdeas] = useState<SavedIdea[]>([]);
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -127,11 +126,11 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile, onC
   const handleDeleteIdea = async (id: string) => {
     const { error } = await supabase.from("saved_ideas").delete().eq("id", id);
     if (error) {
-      toast({ title: "Suppression impossible", description: "Réessaie dans un instant.", variant: "destructive" });
+      toast.error("Suppression impossible", { description: "Réessaie dans un instant." });
       return;
     }
     setIdeas(prev => prev.filter(i => i.id !== id));
-    toast({ title: "Idée supprimée" });
+    toast.success("Idée supprimée");
   };
 
   const handleMobilePlan = async () => {
@@ -158,7 +157,7 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile, onC
     setPlanDialogIdea(null);
     fetchIdeas();
     onIdeaPlanned();
-    toast({ title: `Idée planifiée le ${format(planDate, "d MMMM", { locale: fr })}` });
+    toast.success(`Idée planifiée le ${format(planDate, "d MMMM", { locale: fr })}`);
   };
 
   const handleIdeaClick = (idea: SavedIdea) => {
@@ -356,7 +355,6 @@ function MobileIdeaCard({ idea, onDelete, onPlan, onClick }: { idea: SavedIdea; 
 function AddIdeaDialog({ open, onOpenChange, onAdded }: { open: boolean; onOpenChange: (o: boolean) => void; onAdded: () => void }) {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
-  const { toast } = useToast();
   const [title, setTitle] = useState("");
   const [ideaFormat, setIdeaFormat] = useState("post");
   const [objective, setObjective] = useState("visibilite");
@@ -375,7 +373,7 @@ function AddIdeaDialog({ open, onOpenChange, onAdded }: { open: boolean; onOpenC
       status: "to_explore",
       canal: ideaFormat === "linkedin" ? "linkedin" : "instagram",
     });
-    toast({ title: "Idée ajoutée !" });
+    toast.success("Idée ajoutée !");
     setTitle(""); setNotes("");
     onOpenChange(false);
     onAdded();

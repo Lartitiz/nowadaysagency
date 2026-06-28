@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import StreakSection from "@/components/engagement/StreakSection";
 import DailyChecklist, { getDefaultItems } from "@/components/engagement/DailyChecklist";
@@ -36,7 +36,6 @@ function getDayIndex() {
 
 export default function InstagramEngagement() {
   const { user } = useAuth();
-  const { toast } = useToast();
   const { isDemoMode, demoData } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
@@ -229,12 +228,12 @@ export default function InstagramEngagement() {
 
       if (streakMaintained && !checked.includes(id) && next.length === threshold) {
         setShowConfetti(true);
-        toast({ title: "🔥 Streak maintenu !" });
+        toast("🔥 Streak maintenu !");
       }
     } catch (e) {
       console.error("Engagement save error:", e);
       setChecked(prev); // rollback
-      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(e) });
     }
   }, [user, checked, threshold, items.length, today, todayIndex, toast, column, value, workspaceId]);
 
@@ -249,7 +248,7 @@ export default function InstagramEngagement() {
   const interactContact = async (id: string) => {
     await supabase.from("engagement_contacts").update({ last_interaction: today, updated_at: new Date().toISOString() }).eq("id", id);
     setContacts(prev => prev.map(c => c.id === id ? { ...c, last_interaction: today } : c));
-    toast({ title: "💬 Interaction notée !" });
+    toast("💬 Interaction notée !");
   };
 
   const deleteContact = async (id: string) => {

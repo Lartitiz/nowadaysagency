@@ -12,7 +12,7 @@ import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voi
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
 import { handleQuotaError } from "@/lib/quota-error-handler";
 import { Sparkles, Copy, Check, Loader2, RotateCcw, Search, Lightbulb } from "lucide-react";
@@ -68,7 +68,6 @@ function ScoreBadge({ score }: { score: number }) {
 /* ─── Main ─── */
 export default function LinkedInResume() {
   const { user } = useAuth();
-  const { toast } = useToast();
   const navigate = useNavigate();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
@@ -172,7 +171,7 @@ export default function LinkedInResume() {
       }
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(e) });
     } finally {
       setAnalyzing(false);
     }
@@ -211,7 +210,7 @@ export default function LinkedInResume() {
       }
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(e) });
     } finally {
       setGenerating(false);
     }
@@ -246,14 +245,14 @@ export default function LinkedInResume() {
     setSavedResume(text);
     setSavedDate(new Date().toISOString());
     setMode("saved");
-    toast({ title: "✅ Résumé enregistré !" });
+    toast.success("✅ Résumé enregistré !");
   };
 
   const copyText = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
     setCopied(key);
     setTimeout(() => setCopied(null), 2000);
-    toast({ title: "📋 Copié !" });
+    toast.success("📋 Copié !");
   };
 
   if (loadingInit) {

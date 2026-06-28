@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Check, Loader2 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
 
 interface EditableTextProps {
@@ -20,7 +20,6 @@ export default function EditableText({
   className = "",
   disabled = false,
 }: EditableTextProps) {
-  const { toast } = useToast();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   const [saving, setSaving] = useState(false);
@@ -56,12 +55,12 @@ export default function EditableText({
       setTimeout(() => setSaved(false), 2000);
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast({ title: "Erreur de sauvegarde", description: friendlyError(e), variant: "destructive" });
+      toast.error("Erreur de sauvegarde", { description: friendlyError(e) });
       setDraft(value);
     }
     setSaving(false);
     setEditing(false);
-  }, [draft, value, onSave, toast]);
+  }, [draft, value, onSave]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Escape") { setDraft(value); setEditing(false); }

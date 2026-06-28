@@ -12,7 +12,7 @@ import PreGenCoaching, { type PreGenBrief } from "@/components/coach/PreGenCoach
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Loader2, Copy, RefreshCw, FileText, Pencil, Check, ArrowRight, Sparkles, Wrench, Lightbulb } from "lucide-react";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
@@ -46,7 +46,6 @@ type Mode = "entry" | "coaching" | "from-scratch" | "optimize-input" | "optimize
 
 export default function SiteAPropos() {
   const { user } = useAuth();
-  const { toast } = useToast();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const profileUserId = useProfileUserId();
@@ -147,9 +146,9 @@ export default function SiteAPropos() {
         setData({ ...aboutData, id: inserted?.id, custom_facts: [] });
       }
       setMode("display");
-      toast({ title: "Page à propos générée !" });
+      toast.success("Page à propos générée !");
     } catch (e: any) {
-      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(e) });
     } finally {
       setGenerating(false);
     }
@@ -182,7 +181,7 @@ export default function SiteAPropos() {
     const url = inputMode === "url" ? optimizeUrl.trim() : undefined;
     const text = inputMode === "text" ? optimizeText.trim() : undefined;
     if (!url && !text) {
-      toast({ title: "Fournis l'URL de ta page ou colle ton texte", variant: "destructive" });
+      toast.error("Fournis l'URL de ta page ou colle ton texte");
       return;
     }
     setOriginalText(text || "");
@@ -204,7 +203,7 @@ export default function SiteAPropos() {
       if (!text && url) setOriginalText("(contenu extrait de " + url + ")");
       setMode("optimize-result");
     } catch (e: any) {
-      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(e) });
       setMode("optimize-input");
     }
   };
@@ -217,12 +216,12 @@ export default function SiteAPropos() {
       data.approach, data.for_whom, data.cta,
     ].filter(Boolean);
     navigator.clipboard.writeText(parts.join("\n\n---\n\n"));
-    toast({ title: "Copié !" });
+    toast.success("Copié !");
   };
 
   const copyText = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast({ title: "Copié !" });
+    toast.success("Copié !");
   };
 
   const startEdit = (field: string, currentValue: string) => {
@@ -236,7 +235,7 @@ export default function SiteAPropos() {
     await (supabase.from("website_about") as any).update(update).eq(column, value);
     setData({ ...data, [field]: editValue });
     setEditingField(null);
-    toast({ title: "Sauvegardé !" });
+    toast.success("Sauvegardé !");
   };
 
   const exportPDF = async () => {

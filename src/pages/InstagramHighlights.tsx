@@ -6,7 +6,7 @@ import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query"
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { Save, Loader2, BookOpen, Sparkles, Check, X, Lightbulb } from "lucide-react";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
@@ -158,7 +158,6 @@ interface HighlightStatus {
 
 export default function InstagramHighlights() {
   const { user } = useAuth();
-  const { toast } = useToast();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const navigate = useNavigate();
@@ -236,10 +235,10 @@ export default function InstagramHighlights() {
         if (backup?.length) await supabase.from("instagram_highlights").insert(backup);
         throw insErr;
       }
-      toast({ title: "Sauvegardé !", description: "Ta progression highlights est enregistrée." });
+      toast.success("Sauvegardé !", { description: "Ta progression highlights est enregistrée." });
     } catch (e) {
       console.error("Erreur sauvegarde highlights:", e);
-      toast({ title: "Erreur", description: "Impossible de sauvegarder. Tes highlights précédents ont été conservés.", variant: "destructive" });
+      toast.error("Erreur", { description: "Impossible de sauvegarder. Tes highlights précédents ont été conservés." });
     } finally {
       setSaving(false);
     }

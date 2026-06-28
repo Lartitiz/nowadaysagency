@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Trash2, ArrowUp, ArrowDown, Pencil, Eye, EyeOff } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import type { CoachExercise, StepVisibility, PlanData } from "@/lib/plan-engine";
 
 interface CoachPlanManagerProps {
@@ -106,11 +106,11 @@ export default function CoachPlanManager({
       const { title, description, deadline, app_route, phase_id } = payload;
       await (supabase.from("coach_exercises" as any).update({ title, description, deadline, app_route, phase_id, updated_at: new Date().toISOString() }).eq("id", editingId) as any);
       onExercisesChange(exercises.map(e => e.id === editingId ? { ...e, title, description, deadline, app_route, phase_id } as CoachExercise : e));
-      toast({ title: "Exercice modifié" });
+      toast("Exercice modifié");
     } else {
       const { data } = await (supabase.from("coach_exercises" as any).insert(payload).select().single() as any);
       if (data) onExercisesChange([...exercises, data as CoachExercise]);
-      toast({ title: "Exercice ajouté ✅" });
+      toast.success("Exercice ajouté ✅");
     }
 
     setForm(emptyForm);
@@ -121,7 +121,7 @@ export default function CoachPlanManager({
   const handleDelete = async (id: string) => {
     await (supabase.from("coach_exercises" as any).delete().eq("id", id) as any);
     onExercisesChange(exercises.filter(e => e.id !== id));
-    toast({ title: "Exercice supprimé" });
+    toast.success("Exercice supprimé");
   };
 
   const handleReorder = async (index: number, direction: -1 | 1) => {

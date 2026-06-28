@@ -9,7 +9,7 @@ import AppHeader from "@/components/AppHeader";
 import { PageLoader } from "@/components/ui/spinner";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
 import { HelpCircle, ArrowRight, Info } from "lucide-react";
 import SaveButton from "@/components/SaveButton";
@@ -158,7 +158,6 @@ function FrequencySelector({ label, value, options, onChange }: {
 export default function Profile() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
-  const { toast } = useToast();
   const { data: hookProfileData } = useProfile();
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(true);
@@ -257,10 +256,10 @@ export default function Profile() {
       }
 
       setSaved({ ...current });
-      toast({ title: "✅ Modifications enregistrées" });
+      toast.success("✅ Modifications enregistrées");
     } catch (error: any) {
       console.error("Erreur technique:", error);
-      toast({ title: "Erreur", description: friendlyError(error), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(error) });
     } finally {
       setSaving(false);
     }
@@ -441,7 +440,6 @@ export default function Profile() {
 
 function ChannelSelector() {
   const { channels, setChannels, loading } = useActiveChannels();
-  const { toast } = useToast();
   const [showComingSoon, setShowComingSoon] = useState<string | null>(null);
 
   if (loading) return null;
@@ -449,7 +447,7 @@ function ChannelSelector() {
   const toggle = async (id: ChannelId) => {
     const isActive = channels.includes(id);
     if (isActive && channels.length <= 1) {
-      toast({ title: "Au moins 1 canal requis", variant: "destructive" });
+      toast.error("Au moins 1 canal requis");
       return;
     }
     const next = isActive ? channels.filter(c => c !== id) : [...channels, id];
@@ -459,7 +457,7 @@ function ChannelSelector() {
       setTimeout(() => setShowComingSoon(null), 3000);
     }
     await setChannels(next as ChannelId[]);
-    toast({ title: isActive ? `${ch?.label} retiré` : `${ch?.label} ajouté ✅` });
+    toast(isActive ? `${ch?.label} retiré` : `${ch?.label} ajouté ✅`);
   };
 
   return (

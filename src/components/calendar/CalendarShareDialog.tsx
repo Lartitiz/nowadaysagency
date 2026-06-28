@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -103,7 +103,6 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
   const profileUserId = useProfileUserId();
-  const { toast } = useToast();
   const [tab, setTab] = useState<"list" | "create">("list");
   const [shares, setShares] = useState<Share[]>([]);
   const [loading, setLoading] = useState(false);
@@ -205,7 +204,7 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
 
   const copyLink = (token: string) => {
     navigator.clipboard.writeText(getShareUrl(token));
-    toast({ title: "Lien copié !" });
+    toast.success("Lien copié !");
   };
 
   const toggleActive = async (share: Share) => {
@@ -219,7 +218,7 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
     await (supabase.from("calendar_shares") as any).delete().eq("id", id);
     setShares(prev => prev.filter(s => s.id !== id));
     setConfirmDeleteId(null);
-    toast({ title: "Lien supprimé" });
+    toast.success("Lien supprimé");
   };
 
   const handleCreate = async () => {
@@ -248,11 +247,11 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
 
     if (error) {
       console.error("calendar_shares insert error:", error);
-      toast({ title: "Erreur lors de la création", description: friendlyError(error), variant: "destructive" });
+      toast.error("Erreur lors de la création", { description: friendlyError(error) });
     } else {
       setCreatedToken(data.share_token);
       setShares(prev => [{ ...data, unresolved_count: 0, edit_count: 0, to_validate_count: 0, edit_logs: [] }, ...prev]);
-      toast({ title: "Lien créé !" });
+      toast.success("Lien créé !");
     }
     setCreating(false);
   };
@@ -272,7 +271,7 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
 
       const { data: posts } = await postsQuery;
       if (!posts || posts.length === 0) {
-        toast({ title: "Aucun post à exporter" });
+        toast("Aucun post à exporter");
         setExporting(false);
         return;
       }
@@ -329,9 +328,9 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
       }
 
       XLSX.writeFile(wb, fileName);
-      toast({ title: "Export téléchargé !" });
+      toast.success("Export téléchargé !");
     } catch {
-      toast({ title: "Erreur lors de l'export", variant: "destructive" });
+      toast.error("Erreur lors de l'export");
     }
     setExporting(false);
   };

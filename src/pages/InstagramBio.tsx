@@ -12,7 +12,7 @@ import SubPageHeader from "@/components/SubPageHeader";
 import AuditRecommendationBanner from "@/components/AuditRecommendationBanner";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Copy, Check, Sparkles, Loader2, RefreshCw, ChevronLeft, Blend, ArrowRight, Lightbulb } from "lucide-react";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import { cn } from "@/lib/utils";
@@ -79,7 +79,6 @@ const BIO_STRUCTURES_LOOKUP: Record<string, string> = {
 
 export default function InstagramBio() {
   const { user } = useAuth();
-  const { toast } = useToast();
   useAuditInsight("bio");
   const activityExamples = useActivityExamples();
   const { isDemoMode, demoData } = useDemoContext();
@@ -205,7 +204,7 @@ export default function InstagramBio() {
   // ── ANALYZE CURRENT BIO ──
   const handleAnalyzeBio = async () => {
     if (!user || !currentBioText.trim()) {
-      toast({ title: "Colle ta bio actuelle pour l'analyser" });
+      toast("Colle ta bio actuelle pour l'analyser");
       return;
     }
     setAnalyzingBio(true);
@@ -265,7 +264,7 @@ export default function InstagramBio() {
       setBioAnalysis(parsed);
     } catch (e: any) {
       console.error("[Bio Audit] Final error:", e?.message || e);
-      toast({ title: "Erreur d'analyse", description: friendlyError(e), variant: "destructive" });
+      toast.error("Erreur d'analyse", { description: friendlyError(e) });
     }
     setAnalyzingBio(false);
   };
@@ -342,7 +341,7 @@ export default function InstagramBio() {
       setView("results");
     } catch (e: any) {
       console.error("[Bio Generator] Final error:", e?.message || e);
-      toast({ title: "Erreur de génération", description: friendlyError(e), variant: "destructive" });
+      toast.error("Erreur de génération", { description: friendlyError(e) });
     }
     setGenerating(false);
   };
@@ -390,10 +389,10 @@ export default function InstagramBio() {
       setValidatedBio(bioText);
       setValidatedAt(new Date().toISOString());
       setView("validated");
-      toast({ title: "✅ Bio sauvegardée. Tu peux la copier-coller dans Instagram." });
+      toast.success("✅ Bio sauvegardée. Tu peux la copier-coller dans Instagram.");
     } catch (e) {
       console.error("Erreur de sauvegarde bio:", e);
-      toast({ title: "Erreur de sauvegarde", variant: "destructive" });
+      toast.error("Erreur de sauvegarde");
     }
   };
 
@@ -520,7 +519,7 @@ export default function InstagramBio() {
                 {!validatedBio && (
                   <Button variant="ghost" className="rounded-pill text-success" onClick={() => {
                     if (currentBioText.trim()) handleValidate(currentBioText);
-                    else toast({ title: "Colle ta bio d'abord" });
+                    else toast("Colle ta bio d'abord");
                   }}>
                     ✅ Ma bio me convient
                   </Button>

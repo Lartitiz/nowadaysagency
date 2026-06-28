@@ -12,7 +12,7 @@ import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { Save, Loader2, Sparkles, Mic, MicOff, Plus, X, Lightbulb } from "lucide-react";
@@ -215,7 +215,6 @@ function Chip({ label, selected, onClick }: { label: string; selected: boolean; 
 /* ─── Main ─── */
 export default function InstagramProfileEdito() {
   const { user } = useAuth();
-  const { toast } = useToast();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const queryClient = useQueryClient();
@@ -362,10 +361,10 @@ export default function InstagramProfileEdito() {
         if (data) setEditorial((prev) => ({ ...prev, id: data.id }));
       }
       queryClient.invalidateQueries({ queryKey: ["editorial-line"] });
-      toast({ title: "Ligne éditoriale sauvegardée !" });
+      toast.success("Ligne éditoriale sauvegardée !");
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(e) });
     } finally {
       setSaving(false);
     }
@@ -398,7 +397,7 @@ export default function InstagramProfileEdito() {
       }
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(e) });
     } finally {
       setSuggestingPillars(false);
     }
@@ -431,7 +430,7 @@ export default function InstagramProfileEdito() {
       }
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(e) });
     } finally {
       setSuggestingFormats(false);
     }
@@ -469,7 +468,7 @@ export default function InstagramProfileEdito() {
       if (parsed.posts_frequency) rhythmSuggestionRef.current = parsed;
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(e) });
     } finally {
       setSuggestingRhythm(false);
     }
@@ -485,7 +484,7 @@ export default function InstagramProfileEdito() {
       }));
       setRhythmSuggestion(null);
       rhythmSuggestionRef.current = null;
-      toast({ title: "Rythme mis à jour !" });
+      toast.success("Rythme mis à jour !");
     }
   };
 

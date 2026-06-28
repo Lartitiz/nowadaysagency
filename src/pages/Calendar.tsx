@@ -13,8 +13,7 @@ import AuditRecommendationBanner from "@/components/AuditRecommendationBanner";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import { ToastAction } from "@/components/ui/toast";
+import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ChevronLeft, ChevronRight, Sparkles, Download, Link2, PenLine, FileInput, MoreHorizontal } from "lucide-react";
 import {
@@ -88,10 +87,9 @@ function autoWidth(ws: any, rows: Record<string, any>[]) {
   ws["!cols"] = keys.map(k => ({ wch: Math.min(40, Math.max(k.length, ...rows.map(r => String(r[k] || "").length))) }));
 }
 
-function ExportSection({ filteredPosts, canalFilter, toast, onCoachingOpen, onQuickBatchOpen, onImportOpen, seriesNameById }: {
+function ExportSection({ filteredPosts, canalFilter, onCoachingOpen, onQuickBatchOpen, onImportOpen, seriesNameById }: {
   filteredPosts: CalendarPost[];
   canalFilter: string;
-  toast: ReturnType<typeof useToast>["toast"];
   onCoachingOpen: () => void;
   onQuickBatchOpen: () => void;
   onImportOpen: () => void;
@@ -101,7 +99,7 @@ function ExportSection({ filteredPosts, canalFilter, toast, onCoachingOpen, onQu
   const [shareOpen, setShareOpen] = useState(false);
 
   const exportCSV = () => {
-    if (filteredPosts.length === 0) { toast({ title: "Aucun contenu à exporter pour cette période." }); return; }
+    if (filteredPosts.length === 0) { toast("Aucun contenu à exporter pour cette période."); return; }
     const rows = filteredPosts.map(postToRow);
     const headers = Object.keys(rows[0]);
     const lines = [headers.join(";"), ...rows.map(r => headers.map(h => `"${String((r as any)[h]).replace(/"/g, '""')}"`).join(";"))];
@@ -112,7 +110,7 @@ function ExportSection({ filteredPosts, canalFilter, toast, onCoachingOpen, onQu
   };
 
   const exportXLSX = async () => {
-    if (filteredPosts.length === 0) { toast({ title: "Aucun contenu à exporter pour cette période." }); return; }
+    if (filteredPosts.length === 0) { toast("Aucun contenu à exporter pour cette période."); return; }
     const XLSX = await import("xlsx");
     const wb = XLSX.utils.book_new();
     if (canalFilter === "all") {
@@ -179,7 +177,6 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
-  const { toast } = useToast();
   const { isDemoMode, demoData } = useDemoContext();
   const isMobile = useIsMobile();
   const location = useLocation();
@@ -438,22 +435,20 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       createdPost = (inserted as CalendarPost) || null;
     }
     if (error) {
-      toast({ title: "Oups, ça n'a pas été enregistré", description: "Réessaie dans un instant.", variant: "destructive" });
+      toast.error("Oups, ça n'a pas été enregistré", { description: "Réessaie dans un instant." });
       fetchPosts();
       return;
     }
     setDialogOpen(false);
     fetchPosts();
     if (editingPost) {
-      toast({ title: "Post modifié !" });
+      toast.success("Post modifié !");
     } else {
-      toast({
-        title: "Post ajouté au calendrier !",
-        action: createdPost ? (
-          <ToastAction altText="Générer maintenant" onClick={() => handleQuickGenerate(createdPost!)}>
-            ✨ Générer
-          </ToastAction>
-        ) : undefined,
+      toast.success("Post ajouté au calendrier !", {
+        action: createdPost ? {
+          label: "✨ Générer",
+          onClick: () => handleQuickGenerate(createdPost!),
+        } : undefined,
       });
     }
   };
@@ -462,13 +457,13 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     if (!editingPost) return;
     const { error } = await supabase.from("calendar_posts").delete().eq("id", editingPost.id);
     if (error) {
-      toast({ title: "Oups, ça n'a pas été enregistré", description: "Réessaie dans un instant.", variant: "destructive" });
+      toast.error("Oups, ça n'a pas été enregistré", { description: "Réessaie dans un instant." });
       fetchPosts();
       return;
     }
     setDialogOpen(false);
     fetchPosts();
-    toast({ title: "Post supprimé" });
+    toast.success("Post supprimé");
   };
 
   const handleQuickCreate = async (dateStr: string, title: string) => {
@@ -484,19 +479,19 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
 
     if (!error && data) {
       setPosts(prev => [...prev, data as CalendarPost]);
-      toast({ title: "💡 Idée ajoutée !", description: title });
+      toast.success("💡 Idée ajoutée !", { description: title });
     }
   };
 
   const handleQuickStatusChange = async (postId: string, newStatus: string) => {
     const { error } = await supabase.from("calendar_posts").update({ status: newStatus }).eq("id", postId);
     if (error) {
-      toast({ title: "Oups, ça n'a pas été enregistré", description: "Réessaie dans un instant.", variant: "destructive" });
+      toast.error("Oups, ça n'a pas été enregistré", { description: "Réessaie dans un instant." });
       fetchPosts();
       return;
     }
     setPosts(prev => prev.map(p => p.id === postId ? { ...p, status: newStatus } : p));
-    toast({ title: STATUS_LABELS[newStatus] || newStatus });
+    toast(STATUS_LABELS[newStatus] || newStatus);
   };
 
   const handleQuickDuplicate = async (post: CalendarPost) => {
@@ -519,9 +514,9 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     }).select().single();
     if (!error && dupData) {
       setPosts(prev => [...prev, dupData as CalendarPost]);
-      toast({ title: "📋 Post dupliqué !" });
+      toast.success("📋 Post dupliqué !");
     } else {
-      toast({ title: "Oups, ça n'a pas été enregistré", description: "Réessaie dans un instant.", variant: "destructive" });
+      toast.error("Oups, ça n'a pas été enregistré", { description: "Réessaie dans un instant." });
     }
   };
 
@@ -529,11 +524,11 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     if (!window.confirm("Supprimer ce post ?")) return;
     const { error } = await supabase.from("calendar_posts").delete().eq("id", postId);
     if (error) {
-      toast({ title: "Suppression impossible", description: "Réessaie dans un instant.", variant: "destructive" });
+      toast.error("Suppression impossible", { description: "Réessaie dans un instant." });
       return;
     }
     setPosts(prev => prev.filter(p => p.id !== postId));
-    toast({ title: "🗑️ Post supprimé" });
+    toast.success("🗑️ Post supprimé");
   };
 
   const handleQuickGenerate = (post: CalendarPost) => {
@@ -575,27 +570,22 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     const { error } = await supabase.from("calendar_posts")
       .update({ date: newDate, updated_at: new Date().toISOString() })
       .eq("id", postId);
-    if (error) { toast({ title: "Erreur", variant: "destructive" }); fetchPosts(); }
+    if (error) { toast.error("Erreur"); fetchPosts(); }
     else {
       const formatted = new Date(newDate + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
-      toast({
-        title: `Déplacé au ${formatted}`,
-        action: originalDate && originalDate !== newDate ? (
-          <ToastAction
-            altText="Annuler le déplacement"
-            onClick={async () => {
-              const { error: rollbackError } = await supabase.from("calendar_posts")
-                .update({ date: originalDate, updated_at: new Date().toISOString() })
-                .eq("id", postId);
-              if (rollbackError) {
-                toast({ title: "Oups, ça n'a pas été enregistré", description: "Réessaie dans un instant.", variant: "destructive" });
-              }
-              fetchPosts();
-            }}
-          >
-            Annuler
-          </ToastAction>
-        ) : undefined,
+      toast(`Déplacé au ${formatted}`, {
+        action: originalDate && originalDate !== newDate ? {
+          label: "Annuler",
+          onClick: async () => {
+            const { error: rollbackError } = await supabase.from("calendar_posts")
+              .update({ date: originalDate, updated_at: new Date().toISOString() })
+              .eq("id", postId);
+            if (rollbackError) {
+              toast.error("Oups, ça n'a pas été enregistré", { description: "Réessaie dans un instant." });
+            }
+            fetchPosts();
+          },
+        } : undefined,
       });
     }
   };
@@ -668,7 +658,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     if (!payload) return;
     const { error: insertError } = await supabase.from("saved_ideas").insert(payload);
     if (insertError) {
-      toast({ title: "Oups, ça n'a pas été enregistré", description: "Réessaie dans un instant.", variant: "destructive" });
+      toast.error("Oups, ça n'a pas été enregistré", { description: "Réessaie dans un instant." });
       fetchPosts();
       return;
     }
@@ -678,7 +668,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     fetchPosts();
     // Refresh sidebar
     setIdeasRefreshKey(k => k + 1);
-    toast({ title: "Remis en idée !" });
+    toast.success("Remis en idée !");
   };
 
   const handleIdeaClick = (idea: SavedIdea) => {
@@ -725,7 +715,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       await supabase.from("calendar_posts").delete().eq("id", post.id);
       fetchPosts();
       setIdeasRefreshKey(k => k + 1);
-      toast({ title: "Remis en idée !" });
+      toast.success("Remis en idée !");
       return;
     }
 
@@ -752,7 +742,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       }
       fetchPosts();
       setIdeasRefreshKey(k => k + 1);
-      toast({ title: `"${idea.titre}" planifié !` });
+      toast.success(`"${idea.titre}" planifié !`);
     } else {
       const postId = active.id as string;
       const currentPost = posts.find(p => p.id === postId);
@@ -863,7 +853,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   const body = (
     <>
       <AuditRecommendationBanner />
-      <ExportSection filteredPosts={filteredPosts} canalFilter={canalFilter} toast={toast} onCoachingOpen={() => setCoachingOpen(true)} onQuickBatchOpen={() => setQuickBatchOpen(true)} onImportOpen={() => openImportDialog()} seriesNameById={seriesNameById} />
+      <ExportSection filteredPosts={filteredPosts} canalFilter={canalFilter} onCoachingOpen={() => setCoachingOpen(true)} onQuickBatchOpen={() => setQuickBatchOpen(true)} onImportOpen={() => openImportDialog()} seriesNameById={seriesNameById} />
 
       {/* Mobile tabs */}
       {isMobile && (

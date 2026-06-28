@@ -12,7 +12,7 @@ import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
 import { Sparkles, Copy, Trash2 } from "lucide-react";
 
@@ -22,7 +22,6 @@ interface PinVariant { title: string; description: string; }
 
 export default function PinterestEpingles() {
   const { user } = useAuth();
-  const { toast } = useToast();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const [boards, setBoards] = useState<BoardOption[]>([]);
@@ -58,7 +57,7 @@ export default function PinterestEpingles() {
       let parsed: PinVariant[];
       try { parsed = JSON.parse(c); } catch { const m = c.match(/\[[\s\S]*\]/); parsed = m ? JSON.parse(m[0]) : []; }
       setVariants(parsed);
-    } catch (e: any) { console.error("Erreur technique:", e); toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" }); }
+    } catch (e: any) { console.error("Erreur technique:", e); toast.error("Erreur", { description: friendlyError(e) }); }
     finally { setGenerating(false); }
   };
 
@@ -69,16 +68,16 @@ export default function PinterestEpingles() {
       title: variant.title, description: variant.description, variant_type: variantType,
     }).select("*").single();
     if (data) setPins(prev => [{ id: data.id, subject: data.subject || "", board_id: data.board_id || "", link_url: data.link_url || "", title: data.title || "", description: data.description || "", variant_type: data.variant_type || "seo" }, ...prev]);
-    toast({ title: "✅ Épingle sauvegardée !" });
+    toast.success("✅ Épingle sauvegardée !");
   };
 
   const deletePin = async (id: string) => {
     await supabase.from("pinterest_pins").delete().eq("id", id);
     setPins(prev => prev.filter(p => p.id !== id));
-    toast({ title: "Épingle supprimée" });
+    toast.success("Épingle supprimée");
   };
 
-  const copyText = (text: string) => { navigator.clipboard.writeText(text); toast({ title: "📋 Copié !" }); };
+  const copyText = (text: string) => { navigator.clipboard.writeText(text); toast.success("📋 Copié !"); };
 
   const VARIANT_LABELS = ["SEO", "Storytelling", "Bénéfice"];
   const VARIANT_KEYS = ["seo", "storytelling", "benefice"];

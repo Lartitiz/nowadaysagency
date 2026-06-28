@@ -24,7 +24,7 @@ import { useOnboardingMissions, OnboardingMission } from "@/hooks/use-onboarding
 import WelcomeOverlay from "@/components/dashboard/WelcomeOverlay";
 import GuidedTour from "@/components/GuidedTour";
 import AppHeader from "@/components/AppHeader";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -207,7 +207,6 @@ const CHANNEL_PILLS = [
 /* ── Main ── */
 export default function AdaptiveHome() {
   const navigate = useNavigate();
-  const { toast } = useToast();
   const { user } = useAuth();
   const { activeWorkspace } = useWorkspace();
   const { recommendation, profileSummary, isLoading } = useGuideRecommendation();
@@ -381,7 +380,7 @@ export default function AdaptiveHome() {
       return;
     }
     if (route === "/creer" && profileSummary.brandingTotal < 50) {
-      toast({ title: "Tes contenus seront plus personnalisés une fois que tu auras posé tes bases 💡" });
+      toast("Tes contenus seront plus personnalisés une fois que tu auras posé tes bases 💡");
     }
     navigate(route);
   };

@@ -13,7 +13,7 @@ import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voi
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Sparkles, Copy, Check } from "lucide-react";
 import { friendlyError } from "@/lib/error-messages";
 
@@ -34,7 +34,6 @@ interface Reco {
 
 export default function LinkedInRecommandations() {
   const { user } = useAuth();
-  const { toast } = useToast();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const { data: profileData } = useProfile();
@@ -89,7 +88,7 @@ export default function LinkedInRecommandations() {
       reco_received: r.reco_received,
     }));
     if (toInsert.length > 0) await supabase.from("linkedin_recommendations").insert(toInsert);
-    toast({ title: "✅ Recommandations sauvegardées !" });
+    toast.success("✅ Recommandations sauvegardées !");
   };
 
   const messageTemplate = `Hello [Prénom],
@@ -106,7 +105,7 @@ ${prenom || "[Ton prénom]"}`;
     navigator.clipboard.writeText(messageTemplate);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-    toast({ title: "📋 Copié !" });
+    toast.success("📋 Copié !");
   };
 
   const personalizeMessage = async () => {
@@ -122,7 +121,7 @@ ${prenom || "[Ton prénom]"}`;
       try { parsed = JSON.parse(content); } catch { const m = content.match(/\[[\s\S]*\]/); parsed = m ? JSON.parse(m[0]) : []; }
       setMessageVariants(parsed);
     } catch (e: any) {
-      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(e) });
     } finally {
       setGeneratingMsg(false);
     }
@@ -140,7 +139,7 @@ ${prenom || "[Ton prénom]"}`;
       if (res.error) throw new Error(res.error.message);
       setDraftResult(res.data?.content || "");
     } catch (e: any) {
-      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(e) });
     } finally {
       setGeneratingDraft(false);
     }
@@ -212,7 +211,7 @@ ${prenom || "[Ton prénom]"}`;
               {messageVariants.map((v, i) => (
                 <div key={i} className="rounded-lg bg-muted/50 p-3">
                   <p className="text-sm whitespace-pre-line">{v}</p>
-                  <button onClick={() => { navigator.clipboard.writeText(v); toast({ title: "📋 Copié !" }); }} className="text-xs text-primary mt-2 hover:underline">📋 Copier</button>
+                  <button onClick={() => { navigator.clipboard.writeText(v); toast.success("📋 Copié !"); }} className="text-xs text-primary mt-2 hover:underline">📋 Copier</button>
                 </div>
               ))}
             </div>
@@ -233,7 +232,7 @@ ${prenom || "[Ton prénom]"}`;
           {draftResult && (
             <div className="space-y-2">
               <Textarea aria-label="Brouillon de recommandation généré" value={draftResult} onChange={e => setDraftResult(e.target.value)} className="min-h-[150px]" />
-              <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(draftResult); toast({ title: "📋 Copié !" }); }} className="gap-1">
+              <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(draftResult); toast.success("📋 Copié !"); }} className="gap-1">
                 <Copy className="h-3 w-3" /> Copier
               </Button>
             </div>

@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
 import { handleQuotaError } from "@/lib/quota-error-handler";
 import { Sparkles, Copy, Check, Plus, Trash2, Lightbulb } from "lucide-react";
@@ -26,7 +26,6 @@ interface Experience {
 
 export default function LinkedInParcours() {
   const { user } = useAuth();
-  const { toast } = useToast();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const [loading, setLoading] = useState(true);
@@ -72,7 +71,7 @@ export default function LinkedInParcours() {
     const exp = experiences[idx];
     if (exp.id) await supabase.from("linkedin_experiences").delete().eq("id", exp.id);
     setExperiences(prev => prev.filter((_, i) => i !== idx));
-    toast({ title: "Expérience supprimée" });
+    toast.success("Expérience supprimée");
   };
 
   const optimizeExp = async (idx: number) => {
@@ -91,7 +90,7 @@ export default function LinkedInParcours() {
       updateExp(idx, "description_optimized", content);
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(e) });
     } finally {
       setGeneratingIdx(null);
     }
@@ -114,7 +113,7 @@ export default function LinkedInParcours() {
         }))
       );
     }
-    toast({ title: "✅ Parcours sauvegardé !" });
+    toast.success("✅ Parcours sauvegardé !");
   };
 
   const suggestSkills = async () => {
@@ -131,7 +130,7 @@ export default function LinkedInParcours() {
       if (parsed) setSkills(parsed);
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(e) });
     } finally {
       setGeneratingSkills(false);
     }
@@ -141,7 +140,7 @@ export default function LinkedInParcours() {
     navigator.clipboard.writeText(text);
     setCopied(idx);
     setTimeout(() => setCopied(null), 2000);
-    toast({ title: "📋 Copié !" });
+    toast.success("📋 Copié !");
   };
 
   if (loading) return <div className="flex min-h-screen items-center justify-center bg-background"><div className="flex gap-1"><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.16s" }} /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.32s" }} /></div></div>;

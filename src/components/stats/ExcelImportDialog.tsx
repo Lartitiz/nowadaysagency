@@ -3,7 +3,7 @@ import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Upload, Check, AlertTriangle, Loader2, FileSpreadsheet, X } from "lucide-react";
@@ -175,7 +175,6 @@ function txt(val: any) {
 }
 
 export default function ExcelImportDialog({ open, onOpenChange, userId, onImportComplete }: Props) {
-  const { toast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
   const { column, value } = useWorkspaceFilter();
 
@@ -265,7 +264,7 @@ export default function ExcelImportDialog({ open, onOpenChange, userId, onImport
         setEditedMapping({ ...mapping.mapping });
         setEditedDateCol(mapping.date_column);
         setStep("validate");
-        toast({ title: "🔄 Mapping précédent réutilisé", description: "J'ai reconnu la structure de ton fichier." });
+        toast("🔄 Mapping précédent réutilisé", { description: "J'ai reconnu la structure de ton fichier." });
         return;
       }
 
@@ -286,7 +285,7 @@ export default function ExcelImportDialog({ open, onOpenChange, userId, onImport
       setStep("validate");
     } catch (err: any) {
       console.error("Import analysis error:", err);
-      toast({ title: "Erreur d'analyse", description: friendlyError(err), variant: "destructive" });
+      toast.error("Erreur d'analyse", { description: friendlyError(err) });
       setStep("upload");
     }
 
@@ -388,7 +387,7 @@ export default function ExcelImportDialog({ open, onOpenChange, userId, onImport
       setStep("done");
       onImportComplete();
     } catch (err: any) {
-      toast({ title: "Erreur lors de l'import", description: friendlyError(err), variant: "destructive" });
+      toast.error("Erreur lors de l'import", { description: friendlyError(err) });
       setStep("preview");
     }
   };
