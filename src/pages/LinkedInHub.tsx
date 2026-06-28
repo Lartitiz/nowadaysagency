@@ -152,14 +152,26 @@ export default function LinkedInHub() {
               <span className="text-primary text-sm font-semibold">Créer →</span>
             </Link>
             <Link
-              to="/transformer?mode=crosspost"
+              to="/linkedin/post"
+              className="group flex items-center justify-between rounded-2xl border border-border bg-card p-5 hover:border-primary hover:shadow-md transition-all"
+            >
+              <div>
+                <h3 className="font-display text-base font-bold text-foreground group-hover:text-primary transition-colors">
+                  Analyser un post
+                </h3>
+                <p className="mt-1 text-sm text-muted-foreground">Colle un post existant : analyse + version améliorée.</p>
+              </div>
+              <span className="text-primary text-sm font-semibold">Analyser →</span>
+            </Link>
+            <Link
+              to="/linkedin/crosspost"
               className="group flex items-center justify-between rounded-2xl border border-border bg-card p-5 hover:border-primary hover:shadow-md transition-all"
             >
               <div>
                 <h3 className="font-display text-base font-bold text-foreground group-hover:text-primary transition-colors">
                   Recycler un contenu
                 </h3>
-                <p className="mt-1 text-sm text-muted-foreground">Adapte un contenu existant pour LinkedIn.</p>
+                <p className="mt-1 text-sm text-muted-foreground">Un contenu source adapté pour chaque réseau.</p>
               </div>
               <span className="text-primary text-sm font-semibold">Recycler →</span>
             </Link>
