@@ -223,6 +223,34 @@ export async function callAnthropicWithMeta(options: AnthropicOptions): Promise<
   throw lastError || new Error("Erreur inattendue lors de l'appel à l'IA");
 }
 
+/**
+ * Valide la réponse brute de l'API avant de renvoyer le texte aux consommateurs
+ * de `callAnthropic`. Lève une erreur explicite et RÉESSAYABLE dans deux cas de
+ * défaut net, AVANT que l'edge n'appelle logUsage (donc sans facturer un échec) :
+ *  - troncature (`stop_reason === "max_tokens"`) → JSON/carrousel amputé qui, sinon,
+ *    passe pour un succès ou casse silencieusement au parse côté front.
+ *  - réponse vide → aucun texte exploitable.
+ * NB : `callAnthropicWithMeta` n'utilise PAS ce garde — il expose `stop_reason`
+ * pour les appelants qui gèrent la troncature eux-mêmes (ex. branding-coaching
+ * relance avec un max_tokens plus haut).
+ */
+function extractValidatedText(data: any): string {
+  if (data?.stop_reason === "max_tokens") {
+    throw new AnthropicError(
+      "La génération a été coupée car trop longue. Réessaie.",
+      422
+    );
+  }
+  const text = sanitizeDashes(data?.content?.[0]?.text || "");
+  if (!text.trim()) {
+    throw new AnthropicError(
+      "L'IA a renvoyé une réponse vide. Réessaie.",
+      502
+    );
+  }
+  return text;
+}
+
 export async function callAnthropic(options: AnthropicOptions): Promise<string> {
   const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not configured");
@@ -278,7 +306,7 @@ export async function callAnthropic(options: AnthropicOptions): Promise<string> 
 
     if (response.ok) {
       const data = await response.json();
-      return sanitizeDashes(data.content?.[0]?.text || "");
+      return extractValidatedText(data);
     }
 
     const errorText = await response.text();
@@ -320,7 +348,7 @@ export async function callAnthropic(options: AnthropicOptions): Promise<string> 
       });
       if (fallbackRes.ok) {
         const data = await fallbackRes.json();
-        return sanitizeDashes(data.content?.[0]?.text || "");
+        return extractValidatedText(data);
       }
       await fallbackRes.text(); // consume body
     }
