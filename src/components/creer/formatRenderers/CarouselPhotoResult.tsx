@@ -465,10 +465,10 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
 
   const scoreColor =
     qualityCheck?.score >= 80
-      ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+      ? "bg-success-bg text-success"
       : qualityCheck?.score >= 60
-      ? "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400"
-      : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
+      ? "bg-warning-bg text-warning"
+      : "bg-error-bg text-error";
 
   // ─── Couleurs du carrousel : surcharge optionnelle de la charte ───
   // Défaut = couleurs de la charte (ou, à défaut, la palette NEUTRE & éditoriale
@@ -783,13 +783,13 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
           ? (!caption?.fullText || caption.fullText.length < 80)
           : (!caption?.body || caption.body.length < 50)
       ) && (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 p-3 flex items-start gap-2">
-          <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+        <div className="rounded-lg border border-warning/30 bg-warning-bg p-3 flex items-start gap-2">
+          <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
           <div className="flex-1 space-y-1.5">
-            <p className="text-xs font-medium text-amber-900 dark:text-amber-200">
+            <p className="text-xs font-medium text-warning">
               ⚠ La légende n'a pas été générée correctement.
             </p>
-            <p className="text-[11px] text-amber-800 dark:text-amber-300">
+            <p className="text-[11px] text-warning">
               Tu peux la rédiger à la main ci-dessous{onRegenerateCaption ? ", relancer uniquement la légende," : ""}{onRetry ? " ou relancer la génération du carrousel." : "."}
             </p>
             <div className="flex flex-wrap gap-2">
@@ -797,7 +797,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-7 text-xs border-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40"
+                  className="h-7 text-xs border-warning hover:bg-warning-bg"
                   onClick={onRegenerateCaption}
                 >
                   <RefreshCw className="h-3 w-3 mr-1" /> Régénérer la légende
@@ -807,7 +807,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-7 text-xs border-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40"
+                  className="h-7 text-xs border-warning hover:bg-warning-bg"
                   onClick={onRetry}
                 >
                   Relancer la génération
@@ -857,7 +857,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
           {!computedQuality.all_photos_used && (
             <Badge
               variant="outline"
-              className="text-[10px] border-orange-300 text-orange-700 cursor-help"
+              className="text-[10px] border-warning/30 text-warning cursor-help"
               title={`${
                 computedQuality.unused_photo_numbers.length === 1
                   ? `La photo n°${computedQuality.unused_photo_numbers[0]} n'est posée sur aucune slide`
@@ -879,19 +879,19 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
         return (
           <>
             {isStale && onRegenerateVisuals && (
-              <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 p-3 flex items-start gap-2">
-                <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+              <div className="rounded-lg border border-warning/30 bg-warning-bg p-3 flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
                 <div className="flex-1 space-y-1.5">
-                  <p className="text-xs font-medium text-amber-900 dark:text-amber-200">
+                  <p className="text-xs font-medium text-warning">
                     Tu as modifié des slides depuis le dernier rendu visuel.
                   </p>
-                  <p className="text-[11px] text-amber-800 dark:text-amber-300">
+                  <p className="text-[11px] text-warning">
                     Mets à jour les visuels pour que l'aperçu et l'export reflètent tes modifications.
                   </p>
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-7 text-xs border-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40"
+                    className="h-7 text-xs border-warning hover:bg-warning-bg"
                     onClick={onRegenerateVisuals}
                     disabled={visualLoading}
                   >

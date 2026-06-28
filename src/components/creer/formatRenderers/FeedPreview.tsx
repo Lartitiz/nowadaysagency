@@ -100,7 +100,7 @@ export default function FeedPreview({ variant, text, photos, hashtags }: Props) 
               </>
             )}
             {(expanded || !needsTruncation) && tagLine && (
-              <span className="text-sky-700">{tagLine}</span>
+              <span className="text-info">{tagLine}</span>
             )}
           </span>
         </div>
@@ -138,7 +138,7 @@ export default function FeedPreview({ variant, text, photos, hashtags }: Props) 
             <button
               type="button"
               onClick={() => setExpanded(true)}
-              className="font-medium text-neutral-500 hover:text-sky-700 hover:underline"
+              className="font-medium text-neutral-500 hover:text-info hover:underline"
             >
               {moreLabel}
             </button>
@@ -158,7 +158,7 @@ export default function FeedPreview({ variant, text, photos, hashtags }: Props) 
       {/* Barre de réactions */}
       <div className="flex items-center gap-1 px-4 py-1.5 text-[12px] text-neutral-500">
         <span className="flex -space-x-1">
-          <span className="grid h-4 w-4 place-items-center rounded-full bg-sky-600 text-[8px] text-white">👍</span>
+          <span className="grid h-4 w-4 place-items-center rounded-full bg-info text-[8px] text-white">👍</span>
           <span className="grid h-4 w-4 place-items-center rounded-full bg-rose-500 text-[8px] text-white">❤️</span>
         </span>
         <span className="ml-1">Vous et votre réseau</span>

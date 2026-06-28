@@ -29,7 +29,7 @@ export default function Step3Transform({ data, save, callAI, aiLoading, aiResult
       {data.framework === "storybrand" && (
         <div>
           <h3 className="font-display text-base font-bold mb-2">B. Ce qui se passe si elle ne fait rien (optionnel)</h3>
-          <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 text-[13px] text-foreground mb-3">
+          <div className="rounded-xl bg-warning-bg border border-warning/30 p-4 text-[13px] text-foreground mb-3">
             ⚠️ <strong>Attention :</strong> cette section est puissante MAIS dangereuse. Utilise-la comme du sel : une pincée suffit.
           </div>
           <Textarea className="min-h-[80px] mb-3" placeholder="Qu'est-ce qui se passe si ta cliente ne fait rien ?" value={data.failure_block} onChange={(e) => save({ failure_block: e.target.value })} />

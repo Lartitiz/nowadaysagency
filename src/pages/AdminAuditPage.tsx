@@ -537,8 +537,8 @@ export default function AdminAuditPage() {
                       <span className="font-medium text-foreground">{cat}</span>
                       <span className="text-xs text-muted-foreground">({catResults.length} checks)</span>
                       {catErrors > 0 && <Badge variant="destructive" className="text-xs">{catErrors} erreur(s)</Badge>}
-                      {catWarnings > 0 && <Badge variant="outline" className="text-xs border-amber-300 text-amber-600">{catWarnings} warning(s)</Badge>}
-                      {!hasIssues && <Badge className="text-xs bg-green-100 text-green-700 border-green-300">Tout OK</Badge>}
+                      {catWarnings > 0 && <Badge variant="outline" className="text-xs border-warning/30 text-warning">{catWarnings} warning(s)</Badge>}
+                      {!hasIssues && <Badge className="text-xs bg-success-bg text-success border-success/30">Tout OK</Badge>}
                     </div>
                     {isCollapsed ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronUp className="h-4 w-4 text-muted-foreground" />}
                   </button>
@@ -560,20 +560,20 @@ export default function AdminAuditPage() {
                               key={key}
                               className={`p-3 rounded-xl border ml-4 ${
                                 result.status === "error"
-                                  ? "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800"
+                                  ? "bg-error-bg border-error/30"
                                   : result.status === "warning"
-                                  ? "bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800"
+                                  ? "bg-warning-bg border-warning/30"
                                   : result.status === "info"
-                                  ? "bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800"
-                                  : "bg-green-50/50 dark:bg-green-950/10 border-green-200 dark:border-green-800"
+                                  ? "bg-info-bg border-info/30"
+                                  : "bg-success-bg/50 border-success/30"
                               }`}
                             >
                               <div className="flex justify-between items-start gap-3">
                                 <div className="flex items-start gap-2 min-w-0">
-                                  {result.status === "ok" && <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />}
-                                  {result.status === "warning" && <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />}
-                                  {result.status === "error" && <XCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />}
-                                  {result.status === "info" && <Info className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />}
+                                  {result.status === "ok" && <CheckCircle2 className="h-4 w-4 text-success shrink-0 mt-0.5" />}
+                                  {result.status === "warning" && <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />}
+                                  {result.status === "error" && <XCircle className="h-4 w-4 text-error shrink-0 mt-0.5" />}
+                                  {result.status === "info" && <Info className="h-4 w-4 text-info shrink-0 mt-0.5" />}
                                   <div className="min-w-0">
                                     <p className="font-medium text-sm text-foreground">{result.title}</p>
                                     {result.detail && (
@@ -592,7 +592,7 @@ export default function AdminAuditPage() {
                                   </Button>
                                 )}
                                 {isFixed && (
-                                  <span className="text-xs text-green-600 font-medium shrink-0">✅ Corrigé</span>
+                                  <span className="text-xs text-success font-medium shrink-0">✅ Corrigé</span>
                                 )}
                               </div>
                             </div>

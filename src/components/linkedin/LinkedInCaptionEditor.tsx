@@ -83,7 +83,7 @@ export default function LinkedInCaptionEditor({
             placeholder="Phrase choc qui s'affiche avant le « voir plus »"
           />
           {hookTruncated && (
-            <p className="text-[10px] text-amber-600">
+            <p className="text-[10px] text-warning">
               ⚠️ LinkedIn tronque à ~210 car. dans le feed — la fin sera coupée.
             </p>
           )}
@@ -100,9 +100,9 @@ export default function LinkedInCaptionEditor({
                 bodyOver
                   ? "text-destructive"
                   : bodyAmber
-                  ? "text-amber-500"
+                  ? "text-warning"
                   : bodyLen >= 300 && bodyLen <= 1200
-                  ? "text-green-600"
+                  ? "text-success"
                   : "text-muted-foreground"
               }`}
             >
@@ -146,7 +146,7 @@ export default function LinkedInCaptionEditor({
             <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Hashtags</label>
             <span
               className={`text-xs font-medium tabular-nums ${
-                tagsTooMany ? "text-amber-600" : hashtagsCount >= 3 && hashtagsCount <= 5 ? "text-green-600" : "text-muted-foreground"
+                tagsTooMany ? "text-warning" : hashtagsCount >= 3 && hashtagsCount <= 5 ? "text-success" : "text-muted-foreground"
               }`}
             >
               {hashtagsCount} / 3-5 max
@@ -167,7 +167,7 @@ export default function LinkedInCaptionEditor({
           />
           <p className="text-[10px] text-muted-foreground">
             💡 3-5 hashtags max sur LinkedIn (au-delà = effet spammy).
-            {tagsTooMany && <span className="text-amber-600"> Tu en as {hashtagsCount}, pense à réduire.</span>}
+            {tagsTooMany && <span className="text-warning"> Tu en as {hashtagsCount}, pense à réduire.</span>}
           </p>
         </CardContent>
       </Card>

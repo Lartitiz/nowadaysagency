@@ -70,8 +70,8 @@ function getConfidence(section: any): string {
 
 function ConfidenceBadge({ level }: { level: string }) {
   const map: Record<string, { bg: string; text: string; label: string }> = {
-    high: { bg: "bg-emerald-100", text: "text-emerald-700", label: "Confiant·e" },
-    medium: { bg: "bg-amber-100", text: "text-amber-700", label: "À vérifier" },
+    high: { bg: "bg-success-bg", text: "text-success", label: "Confiant·e" },
+    medium: { bg: "bg-warning-bg", text: "text-warning", label: "À vérifier" },
     low: { bg: "bg-[#fce4ec]", text: "text-[#91014b]", label: "À compléter" },
   };
   const s = map[level] || map.low;
@@ -90,7 +90,7 @@ function Chip({ children }: { children: React.ReactNode }) {
 function SourceTag({ name, ok }: { name: string; ok: boolean }) {
   const labels: Record<string, string> = { website: "Site", instagram: "Instagram", linkedin: "LinkedIn", documents: "Documents" };
   return (
-    <span className={`inline-flex items-center gap-1 text-[12px] px-2 py-0.5 rounded-full font-medium ${ok ? "bg-emerald-100 text-emerald-700" : "bg-muted text-muted-foreground line-through"}`}>
+    <span className={`inline-flex items-center gap-1 text-[12px] px-2 py-0.5 rounded-full font-medium ${ok ? "bg-success-bg text-success" : "bg-muted text-muted-foreground line-through"}`}>
       {labels[name] || name} {ok ? "✓" : "✗"}
     </span>
   );
@@ -139,8 +139,8 @@ function ValuePropSection({ data }: { data: AnalysisResult["value_proposition"] 
       {data.key_phrase && <p className="font-display text-[18px] text-foreground leading-snug">{data.key_phrase}</p>}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-[13px]">
         {data.problem && <div className="p-3 rounded-[12px] bg-[#fce4ec]"><p className="font-semibold text-[#91014b] mb-1">Problème</p><p className="text-foreground">{data.problem}</p></div>}
-        {data.solution && <div className="p-3 rounded-[12px] bg-emerald-50"><p className="font-semibold text-emerald-700 mb-1">Solution</p><p className="text-foreground">{data.solution}</p></div>}
-        {data.differentiator && <div className="p-3 rounded-[12px] bg-amber-50"><p className="font-semibold text-amber-700 mb-1">Différenciateur</p><p className="text-foreground">{data.differentiator}</p></div>}
+        {data.solution && <div className="p-3 rounded-[12px] bg-success-bg"><p className="font-semibold text-success mb-1">Solution</p><p className="text-foreground">{data.solution}</p></div>}
+        {data.differentiator && <div className="p-3 rounded-[12px] bg-warning-bg"><p className="font-semibold text-warning mb-1">Différenciateur</p><p className="text-foreground">{data.differentiator}</p></div>}
       </div>
       {data.proofs?.length ? <div className="flex flex-wrap gap-1.5">{data.proofs.map((p, i) => <Chip key={i}>{p}</Chip>)}</div> : null}
     </div>
@@ -163,7 +163,7 @@ function ToneSection({ data }: { data: AnalysisResult["tone_style"] }) {
         </div>
       )}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[13px]">
-        {data.i_do?.length ? <div className="p-3 rounded-[12px] bg-emerald-50"><p className="font-semibold text-emerald-700 mb-2">✅ Je fais</p><ul className="space-y-1">{data.i_do.map((d, i) => <li key={i}>• {d}</li>)}</ul></div> : null}
+        {data.i_do?.length ? <div className="p-3 rounded-[12px] bg-success-bg"><p className="font-semibold text-success mb-2">✅ Je fais</p><ul className="space-y-1">{data.i_do.map((d, i) => <li key={i}>• {d}</li>)}</ul></div> : null}
         {data.i_never_do?.length ? <div className="p-3 rounded-[12px] bg-[#fce4ec]"><p className="font-semibold text-[#91014b] mb-2">🚫 Je ne fais jamais</p><ul className="space-y-1">{data.i_never_do.map((d, i) => <li key={i}>• {d}</li>)}</ul></div> : null}
       </div>
       {data.fights?.length ? <div><p className="text-[12px] font-semibold text-[#91014b] mb-1">Combats</p><div className="flex flex-wrap gap-1.5">{data.fights.map((f, i) => <Chip key={i}>{f}</Chip>)}</div></div> : null}
@@ -220,7 +220,7 @@ function OffersSection({ data, onUpdate, onDelete }: { data: AnalysisResult["off
               <input value={editDraft.target || ""} onChange={e => setEditDraft(d => ({ ...d, target: e.target.value }))} placeholder="Pour qui ?" className="w-full text-[13px] border border-border rounded-lg px-3 py-1.5 bg-background focus:outline-none focus:ring-1 focus:ring-primary" />
               <input value={editDraft.promise || ""} onChange={e => setEditDraft(d => ({ ...d, promise: e.target.value }))} placeholder="Promesse" className="w-full text-[13px] border border-border rounded-lg px-3 py-1.5 bg-background focus:outline-none focus:ring-1 focus:ring-primary" />
               <div className="flex gap-2 pt-1">
-                <button onClick={confirmEdit} className="inline-flex items-center gap-1 text-[12px] font-medium text-emerald-600 hover:text-emerald-700"><Check className="h-3.5 w-3.5" /> OK</button>
+                <button onClick={confirmEdit} className="inline-flex items-center gap-1 text-[12px] font-medium text-success hover:text-success"><Check className="h-3.5 w-3.5" /> OK</button>
                 <button onClick={cancelEdit} className="inline-flex items-center gap-1 text-[12px] font-medium text-muted-foreground hover:text-foreground"><X className="h-3.5 w-3.5" /> Annuler</button>
               </div>
             </div>
@@ -664,7 +664,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
         </p>
 
         {hasPreFilled && (
-          <p className="font-mono-ui text-[13px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-[12px] px-3 py-2 mb-3">
+          <p className="font-mono-ui text-[13px] text-success bg-success-bg border border-success/30 rounded-[12px] px-3 py-2 mb-3">
             ✅ J'ai gardé ce que tu avais déjà rempli et j'ai complété le reste.
           </p>
         )}
@@ -684,10 +684,10 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
 
         {/* Instagram bio fallback */}
         {instagramFailed && (
-          <div className="mt-4 bg-amber-50 border border-amber-200 rounded-[16px] p-4">
+          <div className="mt-4 bg-warning-bg border border-warning/30 rounded-[16px] p-4">
             <div className="flex items-start gap-2 mb-2">
-              <Instagram className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-              <p className="text-[13px] text-amber-800">
+              <Instagram className="h-5 w-5 text-warning shrink-0 mt-0.5" />
+              <p className="text-[13px] text-warning">
                 Je n'ai pas réussi à accéder à ton Instagram (c'est fréquent, Instagram bloque les analyses automatiques). Tu peux m'aider en copiant-collant ta bio ici.
               </p>
             </div>
@@ -768,10 +768,10 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
                     <div className="flex items-center gap-3">
                       <span className="text-[20px]">{sec.emoji}</span>
                       <h2 className="font-display text-[18px] text-foreground" style={{ fontWeight: 400 }}>{sec.title}</h2>
-                      {isValidated && <CheckCircle2 className="h-5 w-5 text-emerald-500" />}
-                      {isRefined && <span className="text-[11px] text-emerald-600 font-medium">Affiné</span>}
+                      {isValidated && <CheckCircle2 className="h-5 w-5 text-success" />}
+                      {isRefined && <span className="text-[11px] text-success font-medium">Affiné</span>}
                       {isPreFilled && !isRefined && (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-info-bg text-info">
                           <Lock className="h-3 w-3" /> Déjà complété
                         </span>
                       )}
@@ -791,7 +791,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
                               </p>
                               <button
                                 onClick={() => { setValidated(prev => new Set(prev).add(sec.key)); setCollapsed(prev => new Set(prev).add(sec.key)); }}
-                                className="inline-flex items-center gap-2 border-[1.5px] border-emerald-500 text-emerald-600 rounded-[12px] px-5 py-2 text-[14px] font-semibold hover:bg-emerald-50 transition-all"
+                                className="inline-flex items-center gap-2 border-[1.5px] border-success text-success rounded-[12px] px-5 py-2 text-[14px] font-semibold hover:bg-success-bg transition-all"
                               >
                                 <CheckCircle2 className="h-4 w-4" /> Garder tel quel ✓
                               </button>
@@ -812,8 +812,8 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
                               </div>
                               {!isValidated && (
                                 <div className="flex flex-col sm:flex-row gap-2">
-                                  <button onClick={() => handleValidate(sec.key)} disabled={isSaving} className="inline-flex items-center justify-center gap-2 border-[1.5px] border-emerald-500 text-emerald-600 rounded-[12px] px-5 py-2 text-[14px] font-semibold hover:bg-emerald-50 transition-all disabled:opacity-50">
-                                    {isSaving ? <Spinner className="h-4 w-4 text-emerald-500" /> : <CheckCircle2 className="h-4 w-4" />}
+                                  <button onClick={() => handleValidate(sec.key)} disabled={isSaving} className="inline-flex items-center justify-center gap-2 border-[1.5px] border-success text-success rounded-[12px] px-5 py-2 text-[14px] font-semibold hover:bg-success-bg transition-all disabled:opacity-50">
+                                    {isSaving ? <Spinner className="h-4 w-4 text-success" /> : <CheckCircle2 className="h-4 w-4" />}
                                     C'est bon ✓
                                   </button>
                                   <button onClick={() => setCoachingSection(sec.key)} className={`inline-flex items-center justify-center gap-2 rounded-[12px] px-5 py-2 text-[14px] font-semibold transition-all ${conf === "low" ? "bg-[#fb3d80] text-white hover:scale-[1.02] hover:shadow-lg" : "border-[1.5px] border-[#fb3d80] text-[#fb3d80] hover:bg-[#fce4ec]"}`}>

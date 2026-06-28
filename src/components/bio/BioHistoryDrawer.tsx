@@ -91,7 +91,7 @@ export default function BioHistoryDrawer({ platform, open, onOpenChange, onReuse
                   {entry.score != null && (
                     <span className={cn(
                       "text-xs font-bold px-2 py-0.5 rounded-full",
-                      entry.score >= 70 ? "text-green-700 bg-green-50" : entry.score >= 40 ? "text-amber-700 bg-amber-50" : "text-red-700 bg-red-50"
+                      entry.score >= 70 ? "text-success bg-success-bg" : entry.score >= 40 ? "text-warning bg-warning-bg" : "text-error bg-error-bg"
                     )}>
                       {entry.score}/100
                     </span>

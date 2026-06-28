@@ -231,7 +231,7 @@ const CommunautePage = () => {
                     <div className="flex items-center gap-4 text-sm">
                       <button
                         onClick={() => toggleReaction(post.id)}
-                        className={`flex items-center gap-1 transition-colors ${liked ? "text-red-500" : "text-muted-foreground hover:text-red-400"}`}
+                        className={`flex items-center gap-1 transition-colors ${liked ? "text-error" : "text-muted-foreground hover:text-error"}`}
                       >
                         <Heart className={`h-4 w-4 ${liked ? "fill-current" : ""}`} />
                         {post.reactions.length > 0 && post.reactions.length}

@@ -172,7 +172,7 @@ export default function LinkedInPostGenerator() {
     }
   };
 
-  const scoreColor = (score: number) => score >= 70 ? "text-green-600 bg-green-50" : score >= 40 ? "text-amber-600 bg-amber-50" : "text-red-600 bg-red-50";
+  const scoreColor = (score: number) => score >= 70 ? "text-success bg-success-bg" : score >= 40 ? "text-warning bg-warning-bg" : "text-error bg-error-bg";
   const scoreBarColor = (score: number) => score >= 70 ? "hsl(142, 71%, 45%)" : score >= 40 ? "hsl(38, 92%, 50%)" : "hsl(0, 84%, 60%)";
 
   return (

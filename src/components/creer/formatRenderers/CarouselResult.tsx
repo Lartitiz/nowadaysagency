@@ -305,7 +305,7 @@ export default function CarouselResult({ result, visualSlides, onSlidesUpdate }:
       {/* Quality check */}
       {score != null && (
         <div className="flex items-center gap-2">
-          <Badge className={score >= 80 ? "bg-green-100 text-green-700 border-green-300" : "bg-amber-100 text-amber-700 border-amber-300"}>
+          <Badge className={score >= 80 ? "bg-success-bg text-success border-success/30" : "bg-warning-bg text-warning border-warning/30"}>
             Score : {score}/100
           </Badge>
           {qualityCheck?.comment && <span className="text-xs text-muted-foreground">{qualityCheck.comment}</span>}

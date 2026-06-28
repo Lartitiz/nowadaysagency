@@ -140,7 +140,7 @@ export default function AiDebugPanel() {
           key={i}
           className={`rounded-xl border p-4 ${
             t.status === "ok"
-              ? "border-green-500/30 bg-green-500/5"
+              ? "border-success/30 bg-success/5"
               : t.status === "error"
               ? "border-destructive/30 bg-destructive/5"
               : "border-border bg-card"

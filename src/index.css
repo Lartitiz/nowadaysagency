@@ -48,13 +48,15 @@
     --placeholder: 270 10% 56%;
 
     /* ── Status colors ─────────────────────── */
-    --success: 160 84% 39%;
+    /* DEFAULT = lisibles en TEXTE sur fond clair (contraste AA ≥ 4.5:1) ;
+       -bg = fonds clairs pour cartes/badges. Teintes préservées, juste assombries. */
+    --success: 152 72% 32%;
     --success-bg: 152 81% 96%;
-    --warning: 25 95% 53%;
+    --warning: 30 84% 38%;
     --warning-bg: 33 100% 96%;
-    --error: 0 91% 71%;
+    --error: 0 72% 45%;
     --error-bg: 0 86% 97%;
-    --info: 217 91% 55%;
+    --info: 214 80% 44%;
     --info-bg: 214 95% 96%;
 
     /* ── Primary shades ────────────────────── */

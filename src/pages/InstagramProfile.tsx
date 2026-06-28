@@ -46,9 +46,9 @@ const SECTIONS = [
 
 function scoreBadge(score: number | null) {
   if (score === null || score === undefined) return { label: "Pas fait", color: "bg-muted text-muted-foreground" };
-  if (score >= 80) return { label: "Bien", color: "bg-green-100 text-green-700" };
-  if (score >= 50) return { label: "À améliorer", color: "bg-orange-100 text-orange-700" };
-  if (score > 0) return { label: "Prioritaire", color: "bg-red-100 text-red-700" };
+  if (score >= 80) return { label: "Bien", color: "bg-success-bg text-success" };
+  if (score >= 50) return { label: "À améliorer", color: "bg-warning-bg text-warning" };
+  if (score > 0) return { label: "Prioritaire", color: "bg-error-bg text-error" };
   return { label: "Pas fait", color: "bg-muted text-muted-foreground" };
 }
 
@@ -242,7 +242,7 @@ export default function InstagramProfile() {
                   <span className="text-2xl">{s.emoji}</span>
                   <div className="flex items-center gap-1.5">
                     {vs === "validated" && (
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-green-100 text-green-700">✅</span>
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-success-bg text-success">✅</span>
                     )}
                     {sc !== null && (
                       <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-pill ${badge.color}`}>
@@ -258,10 +258,10 @@ export default function InstagramProfile() {
                   <p className="text-xs text-muted-foreground mt-1 line-clamp-2 italic">"{snippet.substring(0, 60)}{snippet.length > 60 ? "…" : ""}"</p>
                 )}
                 {sc !== null && improvementCount > 0 && (
-                  <p className="text-xs text-amber-600 mt-1 font-medium">{improvementCount} amélioration{improvementCount > 1 ? "s" : ""} suggérée{improvementCount > 1 ? "s" : ""}</p>
+                  <p className="text-xs text-warning mt-1 font-medium">{improvementCount} amélioration{improvementCount > 1 ? "s" : ""} suggérée{improvementCount > 1 ? "s" : ""}</p>
                 )}
                 {sc !== null && improvementCount === 0 && (
-                  <p className="text-xs text-green-600 mt-1 font-medium">✅ {vs === "validated" ? "Validé" : "Bien"}</p>
+                  <p className="text-xs text-success mt-1 font-medium">✅ {vs === "validated" ? "Validé" : "Bien"}</p>
                 )}
               </Link>
             );

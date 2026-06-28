@@ -577,9 +577,9 @@ export default function CreerStepFormat({ idea, objective, initialFormat, initia
       {/* Preloaded photos: incompatible format warning */}
       {(initialPhotos?.length ?? 0) > 0 && selectedFormat &&
         selectedFormat !== "carousel" && !formatAcceptsSinglePhoto(selectedFormat) && (
-          <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 flex items-start gap-2 animate-fade-in">
+          <div className="p-3 rounded-lg bg-warning-bg border border-warning/30 flex items-start gap-2 animate-fade-in">
             <span className="text-base leading-tight">⚠</span>
-            <div className="flex-1 text-sm text-amber-800">
+            <div className="flex-1 text-sm text-warning">
               Ce format n'utilisera pas tes {initialPhotos!.length} photo{initialPhotos!.length > 1 ? "s" : ""} chargée{initialPhotos!.length > 1 ? "s" : ""}.
               <button
                 onClick={() => handleFormatSelect("carousel")}
@@ -622,9 +622,9 @@ export default function CreerStepFormat({ idea, objective, initialFormat, initia
 
       {/* Avertissement explicite : photo chargée mais toggle OFF → l'IA ne la verra pas */}
       {formatAcceptsSinglePhoto(selectedFormat) && postPhoto.length > 0 && !photoMode && (
-        <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 flex items-start gap-2 animate-fade-in">
+        <div className="p-3 rounded-lg bg-warning-bg border border-warning/30 flex items-start gap-2 animate-fade-in">
           <span className="text-base leading-tight">⚠️</span>
-          <div className="flex-1 text-sm text-amber-800">
+          <div className="flex-1 text-sm text-warning">
             Ta photo est chargée mais l'IA <strong>ne la regardera pas</strong>. Active le mode photo ci-dessus pour qu'elle s'en serve.
           </div>
         </div>
@@ -809,8 +809,8 @@ export default function CreerStepFormat({ idea, objective, initialFormat, initia
             aiAutoPickCount={carouselSubMode === "mix" ? 3 : 6}
           />
           {photoWarning && (
-            <div className="mt-3 p-3 rounded-lg bg-amber-50 border border-amber-200 space-y-2 animate-fade-in">
-              <p className="text-sm text-amber-800">
+            <div className="mt-3 p-3 rounded-lg bg-warning-bg border border-warning/30 space-y-2 animate-fade-in">
+              <p className="text-sm text-warning">
                 📸 Pour ce mode, il faut au moins une photo. Pas de photos sous la main ?
               </p>
               <div className="flex flex-col gap-1.5">

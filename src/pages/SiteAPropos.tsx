@@ -301,7 +301,7 @@ export default function SiteAPropos() {
               className="w-full text-left rounded-2xl border-2 border-border hover:border-primary hover:shadow-md bg-card p-6 transition-all group"
             >
               <div className="flex items-start gap-4">
-                <span className="flex items-center justify-center h-12 w-12 rounded-2xl bg-amber-500/10 text-amber-600 shrink-0 group-hover:bg-amber-500/20 transition-colors">
+                <span className="flex items-center justify-center h-12 w-12 rounded-2xl bg-warning/10 text-warning shrink-0 group-hover:bg-warning/90 transition-colors">
                   <Wrench className="h-6 w-6" />
                 </span>
                 <div className="flex-1">
@@ -623,7 +623,7 @@ function SectionBlock({
             <Copy className="h-3 w-3 inline mr-1" />Copier
           </button>
           {isEditing ? (
-            <button onClick={() => onSave(field)} className="text-xs font-semibold hover:opacity-70 text-green-600">
+            <button onClick={() => onSave(field)} className="text-xs font-semibold hover:opacity-70 text-success">
               <Check className="h-3 w-3 inline mr-1" />OK
             </button>
           ) : (

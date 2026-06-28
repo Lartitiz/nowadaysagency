@@ -38,9 +38,9 @@ interface Props {
 }
 
 function scoreColor(s: number) {
-  if (s >= 75) return "text-emerald-600";
-  if (s >= 50) return "text-amber-500";
-  return "text-red-500";
+  if (s >= 75) return "text-success";
+  if (s >= 50) return "text-warning";
+  return "text-error";
 }
 
 function ScoreBadge({ score, label }: { score: number; label: string }) {
@@ -142,11 +142,11 @@ export default function AboutOptimizeResult({ result, originalText, onRetry, use
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {result.points_forts?.length > 0 && (
           <div className="rounded-2xl border border-border bg-card p-4">
-            <p className="text-xs font-bold text-emerald-600 mb-2">✅ Ce qui fonctionne</p>
+            <p className="text-xs font-bold text-success mb-2">✅ Ce qui fonctionne</p>
             <ul className="space-y-1">
               {result.points_forts.map((p, i) => (
                 <li key={i} className="text-sm text-foreground flex items-start gap-2">
-                  <span className="text-emerald-500 shrink-0 mt-0.5">●</span>{p}
+                  <span className="text-success shrink-0 mt-0.5">●</span>{p}
                 </li>
               ))}
             </ul>
@@ -154,11 +154,11 @@ export default function AboutOptimizeResult({ result, originalText, onRetry, use
         )}
         {result.problemes?.length > 0 && (
           <div className="rounded-2xl border border-border bg-card p-4">
-            <p className="text-xs font-bold text-amber-600 mb-2">⚠️ Ce qui coince</p>
+            <p className="text-xs font-bold text-warning mb-2">⚠️ Ce qui coince</p>
             <ul className="space-y-1">
               {result.problemes.map((p, i) => (
                 <li key={i} className="text-sm text-foreground flex items-start gap-2">
-                  <span className="text-amber-500 shrink-0 mt-0.5">●</span>{p}
+                  <span className="text-warning shrink-0 mt-0.5">●</span>{p}
                 </li>
               ))}
             </ul>
@@ -212,7 +212,7 @@ export default function AboutOptimizeResult({ result, originalText, onRetry, use
                           if (!editTexts[section.key]) setEditTexts(prev => ({ ...prev, [section.key]: section.text }));
                         }
                       }}
-                      className={`text-xs font-semibold flex items-center gap-1 ${isEditing ? "text-emerald-600" : "text-muted-foreground"} hover:opacity-70`}
+                      className={`text-xs font-semibold flex items-center gap-1 ${isEditing ? "text-success" : "text-muted-foreground"} hover:opacity-70`}
                     >
                       {isEditing ? <><Check className="h-3 w-3" /> OK</> : <><Pencil className="h-3 w-3" /> Éditer</>}
                     </button>

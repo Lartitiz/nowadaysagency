@@ -48,19 +48,19 @@ interface OptResult {
 const FOCUS_CHIPS = ["Mon titre", "Mes CTA", "La preuve sociale", "Le prix", "Tout"];
 
 function scoreColor(s: number) {
-  if (s >= 75) return "text-emerald-600";
-  if (s >= 50) return "text-amber-500";
-  return "text-red-500";
+  if (s >= 75) return "text-success";
+  if (s >= 50) return "text-warning";
+  return "text-error";
 }
 function scoreStroke(s: number) {
-  if (s >= 75) return "stroke-emerald-500";
-  if (s >= 50) return "stroke-amber-400";
-  return "stroke-red-500";
+  if (s >= 75) return "stroke-success";
+  if (s >= 50) return "stroke-warning";
+  return "stroke-error";
 }
 function statutBadge(s: string) {
-  if (s === "bon") return "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400";
-  if (s === "moyen") return "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400";
-  return "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400";
+  if (s === "bon") return "bg-success-bg text-success";
+  if (s === "moyen") return "bg-warning-bg text-warning";
+  return "bg-error-bg text-error";
 }
 
 function ScoreCircle({ score }: { score: number }) {
@@ -321,15 +321,15 @@ export default function SalesPageOptimizer() {
                           {/* Points forts */}
                           {section.points_forts?.length > 0 && (
                             <div>
-                              <p className="text-xs font-bold text-emerald-600 mb-1">✅ Ce qui fonctionne</p>
-                              <ul className="space-y-1">{section.points_forts.map((p, i) => <li key={i} className="text-sm text-foreground flex items-start gap-2"><span className="text-emerald-500 shrink-0 mt-0.5">●</span>{p}</li>)}</ul>
+                              <p className="text-xs font-bold text-success mb-1">✅ Ce qui fonctionne</p>
+                              <ul className="space-y-1">{section.points_forts.map((p, i) => <li key={i} className="text-sm text-foreground flex items-start gap-2"><span className="text-success shrink-0 mt-0.5">●</span>{p}</li>)}</ul>
                             </div>
                           )}
                           {/* Problèmes */}
                           {section.problemes?.length > 0 && (
                             <div>
-                              <p className="text-xs font-bold text-amber-600 mb-1">⚠️ Ce qui coince</p>
-                              <ul className="space-y-1">{section.problemes.map((p, i) => <li key={i} className="text-sm text-foreground flex items-start gap-2"><span className="text-amber-500 shrink-0 mt-0.5">●</span>{p}</li>)}</ul>
+                              <p className="text-xs font-bold text-warning mb-1">⚠️ Ce qui coince</p>
+                              <ul className="space-y-1">{section.problemes.map((p, i) => <li key={i} className="text-sm text-foreground flex items-start gap-2"><span className="text-warning shrink-0 mt-0.5">●</span>{p}</li>)}</ul>
                             </div>
                           )}
                           {/* Version améliorée */}

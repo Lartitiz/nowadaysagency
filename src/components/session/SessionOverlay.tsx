@@ -23,7 +23,7 @@ function ProgressBar() {
     <div className="flex w-full h-1">
       {tasks.map((t, i) => {
         let bg = "bg-border";
-        if (t.completed) bg = "bg-green-500";
+        if (t.completed) bg = "bg-success";
         else if (i === currentTaskIndex) bg = "bg-primary animate-pulse";
         return <div key={t.id} className={`flex-1 ${bg} ${i > 0 ? "ml-px" : ""}`} />;
       })}
@@ -168,7 +168,7 @@ export default function SessionOverlay() {
                   {currentTask.emoji} {currentTask.title}
                 </span>
                 <span
-                  className={`text-xs font-mono ${overTime ? "text-orange-500" : "text-muted-foreground"}`}
+                  className={`text-xs font-mono ${overTime ? "text-warning" : "text-muted-foreground"}`}
                 >
                   {formatTime(taskElapsedSeconds)}
                 </span>

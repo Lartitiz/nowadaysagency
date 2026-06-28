@@ -224,7 +224,7 @@ function JournalEntryEditor({ entry, sessions, deliverables, onUpdate, onDelete,
   };
 
   return (
-    <div className={`rounded-xl border p-4 space-y-3 ${isPublished ? "border-green-300/50 bg-green-50/20" : "border-border"}`}>
+    <div className={`rounded-xl border p-4 space-y-3 ${isPublished ? "border-success/50 bg-success-bg/20" : "border-border"}`}>
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold text-muted-foreground uppercase">
           {isPublished ? "✅ Publié" : "📝 Brouillon"}
@@ -292,7 +292,7 @@ function JournalEntryEditor({ entry, sessions, deliverables, onUpdate, onDelete,
           💾 Enregistrer
         </Button>
         {!isPublished && (
-          <Button size="sm" variant="outline" className="rounded-full text-xs gap-1.5 border-green-500/50 text-green-700 hover:bg-green-50" onClick={() => { handleSave().then(() => onPublish({ ...entry, deliverable_ids: delivIds })); }}>
+          <Button size="sm" variant="outline" className="rounded-full text-xs gap-1.5 border-success/50 text-success hover:bg-success-bg" onClick={() => { handleSave().then(() => onPublish({ ...entry, deliverable_ids: delivIds })); }}>
             ✅ Publier
           </Button>
         )}
@@ -315,7 +315,7 @@ function DeliverableRow({ deliverable, onUpload, onDeleteFile, onUnlock }: {
   const isDelivered = deliverable.status === "delivered";
 
   return (
-    <div className={`rounded-xl border p-3 space-y-2 ${isDelivered ? "border-green-300/50" : "border-border"}`}>
+    <div className={`rounded-xl border p-3 space-y-2 ${isDelivered ? "border-success/50" : "border-border"}`}>
       <div className="flex items-center gap-2">
         <span>{isDelivered ? "✅" : "🔒"}</span>
         <span className="text-sm font-medium text-foreground flex-1">{deliverable.title}</span>

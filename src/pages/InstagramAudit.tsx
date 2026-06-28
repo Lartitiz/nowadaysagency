@@ -636,7 +636,7 @@ export default function InstagramAudit() {
             )}
 
             {liveScore !== null && score !== null && liveScore > score && (
-              <div className="rounded-xl border border-green-200 bg-green-50/50 dark:bg-green-950/20 p-3 mb-4">
+              <div className="rounded-xl border border-success/30 bg-success-bg/50 p-3 mb-4">
                 <p className="text-sm text-foreground">
                   📈 Tu as amélioré des éléments. Score estimé : <strong>{score}</strong> → <strong>{liveScore}</strong>
                 </p>
@@ -682,7 +682,7 @@ export default function InstagramAudit() {
           </div>
 
           {resumeNotice === "done" && (
-            <div className="rounded-2xl border border-green-300/40 bg-green-50/60 dark:bg-green-950/20 p-4 mb-6">
+            <div className="rounded-2xl border border-success/40 bg-success-bg/60 p-4 mb-6">
               <p className="text-sm text-foreground">
                 ✅ Ton audit a bien abouti pendant le rechargement de la page — le voici.
               </p>
@@ -690,7 +690,7 @@ export default function InstagramAudit() {
           )}
 
           {liveScore !== null && auditResult.score_global && liveScore > auditResult.score_global && (
-            <div className="rounded-2xl border border-border bg-green-50/50 dark:bg-green-950/20 p-4 mb-6">
+            <div className="rounded-2xl border border-border bg-success-bg/50 p-4 mb-6">
               <p className="text-sm text-foreground">
                 📈 Tu as amélioré des éléments depuis cet audit. Ton score estimé est passé de <strong>{auditResult.score_global}</strong> à <strong>{liveScore}</strong>.
               </p>
@@ -808,7 +808,7 @@ export default function InstagramAudit() {
           </div>
         )}
         {resumeNotice === "interrupted" && !analyzing && (
-          <div className="rounded-2xl border border-amber-300/40 bg-amber-50/60 p-4 mb-6">
+          <div className="rounded-2xl border border-warning/40 bg-warning-bg/60 p-4 mb-6">
             <p className="text-sm text-foreground">
               ⏸️ Ton audit a été interrompu par un rechargement de la page. Tes infos sont conservées —
               re-dépose tes captures et relance l'analyse. S'il a malgré tout abouti, il apparaîtra dans tes résultats.

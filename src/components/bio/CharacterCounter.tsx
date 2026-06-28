@@ -14,7 +14,7 @@ export default function CharacterCounter({ text, maxLength, label }: CharacterCo
   return (
     <div className={cn(
       "text-xs font-medium tabular-nums transition-colors",
-      isOver ? "text-destructive" : isClose ? "text-amber-500" : "text-muted-foreground"
+      isOver ? "text-destructive" : isClose ? "text-warning" : "text-muted-foreground"
     )}>
       {count}/{maxLength} {label || "caractères"}
       {isOver && <span className="ml-1">⚠️ Trop long !</span>}

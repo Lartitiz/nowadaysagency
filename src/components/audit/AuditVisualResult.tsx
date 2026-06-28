@@ -62,25 +62,25 @@ interface AuditVisualResultProps {
 
 const STATUS_CONFIG: Record<ElementStatus, { border: string; bg: string; badge: string; badgeBg: string; badgeText: string }> = {
   ok: {
-    border: "border-l-green-500",
-    bg: "bg-green-50 dark:bg-green-950/20",
+    border: "border-l-success",
+    bg: "bg-success-bg",
     badge: "OK ✓",
-    badgeBg: "bg-green-100 dark:bg-green-900/40",
-    badgeText: "text-green-700 dark:text-green-400",
+    badgeBg: "bg-success-bg",
+    badgeText: "text-success",
   },
   improve: {
-    border: "border-l-amber-500",
-    bg: "bg-amber-50 dark:bg-amber-950/20",
+    border: "border-l-warning",
+    bg: "bg-warning-bg",
     badge: "À améliorer",
-    badgeBg: "bg-amber-100 dark:bg-amber-900/40",
-    badgeText: "text-amber-700 dark:text-amber-400",
+    badgeBg: "bg-warning-bg",
+    badgeText: "text-warning",
   },
   critical: {
-    border: "border-l-red-500",
-    bg: "bg-red-50 dark:bg-red-950/20",
+    border: "border-l-error",
+    bg: "bg-error-bg",
     badge: "Critique",
-    badgeBg: "bg-red-100 dark:bg-red-900/40",
-    badgeText: "text-red-700 dark:text-red-400",
+    badgeBg: "bg-error-bg",
+    badgeText: "text-error",
   },
 };
 
@@ -91,9 +91,9 @@ const STATUS_DOT: Record<ElementStatus, string> = {
 };
 
 const LINE_STATUS_STYLE: Record<ElementStatus, string> = {
-  ok: "border-l-green-400 bg-green-50/60 dark:bg-green-950/10",
-  improve: "border-l-amber-400 bg-amber-50/60 dark:bg-amber-950/10",
-  critical: "border-l-red-400 bg-red-50/60 dark:bg-red-950/10",
+  ok: "border-l-success bg-success-bg/60",
+  improve: "border-l-warning bg-warning-bg/60",
+  critical: "border-l-error bg-error-bg/60",
 };
 
 function CopyButton({ text }: { text: string }) {
@@ -211,7 +211,7 @@ function ElementCard({ el, refCallback }: { el: AuditElement; refCallback: (node
       {el.proposition && (
         <div className="space-y-2">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">💡 Proposition :</p>
-          <div className="rounded-xl border-2 border-green-300 dark:border-green-700 bg-green-50/60 dark:bg-green-950/20 p-4">
+          <div className="rounded-xl border-2 border-success/30 bg-success-bg/60 p-4">
             <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">{el.proposition}</p>
           </div>
           <CopyButton text={el.proposition} />
@@ -244,10 +244,10 @@ function EvolutionBlock({ evolution }: { evolution: AuditEvolution }) {
         📈 Évolution depuis ton dernier audit ({timeLabel})
       </h3>
       <p className="text-sm text-foreground mb-3">
-        Score : <strong>{evolution.previous_score}/100</strong> → <strong className={delta > 0 ? "text-green-600" : delta < 0 ? "text-red-500" : "text-foreground"}>{evolution.current_score}/100</strong>
+        Score : <strong>{evolution.previous_score}/100</strong> → <strong className={delta > 0 ? "text-success" : delta < 0 ? "text-error" : "text-foreground"}>{evolution.current_score}/100</strong>
         {" "}
-        {delta > 0 && <span className="text-green-600 font-bold">+{delta} pts</span>}
-        {delta < 0 && <span className="text-red-500 font-bold">{delta} pts</span>}
+        {delta > 0 && <span className="text-success font-bold">+{delta} pts</span>}
+        {delta < 0 && <span className="text-error font-bold">{delta} pts</span>}
         {delta === 0 && <span className="text-muted-foreground">= même score</span>}
       </p>
       {evolution.improved.length > 0 && (
@@ -278,7 +278,7 @@ export default function AuditVisualResult({ data, evolution, onRegenerate }: Aud
     }
   };
 
-  const scoreColor = data.score_global >= 70 ? "text-green-600" : data.score_global >= 40 ? "text-amber-600" : "text-red-600";
+  const scoreColor = data.score_global >= 70 ? "text-success" : data.score_global >= 40 ? "text-warning" : "text-error";
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -293,9 +293,9 @@ export default function AuditVisualResult({ data, evolution, onRegenerate }: Aud
         <p className="text-[11px] italic text-muted-foreground mt-1">Score de profil : complétude et optimisation</p>
         <Progress value={data.score_global} className="h-3 mt-4 mb-3 max-w-md mx-auto" />
         <div className="flex items-center justify-center gap-4 text-sm">
-          <span className="text-green-600 font-medium">🟢 {data.resume.ok_count} OK</span>
-          <span className="text-amber-600 font-medium">🟡 {data.resume.improve_count} à améliorer</span>
-          <span className="text-red-600 font-medium">🔴 {data.resume.critical_count} critique{data.resume.critical_count > 1 ? "s" : ""}</span>
+          <span className="text-success font-medium">🟢 {data.resume.ok_count} OK</span>
+          <span className="text-warning font-medium">🟡 {data.resume.improve_count} à améliorer</span>
+          <span className="text-error font-medium">🔴 {data.resume.critical_count} critique{data.resume.critical_count > 1 ? "s" : ""}</span>
         </div>
       </div>
 

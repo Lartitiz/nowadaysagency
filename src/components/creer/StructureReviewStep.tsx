@@ -268,8 +268,8 @@ export default function StructureReviewStep({
                     selected
                       ? "border-[#FB3D80] ring-2 ring-[#FB3D80]/30 opacity-100"
                       : assigned
-                        ? "border-green-400 opacity-60"
-                        : "border-orange-300 opacity-100"
+                        ? "border-success opacity-60"
+                        : "border-warning/30 opacity-100"
                   }`}
                 >
                   <img
@@ -278,7 +278,7 @@ export default function StructureReviewStep({
                     className="w-full h-full object-cover"
                   />
                   {assigned && !selected && (
-                    <span className="absolute top-0 right-0 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                    <span className="absolute top-0 right-0 w-4 h-4 bg-success rounded-full flex items-center justify-center">
                       <Check size={10} className="text-white" />
                     </span>
                   )}
@@ -289,9 +289,9 @@ export default function StructureReviewStep({
 
           {/* P1-6 : Warning photos non utilisées (mode mix uniquement) */}
           {carouselSubMode === "mix" && unusedPhotoIndices.length > 0 && (
-            <div className="mt-3 flex items-center gap-2 p-2.5 bg-orange-50 border border-orange-200 rounded-lg">
-              <AlertTriangle size={14} className="text-orange-500 flex-shrink-0" />
-              <p className="text-xs text-orange-700 flex-1">
+            <div className="mt-3 flex items-center gap-2 p-2.5 bg-warning-bg border border-warning/30 rounded-lg">
+              <AlertTriangle size={14} className="text-warning flex-shrink-0" />
+              <p className="text-xs text-warning flex-1">
                 {unusedPhotoIndices.length === 1
                   ? "1 photo non utilisée dans cette structure"
                   : `${unusedPhotoIndices.length} photos non utilisées dans cette structure`}
@@ -354,9 +354,9 @@ export default function StructureReviewStep({
                       e.stopPropagation();
                       unassignPhoto(index);
                     }}
-                    className="w-5 h-5 bg-red-100 hover:bg-red-200 rounded-full flex items-center justify-center transition-colors"
+                    className="w-5 h-5 bg-error-bg hover:bg-error/90 rounded-full flex items-center justify-center transition-colors"
                   >
-                    <X size={12} className="text-red-500" />
+                    <X size={12} className="text-error" />
                   </button>
                 </div>
               )}
@@ -395,7 +395,7 @@ export default function StructureReviewStep({
                   }}
                   className="p-1 rounded hover:bg-gray-100 disabled:opacity-30 transition-colors"
                 >
-                  <X size={16} className="text-red-400 hover:text-red-600" />
+                  <X size={16} className="text-error hover:text-error" />
                 </button>
               </div>
             </div>
@@ -429,10 +429,10 @@ export default function StructureReviewStep({
 
       {/* ───── NUDGE PHOTOS ORPHELINES (mode mix uniquement) ───── */}
       {carouselSubMode === "mix" && unusedPhotoIndices.length > 0 && (
-        <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="bg-warning-bg border border-warning/30 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3">
           <div className="flex items-start gap-2 flex-1">
-            <AlertTriangle size={16} className="text-orange-500 flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-orange-800">
+            <AlertTriangle size={16} className="text-warning flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-warning">
               {unusedPhotoIndices.length === 1
                 ? "1 photo n'est pas utilisée dans cette structure. "
                 : `${unusedPhotoIndices.length} photos ne sont pas utilisées dans cette structure. `}

@@ -196,9 +196,9 @@ function FeatureVisual({ type }: { type: string }) {
               <div key={idx} className={`h-7 rounded-lg border text-center flex items-center justify-center text-[10px] ${
                 hasPost
                   ? isPublished
-                    ? "bg-green-100 border-green-200 text-green-700"
+                    ? "bg-success-bg border-success/30 text-success"
                     : isDraft
-                      ? "bg-amber-100 border-amber-200 text-amber-700"
+                      ? "bg-warning-bg border-warning/30 text-warning"
                       : "bg-pink-100 border-pink-200 text-pink-600"
                   : "border-border"
               }`}>
@@ -208,8 +208,8 @@ function FeatureVisual({ type }: { type: string }) {
           })}
         </div>
         <div className="flex items-center gap-3 mt-3 text-[10px] text-muted-foreground">
-          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-green-200" /> Publié</span>
-          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-amber-200" /> Brouillon</span>
+          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-success" /> Publié</span>
+          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-warning" /> Brouillon</span>
           <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-pink-200" /> Planifié</span>
         </div>
       </div>
@@ -240,7 +240,7 @@ function FeatureVisual({ type }: { type: string }) {
             { label: "⚠️ Bio sans appel à l'action clair", good: false },
             { label: "⚠️ Pas de lien vers la boutique dans les posts", good: false },
           ].map((item) => (
-            <div key={item.label} className={`text-[11px] px-3 py-1.5 rounded-lg ${item.good ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"}`}>
+            <div key={item.label} className={`text-[11px] px-3 py-1.5 rounded-lg ${item.good ? "bg-success-bg text-success" : "bg-warning-bg text-warning"}`}>
               {item.label}
             </div>
           ))}
@@ -384,13 +384,13 @@ export default function LandingPage() {
                     {["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"].map((jour) => (
                       <span key={jour} className="text-[9px] text-muted-foreground text-center font-medium">{jour}</span>
                     ))}
-                    <div className="h-8 rounded-lg bg-green-100 border border-green-200 flex items-center justify-center text-xs">📸</div>
+                    <div className="h-8 rounded-lg bg-success-bg border border-success/30 flex items-center justify-center text-xs">📸</div>
                     <div className="h-8 rounded-lg border border-border" />
                     <div className="h-8 rounded-lg bg-pink-100 border border-pink-200 flex items-center justify-center text-xs">🎠</div>
                     <div className="h-8 rounded-lg border border-border" />
-                    <div className="h-8 rounded-lg bg-amber-100 border border-amber-200 flex items-center justify-center text-xs">🎬</div>
+                    <div className="h-8 rounded-lg bg-warning-bg border border-warning/30 flex items-center justify-center text-xs">🎬</div>
                     <div className="h-8 rounded-lg border border-border" />
-                    <div className="h-8 rounded-lg bg-green-100 border border-green-200 flex items-center justify-center text-xs">📱</div>
+                    <div className="h-8 rounded-lg bg-success-bg border border-success/30 flex items-center justify-center text-xs">📱</div>
                   </div>
                 </div>
 

@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 
 const TYPE_BADGE: Record<string, { label: string; className: string }> = {
   paid: { label: "💎 Payante", className: "bg-violet-50 text-violet-700" },
-  free: { label: "🎁 Gratuite", className: "bg-emerald-50 text-emerald-700" },
-  service: { label: "🎤 Service", className: "bg-amber-50 text-amber-700" },
+  free: { label: "🎁 Gratuite", className: "bg-success-bg text-success" },
+  service: { label: "🎤 Service", className: "bg-warning-bg text-warning" },
 };
 
 function SynthCard({ children, className = "" }: { children: React.ReactNode; className?: string }) {
@@ -151,20 +151,20 @@ export default function OfferSynthesisCard({ offer, onEdit }: OfferSynthesisCard
         <SynthCard>
           <SectionLabel emoji="👤" title="Pour qui" />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="rounded-lg p-4 bg-emerald-50/50">
-              <p className="font-mono-ui text-[10px] uppercase tracking-wider text-emerald-600 mb-2">✅ C'est pour elle si…</p>
+            <div className="rounded-lg p-4 bg-success-bg/50">
+              <p className="font-mono-ui text-[10px] uppercase tracking-wider text-success mb-2">✅ C'est pour elle si…</p>
               <p className="text-sm text-foreground">{offer.target_ideal}</p>
             </div>
             {offer.target_not_for && (
-              <div className="rounded-lg p-4 bg-red-50/50">
-                <p className="font-mono-ui text-[10px] uppercase tracking-wider text-red-500 mb-2">🚫 C'est pas pour elle si…</p>
+              <div className="rounded-lg p-4 bg-error-bg/50">
+                <p className="font-mono-ui text-[10px] uppercase tracking-wider text-error mb-2">🚫 C'est pas pour elle si…</p>
                 <p className="text-sm text-foreground">{offer.target_not_for}</p>
               </div>
             )}
           </div>
           {offer.trigger_situation && (
-            <div className="rounded-lg p-4 bg-amber-50/50 mt-3">
-              <p className="font-mono-ui text-[10px] uppercase tracking-wider text-amber-600 mb-2">💡 Le déclic</p>
+            <div className="rounded-lg p-4 bg-warning-bg/50 mt-3">
+              <p className="font-mono-ui text-[10px] uppercase tracking-wider text-warning mb-2">💡 Le déclic</p>
               <p className="text-sm text-foreground">{offer.trigger_situation}</p>
             </div>
           )}

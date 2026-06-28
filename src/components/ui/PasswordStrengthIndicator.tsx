@@ -7,14 +7,14 @@ interface Props {
 export default function PasswordStrengthIndicator({ password }: Props) {
   const { level, label, color, width } = useMemo(() => {
     if (password.length < 8)
-      return { level: 0, label: "Trop court", color: "bg-red-500", width: "w-1/4" };
+      return { level: 0, label: "Trop court", color: "bg-error", width: "w-1/4" };
     const hasUpper = /[A-Z]/.test(password);
     const hasDigit = /\d/.test(password);
     if (hasUpper && hasDigit)
-      return { level: 3, label: "Fort", color: "bg-green-500", width: "w-full" };
+      return { level: 3, label: "Fort", color: "bg-success", width: "w-full" };
     if (hasUpper || hasDigit)
-      return { level: 2, label: "Moyen", color: "bg-yellow-500", width: "w-3/4" };
-    return { level: 1, label: "Faible", color: "bg-orange-500", width: "w-1/2" };
+      return { level: 2, label: "Moyen", color: "bg-warning", width: "w-3/4" };
+    return { level: 1, label: "Faible", color: "bg-warning", width: "w-1/2" };
   }, [password]);
 
   if (!password) return null;

@@ -27,7 +27,7 @@ interface Suggestion {
 
 const STATUS_CONFIG = {
   error: { icon: XCircle, color: "text-destructive", bg: "bg-destructive/10", label: "Erreur" },
-  warning: { icon: AlertTriangle, color: "text-amber-500", bg: "bg-amber-500/10", label: "Warning" },
+  warning: { icon: AlertTriangle, color: "text-warning", bg: "bg-warning/10", label: "Warning" },
   info: { icon: Info, color: "text-primary", bg: "bg-primary/10", label: "Info" },
   ok: { icon: CheckCircle2, color: "text-[hsl(160_60%_45%)]", bg: "bg-[hsl(160_60%_45%)]/10", label: "OK" },
 };
@@ -225,7 +225,7 @@ export default function ConnectionCheckPage() {
             {/* Summary */}
             <div className="flex flex-wrap gap-3 mb-6 p-4 rounded-xl border border-border bg-card">
               <span className="text-sm font-medium flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-[hsl(160_60%_45%)]" /> {oks.length} OK</span>
-              <span className="text-sm font-medium flex items-center gap-1.5"><AlertTriangle className="h-4 w-4 text-amber-500" /> {warnings.length} Warnings</span>
+              <span className="text-sm font-medium flex items-center gap-1.5"><AlertTriangle className="h-4 w-4 text-warning" /> {warnings.length} Warnings</span>
               <span className="text-sm font-medium flex items-center gap-1.5"><XCircle className="h-4 w-4 text-destructive" /> {errors.length} Erreurs</span>
               <span className="text-sm font-medium flex items-center gap-1.5"><Info className="h-4 w-4 text-primary" /> {infos.length} Infos</span>
             </div>
@@ -241,7 +241,7 @@ export default function ConnectionCheckPage() {
             {/* Warnings */}
             {warnings.length > 0 && (
               <section className="mb-5">
-                <h2 className="font-display text-sm font-bold text-amber-500 mb-2">⚠️ Warnings (à vérifier)</h2>
+                <h2 className="font-display text-sm font-bold text-warning mb-2">⚠️ Warnings (à vérifier)</h2>
                 <div className="space-y-1.5">{warnings.map((c, i) => <CheckRow key={i} check={c} />)}</div>
               </section>
             )}

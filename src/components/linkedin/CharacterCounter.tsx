@@ -10,9 +10,9 @@ export default function CharacterCounter({ count, max, sweetSpot }: CharacterCou
   const color = overMax
     ? "text-destructive"
     : inSweetSpot
-    ? "text-green-600"
+    ? "text-success"
     : sweetSpot && (count < sweetSpot.min || count > sweetSpot.max)
-    ? "text-orange-600"
+    ? "text-warning"
     : "text-muted-foreground";
 
   return (

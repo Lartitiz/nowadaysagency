@@ -199,11 +199,11 @@ export default function SocialConnectionsCard() {
                     </p>
                   ) : errored ? (
                     <p className="text-xs text-muted-foreground flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3 text-amber-500" /> Statut indisponible
+                      <AlertCircle className="h-3 w-3 text-warning" /> Statut indisponible
                     </p>
                   ) : isConnected ? (
                     <p className="text-xs text-muted-foreground flex items-center gap-1">
-                      <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                      <CheckCircle2 className="h-3 w-3 text-success" />
                       Connecté{conn?.accountName ? ` : ${p.atHandle ? "@" : ""}${conn.accountName}` : ""}
                       {conn?.expiresAt && (
                         <span className="ml-1">

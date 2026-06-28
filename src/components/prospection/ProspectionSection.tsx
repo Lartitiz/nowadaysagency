@@ -49,11 +49,11 @@ export interface ProspectInteraction {
 }
 
 const STAGES = [
-  { key: "to_contact", label: "🌱 À recontacter", color: "bg-emerald-100 text-emerald-800" },
-  { key: "in_conversation", label: "💬 En conversation", color: "bg-blue-100 text-blue-800" },
+  { key: "to_contact", label: "🌱 À recontacter", color: "bg-success-bg text-success" },
+  { key: "in_conversation", label: "💬 En conversation", color: "bg-info-bg text-info" },
   { key: "resource_sent", label: "🎁 Ressource envoyée", color: "bg-purple-100 text-purple-800" },
-  { key: "offer_proposed", label: "🤝 Offre proposée", color: "bg-amber-100 text-amber-800" },
-  { key: "converted", label: "✅ Client·e", color: "bg-green-100 text-green-800" },
+  { key: "offer_proposed", label: "🤝 Offre proposée", color: "bg-warning-bg text-warning" },
+  { key: "converted", label: "✅ Client·e", color: "bg-success-bg text-success" },
 ];
 
 export { STAGES };

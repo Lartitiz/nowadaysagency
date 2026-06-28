@@ -72,10 +72,10 @@ const NETWORK_CATEGORIES = [
 ];
 
 const PROSPECT_STAGES = [
-  { key: "to_contact", label: "👀 À contacter", color: "bg-emerald-100 text-emerald-800" },
-  { key: "in_conversation", label: "💬 En conversation", color: "bg-blue-100 text-blue-800" },
-  { key: "offer_proposed", label: "📩 Offre proposée", color: "bg-amber-100 text-amber-800" },
-  { key: "converted", label: "✅ Cliente", color: "bg-green-100 text-green-800" },
+  { key: "to_contact", label: "👀 À contacter", color: "bg-success-bg text-success" },
+  { key: "in_conversation", label: "💬 En conversation", color: "bg-info-bg text-info" },
+  { key: "offer_proposed", label: "📩 Offre proposée", color: "bg-warning-bg text-warning" },
+  { key: "converted", label: "✅ Cliente", color: "bg-success-bg text-success" },
 ];
 
 const CATEGORY_FILTERS = [
@@ -564,7 +564,7 @@ function ProspectsTab({ contacts, onAdd, onSelect, onUpdateStage, onWriteDm, pip
                   <div
                     key={c.id}
                     className={`rounded-lg border p-3 cursor-pointer hover:border-primary/40 transition-colors ${
-                      stale ? "border-amber-300 bg-amber-50/30" : "border-border bg-card"
+                      stale ? "border-warning/30 bg-warning-bg/30" : "border-border bg-card"
                     }`}
                     onClick={() => onSelect(c)}
                   >

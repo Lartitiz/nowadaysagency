@@ -154,7 +154,7 @@ function MissionRow({ mission, isNext, onClick }: { mission: OnboardingMission; 
       onClick={onClick}
       className={`w-full text-left rounded-xl border p-3 flex items-start gap-3 transition-all ${
         isCompleted
-          ? "border-green-200 bg-green-50/50 opacity-70"
+          ? "border-success/30 bg-success-bg/50 opacity-70"
           : isNext
             ? "border-primary bg-primary/5"
             : "border-border bg-card hover:border-primary/30"

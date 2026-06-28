@@ -503,7 +503,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
           {!editingPost?.id ? (
             <p className="text-xs text-muted-foreground">Enregistre le post et ajoute un visuel pour pouvoir programmer la publication.</p>
           ) : publishStatus === "published" ? (
-            <p className="text-xs text-green-600">✅ Publié automatiquement sur Instagram{scheduledAt ? ` (programmé pour le ${new Date(scheduledAt).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" })})` : ""}.</p>
+            <p className="text-xs text-success">✅ Publié automatiquement sur Instagram{scheduledAt ? ` (programmé pour le ${new Date(scheduledAt).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" })})` : ""}.</p>
           ) : publishStatus === "publishing" ? (
             <p className="text-xs text-muted-foreground">⏳ Publication en cours…</p>
           ) : publishStatus === "scheduled" ? (
@@ -542,7 +542,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
           {!editingPost?.id ? (
             <p className="text-xs text-muted-foreground">Enregistre le post et rédige son texte pour pouvoir programmer la publication.</p>
           ) : publishStatus === "published" ? (
-            <p className="text-xs text-green-600">✅ Publié automatiquement sur LinkedIn{scheduledAt ? ` (programmé pour le ${new Date(scheduledAt).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" })})` : ""}.</p>
+            <p className="text-xs text-success">✅ Publié automatiquement sur LinkedIn{scheduledAt ? ` (programmé pour le ${new Date(scheduledAt).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" })})` : ""}.</p>
           ) : publishStatus === "publishing" ? (
             <p className="text-xs text-muted-foreground">⏳ Publication en cours…</p>
           ) : publishStatus === "scheduled" ? (

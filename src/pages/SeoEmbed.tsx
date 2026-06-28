@@ -89,9 +89,9 @@ export default function SeoEmbed() {
         </div>
 
         {loadError && (
-          <div className="rounded-xl border border-amber-300/50 bg-amber-50/50 dark:bg-amber-900/10 px-4 py-3 mb-3 animate-fade-in">
+          <div className="rounded-xl border border-warning/50 bg-warning-bg/50 px-4 py-3 mb-3 animate-fade-in">
             <div className="flex items-start gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+              <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
               <div>
                 <p className="text-sm font-medium text-foreground">
                   L'outil SEO a besoin d'une mise à jour

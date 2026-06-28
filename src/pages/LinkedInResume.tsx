@@ -61,7 +61,7 @@ const statusIcon = (s: string) => s === "good" ? "✅" : s === "partial" ? "⚠�
 
 /* ─── Score Badge ─── */
 function ScoreBadge({ score }: { score: number }) {
-  const color = score >= 70 ? "text-green-600 bg-green-50" : score >= 40 ? "text-amber-600 bg-amber-50" : "text-red-600 bg-red-50";
+  const color = score >= 70 ? "text-success bg-success-bg" : score >= 40 ? "text-warning bg-warning-bg" : "text-error bg-error-bg";
   return <span className={`text-sm font-bold px-2.5 py-1 rounded-full ${color}`}>{score}/100</span>;
 }
 

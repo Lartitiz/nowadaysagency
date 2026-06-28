@@ -184,7 +184,7 @@ function AccrocheSection({ prenom, hasWebsite, sourcesUsed = [], sourcesFailed =
                 key={source}
                 className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full ${
                   isAnalyzed
-                    ? "bg-green-50 text-green-700 border border-green-200 dark:bg-green-950/30 dark:text-green-400 dark:border-green-800"
+                    ? "bg-success-bg text-success border border-success/30"
                     : "bg-muted text-muted-foreground border border-border"
                 }`}
               >
@@ -278,7 +278,7 @@ function StrengthsSection({ strengths }: { strengths: (string | DiagnosticStreng
             transition={{ delay: i * 0.3, duration: 0.4 }}
             className="flex items-start gap-3"
           >
-            <span className="text-green-500 text-xl mt-0.5">✓</span>
+            <span className="text-success text-xl mt-0.5">✓</span>
             <div className="flex-1">
               <div className="flex items-center gap-2">
                 <p className="font-medium text-foreground text-base">{norm.title}</p>
@@ -314,7 +314,7 @@ function WeaknessesSection({ weaknesses }: { weaknesses: DiagnosticWeakness[] })
             transition={{ delay: i * 0.3, duration: 0.4 }}
             className="flex items-start gap-3"
           >
-            <span className="text-orange-400 text-xl mt-0.5">⚠️</span>
+            <span className="text-warning text-xl mt-0.5">⚠️</span>
             <div className="flex-1">
               <div className="flex items-center gap-2">
                 <p className="font-medium text-foreground">{w.title}</p>
@@ -405,7 +405,7 @@ function ChannelBar({ emoji, label, score }: { emoji: string; label: string; sco
     );
   }
 
-  const color = score < 40 ? "bg-destructive/60" : score < 60 ? "bg-accent" : score < 80 ? "bg-primary" : "bg-green-400";
+  const color = score < 40 ? "bg-destructive/60" : score < 60 ? "bg-accent" : score < 80 ? "bg-primary" : "bg-success";
 
   return (
     <div className="flex items-center gap-4">

@@ -445,7 +445,7 @@ function AvatarMenu({ initial, firstName, planLabel, planBadge, totalUsed, total
           >
             <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1">
               <span className="flex items-center gap-1">⚡ Crédits IA</span>
-              <span className={`font-mono-ui font-semibold ${isLow ? "text-destructive" : totalPercent >= 70 ? "text-orange-500" : ""}`}>
+              <span className={`font-mono-ui font-semibold ${isLow ? "text-destructive" : totalPercent >= 70 ? "text-warning" : ""}`}>
                 {remaining}/{totalLimit}
               </span>
             </div>

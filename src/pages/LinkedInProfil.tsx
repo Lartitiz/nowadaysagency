@@ -181,7 +181,7 @@ export default function LinkedInProfil() {
               )}
               <div>
                 <Textarea value={title} onChange={e => setTitle(e.target.value)} placeholder="Mon titre LinkedIn..." className="min-h-[60px]" />
-                <p className={`text-xs mt-1 ${titleOverLimit ? "text-red-600 font-medium" : "text-muted-foreground"}`}>
+                <p className={`text-xs mt-1 ${titleOverLimit ? "text-error font-medium" : "text-muted-foreground"}`}>
                   {titleCharCount}/220 caractères{titleOverLimit && " — Trop long, LinkedIn coupera ton titre."}
                 </p>
               </div>

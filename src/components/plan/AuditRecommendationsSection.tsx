@@ -114,8 +114,8 @@ export default function AuditRecommendationsSection() {
   });
 
   const prioriteStyle = (p: string | null) => {
-    if (p === "haute") return "text-red-600 dark:text-red-400";
-    if (p === "moyenne") return "text-amber-600 dark:text-amber-400";
+    if (p === "haute") return "text-error";
+    if (p === "moyenne") return "text-warning";
     return "text-muted-foreground";
   };
 
@@ -151,7 +151,7 @@ export default function AuditRecommendationsSection() {
             key={rec.id}
             className={`rounded-xl border p-4 transition-all ${
               rec.completed
-                ? "border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-950/20"
+                ? "border-success/30 bg-success-bg/50"
                 : "border-border hover:border-primary/30 hover:shadow-sm"
             }`}
           >
@@ -162,7 +162,7 @@ export default function AuditRecommendationsSection() {
                 aria-label={rec.completed ? "Marquer comme non fait" : "Marquer comme fait"}
               >
                 {rec.completed ? (
-                  <CheckSquare className="h-5 w-5 text-emerald-600" />
+                  <CheckSquare className="h-5 w-5 text-success" />
                 ) : (
                   <Square className="h-5 w-5 text-muted-foreground hover:text-primary transition-colors" />
                 )}
@@ -173,7 +173,7 @@ export default function AuditRecommendationsSection() {
                     {rec.titre || rec.label}
                   </span>
                   {rec.completed && (
-                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300">
+                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-success-bg text-success">
                       Fait ✓
                     </span>
                   )}
@@ -208,8 +208,8 @@ export default function AuditRecommendationsSection() {
 
       {/* Footer */}
       {allDone ? (
-        <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/20 p-4 text-center">
-          <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300 mb-2">
+        <div className="rounded-xl bg-success-bg p-4 text-center">
+          <p className="text-sm font-medium text-success mb-2">
             🎉 Toutes les actions sont complétées !
           </p>
           <Button size="sm" variant="outline" onClick={() => navigate("/branding/audit#refaire")} className="gap-1.5 text-xs">

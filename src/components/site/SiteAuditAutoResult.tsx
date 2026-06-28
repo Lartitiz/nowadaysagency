@@ -115,22 +115,22 @@ const PILIER_META: Record<string, { emoji: string; label: string }> = {
 };
 
 const STATUT_BADGE: Record<string, { label: string; className: string }> = {
-  absent: { label: "Absent", className: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400" },
-  flou: { label: "Flou", className: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400" },
-  bon: { label: "Bon", className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400" },
+  absent: { label: "Absent", className: "bg-error-bg text-error" },
+  flou: { label: "Flou", className: "bg-warning-bg text-warning" },
+  bon: { label: "Bon", className: "bg-success-bg text-success" },
   excellent: { label: "Excellent", className: "bg-primary/10 text-primary" },
 };
 
 function scoreColor(score: number): string {
-  if (score >= 75) return "text-emerald-600";
-  if (score >= 50) return "text-amber-500";
-  return "text-red-500";
+  if (score >= 75) return "text-success";
+  if (score >= 50) return "text-warning";
+  return "text-error";
 }
 
 function scoreStroke(score: number): string {
-  if (score >= 75) return "stroke-emerald-500";
-  if (score >= 50) return "stroke-amber-400";
-  return "stroke-red-500";
+  if (score >= 75) return "stroke-success";
+  if (score >= 50) return "stroke-warning";
+  return "stroke-error";
 }
 
 /* ─── Score Circle ─── */
@@ -171,9 +171,9 @@ function ScoreCircle({ score }: { score: number }) {
 function ScoreDiff({ current, previous }: { current: number; previous: number }) {
   const diff = current - previous;
   if (diff > 0)
-    return <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-emerald-600"><TrendingUp className="h-3 w-3" /> +{diff}</span>;
+    return <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-success"><TrendingUp className="h-3 w-3" /> +{diff}</span>;
   if (diff < 0)
-    return <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-red-500"><TrendingDown className="h-3 w-3" /> {diff}</span>;
+    return <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-error"><TrendingDown className="h-3 w-3" /> {diff}</span>;
   return <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-muted-foreground"><Minus className="h-3 w-3" /> =</span>;
 }
 
@@ -242,7 +242,7 @@ export default function SiteAuditAutoResult({
     <div className="space-y-6">
       {/* ── Viewing old audit banner ── */}
       {viewingOld && (
-        <div className="rounded-2xl border border-amber-300 bg-amber-50 dark:bg-amber-950/20 p-4 flex items-center justify-between">
+        <div className="rounded-2xl border border-warning/30 bg-warning-bg p-4 flex items-center justify-between">
           <p className="text-sm text-foreground">
             📂 Tu consultes l'audit du <strong>{format(new Date(viewingOld.created_at), "d MMM yyyy", { locale: fr })}</strong> (score : {viewingOld.score_global}/100)
           </p>
@@ -262,7 +262,7 @@ export default function SiteAuditAutoResult({
             <ScoreDiff current={result.score_global} previous={previousResult.score_global} />
           </div>
           {result.score_global > previousResult.score_global && (
-            <p className="text-sm font-medium text-emerald-600">
+            <p className="text-sm font-medium text-success">
               🎉 Bravo, +{result.score_global - previousResult.score_global} points depuis ton dernier audit !
             </p>
           )}
@@ -293,7 +293,7 @@ export default function SiteAuditAutoResult({
             📄 {displayResult.pages_analysees?.length || 1} page{(displayResult.pages_analysees?.length || 1) > 1 ? "s" : ""} analysée{(displayResult.pages_analysees?.length || 1) > 1 ? "s" : ""}
           </span>
           {displayResult.pages_en_erreur?.length > 0 && (
-            <span className="inline-flex items-center text-[11px] font-semibold px-2.5 py-1 rounded-pill bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
+            <span className="inline-flex items-center text-[11px] font-semibold px-2.5 py-1 rounded-pill bg-warning-bg text-warning">
               ⚠️ {displayResult.pages_en_erreur.length} page{displayResult.pages_en_erreur.length > 1 ? "s" : ""} en erreur
             </span>
           )}
@@ -347,7 +347,7 @@ export default function SiteAuditAutoResult({
           <ul className="space-y-2">
             {displayResult.points_forts.map((p, i) => (
               <li key={i} className="flex items-start gap-2 text-sm text-foreground">
-                <span className="shrink-0 mt-0.5 text-emerald-500">●</span>
+                <span className="shrink-0 mt-0.5 text-success">●</span>
                 <div>
                   <span className="font-medium">{p.titre}</span>
                   <span className="text-muted-foreground"> — {p.detail}</span>
@@ -383,7 +383,7 @@ export default function SiteAuditAutoResult({
                     <span className={`inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-pill ${
                       prio.impact === "fort"
                         ? "bg-primary/10 text-primary"
-                        : "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400"
+                        : "bg-warning-bg text-warning"
                     }`}>
                       Impact {prio.impact}
                     </span>
@@ -435,13 +435,13 @@ export default function SiteAuditAutoResult({
                   <div className="rounded-b-2xl border border-t-0 border-border bg-card px-4 pb-4 space-y-3">
                     {pilier.ce_qui_existe && (
                       <div>
-                        <p className="text-xs font-bold text-emerald-600 mb-1">✅ Ce qui existe</p>
+                        <p className="text-xs font-bold text-success mb-1">✅ Ce qui existe</p>
                         <p className="text-sm text-muted-foreground">{pilier.ce_qui_existe}</p>
                       </div>
                     )}
                     {pilier.ce_qui_manque && (
                       <div>
-                        <p className="text-xs font-bold text-red-500 mb-1">❌ Ce qui manque</p>
+                        <p className="text-xs font-bold text-error mb-1">❌ Ce qui manque</p>
                         <p className="text-sm text-muted-foreground">{pilier.ce_qui_manque}</p>
                       </div>
                     )}
@@ -464,14 +464,14 @@ export default function SiteAuditAutoResult({
                         : (pilier.statut === "absent" || (pilier.statut === "flou" && pilier.score <= 30));
                       if (!brandingIsLikelyEmpty) return null;
                       return (
-                        <div className="rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 p-3 mt-2">
-                          <p className="text-xs text-amber-800 dark:text-amber-300">
+                        <div className="rounded-xl bg-warning-bg border border-warning/30 p-3 mt-2">
+                          <p className="text-xs text-warning">
                             💡 Ce score sera plus pertinent une fois ton branding complété. L'IA compare ton site avec ton profil de marque : si celui-ci est vide, la comparaison n'a pas beaucoup de sens.
                           </p>
                           <Button
                             variant="outline"
                             size="sm"
-                            className="gap-1.5 rounded-pill text-xs mt-2 border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-950"
+                            className="gap-1.5 rounded-pill text-xs mt-2 border-warning/30 text-warning hover:bg-warning-bg"
                             onClick={() => navigate("/branding")}
                           >
                             Compléter mon branding <ArrowRight className="h-3 w-3" />
@@ -487,14 +487,14 @@ export default function SiteAuditAutoResult({
                         : (pilier.statut === "absent" || (pilier.statut === "flou" && pilier.score <= 30));
                       if (!personaIsEmpty) return null;
                       return (
-                        <div className="rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 p-3 mt-2">
-                          <p className="text-xs text-amber-800 dark:text-amber-300">
+                        <div className="rounded-xl bg-warning-bg border border-warning/30 p-3 mt-2">
+                          <p className="text-xs text-warning">
                             💡 L'IA évalue si ton site parle le langage de ta cible. Sans persona défini, cette analyse manque de contexte : complète ta cliente idéale pour un diagnostic plus précis.
                           </p>
                           <Button
                             variant="outline"
                             size="sm"
-                            className="gap-1.5 rounded-pill text-xs mt-2 border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-950"
+                            className="gap-1.5 rounded-pill text-xs mt-2 border-warning/30 text-warning hover:bg-warning-bg"
                             onClick={() => navigate("/branding?section=persona")}
                           >
                             Définir ma cliente idéale <ArrowRight className="h-3 w-3" />
@@ -533,7 +533,7 @@ export default function SiteAuditAutoResult({
                     <ul className="space-y-1.5">
                       {page.problemes.map((prob, i) => (
                         <li key={i} className="flex items-start gap-2 text-sm text-foreground">
-                          <span className="shrink-0 mt-0.5 text-amber-500">⚠️</span>
+                          <span className="shrink-0 mt-0.5 text-warning">⚠️</span>
                           <span>{prob}</span>
                         </li>
                       ))}
@@ -597,7 +597,7 @@ export default function SiteAuditAutoResult({
                   </Button>
                 )}
                 {checkedActions[idx] && (
-                  <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0" />
+                  <CheckCircle2 className="h-5 w-5 text-success shrink-0" />
                 )}
               </div>
             ))}

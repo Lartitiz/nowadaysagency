@@ -98,11 +98,11 @@ function getCoachingModuleForAction(action: { module?: string; action?: string }
 }
 
 const STATUT_COLORS: Record<string, string> = {
-  absent: "text-red-500", flou: "text-amber-500", bon: "text-emerald-500", excellent: "text-emerald-600",
+  absent: "text-error", flou: "text-warning", bon: "text-success", excellent: "text-success",
 };
 
 const SCORE_BAR_COLOR = (score: number) =>
-  score >= 75 ? "bg-emerald-500" : score >= 50 ? "bg-amber-400" : "bg-red-500";
+  score >= 75 ? "bg-success" : score >= 50 ? "bg-warning" : "bg-error";
 
 export default function BrandingAuditResultPage() {
   const { id } = useParams<{ id: string }>();
@@ -268,7 +268,7 @@ export default function BrandingAuditResultPage() {
 
   if (!result) return null;
 
-  const scoreColor = result.score_global >= 75 ? "text-emerald-500" : result.score_global >= 50 ? "text-amber-500" : "text-red-500";
+  const scoreColor = result.score_global >= 75 ? "text-success" : result.score_global >= 50 ? "text-warning" : "text-error";
 
   // Count completed actions for progress
   const totalActions = Object.keys(result.audit_detail).filter(k => PILLAR_META[k]?.hasCoaching).length;
@@ -320,7 +320,7 @@ export default function BrandingAuditResultPage() {
               <h3 className="font-display font-bold text-sm mb-3">Ce qui marche ✅</h3>
               <div className="space-y-2">
                 {result.points_forts.map((p, i) => (
-                  <div key={i} className="rounded-xl border border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/30 p-4">
+                  <div key={i} className="rounded-xl border border-success/30 bg-success-bg p-4">
                     <p className="text-sm font-medium text-foreground">✅ {p.titre}</p>
                     <p className="text-xs text-muted-foreground mt-1">{p.detail}</p>
                     <p className="text-[10px] text-muted-foreground/70 mt-1">Source : {p.source}</p>
@@ -336,7 +336,7 @@ export default function BrandingAuditResultPage() {
               <h3 className="font-display font-bold text-sm mb-3">Ce qui manque ⚠️</h3>
               <div className="space-y-2">
                 {result.points_faibles.map((p, i) => (
-                  <div key={i} className={`rounded-xl border p-4 ${p.priorite === "haute" ? "border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/30" : "border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30"}`}>
+                  <div key={i} className={`rounded-xl border p-4 ${p.priorite === "haute" ? "border-error/30 bg-error-bg" : "border-warning/30 bg-warning-bg"}`}>
                     <p className="text-sm font-medium text-foreground">{p.priorite === "haute" ? "🔴" : "🟡"} {p.titre}</p>
                     <p className="text-xs text-muted-foreground mt-1">{p.detail}</p>
                     <p className="text-[10px] text-muted-foreground/70 mt-1">Priorité : {p.priorite}</p>
@@ -358,12 +358,12 @@ export default function BrandingAuditResultPage() {
                   const completedDate = completed ? getCompletedDate(meta.coachingModule) : null;
 
                   return (
-                    <div key={key} className={`rounded-xl border overflow-hidden ${completed ? "border-emerald-200 bg-emerald-50/30 dark:border-emerald-900 dark:bg-emerald-950/10" : "border-border bg-card"}`}>
+                    <div key={key} className={`rounded-xl border overflow-hidden ${completed ? "border-success/30 bg-success-bg/30" : "border-border bg-card"}`}>
                       <button className="w-full flex items-center gap-3 p-4 text-left" onClick={() => setExpandedPillar(isExpanded ? null : key)}>
                         <span className="text-base">{meta.emoji}</span>
                         <span className="text-sm font-medium flex-1">
                           {meta.label}
-                          {completed && <span className="ml-1.5 text-emerald-600">✅</span>}
+                          {completed && <span className="ml-1.5 text-success">✅</span>}
                         </span>
                         <span className={`text-xs font-mono ${STATUT_COLORS[pillar.statut] || "text-muted-foreground"}`}>
                           {pillar.score}/100 · {pillar.statut}
@@ -376,10 +376,10 @@ export default function BrandingAuditResultPage() {
                       {isExpanded && (
                         <div className="px-4 pb-4 space-y-3 border-t border-border pt-3">
                           {pillar.ce_qui_existe && (
-                            <div><p className="text-[10px] font-semibold text-emerald-600 uppercase">Ce qui existe</p><p className="text-xs text-muted-foreground">{pillar.ce_qui_existe}</p></div>
+                            <div><p className="text-[10px] font-semibold text-success uppercase">Ce qui existe</p><p className="text-xs text-muted-foreground">{pillar.ce_qui_existe}</p></div>
                           )}
                           {pillar.ce_qui_manque && (
-                            <div><p className="text-[10px] font-semibold text-amber-600 uppercase">Ce qui manque</p><p className="text-xs text-muted-foreground">{pillar.ce_qui_manque}</p></div>
+                            <div><p className="text-[10px] font-semibold text-warning uppercase">Ce qui manque</p><p className="text-xs text-muted-foreground">{pillar.ce_qui_manque}</p></div>
                           )}
                           {pillar.recommandation && (
                             <div><p className="text-[10px] font-semibold text-primary uppercase">Recommandation</p><p className="text-xs text-muted-foreground">{pillar.recommandation}</p></div>
@@ -391,7 +391,7 @@ export default function BrandingAuditResultPage() {
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                className="w-full mt-2 gap-2 justify-center text-emerald-700 hover:text-emerald-800"
+                                className="w-full mt-2 gap-2 justify-center text-success hover:text-success"
                                 onClick={() => handleNavigate(MODULE_ROUTES[meta.coachingModule] || "/branding")}
                               >
                                 <Check className="h-3.5 w-3.5" />
@@ -472,7 +472,7 @@ export default function BrandingAuditResultPage() {
                         key={rec.id}
                         className={`rounded-xl border transition-colors p-4 flex items-center gap-3 ${
                           rec.completed
-                            ? "border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-950/20"
+                            ? "border-success/30 bg-success-bg/50"
                             : "border-border bg-card"
                         }`}
                       >
@@ -483,7 +483,7 @@ export default function BrandingAuditResultPage() {
                           aria-label={rec.completed ? "Marquer comme non fait" : "Marquer comme fait"}
                         >
                           {rec.completed ? (
-                            <CheckSquare className="h-5 w-5 text-emerald-600" />
+                            <CheckSquare className="h-5 w-5 text-success" />
                           ) : (
                             <Square className="h-5 w-5 text-muted-foreground" />
                           )}
@@ -533,8 +533,8 @@ export default function BrandingAuditResultPage() {
 
                 {/* Celebration when all done */}
                 {allRecsDone && (
-                  <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/20 p-4 text-center mt-3">
-                    <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300 mb-2">
+                  <div className="rounded-xl bg-success-bg p-4 text-center mt-3">
+                    <p className="text-sm font-medium text-success mb-2">
                       🎉 Bravo ! Toutes les actions sont complétées.
                     </p>
                     <Button size="sm" variant="outline" onClick={() => navigate("/branding/audit")} className="gap-1.5 text-xs">

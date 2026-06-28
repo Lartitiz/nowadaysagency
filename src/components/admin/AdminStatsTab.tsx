@@ -230,7 +230,7 @@ function OverviewSection({ stats }: { stats: StatsData }) {
           value={stats.total_users}
           trend={stats.new_this_month - (stats.new_prev_month || 0)}
           sub={stats.new_this_month > 0 ? `+${stats.new_this_month} ce mois` : undefined}
-          subColor="text-emerald-600"
+          subColor="text-success"
         />
         <KpiCard
           title="Actives"
@@ -244,7 +244,7 @@ function OverviewSection({ stats }: { stats: StatsData }) {
           value={stats.mrr}
           suffix="€"
           sub={mrrSub}
-          subColor="text-emerald-600"
+          subColor="text-success"
         />
         <KpiCard
           title="Onboarding"
@@ -303,7 +303,7 @@ function OverviewSection({ stats }: { stats: StatsData }) {
             {stats.power_users.slice(0, 5).map((pu, i) => (
               <div key={pu.user_id} className="flex items-center gap-3 py-1.5">
                 <span className="text-xs font-mono text-muted-foreground w-5 text-right">{i + 1}.</span>
-                {i < 3 ? <Crown className="w-4 h-4 text-amber-400" /> : <span className="w-4" />}
+                {i < 3 ? <Crown className="w-4 h-4 text-warning" /> : <span className="w-4" />}
                 <span className="text-sm font-medium flex-1 truncate">{pu.prenom}</span>
                 <Badge variant="outline" className="text-xs" style={{ borderColor: PLAN_COLORS[pu.plan] || "#9CA3AF" }}>
                   {PLAN_LABELS[pu.plan] || pu.plan}
@@ -332,9 +332,9 @@ function BusinessSection({ stats }: { stats: StatsData }) {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <KpiCard title="MRR" value={stats.mrr} suffix="€" sub={`ARR : ${(stats.mrr * 12).toLocaleString("fr")}€`} subColor="text-emerald-600" />
+        <KpiCard title="MRR" value={stats.mrr} suffix="€" sub={`ARR : ${(stats.mrr * 12).toLocaleString("fr")}€`} subColor="text-success" />
         <KpiCard title="Abonnées payantes" value={stats.paid_users} sub={paidPlansSub || `${stats.conversion_rate}% de conversion`} />
-        <KpiCard title="Taux de churn" value={stats.churn_rate} suffix="%" sub={`${stats.churned_this_month} départ·s ce mois`} subColor={stats.churn_rate > 10 ? "text-red-500" : undefined} status={stats.churn_rate <= 5 ? "good" : stats.churn_rate <= 10 ? "warning" : "danger"} />
+        <KpiCard title="Taux de churn" value={stats.churn_rate} suffix="%" sub={`${stats.churned_this_month} départ·s ce mois`} subColor={stats.churn_rate > 10 ? "text-error" : undefined} status={stats.churn_rate <= 5 ? "good" : stats.churn_rate <= 10 ? "warning" : "danger"} />
         <KpiCard title="Conversion free→payant" value={stats.conversion_rate} suffix="%" status={stats.conversion_rate >= 5 ? "good" : stats.conversion_rate >= 2 ? "warning" : "danger"} />
       </div>
 
@@ -398,9 +398,9 @@ function EngagementProductSection({ stats }: { stats: StatsData }) {
     <div className="space-y-6">
       {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <KpiCard title="Rétention" value={stats.retention_rate} suffix="%" sub={`${stats.retained_users} revenues du mois dernier`} subColor={stats.retention_rate >= 50 ? "text-emerald-600" : "text-amber-500"} status={stats.retention_rate >= 50 ? "good" : stats.retention_rate >= 30 ? "warning" : "danger"} />
+        <KpiCard title="Rétention" value={stats.retention_rate} suffix="%" sub={`${stats.retained_users} revenues du mois dernier`} subColor={stats.retention_rate >= 50 ? "text-success" : "text-warning"} status={stats.retention_rate >= 50 ? "good" : stats.retention_rate >= 30 ? "warning" : "danger"} />
         <KpiCard title="Contenus générés" value={totalContent} sub={`${stats.drafts_this_month} brouillons · ${stats.calendar_posts_this_month} planifiés`} />
-        <KpiCard title="Contenus → planifiés" value={stats.content_usage_rate || 0} suffix="%" sub={`${stats.calendar_posts_this_month} planifiés sur ${stats.drafts_this_month} générés`} subColor={(stats.content_usage_rate || 0) >= 50 ? "text-emerald-600" : (stats.content_usage_rate || 0) >= 25 ? "text-amber-500" : "text-red-500"} />
+        <KpiCard title="Contenus → planifiés" value={stats.content_usage_rate || 0} suffix="%" sub={`${stats.calendar_posts_this_month} planifiés sur ${stats.drafts_this_month} générés`} subColor={(stats.content_usage_rate || 0) >= 50 ? "text-success" : (stats.content_usage_rate || 0) >= 25 ? "text-warning" : "text-error"} />
         <KpiCard title="Générations IA" value={stats.ai_total_this_month} trend={stats.ai_total_this_month - (stats.ai_total_prev_month || 0)} sub="ce mois" />
       </div>
 
@@ -431,7 +431,7 @@ function EngagementProductSection({ stats }: { stats: StatsData }) {
             {stats.power_users.map((pu, i) => (
               <div key={pu.user_id} className="flex items-center gap-3 py-1.5">
                 <span className="text-xs font-mono text-muted-foreground w-5 text-right">{i + 1}.</span>
-                {i < 3 ? <Crown className="w-4 h-4 text-amber-400" /> : <span className="w-4" />}
+                {i < 3 ? <Crown className="w-4 h-4 text-warning" /> : <span className="w-4" />}
                 <span className="text-sm font-medium flex-1 truncate">{pu.prenom}</span>
                 <Badge variant="outline" className="text-xs" style={{ borderColor: PLAN_COLORS[pu.plan] || "#9CA3AF" }}>
                   {PLAN_LABELS[pu.plan] || pu.plan}
@@ -503,8 +503,8 @@ function AlertsPanel({ stats }: { stats: StatsData }) {
   // a) Inactive paid users
   if (stats.inactive_paid && stats.inactive_paid.length > 0) {
     alerts.push(
-      <div key="inactive-paid" className="flex gap-3 rounded-lg border-l-4 border-l-red-500 bg-red-500/5 p-4">
-        <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+      <div key="inactive-paid" className="flex gap-3 rounded-lg border-l-4 border-l-error bg-error/5 p-4">
+        <AlertTriangle className="w-5 h-5 text-error shrink-0 mt-0.5" />
         <div>
           <p className="text-sm font-medium">{stats.inactive_paid.length} abonnée(s) payante(s) inactive(s) depuis 14j</p>
           <p className="text-xs text-muted-foreground mt-1">
@@ -518,8 +518,8 @@ function AlertsPanel({ stats }: { stats: StatsData }) {
   // b) Free users near limit
   if (stats.near_limit_free && stats.near_limit_free.length > 0) {
     alerts.push(
-      <div key="near-limit" className="flex gap-3 rounded-lg border-l-4 border-l-amber-500 bg-amber-500/5 p-4">
-        <Zap className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+      <div key="near-limit" className="flex gap-3 rounded-lg border-l-4 border-l-warning bg-warning/5 p-4">
+        <Zap className="w-5 h-5 text-warning shrink-0 mt-0.5" />
         <div>
           <p className="text-sm font-medium">{stats.near_limit_free.length} utilisatrice(s) free proche(s) de la limite (48+/60 crédits)</p>
           <p className="text-xs text-muted-foreground mt-1">
@@ -545,8 +545,8 @@ function AlertsPanel({ stats }: { stats: StatsData }) {
   // d) No signups this month after the 7th
   if (stats.new_this_month === 0 && dayOfMonth > 7) {
     alerts.push(
-      <div key="no-signups" className="flex gap-3 rounded-lg border-l-4 border-l-amber-500 bg-amber-500/5 p-4">
-        <TrendingDown className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+      <div key="no-signups" className="flex gap-3 rounded-lg border-l-4 border-l-warning bg-warning/5 p-4">
+        <TrendingDown className="w-5 h-5 text-warning shrink-0 mt-0.5" />
         <div>
           <p className="text-sm font-medium">Aucune nouvelle inscription ce mois</p>
         </div>
@@ -556,8 +556,8 @@ function AlertsPanel({ stats }: { stats: StatsData }) {
 
   if (alerts.length === 0) {
     return (
-      <div className="rounded-lg border border-emerald-200 bg-emerald-500/5 p-3 text-center">
-        <p className="text-sm text-emerald-600">✓ Tout va bien — aucune alerte</p>
+      <div className="rounded-lg border border-success/30 bg-success/5 p-3 text-center">
+        <p className="text-sm text-success">✓ Tout va bien — aucune alerte</p>
       </div>
     );
   }
@@ -662,14 +662,14 @@ function KpiCard({ title, value, suffix, sub, subColor, trend, status }: {
   trend?: number;
   status?: "good" | "warning" | "danger";
 }) {
-  const statusBorder = status === "good" ? "border-l-4 border-l-emerald-500" : status === "warning" ? "border-l-4 border-l-amber-500" : status === "danger" ? "border-l-4 border-l-red-500" : "";
+  const statusBorder = status === "good" ? "border-l-4 border-l-success" : status === "warning" ? "border-l-4 border-l-warning" : status === "danger" ? "border-l-4 border-l-error" : "";
   return (
     <div className={`rounded-xl border bg-card p-5 flex flex-col gap-1 ${statusBorder}`}>
       <p className="text-xs text-muted-foreground">{title}</p>
       <div className="flex items-baseline gap-1.5">
         <p className="text-2xl font-bold font-display">{value.toLocaleString("fr")}{suffix && <span className="text-sm font-normal text-muted-foreground">{suffix}</span>}</p>
         {trend !== undefined && trend !== 0 && (
-          <span className={`inline-flex items-center gap-0.5 text-xs font-medium ${trend > 0 ? "text-emerald-600" : "text-red-500"}`}>
+          <span className={`inline-flex items-center gap-0.5 text-xs font-medium ${trend > 0 ? "text-success" : "text-error"}`}>
             {trend > 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
             {trend > 0 ? "+" : ""}{trend}
           </span>
