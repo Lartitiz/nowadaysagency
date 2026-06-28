@@ -1120,6 +1120,7 @@ export type Database = {
           format: string | null
           generated_content_id: string | null
           generated_content_type: string | null
+          group_id: string | null
           id: string
           launch_id: string | null
           media_urls: string[] | null
@@ -1164,6 +1165,7 @@ export type Database = {
           format?: string | null
           generated_content_id?: string | null
           generated_content_type?: string | null
+          group_id?: string | null
           id?: string
           launch_id?: string | null
           media_urls?: string[] | null
@@ -1208,6 +1210,7 @@ export type Database = {
           format?: string | null
           generated_content_id?: string | null
           generated_content_type?: string | null
+          group_id?: string | null
           id?: string
           launch_id?: string | null
           media_urls?: string[] | null
