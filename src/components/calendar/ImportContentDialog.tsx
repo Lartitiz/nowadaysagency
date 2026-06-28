@@ -11,11 +11,45 @@ import { toLocalDateStr, cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, Instagram, Linkedin, Loader2 } from "lucide-react";
+import { Upload, Instagram, Linkedin, Loader2, GripVertical } from "lucide-react";
 import { SocialMockup } from "@/components/social-mockup/SocialMockup";
 import { pdfToImageFiles, isPdfFile } from "@/lib/pdf-to-images";
+import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, useSortable, arrayMove, rectSortingStrategy, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 const MAX_IMAGES = 10;
+
+/** Vignette d'un visuel, réordonnable au glisser (dnd-kit). */
+function SortableThumb({ url, index, onRemove }: { url: string; index: number; onRemove: () => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: url });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+    zIndex: isDragging ? 10 : undefined,
+  };
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="relative group w-16 h-16 rounded-lg overflow-hidden border border-border bg-muted touch-none cursor-grab active:cursor-grabbing"
+      {...attributes}
+      {...listeners}
+    >
+      <img src={url} alt={`Visuel ${index + 1}`} className="w-full h-full object-cover pointer-events-none" />
+      <span className="absolute bottom-0.5 left-0.5 text-[9px] font-semibold bg-black/60 text-white px-1 rounded">{index + 1}</span>
+      <span className="absolute bottom-0.5 right-0.5 text-white/80 opacity-0 group-hover:opacity-100 transition-opacity"><GripVertical className="h-3 w-3" /></span>
+      <button
+        type="button"
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={onRemove}
+        aria-label={`Supprimer le visuel ${index + 1}`}
+        className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-foreground/60 text-background flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs"
+      >×</button>
+    </div>
+  );
+}
 
 interface Props {
   open: boolean;
@@ -73,6 +107,23 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
 
   const igValidImages = useMemo(() => mediaUrls.filter(isPublicImageUrl), [mediaUrls]);
   const text = contentText.trim();
+
+  // Réordonnancement des visuels au glisser. PointerSensor avec distance 5px
+  // pour que le clic sur « × » (supprimer) ne déclenche pas un drag.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+  const handleReorder = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    setMediaUrls((prev) => {
+      const from = prev.indexOf(String(active.id));
+      const to = prev.indexOf(String(over.id));
+      if (from === -1 || to === -1) return prev;
+      return arrayMove(prev, from, to);
+    });
+  };
 
   /** Traite des fichiers (images + PDF) : expansion PDF → upload calendar-media. */
   const processFiles = async (rawFiles: File[], baseCount: number) => {
@@ -213,19 +264,20 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
       <div className="space-y-2">
         <label className="text-xs font-semibold block text-foreground">🖼️ Tes visuels</label>
         {mediaUrls.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {mediaUrls.map((url, i) => (
-              <div key={i} className="relative group w-16 h-16 rounded-lg overflow-hidden border border-border">
-                <img src={url} alt={`Visuel ${i + 1}`} className="w-full h-full object-cover" />
-                <span className="absolute bottom-0.5 left-0.5 text-[9px] font-semibold bg-black/60 text-white px-1 rounded">{i + 1}</span>
-                <button
-                  onClick={() => setMediaUrls((prev) => prev.filter((_, idx) => idx !== i))}
-                  aria-label={`Supprimer le visuel ${i + 1}`}
-                  className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-foreground/60 text-background flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs"
-                >×</button>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleReorder}>
+            <SortableContext items={mediaUrls} strategy={rectSortingStrategy}>
+              <div className="flex flex-wrap gap-2">
+                {mediaUrls.map((url, i) => (
+                  <SortableThumb
+                    key={url}
+                    url={url}
+                    index={i}
+                    onRemove={() => setMediaUrls((prev) => prev.filter((u) => u !== url))}
+                  />
+                ))}
               </div>
-            ))}
-          </div>
+            </SortableContext>
+          </DndContext>
         )}
         <label className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer transition-colors">
           {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
@@ -235,7 +287,7 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
         <p className="text-[11px] text-muted-foreground">
           {canal === "instagram"
             ? (igValidImages.length > 1
-                ? `Carrousel de ${igValidImages.length} images · ordre = ordre d'ajout`
+                ? `Carrousel de ${igValidImages.length} images · glisse les vignettes pour les réordonner`
                 : "1 image = post simple · jusqu'à 10 pour un carrousel. Un PDF est découpé en slides.")
             : "Un PDF est découpé en une image par page."}
         </p>
