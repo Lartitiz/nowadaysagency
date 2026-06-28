@@ -1046,10 +1046,17 @@ TEST DE PROFONDEUR (applique-le à chaque slide avant de retourner le JSON) :
 - Si la slide pourrait être écrite par n'importe qui sans expertise sur le sujet → elle manque de perspective → RÉÉCRIS
 ${deepeningCtx ? "- UTILISE les mots et exemples de l'utilisatrice dans les slides (anecdotes, vécu, arguments)" : ""}
 
-═══ SCHÉMAS VISUELS (PUISSANT — utilise-les !) ═══
+═══ SCHÉMAS VISUELS (À DOSER — le narratif prime) ═══
 
-Certaines slides gagnent à être des SCHÉMAS plutôt que du texte pur. Quand c'est pertinent, ajoute un "visual_schema" à la slide.
-L'IA de design sait dessiner ces schémas en HTML/CSS. N'hésite PAS à les utiliser : 2-3 slides schéma par carrousel = le sweet spot.
+La force d'un carrousel vient du NARRATIF : affirmations fortes, récit, prises de position portées par une grande typographie. PAS de l'accumulation de schémas. Un carrousel peut très bien n'avoir AUCUN schéma — et c'est souvent mieux.
+
+Le schéma est l'EXCEPTION qui crée un point de respiration, pas la règle. Trop de schémas = effet "template / généré par IA" qu'on veut absolument éviter.
+
+RÈGLES STRICTES de dosage :
+- MAXIMUM 1 à 2 schémas sur tout le carrousel (0 est un choix tout à fait valable).
+- JAMAIS 2 schémas consécutifs.
+- Les slides de TENSION / PROBLÈME / PRISE DE POSITION restent en TEXTE NARRATIF (elles portent le récit, ne les transforme pas en diagramme).
+- N'ajoute un "visual_schema" QUE si le contenu l'exige vraiment (une vraie comparaison, une vraie progression chiffrée…) ET que le texte seul serait moins clair. Dans le doute : texte narratif.
 
 Types disponibles et QUAND les utiliser :
 
@@ -1114,11 +1121,13 @@ QUAND utiliser un schéma :
 - Slide qui déconstruit une idée / prise de position en mode mythe-vs-vision → objection_response
 - Slide qui montre un travail invisible ou un process en 3 temps (Avant / Pendant / Après) → process_visible
 
-QUAND NE PAS utiliser de schéma :
+QUAND NE PAS utiliser de schéma (par défaut, on n'en met pas) :
 - Slide hook (slide 1) → toujours du texte pur avec un titre percutant
 - Slide CTA (dernière) → toujours du texte avec appel à l'action
 - Slide storytelling personnel libre (différent d'un story_arc structuré) → le texte suffit
-- Si le texte est plus fort seul → pas besoin d'un schéma forcé
+- Slide de tension, de problème, d'émotion ou de prise de position → TEXTE narratif, jamais un diagramme
+- Si le texte est plus fort seul → pas besoin d'un schéma forcé (c'est le cas le plus fréquent)
+- Si tu as déjà 2 schémas dans le carrousel → STOP, le reste en texte
 
 Quand une slide a un visual_schema, le body peut être plus court ou vide — le schéma porte le message visuel.
 
