@@ -209,8 +209,9 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
 
       {/* Titre */}
       <div>
-        <label className="text-sm font-medium mb-1.5 block">Titre</label>
+        <label htmlFor="idea-title" className="text-sm font-medium mb-1.5 block">Titre</label>
         <Input
+          id="idea-title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Mon idée de contenu..."
@@ -262,8 +263,9 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
 
       {/* Notes */}
       <div>
-        <label className="text-sm font-medium mb-1.5 block">Notes</label>
+        <label htmlFor="idea-notes" className="text-sm font-medium mb-1.5 block">Notes</label>
         <Textarea
+          id="idea-notes"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder="Idées, brouillon, remarques..."
@@ -274,10 +276,11 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
       {/* Generated content */}
       {(idea?.content_draft || contentDraft) && (
         <div>
-          <label className="text-xs font-semibold mb-1.5 block text-foreground flex items-center gap-1.5">
+          <label htmlFor="idea-content-draft" className="text-xs font-semibold mb-1.5 block text-foreground flex items-center gap-1.5">
             ✨ Contenu généré
           </label>
           <Textarea
+            id="idea-content-draft"
             value={contentDraft}
             onChange={(e) => setContentDraft(e.target.value)}
             placeholder="Le contenu généré apparaîtra ici..."

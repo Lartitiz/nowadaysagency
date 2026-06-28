@@ -462,15 +462,15 @@ function AuditForm({
       <h3 className="font-display font-bold text-sm mb-4">Qu'est-ce que tu veux analyser ?</h3>
 
       <SourceToggle checked={useSite} onToggle={setUseSite} label="Mon site web">
-        <Input placeholder="https://monsite.com" value={siteUrl} onChange={(e: any) => setSiteUrl(e.target.value)} />
+        <Input aria-label="URL de ton site web" placeholder="https://monsite.com" value={siteUrl} onChange={(e: any) => setSiteUrl(e.target.value)} />
       </SourceToggle>
 
       <SourceToggle checked={useInstagram} onToggle={setUseInstagram} label="Mon compte Instagram">
-        <Input placeholder="@moncompte" value={instagramUsername} onChange={(e: any) => setInstagramUsername(e.target.value)} />
+        <Input aria-label="Nom d'utilisateur Instagram" placeholder="@moncompte" value={instagramUsername} onChange={(e: any) => setInstagramUsername(e.target.value)} />
       </SourceToggle>
 
       <SourceToggle checked={useLinkedin} onToggle={setUseLinkedin} label="Mon profil LinkedIn">
-        <Input placeholder="https://linkedin.com/in/..." value={linkedinUrl} onChange={(e: any) => setLinkedinUrl(e.target.value)} />
+        <Input aria-label="URL de ton profil LinkedIn" placeholder="https://linkedin.com/in/..." value={linkedinUrl} onChange={(e: any) => setLinkedinUrl(e.target.value)} />
       </SourceToggle>
 
       <SourceToggle checked={useDocument} onToggle={setUseDocument} label="Un document stratégique (brief, plan de com')">
@@ -501,7 +501,7 @@ function AuditForm({
       </SourceToggle>
 
       <SourceToggle checked={useFreeText} onToggle={setUseFreeText} label="Du texte libre (notes, idées en vrac)">
-        <Textarea showVoiceTip placeholder="Colle ici tout ce que tu veux…" value={freeText} onChange={(e: any) => setFreeText(e.target.value)} className="min-h-[80px]" />
+        <Textarea aria-label="Texte libre à analyser" showVoiceTip placeholder="Colle ici tout ce que tu veux…" value={freeText} onChange={(e: any) => setFreeText(e.target.value)} className="min-h-[80px]" />
       </SourceToggle>
 
       <Button onClick={handleAudit} disabled={!hasSource} className="w-full gap-2 mt-6" size="lg">

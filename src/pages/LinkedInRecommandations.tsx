@@ -173,9 +173,9 @@ ${prenom || "[Ton prénom]"}`;
             {recos.map((r, idx) => (
               <div key={idx} className="flex items-center gap-3 flex-wrap">
                 <span className="text-xs font-mono text-muted-foreground w-4">{idx + 1}.</span>
-                <Input value={r.person_name} onChange={e => updateReco(idx, "person_name", e.target.value)} placeholder="Nom de la personne" className="flex-1 min-w-[140px]" />
+                <Input aria-label={`Nom de la personne ${idx + 1}`} value={r.person_name} onChange={e => updateReco(idx, "person_name", e.target.value)} placeholder="Nom de la personne" className="flex-1 min-w-[140px]" />
                 <Select value={r.person_type} onValueChange={v => updateReco(idx, "person_type", v)}>
-                  <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-[130px]" aria-label={`Type de personne ${idx + 1}`}><SelectValue /></SelectTrigger>
                   <SelectContent>{PERSON_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
                 </Select>
                 <div className="flex items-center gap-2">
@@ -223,16 +223,16 @@ ${prenom || "[Ton prénom]"}`;
         <section className="space-y-4 mb-10">
           <h2 className="font-display text-lg font-bold">Rédiger un brouillon de recommandation</h2>
           <p className="text-sm text-muted-foreground">Facilite la tâche à la personne en lui envoyant un brouillon.</p>
-          <Input value={draftName} onChange={e => setDraftName(e.target.value)} placeholder="Pour qui ?" />
-          <Input value={draftType} onChange={e => setDraftType(e.target.value)} placeholder="Quel type de collaboration ?" />
-          <Textarea value={draftHighlights} onChange={e => setDraftHighlights(e.target.value)} placeholder="Ce que tu veux mettre en avant..." className="min-h-[80px]" />
+          <Input aria-label="Pour qui ?" value={draftName} onChange={e => setDraftName(e.target.value)} placeholder="Pour qui ?" />
+          <Input aria-label="Quel type de collaboration ?" value={draftType} onChange={e => setDraftType(e.target.value)} placeholder="Quel type de collaboration ?" />
+          <Textarea aria-label="Ce que tu veux mettre en avant" value={draftHighlights} onChange={e => setDraftHighlights(e.target.value)} placeholder="Ce que tu veux mettre en avant..." className="min-h-[80px]" />
           <Button onClick={generateDraft} disabled={generatingDraft} variant="outline" className="rounded-pill gap-2">
             <Sparkles className="h-4 w-4" />
             {generatingDraft ? "Rédaction..." : "✨ Rédiger un brouillon"}
           </Button>
           {draftResult && (
             <div className="space-y-2">
-              <Textarea value={draftResult} onChange={e => setDraftResult(e.target.value)} className="min-h-[150px]" />
+              <Textarea aria-label="Brouillon de recommandation généré" value={draftResult} onChange={e => setDraftResult(e.target.value)} className="min-h-[150px]" />
               <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(draftResult); toast({ title: "📋 Copié !" }); }} className="gap-1">
                 <Copy className="h-3 w-3" /> Copier
               </Button>

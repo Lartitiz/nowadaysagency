@@ -257,10 +257,11 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
     return (
       <div className="space-y-4">
         <StepHeader step={1} label="VOTRE CONVERSATION" prospect={prospect} onBack={onBack} />
-        <p className="text-xs text-muted-foreground">
+        <label htmlFor="dm-conversation-history" className="text-xs text-muted-foreground block">
           Copie-colle ici les derniers messages échangés avec @{getUsername(prospect)} (DM Instagram) :
-        </p>
+        </label>
         <Textarea
+          id="dm-conversation-history"
           value={conversationHistory}
           onChange={e => setConversationHistory(e.target.value)}
           placeholder={"Moi : Hey ! J'ai adoré ta dernière story...\nElle : Merci ! J'hésite toujours à montrer ce genre de trucs..."}
@@ -297,7 +298,7 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
 
         {/* Offer selection */}
         <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-foreground">🎁 Quelle offre tu veux proposer ?</label>
+          <label htmlFor="dm-offer-select" className="text-xs font-semibold text-foreground">🎁 Quelle offre tu veux proposer ?</label>
           {offers.length === 0 ? (
             <p className="text-xs text-muted-foreground">
               Tu n'as pas encore renseigné tes offres.{" "}
@@ -305,7 +306,7 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
             </p>
           ) : (
             <Select value={selectedOfferId} onValueChange={setSelectedOfferId}>
-              <SelectTrigger className="text-xs h-9">
+              <SelectTrigger id="dm-offer-select" className="text-xs h-9">
                 <SelectValue placeholder="Sélectionner une offre" />
               </SelectTrigger>
               <SelectContent>
@@ -323,8 +324,9 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
 
         {/* Interest */}
         <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-foreground">💡 Elle a montré un intérêt pour quelque chose ?</label>
+          <label htmlFor="dm-noted-interest" className="text-xs font-semibold text-foreground">💡 Elle a montré un intérêt pour quelque chose ?</label>
           <Textarea
+            id="dm-noted-interest"
             value={notedInterest}
             onChange={e => setNotedInterest(e.target.value)}
             placeholder="Elle a dit qu'elle avait besoin de se structurer sur sa com'..."
@@ -334,8 +336,9 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
 
         {/* Problem */}
         <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-foreground">⚠️ Son problème principal d'après toi ?</label>
+          <label htmlFor="dm-prospect-problem" className="text-xs font-semibold text-foreground">⚠️ Son problème principal d'après toi ?</label>
           <Textarea
+            id="dm-prospect-problem"
             value={prospectProblem}
             onChange={e => setProspectProblem(e.target.value)}
             placeholder="Elle a du super contenu mais aucune stratégie..."
@@ -345,8 +348,9 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
 
         {/* Message context */}
         <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-foreground">💬 Qu'est-ce que tu veux lui dire ? (contexte du message)</label>
+          <label htmlFor="dm-message-context" className="text-xs font-semibold text-foreground">💬 Qu'est-ce que tu veux lui dire ? (contexte du message)</label>
           <Textarea
+            id="dm-message-context"
             value={messageContext}
             onChange={e => setMessageContext(e.target.value)}
             placeholder="Ex : l'intention du message (proposer un échange, rebondir sur un contenu…)"
@@ -356,8 +360,9 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
 
         {/* To avoid */}
         <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-foreground">🚫 Un truc à éviter dans le message ?</label>
+          <label htmlFor="dm-to-avoid" className="text-xs font-semibold text-foreground">🚫 Un truc à éviter dans le message ?</label>
           <Textarea
+            id="dm-to-avoid"
             value={toAvoid}
             onChange={e => setToAvoid(e.target.value)}
             placeholder="Ne pas être trop frontale sur la vente..."
@@ -465,7 +470,7 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
         <p className="text-xs font-semibold text-muted-foreground">{label}</p>
         {editingVariant === key ? (
           <div className="space-y-2">
-            <Textarea value={editedText} onChange={e => setEditedText(e.target.value)} className="text-sm min-h-[80px]" />
+            <Textarea aria-label={`Modifier ${label}`} value={editedText} onChange={e => setEditedText(e.target.value)} className="text-sm min-h-[80px]" />
             <div className="flex gap-1">
               <Button size="sm" className="text-xs" onClick={() => {
                 if (key === "a") setVariants({ ...variants, variant_a: editedText });

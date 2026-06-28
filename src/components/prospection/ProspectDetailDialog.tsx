@@ -102,10 +102,11 @@ export default function ProspectDetailDialog({ prospect, open, onOpenChange, onU
 
   const EditableField = ({ field, label, value }: { field: string; label: string; value: string | null }) => (
     <div className="space-y-1">
-      <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</label>
+      <label htmlFor={`prospect-edit-${field}`} className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</label>
       {editField === field ? (
         <div className="flex gap-1">
           <Input
+            id={`prospect-edit-${field}`}
             value={editValue}
             onChange={e => setEditValue(e.target.value)}
             className="text-sm h-8"
@@ -255,10 +256,11 @@ export default function ProspectDetailDialog({ prospect, open, onOpenChange, onU
 
           {prospect.stage === "converted" && (
             <div className="mt-2">
-              <label className="text-[11px] text-muted-foreground">Montant de la conversion (€)</label>
+              <label htmlFor="prospect-conversion-amount" className="text-[11px] text-muted-foreground">Montant de la conversion (€)</label>
               {editField === "conversion_amount" ? (
                 <div className="flex gap-1 mt-1">
                   <Input
+                    id="prospect-conversion-amount"
                     type="number"
                     value={editValue}
                     onChange={e => setEditValue(e.target.value)}
@@ -304,6 +306,7 @@ export default function ProspectDetailDialog({ prospect, open, onOpenChange, onU
           {addingInteraction ? (
             <div className="space-y-2 p-2 bg-muted/30 rounded-lg">
               <select
+                aria-label="Type d'interaction"
                 value={newInteractionType}
                 onChange={e => setNewInteractionType(e.target.value)}
                 className="h-8 text-xs rounded-md border border-input bg-card px-2 w-full"
@@ -313,6 +316,7 @@ export default function ProspectDetailDialog({ prospect, open, onOpenChange, onU
                 ))}
               </select>
               <Input
+                aria-label="Détail de l'interaction (optionnel)"
                 placeholder="Détail (optionnel)"
                 value={newInteractionContent}
                 onChange={e => setNewInteractionContent(e.target.value)}

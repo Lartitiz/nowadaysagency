@@ -709,6 +709,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                   {slide.overlay_text !== null && slide.overlay_text !== undefined ? (
                     <div className="space-y-1">
                       <Textarea
+                        aria-label={`Texte de la slide ${slide.slide_number || idx + 1}`}
                         value={slide.overlay_text}
                         onChange={(e) => updateSlideText(idx, e.target.value)}
                         className={`resize-none min-h-[48px] ${OVERLAY_STYLE_CLASS[slide.overlay_style] || "text-sm"}`}
@@ -730,6 +731,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                       ex. slide ajoutée à la main). Pour photo_integrated, seulement s'ils existent. */}
                   {(slide.slide_type === "text_only" || slide.title) && (
                     <Textarea
+                      aria-label={`Titre de la slide ${slide.slide_number || idx + 1}`}
                       value={slide.title || ""}
                       placeholder="Titre de la slide"
                       onChange={(e) => {
@@ -743,6 +745,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                   )}
                   {(slide.slide_type === "text_only" || slide.body) && (
                     <Textarea
+                      aria-label={`Texte de la slide ${slide.slide_number || idx + 1} (optionnel)`}
                       value={slide.body || ""}
                       placeholder="Texte de la slide (optionnel)"
                       onChange={(e) => {
@@ -839,6 +842,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
               Hook, corps, CTA et hashtags réunis dans un seul bloc éditable. Modifie librement.
             </p>
             <Textarea
+              aria-label="Légende du carrousel"
               value={caption.fullText || ""}
               onChange={(e) => updateFullText(e.target.value)}
               placeholder="Écris ou colle ta légende complète (hook, corps, CTA, hashtags)..."

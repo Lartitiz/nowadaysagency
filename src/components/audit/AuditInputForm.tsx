@@ -235,12 +235,12 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo, ins
       <section className="space-y-3">
         <h3 className="text-sm font-bold text-foreground">👤 TON NOM</h3>
         <div>
-          <label className="text-xs text-muted-foreground mb-1 block">Nom d'affichage</label>
-          <Input value={form.displayName} onChange={(e) => set("displayName", e.target.value)} placeholder="Laetitia | Nowadays Agency" />
+          <label htmlFor="audit-display-name" className="text-xs text-muted-foreground mb-1 block">Nom d'affichage</label>
+          <Input id="audit-display-name" value={form.displayName} onChange={(e) => set("displayName", e.target.value)} placeholder="Laetitia | Nowadays Agency" />
         </div>
         <div>
-          <label className="text-xs text-muted-foreground mb-1 block">Nom d'utilisateur (@)</label>
-          <Input value={form.username} onChange={(e) => set("username", e.target.value)} placeholder="@nowadaysagency" />
+          <label htmlFor="audit-username" className="text-xs text-muted-foreground mb-1 block">Nom d'utilisateur (@)</label>
+          <Input id="audit-username" value={form.username} onChange={(e) => set("username", e.target.value)} placeholder="@nowadaysagency" />
         </div>
       </section>
       )}
@@ -249,8 +249,8 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo, ins
       <section className="space-y-3">
         <h3 className="text-sm font-bold text-foreground">📝 TA BIO</h3>
         <div>
-          <label className="text-xs text-muted-foreground mb-1 block">Copie-colle ta bio Instagram ici :</label>
-          <Textarea value={form.bio} onChange={(e) => set("bio", e.target.value)} placeholder={"Ta spécialité en 1 ligne ✨\nTon titre ou rôle\nCe que tu apportes à ta cible\n↓ Lien ou CTA"} className="min-h-[100px]" />
+          <label htmlFor="audit-bio" className="text-xs text-muted-foreground mb-1 block">Copie-colle ta bio Instagram ici :</label>
+          <Textarea id="audit-bio" value={form.bio} onChange={(e) => set("bio", e.target.value)} placeholder={"Ta spécialité en 1 ligne ✨\nTon titre ou rôle\nCe que tu apportes à ta cible\n↓ Lien ou CTA"} className="min-h-[100px]" />
           <p className="text-xs text-muted-foreground mt-1 italic">💡 Tu la trouves dans Instagram › Modifier le profil</p>
         </div>
       </section>
@@ -259,7 +259,7 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo, ins
       {!rapidMode && (
       <section className="space-y-3">
         <h3 className="text-sm font-bold text-foreground">🔗 TON LIEN</h3>
-        <Input value={form.bioLink} onChange={(e) => set("bioLink", e.target.value)} placeholder="https://linktr.ee/toncompte" />
+        <Input aria-label="Ton lien (bio)" value={form.bioLink} onChange={(e) => set("bioLink", e.target.value)} placeholder="https://linktr.ee/toncompte" />
       </section>
       )}
 
@@ -291,8 +291,8 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo, ins
           />
           <div className="flex-1 space-y-2">
             <p className="text-xs text-muted-foreground">Clique sur le cercle pour uploader ta photo de profil Instagram.</p>
-            <label className="text-xs text-muted-foreground mb-1 block">OU décris-la en 1 phrase :</label>
-            <Input value={form.photoDescription} onChange={(e) => set("photoDescription", e.target.value)} placeholder="Photo souriante, fond rose, cheveux détachés" />
+            <label htmlFor="audit-photo-description" className="text-xs text-muted-foreground mb-1 block">OU décris-la en 1 phrase :</label>
+            <Input id="audit-photo-description" value={form.photoDescription} onChange={(e) => set("photoDescription", e.target.value)} placeholder="Photo souriante, fond rose, cheveux détachés" />
           </div>
         </div>
       </section>
@@ -303,12 +303,12 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo, ins
       <section className="space-y-3">
         <h3 className="text-sm font-bold text-foreground">📱 TES STORIES À LA UNE</h3>
         <div>
-          <label className="text-xs text-muted-foreground mb-1 block">Liste les noms de tes highlights (séparés par des virgules) :</label>
-          <Input value={form.highlights} onChange={(e) => set("highlights", e.target.value)} placeholder="Avis, FAQ, Perso, Coulisses, Offres" />
+          <label htmlFor="audit-highlights" className="text-xs text-muted-foreground mb-1 block">Liste les noms de tes highlights (séparés par des virgules) :</label>
+          <Input id="audit-highlights" value={form.highlights} onChange={(e) => set("highlights", e.target.value)} placeholder="Avis, FAQ, Perso, Coulisses, Offres" />
         </div>
         <div>
-          <label className="text-xs text-muted-foreground mb-1 block">Combien de highlights :</label>
-          <Input type="number" value={form.highlightsCount} onChange={(e) => set("highlightsCount", e.target.value)} placeholder="5" className="w-24" />
+          <label htmlFor="audit-highlights-count" className="text-xs text-muted-foreground mb-1 block">Combien de highlights :</label>
+          <Input id="audit-highlights-count" type="number" value={form.highlightsCount} onChange={(e) => set("highlightsCount", e.target.value)} placeholder="5" className="w-24" />
         </div>
         <div>
           <button onClick={() => hlRef.current?.click()} className="text-xs text-primary hover:underline">📷 OU uploader un screenshot de tes highlights</button>
@@ -364,11 +364,12 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo, ins
                     }} 
                   />
                   <div className="flex-1">
-                    <label className="text-xs text-muted-foreground mb-1 block">OU décris le contenu :</label>
-                    <Input 
-                      value={(form as any)[key]} 
-                      onChange={(e) => set(key, e.target.value)} 
-                      placeholder="Carrousel storytelling sur mon parcours" 
+                    <label htmlFor={`audit-pinned-desc-${key}`} className="text-xs text-muted-foreground mb-1 block">OU décris le contenu :</label>
+                    <Input
+                      id={`audit-pinned-desc-${key}`}
+                      value={(form as any)[key]}
+                      onChange={(e) => set(key, e.target.value)}
+                      placeholder="Carrousel storytelling sur mon parcours"
                     />
                   </div>
                 </div>
@@ -384,8 +385,8 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo, ins
       <section className="space-y-3">
         <h3 className="text-sm font-bold text-foreground">🎨 TON FEED</h3>
         <div>
-          <label className="text-xs text-muted-foreground mb-1 block">Décris ton feed en quelques mots :</label>
-          <Textarea value={form.feedDescription} onChange={(e) => set("feedDescription", e.target.value)} placeholder="Palette rose + blanc, carrousels éducatifs, quelques Reels face cam, pas beaucoup de photos perso" className="min-h-[80px]" />
+          <label htmlFor="audit-feed-description" className="text-xs text-muted-foreground mb-1 block">Décris ton feed en quelques mots :</label>
+          <Textarea id="audit-feed-description" value={form.feedDescription} onChange={(e) => set("feedDescription", e.target.value)} placeholder="Palette rose + blanc, carrousels éducatifs, quelques Reels face cam, pas beaucoup de photos perso" className="min-h-[80px]" />
         </div>
         <div>
           <button onClick={() => feedRef.current?.click()} className="text-xs text-primary hover:underline">📷 OU uploader un screenshot de ton feed (les 9 derniers)</button>
@@ -424,8 +425,9 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo, ins
             label="meilleur post"
           />
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Pourquoi tu penses qu'ils ont bien marché ? (optionnel)</label>
+            <label htmlFor="audit-best-comment" className="text-xs text-muted-foreground mb-1 block">Pourquoi tu penses qu'ils ont bien marché ? (optionnel)</label>
             <Textarea
+              id="audit-best-comment"
               value={form.bestPostsComment}
               onChange={(e) => set("bestPostsComment", e.target.value)}
               placeholder="Le carrousel sur les erreurs de bio a eu beaucoup de saves et le Reel a bien tourné en organique"
@@ -445,8 +447,9 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo, ins
             label="pire post"
           />
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Pourquoi tu penses qu'ils n'ont pas marché ? (optionnel)</label>
+            <label htmlFor="audit-worst-comment" className="text-xs text-muted-foreground mb-1 block">Pourquoi tu penses qu'ils n'ont pas marché ? (optionnel)</label>
             <Textarea
+              id="audit-worst-comment"
               value={form.worstPostsComment}
               onChange={(e) => set("worstPostsComment", e.target.value)}
               placeholder="Le post citation a fait 0 save et le Reel tuto était trop long"
@@ -466,13 +469,13 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo, ins
         <h3 className="text-sm font-bold text-foreground">📊 QUELQUES CHIFFRES</h3>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Nombre d'abonné·es</label>
-            <Input type="number" value={form.followers} onChange={(e) => set("followers", e.target.value)} placeholder="6 292" />
+            <label htmlFor="audit-followers" className="text-xs text-muted-foreground mb-1 block">Nombre d'abonné·es</label>
+            <Input id="audit-followers" type="number" value={form.followers} onChange={(e) => set("followers", e.target.value)} placeholder="6 292" />
           </div>
           {!rapidMode && (
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Posts publiés ce mois</label>
-            <Input type="number" value={form.postsPerMonth} onChange={(e) => set("postsPerMonth", e.target.value)} placeholder="4" />
+            <label htmlFor="audit-posts-per-month" className="text-xs text-muted-foreground mb-1 block">Posts publiés ce mois</label>
+            <Input id="audit-posts-per-month" type="number" value={form.postsPerMonth} onChange={(e) => set("postsPerMonth", e.target.value)} placeholder="4" />
           </div>
           )}
         </div>
@@ -499,8 +502,8 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo, ins
       <section className="space-y-3">
         <h3 className="text-sm font-bold text-foreground">📝 TA LIGNE ÉDITORIALE</h3>
         <div>
-          <label className="text-xs text-muted-foreground mb-1 block">Tes piliers de contenu (séparés par des virgules) :</label>
-          <Input value={form.pillars} onChange={(e) => set("pillars", e.target.value)} placeholder="Éducation, Storytelling, Engagement, Inspiration" />
+          <label htmlFor="audit-pillars" className="text-xs text-muted-foreground mb-1 block">Tes piliers de contenu (séparés par des virgules) :</label>
+          <Input id="audit-pillars" value={form.pillars} onChange={(e) => set("pillars", e.target.value)} placeholder="Éducation, Storytelling, Engagement, Inspiration" />
           <p className="text-xs text-muted-foreground mt-1 italic">Laisse vide si pas encore définis.</p>
         </div>
       </section>

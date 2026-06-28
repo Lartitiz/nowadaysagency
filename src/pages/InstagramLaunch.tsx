@@ -294,20 +294,20 @@ export default function InstagramLaunch() {
             {step === 0 && (
               <>
                 <div>
-                  <Label>Nom de l'offre / du lancement</Label>
-                  <Input className="mt-1" placeholder="ex: Formation Instagram Boost" value={launch.name} onChange={(e) => update("name", e.target.value)} />
+                  <Label htmlFor="launch-name">Nom de l'offre / du lancement</Label>
+                  <Input id="launch-name" className="mt-1" placeholder="ex: Formation Instagram Boost" value={launch.name} onChange={(e) => update("name", e.target.value)} />
                 </div>
                 <div>
-                  <Label>Promesse principale</Label>
-                  <Textarea className="mt-1" placeholder="Quelle transformation promets-tu à tes clients ?" value={launch.promise} onChange={(e) => update("promise", e.target.value)} />
+                  <Label htmlFor="launch-promise">Promesse principale</Label>
+                  <Textarea id="launch-promise" className="mt-1" placeholder="Quelle transformation promets-tu à tes clients ?" value={launch.promise} onChange={(e) => update("promise", e.target.value)} />
                 </div>
                 <div>
-                  <Label>Objections anticipées</Label>
-                  <Textarea className="mt-1" placeholder="Quelles raisons pourraient empêcher l'achat ? (prix, temps, confiance…)" value={launch.objections} onChange={(e) => update("objections", e.target.value)} />
+                  <Label htmlFor="launch-objections">Objections anticipées</Label>
+                  <Textarea id="launch-objections" className="mt-1" placeholder="Quelles raisons pourraient empêcher l'achat ? (prix, temps, confiance…)" value={launch.objections} onChange={(e) => update("objections", e.target.value)} />
                 </div>
                 <div>
-                  <Label>Ressource gratuite / lead magnet</Label>
-                  <Input className="mt-1" placeholder="ex: Checklist PDF, mini-formation gratuite…" value={launch.free_resource} onChange={(e) => update("free_resource", e.target.value)} />
+                  <Label htmlFor="launch-free-resource">Ressource gratuite / lead magnet</Label>
+                  <Input id="launch-free-resource" className="mt-1" placeholder="ex: Checklist PDF, mini-formation gratuite…" value={launch.free_resource} onChange={(e) => update("free_resource", e.target.value)} />
                 </div>
               </>
             )}

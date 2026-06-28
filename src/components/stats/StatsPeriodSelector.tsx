@@ -20,9 +20,9 @@ export default function StatsPeriodSelector({
   return (
     <>
       <div className="flex items-center gap-3 flex-wrap">
-        <Label className="text-sm font-medium">Période :</Label>
+        <Label htmlFor="stats-period-preset" className="text-sm font-medium">Période :</Label>
         <Select value={periodPreset} onValueChange={v => onPresetChange(v as PeriodPreset)}>
-          <SelectTrigger className="w-56">
+          <SelectTrigger id="stats-period-preset" className="w-56">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -35,16 +35,16 @@ export default function StatsPeriodSelector({
 
       {periodPreset === "custom" && (
         <div className="flex items-center gap-3 flex-wrap">
-          <Label className="text-sm">Du :</Label>
+          <Label htmlFor="stats-custom-from" className="text-sm">Du :</Label>
           <Select value={customFrom} onValueChange={onCustomFromChange}>
-            <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+            <SelectTrigger id="stats-custom-from" className="w-48"><SelectValue /></SelectTrigger>
             <SelectContent>
               {monthOptions.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Label className="text-sm">Au :</Label>
+          <Label htmlFor="stats-custom-to" className="text-sm">Au :</Label>
           <Select value={customTo} onValueChange={onCustomToChange}>
-            <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+            <SelectTrigger id="stats-custom-to" className="w-48"><SelectValue /></SelectTrigger>
             <SelectContent>
               {monthOptions.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
             </SelectContent>

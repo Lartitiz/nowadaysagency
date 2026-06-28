@@ -40,18 +40,21 @@ export default function AddProspectForm({ onAdd, onCancel }: AddProspectFormProp
     <div className="rounded-xl border border-border bg-card p-5 space-y-3">
       <h3 className="font-display text-sm font-bold">+ Ajouter un prospect</h3>
       <Input
+        aria-label="Username Instagram"
         placeholder="Username Instagram (ex: marie_artisan)"
         value={username}
         onChange={e => setUsername(e.target.value)}
         className="text-sm"
       />
       <Input
+        aria-label="Prénom (optionnel)"
         placeholder="Prénom (optionnel)"
         value={displayName}
         onChange={e => setDisplayName(e.target.value)}
         className="text-sm"
       />
       <Input
+        aria-label="Activité"
         placeholder="Activité (ex: Coach bien-être, Graphiste freelance…)"
         value={activity}
         onChange={e => setActivity(e.target.value)}
@@ -74,6 +77,7 @@ export default function AddProspectForm({ onAdd, onCancel }: AddProspectFormProp
         </div>
       </div>
       <Textarea
+        aria-label="Note (optionnel)"
         placeholder="Note (optionnel)"
         value={note}
         onChange={e => setNote(e.target.value)}

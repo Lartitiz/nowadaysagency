@@ -174,16 +174,16 @@ export default function LinkedInParcours() {
                     <span className="text-sm font-bold text-foreground">Expérience {idx + 1}</span>
                     <Button variant="ghost" size="sm" onClick={() => removeExp(idx)}><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>
                   </div>
-                  <Input value={exp.job_title} onChange={e => updateExp(idx, "job_title", e.target.value)} placeholder="Intitulé du poste" />
-                  <Input value={exp.company} onChange={e => updateExp(idx, "company", e.target.value)} placeholder="Entreprise" />
-                  <Textarea value={exp.description_raw} onChange={e => updateExp(idx, "description_raw", e.target.value)} placeholder="Décris ton poste et tes missions (en vrac, c'est OK)" className="min-h-[100px]" />
+                  <Input aria-label={`Intitulé du poste (expérience ${idx + 1})`} value={exp.job_title} onChange={e => updateExp(idx, "job_title", e.target.value)} placeholder="Intitulé du poste" />
+                  <Input aria-label={`Entreprise (expérience ${idx + 1})`} value={exp.company} onChange={e => updateExp(idx, "company", e.target.value)} placeholder="Entreprise" />
+                  <Textarea aria-label={`Description du poste et des missions (expérience ${idx + 1})`} value={exp.description_raw} onChange={e => updateExp(idx, "description_raw", e.target.value)} placeholder="Décris ton poste et tes missions (en vrac, c'est OK)" className="min-h-[100px]" />
                   <Button variant="outline" size="sm" onClick={() => optimizeExp(idx)} disabled={generatingIdx === idx} className="rounded-pill gap-2">
                     <Sparkles className="h-4 w-4" />
                     {generatingIdx === idx ? "Rédaction..." : "✨ Rédiger avec la structure"}
                   </Button>
                   {exp.description_optimized && (
                     <div className="space-y-2">
-                      <Textarea value={exp.description_optimized} onChange={e => updateExp(idx, "description_optimized", e.target.value)} className="min-h-[120px]" />
+                      <Textarea aria-label={`Description optimisée (expérience ${idx + 1})`} value={exp.description_optimized} onChange={e => updateExp(idx, "description_optimized", e.target.value)} className="min-h-[120px]" />
                       <Button variant="ghost" size="sm" onClick={() => copyText(exp.description_optimized, idx)} className="gap-1">
                         {copied === idx ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                         {copied === idx ? "Copié" : "📋 Copier"}
