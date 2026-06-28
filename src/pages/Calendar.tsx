@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { LocalErrorBoundary } from "@/components/LocalErrorBoundary";
 import { toLocalDateStr } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -16,7 +16,14 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { ChevronLeft, ChevronRight, Sparkles, Download, Link2, PenLine, FileInput } from "lucide-react";
+import { ChevronLeft, ChevronRight, Sparkles, Download, Link2, PenLine, FileInput, MoreHorizontal } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { CalendarShareDialog } from "@/components/calendar/CalendarShareDialog";
 
 import CalendarCoachingDialog from "@/components/calendar/CalendarCoachingDialog";
@@ -24,13 +31,10 @@ import { CANAL_FILTERS, STATUS_LABELS, type CalendarPost } from "@/lib/calendar-
 import { CalendarGrid } from "@/components/calendar/CalendarGrid";
 import { CalendarWeekGrid } from "@/components/calendar/CalendarWeekGrid";
 import { CalendarPostDialog } from "@/components/calendar/CalendarPostDialog";
-import { CalendarCategoryFilters } from "@/components/calendar/CalendarCategoryFilters";
-import { CalendarSeriesFilter } from "@/components/calendar/CalendarSeriesFilter";
+import { CalendarFilterBar } from "@/components/calendar/CalendarFilterBar";
 import { useAllSeriesMap } from "@/hooks/use-active-series";
 import { SkeletonCard } from "@/components/ui/skeleton-card";
 
-import { CalendarKanbanView } from "@/components/calendar/CalendarKanbanView";
-import { CalendarListView } from "@/components/calendar/CalendarListView";
 import { CalendarIdeasSidebar, type SavedIdea } from "@/components/calendar/CalendarIdeasSidebar";
 import { IdeaDetailSheet } from "@/components/calendar/IdeaDetailSheet";
 import { WeekDashboard } from "@/components/calendar/WeekDashboard";
@@ -84,18 +88,6 @@ function autoWidth(ws: any, rows: Record<string, any>[]) {
   ws["!cols"] = keys.map(k => ({ wch: Math.min(40, Math.max(k.length, ...rows.map(r => String(r[k] || "").length))) }));
 }
 
-function ShareButton() {
-  const [shareOpen, setShareOpen] = useState(false);
-  return (
-    <>
-      <Button variant="outline" size="sm" className="rounded-full gap-1.5" onClick={() => setShareOpen(true)}>
-        <Link2 className="h-3.5 w-3.5" /> Partager
-      </Button>
-      <CalendarShareDialog open={shareOpen} onOpenChange={setShareOpen} />
-    </>
-  );
-}
-
 function ExportSection({ filteredPosts, canalFilter, toast, onCoachingOpen, onQuickBatchOpen, onImportOpen, seriesNameById }: {
   filteredPosts: CalendarPost[];
   canalFilter: string;
@@ -106,18 +98,9 @@ function ExportSection({ filteredPosts, canalFilter, toast, onCoachingOpen, onQu
   seriesNameById: Record<string, string>;
 }) {
   const postToRow = makePostToRow(seriesNameById);
-  const [open, setOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => { if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setOpen(false); };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
+  const [shareOpen, setShareOpen] = useState(false);
 
   const exportCSV = () => {
-    setOpen(false);
     if (filteredPosts.length === 0) { toast({ title: "Aucun contenu à exporter pour cette période." }); return; }
     const rows = filteredPosts.map(postToRow);
     const headers = Object.keys(rows[0]);
@@ -129,7 +112,6 @@ function ExportSection({ filteredPosts, canalFilter, toast, onCoachingOpen, onQu
   };
 
   const exportXLSX = async () => {
-    setOpen(false);
     if (filteredPosts.length === 0) { toast({ title: "Aucun contenu à exporter pour cette période." }); return; }
     const XLSX = await import("xlsx");
     const wb = XLSX.utils.book_new();
@@ -159,25 +141,28 @@ function ExportSection({ filteredPosts, canalFilter, toast, onCoachingOpen, onQu
         <p className="mt-1 text-[15px] text-muted-foreground">Planifie tes contenus, visualise ta semaine, ne te demande plus jamais « je poste quoi aujourd'hui ».</p>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        <ShareButton />
-        <div className="relative" ref={dropdownRef}>
-          <Button variant="outline" size="sm" className="rounded-full gap-1.5" onClick={() => setOpen(!open)}>
-            <Download className="h-3.5 w-3.5" /> Exporter
-          </Button>
-          {open && (
-            <div className="absolute right-0 top-full mt-1 z-50 bg-popover border border-border rounded-lg shadow-lg py-1 w-44">
-              <button onClick={exportXLSX} className="w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors">
-                📊 Excel (.xlsx)
-              </button>
-              <button onClick={exportCSV} className="w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors">
-                📄 CSV
-              </button>
-            </div>
-          )}
-        </div>
-        <Button variant="outline" size="sm" className="rounded-full gap-1.5" onClick={onImportOpen}>
-          <FileInput className="h-3.5 w-3.5" /> Importer
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="rounded-full gap-1.5" aria-label="Plus d'actions">
+              <MoreHorizontal className="h-4 w-4" /> Plus
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuItem onClick={() => setShareOpen(true)} className="cursor-pointer gap-2">
+              <Link2 className="h-4 w-4" /> Partager
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onImportOpen} className="cursor-pointer gap-2">
+              <FileInput className="h-4 w-4" /> Importer un contenu
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={exportXLSX} className="cursor-pointer gap-2">
+              <Download className="h-4 w-4" /> Exporter en Excel
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={exportCSV} className="cursor-pointer gap-2">
+              <Download className="h-4 w-4" /> Exporter en CSV
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <Button variant="outline" size="sm" className="rounded-full gap-1.5" onClick={onQuickBatchOpen}>
           <PenLine className="h-3.5 w-3.5" /> Ajout rapide
         </Button>
@@ -185,6 +170,7 @@ function ExportSection({ filteredPosts, canalFilter, toast, onCoachingOpen, onQu
           <Sparkles className="h-3.5 w-3.5" /> Planifier ma semaine
         </Button>
       </div>
+      <CalendarShareDialog open={shareOpen} onOpenChange={setShareOpen} />
     </div>
   );
 }
@@ -208,8 +194,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     }
     return new Date();
   });
-  const [viewMode, setViewMode] = useState<"month" | "week" | "kanban" | "list">("month");
-  const [kanbanPeriod, setKanbanPeriod] = useState<"week" | "month" | "all">("week");
+  const [viewMode, setViewMode] = useState<"month" | "week">("month");
   const [posts, setPosts] = useState<CalendarPost[]>([]);
   const [postsLoading, setPostsLoading] = useState(true);
   const [ideasRefreshKey, setIdeasRefreshKey] = useState(0);
@@ -323,58 +308,24 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     }
     if (!user) { return; }
 
-    if ((viewMode === "kanban" || viewMode === "list") && kanbanPeriod === "all") {
-      // No date filter — fetch all posts
-      const { data } = await (supabase.from("calendar_posts") as any)
-        .select("*").eq(column, value).order("date");
-      if (data) setPosts(data as CalendarPost[]);
-    } else if (viewMode === "kanban" || viewMode === "list") {
-      // Kanban/List with week or month: date-filtered posts + ALL ideas
-      let startDate: string, endDate: string;
-      if (kanbanPeriod === "month") {
-        startDate = toLocalDateStr(new Date(year, month, 1));
-        endDate = toLocalDateStr(new Date(year, month + 1, 0));
-      } else {
-        startDate = toLocalDateStr(weekDays[0]);
-        endDate = toLocalDateStr(weekDays[6]);
-      }
-      const [{ data: datedPosts }, { data: ideaPosts }] = await Promise.all([
-        (supabase.from("calendar_posts") as any)
-          .select("*").eq(column, value)
-          .gte("date", startDate).lte("date", endDate)
-          .order("date"),
-        (supabase.from("calendar_posts") as any)
-          .select("*").eq(column, value)
-          .eq("status", "idea")
-          .or(`date.lt.${startDate},date.gt.${endDate}`)
-          .order("date"),
-      ]);
-      const allPosts = [...(datedPosts || [])];
-      const existingIds = new Set(allPosts.map((p: any) => p.id));
-      for (const idea of (ideaPosts || [])) {
-        if (!existingIds.has(idea.id)) allPosts.push(idea);
-      }
-      setPosts(allPosts as CalendarPost[]);
+    // Vue mois ou semaine : on récupère les posts de la période visible.
+    let startDate: string, endDate: string;
+    if (viewMode === "week") {
+      startDate = toLocalDateStr(weekDays[0]);
+      endDate = toLocalDateStr(weekDays[6]);
     } else {
-      // Calendar month/week view — existing behavior
-      let startDate: string, endDate: string;
-      if (viewMode === "week") {
-        startDate = toLocalDateStr(weekDays[0]);
-        endDate = toLocalDateStr(weekDays[6]);
-      } else {
-        startDate = toLocalDateStr(new Date(year, month, 1));
-        endDate = toLocalDateStr(new Date(year, month + 1, 0));
-      }
-      const { data } = await (supabase.from("calendar_posts") as any)
-        .select("*").eq(column, value)
-        .gte("date", startDate).lte("date", endDate)
-        .order("date");
-      if (data) setPosts(data as CalendarPost[]);
+      startDate = toLocalDateStr(new Date(year, month, 1));
+      endDate = toLocalDateStr(new Date(year, month + 1, 0));
     }
+    const { data } = await (supabase.from("calendar_posts") as any)
+      .select("*").eq(column, value)
+      .gte("date", startDate).lte("date", endDate)
+      .order("date");
+    if (data) setPosts(data as CalendarPost[]);
     } finally {
       setPostsLoading(false);
     }
-  }, [user, year, month, viewMode, weekStart, isDemoMode, kanbanPeriod, column, value]);
+  }, [user, year, month, viewMode, weekStart, isDemoMode, column, value]);
 
   useEffect(() => { fetchPosts(); }, [fetchPosts]);
 
@@ -585,18 +536,6 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     toast({ title: "🗑️ Post supprimé" });
   };
 
-  const handleUpdateDraft = async (postId: string, draft: string) => {
-    const { error } = await (supabase.from("calendar_posts") as any)
-      .update({ content_draft: draft, updated_at: new Date().toISOString() })
-      .eq("id", postId);
-    if (error) {
-      toast({ title: "Oups, ça n'a pas été enregistré", description: "Réessaie dans un instant.", variant: "destructive" });
-      fetchPosts();
-      return;
-    }
-    setPosts(prev => prev.map(p => p.id === postId ? { ...p, content_draft: draft } as any : p));
-  };
-
   const handleQuickGenerate = (post: CalendarPost) => {
     const route = getGeneratorRoute(post);
     if (route) {
@@ -790,17 +729,6 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       return;
     }
 
-    // Kanban column drop
-    if (overId.startsWith("kanban-col-")) {
-      const newStatus = overId.replace("kanban-col-", "");
-      const postId = active.id as string;
-      const post = posts.find(p => p.id === postId);
-      if (post && post.status !== newStatus) {
-        handleQuickStatusChange(postId, newStatus);
-      }
-      return;
-    }
-
     const newDate = overId;
 
     if (data?.type === "idea") {
@@ -843,31 +771,22 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
 
   const calendarContent = (
     <>
-      {/* Canal filter */}
-      <div className="flex gap-2 flex-wrap mb-4">
-        {CANAL_FILTERS.map((ch) => (
-          <button key={ch.id} onClick={() => ch.enabled && setCanalFilter(ch.id)} disabled={!ch.enabled}
-            className={`whitespace-nowrap rounded-pill px-4 py-2 text-sm font-medium border transition-all shrink-0 ${
-              canalFilter === ch.id ? "bg-primary text-primary-foreground border-primary"
-                : ch.enabled ? "bg-card text-foreground border-border hover:border-primary/40"
-                  : "bg-muted text-muted-foreground border-border opacity-60 cursor-not-allowed"}`}>
-            {ch.label}{!ch.enabled && <span className="ml-1 text-xs">(Bientôt)</span>}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex items-start gap-2 flex-wrap mb-1">
-        <CalendarCategoryFilters value={categoryFilter} onChange={setCategoryFilter} />
-        <CalendarSeriesFilter value={seriesFilter} onChange={setSeriesFilter} counts={seriesCounts} />
-      </div>
+      {/* Filtres regroupés (canal + objectif + série) */}
+      <CalendarFilterBar
+        canalFilter={canalFilter}
+        onCanalChange={setCanalFilter}
+        categoryFilter={categoryFilter}
+        onCategoryChange={setCategoryFilter}
+        seriesFilter={seriesFilter}
+        onSeriesChange={setSeriesFilter}
+        seriesCounts={seriesCounts}
+      />
 
       {/* View toggle + Navigation */}
       <div className="flex items-center justify-between mb-4">
-        {viewMode !== "kanban" && viewMode !== "list" ? (
-          <Button variant="outline" size="icon" onClick={viewMode === "month" ? prevMonth : prevWeek} className="rounded-full" aria-label={viewMode === "month" ? "Mois précédent" : "Semaine précédente"}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-        ) : <div />}
+        <Button variant="outline" size="icon" onClick={viewMode === "month" ? prevMonth : prevWeek} className="rounded-full" aria-label={viewMode === "month" ? "Mois précédent" : "Semaine précédente"}>
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
         <div className="flex items-center gap-3">
           <div className="flex rounded-full border border-border overflow-hidden">
             <button onClick={() => setViewMode("week")}
@@ -878,52 +797,27 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
               className={`px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === "month" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
               Mois
             </button>
-            <button onClick={() => setViewMode("kanban")}
-              className={`px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === "kanban" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
-              Kanban
-            </button>
-            <button onClick={() => setViewMode("list")}
-              className={`px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
-              Liste
-            </button>
           </div>
-          {viewMode === "kanban" || viewMode === "list" ? (
-            <div className="flex rounded-full border border-border overflow-hidden">
-              {([
-                { id: "week", label: "Cette semaine" },
-                { id: "month", label: "Ce mois" },
-                { id: "all", label: "Tout" },
-              ] as const).map((p) => (
-                <button key={p.id} onClick={() => setKanbanPeriod(p.id)}
-                  className={`px-3 py-1.5 text-xs font-medium transition-colors ${kanbanPeriod === p.id ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground"}`}>
-                  {p.label}
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              {(() => {
-                const now = new Date();
-                const isCurrentMonth = now.getMonth() === month && now.getFullYear() === year;
-                const isCurrentWeek = viewMode === "week" && weekStart.getTime() === getWeekStart(now).getTime();
-                const isCurrent = viewMode === "month" ? isCurrentMonth : isCurrentWeek;
-                return !isCurrent ? (
-                  <Button variant="outline" size="sm" onClick={() => setCurrentDate(new Date())} className="rounded-full text-xs px-3">
-                    Aujourd'hui
-                  </Button>
-                ) : null;
-              })()}
-              <span className="font-display text-lg font-bold capitalize">
-                {viewMode === "month" ? monthName : weekLabel}
-              </span>
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            {(() => {
+              const now = new Date();
+              const isCurrentMonth = now.getMonth() === month && now.getFullYear() === year;
+              const isCurrentWeek = viewMode === "week" && weekStart.getTime() === getWeekStart(now).getTime();
+              const isCurrent = viewMode === "month" ? isCurrentMonth : isCurrentWeek;
+              return !isCurrent ? (
+                <Button variant="outline" size="sm" onClick={() => setCurrentDate(new Date())} className="rounded-full text-xs px-3">
+                  Aujourd'hui
+                </Button>
+              ) : null;
+            })()}
+            <span className="font-display text-lg font-bold capitalize">
+              {viewMode === "month" ? monthName : weekLabel}
+            </span>
+          </div>
         </div>
-        {viewMode !== "kanban" && viewMode !== "list" ? (
-          <Button variant="outline" size="icon" onClick={viewMode === "month" ? nextMonth : nextWeek} className="rounded-full" aria-label={viewMode === "month" ? "Mois suivant" : "Semaine suivante"}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        ) : <div />}
+        <Button variant="outline" size="icon" onClick={viewMode === "month" ? nextMonth : nextWeek} className="rounded-full" aria-label={viewMode === "month" ? "Mois suivant" : "Semaine suivante"}>
+          <ChevronRight className="h-4 w-4" />
+        </Button>
       </div>
 
 
@@ -936,29 +830,6 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
             ))}
           </div>
         </div>
-      ) : viewMode === "kanban" ? (
-        <CalendarKanbanView
-          posts={posts}
-          onEditPost={handlePostClick}
-          onStatusChange={handleQuickStatusChange}
-          canalFilter={canalFilter}
-          categoryFilter={categoryFilter}
-          seriesFilter={seriesFilter}
-          seriesNameById={seriesNameById}
-        />
-      ) : viewMode === "list" ? (
-        <CalendarListView
-          posts={posts}
-          onEditPost={handlePostClick}
-          onStatusChange={handleQuickStatusChange}
-          onDeletePost={handleQuickDelete}
-          onDuplicate={handleQuickDuplicate}
-          onUpdateDraft={handleUpdateDraft}
-          canalFilter={canalFilter}
-          categoryFilter={categoryFilter}
-          seriesFilter={seriesFilter}
-          seriesNameById={seriesNameById}
-        />
       ) : viewMode === "month" ? (
         <CalendarGrid
           calendarDays={calendarDays} postsByDate={postsByDate} todayStr={todayStr} isMobile={isMobile}
@@ -1033,10 +904,14 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
                   {ideasCollapsed ? (
                     <button
                       onClick={() => setIdeasCollapsed(false)}
-                      className="w-10 h-10 rounded-xl border border-border bg-card flex items-center justify-center hover:bg-muted transition-colors"
-                      title="Afficher les idées"
+                      className="w-10 py-3 rounded-xl border border-border bg-card flex flex-col items-center gap-1.5 hover:bg-muted hover:border-primary/40 transition-colors"
+                      title="Afficher mes idées"
+                      aria-label="Afficher le panneau d'idées"
                     >
-                      💡
+                      <span className="text-base leading-none">💡</span>
+                      <span className="text-[10px] font-semibold text-muted-foreground [writing-mode:vertical-rl] rotate-180">
+                        Mes idées
+                      </span>
                     </button>
                   ) : (
                     <div className="relative border border-border rounded-2xl bg-card p-4 max-h-[calc(100vh-120px)] overflow-hidden flex flex-col">
