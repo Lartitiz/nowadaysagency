@@ -25,6 +25,15 @@ interface Props {
 
 const UNIVERSAL_PLACEHOLDER = "Ex : je raconte une expérience vécue / je réagis à un chiffre qui m'a marquée / j'ose un avis à contre-courant / je montre mon process en coulisses…";
 
+// Départs prêts à l'emploi : battent la page blanche pour une première création rapide.
+const STARTER_IDEAS = [
+  "Une erreur fréquente dans mon domaine",
+  "Les coulisses de mon travail",
+  "Un avis à contre-courant sur mon métier",
+  "Une question qu'on me pose souvent",
+  "Ce que j'aurais aimé savoir en débutant",
+];
+
 export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingSelect, onPhotosNext, workspaceId, initialIdea, autoOpenTransform, initialPhotos, initialPhotoDescription, initialPhotoSubject }: Props) {
   const [idea, setIdea] = useState(initialIdea || "");
   const [coachOpen, setCoachOpen] = useState(false);
@@ -80,6 +89,23 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
             <p className="text-xs text-muted-foreground">
               Pas besoin d'être précise : un mot-clé, une phrase, une envie.
             </p>
+
+            {/* Départs prêts : 1 clic pour remplir et démarrer une première création */}
+            <div className="pt-1">
+              <p className="text-2xs uppercase tracking-wider text-muted-foreground font-semibold mb-1.5">Pas d'inspiration ? Pioche un départ</p>
+              <div className="flex flex-wrap gap-1.5">
+                {STARTER_IDEAS.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setIdea(s)}
+                    className="text-xs rounded-pill border border-border bg-muted/40 hover:border-primary/50 hover:bg-secondary px-3 py-1.5 text-foreground transition-colors"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
 
           </div>
 

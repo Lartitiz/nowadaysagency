@@ -641,9 +641,11 @@ export default function WelcomePage() {
           ) : hasRecs ? (
             <div className="space-y-3">
               {recommendations.map((rec, i) => (
-                <div
+                <button
                   key={rec.id}
-                  className={`rounded-xl border p-4 transition-colors ${
+                  type="button"
+                  onClick={() => markSeen(rec.route || "/dashboard")}
+                  className={`w-full text-left rounded-xl border p-4 transition-colors ${
                     i === 0 ? "border-primary bg-secondary" : "border-border hover:border-primary/40"
                   }`}
                 >
@@ -669,8 +671,9 @@ export default function WelcomePage() {
                         </div>
                       )}
                     </div>
+                    <span aria-hidden className="text-primary shrink-0 mt-0.5">→</span>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           ) : (
@@ -727,14 +730,22 @@ export default function WelcomePage() {
           </div>
         </div>
 
-        {/* F) CTAs */}
+        {/* F) CTAs — on pousse vers la 1ère création (le « waouh »), dashboard en secondaire */}
         <div className="flex flex-col gap-3">
           <Button
-            onClick={() => markSeen("/dashboard")}
+            onClick={() => markSeen("/creer")}
             className="w-full rounded-pill gap-2"
             size="lg"
           >
-            ✅ Tout est bon, c'est parti !
+            ✍️ Créer mon premier contenu
+          </Button>
+          <Button
+            onClick={() => markSeen("/dashboard")}
+            variant="outline"
+            className="w-full rounded-pill gap-2"
+            size="lg"
+          >
+            Voir mon tableau de bord
           </Button>
           <p className="text-xs text-muted-foreground text-center">
             Tu pourras toujours modifier ton branding depuis l'espace Branding.
