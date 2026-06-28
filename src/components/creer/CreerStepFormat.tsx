@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { ArrowLeft, ArrowRight, Wand2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Wand2, Instagram, Linkedin, Mail, Pin } from "lucide-react";
 import {
   CONTENT_TYPE_SPECS,
   OBJECTIVE_RECOMMENDATIONS,
@@ -22,10 +22,10 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 const CHANNELS = [
-  { id: "instagram" as const, emoji: "📸", label: "Instagram", desc: "Carrousel, Reel, Story, Post" },
-  { id: "linkedin" as const, emoji: "💼", label: "LinkedIn", desc: "Post ou carrousel" },
-  { id: "pinterest" as const, emoji: "📌", label: "Pinterest", desc: "Épingle texte, visuelle ou inspirée" },
-  { id: "newsletter" as const, emoji: "📧", label: "Newsletter", desc: "Email 1500-2500 mots" },
+  { id: "instagram" as const, icon: Instagram, label: "Instagram", desc: "Carrousel, Reel, Story, Post" },
+  { id: "linkedin" as const, icon: Linkedin, label: "LinkedIn", desc: "Post ou carrousel" },
+  { id: "pinterest" as const, icon: Pin, label: "Pinterest", desc: "Épingle texte, visuelle ou inspirée" },
+  { id: "newsletter" as const, icon: Mail, label: "Newsletter", desc: "Email 1500-2500 mots" },
 ];
 
 type ChannelId = "instagram" | "linkedin" | "pinterest" | "newsletter";
@@ -404,17 +404,20 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
         <div className="space-y-3">
           <p className="text-sm font-semibold text-foreground">Sur quel canal publier ?</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {CHANNELS.map((ch) => (
-              <button
-                key={ch.id}
-                onClick={() => handleChannelSelect(ch.id)}
-                className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
-              >
-                <span className="text-2xl block mb-1">{ch.emoji}</span>
-                <span className="text-xs font-semibold text-foreground">{ch.label}</span>
-                <p className="text-2xs text-muted-foreground mt-0.5">{ch.desc}</p>
-              </button>
-            ))}
+            {CHANNELS.map((ch) => {
+              const Icon = ch.icon;
+              return (
+                <button
+                  key={ch.id}
+                  onClick={() => handleChannelSelect(ch.id)}
+                  className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
+                >
+                  <Icon className="h-6 w-6 mx-auto mb-1.5 text-bordeaux" />
+                  <span className="text-xs font-semibold text-foreground">{ch.label}</span>
+                  <p className="text-2xs text-muted-foreground mt-0.5">{ch.desc}</p>
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
@@ -423,10 +426,11 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
       {selectedChannel && (() => {
         const ch = CHANNELS.find((c) => c.id === selectedChannel);
         if (!ch) return null;
+        const Icon = ch.icon;
         return (
           <div className="flex items-center justify-between gap-3 rounded-xl bg-muted/30 border border-border px-3 py-2">
             <div className="flex items-center gap-2 min-w-0">
-              <span className="text-lg">{ch.emoji}</span>
+              <Icon className="h-4 w-4 text-bordeaux shrink-0" />
               <span className="text-sm font-semibold text-foreground truncate">{ch.label}</span>
             </div>
             <button
