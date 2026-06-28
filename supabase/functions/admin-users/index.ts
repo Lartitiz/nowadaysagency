@@ -134,14 +134,12 @@ async function getList(supabase: any, monthStart: string) {
     supabase.from("brand_strategy").select("user_id, " + STRATEGY_FIELDS.join(", ")),
   ]);
 
-  // Auth users for last_sign_in_at
-  const { data: authUsers } = await supabase.auth.admin.listUsers({ perPage: 10000 });
+  // Auth users for last_sign_in_at (paginé : l'API plafonne à 1000 par page)
+  const authUsers = await listAllAuthUsers(supabase);
 
   const authMap = new Map<string, string>();
-  if (authUsers?.users) {
-    for (const u of authUsers.users) {
-      authMap.set(u.id, u.last_sign_in_at || null);
-    }
+  for (const u of authUsers) {
+    authMap.set(u.id, u.last_sign_in_at || null);
   }
 
   // Index helpers
@@ -193,6 +191,20 @@ async function getList(supabase: any, monthStart: string) {
 
 // ── STATS mode ──
 
+// Récupère TOUS les comptes Auth en paginant (l'API plafonne perPage à 1000).
+async function listAllAuthUsers(supabase: any) {
+  const users: any[] = [];
+  let page = 1;
+  for (;;) {
+    const { data, error } = await supabase.auth.admin.listUsers({ page, perPage: 1000 });
+    if (error || !data?.users?.length) break;
+    users.push(...data.users);
+    if (data.users.length < 1000) break;
+    page++;
+  }
+  return users;
+}
+
 async function getStats(supabase: any, monthStart: string, now: Date) {
   const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const prevMonthStart = prevMonthDate.toISOString();
@@ -200,7 +212,8 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
 
   const [
     profilesRes, subsRes, aiRes, brandRes, personaRes, storyRes, propRes, stratRes,
-    aiPrevRes, draftsRes, calendarRes, scoresRes, authUsersRes,
+    aiPrevRes, draftsRes, calendarRes, scoresRes, authUsers,
+    aiLifetimeRes, calLifetimeRes,
   ] = await Promise.all([
     supabase.from("profiles").select("user_id, prenom, email, created_at, onboarding_completed, type_activite, canaux, level"),
     supabase.from("subscriptions").select("user_id, plan, status, created_at, canceled_at, current_period_start, current_period_end, source"),
@@ -214,15 +227,16 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
     supabase.from("content_drafts").select("user_id, created_at, canal, status").gte("created_at", monthStart),
     supabase.from("calendar_posts").select("user_id, created_at, canal, status").gte("created_at", monthStart),
     supabase.from("content_scores").select("user_id, global_score, created_at").gte("created_at", monthStart),
-    supabase.auth.admin.listUsers({ perPage: 10000 }),
+    listAllAuthUsers(supabase),
+    // Lifetime (tunnel d'activation + adoption par fonctionnalité)
+    supabase.from("ai_usage").select("user_id, category"),
+    supabase.from("calendar_posts").select("user_id, status"),
   ]);
 
   // Auth map
   const authMap = new Map<string, string>();
-  if (authUsersRes.data?.users) {
-    for (const u of authUsersRes.data.users) {
-      authMap.set(u.id, u.last_sign_in_at || "");
-    }
+  for (const u of authUsers || []) {
+    authMap.set(u.id, u.last_sign_in_at || "");
   }
 
   const profiles = profilesRes.data || [];
@@ -233,8 +247,8 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
   const newThisMonth = clientProfiles.filter((p: any) => p.created_at >= monthStart).length;
   const onboardingCompleted = clientProfiles.filter((p: any) => p.onboarding_completed).length;
 
-  // Previous month comparisons
-  const aiPrevData = aiPrevRes.data || [];
+  // Previous month comparisons (hors compte admin pour ne pas fausser l'usage réel)
+  const aiPrevData = (aiPrevRes.data || []).filter((a: any) => a.user_id !== adminUserId);
   const prevActiveUserIds = new Set(aiPrevData.map((a: any) => a.user_id));
   const newPrevMonth = clientProfiles.filter((p: any) => p.created_at >= prevMonthStart && p.created_at < prevMonthEnd).length;
 
@@ -246,7 +260,7 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
     subsByUser.set(s.user_id, s);
   }
   const PLAN_ALIASES: Record<string, string> = { studio: "binome", now_pilot: "binome" };
-  for (const p of profiles) {
+  for (const p of clientProfiles) {
     const rawPlan = subsByUser.get(p.user_id)?.plan || "free";
     const plan = PLAN_ALIASES[rawPlan] || rawPlan;
     plans[plan] = (plans[plan] || 0) + 1;
@@ -271,8 +285,8 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
   const paidUsers = activePaidSubs.length;
   const conversionRate = totalUsers > 0 ? Math.round((paidUsers / totalUsers) * 100) : 0;
 
-  // AI usage current month
-  const aiData = aiRes.data || [];
+  // AI usage current month (hors compte admin : tes propres tests/démos ne comptent pas)
+  const aiData = (aiRes.data || []).filter((a: any) => a.user_id !== adminUserId);
   const activeUserIds = new Set(aiData.map((a: any) => a.user_id));
   const aiByCategory: Record<string, number> = {};
   const aiByActionType: Record<string, number> = {};
@@ -372,9 +386,9 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
     });
 
   // Content metrics
-  const drafts = draftsRes.data || [];
-  const calPosts = calendarRes.data || [];
-  const scores = scoresRes.data || [];
+  const drafts = (draftsRes.data || []).filter((d: any) => d.user_id !== adminUserId);
+  const calPosts = (calendarRes.data || []).filter((c: any) => c.user_id !== adminUserId);
+  const scores = (scoresRes.data || []).filter((r: any) => r.user_id !== adminUserId);
   const draftsByCanalMap: Record<string, number> = {};
   for (const d of drafts) { const c = d.canal || "autre"; draftsByCanalMap[c] = (draftsByCanalMap[c] || 0) + 1; }
   const calendarByCanalMap: Record<string, number> = {};
@@ -397,7 +411,7 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
   let totalScore = 0;
   let scoredCount = 0;
   const scoreDistribution: Record<string, number> = { "0-25": 0, "26-50": 0, "51-75": 0, "76-100": 0 };
-  for (const p of profiles) {
+  for (const p of clientProfiles) {
     const uid = p.user_id;
     const filled =
       countNonNull(brandMap.get(uid), BRAND_PROFILE_FIELDS) +
@@ -446,6 +460,43 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
     }).length;
     signupsByWeek.push({ week: wStr, count });
   }
+
+  // ── Tunnel d'activation (lifetime, hors admin) ──
+  const clientIds = new Set(clientProfiles.map((p: any) => p.user_id));
+  const aiLifetime = (aiLifetimeRes.data || []).filter((a: any) => clientIds.has(a.user_id));
+  const calLifetime = (calLifetimeRes.data || []).filter((c: any) => clientIds.has(c.user_id));
+
+  const everGeneratedUsers = new Set(aiLifetime.map((a: any) => a.user_id));
+  const everCreatedPostUsers = new Set(calLifetime.map((c: any) => c.user_id));
+  const everPublishedUsers = new Set(
+    calLifetime.filter((c: any) => c.status === "published").map((c: any) => c.user_id)
+  );
+
+  const activationFunnel = [
+    { step: "Inscrites", count: totalUsers },
+    { step: "Onboarding terminé", count: onboardingCompleted },
+    { step: "≥1 génération IA", count: everGeneratedUsers.size },
+    { step: "≥1 post au calendrier", count: everCreatedPostUsers.size },
+    { step: "≥1 publication", count: everPublishedUsers.size },
+  ];
+
+  // ── Adoption par fonctionnalité (lifetime) : combien de clientes DISTINCTES ont utilisé chaque catégorie ──
+  const adoptionSets: Record<string, Set<string>> = {};
+  for (const a of aiLifetime) {
+    const cat = a.category || "autre";
+    (adoptionSets[cat] ||= new Set()).add(a.user_id);
+  }
+  const featureAdoption = Object.entries(adoptionSets)
+    .map(([category, set]) => ({
+      category,
+      users: set.size,
+      rate: totalUsers > 0 ? Math.round((set.size / totalUsers) * 100) : 0,
+    }))
+    .sort((a, b) => b.users - a.users);
+
+  // ── Publications réelles (calendar_posts status=published) ──
+  const publishedThisMonth = calPosts.filter((c: any) => c.status === "published").length;
+  const publishedTotal = calLifetime.filter((c: any) => c.status === "published").length;
 
   return {
     // Existing
@@ -499,5 +550,10 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
     near_limit_free: nearLimitFree,
     inactive_paid: inactivePaid,
     zombie_users_count: zombieUsers,
+    // Activation & adoption
+    activation_funnel: activationFunnel,
+    feature_adoption: featureAdoption,
+    published_this_month: publishedThisMonth,
+    published_total: publishedTotal,
   };
 }
