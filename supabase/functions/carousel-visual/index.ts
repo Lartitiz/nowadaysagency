@@ -277,14 +277,17 @@ serve(async (req) => {
       .maybeSingle();
 
     const ch = {
-      color_primary: charter.color_primary || "#FB3D80",
-      color_secondary: charter.color_secondary || "#91014b",
-      color_accent: charter.color_accent || "#FFE561",
-      color_background: charter.color_background || "#FFF4F8",
-      color_text: charter.color_text || "#1A1A2E",
+      // Palette par défaut NEUTRE & éditoriale (charbon / papier chaud / taupe doux)
+      // utilisée tant que l'utilisatrice n'a pas posé ses couleurs de charte.
+      // Volontairement appropriable — PAS aux couleurs de Nowadays.
+      color_primary: charter.color_primary || "#1C1C20",
+      color_secondary: charter.color_secondary || "#6E6A66",
+      color_accent: charter.color_accent || "#C9BFB2",
+      color_background: charter.color_background || "#F6F4F0",
+      color_text: charter.color_text || "#1C1C20",
       font_title: charter.font_title || "Libre Baskerville",
       font_body: charter.font_body || "IBM Plex Mono",
-      mood_keywords: Array.isArray(charter.mood_keywords) ? charter.mood_keywords.join(", ") : (charter.mood_keywords || "pop, joyeux, audacieux, art contemporain"),
+      mood_keywords: Array.isArray(charter.mood_keywords) ? charter.mood_keywords.join(", ") : (charter.mood_keywords || "épuré, élégant, minimal, éditorial"),
       border_radius: charter.border_radius || "12px",
       photo_style: charter.photo_style || "",
       visual_donts: charter.visual_donts || "",
