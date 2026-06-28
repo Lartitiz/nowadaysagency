@@ -12,7 +12,7 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Search, ChevronUp, ChevronDown, Eye, X, Sparkles, Calendar, UserRound, Download, Trash2, Loader2, RotateCcw } from "lucide-react";
-import { DeleteClientDialog } from "@/components/admin/AdminSharedComponents";
+import { DeleteAccountDialog } from "@/components/admin/AdminSharedComponents";
 import { formatDistanceToNow, format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
@@ -424,12 +424,9 @@ export default function AdminUsersTab() {
       </Sheet>
 
       {/* Delete account dialog */}
-      <DeleteClientDialog
+      <DeleteAccountDialog
         open={!!deleteTarget}
         clientName={deleteTarget?.prenom || deleteTarget?.email || ""}
-        sessionCount={0}
-        deliverableCount={0}
-        actionCount={0}
         onCancel={() => setDeleteTarget(null)}
         onConfirm={async () => {
           if (!deleteTarget || !session?.access_token) return;

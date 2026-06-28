@@ -77,12 +77,14 @@ export function DashboardMessageEditor({ value, onSave }: { value: string; onSav
   );
 }
 
-/* ── Delete Client Dialog ── */
+/* ── Delete Client Dialog (supprime le PROGRAMME de coaching, pas le compte) ── */
 export function DeleteClientDialog({ open, clientName, sessionCount, deliverableCount, actionCount, onConfirm, onCancel }: {
   open: boolean; clientName: string; sessionCount: number; deliverableCount: number; actionCount: number; onConfirm: () => Promise<void>; onCancel: () => void;
 }) {
   const [confirmText, setConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
+  // Réinitialise la saisie à chaque réouverture (évite un bouton déjà actif sur la cible suivante)
+  useEffect(() => { if (open) setConfirmText(""); }, [open]);
   return (
     <AlertDialog open={open} onOpenChange={v => { if (!v) onCancel(); }}>
       <AlertDialogContent>
@@ -99,6 +101,36 @@ export function DeleteClientDialog({ open, clientName, sessionCount, deliverable
           <AlertDialogCancel onClick={onCancel}>Annuler</AlertDialogCancel>
           <Button variant="destructive" disabled={confirmText !== "SUPPRIMER" || deleting} onClick={async () => { setDeleting(true); await onConfirm(); setDeleting(false); }}>
             {deleting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Supprimer
+          </Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+/* ── Delete Account Dialog (supprime DÉFINITIVEMENT le compte et toutes ses données) ── */
+export function DeleteAccountDialog({ open, clientName, onConfirm, onCancel }: {
+  open: boolean; clientName: string; onConfirm: () => Promise<void>; onCancel: () => void;
+}) {
+  const [confirmText, setConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  useEffect(() => { if (open) setConfirmText(""); }, [open]);
+  return (
+    <AlertDialog open={open} onOpenChange={v => { if (!v) onCancel(); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>🗑️ Supprimer définitivement le compte de {clientName} ?</AlertDialogTitle>
+          <AlertDialogDescription asChild>
+            <div className="space-y-2 text-sm">
+              <p className="font-medium text-destructive">Action irréversible. Supprime le compte de {clientName} et TOUTES ses données (contenus, branding, calendrier, connexions, abonnement…). Le compte ne pourra pas être récupéré.</p>
+              <div className="pt-2"><Label className="text-xs text-muted-foreground">Tape « SUPPRIMER » pour confirmer :</Label><Input value={confirmText} onChange={e => setConfirmText(e.target.value)} placeholder="SUPPRIMER" className="mt-1" /></div>
+            </div>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={onCancel}>Annuler</AlertDialogCancel>
+          <Button variant="destructive" disabled={confirmText !== "SUPPRIMER" || deleting} onClick={async () => { setDeleting(true); await onConfirm(); setDeleting(false); }}>
+            {deleting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Supprimer le compte
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>
