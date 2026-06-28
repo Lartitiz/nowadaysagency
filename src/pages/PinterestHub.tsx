@@ -8,7 +8,7 @@ import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 
 const CARDS = [
-  { emoji: "👤", title: "Optimiser mon compte", desc: "Passe en pro, photo, nom, bio, URL.", to: "/pinterest/compte", tag: "Checklist" },
+  { emoji: "👤", title: "Mon profil", desc: "Passe en pro, photo, nom, bio, URL.", to: "/pinterest/compte", tag: "Checklist" },
   { emoji: "🎨", title: "Mes tableaux", desc: "Crée et optimise tes tableaux.", to: "/pinterest/tableaux", tag: "Guidé" },
   { emoji: "🔎", title: "Mes mots-clés", desc: "Trouve les bons mots-clés SEO.", to: "/pinterest/mots-cles", tag: "Assisté" },
   { emoji: "📌", title: "Mes épingles", desc: "Crée des épingles optimisées.", to: "/pinterest/epingles", tag: "Assisté" },

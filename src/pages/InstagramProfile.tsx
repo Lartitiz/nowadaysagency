@@ -35,13 +35,14 @@ interface ProfileSnippets {
   instagram_pillars?: string[] | null;
 }
 
+// heavy = élément piloté par l'IA, ouvre un outil dédié (vs édition légère sur sa page)
 const SECTIONS = [
-  { key: "nom", emoji: "📝", label: "Mon nom", icon: PenLine, route: "/instagram/profil/nom", moduleRoute: "/instagram/profil/nom", moduleLabel: "Optimiser" },
-  { key: "bio", emoji: "✍️", label: "Ma bio", icon: PenLine, route: "/instagram/profil/bio", moduleRoute: "/instagram/profil/bio", moduleLabel: "Créer ma bio" },
-  { key: "stories", emoji: "📌", label: "Stories à la une", icon: BookmarkCheck, route: "/instagram/profil/stories", moduleRoute: "/instagram/profil/stories", moduleLabel: "Module highlights" },
-  { key: "epingles", emoji: "📌", label: "Posts épinglés", icon: Pin, route: "/instagram/profil/epingles", moduleRoute: "/instagram/profil/epingles", moduleLabel: "Choisir mes posts" },
-  { key: "feed", emoji: "🎨", label: "Mon feed", icon: Palette, route: "/instagram/profil/feed", moduleRoute: "/instagram/profil/feed", moduleLabel: "Recommandations" },
-  { key: "edito", emoji: "📊", label: "Ma ligne éditoriale", icon: BarChart3, route: "/instagram/profil/edito", moduleRoute: "/instagram/rythme", moduleLabel: "Ligne éditoriale" },
+  { key: "nom", emoji: "📝", label: "Mon nom", icon: PenLine, route: "/instagram/profil/nom", moduleRoute: "/instagram/profil/nom", moduleLabel: "Optimiser", heavy: false },
+  { key: "bio", emoji: "✍️", label: "Ma bio", icon: PenLine, route: "/instagram/profil/bio", moduleRoute: "/instagram/profil/bio", moduleLabel: "Créer ma bio", heavy: true },
+  { key: "stories", emoji: "📌", label: "Stories à la une", icon: BookmarkCheck, route: "/instagram/profil/stories", moduleRoute: "/instagram/profil/stories", moduleLabel: "Module highlights", heavy: true },
+  { key: "epingles", emoji: "📌", label: "Posts épinglés", icon: Pin, route: "/instagram/profil/epingles", moduleRoute: "/instagram/profil/epingles", moduleLabel: "Choisir mes posts", heavy: false },
+  { key: "feed", emoji: "🎨", label: "Mon feed", icon: Palette, route: "/instagram/profil/feed", moduleRoute: "/instagram/profil/feed", moduleLabel: "Recommandations", heavy: false },
+  { key: "edito", emoji: "📊", label: "Ma ligne éditoriale", icon: BarChart3, route: "/instagram/profil/edito", moduleRoute: "/instagram/rythme", moduleLabel: "Ligne éditoriale", heavy: true },
 ];
 
 function scoreBadge(score: number | null) {
@@ -150,80 +151,27 @@ export default function InstagramProfile() {
         <SubPageHeader parentLabel="Instagram" parentTo="/instagram" currentLabel="Mon profil" />
 
         <h1 className="font-display text-3xl font-bold text-foreground">👤 Mon profil Instagram</h1>
-        <p className="mt-2 text-sm text-muted-foreground italic mb-8">
-          Audite ton compte, optimise chaque élément. L'IA compare ton profil avec ton branding et te dit exactement quoi améliorer.
+        <p className="mt-2 text-sm text-muted-foreground mb-6">
+          Optimise chaque élément de ton profil. Chaque case cochée, c'est un profil qui donne plus envie de te suivre.
         </p>
 
-        {/* Audit suggestion or score */}
-        {!audit ? (
-          <div className="rounded-2xl border border-border bg-rose-pale p-6 mb-8">
-            <p className="text-foreground font-medium mb-2">
-              🔍 On commence par un audit ?
-            </p>
-            <p className="text-sm text-muted-foreground mb-4">
-              Envoie des screenshots de ton profil Instagram. L'IA va analyser ton compte et te donner un score avec des recommandations personnalisées basées sur ton branding.
-            </p>
-            <div className="flex gap-3 flex-wrap">
-              <Link to="/instagram/audit">
-                <Button className="rounded-pill gap-2">
-                  <Sparkles className="h-4 w-4" />
-                  🔍 Lancer mon premier audit
-                </Button>
-              </Link>
-              <Link to="/instagram/profil/nom">
-                <Button variant="outline" className="rounded-pill">
-                  ⏭️ Passer aux optimisations
-                </Button>
-              </Link>
-            </div>
+        {/* Progression — indicateur unifié (même cadre que LinkedIn & Pinterest) */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between text-sm text-muted-foreground mb-1.5">
+            <span>Progression du profil</span>
+            <span><strong className="text-foreground">{validatedCount}</strong> / {SECTIONS.length} optimisés</span>
           </div>
-        ) : (
-          <div className="rounded-2xl border border-border bg-card p-6 mb-8">
-            <div className="text-center mb-4">
-              <p className="text-xs font-mono-ui uppercase tracking-wider text-muted-foreground mb-1">Ton score profil</p>
-              <p className="text-5xl font-display font-bold text-foreground">{audit.score_global}<span className="text-2xl text-muted-foreground">/100</span></p>
-              <span className={`inline-block mt-2 text-xs font-semibold px-3 py-1 rounded-pill ${scoreBadge(audit.score_global).color}`}>
-                {scoreBadge(audit.score_global).label}
-              </span>
-            </div>
-            <div className="flex flex-wrap justify-center gap-3 mb-4">
-              {SECTIONS.map(s => {
-                const sc = getScore(s.key);
-                const vs = getValidationStatus(s.key);
-                return (
-                  <span key={s.key} className="text-xs text-muted-foreground">
-                    {vs === "validated" ? "✅" : s.emoji} {s.label.replace("Mon ", "").replace("Ma ", "")}: <strong>{sc ?? "?"}</strong>
-                  </span>
-                );
-              })}
-            </div>
-            {audit.resume && (
-              <p className="text-sm text-muted-foreground text-center italic leading-relaxed">
-                "{audit.resume}"
-              </p>
-            )}
-            <div className="flex flex-wrap justify-center gap-3 mt-4">
-              <Link to="/instagram/audit?view=results">
-                <Button size="sm" className="rounded-pill gap-1.5">
-                  <BarChart3 className="h-3.5 w-3.5" />
-                  📊 Voir mes résultats
-                </Button>
-              </Link>
-              <Link to="/instagram/audit?view=form">
-                <Button variant="outline" size="sm" className="rounded-pill gap-1.5">
-                  🔄 Refaire l'audit
-                </Button>
-              </Link>
-            </div>
+          <div className="h-2 rounded-pill bg-muted overflow-hidden">
+            <div className="h-full bg-success transition-all" style={{ width: `${(validatedCount / SECTIONS.length) * 100}%` }} />
           </div>
-        )}
+        </div>
 
-        {/* Sub-section cards */}
+        {/* Cartes des éléments du profil */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {SECTIONS.map(s => {
             const sc = getScore(s.key);
-            const badge = scoreBadge(sc);
             const vs = getValidationStatus(s.key);
+            const done = vs === "validated";
             const snippet = s.key === "bio" ? snippets.instagram_bio
               : s.key === "nom" ? snippets.instagram_display_name
               : s.key === "stories" ? (snippets.instagram_highlights as string[] || []).join(" · ") || null
@@ -231,7 +179,6 @@ export default function InstagramProfile() {
               : s.key === "feed" ? snippets.instagram_feed_description
               : s.key === "edito" ? (snippets.instagram_pillars as string[] || []).join(", ") || null
               : null;
-            const improvementCount = sc !== null && sc < 70 ? Math.max(1, Math.ceil((70 - sc) / 20)) : 0;
             return (
               <Link
                 key={s.key}
@@ -240,33 +187,81 @@ export default function InstagramProfile() {
               >
                 <div className="flex items-start justify-between mb-3">
                   <span className="text-2xl">{s.emoji}</span>
-                  <div className="flex items-center gap-1.5">
-                    {vs === "validated" && (
-                      <span className="text-2xs font-semibold px-2 py-0.5 rounded-pill bg-success-bg text-success">✅</span>
-                    )}
-                    {sc !== null && (
-                      <span className={`text-2xs font-semibold px-2 py-0.5 rounded-pill ${badge.color}`}>
-                        {sc}/100
-                      </span>
-                    )}
-                  </div>
+                  <span className={`text-2xs font-semibold px-2 py-0.5 rounded-pill ${done ? "bg-success-bg text-success" : "bg-warning-bg text-warning"}`}>
+                    {done ? "Fait" : "À faire"}
+                  </span>
                 </div>
-                <h3 className="font-display text-base font-bold text-foreground group-hover:text-primary transition-colors">
-                  {s.label}
-                </h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-display text-base font-bold text-foreground group-hover:text-primary transition-colors">
+                    {s.label}
+                  </h3>
+                  {s.heavy && (
+                    <span className="text-2xs text-muted-foreground border border-border rounded-pill px-1.5 py-0.5 shrink-0">Outil</span>
+                  )}
+                </div>
                 {snippet && (
                   <p className="text-xs text-muted-foreground mt-1 line-clamp-2 italic">"{snippet.substring(0, 60)}{snippet.length > 60 ? "…" : ""}"</p>
                 )}
-                {sc !== null && improvementCount > 0 && (
-                  <p className="text-xs text-warning mt-1 font-medium">{improvementCount} amélioration{improvementCount > 1 ? "s" : ""} suggérée{improvementCount > 1 ? "s" : ""}</p>
-                )}
-                {sc !== null && improvementCount === 0 && (
-                  <p className="text-xs text-success mt-1 font-medium">✅ {vs === "validated" ? "Validé" : "Bien"}</p>
-                )}
+                <div className="flex items-center justify-between mt-2">
+                  <span className="text-xs text-primary font-medium">{s.moduleLabel} →</span>
+                  {sc !== null && <span className="text-2xs text-muted-foreground">Score {sc}/100</span>}
+                </div>
               </Link>
             );
           })}
         </div>
+
+        {/* Audit — insight secondaire (pour aller plus loin) */}
+        {!audit ? (
+          <div className="rounded-2xl border border-border bg-rose-pale p-6 mt-8">
+            <p className="text-foreground font-medium mb-2">
+              🔍 Envie d'un regard d'expert sur ton profil ?
+            </p>
+            <p className="text-sm text-muted-foreground mb-4">
+              Envoie des screenshots de ton profil Instagram. L'IA l'analyse face à ton branding et te donne un score avec des recommandations personnalisées.
+            </p>
+            <div className="flex gap-3 flex-wrap">
+              <Link to="/instagram/audit">
+                <Button className="rounded-pill gap-2">
+                  <Sparkles className="h-4 w-4" />
+                  🔍 Lancer un audit
+                </Button>
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-border bg-card p-6 mt-8">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div className="flex items-center gap-3">
+                <div>
+                  <p className="text-xs font-mono-ui uppercase tracking-wider text-muted-foreground mb-0.5">Score d'audit</p>
+                  <p className="text-3xl font-display font-bold text-foreground leading-none">{audit.score_global}<span className="text-lg text-muted-foreground">/100</span></p>
+                </div>
+                <span className={`text-xs font-semibold px-3 py-1 rounded-pill ${scoreBadge(audit.score_global).color}`}>
+                  {scoreBadge(audit.score_global).label}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Link to="/instagram/audit?view=results">
+                  <Button size="sm" className="rounded-pill gap-1.5">
+                    <BarChart3 className="h-3.5 w-3.5" />
+                    📊 Voir mes résultats
+                  </Button>
+                </Link>
+                <Link to="/instagram/audit?view=form">
+                  <Button variant="outline" size="sm" className="rounded-pill gap-1.5">
+                    🔄 Refaire l'audit
+                  </Button>
+                </Link>
+              </div>
+            </div>
+            {audit.resume && (
+              <p className="text-sm text-muted-foreground italic leading-relaxed mt-3">
+                "{audit.resume}"
+              </p>
+            )}
+          </div>
+        )}
       </main>
     </div>
   );

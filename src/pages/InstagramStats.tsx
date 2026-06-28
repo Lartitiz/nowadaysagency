@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { LocalErrorBoundary } from "@/components/LocalErrorBoundary";
+import { Link } from "react-router-dom";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -56,6 +57,10 @@ export default function InstagramStats() {
   const [compareB, setCompareB] = useState("");
   const [showImportDialog, setShowImportDialog] = useState(false);
 
+  // Connexion Instagram + récupération auto des stats via l'API (instagram-insights-fetch).
+  const [igConnected, setIgConnected] = useState(false);
+  const [fetchingLive, setFetchingLive] = useState(false);
+
   const [periodPreset, setPeriodPreset] = useState<PeriodPreset>("3_months");
   const [customFrom, setCustomFrom] = useState(() => monthKey(new Date(now.getFullYear(), now.getMonth() - 5, 1)));
   const [customTo, setCustomTo] = useState(currentMonthDate);
@@ -106,6 +111,17 @@ export default function InstagramStats() {
   }, [user?.id]);
 
   useEffect(() => { loadConfig(); loadStats(); }, [loadConfig, loadStats]);
+
+  // Sait si un compte Instagram est connecté (pour proposer le remplissage auto).
+  useEffect(() => {
+    if (!user) return;
+    supabase.functions.invoke("social-status", {
+      body: { workspace_id: workspaceId !== user.id ? workspaceId : undefined },
+    }).then(({ data }) => {
+      const conns = (data as any)?.connections || [];
+      setIgConnected(conns.some((c: any) => c.platform === "instagram" && c.connected));
+    }).catch(() => { /* non bloquant */ });
+  }, [user?.id, workspaceId]);
 
   useEffect(() => {
     const row = allStats.find(s => s.month_date === selectedMonth);
@@ -272,6 +288,65 @@ export default function InstagramStats() {
     }
     setSaving(false);
   }, [user, formData, formId, selectedMonth, workspaceId, loadStats, periodPreset, now]);
+
+  // Remplit automatiquement la ligne du mois en cours avec les vraies stats du
+  // compte Instagram connecté (mêmes données que l'audit : abonnés, reach 28 j,
+  // abonnés gagnés). Les champs non couverts par l'API restent en saisie manuelle.
+  const fetchFromInstagram = useCallback(async () => {
+    if (!user) return;
+    setFetchingLive(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("instagram-insights-fetch", {
+        body: { workspace_id: workspaceId !== user.id ? workspaceId : undefined },
+      });
+      if (error || !(data as any)?.metrics) {
+        const ctxBody = (error as any)?.context?.body;
+        const msg = ctxBody?.error || (data as any)?.error || "";
+        if (msg.includes("Reconnecte")) {
+          toast.error("Reconnexion requise", { description: "Reconnecte ton compte Instagram pour autoriser la lecture de tes statistiques." });
+        } else {
+          toast.error("Stats indisponibles", { description: msg || "Impossible de récupérer tes statistiques Instagram pour le moment." });
+        }
+        return;
+      }
+      const m = (data as any).metrics;
+      const target = currentMonthDate;
+      const existing = allStats.find(s => s.month_date === target) || {};
+      const patch: any = {};
+      const filled: string[] = [];
+      if (typeof m.followers === "number") { patch.followers = m.followers; filled.push("abonnés"); }
+      if (typeof m.reach30d === "number") { patch.reach = m.reach30d; filled.push("reach (28 j)"); }
+      if (typeof m.followerGrowth30d === "number" && m.followerGrowth30d >= 0) {
+        patch.followers_gained = m.followerGrowth30d; filled.push("abonnés gagnés");
+      }
+      if (!filled.length) {
+        toast("Aucune métrique exploitable", { description: "L'API n'a renvoyé aucun chiffre fiable cette fois. Réessaie un peu plus tard." });
+        return;
+      }
+      const payload: any = {
+        ...existing, ...patch, user_id: user.id,
+        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+        month_date: target, updated_at: new Date().toISOString(),
+      };
+      delete payload.id; delete payload.created_at;
+      if ((existing as any).id) {
+        const { error: upErr } = await supabase.from("monthly_stats" as any).update(payload).eq("id", (existing as any).id);
+        if (upErr) { toast.error("Erreur d'enregistrement des stats récupérées"); return; }
+      } else {
+        const { error: insErr } = await supabase.from("monthly_stats" as any).insert(payload);
+        if (insErr) { toast.error("Erreur d'enregistrement des stats récupérées"); return; }
+      }
+      setSelectedMonth(target);
+      await loadStats();
+      toast.success(`✅ Stats Instagram récupérées — ${monthLabel(target)}`, {
+        description: `Rempli automatiquement : ${filled.join(", ")}. Complète le reste à la main dans « Saisir mes stats » si besoin.`,
+      });
+    } catch {
+      toast.error("Erreur lors de la récupération des stats Instagram");
+    } finally {
+      setFetchingLive(false);
+    }
+  }, [user, workspaceId, allStats, currentMonthDate, loadStats]);
 
   const handleAnalyze = useCallback(async () => {
     if (!user) return;
@@ -496,11 +571,27 @@ export default function InstagramStats() {
           </div>
         ) : dashboardKPIs && <StatsOverview kpis={dashboardKPIs} isSingleMonth={isSingleMonth} />}
 
-        {/* ─── API placeholder ─── */}
-        <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground flex items-start gap-2">
-          <span>📸</span>
-          <span>Bientôt : connecte ton Instagram pour remplir tes stats automatiquement.</span>
-        </div>
+        {/* ─── Remplissage auto depuis l'API Instagram ─── */}
+        {igConnected ? (
+          <div className="rounded-xl border border-border bg-card px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-start gap-2 text-sm text-muted-foreground">
+              <span>📸</span>
+              <span>Récupère automatiquement tes <strong className="text-foreground">abonnés, ton reach et tes abonnés gagnés</strong> du mois en cours depuis ton compte Instagram connecté.</span>
+            </div>
+            <Button onClick={fetchFromInstagram} disabled={fetchingLive} size="sm" className="gap-1.5 shrink-0">
+              {fetchingLive
+                ? <><RefreshCw className="h-3.5 w-3.5 animate-spin" />Récupération…</>
+                : <><Sparkles className="h-3.5 w-3.5" />Remplir depuis Instagram</>}
+            </Button>
+          </div>
+        ) : (
+          <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground flex items-center justify-between gap-3 flex-wrap">
+            <span className="flex items-start gap-2"><span>📸</span><span>Connecte ton compte Instagram pour remplir tes stats automatiquement.</span></span>
+            <Button asChild variant="outline" size="sm" className="shrink-0">
+              <Link to="/parametres/connexions">Connecter Instagram</Link>
+            </Button>
+          </div>
+        )}
 
         {/* ─── Tabs ─── */}
         <Tabs defaultValue="overview" className="space-y-5">
