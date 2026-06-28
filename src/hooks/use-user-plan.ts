@@ -24,13 +24,14 @@ type Feature =
 
 const FREE_FEATURES: Feature[] = [
   "branding", "persona", "audit_basic", "generation_limited", "community_read",
+  "calendar",
 ];
 
 const OUTIL_FEATURES: Feature[] = [
   ...FREE_FEATURES,
   "generation_unlimited", "import_stats", "prospection", "comments_generator",
   "dm_generator", "audit_unlimited", "offer_workshop", "lives", "community_write",
-  "contacts_strategiques", "routine_engagement", "editorial_line", "calendar",
+  "contacts_strategiques", "routine_engagement", "editorial_line",
 ];
 
 const BINOME_FEATURES: Feature[] = [
