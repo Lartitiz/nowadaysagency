@@ -16,7 +16,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { Trash2, ChevronDown, Upload, Loader2, Check, Send, CalendarClock, Lightbulb } from "lucide-react";
 import { getGuide } from "@/lib/production-guides";
-import { type CalendarPost, STATUS_LABELS, statusStyles, OBJECTIFS } from "@/lib/calendar-constants";
+import { type CalendarPost, STATUS_LABELS, STATUSES, statusStyles, OBJECTIFS, ANGLES } from "@/lib/calendar-constants";
 import { format as formatDate } from "date-fns";
 import { fr } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
@@ -422,8 +422,8 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     handleQuickGenerate();
   };
 
-  const handleOpenAtelier = () => {
-    if (theme.trim()) onSave(buildSaveData(), effectiveId);
+  const handleOpenAtelier = async () => {
+    if (theme.trim() && onAutoSave) await onAutoSave(buildSaveData(), effectiveId);
     onOpenChange(false);
     setTimeout(() => {
       navigate("/creer?canal=" + (postCanal || "instagram"), {
@@ -432,8 +432,8 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     }, 100);
   };
 
-  const handleNavigateToGenerator = (mode: "generate" | "regenerate" | "view") => {
-    if (theme.trim()) onSave(buildSaveData(), effectiveId);
+  const handleNavigateToGenerator = async (mode: "generate" | "regenerate" | "view") => {
+    if (theme.trim() && onAutoSave) await onAutoSave(buildSaveData(), effectiveId);
     onOpenChange(false);
     setTimeout(() => {
       const params = new URLSearchParams();
@@ -454,8 +454,8 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     }, 100);
   };
 
-  const handleNavigateToDeepen = () => {
-    if (theme.trim()) onSave(buildSaveData(), effectiveId);
+  const handleNavigateToDeepen = async () => {
+    if (theme.trim() && onAutoSave) await onAutoSave(buildSaveData(), effectiveId);
     onOpenChange(false);
     setTimeout(() => {
       const params = new URLSearchParams();
@@ -617,6 +617,15 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   const formatMeta = format ? (FORMAT_OPTIONS_BY_CANAL[postCanal] || []).find((f) => f.id === format) : null;
   const objectifMeta = objectif ? OBJECTIFS.find((o) => o.id === objectif) : null;
   const dateLabel = selectedDate ? formatDate(new Date(selectedDate + "T00:00:00"), "EEE d MMM", { locale: fr }) : null;
+  // Libellé d'angle lisible : certains vieux posts stockent un id brut (« storytelling_pro »).
+  const ANGLE_ID_LABELS: Record<string, string> = {
+    storytelling: "Storytelling", storytelling_pro: "Storytelling",
+    mythe_realite: "Mythe à déconstruire", prise_de_position: "Prise de position",
+    tips: "Conseil", etude_de_cas: "Étude de cas", before_after: "Before / After",
+  };
+  const angleLabel = angle
+    ? (ANGLES.includes(angle) ? angle : (ANGLE_ID_LABELS[angle] || (angle.charAt(0).toUpperCase() + angle.slice(1).replace(/_/g, " "))))
+    : null;
 
   const contextHeader = (
     <div className="space-y-1.5">
@@ -631,15 +640,28 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
             <span className="text-xs text-muted-foreground">{dateLabel}</span>
           </>
         )}
-        <span className={cn("ml-auto rounded-pill border px-2.5 py-0.5 text-2xs font-medium", statusStyles[status] || "bg-card border-border text-foreground")}>
-          {STATUS_LABELS[status] || status}
-        </span>
+        {/* Badge de statut cliquable : changer le statut sans ouvrir « Détails » */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button type="button" className={cn("ml-auto inline-flex items-center gap-1 rounded-pill border px-2.5 py-0.5 text-2xs font-medium transition-opacity hover:opacity-80", statusStyles[status] || "bg-card border-border text-foreground")} aria-label="Changer le statut du post">
+              {STATUS_LABELS[status] || status}
+              <ChevronDown className="h-3 w-3 opacity-70" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-44">
+            {STATUSES.map((s) => (
+              <DropdownMenuItem key={s.id} onClick={() => setStatus(s.id)} className={cn(status === s.id && "font-medium text-primary")}>
+                {s.label}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
-      {(objectifMeta || angle) && (
+      {(objectifMeta || angleLabel) && (
         <p className="text-2xs text-muted-foreground">
           {objectifMeta && <span>{objectifMeta.emoji} {objectifMeta.label}</span>}
-          {objectifMeta && angle && <span className="mx-1.5 text-border">·</span>}
-          {angle && <span>{angle}</span>}
+          {objectifMeta && angleLabel && <span className="mx-1.5 text-border">·</span>}
+          {angleLabel && <span>{angleLabel}</span>}
         </p>
       )}
     </div>
@@ -664,6 +686,9 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   const publishNowDisabled = publishingInstagram || publishingLinkedIn
     || (postCanal === "instagram" ? !!instagramPublishDisabledReason : postCanal === "linkedin" ? !!linkedInPublishDisabledReason : true);
   const handlePublishNow = () => { if (postCanal === "linkedin") handlePublishLinkedIn(); else handlePublishInstagram(); };
+  // Déjà publié (statut éditorial OU auto-publication) → on n'offre plus « Publier » / « Programmer ».
+  const alreadyPublished = status === "published" || publishStatus === "published";
+  const canPublishActions = canSchedule && !alreadyPublished;
 
   const actionsBlock = (
     <div className="pt-3 mt-3 border-t border-border space-y-2">
@@ -714,22 +739,22 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
             <DropdownMenuTrigger asChild>
               <Button disabled={!theme.trim()} className="rounded-pill bg-primary text-primary-foreground hover:bg-primary/90">
                 {(publishingInstagram || publishingLinkedIn) && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
-                {canSchedule ? "Publier" : "Options"}
+                {canPublishActions ? "Publier" : "Options"}
                 <ChevronDown className="h-4 w-4 ml-1" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-60">
-              {canSchedule && publishStatus !== "published" && (
+              {canPublishActions && (
                 <DropdownMenuItem onClick={handlePublishNow} disabled={publishNowDisabled}>
                   <Send className="h-4 w-4 mr-2" /> Publier maintenant
                 </DropdownMenuItem>
               )}
-              {canSchedule && publishStatus !== "published" && (
+              {canPublishActions && (
                 <DropdownMenuItem onClick={() => setSchedulerOpen(true)}>
                   <CalendarClock className="h-4 w-4 mr-2" /> {publishStatus === "scheduled" ? "Modifier la programmation" : "Programmer la publication"}
                 </DropdownMenuItem>
               )}
-              {canSchedule && publishStatus !== "published" && (!!editingPost || !!effectiveId) && <DropdownMenuSeparator />}
+              {canPublishActions && (!!editingPost || !!effectiveId) && <DropdownMenuSeparator />}
               {editingPost && onUnplan && (
                 <DropdownMenuItem onClick={() => { if (window.confirm("Remettre ce post dans ta boîte à idées ? Il sera retiré du calendrier.")) onUnplan(); }}>
                   <Lightbulb className="h-4 w-4 mr-2" /> Remettre dans mes idées
