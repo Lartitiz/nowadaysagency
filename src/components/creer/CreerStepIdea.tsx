@@ -1,11 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
+import { Spinner } from "@/components/ui/spinner";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { ArrowRight, Sparkles, HelpCircle, Newspaper, Camera, ArrowLeft, Repeat, CalendarRange } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import ContentCoachingDialog from "@/components/dashboard/ContentCoachingDialog";
-import NewsjackingPanel from "./NewsjackingPanel";
+// Gros panneau (recherche d'actu) chargé à la demande — pas dans le chunk initial.
+const NewsjackingPanel = lazy(() => import("./NewsjackingPanel"));
 import CreerTransformTab from "./CreerTransformTab";
 import { PhotoUploadZone, type PhotoItem } from "./PhotoUploadZone";
 import { toast } from "sonner";
@@ -253,6 +255,7 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
 
       {/* Newsjacking panel */}
       {showNewsjacking && (
+        <Suspense fallback={<div className="py-12 flex justify-center"><Spinner className="h-8 w-8" /></div>}>
         <NewsjackingPanel
           onSelect={(data) => {
             setShowNewsjacking(false);
@@ -266,6 +269,7 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
           onClose={() => setShowNewsjacking(false)}
           workspaceId={workspaceId}
         />
+        </Suspense>
       )}
 
       {/* Coaching dialog */}

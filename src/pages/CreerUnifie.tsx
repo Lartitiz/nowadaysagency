@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { handleQuotaError } from "@/lib/quota-error-handler";
 import { useSearchParams, useLocation, useNavigate } from "react-router-dom";
@@ -25,17 +25,19 @@ import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import BrandingStatusBanner from "@/components/content/BrandingStatusBanner";
 import CreerStepIdea from "@/components/creer/CreerStepIdea";
-import CreerStepFormat from "@/components/creer/CreerStepFormat";
-import CreerStepQuestions from "@/components/creer/CreerStepQuestions";
-import CreerStepResult from "@/components/creer/CreerStepResult";
+// Code-splitting : les étapes après l'écran « idée » sont chargées à la demande
+// (chunk /creer initial allégé → premier écran plus rapide).
+const CreerStepFormat = lazy(() => import("@/components/creer/CreerStepFormat"));
+const CreerStepQuestions = lazy(() => import("@/components/creer/CreerStepQuestions"));
+const CreerStepResult = lazy(() => import("@/components/creer/CreerStepResult"));
 import type { CarouselColors } from "@/components/creer/formatRenderers/CarouselPhotoResult";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
-import CreerStepEdit from "@/components/creer/CreerStepEdit";
+const CreerStepEdit = lazy(() => import("@/components/creer/CreerStepEdit"));
 import CreerStepper, { type StepperKey } from "@/components/creer/CreerStepper";
-import PinterestInspirationStep from "@/components/creer/PinterestInspirationStep";
+const PinterestInspirationStep = lazy(() => import("@/components/creer/PinterestInspirationStep"));
 import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
 import { userPhotoToBase64, type UserPhotoRow } from "@/lib/photo-storage";
-import StructureReviewStep from "@/components/creer/StructureReviewStep";
+const StructureReviewStep = lazy(() => import("@/components/creer/StructureReviewStep"));
 import CarouselStructureLoader from "@/components/creer/CarouselStructureLoader";
 import { downscalePhotosForVision } from "@/lib/image-vision";
 import type { SlideProposal, StructureProposal } from "@/components/creer/StructureReviewStep";
@@ -3051,6 +3053,7 @@ export default function CreerUnifie() {
               </>
             )}
 
+            <Suspense fallback={<div className="py-12 flex justify-center"><Spinner className="h-8 w-8" /></div>}>
             {step === "format" && (
               <CreerStepFormat
                 idea={ideaText}
@@ -3343,6 +3346,7 @@ export default function CreerUnifie() {
                 }}
               />
             )}
+            </Suspense>
         </div>
       </div>
 
