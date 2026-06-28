@@ -71,7 +71,7 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
           <Sparkles className="h-5 w-5 text-primary" /> Qu'est-ce que tu veux partager ?
         </h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Raconte ton idée en quelques mots, même vague. L'IA va t'aider à la transformer en contenu.
+          L'IA transforme ton idée en contenu prêt à publier.
         </p>
       </div>
 
