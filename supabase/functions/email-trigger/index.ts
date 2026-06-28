@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
-const APP_URL = "https://nowadaysagency.lovable.app";
+const APP_URL = "https://nowadays-assistant.fr";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);

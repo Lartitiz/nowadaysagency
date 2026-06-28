@@ -110,7 +110,7 @@ Deno.serve(async (req) => {
     }
 
     // 8. Build invite URL
-    const origin = req.headers.get("origin") || "https://nowadaysagency.lovable.app";
+    const origin = req.headers.get("origin") || "https://nowadays-assistant.fr";
     const inviteUrl = `${origin}/invite/${invitation.token}`;
 
     return json({
