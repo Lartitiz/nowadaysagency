@@ -226,7 +226,8 @@ function OverviewSection({ stats }: { stats: StatsData }) {
     .map(([plan, amount]) => `${PLAN_LABELS[plan] || plan}: ${amount}€`)
     .join(" · ") || `${stats.paid_users} abonnées`;
 
-  const estimatedCost = Math.round((stats.total_tokens || 0) * 0.000003);
+  // 2 décimales : un arrondi à l'entier affichait toujours 0 € en dessous de ~166k tokens.
+  const estimatedCost = Math.round((stats.total_tokens || 0) * 0.000003 * 100) / 100;
 
   return (
     <div className="space-y-6">
@@ -675,7 +676,7 @@ function KpiCard({ title, value, suffix, sub, subColor, trend, status }: {
     <div className={`rounded-xl border bg-card p-5 flex flex-col gap-1 ${statusBorder}`}>
       <p className="text-xs text-muted-foreground">{title}</p>
       <div className="flex items-baseline gap-1.5">
-        <p className="text-2xl font-bold font-display">{value.toLocaleString("fr")}{suffix && <span className="text-sm font-normal text-muted-foreground">{suffix}</span>}</p>
+        <p className="text-2xl font-bold font-display">{(value ?? 0).toLocaleString("fr")}{suffix && <span className="text-sm font-normal text-muted-foreground">{suffix}</span>}</p>
         {trend !== undefined && trend !== 0 && (
           <span className={`inline-flex items-center gap-0.5 text-xs font-medium ${trend > 0 ? "text-success" : "text-error"}`}>
             {trend > 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}

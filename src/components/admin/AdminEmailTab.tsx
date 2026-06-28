@@ -176,7 +176,7 @@ function InscritesView() {
     const vars: Record<string, string> = {
       prenom: user.prenom || "",
       email: user.email || "",
-      app_url: "https://nowadaysagency.lovable.app",
+      app_url: "https://nowadays-assistant.fr",
     };
 
     let resolvedHtml = html;
@@ -582,7 +582,14 @@ function HistoriqueView() {
     async function load() {
       setLoading(true);
       let query = supabase.from("email_sends").select("id, to_email, subject, status, sent_at, resend_id").order("sent_at", { ascending: false }).range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
-      if (statusFilter !== "all") query = query.eq("status", statusFilter);
+      // Filtres cumulatifs, alignés sur les compteurs : un email cliqué compte aussi comme envoyé/ouvert.
+      const STATUS_GROUPS: Record<string, string[]> = {
+        sent: ["sent", "opened", "clicked"],
+        opened: ["opened", "clicked"],
+        clicked: ["clicked"],
+        failed: ["failed", "bounced"],
+      };
+      if (statusFilter !== "all" && STATUS_GROUPS[statusFilter]) query = query.in("status", STATUS_GROUPS[statusFilter]);
       const { data } = await query;
       setSends((data || []) as any);
       setLoading(false);
