@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { PostCommentsSection } from "@/components/calendar/PostCommentsSection";
@@ -13,7 +13,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
-import { Trash2, ChevronDown, Upload, Instagram, Linkedin, Loader2 } from "lucide-react";
+import { Trash2, ChevronDown, Upload, Instagram, Linkedin, Loader2, Check, Wrench } from "lucide-react";
 import { getGuide } from "@/lib/production-guides";
 import { type CalendarPost, STATUS_LABELS, statusStyles, OBJECTIFS } from "@/lib/calendar-constants";
 import { format as formatDate } from "date-fns";
@@ -41,6 +41,19 @@ interface Props {
   onUnplan?: () => void;
   onDateChange?: (postId: string, newDate: string) => void;
   prefillData?: { theme?: string; notes?: string } | null;
+}
+
+/** Signature des champs éditables d'un post — sert à ne déclencher l'auto-save
+ *  QUE sur une vraie modif (pas sur l'hydratation initiale). */
+function editableSignature(v: {
+  theme: string; angle: string | null; status: string; notes: string; canal: string;
+  objectif: string | null; format: string | null; contentDraft: string | null;
+  accroche: string | null; mediaUrls: string[]; seriesId: string | null; episodeNumber: number | null;
+}): string {
+  return JSON.stringify([
+    v.theme, v.angle, v.status, v.notes, v.canal, v.objectif, v.format,
+    v.contentDraft, v.accroche, v.mediaUrls, v.seriesId, v.episodeNumber,
+  ]);
 }
 
 /** ISO → valeur d'un <input type="datetime-local"> (heure locale, "YYYY-MM-DDTHH:mm"). */
@@ -90,6 +103,12 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   const [dialogTab, setDialogTab] = useState<"edit" | "preview" | "meta">("edit");
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
+  const [showProduction, setShowProduction] = useState(false);
+  // Auto-save silencieux (post existant uniquement) : "idle" | "saving" | "saved"
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  // Signature des champs au dernier état persisté : l'auto-save ne se déclenche que
+  // si la signature courante en diffère (donc jamais sur l'hydratation initiale).
+  const lastSavedSigRef = useRef<string | null>(null);
   const [showContentViewer, setShowContentViewer] = useState(false);
   const [savedDraft, setSavedDraft] = useState<string | null>(null);
   const [seriesId, setSeriesId] = useState<string | null>(null);
@@ -122,6 +141,15 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       setMediaUrls((editingPost as any).media_urls || []);
       setSeriesId((editingPost as any).series_id || null);
       setEpisodeNumber((editingPost as any).episode_number ?? null);
+      // Référence anti-faux-positif de l'auto-save : signature de l'état chargé.
+      lastSavedSigRef.current = editableSignature({
+        theme: editingPost.theme, angle: editingPost.angle, status: editingPost.status,
+        notes: editingPost.notes || "", canal: editingPost.canal || "instagram",
+        objectif: editingPost.objectif || null, format: (editingPost as any).format || null,
+        contentDraft: draft, accroche: (editingPost as any).accroche || null,
+        mediaUrls: (editingPost as any).media_urls || [], seriesId: (editingPost as any).series_id || null,
+        episodeNumber: (editingPost as any).episode_number ?? null,
+      });
       const sched = (editingPost as any).scheduled_publish_at ?? null;
       setScheduledAt(sched);
       setPublishStatus((editingPost as any).publish_status ?? null);
@@ -144,9 +172,13 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     }
     setDialogTab("edit");
     setShowAdvanced(false);
+    setShowProduction(false);
     // Détails (statut, canal, format, série) : ouverts pour un nouveau post (on les renseigne),
     // repliés pour un post existant (on édite surtout le contenu).
     setShowDetails(!editingPost);
+    // Post neuf (pas d'id) : pas d'auto-save → pas de signature de référence.
+    if (!editingPost) lastSavedSigRef.current = null;
+    setSaveState("idle");
   }, [editingPost, open, defaultCanal, prefillData]);
 
   useEffect(() => {
@@ -161,6 +193,41 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     };
     loadBrief();
   }, [editingPost?.id]);
+
+  // ── Auto-save silencieux (post existant) ──
+  // Sauvegarde directe en base (sans fermer le dialog ni toaster) ~1s après la
+  // dernière modif. Un post NEUF n'est pas auto-sauvé : il garde son bouton
+  // « Ajouter au calendrier » (création explicite). Voir handleSave / parent onSave.
+  useEffect(() => {
+    if (!open || !editingPost?.id) return;
+    if (!theme.trim()) return; // ne jamais écraser avec un thème vide
+    const sig = editableSignature({
+      theme, angle, status, notes, canal: postCanal, objectif, format,
+      contentDraft, accroche, mediaUrls, seriesId, episodeNumber,
+    });
+    if (sig === lastSavedSigRef.current) return; // rien de neuf (inclut l'hydratation)
+    setSaveState("saving");
+    const timer = setTimeout(async () => {
+      const { error } = await supabase.from("calendar_posts").update({
+        theme, angle, status, notes: notes || null, canal: postCanal,
+        objectif: objectif || null, format: format || null,
+        content_draft: contentDraft || null, accroche: accroche || null,
+        media_urls: mediaUrls.length > 0 ? mediaUrls : null,
+        series_id: seriesId || null, episode_number: episodeNumber ?? null,
+        updated_at: new Date().toISOString(),
+      } as any).eq("id", editingPost.id);
+      if (error) {
+        setSaveState("idle");
+        toast.error("Sauvegarde auto échouée", { description: friendlyError(error) });
+        return;
+      }
+      lastSavedSigRef.current = sig;
+      setSavedDraft(contentDraft);
+      setSaveState("saved");
+    }, 1000);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [theme, angle, status, notes, postCanal, objectif, format, contentDraft, accroche, mediaUrls, seriesId, episodeNumber, open, editingPost?.id]);
 
   const guide = angle ? getGuide(angle) : null;
 
@@ -447,35 +514,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
         onShowContentViewer={isMobile ? () => setShowContentViewer(true) : undefined}
       />
 
-      {linkedBrief && (
-        <Collapsible>
-          <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-foreground w-full py-2">
-            <span>📋 Brief créatif</span>
-            <span className="text-xs text-muted-foreground font-normal ml-auto">
-              {Object.values(linkedBrief.answers).filter(v => v?.trim()).length} réponse(s)
-            </span>
-            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-          </CollapsibleTrigger>
-          <CollapsibleContent className="space-y-3 pt-2">
-            <p className="text-xs text-muted-foreground">Les réponses que tu as données pour créer ce contenu :</p>
-            {linkedBrief.questions.map((q: any) => {
-              const answer = linkedBrief.answers[q.id] || linkedBrief.answers[q.question] || "";
-              if (!answer.trim()) return null;
-              return (
-                <div key={q.id} className="rounded-lg bg-muted/30 border border-border p-3">
-                  <p className="text-xs font-medium text-foreground mb-1">{q.question}</p>
-                  <p className="text-xs text-muted-foreground whitespace-pre-wrap">{answer}</p>
-                </div>
-              );
-            })}
-          </CollapsibleContent>
-        </Collapsible>
-      )}
-
-      <div>
-        <label className="text-xs font-semibold mb-1.5 block text-foreground">📝 Notes</label>
-        <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Idées, brouillon, remarques..." className="rounded-[10px] min-h-[80px]" />
-      </div>
+      {/* Notes & brief créatif déplacés dans le repli « Détails de production » plus bas. */}
 
       <div className="space-y-2">
         <label className="text-xs font-medium text-foreground">🖼️ Visuels</label>
@@ -549,26 +588,56 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
         );
       })()}
 
-      {guide && (
-        <Collapsible>
-          <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary transition-colors w-full">
-            <span>📝 Comment produire ce post</span>
-            <ChevronDown className="h-4 w-4 transition-transform data-[state=open]:rotate-180" />
+      {/* Détails de production : notes, brief créatif, guide, commentaires — repliés par
+          défaut pour alléger l'écran (on édite surtout le contenu au-dessus). */}
+      {(linkedBrief || guide || editingPost) && (
+        <Collapsible open={showProduction} onOpenChange={setShowProduction} className="rounded-[12px] border border-border bg-card/30">
+          <CollapsibleTrigger className="flex items-center gap-2 text-xs font-medium text-foreground hover:text-primary transition-colors w-full px-3 py-2.5">
+            <Wrench className="h-3.5 w-3.5 text-muted-foreground" />
+            <span>Notes, brief & guide de production</span>
+            <ChevronDown className={cn("h-3.5 w-3.5 ml-auto transition-transform", showProduction && "rotate-180")} />
           </CollapsibleTrigger>
-          <CollapsibleContent className="mt-3">
-            <ol className="space-y-3 text-sm leading-relaxed text-foreground">
-              {guide.map((step, i) => (
-                <li key={i}>
-                  <span className="font-semibold text-primary">{step.label}</span>
-                  <p className="mt-0.5 text-muted-foreground">{step.detail}</p>
-                </li>
-              ))}
-            </ol>
+          <CollapsibleContent className="px-3 pb-3 space-y-4">
+            <div>
+              <label className="text-xs font-semibold mb-1.5 block text-foreground">📝 Notes</label>
+              <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Idées, brouillon, remarques..." className="rounded-[10px] min-h-[80px]" />
+            </div>
+
+            {linkedBrief && (
+              <div className="space-y-3">
+                <p className="text-xs font-medium text-foreground">📋 Brief créatif — {Object.values(linkedBrief.answers).filter(v => v?.trim()).length} réponse(s)</p>
+                <p className="text-xs text-muted-foreground">Les réponses que tu as données pour créer ce contenu :</p>
+                {linkedBrief.questions.map((q: any) => {
+                  const answer = linkedBrief.answers[q.id] || linkedBrief.answers[q.question] || "";
+                  if (!answer.trim()) return null;
+                  return (
+                    <div key={q.id} className="rounded-lg bg-muted/30 border border-border p-3">
+                      <p className="text-xs font-medium text-foreground mb-1">{q.question}</p>
+                      <p className="text-xs text-muted-foreground whitespace-pre-wrap">{answer}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {guide && (
+              <div>
+                <p className="text-xs font-medium text-foreground mb-2">📝 Comment produire ce post</p>
+                <ol className="space-y-3 text-sm leading-relaxed text-foreground">
+                  {guide.map((step, i) => (
+                    <li key={i}>
+                      <span className="font-semibold text-primary">{step.label}</span>
+                      <p className="mt-0.5 text-muted-foreground">{step.detail}</p>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
+
+            {editingPost && <PostCommentsSection postId={editingPost.id} ownerName={ownerName} />}
           </CollapsibleContent>
         </Collapsible>
       )}
-
-      {editingPost && <PostCommentsSection postId={editingPost.id} ownerName={ownerName} />}
     </div>
   );
 
@@ -627,7 +696,14 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
             <span className="text-xs text-muted-foreground">{dateLabel}</span>
           </>
         )}
-        <span className={cn("ml-auto rounded-pill border px-2.5 py-0.5 text-2xs font-medium", statusStyles[status] || "bg-card border-border text-foreground")}>
+        {editingPost && saveState !== "idle" && (
+          <span className="ml-auto inline-flex items-center gap-1 text-2xs text-muted-foreground" aria-live="polite">
+            {saveState === "saving"
+              ? <><Loader2 className="h-3 w-3 animate-spin" /> Enregistrement…</>
+              : <><Check className="h-3 w-3 text-success" /> Enregistré</>}
+          </span>
+        )}
+        <span className={cn("rounded-pill border px-2.5 py-0.5 text-2xs font-medium", editingPost && saveState !== "idle" ? "ml-2" : "ml-auto", statusStyles[status] || "bg-card border-border text-foreground")}>
           {STATUS_LABELS[status] || status}
         </span>
       </div>
@@ -657,11 +733,15 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   );
 
   // Footer actions
+  // Post NEUF : un seul bouton « Ajouter au calendrier » (création explicite via onSave).
+  // Post EXISTANT : pas de bouton Enregistrer (auto-save silencieux) → publication + suppression.
   const actionsBlock = (
     <div className="flex gap-2 pt-4 mt-4 border-t border-border">
-      <Button onClick={handleSave} disabled={!theme.trim()} className="flex-1 rounded-pill bg-primary text-primary-foreground hover:bg-primary/90">💾 Enregistrer</Button>
+      {!editingPost && (
+        <Button onClick={handleSave} disabled={!theme.trim()} className="flex-1 rounded-pill bg-primary text-primary-foreground hover:bg-primary/90">📅 Ajouter au calendrier</Button>
+      )}
 
-      {postCanal === "instagram" && igValidImages.length > 0 && (
+      {editingPost && postCanal === "instagram" && igValidImages.length > 0 && (
         <Button
           type="button"
           variant="outline"
@@ -675,7 +755,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
         </Button>
       )}
 
-      {postCanal === "linkedin" && linkedInText && (
+      {editingPost && postCanal === "linkedin" && linkedInText && (
         <Button
           type="button"
           variant="outline"
@@ -690,7 +770,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       )}
 
       {editingPost && (
-        <Button variant="outline" size="icon" onClick={() => { if (window.confirm("Supprimer ce post du calendrier ? Cette action est irréversible.")) onDelete(); }} className="rounded-full text-destructive hover:bg-destructive/10" aria-label="Supprimer ce post">
+        <Button variant="outline" size="icon" onClick={() => { if (window.confirm("Supprimer ce post du calendrier ? Cette action est irréversible.")) onDelete(); }} className="ml-auto rounded-full text-destructive hover:bg-destructive/10" aria-label="Supprimer ce post">
           <Trash2 className="h-4 w-4" />
         </Button>
       )}

@@ -925,7 +925,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       <LocalErrorBoundary fallbackMessage="Erreur dans le dialogue de post.">
         <CalendarPostDialog
           open={dialogOpen}
-          onOpenChange={(open) => { setDialogOpen(open); if (!open) setPrefillData(null); }}
+          onOpenChange={(open) => { setDialogOpen(open); if (!open) { setPrefillData(null); fetchPosts(); } }}
           editingPost={editingPost}
           selectedDate={selectedDate}
           defaultCanal={canalFilter}
