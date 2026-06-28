@@ -784,6 +784,12 @@ export default function CreerStepResult({
           <p className="text-2xs text-muted-foreground text-center">Affiner</p>
         )}
         <div className="flex items-center justify-center gap-2 sm:gap-3 flex-wrap">
+          {/* Éditer le texte — formats texte (le carrousel a son édition inline) */}
+          {!isCarousel && onEdit && result && !generating && (
+            <Button variant="ghost" size="sm" onClick={onEdit} className="gap-1.5 text-xs text-muted-foreground">
+              <Pencil className="h-3.5 w-3.5" /> Éditer le texte
+            </Button>
+          )}
           {isCarousel && hasVisuals && onGenerateVisuals && (
             <Button variant="ghost" size="sm" onClick={onGenerateVisuals} disabled={visualLoading} className="gap-1.5 text-xs text-muted-foreground">
               {visualLoading ? (
