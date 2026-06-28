@@ -422,7 +422,7 @@ BADGES "PILULES" (élément signature) :
 - Font-size: 18-22px, text-transform: uppercase, letter-spacing: 2px
 - Padding: 8px 24px
 - Border-radius: 100px (pilule)
-- Utilise-les pour : numéro de slide, catégorie, label de section
+- Utilise-les pour : catégorie, label de section, mot-clé. JAMAIS un numéro de slide ni un label "SLIDE".
 
 CARTES BLANCHES (pour les blocs de contenu) :
 - Background: #FFFFFF
@@ -475,7 +475,7 @@ HOOK (slide 1) — Design le plus fort, stoppe le scroll :
 
   · Plein format inversé : fond ${ch.color_secondary}, titre en blanc/clair, 1 mot-clé en ${ch.color_accent}
 
-- Petit badge pilule (thème ou numéro) en haut, AU-DESSUS du titre.
+- Optionnel : petit badge pilule de thème/catégorie en haut, AU-DESSUS du titre (jamais un numéro de slide).
 
 - Le titre est verticalement centré dans la slide (flex, justify-content:center), le badge en haut.
 
@@ -490,7 +490,7 @@ CONTEXTE / STORYTELLING (slide 2) — Personnel, immersif :
 
 TIPS / CONTENU PÉDAGOGIQUE (slides du milieu) — Clair, structuré :
 - Fond : blanc
-- Badge pilule en haut à gauche avec le numéro ou label ("Astuce 1", "Le piège", etc.)
+- Optionnel : badge pilule en haut à gauche avec un label éditorial court ("Le piège", "À éviter", etc.) — jamais un numéro de slide.
 - Titre headline en ${ch.font_title} (42-48px), couleur ${ch.color_secondary}
 - Corps du tip en ${ch.font_body} (28-30px)
 - Barre accent latérale colorée (4px solid) à gauche du bloc de texte
@@ -785,7 +785,7 @@ SAFE ZONES Instagram (impératif) :
 TYPE "photo_integrated" — Photo intégrée dans un layout design
 - La photo est une balise <img src="{{PHOTO_N}}" style="object-fit:cover;border-radius:${ch.border_radius}">
 - Layouts selon photo_layout (chaque layout a un élément distinctif OBLIGATOIRE) :
-  · "top_photo" : photo height 740px (≈55%), texte en bas (610px) sur fond ${ch.color_background}. ÉLÉMENT DISTINCTIF : badge pilule numéroté en haut à gauche du bloc texte + soulignement coloré ${ch.color_accent} (4px, width 80px) sous le titre.
+  · "top_photo" : photo height 740px (≈55%), texte en bas (610px) sur fond ${ch.color_background}. ÉLÉMENT DISTINCTIF : soulignement coloré ${ch.color_accent} (4px, width 80px) sous le titre (pas de badge numéro de slide).
   · "left_photo" : 2 colonnes flex, photo 432px (40%) à gauche, texte 648px (60%) à droite. ÉLÉMENT DISTINCTIF : barre verticale ${ch.color_accent} (4px) entre photo et texte, titre en ${ch.color_secondary}, body avec retrait à gauche de 16px.
   · "right_photo" : symétrique de left_photo, photo à droite. ÉLÉMENT DISTINCTIF : barre verticale ${ch.color_accent} à gauche du texte + petit badge "→" décoratif avant le titre.
   · "card_photo" : fond ${ch.color_background}. Carte blanche centrée 920px × 1190px, ombre douce (0 8px 32px rgba(0,0,0,0.08)). Photo en haut de la carte (660px, border-radius haut), texte en bas (530px, padding 48px). ÉLÉMENT DISTINCTIF : filet horizontal ${ch.color_primary} (3px, width 60px) sous le titre.
@@ -805,14 +805,8 @@ ${buildVisualSchemaBlock(ch)}
 ═══ COHÉRENCE ET CONTINUITÉ VISUELLE ═══
 - TOUTES les slides utilisent les mêmes fonts (${ch.font_title} pour les titres, ${ch.font_body} pour le corps) et la même palette.
 - Le padding latéral est constant (80px pour text_only et photo_integrated ; pour photo_full, le padding s'applique au bloc d'overlay, pas au div).
-- Le NUMÉRO DE SLIDE (badge pilule discret en coin, ex: "01/08", ${ch.color_primary} ou semi-transparent blanc sur photo_full) DOIT figurer sur TOUTES les slides — c'est l'élément qui unifie le carrousel.
-- ZONE DE SÉCURITÉ TITRE / NUMÉRO (impératif) :
-  · Le badge numéro de slide est positionné en absolu dans un coin (top/right ou bottom/right), AU-DESSUS du flux normal (z-index supérieur).
-  · Le titre principal ne doit JAMAIS chevaucher ce badge. Deux options autorisées (au choix selon le layout) :
-    – Soit le titre est placé SOUS la ligne du badge (le badge a son propre espace en haut, suivi d'un margin-top sur le titre ≥ hauteur du badge + 16px).
-    – Soit le titre partage la ligne du haut MAIS son conteneur a max-width: 78% (ou padding-right ≥ largeur du badge + 24px) pour réserver la zone du badge.
-  · Cette règle s'applique à TOUS les types de slide (text_only, photo_integrated, photo_full), schémas inclus.
-- Continuité photo→texte : entre une slide photo_full/photo_integrated et une slide text_only suivante, REPRENDS un élément graphique commun (même couleur de badge, même style de soulignement, même typographie de titre).
+- INTERDIT : aucun badge "numéro de slide" (ex: "SLIDE 03", "01/08", "03/08") ni pastille de pagination en coin sur AUCUNE slide. Ces stamps n'apportent rien au lecteur et alourdissent le visuel. L'unité du carrousel vient des fonts, de la palette et des éléments graphiques récurrents — PAS d'un compteur posé par-dessus.
+- Continuité photo→texte : entre une slide photo_full/photo_integrated et une slide text_only suivante, REPRENDS un élément graphique commun (même style de soulignement, même typographie de titre, même couleur d'accent).
 - Les slides text_only encadrées par deux slides photo doivent utiliser un fond ${ch.color_background} (jamais blanc pur) pour adoucir la transition visuelle.
 - L'alternance des types crée le rythme : photo → texte → photo → texte. Une slide photo_integrated peut servir de transition entre photo_full et text_only.
 - Les slides photo_integrated font la TRANSITION entre les slides photo_full et text_only.
@@ -971,11 +965,11 @@ Une slide dont le contenu flotte dans le tiers central avec les deux autres tier
 
 ═══ ANNOTATIONS POUR EXPORT POWERPOINT ÉDITABLE — OBLIGATOIRE ═══
 
-Sur CHAQUE bloc de texte significatif (titre, corps, overlay sur photo, légende, numéro de slide, badge), ajoute l'attribut HTML \`data-pptx-editable\` avec une de ces valeurs :
+Sur CHAQUE bloc de texte significatif (titre, corps, overlay sur photo, légende, badge), ajoute l'attribut HTML \`data-pptx-editable\` avec une de ces valeurs :
 - \`data-pptx-editable="title"\` → titre principal de la slide (hook, headline)
 - \`data-pptx-editable="body"\` → corps de texte, paragraphes, items de liste, descriptions
 - \`data-pptx-editable="overlay"\` → texte court superposé à une photo
-- \`data-pptx-editable="caption"\` → numéro de slide, badge "INFOGRAPHIE", watermark, légende discrète
+- \`data-pptx-editable="caption"\` → badge "INFOGRAPHIE", watermark, légende discrète (jamais un numéro de slide)
 
 Règles :
 1. L'attribut va sur le NOEUD QUI CONTIENT DIRECTEMENT le texte (le <p>, <h1>, <h2>, <span>, <div>...), pas sur un parent qui en contient plusieurs.
@@ -985,7 +979,7 @@ Règles :
 
 Exemple :
 <div style="...carte..."><h2 data-pptx-editable="title" style="...">Mon titre</h2><p data-pptx-editable="body" style="...">Mon paragraphe</p></div>
-<span data-pptx-editable="caption" style="...badge...">01 / 05</span>
+<span data-pptx-editable="caption" style="...badge...">Infographie</span>
 
 ═══ SHAPES STRUCTURELS — POUR ÉDITABILITÉ MAXIMALE PPTX (RECOMMANDÉ) ═══
 
@@ -1146,6 +1140,45 @@ Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": ".
         } catch (fixErr) {
           console.error("carousel-visual: passe de correction du contraste échouée (slides d'origine conservées)", fixErr);
         }
+      }
+    }
+
+    // ═══ Kill DÉTERMINISTE des badges "numéro de slide" / pagination (TOUS types) ═══
+    // L'utilisatrice ne veut aucune pastille "SLIDE 03", "01/08", "03/08"… en coin de slide :
+    // ces stamps n'apportent rien au lecteur et alourdissent le visuel. Le prompt ne les
+    // demande plus, mais on garantit leur absence par code (texte, photo ET mix), sur TOUTES
+    // les slides. On ne touche PAS aux numéros d'étape d'un schéma (timeline "01", "02") :
+    // ceux-là sont des entiers NUS, sans "SLIDE" ni "/total" — le motif ci-dessous les ignore.
+    if (Array.isArray(result?.slides_html)) {
+      // "SLIDE 03", "SLIDE 03/08", "03/08", "3 - 8" → stamp. PAS "03" nu (ambigu avec une étape).
+      const SLIDE_STAMP_RE = /^(?:slide\s*)?\d{1,2}\s*[\/.\-]\s*\d{1,2}$|^slide\s*\d{1,2}$/i;
+      const isStamp = (t: string) => SLIDE_STAMP_RE.test((t || "").trim());
+      let stampsKilled = 0;
+      const killStamps = (rawHtml: string): string => {
+        let html = rawHtml || "";
+        // a) Pilule enveloppant une caption : <span pill><span caption>TXT</span></span>
+        html = html.replace(
+          /<(span|div)\b[^>]*data-pptx-shape="pill"[^>]*>\s*<(span|div)\b[^>]*data-pptx-editable="caption"[^>]*>([^<]*)<\/\2>\s*<\/\1>/gi,
+          (m: string, _a: string, _b: string, txt: string) => (isStamp(txt) ? (stampsKilled++, "") : m),
+        );
+        // b) Élément annoté pill OU caption dont le contenu est un stamp : <tag pill|caption>TXT</tag>
+        html = html.replace(
+          /<(span|div|p)\b[^>]*(?:data-pptx-shape="pill"|data-pptx-editable="caption")[^>]*>([^<]*)<\/\1>/gi,
+          (m: string, _t: string, txt: string) => (isStamp(txt) ? (stampsKilled++, "") : m),
+        );
+        // c) Filet de sécurité : tout petit élément littéralement "SLIDE NN", même non annoté.
+        html = html.replace(
+          /<(span|div|p)\b[^>]*>\s*slide\s*\d{1,2}(?:\s*[\/.\-]\s*\d{1,2})?\s*<\/\1>/gi,
+          () => { stampsKilled++; return ""; },
+        );
+        return html;
+      };
+      result.slides_html = result.slides_html.map((slide: any) => ({
+        ...slide,
+        html: killStamps(slide?.html || ""),
+      }));
+      if (stampsKilled > 0) {
+        console.log(`carousel-visual: ${stampsKilled} badge(s) numéro de slide retiré(s) (kill déterministe, tous types)`);
       }
     }
 
