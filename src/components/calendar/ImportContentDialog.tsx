@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Upload, Instagram, Linkedin, Loader2, GripVertical, Check } from "lucide-react";
 import { SocialMockup } from "@/components/social-mockup/SocialMockup";
 import { pdfToImageFiles, isPdfFile } from "@/lib/pdf-to-images";
+import { imagesToPdfFile } from "@/lib/images-to-pdf";
 import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, useSortable, arrayMove, rectSortingStrategy, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -282,14 +283,31 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
     if (validationError) { toast.error(validationError); return; }
     setSaving(true);
     try {
+      // PDF pour le carrousel natif LinkedIn : le PDF importé, ou — à défaut — un PDF
+      // fabriqué à partir des images (≥2) pour que LinkedIn ait toujours un vrai carrousel.
+      let liPdfUrl = pdfUrl;
+      if (!liPdfUrl && canals.includes("linkedin") && igValidImages.length >= 2) {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user) {
+            const pdfFile = await imagesToPdfFile(igValidImages, deriveTheme(captionOf("linkedin")));
+            const pdfPath = `${session.user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.pdf`;
+            const { error: pErr } = await supabase.storage.from("calendar-media").upload(pdfPath, pdfFile, { contentType: "application/pdf" });
+            if (!pErr) {
+              const { data: pData } = supabase.storage.from("calendar-media").getPublicUrl(pdfPath);
+              liPdfUrl = pData?.publicUrl || null;
+            }
+          }
+        } catch { /* repli : LinkedIn recevra les images en post multi-photos */ }
+      }
+
       // Un post par réseau coché (mêmes visuels, légende ET créneau propres à chaque réseau).
       const rows = canals.map((c) => {
         const cap = captionOf(c);
         const { date, time } = schedOf(c);
-        // LinkedIn : si un PDF a été importé, on l'attache (carrousel natif) ; sinon les images.
-        // Instagram : toujours les images (IG ne publie pas de PDF).
-        const mediaForCanal = c === "linkedin" && pdfUrl
-          ? [...mediaUrls, pdfUrl] // images d'abord (vignette calendrier) + PDF en fin (publié en carrousel document)
+        // LinkedIn : PDF (carrousel document) en fin de liste ; Instagram : images uniquement (pas de PDF).
+        const mediaForCanal = c === "linkedin" && liPdfUrl
+          ? [...mediaUrls, liPdfUrl] // images d'abord (vignette calendrier) + PDF en fin (publié en carrousel)
           : (mediaUrls.length > 0 ? mediaUrls : null);
         const row: any = {
           user_id: user.id,
@@ -301,7 +319,7 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
           content_draft: cap || null,
           accroche: cap ? cap.split("\n").map((l) => l.trim()).find(Boolean)?.slice(0, 120) || null : null,
           media_urls: mediaForCanal,
-          format: c === "instagram" ? (igValidImages.length > 1 ? "carousel" : "post") : (pdfUrl ? "carousel" : "post"),
+          format: c === "instagram" ? (igValidImages.length > 1 ? "carousel" : "post") : (liPdfUrl ? "carousel" : "post"),
         };
         if (mode === "schedule") {
           row.scheduled_publish_at = new Date(`${date}T${time}`).toISOString();
@@ -516,9 +534,10 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
         Aperçu{canals.length > 1 ? ` — ${CANAL_LABEL[activeCanal]}` : ""}
       </p>
       {activeText.trim() || igValidImages.length > 0 ? (
+        <>
         <SocialMockup
           canal={activeCanal}
-          format={activeCanal === "instagram" && igValidImages.length > 1 ? "carousel" : "post"}
+          format={igValidImages.length > 1 ? "carousel" : "post"}
           username={igUsername}
           displayName={ownerName}
           avatarUrl={avatarUrl}
@@ -529,6 +548,12 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
           hideFollowButton
           compact
         />
+        {activeCanal === "linkedin" && (!!pdfUrl || igValidImages.length >= 2) && (
+          <p className="mt-2 inline-flex items-center gap-1 text-2xs text-primary bg-primary/10 rounded-pill px-2 py-0.5">
+            📄 Carrousel document — se swipe sur LinkedIn
+          </p>
+        )}
+        </>
       ) : (
         <div className="flex flex-col items-center justify-center py-10 text-center rounded-xl border border-dashed border-border">
           <p className="text-2xl mb-2">👁️</p>
