@@ -80,6 +80,13 @@ function formatPill(format?: string | null, canal?: string | null): { label: str
   return { label, cls };
 }
 
+/* ── Score → couleur par palier (sémantique : vert ≥75, ambre 50-74, rouge <50) ── */
+function scoreToneClass(score: number): string {
+  if (score >= 75) return "text-success";
+  if (score >= 50) return "text-warning";
+  return "text-error";
+}
+
 /* ── Collapsible missions ── */
 const COLLAPSED_KEY = "lac_missions_collapsed";
 const FIRST_SEEN_KEY = "lac_missions_first_seen";
@@ -662,7 +669,7 @@ export default function AdaptiveHome() {
                   </h3>
                   {latestAudit ? (
                     <>
-                      <p className="font-display italic text-bordeaux text-2xl leading-none mt-1">
+                      <p className={`font-display italic text-2xl leading-none mt-1 ${scoreToneClass(latestAudit.score_global)}`}>
                         {latestAudit.score_global}<span className="text-base text-foreground/50">/100</span>
                       </p>
                       <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
