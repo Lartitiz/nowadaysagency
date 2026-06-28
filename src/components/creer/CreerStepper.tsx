@@ -12,7 +12,7 @@ interface StepDef {
 
 const STEPS: StepDef[] = [
   { key: "idea", label: "Idée", verb: "Dis-moi ton idée" },
-  { key: "format", label: "Format", verb: "Choisis le format" },
+  { key: "format", label: "Format", verb: "Canal et format" },
   { key: "brief", label: "Brief", verb: "Affine le brief" },
   { key: "result", label: "Résultat", verb: "Ton contenu prêt" },
 ];
