@@ -83,7 +83,7 @@ export default function SiteAccueil() {
         ...dbPayload, 
         current_step: step 
       },
-      { onConflict: "user_id" }
+      { onConflict: "user_id,workspace_id" }
     );
   }, [user, data, step]);
 
