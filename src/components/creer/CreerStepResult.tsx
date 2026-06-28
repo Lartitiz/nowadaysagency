@@ -783,8 +783,12 @@ export default function CreerStepResult({
           </Button>
         )}
         {isCarousel && hasVisuals && onGenerateVisuals && (
-          <Button variant="ghost" size="sm" onClick={onGenerateVisuals} className="gap-1.5 text-xs text-muted-foreground">
-            <RefreshCw className="h-3.5 w-3.5" /> Regénérer visuels
+          <Button variant="ghost" size="sm" onClick={onGenerateVisuals} disabled={visualLoading} className="gap-1.5 text-xs text-muted-foreground">
+            {visualLoading ? (
+              <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Génération…</>
+            ) : (
+              <><RefreshCw className="h-3.5 w-3.5" /> Regénérer visuels</>
+            )}
           </Button>
         )}
         {isCarousel && !generating && result && (
