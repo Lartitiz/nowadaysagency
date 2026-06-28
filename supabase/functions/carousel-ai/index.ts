@@ -176,7 +176,10 @@ serve(async (req) => {
     const { type, workspace_id, launch_context, series_id, episode_number, news_context: newsContext } = body;
     const isLinkedIn = body.channel === "linkedin";
 
-    const category = (type === "suggest_topics" || type === "suggest_angles" || type === "deepening_questions" || type === "structure_proposal") ? "suggestion" : "content";
+    let category = (type === "suggest_topics" || type === "suggest_angles" || type === "deepening_questions" || type === "structure_proposal") ? "suggestion" : "content";
+    // Les carrousels « Qualité Max » tournent sur Opus (~50× le coût d'un post) →
+    // on les compte sur un quota dédié `quality_max` (gratuit = 0, Premium = 20/mois).
+    if (category === "content" && body?.quality_max) category = "quality_max";
     const quotaCheck = await checkQuota(userId, category, workspace_id);
     if (!quotaCheck.allowed) {
       return new Response(

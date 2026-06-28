@@ -11,14 +11,12 @@ import { STRIPE_PLANS, CREDIT_PACKS } from "@/lib/stripe-config";
 import { Link } from "react-router-dom";
 import PromoCodeInput from "@/components/PromoCodeInput";
 
+// Compteur global unique (« total ») affiché en tête. Ici on ne détaille que les
+// deux sous-plafonds qui ont vraiment du sens : les audits et les carrousels
+// Qualité Max (Opus, réservés au payant). Le reste compte dans le compteur global.
 const QUOTA_CATEGORIES: { key: AiCategory; emoji: string; label: string }[] = [
-  { key: "content", emoji: "📝", label: "Contenus" },
   { key: "audit", emoji: "🔍", label: "Audits" },
-  { key: "dm_comment", emoji: "📩", label: "DM / Commentaires" },
-  { key: "bio_profile", emoji: "👤", label: "Bio / Profil" },
-  { key: "suggestion", emoji: "💡", label: "Suggestions" },
-  { key: "import", emoji: "📄", label: "Imports" },
-  { key: "adaptation", emoji: "🔄", label: "Adaptations" },
+  { key: "quality_max", emoji: "✨", label: "Carrousels Qualité Max" },
 ];
 
 
@@ -108,7 +106,8 @@ export default function AbonnementPage() {
   const totalLimit = usage.total?.limit ?? 100;
   const totalPct = totalLimit > 0 ? Math.round((totalUsed / totalLimit) * 100) : 0;
   const totalRemaining = Math.max(0, totalLimit - totalUsed);
-  const isExhausted = totalRemaining === 0;
+  const isUnlimited = totalLimit >= 9999;
+  const isExhausted = !isUnlimited && totalRemaining === 0;
   const monthName = new Date().toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
   const renewalDate = getNextRenewalDate();
 
@@ -145,7 +144,7 @@ export default function AbonnementPage() {
               {subInfo?.plan === "binome" && (
                 <div className="mt-2 space-y-1">
                   <p className="text-xs text-muted-foreground">🎯 Accompagnement 6 mois · 7 sessions avec Laetitia</p>
-                  <p className="text-xs text-muted-foreground">💡 300 crédits IA / mois</p>
+                  <p className="text-xs text-muted-foreground">✨ Création IA en grand volume incluse</p>
                   <Link to="/accompagnement">
                     <Button size="sm" variant="outline" className="rounded-full mt-1 text-xs">
                       🤝 Voir mon accompagnement →
@@ -181,21 +180,35 @@ export default function AbonnementPage() {
 
           {/* Global bar */}
           <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Crédits mensuels : {totalUsed}/{totalLimit} utilisés</span>
-              <span className={`font-mono-ui font-semibold ${isExhausted ? "text-destructive" : "text-foreground"}`}>
-                {totalPct}%
-              </span>
-            </div>
-            <div className="relative h-3 w-full overflow-hidden rounded-full bg-secondary">
-              <div
-                className={`h-full rounded-full transition-all ${getProgressColor(totalPct)}`}
-                style={{ width: `${Math.min(totalPct, 100)}%` }}
-              />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Se renouvellent le {renewalDate}
-            </p>
+            {isUnlimited ? (
+              <>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Créations ce mois : {totalUsed}</span>
+                  <span className="font-semibold text-primary">Illimité</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Crée autant que tu veux. Seuls les carrousels Qualité Max ont un quota mensuel.
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Crédits mensuels : {totalUsed}/{totalLimit} utilisés</span>
+                  <span className={`font-mono-ui font-semibold ${isExhausted ? "text-destructive" : "text-foreground"}`}>
+                    {totalPct}%
+                  </span>
+                </div>
+                <div className="relative h-3 w-full overflow-hidden rounded-full bg-secondary">
+                  <div
+                    className={`h-full rounded-full transition-all ${getProgressColor(totalPct)}`}
+                    style={{ width: `${Math.min(totalPct, 100)}%` }}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Se renouvellent le {renewalDate}
+                </p>
+              </>
+            )}
           </div>
 
           {/* Bonus credits display */}
@@ -225,7 +238,9 @@ export default function AbonnementPage() {
               <p className="text-xs font-semibold text-muted-foreground mb-2">📊 Détail des crédits ce mois</p>
               {QUOTA_CATEGORIES.map(cat => {
                 const catUsage = usage[cat.key];
-                if (!catUsage || catUsage.limit === 0) return null;
+                // Masque les sous-plafonds non pertinents : 0 (non dispo sur ce
+                // plan) et illimité (≥9999, inutile d'afficher « X/9999 »).
+                if (!catUsage || catUsage.limit === 0 || catUsage.limit >= 9999) return null;
                 const pct = catUsage.limit > 0 ? Math.round((catUsage.used / catUsage.limit) * 100) : 0;
                 return (
                   <div key={cat.key}>

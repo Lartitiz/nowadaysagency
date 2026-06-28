@@ -221,7 +221,10 @@ serve(async (req) => {
       .maybeSingle();
     const ownerWorkspaceId = wsMember?.workspace_id;
 
-    const quota = await checkQuota(user.id, "content", ownerWorkspaceId);
+    const reqBody = await req.json();
+    // Carrousel « Qualité Max » = Opus (~50× le coût d'un post) → quota dédié
+    // `quality_max` (gratuit = 0, Premium = 20/mois).
+    const quota = await checkQuota(user.id, reqBody?.quality_max ? "quality_max" : "content", ownerWorkspaceId);
     if (!quota.allowed) {
       return new Response(
         JSON.stringify({ error: "limit_reached", message: quota.message, quota }),
@@ -229,7 +232,6 @@ serve(async (req) => {
       );
     }
 
-    const reqBody = await req.json();
     validateInput(reqBody, z.object({
       slides: z.array(z.record(z.unknown())).min(1, "Aucune slide fournie").max(20),
       template_style: z.string().max(100).optional().nullable(),
@@ -1477,7 +1479,7 @@ Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": ".
       console.warn("carousel-visual: slides_invariants manquant dans la réponse Claude → fallback serveur");
     }
 
-    await logUsage(user.id, "content", "carousel_visual", undefined, model, workspaceId);
+    await logUsage(user.id, reqBody?.quality_max ? "quality_max" : "content", "carousel_visual", undefined, model, workspaceId);
 
     return new Response(JSON.stringify({ result, remaining: quota.remaining }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

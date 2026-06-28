@@ -5,45 +5,57 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 
+// Modèle de crédits simplifié (2026-06) :
+//  - `total` = LE compteur global unique de créations du mois (toutes catégories
+//    de génération confondues). C'est le seul chiffre que voit la cliente.
+//  - `audit` = sous-plafond dédié aux audits (compte dans `total`).
+//  - `quality_max` = carrousels Opus « Qualité Max », le SEUL poste vraiment
+//    coûteux → plafonné. Gratuit = 0 (réservé au payant). 20 ≈ break-even à 39€.
+//  - `photo_retouch` = génération d'image (coût propre) → gardé borné.
+//  - Toutes les autres catégories sont alignées sur `total` pour que le compteur
+//    global soit la seule vraie limite (le détail par catégorie devient cosmétique).
 export const PLAN_LIMITS: Record<string, Record<string, number>> = {
   free: {
-    total: 60,
-    content: 60,
-    audit: 60,
-    dm_comment: 60,
-    bio_profile: 60,
-    suggestion: 60,
-    coach: 60,
-    import: 60,
-    adaptation: 60,
-    deep_research: 60,
+    total: 23,
+    content: 23,
+    audit: 3,
+    dm_comment: 23,
+    bio_profile: 23,
+    suggestion: 23,
+    coach: 23,
+    import: 23,
+    adaptation: 23,
+    deep_research: 23,
     photo_retouch: 5,
+    quality_max: 0,
   },
   outil: {
     total: 9999,
     content: 9999,
     audit: 9999,
-    dm_comment: 60,
-    bio_profile: 15,
-    suggestion: 30,
-    coach: 120,
-    import: 10,
-    adaptation: 30,
-    deep_research: 15,
+    dm_comment: 9999,
+    bio_profile: 9999,
+    suggestion: 9999,
+    coach: 9999,
+    import: 9999,
+    adaptation: 9999,
+    deep_research: 9999,
     photo_retouch: 50,
+    quality_max: 20,
   },
   binome: {
     total: 9999,
     content: 9999,
     audit: 9999,
-    dm_comment: 50,
-    bio_profile: 15,
-    suggestion: 30,
-    coach: 120,
-    import: 10,
-    adaptation: 30,
-    deep_research: 30,
+    dm_comment: 9999,
+    bio_profile: 9999,
+    suggestion: 9999,
+    coach: 9999,
+    import: 9999,
+    adaptation: 9999,
+    deep_research: 9999,
     photo_retouch: 100,
+    quality_max: 40,
   },
 };
 
@@ -68,6 +80,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   adaptation: "adaptations",
   deep_research: "recherches approfondies",
   photo_retouch: "retouches photo",
+  quality_max: "carrousels Qualité Max",
 };
 
 export interface QuotaResult {
@@ -183,7 +196,7 @@ export async function checkQuota(
 
   // Check if category is available for this plan
   if ((limits[category] ?? 0) === 0) {
-    const planLabel = plan === "free" ? "Outil" : "Binôme";
+    const planLabel = plan === "free" ? "Premium" : "Binôme";
     return {
       allowed: false,
       plan,

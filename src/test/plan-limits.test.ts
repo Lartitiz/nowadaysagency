@@ -4,12 +4,18 @@ import { PLAN_LIMITS, CATEGORIES } from "@/lib/plan-limits";
 const ALL_CATEGORIES = [...CATEGORIES, "total"] as const;
 
 describe("PLAN_LIMITS", () => {
-  it("free plan has a total of 60", () => {
-    expect(PLAN_LIMITS.free.total).toBe(60);
+  it("free plan has a total of 23 (compteur global ≈20 créations + 3 audits)", () => {
+    expect(PLAN_LIMITS.free.total).toBe(23);
   });
 
-  it("now_pilot plan has a total of 300", () => {
-    expect(PLAN_LIMITS.now_pilot.total).toBe(300);
+  it("free plan caps audits at 3", () => {
+    expect(PLAN_LIMITS.free.audit).toBe(3);
+  });
+
+  it("quality_max (carrousels Opus) est réservé au payant", () => {
+    expect(PLAN_LIMITS.free.quality_max).toBe(0);
+    expect(PLAN_LIMITS.outil.quality_max).toBe(20);
+    expect(PLAN_LIMITS.binome.quality_max).toBe(40);
   });
 
   it.each(Object.keys(PLAN_LIMITS))("plan '%s' has limits for all categories", (plan) => {
@@ -19,19 +25,9 @@ describe("PLAN_LIMITS", () => {
     }
   });
 
-  it("free plan has coach: 15", () => {
-    expect(PLAN_LIMITS.free.coach).toBe(15);
-  });
-
-  it("free plan has suggestion: 5", () => {
-    expect(PLAN_LIMITS.free.suggestion).toBe(5);
-  });
-
-  it("now_pilot limits are >= outil limits for most categories", () => {
-    const exceptions = ["dm_comment"]; // now_pilot has 50 vs outil 60, by design
+  it("binome limits are >= outil limits for every category", () => {
     for (const cat of ALL_CATEGORIES) {
-      if (exceptions.includes(cat)) continue;
-      expect(PLAN_LIMITS.now_pilot[cat]).toBeGreaterThanOrEqual(PLAN_LIMITS.outil[cat]);
+      expect(PLAN_LIMITS.binome[cat]).toBeGreaterThanOrEqual(PLAN_LIMITS.outil[cat]);
     }
   });
 
