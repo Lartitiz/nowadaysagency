@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { getUserContext, formatContextForAI, buildIdentityBlock } from "../_shared/user-context.ts";
-import { callAnthropic, getModelForAction } from "../_shared/anthropic.ts";
+import { callAnthropic, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { buildSystemPrompt, CONTENT_VOICE_RULES, ANTI_PATTERNS } from "../_shared/base-prompts.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
@@ -195,13 +195,14 @@ LIMITES :
     }));
 
     const model = getModelForAction("assistant_chat");
+    const usage: UsageSink = {};
     const response = await callAnthropic({
       model,
       system: systemPrompt,
       messages: recentMessages,
       temperature: 0.8,
       max_tokens: 1024,
-    });
+    }, usage);
 
     // Réponse vide (stop_reason anormal, content absent) : on NE facture PAS
     // et on renvoie une erreur non décomptée plutôt qu'une bulle vide payée.
@@ -213,7 +214,7 @@ LIMITES :
 
     // Log usage — best-effort : ne doit jamais faire échouer une réponse déjà générée
     try {
-      await logUsage(userId, "coach", "coach_chat", undefined, model, workspace_id);
+      await logUsage(userId, "coach", "coach_chat", usage.total_tokens, usage.model, workspace_id);
     } catch (logErr) {
       console.error("[coach-chat] logUsage failed (non-blocking):", logErr);
     }

@@ -1,5 +1,5 @@
 import { authenticateRequest, getServiceClient, AuthError } from "../_shared/auth.ts";
-import { callAnthropicSimple, getDefaultModel } from "../_shared/anthropic.ts";
+import { callAnthropicSimple, getDefaultModel, type UsageSink } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { extractFromBlob } from "../_shared/scraping.ts";
@@ -109,12 +109,14 @@ Retourne UNIQUEMENT un JSON valide, sans texte avant ni après :
   "story": "éléments de storytelling/parcours, ou null"
 }`;
 
+    const usage: UsageSink = {};
     const result = await callAnthropicSimple(
       getDefaultModel(),
       systemPrompt,
       `Voici les documents de marque à analyser :\n\n${combinedText}`,
       0.3,
-      2048
+      2048,
+      usage
     );
 
     // Parse JSON from response
@@ -136,7 +138,7 @@ Retourne UNIQUEMENT un JSON valide, sans texte avant ni après :
         .eq("id", doc.id);
     }
 
-    await logUsage(userId, "import", "analyze_documents", undefined, undefined, workspace_id || undefined);
+    await logUsage(userId, "import", "analyze_documents", usage.total_tokens, usage.model, workspace_id || undefined);
 
     return new Response(JSON.stringify({ extracted_data }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

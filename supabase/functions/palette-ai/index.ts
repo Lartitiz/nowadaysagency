@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
+import { callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
@@ -86,7 +86,8 @@ Retourne ce JSON exactement :
 }`;
 
     const model = getModelForAction("content");
-    const raw = await callAnthropicSimple(model, systemPrompt, userPrompt, 0.9, 2048);
+    const usage: UsageSink = {};
+    const raw = await callAnthropicSimple(model, systemPrompt, userPrompt, 0.9, 2048, usage);
 
     // Extract JSON from response
     let parsed;
@@ -100,7 +101,7 @@ Retourne ce JSON exactement :
       });
     }
 
-    await logUsage(userId, "content", "palette_ai");
+    await logUsage(userId, "content", "palette_ai", usage.total_tokens, usage.model);
 
     return new Response(JSON.stringify(parsed), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

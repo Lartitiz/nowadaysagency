@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { CORE_PRINCIPLES } from "../_shared/copywriting-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildIdentityBlock } from "../_shared/user-context.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
-import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
+import { callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
@@ -125,8 +125,9 @@ serve(async (req) => {
     }
 
     systemPrompt = VOICE_PRIORITY + systemPrompt;
-    const content = await callAnthropicSimple(getModelForAction("pinterest"), systemPrompt, userPrompt, 0.8);
-    await logUsage(user.id, "content", "pinterest", undefined, undefined, workspace_id || undefined);
+    const usage: UsageSink = {};
+    const content = await callAnthropicSimple(getModelForAction("pinterest"), systemPrompt, userPrompt, 0.8, undefined, usage);
+    await logUsage(user.id, "content", "pinterest", usage.total_tokens, usage.model, workspace_id || undefined);
     return new Response(JSON.stringify({ content }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error: any) {
     if (error instanceof ValidationError) {

@@ -5,7 +5,7 @@ import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limit
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { isDemoUser } from "../_shared/guard-demo.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
-import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
+import { callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { scrapeWebsite } from "../_shared/scraping.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
@@ -180,8 +180,9 @@ ${articleSlice}
 Analyse maintenant.`;
 
     let raw = "";
+    const usage: UsageSink = {};
     try {
-      raw = await callAnthropicSimple(model, systemPrompt, userPrompt, 0.6, 1600);
+      raw = await callAnthropicSimple(model, systemPrompt, userPrompt, 0.6, 1600, usage);
     } catch (e) {
       console.error("[newsjacking-from-url] anthropic error", (e as Error).message);
       clearTimeout(timeout);
@@ -233,7 +234,7 @@ Analyse maintenant.`;
 
     // 4. Log usage (1 crédit, même catégorie que la recherche)
     try {
-      await logUsage(user.id, "deep_research", "newsjacking_from_url", undefined, model, workspace_id);
+      await logUsage(user.id, "deep_research", "newsjacking_from_url", usage.total_tokens, usage.model, workspace_id);
     } catch (e) {
       console.warn("[newsjacking-from-url] logUsage failed", (e as Error).message);
     }

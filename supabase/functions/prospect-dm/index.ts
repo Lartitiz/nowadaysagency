@@ -3,7 +3,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 import { CORE_PRINCIPLES, ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
-import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
+import { callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
@@ -153,7 +153,8 @@ Retourne EXACTEMENT ce JSON (pas de texte autour) :
   "variant_b": "le second message, ton légèrement différent"
 }`;
 
-    const content = await callAnthropicSimple(getModelForAction("dm_comment"), "", prompt, 0.8);
+    const usage: UsageSink = {};
+    const content = await callAnthropicSimple(getModelForAction("dm_comment"), "", prompt, 0.8, undefined, usage);
 
     // Clean AI response
     let cleaned = content.replace(/```json\s*/gi, "").replace(/```\s*/gi, "").trim();
@@ -182,7 +183,7 @@ Retourne EXACTEMENT ce JSON (pas de texte autour) :
       }
     }
 
-    await logUsage(user.id, "dm_comment", "dm");
+    await logUsage(user.id, "dm_comment", "dm", usage.total_tokens, usage.model);
 
     return new Response(JSON.stringify(variants), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

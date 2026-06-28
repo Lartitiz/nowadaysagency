@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { corsHeaders } from "../_shared/cors.ts";
-import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
+import { callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI } from "../_shared/user-context.ts";
@@ -350,12 +350,14 @@ Réponds UNIQUEMENT en JSON (sans backticks) avec cette structure :
   ]
 }`;
 
+    const usage: UsageSink = {};
     const rawResponse = await callAnthropicSimple(
       getModelForAction("generation"),
       BASE_SYSTEM_RULES + "\n\n" + systemPrompt + "\n\n" + ANTI_SLOP,
       "Analyse cette page de vente et produis les recommandations en JSON.",
       0.5,
-      8192
+      8192,
+      usage
     );
 
     // Parse JSON response
@@ -372,7 +374,7 @@ Réponds UNIQUEMENT en JSON (sans backticks) avec cette structure :
     }
 
     // Log usage
-    await logUsage(userId, "content", "optimize_sales_page", undefined, "claude-sonnet", workspace_id);
+    await logUsage(userId, "content", "optimize_sales_page", usage.total_tokens, usage.model, workspace_id);
 
     return new Response(JSON.stringify(parsed), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

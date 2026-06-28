@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
-import { callAnthropic } from "../_shared/anthropic.ts";
+import { callAnthropic, type UsageSink } from "../_shared/anthropic.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
@@ -219,13 +219,14 @@ CHARTE : primary ${ch.color_primary}, secondary ${ch.color_secondary}, accent ${
 
     const model = "claude-opus-4-6" as any;
 
+    const usage: UsageSink = {};
     const rawResponse = await callAnthropic({
       model,
       system: systemPrompt,
       messages,
       temperature: 0.5,
       max_tokens: 6144,
-    });
+    }, usage);
 
     let result: any;
     try {
@@ -266,7 +267,7 @@ CHARTE : primary ${ch.color_primary}, secondary ${ch.color_secondary}, accent ${
       result.overlay_html = fontsLink + html;
     }
 
-    await logUsage(user.id, "content", "pinterest_photo_brief", undefined, model, filterWs);
+    await logUsage(user.id, "content", "pinterest_photo_brief", usage.total_tokens, usage.model, filterWs);
 
     return new Response(JSON.stringify({ result, remaining: quota.remaining }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
-import { callAnthropicSimple, getDefaultModel } from "../_shared/anthropic.ts";
+import { callAnthropicSimple, getDefaultModel, type UsageSink } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
@@ -342,12 +342,14 @@ IMPORTANT : retourne UNIQUEMENT le JSON, sans texte avant ni après.`;
 
     const userPrompt = `Voici les sources de communication de l'utilisatrice :\n${sourceText}`;
 
+    const usage: UsageSink = {};
     const raw = await callAnthropicSimple(
       getDefaultModel(),
       systemPrompt,
       userPrompt,
       0.3,
-      6000
+      6000,
+      usage
     );
 
     let auditResult: Record<string, any>;
@@ -418,7 +420,7 @@ IMPORTANT : retourne UNIQUEMENT le JSON, sans texte avant ni après.`;
     }
 
     // Log usage
-    await logUsage(user.id, "audit", "audit_branding");
+    await logUsage(user.id, "audit", "audit_branding", usage.total_tokens, usage.model);
 
     return new Response(JSON.stringify({ audit: auditResult, sources_used: sourcesUsed }), {
       headers: { ...cors, "Content-Type": "application/json" },

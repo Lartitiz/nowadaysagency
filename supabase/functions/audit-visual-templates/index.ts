@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
-import { callAnthropic, getModelForAction } from "../_shared/anthropic.ts";
+import { callAnthropic, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
@@ -197,13 +197,14 @@ La description template_layout_description doit être TRÈS détaillée (200-500
 
     const model = "claude-sonnet-4-6" as any;
 
+    const usage: UsageSink = {};
     const rawResponse = await callAnthropic({
       model,
       system: systemPrompt,
       messages: [{ role: "user", content: userContent }],
       temperature: 0.3,
       max_tokens: 4096,
-    });
+    }, usage);
 
     // Parse JSON from response
     let result: any;
@@ -221,7 +222,7 @@ La description template_layout_description doit être TRÈS détaillée (200-500
     }
 
     // Log usage
-    await logUsage(user.id, "audit", "audit_visual_templates", undefined, model, workspaceId);
+    await logUsage(user.id, "audit", "audit_visual_templates", usage.total_tokens, usage.model, workspaceId);
 
     return new Response(JSON.stringify({ result, remaining: quota.remaining }), {
       headers: { ...cors, "Content-Type": "application/json" },

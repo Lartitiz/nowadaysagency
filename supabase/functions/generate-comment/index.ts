@@ -3,7 +3,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 import { CORE_PRINCIPLES, ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
-import { callAnthropic, AnthropicError, getModelForAction } from "../_shared/anthropic.ts";
+import { callAnthropic, AnthropicError, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
@@ -121,18 +121,19 @@ Retourne EXACTEMENT ce JSON (pas de texte autour) :
       messageContent = textPrompt;
     }
 
+    const usage: UsageSink = {};
     const content = await callAnthropic({
       model: getModelForAction("dm_comment"),
       messages: [{ role: "user", content: messageContent }],
       temperature: 0.8,
-    });
+    }, usage);
 
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error("Failed to parse AI response");
 
     const result = JSON.parse(jsonMatch[0]);
 
-    await logUsage(user.id, "dm_comment", "comment");
+    await logUsage(user.id, "dm_comment", "comment", usage.total_tokens, usage.model);
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -4,7 +4,7 @@ import { LINKEDIN_PRINCIPLES } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
-import { callAnthropic, getDefaultModel } from "../_shared/anthropic.ts";
+import { callAnthropic, getDefaultModel, type UsageSink } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
@@ -223,14 +223,15 @@ Réponds UNIQUEMENT en JSON sans backticks :
     ];
 
     // Screenshots are sent as Anthropic vision format (type: "image", source: { type: "url" })
+    const usage: UsageSink = {};
     const content = await callAnthropic({
       model: getDefaultModel(),
       system: systemPrompt,
       messages: [{ role: "user", content: userContent }],
       temperature: 0.7,
-    });
+    }, usage);
 
-    await logUsage(user.id, "audit", "audit_linkedin", undefined, undefined, workspace_id);
+    await logUsage(user.id, "audit", "audit_linkedin", usage.total_tokens, usage.model, workspace_id);
 
     return new Response(JSON.stringify({ content }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

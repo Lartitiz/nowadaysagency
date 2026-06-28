@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
-import { callAnthropicSimple, getDefaultModel } from "../_shared/anthropic.ts";
+import { callAnthropicSimple, getDefaultModel, type UsageSink } from "../_shared/anthropic.ts";
 import { getUserContext, formatContextForAI } from "../_shared/user-context.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
@@ -184,12 +184,14 @@ Retourne UNIQUEMENT un JSON valide, sans markdown, sans backticks :
 
 Si une section n'a pas de données, mets null pour cette clé. Pour les arrays vides, mets [].`;
 
+    const usage: UsageSink = {};
     const raw = await callAnthropicSimple(
       getDefaultModel(),
       systemPrompt + "\n\n" + ANTI_SLOP,
       `Voici les données complètes du branding :\n\n${brandingText}`,
       0.7,
-      2048
+      2048,
+      usage
     );
 
     // Parse JSON from response
@@ -213,7 +215,7 @@ Si une section n'a pas de données, mets null pour cette clé. Pour les arrays v
     }, { onConflict: "user_id" });
 
     // Log usage
-    await logUsage(user.id, "content", "branding_summary", undefined, "claude-sonnet-4-6");
+    await logUsage(user.id, "content", "branding_summary", usage.total_tokens, usage.model);
 
     return new Response(JSON.stringify({
       summaries,
