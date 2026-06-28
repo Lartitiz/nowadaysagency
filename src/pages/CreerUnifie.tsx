@@ -2598,7 +2598,23 @@ export default function CreerUnifie() {
         if (handleQuotaError({ data })) return;
       }
       if (data?.error) throw new Error(data.error);
-      setVisualSlides(stripFontImportLeakFromSlides(data.result?.slides_html || []));
+      // Garde déterministe : ne JAMAIS afficher « Visuels générés ! » sur un résultat
+      // vide ou amputé. Sans ça, une slide au HTML vide ou un tableau plus court que
+      // demandé passe pour un succès → l'utilisatrice exporte un PPTX avec page(s)
+      // blanche(s). On exige un tableau non vide, du HTML réel sur CHAQUE slide, et au
+      // moins autant de slides que demandé. À défaut → erreur réessayable (le catch
+      // gère le toast en avant-plan et reste silencieux en pré-génération background).
+      const producedSlides = stripFontImportLeakFromSlides(data.result?.slides_html || []);
+      const expectedCount = requestBody.slides?.length || 0;
+      const slidesAreValid =
+        Array.isArray(producedSlides) &&
+        producedSlides.length > 0 &&
+        producedSlides.every((s: any) => typeof s?.html === "string" && s.html.trim().length > 0) &&
+        (expectedCount === 0 || producedSlides.length >= expectedCount);
+      if (!slidesAreValid) {
+        throw new Error("Les visuels n'ont pas été générés correctement (slides manquantes ou vides). Réessaie.");
+      }
+      setVisualSlides(producedSlides);
       if (!opts?.background) {
         if (downgradeReason === "user_chose_text") {
           toast.success("Carrousel généré en mode texte (aucune photo disponible).");
