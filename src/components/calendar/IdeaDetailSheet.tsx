@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
@@ -10,12 +10,13 @@ import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { CalendarIcon, Sparkles, Trash2, Save, RefreshCw, Newspaper } from "lucide-react";
+import { CalendarIcon, Sparkles, Trash2, RefreshCw, Newspaper, Check, Loader2, ChevronDown } from "lucide-react";
 import type { SavedIdea } from "./CalendarIdeasSidebar";
 
 const FORMAT_OPTIONS = [
@@ -64,8 +65,14 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
   const [contentDraft, setContentDraft] = useState("");
   const [planDate, setPlanDate] = useState<Date | undefined>();
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
   const [showTransformPicker, setShowTransformPicker] = useState(false);
+  // Auto-save silencieux (mêmes codes que l'éditeur de post)
+  const [autoSaveState, setAutoSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const baselineRef = useRef<string>("");
+  const savingRef = useRef<boolean>(false);
+
+  const serializeIdea = (d: { title: string; ideaFormat: string; objective: string; notes: string; contentDraft: string }) =>
+    JSON.stringify({ title: d.title.trim(), ideaFormat: d.ideaFormat, objective: d.objective, notes: d.notes, contentDraft: d.contentDraft });
 
   useEffect(() => {
     if (idea) {
@@ -74,14 +81,20 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
       setObjective(idea.objectif || "visibilite");
       setNotes(idea.notes || "");
       setContentDraft(idea.content_draft || "");
-      setConfirmDelete(false);
       setShowDatePicker(false);
       setShowTransformPicker(false);
       setPlanDate(undefined);
+      setAutoSaveState("idle");
+      // Baseline calculée depuis l'idée elle-même → pas d'auto-save parasite à l'ouverture.
+      baselineRef.current = serializeIdea({
+        title: idea.titre || "", ideaFormat: idea.format || "post", objective: idea.objectif || "visibilite",
+        notes: idea.notes || "", contentDraft: idea.content_draft || "",
+      });
     }
   }, [idea]);
 
-  const handleSave = async () => {
+  // Persistance silencieuse (update par id, l'idée existe toujours).
+  const persistIdea = async () => {
     if (!idea || !user) return;
     await supabase.from("saved_ideas").update({
       titre: title.trim(),
@@ -91,9 +104,26 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
       content_draft: contentDraft || null,
       canal: ideaFormat === "linkedin" ? "linkedin" : "instagram",
     }).eq("id", idea.id);
-    toast.success("Idée enregistrée !");
-    onUpdated();
   };
+
+  // Auto-save (debounce) : sauve dès qu'un champ change, sans bouton ni toast.
+  useEffect(() => {
+    if (!open || !idea) return;
+    if (!title.trim()) return;
+    const serialized = serializeIdea({ title, ideaFormat, objective, notes, contentDraft });
+    if (serialized === baselineRef.current) return;
+    const t = setTimeout(async () => {
+      if (savingRef.current) return;
+      savingRef.current = true;
+      setAutoSaveState("saving");
+      try { await persistIdea(); } finally { savingRef.current = false; }
+      baselineRef.current = serialized;
+      setAutoSaveState("saved");
+      onUpdated();
+    }, 1000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, title, ideaFormat, objective, notes, contentDraft]);
 
   const handlePlan = async () => {
     if (!idea || !planDate || !user) return;
@@ -108,7 +138,7 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
       objectif: objective,
       format: ideaFormat,
       notes: notes || null,
-      content_draft: idea.content_draft,
+      content_draft: contentDraft || idea.content_draft || null,
       series_id: (idea as any).series_id ?? null,
       episode_number: (idea as any).episode_number ?? null,
     } as any).select("id").single();
@@ -122,20 +152,16 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
 
   const handleDelete = async () => {
     if (!idea) return;
-    if (!confirmDelete) {
-      setConfirmDelete(true);
-      return;
-    }
+    if (!window.confirm("Supprimer cette idée ? Cette action est irréversible.")) return;
     await supabase.from("saved_ideas").delete().eq("id", idea.id);
     toast.success("Idée supprimée");
     onOpenChange(false);
     onUpdated();
   };
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     if (!idea) return;
-    // Save changes first
-    handleSave();
+    await persistIdea(); // sauvegarde silencieuse avant de quitter (l'auto-save gère le reste)
     const route = FORMAT_ROUTES[ideaFormat] || "/creer";
     navigate(route, {
       state: {
@@ -150,8 +176,9 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
     onOpenChange(false);
   };
 
-  const handleTransform = (targetFormat: string) => {
+  const handleTransform = async (targetFormat: string) => {
     if (!idea) return;
+    await persistIdea();
     const route = FORMAT_ROUTES[targetFormat] || "/creer";
     navigate(route, {
       state: {
@@ -184,6 +211,24 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
     navigate("/creer", { state: { subject, context, fromIdeas: true, ideaId: idea.id } });
   };
 
+  // En-tête de contexte glanceable (aligné sur l'éditeur de post)
+  const formatLabel = (FORMAT_OPTIONS.find((f) => f.id === ideaFormat) || FORMAT_OPTIONS[0]).label;
+  const objectifLabel = OBJ_OPTIONS.find((o) => o.id === objective)?.label;
+  const contextHeader = (
+    <div className="flex items-center gap-2 flex-wrap text-left">
+      <span className="text-base leading-none" aria-hidden="true">💡</span>
+      <span className="text-sm font-semibold text-foreground">Idée</span>
+      <span className="text-border">·</span>
+      <span className="text-xs text-muted-foreground">{formatLabel}</span>
+      {objectifLabel && (
+        <>
+          <span className="text-border">·</span>
+          <span className="text-xs text-muted-foreground">{objectifLabel}</span>
+        </>
+      )}
+    </div>
+  );
+
   const content = (
 
     <div className="space-y-5 mt-2">
@@ -208,7 +253,7 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
 
       {/* Titre */}
       <div>
-        <label htmlFor="idea-title" className="text-sm font-medium mb-1.5 block">Titre</label>
+        <label htmlFor="idea-title" className="text-xs font-semibold mb-1.5 block text-foreground">Titre</label>
         <Input
           id="idea-title"
           value={title}
@@ -220,7 +265,7 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
 
       {/* Format */}
       <div>
-        <label className="text-sm font-medium mb-1.5 block">Format</label>
+        <label className="text-xs font-semibold mb-1.5 block text-foreground">Format</label>
         <div className="flex flex-wrap gap-1.5">
           {FORMAT_OPTIONS.map((f) => (
             <button
@@ -241,7 +286,7 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
 
       {/* Objectif */}
       <div>
-        <label className="text-sm font-medium mb-1.5 block">Objectif</label>
+        <label className="text-xs font-semibold mb-1.5 block text-foreground">Objectif</label>
         <div className="flex flex-wrap gap-1.5">
           {OBJ_OPTIONS.map((o) => (
             <button
@@ -262,7 +307,7 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
 
       {/* Notes */}
       <div>
-        <label htmlFor="idea-notes" className="text-sm font-medium mb-1.5 block">Notes</label>
+        <label htmlFor="idea-notes" className="text-xs font-semibold mb-1.5 block text-foreground">Notes</label>
         <Textarea
           id="idea-notes"
           value={notes}
@@ -341,51 +386,10 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
         </div>
       )}
 
-      {/* Actions */}
-      <div className="border-t border-border pt-4 space-y-2">
-        <div className="flex flex-wrap gap-2">
-          {!showDatePicker && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowDatePicker(true)}
-              className="rounded-pill text-xs gap-1.5"
-            >
-              <CalendarIcon className="h-3.5 w-3.5" /> Planifier
-            </Button>
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleGenerate}
-            className="rounded-pill text-xs gap-1.5"
-          >
-            <Sparkles className="h-3.5 w-3.5" /> Générer le contenu
-          </Button>
-          {idea?.content_draft && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowTransformPicker((v) => !v)}
-              className="rounded-pill text-xs gap-1.5"
-            >
-              <RefreshCw className="h-3.5 w-3.5" /> Transformer dans un autre format
-            </Button>
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleDelete}
-            className={cn(
-              "rounded-pill text-xs gap-1.5",
-              confirmDelete ? "text-destructive border-destructive" : "text-muted-foreground"
-            )}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            {confirmDelete ? "Confirmer la suppression" : "Supprimer"}
-          </Button>
-        </div>
-        {showTransformPicker && (
+      {/* Transformer : pills affichées quand on l'a demandé depuis le menu */}
+      {showTransformPicker && idea?.content_draft && (
+        <div className="rounded-[10px] border border-border bg-card/40 p-3 space-y-2">
+          <p className="text-xs font-semibold text-foreground">🔄 Transformer dans un autre format</p>
           <div className="flex flex-wrap gap-1.5">
             {transformFormats.map((f) => (
               <button
@@ -397,10 +401,42 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
               </button>
             ))}
           </div>
-        )}
-        <Button onClick={handleSave} disabled={!title.trim()} className="w-full rounded-pill gap-1.5">
-          <Save className="h-3.5 w-3.5" /> Enregistrer
-        </Button>
+        </div>
+      )}
+
+      {/* Footer : auto-save silencieux + UN bouton « Générer » avec menu (aligné sur l'éditeur de post) */}
+      <div className="border-t border-border pt-4 flex items-center gap-3">
+        <span className="text-2xs text-muted-foreground flex items-center gap-1 min-w-0">
+          {autoSaveState === "saving" ? (<><Loader2 className="h-3 w-3 animate-spin shrink-0" /> Enregistrement…</>)
+            : autoSaveState === "saved" ? (<><Check className="h-3 w-3 text-success shrink-0" /> Enregistré</>)
+            : title.trim() ? "Enregistrement automatique" : "Donne un titre pour commencer"}
+        </span>
+        <div className="ml-auto flex items-center gap-2">
+          <Button onClick={handleGenerate} disabled={!title.trim()} className="rounded-pill gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90">
+            <Sparkles className="h-4 w-4" /> Générer le contenu
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon" className="rounded-pill" aria-label="Plus d'actions">
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem onClick={() => setShowDatePicker(true)}>
+                <CalendarIcon className="h-4 w-4 mr-2" /> Planifier dans le calendrier
+              </DropdownMenuItem>
+              {idea?.content_draft && (
+                <DropdownMenuItem onClick={() => setShowTransformPicker((v) => !v)}>
+                  <RefreshCw className="h-4 w-4 mr-2" /> Transformer dans un autre format
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleDelete} className="text-destructive focus:text-destructive">
+                <Trash2 className="h-4 w-4 mr-2" /> Supprimer
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
     </div>
   );
@@ -409,9 +445,10 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="font-display">✏️ Modifier l'idée</DialogTitle>
+          <DialogHeader className="text-left">
+            <DialogTitle className="sr-only">Modifier l'idée</DialogTitle>
             <DialogDescription className="sr-only">Formulaire de modification de l'idée</DialogDescription>
+            {contextHeader}
           </DialogHeader>
           {content}
         </DialogContent>
@@ -422,9 +459,10 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
-        <SheetHeader>
-          <SheetTitle className="font-display">✏️ Modifier l'idée</SheetTitle>
+        <SheetHeader className="text-left">
+          <SheetTitle className="sr-only">Modifier l'idée</SheetTitle>
           <SheetDescription className="sr-only">Formulaire de modification de l'idée</SheetDescription>
+          {contextHeader}
         </SheetHeader>
         {content}
       </SheetContent>
