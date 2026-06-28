@@ -112,7 +112,7 @@ const FAQ_DATA = [
   },
   {
     q: "Le plan gratuit, c'est vraiment gratuit ? C'est quoi le piège ?",
-    a: "Pas de piège. Le plan gratuit inclut l'onboarding complet, tout l'espace branding, le calendrier éditorial, les espaces par canal, et 60 crédits IA par mois. C'est déjà beaucoup. Le premium à 39€/mois débloque 300 crédits IA/mois (contenus + audits), les stats et la communauté. Mais tu peux rester en gratuit aussi longtemps que tu veux."
+    a: "Pas de piège. Le plan gratuit inclut l'onboarding complet, tout l'espace branding, le calendrier éditorial, les espaces par canal, et de quoi créer tes premiers contenus chaque mois. C'est déjà beaucoup. Le premium à 39€/mois débloque la création illimitée (contenus + audits), les stats et la communauté. Mais tu peux rester en gratuit aussi longtemps que tu veux."
   },
   {
     q: "Je peux annuler quand je veux ?",
@@ -676,8 +676,8 @@ export default function LandingPage() {
                   {[
                     "Branding guidé complet (6 sections)",
                     "Calendrier éditorial avec vue mensuelle",
-                    "Crée jusqu'à 60 contenus IA par mois",
-                    "3 audits IA par mois",
+                    "Crée tes premiers contenus IA chaque mois",
+                    "Des audits IA pour te situer",
                     "Espaces par canal (Instagram, LinkedIn…)",
                   ].map((item, idx) => (
                     <li key={idx} className="text-sm text-foreground flex items-start gap-2">
@@ -698,13 +698,13 @@ export default function LandingPage() {
                 <span className="text-2xl mb-2">💎</span>
                 <h3 className="font-display text-lg font-bold">Premium</h3>
                 <p className="text-primary font-bold text-xl mt-1">39€<span className="text-sm font-normal text-muted-foreground">/mois</span></p>
-                <p className="text-sm text-muted-foreground mt-1 mb-4">Crée régulièrement. 300 crédits IA/mois.</p>
+                <p className="text-sm text-muted-foreground mt-1 mb-4">Crée régulièrement, en grand volume.</p>
                 <p className="text-xs text-muted-foreground mb-2 pb-2 border-b border-border">
                   Tout le plan gratuit, plus :
                 </p>
                 <ul className="space-y-2 mb-6 flex-1">
                   {[
-                    "300 crédits IA/mois (contenus + audits)",
+                    "Création IA en grand volume + audits illimités",
                     "Communauté active + lives mensuels",
                   ].map((item, idx) => (
                     <li key={idx} className="text-sm text-foreground flex items-start gap-2">
