@@ -79,9 +79,9 @@ export default function CommPlanPage({ embedded = false }: { embedded?: boolean 
             id: "foundations", title: "🏗️ Les fondations", emoji: "🏗️", locked: false,
             steps: [
               { id: "s1", label: "Positionnement", description: "Définis ce que tu fais et pour qui", duration: 15, route: "/branding", status: "done" },
-              { id: "s2", label: "Persona", description: "Portrait de ta cliente idéale", duration: 20, route: "/branding/section?section=persona", status: "done" },
-              { id: "s3", label: "Ton & valeurs", description: "Ton identité de marque", duration: 15, route: "/branding/section?section=tone_style", status: "done" },
-              { id: "s4", label: "Storytelling", description: "Ton histoire de fondatrice", duration: 30, route: "/branding/section?section=story", status: "done" },
+              { id: "s2", label: "Mon·a client·e idéal·e", description: "Portrait de ta cliente idéale", duration: 20, route: "/branding/section?section=persona", status: "done" },
+              { id: "s3", label: "Ma voix & mes combats", description: "Ton identité de marque", duration: 15, route: "/branding/section?section=tone_style", status: "done" },
+              { id: "s4", label: "Mon histoire", description: "Ton histoire de fondatrice", duration: 30, route: "/branding/section?section=story", status: "done" },
             ],
           },
           {
