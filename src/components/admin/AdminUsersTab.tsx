@@ -13,6 +13,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Search, ChevronUp, ChevronDown, Eye, X, Sparkles, Calendar, UserRound, Download, Trash2, Loader2, RotateCcw } from "lucide-react";
 import { DeleteAccountDialog } from "@/components/admin/AdminSharedComponents";
+import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 import { formatDistanceToNow, format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
@@ -71,6 +75,7 @@ export default function AdminUsersTab() {
   const [selectedUser, setSelectedUser] = useState<UserRow | null>(null);
   const [switching, setSwitching] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<UserRow | null>(null);
+  const [resetTarget, setResetTarget] = useState<UserRow | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [resettingUser, setResettingUser] = useState(false);
 
@@ -132,6 +137,7 @@ export default function AdminUsersTab() {
       if (res.data?.error) throw new Error(res.data.error);
 
       toast.success("Onboarding reset ! L'utilisatrice repartira de zéro à sa prochaine connexion.");
+      setResetTarget(null);
       setSelectedUser(null);
     } catch (e: any) {
       console.error("Reset failed:", e);
@@ -400,7 +406,7 @@ export default function AdminUsersTab() {
                   <Button
                     variant="outline"
                     className="w-full text-warning border-warning/30 hover:bg-warning-bg"
-                    onClick={() => resetUserOnboarding(selectedUser.user_id)}
+                    onClick={() => setResetTarget(selectedUser)}
                     disabled={resettingUser}
                   >
                     <RotateCcw className="w-4 h-4 mr-2" />
@@ -422,6 +428,27 @@ export default function AdminUsersTab() {
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Reset onboarding confirmation */}
+      <AlertDialog open={!!resetTarget} onOpenChange={v => { if (!v) setResetTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>🔄 Reset l'onboarding de {resetTarget?.prenom || resetTarget?.email} ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              L'utilisatrice repartira de zéro : elle reverra tout le parcours d'accueil à sa prochaine connexion. Son contenu n'est pas supprimé. Action réservée aux comptes de test.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={resettingUser}>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={resettingUser}
+              onClick={(e) => { e.preventDefault(); if (resetTarget) resetUserOnboarding(resetTarget.user_id); }}
+            >
+              {resettingUser ? "Reset en cours..." : "Reset onboarding"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Delete account dialog */}
       <DeleteAccountDialog

@@ -1,6 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, isValid } from "date-fns";
 import { fr } from "date-fns/locale";
+
+/** Formatte une date ISO en libellé court, sans crasher si la valeur est nulle/invalide. */
+function safeDateLabel(value?: string): string {
+  if (!value) return "—";
+  const d = parseISO(value);
+  return isValid(d) ? format(d, "d MMM", { locale: fr }) : value;
+}
 import { useAuth } from "@/contexts/AuthContext";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Button } from "@/components/ui/button";
@@ -204,9 +211,9 @@ export default function AdminStatsTab() {
 function OverviewSection({ stats }: { stats: StatsData }) {
   const activeRate = stats.total_users > 0 ? Math.round((stats.active_this_month / stats.total_users) * 100) : 0;
 
-  const signupsData = stats.signups_by_week.map(s => ({
+  const signupsData = (stats.signups_by_week || []).map(s => ({
     ...s,
-    label: format(parseISO(s.week), "d MMM", { locale: fr }),
+    label: safeDateLabel(s.week),
   }));
 
   const plansData = Object.entries(stats.plans)
@@ -379,7 +386,7 @@ function EngagementProductSection({ stats }: { stats: StatsData }) {
 
   const aiDayData = (stats.ai_by_day || []).map(d => ({
     ...d,
-    label: format(parseISO(d.date), "d MMM", { locale: fr }),
+    label: safeDateLabel(d.date),
   }));
 
   const draftsData = Object.entries(stats.drafts_by_canal || {})
@@ -390,7 +397,8 @@ function EngagementProductSection({ stats }: { stats: StatsData }) {
   const scoreDistData = Object.entries(stats.score_distribution || {})
     .map(([range, count], i) => ({ range, count, fill: PIE_COLORS[i % PIE_COLORS.length] }));
 
-  const maxFeature = Math.max(...stats.top_features.map(f => f.count), 1);
+  const topFeatures = stats.top_features || [];
+  const maxFeature = Math.max(...topFeatures.map(f => f.count), 1);
 
   const totalContent = (stats.drafts_this_month || 0) + (stats.calendar_posts_this_month || 0);
 
@@ -479,7 +487,7 @@ function EngagementProductSection({ stats }: { stats: StatsData }) {
       {/* Détail fonctionnalités IA (toutes) */}
       <ChartCard title="Détail fonctionnalités IA (toutes)">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
-          {stats.top_features.map(f => (
+          {topFeatures.map(f => (
             <div key={f.category} className="space-y-1">
               <div className="flex justify-between text-sm">
                 <span>{CATEGORY_LABELS[f.category] || f.category}</span>
