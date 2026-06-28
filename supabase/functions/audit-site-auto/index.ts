@@ -12,6 +12,7 @@ import { isSafePublicUrl } from "../_shared/scraping.ts";
 const GLOBAL_TIMEOUT_MS = 60_000;
 const PAGE_TIMEOUT_MS = 10_000;
 const MAX_TEXT_PER_PAGE = 3000; // ~tokens
+const MAX_HTML_BYTES = 5_000_000; // skip pages whose declared body is absurdly large
 const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 /* ─── HTML Parsing helpers (regex-based, no external lib) ─── */
@@ -216,6 +217,13 @@ async function fetchPage(url: string, path: string): Promise<PageData> {
       result.error = `HTTP ${resp.status}`;
       // Still try to parse if we got some HTML
       if (resp.status >= 500) return result;
+    }
+
+    // Don't pull an absurdly large body into memory (only acts on a declared Content-Length).
+    const contentLength = Number(resp.headers.get("content-length") || 0);
+    if (contentLength > MAX_HTML_BYTES) {
+      result.error = "Page trop volumineuse";
+      return result;
     }
 
     const html = await resp.text();

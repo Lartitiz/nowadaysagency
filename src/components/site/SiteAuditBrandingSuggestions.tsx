@@ -52,6 +52,20 @@ export default function SiteAuditBrandingSuggestions({ prefill, workspaceFilter,
     const filterCol = workspaceFilter?.column || "user_id";
     const filterVal = workspaceFilter?.value || userId;
 
+    // emptyFields is frozen from the audit; re-check the LIVE row and keep only the columns
+    // that are still empty, so re-applying an old audit never overwrites fresh data.
+    const onlyStillEmpty = (updates: Record<string, unknown>, live: Record<string, any>) => {
+      const out: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(updates)) {
+        const cur = live?.[k];
+        const isEmpty = cur === null || cur === undefined
+          || (typeof cur === "string" && cur.trim() === "")
+          || (Array.isArray(cur) && cur.length === 0);
+        if (isEmpty) out[k] = v;
+      }
+      return out;
+    };
+
     try {
       // brand_profile: tone_style, combat_cause, combat_fights, positioning
       const brandUpdates: Record<string, unknown> = {};
@@ -62,9 +76,10 @@ export default function SiteAuditBrandingSuggestions({ prefill, workspaceFilter,
 
       if (Object.keys(brandUpdates).length > 0) {
         const { data: existing } = await (supabase.from("brand_profile") as any)
-          .select("id").eq(filterCol, filterVal).maybeSingle();
+          .select("id, tone_style, combat_cause, combat_fights, positioning").eq(filterCol, filterVal).maybeSingle();
         if (existing) {
-          await (supabase.from("brand_profile") as any).update(brandUpdates).eq("id", existing.id);
+          const safe = onlyStillEmpty(brandUpdates, existing);
+          if (Object.keys(safe).length > 0) await (supabase.from("brand_profile") as any).update(safe).eq("id", existing.id);
         } else {
           await (supabase.from("brand_profile") as any).insert({
             user_id: userId,
@@ -113,9 +128,10 @@ export default function SiteAuditBrandingSuggestions({ prefill, workspaceFilter,
 
       if (Object.keys(charterUpdates).length > 0) {
         const { data: existingCharter } = await (supabase.from("brand_charter") as any)
-          .select("id").eq(filterCol, filterVal).maybeSingle();
+          .select("id, color_primary, color_secondary, color_accent, color_background, font_title, font_body, mood_keywords").eq(filterCol, filterVal).maybeSingle();
         if (existingCharter) {
-          await (supabase.from("brand_charter") as any).update(charterUpdates).eq("id", existingCharter.id);
+          const safe = onlyStillEmpty(charterUpdates, existingCharter);
+          if (Object.keys(safe).length > 0) await (supabase.from("brand_charter") as any).update(safe).eq("id", existingCharter.id);
         } else {
           await (supabase.from("brand_charter") as any).insert({
             user_id: userId,
