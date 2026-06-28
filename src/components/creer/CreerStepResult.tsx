@@ -536,7 +536,32 @@ export default function CreerStepResult({
         </Link>
       )}
 
-      {/* 2. Peaufiner */}
+      {/* HÉROS carrousel : finir le visuel dans Canva = action principale après
+          génération (l'aperçu in-app est un brouillon ; l'asset final vit dans
+          Canva). Publier/Calendrier deviennent secondaires. */}
+      {isCarousel && hasVisuals && onOpenInCanva && (
+        <Button
+          onClick={onOpenInCanva}
+          disabled={openingCanva}
+          className="w-full gap-2 h-12 text-base font-semibold bg-[#FB3D80] hover:bg-[#e0326f] text-white border-none"
+        >
+          {openingCanva ? (
+            <Loader2 className="h-5 w-5 animate-spin" />
+          ) : (
+            <svg viewBox="0 0 32 32" className="h-5 w-5 shrink-0" aria-hidden="true">
+              <defs>
+                <linearGradient id="canvaHeroG" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stopColor="#00C4CC" />
+                  <stop offset="100%" stopColor="#7D2AE8" />
+                </linearGradient>
+              </defs>
+              <circle cx="16" cy="16" r="16" fill="url(#canvaHeroG)" />
+              <text x="16" y="23" textAnchor="middle" fontSize="20" fontWeight="700" fill="#ffffff" fontFamily="Georgia, serif">C</text>
+            </svg>
+          )}
+          {openingCanva ? "Ouverture…" : "Ouvrir dans Canva"}
+        </Button>
+      )}
 
       {/* 3. CTAs principaux */}
       {isCarousel && !hasVisuals ? (
@@ -611,7 +636,7 @@ export default function CreerStepResult({
         </div>
       ) : (
         onCalendar && (
-          <Button onClick={onCalendar} className="w-full gap-2 h-11 text-sm font-semibold">
+          <Button onClick={onCalendar} variant={isCarousel && hasVisuals ? "outline" : "default"} className="w-full gap-2 h-11 text-sm font-semibold">
             <CalendarDays className="h-4 w-4" /> {calendarLabel || "Ajouter au calendrier"}
           </Button>
         )
@@ -766,22 +791,7 @@ export default function CreerStepResult({
             <Download className="h-3.5 w-3.5" /> Télécharger PPTX
           </Button>
         )}
-        {isCarousel && hasVisuals && onOpenInCanva && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onOpenInCanva}
-            disabled={openingCanva}
-            className="gap-1.5 text-xs text-muted-foreground"
-          >
-            {openingCanva ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Palette className="h-3.5 w-3.5" />
-            )}
-            {openingCanva ? "Ouverture…" : "Ouvrir dans Canva"}
-          </Button>
-        )}
+        {/* « Ouvrir dans Canva » est désormais le bouton HÉROS en haut — retiré d'ici pour éviter le doublon. */}
         {isCarousel && hasVisuals && onGenerateVisuals && (
           <Button variant="ghost" size="sm" onClick={onGenerateVisuals} disabled={visualLoading} className="gap-1.5 text-xs text-muted-foreground">
             {visualLoading ? (
