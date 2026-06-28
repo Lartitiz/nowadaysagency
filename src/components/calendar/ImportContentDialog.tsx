@@ -376,7 +376,7 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
             ? (igValidImages.length > 1
                 ? `Carrousel de ${igValidImages.length} images · glisse les vignettes pour les réordonner`
                 : "1 image = post simple · jusqu'à 10 pour un carrousel. Un PDF est découpé en slides.")
-            : "LinkedIn publie le texte ; les visuels restent attachés au post pour référence."}
+            : "Tes images partent aussi sur LinkedIn (post photo). Un PDF reste attaché pour référence."}
         </p>
       </div>
 
