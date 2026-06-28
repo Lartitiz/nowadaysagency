@@ -1508,7 +1508,7 @@ export default function CreerUnifie() {
     if (!r) {
       // Pas de résultat IA — utiliser le contenu existant du calendrier ou le brouillon
       text = existingCalendarContent || "";
-    } else if (selectedFormat === "carousel" && r?.slides) {
+    } else if (selectedFormat === "carousel" && Array.isArray(r?.slides)) {
       const slidesText = (r.slides as any[])
         .map((s: any) => {
           const header = `--- SLIDE ${s.slide_number} (${s.role || ""}) ---`;
@@ -1528,7 +1528,7 @@ export default function CreerUnifie() {
         : "";
       text = slidesText + captionText + hashtagsText;
 
-    } else if (selectedFormat === "reel" && r?.sections) {
+    } else if (selectedFormat === "reel" && Array.isArray(r?.sections)) {
       text = (r.sections as any[])
         .map((s: any) => {
           const header = `--- ${s.label || s.section_label || `Section ${s.section_number || ""}`} (${s.timing || ""}) ---`;
@@ -1537,8 +1537,8 @@ export default function CreerUnifie() {
         })
         .join("\n\n");
 
-    } else if (selectedFormat === "story" && (r?.stories || r?.sequences || r?.slides)) {
-      const stories = r.stories || r.sequences || r.slides || [];
+    } else if (selectedFormat === "story" && (Array.isArray(r?.stories) || Array.isArray(r?.sequences) || Array.isArray(r?.slides))) {
+      const stories = (Array.isArray(r.stories) && r.stories) || (Array.isArray(r.sequences) && r.sequences) || (Array.isArray(r.slides) && r.slides) || [];
       text = (stories as any[])
         .map((s: any, i: number) => {
           const header = `--- STORY ${s.number || i + 1} (${s.type || s.format || ""}) ---`;
@@ -1554,7 +1554,7 @@ export default function CreerUnifie() {
       } else {
         text = [r.hook, r.body, r.cta].filter(Boolean).join("\n\n");
       }
-      if (r.hashtags?.length > 0) {
+      if (Array.isArray(r.hashtags) && r.hashtags.length > 0) {
         text += `\n\n${(r.hashtags as string[]).join(" ")}`;
       }
 

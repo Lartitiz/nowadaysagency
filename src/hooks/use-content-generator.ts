@@ -403,6 +403,21 @@ export function useContentGenerator() {
       const parsed = parseAIJson(rawContent);
       if (!parsed) throw new Error("La génération n'a pas fonctionné comme prévu. Réessaie, ça marche en général au deuxième essai 🌸");
 
+      // Garde de forme : un JSON valide mais sans contenu exploitable (format
+      // partiel renvoyé par l'IA) crasherait au rendu (.map sur non-array) et
+      // serait persisté → l'ErrorBoundary reboucle. On le traite ici comme un
+      // échec propre et réessayable, jamais comme un résultat affichable.
+      const p: any = parsed;
+      const hasUsableContent =
+        format === "carousel"
+          ? Array.isArray(p.slides) && p.slides.length > 0
+          : format === "reel"
+            ? (Array.isArray(p.sections) && p.sections.length > 0) || !!p.full_text
+            : format === "story"
+              ? Array.isArray(p.stories) || Array.isArray(p.sequences) || Array.isArray(p.slides)
+              : true;
+      if (!hasUsableContent) throw new Error("La génération n'a pas fonctionné comme prévu. Réessaie, ça marche en général au deuxième essai 🌸");
+
       const normalized: ContentResult = {
         type: format,
         raw: parsed,
