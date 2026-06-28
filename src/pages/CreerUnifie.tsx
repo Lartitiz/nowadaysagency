@@ -2900,17 +2900,23 @@ export default function CreerUnifie() {
       if ((data as any)?.error) throw new Error((data as any).error);
       const editUrl = (data as any)?.editUrl;
       if (!editUrl) throw new Error("URL d'édition Canva manquante.");
+      // Best-effort : si l'onglet pré-ouvert est encore vivant, on le navigue vers Canva
+      // (ouverture automatique). MAIS c'est PEU FIABLE sur un import long : pendant les
+      // ~1-2 min d'import, l'onglet « Préparation… » reste en arrière-plan et Chrome le
+      // throttle / le « discarde » → le `location.href` ne prend pas et l'onglet reste
+      // FIGÉ sur « Préparation… » alors que le carrousel est prêt.
       if (canvaTab && !canvaTab.closed) {
-        // L'onglet a été ouvert au clic → on y charge le design Canva.
-        canvaTab.location.href = editUrl;
-        toast.success("Carrousel ouvert dans Canva !");
-      } else {
-        // Onglet bloqué malgré tout → on propose un bouton cliquable (geste utilisateur).
-        toast.success("Carrousel prêt dans Canva", {
-          action: { label: "Ouvrir", onClick: () => window.open(editUrl, "_blank", "noopener") },
-          duration: 15000,
-        });
+        try { canvaTab.location.href = editUrl; } catch { /* onglet discardé : on s'appuie sur le bouton ci-dessous */ }
       }
+      // Donc on propose TOUJOURS un bouton « Ouvrir » fiable (le clic = geste utilisateur →
+      // window.open n'est jamais bloqué, contrairement à la nav d'un onglet d'arrière-plan).
+      // Ainsi, même si l'onglet auto reste figé, l'utilisatrice accède au carrousel SANS
+      // avoir à fermer l'onglet bloqué. Persistance longue pour qu'elle le voie au retour.
+      toast.success("Ton carrousel est prêt dans Canva 🎨", {
+        description: "L'onglet Canva devrait s'ouvrir tout seul. S'il reste sur « Préparation… », clique ici :",
+        action: { label: "Ouvrir dans Canva", onClick: () => window.open(editUrl, "_blank", "noopener") },
+        duration: 60000,
+      });
     } catch (e: any) {
       if (canvaTab && !canvaTab.closed) canvaTab.close();
       toast.error(e?.message || "Impossible d'ouvrir dans Canva.");
