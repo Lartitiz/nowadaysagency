@@ -64,6 +64,9 @@ function getPhotoToggleCopy(format: string): { title: string; subtitle: string }
 interface Props {
   idea: string;
   objective?: string;
+  // Canal imposé par l'URL (?canal=) — pré-sélectionne ce canal même si un brouillon
+  // d'un autre canal a été restauré. Null = aucun forçage (comportement normal).
+  forcedChannel?: ChannelId | null;
   initialFormat?: string;
   initialCarouselSubMode?: "text" | "photo" | "mix" | "pure_photo";
   suggestedFormat?: string;
@@ -77,15 +80,20 @@ interface Props {
   onBack: () => void;
 }
 
-export default function CreerStepFormat({ idea, objective, initialFormat, initialCarouselSubMode, suggestedFormat, initialPhotos, initialPhotoDescription, onNext, onSelectionChange, onBack }: Props) {
+export default function CreerStepFormat({ idea, objective, forcedChannel, initialFormat, initialCarouselSubMode, suggestedFormat, initialPhotos, initialPhotoDescription, onNext, onSelectionChange, onBack }: Props) {
   // Pré-sélection du canal : on déduit du format déjà choisi, sinon du format
   // suggéré par le newsjacking. Évite de juxtaposer « L'IA suggère : Carrousel »
   // (un format) avec « Sur quel canal publier ? » (un canal) — la suggestion
   // s'affiche alors DANS le bon canal, plus de confusion format/canal.
+  // Un canal forcé (?canal=) prime sur le canal déduit d'un format restauré.
   const [selectedChannel, setSelectedChannel] = useState<ChannelId | null>(
-    initialFormat ? deduceChannel(initialFormat) : suggestedFormat ? deduceChannel(suggestedFormat) : null
+    forcedChannel ?? (initialFormat ? deduceChannel(initialFormat) : suggestedFormat ? deduceChannel(suggestedFormat) : null)
   );
-  const [selectedFormat, setSelectedFormat] = useState<string | null>(initialFormat || null);
+  // Si le canal forcé diffère du format restauré, on repart sans format (l'utilisateur
+  // choisit le format DANS le bon canal).
+  const [selectedFormat, setSelectedFormat] = useState<string | null>(
+    forcedChannel && initialFormat && deduceChannel(initialFormat) !== forcedChannel ? null : (initialFormat || null)
+  );
   const [selectedAngle, setSelectedAngle] = useState<string | undefined>(undefined);
   const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | "mix" | "pure_photo" | null>(initialCarouselSubMode ?? null);
   const [uploadedPhotos, setUploadedPhotos] = useState<PhotoItem[]>(initialPhotos ?? []);
@@ -256,6 +264,18 @@ export default function CreerStepFormat({ idea, objective, initialFormat, initia
     setPinterestSubMode(null);
     setInspirationPhotos([]);
   };
+
+  // Si le canal forcé (?canal=) change APRÈS le montage (cas rare : changement d'URL
+  // sans remontage du composant), on resynchronise une fois sur ce canal. Le cas
+  // normal (montage frais) est déjà géré par les initialisations ci-dessus.
+  const forcedChannelRef = useRef<ChannelId | null>(forcedChannel ?? null);
+  useEffect(() => {
+    if (!forcedChannel) return;
+    if (forcedChannelRef.current === forcedChannel) return;
+    forcedChannelRef.current = forcedChannel;
+    if (selectedChannel !== forcedChannel) handleChannelSelect(forcedChannel);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [forcedChannel]);
 
   const renderAngleCard = (angle: EditorialAngle, isRecommended: boolean) => {
     const structureId = selectedFormat ? getStructureForCombo(selectedFormat, angle.id) : null;

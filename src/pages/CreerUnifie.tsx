@@ -142,9 +142,33 @@ export default function CreerUnifie() {
   // Core state — restore from sessionStorage if available
   const ps = persistedState.current;
   const autoOpenTransform = paramMode === "transform";
+
+  // ── Canal forcé via URL (?canal=) vs canal du brouillon restauré ──
+  // Les raccourcis "Créer/Programmer sur tel réseau" (dashboard) doivent PRIMER sur
+  // un brouillon d'un AUTRE canal : on repart à l'étape format sur le canal demandé
+  // (le sujet est conservé). CreerStepFormat pré-sélectionne ensuite ce canal.
+  const FORCED_CANALS = ["instagram", "linkedin", "pinterest", "newsletter"] as const;
+  type ForcedChannel = (typeof FORCED_CANALS)[number];
+  const forcedChannel: ForcedChannel | null =
+    (FORCED_CANALS as readonly string[]).includes(paramCanal || "") ? (paramCanal as ForcedChannel) : null;
+  const deriveCanalFromState = (s: any): string | null => {
+    if (!s) return null;
+    if (s.selectedFormat === "linkedin" || s.isLinkedInCarousel) return "linkedin";
+    if ((s.selectedFormat || "").startsWith("pinterest")) return "pinterest";
+    if (s.selectedFormat === "newsletter") return "newsletter";
+    if (s.selectedFormat) return "instagram";
+    return null;
+  };
+  const restoredCanal = deriveCanalFromState(ps);
+  const canalConflict = !!forcedChannel && !!restoredCanal && restoredCanal !== forcedChannel;
   // Restore step — allow "result" and "edit" if their data is available
   const safeStep = (() => {
     if (!ps?.step) return "idea";
+    // Canal forcé ≠ canal du brouillon → on repart au choix du format sur le bon canal.
+    if (canalConflict) {
+      const hasIdea = !!(ps?.ideaText || paramSujet || locState.sujet || locState.subject);
+      return hasIdea ? "format" : "idea";
+    }
     if (ps.step === "result" && ps.result) return "result";
     if (ps.step === "edit" && ps.editContent) return "edit";
     // structure_review dépend de `structureProposal`, qui n'est PAS persisté →
@@ -171,7 +195,7 @@ export default function CreerUnifie() {
   const [objective, setObjective] = useState<string | null>(
     ps?.objective || paramObjectif || locState.objectif || locState.objective || null
   );
-  const [selectedFormat, setSelectedFormat] = useState<string | null>(ps?.selectedFormat || paramFormat || null);
+  const [selectedFormat, setSelectedFormat] = useState<string | null>(canalConflict ? null : (ps?.selectedFormat || paramFormat || null));
   const [editorialAngle, setEditorialAngle] = useState<string | null>(ps?.editorialAngle || null);
   const [answers, setAnswers] = useState<Record<string, string>>(ps?.answers || {});
   const [editContent, setEditContent] = useState(ps?.editContent || "");
@@ -181,7 +205,7 @@ export default function CreerUnifie() {
   const fromCalendar = !!(locState?.fromCalendar && calendarPostId);
 
   // Photo states (carousel photo + post photo)
-  const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | "mix" | "pure_photo" | null>(ps?.carouselSubMode ?? null);
+  const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | "mix" | "pure_photo" | null>(canalConflict ? null : (ps?.carouselSubMode ?? null));
   // Init à [] : le base64 n'est plus stocké inline (cf use-flow-persistence
   // hybride). Les photos sont rehydratées en asynchrone par l'effet plus bas
   // (IndexedDB pour les dépôts, refetch serveur pour la photothèque).
@@ -199,7 +223,7 @@ export default function CreerUnifie() {
   const [photoMode, setPhotoMode] = useState(false);
   const [demoGenerating, setDemoGenerating] = useState(false);
   const [pinterestData, setPinterestData] = useState<{ link?: string; boardId?: string; boardName?: string } | null>(null);
-  const [isLinkedInCarousel, setIsLinkedInCarousel] = useState(ps?.isLinkedInCarousel ?? false);
+  const [isLinkedInCarousel, setIsLinkedInCarousel] = useState(canalConflict ? false : (ps?.isLinkedInCarousel ?? false));
   const [pinterestPinHtml, setPinterestPinHtml] = useState<string | null>(null);
   const [pinterestVisualGenerating, setPinterestVisualGenerating] = useState(false);
   const [inspirationLoading, setInspirationLoading] = useState(false);
@@ -255,21 +279,9 @@ export default function CreerUnifie() {
     }
   }, [isFreshStart, setSearchParams]);
 
-  // Si un canal est demandé via l'URL (cartes « Créer un post X » du hub), il
-  // PRIME sur un brouillon restauré d'un AUTRE canal : on change juste de canal
-  // (le sujet/les réponses sont conservés). No-op si on est déjà sur ce canal,
-  // donc ça ne contrarie pas les choix de format faits dans le flux.
-  useEffect(() => {
-    if (!paramCanal) return;
-    if (paramCanal === "linkedin") {
-      if (selectedFormat !== "linkedin" && !isLinkedInCarousel) setSelectedFormat("linkedin");
-    } else if (paramCanal === "pinterest") {
-      if (!(selectedFormat || "").startsWith("pinterest")) setSelectedFormat("pinterest");
-    } else if (paramCanal === "newsletter") {
-      if (selectedFormat !== "newsletter") setSelectedFormat("newsletter");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paramCanal]);
+  // Le canal demandé via l'URL (?canal=) est géré de façon déterministe à
+  // l'initialisation (canalConflict ci-dessus) + pré-sélectionné dans
+  // CreerStepFormat via la prop forcedChannel. Plus d'effet de priming fragile ici.
 
   // Charger le nombre de briefs existants quand on arrive sur les questions
   useEffect(() => {
@@ -3043,6 +3055,7 @@ export default function CreerUnifie() {
               <CreerStepFormat
                 idea={ideaText}
                 objective={objective || undefined}
+                forcedChannel={forcedChannel}
                 initialFormat={selectedFormat || undefined}
                 initialCarouselSubMode={carouselSubMode || undefined}
                 suggestedFormat={newsjackingSuggestedFormat || undefined}
