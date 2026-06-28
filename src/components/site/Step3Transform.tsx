@@ -20,7 +20,7 @@ export default function Step3Transform({ data, save, callAI, aiLoading, aiResult
           <Sparkles className="h-4 w-4 mr-1" /> {aiLoading === "benefits" ? "Génération..." : "Générer le bloc bénéfices"}
         </Button>
         {typeof aiResults.benefits === "string" && (
-          <div className="rounded-xl bg-rose-pale p-3 text-sm mt-3 cursor-pointer hover:ring-2 ring-primary transition-all" onClick={() => save({ benefits_block: aiResults.benefits })}>{aiResults.benefits}</div>
+          <button type="button" className="w-full text-left rounded-xl bg-rose-pale p-3 text-sm mt-3 cursor-pointer hover:ring-2 ring-primary transition-all" onClick={() => save({ benefits_block: aiResults.benefits })}>{aiResults.benefits}</button>
         )}
         <Textarea className="mt-3 min-h-[120px]" placeholder="Mon bloc bénéfices..." value={data.benefits_block} onChange={(e) => save({ benefits_block: e.target.value })} />
         <RedFlagsChecker content={data.benefits_block} onFix={(v) => save({ benefits_block: v })} />

@@ -1056,7 +1056,7 @@ function MobilePostCard({ post, share, comments, unresolvedCount, onOpenComments
       </div>
 
       {wording && (
-        <div onClick={() => setExpanded(!expanded)} className={`text-xs text-gray-600 leading-relaxed cursor-pointer ${!expanded ? "line-clamp-2" : ""}`}>
+        <div role="button" tabIndex={0} onClick={() => setExpanded(!expanded)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setExpanded(!expanded); } }} className={`text-xs text-gray-600 leading-relaxed cursor-pointer ${!expanded ? "line-clamp-2" : ""}`}>
           {wording}
         </div>
       )}

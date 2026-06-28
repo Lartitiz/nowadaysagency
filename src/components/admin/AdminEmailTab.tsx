@@ -488,7 +488,7 @@ function SequencesView() {
         <p className="text-center text-muted-foreground py-12">Aucune séquence configurée</p>
       ) : sequences.map(seq => (
         <div key={seq.id} className="rounded-xl border bg-card overflow-hidden">
-          <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => loadSteps(seq.id)}>
+          <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/30 transition-colors" role="button" tabIndex={0} onClick={() => loadSteps(seq.id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); loadSteps(seq.id); } }}>
             <div className="flex items-center gap-3">
               <span className="text-sm font-medium">{seq.name}</span>
               <Badge variant="outline" className="text-xs">{TRIGGER_LABELS[seq.trigger_event] || seq.trigger_event}</Badge>
