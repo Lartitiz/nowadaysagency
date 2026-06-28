@@ -266,12 +266,14 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
       const { error } = await supabase.from("calendar_posts").insert(rows);
       if (error) throw error;
       const names = canals.map((c) => CANAL_LABEL[c]).join(" et ");
-      toast({
-        title: mode === "schedule" ? "Publication programmée ! 🗓️" : "Contenu ajouté au calendrier !",
-        description: mode === "schedule"
-          ? `${names} ${canals.length > 1 ? "publieront" : "publiera"} automatiquement à l'heure prévue.`
-          : `Ajouté pour ${names}.`,
-      });
+      toast(
+        mode === "schedule" ? "Publication programmée ! 🗓️" : "Contenu ajouté au calendrier !",
+        {
+          description: mode === "schedule"
+            ? `${names} ${canals.length > 1 ? "publieront" : "publiera"} automatiquement à l'heure prévue.`
+            : `Ajouté pour ${names}.`,
+        }
+      );
       onSaved();
       onOpenChange(false);
     } catch (err: any) {
