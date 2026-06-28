@@ -298,6 +298,7 @@ Renvoie EXACTEMENT ${expectedCount} angle${expectedCount > 1 ? "s" : ""}${expect
     }
 
     const data = await response.json();
+    const tokensUsed = (data.usage?.input_tokens ?? 0) + (data.usage?.output_tokens ?? 0);
     const textBlocks = (data.content || []).filter((b: any) => b.type === "text").map((b: any) => b.text);
     const fullText = textBlocks.join("\n");
     console.log(`[newsjacking-angles] text length=${fullText.length}`);
@@ -357,7 +358,7 @@ Renvoie EXACTEMENT ${expectedCount} angle${expectedCount > 1 ? "s" : ""}${expect
       });
     }
 
-    await logUsage(user.id, "content", "newsjacking", undefined, model, workspace_id);
+    await logUsage(user.id, "content", "newsjacking", tokensUsed, model, workspace_id);
 
     return new Response(JSON.stringify(parsed), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

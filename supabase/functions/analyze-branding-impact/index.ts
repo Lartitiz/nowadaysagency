@@ -157,6 +157,8 @@ RÈGLES :
     }
 
     const aiData = await aiResponse.json();
+    // Gateway Lovable = format OpenAI : usage en prompt_tokens/completion_tokens.
+    const tokensUsed = aiData.usage?.total_tokens ?? ((aiData.usage?.prompt_tokens ?? 0) + (aiData.usage?.completion_tokens ?? 0));
     let suggestions: any[] = [];
 
     // Extract from tool call
@@ -183,7 +185,7 @@ RÈGLES :
         status: "pending",
       }).select("id").single();
       inserted = data;
-      await logUsage(user.id, "suggestion", "branding_impact", undefined, undefined, workspace_id);
+      await logUsage(user.id, "suggestion", "branding_impact", tokensUsed, "google/gemini-2.5-flash", workspace_id);
     }
 
     return new Response(JSON.stringify({ suggestions, suggestionId: inserted?.id || null }), {

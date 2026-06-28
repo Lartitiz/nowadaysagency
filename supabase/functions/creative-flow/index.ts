@@ -6,7 +6,7 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAnthropic, callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
+import { callAnthropic, callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { streamAnthropicSSE, createClientSSEStream } from "../_shared/anthropic-stream.ts";
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
 import { carouselBrief, reelBrief, storiesBrief, linkedinBrief, pinterestBrief, newsletterBrief, photoCaptionBrief, captionBrief } from "../_shared/format-briefs.ts";
@@ -891,8 +891,10 @@ Privilégie les sources françaises et européennes quand elles existent.`,
         }),
       });
 
+      let webSearchTokens = 0;
       if (searchResponse.ok) {
         const searchData = await searchResponse.json();
+        webSearchTokens = (searchData.usage?.input_tokens ?? 0) + (searchData.usage?.output_tokens ?? 0);
         // Extract all text blocks from the response
         const textParts: string[] = [];
         for (const block of (searchData.content || [])) {
@@ -910,7 +912,7 @@ Privilégie les sources françaises et européennes quand elles existent.`,
       }
 
       // Log deep research usage
-      await logUsage(userId, "deep_research", "web_search", undefined, "claude-sonnet-4-6", workspace_id);
+      await logUsage(userId, "deep_research", "web_search", webSearchTokens || undefined, "claude-sonnet-4-6", workspace_id);
     }
 
     // ── Streaming SSE (generate step) ──
@@ -983,15 +985,17 @@ Privilégie les sources françaises et européennes quand elles existent.`,
           0.7,
           4096,
         );
-        return createClientSSEStream(anthropicStream, corsHeaders, async () => {
-          await logUsage(userId, "content", "creative_flow", undefined, undefined, workspace_id);
+        return createClientSSEStream(anthropicStream, corsHeaders, async (_full, usage) => {
+          await logUsage(userId, "content", "creative_flow", usage?.total_tokens, usage?.model, workspace_id);
         });
       }
 
       // LinkedIn (texte): disable streaming, use 2-step generation + correction
       if (isLinkedIn) {
         console.log("[CORRECTION DEBUG] LinkedIn correction pass STARTED");
-        const rawContent = await callAnthropicSimple(model, systemPrompt, userPrompt!, 0.85, 4096);
+        const genLkUsage: UsageSink = {};
+        const corrLkUsage: UsageSink = {};
+        const rawContent = await callAnthropicSimple(model, systemPrompt, userPrompt!, 0.85, 4096, genLkUsage);
         console.log("[CORRECTION DEBUG] First call done, rawContent length:", rawContent?.length);
 
         // Parse the raw content to extract the post text
@@ -1118,7 +1122,8 @@ Réponds UNIQUEMENT en JSON :
           correctionPrompt,
           `Voici le post LinkedIn à corriger :\n\n"""\n${postText}\n"""`,
           0.3,
-          4096
+          4096,
+          corrLkUsage
         );
         console.log("[CORRECTION DEBUG] Correction call done, correctedRaw length:", correctedRaw?.length);
 
@@ -1151,7 +1156,7 @@ Réponds UNIQUEMENT en JSON :
             objectif: originalParsed.objectif || "",
           };
 
-          await logUsage(userId, "content", "creative_flow", undefined, undefined, workspace_id);
+          await logUsage(userId, "content", "creative_flow", ((genLkUsage.total_tokens ?? 0) + (corrLkUsage.total_tokens ?? 0)) || undefined, genLkUsage.model, workspace_id);
           return new Response(JSON.stringify(merged), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
@@ -1166,7 +1171,7 @@ Réponds UNIQUEMENT en JSON :
           else fallbackParsed = { content: rawContent };
         }
 
-        await logUsage(userId, "content", "creative_flow", undefined, undefined, workspace_id);
+        await logUsage(userId, "content", "creative_flow", ((genLkUsage.total_tokens ?? 0) + (corrLkUsage.total_tokens ?? 0)) || undefined, genLkUsage.model, workspace_id);
         return new Response(JSON.stringify(fallbackParsed), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -1174,7 +1179,8 @@ Réponds UNIQUEMENT en JSON :
 
       // Newsletter: disable streaming, use 2-step generation + correction (same pattern as LinkedIn)
       if (isNewsletter) {
-        const rawContent = await callAnthropicSimple(model, systemPrompt, userPrompt!, 0.7, 4096);
+        const nlUsage: UsageSink = {};
+        const rawContent = await callAnthropicSimple(model, systemPrompt, userPrompt!, 0.7, 4096, nlUsage);
 
         let parsed: any;
         try {
@@ -1212,7 +1218,7 @@ Réponds UNIQUEMENT en JSON :
           parsed.word_count = parsed.content.split(/\s+/).filter(Boolean).length;
         }
 
-        await logUsage(userId, "content", "creative_flow", undefined, undefined, workspace_id);
+        await logUsage(userId, "content", "creative_flow", nlUsage.total_tokens, nlUsage.model, workspace_id);
         return new Response(JSON.stringify(parsed), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -1220,7 +1226,9 @@ Réponds UNIQUEMENT en JSON :
 
       // Carousel: disable streaming, use 2-step generation + correction
       if (isCarousel) {
-        const rawContent = await callAnthropicSimple(model, systemPrompt, userPrompt!, 0.85, 4096);
+        const caUsage: UsageSink = {};
+        const caCorrUsage: UsageSink = {};
+        const rawContent = await callAnthropicSimple(model, systemPrompt, userPrompt!, 0.85, 4096, caUsage);
 
         // Parse the raw content
         let parsedContent: any = null;
@@ -1279,7 +1287,8 @@ Réponds UNIQUEMENT en JSON :
           carouselCorrectionPrompt,
           `Voici le carrousel à corriger :\n\n"""\n${slidesText}\n"""`,
           0.3,
-          4096
+          4096,
+          caCorrUsage
         );
 
         // Parse corrected content, fallback to original if correction fails
@@ -1303,14 +1312,14 @@ Réponds UNIQUEMENT en JSON :
             objectif: parsedContent?.objectif || "",
           };
 
-          await logUsage(userId, "content", "creative_flow", undefined, undefined, workspace_id);
+          await logUsage(userId, "content", "creative_flow", ((caUsage.total_tokens ?? 0) + (caCorrUsage.total_tokens ?? 0)) || undefined, caUsage.model, workspace_id);
           return new Response(JSON.stringify(merged), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
 
         // Fallback: return original
-        await logUsage(userId, "content", "creative_flow", undefined, undefined, workspace_id);
+        await logUsage(userId, "content", "creative_flow", ((caUsage.total_tokens ?? 0) + (caCorrUsage.total_tokens ?? 0)) || undefined, caUsage.model, workspace_id);
         return new Response(JSON.stringify(parsedContent || { content: rawContent }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -1326,13 +1335,15 @@ Réponds UNIQUEMENT en JSON :
         4096,
       );
 
-      return createClientSSEStream(anthropicStream, corsHeaders, async () => {
-        await logUsage(userId, "content", "creative_flow", undefined, undefined, workspace_id);
+      return createClientSSEStream(anthropicStream, corsHeaders, async (_full, usage) => {
+        await logUsage(userId, "content", "creative_flow", usage?.total_tokens, usage?.model, workspace_id);
       });
     }
 
     // ── Call Anthropic ──
     let rawContent: string;
+    // Une seule des branches ci-dessous s'exécute → un sink partagé suffit.
+    const finalUsage: UsageSink = {};
 
     // Build files array (backward compatible)
     const filesArray: any[] = body.files || (body.fileBase64 ? [{ base64: body.fileBase64, mimeType: body.fileMimeType, name: "fichier" }] : []);
@@ -1388,7 +1399,7 @@ Réponds UNIQUEMENT en JSON :
         messages: [{ role: "user", content }],
         temperature: 0.8,
         max_tokens: 8192,
-      });
+      }, finalUsage);
     } else if (step === "questions" && body.photo_mode && body.photos?.[0]?.base64) {
       // Vision-anchored questions: let Claude SEE ALL photos (1..10) to ask grounded questions.
       const validPhotosQ = body.photos.filter((p: any) => p?.base64).slice(0, 10);
@@ -1434,7 +1445,7 @@ ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}
         messages: [{ role: "user", content: questionsContent }],
         temperature: 0.8,
         max_tokens: 1500,
-      });
+      }, finalUsage);
     } else if (step === "generate" && body.photo_mode && body.photos?.[0]?.base64) {
       // Photo mode with vision: send 1 to 10 images to Claude — format-aware prompt.
       // 1 = scène unique. 2 = "avant / après" (transformation). 3+ = "série / reportage".
@@ -1522,7 +1533,7 @@ ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}
         messages: [{ role: "user", content: photoContent }],
         temperature: isLinkedInPhoto ? 0.7 : 0.85,
         max_tokens: 4096,
-      });
+      }, finalUsage);
     } else {
       const maxTokens = step === "questions" ? 800 : step === "recycle" ? 12288 : undefined;
       const isLinkedInText = !!contentType?.includes("linkedin") && step !== "questions";
@@ -1532,7 +1543,7 @@ ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}
       const modelForCall = (step === "questions" || step === "follow-up")
         ? getModelForAction("questions")
         : getModelForAction("content");
-      rawContent = await callAnthropicSimple(modelForCall, systemPrompt, userPrompt!, tempText, maxTokens);
+      rawContent = await callAnthropicSimple(modelForCall, systemPrompt, userPrompt!, tempText, maxTokens, finalUsage);
     }
 
     let parsed;
@@ -1592,7 +1603,7 @@ ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}
 
     // Ne débite que les steps facturés (generate/adjust/recycle) ; angles/questions/follow-up/dictation = gratuits.
     if (isBilledStep) {
-      await logUsage(userId, "content", "creative_flow", undefined, undefined, workspace_id);
+      await logUsage(userId, "content", "creative_flow", finalUsage.total_tokens, finalUsage.model, workspace_id);
     }
     return new Response(JSON.stringify(parsed), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: any) {

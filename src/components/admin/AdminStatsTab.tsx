@@ -58,9 +58,10 @@ const tooltipStyle = { borderRadius: 8, fontSize: 13, border: "1px solid hsl(var
  * plat de 3 $/M qui ignorait l'écart Opus (~75 $/M) vs Haiku (~5 $/M).
  */
 const MODEL_COST_PER_TOKEN: { match: RegExp; rate: number }[] = [
-  { match: /opus/i, rate: 0.00007 },    // ~75 $/M
-  { match: /sonnet/i, rate: 0.000014 }, // ~15 $/M
-  { match: /haiku/i, rate: 0.000005 },  // ~5 $/M
+  { match: /opus/i, rate: 0.00007 },          // ~75 $/M
+  { match: /sonnet/i, rate: 0.000014 },       // ~15 $/M
+  { match: /haiku/i, rate: 0.000005 },        // ~5 $/M
+  { match: /gemini.*flash/i, rate: 0.0000004 }, // gateway Lovable, scoring/suggestions (~0,3 $/M)
 ];
 const DEFAULT_COST_PER_TOKEN = 0.000014; // modèle inconnu / gateway → tarif Sonnet
 

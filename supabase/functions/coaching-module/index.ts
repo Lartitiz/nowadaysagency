@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
-import { callAnthropicSimple, getDefaultModel } from "../_shared/anthropic.ts";
+import { callAnthropicSimple, getDefaultModel, type UsageSink } from "../_shared/anthropic.ts";
 import { streamAnthropicSSE, createClientSSEStream } from "../_shared/anthropic-stream.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
@@ -158,8 +158,9 @@ Retourne UNIQUEMENT un JSON :
   "intro": "Message d'intro court et personnalisé (2 phrases max)"
 }`;
 
-      const raw = await callAnthropicSimple(getDefaultModel(), systemPrompt, "Génère les questions personnalisées.", 0.4, 2000);
-      
+      const qUsage: UsageSink = {};
+      const raw = await callAnthropicSimple(getDefaultModel(), systemPrompt, "Génère les questions personnalisées.", 0.4, 2000, qUsage);
+
       let result;
       try {
         const jsonMatch = raw.match(/\{[\s\S]*\}/);
@@ -173,7 +174,7 @@ Retourne UNIQUEMENT un JSON :
         };
       }
 
-      await logUsage(user.id, "suggestion", "coaching_questions", undefined, undefined, workspace_id);
+      await logUsage(user.id, "suggestion", "coaching_questions", qUsage.total_tokens, qUsage.model, workspace_id);
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -253,12 +254,13 @@ Pour le module editorial, propose piliers de contenu.`;
           0.5,
           4000,
         );
-        return createClientSSEStream(anthropicStream, corsHeaders, async () => {
-          await logUsage(user.id, "content", "coaching_diagnostic", undefined, undefined, workspace_id);
+        return createClientSSEStream(anthropicStream, corsHeaders, async (_full, usage) => {
+          await logUsage(user.id, "content", "coaching_diagnostic", usage?.total_tokens, usage?.model, workspace_id);
         });
       }
 
-      const raw = await callAnthropicSimple(getDefaultModel(), systemPrompt, "Génère ton diagnostic et tes propositions.", 0.5, 4000);
+      const diagUsage: UsageSink = {};
+      const raw = await callAnthropicSimple(getDefaultModel(), systemPrompt, "Génère ton diagnostic et tes propositions.", 0.5, 4000, diagUsage);
 
       let result;
       try {
@@ -272,7 +274,7 @@ Pour le module editorial, propose piliers de contenu.`;
         });
       }
 
-      await logUsage(user.id, "content", "coaching_diagnostic", undefined, undefined, workspace_id);
+      await logUsage(user.id, "content", "coaching_diagnostic", diagUsage.total_tokens, diagUsage.model, workspace_id);
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -361,12 +363,13 @@ Pour le module editorial, propose piliers de contenu.`;
           0.5,
           4000,
         );
-        return createClientSSEStream(anthropicStream, corsHeaders, async () => {
-          await logUsage(user.id, "suggestion", "coaching_adjust", undefined, undefined, workspace_id);
+        return createClientSSEStream(anthropicStream, corsHeaders, async (_full, usage) => {
+          await logUsage(user.id, "suggestion", "coaching_adjust", usage?.total_tokens, usage?.model, workspace_id);
         });
       }
 
-      const raw = await callAnthropicSimple(getDefaultModel(), systemPrompt, "Ajuste ta proposition en tenant compte du feedback.", 0.5, 4000);
+      const adjUsage: UsageSink = {};
+      const raw = await callAnthropicSimple(getDefaultModel(), systemPrompt, "Ajuste ta proposition en tenant compte du feedback.", 0.5, 4000, adjUsage);
 
       let result;
       try {
@@ -380,7 +383,7 @@ Pour le module editorial, propose piliers de contenu.`;
         });
       }
 
-      await logUsage(user.id, "suggestion", "coaching_adjust", undefined, undefined, workspace_id);
+      await logUsage(user.id, "suggestion", "coaching_adjust", adjUsage.total_tokens, adjUsage.model, workspace_id);
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

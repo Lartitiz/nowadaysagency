@@ -637,6 +637,7 @@ Si vraiment rien ne fonctionne (moins de 3 sujets connectés trouvables), retour
     }
 
     const data = await response.json();
+    const tokensUsed = (data.usage?.input_tokens ?? 0) + (data.usage?.output_tokens ?? 0);
 
     // Extract text blocks (web search responses have multiple text blocks interleaved with search results)
     const textBlocks = (data.content || []).filter((b: any) => b.type === "text").map((b: any) => b.text);
@@ -812,7 +813,7 @@ Si vraiment rien ne fonctionne (moins de 3 sujets connectés trouvables), retour
     }
 
     // Log usage
-    await logUsage(user.id, "deep_research", "newsjacking", undefined, model, workspace_id);
+    await logUsage(user.id, "deep_research", "newsjacking", tokensUsed, model, workspace_id);
 
     return new Response(JSON.stringify(parsed), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
