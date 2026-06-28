@@ -196,12 +196,12 @@ const TOUR_STEPS = [
   { target: "card-assistant", title: "Ta coach de com'", text: "Un doute, une question, besoin d'un coup de pouce ? Elle connaît ton projet et te répond de façon personnalisée.", position: "bottom" as const },
 ];
 
-/* ── Channel pills (decorative) ── */
+/* ── Channel pills → raccourcis création par canal ── */
 const CHANNEL_PILLS = [
-  { label: "Instagram", icon: Instagram },
-  { label: "LinkedIn", icon: Linkedin },
-  { label: "Newsletter", icon: Mail },
-  { label: "Pinterest", icon: Pin },
+  { label: "Instagram", icon: Instagram, canal: "instagram" },
+  { label: "LinkedIn", icon: Linkedin, canal: "linkedin" },
+  { label: "Newsletter", icon: Mail, canal: "newsletter" },
+  { label: "Pinterest", icon: Pin, canal: "pinterest" },
 ];
 
 /* ── Main ── */
@@ -477,17 +477,20 @@ export default function AdaptiveHome() {
             {cleanText(recommendation.explanation)}
           </p>
 
-          {/* Channel pills (decorative) — uniquement une fois lancée */}
+          {/* Raccourcis création par canal — uniquement une fois lancée */}
           {hero.showChannels && (
-            <div className="flex flex-wrap gap-2 mt-4" aria-hidden="true">
-              {CHANNEL_PILLS.map(({ label, icon: Icon }) => (
-                <span
+            <div className="flex flex-wrap gap-2 mt-4">
+              {CHANNEL_PILLS.map(({ label, icon: Icon, canal }) => (
+                <button
                   key={label}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-pale border border-border/40 text-xs text-foreground/70 pointer-events-none"
+                  type="button"
+                  aria-label={`Créer un contenu ${label}`}
+                  onClick={(e) => { e.stopPropagation(); navigate(`/creer?canal=${canal}`); }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-pale border border-border/40 text-xs text-foreground/70 hover:bg-bordeaux hover:text-white hover:border-bordeaux transition-colors"
                 >
                   <Icon className="h-3 w-3" />
                   {label}
-                </span>
+                </button>
               ))}
             </div>
           )}
