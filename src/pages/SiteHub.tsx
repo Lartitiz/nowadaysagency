@@ -60,7 +60,7 @@ export default function SiteHub() {
       user_id: user.id, 
       workspace_id: workspaceId !== user.id ? workspaceId : undefined,
       cms: value 
-    } as any, { onConflict: "user_id" });
+    } as any, { onConflict: "user_id,workspace_id" });
     if (error) toast.error("Erreur de sauvegarde");
   };
 
