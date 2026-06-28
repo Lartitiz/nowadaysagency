@@ -53,16 +53,9 @@ const stepValidators: Record<number, { schema: z.ZodType<any>; getData: (a: Answ
     getData: (a) => ({ temps: a.temps }),
     message: "Indique le temps que tu peux y consacrer",
   },
-  9: {
-    schema: z.object({ change_priority: z.string().trim().min(1) }),
-    getData: (a) => ({ change_priority: a.change_priority }),
-    message: "Dis-moi en quelques mots ce que tu changerais",
-  },
-  10: {
-    schema: z.object({ uniqueness: z.string().trim().min(1) }),
-    getData: (a) => ({ uniqueness: a.uniqueness }),
-    message: "Partage ce qui te rend différent·e, même brièvement",
-  },
+  // Steps 9 & 10 (rédactions libres) sont FACULTATIFS — on ne bloque pas une
+  // inscription pressée sur « ce que tu changerais » / « ce qui te rend
+  // différente ». Les valeurs vides sont gérées en aval (diagnostic + branding).
 };
 
 const variants = {

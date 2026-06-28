@@ -141,8 +141,9 @@ export function ChangeScreen({ value, onChange, onNext }: { value: string; onCha
         <p className="text-sm text-muted-foreground italic">pas de mauvaise réponse, dis ce qui te vient</p>
       </div>
       <VoiceInput value={value} onChange={onChange} placeholder="Ex : avoir un feed Instagram cohérent, trouver ma ligne éditoriale..." multiline />
-      <div className="text-center">
-        <Button onClick={onNext} disabled={!value.trim()} className="rounded-full px-8">Suivant →</Button>
+      <div className="text-center space-y-2">
+        <Button onClick={onNext} className="rounded-full px-8">{value.trim() ? "Suivant →" : "Passer →"}</Button>
+        <p className="text-xs text-muted-foreground">Tu pourras compléter ça plus tard dans ton branding.</p>
       </div>
     </div>
   );
@@ -159,8 +160,9 @@ export function UniquenessScreen({ value, onChange, onNext }: { value: string; o
         <p className="text-sm text-muted-foreground italic">même si tu penses que c'est pas grand-chose</p>
       </div>
       <VoiceInput value={value} onChange={onChange} placeholder="Ex : mon approche est très humaine, je mets les gens à l'aise..." multiline />
-      <div className="text-center">
-        <Button onClick={onNext} disabled={!value.trim()} className="rounded-full px-8">Voir mon diagnostic →</Button>
+      <div className="text-center space-y-2">
+        <Button onClick={onNext} className="rounded-full px-8">{value.trim() ? "Voir mon diagnostic →" : "Passer et voir mon diagnostic →"}</Button>
+        <p className="text-xs text-muted-foreground">Tu pourras compléter ça plus tard dans ton branding.</p>
       </div>
     </div>
   );
