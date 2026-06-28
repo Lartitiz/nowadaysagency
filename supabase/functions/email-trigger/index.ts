@@ -63,6 +63,9 @@ serve(async (req) => {
       case "check_inactive":
         result = await handleCheckInactive(supabase);
         break;
+      case "check_not_activated":
+        result = await handleCheckNotActivated(supabase);
+        break;
       case "check_credits":
         result = await handleCheckCredits(supabase);
         break;
@@ -185,6 +188,37 @@ async function handleCheckInactive(supabase: any): Promise<any> {
   }
 
   return { event: "check_inactive", checked: inactiveUsers.length, triggered };
+}
+
+async function handleCheckNotActivated(supabase: any): Promise<any> {
+  // Inscrites qui ont fini l'onboarding mais n'ont JAMAIS généré (activation ratée).
+  // Fenêtre : compte âgé de 24h à 14 jours (on laisse 24h avant de relancer, et on ne
+  // remonte pas trop loin pour ne pas spammer rétroactivement d'anciens comptes).
+  const twentyFourHoursAgo = new Date(Date.now() - 24 * 3600000).toISOString();
+  const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 3600000).toISOString();
+
+  const { data: candidates } = await supabase
+    .from("profiles")
+    .select("user_id")
+    .eq("onboarding_completed", true)
+    .gte("created_at", fourteenDaysAgo)
+    .lte("created_at", twentyFourHoursAgo);
+
+  if (!candidates?.length) return { event: "check_not_activated", checked: 0, triggered: 0 };
+
+  // Qui a déjà généré au moins une fois (n'importe quand) ?
+  const { data: aiRows } = await supabase.from("ai_usage").select("user_id");
+  const hasGenerated = new Set((aiRows || []).map((r: any) => r.user_id));
+
+  const notActivated = candidates.filter((c: any) => !hasGenerated.has(c.user_id));
+
+  let triggered = 0;
+  for (const c of notActivated) {
+    const result = await enqueueSequence(supabase, c.user_id, "not_activated");
+    if (result.queued > 0) triggered++;
+  }
+
+  return { event: "check_not_activated", checked: notActivated.length, triggered };
 }
 
 async function handleCheckCredits(supabase: any): Promise<any> {
