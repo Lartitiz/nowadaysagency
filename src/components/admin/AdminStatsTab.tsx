@@ -101,6 +101,11 @@ interface StatsData {
   near_limit_free: { user_id: string; prenom: string; credits_used: number }[];
   inactive_paid: { user_id: string; prenom: string; plan: string; last_sign_in: string | null }[];
   zombie_users_count: number;
+  // Activation & adoption (peuvent être absents tant que l'edge function n'est pas redéployée)
+  activation_funnel?: { step: string; count: number }[];
+  feature_adoption?: { category: string; users: number; rate: number }[];
+  published_this_month?: number;
+  published_total?: number;
 }
 
 type Section = "dashboard" | "business" | "engagement_product" | "users";
@@ -241,10 +246,10 @@ function OverviewSection({ stats }: { stats: StatsData }) {
           subColor="text-success"
         />
         <KpiCard
-          title="Actives"
+          title="Actives (ont créé)"
           value={stats.active_this_month}
           trend={stats.active_this_month - (stats.active_prev_month || 0)}
-          sub={`${activeRate}% du total`}
+          sub={`${activeRate}% ont généré ce mois`}
           status={activeRate >= 30 ? "good" : activeRate >= 15 ? "warning" : "danger"}
         />
         <KpiCard
@@ -270,6 +275,34 @@ function OverviewSection({ stats }: { stats: StatsData }) {
 
       {/* Alerts panel */}
       <AlertsPanel stats={stats} />
+
+      {/* Tunnel d'activation : où les inscrites décrochent jusqu'à la publication */}
+      {stats.activation_funnel && stats.activation_funnel.length > 0 && (
+        <ChartCard title="Tunnel d'activation (jusqu'à la publication)">
+          <div className="space-y-3">
+            {stats.activation_funnel.map((s, i) => {
+              const top = stats.activation_funnel![0]?.count || 1;
+              const prev = i > 0 ? stats.activation_funnel![i - 1].count : s.count;
+              const pctTotal = Math.round((s.count / top) * 100);
+              const pctPrev = prev > 0 ? Math.round((s.count / prev) * 100) : 100;
+              return (
+                <div key={s.step}>
+                  <div className="flex items-center justify-between text-sm mb-1">
+                    <span className="font-medium">{s.step}</span>
+                    <span className="text-muted-foreground tabular-nums">
+                      {s.count} · {pctTotal}%
+                      {i > 0 && pctPrev < 100 && <span className="text-error"> (−{100 - pctPrev}% vs étape préc.)</span>}
+                    </span>
+                  </div>
+                  <div className="h-2.5 rounded-full bg-muted overflow-hidden">
+                    <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${pctTotal}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </ChartCard>
+      )}
 
       {/* Chart: Inscriptions par semaine */}
       <ChartCard title="Inscriptions par semaine">
@@ -406,10 +439,11 @@ function EngagementProductSection({ stats }: { stats: StatsData }) {
   return (
     <div className="space-y-6">
       {/* KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         <KpiCard title="Rétention" value={stats.retention_rate} suffix="%" sub={`${stats.retained_users} revenues du mois dernier`} subColor={stats.retention_rate >= 50 ? "text-success" : "text-warning"} status={stats.retention_rate >= 50 ? "good" : stats.retention_rate >= 30 ? "warning" : "danger"} />
         <KpiCard title="Contenus générés" value={totalContent} sub={`${stats.drafts_this_month} brouillons · ${stats.calendar_posts_this_month} planifiés`} />
-        <KpiCard title="Contenus → planifiés" value={stats.content_usage_rate || 0} suffix="%" sub={`${stats.calendar_posts_this_month} planifiés sur ${stats.drafts_this_month} générés`} subColor={(stats.content_usage_rate || 0) >= 50 ? "text-success" : (stats.content_usage_rate || 0) >= 25 ? "text-warning" : "text-error"} />
+        <KpiCard title="Publiés ce mois" value={stats.published_this_month ?? 0} sub={stats.published_total !== undefined ? `${stats.published_total} au total` : "publications réelles"} subColor={(stats.published_this_month ?? 0) > 0 ? "text-success" : undefined} />
+        <KpiCard title="Planifiés / générés" value={stats.content_usage_rate || 0} suffix="%" sub={`${stats.calendar_posts_this_month} planifiés · ${stats.drafts_this_month} générés (indicatif)`} subColor={(stats.content_usage_rate || 0) >= 50 ? "text-success" : (stats.content_usage_rate || 0) >= 25 ? "text-warning" : "text-error"} />
         <KpiCard title="Générations IA" value={stats.ai_total_this_month} trend={stats.ai_total_this_month - (stats.ai_total_prev_month || 0)} sub="ce mois" />
       </div>
 
@@ -485,8 +519,25 @@ function EngagementProductSection({ stats }: { stats: StatsData }) {
         </ChartCard>
       </div>
 
-      {/* Détail fonctionnalités IA (toutes) */}
-      <ChartCard title="Détail fonctionnalités IA (toutes)">
+      {/* Adoption par fonctionnalité : combien de clientes DISTINCTES utilisent chaque brique (largeur, pas volume) */}
+      {stats.feature_adoption && stats.feature_adoption.length > 0 && (
+        <ChartCard title="Adoption par fonctionnalité (clientes distinctes)">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+            {stats.feature_adoption.map(f => (
+              <div key={f.category} className="space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span>{CATEGORY_LABELS[f.category] || f.category}</span>
+                  <span className="text-muted-foreground font-medium">{f.users} <span className="text-xs">({f.rate}%)</span></span>
+                </div>
+                <Progress value={f.rate} className="h-1.5" />
+              </div>
+            ))}
+          </div>
+        </ChartCard>
+      )}
+
+      {/* Détail fonctionnalités IA (toutes) — volume de générations */}
+      <ChartCard title="Détail fonctionnalités IA (volume de générations)">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
           {topFeatures.map(f => (
             <div key={f.category} className="space-y-1">
