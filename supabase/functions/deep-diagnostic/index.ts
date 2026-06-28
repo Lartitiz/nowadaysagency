@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { scrapeLinkedin, processScreenshots, scrapeWebsite, extractVisualInfo } from "../_shared/scraping.ts";
-import { callAnthropic, callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
+import { callAnthropic, callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
@@ -356,6 +356,7 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
 
     // ====== CALL CLAUDE — PHASE 1 : Diagnostic rapide (Sonnet) ======
     let analysisResult: Record<string, unknown>;
+    const diagUsage: UsageSink = {};
 
     try {
       const fastModel = getModelForAction("content"); // Sonnet — rapide
@@ -389,10 +390,10 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
           messages: [{ role: "user", content: userContentBlocks }],
           temperature: 0.6,
           max_tokens: 2000,
-        });
+        }, diagUsage);
       } else {
         // Simple text-only call
-        rawText = await callAnthropicSimple(fastModel, systemPrompt, userPrompt, 0.7, 2000);
+        rawText = await callAnthropicSimple(fastModel, systemPrompt, userPrompt, 0.7, 2000, diagUsage);
       }
 
       // Parse JSON with robust cleaning
@@ -441,7 +442,7 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
 
     if (!isOnboarding) {
       fastSaves.push(
-        logUsage(userId, "audit", "deep_diagnostic", undefined, "claude-sonnet", workspaceId)
+        logUsage(userId, "audit", "deep_diagnostic", diagUsage.total_tokens, diagUsage.model, workspaceId)
           .catch(e => console.error("logUsage failed:", e))
       );
     }

@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
-import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
+import { callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
@@ -133,7 +133,8 @@ Retourne UNIQUEMENT un JSON :
   "intro": "Message d'intro court et personnalisé (2 phrases max)"
 }`;
 
-      const raw = await callAnthropicSimple(getModelForAction("coaching_light"), systemPrompt, "Génère les questions personnalisées.", 0.4, 2000);
+      const questionsUsage: UsageSink = {};
+      const raw = await callAnthropicSimple(getModelForAction("coaching_light"), systemPrompt, "Génère les questions personnalisées.", 0.4, 2000, questionsUsage);
 
       let result;
       try {
@@ -147,7 +148,7 @@ Retourne UNIQUEMENT un JSON :
         };
       }
 
-      await logUsage(user.id, "suggestion", "linkedin_coaching_questions", undefined, undefined, workspace_id);
+      await logUsage(user.id, "suggestion", "linkedin_coaching_questions", questionsUsage.total_tokens, questionsUsage.model, workspace_id);
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -213,7 +214,8 @@ Retourne un JSON :
 
 Sois directe, bienveillante, et concrète. Pas de jargon. Tutoiement.`;
 
-      const raw = await callAnthropicSimple(getModelForAction("coaching_light"), systemPrompt, "Génère ton diagnostic et tes propositions.", 0.5, 4000);
+      const diagnosticUsage: UsageSink = {};
+      const raw = await callAnthropicSimple(getModelForAction("coaching_light"), systemPrompt, "Génère ton diagnostic et tes propositions.", 0.5, 4000, diagnosticUsage);
 
       let result;
       try {
@@ -227,7 +229,7 @@ Sois directe, bienveillante, et concrète. Pas de jargon. Tutoiement.`;
         });
       }
 
-      await logUsage(user.id, "suggestion", "linkedin_coaching_diagnostic", undefined, undefined, workspace_id);
+      await logUsage(user.id, "suggestion", "linkedin_coaching_diagnostic", diagnosticUsage.total_tokens, diagnosticUsage.model, workspace_id);
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
