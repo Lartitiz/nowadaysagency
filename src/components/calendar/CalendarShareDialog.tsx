@@ -421,14 +421,14 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
                     </div>
 
                     <div className="flex items-center gap-1.5">
-                      <Button variant="outline" size="sm" className="rounded-full text-xs gap-1 h-7" onClick={() => copyLink(share.share_token)}>
+                      <Button variant="outline" size="sm" className="rounded-full text-xs gap-1 h-8" onClick={() => copyLink(share.share_token)}>
                         <Copy className="h-3 w-3" /> Copier
                       </Button>
                       {(share.edit_logs || []).length > 0 && (
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="rounded-full text-xs gap-1 h-7 text-muted-foreground"
+                          className="rounded-full text-xs gap-1 h-8 text-muted-foreground"
                           onClick={() => setExpandedShare(isExpanded ? null : share.id)}
                         >
                           {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
@@ -439,11 +439,11 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
                         <Switch checked={share.is_active} onCheckedChange={() => toggleActive(share)} className="scale-75" />
                         {confirmDeleteId === share.id ? (
                           <div className="flex items-center gap-1">
-                            <Button variant="destructive" size="sm" className="h-7 text-xs rounded-full" onClick={() => deleteShare(share.id)}>Confirmer</Button>
-                            <Button variant="outline" size="sm" className="h-7 text-xs rounded-full" onClick={() => setConfirmDeleteId(null)}>Annuler</Button>
+                            <Button variant="destructive" size="sm" className="h-8 text-xs rounded-full" onClick={() => deleteShare(share.id)}>Confirmer</Button>
+                            <Button variant="outline" size="sm" className="h-8 text-xs rounded-full" onClick={() => setConfirmDeleteId(null)}>Annuler</Button>
                           </div>
                         ) : (
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setConfirmDeleteId(share.id)}>
+                          <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive" onClick={() => setConfirmDeleteId(share.id)}>
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         )}

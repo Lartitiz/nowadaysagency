@@ -276,7 +276,7 @@ export default function Profile() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       
-      <main className="mx-auto max-w-2xl px-4 py-8 pb-28 animate-fade-in">
+      <main className="mx-auto max-w-2xl px-4 py-8 pb-40 md:pb-28 animate-fade-in">
         <h1 className="font-display text-3xl font-bold text-bordeaux mb-2">Mon profil</h1>
         <p className="text-sm text-muted-foreground mb-6">Tes infos de base. Pour tout ce qui concerne ta marque (mission, ton, positionnement), c'est dans le module Branding.</p>
 
@@ -428,8 +428,8 @@ export default function Profile() {
         </div>
       </main>
 
-      {/* Sticky save button */}
-      <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-sm border-t border-border p-4 z-40">
+      {/* Sticky save button — au-dessus de la barre d'onglets mobile */}
+      <div className="fixed bottom-14 md:bottom-0 left-0 right-0 bg-background/95 backdrop-blur-sm border-t border-border p-4 z-40">
         <div className="mx-auto max-w-2xl">
           <SaveButton hasChanges={hasChanges} saving={saving} onSave={handleSave} />
         </div>

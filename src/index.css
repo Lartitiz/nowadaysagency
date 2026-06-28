@@ -271,8 +271,10 @@
   animation: btn-pulse 0.4s ease-out;
 }
 
-/* Mobile bottom tab bar spacing — add padding so content isn't hidden behind fixed tab bar */
-@media (max-width: 1023px) {
+/* Mobile bottom tab bar spacing — add padding so content isn't hidden behind fixed tab bar.
+   Aligné sur le breakpoint de la barre d'onglets (md:hidden = < 768px) pour éviter
+   une bande morte de 3.5rem sur tablette portrait (768–1023px). */
+@media (max-width: 767px) {
   body {
     padding-bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px));
   }

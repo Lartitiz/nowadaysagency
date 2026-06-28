@@ -261,7 +261,7 @@ function MoodboardSection({ images, description, onImagesChange, onDescriptionCh
 
       {/* Grid */}
       {images.length > 0 && (
-        <div className="grid grid-cols-3 gap-2 mb-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
           {images.map((img, idx) => (
             <div
               key={img.path || idx}
@@ -278,9 +278,10 @@ function MoodboardSection({ images, description, onImagesChange, onDescriptionCh
               <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/10 transition-colors" />
               <button
                 onClick={() => removeImage(idx)}
-                className="absolute top-1.5 right-1.5 bg-background/80 backdrop-blur-sm rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                aria-label={`Retirer ${img.name}`}
+                className="absolute top-1.5 right-1.5 bg-background/80 backdrop-blur-sm rounded-full p-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
               >
-                <X className="h-3 w-3 text-foreground" />
+                <X className="h-4 w-4 text-foreground" />
               </button>
               <div className="absolute top-1.5 left-1.5 opacity-0 group-hover:opacity-60 transition-opacity">
                 <GripVertical className="h-4 w-4 text-foreground" />

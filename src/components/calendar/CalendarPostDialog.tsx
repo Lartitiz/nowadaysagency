@@ -485,7 +485,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
             {mediaUrls.map((url, i) => (
               <div key={i} className="relative group w-14 h-14 rounded-lg overflow-hidden border border-border">
                 <img src={url} alt={`Visuel ${i + 1}`} className="w-full h-full object-cover" />
-                <button onClick={() => setMediaUrls(prev => prev.filter((_, idx) => idx !== i))} aria-label={`Supprimer le visuel ${i + 1}`} className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-foreground/60 text-background flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs">x</button>
+                <button onClick={() => setMediaUrls(prev => prev.filter((_, idx) => idx !== i))} aria-label={`Supprimer le visuel ${i + 1}`} className="absolute top-0.5 right-0.5 w-6 h-6 rounded-full bg-foreground/60 text-background flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity text-xs">x</button>
               </div>
             ))}
           </div>
@@ -674,8 +674,10 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={cn(
-        "max-h-[90vh] overflow-hidden flex flex-col p-0",
-        isMobile ? "sm:max-w-2xl" : "sm:max-w-6xl"
+        "overflow-hidden flex flex-col p-0",
+        isMobile
+          ? "max-w-none w-[calc(100vw-1rem)] h-[94dvh] max-h-[94dvh]"
+          : "sm:max-w-6xl max-h-[90vh]"
       )}>
         <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
           <DialogTitle className="font-display">{editingPost ? "Modifier le post" : "Ajouter un post"}</DialogTitle>

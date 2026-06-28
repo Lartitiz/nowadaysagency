@@ -105,7 +105,7 @@ export default function OnboardingPhase2Import({ answers, set, files, uploading,
           }
 
           {files.length > 0 &&
-          <div className="grid grid-cols-3 gap-2 mt-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
               {files.map((f) =>
             <div key={f.id} className="relative group rounded-xl border border-border overflow-hidden bg-card aspect-square">
                   {isImageFile(f.name) && f.url ?
