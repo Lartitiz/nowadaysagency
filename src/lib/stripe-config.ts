@@ -7,8 +7,8 @@ export const STRIPE_PLANS = {
     mode: null,
     features: [
       "Tout l'outil débloqué",
-      "60 crédits IA / mois",
-      "3 audits IA / mois",
+      "De quoi créer tes premiers contenus",
+      "Des audits IA pour te situer",
       "Communauté en lecture",
     ],
   },
@@ -19,7 +19,7 @@ export const STRIPE_PLANS = {
     productId: "prod_U66mTd9s81uGAY",
     mode: "subscription" as const,
     features: [
-      "300 crédits IA / mois (générations + audits)",
+      "Création illimitée (contenus + audits)",
       "Tous les modules Instagram, LinkedIn, Pinterest",
       "Calendrier éditorial",
       "Atelier de rédaction",
