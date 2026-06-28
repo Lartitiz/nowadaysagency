@@ -391,6 +391,29 @@ export default function AdaptiveHome() {
     navigate(route);
   };
 
+  // ── Hero : « adapter tôt, stabiliser après » ──
+  // Tant que l'onboarding n'est pas terminé, le hero suit la recommandation
+  // (ex. « Termine ton diagnostic » → /onboarding) pour guider la mise en route.
+  // Une fois lancée, l'action centrale reste stablement « Créer un contenu » :
+  // on ne laisse jamais le bouton principal du dashboard bouger d'un jour à l'autre.
+  const cleanText = (s: string) => s.replace(/&nbsp;/g, " ");
+  const launched = profileSummary.onboardingComplete;
+  const hero = launched
+    ? {
+        eyebrow: "✨ On crée quoi aujourd'hui ?",
+        title: "Créer mon prochain contenu",
+        ctaLabel: "Créer un contenu",
+        route: "/creer",
+        showChannels: true,
+      }
+    : {
+        eyebrow: "👉 Ta prochaine étape",
+        title: cleanText(recommendation.title),
+        ctaLabel: cleanText(recommendation.ctaLabel).replace(/\s*→\s*$/, ""),
+        route: recommendation.ctaRoute,
+        showChannels: false,
+      };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background">
@@ -440,38 +463,40 @@ export default function AdaptiveHome() {
         <div
           data-tour="card-next-step"
           className="group rounded-2xl bg-gradient-to-br from-rose-pale/40 to-card border border-border/60 p-6 sm:p-8 shadow-[var(--shadow-bento)] hover:shadow-[var(--shadow-bento-hover)] hover:-translate-y-[3px] hover:border-border transition-all duration-[300ms] ease-out cursor-pointer"
-          onClick={() => handleNavigate("/creer")}
+          onClick={() => handleNavigate(hero.route)}
         >
           <p className="font-mono-ui text-[10.5px] text-foreground/60 uppercase tracking-[0.12em] font-semibold mb-3">
-            ✨ On crée quoi aujourd'hui&nbsp;?
+            {hero.eyebrow}
           </p>
 
           <h2 className="font-display text-[26px] sm:text-3xl leading-[1.15] text-foreground">
-            Créer mon prochain contenu
+            {hero.title}
           </h2>
 
-          <p className="text-[15px] text-foreground/70 mt-2 leading-relaxed line-clamp-1">
-            {recommendation.explanation}
+          <p className="text-[15px] text-foreground/70 mt-2 leading-relaxed line-clamp-2">
+            {cleanText(recommendation.explanation)}
           </p>
 
-          {/* Channel pills (decorative) */}
-          <div className="flex flex-wrap gap-2 mt-4" aria-hidden="true">
-            {CHANNEL_PILLS.map(({ label, icon: Icon }) => (
-              <span
-                key={label}
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-pale border border-border/40 text-xs text-foreground/70 pointer-events-none"
-              >
-                <Icon className="h-3 w-3" />
-                {label}
-              </span>
-            ))}
-          </div>
+          {/* Channel pills (decorative) — uniquement une fois lancée */}
+          {hero.showChannels && (
+            <div className="flex flex-wrap gap-2 mt-4" aria-hidden="true">
+              {CHANNEL_PILLS.map(({ label, icon: Icon }) => (
+                <span
+                  key={label}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-pale border border-border/40 text-xs text-foreground/70 pointer-events-none"
+                >
+                  <Icon className="h-3 w-3" />
+                  {label}
+                </span>
+              ))}
+            </div>
+          )}
 
           <Button
             className="mt-6 w-full sm:w-auto h-12 px-6 rounded-xl bg-bordeaux hover:bg-primary text-white text-[15px] font-semibold shadow-sm hover:shadow-md transition-all"
-            onClick={(e) => { e.stopPropagation(); handleNavigate("/creer"); }}
+            onClick={(e) => { e.stopPropagation(); handleNavigate(hero.route); }}
           >
-            Créer un contenu
+            {hero.ctaLabel}
             <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
           </Button>
 
