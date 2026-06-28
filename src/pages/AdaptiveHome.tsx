@@ -186,10 +186,17 @@ function MissionRow({ mission, isNext, onClick }: { mission: OnboardingMission; 
 }
 
 /* ── Section label ── */
-function SectionLabel({ children }: { children: React.ReactNode }) {
+function SectionLabel({ children, hint }: { children: React.ReactNode; hint?: string }) {
   return (
-    <p className="font-mono-ui text-2xs uppercase tracking-[0.18em] text-foreground/60 font-semibold mb-3">
-      {children}
+    <p className="mb-3 flex items-baseline gap-2">
+      <span className="font-mono-ui text-2xs uppercase tracking-[0.18em] text-foreground/60 font-semibold">
+        {children}
+      </span>
+      {hint && (
+        <span className="text-2xs text-muted-foreground font-body normal-case tracking-normal">
+          {hint}
+        </span>
+      )}
     </p>
   );
 }
@@ -475,7 +482,7 @@ export default function AdaptiveHome() {
             {hero.eyebrow}
           </p>
 
-          <h2 className="font-display text-3xl sm:text-3xl leading-[1.15] text-foreground">
+          <h2 className="font-display text-2xl sm:text-[26px] leading-[1.15] text-foreground">
             {hero.title}
           </h2>
 
@@ -526,7 +533,7 @@ export default function AdaptiveHome() {
 
         {/* Zone Piloter */}
         <section>
-          <SectionLabel>Piloter</SectionLabel>
+          <SectionLabel hint="ton quotidien">Piloter</SectionLabel>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <button
               onClick={() => handleNavigate("/calendrier")}
@@ -618,20 +625,20 @@ export default function AdaptiveHome() {
           </div>
         </section>
 
-        {/* Zone Approfondir */}
+        {/* Zone Approfondir — secondaire, allégée */}
         <section>
-          <SectionLabel>Approfondir</SectionLabel>
+          <SectionLabel hint="quand tu veux aller plus loin">Approfondir</SectionLabel>
           <div data-tour="card-mini-actions" className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <button
               onClick={() => handleNavigate("/branding")}
-              className="group text-left rounded-2xl bg-card border border-border/60 p-5 shadow-[var(--shadow-bento)] hover:shadow-[var(--shadow-bento-hover)] hover:-translate-y-[2px] hover:border-primary/30 transition-all duration-[250ms] ease-out"
+              className="group text-left rounded-xl border border-border/60 p-4 hover:bg-card hover:border-primary/30 transition-colors duration-200"
             >
               <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-xl bg-rose-pale flex items-center justify-center shrink-0">
-                  <Palette className="h-5 w-5 text-bordeaux" />
+                <div className="w-9 h-9 rounded-lg bg-rose-pale/60 flex items-center justify-center shrink-0">
+                  <Palette className="h-[18px] w-[18px] text-bordeaux" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-display text-lg text-foreground leading-tight">
+                  <h3 className="font-display text-base text-foreground leading-tight">
                     Affiner mon identité de marque
                   </h3>
                   {brandingPercent === 100 ? (
@@ -657,20 +664,20 @@ export default function AdaptiveHome() {
 
             <button
               onClick={() => handleNavigate("__choose_audit__")}
-              className="group text-left rounded-2xl bg-card border border-border/60 p-5 shadow-[var(--shadow-bento)] hover:shadow-[var(--shadow-bento-hover)] hover:-translate-y-[2px] hover:border-primary/30 transition-all duration-[250ms] ease-out"
+              className="group text-left rounded-xl border border-border/60 p-4 hover:bg-card hover:border-primary/30 transition-colors duration-200"
             >
               <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-xl bg-rose-pale flex items-center justify-center shrink-0">
-                  <Search className="h-5 w-5 text-bordeaux" />
+                <div className="w-9 h-9 rounded-lg bg-rose-pale/60 flex items-center justify-center shrink-0">
+                  <Search className="h-[18px] w-[18px] text-bordeaux" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-display text-lg text-foreground leading-tight">
+                  <h3 className="font-display text-base text-foreground leading-tight">
                     Lancer un audit
                   </h3>
                   {latestAudit ? (
                     <>
-                      <p className={`font-display italic text-2xl leading-none mt-1 ${scoreToneClass(latestAudit.score_global)}`}>
-                        {latestAudit.score_global}<span className="text-base text-foreground/50">/100</span>
+                      <p className={`font-display italic text-xl leading-none mt-1 ${scoreToneClass(latestAudit.score_global)}`}>
+                        {latestAudit.score_global}<span className="text-sm text-foreground/50">/100</span>
                       </p>
                       <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                         Dernier audit {latestAudit.type} — {formatRelative(latestAudit.created_at)}
