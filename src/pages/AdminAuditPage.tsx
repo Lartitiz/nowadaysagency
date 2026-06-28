@@ -479,7 +479,7 @@ export default function AdminAuditPage() {
             {steps.map((step, i) => (
               <div key={i} className="flex items-center gap-3 mb-2">
                 {step.status === "done" ? (
-                  <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+                  <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
                 ) : step.status === "running" ? (
                   <Loader2 className="h-4 w-4 text-primary animate-spin shrink-0" />
                 ) : (
@@ -499,21 +499,21 @@ export default function AdminAuditPage() {
         {results.length > 0 && !running && (
           <>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-              <div className="bg-green-50 dark:bg-green-950/30 rounded-xl p-4 text-center border border-green-200 dark:border-green-800">
-                <p className="text-2xl font-bold text-green-600">{okCount}</p>
-                <p className="text-xs text-green-600">OK</p>
+              <div className="bg-success-bg rounded-xl p-4 text-center border border-success/30">
+                <p className="text-2xl font-bold text-success">{okCount}</p>
+                <p className="text-xs text-success">OK</p>
               </div>
-              <div className="bg-amber-50 dark:bg-amber-950/30 rounded-xl p-4 text-center border border-amber-200 dark:border-amber-800">
-                <p className="text-2xl font-bold text-amber-600">{warnCount}</p>
-                <p className="text-xs text-amber-600">Warnings</p>
+              <div className="bg-warning-bg rounded-xl p-4 text-center border border-warning/30">
+                <p className="text-2xl font-bold text-warning">{warnCount}</p>
+                <p className="text-xs text-warning">Warnings</p>
               </div>
-              <div className="bg-red-50 dark:bg-red-950/30 rounded-xl p-4 text-center border border-red-200 dark:border-red-800">
-                <p className="text-2xl font-bold text-red-600">{errCount}</p>
-                <p className="text-xs text-red-600">Erreurs</p>
+              <div className="bg-error-bg rounded-xl p-4 text-center border border-error/30">
+                <p className="text-2xl font-bold text-error">{errCount}</p>
+                <p className="text-xs text-error">Erreurs</p>
               </div>
-              <div className="bg-blue-50 dark:bg-blue-950/30 rounded-xl p-4 text-center border border-blue-200 dark:border-blue-800">
-                <p className="text-2xl font-bold text-blue-600">{infoCount}</p>
-                <p className="text-xs text-blue-600">Infos</p>
+              <div className="bg-info-bg rounded-xl p-4 text-center border border-info/30">
+                <p className="text-2xl font-bold text-info">{infoCount}</p>
+                <p className="text-xs text-info">Infos</p>
               </div>
             </div>
 
