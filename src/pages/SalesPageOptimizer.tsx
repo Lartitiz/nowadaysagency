@@ -212,8 +212,9 @@ export default function SalesPageOptimizer() {
 
             <div className="rounded-2xl border border-border bg-card p-6 space-y-5">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">URL de ta page</label>
+                <label htmlFor="sales-page-url" className="text-sm font-medium text-foreground">URL de ta page</label>
                 <Input
+                  id="sales-page-url"
                   value={siteUrl}
                   onChange={(e) => setSiteUrl(e.target.value)}
                   placeholder="https://monsite.com/mon-offre"
@@ -222,8 +223,9 @@ export default function SalesPageOptimizer() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Qu'est-ce que tu veux améliorer ? <span className="text-muted-foreground font-normal">(optionnel)</span></label>
+                <label htmlFor="sales-page-focus" className="text-sm font-medium text-foreground">Qu'est-ce que tu veux améliorer ? <span className="text-muted-foreground font-normal">(optionnel)</span></label>
                 <Textarea
+                  id="sales-page-focus"
                   value={focus}
                   onChange={(e) => setFocus(e.target.value)}
                   placeholder="Ex: Mon titre ne donne pas envie, personne ne clique, je veux plus de ventes..."
@@ -338,6 +340,7 @@ export default function SalesPageOptimizer() {
                             <div className="rounded-xl border border-primary bg-rose-pale p-4">
                               {isEditing ? (
                                 <Textarea
+                                  aria-label={`Version améliorée : ${section.nom}`}
                                   value={currentText}
                                   onChange={(e) => setEditTexts((prev) => ({ ...prev, [section.nom]: e.target.value }))}
                                   className="min-h-[120px] rounded-xl border-primary/30"

@@ -215,7 +215,7 @@ export default function CoachPlanManager({
                   {ex.description && <p className="text-xs text-muted-foreground mt-0.5">{ex.description}</p>}
                   <div className="flex items-center gap-2 mt-1.5">
                     <Select value={ex.status} onValueChange={(v) => handleStatusChange(ex.id, v)}>
-                      <SelectTrigger className="h-7 text-xs w-[110px]">
+                      <SelectTrigger className="h-7 text-xs w-[110px]" aria-label={`Statut de l'exercice : ${ex.title}`}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -252,22 +252,22 @@ export default function CoachPlanManager({
             {showForm ? (
               <div className="space-y-3 p-4 rounded-lg border border-primary/20 bg-primary/5">
                 <div>
-                  <Label className="text-xs">Titre *</Label>
-                  <Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Ex: Rédiger 3 accroches" />
+                  <Label htmlFor="coach-exercise-title" className="text-xs">Titre *</Label>
+                  <Input id="coach-exercise-title" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Ex: Rédiger 3 accroches" />
                 </div>
                 <div>
-                  <Label className="text-xs">Description</Label>
-                  <Textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Détails de l'exercice…" rows={2} />
+                  <Label htmlFor="coach-exercise-description" className="text-xs">Description</Label>
+                  <Textarea id="coach-exercise-description" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Détails de l'exercice…" rows={2} />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label className="text-xs">Deadline</Label>
-                    <Input type="date" value={form.deadline} onChange={e => setForm(f => ({ ...f, deadline: e.target.value }))} />
+                    <Label htmlFor="coach-exercise-deadline" className="text-xs">Deadline</Label>
+                    <Input id="coach-exercise-deadline" type="date" value={form.deadline} onChange={e => setForm(f => ({ ...f, deadline: e.target.value }))} />
                   </div>
                   <div>
-                    <Label className="text-xs">Phase</Label>
+                    <Label htmlFor="coach-exercise-phase" className="text-xs">Phase</Label>
                     <Select value={form.phase_id} onValueChange={v => setForm(f => ({ ...f, phase_id: v }))}>
-                      <SelectTrigger className="h-9">
+                      <SelectTrigger id="coach-exercise-phase" className="h-9">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -279,9 +279,9 @@ export default function CoachPlanManager({
                   </div>
                 </div>
                 <div>
-                  <Label className="text-xs">Lien vers un outil</Label>
+                  <Label htmlFor="coach-exercise-route" className="text-xs">Lien vers un outil</Label>
                   <Select value={form.app_route} onValueChange={v => setForm(f => ({ ...f, app_route: v }))}>
-                    <SelectTrigger className="h-9">
+                    <SelectTrigger id="coach-exercise-route" className="h-9">
                       <SelectValue placeholder="Aucun lien" />
                     </SelectTrigger>
                     <SelectContent>
@@ -293,7 +293,7 @@ export default function CoachPlanManager({
                     </SelectContent>
                   </Select>
                   {form.app_route === "__custom" && (
-                    <Input className="mt-2" value={form.custom_route} onChange={e => setForm(f => ({ ...f, custom_route: e.target.value }))} placeholder="https://… ou /chemin" />
+                    <Input aria-label="URL personnalisée" className="mt-2" value={form.custom_route} onChange={e => setForm(f => ({ ...f, custom_route: e.target.value }))} placeholder="https://… ou /chemin" />
                   )}
                 </div>
                 <div className="flex gap-2">

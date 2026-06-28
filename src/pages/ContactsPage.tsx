@@ -450,8 +450,8 @@ function NetworkTab({ contacts, onAdd, onInteract, onDelete, onPromoteToProspect
       {adding && (
         <div className="rounded-xl border border-border bg-card p-4 space-y-2">
           <h4 className="text-sm font-bold">+ Ajouter un contact</h4>
-          <Input placeholder="Username Instagram" value={newUsername} onChange={e => setNewUsername(e.target.value)} className="text-sm" />
-          <Input placeholder="Nom (optionnel)" value={newName} onChange={e => setNewName(e.target.value)} className="text-sm" />
+          <Input aria-label="Username Instagram" placeholder="Username Instagram" value={newUsername} onChange={e => setNewUsername(e.target.value)} className="text-sm" />
+          <Input aria-label="Nom (optionnel)" placeholder="Nom (optionnel)" value={newName} onChange={e => setNewName(e.target.value)} className="text-sm" />
           <div className="flex flex-wrap gap-1.5">
             {NETWORK_CATEGORIES.map(cat => (
               <button
@@ -536,9 +536,9 @@ function ProspectsTab({ contacts, onAdd, onSelect, onUpdateStage, onWriteDm, pip
       {adding && (
         <div className="rounded-xl border border-border bg-card p-4 space-y-2">
           <h4 className="text-sm font-bold">+ Ajouter un prospect</h4>
-          <Input placeholder="Username Instagram" value={newUsername} onChange={e => setNewUsername(e.target.value)} className="text-sm" />
-          <Input placeholder="Prénom (optionnel)" value={newName} onChange={e => setNewName(e.target.value)} className="text-sm" />
-          <Input placeholder="Activité (optionnel)" value={newActivity} onChange={e => setNewActivity(e.target.value)} className="text-sm" />
+          <Input aria-label="Username Instagram" placeholder="Username Instagram" value={newUsername} onChange={e => setNewUsername(e.target.value)} className="text-sm" />
+          <Input aria-label="Prénom (optionnel)" placeholder="Prénom (optionnel)" value={newName} onChange={e => setNewName(e.target.value)} className="text-sm" />
+          <Input aria-label="Activité (optionnel)" placeholder="Activité (optionnel)" value={newActivity} onChange={e => setNewActivity(e.target.value)} className="text-sm" />
           <div className="flex gap-2">
             <Button size="sm" onClick={handleAdd}>Ajouter</Button>
             <Button size="sm" variant="ghost" onClick={() => setAdding(false)}>Annuler</Button>

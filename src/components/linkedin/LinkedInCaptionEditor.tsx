@@ -72,10 +72,11 @@ export default function LinkedInCaptionEditor({
       <Card className="border-border">
         <CardContent className="p-3 space-y-1.5">
           <div className="flex items-center justify-between gap-2">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Accroche</label>
+            <label htmlFor="li-caption-hook" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Accroche</label>
             <CharacterCounter count={hookLen} max={210} sweetSpot={{ min: 100, max: 210 }} />
           </div>
           <Textarea
+            id="li-caption-hook"
             value={hook || ""}
             onChange={(e) => onChangeHook(e.target.value)}
             className="resize-none min-h-[56px] font-bold text-sm"
@@ -94,7 +95,7 @@ export default function LinkedInCaptionEditor({
       <Card className="border-border">
         <CardContent className="p-3 space-y-1.5">
           <div className="flex items-center justify-between gap-2">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Corps du post</label>
+            <label htmlFor="li-caption-body" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Corps du post</label>
             <span
               className={`text-xs font-medium tabular-nums ${
                 bodyOver
@@ -113,6 +114,7 @@ export default function LinkedInCaptionEditor({
             </span>
           </div>
           <Textarea
+            id="li-caption-body"
             value={body || ""}
             onChange={(e) => onChangeBody(e.target.value)}
             className="resize-none min-h-[140px] text-sm"
@@ -126,10 +128,11 @@ export default function LinkedInCaptionEditor({
       <Card className="border-border">
         <CardContent className="p-3 space-y-1.5">
           <div className="flex items-center justify-between gap-2">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">CTA</label>
+            <label htmlFor="li-caption-cta" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">CTA</label>
             <span className="text-xs font-medium text-muted-foreground tabular-nums">{ctaLen} car.</span>
           </div>
           <Textarea
+            id="li-caption-cta"
             value={cta || ""}
             onChange={(e) => onChangeCta(e.target.value)}
             className="resize-none min-h-[48px] text-sm"
@@ -143,7 +146,7 @@ export default function LinkedInCaptionEditor({
       <Card className="border-border">
         <CardContent className="p-3 space-y-1.5">
           <div className="flex items-center justify-between gap-2">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Hashtags</label>
+            <label htmlFor="li-caption-hashtags" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Hashtags</label>
             <span
               className={`text-xs font-medium tabular-nums ${
                 tagsTooMany ? "text-warning" : hashtagsCount >= 3 && hashtagsCount <= 5 ? "text-success" : "text-muted-foreground"
@@ -160,6 +163,7 @@ export default function LinkedInCaptionEditor({
             ))}
           </div>
           <Input
+            id="li-caption-hashtags"
             value={hashtagInput}
             onChange={(e) => onChangeHashtags(e.target.value)}
             placeholder="#hashtag1 #hashtag2 #hashtag3"

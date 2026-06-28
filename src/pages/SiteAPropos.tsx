@@ -434,21 +434,21 @@ export default function SiteAPropos() {
 
             {inputMode === "url" ? (
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">URL de ta page À propos</label>
-                <Input value={optimizeUrl} onChange={(e) => setOptimizeUrl(e.target.value)} placeholder="https://monsite.com/a-propos" className="rounded-xl" />
+                <label htmlFor="optimize-url" className="text-sm font-medium text-foreground">URL de ta page À propos</label>
+                <Input id="optimize-url" value={optimizeUrl} onChange={(e) => setOptimizeUrl(e.target.value)} placeholder="https://monsite.com/a-propos" className="rounded-xl" />
               </div>
             ) : (
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Texte de ta page</label>
-                <Textarea value={optimizeText} onChange={(e) => setOptimizeText(e.target.value)} placeholder="Colle le texte de ta page À propos actuelle..." className="rounded-xl min-h-[120px]" />
+                <label htmlFor="optimize-text" className="text-sm font-medium text-foreground">Texte de ta page</label>
+                <Textarea id="optimize-text" value={optimizeText} onChange={(e) => setOptimizeText(e.target.value)} placeholder="Colle le texte de ta page À propos actuelle..." className="rounded-xl min-h-[120px]" />
               </div>
             )}
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">
+              <label htmlFor="optimize-focus" className="text-sm font-medium text-foreground">
                 Qu'est-ce que tu veux améliorer ? <span className="text-muted-foreground font-normal">(optionnel)</span>
               </label>
-              <Textarea value={optimizeFocus} onChange={(e) => setOptimizeFocus(e.target.value)} placeholder="Ex: Mon histoire sonne faux, c'est trop long, on dirait une fiche Wikipedia..." className="rounded-xl min-h-[70px]" />
+              <Textarea id="optimize-focus" value={optimizeFocus} onChange={(e) => setOptimizeFocus(e.target.value)} placeholder="Ex: Mon histoire sonne faux, c'est trop long, on dirait une fiche Wikipedia..." className="rounded-xl min-h-[70px]" />
               <div className="flex flex-wrap gap-1.5">
                 {FOCUS_CHIPS.map(chip => (
                   <button key={chip} onClick={() => setOptimizeFocus(prev => prev ? `${prev}, ${chip}` : chip)} className="font-mono-ui text-[11px] font-semibold px-3 py-1 rounded-pill border border-border bg-card hover:border-primary hover:bg-rose-pale transition-colors">
@@ -634,7 +634,7 @@ function SectionBlock({
         </div>
       </div>
       {isEditing ? (
-        <Textarea value={editValue} onChange={(e) => onEditChange(e.target.value)} className="min-h-[100px] text-sm" autoFocus />
+        <Textarea value={editValue} onChange={(e) => onEditChange(e.target.value)} aria-label={label} className="min-h-[100px] text-sm" autoFocus />
       ) : (
         <p style={{ fontSize: 14, color: "#1a1a2e", lineHeight: 1.7, whiteSpace: "pre-line" }}>{text}</p>
       )}

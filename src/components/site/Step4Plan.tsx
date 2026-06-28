@@ -27,9 +27,9 @@ export default function Step4Plan({ data, save, callAI, aiLoading, aiResults, co
             <div key={i} className="rounded-xl border border-border p-4">
               <div className="flex items-center gap-2 mb-2">
                 <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground font-bold text-sm">{s.number}</span>
-                <Input className="font-semibold flex-1" value={s.title} onChange={(e) => updatePlanStep(i, "title", e.target.value)} placeholder="Titre..." />
+                <Input className="font-semibold flex-1" aria-label={`Titre de l'étape ${i + 1}`} value={s.title} onChange={(e) => updatePlanStep(i, "title", e.target.value)} placeholder="Titre..." />
               </div>
-              <Textarea className="min-h-[60px]" value={s.description} onChange={(e) => updatePlanStep(i, "description", e.target.value)} placeholder="Description..." />
+              <Textarea className="min-h-[60px]" aria-label={`Description de l'étape ${i + 1}`} value={s.description} onChange={(e) => updatePlanStep(i, "description", e.target.value)} placeholder="Description..." />
             </div>
           ))}
           <Button variant="ghost" size="sm" onClick={() => copyText(data.plan_steps.map(s => `${s.number}. ${s.title}\n${s.description}`).join("\n\n"))}>
@@ -42,13 +42,13 @@ export default function Step4Plan({ data, save, callAI, aiLoading, aiResults, co
             <div key={n} className="rounded-xl border border-dashed border-border p-4">
               <div className="flex items-center gap-2 mb-2">
                 <span className="flex items-center justify-center w-8 h-8 rounded-full bg-secondary text-muted-foreground font-bold text-sm">{n}</span>
-                <Input className="flex-1" placeholder={`Titre de l'étape ${n}...`} onChange={(e) => {
+                <Input className="flex-1" aria-label={`Titre de l'étape ${n}`} placeholder={`Titre de l'étape ${n}...`} onChange={(e) => {
                   const steps = data.plan_steps.length === 3 ? [...data.plan_steps] : [{ number: 1, title: "", description: "" }, { number: 2, title: "", description: "" }, { number: 3, title: "", description: "" }];
                   steps[n - 1] = { ...steps[n - 1], title: e.target.value };
                   save({ plan_steps: steps });
                 }} />
               </div>
-              <Textarea className="min-h-[50px]" placeholder="Description..." onChange={(e) => {
+              <Textarea className="min-h-[50px]" aria-label={`Description de l'étape ${n}`} placeholder="Description..." onChange={(e) => {
                 const steps = data.plan_steps.length === 3 ? [...data.plan_steps] : [{ number: 1, title: "", description: "" }, { number: 2, title: "", description: "" }, { number: 3, title: "", description: "" }];
                 steps[n - 1] = { ...steps[n - 1], description: e.target.value };
                 save({ plan_steps: steps });

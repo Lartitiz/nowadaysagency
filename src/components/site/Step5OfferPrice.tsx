@@ -25,24 +25,24 @@ export default function Step5OfferPrice({ data, save, callAI, aiLoading, aiResul
 
       <div className="space-y-4">
         <div>
-          <label className="text-sm font-semibold block mb-1">Nom de l'offre</label>
-          <Input value={data.offer_name} onChange={(e) => save({ offer_name: e.target.value })} placeholder="Ex : Accompagnement 6 mois" />
+          <label htmlFor="offer-name" className="text-sm font-semibold block mb-1">Nom de l'offre</label>
+          <Input id="offer-name" value={data.offer_name} onChange={(e) => save({ offer_name: e.target.value })} placeholder="Ex : Accompagnement 6 mois" />
         </div>
         <div>
-          <label className="text-sm font-semibold block mb-1">Prix</label>
-          <Input value={data.offer_price} onChange={(e) => save({ offer_price: e.target.value })} placeholder="Ex : 290€/mois × 6 mois (1 740€ au total)" />
+          <label htmlFor="offer-price" className="text-sm font-semibold block mb-1">Prix</label>
+          <Input id="offer-price" value={data.offer_price} onChange={(e) => save({ offer_price: e.target.value })} placeholder="Ex : 290€/mois × 6 mois (1 740€ au total)" />
         </div>
         <div>
-          <label className="text-sm font-semibold block mb-1">Ce qui est inclus</label>
-          <Textarea className="min-h-[100px]" value={data.offer_included} onChange={(e) => save({ offer_included: e.target.value })} placeholder="Branding complet, stratégie réseaux, site web, SEO, newsletter, 6 mois de suivi..." />
+          <label htmlFor="offer-included" className="text-sm font-semibold block mb-1">Ce qui est inclus</label>
+          <Textarea id="offer-included" className="min-h-[100px]" value={data.offer_included} onChange={(e) => save({ offer_included: e.target.value })} placeholder="Branding complet, stratégie réseaux, site web, SEO, newsletter, 6 mois de suivi..." />
         </div>
         <div>
-          <label className="text-sm font-semibold block mb-1">Facilités de paiement</label>
-          <Input value={data.offer_payment} onChange={(e) => save({ offer_payment: e.target.value })} placeholder="Paiement mensuel, en 3 fois..." />
+          <label htmlFor="offer-payment" className="text-sm font-semibold block mb-1">Facilités de paiement</label>
+          <Input id="offer-payment" value={data.offer_payment} onChange={(e) => save({ offer_payment: e.target.value })} placeholder="Paiement mensuel, en 3 fois..." />
         </div>
         <div>
-          <label className="text-sm font-semibold block mb-1">Comparaison contextuelle (optionnel)</label>
-          <Input value={data.offer_comparison} onChange={(e) => save({ offer_comparison: e.target.value })} placeholder="Moins qu'un·e freelance pour 1 mois..." />
+          <label htmlFor="offer-comparison" className="text-sm font-semibold block mb-1">Comparaison contextuelle (optionnel)</label>
+          <Input id="offer-comparison" value={data.offer_comparison} onChange={(e) => save({ offer_comparison: e.target.value })} placeholder="Moins qu'un·e freelance pour 1 mois..." />
         </div>
       </div>
 

@@ -153,7 +153,7 @@ export default function PinterestCompte() {
               <p className="text-muted-foreground">Format : [Prénom] — [Mot-clé principal]</p>
               <p className="italic text-[#6B5E7B] border-l-[3px] border-l-primary pl-3">Ex : "Lucie — Céramique artisanale & déco éthique"</p>
             </div>
-            <Input value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="Ton prénom — Mot-clé principal" />
+            <Input aria-label="Ton nom Pinterest (prénom + mot-clé)" value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="Ton prénom — Mot-clé principal" />
             <Button variant="outline" onClick={generateName} disabled={generatingName} className="gap-2 rounded-pill"><Sparkles className="h-4 w-4" />{generatingName ? "Génération..." : "✨ Suggérer un nom optimisé"}</Button>
             {nameSuggestions.length > 0 && (
               <div className="space-y-2">{nameSuggestions.map((s, i) => (
@@ -184,7 +184,7 @@ export default function PinterestCompte() {
                 </div>
               ))}</div>
             )}
-            <Textarea value={bio} onChange={e => setBio(e.target.value)} placeholder="Ma bio Pinterest..." className="min-h-[60px]" />
+            <Textarea aria-label="Ta bio Pinterest" value={bio} onChange={e => setBio(e.target.value)} placeholder="Ma bio Pinterest..." className="min-h-[60px]" />
             <div className="flex items-center gap-2"><Checkbox checked={bioDone} onCheckedChange={v => setBioDone(!!v)} /><span className="text-sm">✅ Ma bio est à jour</span></div>
           </section>
 
@@ -192,7 +192,7 @@ export default function PinterestCompte() {
           <section className="rounded-xl border border-border bg-card p-5 space-y-3">
             <h3 className="font-display text-base font-bold">5. Ton URL</h3>
             <p className="text-sm text-muted-foreground">Ajoute le lien vers ton site ou ta boutique. C'est le but de Pinterest : ramener du trafic.</p>
-            <Input value={websiteUrl} onChange={e => setWebsiteUrl(e.target.value)} placeholder="https://ton-site.com" />
+            <Input aria-label="Ton URL Pinterest (site ou boutique)" value={websiteUrl} onChange={e => setWebsiteUrl(e.target.value)} placeholder="https://ton-site.com" />
             <div className="flex items-center gap-2"><Checkbox checked={urlDone} onCheckedChange={v => setUrlDone(!!v)} /><span className="text-sm">✅ Mon URL est ajoutée</span></div>
           </section>
         </div>

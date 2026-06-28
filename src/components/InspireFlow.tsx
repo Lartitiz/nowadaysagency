@@ -264,6 +264,7 @@ export default function InspireFlow() {
 
             <TabsContent value="text">
               <Textarea
+                aria-label="Texte à analyser (caption, post, script de reel)"
                 className="min-h-[200px]"
                 placeholder="Colle ici la caption, le texte du post, le script du reel..."
                 value={sourceText}
@@ -273,6 +274,7 @@ export default function InspireFlow() {
 
             <TabsContent value="link">
               <Input
+                aria-label="Lien du post à analyser"
                 placeholder="https://www.instagram.com/p/..."
                 value={sourceUrl}
                 onChange={(e) => setSourceUrl(e.target.value)}
@@ -331,8 +333,9 @@ export default function InspireFlow() {
               )}
 
               <div className="mt-3 relative">
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Contexte (optionnel)</label>
+                <label htmlFor="inspire-screenshot-context" className="text-xs font-medium text-muted-foreground mb-1 block">Contexte (optionnel)</label>
                 <Textarea
+                  id="inspire-screenshot-context"
                   className="min-h-[80px]"
                   placeholder="C'est un carrousel d'une coach bien-être, il a eu 500 likes..."
                   value={screenshotContext}
@@ -380,7 +383,7 @@ export default function InspireFlow() {
               <CardTitle className="text-lg">✨ Ta version</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Textarea className="min-h-[200px]" value={editedContent} onChange={(e) => setEditedContent(e.target.value)} />
+              <Textarea aria-label="Ta version adaptée" className="min-h-[200px]" value={editedContent} onChange={(e) => setEditedContent(e.target.value)} />
               <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                 {result.format && <Badge variant="secondary">Format : {result.format}</Badge>}
                 {result.objective && <Badge variant="secondary">Objectif : {result.objective}</Badge>}

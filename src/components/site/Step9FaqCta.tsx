@@ -30,7 +30,7 @@ export default function Step9FaqCta({ data, save, callAI, aiLoading, aiResults, 
           ))}
         </div>
 
-        <Input className="mb-3" value={objections} onChange={(e) => setObjections(e.target.value)} placeholder="Objections que tu entends souvent : 'J'ai pas le temps', 'C'est trop cher'..." />
+        <Input className="mb-3" aria-label="Objections fréquentes" value={objections} onChange={(e) => setObjections(e.target.value)} placeholder="Objections que tu entends souvent : 'J'ai pas le temps', 'C'est trop cher'..." />
 
         <Button variant="outline" size="sm" onClick={async () => {
           const result = await callAI("faq-by-type", { offer_type: offerType, objections });
@@ -43,8 +43,8 @@ export default function Step9FaqCta({ data, save, callAI, aiLoading, aiResults, 
           <div className="space-y-3 mt-4">
             {data.faq.map((item, i) => (
               <div key={i} className="rounded-xl border border-border p-4">
-                <Input className="font-semibold mb-2" value={item.question} onChange={(e) => updateFaqItem(i, "question", e.target.value)} placeholder="Question..." />
-                <Textarea className="min-h-[80px]" value={item.reponse} onChange={(e) => updateFaqItem(i, "reponse", e.target.value)} placeholder="Réponse..." />
+                <Input className="font-semibold mb-2" aria-label={`Question ${i + 1}`} value={item.question} onChange={(e) => updateFaqItem(i, "question", e.target.value)} placeholder="Question..." />
+                <Textarea className="min-h-[80px]" aria-label={`Réponse ${i + 1}`} value={item.reponse} onChange={(e) => updateFaqItem(i, "reponse", e.target.value)} placeholder="Réponse..." />
                 <button onClick={() => save({ faq: data.faq.filter((_, j) => j !== i) })} className="text-xs text-muted-foreground hover:text-destructive mt-1">🗑️ Supprimer</button>
               </div>
             ))}
@@ -82,16 +82,16 @@ export default function Step9FaqCta({ data, save, callAI, aiLoading, aiResults, 
 
         <div className="space-y-3 mt-4">
           <div>
-            <label className="text-sm font-semibold">Mon CTA principal</label>
-            <Input value={data.cta_primary} onChange={(e) => save({ cta_primary: e.target.value })} placeholder="Ex : Je réserve mon appel découverte" />
+            <label htmlFor="cta-primary" className="text-sm font-semibold">Mon CTA principal</label>
+            <Input id="cta-primary" value={data.cta_primary} onChange={(e) => save({ cta_primary: e.target.value })} placeholder="Ex : Je réserve mon appel découverte" />
           </div>
           <div>
-            <label className="text-sm font-semibold">Micro-copy (sous le bouton)</label>
-            <Input value={data.cta_micro_copy} onChange={(e) => save({ cta_micro_copy: e.target.value })} placeholder="Ex : Gratuit · 30 minutes · Sans engagement" />
+            <label htmlFor="cta-micro-copy" className="text-sm font-semibold">Micro-copy (sous le bouton)</label>
+            <Input id="cta-micro-copy" value={data.cta_micro_copy} onChange={(e) => save({ cta_micro_copy: e.target.value })} placeholder="Ex : Gratuit · 30 minutes · Sans engagement" />
           </div>
           <div>
-            <label className="text-sm font-semibold">Mon CTA secondaire (optionnel)</label>
-            <Input value={data.cta_secondary} onChange={(e) => save({ cta_secondary: e.target.value })} placeholder="Ex : Télécharger le guide gratuit" />
+            <label htmlFor="cta-secondary" className="text-sm font-semibold">Mon CTA secondaire (optionnel)</label>
+            <Input id="cta-secondary" value={data.cta_secondary} onChange={(e) => save({ cta_secondary: e.target.value })} placeholder="Ex : Télécharger le guide gratuit" />
           </div>
         </div>
       </div>

@@ -104,14 +104,14 @@ export default function PinterestEpingles() {
         {/* Generator */}
         <section className="rounded-xl border border-border bg-card p-5 space-y-4 mb-8">
           <h3 className="font-display text-base font-bold">✨ Créer une épingle optimisée</h3>
-          <Input value={subject} onChange={e => setSubject(e.target.value)} placeholder="Ex : le sujet de ton épingle (produit, conseil, inspiration…)" />
+          <Input aria-label="Sujet de l'épingle" value={subject} onChange={e => setSubject(e.target.value)} placeholder="Ex : le sujet de ton épingle (produit, conseil, inspiration…)" />
           {boards.length > 0 && (
             <Select value={boardId} onValueChange={setBoardId}>
-              <SelectTrigger><SelectValue placeholder="Tableau de destination" /></SelectTrigger>
+              <SelectTrigger aria-label="Tableau de destination"><SelectValue placeholder="Tableau de destination" /></SelectTrigger>
               <SelectContent>{boards.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent>
             </Select>
           )}
-          <Input value={linkUrl} onChange={e => setLinkUrl(e.target.value)} placeholder="https://ton-site.com/produit" />
+          <Input aria-label="Lien vers ton site" value={linkUrl} onChange={e => setLinkUrl(e.target.value)} placeholder="https://ton-site.com/produit" />
           <Button onClick={generatePin} disabled={generating} className="gap-2 rounded-pill"><Sparkles className="h-4 w-4" />{generating ? "Génération..." : "✨ Générer titre + description"}</Button>
 
           {variants.length > 0 && (
@@ -120,15 +120,15 @@ export default function PinterestEpingles() {
               {variants.map((v, i) => (
                 <TabsContent key={i} value={String(i)} className="space-y-3">
                   <div>
-                    <label className="text-xs font-semibold text-muted-foreground">Titre</label>
+                    <label htmlFor={`pin-title-${i}`} className="text-xs font-semibold text-muted-foreground">Titre</label>
                     <div className="flex items-center gap-2">
-                      <Input value={v.title} readOnly className="flex-1" />
+                      <Input id={`pin-title-${i}`} value={v.title} readOnly className="flex-1" />
                       <Button variant="ghost" size="sm" onClick={() => copyText(v.title)}><Copy className="h-3 w-3" /></Button>
                     </div>
                   </div>
                   <div>
-                    <label className="text-xs font-semibold text-muted-foreground">Description</label>
-                    <Textarea value={v.description} readOnly className="min-h-[120px]" />
+                    <label htmlFor={`pin-desc-${i}`} className="text-xs font-semibold text-muted-foreground">Description</label>
+                    <Textarea id={`pin-desc-${i}`} value={v.description} readOnly className="min-h-[120px]" />
                     <Button variant="ghost" size="sm" onClick={() => copyText(v.description)} className="mt-1"><Copy className="h-3 w-3" /> Copier</Button>
                   </div>
                   <Button variant="outline" size="sm" onClick={() => savePin(v, VARIANT_KEYS[i])} className="rounded-pill gap-2">💾 Sauvegarder cette épingle</Button>

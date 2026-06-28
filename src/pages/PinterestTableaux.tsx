@@ -113,12 +113,12 @@ export default function PinterestTableaux() {
                 <span className="text-sm font-bold text-foreground">Tableau {idx + 1}</span>
                 <Button variant="ghost" size="sm" onClick={() => removeBoard(idx)}><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>
               </div>
-              <Input value={b.name} onChange={e => updateBoard(idx, "name", e.target.value)} placeholder="Ex : le thème de ton tableau" />
+              <Input aria-label={`Nom du tableau ${idx + 1}`} value={b.name} onChange={e => updateBoard(idx, "name", e.target.value)} placeholder="Ex : le thème de ton tableau" />
               <Select value={b.board_type} onValueChange={v => updateBoard(idx, "board_type", v)}>
-                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-full" aria-label={`Type du tableau ${idx + 1}`}><SelectValue /></SelectTrigger>
                 <SelectContent>{BOARD_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
               </Select>
-              <Textarea value={b.description} onChange={e => updateBoard(idx, "description", e.target.value)} placeholder="Description avec mots-clés pour le SEO Pinterest..." className="min-h-[80px]" />
+              <Textarea aria-label={`Description du tableau ${idx + 1}`} value={b.description} onChange={e => updateBoard(idx, "description", e.target.value)} placeholder="Description avec mots-clés pour le SEO Pinterest..." className="min-h-[80px]" />
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={() => optimizeDescription(idx)} disabled={generatingIdx === idx} className="rounded-pill gap-2">
                   <Sparkles className="h-4 w-4" />{generatingIdx === idx ? "Optimisation..." : "✨ Optimiser la description SEO"}

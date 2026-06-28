@@ -438,8 +438,9 @@ const SiteAuditPage = () => {
             {/* URL input */}
             <div className="rounded-2xl border border-border bg-card p-6 space-y-5">
               <div className="space-y-2">
-                <Label className="text-sm font-medium">URL de ton site</Label>
+                <Label htmlFor="site-audit-url" className="text-sm font-medium">URL de ton site</Label>
                 <Input
+                  id="site-audit-url"
                   placeholder="https://monsite.com"
                   value={siteUrl}
                   onChange={(e) => setSiteUrl(e.target.value)}
@@ -465,8 +466,8 @@ const SiteAuditPage = () => {
                     ))}
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Chemin personnalisé</Label>
-                    <Input placeholder="/portfolio" value={customPath} onChange={(e) => setCustomPath(e.target.value)} className="max-w-xs" />
+                    <Label htmlFor="site-audit-custom-path" className="text-xs text-muted-foreground">Chemin personnalisé</Label>
+                    <Input id="site-audit-custom-path" placeholder="/portfolio" value={customPath} onChange={(e) => setCustomPath(e.target.value)} className="max-w-xs" />
                   </div>
                 </CollapsibleContent>
               </Collapsible>
@@ -576,10 +577,10 @@ const SiteAuditPage = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium flex items-center gap-1.5">
+                  <Label htmlFor="site-audit-screenshot-url" className="text-sm font-medium flex items-center gap-1.5">
                     <LinkIcon className="h-3.5 w-3.5" /> URL du site (optionnel)
                   </Label>
-                  <Input placeholder="https://monsite.com" value={screenshotUrl} onChange={(e) => setScreenshotUrl(e.target.value)} />
+                  <Input id="site-audit-screenshot-url" placeholder="https://monsite.com" value={screenshotUrl} onChange={(e) => setScreenshotUrl(e.target.value)} />
                 </div>
 
                 <div className="space-y-2">

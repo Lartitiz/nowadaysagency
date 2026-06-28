@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Slider } from "@/components/ui/slider";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { friendlyError } from "@/lib/error-messages";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
@@ -526,6 +527,7 @@ export default function InstagramProfileEdito() {
             </div>
             <div className="relative">
               <Textarea
+                aria-label="Précisions sur ton objectif"
                 value={editorial.objective_details}
                 onChange={(e) => updateField("objective_details", e.target.value)}
                 placeholder="Mon objectif cette année c'est surtout..."
@@ -641,6 +643,7 @@ export default function InstagramProfileEdito() {
                   <div className="flex items-center gap-2">
                     <span className="text-sm">{pillar.is_major ? "🔥" : "🌱"}</span>
                     <Input
+                      aria-label={`Nom du pilier ${i + 1}`}
                       value={pillar.name}
                       onChange={(e) => updatePillar(i, "name", e.target.value)}
                       placeholder="Nom du pilier"
@@ -652,6 +655,7 @@ export default function InstagramProfileEdito() {
                   </div>
 
                   <Textarea
+                    aria-label={`Description du pilier ${i + 1}`}
                     value={pillar.description}
                     onChange={(e) => updatePillar(i, "description", e.target.value)}
                     placeholder="De quoi tu parles dans ce pilier ?"
@@ -717,9 +721,10 @@ export default function InstagramProfileEdito() {
             <h2 className="text-base font-display font-bold text-foreground mb-3">🔥 Ce que je fais plus / Ce que j'arrête</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <p className="text-sm font-medium text-foreground mb-1.5">Ce que je fais plus</p>
+                <Label htmlFor="edito-do-more" className="text-sm font-medium text-foreground mb-1.5 block">Ce que je fais plus</Label>
                 <div className="relative">
                   <Textarea
+                    id="edito-do-more"
                     value={editorial.do_more}
                     onChange={(e) => updateField("do_more", e.target.value)}
                     placeholder="Montrer mon visage, parler de mes convictions, faire des carrousels..."
@@ -729,9 +734,10 @@ export default function InstagramProfileEdito() {
                 </div>
               </div>
               <div>
-                <p className="text-sm font-medium text-foreground mb-1.5">Ce que j'arrête</p>
+                <Label htmlFor="edito-stop-doing" className="text-sm font-medium text-foreground mb-1.5 block">Ce que j'arrête</Label>
                 <div className="relative">
                   <Textarea
+                    id="edito-stop-doing"
                     value={editorial.stop_doing}
                     onChange={(e) => updateField("stop_doing", e.target.value)}
                     placeholder="Les photos produit sans contexte, les citations génériques..."
@@ -748,6 +754,7 @@ export default function InstagramProfileEdito() {
             <h2 className="text-base font-display font-bold text-foreground mb-3">✍️ Notes libres</h2>
             <div className="relative">
               <Textarea
+                aria-label="Notes libres"
                 value={editorial.free_notes}
                 onChange={(e) => updateField("free_notes", e.target.value)}
                 placeholder="Je veux toujours parler en tutoiement, jamais poster le dimanche, alterner contenu perso et pro..."

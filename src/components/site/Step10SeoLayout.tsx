@@ -61,18 +61,18 @@ export default function Step10SeoLayout({ data, save, callAI, aiLoading, aiResul
 
         <div className="space-y-3">
           <div>
-            <label className="text-sm font-semibold block mb-1">Title tag (ce qui apparaît dans Google)</label>
-            <Input value={data.seo_title} onChange={(e) => save({ seo_title: e.target.value })} placeholder="Mon titre SEO..." />
+            <label htmlFor="seo-title" className="text-sm font-semibold block mb-1">Title tag (ce qui apparaît dans Google)</label>
+            <Input id="seo-title" value={data.seo_title} onChange={(e) => save({ seo_title: e.target.value })} placeholder="Mon titre SEO..." />
             <p className="font-mono-ui text-[10px] text-muted-foreground mt-1">📊 {data.seo_title.length} / 60 caractères</p>
           </div>
           <div>
-            <label className="text-sm font-semibold block mb-1">Meta description</label>
-            <Textarea className="min-h-[60px]" value={data.seo_meta} onChange={(e) => save({ seo_meta: e.target.value })} placeholder="Ma meta description..." />
+            <label htmlFor="seo-meta" className="text-sm font-semibold block mb-1">Meta description</label>
+            <Textarea id="seo-meta" className="min-h-[60px]" value={data.seo_meta} onChange={(e) => save({ seo_meta: e.target.value })} placeholder="Ma meta description..." />
             <p className="font-mono-ui text-[10px] text-muted-foreground mt-1">📊 {data.seo_meta.length} / 160 caractères</p>
           </div>
           <div>
-            <label className="text-sm font-semibold block mb-1">H1 suggéré</label>
-            <Input value={data.seo_h1} onChange={(e) => save({ seo_h1: e.target.value })} placeholder="Mon H1..." />
+            <label htmlFor="seo-h1" className="text-sm font-semibold block mb-1">H1 suggéré</label>
+            <Input id="seo-h1" value={data.seo_h1} onChange={(e) => save({ seo_h1: e.target.value })} placeholder="Mon H1..." />
           </div>
           {(data.seo_title || data.seo_meta) && (
             <Button variant="ghost" size="sm" onClick={() => copyText(`Title: ${data.seo_title}\nMeta: ${data.seo_meta}\nH1: ${data.seo_h1}`)}>
@@ -106,8 +106,8 @@ export default function Step10SeoLayout({ data, save, callAI, aiLoading, aiResul
 
       {/* Layout notes */}
       <div>
-        <label className="text-sm font-semibold block mb-2">Mes notes de mise en forme</label>
-        <Textarea className="min-h-[80px]" placeholder="Notes sur la mise en forme de ma page..." value={data.layout_notes} onChange={(e) => save({ layout_notes: e.target.value })} />
+        <label htmlFor="layout-notes" className="text-sm font-semibold block mb-2">Mes notes de mise en forme</label>
+        <Textarea id="layout-notes" className="min-h-[80px]" placeholder="Notes sur la mise en forme de ma page..." value={data.layout_notes} onChange={(e) => save({ layout_notes: e.target.value })} />
       </div>
       <label className="flex items-center gap-2 text-sm"><Checkbox checked={data.layout_done} onCheckedChange={(v) => save({ layout_done: !!v })} /> Mon titre et sous-titre sont en haut, visibles sans scroller</label>
     </div>

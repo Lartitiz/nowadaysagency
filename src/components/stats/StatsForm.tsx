@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
@@ -42,9 +43,9 @@ export default function StatsForm({
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-3 flex-wrap">
-        <Label className="text-sm font-medium">Mois :</Label>
+        <Label htmlFor="stats-month-select" className="text-sm font-medium">Mois :</Label>
         <Select value={selectedMonth} onValueChange={onMonthChange}>
-          <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
+          <SelectTrigger id="stats-month-select" className="w-52"><SelectValue /></SelectTrigger>
           <SelectContent>
             {monthOptions.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
           </SelectContent>
@@ -211,9 +212,9 @@ export default function StatsForm({
           <AccordionTrigger className="font-display text-sm font-bold">🚀 Lancement (optionnel)</AccordionTrigger>
           <AccordionContent className="space-y-3 pb-4">
             <div className="flex items-center gap-2">
-              <Switch checked={!!formData.has_launch}
+              <Switch id="stats-has-launch" checked={!!formData.has_launch}
                 onCheckedChange={v => onFormDataUpdate(prev => ({ ...prev, has_launch: v }))} />
-              <Label className="text-sm">J'ai un lancement ce mois</Label>
+              <Label htmlFor="stats-has-launch" className="text-sm">J'ai un lancement ce mois</Label>
             </div>
             {formData.has_launch && (
               <>
@@ -256,19 +257,21 @@ export default function StatsForm({
 /* ── Atomic inputs ── */
 
 function NumInput({ label, value, onChange }: { label: string; value: any; onChange: (v: string) => void }) {
+  const id = useId();
   return (
     <div className="flex items-center gap-2">
-      <label className="text-sm text-muted-foreground shrink-0 w-48 sm:w-56">{label}</label>
-      <Input type="number" value={value ?? ""} onChange={e => onChange(e.target.value)} className="max-w-[120px]" placeholder="–" />
+      <label htmlFor={id} className="text-sm text-muted-foreground shrink-0 w-48 sm:w-56">{label}</label>
+      <Input id={id} type="number" value={value ?? ""} onChange={e => onChange(e.target.value)} className="max-w-[120px]" placeholder="–" />
     </div>
   );
 }
 
 function TextInput({ label, value, onChange }: { label: string; value: any; onChange: (v: string) => void }) {
+  const id = useId();
   return (
     <div className="space-y-1 sm:col-span-2">
-      <label className="text-sm text-muted-foreground">{label}</label>
-      <Input type="text" value={value ?? ""} onChange={e => onChange(e.target.value)} placeholder="..." />
+      <label htmlFor={id} className="text-sm text-muted-foreground">{label}</label>
+      <Input id={id} type="text" value={value ?? ""} onChange={e => onChange(e.target.value)} placeholder="..." />
     </div>
   );
 }

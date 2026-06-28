@@ -219,6 +219,7 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
                 ref={fileInputRef}
                 type="file"
                 accept=".png,.jpg,.jpeg"
+                aria-label="Screenshot du post"
                 className="hidden"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
@@ -232,8 +233,9 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
 
             {/* Caption input */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">Légende du post (copie-colle depuis Instagram)</label>
+              <label htmlFor="comment-caption" className="text-xs font-semibold text-muted-foreground">Légende du post (copie-colle depuis Instagram)</label>
               <Textarea
+                id="comment-caption"
                 value={caption}
                 onChange={e => setCaption(e.target.value)}
                 placeholder="Colle ici la légende du post..."
@@ -243,8 +245,9 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
 
             {/* User intent */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">Ce que tu voudrais dire (optionnel)</label>
+              <label htmlFor="comment-intent" className="text-xs font-semibold text-muted-foreground">Ce que tu voudrais dire (optionnel)</label>
               <Textarea
+                id="comment-intent"
                 value={intent}
                 onChange={e => setIntent(e.target.value)}
                 placeholder="Je voudrais rebondir sur..."
@@ -287,6 +290,7 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
                 {editingIdx === idx ? (
                   <div className="space-y-2">
                     <Textarea
+                      aria-label={`Modifier le commentaire : ${c.label}`}
                       value={editedText}
                       onChange={e => setEditedText(e.target.value)}
                       className="text-sm min-h-[60px]"

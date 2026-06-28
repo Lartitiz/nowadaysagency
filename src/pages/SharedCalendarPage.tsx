@@ -546,6 +546,7 @@ export default function SharedCalendarPage() {
           {revisionMode && (
             <div className="space-y-2">
               <Textarea
+                aria-label="Qu'est-ce qu'il faut changer ?"
                 placeholder="Qu'est-ce qu'il faut changer ?"
                 value={revisionText}
                 onChange={e => setRevisionText(e.target.value)}
@@ -570,7 +571,7 @@ export default function SharedCalendarPage() {
           <div className="border-t border-gray-200 px-4 py-3 bg-white shrink-0">
             <p className="text-[11px] text-gray-500 mb-2">Pour commenter, dis-nous comment tu t'appelles :</p>
             <div className="flex gap-2">
-              <Input placeholder="Ton prénom" value={nameInput} onChange={e => setNameInput(e.target.value)} onKeyDown={e => e.key === "Enter" && confirmName()} className="text-xs h-8 rounded-lg border-gray-300" />
+              <Input aria-label="Ton prénom" placeholder="Ton prénom" value={nameInput} onChange={e => setNameInput(e.target.value)} onKeyDown={e => e.key === "Enter" && confirmName()} className="text-xs h-8 rounded-lg border-gray-300" />
               <Button size="sm" onClick={confirmName} disabled={!nameInput.trim()} className="h-8 text-xs rounded-lg bg-gray-900 text-white hover:bg-gray-800">OK</Button>
             </div>
           </div>
@@ -604,7 +605,7 @@ export default function SharedCalendarPage() {
 
           {!hasName ? (
             <div className="flex items-center gap-2 shrink-0">
-              <Input placeholder="Comment tu t'appelles ?" value={nameInput} onChange={e => setNameInput(e.target.value)} onKeyDown={e => e.key === "Enter" && confirmName()} className="w-40 sm:w-52 text-sm h-9 rounded-lg border-gray-300" />
+              <Input aria-label="Comment tu t'appelles ?" placeholder="Comment tu t'appelles ?" value={nameInput} onChange={e => setNameInput(e.target.value)} onKeyDown={e => e.key === "Enter" && confirmName()} className="w-40 sm:w-52 text-sm h-9 rounded-lg border-gray-300" />
               <Button size="sm" onClick={confirmName} disabled={!nameInput.trim()} className="rounded-lg text-xs h-9 bg-gray-900 hover:bg-gray-800 text-white">C'est parti</Button>
             </div>
           ) : (
@@ -800,6 +801,7 @@ export default function SharedCalendarPage() {
                       {editingWording === post.id ? (
                         <Textarea
                           autoFocus
+                          aria-label="Modifier le wording"
                           value={editWordingValue}
                           onChange={e => setEditWordingValue(e.target.value)}
                           onBlur={() => saveWording(post, editWordingValue)}
@@ -984,6 +986,7 @@ function CommentInput({ onSend, sending }: { onSend: (text: string) => void; sen
         value={text}
         onChange={e => setText(e.target.value)}
         onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+        aria-label="Ton commentaire"
         placeholder="Ton commentaire..."
         className="text-xs min-h-[36px] max-h-[100px] rounded-lg border-gray-300 resize-none flex-1"
         rows={1}

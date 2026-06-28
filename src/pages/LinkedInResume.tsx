@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useId } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
@@ -353,8 +353,9 @@ export default function LinkedInResume() {
             {!analysis && (
               <>
                 <div>
-                  <label className="text-sm font-semibold text-foreground mb-2 block">📝 Colle ton résumé actuel</label>
+                  <label htmlFor="resume-existing-text" className="text-sm font-semibold text-foreground mb-2 block">📝 Colle ton résumé actuel</label>
                   <Textarea
+                    id="resume-existing-text"
                     value={existingText}
                     onChange={(e) => setExistingText(e.target.value)}
                     placeholder="Copie-colle ton résumé LinkedIn ici..."
@@ -403,8 +404,8 @@ export default function LinkedInResume() {
                 )}
               </div>
               <div>
-                <label className="text-sm font-semibold text-foreground mb-1 block">Ton appel à l'action</label>
-                <Input value={cta} onChange={(e) => setCta(e.target.value)} placeholder="Contacte-moi pour... / Découvre mes créations sur [lien]" />
+                <label htmlFor="resume-cta" className="text-sm font-semibold text-foreground mb-1 block">Ton appel à l'action</label>
+                <Input id="resume-cta" value={cta} onChange={(e) => setCta(e.target.value)} placeholder="Contacte-moi pour... / Découvre mes créations sur [lien]" />
               </div>
             </div>
 
@@ -531,11 +532,12 @@ function FieldWithMic({ label, value, onChange, mic, placeholder }: {
   label: string; value: string; onChange: (v: string) => void;
   mic: { toggle: () => void; isListening: boolean }; placeholder: string;
 }) {
+  const fieldId = useId();
   return (
     <div>
-      <label className="text-sm font-semibold text-foreground mb-1 block">{label}</label>
+      <label htmlFor={fieldId} className="text-sm font-semibold text-foreground mb-1 block">{label}</label>
       <div className="relative">
-        <Textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="min-h-[100px] pr-10" />
+        <Textarea id={fieldId} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="min-h-[100px] pr-10" />
         <div className="absolute top-2 right-2">
           <MicButton isListening={mic.isListening} isSupported={true} onClick={mic.toggle} size="sm" />
         </div>

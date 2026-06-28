@@ -7,6 +7,7 @@ import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
+import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Sparkles, Check, Pencil, Loader2, Trash2 } from "lucide-react";
@@ -382,25 +383,25 @@ function Step1({ formData, setFormData, saved, autoSaving }: any) {
         </div>
       </div>
       <div>
-        <label className="text-sm font-semibold text-foreground mb-1 block">Nom de l'offre</label>
-        <Input value={formData.name} onChange={(e) => update("name", e.target.value)} placeholder="Ex: Programme Sérénité, Pack Coaching 3 mois..." />
+        <label htmlFor="offer-name" className="text-sm font-semibold text-foreground mb-1 block">Nom de l'offre</label>
+        <Input id="offer-name" value={formData.name} onChange={(e) => update("name", e.target.value)} placeholder="Ex: Programme Sérénité, Pack Coaching 3 mois..." />
       </div>
       <div>
-        <label className="text-sm font-semibold text-foreground mb-1 block">Décris ton offre en 2-3 phrases</label>
-        <Textarea value={formData.description_short} onChange={(e) => update("description_short", e.target.value)} placeholder="Comme tu l'expliquerais à une amie..." rows={3} />
+        <label htmlFor="offer-description-short" className="text-sm font-semibold text-foreground mb-1 block">Décris ton offre en 2-3 phrases</label>
+        <Textarea id="offer-description-short" value={formData.description_short} onChange={(e) => update("description_short", e.target.value)} placeholder="Comme tu l'expliquerais à une amie..." rows={3} />
       </div>
       <div>
-        <label className="text-sm font-semibold text-foreground mb-1 block">Prix</label>
-        <Input value={formData.price_text} onChange={(e) => update("price_text", e.target.value)} placeholder="Ex: 290€/mois × 6 mois" />
+        <label htmlFor="offer-price" className="text-sm font-semibold text-foreground mb-1 block">Prix</label>
+        <Input id="offer-price" value={formData.price_text} onChange={(e) => update("price_text", e.target.value)} placeholder="Ex: 290€/mois × 6 mois" />
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="text-sm font-semibold text-foreground mb-1 block">Lien page de vente</label>
-          <Input value={formData.url_sales_page} onChange={(e) => update("url_sales_page", e.target.value)} placeholder="https://..." />
+          <label htmlFor="offer-url-sales-page" className="text-sm font-semibold text-foreground mb-1 block">Lien page de vente</label>
+          <Input id="offer-url-sales-page" value={formData.url_sales_page} onChange={(e) => update("url_sales_page", e.target.value)} placeholder="https://..." />
         </div>
         <div>
-          <label className="text-sm font-semibold text-foreground mb-1 block">Lien prise de RDV</label>
-          <Input value={formData.url_booking} onChange={(e) => update("url_booking", e.target.value)} placeholder="https://calendly.com/..." />
+          <label htmlFor="offer-url-booking" className="text-sm font-semibold text-foreground mb-1 block">Lien prise de RDV</label>
+          <Input id="offer-url-booking" value={formData.url_booking} onChange={(e) => update("url_booking", e.target.value)} placeholder="https://calendly.com/..." />
         </div>
       </div>
     </div>
@@ -415,8 +416,8 @@ function Step2({ formData, setFormData, aiResponse, aiLoading, onAskAI, saved, a
         <h2 className="font-display text-xl font-bold">② Le problème que ton offre résout</h2>
         <SaveIndicator saved={saved} saving={autoSaving} />
       </div>
-      <p className="text-sm text-muted-foreground">Quel problème ta cliente a AVANT de travailler avec toi ?</p>
-      <Textarea value={formData.problem_surface} onChange={(e) => update("problem_surface", e.target.value)} placeholder="Elle ne sait pas communiquer, elle est invisible..." rows={3} />
+      <Label htmlFor="offer-problem-surface" className="text-sm text-muted-foreground font-normal">Quel problème ta cliente a AVANT de travailler avec toi ?</Label>
+      <Textarea id="offer-problem-surface" value={formData.problem_surface} onChange={(e) => update("problem_surface", e.target.value)} placeholder="Elle ne sait pas communiquer, elle est invisible..." rows={3} />
       
       <Button onClick={onAskAI} disabled={aiLoading || !formData.problem_surface?.trim()} variant="outline" className="gap-2">
         {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
@@ -465,8 +466,8 @@ function Step3({ formData, setFormData, aiResponse, aiLoading, onAskAI, saved, a
         <h2 className="font-display text-xl font-bold">③ Ta promesse</h2>
         <SaveIndicator saved={saved} saving={autoSaving} />
       </div>
-      <p className="text-sm text-muted-foreground">Si ta cliente devait résumer ce qu'elle obtient en 1 phrase, ce serait quoi ?</p>
-      <Textarea value={formData.promise} onChange={(e) => update("promise", e.target.value)} placeholder="Un système de communication complet posé en 6 mois" rows={2} />
+      <Label htmlFor="offer-promise" className="text-sm text-muted-foreground font-normal">Si ta cliente devait résumer ce qu'elle obtient en 1 phrase, ce serait quoi ?</Label>
+      <Textarea id="offer-promise" value={formData.promise} onChange={(e) => update("promise", e.target.value)} placeholder="Un système de communication complet posé en 6 mois" rows={2} />
 
       <Button onClick={onAskAI} disabled={aiLoading || !formData.promise?.trim()} variant="outline" className="gap-2">
         {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
@@ -517,8 +518,8 @@ function Step4({ formData, setFormData, aiResponse, aiLoading, onAskAI, saved, a
         <h2 className="font-display text-xl font-bold">④ Ce que ta cliente obtient</h2>
         <SaveIndicator saved={saved} saving={autoSaving} />
       </div>
-      <p className="text-sm text-muted-foreground">Liste ce que ton offre INCLUT (les features), une par ligne :</p>
-      <Textarea value={formData.features_text} onChange={(e) => update("features_text", e.target.value)} placeholder={"6 mois d'accompagnement\n6 modules\n1 session individuelle par mois\nCommunauté WhatsApp\nTemplates Canva"} rows={5} />
+      <Label htmlFor="offer-features" className="text-sm text-muted-foreground font-normal">Liste ce que ton offre INCLUT (les features), une par ligne :</Label>
+      <Textarea id="offer-features" value={formData.features_text} onChange={(e) => update("features_text", e.target.value)} placeholder={"6 mois d'accompagnement\n6 modules\n1 session individuelle par mois\nCommunauté WhatsApp\nTemplates Canva"} rows={5} />
 
       <Button onClick={onAskAI} disabled={aiLoading || !formData.features_text?.trim()} variant="outline" className="gap-2">
         {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
@@ -565,12 +566,12 @@ function Step5({ formData, setFormData, aiResponse, aiLoading, onAskAI, saved, a
         <SaveIndicator saved={saved} saving={autoSaving} />
       </div>
       <div>
-        <label className="text-sm font-semibold text-foreground mb-1 block">Ta cliente idéale pour cette offre :</label>
-        <Textarea value={formData.target_ideal} onChange={(e) => update("target_ideal", e.target.value)} placeholder="Décris ta cliente idéale : son activité, son univers, ce qu'elle recherche..." rows={3} />
+        <label htmlFor="offer-target-ideal" className="text-sm font-semibold text-foreground mb-1 block">Ta cliente idéale pour cette offre :</label>
+        <Textarea id="offer-target-ideal" value={formData.target_ideal} onChange={(e) => update("target_ideal", e.target.value)} placeholder="Décris ta cliente idéale : son activité, son univers, ce qu'elle recherche..." rows={3} />
       </div>
       <div>
-        <label className="text-sm font-semibold text-foreground mb-1 block">Pour qui c'est PAS fait :</label>
-        <Textarea value={formData.target_not_for} onChange={(e) => update("target_not_for", e.target.value)} placeholder="Quelqu'un qui veut déléguer sans apprendre..." rows={2} />
+        <label htmlFor="offer-target-not-for" className="text-sm font-semibold text-foreground mb-1 block">Pour qui c'est PAS fait :</label>
+        <Textarea id="offer-target-not-for" value={formData.target_not_for} onChange={(e) => update("target_not_for", e.target.value)} placeholder="Quelqu'un qui veut déléguer sans apprendre..." rows={2} />
       </div>
 
       <Button onClick={onAskAI} disabled={aiLoading || !formData.target_ideal?.trim()} variant="outline" className="gap-2">
@@ -619,8 +620,8 @@ function Step6({ formData, setFormData, aiResponse, aiLoading, onAskAI, saved, a
         <h2 className="font-display text-xl font-bold">⑥ Les objections</h2>
         <SaveIndicator saved={saved} saving={autoSaving} />
       </div>
-      <p className="text-sm text-muted-foreground">Quand quelqu'un hésite, elle dit quoi ? (une objection par ligne)</p>
-      <Textarea value={formData.objections_text} onChange={(e) => update("objections_text", e.target.value)} placeholder={"J'ai pas le budget\nJ'ai pas le temps\nJe peux trouver ça gratuitement"} rows={4} />
+      <Label htmlFor="offer-objections" className="text-sm text-muted-foreground font-normal">Quand quelqu'un hésite, elle dit quoi ? (une objection par ligne)</Label>
+      <Textarea id="offer-objections" value={formData.objections_text} onChange={(e) => update("objections_text", e.target.value)} placeholder={"J'ai pas le budget\nJ'ai pas le temps\nJe peux trouver ça gratuitement"} rows={4} />
 
       <Button onClick={onAskAI} disabled={aiLoading || !formData.objections_text?.trim()} variant="outline" className="gap-2">
         {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
@@ -648,11 +649,11 @@ function Step6({ formData, setFormData, aiResponse, aiLoading, onAskAI, saved, a
               <button onClick={() => removeTestimonial(i)} className="text-destructive text-xs">✕</button>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <Input placeholder="Prénom" value={t.name} onChange={(e) => updateTestimonial(i, "name", e.target.value)} className="text-sm" />
-              <Input placeholder="Secteur" value={t.sector} onChange={(e) => updateTestimonial(i, "sector", e.target.value)} className="text-sm" />
+              <Input aria-label={`Prénom (témoignage ${i + 1})`} placeholder="Prénom" value={t.name} onChange={(e) => updateTestimonial(i, "name", e.target.value)} className="text-sm" />
+              <Input aria-label={`Secteur (témoignage ${i + 1})`} placeholder="Secteur" value={t.sector} onChange={(e) => updateTestimonial(i, "sector", e.target.value)} className="text-sm" />
             </div>
-            <Input placeholder="Résultat obtenu" value={t.result} onChange={(e) => updateTestimonial(i, "result", e.target.value)} className="text-sm" />
-            <Textarea placeholder="Citation" value={t.quote} onChange={(e) => updateTestimonial(i, "quote", e.target.value)} rows={2} className="text-sm" />
+            <Input aria-label={`Résultat obtenu (témoignage ${i + 1})`} placeholder="Résultat obtenu" value={t.result} onChange={(e) => updateTestimonial(i, "result", e.target.value)} className="text-sm" />
+            <Textarea aria-label={`Citation (témoignage ${i + 1})`} placeholder="Citation" value={t.quote} onChange={(e) => updateTestimonial(i, "quote", e.target.value)} rows={2} className="text-sm" />
           </div>
         ))}
         <Button variant="outline" size="sm" onClick={addTestimonial} className="text-xs">+ Ajouter un témoignage</Button>
