@@ -161,7 +161,7 @@ function DroppableWeekDay({
             const toDraft = posts.filter(p => p.status === "idea" || p.status === "a_rediger");
             const pubCount = posts.filter(p => p.status === "published").length;
             if (pubCount === posts.length) {
-              return <p className="text-2xs text-[hsl(160_60%_45%)] font-medium">✅ Tout est publié !</p>;
+              return <p className="text-2xs text-success font-medium">✅ Tout est publié !</p>;
             }
             return (
               <div className="space-y-0.5">
@@ -286,7 +286,7 @@ function MobileWeekDay({ date, dateStr, isToday, posts, onCreatePost, onEditPost
             const toDraft = posts.filter(p => p.status === "idea" || p.status === "a_rediger");
             const pubCount = posts.filter(p => p.status === "published").length;
             if (pubCount === posts.length) {
-              return <p className="text-2xs text-[hsl(160_60%_45%)] font-medium">✅ Tout est publié !</p>;
+              return <p className="text-2xs text-success font-medium">✅ Tout est publié !</p>;
             }
             return (
               <div className="space-y-0.5">

@@ -96,7 +96,7 @@ export function WeekDashboard({
         <div className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-2.5">
           <span className={cn_simple(
             "text-sm font-medium",
-            isComplete ? "text-[hsl(160,60%,45%)]" : "text-foreground"
+            isComplete ? "text-success" : "text-foreground"
           )}>
             {isComplete && "🔥 "}{summaryText}
           </span>
@@ -140,7 +140,7 @@ export function WeekDashboard({
                     className="transition-all duration-500 rounded-full"
                     style={{
                       width: `${(published / total) * 100}%`,
-                      backgroundColor: isComplete ? "hsl(160, 60%, 45%)" : "hsl(var(--primary))",
+                      backgroundColor: isComplete ? "hsl(var(--success))" : "hsl(var(--primary))",
                     }}
                   />
                 )}

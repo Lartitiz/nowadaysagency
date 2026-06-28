@@ -78,6 +78,7 @@ export default function LinkedInCrosspost() {
   const [showIdeasDialog, setShowIdeasDialog] = useState(false);
   const [activeVersionKey, setActiveVersionKey] = useState<string>("");
   const [addingToCalendar, setAddingToCalendar] = useState(false);
+  const [planMode, setPlanMode] = useState<"one" | "all">("one");
 
   const toggleTarget = (id: string) => {
     const next = new Set(targets);
@@ -219,6 +220,50 @@ export default function LinkedInCrosspost() {
     }
   };
 
+  // Planifie TOUTES les versions générées d'un coup (1 post par réseau, texte déjà adapté par l'IA).
+  const handleAddAllToCalendar = async (dateStr: string) => {
+    if (!user || addingToCalendar || !result?.versions) return;
+    setAddingToCalendar(true);
+    try {
+      const rows = Object.entries(result.versions).map(([key, version]: [string, any]) => {
+        const text = version.full_text || version.script || (version.sequence ? formatStoriesSequence(version.sequence) : "") || "";
+        const canal = key === "linkedin" ? "linkedin" : "instagram";
+        const format = key === "reel" ? "reel" : key === "stories" ? "story_serie" : key === "instagram" ? "carousel" : "post";
+        const label = TARGET_CHANNELS.find((c) => c.id === key)?.label || key;
+        const row: any = {
+          user_id: profileUserId,
+          date: dateStr,
+          theme: `Crosspost ${label} : ${sourceType}`,
+          canal,
+          format,
+          content_draft: text,
+          accroche: text.split("\n")[0]?.slice(0, 200) || "",
+          status: "drafting",
+          story_sequence_detail: {
+            type: "crosspost",
+            source_type: sourceType,
+            target_channel: key,
+            angle_choisi: version?.angle_choisi || "",
+            full_content: text,
+          },
+        };
+        if (workspaceId && workspaceId !== profileUserId) row.workspace_id = workspaceId;
+        return row;
+      });
+      const { error } = await supabase.from("calendar_posts").insert(rows);
+      if (error) {
+        toast.error(`Erreur : ${friendlyError(error)}`);
+      } else {
+        setShowCalendarDialog(false);
+        toast.success(`📅 ${rows.length} contenus planifiés dans ton calendrier !`);
+      }
+    } finally {
+      setAddingToCalendar(false);
+    }
+  };
+
+  const versionCount = result?.versions ? Object.keys(result.versions).length : 0;
+
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
@@ -326,6 +371,14 @@ export default function LinkedInCrosspost() {
         {/* Results */}
         {result && result.versions && !generating && (
           <div className="space-y-4 animate-fade-in">
+            {versionCount > 1 && (
+              <div className="flex items-center justify-between gap-2 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
+                <p className="text-sm font-medium text-foreground">{versionCount} versions adaptées prêtes</p>
+                <Button size="sm" onClick={() => { setPlanMode("all"); setShowCalendarDialog(true); }} className="rounded-full gap-1.5">
+                  <CalendarDays className="h-3.5 w-3.5" /> Tout planifier
+                </Button>
+              </div>
+            )}
             <Tabs defaultValue={Object.keys(result.versions)[0]} onValueChange={setActiveVersionKey}>
               <TabsList>
                 {Object.keys(result.versions).map((key) => {
@@ -357,7 +410,7 @@ export default function LinkedInCrosspost() {
                         {copied === key ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                         {copied === key ? "Copié !" : "Copier"}
                       </Button>
-                      <Button variant="outline" size="sm" onClick={() => { setActiveVersionKey(key); setShowCalendarDialog(true); }} className="rounded-full gap-1.5">
+                      <Button variant="outline" size="sm" onClick={() => { setActiveVersionKey(key); setPlanMode("one"); setShowCalendarDialog(true); }} className="rounded-full gap-1.5">
                         <CalendarDays className="h-3.5 w-3.5" /> Planifier
                       </Button>
                       <Button variant="outline" size="sm" onClick={() => { setActiveVersionKey(key); setShowIdeasDialog(true); }} className="rounded-full gap-1.5">
@@ -373,8 +426,10 @@ export default function LinkedInCrosspost() {
             <AddToCalendarDialog
               open={showCalendarDialog}
               onOpenChange={setShowCalendarDialog}
-              onConfirm={handleAddToCalendar}
-              contentLabel={`🔄 Crosspost ${getActiveChannelLabel()}`}
+              onConfirm={planMode === "all" ? handleAddAllToCalendar : handleAddToCalendar}
+              contentLabel={planMode === "all"
+                ? `🔄 Planifier les ${versionCount} versions à la même date`
+                : `🔄 Crosspost ${getActiveChannelLabel()}`}
               contentEmoji="🔄"
               loading={addingToCalendar}
             />

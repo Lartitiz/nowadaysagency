@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { Home, ClipboardList, Sparkles, CalendarDays, Users, User, Palette, CreditCard, Settings, HelpCircle, LogOut, Film, GraduationCap, Handshake, HeartHandshake, Search, ChevronDown, Check, Plus, Compass, MessageCircle, LayoutGrid, Wrench } from "lucide-react";
+import { Home, ClipboardList, Sparkles, CalendarDays, Users, User, Palette, CreditCard, Settings, HelpCircle, LogOut, Film, GraduationCap, Handshake, HeartHandshake, Search, ChevronDown, Check, Plus, Compass, MessageCircle, Wrench } from "lucide-react";
 
 import { useDemoContext } from "@/contexts/DemoContext";
 
@@ -469,9 +469,6 @@ function AvatarMenu({ initial, firstName, planLabel, planBadge, totalUsed, total
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => navigate("/branding")} className="gap-2 cursor-pointer">
           <Palette className="h-4 w-4" /> Mon identité
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => navigate("/dashboard/complet")} className="gap-2 cursor-pointer">
-          <LayoutGrid className="h-4 w-4" /> Tableau de bord complet
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => navigate("/abonnement")} className="gap-2 cursor-pointer">

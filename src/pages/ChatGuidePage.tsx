@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { toast } from "sonner";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Send, Mic, MicOff, Plus, Sparkles, PenLine, Palette, Target, CalendarDays, Users, Lightbulb, MessageSquare, BarChart3 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,7 +14,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { parseAIResponse } from "@/lib/parse-ai-response";
-import { LayoutGrid } from "lucide-react";
 import { useDemoContext } from "@/contexts/DemoContext";
 import AppHeader from "@/components/AppHeader";
 import SuggestedContents from "@/components/dashboard/SuggestedContents";
@@ -850,13 +849,6 @@ export default function ChatGuidePage() {
               <Plus className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Nouveau</span>
             </button>
-            <Link
-              to="/dashboard/complet"
-              className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
-            >
-              <LayoutGrid className="h-3 w-3" />
-              <span className="hidden sm:inline">Tableau de bord</span>
-            </Link>
           </div>
         </div>
 

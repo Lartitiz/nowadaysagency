@@ -41,14 +41,14 @@ const CANAL_ICONS: Record<string, string> = {
 function getStatusStyle(status: string): { bg: string; borderColor: string; textClass: string } {
   switch (status) {
     case "published":
-      return { bg: "#F5F5F5", borderColor: "hsl(var(--muted-foreground))", textClass: "text-muted-foreground opacity-70" };
+      return { bg: "hsl(var(--muted))", borderColor: "hsl(var(--muted-foreground))", textClass: "text-muted-foreground opacity-70" };
     case "ready":
     case "draft_ready":
-      return { bg: "#F0FFF4", borderColor: "hsl(142, 71%, 45%)", textClass: "text-foreground" };
+      return { bg: "hsl(var(--success-bg))", borderColor: "hsl(var(--success))", textClass: "text-foreground" };
     case "drafting":
-      return { bg: "#FFF9E6", borderColor: "hsl(38, 92%, 50%)", textClass: "text-foreground" };
+      return { bg: "hsl(var(--warning-bg))", borderColor: "hsl(var(--warning))", textClass: "text-foreground" };
     default: // idea, a_rediger, planned
-      return { bg: "#FFFFFF", borderColor: "hsl(217, 91%, 60%)", textClass: "text-foreground" };
+      return { bg: "hsl(var(--card))", borderColor: "hsl(var(--info))", textClass: "text-foreground" };
   }
 }
 
@@ -265,7 +265,7 @@ export function CalendarContentCard({
             <div className="flex items-start gap-1">
               <span className="text-xs shrink-0">{canalIcon}</span>
               <p className={cn(
-                "font-medium text-2xs leading-tight flex-1 min-w-0",
+                "font-medium text-xs leading-snug flex-1 min-w-0",
                 post.status === "published" && "line-through",
               )}
               style={{
@@ -281,6 +281,7 @@ export function CalendarContentCard({
             </div>
             {(commentCount || 0) > 0 && (
               <span className="absolute bottom-0.5 right-0.5 text-2xs bg-primary/10 text-primary font-semibold px-1 py-0 rounded-full leading-tight">
+
                 💬{commentCount}
               </span>
             )}

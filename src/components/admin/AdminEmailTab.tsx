@@ -11,6 +11,10 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 import { Search, Send, ChevronLeft, ChevronRight, Loader2, Mail } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -106,6 +110,7 @@ function InscritesView() {
   const [emailBody, setEmailBody] = useState("");
   const [sending, setSending] = useState(false);
   const [confirmAll, setConfirmAll] = useState(false);
+  const [confirmSendOpen, setConfirmSendOpen] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -149,12 +154,12 @@ function InscritesView() {
     setSelected(next);
   }
 
-  function openDialog(singleUser?: UserRow) {
+  function openDialog(singleUser?: UserRow, all = false) {
     setDialogUser(singleUser || null);
     setSelectedTemplateId("libre");
     setEmailSubject("");
     setEmailBody("");
-    setConfirmAll(false);
+    setConfirmAll(all);
     setDialogOpen(true);
   }
 
@@ -184,7 +189,7 @@ function InscritesView() {
   }
 
   const previewHtml = useMemo(() => {
-    if (!emailBody) return "";
+    if (!emailBody && !emailSubject.trim()) return "";
     const previewUser: UserRow = dialogUser || {
       user_id: "preview",
       prenom: "Prénom",
@@ -194,20 +199,24 @@ function InscritesView() {
       last_sign_in: null,
       created_at: "",
     };
-    return resolveVariables(emailBody, emailSubject, previewUser).html;
+    // Reflète le corps réellement envoyé : <p>sujet</p> si le corps est vide
+    return resolveVariables(emailBody || `<p>${emailSubject}</p>`, emailSubject, previewUser).html;
   }, [emailBody, emailSubject, dialogUser]);
 
-  async function handleSend() {
-    const recipients = dialogUser
-      ? [dialogUser]
-      : confirmAll
-        ? filtered
-        : filtered.filter(u => selected.has(u.user_id));
+  // Destinataires réels de l'envoi en cours (1 cliente, sélection, ou toutes les filtrées)
+  const recipients = dialogUser
+    ? [dialogUser]
+    : confirmAll
+      ? filtered
+      : filtered.filter(u => selected.has(u.user_id));
 
-    if (!recipients.length || !emailSubject.trim()) return;
+  async function handleSend() {
+    if (!recipients.length) { toast.error("Aucun destinataire."); return; }
+    if (!emailSubject.trim()) { toast.error("Le sujet est obligatoire."); return; }
     setSending(true);
 
     let successCount = 0;
+    const failed: string[] = [];
     for (const r of recipients) {
       try {
         const resolved = resolveVariables(emailBody || `<p>${emailSubject}</p>`, emailSubject, r);
@@ -220,12 +229,27 @@ function InscritesView() {
             template_id: selectedTemplateId !== "libre" ? selectedTemplateId : undefined,
           },
         }, 30000);
-        if (res.data?.success) successCount++;
-      } catch (e) { console.error(e); }
+        if (res.error || res.data?.error || !res.data?.success) {
+          failed.push(r.email);
+          console.error("send-email failed for", r.email, res.error || res.data?.error);
+        } else {
+          successCount++;
+        }
+      } catch (e) {
+        failed.push(r.email);
+        console.error(e);
+      }
     }
 
-    toast.success(`${successCount}/${recipients.length} email(s) envoyé(s)`);
+    if (failed.length === 0) {
+      toast.success(`${successCount}/${recipients.length} email(s) envoyé(s)`);
+    } else {
+      const shown = failed.slice(0, 3).join(", ");
+      const extra = failed.length > 3 ? ` (+${failed.length - 3})` : "";
+      toast.error(`${successCount}/${recipients.length} envoyé(s). Échec : ${shown}${extra}`);
+    }
     setSending(false);
+    setConfirmSendOpen(false);
     setDialogOpen(false);
     setSelected(new Set());
   }
@@ -257,7 +281,7 @@ function InscritesView() {
       )}
 
       <div className="flex gap-2">
-        <Button variant="outline" size="sm" onClick={() => { setConfirmAll(true); openDialog(); }}>
+        <Button variant="outline" size="sm" onClick={() => openDialog(undefined, true)}>
           <Mail className="h-3.5 w-3.5 mr-1.5" /> Envoyer à toutes ({filtered.length})
         </Button>
       </div>
@@ -336,7 +360,7 @@ function InscritesView() {
               <Textarea id="email-body" value={emailBody} onChange={e => setEmailBody(e.target.value)} placeholder="<p>Contenu de l'email...</p>" className="min-h-[120px] font-mono text-xs" />
             </div>
 
-            {emailBody && (
+            {(emailBody || emailSubject.trim()) && (
               <div>
                 <label className="text-xs font-medium text-muted-foreground mb-1 block">Aperçu</label>
                 <div className="border rounded-lg p-3 max-h-[200px] overflow-y-auto bg-white" dangerouslySetInnerHTML={{ __html: previewHtml }} />
@@ -346,13 +370,35 @@ function InscritesView() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Annuler</Button>
-            <Button onClick={handleSend} disabled={sending || !emailSubject.trim()} className="gap-1.5">
+            <Button
+              onClick={() => { if (recipients.length > 1) setConfirmSendOpen(true); else handleSend(); }}
+              disabled={sending || !emailSubject.trim() || recipients.length === 0}
+              className="gap-1.5"
+            >
               {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              {sending ? "Envoi..." : "Envoyer"}
+              {sending ? "Envoi..." : recipients.length > 1 ? `Envoyer à ${recipients.length}` : "Envoyer"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Confirmation envoi de masse */}
+      <AlertDialog open={confirmSendOpen} onOpenChange={v => { if (!v) setConfirmSendOpen(false); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>📨 Envoyer cet email à {recipients.length} inscrites ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              L'email « {emailSubject} » va partir à {recipients.length} personne{recipients.length > 1 ? "s" : ""}. Cette action est immédiate et irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={sending}>Annuler</AlertDialogCancel>
+            <AlertDialogAction disabled={sending} onClick={(e) => { e.preventDefault(); handleSend(); }}>
+              {sending ? "Envoi..." : `Confirmer l'envoi (${recipients.length})`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
