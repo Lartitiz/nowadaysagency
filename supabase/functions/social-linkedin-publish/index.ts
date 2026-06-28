@@ -1,8 +1,9 @@
-// Publie un post TEXTE sur le profil LinkedIn du membre connecté.
-// (Image/carrousel = itération ultérieure.) Le texte vient de body.text.
+// Publie un post sur le profil LinkedIn du membre connecté.
+// body.text = légende ; body.media_urls (optionnel) = images publiques → post IMAGE.
+// (Carrousel PDF natif = itération ultérieure.)
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { authenticateRequest, AuthError, getServiceClient } from "../_shared/auth.ts";
-import { publishTextToLinkedIn, linkedInPermalink } from "../_shared/linkedin-graph.ts";
+import { publishTextToLinkedIn, publishImagesToLinkedIn, isLinkedInImageUrl, linkedInPermalink } from "../_shared/linkedin-graph.ts";
 
 function jsonError(message: string, corsHeaders: Record<string, string>, status = 400) {
   return new Response(JSON.stringify({ error: message }), {
@@ -19,10 +20,12 @@ Deno.serve(async (req) => {
     const { userId } = await authenticateRequest(req);
     const body = await req.json().catch(() => ({}));
     const text: string = typeof body?.text === "string" ? body.text : "";
+    const mediaUrls: string[] = Array.isArray(body?.media_urls) ? body.media_urls : [];
+    const imageUrls = mediaUrls.filter(isLinkedInImageUrl);
     const workspaceId: string | null = body?.workspace_id ?? null;
 
-    if (!text.trim()) {
-      return jsonError("Le texte du post LinkedIn est requis.", corsHeaders);
+    if (!text.trim() && imageUrls.length === 0) {
+      return jsonError("Ajoute du texte ou au moins une image pour publier sur LinkedIn.", corsHeaders);
     }
 
     const supabase = getServiceClient();
@@ -43,7 +46,9 @@ Deno.serve(async (req) => {
 
     let postId: string;
     try {
-      postId = await publishTextToLinkedIn(conn, text);
+      postId = imageUrls.length > 0
+        ? await publishImagesToLinkedIn(conn, text, imageUrls)
+        : await publishTextToLinkedIn(conn, text);
     } catch (e: any) {
       return jsonError(e?.message || "Publication LinkedIn échouée.", corsHeaders);
     }

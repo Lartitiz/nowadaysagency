@@ -5,7 +5,7 @@
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { publishImagesToInstagram } from "../_shared/instagram-graph.ts";
-import { publishTextToLinkedIn } from "../_shared/linkedin-graph.ts";
+import { publishTextToLinkedIn, publishImagesToLinkedIn, isLinkedInImageUrl } from "../_shared/linkedin-graph.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -88,8 +88,15 @@ Deno.serve(async (req) => {
         let postId: string;
         if (platform === "linkedin") {
           const text = (post.content_draft || "").trim();
-          if (!text) throw new Error("Aucun texte à publier sur LinkedIn.");
-          postId = await publishTextToLinkedIn(conn, text);
+          const liImages = (post.media_urls || []).filter(isLinkedInImageUrl);
+          if (liImages.length > 0) {
+            // Post image(s) LinkedIn (texte en légende). Le carrousel PDF natif viendra séparément.
+            postId = await publishImagesToLinkedIn(conn, text, liImages);
+          } else if (text) {
+            postId = await publishTextToLinkedIn(conn, text);
+          } else {
+            throw new Error("Aucun contenu à publier sur LinkedIn.");
+          }
         } else {
           const imageUrls = (post.media_urls || []).filter(
             (u: unknown): u is string => typeof u === "string" && /^https?:\/\//.test(u),

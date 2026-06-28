@@ -13,16 +13,19 @@ export interface LinkedInPublishResult {
  */
 export async function publishTextToLinkedIn(opts: {
   text: string;
+  /** Images publiques (optionnel) → publie un post IMAGE LinkedIn au lieu d'un post texte. */
+  imageUrls?: string[];
   workspaceId?: string | null;
   userId?: string | null;
   timeoutMs?: number;
 }): Promise<LinkedInPublishResult> {
-  const { text, workspaceId, userId, timeoutMs = 60000 } = opts;
+  const { text, imageUrls, workspaceId, userId, timeoutMs = 60000 } = opts;
   const { data, error } = await invokeWithTimeout(
     "social-linkedin-publish",
     {
       body: {
         text,
+        ...(imageUrls && imageUrls.length > 0 ? { media_urls: imageUrls } : {}),
         workspace_id: resolveWorkspaceParam(workspaceId, userId),
       },
     },
