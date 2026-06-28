@@ -20,6 +20,7 @@ interface Props {
   onEditPost: (post: CalendarPost) => void;
   onMovePost?: (postId: string, newDate: string) => void;
   onAddIdea?: (dateStr: string) => void;
+  onImport?: (dateStr: string) => void;
   seriesNameById?: Record<string, string>;
 }
 
@@ -43,11 +44,12 @@ function DraggableCard({ post, onClick, seriesNameById }: { post: CalendarPost; 
 
 /* ── Droppable day cell (desktop) ── */
 function DroppableDay({
-  dateStr, dayNum, inMonth, isToday, posts, onCreatePost, onEditPost, onAddIdea, seriesNameById,
+  dateStr, dayNum, inMonth, isToday, posts, onCreatePost, onEditPost, onAddIdea, onImport, seriesNameById,
 }: {
   dateStr: string; dayNum: number; inMonth: boolean; isToday: boolean;
   posts: CalendarPost[]; onCreatePost: (dateStr: string) => void; onEditPost: (p: CalendarPost) => void;
   onAddIdea: (dateStr: string) => void;
+  onImport?: (dateStr: string) => void;
   seriesNameById?: Record<string, string>;
 }) {
   const isPast = new Date(dateStr + "T00:00:00") < new Date(toLocalDateStr(new Date()) + "T00:00:00");
@@ -71,7 +73,7 @@ function DroppableDay({
           {dayNum}
         </span>
         {inMonth && (
-          <AddPostMenu dateStr={dateStr} onAddIdea={onAddIdea} />
+          <AddPostMenu dateStr={dateStr} onAddIdea={onAddIdea} onImport={onImport} />
         )}
       </div>
       <div className="space-y-0">
@@ -116,7 +118,7 @@ function MobilePostCard({ post, onClick, onMove, seriesNameById }: { post: Calen
 }
 
 /* ── Main component (no DndContext — parent provides it) ── */
-export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, onCreatePost, onEditPost, onMovePost, onAddIdea, seriesNameById }: Props) {
+export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, onCreatePost, onEditPost, onMovePost, onAddIdea, onImport, seriesNameById }: Props) {
   const [moveDialogPost, setMoveDialogPost] = useState<CalendarPost | null>(null);
   const [moveDate, setMoveDate] = useState<Date | undefined>();
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
@@ -153,7 +155,7 @@ export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, on
                   <span className={`text-sm font-bold ${isToday ? "text-primary" : "text-foreground"}`}>
                     {d.date.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric" })}
                   </span>
-                  <AddPostMenu dateStr={dateStr} onAddIdea={addIdeaHandler} />
+                  <AddPostMenu dateStr={dateStr} onAddIdea={addIdeaHandler} onImport={onImport} />
                 </div>
                 <div>
                   {(expandedDays.has(dateStr) ? dayPosts : dayPosts.slice(0, 1)).map((p) => (
@@ -250,6 +252,7 @@ export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, on
                     onCreatePost={onCreatePost}
                     onEditPost={onEditPost}
                     onAddIdea={addIdeaHandler}
+                    onImport={onImport}
                     seriesNameById={seriesNameById}
                   />
                 );

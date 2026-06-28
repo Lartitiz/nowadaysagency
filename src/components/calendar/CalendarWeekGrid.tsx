@@ -20,6 +20,7 @@ interface Props {
   onEditPost: (post: CalendarPost) => void;
   onMovePost?: (postId: string, newDate: string) => void;
   onAddIdea?: (dateStr: string) => void;
+  onImport?: (dateStr: string) => void;
   onQuickCreate: (dateStr: string, title: string) => void;
   onQuickStatusChange?: (postId: string, newStatus: string) => void;
   onQuickDuplicate?: (post: CalendarPost) => void;
@@ -70,13 +71,13 @@ function DraggableWeekCard({ post, onClick, onQuickStatusChange, onQuickDuplicat
 
 /* ── Droppable day column ── */
 function DroppableWeekDay({
-  date, dateStr, isToday, posts, onCreatePost, onEditPost, onAddIdea, onQuickCreate,
+  date, dateStr, isToday, posts, onCreatePost, onEditPost, onAddIdea, onImport, onQuickCreate,
   onQuickStatusChange, onQuickDuplicate, onQuickDelete, onQuickGenerate, onQuickAttachSeries, todayRef,
   ownerUsername, ownerDisplayName, seriesNameById,
 }: {
   date: Date; dateStr: string; isToday: boolean;
   posts: CalendarPost[]; onCreatePost: (dateStr: string) => void; onEditPost: (p: CalendarPost) => void;
-  onAddIdea: (dateStr: string) => void; onQuickCreate: (dateStr: string, title: string) => void;
+  onAddIdea: (dateStr: string) => void; onImport?: (dateStr: string) => void; onQuickCreate: (dateStr: string, title: string) => void;
   onQuickStatusChange?: (postId: string, newStatus: string) => void;
   onQuickDuplicate?: (post: CalendarPost) => void;
   onQuickDelete?: (postId: string) => void;
@@ -136,7 +137,7 @@ function DroppableWeekDay({
           )}
         </div>
         <div className={cn("transition-opacity", isToday ? "opacity-100" : "opacity-0 group-hover:opacity-100")}>
-          <AddPostMenu dateStr={dateStr} onAddIdea={onAddIdea} />
+          <AddPostMenu dateStr={dateStr} onAddIdea={onAddIdea} onImport={onImport} />
         </div>
       </div>
 
@@ -228,10 +229,10 @@ function DroppableWeekDay({
 }
 
 /* ── Mobile week day ── */
-function MobileWeekDay({ date, dateStr, isToday, posts, onCreatePost, onEditPost, onMove, onAddIdea, seriesNameById }: {
+function MobileWeekDay({ date, dateStr, isToday, posts, onCreatePost, onEditPost, onMove, onAddIdea, onImport, seriesNameById }: {
   date: Date; dateStr: string; isToday: boolean;
   posts: CalendarPost[]; onCreatePost: (dateStr: string) => void; onEditPost: (p: CalendarPost) => void;
-  onMove: (post: CalendarPost) => void; onAddIdea: (dateStr: string) => void;
+  onMove: (post: CalendarPost) => void; onAddIdea: (dateStr: string) => void; onImport?: (dateStr: string) => void;
   seriesNameById?: Record<string, string>;
 }) {
   const dayLabel = date.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric" });
@@ -262,7 +263,7 @@ function MobileWeekDay({ date, dateStr, isToday, posts, onCreatePost, onEditPost
             </span>
           )}
         </div>
-        <AddPostMenu dateStr={dateStr} onAddIdea={onAddIdea} />
+        <AddPostMenu dateStr={dateStr} onAddIdea={onAddIdea} onImport={onImport} />
       </div>
 
       {/* Today summary mobile */}
@@ -310,7 +311,7 @@ function MobileWeekDay({ date, dateStr, isToday, posts, onCreatePost, onEditPost
 }
 
 /* ── Main (no DndContext — parent provides it) ── */
-export function CalendarWeekGrid({ weekDays, postsByDate, todayStr, isMobile, onCreatePost, onEditPost, onMovePost, onAddIdea, onQuickCreate, onQuickStatusChange, onQuickDuplicate, onQuickDelete, onQuickGenerate, onQuickAttachSeries, ownerUsername, ownerDisplayName, seriesNameById }: Props) {
+export function CalendarWeekGrid({ weekDays, postsByDate, todayStr, isMobile, onCreatePost, onEditPost, onMovePost, onAddIdea, onImport, onQuickCreate, onQuickStatusChange, onQuickDuplicate, onQuickDelete, onQuickGenerate, onQuickAttachSeries, ownerUsername, ownerDisplayName, seriesNameById }: Props) {
   const [moveDialogPost, setMoveDialogPost] = useState<CalendarPost | null>(null);
   const [moveDate, setMoveDate] = useState<Date | undefined>();
   const todayRef = useRef<HTMLDivElement>(null);
@@ -357,6 +358,7 @@ export function CalendarWeekGrid({ weekDays, postsByDate, todayStr, isMobile, on
                 onCreatePost={onCreatePost}
                 onEditPost={onEditPost} onMove={handleMobileMove}
                 onAddIdea={addIdeaHandler}
+                onImport={onImport}
                 seriesNameById={seriesNameById}
               />
             );
@@ -401,6 +403,7 @@ export function CalendarWeekGrid({ weekDays, postsByDate, todayStr, isMobile, on
                 onCreatePost={onCreatePost}
                 onEditPost={onEditPost}
                 onAddIdea={addIdeaHandler}
+                onImport={onImport}
                 onQuickCreate={onQuickCreate}
                 onQuickStatusChange={onQuickStatusChange}
                 onQuickDuplicate={onQuickDuplicate}
