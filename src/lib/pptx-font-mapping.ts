@@ -546,11 +546,21 @@ function textContentWithBreaks(el: Element): string {
 }
 
 
+/**
+ * Plancher de taille de typo dans le PPTX exporté (en points).
+ * Garantit que toute typo reste lisible (>= 15px affichés) une fois la slide
+ * importée dans Canva, quelle que soit la résolution d'import (Canva affiche au
+ * minimum 1px par point). En dessous, les légendes/labels devenaient illisibles.
+ */
+const MIN_FONT_PT = 15;
+
 /** Convert CSS px font-size into PPTX point size for a 1080px wide -> 7.5in slide. */
 export function fontSizePxToPt(px: number, pxPerInch: number): number {
-  // PPTX uses 72pt/inch. 0.94 factor matches the visual size of the captured background.
+  // PPTX = 72pt/inch. Pas de facteur de réduction : le texte éditable est retiré
+  // du PNG de fond (masqué avant capture) puis reposé en natif, donc rien ne
+  // justifie de le rapetisser pour "coller" au fond. Plancher MIN_FONT_PT.
   const inches = px / pxPerInch;
-  return Math.max(8, Math.round(inches * 72 * 0.94));
+  return Math.max(MIN_FONT_PT, Math.round(inches * 72));
 }
 
 /** Convert CSS letter-spacing (px) to pptxgenjs `charSpacing` (integer points). */
