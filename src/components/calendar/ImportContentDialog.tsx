@@ -13,6 +13,9 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Upload, Instagram, Linkedin, Loader2 } from "lucide-react";
 import { SocialMockup } from "@/components/social-mockup/SocialMockup";
+import { pdfToImageFiles, isPdfFile } from "@/lib/pdf-to-images";
+
+const MAX_IMAGES = 10;
 
 interface Props {
   open: boolean;
@@ -47,6 +50,7 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
   const [contentText, setContentText] = useState("");
   const [mediaUrls, setMediaUrls] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [uploadLabel, setUploadLabel] = useState("Ajouter des visuels ou un PDF");
   const [canal, setCanal] = useState<Canal>("instagram");
   const [mode, setMode] = useState<Mode>("place");
   const [dateStr, setDateStr] = useState("");
@@ -75,21 +79,48 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
     if (!session?.user) return;
     setUploading(true);
     try {
-      const newUrls: string[] = [];
+      // 1) Étendre : un PDF est rendu en une image JPEG par page (côté navigateur).
+      const imageFiles: File[] = [];
       for (const file of Array.from(files)) {
-        if (file.size > 10 * 1024 * 1024) { toast({ title: "Fichier trop lourd (max 10 Mo)", variant: "destructive" }); continue; }
-        const ext = file.name.split(".").pop()?.toLowerCase() || "png";
-        const path = `${session.user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-        const { error } = await supabase.storage.from("calendar-media").upload(path, file, { contentType: file.type });
+        if (isPdfFile(file)) {
+          setUploadLabel("Conversion du PDF…");
+          const { files: pages, totalPages } = await pdfToImageFiles(file, { maxPages: MAX_IMAGES });
+          if (pages.length === 0) { toast({ title: "PDF illisible", description: "Aucune page n'a pu être convertie.", variant: "destructive" }); continue; }
+          if (totalPages > MAX_IMAGES) {
+            toast({ title: `PDF de ${totalPages} pages`, description: `Seules les ${MAX_IMAGES} premières ont été importées (limite carrousel Instagram).` });
+          }
+          imageFiles.push(...pages);
+        } else if (file.type.startsWith("image/")) {
+          if (file.size > 10 * 1024 * 1024) { toast({ title: "Image trop lourde (max 10 Mo)", variant: "destructive" }); continue; }
+          imageFiles.push(file);
+        } else {
+          toast({ title: "Format non géré", description: "Ajoute des images ou un PDF.", variant: "destructive" });
+        }
+      }
+
+      // 2) Plafonner à 10 visuels au total (limite carrousel Instagram).
+      const remaining = Math.max(0, MAX_IMAGES - mediaUrls.length);
+      const toUpload = imageFiles.slice(0, remaining);
+      if (imageFiles.length > remaining) {
+        toast({ title: "Maximum 10 visuels", description: "Les visuels en trop n'ont pas été ajoutés." });
+      }
+
+      // 3) Upload vers le bucket public calendar-media.
+      setUploadLabel("Upload en cours…");
+      const newUrls: string[] = [];
+      for (const file of toUpload) {
+        const path = `${session.user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
+        const { error } = await supabase.storage.from("calendar-media").upload(path, file, { contentType: file.type || "image/jpeg" });
         if (error) throw error;
         const { data } = supabase.storage.from("calendar-media").getPublicUrl(path);
         if (data?.publicUrl) newUrls.push(data.publicUrl);
       }
-      setMediaUrls((prev) => [...prev, ...newUrls]);
+      if (newUrls.length > 0) setMediaUrls((prev) => [...prev, ...newUrls]);
     } catch (err: any) {
-      toast({ title: "Erreur upload", description: friendlyError(err), variant: "destructive" });
+      toast({ title: "Erreur à l'import", description: friendlyError(err), variant: "destructive" });
     } finally {
       setUploading(false);
+      setUploadLabel("Ajouter des visuels ou un PDF");
       e.target.value = "";
     }
   };
@@ -182,14 +213,16 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
         )}
         <label className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer transition-colors">
           {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-          {uploading ? "Upload en cours…" : "Ajouter des visuels"}
-          <input type="file" accept="image/*" multiple className="hidden" onChange={handleUpload} disabled={uploading} />
+          {uploading ? uploadLabel : "Ajouter des visuels ou un PDF"}
+          <input type="file" accept="image/*,application/pdf" multiple className="hidden" onChange={handleUpload} disabled={uploading} />
         </label>
-        {canal === "instagram" && (
-          <p className="text-[11px] text-muted-foreground">
-            {igValidImages.length > 1 ? `Carrousel de ${igValidImages.length} images · ordre = ordre d'ajout` : "1 image = post simple · jusqu'à 10 pour un carrousel"}
-          </p>
-        )}
+        <p className="text-[11px] text-muted-foreground">
+          {canal === "instagram"
+            ? (igValidImages.length > 1
+                ? `Carrousel de ${igValidImages.length} images · ordre = ordre d'ajout`
+                : "1 image = post simple · jusqu'à 10 pour un carrousel. Un PDF est découpé en slides.")
+            : "Un PDF est découpé en une image par page."}
+        </p>
       </div>
 
       <div className="space-y-2">
