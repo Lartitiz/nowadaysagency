@@ -266,7 +266,19 @@ export default function DiagnosticLoading({
           },
         };
 
-        const { data, error } = await invokeWithTimeout("deep-diagnostic", { body: { ...body, isOnboarding: true, workspace_id: workspaceId !== user?.id ? workspaceId : undefined } }, 120000);
+        // Timeout adaptatif : sans source externe (site/insta/linkedin/docs),
+        // l'edge n'a que la synthèse IA des réponses libres à faire — pas de
+        // scraping. On raccourcit le plafond pour basculer vite sur le fallback
+        // local plutôt que de faire patienter une inconnue jusqu'à 120s à vide.
+        const hasExternalSources = !!(
+          answers.website ||
+          answers.instagram ||
+          (answers as any).linkedin ||
+          (uploadedFileIds && uploadedFileIds.length > 0)
+        );
+        const diagnosticTimeout = hasExternalSources ? 120000 : 60000;
+
+        const { data, error } = await invokeWithTimeout("deep-diagnostic", { body: { ...body, isOnboarding: true, workspace_id: workspaceId !== user?.id ? workspaceId : undefined } }, diagnosticTimeout);
 
         if (error || !data) {
           console.warn("Edge function failed, using fallback:", error);
