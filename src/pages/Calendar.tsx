@@ -413,19 +413,44 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     setDialogOpen(true);
   };
 
-  const handleSave = async (data: { theme: string; angle: string | null; status: string; notes: string; canal: string; objectif: string | null; format?: string | null; content_draft?: string | null; accroche?: string | null; media_urls?: string[] | null; series_id?: string | null; episode_number?: number | null }) => {
+  type PostFormData = { theme: string; angle: string | null; status: string; notes: string; canal: string; objectif: string | null; format?: string | null; content_draft?: string | null; accroche?: string | null; media_urls?: string[] | null; series_id?: string | null; episode_number?: number | null };
+
+  const buildPostPayload = (data: PostFormData) => ({
+    theme: data.theme, angle: data.angle, status: data.status, notes: data.notes || null,
+    canal: data.canal, objectif: data.objectif || null,
+    format: data.format || null, content_draft: data.content_draft || null, accroche: data.accroche || null,
+    media_urls: data.media_urls || null,
+    series_id: data.series_id || null, episode_number: data.episode_number ?? null,
+  });
+
+  // Auto-save SILENCIEUX : ne ferme pas le dialog, ne toast pas. Met à jour si on a déjà un id,
+  // sinon insère UNE fois et renvoie le post créé (le dialog mémorise son id pour les saves suivants).
+  const handleAutoSave = async (data: PostFormData, existingId: string | null): Promise<{ post?: CalendarPost; error?: boolean }> => {
+    if (!user || !selectedDate) return { error: true };
+    const payload: any = buildPostPayload(data);
+    const targetId = existingId ?? editingPost?.id ?? null;
+    if (targetId) {
+      const { error } = await supabase.from("calendar_posts").update(payload).eq("id", targetId);
+      if (error) return { error: true };
+      fetchPosts();
+      return {};
+    }
+    const { data: inserted, error } = await supabase.from("calendar_posts")
+      .insert({ ...payload, user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, date: selectedDate })
+      .select().single();
+    if (error || !inserted) return { error: true };
+    fetchPosts();
+    return { post: inserted as CalendarPost };
+  };
+
+  const handleSave = async (data: PostFormData, id?: string | null) => {
     if (!user || !selectedDate) return;
-    const payload: any = {
-      theme: data.theme, angle: data.angle, status: data.status, notes: data.notes || null,
-      canal: data.canal, objectif: data.objectif || null,
-      format: data.format || null, content_draft: data.content_draft || null, accroche: data.accroche || null,
-      media_urls: data.media_urls || null,
-      series_id: data.series_id || null, episode_number: data.episode_number ?? null,
-    };
+    const payload: any = buildPostPayload(data);
+    const targetId = id ?? editingPost?.id ?? null;
     let error;
     let createdPost: CalendarPost | null = null;
-    if (editingPost) {
-      ({ error } = await supabase.from("calendar_posts").update(payload).eq("id", editingPost.id));
+    if (targetId) {
+      ({ error } = await supabase.from("calendar_posts").update(payload).eq("id", targetId));
     } else {
       const { data: inserted, error: insertError } = await supabase.from("calendar_posts")
         .insert({ ...payload, user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, date: selectedDate })
@@ -441,7 +466,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     }
     setDialogOpen(false);
     fetchPosts();
-    if (editingPost) {
+    if (targetId) {
       toast.success("Post modifié !");
     } else {
       toast.success("Post ajouté au calendrier !", {
@@ -453,9 +478,10 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     }
   };
 
-  const handleDelete = async () => {
-    if (!editingPost) return;
-    const { error } = await supabase.from("calendar_posts").delete().eq("id", editingPost.id);
+  const handleDelete = async (id?: string | null) => {
+    const targetId = id ?? editingPost?.id ?? null;
+    if (!targetId) { setDialogOpen(false); return; }
+    const { error } = await supabase.from("calendar_posts").delete().eq("id", targetId);
     if (error) {
       toast.error("Oups, ça n'a pas été enregistré", { description: "Réessaie dans un instant." });
       fetchPosts();
@@ -930,6 +956,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
           selectedDate={selectedDate}
           defaultCanal={canalFilter}
           onSave={handleSave}
+          onAutoSave={handleAutoSave}
           onDelete={handleDelete}
           onUnplan={editingPost ? handleUnplan : undefined}
           onDateChange={(postId, newDate) => {
