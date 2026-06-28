@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { toast as sonnerToast } from "sonner";
+import { toast } from "sonner";
 import EngagementCoachingDialog from "@/components/engagement/EngagementCoachingDialog";
 import { toLocalDateStr } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -8,7 +8,6 @@ import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query"
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Link } from "react-router-dom";
 import { Check, ExternalLink } from "lucide-react";
@@ -41,7 +40,6 @@ interface StrategyAccount {
 
 export default function LinkedInEngagement() {
   const { user } = useAuth();
-  const { toast } = useToast();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
 
@@ -113,10 +111,10 @@ export default function LinkedInEngagement() {
     };
     if (weeklyId) {
       const { error } = await supabase.from("engagement_weekly_linkedin").update(payload).eq("id", weeklyId);
-      if (error) { sonnerToast.error("Erreur de sauvegarde"); return; }
+      if (error) { toast.error("Erreur de sauvegarde"); return; }
     } else {
       const { data, error } = await supabase.from("engagement_weekly_linkedin").insert(payload).select("id").single();
-      if (error) { sonnerToast.error("Erreur de sauvegarde"); return; }
+      if (error) { toast.error("Erreur de sauvegarde"); return; }
       if (data) setWeeklyId(data.id);
     }
   };
@@ -146,10 +144,10 @@ export default function LinkedInEngagement() {
     };
     if (weeklyId) {
       const { error } = await supabase.from("engagement_weekly_linkedin").update(payload).eq("id", weeklyId);
-      if (error) { sonnerToast.error("Erreur de sauvegarde"); return; }
+      if (error) { toast.error("Erreur de sauvegarde"); return; }
     } else {
       const { data, error } = await supabase.from("engagement_weekly_linkedin").insert(payload).select("id").single();
-      if (error) { sonnerToast.error("Erreur de sauvegarde"); return; }
+      if (error) { toast.error("Erreur de sauvegarde"); return; }
       if (data) setWeeklyId(data.id);
     }
     setCommentedAccounts(new Set());

@@ -10,6 +10,7 @@ import Confetti from "@/components/Confetti";
 import BrandingCoachingFlow from "@/components/branding/BrandingCoachingFlow";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 
 // ─── Types ───────────────────────────────────────────────────
 export interface AnalysisResult {
@@ -812,7 +813,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
                               {!isValidated && (
                                 <div className="flex flex-col sm:flex-row gap-2">
                                   <button onClick={() => handleValidate(sec.key)} disabled={isSaving} className="inline-flex items-center justify-center gap-2 border-[1.5px] border-emerald-500 text-emerald-600 rounded-[12px] px-5 py-2 text-[14px] font-semibold hover:bg-emerald-50 transition-all disabled:opacity-50">
-                                    {isSaving ? <span className="inline-block h-4 w-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                                    {isSaving ? <Spinner className="h-4 w-4 text-emerald-500" /> : <CheckCircle2 className="h-4 w-4" />}
                                     C'est bon ✓
                                   </button>
                                   <button onClick={() => setCoachingSection(sec.key)} className={`inline-flex items-center justify-center gap-2 rounded-[12px] px-5 py-2 text-[14px] font-semibold transition-all ${conf === "low" ? "bg-[#fb3d80] text-white hover:scale-[1.02] hover:shadow-lg" : "border-[1.5px] border-[#fb3d80] text-[#fb3d80] hover:bg-[#fce4ec]"}`}>

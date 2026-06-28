@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Loader2, CalendarDays, Palette, Sparkles } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import AppHeader from "@/components/AppHeader";
@@ -3175,7 +3176,7 @@ export default function CreerUnifie() {
             {step === "inspiration_proposals" && (
               inspirationLoading ? (
                 <div className="py-12 text-center space-y-3 animate-fade-in">
-                  <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto" />
+                  <Spinner className="h-8 w-8 mx-auto" />
                   <p className="text-sm font-medium text-foreground">Analyse de l'épingle en cours...</p>
                   <p className="text-xs text-muted-foreground">L'IA étudie la structure, les mots-clés et le potentiel</p>
                 </div>
@@ -3336,7 +3337,7 @@ export default function CreerUnifie() {
               <div className="space-y-4 animate-fade-in">
                 {launchGenerating ? (
                   <div className="py-12 text-center space-y-3">
-                    <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto" />
+                    <Spinner className="h-8 w-8 mx-auto" />
                     <p className="text-sm font-medium text-foreground">
                       Génération du chapitre {launchIndex + 1}/5…
                     </p>

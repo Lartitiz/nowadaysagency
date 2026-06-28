@@ -6,6 +6,7 @@ import { useProfile } from "@/hooks/use-profile";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
+import { PageLoader } from "@/components/ui/spinner";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { useToast } from "@/hooks/use-toast";
@@ -268,7 +269,7 @@ export default function Profile() {
   if (loading) return (
     <div className="min-h-screen bg-background">
       <AppHeader />
-      <div className="flex justify-center py-20"><p className="text-muted-foreground">Chargement...</p></div>
+      <PageLoader label="Chargement…" />
     </div>
   );
 
