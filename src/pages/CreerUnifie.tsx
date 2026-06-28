@@ -2613,20 +2613,30 @@ export default function CreerUnifie() {
   // Dès que le texte du carrousel est prêt, on lance la génération des visuels
   // en arrière-plan pendant que l'utilisatrice lit, pour qu'ils soient déjà là
   // (ou en cours) quand elle scrolle. Frontend only — ne touche pas l'edge.
-  const autoVisualsForResultRef = useRef<any>(null);
+  // Compteur de tentatives PAR résultat (et non un simple "déjà lancé").
+  // Une 1re tentative auto qui échoue ou baile (edge lente/timeout, état
+  // transitoire) ne doit PAS désactiver l'auto-génération pour toujours :
+  // sinon l'utilisatrice se retrouve sans visuels et doit cliquer
+  // "Regénérer visuels" à la main. On retente UNE fois automatiquement,
+  // puis on laisse la main au bouton manuel (pas de boucle infinie).
+  const autoVisualsAttemptRef = useRef<{ result: any; n: number }>({ result: null, n: 0 });
   useEffect(() => {
     if (selectedFormat !== "carousel") return;
     if (step !== "result") return;
     if (!result?.raw?.slides) return;
     if (visualLoading || visualSlides.length > 0) return;
-    if (autoVisualsForResultRef.current === result) return; // déjà lancé pour ce résultat
     // Ne PAS auto-déclencher si ça ouvrirait le dialog "photos manquantes"
     // (carrousel photo/mix sans photo dispo) — la décision reste à l'utilisatrice.
     const rawType = result?.raw?.carousel_type;
     const photosAvail = uploadedPhotos.length > 0 || generatedWithPhotos.length > 0;
     const wouldOpenPhotoDialog = (rawType === "photo" || rawType === "mix") && !photosAvail;
     if (wouldOpenPhotoDialog) return;
-    autoVisualsForResultRef.current = result;
+    // Tentatives bornées par résultat : 1 essai + 1 retry sur échec transitoire.
+    if (autoVisualsAttemptRef.current.result !== result) {
+      autoVisualsAttemptRef.current = { result, n: 0 };
+    }
+    if (autoVisualsAttemptRef.current.n >= 2) return; // on laisse la main au bouton manuel
+    autoVisualsAttemptRef.current.n += 1;
     handleGenerateVisuals({ background: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result, selectedFormat, step, visualLoading, visualSlides.length, uploadedPhotos.length, generatedWithPhotos.length]);
