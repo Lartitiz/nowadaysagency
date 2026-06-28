@@ -37,8 +37,8 @@ const FORMAT_ICONS: Record<string, string> = {
 };
 
 const OBJECTIVE_COLORS: Record<string, string> = {
-  visibilite: "text-blue-600", confiance: "text-green-600", vente: "text-orange-600",
-  visibility: "text-blue-600", trust: "text-green-600", sales: "text-orange-600",
+  visibilite: "text-info", confiance: "text-success", vente: "text-warning",
+  visibility: "text-info", trust: "text-success", sales: "text-warning",
 };
 
 const FORMAT_FILTERS = [
@@ -309,7 +309,7 @@ function DraggableIdeaCard({ idea, onDelete, onClick }: { idea: SavedIdea; onDel
           {idea.format || "Post"} {idea.objectif ? `· ${idea.objectif}` : ""}
         </p>
         {isPlanned && (
-          <p className="text-[10px] text-green-600 dark:text-green-400">📅 Planifiée</p>
+          <p className="text-[10px] text-success">📅 Planifiée</p>
         )}
         {!isPlanned && idea.status && idea.status !== "idea" && (
           <p className="text-[10px] text-muted-foreground capitalize">{idea.status}</p>
@@ -337,7 +337,7 @@ function MobileIdeaCard({ idea, onDelete, onPlan, onClick }: { idea: SavedIdea; 
           {idea.format || "Post"} {idea.objectif ? `· ${idea.objectif}` : ""}
         </p>
         {isPlanned && (
-          <p className="text-[10px] text-green-600 dark:text-green-400">📅 Planifiée</p>
+          <p className="text-[10px] text-success">📅 Planifiée</p>
         )}
       </div>
       <div className="flex gap-1 shrink-0">

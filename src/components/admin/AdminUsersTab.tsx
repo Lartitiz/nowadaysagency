@@ -399,7 +399,7 @@ export default function AdminUsersTab() {
                   </Button>
                   <Button
                     variant="outline"
-                    className="w-full text-amber-600 border-amber-200 hover:bg-amber-50"
+                    className="w-full text-warning border-warning/30 hover:bg-warning-bg"
                     onClick={() => resetUserOnboarding(selectedUser.user_id)}
                     disabled={resettingUser}
                   >

@@ -117,7 +117,7 @@ export default function ContactsSection({ contacts, filter, onFilterChange, onIn
           const hasProspect = isProspect(c.pseudo);
 
           return (
-            <div key={c.id} className={`rounded-lg border p-3 space-y-1.5 ${stale ? "border-amber-300 bg-amber-50/30" : "border-border"}`}>
+            <div key={c.id} className={`rounded-lg border p-3 space-y-1.5 ${stale ? "border-warning/30 bg-warning-bg/30" : "border-border"}`}>
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">

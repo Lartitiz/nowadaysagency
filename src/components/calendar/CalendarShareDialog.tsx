@@ -403,12 +403,12 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
                         {(share.edit_count || 0) > 0 && (
-                          <span className="text-[10px] font-semibold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">
+                          <span className="text-[10px] font-semibold bg-info-bg text-info px-1.5 py-0.5 rounded-full">
                             ✏️ {share.edit_count}
                           </span>
                         )}
                         {(share.to_validate_count || 0) > 0 && (
-                          <span className="text-[10px] font-semibold bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full">
+                          <span className="text-[10px] font-semibold bg-warning-bg text-warning px-1.5 py-0.5 rounded-full">
                             ⏳ {share.to_validate_count}
                           </span>
                         )}
@@ -499,7 +499,7 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
                 <div>
                   <label className="text-sm font-medium block">Montrer les brouillons</label>
                   <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
-                    <AlertTriangle className="h-3 w-3 text-amber-500" />
+                    <AlertTriangle className="h-3 w-3 text-warning" />
                     Le/la client·e verra le texte de tes posts
                   </p>
                 </div>
@@ -518,7 +518,7 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
                 <div>
                   <label className="text-sm font-medium block">Peut modifier les textes</label>
                   <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
-                    <AlertTriangle className="h-3 w-3 text-amber-500" />
+                    <AlertTriangle className="h-3 w-3 text-warning" />
                     Le/la client·e pourra éditer le wording
                   </p>
                 </div>

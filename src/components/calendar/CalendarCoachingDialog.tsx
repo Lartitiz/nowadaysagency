@@ -318,7 +318,7 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
               {result.planning.map((item, i) => {
                 const isAdded = addedItems.has(i);
                 return (
-                  <div key={i} className={`rounded-xl border p-4 space-y-2 transition-all ${isAdded ? "border-emerald-200 bg-emerald-50/50" : "border-border bg-card"}`}>
+                  <div key={i} className={`rounded-xl border p-4 space-y-2 transition-all ${isAdded ? "border-success/30 bg-success-bg/50" : "border-border bg-card"}`}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-pill">{item.day}</span>

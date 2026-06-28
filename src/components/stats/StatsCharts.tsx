@@ -239,7 +239,7 @@ function ComparisonTable({ allStats, compareA, compareB, setCompareA, setCompare
                     <td className="py-2">
                       {change ? (
                         <span className={`inline-flex items-center gap-0.5 text-xs font-medium ${
-                          change.dir === "up" ? "text-green-600" : change.dir === "down" ? "text-red-500" : "text-muted-foreground"
+                          change.dir === "up" ? "text-success" : change.dir === "down" ? "text-error" : "text-muted-foreground"
                         }`}>
                           {change.dir === "up" ? "↑" : change.dir === "down" ? "↓" : "→"}
                           {change.dir === "flat" ? "stable" : `${change.val > 0 ? "+" : ""}${change.val.toFixed(1)}%`}

@@ -18,8 +18,8 @@ interface BioBeforeAfterProps {
 }
 
 function ScoreCircle({ score, size = "md" }: { score: number; size?: "md" | "lg" }) {
-  const color = score >= 70 ? "text-green-600" : score >= 40 ? "text-amber-600" : "text-red-600";
-  const bg = score >= 70 ? "bg-green-50 border-green-200" : score >= 40 ? "bg-amber-50 border-amber-200" : "bg-red-50 border-red-200";
+  const color = score >= 70 ? "text-success" : score >= 40 ? "text-warning" : "text-error";
+  const bg = score >= 70 ? "bg-success-bg border-success/30" : score >= 40 ? "bg-warning-bg border-warning/30" : "bg-error-bg border-error/30";
   const dim = size === "lg" ? "h-16 w-16" : "h-12 w-12";
 
   return (
@@ -41,8 +41,8 @@ export default function BioBeforeAfter({ currentBio, currentScore, bestBio }: Bi
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* AVANT */}
-        <div className="border-l-4 border-red-300 pl-4 space-y-3">
-          <p className="text-xs font-bold text-red-700 uppercase tracking-wide">Avant</p>
+        <div className="border-l-4 border-error/30 pl-4 space-y-3">
+          <p className="text-xs font-bold text-error uppercase tracking-wide">Avant</p>
           <div className="flex items-start gap-3">
             <ScoreCircle score={currentScore} />
             <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">{currentBio}</p>
@@ -50,8 +50,8 @@ export default function BioBeforeAfter({ currentBio, currentScore, bestBio }: Bi
         </div>
 
         {/* APRÈS */}
-        <div className="border-l-4 border-green-400 pl-4 space-y-3">
-          <p className="text-xs font-bold text-green-700 uppercase tracking-wide">Après</p>
+        <div className="border-l-4 border-success pl-4 space-y-3">
+          <p className="text-xs font-bold text-success uppercase tracking-wide">Après</p>
           <div className="flex items-start gap-3">
             <ScoreCircle score={bestScore} />
             <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{bestBio.bio_text}</p>
@@ -61,8 +61,8 @@ export default function BioBeforeAfter({ currentBio, currentScore, bestBio }: Bi
 
       {/* DELTA */}
       <div className="flex items-center justify-center gap-2 pt-1">
-        <ArrowUp className="h-5 w-5 text-green-600" />
-        <span className="text-lg font-bold text-green-600">+{delta} points</span>
+        <ArrowUp className="h-5 w-5 text-success" />
+        <span className="text-lg font-bold text-success">+{delta} points</span>
       </div>
     </div>
   );

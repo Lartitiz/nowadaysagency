@@ -62,9 +62,9 @@ const FORMAT_LABEL: Record<string, string> = {
 
 const OBJECTIVE_COLORS: Record<string, string> = {
   inspirer: "bg-purple-100/80 text-purple-700",
-  eduquer: "bg-blue-100/80 text-blue-700",
-  vendre: "bg-amber-100/80 text-amber-700",
-  engager: "bg-emerald-100/80 text-emerald-700",
+  eduquer: "bg-info-bg/80 text-info",
+  vendre: "bg-warning-bg/80 text-warning",
+  engager: "bg-success-bg/80 text-success",
 };
 
 const OBJECTIVE_LABELS: Record<string, string> = {
@@ -464,7 +464,7 @@ export default function SuggestedContents() {
                     onClick={() => handleExpressGenerate(idea, i)}
                     className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-primary/5 transition-colors border-b border-border/50"
                   >
-                    <Zap className="h-4 w-4 text-amber-500 shrink-0" />
+                    <Zap className="h-4 w-4 text-warning shrink-0" />
                     <div>
                       <p className="text-sm font-medium text-foreground">⚡ Générer express</p>
                       <p className="text-[11px] text-muted-foreground">L'IA rédige tout, tu reçois le texte prêt à poster</p>

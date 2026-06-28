@@ -37,7 +37,7 @@ export default function ProspectPipeline({ prospects, stages, onSelect, onStageC
                 <div
                   key={p.id}
                   className={`rounded-lg border p-3 cursor-pointer hover:border-primary/40 transition-colors ${
-                    stale ? "border-amber-300 bg-amber-50/30" : "border-border bg-card"
+                    stale ? "border-warning/30 bg-warning-bg/30" : "border-border bg-card"
                   }`}
                   onClick={() => onSelect(p)}
                 >

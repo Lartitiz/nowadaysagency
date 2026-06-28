@@ -18,8 +18,8 @@ import OffersSynthesisView from "@/components/branding/OffersSynthesisView";
 
 const TYPE_CONFIG = {
   paid: { label: "💎 Offres payantes", emoji: "💎", icon: Gem, color: "text-violet-600", badge: "bg-violet-50 text-violet-700" },
-  free: { label: "🎁 Ressources gratuites (lead magnets)", emoji: "🎁", icon: Gift, color: "text-emerald-600", badge: "bg-emerald-50 text-emerald-700" },
-  service: { label: "🎤 Services ponctuels", emoji: "🎤", icon: Mic, color: "text-amber-600", badge: "bg-amber-50 text-amber-700" },
+  free: { label: "🎁 Ressources gratuites (lead magnets)", emoji: "🎁", icon: Gift, color: "text-success", badge: "bg-success-bg text-success" },
+  service: { label: "🎤 Services ponctuels", emoji: "🎤", icon: Mic, color: "text-warning", badge: "bg-warning-bg text-warning" },
 };
 
 export default function OffersPage() {
@@ -168,7 +168,7 @@ export default function OffersPage() {
                             <div>
                               <div className="flex items-center gap-2 mb-2">
                                 <Progress value={pct} className="h-1.5 flex-1" />
-                                <span className={`font-mono-ui text-[10px] font-semibold ${isComplete ? "text-emerald-600" : "text-muted-foreground"}`}>
+                                <span className={`font-mono-ui text-[10px] font-semibold ${isComplete ? "text-success" : "text-muted-foreground"}`}>
                                   {isComplete ? "100%" : `${pct}%`}
                                 </span>
                               </div>

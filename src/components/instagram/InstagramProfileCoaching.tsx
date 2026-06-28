@@ -391,8 +391,8 @@ export default function InstagramProfileCoaching({ open, onOpenChange, initialMo
           {/* Done */}
           {phase === "done" && (
             <div className="py-12 text-center animate-fade-in">
-              <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
-                <Check className="h-8 w-8 text-emerald-600" />
+              <div className="w-16 h-16 rounded-full bg-success-bg flex items-center justify-center mx-auto mb-4">
+                <Check className="h-8 w-8 text-success" />
               </div>
               <p className="text-base font-display font-bold text-foreground">
                 {currentModuleDef.emoji} {currentModuleDef.label} terminé !

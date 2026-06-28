@@ -471,7 +471,7 @@ function AdminDeliverableRow({ deliverable, sessions, onUpdate, onDelete, onUplo
   const assignedSession = sessions.find(s => s.id === deliverable.assigned_session_id);
 
   return (
-    <div className={`rounded-lg border p-2.5 flex items-center gap-2 ${isDelivered ? "border-green-300/50" : "border-border"}`}>
+    <div className={`rounded-lg border p-2.5 flex items-center gap-2 ${isDelivered ? "border-success/50" : "border-border"}`}>
       <span className="text-sm">{isDelivered ? "✅" : "🔒"}</span>
       <input aria-label="Titre du livrable" className="text-sm font-medium text-foreground flex-1 bg-transparent border-none focus:outline-none focus-visible:ring-2 focus-visible:ring-ring min-w-0" value={editTitle} onChange={e => setEditTitle(e.target.value)} onBlur={() => { if (editTitle !== deliverable.title) onUpdate(deliverable.id, { title: editTitle }); }} />
       {assignedSession && <span className="text-[10px] text-muted-foreground shrink-0">S{assignedSession.session_number}</span>}

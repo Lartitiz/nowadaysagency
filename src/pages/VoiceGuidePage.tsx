@@ -212,7 +212,7 @@ export default function VoiceGuidePage() {
                     <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">✅ Ce que je dis</p>
                     {guide.do_say.map((s, i) => (
                       <div key={i} className="flex items-start gap-2 text-sm text-foreground/80">
-                        <Check className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
+                        <Check className="h-4 w-4 text-success shrink-0 mt-0.5" />
                         <span>{s}</span>
                       </div>
                     ))}
@@ -236,7 +236,7 @@ export default function VoiceGuidePage() {
                     <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">À utiliser</p>
                     <div className="flex flex-wrap gap-1.5">
                       {guide.words_to_use.map((w, i) => (
-                        <span key={i} className="text-xs px-3 py-1.5 rounded-full bg-green-50 text-green-800 border border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-800">{w}</span>
+                        <span key={i} className="text-xs px-3 py-1.5 rounded-full bg-success-bg text-success border border-success/30">{w}</span>
                       ))}
                     </div>
                   </div>
@@ -244,7 +244,7 @@ export default function VoiceGuidePage() {
                     <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">À éviter</p>
                     <div className="flex flex-wrap gap-1.5">
                       {guide.words_to_avoid.map((w, i) => (
-                        <span key={i} className="text-xs px-3 py-1.5 rounded-full bg-red-50 text-red-800 border border-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800">{w}</span>
+                        <span key={i} className="text-xs px-3 py-1.5 rounded-full bg-error-bg text-error border border-error/30">{w}</span>
                       ))}
                     </div>
                   </div>

@@ -393,9 +393,9 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
         )}
 
         {!skippedHistory && !conversationHistory.trim() && (
-          <div className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200 p-2.5">
-            <AlertTriangle className="h-3.5 w-3.5 text-amber-600 mt-0.5 shrink-0" />
-            <p className="text-[11px] text-amber-800">
+          <div className="flex items-start gap-2 rounded-lg bg-warning-bg border border-warning/30 p-2.5">
+            <AlertTriangle className="h-3.5 w-3.5 text-warning mt-0.5 shrink-0" />
+            <p className="text-[11px] text-warning">
               Pas d'historique de conversation fourni. Le message sera moins pertinent.
             </p>
           </div>

@@ -449,7 +449,7 @@ function SequencesView() {
             </div>
             <div className="flex items-center gap-3" onClick={e => e.stopPropagation()}>
               <Switch checked={seq.is_active} onCheckedChange={() => toggleActive(seq)} />
-              <span className={`text-xs ${seq.is_active ? "text-green-600" : "text-muted-foreground"}`}>
+              <span className={`text-xs ${seq.is_active ? "text-success" : "text-muted-foreground"}`}>
                 {seq.is_active ? "Active" : "Inactive"}
               </span>
             </div>
@@ -555,15 +555,15 @@ function HistoriqueView() {
           <div className="text-xs text-muted-foreground">Total envoyés</div>
         </div>
         <div className="bg-card border rounded-xl p-3 text-center">
-          <div className="text-2xl font-bold text-blue-600">{stats.opened}</div>
+          <div className="text-2xl font-bold text-info">{stats.opened}</div>
           <div className="text-xs text-muted-foreground">Ouverts ({openRate}%)</div>
         </div>
         <div className="bg-card border rounded-xl p-3 text-center">
-          <div className="text-2xl font-bold text-green-600">{stats.clicked}</div>
+          <div className="text-2xl font-bold text-success">{stats.clicked}</div>
           <div className="text-xs text-muted-foreground">Cliqués ({clickRate}%)</div>
         </div>
         <div className="bg-card border rounded-xl p-3 text-center">
-          <div className="text-2xl font-bold text-red-500">{stats.failed}</div>
+          <div className="text-2xl font-bold text-error">{stats.failed}</div>
           <div className="text-xs text-muted-foreground">Échoués</div>
         </div>
       </div>
@@ -604,10 +604,10 @@ function HistoriqueView() {
                     <td className="py-2.5 px-3 text-xs max-w-[250px] truncate">{s.subject}</td>
                     <td className="py-2.5 px-3">
                       {s.status === "sent" && <Badge variant="secondary" className="text-xs">📤 Envoyé</Badge>}
-                      {s.status === "opened" && <Badge className="bg-blue-500/15 text-blue-600 border-0 text-xs">👁 Ouvert</Badge>}
-                      {s.status === "clicked" && <Badge className="bg-green-500/15 text-green-600 border-0 text-xs">🔗 Cliqué</Badge>}
-                      {s.status === "bounced" && <Badge className="bg-orange-500/15 text-orange-600 border-0 text-xs">⚠️ Bounced</Badge>}
-                      {s.status === "complained" && <Badge className="bg-red-500/15 text-red-600 border-0 text-xs">🚫 Spam</Badge>}
+                      {s.status === "opened" && <Badge className="bg-info/15 text-info border-0 text-xs">👁 Ouvert</Badge>}
+                      {s.status === "clicked" && <Badge className="bg-success/15 text-success border-0 text-xs">🔗 Cliqué</Badge>}
+                      {s.status === "bounced" && <Badge className="bg-warning/15 text-warning border-0 text-xs">⚠️ Bounced</Badge>}
+                      {s.status === "complained" && <Badge className="bg-error/15 text-error border-0 text-xs">🚫 Spam</Badge>}
                       {s.status === "failed" && <Badge variant="destructive" className="text-xs">❌ Échoué</Badge>}
                       {s.status === "skipped" && <Badge variant="outline" className="text-xs">⏭ Ignoré</Badge>}
                     </td>

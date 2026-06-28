@@ -96,13 +96,13 @@ function PhaseSection({ phase, navigate, onToggleStep }: { phase: PlanPhase; nav
   let statusColor: string;
   if (allDone) {
     statusLabel = "✅ Terminé";
-    statusColor = "text-green-600";
+    statusColor = "text-success";
   } else if (phase.locked) {
     statusLabel = "🔒 Après les fondations";
     statusColor = "text-muted-foreground";
   } else if (doneCount > 0) {
     statusLabel = "🟡 En cours";
-    statusColor = "text-amber-600";
+    statusColor = "text-warning";
   } else {
     statusLabel = "À faire";
     statusColor = "text-muted-foreground";
@@ -140,8 +140,8 @@ function PhaseSection({ phase, navigate, onToggleStep }: { phase: PlanPhase; nav
 
 function StepCard({ step, navigate, onToggleStep }: { step: PlanStep; navigate: (path: string) => void; onToggleStep?: (stepId: string, newStatus: 'done' | 'undone') => void }) {
   const statusConfig: Record<StepStatus, { icon: React.ReactNode; label: string; color: string }> = {
-    done: { icon: <Check className="h-4 w-4 text-green-600" />, label: "Fait", color: "border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/30" },
-    in_progress: { icon: <div className="h-4 w-4 rounded-full border-2 border-amber-500 bg-amber-100 dark:bg-amber-900/40" />, label: "En cours", color: "border-amber-200 bg-amber-50/30 dark:border-amber-900 dark:bg-amber-950/20" },
+    done: { icon: <Check className="h-4 w-4 text-success" />, label: "Fait", color: "border-success/30 bg-success-bg/50" },
+    in_progress: { icon: <div className="h-4 w-4 rounded-full border-2 border-warning bg-warning-bg" />, label: "En cours", color: "border-warning/30 bg-warning-bg/30" },
     todo: { icon: <div className="h-4 w-4 rounded border-2 border-muted-foreground/30" />, label: "À faire", color: "border-border" },
     locked: { icon: <Lock className="h-4 w-4 text-muted-foreground/40" />, label: "Bloqué", color: "border-border opacity-60" },
   };
@@ -221,7 +221,7 @@ function StepCard({ step, navigate, onToggleStep }: { step: PlanStep; navigate: 
             <p className="text-xs text-primary font-medium mt-1">{step.detail}</p>
           )}
           {step.recommendation && (
-            <p className="text-xs text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
+            <p className="text-xs text-warning mt-1 flex items-center gap-1">
               <Lightbulb className="h-3 w-3" /> {step.recommendation}
             </p>
           )}

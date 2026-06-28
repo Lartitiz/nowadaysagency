@@ -34,7 +34,7 @@ export default function AiCreditsCounter({ plan, usage }: AiCreditsCounterProps)
 
   if (isUnlimited) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold bg-green-50 text-green-600">
+      <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold bg-success-bg text-success">
         <Sparkles className="h-3 w-3" />
         Illimité
       </span>
@@ -55,20 +55,20 @@ export default function AiCreditsCounter({ plan, usage }: AiCreditsCounterProps)
   const isWarning = !isExhausted && !isUrgent && pct <= 0.5;
 
   const ringStroke = isExhausted
-    ? "stroke-red-500"
+    ? "stroke-error"
     : isUrgent
-      ? "stroke-red-400"
+      ? "stroke-error"
       : isWarning
-        ? "stroke-orange-400"
-        : "stroke-green-400";
+        ? "stroke-warning"
+        : "stroke-success";
 
   const colorClasses = isExhausted
-    ? "bg-red-100 text-red-700 border border-red-200"
+    ? "bg-error-bg text-error border border-error/30"
     : isUrgent
-      ? "bg-red-50 text-red-600"
+      ? "bg-error-bg text-error"
       : isWarning
-        ? "bg-orange-50 text-orange-600"
-        : "bg-green-50 text-green-600";
+        ? "bg-warning-bg text-warning"
+        : "bg-success-bg text-success";
 
   const pulseStyle: React.CSSProperties | undefined = isUrgent
     ? { animation: "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite" }
@@ -148,12 +148,12 @@ export default function AiCreditsCounter({ plan, usage }: AiCreditsCounterProps)
 
             {/* Palier messages */}
             {isWarning && (
-              <p className="mt-3 text-xs text-orange-600">
+              <p className="mt-3 text-xs text-warning">
                 Tes crédits diminuent. Priorise les contenus qui comptent le plus.
               </p>
             )}
             {isUrgent && (
-              <p className="mt-3 text-xs text-red-600 font-medium">
+              <p className="mt-3 text-xs text-error font-medium">
                 Plus que {remaining} crédit{remaining > 1 ? "s" : ""}. Chaque génération compte !
               </p>
             )}

@@ -6,9 +6,9 @@ import type { BioLine, ElementStatus } from "./AuditVisualResult";
 
 const STATUS_DOT: Record<ElementStatus, string> = { ok: "🟢", improve: "🟡", critical: "🔴" };
 const LINE_STYLE: Record<ElementStatus, string> = {
-  ok: "border-l-green-400 bg-green-50/60 dark:bg-green-950/10",
-  improve: "border-l-amber-400 bg-amber-50/60 dark:bg-amber-950/10",
-  critical: "border-l-red-400 bg-red-50/60 dark:bg-red-950/10",
+  ok: "border-l-success bg-success-bg/60",
+  improve: "border-l-warning bg-warning-bg/60",
+  critical: "border-l-error bg-error-bg/60",
 };
 
 interface Recommendation {
@@ -81,8 +81,8 @@ export default function AuditBioBeforeAfter({ currentBio, lignes, proposedBio, r
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">AVANT</p>
             <p className="text-sm text-foreground whitespace-pre-line">{currentBio}</p>
           </div>
-          <div className="rounded-xl border-2 border-green-300 dark:border-green-700 bg-green-50/40 dark:bg-green-950/20 p-4">
-            <p className="text-[10px] font-semibold text-green-700 dark:text-green-400 uppercase tracking-wider mb-2">APRÈS (proposition)</p>
+          <div className="rounded-xl border-2 border-success/30 bg-success-bg/40 p-4">
+            <p className="text-[10px] font-semibold text-success uppercase tracking-wider mb-2">APRÈS (proposition)</p>
             <p className="text-sm text-foreground whitespace-pre-line">{editableBio}</p>
             <p className="text-[10px] text-muted-foreground mt-2">{editableBio.length}/150 caractères</p>
           </div>
@@ -98,10 +98,10 @@ export default function AuditBioBeforeAfter({ currentBio, lignes, proposedBio, r
               key={idx}
               className={`rounded-xl border p-4 transition-all ${
                 appliedRecs.has(idx) 
-                  ? "border-green-300 bg-green-50/40 dark:bg-green-950/20" 
+                  ? "border-success/30 bg-success-bg/40" 
                   : rec.status === "critical" 
-                    ? "border-red-200 bg-red-50/30 dark:bg-red-950/10" 
-                    : "border-amber-200 bg-amber-50/30 dark:bg-amber-950/10"
+                    ? "border-error/30 bg-error-bg/30" 
+                    : "border-warning/30 bg-warning-bg/30"
               }`}
             >
               <p className="text-sm font-medium text-foreground mb-1">
@@ -116,7 +116,7 @@ export default function AuditBioBeforeAfter({ currentBio, lignes, proposedBio, r
                   </Button>
                 </div>
               )}
-              {appliedRecs.has(idx) && <p className="text-xs text-green-600 font-medium">Appliqué ✓</p>}
+              {appliedRecs.has(idx) && <p className="text-xs text-success font-medium">Appliqué ✓</p>}
             </div>
           ))}
         </div>

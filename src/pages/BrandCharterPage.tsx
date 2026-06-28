@@ -1104,7 +1104,7 @@ export default function BrandCharterPage() {
                       <ul className="space-y-1">
                         {auditResult.gaps.map((g: string, i: number) => (
                           <li key={i} className="text-xs text-muted-foreground flex gap-1.5">
-                            <span className="text-amber-500 shrink-0">•</span> {g}
+                            <span className="text-warning shrink-0">•</span> {g}
                           </li>
                         ))}
                       </ul>

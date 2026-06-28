@@ -20,10 +20,10 @@ interface CalendarKanbanViewProps {
 
 const COLUMN_STYLES: Record<string, { bg: string; border: string; headerBg: string }> = {
   idea:      { bg: "bg-muted/30", border: "border-muted", headerBg: "bg-muted" },
-  a_rediger: { bg: "bg-blue-50/50", border: "border-blue-200", headerBg: "bg-blue-100" },
-  drafting:  { bg: "bg-amber-50/50", border: "border-amber-200", headerBg: "bg-amber-100" },
-  ready:     { bg: "bg-green-50/50", border: "border-green-200", headerBg: "bg-green-100" },
-  published: { bg: "bg-emerald-50/50", border: "border-emerald-200", headerBg: "bg-emerald-100" },
+  a_rediger: { bg: "bg-info-bg/50", border: "border-info/30", headerBg: "bg-info-bg" },
+  drafting:  { bg: "bg-warning-bg/50", border: "border-warning/30", headerBg: "bg-warning-bg" },
+  ready:     { bg: "bg-success-bg/50", border: "border-success/30", headerBg: "bg-success-bg" },
+  published: { bg: "bg-success-bg/50", border: "border-success/30", headerBg: "bg-success-bg" },
 };
 
 const STATUS_EMOJIS: Record<string, string> = {

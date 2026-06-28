@@ -406,8 +406,8 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo, ins
         <h3 className="text-sm font-bold text-foreground">📊 MES POSTS</h3>
 
         {isRedo && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50/50 dark:bg-amber-950/20 p-3">
-            <p className="text-xs text-amber-700 dark:text-amber-400">
+          <div className="rounded-xl border border-warning/30 bg-warning-bg/50 p-3">
+            <p className="text-xs text-warning">
               ⚠️ Les captures du dernier audit ne sont pas réutilisées (tes stats ont changé). Uploade les nouveaux.
             </p>
           </div>

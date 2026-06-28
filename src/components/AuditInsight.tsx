@@ -38,9 +38,9 @@ const SCORE_FIELD_MAP: Record<AuditSection, string> = {
 };
 
 function getScoreColor(score: number) {
-  if (score >= 70) return { bg: "bg-green-100", text: "text-green-700", emoji: "🟢" };
-  if (score >= 40) return { bg: "bg-amber-100", text: "text-amber-700", emoji: "🟡" };
-  return { bg: "bg-red-100", text: "text-red-700", emoji: "🔴" };
+  if (score >= 70) return { bg: "bg-success-bg", text: "text-success", emoji: "🟢" };
+  if (score >= 40) return { bg: "bg-warning-bg", text: "text-warning", emoji: "🟡" };
+  return { bg: "bg-error-bg", text: "text-error", emoji: "🔴" };
 }
 
 /** Strip markdown bold/italic markers from text */

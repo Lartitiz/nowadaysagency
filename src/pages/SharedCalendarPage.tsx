@@ -64,22 +64,22 @@ interface Comment {
 const STATUS_OPTIONS = [
   { value: "idea", label: "Pas commencé", color: "bg-gray-100 text-gray-600", rowBg: "" },
   { value: "a_rediger", label: "À rédiger", color: "bg-gray-100 text-gray-600", rowBg: "" },
-  { value: "drafting", label: "En cours", color: "bg-blue-100 text-blue-700", rowBg: "" },
-  { value: "ready", label: "À valider", color: "bg-orange-100 text-orange-700", rowBg: "bg-orange-50/50" },
-  { value: "draft_ready", label: "Validé", color: "bg-emerald-100 text-emerald-700", rowBg: "" },
-  { value: "published", label: "Posté", color: "bg-emerald-200 text-emerald-800", rowBg: "" },
+  { value: "drafting", label: "En cours", color: "bg-info-bg text-info", rowBg: "" },
+  { value: "ready", label: "À valider", color: "bg-warning-bg text-warning", rowBg: "bg-warning-bg/50" },
+  { value: "draft_ready", label: "Validé", color: "bg-success-bg text-success", rowBg: "" },
+  { value: "published", label: "Posté", color: "bg-success text-white", rowBg: "" },
 ];
 
 const getStatusInfo = (s: string) => STATUS_OPTIONS.find(o => o.value === s) || STATUS_OPTIONS[0];
 
 const CANAL_COLORS: Record<string, { label: string; color: string }> = {
   instagram: { label: "Instagram", color: "bg-pink-100 text-pink-800" },
-  linkedin: { label: "LinkedIn", color: "bg-sky-100 text-sky-800" },
+  linkedin: { label: "LinkedIn", color: "bg-info-bg text-info" },
   facebook: { label: "Facebook", color: "bg-indigo-100 text-indigo-800" },
-  pinterest: { label: "Pinterest", color: "bg-red-100 text-red-800" },
+  pinterest: { label: "Pinterest", color: "bg-error-bg text-error" },
   blog: { label: "Blog", color: "bg-teal-100 text-teal-800" },
-  email: { label: "Email", color: "bg-emerald-100 text-emerald-700" },
-  newsletter: { label: "Newsletter", color: "bg-emerald-100 text-emerald-700" },
+  email: { label: "Email", color: "bg-success-bg text-success" },
+  newsletter: { label: "Newsletter", color: "bg-success-bg text-success" },
 };
 
 const FORMAT_LABELS: Record<string, string> = {
@@ -524,7 +524,7 @@ export default function SharedCalendarPage() {
                   <span className="text-[10px] text-gray-400">
                     {format(parseISO(c.created_at), "d MMM · HH:mm", { locale: fr })}
                   </span>
-                  {c.is_resolved && <Check className="h-3 w-3 text-emerald-500" />}
+                  {c.is_resolved && <Check className="h-3 w-3 text-success" />}
                 </div>
                 <p className="text-[12px] text-gray-700 leading-relaxed">{c.content}</p>
               </div>
@@ -534,10 +534,10 @@ export default function SharedCalendarPage() {
           {/* Validation buttons */}
           {hasName && (
             <div className="flex items-center justify-center gap-3">
-              <Button onClick={handleValidatePost} disabled={sending} className="rounded-full gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-4 h-9">
+              <Button onClick={handleValidatePost} disabled={sending} className="rounded-full gap-1.5 bg-success hover:bg-success/90 text-white text-xs px-4 h-9">
                 <Check className="h-3.5 w-3.5" /> Validé
               </Button>
-              <Button variant="outline" onClick={() => setRevisionMode(!revisionMode)} className="rounded-full gap-1.5 border-orange-300 text-orange-700 hover:bg-orange-50 text-xs px-4 h-9">
+              <Button variant="outline" onClick={() => setRevisionMode(!revisionMode)} className="rounded-full gap-1.5 border-warning/30 text-warning hover:bg-warning-bg text-xs px-4 h-9">
                 <X className="h-3.5 w-3.5" /> À revoir
               </Button>
             </div>
@@ -554,7 +554,7 @@ export default function SharedCalendarPage() {
               <Button
                 onClick={handleRevisionSubmit}
                 disabled={!revisionText.trim() || sending}
-                className="rounded-full text-xs h-8 bg-orange-600 hover:bg-orange-700 text-white w-full"
+                className="rounded-full text-xs h-8 bg-warning hover:bg-warning/90 text-white w-full"
               >
                 {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Envoyer la demande de révision"}
               </Button>
@@ -755,7 +755,7 @@ export default function SharedCalendarPage() {
                   id={`post-row-${post.id}`}
                   className={`grid gap-0 border-b border-gray-100 items-start transition-colors hover:border-l-2 hover:border-l-gray-900 ${
                     idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"
-                  } ${isToValidate ? "!bg-orange-50/40" : ""} ${isPublished ? "opacity-60" : ""}`}
+                  } ${isToValidate ? "!bg-warning-bg/40" : ""} ${isPublished ? "opacity-60" : ""}`}
                   style={{ gridTemplateColumns: buildGridCols(showColumns, !!share?.guest_can_edit_status) }}
                 >
                   {showColumns.includes("date") && (
@@ -854,7 +854,7 @@ export default function SharedCalendarPage() {
                     >
                       <MessageCircle className="h-4 w-4" />
                       {unresolvedCount > 0 && (
-                        <span className="absolute -top-1 -right-1 bg-orange-500 text-white text-[8px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center">
+                        <span className="absolute -top-1 -right-1 bg-warning text-white text-[8px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center">
                           {unresolvedCount}
                         </span>
                       )}
@@ -880,7 +880,7 @@ export default function SharedCalendarPage() {
           <div className="max-w-6xl mx-auto flex items-center justify-between gap-3">
             <div className="flex items-center gap-4 text-xs">
               {toValidateCount > 0 && (
-                <span className="font-semibold text-orange-600">
+                <span className="font-semibold text-warning">
                   {toValidateCount} post{toValidateCount > 1 ? "s" : ""} à valider
                 </span>
               )}
@@ -893,7 +893,7 @@ export default function SharedCalendarPage() {
             </div>
             <div className="flex items-center gap-2">
               {toValidateCount > 0 && share?.guest_can_edit_status && (
-                <Button onClick={validateAll} size="sm" className="rounded-full text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 h-8">
+                <Button onClick={validateAll} size="sm" className="rounded-full text-xs bg-success hover:bg-success/90 text-white gap-1.5 h-8">
                   <Check className="h-3.5 w-3.5" /> Tout valider
                 </Button>
               )}
@@ -1012,7 +1012,7 @@ function MobilePostCard({ post, share, comments, unresolvedCount, onOpenComments
 
   return (
     <div
-      className={`bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 ${isToValidate ? "border-orange-200 bg-orange-50/30" : ""} ${isPublished ? "opacity-60" : ""}`}
+      className={`bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 ${isToValidate ? "border-warning/30 bg-warning-bg/30" : ""} ${isPublished ? "opacity-60" : ""}`}
       id={`post-row-${post.id}`}
     >
       <div className="flex items-start justify-between gap-2 mb-2">
@@ -1061,7 +1061,7 @@ function MobilePostCard({ post, share, comments, unresolvedCount, onOpenComments
       <div className="flex items-center justify-end gap-2 mt-2 pt-2 border-t border-gray-100">
         <button onClick={onOpenComments} className="text-[11px] text-gray-500 hover:text-gray-800 flex items-center gap-1 transition-colors">
           <MessageCircle className="h-3.5 w-3.5" />
-          {unresolvedCount > 0 ? <span className="text-orange-600 font-semibold">{unresolvedCount}</span> : "Commenter"}
+          {unresolvedCount > 0 ? <span className="text-warning font-semibold">{unresolvedCount}</span> : "Commenter"}
         </button>
         <button onClick={onOpenComments} className="text-[11px] text-gray-500 hover:text-gray-800 flex items-center gap-1 transition-colors">
           <Eye className="h-3.5 w-3.5" /> Voir

@@ -74,7 +74,7 @@ export function CarouselSlider({ slides, mediaUrls }: CarouselSliderProps) {
           <button
             key={i}
             onClick={() => setCurrent(i)}
-            className={`rounded-full transition-all ${i === current ? "w-1.5 h-1.5 bg-blue-500" : "w-1.5 h-1.5 bg-gray-400/50"}`}
+            className={`rounded-full transition-all ${i === current ? "w-1.5 h-1.5 bg-info" : "w-1.5 h-1.5 bg-gray-400/50"}`}
           />
         ))}
       </div>

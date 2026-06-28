@@ -458,16 +458,16 @@ export default function ExcelImportDialog({ open, onOpenChange, userId, onImport
             <div className="flex items-center gap-2 text-sm">
               <FileSpreadsheet className="w-4 h-4 text-primary" />
               <span>Feuille : <strong>"{selectedSheet}"</strong></span>
-              {aiMapping.confidence === "high" && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Confiance haute</span>}
-              {aiMapping.confidence === "medium" && <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">Confiance moyenne</span>}
-              {aiMapping.confidence === "low" && <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">Confiance faible</span>}
+              {aiMapping.confidence === "high" && <span className="text-xs bg-success-bg text-success px-2 py-0.5 rounded-full">Confiance haute</span>}
+              {aiMapping.confidence === "medium" && <span className="text-xs bg-warning-bg text-warning px-2 py-0.5 rounded-full">Confiance moyenne</span>}
+              {aiMapping.confidence === "low" && <span className="text-xs bg-error-bg text-error px-2 py-0.5 rounded-full">Confiance faible</span>}
             </div>
 
             <div className="border rounded-lg divide-y max-h-64 overflow-y-auto">
               {/* Date column */}
               <div className="flex items-center justify-between px-3 py-2 text-sm bg-muted/30">
                 <span>📅 <strong>{allHeaders[editedDateCol] || `Colonne ${editedDateCol}`}</strong></span>
-                <span className="flex items-center gap-1 text-green-600"><Check className="w-3 h-3" /> Date</span>
+                <span className="flex items-center gap-1 text-success"><Check className="w-3 h-3" /> Date</span>
               </div>
 
               {/* Mapped metrics */}
@@ -479,7 +479,7 @@ export default function ExcelImportDialog({ open, onOpenChange, userId, onImport
                     <span className="text-muted-foreground">
                       Col. {String.fromCharCode(65 + (colIdx as number))} · {allHeaders[colIdx as number] || "?"}
                     </span>
-                    <span className="flex items-center gap-1 text-green-600">
+                    <span className="flex items-center gap-1 text-success">
                       <Check className="w-3 h-3" /> {meta.emoji} {meta.label}
                     </span>
                   </div>
@@ -562,9 +562,9 @@ export default function ExcelImportDialog({ open, onOpenChange, userId, onImport
         {step === "preview" && (
           <div className="space-y-4">
             {corrections.length > 0 && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm">
-                <p className="font-semibold text-yellow-800">⚠️ {corrections.length} correction(s) automatique(s) :</p>
-                {corrections.map((c, i) => <p key={i} className="text-yellow-700 text-xs mt-1">· {c}</p>)}
+              <div className="bg-warning-bg border border-warning/30 rounded-lg p-3 text-sm">
+                <p className="font-semibold text-warning">⚠️ {corrections.length} correction(s) automatique(s) :</p>
+                {corrections.map((c, i) => <p key={i} className="text-warning text-xs mt-1">· {c}</p>)}
               </div>
             )}
 

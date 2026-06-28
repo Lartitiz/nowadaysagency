@@ -79,7 +79,7 @@ export default function RedFlagsChecker({ content, onFix }: RedFlagsCheckerProps
 
   if (fixApplied) {
     return (
-      <div className="rounded-xl border border-green-300/50 bg-green-50/50 dark:bg-green-900/10 px-4 py-3 animate-fade-in">
+      <div className="rounded-xl border border-success/50 bg-success-bg/50 px-4 py-3 animate-fade-in">
         <p className="text-sm font-medium text-foreground flex items-center gap-1.5">
           ✅ {fixCount} expression{fixCount > 1 ? "s" : ""} corrigée{fixCount > 1 ? "s" : ""}
         </p>
@@ -103,10 +103,10 @@ export default function RedFlagsChecker({ content, onFix }: RedFlagsCheckerProps
   };
 
   return (
-    <div className="rounded-xl border border-yellow-300/50 bg-yellow-50/50 dark:bg-yellow-900/10 px-4 py-3 animate-fade-in">
+    <div className="rounded-xl border border-warning/50 bg-warning-bg/50 px-4 py-3 animate-fade-in">
       <div className="flex items-start justify-between gap-2 mb-2">
         <p className="text-sm font-medium text-foreground flex items-center gap-1.5">
-          <AlertTriangle className="h-4 w-4 text-yellow-600" />
+          <AlertTriangle className="h-4 w-4 text-warning" />
           {flags.length} expression{flags.length > 1 ? "s" : ""} "robot" détectée{flags.length > 1 ? "s" : ""}
         </p>
         <button onClick={() => setDismissed(true)} className="text-muted-foreground hover:text-foreground">
@@ -118,7 +118,7 @@ export default function RedFlagsChecker({ content, onFix }: RedFlagsCheckerProps
         {flags.slice(0, 5).map((f, i) => (
           <p key={i} className="text-xs text-muted-foreground">
             <span className="font-medium text-foreground">Ligne {f.line} :</span>{" "}
-            "<span className="text-yellow-700 dark:text-yellow-400">{f.match}</span>"
+            "<span className="text-warning">{f.match}</span>"
             {f.fix ? ` → ${f.fix}` : " → supprimer"}
           </p>
         ))}

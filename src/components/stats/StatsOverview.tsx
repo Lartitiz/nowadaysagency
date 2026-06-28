@@ -68,7 +68,7 @@ function DashboardCard({ icon, label, value, change, sub, help }: {
         </p>
         {change && (
           <span className={`inline-flex items-center gap-0.5 text-xs font-medium mt-1 ${
-            change.dir === "up" ? "text-green-600" : change.dir === "down" ? "text-red-500" : "text-muted-foreground"
+            change.dir === "up" ? "text-success" : change.dir === "down" ? "text-error" : "text-muted-foreground"
           }`}>
             {change.dir === "up" ? <TrendingUp className="h-3 w-3" /> : change.dir === "down" ? <TrendingDown className="h-3 w-3" /> : <Minus className="h-3 w-3" />}
             {change.dir === "flat" ? "stable" : `${change.val > 0 ? "+" : ""}${change.val.toFixed(0)}%`}

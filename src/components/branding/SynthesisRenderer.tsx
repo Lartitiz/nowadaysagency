@@ -130,8 +130,8 @@ function TagsList({ items, variant = "rose" }: { items: string[]; variant?: "ros
   if (!items?.length) return null;
   const colors: Record<string, string> = {
     rose: "bg-[#FFF4F8] text-primary border-0",
-    green: "bg-emerald-50 text-emerald-700 border-0",
-    red: "bg-red-50 text-red-600 border-0",
+    green: "bg-success-bg text-success border-0",
+    red: "bg-error-bg text-error border-0",
     violet: "bg-violet-50 text-violet-700 border-0",
     gray: "bg-muted text-muted-foreground border-0",
   };
@@ -147,8 +147,8 @@ function TagsList({ items, variant = "rose" }: { items: string[]; variant?: "ros
 /* ── StaleWarning banner ── */
 function StaleBanner({ onRegenerate, generating }: { onRegenerate: () => void; generating: boolean }) {
   return (
-    <div className="rounded-xl border-2 border-amber-200 bg-amber-50 p-4 flex items-center justify-between gap-3 mb-6">
-      <div className="flex items-center gap-2 text-sm text-amber-800">
+    <div className="rounded-xl border-2 border-warning/30 bg-warning-bg p-4 flex items-center justify-between gap-3 mb-6">
+      <div className="flex items-center gap-2 text-sm text-warning">
         <AlertTriangle className="h-4 w-4 shrink-0" />
         <span>Tes réponses ont évolué depuis la dernière synthèse. On la met à jour ?</span>
       </div>
@@ -358,13 +358,13 @@ function PersonaSynthesis({ data, onSavePortrait, forceOpen = false }: {
             <div className="flex gap-4 flex-wrap">
               {portrait.ses_mots?.length > 0 && (
                 <div className="flex-1 min-w-0 sm:min-w-[200px]">
-                  <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-1">✅ Mots qui résonnent</p>
+                  <p className="text-xs font-semibold text-success uppercase tracking-wider mb-1">✅ Mots qui résonnent</p>
                   <TagsList items={portrait.ses_mots} variant="green" />
                 </div>
               )}
               {portrait.comment_parler.fuir?.length > 0 && (
                 <div className="flex-1 min-w-0 sm:min-w-[200px]">
-                  <p className="text-xs font-semibold text-red-500 uppercase tracking-wider mb-1">🚫 Mots à éviter</p>
+                  <p className="text-xs font-semibold text-error uppercase tracking-wider mb-1">🚫 Mots à éviter</p>
                   <TagsList items={portrait.comment_parler.fuir} variant="red" />
                 </div>
               )}
@@ -494,13 +494,13 @@ function ToneStyleSynthesis({ data, onSaveDirect, forceOpen = false }: {
               </div>
             )}
             {fightsList.length > 0 && (
-              <div className="rounded-xl p-4 bg-[#E8F5E9] border-l-4 border-l-emerald-500">
+              <div className="rounded-xl p-4 bg-[#E8F5E9] border-l-4 border-l-success">
                 <p className="font-display text-sm font-bold text-foreground mb-2">🛡️ Ce que je défends</p>
                 <ClampField value={data.combat_fights} onSave={(v) => onSaveDirect("combat_fights", v)} lines={5} forceOpen={forceOpen} className="text-[13px] text-foreground/80 leading-relaxed" />
               </div>
             )}
             {refusalsList.length > 0 && (
-              <div className="rounded-xl p-4 bg-[#FFF3E0] border-l-4 border-l-orange-400">
+              <div className="rounded-xl p-4 bg-[#FFF3E0] border-l-4 border-l-warning">
                 <p className="font-display text-sm font-bold text-foreground mb-2">🚫 Ce que je refuse</p>
                 <ClampField value={data.combat_refusals} onSave={(v) => onSaveDirect("combat_refusals", v)} lines={5} forceOpen={forceOpen} className="text-[13px] text-foreground/80 leading-relaxed" />
               </div>
@@ -514,7 +514,7 @@ function ToneStyleSynthesis({ data, onSaveDirect, forceOpen = false }: {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {doList.length > 0 && (
             <SynthCard>
-              <p className="font-display text-base font-bold text-emerald-700 mb-4 flex items-center gap-2">
+              <p className="font-display text-base font-bold text-success mb-4 flex items-center gap-2">
                 <span className="text-lg">✅</span> Mes expressions clés
               </p>
               {doList.length <= 2 ? (
@@ -526,7 +526,7 @@ function ToneStyleSynthesis({ data, onSaveDirect, forceOpen = false }: {
           )}
           {dontList.length > 0 && (
             <SynthCard>
-              <p className="font-display text-base font-bold text-red-600 mb-4 flex items-center gap-2">
+              <p className="font-display text-base font-bold text-error mb-4 flex items-center gap-2">
                 <span className="text-lg">❌</span> Ce que j'évite toujours
               </p>
               {dontList.length <= 2 ? (
@@ -712,9 +712,9 @@ function StrategySynthesis({ data, onSaveRecap, forceOpen = false }: {
             const val = summary.content_mix[key];
             if (val == null) return null;
             const labels: Record<string, { label: string; color: string; emoji: string }> = {
-              visibility: { label: "Visibilité", color: "bg-blue-400", emoji: "👀" },
-              trust: { label: "Confiance", color: "bg-amber-400", emoji: "🤝" },
-              sales: { label: "Vente", color: "bg-emerald-500", emoji: "💰" },
+              visibility: { label: "Visibilité", color: "bg-info", emoji: "👀" },
+              trust: { label: "Confiance", color: "bg-warning", emoji: "🤝" },
+              sales: { label: "Vente", color: "bg-success", emoji: "💰" },
             };
             const c = labels[key];
             const pct = Math.round((val / 10) * 100);

@@ -79,7 +79,7 @@ function InstagramMockup({
         <div className="flex-1 min-w-0">
           <span className="text-[13px] font-semibold text-gray-900">{username}</span>
         </div>
-        {!hideFollowButton && <span className="text-xs font-semibold text-blue-500">Suivre</span>}
+        {!hideFollowButton && <span className="text-xs font-semibold text-info">Suivre</span>}
       </div>
 
       {/* Media area */}
@@ -135,7 +135,7 @@ function InstagramMockup({
               )}
             </p>
             {hashtags && hashtags.length > 0 && (
-              <p className="text-[13px] text-blue-900/60 mt-1">
+              <p className="text-[13px] text-info/60 mt-1">
                 {hashtags.map(h => (h.startsWith("#") ? h : `#${h}`)).join(" ")}
               </p>
             )}
@@ -156,7 +156,7 @@ function InstagramMockup({
                   <div key={c.id} className={`flex gap-1.5 text-[13px] ${c.isResolved ? "opacity-50" : ""}`}>
                     <span className="font-semibold text-gray-900 shrink-0">{c.authorName}</span>
                     <span className="text-gray-800 flex-1">{c.content}</span>
-                    {c.isResolved && <Check className="h-3 w-3 text-emerald-500 shrink-0 mt-0.5" />}
+                    {c.isResolved && <Check className="h-3 w-3 text-success shrink-0 mt-0.5" />}
                   </div>
                 ))}
               </div>
@@ -172,7 +172,7 @@ function InstagramMockup({
                     className="flex-1 text-[13px] bg-transparent outline-none placeholder:text-gray-400"
                   />
                   {commentText.trim() && (
-                    <button onClick={handleAddComment} className="text-[13px] font-semibold text-blue-500">
+                    <button onClick={handleAddComment} className="text-[13px] font-semibold text-info">
                       Publier
                     </button>
                   )}
@@ -283,7 +283,7 @@ function LinkedInMockup({
                       <div className="bg-gray-100 rounded-xl px-3 py-2">
                         <p className="text-[12px] font-semibold text-gray-900 flex items-center gap-1">
                           {c.authorName}
-                          {c.isResolved && <Check className="h-3 w-3 text-emerald-500" />}
+                          {c.isResolved && <Check className="h-3 w-3 text-success" />}
                         </p>
                         <p className="text-[13px] text-gray-700">{c.content}</p>
                       </div>
@@ -306,7 +306,7 @@ function LinkedInMockup({
                     className="flex-1 text-[13px] bg-gray-100 rounded-full px-3 py-1.5 outline-none placeholder:text-gray-400"
                   />
                   {commentText.trim() && (
-                    <button onClick={handleAddComment} className="text-[13px] font-semibold text-blue-600">
+                    <button onClick={handleAddComment} className="text-[13px] font-semibold text-info">
                       Publier
                     </button>
                   )}

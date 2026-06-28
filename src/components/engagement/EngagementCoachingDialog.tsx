@@ -28,9 +28,9 @@ const TONS = [
 ] as const;
 
 const TYPE_LABELS: Record<string, { badge: string; color: string }> = {
-  court: { badge: "Court", color: "bg-blue-100 text-blue-700" },
+  court: { badge: "Court", color: "bg-info-bg text-info" },
   developpe: { badge: "Développé", color: "bg-purple-100 text-purple-700" },
-  value_bomb: { badge: "Value bomb", color: "bg-amber-100 text-amber-700" },
+  value_bomb: { badge: "Value bomb", color: "bg-warning-bg text-warning" },
 };
 
 export default function EngagementCoachingDialog({ open, onOpenChange, platform }: Props) {

@@ -84,7 +84,7 @@ export default function LinkedInResult({ result, photos }: Props) {
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Accroche</p>
             <p className="text-sm font-bold text-foreground">{hook}</p>
             {hookTruncated && (
-              <p className="text-[10px] text-amber-600">⚠️ {hook.length} caractères — LinkedIn tronque à ~210 car.</p>
+              <p className="text-[10px] text-warning">⚠️ {hook.length} caractères — LinkedIn tronque à ~210 car.</p>
             )}
           </CardContent>
         </Card>

@@ -569,24 +569,24 @@ export default function InstagramProfileEdito() {
               </div>
 
               {coherence === "ok" && editorial.posts_frequency && editorial.time_available && (
-                <div className="rounded-xl bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 p-3">
-                  <p className="text-sm text-green-800 dark:text-green-300">
+                <div className="rounded-xl bg-success-bg border border-success/30 p-3">
+                  <p className="text-sm text-success">
                     ✅ Ton rythme est tenable. Temps estimé : ~{formatMinutes(estimatedMinutes)}/semaine pour {editorial.posts_frequency} posts + stories {editorial.stories_frequency}. Tu as {editorial.time_available} de dispo. C'est bon.
                   </p>
                 </div>
               )}
 
               {coherence === "tight" && (
-                <div className="rounded-xl bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 p-3">
-                  <p className="text-sm text-yellow-800 dark:text-yellow-300">
+                <div className="rounded-xl bg-warning-bg border border-warning/30 p-3">
+                  <p className="text-sm text-warning">
                     ⚠️ C'est faisable, mais serré. Temps estimé : ~{formatMinutes(estimatedMinutes)}/semaine. Tu as {editorial.time_available}. Astuce : batch ton contenu (prépare tout en une session) pour gagner du temps.
                   </p>
                 </div>
               )}
 
               {coherence === "over" && (
-                <div className="rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 p-3 space-y-2">
-                  <p className="text-sm text-red-800 dark:text-red-300">
+                <div className="rounded-xl bg-error-bg border border-error/30 p-3 space-y-2">
+                  <p className="text-sm text-error">
                     🔴 Attention, ce rythme dépasse ton temps disponible. Temps estimé : ~{formatMinutes(estimatedMinutes)}/semaine. Tu n'as que {editorial.time_available}.
                   </p>
                   <Button
@@ -594,7 +594,7 @@ export default function InstagramProfileEdito() {
                     size="sm"
                     onClick={suggestAdaptedRhythm}
                     disabled={suggestingRhythm}
-                    className="gap-1 text-xs border-red-300 text-red-700 hover:bg-red-100 dark:border-red-700 dark:text-red-300 dark:hover:bg-red-900/30"
+                    className="gap-1 text-xs border-error/30 text-error hover:bg-error-bg"
                   >
                     {suggestingRhythm ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
                     ✨ Adapter mon rythme à mon temps
@@ -677,7 +677,7 @@ export default function InstagramProfileEdito() {
               </button>
 
               {editorial.pillars.length > 0 && (
-                <p className={`text-xs font-medium ${totalPercent === 100 ? "text-green-600" : "text-orange-500"}`}>
+                <p className={`text-xs font-medium ${totalPercent === 100 ? "text-success" : "text-warning"}`}>
                   Total : {totalPercent}% {totalPercent === 100 ? "✅" : totalPercent > 100 ? "⚠️ Dépasse 100%" : `(il manque ${100 - totalPercent}%)`}
                 </p>
               )}

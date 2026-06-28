@@ -453,10 +453,10 @@ export default function InstagramBio() {
            ═══════════════════════════════════════ */}
         {view === "validated" && validatedBio && (
           <div className="space-y-4 animate-fade-in">
-            <div className="rounded-2xl border-2 border-green-200 bg-green-50/50 p-6">
+            <div className="rounded-2xl border-2 border-success/30 bg-success-bg/50 p-6">
               <div className="flex items-center gap-2 mb-4">
                 <span className="text-sm font-bold text-foreground">📝 BIO</span>
-                <span className="text-xs font-medium text-green-700 bg-green-100 px-2.5 py-0.5 rounded-pill">
+                <span className="text-xs font-medium text-success bg-success-bg px-2.5 py-0.5 rounded-pill">
                   ✅ Validée le {validatedAt ? new Date(validatedAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : ""}
                 </span>
               </div>
@@ -518,7 +518,7 @@ export default function InstagramBio() {
                   Créer une nouvelle bio
                 </Button>
                 {!validatedBio && (
-                  <Button variant="ghost" className="rounded-pill text-green-700" onClick={() => {
+                  <Button variant="ghost" className="rounded-pill text-success" onClick={() => {
                     if (currentBioText.trim()) handleValidate(currentBioText);
                     else toast({ title: "Colle ta bio d'abord" });
                   }}>
@@ -542,7 +542,7 @@ export default function InstagramBio() {
                   <div className="space-y-2">
                     <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground font-mono-ui">Ce qui fonctionne ✅</h3>
                     {bioAnalysis.works_well.map((item, i) => (
-                      <div key={i} className="rounded-xl border border-green-200 bg-green-50/50 p-4">
+                      <div key={i} className="rounded-xl border border-success/30 bg-success-bg/50 p-4">
                         <p className="text-sm text-foreground font-medium">✅ {item.point}</p>
                         <p className="text-xs text-muted-foreground mt-1">{item.why}</p>
                       </div>
@@ -554,7 +554,7 @@ export default function InstagramBio() {
                   <div className="space-y-2">
                     <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground font-mono-ui">Ce qui pourrait être amélioré 🟡</h3>
                     {bioAnalysis.to_improve.map((item, i) => (
-                      <div key={i} className="rounded-xl border border-amber-200 bg-amber-50/50 p-4">
+                      <div key={i} className="rounded-xl border border-warning/30 bg-warning-bg/50 p-4">
                         <p className="text-sm text-foreground font-medium">🟡 {item.point}</p>
                         <p className="text-xs text-muted-foreground mt-1">{item.why}</p>
                         {item.suggestion && <p className="text-xs text-primary mt-1 italic">💡 {item.suggestion}</p>}
@@ -567,7 +567,7 @@ export default function InstagramBio() {
                   <div className="space-y-2">
                     <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground font-mono-ui">Ce qui manque ❌</h3>
                     {bioAnalysis.missing.map((item, i) => (
-                      <div key={i} className="rounded-xl border border-red-200 bg-red-50/50 p-4">
+                      <div key={i} className="rounded-xl border border-error/30 bg-error-bg/50 p-4">
                         <p className="text-sm text-foreground font-medium">❌ {item.point}</p>
                         <p className="text-xs text-muted-foreground mt-1">{item.why}</p>
                       </div>
@@ -579,7 +579,7 @@ export default function InstagramBio() {
                   <Button className="rounded-pill gap-2" onClick={startGenerator}>
                     <Sparkles className="h-4 w-4" /> Créer une meilleure bio
                   </Button>
-                  <Button variant="ghost" className="rounded-pill text-green-700" onClick={() => handleValidate(currentBioText)}>
+                  <Button variant="ghost" className="rounded-pill text-success" onClick={() => handleValidate(currentBioText)}>
                     ✅ Ma bio me convient
                   </Button>
                 </div>
@@ -656,7 +656,7 @@ export default function InstagramBio() {
                 </>
               ) : (
                 <>
-                  <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4 space-y-2">
+                  <div className="rounded-xl border border-warning/30 bg-warning-bg/50 p-4 space-y-2">
                     <p className="text-sm text-foreground font-medium">⚠️ Ton branding n'est pas encore complet.</p>
                     <p className="text-xs text-muted-foreground">Plus tu remplis ton branding, plus ta bio sera précise et personnalisée.</p>
                   </div>
@@ -733,13 +733,13 @@ export default function InstagramBio() {
                     {v.score && (
                       <span className={cn(
                         "text-sm font-bold px-2 py-0.5 rounded-full",
-                        v.score >= 70 ? "text-green-700 bg-green-50" : v.score >= 40 ? "text-amber-700 bg-amber-50" : "text-red-700 bg-red-50"
+                        v.score >= 70 ? "text-success bg-success-bg" : v.score >= 40 ? "text-warning bg-warning-bg" : "text-error bg-error-bg"
                       )}>
                         {v.score}/100
                       </span>
                     )}
                   </div>
-                  <span className={`text-xs px-2 py-0.5 rounded-pill ${v.character_count <= 150 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                  <span className={`text-xs px-2 py-0.5 rounded-pill ${v.character_count <= 150 ? "bg-success-bg text-success" : "bg-error-bg text-error"}`}>
                     {v.character_count}/150 car.
                   </span>
                 </div>
@@ -752,7 +752,7 @@ export default function InstagramBio() {
                     {copiedField === `v${i}` ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                     {copiedField === `v${i}` ? "Copié !" : "Copier"}
                   </Button>
-                  <Button size="sm" className="rounded-pill gap-1.5 bg-green-600 hover:bg-green-700 text-white" onClick={() => handleValidate(v.bio_text)}>
+                  <Button size="sm" className="rounded-pill gap-1.5 bg-success hover:bg-success/90 text-white" onClick={() => handleValidate(v.bio_text)}>
                     ⭐ Choisir celle-ci
                   </Button>
                 </div>
@@ -822,7 +822,7 @@ export default function InstagramBio() {
               <div className="space-y-2">
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground font-mono-ui">Prévisualisation</h3>
                 <BioPreviewCard bio={mixedBio} />
-                <p className={`text-xs ${mixedBio.length <= 150 ? "text-green-600" : "text-red-600"}`}>
+                <p className={`text-xs ${mixedBio.length <= 150 ? "text-success" : "text-error"}`}>
                   {mixedBio.length}/150 caractères {mixedBio.length <= 150 ? "✅" : "⚠️ Trop long"}
                 </p>
               </div>
@@ -830,7 +830,7 @@ export default function InstagramBio() {
 
             <div className="flex flex-wrap gap-3">
               {selectedLines.length > 0 && (
-                <Button className="rounded-pill gap-1.5 bg-green-600 hover:bg-green-700 text-white" onClick={() => handleValidate(mixedBio)}>
+                <Button className="rounded-pill gap-1.5 bg-success hover:bg-success/90 text-white" onClick={() => handleValidate(mixedBio)}>
                   ✅ Valider cette bio
                 </Button>
               )}

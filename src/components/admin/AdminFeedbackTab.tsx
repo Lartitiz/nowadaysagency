@@ -29,15 +29,15 @@ interface ProfileMap {
 
 const STATUS_OPTIONS = [
   { value: "new", label: "Nouveau", color: "bg-rose-100 text-rose-700" },
-  { value: "seen", label: "Vu", color: "bg-blue-100 text-blue-700" },
-  { value: "in_progress", label: "En cours", color: "bg-orange-100 text-orange-700" },
-  { value: "done", label: "Résolu", color: "bg-emerald-100 text-emerald-700" },
+  { value: "seen", label: "Vu", color: "bg-info-bg text-info" },
+  { value: "in_progress", label: "En cours", color: "bg-warning-bg text-warning" },
+  { value: "done", label: "Résolu", color: "bg-success-bg text-success" },
   { value: "wont_fix", label: "Won't fix", color: "bg-muted text-muted-foreground" },
 ];
 
 const SEVERITY_COLORS: Record<string, string> = {
-  blocking: "bg-red-500 text-white",
-  annoying: "bg-orange-400 text-white",
+  blocking: "bg-error text-white",
+  annoying: "bg-warning text-white",
   minor: "bg-muted text-muted-foreground",
 };
 

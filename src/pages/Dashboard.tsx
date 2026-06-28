@@ -136,8 +136,8 @@ function GuideBanner() {
 }
 
 const PHASE_CONFIG = {
-  construction: { emoji: "🌱", label: "En construction", className: "bg-emerald-100 text-emerald-700" },
-  action: { emoji: "🚀", label: "En action", className: "bg-amber-100 text-amber-700" },
+  construction: { emoji: "🌱", label: "En construction", className: "bg-success-bg text-success" },
+  action: { emoji: "🚀", label: "En action", className: "bg-warning-bg text-warning" },
   pilotage: { emoji: "⭐", label: "Pilotage", className: "bg-pink-100 text-pink-700" },
 } as const;
 

@@ -88,7 +88,7 @@ export default function BrandingImport({ onAnalyze, onSkip, loading = false, ini
         </motion.div>
 
         {reanalyzeWarning && (
-          <motion.div variants={fadeUp} className="bg-amber-50 border border-amber-200 rounded-[16px] p-4 mb-4 text-[13px] text-amber-800">
+          <motion.div variants={fadeUp} className="bg-warning-bg border border-warning/30 rounded-[16px] p-4 mb-4 text-[13px] text-warning">
             ⚠️ Attention : relancer l'analyse va proposer de nouvelles données pour les sections que tu n'as pas verrouillées. Les sections validées ne seront pas touchées.
           </motion.div>
         )}

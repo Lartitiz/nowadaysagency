@@ -96,9 +96,9 @@ function ChipSelect({ options, value, onChange, multi = false }: { options: stri
 
 // ── Score color ──
 function getScoreInfo(score: number) {
-  if (score >= 70) return { color: "text-green-600", bg: "bg-green-100", emoji: "🟢" };
-  if (score >= 40) return { color: "text-yellow-600", bg: "bg-yellow-100", emoji: "🟡" };
-  return { color: "text-red-600", bg: "bg-red-100", emoji: "🔴" };
+  if (score >= 70) return { color: "text-success", bg: "bg-success-bg", emoji: "🟢" };
+  if (score >= 40) return { color: "text-warning", bg: "bg-warning-bg", emoji: "🟡" };
+  return { color: "text-error", bg: "bg-error-bg", emoji: "🔴" };
 }
 
 function impactEmoji(impact: string) {
@@ -782,7 +782,7 @@ const ABOUT_CRITERIA: Record<string, string> = {
 
 function GranularBar({ score, max, label, feedback }: { score: number; max: number; label: string; feedback: string }) {
   const pct = max > 0 ? (score / max) * 100 : 0;
-  const color = pct >= 70 ? "bg-green-500" : pct >= 40 ? "bg-amber-500" : "bg-red-500";
+  const color = pct >= 70 ? "bg-success" : pct >= 40 ? "bg-warning" : "bg-error";
 
   return (
     <div className="space-y-1">

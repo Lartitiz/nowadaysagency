@@ -27,9 +27,9 @@ const FORMAT_OPTIONS = [
 ];
 
 const OBJ_OPTIONS = [
-  { id: "visibilite", label: "👀 Visibilité", color: "text-blue-600" },
-  { id: "confiance", label: "🤝 Confiance", color: "text-green-600" },
-  { id: "vente", label: "💰 Vente", color: "text-orange-600" },
+  { id: "visibilite", label: "👀 Visibilité", color: "text-info" },
+  { id: "confiance", label: "🤝 Confiance", color: "text-success" },
+  { id: "vente", label: "💰 Vente", color: "text-warning" },
 ];
 
 const FORMAT_ROUTES: Record<string, string> = {

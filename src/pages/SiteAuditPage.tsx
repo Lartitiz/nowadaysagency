@@ -622,7 +622,7 @@ const SiteAuditPage = () => {
                 </div>
                 <div className="lg:col-span-3 space-y-5">
                   <div className="rounded-2xl border border-border bg-card p-5 flex items-center gap-4">
-                    <div className={`text-3xl font-display font-bold ${screenshotResult.score_estime >= 75 ? "text-emerald-600" : screenshotResult.score_estime >= 50 ? "text-amber-500" : "text-red-500"}`}>
+                    <div className={`text-3xl font-display font-bold ${screenshotResult.score_estime >= 75 ? "text-success" : screenshotResult.score_estime >= 50 ? "text-warning" : "text-error"}`}>
                       {screenshotResult.score_estime}/100
                     </div>
                     <div className="flex-1">
@@ -637,7 +637,7 @@ const SiteAuditPage = () => {
                       <ul className="space-y-2">
                         {screenshotResult.points_forts.map((p: string, i: number) => (
                           <li key={i} className="flex items-start gap-2 text-sm text-foreground">
-                            <span className="shrink-0 mt-0.5 text-emerald-500">●</span>
+                            <span className="shrink-0 mt-0.5 text-success">●</span>
                             <span>{p}</span>
                           </li>
                         ))}
@@ -650,7 +650,7 @@ const SiteAuditPage = () => {
                       <h3 className="font-display text-sm font-bold text-foreground">⚠️ Problèmes identifiés</h3>
                       <div className="space-y-2">
                         {screenshotResult.problemes.map((prob: any, i: number) => {
-                          const impactColors: Record<string, string> = { fort: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400", moyen: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400", faible: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400" };
+                          const impactColors: Record<string, string> = { fort: "bg-error-bg text-error", moyen: "bg-warning-bg text-warning", faible: "bg-success-bg text-success" };
                           const catEmojis: Record<string, string> = { visuel: "🎨", copy: "✍️", cta: "👆", confiance: "🛡️", navigation: "🗺️" };
                           return (
                             <button key={i} onClick={() => setExpandedProblem(expandedProblem === i ? null : i)} className="w-full text-left rounded-xl border border-border p-4 hover:border-primary/40 transition-all space-y-2">

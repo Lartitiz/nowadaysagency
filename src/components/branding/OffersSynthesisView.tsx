@@ -7,8 +7,8 @@ import OfferSynthesisCard from "./OfferSynthesisCard";
 
 const TYPE_BADGE: Record<string, { label: string; className: string }> = {
   paid: { label: "💎 Payante", className: "bg-violet-50 text-violet-700" },
-  free: { label: "🎁 Gratuite", className: "bg-emerald-50 text-emerald-700" },
-  service: { label: "🎤 Service", className: "bg-amber-50 text-amber-700" },
+  free: { label: "🎁 Gratuite", className: "bg-success-bg text-success" },
+  service: { label: "🎤 Service", className: "bg-warning-bg text-warning" },
 };
 
 function SynthCard({ children, className = "" }: { children: React.ReactNode; className?: string }) {
@@ -150,7 +150,7 @@ export default function OffersSynthesisView({ offers, onNavigateToOffer, onNavig
                     <span className="text-[10px] text-muted-foreground ml-auto">{o.completion_pct ?? 0}%</span>
                   )}
                   {(o.completed || o.completion_pct === 100) && (
-                    <span className="text-[10px] text-emerald-600 ml-auto">✓</span>
+                    <span className="text-[10px] text-success ml-auto">✓</span>
                   )}
                 </div>
               );

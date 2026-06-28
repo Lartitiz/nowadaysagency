@@ -71,10 +71,10 @@ function LowCreditsBanner({ remaining, plan }: { remaining: number; plan: string
   if (!shouldShow) return null;
 
   return (
-    <div className="mb-4 rounded-xl border border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50 px-4 py-3 flex items-center justify-between gap-3">
+    <div className="mb-4 rounded-xl border border-warning/30 bg-gradient-to-r from-orange-50 to-amber-50 px-4 py-3 flex items-center justify-between gap-3">
       <div className="flex items-center gap-2 min-w-0">
         <span className="text-lg shrink-0">✨</span>
-        <p className="text-sm text-orange-800">
+        <p className="text-sm text-warning">
           <span className="font-medium">Plus que {remaining} crédit{remaining > 1 ? "s" : ""}</span> ce mois-ci.
           {" "}Utilise-les pour ce qui compte le plus pour toi.
         </p>
@@ -82,7 +82,7 @@ function LowCreditsBanner({ remaining, plan }: { remaining: number; plan: string
       <a
         href="/mon-plan"
         onClick={() => posthog.capture("low_credits_banner_cta_clicked", { remaining, plan })}
-        className="shrink-0 text-xs font-medium text-orange-600 hover:text-orange-800 underline underline-offset-2 transition-colors"
+        className="shrink-0 text-xs font-medium text-warning hover:text-warning underline underline-offset-2 transition-colors"
       >
         Découvrir le Premium
       </a>

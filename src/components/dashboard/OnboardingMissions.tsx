@@ -16,7 +16,7 @@ export default function OnboardingMissions({ prenom }: OnboardingMissionsProps) 
 
   if (allDone) {
     return (
-      <div className="rounded-[20px] bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 p-5 mb-6 shadow-[var(--shadow-bento)]">
+      <div className="rounded-[20px] bg-gradient-to-r from-green-50 to-emerald-50 border border-success/30 p-5 mb-6 shadow-[var(--shadow-bento)]">
         <Confetti />
         <p className="font-heading font-bold text-foreground">
           Bravo {prenom || "toi"} ! Tu as posé tes fondations 🎉
@@ -81,7 +81,7 @@ function MissionCard({
   onClick: () => void;
 }) {
   const borderClass = mission.completed
-    ? "border-green-200 bg-green-50/50"
+    ? "border-success/30 bg-success-bg/50"
     : isNext
     ? "border-primary bg-secondary"
     : "border-border bg-card";

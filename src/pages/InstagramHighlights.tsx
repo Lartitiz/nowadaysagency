@@ -334,8 +334,8 @@ export default function InstagramHighlights() {
                     onClick={() => setHighlightStatus(h.type, "done")}
                     className={`inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border transition-all ${
                       status === "done"
-                        ? "border-green-500 bg-green-50 text-green-700"
-                        : "border-border text-muted-foreground hover:border-green-300"
+                        ? "border-success bg-success-bg text-success"
+                        : "border-border text-muted-foreground hover:border-success"
                     }`}
                   >
                     {status === "done" && <Check className="h-3 w-3" />}

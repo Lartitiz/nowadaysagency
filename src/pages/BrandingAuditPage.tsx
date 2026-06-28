@@ -62,14 +62,14 @@ const PILLAR_META: Record<string, { emoji: string; label: string }> = {
 };
 
 const STATUT_COLORS: Record<string, string> = {
-  absent: "text-red-500",
-  flou: "text-amber-500",
-  bon: "text-emerald-500",
-  excellent: "text-emerald-600",
+  absent: "text-error",
+  flou: "text-warning",
+  bon: "text-success",
+  excellent: "text-success",
 };
 
 const SCORE_BAR_COLOR = (score: number) =>
-  score >= 75 ? "bg-emerald-500" : score >= 50 ? "bg-amber-400" : "bg-red-500";
+  score >= 75 ? "bg-success" : score >= 50 ? "bg-warning" : "bg-error";
 
 export default function BrandingAuditPage() {
   const { user } = useAuth();
@@ -534,7 +534,7 @@ function AuditResults({ result, previousAudit, expandedPillar, setExpandedPillar
   result: AuditResult; previousAudit: any; expandedPillar: string | null; setExpandedPillar: (p: string | null) => void;
   navigate: (path: string) => void; onRedo: () => void; autofilling: boolean; onAutofillBranding: () => void;
 }) {
-  const scoreColor = result.score_global >= 75 ? "text-emerald-500" : result.score_global >= 50 ? "text-amber-500" : "text-red-500";
+  const scoreColor = result.score_global >= 75 ? "text-success" : result.score_global >= 50 ? "text-warning" : "text-error";
 
   const navigateWithContext = (route: string, conseil?: string, module?: string) => {
     if (conseil && module) {
@@ -569,7 +569,7 @@ function AuditResults({ result, previousAudit, expandedPillar, setExpandedPillar
           <h3 className="font-display font-bold text-sm mb-3">Ce qui marche ✅</h3>
           <div className="space-y-2">
             {result.points_forts.map((p, i) => (
-              <div key={i} className="rounded-xl border border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/30 p-4">
+              <div key={i} className="rounded-xl border border-success/30 bg-success-bg p-4">
                 <p className="text-sm font-medium text-foreground">✅ {p.titre}</p>
                 <p className="text-xs text-muted-foreground mt-1">{p.detail}</p>
                 <p className="text-[10px] text-muted-foreground/70 mt-1">Source : {p.source}</p>
@@ -585,7 +585,7 @@ function AuditResults({ result, previousAudit, expandedPillar, setExpandedPillar
           <h3 className="font-display font-bold text-sm mb-3">Ce qui manque ⚠️</h3>
           <div className="space-y-2">
             {result.points_faibles.map((p, i) => (
-              <div key={i} className={`rounded-xl border p-4 ${p.priorite === "haute" ? "border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/30" : "border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30"}`}>
+              <div key={i} className={`rounded-xl border p-4 ${p.priorite === "haute" ? "border-error/30 bg-error-bg" : "border-warning/30 bg-warning-bg"}`}>
                 <p className="text-sm font-medium text-foreground">{p.priorite === "haute" ? "🔴" : "🟡"} {p.titre}</p>
                 <p className="text-xs text-muted-foreground mt-1">{p.detail}</p>
                 <p className="text-[10px] text-muted-foreground/70 mt-1">Priorité : {p.priorite}</p>
@@ -630,10 +630,10 @@ function AuditResults({ result, previousAudit, expandedPillar, setExpandedPillar
                 {isExpanded && (
                   <div className="px-4 pb-4 space-y-2 border-t border-border pt-3">
                     {pillar.ce_qui_existe && (
-                      <div><p className="text-[10px] font-semibold text-emerald-600 uppercase">Ce qui existe</p><p className="text-xs text-muted-foreground">{pillar.ce_qui_existe}</p></div>
+                      <div><p className="text-[10px] font-semibold text-success uppercase">Ce qui existe</p><p className="text-xs text-muted-foreground">{pillar.ce_qui_existe}</p></div>
                     )}
                     {pillar.ce_qui_manque && (
-                      <div><p className="text-[10px] font-semibold text-amber-600 uppercase">Ce qui manque</p><p className="text-xs text-muted-foreground">{pillar.ce_qui_manque}</p></div>
+                      <div><p className="text-[10px] font-semibold text-warning uppercase">Ce qui manque</p><p className="text-xs text-muted-foreground">{pillar.ce_qui_manque}</p></div>
                     )}
                     {pillar.recommandation && (
                       <div><p className="text-[10px] font-semibold text-primary uppercase">Recommandation</p><p className="text-xs text-muted-foreground">{pillar.recommandation}</p></div>

@@ -33,15 +33,15 @@ interface AiDiagnosticData {
 }
 
 const ANSWER_DISPLAY: Record<string, { icon: string; label: string; className: string }> = {
-  oui: { icon: "✅", label: "Oui", className: "text-emerald-600" },
-  non: { icon: "❌", label: "Non", className: "text-red-500" },
-  pas_sure: { icon: "⚠️", label: "Pas sûr·e", className: "text-amber-500" },
+  oui: { icon: "✅", label: "Oui", className: "text-success" },
+  non: { icon: "❌", label: "Non", className: "text-error" },
+  pas_sure: { icon: "⚠️", label: "Pas sûr·e", className: "text-warning" },
 };
 
 const PRIORITY_BADGE: Record<string, { icon: string; label: string; className: string }> = {
-  haute: { icon: "🔴", label: "Haute", className: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400" },
-  moyenne: { icon: "🟠", label: "Moyenne", className: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400" },
-  basse: { icon: "🟢", label: "Basse", className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400" },
+  haute: { icon: "🔴", label: "Haute", className: "bg-error-bg text-error" },
+  moyenne: { icon: "🟠", label: "Moyenne", className: "bg-warning-bg text-warning" },
+  basse: { icon: "🟢", label: "Basse", className: "bg-success-bg text-success" },
 };
 
 const EFFORT_BADGE: Record<string, { icon: string; label: string }> = {
@@ -60,9 +60,9 @@ const CATEGORY_INSPIRATION_MAP: Record<string, string> = {
 
 function barColor(score: number, max: number): string {
   const pct = max > 0 ? (score / max) * 100 : 0;
-  if (pct >= 75) return "bg-emerald-500";
-  if (pct >= 50) return "bg-amber-400";
-  return "bg-red-500";
+  if (pct >= 75) return "bg-success";
+  if (pct >= 50) return "bg-warning";
+  return "bg-error";
 }
 
 function ScoreCircle({ score }: { score: number }) {
@@ -343,7 +343,7 @@ export default function SiteAuditResult({
               <ul className="space-y-2">
                 {aiDiagnostic.positif.map((point, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm text-foreground">
-                    <span className="shrink-0 mt-0.5 text-emerald-500">●</span>
+                    <span className="shrink-0 mt-0.5 text-success">●</span>
                     <span>{point}</span>
                   </li>
                 ))}
@@ -362,7 +362,7 @@ export default function SiteAuditResult({
                       <span className={`inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-pill ${
                         prio.impact === "fort"
                           ? "bg-primary/10 text-primary"
-                          : "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400"
+                          : "bg-warning-bg text-warning"
                       }`}>
                         {prio.impact === "fort" ? "Impact fort" : "Impact moyen"}
                       </span>

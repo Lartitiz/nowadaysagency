@@ -147,8 +147,8 @@ export function CalendarPostPreview({
       <div className="flex items-center justify-between gap-2 mb-2">
         <div className="flex items-center gap-1.5">
           {syncStatus && (
-            <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full ${syncStatus === "synced" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : "bg-amber-500/10 text-amber-700 dark:text-amber-400"}`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${syncStatus === "synced" ? "bg-emerald-500" : "bg-amber-500"}`} />
+            <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full ${syncStatus === "synced" ? "bg-success/10 text-success" : "bg-warning/10 text-warning"}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${syncStatus === "synced" ? "bg-success" : "bg-warning"}`} />
               {syncStatus === "synced" ? "Synchronisé" : "Modifs en cours"}
             </span>
           )}

@@ -50,7 +50,7 @@ const VERDICT_LABELS: Record<string, { label: string; emoji: string }> = {
 
 function StarRating({ rating }: { rating: number }) {
   return (
-    <span className="text-amber-500 text-xs tracking-wide">
+    <span className="text-warning text-xs tracking-wide">
       {"⭐".repeat(Math.min(rating, 5))}
     </span>
   );
@@ -89,7 +89,7 @@ export default function ContentAnalysisResults({
           {positifs.map((p) => (
             <div key={p.number} className="bg-card border border-border rounded-xl p-5 space-y-3">
               <div className="flex items-start gap-3">
-                <span className="flex-shrink-0 w-7 h-7 rounded-full bg-green-600 text-white text-sm font-bold flex items-center justify-center">
+                <span className="flex-shrink-0 w-7 h-7 rounded-full bg-success text-white text-sm font-bold flex items-center justify-center">
                   {p.number}
                 </span>
                 <h4 className="text-[15px] font-semibold text-foreground leading-tight">{p.title}</h4>
@@ -98,7 +98,7 @@ export default function ContentAnalysisResults({
               {p.metric_highlight && (
                 <div className="ml-10 flex flex-wrap gap-3">
                   {p.metric_highlight.split(/[·|]/).map((m, i) => (
-                    <span key={i} className="text-xs font-medium text-foreground bg-green-50 px-2 py-1 rounded-md">
+                    <span key={i} className="text-xs font-medium text-foreground bg-success-bg px-2 py-1 rounded-md">
                       {m.trim()}
                     </span>
                   ))}
@@ -123,7 +123,7 @@ export default function ContentAnalysisResults({
           {negatifs.map((p) => (
             <div key={p.number} className="bg-card border border-border rounded-xl p-5 space-y-3">
               <div className="flex items-start gap-3">
-                <span className="flex-shrink-0 w-7 h-7 rounded-full bg-amber-500 text-white text-sm font-bold flex items-center justify-center">
+                <span className="flex-shrink-0 w-7 h-7 rounded-full bg-warning text-white text-sm font-bold flex items-center justify-center">
                   {p.number}
                 </span>
                 <h4 className="text-[15px] font-semibold text-foreground leading-tight">{p.title}</h4>
@@ -164,9 +164,9 @@ export default function ContentAnalysisResults({
                       <td className="px-4 py-2.5 text-center">
                         <span className={`text-xs font-medium px-2 py-0.5 rounded-pill ${
                           d.verdict === "ton_arme" ? "bg-primary/10 text-primary" :
-                          d.verdict === "continue" ? "bg-green-100 text-green-700" :
-                          d.verdict === "a_ameliorer" ? "bg-amber-100 text-amber-700" :
-                          "bg-red-100 text-red-700"
+                          d.verdict === "continue" ? "bg-success-bg text-success" :
+                          d.verdict === "a_ameliorer" ? "bg-warning-bg text-warning" :
+                          "bg-error-bg text-error"
                         }`}>
                           {v.emoji} {v.label}
                         </span>
