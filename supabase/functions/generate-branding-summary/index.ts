@@ -213,7 +213,7 @@ Si une section n'a pas de données, mets null pour cette clé. Pour les arrays v
     }, { onConflict: "user_id" });
 
     // Log usage
-    await logUsage(user.id, "content", "branding_summary", undefined, "claude-sonnet-4-5");
+    await logUsage(user.id, "content", "branding_summary", undefined, "claude-sonnet-4-6");
 
     return new Response(JSON.stringify({
       summaries,

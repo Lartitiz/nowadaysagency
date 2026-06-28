@@ -195,7 +195,7 @@ La description template_layout_description doit être TRÈS détaillée (200-500
       ...imageContents,
     ];
 
-    const model = "claude-sonnet-4-5-20250929" as any;
+    const model = "claude-sonnet-4-6" as any;
 
     const rawResponse = await callAnthropic({
       model,
