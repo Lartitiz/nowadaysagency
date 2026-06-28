@@ -570,7 +570,7 @@ export default function WelcomePage() {
             ) : (
               <div className="rounded-xl bg-card border border-border p-5">
                 <p className="text-sm text-muted-foreground">
-                  Le diagnostic n'a pas pu pré-remplir ton branding cette fois. Pas de souci, on va le construire ensemble.
+                  On va construire ta marque ensemble, étape par étape — c'est tout à fait normal au début. En quelques minutes, l'assistant s'en servira pour personnaliser tous tes contenus. ✨
                 </p>
               </div>
             )}
