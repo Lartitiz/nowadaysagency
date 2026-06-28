@@ -159,29 +159,32 @@ const SiteAuditPage = () => {
   const loadAudit = useCallback(async () => {
     if (!user) return;
     setLoading(true);
-    const { data } = await (supabase.from("website_audit") as any)
-      .select("*")
-      .eq(column, value)
-      .eq("is_latest", true)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (data) {
-      setExisting(data);
-      if (data.site_url) setSiteUrl(data.site_url);
-      if (data.audit_mode === "auto" && data.raw_result) {
-        setAutoResult(data.raw_result as AutoAuditResult);
+    try {
+      const { data } = await (supabase.from("website_audit") as any)
+        .select("*")
+        .eq(column, value)
+        .eq("is_latest", true)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (data) {
+        setExisting(data);
+        if (data.site_url) setSiteUrl(data.site_url);
+        if (data.audit_mode === "auto" && data.raw_result) {
+          setAutoResult(data.raw_result as AutoAuditResult);
+        }
+        if (data.audit_mode === "global" && data.answers && typeof data.answers === "object") {
+          setAnswers(data.answers as Record<string, AnswerValue>);
+        }
+        if (data.audit_mode === "page_by_page" && data.answers && typeof data.answers === "object") {
+          setPbpAnswers(data.answers as Record<string, Record<string, AnswerValue>>);
+        }
+      } else {
+        setExisting(null);
       }
-      if (data.audit_mode === "global" && data.answers && typeof data.answers === "object") {
-        setAnswers(data.answers as Record<string, AnswerValue>);
-      }
-      if (data.audit_mode === "page_by_page" && data.answers && typeof data.answers === "object") {
-        setPbpAnswers(data.answers as Record<string, Record<string, AnswerValue>>);
-      }
-    } else {
-      setExisting(null);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [user, column, value]);
 
   useEffect(() => { loadAudit(); }, [loadAudit]);
@@ -256,11 +259,12 @@ const SiteAuditPage = () => {
       const result = data as AutoAuditResult;
       setAutoResult(result);
 
-      // Save to DB — mark old audits as not latest, always insert new
+      // Save to DB — mark old audits as not latest, always insert new.
+      // Demarque across ALL modes (not just "auto") so a single row stays is_latest=true;
+      // loadAudit reads the latest regardless of mode.
       await (supabase.from("website_audit") as any)
         .update({ is_latest: false })
         .eq(column, value)
-        .eq("audit_mode", "auto")
         .eq("is_latest", true);
 
       const payload: Record<string, unknown> = {

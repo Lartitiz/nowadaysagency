@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Sparkles, MessageCircle, Lightbulb } from "lucide-react";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
@@ -32,6 +32,7 @@ export default function SiteAccueil() {
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [data, setData] = useState<HomepageData>(EMPTY);
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -46,12 +47,17 @@ export default function SiteAccueil() {
     if (!user || !loading) return;
     const load = async () => {
       const { data: hp } = await (supabase.from("website_homepage") as any).select("*").eq(column, value).maybeSingle();
+      // A ?step=N deep-link (e.g. "Modifier" from the recap) wins over the saved step.
+      const stepParam = parseInt(searchParams.get("step") || "", 10);
+      const urlStep = stepParam >= 1 && stepParam <= STEPS.length ? stepParam : null;
       if (hp) {
         const faq = Array.isArray(hp.faq) ? hp.faq as any[] : [];
         const plan_steps = Array.isArray((hp as any).plan_steps) ? (hp as any).plan_steps : [];
         const storybrand_data = (hp as any).storybrand_data || null;
         setData({ ...EMPTY, ...hp, faq, plan_steps, storybrand_data } as any);
-        setStep(hp.current_step || 1);
+        setStep(urlStep ?? hp.current_step ?? 1);
+      } else if (urlStep) {
+        setStep(urlStep);
       }
       const { getBrandingCompletion } = await import("@/lib/branding-completion");
       const { percent } = await getBrandingCompletion({ column, value });

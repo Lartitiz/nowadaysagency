@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { scrapeWebsite, extractVisualInfo } from "../_shared/scraping.ts";
+import { scrapeWebsite, extractVisualInfo, isSafePublicUrl } from "../_shared/scraping.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 
 serve(async (req) => {
@@ -52,13 +52,19 @@ serve(async (req) => {
     try {
       let formattedUrl = websiteUrl.trim();
       if (!formattedUrl.startsWith("http")) formattedUrl = `https://${formattedUrl}`;
-      const resp = await fetch(formattedUrl, {
-        signal: controller.signal,
-        headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandAnalyzer/1.0)" },
-      });
-      if (resp.ok) {
-        const html = await resp.text();
-        styleHints = extractVisualInfo(html);
+      // SSRF guard: same validation that scrapeWebsite() applies internally — never fetch
+      // internal/private hosts (localhost, 10.x, 169.254.x metadata, etc.).
+      if (isSafePublicUrl(formattedUrl)) {
+        const resp = await fetch(formattedUrl, {
+          signal: controller.signal,
+          redirect: "follow",
+          headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandAnalyzer/1.0)" },
+        });
+        // Re-validate the final URL after redirects (a public URL may 30x to an internal one).
+        if (resp.ok && isSafePublicUrl(resp.url || formattedUrl)) {
+          const html = await resp.text();
+          styleHints = extractVisualInfo(html);
+        }
       }
     } catch {
       // Visual hints are nice-to-have, don't fail on this

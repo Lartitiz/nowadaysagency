@@ -40,6 +40,18 @@ interface SavedVariant extends Variant {
   customHtml: string;
 }
 
+const DEFAULT_COLORS = { primary: "#c2185b", secondary: "#f8bbd0", text: "#212121", bg: "#ffffff" };
+
+// Build the color-overridden HTML idempotently from the IMMUTABLE original `html`.
+// Always derive from `html` (never from a previous customHtml) so repeated edits don't stack
+// <style>/<head> blocks or corrupt the markup.
+function buildCustomHtml(html: string, colors: SavedVariant["colors"]): string {
+  const styleTag = `<style>:root{--primary:${colors.primary};--secondary:${colors.secondary};--text-color:${colors.text};--bg-color:${colors.bg};}body{background-color:var(--bg-color)!important;color:var(--text-color)!important;}</style>`;
+  if (html.includes("</head>")) return html.replace("</head>", styleTag + "</head>");
+  if (html.includes("<body")) return html.replace("<body", `<head>${styleTag}</head><body`);
+  return styleTag + html; // fragment without head/body
+}
+
 export default function SiteInspirationGeneratorPage() {
   const { sectionType } = useParams<{ sectionType: string }>();
   const navigate = useNavigate();
@@ -52,34 +64,57 @@ export default function SiteInspirationGeneratorPage() {
   const [variants, setVariants] = useState<SavedVariant[]>([]);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const colorSaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
-  // Load saved inspirations on mount
+  // Load saved inspirations when the section changes.
+  // The route element is reused across /site/inspirations/:sectionType, so we MUST reset
+  // variants/loaded on each section change — otherwise a section with no saved inspiration
+  // keeps showing the previous section's variants.
   useEffect(() => {
     if (!user?.id || !sectionType) return;
+    let cancelled = false;
+    setVariants([]);
+    setLoaded(false);
     (async () => {
-      const { data } = await (supabase
-        .from("website_inspirations") as any)
-        .select("*")
-        .eq(column, value)
-        .eq("section_type", sectionType)
-        .order("variant", { ascending: true });
+      try {
+        const { data, error } = await (supabase
+          .from("website_inspirations") as any)
+          .select("*")
+          .eq(column, value)
+          .eq("section_type", sectionType)
+          .order("variant", { ascending: true });
+        if (cancelled) return;
+        if (error) throw error;
 
-      if (data && data.length > 0) {
-        setVariants(
-          data.map((row) => ({
-            id: row.id,
-            name: `Variante ${row.variant}`,
-            description: "",
-            html: row.html_code,
-            viewMode: "desktop" as const,
-            showColors: false,
-            colors: (row.custom_colors as any) ?? { primary: "#c2185b", secondary: "#f8bbd0", text: "#212121", bg: "#ffffff" },
-            customHtml: row.html_code,
-          }))
-        );
-        setLoaded(true);
+        if (data && data.length > 0) {
+          setVariants(
+            data.map((row) => {
+              const colors = (row.custom_colors as any) ?? DEFAULT_COLORS;
+              return {
+                id: row.id,
+                name: `Variante ${row.variant}`,
+                description: "",
+                html: row.html_code,
+                viewMode: "desktop" as const,
+                showColors: false,
+                colors,
+                customHtml: row.custom_colors ? buildCustomHtml(row.html_code, colors) : row.html_code,
+              };
+            })
+          );
+          setLoaded(true);
+        } else {
+          setVariants([]);
+          setLoaded(false);
+        }
+      } catch {
+        if (!cancelled) {
+          setVariants([]);
+          setLoaded(false);
+        }
       }
     })();
+    return () => { cancelled = true; };
   }, [user?.id, sectionType, column, value]);
 
   const generate = useCallback(async () => {
@@ -108,15 +143,14 @@ export default function SiteInspirationGeneratorPage() {
 
       if (!parsed.variants?.length) throw new Error("Aucune variante générée");
 
-      const newVariants: SavedVariant[] = parsed.variants.map((v, i) => ({
+      const newVariants: SavedVariant[] = parsed.variants.map((v) => ({
         ...v,
         viewMode: "desktop" as const,
         showColors: false,
-        colors: { primary: "#c2185b", secondary: "#f8bbd0", text: "#212121", bg: "#ffffff" },
+        colors: { ...DEFAULT_COLORS },
         customHtml: v.html,
       }));
 
-      setVariants(newVariants);
       setLoaded(true);
 
       // Save to DB
@@ -128,22 +162,27 @@ export default function SiteInspirationGeneratorPage() {
           .eq(column, value)
           .eq("section_type", sectionType);
 
-        for (let i = 0; i < newVariants.length; i++) {
-          const { data: inserted } = await supabase
-            .from("website_inspirations")
-            .insert({
-              user_id: user.id,
-              workspace_id: workspaceId || null,
-              section_type: sectionType,
-              html_code: newVariants[i].html,
-              variant: i + 1,
-            })
-            .select("id")
-            .single();
-          if (inserted) newVariants[i].id = inserted.id;
+        // Single batched insert (avoids partial state if the user reloads mid-loop).
+        // workspace_id must match the read filter: a real workspace id, else null.
+        const rows = newVariants.map((nv, i) => ({
+          user_id: user.id,
+          workspace_id: column === "workspace_id" ? value : null,
+          section_type: sectionType,
+          html_code: nv.html,
+          variant: i + 1,
+        }));
+        const { data: insertedRows } = await (supabase
+          .from("website_inspirations") as any)
+          .insert(rows)
+          .select("id, variant");
+        if (insertedRows) {
+          for (const r of insertedRows) {
+            const idx = (r.variant as number) - 1;
+            if (newVariants[idx]) newVariants[idx].id = r.id;
+          }
         }
-        setVariants([...newVariants]);
       }
+      setVariants([...newVariants]);
 
       toast.success("Templates générés ! 🎨", { description: "Tes 2 variantes sont prêtes." });
     } catch (err) {
@@ -153,43 +192,40 @@ export default function SiteInspirationGeneratorPage() {
     }
   }, [sectionType, workspaceId, user?.id]);
 
-  const copyHtml = (html: string) => {
-    navigator.clipboard.writeText(html);
-    toast.success("📋 HTML copié !", { description: "Colle-le dans ton éditeur de site." });
+  const copyHtml = async (html: string) => {
+    try {
+      await navigator.clipboard.writeText(html);
+      toast.success("📋 HTML copié !", { description: "Colle-le dans ton éditeur de site." });
+    } catch {
+      toast.error("Impossible de copier", { description: "Sélectionne et copie le texte manuellement." });
+    }
+  };
+
+  // Debounced persistence of the custom palette so it survives a reload.
+  const persistColors = (v: SavedVariant) => {
+    if (!v.id) return;
+    const id = v.id;
+    clearTimeout(colorSaveTimers.current[id]);
+    colorSaveTimers.current[id] = setTimeout(() => {
+      (supabase.from("website_inspirations") as any)
+        .update({ custom_colors: v.colors })
+        .eq("id", id);
+    }, 600);
   };
 
   const updateColor = (index: number, key: keyof SavedVariant["colors"], value: string) => {
+    let toPersist: SavedVariant | null = null;
     setVariants((prev) => {
       const updated = [...prev];
       const v = { ...updated[index] };
       v.colors = { ...v.colors, [key]: value };
-
-      // Apply color replacement to the original html
-      let html = v.html;
-      // Simple search-replace for common color patterns
-      const colorMap: Record<string, string> = {
-        primary: v.colors.primary,
-        secondary: v.colors.secondary,
-      };
-      // Replace inline style colors
-      html = html.replace(/background-color:\s*#[0-9a-fA-F]{3,8}/g, `background-color: ${v.colors.primary}`);
-      html = html.replace(/color:\s*#[0-9a-fA-F]{3,8}/g, `color: ${v.colors.text}`);
-
-      // More targeted: use CSS variables approach
-      const styleTag = `<style>:root{--primary:${v.colors.primary};--secondary:${v.colors.secondary};--text-color:${v.colors.text};--bg-color:${v.colors.bg};}body{background-color:var(--bg-color)!important;color:var(--text-color)!important;}</style>`;
-      if (v.customHtml.includes("--primary")) {
-        v.customHtml = v.html.replace("</head>", styleTag + "</head>");
-      } else {
-        // Inject a style override at the top of body
-        v.customHtml = v.html.replace(
-          "<body",
-          `<head>${styleTag}</head><body style="background-color:${v.colors.bg};color:${v.colors.text}"`
-        );
-      }
-
+      // Rebuild from the immutable original each time → idempotent, never corrupts markup.
+      v.customHtml = buildCustomHtml(v.html, v.colors);
       updated[index] = v;
+      toPersist = v;
       return updated;
     });
+    if (toPersist) persistColors(toPersist);
   };
 
   const toggleView = (index: number, mode: "desktop" | "mobile") => {
@@ -208,10 +244,12 @@ export default function SiteInspirationGeneratorPage() {
     });
   };
 
-  if (!section || !sectionType) {
-    navigate("/site/inspirations");
-    return null;
-  }
+  // Redirect side-effect must not run during render.
+  useEffect(() => {
+    if (sectionType && !section) navigate("/site/inspirations", { replace: true });
+  }, [sectionType, section, navigate]);
+
+  if (!section || !sectionType) return null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -289,7 +327,7 @@ export default function SiteInspirationGeneratorPage() {
                 title={variant.name}
                 className="w-full border-0"
                 style={{ height: 500 }}
-                sandbox="allow-scripts"
+                sandbox=""
               />
             </div>
 
@@ -300,16 +338,18 @@ export default function SiteInspirationGeneratorPage() {
                 Copier le HTML
               </Button>
               <Button
-                variant={variant.viewMode === "mobile" ? "ghost" : "outline"}
+                variant={variant.viewMode === "mobile" ? "default" : "outline"}
                 size="sm"
+                aria-pressed={variant.viewMode === "mobile"}
                 onClick={() => toggleView(index, "mobile")}
               >
                 <Smartphone className="h-4 w-4 mr-1" />
                 Mobile
               </Button>
               <Button
-                variant={variant.viewMode === "desktop" ? "ghost" : "outline"}
+                variant={variant.viewMode === "desktop" ? "default" : "outline"}
                 size="sm"
+                aria-pressed={variant.viewMode === "desktop"}
                 onClick={() => toggleView(index, "desktop")}
               >
                 <Monitor className="h-4 w-4 mr-1" />
