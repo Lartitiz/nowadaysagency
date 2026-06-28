@@ -72,12 +72,14 @@ export default function KickoffPreparation({ open, onOpenChange, coachUserId, on
     const clientUserId = profile.user_id;
     const clientName = profile.prenom || email.trim();
 
-    const { data: existingProg } = await supabase
+    // limit(1) plutôt que maybeSingle() : maybeSingle lève une erreur (ignorée) si la cliente
+    // a déjà 2+ programmes, ce qui contournait la garde anti-doublon.
+    const { data: existingProgs } = await supabase
       .from("coaching_programs")
       .select("id, status")
       .eq("client_user_id", clientUserId)
-      .maybeSingle();
-    if (existingProg) { toast.info("Un programme existe déjà pour " + clientName + "."); setCreating(false); return; }
+      .limit(1);
+    if (existingProgs && existingProgs.length > 0) { toast.info("Un programme existe déjà pour " + clientName + "."); setCreating(false); return; }
 
     const endDateStr = endDate ? format(endDate, "yyyy-MM-dd") : null;
     const { data: prog, error } = await (supabase.from("coaching_programs").insert({
@@ -193,7 +195,7 @@ export default function KickoffPreparation({ open, onOpenChange, coachUserId, on
           </section>
           <section>
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Le programme</p>
-            <div className="rounded-xl bg-rose-pale/50 p-3 text-sm text-foreground"><p className="font-semibold">Engagement : 6 mois · 290€/mois · 1 740€ total</p></div>
+            <div className="rounded-xl bg-rose-pale/50 p-3 text-sm text-foreground"><p className="font-semibold">Engagement : 6 mois · 250€/mois · 1 500€ total</p></div>
             <div className="mt-3"><Label htmlFor="kickoff-start-date" className="text-sm font-medium text-foreground">Date de début</Label><Input id="kickoff-start-date" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="mt-1" /></div>
           </section>
           <section>

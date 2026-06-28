@@ -63,10 +63,12 @@ export default function CoachingSessionManager({ program, sessions: initialSessi
     onReload();
   };
 
-  const updateSession = async (id: string, updates: Record<string, any>) => {
-    await (supabase.from("coaching_sessions" as any).update(updates as any).eq("id", id) as any);
+  const updateSession = async (id: string, updates: Record<string, any>): Promise<boolean> => {
+    const { error } = await (supabase.from("coaching_sessions" as any).update(updates as any).eq("id", id) as any);
+    if (error) { console.error("Maj session échouée:", error); toast.error(friendlyError(error)); return false; }
     setSessions(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
     showSaved("session-" + id);
+    return true;
   };
 
   const deleteSession = async (id: string) => {
@@ -273,7 +275,7 @@ export default function CoachingSessionManager({ program, sessions: initialSessi
         {editingSession && (
           <SessionEditDialog
             session={editingSession} sessions={sessions} deliverables={deliverables} actions={actions}
-            onUpdate={(id, u) => { updateSession(id, u); setEditingSession(prev => prev ? { ...prev, ...u } : null); }}
+            onUpdate={async (id, u) => { const ok = await updateSession(id, u); if (ok) setEditingSession(prev => prev ? { ...prev, ...u } : null); return ok; }}
             onDelete={deleteSession} onClose={() => setEditingSession(null)}
             onAddAction={addAction} onDeleteAction={deleteAction} onToggleAction={toggleAction}
           />
@@ -282,13 +284,40 @@ export default function CoachingSessionManager({ program, sessions: initialSessi
         <DeleteClientDialog
           open={deleteDialogOpen} clientName={program.client_name || ""} sessionCount={sessions.length} deliverableCount={deliverables.length} actionCount={actions.length}
           onConfirm={async () => {
-            await (supabase.from("coaching_actions" as any).delete().eq("program_id", program.id) as any);
-            await (supabase.from("coaching_deliverables" as any).delete().eq("program_id", program.id) as any);
-            await (supabase.from("coaching_sessions" as any).delete().eq("program_id", program.id) as any);
-            await (supabase.from("coaching_programs" as any).delete().eq("id", program.id) as any);
-            await (supabase.from("profiles" as any).update({ current_plan: "outil" } as any).eq("user_id", program.client_user_id) as any);
-            toast.success("Programme supprimé.");
-            onBack();
+            try {
+              // Fichiers storage des livrables (best-effort : un échec ne bloque pas la suppression)
+              const filePaths = deliverables
+                .filter(d => d.file_url && d.file_name)
+                .map(d => `${program.id}/${d.id}/${d.file_name}`);
+              if (filePaths.length) {
+                const { error: storageErr } = await supabase.storage.from("deliverables").remove(filePaths);
+                if (storageErr) console.error("Nettoyage storage partiel:", storageErr);
+              }
+
+              // Tables enfants (dont coaching_journal, oublié auparavant) puis programme.
+              // On s'arrête à la 1re erreur pour ne pas afficher un faux succès.
+              const steps: { table: string; run: () => Promise<{ error: any }> }[] = [
+                { table: "coaching_actions", run: () => (supabase.from("coaching_actions" as any).delete().eq("program_id", program.id) as any) },
+                { table: "coaching_journal", run: () => (supabase.from("coaching_journal" as any).delete().eq("program_id", program.id) as any) },
+                { table: "coaching_deliverables", run: () => (supabase.from("coaching_deliverables" as any).delete().eq("program_id", program.id) as any) },
+                { table: "coaching_sessions", run: () => (supabase.from("coaching_sessions" as any).delete().eq("program_id", program.id) as any) },
+                { table: "coaching_programs", run: () => (supabase.from("coaching_programs" as any).delete().eq("id", program.id) as any) },
+              ];
+              for (const step of steps) {
+                const { error } = await step.run();
+                if (error) throw new Error(`${step.table}: ${error.message || error}`);
+              }
+
+              const { error: profErr } = await (supabase.from("profiles" as any).update({ current_plan: "outil" } as any).eq("user_id", program.client_user_id) as any);
+              if (profErr) console.error("Maj profil après suppression:", profErr);
+
+              toast.success("Programme supprimé.");
+              setDeleteDialogOpen(false);
+              onBack();
+            } catch (e: any) {
+              console.error("Suppression programme échouée:", e);
+              toast.error("Suppression incomplète : " + (e.message || "erreur") + ". Réessaie.");
+            }
           }}
           onCancel={() => setDeleteDialogOpen(false)}
         />
@@ -324,7 +353,7 @@ function SortableSessionRow({ session, onEdit, savedField }: { session: SessionD
 /* ── Session Edit Dialog ── */
 function SessionEditDialog({ session, sessions, deliverables, actions, onUpdate, onDelete, onClose, onAddAction, onDeleteAction, onToggleAction }: {
   session: SessionData; sessions: SessionData[]; deliverables: DeliverableData[]; actions: ActionData[];
-  onUpdate: (id: string, u: Record<string, any>) => void; onDelete: (id: string) => void; onClose: () => void;
+  onUpdate: (id: string, u: Record<string, any>) => Promise<boolean>; onDelete: (id: string) => void; onClose: () => void;
   onAddAction: (sessionId?: string) => void; onDeleteAction: (id: string) => void; onToggleAction: (id: string, completed: boolean) => void;
 }) {
   const [title, setTitle] = useState(session.title || "");
@@ -344,17 +373,22 @@ function SessionEditDialog({ session, sessions, deliverables, actions, onUpdate,
   const sessionDeliverables = deliverables.filter(d => d.assigned_session_id === session.id);
   const sessionActions = actions.filter(a => a.session_id === session.id);
 
-  const handleSave = () => {
+  const [saving, setSaving] = useState(false);
+  const handleSave = async () => {
     const scheduled = date ? (time ? `${date}T${time}:00` : date) : null;
-    onUpdate(session.id, {
+    setSaving(true);
+    const ok = await onUpdate(session.id, {
       title, session_type: sessionType, focus_topic: focusTopic || null,
       duration_minutes: duration, scheduled_date: scheduled,
       meeting_link: meetingLink || null, status,
       prep_notes: prepNotes || null, summary: summary || null,
       laetitia_note: laetitiaNote || null, private_notes: privateNotes || null,
     });
-    toast.success("Session mise à jour !");
-    onClose();
+    setSaving(false);
+    if (ok) {
+      toast.success("Session mise à jour !");
+      onClose();
+    }
   };
 
   return (
@@ -448,7 +482,7 @@ function SessionEditDialog({ session, sessions, deliverables, actions, onUpdate,
           <button onClick={() => onAddAction(session.id)} className="text-xs text-primary font-semibold hover:underline">+ Ajouter une action</button>
 
           <div className="flex gap-2 pt-2">
-            <Button onClick={handleSave} className="flex-1 rounded-full">💾 Enregistrer</Button>
+            <Button onClick={handleSave} disabled={saving} className="flex-1 rounded-full">{saving ? "Enregistrement…" : "💾 Enregistrer"}</Button>
             {!confirmDelete ? (
               <Button variant="outline" size="sm" className="rounded-full text-xs text-destructive border-destructive hover:bg-destructive/10" onClick={() => setConfirmDelete(true)}><Trash2 className="h-3.5 w-3.5" /></Button>
             ) : (
