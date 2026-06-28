@@ -6,14 +6,13 @@ import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { getUserContext, formatContextForAI, buildIdentityBlock } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { isSafePublicUrl } from "../_shared/scraping.ts";
 
 /* ─── Constants ─── */
 const GLOBAL_TIMEOUT_MS = 60_000;
 const PAGE_TIMEOUT_MS = 10_000;
 const MAX_TEXT_PER_PAGE = 3000; // ~tokens
 const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-
-const BLOCKED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"];
 
 /* ─── HTML Parsing helpers (regex-based, no external lib) ─── */
 
@@ -184,6 +183,18 @@ async function fetchPage(url: string, path: string): Promise<PageData> {
     socialLinks: [],
   };
 
+  // SSRF guard: a sub-path must stay on the base origin and resolve to a public host.
+  // Blocks "//evil.com", protocol-relative paths, and any cross-origin escape.
+  try {
+    if (new URL(fullUrl).origin !== new URL(url).origin || !isSafePublicUrl(fullUrl)) {
+      result.error = "URL non autorisée";
+      return result;
+    }
+  } catch {
+    result.error = "URL invalide";
+    return result;
+  }
+
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), PAGE_TIMEOUT_MS);
@@ -194,6 +205,12 @@ async function fetchPage(url: string, path: string): Promise<PageData> {
       redirect: "follow",
     });
     clearTimeout(timeout);
+
+    // Re-validate the final URL after redirects (a public URL may 30x to an internal one).
+    if (resp.url && !isSafePublicUrl(resp.url)) {
+      result.error = "Redirection non autorisée";
+      return result;
+    }
 
     if (!resp.ok) {
       result.error = `HTTP ${resp.status}`;
@@ -231,11 +248,12 @@ function validateUrl(raw: string): { valid: boolean; url?: string; error?: strin
   }
   try {
     const parsed = new URL(url);
-    if (BLOCKED_HOSTS.includes(parsed.hostname)) {
-      return { valid: false, error: "URLs internes non autorisées" };
-    }
     if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
       return { valid: false, error: "Protocole non supporté" };
+    }
+    // Robust SSRF guard (private/reserved IPv4+IPv6, localhost, decimal-IP notation, .local/.internal).
+    if (!isSafePublicUrl(url)) {
+      return { valid: false, error: "URLs internes non autorisées" };
     }
     return { valid: true, url };
   } catch {
@@ -517,16 +535,30 @@ Réponds UNIQUEMENT en JSON (sans backticks) avec cette structure :
     );
 
     // Parse JSON response
-    let parsed;
+    let parsed: any = null;
     try {
       parsed = JSON.parse(rawResponse);
     } catch {
       const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        try { parsed = JSON.parse(jsonMatch[0]); } catch { parsed = { raw: rawResponse }; }
-      } else {
-        parsed = { raw: rawResponse };
+        try { parsed = JSON.parse(jsonMatch[0]); } catch { parsed = null; }
       }
+    }
+
+    // Validity guard: never return a "successful" but empty audit. If the model output
+    // could not be parsed into the expected shape (piliers + score), surface a real error
+    // so the client neither persists garbage nor shows a score-0 audit. Usage is NOT logged.
+    const isValidAudit =
+      parsed && typeof parsed === "object" &&
+      parsed.piliers && typeof parsed.piliers === "object" &&
+      (typeof parsed.score_global === "number");
+    if (!isValidAudit) {
+      clearTimeout(globalTimeout);
+      console.error("[audit-site-auto] Réponse IA non exploitable:", rawResponse?.slice(0, 500));
+      return new Response(
+        JSON.stringify({ error: "L'analyse n'a pas pu être générée. Réessaie dans un instant." }),
+        { status: 502, headers: { ...cors, "Content-Type": "application/json" } }
+      );
     }
 
     // Inject metadata

@@ -4,7 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 
 const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
 
-function isSafePublicUrl(rawUrl: string): boolean {
+export function isSafePublicUrl(rawUrl: string): boolean {
   try {
     const parsed = new URL(rawUrl);
     if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
@@ -20,6 +20,9 @@ function isSafePublicUrl(rawUrl: string): boolean {
     ) {
       return false;
     }
+
+    // Block non-dotted numeric hosts (decimal/octal/hex IP notation, e.g. 2130706433 = 127.0.0.1)
+    if (/^\d+$/.test(hostname) || /^0x[0-9a-f]+$/i.test(hostname)) return false;
 
     // Block IPv4 private/reserved ranges
     const ipv4Match = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);

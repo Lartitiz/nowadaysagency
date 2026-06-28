@@ -32,7 +32,10 @@ export default function SiteAccueilRecap() {
     load();
   }, [user?.id]);
 
-  const copyText = (text: string) => { navigator.clipboard.writeText(text); toast.success("Copié !"); };
+  const copyText = async (text: string) => {
+    try { await navigator.clipboard.writeText(text); toast.success("Copié !"); }
+    catch { toast.error("Impossible de copier — sélectionne et copie le texte manuellement."); }
+  };
 
   const copyAll = () => {
     if (!data) return;
@@ -52,14 +55,16 @@ export default function SiteAccueilRecap() {
 
   if (!data) return <div className="flex min-h-screen items-center justify-center bg-background"><div className="flex gap-1"><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.16s" }} /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.32s" }} /></div></div>;
 
+  // step = index of the matching editor step in SiteAccueil's STEPS (1-based):
+  // 1 Hook · 2 Problème · 3 Transformation · 4 Plan · 5 Offre/Prix · 6 Pour qui · 7 Qui tu es · 8 Garantie · 9 FAQ+CTA · 10 SEO
   const sections = [
     { icon: "🎯", label: "Hook", content: `${data.hook_title || ""}\n${data.hook_subtitle || ""}`.trim(), step: 1 },
     { icon: "😩", label: "Le problème", content: data.problem_block || "", step: 2 },
     { icon: "✨", label: "Les bénéfices", content: data.benefits_block || "", step: 3 },
-    { icon: "💚", label: "L'offre", content: data.offer_block || "", step: 3 },
-    { icon: "👋", label: "Qui tu es", content: data.presentation_block || "", step: 4 },
-    { icon: "🦋", label: "FAQ", content: (data.faq as FaqItem[]).map((f: FaqItem) => `Q : ${f.question}\nR : ${f.reponse}`).join("\n\n"), step: 5 },
-    { icon: "🔘", label: "CTA", content: [data.cta_primary, data.cta_secondary].filter(Boolean).join("\n"), step: 5 },
+    { icon: "💚", label: "L'offre", content: data.offer_block || "", step: 5 },
+    { icon: "👋", label: "Qui tu es", content: data.presentation_block || "", step: 7 },
+    { icon: "🦋", label: "FAQ", content: (data.faq as FaqItem[]).map((f: FaqItem) => `Q : ${f.question}\nR : ${f.reponse}`).join("\n\n"), step: 9 },
+    { icon: "🔘", label: "CTA", content: [data.cta_primary, data.cta_secondary].filter(Boolean).join("\n"), step: 9 },
   ].filter(s => s.content.trim().length > 0);
 
   return (

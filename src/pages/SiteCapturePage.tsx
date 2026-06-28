@@ -4,6 +4,7 @@ import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
+import BrandingStatusBanner from "@/components/content/BrandingStatusBanner";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
@@ -76,6 +77,7 @@ export default function SiteCapturePage() {
       <AppHeader />
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
         <SubPageHeader parentLabel="Mon Site Web" parentTo="/site" currentLabel="Page de capture" />
+        <div className="mb-6"><BrandingStatusBanner /></div>
 
         <h1 className="font-display text-3xl font-bold text-foreground mb-2">🎁 Ta page de capture</h1>
         <p className="text-sm text-muted-foreground mb-8">

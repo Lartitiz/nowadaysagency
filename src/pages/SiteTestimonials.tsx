@@ -4,6 +4,7 @@ import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
+import BrandingStatusBanner from "@/components/content/BrandingStatusBanner";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Copy, Sparkles, Loader2 } from "lucide-react";
@@ -64,6 +65,7 @@ export default function SiteTestimonials() {
       <AppHeader />
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
         <SubPageHeader parentLabel="Mon Site Web" parentTo="/site" currentLabel="Témoignages" />
+        <div className="mb-6"><BrandingStatusBanner /></div>
 
         <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-2">💬 Récolter des témoignages qui convertissent</h1>
         <p className="text-sm text-muted-foreground mb-8">Un bon témoignage = prénom + contexte + résultat concret. Le problème c'est que les gens ne savent pas quoi écrire. Envoie-leur ces questions.</p>

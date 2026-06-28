@@ -6,6 +6,7 @@ import { useWorkspaceFilter, useWorkspaceId, useProfileUserId } from "@/hooks/us
 import AppHeader from "@/components/AppHeader";
 import { PageLoader } from "@/components/ui/spinner";
 import SubPageHeader from "@/components/SubPageHeader";
+import BrandingStatusBanner from "@/components/content/BrandingStatusBanner";
 import AiLoadingIndicator from "@/components/AiLoadingIndicator";
 import AboutOptimizeResult from "@/components/site/AboutOptimizeResult";
 import PreGenCoaching, { type PreGenBrief } from "@/components/coach/PreGenCoaching";
@@ -271,6 +272,7 @@ export default function SiteAPropos() {
         <AppHeader />
         <main className="mx-auto max-w-[700px] px-6 py-8 max-md:px-4">
           <SubPageHeader parentLabel="Mon Site Web" parentTo="/site" currentLabel="Page à propos" />
+          <div className="mb-6"><BrandingStatusBanner /></div>
           <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-2">📖 Ma page À propos</h1>
           <p className="text-base text-muted-foreground mb-8">
             Raconte ton histoire pour créer du lien. L'IA t'aide à trouver les mots.
