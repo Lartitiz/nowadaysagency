@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ChevronRight, ChevronDown, Check, Home, PenLine, CalendarDays, MessageCircle, Palette, ClipboardList, Instagram, Briefcase, Globe, Search, Pin, Users, BarChart3, Brain, Settings, Film, GraduationCap, Wrench, CreditCard, HeartHandshake, LogOut, Menu, X, Plus, Trash2, Image, Lightbulb } from "lucide-react";
+import { ChevronRight, ChevronDown, Check, Home, PenLine, CalendarDays, Palette, ClipboardList, Instagram, Briefcase, Globe, Search, Pin, Users, Brain, Settings, Film, GraduationCap, Wrench, CreditCard, HeartHandshake, LogOut, Menu, X, Plus, Trash2, Image } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserPlan } from "@/hooks/use-user-plan";
 import { useDemoContext } from "@/contexts/DemoContext";
@@ -29,14 +29,15 @@ interface NavItem {
   freshStart?: boolean;
 }
 
+// Navigation à plat : une entrée = une destination. Le calendrier regroupe ses
+// onglets (Calendrier · Idées · Stratégie) dans un seul écran ; chaque réseau
+// ouvre son hub, qui sert de carte du réseau (pas de sous-liste dans le menu).
 const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
   {
-    label: "CRÉER",
+    label: "CRÉER ET PLANIFIER",
     items: [
-      { label: "Nouveau contenu", path: "/creer", icon: <PenLine size={16} />, freshStart: true },
-      { label: "Calendrier", path: "/calendrier", icon: <CalendarDays size={16} /> },
-      { label: "Mes idées", path: "/calendrier?tab=idees", icon: <Lightbulb size={16} /> },
-      { label: "Routine engagement", path: "/instagram/routine", icon: <MessageCircle size={16} /> },
+      { label: "Créer un contenu", path: "/creer", icon: <PenLine size={16} />, freshStart: true },
+      { label: "Mon calendrier", path: "/calendrier", icon: <CalendarDays size={16} /> },
     ],
   },
   {
@@ -47,57 +48,20 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
     ],
   },
   {
-    label: "MES ESPACES",
+    label: "MES RÉSEAUX",
     items: [
-      {
-        label: "Instagram", path: "/instagram", icon: <Instagram size={16} />,
-        children: [
-          { label: "Profil", path: "/instagram/profil" },
-          { label: "Audit", path: "/instagram/audit" },
-          { label: "Stats", path: "/instagram/stats" },
-          { label: "Bio", path: "/instagram/profil/bio" },
-          { label: "Highlights", path: "/instagram/profil/stories" },
-          { label: "Rythme", path: "/instagram/rythme" },
-        ],
-      },
-      {
-        label: "LinkedIn", path: "/linkedin", icon: <Briefcase size={16} />,
-        children: [
-          { label: "Profil", path: "/linkedin/profil" },
-          { label: "Audit", path: "/linkedin/audit" },
-          { label: "Créer un post", path: "/creer?canal=linkedin" },
-          { label: "Améliorer un post", path: "/linkedin/post" },
-          { label: "Engagement", path: "/linkedin/engagement" },
-          { label: "Crosspost", path: "/linkedin/crosspost" },
-        ],
-      },
-      {
-        label: "Site web", path: "/site", icon: <Globe size={16} />,
-        children: [
-          { label: "Accueil", path: "/site/accueil" },
-          { label: "À propos", path: "/site/a-propos" },
-          { label: "Audit", path: "/site/audit" },
-          { label: "Témoignages", path: "/site/temoignages" },
-        ],
-      },
+      { label: "Instagram", path: "/instagram", icon: <Instagram size={16} /> },
+      { label: "LinkedIn", path: "/linkedin", icon: <Briefcase size={16} /> },
+      { label: "Pinterest", path: "/pinterest", icon: <Pin size={16} /> },
+      { label: "Site web", path: "/site", icon: <Globe size={16} /> },
       { label: "SEO", path: "/seo", icon: <Search size={16} /> },
-      {
-        label: "Pinterest", path: "/pinterest", icon: <Pin size={16} />,
-        children: [
-          { label: "Compte", path: "/pinterest/compte" },
-          { label: "Épingles", path: "/pinterest/epingles" },
-          { label: "Mots-clés", path: "/pinterest/mots-cles" },
-          { label: "Tableaux", path: "/pinterest/tableaux" },
-        ],
-      },
     ],
   },
   {
-    label: "OUTILS",
+    label: "RESSOURCES",
     items: [
-      { label: "Contacts", path: "/contacts", icon: <Users size={16} /> },
       { label: "Photos", path: "/photos", icon: <Image size={16} /> },
-      { label: "Mon plan", path: "/calendrier?tab=strategie", icon: <BarChart3 size={16} /> },
+      { label: "Contacts", path: "/contacts", icon: <Users size={16} /> },
       { label: "Coach IA", path: "/dashboard/guide", icon: <Brain size={16} /> },
     ],
   },
@@ -367,9 +331,9 @@ export default function AppSidebar() {
                 <Wrench size={16} />
                 🔧 Audit app
               </Link>
-              <Link to="/admin/coaching" onClick={() => setOpen(false)} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-body text-foreground hover:bg-rose-pale transition-colors">
+              <Link to="/admin/tools" onClick={() => setOpen(false)} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-body text-foreground hover:bg-rose-pale transition-colors">
                 <Wrench size={16} />
-                Admin
+                🛠️ Outils admin
               </Link>
             </div>
           )}
