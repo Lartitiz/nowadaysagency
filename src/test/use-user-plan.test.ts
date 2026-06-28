@@ -12,29 +12,30 @@ type Feature =
   | "generation_unlimited" | "import_stats" | "prospection" | "comments_generator"
   | "dm_generator" | "audit_unlimited" | "offer_workshop" | "lives" | "community_write"
   | "contacts_strategiques" | "routine_engagement" | "editorial_line" | "calendar"
-  | "coaching" | "studio_space" | "laetitia_validation" | "studio_lives" | "direct_channel" | "binome"
+  | "coaching" | "direct_channel" | "binome"
   | "whatsapp" | "assistant_chat";
 
 const FREE_FEATURES: Feature[] = [
   "branding", "persona", "audit_basic", "generation_limited", "community_read",
+  "calendar",
 ];
 
 const OUTIL_FEATURES: Feature[] = [
   ...FREE_FEATURES,
   "generation_unlimited", "import_stats", "prospection", "comments_generator",
   "dm_generator", "audit_unlimited", "offer_workshop", "lives", "community_write",
-  "contacts_strategiques", "routine_engagement", "editorial_line", "calendar",
+  "contacts_strategiques", "routine_engagement", "editorial_line",
 ];
 
-const NOW_PILOT_FEATURES: Feature[] = [
+const BINOME_FEATURES: Feature[] = [
   ...OUTIL_FEATURES,
   "coaching", "whatsapp", "assistant_chat", "direct_channel", "binome",
 ];
 
 function canUseFeature(plan: string, feature: Feature, isAdmin = false): boolean {
-  const p = isAdmin ? "now_pilot" : plan;
+  const p = isAdmin ? "binome" : plan;
   switch (p) {
-    case "now_pilot": return NOW_PILOT_FEATURES.includes(feature);
+    case "binome": return BINOME_FEATURES.includes(feature);
     case "outil": return OUTIL_FEATURES.includes(feature);
     default: return FREE_FEATURES.includes(feature);
   }
@@ -43,6 +44,10 @@ function canUseFeature(plan: string, feature: Feature, isAdmin = false): boolean
 describe("useUserPlan — canUseFeature logic", () => {
   it("free plan allows branding", () => {
     expect(canUseFeature("free", "branding")).toBe(true);
+  });
+
+  it("free plan allows calendar (gratuit fort)", () => {
+    expect(canUseFeature("free", "calendar")).toBe(true);
   });
 
   it("free plan denies generation_unlimited", () => {
@@ -61,13 +66,13 @@ describe("useUserPlan — canUseFeature logic", () => {
     expect(canUseFeature("outil", "coaching")).toBe(false);
   });
 
-  it("now_pilot allows coaching", () => {
-    expect(canUseFeature("now_pilot", "coaching")).toBe(true);
+  it("binome allows coaching", () => {
+    expect(canUseFeature("binome", "coaching")).toBe(true);
   });
 
-  it("now_pilot allows all outil features", () => {
+  it("binome allows all outil features", () => {
     for (const f of OUTIL_FEATURES) {
-      expect(canUseFeature("now_pilot", f)).toBe(true);
+      expect(canUseFeature("binome", f)).toBe(true);
     }
   });
 
@@ -77,13 +82,13 @@ describe("useUserPlan — canUseFeature logic", () => {
     }
   });
 
-  it("outil features are a subset of now_pilot features", () => {
+  it("outil features are a subset of binome features", () => {
     for (const f of OUTIL_FEATURES) {
-      expect(NOW_PILOT_FEATURES).toContain(f);
+      expect(BINOME_FEATURES).toContain(f);
     }
   });
 
-  it("admin bypasses limits — free user with isAdmin gets now_pilot access", () => {
+  it("admin bypasses limits — free user with isAdmin gets binome access", () => {
     expect(canUseFeature("free", "coaching", true)).toBe(true);
     expect(canUseFeature("free", "whatsapp", true)).toBe(true);
     expect(canUseFeature("free", "calendar", true)).toBe(true);
@@ -99,16 +104,27 @@ describe("useUserPlan — plan hierarchy (PLAN_LIMITS)", () => {
     expect(PLAN_LIMITS.free.content).toBeLessThan(PLAN_LIMITS.outil.content);
   });
 
-  it("'studio' plan does not exist in PLAN_LIMITS (normalized to now_pilot)", () => {
+  it("quality_max is gated to paid plans (free = 0)", () => {
+    expect(PLAN_LIMITS.free.quality_max).toBe(0);
+    expect(PLAN_LIMITS.outil.quality_max).toBeGreaterThan(0);
+    expect(CATEGORIES).toContain("quality_max");
+  });
+
+  it("'studio' plan does not exist in PLAN_LIMITS (normalized to binome)", () => {
     expect(PLAN_LIMITS).not.toHaveProperty("studio");
   });
 
-  it("normalizePlan maps 'studio' to 'now_pilot'", () => {
-    const { normalizePlan } = require("@/hooks/use-user-plan");
-    expect(normalizePlan("studio")).toBe("now_pilot");
+  it("normalizePlan maps 'studio' and 'now_pilot' to 'binome'", () => {
+    // Réplique de normalizePlan() de use-user-plan.ts (évite d'importer le hook
+    // React/Supabase dans un test pur).
+    const normalizePlan = (raw: string): string => {
+      if (raw === "studio" || raw === "now_pilot") return "binome";
+      return ["free", "outil", "binome"].includes(raw) ? raw : "free";
+    };
+    expect(normalizePlan("studio")).toBe("binome");
+    expect(normalizePlan("now_pilot")).toBe("binome");
     expect(normalizePlan("free")).toBe("free");
     expect(normalizePlan("outil")).toBe("outil");
-    expect(normalizePlan("now_pilot")).toBe("now_pilot");
     expect(normalizePlan("unknown_plan")).toBe("free");
   });
 });

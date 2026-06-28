@@ -2,11 +2,11 @@ import { describe, it, expect } from "vitest";
 import { PLAN_LIMITS as CLIENT_LIMITS } from "@/lib/plan-limits";
 
 // Hard-coded copy of PLAN_LIMITS from supabase/functions/_shared/plan-limiter.ts
-// (Deno imports can't be resolved by vitest)
+// (Deno imports can't be resolved by vitest). MUST stay in sync with the server.
 const SERVER_LIMITS: Record<string, Record<string, number>> = {
-  free: { total: 60, content: 25, audit: 3, dm_comment: 5, bio_profile: 5, suggestion: 5, coach: 15, import: 2, adaptation: 3, deep_research: 5 },
-  outil: { total: 300, content: 150, audit: 5, dm_comment: 60, bio_profile: 15, suggestion: 30, coach: 60, import: 10, adaptation: 30, deep_research: 15 },
-  now_pilot: { total: 300, content: 150, audit: 15, dm_comment: 50, bio_profile: 15, suggestion: 30, coach: 60, import: 10, adaptation: 30, deep_research: 30 },
+  free: { total: 23, content: 23, audit: 3, dm_comment: 23, bio_profile: 23, suggestion: 23, coach: 23, import: 23, adaptation: 23, deep_research: 23, photo_retouch: 5, quality_max: 0 },
+  outil: { total: 9999, content: 9999, audit: 9999, dm_comment: 9999, bio_profile: 9999, suggestion: 9999, coach: 9999, import: 9999, adaptation: 9999, deep_research: 9999, photo_retouch: 50, quality_max: 20 },
+  binome: { total: 9999, content: 9999, audit: 9999, dm_comment: 9999, bio_profile: 9999, suggestion: 9999, coach: 9999, import: 9999, adaptation: 9999, deep_research: 9999, photo_retouch: 100, quality_max: 40 },
 };
 
 const ALL_SERVER_PLANS = Object.keys(SERVER_LIMITS);
@@ -18,20 +18,18 @@ describe("Server PLAN_LIMITS coherence", () => {
     }
   });
 
-  it("2. total est un cap global (pas nécessairement >= somme des catégories)", () => {
+  it("2. total est un cap global positif", () => {
     for (const plan of ALL_SERVER_PLANS) {
-      const { total } = SERVER_LIMITS[plan];
-      // total is a global cap, not a sum — just verify it's positive
-      expect(total).toBeGreaterThan(0);
+      expect(SERVER_LIMITS[plan].total).toBeGreaterThan(0);
     }
   });
 
-  it("3. Hiérarchie : free.total < outil.total <= now_pilot.total", () => {
+  it("3. Hiérarchie : free.total < outil.total <= binome.total", () => {
     expect(SERVER_LIMITS.free.total).toBeLessThan(SERVER_LIMITS.outil.total);
-    expect(SERVER_LIMITS.outil.total).toBeLessThanOrEqual(SERVER_LIMITS.now_pilot.total);
+    expect(SERVER_LIMITS.outil.total).toBeLessThanOrEqual(SERVER_LIMITS.binome.total);
   });
 
-  it("4. Le plan free a les limites les plus basses pour chaque catégorie", () => {
+  it("4. Le plan free a les limites les plus basses (ou égales) pour chaque catégorie", () => {
     const freeKeys = Object.keys(SERVER_LIMITS.free);
     for (const key of freeKeys) {
       for (const plan of ALL_SERVER_PLANS) {
@@ -59,10 +57,9 @@ describe("Server PLAN_LIMITS coherence", () => {
 });
 
 describe("Client vs Server coherence", () => {
-  // Plans communs aux deux
   const commonPlans = ALL_SERVER_PLANS.filter((p) => p in CLIENT_LIMITS);
 
-  it("7a. Les plans communs partagent les mêmes catégories", () => {
+  it("7a. Les plans communs partagent exactement les mêmes catégories", () => {
     for (const plan of commonPlans) {
       const serverKeys = Object.keys(SERVER_LIMITS[plan]).sort();
       const clientKeys = Object.keys(CLIENT_LIMITS[plan]).sort();
@@ -70,9 +67,15 @@ describe("Client vs Server coherence", () => {
     }
   });
 
-  it("7b. Le client a les mêmes plans que le serveur (+ éventuellement pro)", () => {
+  it("7b. Le client a les mêmes plans que le serveur", () => {
     for (const plan of ALL_SERVER_PLANS) {
       expect(CLIENT_LIMITS).toHaveProperty(plan);
+    }
+  });
+
+  it("7c. Le client a exactement les mêmes valeurs que le serveur", () => {
+    for (const plan of commonPlans) {
+      expect(CLIENT_LIMITS[plan]).toEqual(SERVER_LIMITS[plan]);
     }
   });
 });

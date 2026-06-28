@@ -40,7 +40,7 @@ const BINOME_FEATURES: Feature[] = [
 ];
 
 
-export type AiCategory = "content" | "audit" | "dm_comment" | "bio_profile" | "suggestion" | "coach" | "import" | "adaptation" | "deep_research";
+export type AiCategory = "content" | "audit" | "dm_comment" | "bio_profile" | "suggestion" | "coach" | "import" | "adaptation" | "deep_research" | "quality_max";
 
 export interface CategoryUsage {
   used: number;
