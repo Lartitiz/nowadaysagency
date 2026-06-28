@@ -80,4 +80,6 @@ export interface CalendarPost {
   story_sequence_detail?: any;
   amplification_stories?: any;
   media_urls?: string[] | null;
+  /** Lien entre posts créés ensemble (import multi-réseaux) → édition/suppression groupée. */
+  group_id?: string | null;
 }

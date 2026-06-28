@@ -490,7 +490,16 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   const handleDelete = async (id?: string | null) => {
     const targetId = id ?? editingPost?.id ?? null;
     if (!targetId) { setDialogOpen(false); return; }
-    const { error } = await supabase.from("calendar_posts").delete().eq("id", targetId);
+    // Posts liés (créés ensemble par un import multi-réseaux) : proposer de tout supprimer.
+    const target = posts.find((p) => p.id === targetId);
+    const groupId = (target as any)?.group_id || null;
+    const siblings = groupId ? posts.filter((p) => (p as any).group_id === groupId && p.id !== targetId) : [];
+    let ids = [targetId];
+    if (siblings.length > 0) {
+      const also = window.confirm(`Ce contenu est lié à ${siblings.length} autre(s) post(s) (${siblings.map((p) => p.canal).join(", ")}). Supprimer aussi les posts liés ?`);
+      if (also) ids = [targetId, ...siblings.map((p) => p.id)];
+    }
+    const { error } = await supabase.from("calendar_posts").delete().in("id", ids);
     if (error) {
       toast.error("Oups, ça n'a pas été enregistré", { description: "Réessaie dans un instant." });
       fetchPosts();
@@ -498,7 +507,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     }
     setDialogOpen(false);
     fetchPosts();
-    toast.success("Post supprimé");
+    toast.success(ids.length > 1 ? `${ids.length} posts supprimés` : "Post supprimé");
   };
 
   const handleQuickCreate = async (dateStr: string, title: string) => {

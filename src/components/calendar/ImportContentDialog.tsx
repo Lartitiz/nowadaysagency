@@ -301,6 +301,8 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
         } catch { /* repli : LinkedIn recevra les images en post multi-photos */ }
       }
 
+      // Lien entre les posts créés ensemble (≥2 réseaux) → édition/suppression groupée.
+      const groupId = canals.length > 1 ? (crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`) : null;
       // Un post par réseau coché (mêmes visuels, légende ET créneau propres à chaque réseau).
       const rows = canals.map((c) => {
         const cap = captionOf(c);
@@ -321,6 +323,7 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
           media_urls: mediaForCanal,
           format: c === "instagram" ? (igValidImages.length > 1 ? "carousel" : "post") : (liPdfUrl ? "carousel" : "post"),
         };
+        if (groupId) row.group_id = groupId;
         if (mode === "schedule") {
           row.scheduled_publish_at = new Date(`${date}T${time}`).toISOString();
           row.auto_publish = true;
@@ -328,7 +331,12 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
         }
         return row;
       });
-      const { error } = await supabase.from("calendar_posts").insert(rows);
+      let { error } = await supabase.from("calendar_posts").insert(rows);
+      // Repli si la colonne group_id n'existe pas encore en base (migration pas appliquée).
+      if (error && /group_id/i.test(error.message || "") && groupId) {
+        const rowsNoGroup = rows.map(({ group_id, ...rest }: any) => rest);
+        ({ error } = await supabase.from("calendar_posts").insert(rowsNoGroup));
+      }
       if (error) throw error;
       const names = canals.map((c) => CANAL_LABEL[c]).join(" et ");
       toast(
