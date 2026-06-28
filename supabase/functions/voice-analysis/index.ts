@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
-import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
+import { callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { corsHeaders } from "../_shared/cors.ts";
@@ -77,10 +77,14 @@ RÈGLES :
       return quotaDeniedResponse(quotaCheck, corsHeaders);
     }
 
+    const usage: UsageSink = {};
     const rawContent = await callAnthropicSimple(
       getModelForAction("voice"),
       systemPrompt,
-      "Analyse ces textes et retourne le profil de voix."
+      "Analyse ces textes et retourne le profil de voix.",
+      undefined,
+      undefined,
+      usage
     );
 
     let parsed;
@@ -93,7 +97,7 @@ RÈGLES :
       else throw new Error("Impossible de parser la réponse IA");
     }
 
-    await logUsage(user.id, "bio_profile", "voice_analysis");
+    await logUsage(user.id, "bio_profile", "voice_analysis", usage.total_tokens, usage.model);
 
     return new Response(JSON.stringify(parsed), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

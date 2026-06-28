@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
-import { callAnthropicSimple, getDefaultModel } from "../_shared/anthropic.ts";
+import { callAnthropicSimple, getDefaultModel, type UsageSink } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
@@ -102,11 +102,14 @@ Règles :
     const quota = await checkQuota(user.id, "import");
     if (!quota.allowed) return quotaDeniedResponse(quota, corsHeaders);
 
+    const usage: UsageSink = {};
     let content = await callAnthropicSimple(
       getDefaultModel(),
       "Tu es un expert en analyse de fichiers Excel. Tu retournes UNIQUEMENT du JSON valide, sans markdown, sans commentaires.",
       prompt,
-      0.1
+      0.1,
+      undefined,
+      usage
     );
 
     // Clean markdown wrapping if any
@@ -114,7 +117,7 @@ Règles :
 
     const mapping = JSON.parse(content);
 
-    await logUsage(user.id, "import", "excel_mapping");
+    await logUsage(user.id, "import", "excel_mapping", usage.total_tokens, usage.model);
 
     return new Response(JSON.stringify(mapping), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

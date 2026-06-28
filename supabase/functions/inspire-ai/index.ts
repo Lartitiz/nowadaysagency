@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { CORE_PRINCIPLES, FORMAT_STRUCTURES, WRITING_RESOURCES } from "../_shared/copywriting-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
-import { callAnthropic, getModelForAction } from "../_shared/anthropic.ts";
+import { callAnthropic, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { validateInput, ValidationError, InspireAiSchema } from "../_shared/input-validators.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
@@ -180,11 +180,12 @@ Réponds UNIQUEMENT en JSON valide :
       messages = [{ role: "user" as const, content: systemPrompt }];
     }
 
+    const usage: UsageSink = {};
     let raw = await callAnthropic({
       model: getModelForAction("content"),
       messages,
       temperature: 0.8,
-    });
+    }, usage);
     raw = raw.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
 
     let result;
@@ -195,7 +196,7 @@ Réponds UNIQUEMENT en JSON valide :
       return new Response(JSON.stringify({ error: "Erreur de format IA" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    await logUsage(user.id, "content", "inspire", undefined, undefined, workspace_id);
+    await logUsage(user.id, "content", "inspire", usage.total_tokens, usage.model, workspace_id);
     return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error: any) {
     if (error instanceof ValidationError) {

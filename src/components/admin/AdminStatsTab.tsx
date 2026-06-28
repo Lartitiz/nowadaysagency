@@ -48,6 +48,39 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 const tooltipStyle = { borderRadius: 8, fontSize: 13, border: "1px solid hsl(var(--border))" };
 
+/* ── Coût API ── */
+
+/**
+ * Coût estimé en €/token, indexé sur les tarifs de SORTIE par modèle.
+ * `tokens_used` = input + output ; appliquer le tarif de sortie au total
+ * surestime un peu (l'input est moins cher) → borne HAUTE volontaire, idéale
+ * pour caler un plafond Premium prudent. Bien plus fiable que l'ancien taux
+ * plat de 3 $/M qui ignorait l'écart Opus (~75 $/M) vs Haiku (~5 $/M).
+ */
+const MODEL_COST_PER_TOKEN: { match: RegExp; rate: number }[] = [
+  { match: /opus/i, rate: 0.00007 },          // ~75 $/M
+  { match: /sonnet/i, rate: 0.000014 },       // ~15 $/M
+  { match: /haiku/i, rate: 0.000005 },        // ~5 $/M
+  { match: /gemini.*flash/i, rate: 0.0000004 }, // gateway Lovable, scoring/suggestions (~0,3 $/M)
+];
+const DEFAULT_COST_PER_TOKEN = 0.000014; // modèle inconnu / gateway → tarif Sonnet
+
+/** Coût API estimé du mois, pondéré par modèle quand la ventilation est dispo. */
+function estimateApiCost(stats: StatsData): number {
+  const byModel = stats.tokens_by_model;
+  let cost: number;
+  if (byModel && Object.keys(byModel).length > 0) {
+    cost = Object.entries(byModel).reduce((sum, [model, tokens]) => {
+      const rule = MODEL_COST_PER_TOKEN.find(r => r.match.test(model));
+      return sum + tokens * (rule?.rate ?? DEFAULT_COST_PER_TOKEN);
+    }, 0);
+  } else {
+    // Fallback tant que l'edge n'est pas redéployée (pas de ventilation par modèle).
+    cost = (stats.total_tokens || 0) * DEFAULT_COST_PER_TOKEN;
+  }
+  return Math.round(cost * 100) / 100;
+}
+
 /* ── Types ── */
 
 interface StatsData {
@@ -82,6 +115,8 @@ interface StatsData {
   retained_users: number;
   ai_by_day: { date: string; count: number }[];
   total_tokens: number;
+  /** Tokens (input+output) ventilés par modèle, pour pondérer le coût. Absent tant que l'edge n'est pas redéployée. */
+  tokens_by_model?: Record<string, number>;
   power_users: { user_id: string; prenom: string; plan: string; count: number }[];
   // Content
   drafts_this_month: number;
@@ -231,8 +266,8 @@ function OverviewSection({ stats }: { stats: StatsData }) {
     .map(([plan, amount]) => `${PLAN_LABELS[plan] || plan}: ${amount}€`)
     .join(" · ") || `${stats.paid_users} abonnées`;
 
-  // 2 décimales : un arrondi à l'entier affichait toujours 0 € en dessous de ~166k tokens.
-  const estimatedCost = Math.round((stats.total_tokens || 0) * 0.000003 * 100) / 100;
+  // Coût pondéré par modèle (cf. estimateApiCost) : Opus pèse ~5× Haiku.
+  const estimatedCost = estimateApiCost(stats);
 
   return (
     <div className="space-y-6">

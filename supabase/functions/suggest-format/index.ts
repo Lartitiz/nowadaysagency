@@ -123,6 +123,8 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown), avec ces champs :
     }
 
     const aiData = await aiResponse.json();
+    // Gateway Lovable = format OpenAI : usage en prompt_tokens/completion_tokens.
+    const tokensUsed = aiData.usage?.total_tokens ?? ((aiData.usage?.prompt_tokens ?? 0) + (aiData.usage?.completion_tokens ?? 0));
     const text = aiData.choices?.[0]?.message?.content || "";
 
     const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -131,7 +133,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown), avec ces champs :
 
     // Log usage (utilisateur déjà résolu plus haut — plus de getUser redondant).
     if (authUserId) {
-      await logUsage(authUserId, "suggestion", "suggest_format");
+      await logUsage(authUserId, "suggestion", "suggest_format", tokensUsed, "google/gemini-2.5-flash");
     }
 
     return new Response(JSON.stringify(suggestion), {

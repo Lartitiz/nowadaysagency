@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
-import { AnthropicError, callAnthropic, getModelForAction } from "../_shared/anthropic.ts";
+import { AnthropicError, callAnthropic, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
@@ -466,6 +466,7 @@ Retourne UNIQUEMENT ce JSON (pas de markdown, pas de commentaires, pas de prose 
   "redirect_route": "route correspondant au format et canal choisis"
 }`;
 
+    const usage: UsageSink = {};
     const raw = await callAnthropic({
       model: getModelForAction("coaching"),
       system: truncateForPrompt(systemPrompt, MAX_CONTEXT_CHARS + MAX_LIVING_MATTER_CHARS + 12000),
@@ -477,7 +478,7 @@ Retourne UNIQUEMENT ce JSON (pas de markdown, pas de commentaires, pas de prose 
       ],
       temperature: 0.8,
       max_tokens: 4000,
-    });
+    }, usage);
 
 
     let result: any;
@@ -527,7 +528,7 @@ Retourne UNIQUEMENT ce JSON (pas de markdown, pas de commentaires, pas de prose 
       };
     }
 
-    await logUsage(user.id, "suggestion", "content_coaching", undefined, getModelForAction("coaching"), workspace_id);
+    await logUsage(user.id, "suggestion", "content_coaching", usage.total_tokens, usage.model, workspace_id);
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

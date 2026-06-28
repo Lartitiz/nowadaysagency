@@ -9,7 +9,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { validateInput, ValidationError, GenerateContentSchema } from "../_shared/input-validators.ts";
 import { applyCorrectionPass } from "../_shared/correction-pass.ts";
-import { callAnthropic, callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
+import { callAnthropic, callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
 
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
@@ -653,12 +653,14 @@ FORMAT :
 
     // Use Claude Sonnet for weekly-suggestions (better quality ideas)
     if (type === "weekly-suggestions") {
+      const weeklyUsage: UsageSink = {};
       const rawContent = await callAnthropicSimple(
         getModelForAction("content"),
         systemPrompt,
         userPrompt,
         0.85,
-        2000
+        2000,
+        weeklyUsage
       );
 
       let suggestions;
@@ -668,7 +670,7 @@ FORMAT :
       } catch {
         suggestions = [];
       }
-      await logUsage(user.id, usageCategory, type, undefined, undefined, workspace_id);
+      await logUsage(user.id, usageCategory, type, weeklyUsage.total_tokens, weeklyUsage.model, workspace_id);
       return new Response(
         JSON.stringify({ suggestions, type: "weekly-suggestions" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -680,7 +682,8 @@ FORMAT :
     const maxTokens = shortTypes.includes(type) ? 1024 : longTypes.includes(type) ? 8192 : 4096;
     const auditTypes = ["bio-audit"];
     const modelAction = auditTypes.includes(type) ? "audit" : "content";
-    let content = await callAnthropicSimple(getModelForAction(modelAction), systemPrompt, userPrompt, 0.8, maxTokens);
+    const genUsage: UsageSink = {};
+    let content = await callAnthropicSimple(getModelForAction(modelAction), systemPrompt, userPrompt, 0.8, maxTokens, genUsage);
 
     // LinkedIn correction pass — shared CORRECTION_PROMPTS.linkedin (richer than the previous inline prompt)
     if (isLinkedinGeneration) {
@@ -697,7 +700,7 @@ FORMAT :
     }
 
 
-    await logUsage(user.id, usageCategory, type, undefined, undefined, workspace_id);
+    await logUsage(user.id, usageCategory, type, genUsage.total_tokens, genUsage.model, workspace_id);
     return new Response(
       JSON.stringify({ content }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }

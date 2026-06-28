@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
-import { callAnthropic, getDefaultModel } from "../_shared/anthropic.ts";
+import { callAnthropic, getDefaultModel, type UsageSink } from "../_shared/anthropic.ts";
 import { getUserContext, formatContextForAI, buildIdentityBlock } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
@@ -425,13 +425,14 @@ Deno.serve(async (req) => {
     }
     messages.push({ role: "user", content: fullUserPrompt });
 
+    const usage: UsageSink = {};
     const aiResponse = await callAnthropic({
       model: getDefaultModel(),
       system: buildIdentityBlock(userContext.profile, "assistant communication") + "\n\n" + SYSTEM_PROMPT_BODY,
       messages,
       temperature: 0.7,
       max_tokens: 2048,
-    });
+    }, usage);
 
     // Parse AI response
     let parsed: any;
@@ -448,7 +449,7 @@ Deno.serve(async (req) => {
     }
 
     // Log usage
-    await logUsage(userId, "suggestion", "assistant_chat");
+    await logUsage(userId, "suggestion", "assistant_chat", usage.total_tokens, usage.model);
 
     // If actions and no confirmation needed, execute them
     if (parsed.actions?.length && !parsed.needs_confirmation) {

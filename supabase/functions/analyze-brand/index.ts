@@ -4,6 +4,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { scrapeWebsite, scrapeInstagram, scrapeLinkedin, processDocuments, extractVisualInfo } from "../_shared/scraping.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
+import { type UsageSink, extractUsage } from "../_shared/anthropic.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
@@ -150,7 +151,8 @@ serve(async (req) => {
     }
 
     // --- 5. CALL CLAUDE ---
-    const analysisResult = await callClaude(scrapedContent, sourcesUsed, styleHints);
+    const usage: UsageSink = {};
+    const analysisResult = await callClaude(scrapedContent, sourcesUsed, styleHints, usage);
 
     // --- 6. SAVE TO DB ---
     const { data: wsData } = await supabaseAdmin
@@ -183,7 +185,7 @@ serve(async (req) => {
       console.error("Save error:", saveError);
     }
 
-    await logUsage(userId, "import", "analyze_brand");
+    await logUsage(userId, "import", "analyze_brand", usage.total_tokens, usage.model);
     clearTimeout(timeout);
     return new Response(
       JSON.stringify({
@@ -215,7 +217,8 @@ serve(async (req) => {
 async function callClaude(
   content: Record<string, string>,
   sourcesUsed: string[],
-  styleHints: string = ""
+  styleHints: string = "",
+  usageOut?: UsageSink
 ): Promise<Record<string, unknown>> {
   const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
   if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY non configurée");
@@ -304,6 +307,7 @@ Précisions sur charter :
     }
 
     const data = await resp.json();
+    if (usageOut) Object.assign(usageOut, extractUsage(data, "claude-sonnet-4-6"));
     const textContent = data.content?.find((c: { type: string }) => c.type === "text")?.text || "{}";
 
     try {

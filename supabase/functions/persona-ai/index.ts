@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
-import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
+import { callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
@@ -330,9 +330,10 @@ Réponds en JSON :
       return quotaDeniedResponse(quotaCheck, corsHeaders);
     }
 
-    const content = await callAnthropicSimple(getModelForAction("persona"), BASE_SYSTEM_RULES + "\n\n" + systemPrompt + "\n\n" + ANTI_SLOP, userPrompt);
+    const usage: UsageSink = {};
+    const content = await callAnthropicSimple(getModelForAction("persona"), BASE_SYSTEM_RULES + "\n\n" + systemPrompt + "\n\n" + ANTI_SLOP, userPrompt, undefined, undefined, usage);
 
-    await logUsage(userId, "content", "persona");
+    await logUsage(userId, "content", "persona", usage.total_tokens, usage.model);
 
     return new Response(JSON.stringify({ content }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

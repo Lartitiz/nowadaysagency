@@ -1,4 +1,4 @@
-import { callAnthropic, getModelForAction } from "../_shared/anthropic.ts";
+import { callAnthropic, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
@@ -72,6 +72,7 @@ RÈGLES :
 - Garde le ton de la cliente
 - Même langue que le texte original`;
 
+    const usage: UsageSink = {};
     const result = await callAnthropic({
       model: getModelForAction("text_action"),
       system: systemPrompt,
@@ -83,9 +84,9 @@ RÈGLES :
       ],
       max_tokens: 1024,
       temperature: 0.7,
-    });
+    }, usage);
 
-    await logUsage(userId, "adaptation", "text_action", undefined, undefined, workspace_id || undefined);
+    await logUsage(userId, "adaptation", "text_action", usage.total_tokens, usage.model, workspace_id || undefined);
 
     return new Response(JSON.stringify({ result }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

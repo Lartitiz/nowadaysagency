@@ -118,6 +118,8 @@ Réponds UNIQUEMENT en JSON :
     }
 
     const aiData = await aiResponse.json();
+    // Gateway Lovable = format OpenAI : usage en prompt_tokens/completion_tokens.
+    const tokensUsed = aiData.usage?.total_tokens ?? ((aiData.usage?.prompt_tokens ?? 0) + (aiData.usage?.completion_tokens ?? 0));
     const rawContent = aiData.choices?.[0]?.message?.content || "";
 
     let parsed;
@@ -133,7 +135,7 @@ Réponds UNIQUEMENT en JSON :
     }
 
     if (action === "improve") {
-      await logUsage(userId, "content", "score_content_improve");
+      await logUsage(userId, "content", "score_content_improve", tokensUsed, "google/gemini-2.5-flash");
     }
 
     return new Response(JSON.stringify(parsed), { headers: { ...corsHeaders, "Content-Type": "application/json" } });

@@ -4,7 +4,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
-import { callAnthropic, getModelForAction } from "../_shared/anthropic.ts";
+import { callAnthropic, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
@@ -290,16 +290,17 @@ serve(async (req) => {
 
     const prompt = buildPrompt(step, answer, charterData || {}, profileRes.data, brandRes.data);
 
+    const usage: UsageSink = {};
     const rawResponse = await callAnthropic({
       model: getModelForAction("coaching_light"),
       system: BASE_SYSTEM_RULES + "\n\n" + prompt,
       messages: [{ role: "user", content: answer }],
       temperature: 0.7,
       max_tokens: 4096,
-    });
+    }, usage);
 
     // Log usage
-    await logUsage(userId, "coach", "charter_coaching", undefined, getModelForAction("coaching_light"), workspace_id);
+    await logUsage(userId, "coach", "charter_coaching", usage.total_tokens, usage.model, workspace_id);
 
     // Parse response
     let parsed;

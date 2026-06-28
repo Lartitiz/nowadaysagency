@@ -515,6 +515,9 @@ Règles pour les suggestions :
     const decoder = new TextDecoder();
     let fullText = "";
     let buffer = "";
+    // Tokens réels remontés par le stream Anthropic (message_start / message_delta).
+    let inputTokens = 0;
+    let outputTokens = 0;
 
     const outputStream = new ReadableStream({
       async start(controller) {
@@ -545,6 +548,13 @@ Règles pour les suggestions :
                   fullText += text;
                   // Send delta to client
                   controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "delta", text })}\n\n`));
+                }
+
+                // Usage : input_tokens dans message_start, output_tokens (cumulé) dans message_delta
+                if (event.type === "message_start") {
+                  inputTokens = event.message?.usage?.input_tokens ?? 0;
+                } else if (event.type === "message_delta" && event.usage?.output_tokens != null) {
+                  outputTokens = event.usage.output_tokens;
                 }
 
                 // message_stop means we're done
@@ -583,7 +593,7 @@ Règles pour les suggestions :
           // réponse complète et non vide (avant, c'était un fire-and-forget
           // qui facturait même un stream cassé en route).
           if (fullText.trim()) {
-            logUsage(userId, "coach", "chat_guide", undefined, model, workspaceId).catch(console.error);
+            logUsage(userId, "coach", "chat_guide", (inputTokens + outputTokens) || undefined, model, workspaceId).catch(console.error);
           }
         } catch (err) {
           console.error("Stream processing error:", err);

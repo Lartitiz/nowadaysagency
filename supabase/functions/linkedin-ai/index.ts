@@ -4,7 +4,7 @@ import { LINKEDIN_PRINCIPLES_COMPACT, LINKEDIN_TEMPLATES, ANTI_SLOP, CHAIN_OF_TH
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallback } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
-import { callAnthropic, callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
+import { callAnthropic, callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { applyCorrectionPass } from "../_shared/correction-pass.ts";
 
 // JSON-aware correction: extract a long-text field, run correction-pass, reinject.
@@ -214,13 +214,14 @@ serve(async (req) => {
         });
 
         systemPrompt = BASE_SYSTEM_RULES + "\n\n" + VOICE_PRIORITY + crosspostSystemPrompt;
+        const cpUsage: UsageSink = {};
         let content = await callAnthropic({
           model: getModelForAction("linkedin_post"),
           system: systemPrompt,
           messages: [{ role: "user", content: userContent }],
           temperature: 0.8,
           max_tokens: 4096,
-        });
+        }, cpUsage);
 
         content = await correctCrosspostJson(content);
 
@@ -229,7 +230,7 @@ serve(async (req) => {
           return aiUnusableResponse();
         }
 
-        await logUsage(user.id, category, `linkedin_crosspost_files`, undefined, undefined, workspace_id);
+        await logUsage(user.id, category, `linkedin_crosspost_files`, cpUsage.total_tokens, cpUsage.model, workspace_id);
 
         return new Response(JSON.stringify({ content }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -342,7 +343,8 @@ serve(async (req) => {
       }
     }
 
-    let content = await callAnthropicSimple(getModelForAction("linkedin_post"), systemPrompt, userPrompt, 0.8);
+    const usage: UsageSink = {};
+    let content = await callAnthropicSimple(getModelForAction("linkedin_post"), systemPrompt, userPrompt, 0.8, undefined, usage);
 
     // LinkedIn correction pass — applied per action with awareness of output shape
     if (action === "caption-for-carousel") {
@@ -358,7 +360,7 @@ serve(async (req) => {
       return aiUnusableResponse();
     }
 
-    await logUsage(user.id, category, `linkedin_${action}`, undefined, undefined, workspace_id);
+    await logUsage(user.id, category, `linkedin_${action}`, usage.total_tokens, usage.model, workspace_id);
 
     return new Response(JSON.stringify({ content }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

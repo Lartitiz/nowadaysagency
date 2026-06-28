@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { getUserContext, formatContextForAI, buildIdentityBlock } from "../_shared/user-context.ts";
-import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
+import { callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { CORE_PRINCIPLES } from "../_shared/copywriting-prompts.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
@@ -210,12 +210,14 @@ Retourne UNIQUEMENT un JSON valide :
   "tip": "Un conseil stratégique concret pour cette semaine"
 }`;
 
+    const usage: UsageSink = {};
     const raw = await callAnthropicSimple(
       getModelForAction("coaching"),
       systemPrompt,
       `Planifie ${posts_per_week} posts pour ma semaine. Contexte : ${context_week || "semaine normale"}. Approche : ${mix_or_focus}.\n\nRappel : chaque sujet doit avoir un angle Nowadays précis, être hyper-spécifique à mon métier, et l'accroche doit être une VRAIE première ligne de post (max 20 mots, ton oral, percutante).`,
       0.9,
-      4096
+      4096,
+      usage
     );
 
     let parsed;
@@ -227,7 +229,7 @@ Retourne UNIQUEMENT un JSON valide :
       else throw new Error("Format de réponse inattendu");
     }
 
-    await logUsage(user.id, "coach", "calendar_coaching", undefined, undefined, workspaceId || undefined);
+    await logUsage(user.id, "coach", "calendar_coaching", usage.total_tokens, usage.model, workspaceId || undefined);
 
     return new Response(JSON.stringify(parsed), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

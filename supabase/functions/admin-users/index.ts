@@ -217,7 +217,7 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
   ] = await Promise.all([
     supabase.from("profiles").select("user_id, prenom, email, created_at, onboarding_completed, type_activite, canaux, level"),
     supabase.from("subscriptions").select("user_id, plan, status, created_at, canceled_at, current_period_start, current_period_end, source"),
-    supabase.from("ai_usage").select("user_id, category, created_at, action_type, tokens_used").gte("created_at", monthStart),
+    supabase.from("ai_usage").select("user_id, category, created_at, action_type, tokens_used, model_used").gte("created_at", monthStart),
     supabase.from("brand_profile").select("user_id, " + BRAND_PROFILE_FIELDS.join(", ")),
     supabase.from("persona").select("user_id, " + PERSONA_FIELDS.join(", ")),
     supabase.from("storytelling").select("user_id, " + STORYTELLING_FIELDS.join(", ")),
@@ -291,12 +291,19 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
   const aiByCategory: Record<string, number> = {};
   const aiByActionType: Record<string, number> = {};
   let totalTokens = 0;
+  // Tokens ventilés par modèle → le front pondère le coût (Opus ≫ Sonnet ≫ Haiku).
+  const tokensByModel: Record<string, number> = {};
   const aiCountByUser = new Map<string, number>();
   for (const a of aiData) {
     aiByCategory[a.category] = (aiByCategory[a.category] || 0) + 1;
     const at = a.action_type || "unknown";
     aiByActionType[at] = (aiByActionType[at] || 0) + 1;
-    totalTokens += (a.tokens_used || 0);
+    const tok = a.tokens_used || 0;
+    totalTokens += tok;
+    if (tok > 0) {
+      const m = a.model_used || "unknown";
+      tokensByModel[m] = (tokensByModel[m] || 0) + tok;
+    }
     aiCountByUser.set(a.user_id, (aiCountByUser.get(a.user_id) || 0) + 1);
   }
 
@@ -534,6 +541,7 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
     retained_users: retainedUsers,
     ai_by_day: aiByDay,
     total_tokens: totalTokens,
+    tokens_by_model: tokensByModel,
     power_users: powerUsers,
     // Content
     drafts_this_month: drafts.length,

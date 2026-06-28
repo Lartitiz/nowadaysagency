@@ -2,7 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
+import { callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { getUserContext, formatContextForAI, buildIdentityBlock } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
@@ -535,12 +535,14 @@ Réponds UNIQUEMENT en JSON (sans backticks) avec cette structure :
   }
 }`;
 
+    const usage: UsageSink = {};
     const rawResponse = await callAnthropicSimple(
       getModelForAction("audit"),
       systemPrompt + "\n\n" + ANTI_SLOP,
       "Analyse ce site et produis l'audit complet en JSON.",
       0.5,
-      8192
+      8192,
+      usage
     );
 
     // Parse JSON response
@@ -575,7 +577,7 @@ Réponds UNIQUEMENT en JSON (sans backticks) avec cette structure :
     parsed.pages_en_erreur = pagesError;
 
     // Log usage
-    await logUsage(userId, "audit", "audit_site_auto", undefined, "claude-sonnet", workspace_id);
+    await logUsage(userId, "audit", "audit_site_auto", usage.total_tokens, usage.model, workspace_id);
 
     clearTimeout(globalTimeout);
 

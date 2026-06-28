@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
+import { callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
@@ -90,7 +90,8 @@ Réponds en JSON strict avec cette structure :
 Réponds UNIQUEMENT avec le JSON, sans commentaire ni balise markdown.`;
 
     const model = getModelForAction("voice");
-    const raw = await callAnthropicSimple(model, systemPrompt, contextText, 0.7, 4096);
+    const usage: UsageSink = {};
+    const raw = await callAnthropicSimple(model, systemPrompt, contextText, 0.7, 4096, usage);
 
     // Parse JSON
     const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
@@ -114,7 +115,7 @@ Réponds UNIQUEMENT avec le JSON, sans commentaire ni balise markdown.`;
         .insert({ user_id: userId, guide_data: guide });
     }
 
-    await logUsage(userId, "content", "voice_guide", undefined, model);
+    await logUsage(userId, "content", "voice_guide", usage.total_tokens, usage.model);
 
     return new Response(JSON.stringify({ guide, remaining: quota.remaining }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -4,7 +4,7 @@
  * Pattern copié depuis chat-guide/index.ts (déjà en production).
  */
 
-import { sanitizeDashes } from "./anthropic.ts";
+import { sanitizeDashes, type AnthropicUsage } from "./anthropic.ts";
 
 export async function streamAnthropicSSE(
   apiKey: string,
@@ -47,13 +47,18 @@ export async function streamAnthropicSSE(
 export function createClientSSEStream(
   anthropicStream: ReadableStream,
   corsHeaders: Record<string, string>,
-  onDone?: (fullText: string) => Promise<void>,
+  onDone?: (fullText: string, usage?: AnthropicUsage) => Promise<void>,
 ): Response {
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
   const reader = anthropicStream.getReader();
   let fullText = "";
   let buffer = "";
+  // Usage remonté par le stream Anthropic : input_tokens + modèle dans
+  // `message_start`, output_tokens (cumulé) dans les `message_delta`.
+  let inputTokens = 0;
+  let outputTokens = 0;
+  let usageModel = "";
 
   const outputStream = new ReadableStream({
     async pull(controller) {
@@ -65,8 +70,14 @@ export function createClientSSEStream(
             // Send final event. On nettoie les tirets cadratin sur le texte
             // ASSEMBLÉ (le contenu sauvegardé/affiché final est garanti sans —).
             const cleanFull = sanitizeDashes(fullText);
+            const usage: AnthropicUsage = {
+              input_tokens: inputTokens,
+              output_tokens: outputTokens,
+              total_tokens: inputTokens + outputTokens,
+              model: usageModel,
+            };
             if (onDone) {
-              try { await onDone(cleanFull); } catch (e) { console.error("onDone error:", e); }
+              try { await onDone(cleanFull, usage); } catch (e) { console.error("onDone error:", e); }
             }
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done", full: cleanFull })}\n\n`));
             controller.close();
@@ -89,6 +100,11 @@ export function createClientSSEStream(
                 const text = event.delta.text;
                 fullText += text;
                 controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "delta", text })}\n\n`));
+              } else if (event.type === "message_start") {
+                inputTokens = event.message?.usage?.input_tokens ?? 0;
+                usageModel = event.message?.model ?? "";
+              } else if (event.type === "message_delta" && event.usage?.output_tokens != null) {
+                outputTokens = event.usage.output_tokens; // cumulé : on garde la dernière valeur
               }
             } catch {
               // Ignore partial JSON

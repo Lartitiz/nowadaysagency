@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { corsHeaders } from "../_shared/cors.ts";
-import { callAnthropic, getDefaultModel } from "../_shared/anthropic.ts";
+import { callAnthropic, getDefaultModel, type UsageSink } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getUserContext, formatContextForAI } from "../_shared/user-context.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
@@ -86,13 +86,14 @@ ${contextBlock ? `\nContexte de la marque de l'utilisatrice :\n${contextBlock}` 
 
 Retourne uniquement le JSON, sans aucune explication autour.`;
 
+    const usage: UsageSink = {};
     const result = await callAnthropic({
       model: getDefaultModel(),
       system: systemPrompt,
       messages: [{ role: "user", content: text }],
       temperature: 0.3,
       max_tokens: 4096,
-    });
+    }, usage);
 
     // Parse JSON from response
     let parsed: Record<string, string | null>;
@@ -107,7 +108,7 @@ Retourne uniquement le JSON, sans aucune explication autour.`;
       });
     }
 
-    await logUsage(user.id, "import", "branding_import", undefined, undefined, workspace_id || undefined);
+    await logUsage(user.id, "import", "branding_import", usage.total_tokens, usage.model, workspace_id || undefined);
 
     return new Response(JSON.stringify({ extracted: parsed }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

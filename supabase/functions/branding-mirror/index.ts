@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
-import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
+import { callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
@@ -156,7 +156,8 @@ Sois bienveillante et constructive. L'objectif n'est pas de culpabiliser mais de
     const userPrompt = `TON DÉCLARÉ :\n${declaredLines.join("\n")}\n\nCE QU'ELLE FAIT :\n${actualLines.join("\n")}`;
 
     const model = getModelForAction("content"); // Sonnet
-    const raw = await callAnthropicSimple(model, systemPrompt + "\n\n" + ANTI_SLOP, userPrompt, 0.7, 4096);
+    const usage: UsageSink = {};
+    const raw = await callAnthropicSimple(model, systemPrompt + "\n\n" + ANTI_SLOP, userPrompt, 0.7, 4096, usage);
 
     // Parse JSON
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
@@ -164,7 +165,7 @@ Sois bienveillante et constructive. L'objectif n'est pas de culpabiliser mais de
     const result = JSON.parse(jsonMatch[0]);
 
     // Log usage
-    await logUsage(user.id, "audit", "branding_mirror", undefined, undefined, workspace_id);
+    await logUsage(user.id, "audit", "branding_mirror", usage.total_tokens, usage.model, workspace_id);
 
     return new Response(JSON.stringify(result), {
       headers: { ...cors, "Content-Type": "application/json" },

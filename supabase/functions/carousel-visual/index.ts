@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
-import { callAnthropic, type AnthropicModel } from "../_shared/anthropic.ts";
+import { callAnthropic, type AnthropicModel, type UsageSink } from "../_shared/anthropic.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { buildPptxInvariants, formatInvariantsForPrompt } from "../_shared/pptx-invariants.ts";
@@ -1054,13 +1054,14 @@ Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de con
       timestamp: new Date().toISOString(),
     }));
 
+    const usage: UsageSink = {};
     const rawResponse = await callAnthropic({
       model,
       system: systemPromptWithAnnotations,
       messages,
       temperature: 0.5,
       max_tokens: 16384,
-    });
+    }, usage);
 
     let result: any;
     try {
@@ -1118,13 +1119,14 @@ ${JSON.stringify(flagged.map((s: any) => ({ slide_number: s.slide_number, html: 
 Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": "...", "contrast_ok": true, "legibility": "..." } ] }`,
           });
 
+          const fixUsage: UsageSink = {};
           const fixRaw = await callAnthropic({
             model,
             system: systemPromptWithAnnotations,
             messages: [{ role: "user", content: fixContent }],
             temperature: 0.4,
             max_tokens: 16384,
-          });
+          }, fixUsage);
           const fixCleaned = fixRaw.replace(/```(?:json)?\s*/gi, "").replace(/```\s*$/gi, "");
           const fixMatch = fixCleaned.match(/\{[\s\S]*\}/);
           const fixed = fixMatch ? JSON.parse(fixMatch[0]) : null;
@@ -1479,7 +1481,7 @@ Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": ".
       console.warn("carousel-visual: slides_invariants manquant dans la réponse Claude → fallback serveur");
     }
 
-    await logUsage(user.id, reqBody?.quality_max ? "quality_max" : "content", "carousel_visual", undefined, model, workspaceId);
+    await logUsage(user.id, reqBody?.quality_max ? "quality_max" : "content", "carousel_visual", usage.total_tokens, usage.model, workspaceId);
 
     return new Response(JSON.stringify({ result, remaining: quota.remaining }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

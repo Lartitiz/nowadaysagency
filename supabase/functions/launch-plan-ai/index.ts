@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
-import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
+import { callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
@@ -148,7 +148,8 @@ Réponds UNIQUEMENT en JSON :
   ]
 }`;
 
-    const content = await callAnthropicSimple(getModelForAction("launch"), systemPrompt + "\n\n" + ANTI_SLOP, "Génère mon plan de slots de lancement.", 0.7, 8192);
+    const usage: UsageSink = {};
+    const content = await callAnthropicSimple(getModelForAction("launch"), systemPrompt + "\n\n" + ANTI_SLOP, "Génère mon plan de slots de lancement.", 0.7, 8192, usage);
 
     let parsed: any;
     try {
@@ -159,7 +160,7 @@ Réponds UNIQUEMENT en JSON :
       else throw new Error("Format de réponse inattendu");
     }
 
-    await logUsage(user.id, "content", "launch_plan");
+    await logUsage(user.id, "content", "launch_plan", usage.total_tokens, usage.model);
 
     return new Response(JSON.stringify(parsed), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

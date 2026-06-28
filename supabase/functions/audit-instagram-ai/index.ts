@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { CORE_PRINCIPLES } from "../_shared/copywriting-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
-import { callAnthropic, callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
+import { callAnthropic, callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { isDemoUser } from "../_shared/guard-demo.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
@@ -428,6 +428,11 @@ Réponds en JSON :
 }`;
     const finalSystemPrompt = BASE_SYSTEM_RULES + "\n\n" + systemPrompt;
 
+    // L'audit fait 3-4 sous-appels en parallèle (runPart) → on SOMME les tokens
+    // de tous les appels (Anthropic + fallback Gemini) pour la facturation.
+    let auditTokens = 0;
+    let auditModel = "";
+
     // Helper: fallback to Gemini via Lovable AI Gateway (text-only)
     async function fallbackToGemini(systemPrompt: string, userText: string): Promise<string> {
       const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -451,6 +456,8 @@ Réponds en JSON :
         throw new Error(`Gemini fallback failed: ${geminiResp.status}`);
       }
       const geminiData = await geminiResp.json();
+      auditTokens += geminiData.usage?.total_tokens ?? ((geminiData.usage?.prompt_tokens ?? 0) + (geminiData.usage?.completion_tokens ?? 0));
+      if (!auditModel) auditModel = "google/gemini-2.5-flash";
       return geminiData.choices?.[0]?.message?.content || "";
     }
 
@@ -486,16 +493,22 @@ Réponds en JSON :
     const runPart = async (instr: string, label: string): Promise<string> => {
       const sys = finalSystemPrompt + "\n\n" + instr;
       try {
+        const u: UsageSink = {};
+        let out: string;
         if (hasImages) {
-          return await callAnthropic({
+          out = await callAnthropic({
             model: getModelForAction("audit"),
             system: sys,
             messages: [{ role: "user", content: buildUserContent() }],
             temperature: 0.7,
             max_tokens: 8192,
-          });
+          }, u);
+        } else {
+          out = await callAnthropicSimple(getModelForAction("audit"), sys, userText, 0.7, 8192, u);
         }
-        return await callAnthropicSimple(getModelForAction("audit"), sys, userText, 0.7, 8192);
+        auditTokens += u.total_tokens ?? 0;
+        if (u.model) auditModel = u.model;
+        return out;
       } catch (anthropicErr: any) {
         console.error(`[audit-instagram-ai] part ${label} failed:`, anthropicErr.message);
         // Filet : si le fallback Gemini échoue AUSSI, on ne jette pas — sinon le Promise.all
@@ -599,7 +612,7 @@ Réponds en JSON :
       console.error("[audit-instagram-ai] insert audit échoué (non bloquant):", insErr?.message || insErr);
     }
 
-    await logUsage(user.id, "audit", "audit_instagram", undefined, undefined, workspace_id);
+    await logUsage(user.id, "audit", "audit_instagram", auditTokens || undefined, auditModel || undefined, workspace_id);
     return new Response(
       JSON.stringify({ content: JSON.stringify(merged), auditId: savedAuditId, auditDate: savedAuditDate }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }

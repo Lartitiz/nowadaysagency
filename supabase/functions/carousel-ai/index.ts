@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallback, buildIdentityBlock } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
-import { callAnthropic, getModelForAction } from "../_shared/anthropic.ts";
+import { callAnthropic, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { ANTI_SLOP, EDITORIAL_ANGLES_REFERENCE, CHAIN_OF_THOUGHT, DEPTH_LAYER, PREGEN_INJECTION_RULES, EMBEDDED_EDUCATION, SLIDE_TITLE_RULES, ANTI_FABRICATED_STORYTELLING, DEPTH_LAYER_DUAL } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
@@ -266,10 +266,11 @@ serve(async (req) => {
           ? buildMixCarouselNewsReactionPrompt(body, isLinkedIn)
           : buildMixCarouselPrompt(body, isLinkedIn);
         let content: string;
+        const mixUsage: UsageSink = {};
 
         if (body.photos && body.photos.length > 0 && !body.confirmed_structure) {
           const messageContent: any[] = [];
-          
+
           // 1. Brief créatif EN PREMIER (avant les photos)
           const photoCtxRecap = buildPhotoContextRecap(body.photos);
           messageContent.push({
@@ -294,7 +295,7 @@ serve(async (req) => {
             messages: [{ role: "user", content: messageContent }],
             max_tokens: 8192,
             temperature: 0.85,
-          });
+          }, mixUsage);
         } else {
           const textPrompt = mixPrompt + `\n\nBRIEF CRÉATIF : "${body.subject || "non précisé"}". Ce concept doit structurer tout le carrousel.\n\nDescription des photos : "${body.photo_description || "non fournie"}"\nNombre de slides estimé : ${body.slide_count || 8}\nObjectif : ${body.objective || "engagement"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${body.slide_structure ? `\nStructure imposée : ${body.slide_structure.length} slides définies par l'utilisateur·ice.` : ""}`;
 
@@ -304,7 +305,7 @@ serve(async (req) => {
             messages: [{ role: "user", content: textPrompt }],
             max_tokens: 8192,
             temperature: 0.85,
-          });
+          }, mixUsage);
         }
 
         // JSON-aware correction pass for carousels
@@ -322,7 +323,7 @@ serve(async (req) => {
         }
 
         content = normalizePhotoIndexes(content, body.photos?.length || 0);
-        await logUsage(userId, category, "carousel_mix", undefined, undefined, workspace_id);
+        await logUsage(userId, category, "carousel_mix", mixUsage.total_tokens, mixUsage.model, workspace_id);
         return new Response(JSON.stringify({ content }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -335,6 +336,7 @@ serve(async (req) => {
           ? buildPhotoCarouselNewsReactionPrompt(body, isLinkedIn)
           : buildPhotoCarouselPrompt(body, isLinkedIn);
         let content: string;
+        const photoUsage: UsageSink = {};
 
         if (body.photos && body.photos.length > 0 && !body.confirmed_structure) {
           // Vision mode: send photos to Claude
@@ -364,7 +366,7 @@ serve(async (req) => {
             messages: [{ role: "user", content: messageContent }],
             max_tokens: 8192,
             temperature: 0.85,
-          });
+          }, photoUsage);
         } else {
           // Text-only mode: description without actual photos
           const textPrompt = photoPrompt + `\n\nSujet : "${body.subject || "non précisé"}"\nDescription des photos : "${body.photo_description || "non fournie"}"\nNombre de slides estimé : ${body.slide_count || 6}\nObjectif : ${body.objective || "engagement"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}`;
@@ -375,7 +377,7 @@ serve(async (req) => {
             messages: [{ role: "user", content: textPrompt }],
             max_tokens: 8192,
             temperature: 0.85,
-          });
+          }, photoUsage);
         }
 
         // JSON-aware correction pass for carousels
@@ -393,7 +395,7 @@ serve(async (req) => {
         }
 
         content = normalizePhotoIndexes(content, body.photos?.length || 0);
-        await logUsage(userId, category, "carousel_photo", undefined, undefined, workspace_id);
+        await logUsage(userId, category, "carousel_photo", photoUsage.total_tokens, photoUsage.model, workspace_id);
         return new Response(JSON.stringify({ content }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -690,14 +692,15 @@ Réponds UNIQUEMENT en JSON valide :
 }`,
         });
 
+        const deepeningUsage: UsageSink = {};
         const content = await callAnthropic({
           model: getModelForAction("questions"),
           system: systemPrompt,
           messages: [{ role: "user", content: messageContent }],
           max_tokens: 4096,
-        });
+        }, deepeningUsage);
 
-        await logUsage(userId, category, `carousel_deepening_${body.carousel_type}`, undefined, undefined, workspace_id);
+        await logUsage(userId, category, `carousel_deepening_${body.carousel_type}`, deepeningUsage.total_tokens, deepeningUsage.model, workspace_id);
         return new Response(JSON.stringify({ content }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -722,6 +725,7 @@ Réponds UNIQUEMENT en JSON valide :
       : type === "express_full"
         ? pickCarouselModel(body)
         : getModelForAction("carousel");
+    const usage: UsageSink = {};
     let content = await callAnthropic({
       model: modelForCall,
       system: systemPrompt,
@@ -731,7 +735,7 @@ Réponds UNIQUEMENT en JSON valide :
       // canaux (0.8) → on cadre la créativité du format vitrine. Les questions
       // (Haiku, tâche bornée) gardent le comportement par défaut.
       ...(type === "deepening_questions" ? {} : { temperature: 0.85 }),
-    });
+    }, usage);
 
     // JSON-aware correction pass for carousels
     if (type === "express_full" || type === "slides" || type === "hooks") {
@@ -749,7 +753,7 @@ Réponds UNIQUEMENT en JSON valide :
       }
     }
 
-    await logUsage(userId, category, `carousel_${type}`, undefined, undefined, workspace_id);
+    await logUsage(userId, category, `carousel_${type}`, usage.total_tokens, usage.model, workspace_id);
 
     return new Response(JSON.stringify({ content }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildIdentityBlock } from "../_shared/user-context.ts";
-import { callAnthropic, getModelForAction } from "../_shared/anthropic.ts";
+import { callAnthropic, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 
 import { validateRequiredFields } from "../_shared/ai-validators.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
@@ -81,13 +81,14 @@ Génère 3 commentaires DIFFÉRENTS en JSON :
   "tip": "Un conseil d'engagement contextuel"
 }`;
 
+    const usage: UsageSink = {};
     const raw = await callAnthropic({
       model: getModelForAction("dm_comment"),
       system: systemPrompt,
       messages: [{ role: "user", content: userPrompt }],
       temperature: 0.8,
       max_tokens: 2048,
-    });
+    }, usage);
 
     let result;
     try {
@@ -97,7 +98,7 @@ Génère 3 commentaires DIFFÉRENTS en JSON :
       result = { comments: [], tip: raw };
     }
 
-    await logUsage(userId, "coach", "engagement_coaching", undefined, undefined, workspace_id);
+    await logUsage(userId, "coach", "engagement_coaching", usage.total_tokens, usage.model, workspace_id);
     return new Response(JSON.stringify(result), {
       headers: { ...cors, "Content-Type": "application/json" },
     });

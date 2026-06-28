@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
-import { callAnthropicSimple, getDefaultModel } from "../_shared/anthropic.ts";
+import { callAnthropicSimple, getDefaultModel, type UsageSink } from "../_shared/anthropic.ts";
 import { logUsage, checkQuota } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
@@ -216,12 +216,14 @@ IMPORTANT : retourne UNIQUEMENT le JSON, sans texte avant ni après. Pas de mark
 
     const userPrompt = `Voici le document à analyser :\n\n${documentText}`;
 
+    const usage: UsageSink = {};
     const raw = await callAnthropicSimple(
       getDefaultModel(),
       systemPrompt,
       userPrompt,
       0.3,
-      4096
+      4096,
+      usage
     );
 
     // Parse JSON from response
@@ -238,7 +240,7 @@ IMPORTANT : retourne UNIQUEMENT le JSON, sans texte avant ni après. Pas de mark
       );
     }
 
-    await logUsage(userId, "import", "branding_import");
+    await logUsage(userId, "import", "branding_import", usage.total_tokens, usage.model);
 
     return new Response(
       JSON.stringify({ extraction, sources_analyzed: sourcesAnalyzed }),

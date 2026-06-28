@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { callAnthropic, callAnthropicWithMeta, getModelForAction } from "../_shared/anthropic.ts";
+import { callAnthropic, callAnthropicWithMeta, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
@@ -453,15 +453,16 @@ serve(async (req) => {
         }
       }
 
+      const storyUsage: UsageSink = {};
       const rawStory = await callAnthropic({
         model: getModelForAction("coaching"),
         system: storySystemPrompt,
         messages: merged,
         temperature: 0.8,
         max_tokens: 2000,
-      });
+      }, storyUsage);
 
-      await logUsage(userId, "coach", "branding_coaching", undefined, undefined, workspace_id || undefined);
+      await logUsage(userId, "coach", "branding_coaching", storyUsage.total_tokens, storyUsage.model, workspace_id || undefined);
 
       return new Response(JSON.stringify({ response: rawStory }), {
         headers: { ...cors, "Content-Type": "application/json" },
@@ -521,15 +522,16 @@ RÈGLES DE CONTENU :
         }
       }
 
+      const personaFillUsage: UsageSink = {};
       const rawFill = await callAnthropic({
         model: getModelForAction("coaching"),
         system: fillSystemPrompt,
         messages: merged,
         temperature: 0.5,
         max_tokens: 2000,
-      });
+      }, personaFillUsage);
 
-      await logUsage(userId, "coach", "branding_coaching", undefined, undefined, workspace_id || undefined);
+      await logUsage(userId, "coach", "branding_coaching", personaFillUsage.total_tokens, personaFillUsage.model, workspace_id || undefined);
 
       return new Response(JSON.stringify({ response: rawFill }), {
         headers: { ...cors, "Content-Type": "application/json" },
@@ -601,15 +603,16 @@ Ton job : remplir la LIGNE ÉDITORIALE de ${prenom} — c'est-à-dire les facett
         }
       }
 
+      const strategyFillUsage: UsageSink = {};
       const rawFill = await callAnthropic({
         model: getModelForAction("coaching"),
         system: fillSystemPrompt,
         messages: merged,
         temperature: 0.6,
         max_tokens: 2000,
-      });
+      }, strategyFillUsage);
 
-      await logUsage(userId, "coach", "branding_coaching", undefined, undefined, workspace_id || undefined);
+      await logUsage(userId, "coach", "branding_coaching", strategyFillUsage.total_tokens, strategyFillUsage.model, workspace_id || undefined);
 
       return new Response(JSON.stringify({ response: rawFill }), {
         headers: { ...cors, "Content-Type": "application/json" },
@@ -683,6 +686,7 @@ Ton job : remplir la LIGNE ÉDITORIALE de ${prenom} — c'est-à-dire les facett
 
     let rawResponse: string;
     let wasTruncated = false;
+    let coachingUsage: UsageSink = {};
 
     const aiResult = await callAnthropicWithMeta({
       model: getModelForAction("coaching"),
@@ -693,6 +697,7 @@ Ton job : remplir la LIGNE ÉDITORIALE de ${prenom} — c'est-à-dire les facett
     });
     rawResponse = aiResult.text;
     wasTruncated = aiResult.stop_reason === "max_tokens";
+    coachingUsage = aiResult.usage ?? {};
 
     if (wasTruncated) {
       console.warn("[BrandingCoaching] Response truncated (max_tokens reached). Retrying with higher limit...");
@@ -705,6 +710,7 @@ Ton job : remplir la LIGNE ÉDITORIALE de ${prenom} — c'est-à-dire les facett
       });
       rawResponse = retryResult.text;
       wasTruncated = retryResult.stop_reason === "max_tokens";
+      coachingUsage = retryResult.usage ?? {};
       if (wasTruncated) {
         console.error("[BrandingCoaching] Response STILL truncated after retry.");
       }
@@ -809,7 +815,7 @@ Ton job : remplir la LIGNE ÉDITORIALE de ${prenom} — c'est-à-dire les facett
       parsed.covered_topic = normalizeCoveredTopic(parsed.covered_topic, section);
     }
 
-    await logUsage(userId, "coach", "branding_coaching", undefined, undefined, workspace_id || undefined);
+    await logUsage(userId, "coach", "branding_coaching", coachingUsage.total_tokens, coachingUsage.model, workspace_id || undefined);
 
     return new Response(JSON.stringify({ response: parsed }), {
       headers: { ...cors, "Content-Type": "application/json" },

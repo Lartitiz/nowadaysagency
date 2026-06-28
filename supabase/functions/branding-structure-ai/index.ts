@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
+import { callAnthropic, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 
@@ -152,13 +152,14 @@ serve(async (req) => {
     }
 
     const model = getModelForAction("content");
-    const result = await callAnthropicSimple({
+    const usage: UsageSink = {};
+    const result = await callAnthropic({
       model,
       system: `${BASE_SYSTEM_RULES}\n\n${sectionPrompt}\n\nRéponds UNIQUEMENT avec un JSON valide, sans markdown, sans commentaire.`,
       messages: [{ role: "user", content: userMessage }],
       temperature: 0.7,
       max_tokens: 2000,
-    });
+    }, usage);
 
     // Parse JSON from response
     let parsed;
@@ -175,7 +176,7 @@ serve(async (req) => {
       }
     }
 
-    await logUsage(userId, "coach", "branding_structure");
+    await logUsage(userId, "coach", "branding_structure", usage.total_tokens, usage.model);
 
     return new Response(JSON.stringify({ result: parsed }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
