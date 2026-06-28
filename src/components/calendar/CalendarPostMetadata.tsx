@@ -10,7 +10,7 @@ import { ChevronDown, CalendarIcon } from "lucide-react";
 import { ANGLES, STATUSES, OBJECTIFS } from "@/lib/calendar-constants";
 import { useActiveSeries, getNextEpisodeNumber } from "@/hooks/use-active-series";
 
-const FORMAT_OPTIONS_BY_CANAL: Record<string, { id: string; emoji: string; label: string }[]> = {
+export const FORMAT_OPTIONS_BY_CANAL: Record<string, { id: string; emoji: string; label: string }[]> = {
   instagram: [
     { id: "post_carrousel", emoji: "📑", label: "Carrousel" },
     { id: "reel", emoji: "🎬", label: "Reel" },

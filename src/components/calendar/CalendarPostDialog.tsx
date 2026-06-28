@@ -15,7 +15,9 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { Trash2, ChevronDown, Upload, Instagram, Linkedin, Loader2 } from "lucide-react";
 import { getGuide } from "@/lib/production-guides";
-import { type CalendarPost } from "@/lib/calendar-constants";
+import { type CalendarPost, STATUS_LABELS, statusStyles, OBJECTIFS } from "@/lib/calendar-constants";
+import { format as formatDate } from "date-fns";
+import { fr } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { publishToInstagram, isPublicImageUrl, isNotConnectedError } from "@/lib/instagram-publish";
@@ -24,7 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { ContentPreview, RevertToOriginalButton } from "@/components/ContentPreview";
 
-import { CalendarPostMetadata } from "./CalendarPostMetadata";
+import { CalendarPostMetadata, FORMAT_OPTIONS_BY_CANAL } from "./CalendarPostMetadata";
 import { CalendarPostContent } from "./CalendarPostContent";
 import { CalendarPostPreview } from "./CalendarPostPreview";
 
@@ -88,6 +90,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   const [isGenerating, setIsGenerating] = useState(false);
   const [dialogTab, setDialogTab] = useState<"edit" | "preview" | "meta">("edit");
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
   const [showContentViewer, setShowContentViewer] = useState(false);
   const [savedDraft, setSavedDraft] = useState<string | null>(null);
   const [seriesId, setSeriesId] = useState<string | null>(null);
@@ -142,6 +145,9 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     }
     setDialogTab("edit");
     setShowAdvanced(false);
+    // Détails (statut, canal, format, série) : ouverts pour un nouveau post (on les renseigne),
+    // repliés pour un post existant (on édite surtout le contenu).
+    setShowDetails(!editingPost);
   }, [editingPost, open, defaultCanal, prefillData]);
 
   useEffect(() => {
@@ -629,6 +635,59 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     />
   );
 
+  // En-tête de contexte : un coup d'œil sur « quel réseau · quel format · quelle date · quel statut »
+  const canalMeta = ({
+    instagram: { emoji: "📸", label: "Instagram" },
+    linkedin: { emoji: "💼", label: "LinkedIn" },
+    pinterest: { emoji: "📌", label: "Pinterest" },
+    newsletter: { emoji: "✉️", label: "Newsletter" },
+  } as Record<string, { emoji: string; label: string }>)[postCanal] || { emoji: "", label: postCanal };
+  const formatMeta = format ? (FORMAT_OPTIONS_BY_CANAL[postCanal] || []).find((f) => f.id === format) : null;
+  const objectifMeta = objectif ? OBJECTIFS.find((o) => o.id === objectif) : null;
+  const dateLabel = selectedDate ? formatDate(new Date(selectedDate + "T00:00:00"), "EEE d MMM", { locale: fr }) : null;
+
+  const contextHeader = (
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-base leading-none" aria-hidden="true">{canalMeta.emoji}</span>
+        <span className="text-sm font-semibold text-foreground">
+          {formatMeta ? `${formatMeta.label} ${canalMeta.label}` : canalMeta.label}
+        </span>
+        {dateLabel && (
+          <>
+            <span className="text-border">·</span>
+            <span className="text-xs text-muted-foreground">{dateLabel}</span>
+          </>
+        )}
+        <span className={cn("ml-auto rounded-pill border px-2.5 py-0.5 text-[11px] font-medium", statusStyles[status] || "bg-card border-border text-foreground")}>
+          {STATUS_LABELS[status] || status}
+        </span>
+      </div>
+      {(objectifMeta || angle) && (
+        <p className="text-[11px] text-muted-foreground">
+          {objectifMeta && <span>{objectifMeta.emoji} {objectifMeta.label}</span>}
+          {objectifMeta && angle && <span className="mx-1.5 text-border">·</span>}
+          {angle && <span>{angle}</span>}
+        </p>
+      )}
+    </div>
+  );
+
+  // Panneau "Détails" repliable : reprend tous les réglages (statut, date, canal, format, objectif, angle, série)
+  const detailsPanel = (
+    <Collapsible open={showDetails} onOpenChange={setShowDetails}>
+      <CollapsibleTrigger className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-primary transition-colors py-1">
+        <span>Détails du post — statut, canal, format, série</span>
+        <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", showDetails && "rotate-180")} />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="pt-3">
+        <div className="rounded-[12px] border border-border bg-card/30 p-3 space-y-4">
+          {metaBlock}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+
   // Footer actions
   const actionsBlock = (
     <div className="flex gap-2 pt-4 mt-4 border-t border-border">
@@ -679,18 +738,19 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
           ? "max-w-none w-[calc(100vw-1rem)] h-[94dvh] max-h-[94dvh]"
           : "sm:max-w-6xl max-h-[90vh]"
       )}>
-        <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
-          <DialogTitle className="font-display">{editingPost ? "Modifier le post" : "Ajouter un post"}</DialogTitle>
+        <DialogHeader className="px-6 pt-5 pb-3 shrink-0 border-b border-border space-y-0 text-left">
+          <DialogTitle className="sr-only">{editingPost ? "Modifier le post" : "Ajouter un post"}</DialogTitle>
           <DialogDescription className="sr-only">Formulaire de création ou modification d'un post du calendrier éditorial</DialogDescription>
+          {contextHeader}
         </DialogHeader>
 
         {isMobile ? (
           // ── Mobile : 3 tabs ──
-          <Tabs value={dialogTab} onValueChange={(v) => setDialogTab(v as any)} className="flex-1 flex flex-col overflow-hidden px-6 pb-6">
+          <Tabs value={dialogTab} onValueChange={(v) => setDialogTab(v as any)} className="flex-1 flex flex-col overflow-hidden px-6 pt-3 pb-6">
             <TabsList className="grid grid-cols-3 w-full rounded-pill bg-muted h-9 shrink-0">
               <TabsTrigger value="edit" className="rounded-pill text-xs">✏️ Éditer</TabsTrigger>
-              <TabsTrigger value="preview" className="rounded-pill text-xs" disabled={!editingPost}>👁️ Preview</TabsTrigger>
-              <TabsTrigger value="meta" className="rounded-pill text-xs">📋 Méta</TabsTrigger>
+              <TabsTrigger value="preview" className="rounded-pill text-xs" disabled={!editingPost}>👁️ Aperçu</TabsTrigger>
+              <TabsTrigger value="meta" className="rounded-pill text-xs">📋 Détails</TabsTrigger>
             </TabsList>
             <div className="flex-1 overflow-y-auto mt-3">
               <TabsContent value="edit" className="mt-0">{editionBlock}</TabsContent>
@@ -700,25 +760,20 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
             {actionsBlock}
           </Tabs>
         ) : (
-          // ── Desktop : 3 colonnes ──
-          <div className="flex-1 flex flex-col overflow-hidden px-6 pb-6">
-            <div className="flex-1 overflow-y-auto">
-              <div className="grid grid-cols-[220px_1fr_340px] gap-5">
-                {/* Col 1 : Métadonnées */}
-                <aside className="space-y-4">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Métadonnées</p>
-                  {metaBlock}
-                </aside>
-
-                {/* Col 2 : Édition */}
-                <main className="border-x border-border px-5">
+          // ── Desktop : détails repliables + 2 colonnes (contenu | aperçu) ──
+          <div className="flex-1 flex flex-col overflow-hidden px-6 pt-3 pb-6">
+            <div className="shrink-0">{detailsPanel}</div>
+            <div className="flex-1 overflow-y-auto mt-3">
+              <div className="grid grid-cols-[1fr_340px] gap-5">
+                {/* Contenu */}
+                <main className="min-w-0 border-r border-border pr-5">
                   {editionBlock}
                 </main>
 
-                {/* Col 3 : Preview live (sticky) */}
+                {/* Aperçu live (sticky) */}
                 <aside className="space-y-2">
                   <div className="sticky top-0">
-                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Preview live</p>
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Aperçu live</p>
                     {previewBlock(true)}
                   </div>
                 </aside>
