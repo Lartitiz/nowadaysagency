@@ -89,21 +89,26 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
   const [uploading, setUploading] = useState(false);
   const [uploadLabel, setUploadLabel] = useState("Ajouter des visuels ou un PDF");
   const [mode, setMode] = useState<Mode>("place");
-  const [dateStr, setDateStr] = useState("");
-  const [time, setTime] = useState("09:00");
+  // Créneau par réseau (date + heure). Par défaut identique partout ; « staggered » permet de décaler.
+  const [schedules, setSchedules] = useState<Record<Canal, { date: string; time: string }>>({
+    instagram: { date: "", time: "09:00" },
+    linkedin: { date: "", time: "09:00" },
+  });
+  const [staggered, setStaggered] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     const start: Canal = defaultCanal === "linkedin" ? "linkedin" : "instagram";
+    const baseDate = selectedDate || toLocalDateStr(new Date());
     setCaptions({ instagram: "", linkedin: "" });
     setCanals([start]);
     setActiveCanal(start);
     setMediaUrls([]);
     setUploading(false);
     setMode("place");
-    setDateStr(selectedDate || toLocalDateStr(new Date()));
-    setTime("09:00");
+    setSchedules({ instagram: { date: baseDate, time: "09:00" }, linkedin: { date: baseDate, time: "09:00" } });
+    setStaggered(false);
     setSaving(false);
   }, [open, selectedDate, defaultCanal]);
 
@@ -111,14 +116,30 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
   const captionOf = (c: Canal) => (captions[c] || "").trim();
   const activeText = captions[activeCanal] || "";
 
+  const schedOf = (c: Canal) => schedules[c] || { date: toLocalDateStr(new Date()), time: "09:00" };
+  /** Édite le créneau d'UN réseau (mode décalé). */
+  const setCanalSched = (c: Canal, patch: Partial<{ date: string; time: string }>) =>
+    setSchedules((prev) => ({ ...prev, [c]: { ...prev[c], ...patch } }));
+  /** Édite le créneau PARTAGÉ (même date/heure pour tous les réseaux cochés). */
+  const setSharedSched = (patch: Partial<{ date: string; time: string }>) =>
+    setSchedules((prev) => {
+      const next = { ...prev };
+      canals.forEach((c) => { next[c] = { ...next[c], ...patch }; });
+      return next;
+    });
+
   const toggleCanal = (c: Canal) => {
     setCanals((prev) => {
       if (prev.includes(c)) {
         const next = prev.filter((x) => x !== c);
         if (next.length > 0 && activeCanal === c) setActiveCanal(next[0]);
+        if (next.length <= 1) setStaggered(false);
         return next;
       }
       setActiveCanal(c);
+      // Hérite du créneau d'un réseau déjà coché (cohérence si non décalé).
+      const ref = prev[0];
+      if (ref) setSchedules((s) => ({ ...s, [c]: { ...s[ref] } }));
       return [...prev, c];
     });
   };
@@ -227,10 +248,17 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
     }
     if (canals.includes("linkedin") && !captionOf("linkedin")) return "Écris le texte du post LinkedIn.";
     if (mode === "schedule") {
-      if (!dateStr || !time) return "Choisis une date et une heure.";
-      const when = new Date(`${dateStr}T${time}`);
-      if (isNaN(when.getTime())) return "Date invalide.";
-      if (when.getTime() < Date.now() + 60000) return "Choisis une date/heure dans le futur.";
+      for (const c of canals) {
+        const { date, time } = schedOf(c);
+        if (!date || !time) return "Choisis une date et une heure.";
+        const when = new Date(`${date}T${time}`);
+        if (isNaN(when.getTime())) return "Date invalide.";
+        if (when.getTime() < Date.now() + 60000) {
+          return staggered && canals.length > 1
+            ? `Choisis une date/heure future pour ${CANAL_LABEL[c]}.`
+            : "Choisis une date/heure dans le futur.";
+        }
+      }
     }
     return null;
   })();
@@ -240,14 +268,14 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
     if (validationError) { toast.error(validationError); return; }
     setSaving(true);
     try {
-      const scheduledAt = mode === "schedule" ? new Date(`${dateStr}T${time}`).toISOString() : null;
-      // Un post par réseau coché (même visuels, même date/heure, légende propre à chaque réseau).
+      // Un post par réseau coché (mêmes visuels, légende ET créneau propres à chaque réseau).
       const rows = canals.map((c) => {
         const cap = captionOf(c);
+        const { date, time } = schedOf(c);
         const row: any = {
           user_id: user.id,
           workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-          date: dateStr,
+          date,
           theme: deriveTheme(cap),
           status: "ready",
           canal: c,
@@ -256,8 +284,8 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
           media_urls: mediaUrls.length > 0 ? mediaUrls : null,
           format: c === "instagram" ? (igValidImages.length > 1 ? "carousel" : "post") : null,
         };
-        if (scheduledAt) {
-          row.scheduled_publish_at = scheduledAt;
+        if (mode === "schedule") {
+          row.scheduled_publish_at = new Date(`${date}T${time}`).toISOString();
           row.auto_publish = true;
           row.publish_status = "scheduled";
         }
@@ -378,6 +406,10 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
                 : "1 image = post simple · jusqu'à 10 pour un carrousel. Un PDF est découpé en slides.")
             : "Tes images partent aussi sur LinkedIn (post photo). Un PDF reste attaché pour référence."}
         </p>
+        <div className="flex items-start gap-1.5 rounded-[8px] bg-primary/5 border border-primary/15 px-2.5 py-1.5 text-2xs text-foreground">
+          <span aria-hidden>↩️</span>
+          <span>Tu reviens de <strong>Canva</strong> ? Exporte ton design en <strong>PDF</strong> (ou en images) et dépose-le ici — il devient ton post.</span>
+        </div>
       </div>
 
       <div className="space-y-2">
@@ -398,22 +430,56 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
             >{label}</button>
           ))}
         </div>
-        <div className="flex flex-wrap items-center gap-2 pt-1">
-          <input
-            type="date"
-            value={dateStr}
-            onChange={(e) => setDateStr(e.target.value)}
-            className="rounded-[8px] border border-border bg-background px-2 py-1.5 text-xs text-foreground"
-          />
-          {mode === "schedule" && (
+        {canals.length > 1 && (
+          <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer pt-0.5">
+            <input type="checkbox" checked={staggered} onChange={(e) => setStaggered(e.target.checked)} className="accent-primary" />
+            Une date différente par réseau
+          </label>
+        )}
+
+        {!staggered || canals.length === 1 ? (
+          // Créneau partagé (même date/heure pour tous les réseaux cochés).
+          <div className="flex flex-wrap items-center gap-2 pt-1">
             <input
-              type="time"
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
+              type="date"
+              value={schedOf(canals[0] || "instagram").date}
+              onChange={(e) => setSharedSched({ date: e.target.value })}
               className="rounded-[8px] border border-border bg-background px-2 py-1.5 text-xs text-foreground"
             />
-          )}
-        </div>
+            {mode === "schedule" && (
+              <input
+                type="time"
+                value={schedOf(canals[0] || "instagram").time}
+                onChange={(e) => setSharedSched({ time: e.target.value })}
+                className="rounded-[8px] border border-border bg-background px-2 py-1.5 text-xs text-foreground"
+              />
+            )}
+          </div>
+        ) : (
+          // Un créneau par réseau.
+          <div className="space-y-1.5 pt-1">
+            {canals.map((c) => (
+              <div key={c} className="flex flex-wrap items-center gap-2">
+                <span className="text-2xs text-muted-foreground w-16 shrink-0">{CANAL_LABEL[c]}</span>
+                <input
+                  type="date"
+                  value={schedOf(c).date}
+                  onChange={(e) => setCanalSched(c, { date: e.target.value })}
+                  className="rounded-[8px] border border-border bg-background px-2 py-1.5 text-xs text-foreground"
+                />
+                {mode === "schedule" && (
+                  <input
+                    type="time"
+                    value={schedOf(c).time}
+                    onChange={(e) => setCanalSched(c, { time: e.target.value })}
+                    className="rounded-[8px] border border-border bg-background px-2 py-1.5 text-xs text-foreground"
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
         {mode === "schedule" ? (
           <p className="text-2xs text-muted-foreground">
             Publié automatiquement sur {canals.map((c) => CANAL_LABEL[c]).join(" et ")} à l'heure prévue.
@@ -458,7 +524,9 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
       <span className="text-2xs text-muted-foreground hidden sm:block">
         {validationError
           ? validationError
-          : `Au ${new Date(`${dateStr}T00:00:00`).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}${mode === "schedule" ? ` · ${time}` : ""}`}
+          : staggered && canals.length > 1
+            ? "Dates par réseau"
+            : `Au ${new Date(`${schedOf(canals[0] || "instagram").date}T00:00:00`).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}${mode === "schedule" ? ` · ${schedOf(canals[0] || "instagram").time}` : ""}`}
       </span>
       <div className="flex gap-2 ml-auto">
         <Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-pill">Annuler</Button>
