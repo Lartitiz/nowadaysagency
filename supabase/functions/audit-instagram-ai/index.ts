@@ -232,6 +232,31 @@ serve(async (req) => {
       }
     }
 
+    // Bloc AUDIENCE RÉELLE (démographie des abonnés via follower_demographics).
+    // Valeurs absolues converties en % du segment pour rester parlantes.
+    let audienceBlock = "";
+    const aud: any = (liveMetrics as any)?.audience;
+    if (aud && typeof aud === "object") {
+      const fmtPct = (arr: any[], n: number) => {
+        const total = arr.reduce((s: number, x: any) => s + (Number(x?.value) || 0), 0) || 1;
+        return arr
+          .slice(0, n)
+          .map((x: any) => `${x.label} ${Math.round((Number(x?.value) || 0) / total * 100)}%`)
+          .join(", ");
+      };
+      const al: string[] = [];
+      if (Array.isArray(aud.age) && aud.age.length) al.push(`- Tranches d'âge : ${fmtPct(aud.age, 4)}`);
+      if (Array.isArray(aud.gender) && aud.gender.length) al.push(`- Genre : ${fmtPct(aud.gender, 3)}`);
+      if (Array.isArray(aud.cities) && aud.cities.length) al.push(`- Top villes : ${fmtPct(aud.cities, 5)}`);
+      if (Array.isArray(aud.countries) && aud.countries.length) al.push(`- Top pays : ${fmtPct(aud.countries, 5)}`);
+      if (al.length) {
+        audienceBlock =
+          "\nAUDIENCE RÉELLE (API Instagram — démographie des abonnés) :\n" +
+          al.join("\n") +
+          "\nAdapte explicitement les recommandations éditoriales à CETTE audience (centres d'intérêt, références, langue, sujets), et appuie-toi dessus dans la ligne éditoriale.";
+      }
+    }
+
     const systemPrompt = `${CORE_PRINCIPLES}
 ${profileTextBlock}
 
@@ -242,6 +267,7 @@ ${rh ? `- Rythme actuel : "${rh}"` : ""}
 ${obj ? `- Objectif principal : "${obj}"` : ""}` : ""}
 ${pu ? `- URL du profil : ${pu}` : ""}
 ${liveMetricsBlock}
+${audienceBlock}
 ${successPostsBlock}
 ${failPostsBlock}
 
