@@ -1,6 +1,7 @@
 import { Loader2, Pencil, CalendarDays, Copy, Download, RefreshCw, RotateCcw, Palette, ChevronDown, Lightbulb, Sparkles, ArrowUpRight, Instagram, Linkedin } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useEffect, useRef } from "react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import CarouselResult from "@/components/creer/formatRenderers/CarouselResult";
 import CarouselPhotoResult, { type CarouselColors } from "@/components/creer/formatRenderers/CarouselPhotoResult";
@@ -518,6 +519,22 @@ export default function CreerStepResult({
 
       {/* 1. Contenu (slides, caption, visuels, etc.) */}
       {renderResult()}
+
+      {/* Nudge personnalisation : les visuels utilisent une palette par défaut
+          tant que la charte n'a pas de couleurs. On invite à la poser pour des
+          visuels « à sa marque » plutôt qu'aux couleurs par défaut. */}
+      {isCarousel && !charterColors && (
+        <Link
+          to="/branding"
+          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/40 border border-border text-xs text-muted-foreground hover:bg-muted/60 transition-colors"
+        >
+          <Palette className="h-3.5 w-3.5 text-primary shrink-0" />
+          <span>
+            Astuce : <strong className="text-foreground">pose tes couleurs de marque en 1 min</strong> pour des visuels vraiment à ton image.
+          </span>
+          <ArrowUpRight className="h-3.5 w-3.5 ml-auto shrink-0" />
+        </Link>
+      )}
 
       {/* 2. Peaufiner */}
 

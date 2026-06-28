@@ -21,6 +21,28 @@ export default function SignupForm({ compact = false }: { compact?: boolean }) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [submittedEmail, setSubmittedEmail] = useState("");
+  const [resending, setResending] = useState(false);
+  const [resent, setResent] = useState(false);
+
+  const handleResend = async () => {
+    if (!submittedEmail || resending) return;
+    setResending(true);
+    try {
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: submittedEmail,
+        options: { emailRedirectTo: window.location.origin },
+      });
+      if (error) throw error;
+      setResent(true);
+      toast({ title: "Email renvoyé !", description: "Regarde ta boîte de réception (et tes spams)." });
+    } catch (error: any) {
+      toast({ title: "Oups !", description: error?.message || "Impossible de renvoyer l'email.", variant: "destructive" });
+    } finally {
+      setResending(false);
+    }
+  };
 
   const { register, handleSubmit, watch, formState: { errors } } = useForm<SignupValues>({
     resolver: zodResolver(signupSchema),
@@ -45,6 +67,7 @@ export default function SignupForm({ compact = false }: { compact?: boolean }) {
           activite: values.activite?.trim() || "",
         });
       }
+      setSubmittedEmail(values.email);
       setSuccess(true);
       toast({ title: "Compte créé !", description: "Vérifie tes emails pour confirmer ton inscription." });
     } catch (error: any) {
@@ -65,10 +88,27 @@ export default function SignupForm({ compact = false }: { compact?: boolean }) {
 
   if (success) {
     return (
-      <div className="rounded-2xl bg-card border border-border p-6 text-center space-y-2 animate-reveal-scale">
+      <div className="rounded-2xl bg-card border border-border p-6 text-center space-y-3 animate-reveal-scale">
         <CheckCircle2 className="h-10 w-10 text-primary mx-auto" />
         <p className="font-display text-lg font-bold text-foreground">Presque là !</p>
-        <p className="text-sm text-muted-foreground">Un email de confirmation vient d'être envoyé. Clique sur le lien pour activer ton compte.</p>
+        <p className="text-sm text-muted-foreground">
+          Un email de confirmation vient d'être envoyé{submittedEmail ? <> à <strong className="text-foreground">{submittedEmail}</strong></> : ""}. Clique sur le lien pour activer ton compte.
+        </p>
+        <p className="text-xs text-muted-foreground">
+          📩 Tu ne le vois pas ? Pense à regarder dans tes <strong>spams</strong> ou tes <strong>promotions</strong>.
+        </p>
+        <div className="pt-1">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleResend}
+            disabled={resending || resent}
+            className="rounded-pill"
+          >
+            {resending ? "Envoi..." : resent ? "✓ Email renvoyé" : "Renvoyer l'email"}
+          </Button>
+        </div>
       </div>
     );
   }
