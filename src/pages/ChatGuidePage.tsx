@@ -822,12 +822,12 @@ export default function ChatGuidePage() {
             >
               🧠
             </div>
-            <span
+            <h1
               className="text-base font-semibold text-foreground"
               style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 16 }}
             >
               Ton coach com' IA
-            </span>
+            </h1>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
             {!isDemoMode && (

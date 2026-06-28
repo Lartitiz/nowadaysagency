@@ -233,17 +233,17 @@ function JournalEntryEditor({ entry, sessions, deliverables, onUpdate, onDelete,
 
       <div className="grid grid-cols-3 gap-2">
         <div>
-          <Label className="text-xs text-muted-foreground">Date</Label>
-          <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="mt-1 h-8 text-xs" />
+          <Label htmlFor={`journal-date-${entry.id}`} className="text-xs text-muted-foreground">Date</Label>
+          <Input id={`journal-date-${entry.id}`} type="date" value={date} onChange={e => setDate(e.target.value)} className="mt-1 h-8 text-xs" />
         </div>
         <div>
-          <Label className="text-xs text-muted-foreground">Mois</Label>
-          <Input type="number" min={1} max={12} value={monthNum} onChange={e => setMonthNum(e.target.value)} className="mt-1 h-8 text-xs" placeholder="1" />
+          <Label htmlFor={`journal-month-${entry.id}`} className="text-xs text-muted-foreground">Mois</Label>
+          <Input id={`journal-month-${entry.id}`} type="number" min={1} max={12} value={monthNum} onChange={e => setMonthNum(e.target.value)} className="mt-1 h-8 text-xs" placeholder="1" />
         </div>
         <div>
-          <Label className="text-xs text-muted-foreground">Session liée</Label>
+          <Label htmlFor={`journal-session-${entry.id}`} className="text-xs text-muted-foreground">Session liée</Label>
           <Select value={sessionId} onValueChange={v => setSessionId(v)}>
-            <SelectTrigger className="mt-1 h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectTrigger id={`journal-session-${entry.id}`} className="mt-1 h-8 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="none">Aucune</SelectItem>
               {sessions.map(s => (
@@ -255,18 +255,18 @@ function JournalEntryEditor({ entry, sessions, deliverables, onUpdate, onDelete,
       </div>
 
       <div>
-        <Label className="text-xs text-muted-foreground">Titre</Label>
-        <Input value={title} onChange={e => setTitle(e.target.value)} className="mt-1 h-8 text-sm" />
+        <Label htmlFor={`journal-title-${entry.id}`} className="text-xs text-muted-foreground">Titre</Label>
+        <Input id={`journal-title-${entry.id}`} value={title} onChange={e => setTitle(e.target.value)} className="mt-1 h-8 text-sm" />
       </div>
 
       <div>
         <Label className="text-xs text-muted-foreground">Texte (visible par la cliente)</Label>
-        <VoiceTextarea value={body} onChange={setBody} placeholder="On a posé les fondations de ta com'..." />
+        <VoiceTextarea value={body} onChange={setBody} placeholder="On a posé les fondations de ta com'..." ariaLabel="Texte (visible par la cliente)" />
       </div>
 
       <div>
         <Label className="text-xs text-muted-foreground">Mot perso pour la cliente</Label>
-        <VoiceTextarea value={note} onChange={setNote} placeholder="Un mot d'encouragement personnel..." />
+        <VoiceTextarea value={note} onChange={setNote} placeholder="Un mot d'encouragement personnel..." ariaLabel="Mot perso pour la cliente" />
       </div>
 
       <div>
@@ -359,7 +359,7 @@ function DeliverableRow({ deliverable, onUpload, onDeleteFile, onUnlock }: {
 }
 
 /* ── Textarea with voice ── */
-function VoiceTextarea({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+function VoiceTextarea({ value, onChange, placeholder, ariaLabel }: { value: string; onChange: (v: string) => void; placeholder?: string; ariaLabel?: string }) {
   const { isListening, toggle } = useSpeechRecognition(
     (transcript) => onChange(value ? value + " " + transcript : transcript),
   );
@@ -370,6 +370,7 @@ function VoiceTextarea({ value, onChange, placeholder }: { value: string; onChan
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
+        aria-label={ariaLabel}
         className="min-h-[80px] text-sm pr-10"
       />
       <button

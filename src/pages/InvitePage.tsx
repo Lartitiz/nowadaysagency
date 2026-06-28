@@ -126,9 +126,9 @@ export default function InvitePage() {
           <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center">
             <XCircle className="h-6 w-6 text-destructive" />
           </div>
-          <h2 className="font-display text-lg font-bold text-foreground mb-2">
+          <h1 className="font-display text-lg font-bold text-foreground mb-2">
             Invitation invalide
-          </h2>
+          </h1>
           <p className="text-sm text-muted-foreground mb-6">
             Cette invitation a expiré ou n'est plus valide.
           </p>
@@ -148,9 +148,9 @@ export default function InvitePage() {
           <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
             <CheckCircle2 className="h-6 w-6 text-primary" />
           </div>
-          <h2 className="font-display text-lg font-bold text-foreground mb-2">
+          <h1 className="font-display text-lg font-bold text-foreground mb-2">
             Bienvenue dans l'espace !
-          </h2>
+          </h1>
           <p className="text-sm text-muted-foreground">
             Redirection vers le tableau de bord…
           </p>
@@ -164,9 +164,9 @@ export default function InvitePage() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <Card className="max-w-md w-full p-8 text-center rounded-2xl border border-border">
         <div className="mx-auto mb-4 text-4xl">✉️</div>
-        <h2 className="font-display text-lg font-bold text-foreground mb-2">
+        <h1 className="font-display text-lg font-bold text-foreground mb-2">
           Tu es invité·e à rejoindre l'espace
-        </h2>
+        </h1>
         <p className="text-xl font-display font-bold text-primary mb-6">
           {invitation!.workspace_name}
         </p>
