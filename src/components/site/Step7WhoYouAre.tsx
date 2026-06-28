@@ -21,7 +21,7 @@ export default function Step7WhoYouAre({ data, save, callAI, aiLoading, aiResult
           <Sparkles className="h-4 w-4 mr-1" /> {aiLoading === "presentation" ? "Génération..." : "Générer ma présentation"}
         </Button>
         {typeof aiResults.presentation === "string" && (
-          <div className="rounded-xl bg-rose-pale p-3 text-sm mt-3 cursor-pointer hover:ring-2 ring-primary transition-all" onClick={() => save({ presentation_block: aiResults.presentation })}>{aiResults.presentation}</div>
+          <button type="button" className="w-full text-left rounded-xl bg-rose-pale p-3 text-sm mt-3 cursor-pointer hover:ring-2 ring-primary transition-all" onClick={() => save({ presentation_block: aiResults.presentation })}>{aiResults.presentation}</button>
         )}
         <Textarea className="mt-3 min-h-[150px]" placeholder="Ma présentation..." value={data.presentation_block} onChange={(e) => save({ presentation_block: e.target.value })} />
         <RedFlagsChecker content={data.presentation_block} onFix={(v) => save({ presentation_block: v })} />

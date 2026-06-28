@@ -264,7 +264,7 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
             const pct = Math.round(((p.current_month || 1) / 6) * 100);
             const isLoadingWs = loadingWsFor === p.client_user_id;
             return (
-              <div key={p.id} className="rounded-2xl border border-border bg-card p-5 cursor-pointer hover:border-primary/40 transition-colors" onClick={() => onSelectProgram(p.id)}>
+              <div key={p.id} className="rounded-2xl border border-border bg-card p-5 cursor-pointer hover:border-primary/40 transition-colors" role="button" tabIndex={0} onClick={() => onSelectProgram(p.id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelectProgram(p.id); } }}>
                 <div className="flex items-center justify-between mb-2">
                   <div>
                     <h3 className="font-display font-bold text-foreground flex items-center gap-2">
@@ -305,7 +305,7 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
             <div className="mt-8">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Programmes terminés</p>
               {completedPrograms.map(p => (
-                <div key={p.id} className="flex items-center justify-between py-2 border-b border-border last:border-0 cursor-pointer hover:bg-muted/30 rounded-lg px-2 transition-colors" onClick={() => onSelectProgram(p.id)}>
+                <div key={p.id} className="flex items-center justify-between py-2 border-b border-border last:border-0 cursor-pointer hover:bg-muted/30 rounded-lg px-2 transition-colors" role="button" tabIndex={0} onClick={() => onSelectProgram(p.id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelectProgram(p.id); } }}>
                   <span className="text-sm text-muted-foreground">{p.client_name} · Terminé</span>
                   <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
                 </div>

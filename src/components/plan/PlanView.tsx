@@ -231,7 +231,7 @@ function StepCard({ step, navigate, onToggleStep }: { step: PlanStep; navigate: 
             </p>
           )}
         </div>
-        <div className="flex-shrink-0 flex items-center gap-3" onClick={handleNavigate}>
+        <div className="flex-shrink-0 flex items-center gap-3" role="button" tabIndex={0} onClick={handleNavigate} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleNavigate(); } }}>
           {step.duration > 0 && (
             <span className="text-xs text-muted-foreground flex items-center gap-1">
               <Clock className="h-3 w-3" /> {step.duration} min

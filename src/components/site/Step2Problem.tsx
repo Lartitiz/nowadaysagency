@@ -27,7 +27,7 @@ export default function Step2Problem({ data, save, callAI, aiLoading, aiResults,
           {["empathique", "directe"].map((v) => aiResults.problem[v] && (
             <div key={v}>
               <p className="font-mono-ui text-2xs font-semibold text-primary mb-1">Version {v} :</p>
-              <div className="rounded-xl bg-rose-pale p-3 text-sm cursor-pointer hover:ring-2 ring-primary transition-all" onClick={() => save({ problem_block: aiResults.problem[v] })}>{aiResults.problem[v]}</div>
+              <button type="button" className="w-full text-left rounded-xl bg-rose-pale p-3 text-sm cursor-pointer hover:ring-2 ring-primary transition-all" onClick={() => save({ problem_block: aiResults.problem[v] })}>{aiResults.problem[v]}</button>
             </div>
           ))}
         </div>

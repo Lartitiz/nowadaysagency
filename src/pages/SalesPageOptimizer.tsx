@@ -277,7 +277,7 @@ export default function SalesPageOptimizer() {
 
             {/* Quick win */}
             {displayResult.quick_win && (
-              <div className="rounded-2xl border border-primary bg-rose-pale p-5 flex gap-4 items-start cursor-pointer" onClick={() => scrollToSection(displayResult.quick_win.section)}>
+              <div className="rounded-2xl border border-primary bg-rose-pale p-5 flex gap-4 items-start cursor-pointer" role="button" tabIndex={0} onClick={() => scrollToSection(displayResult.quick_win.section)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); scrollToSection(displayResult.quick_win.section); } }}>
                 <span className="flex items-center justify-center h-10 w-10 rounded-full bg-primary/10 text-primary shrink-0">
                   <Zap className="h-5 w-5" />
                 </span>

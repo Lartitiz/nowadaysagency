@@ -275,7 +275,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
             {persona.step_2_transformation && (
               <div><p className="text-sm font-semibold text-foreground mb-1">Sa transformation souhaitée</p><CollapsibleText text={persona.step_2_transformation} /></div>
             )}
-            <p className="text-xs text-muted-foreground">Certaines infos manquent. <span className="text-primary cursor-pointer" onClick={() => navigate("/branding/section?section=persona")}>Compléter →</span></p>
+            <p className="text-xs text-muted-foreground">Certaines infos manquent. <button type="button" className="text-primary cursor-pointer" onClick={() => navigate("/branding/section?section=persona")}>Compléter →</button></p>
           </SectionCard>
         ) : (
           <>
