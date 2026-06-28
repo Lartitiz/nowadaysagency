@@ -503,83 +503,58 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
         </label>
       </div>
 
-      {postCanal === "instagram" && (
-        <div className="space-y-2 rounded-[10px] border border-border p-3">
-          <p className="text-xs font-semibold text-foreground">🗓️ Publication automatique sur Instagram</p>
-          {!editingPost?.id ? (
-            <p className="text-xs text-muted-foreground">Enregistre le post et ajoute un visuel pour pouvoir programmer la publication.</p>
-          ) : publishStatus === "published" ? (
-            <p className="text-xs text-success">✅ Publié automatiquement sur Instagram{scheduledAt ? ` (programmé pour le ${new Date(scheduledAt).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" })})` : ""}.</p>
-          ) : publishStatus === "publishing" ? (
-            <p className="text-xs text-muted-foreground">⏳ Publication en cours…</p>
-          ) : publishStatus === "scheduled" ? (
-            <div className="space-y-2">
-              <p className="text-xs text-foreground">🗓️ Programmé pour le <strong>{scheduledAt ? new Date(scheduledAt).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" }) : "?"}</strong>. Instagram publiera ce post tout seul.</p>
-              <Button type="button" variant="outline" size="sm" onClick={handleCancelSchedule} disabled={savingSchedule} className="rounded-pill text-xs">Annuler la programmation</Button>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {publishStatus === "failed" && (
-                <p className="text-xs text-destructive">❌ Échec de la dernière tentative{publishError ? ` : ${publishError}` : ""}. Reprogramme pour réessayer.</p>
-              )}
-              <p className="text-xs text-muted-foreground">Choisis quand publier ce post ({igValidImages.length > 1 ? `carrousel de ${igValidImages.length} images` : "1 image"}) — il partira automatiquement.</p>
-              <div className="flex flex-wrap items-center gap-2">
-                <input
-                  type="datetime-local"
-                  value={scheduleInput}
-                  onChange={(e) => setScheduleInput(e.target.value)}
-                  className="rounded-[8px] border border-border bg-background px-2 py-1.5 text-xs text-foreground"
-                />
-                <Button type="button" size="sm" onClick={handleSchedulePublish} disabled={savingSchedule || igValidImages.length === 0} className="rounded-pill text-xs bg-primary text-primary-foreground hover:bg-primary/90">
-                  {savingSchedule ? "…" : "Programmer"}
-                </Button>
+      {/* Programmation auto IG/LinkedIn — un seul bloc paramétré par canal (avant : 2 copies quasi identiques). */}
+      {canSchedule && (() => {
+        const channelLabel = postCanal === "linkedin" ? "LinkedIn" : "Instagram";
+        const isReady = postCanal === "linkedin" ? !!linkedInText : igValidImages.length > 0;
+        const notReadyHintSave = postCanal === "linkedin"
+          ? "Enregistre le post et rédige son texte pour pouvoir programmer la publication."
+          : "Enregistre le post et ajoute un visuel pour pouvoir programmer la publication.";
+        const composeHint = postCanal === "linkedin"
+          ? "Choisis quand publier ce post texte — il partira automatiquement."
+          : `Choisis quand publier ce post (${igValidImages.length > 1 ? `carrousel de ${igValidImages.length} images` : "1 image"}) — il partira automatiquement.`;
+        const notReadyHintCompose = postCanal === "linkedin"
+          ? "Rédige le texte du post pour pouvoir programmer."
+          : "Ajoute au moins un visuel (image) pour pouvoir programmer.";
+        return (
+          <div className="space-y-2 rounded-[10px] border border-border p-3">
+            <p className="text-xs font-semibold text-foreground">🗓️ Publication automatique sur {channelLabel}</p>
+            {!editingPost?.id ? (
+              <p className="text-xs text-muted-foreground">{notReadyHintSave}</p>
+            ) : publishStatus === "published" ? (
+              <p className="text-xs text-success">✅ Publié automatiquement sur {channelLabel}{scheduledAt ? ` (programmé pour le ${new Date(scheduledAt).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" })})` : ""}.</p>
+            ) : publishStatus === "publishing" ? (
+              <p className="text-xs text-muted-foreground">⏳ Publication en cours…</p>
+            ) : publishStatus === "scheduled" ? (
+              <div className="space-y-2">
+                <p className="text-xs text-foreground">🗓️ Programmé pour le <strong>{scheduledAt ? new Date(scheduledAt).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" }) : "?"}</strong>. {channelLabel} publiera ce post tout seul.</p>
+                <Button type="button" variant="outline" size="sm" onClick={handleCancelSchedule} disabled={savingSchedule} className="rounded-pill text-xs">Annuler la programmation</Button>
               </div>
-              {igValidImages.length === 0 && (
-                <p className="text-[11px] text-muted-foreground">Ajoute au moins un visuel (image) pour pouvoir programmer.</p>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {postCanal === "linkedin" && (
-        <div className="space-y-2 rounded-[10px] border border-border p-3">
-          <p className="text-xs font-semibold text-foreground">🗓️ Publication automatique sur LinkedIn</p>
-          {!editingPost?.id ? (
-            <p className="text-xs text-muted-foreground">Enregistre le post et rédige son texte pour pouvoir programmer la publication.</p>
-          ) : publishStatus === "published" ? (
-            <p className="text-xs text-success">✅ Publié automatiquement sur LinkedIn{scheduledAt ? ` (programmé pour le ${new Date(scheduledAt).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" })})` : ""}.</p>
-          ) : publishStatus === "publishing" ? (
-            <p className="text-xs text-muted-foreground">⏳ Publication en cours…</p>
-          ) : publishStatus === "scheduled" ? (
-            <div className="space-y-2">
-              <p className="text-xs text-foreground">🗓️ Programmé pour le <strong>{scheduledAt ? new Date(scheduledAt).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" }) : "?"}</strong>. LinkedIn publiera ce post tout seul.</p>
-              <Button type="button" variant="outline" size="sm" onClick={handleCancelSchedule} disabled={savingSchedule} className="rounded-pill text-xs">Annuler la programmation</Button>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {publishStatus === "failed" && (
-                <p className="text-xs text-destructive">❌ Échec de la dernière tentative{publishError ? ` : ${publishError}` : ""}. Reprogramme pour réessayer.</p>
-              )}
-              <p className="text-xs text-muted-foreground">Choisis quand publier ce post texte — il partira automatiquement.</p>
-              <div className="flex flex-wrap items-center gap-2">
-                <input
-                  type="datetime-local"
-                  value={scheduleInput}
-                  onChange={(e) => setScheduleInput(e.target.value)}
-                  className="rounded-[8px] border border-border bg-background px-2 py-1.5 text-xs text-foreground"
-                />
-                <Button type="button" size="sm" onClick={handleSchedulePublish} disabled={savingSchedule || !linkedInText} className="rounded-pill text-xs bg-primary text-primary-foreground hover:bg-primary/90">
-                  {savingSchedule ? "…" : "Programmer"}
-                </Button>
+            ) : (
+              <div className="space-y-2">
+                {publishStatus === "failed" && (
+                  <p className="text-xs text-destructive">❌ Échec de la dernière tentative{publishError ? ` : ${publishError}` : ""}. Reprogramme pour réessayer.</p>
+                )}
+                <p className="text-xs text-muted-foreground">{composeHint}</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    type="datetime-local"
+                    value={scheduleInput}
+                    onChange={(e) => setScheduleInput(e.target.value)}
+                    className="rounded-[8px] border border-border bg-background px-2 py-1.5 text-xs text-foreground"
+                  />
+                  <Button type="button" size="sm" onClick={handleSchedulePublish} disabled={savingSchedule || !isReady} className="rounded-pill text-xs bg-primary text-primary-foreground hover:bg-primary/90">
+                    {savingSchedule ? "…" : "Programmer"}
+                  </Button>
+                </div>
+                {!isReady && (
+                  <p className="text-[11px] text-muted-foreground">{notReadyHintCompose}</p>
+                )}
               </div>
-              {!linkedInText && (
-                <p className="text-[11px] text-muted-foreground">Rédige le texte du post pour pouvoir programmer.</p>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+            )}
+          </div>
+        );
+      })()}
 
       {guide && (
         <Collapsible>

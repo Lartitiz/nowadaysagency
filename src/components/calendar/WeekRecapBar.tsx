@@ -6,9 +6,9 @@ interface Props {
 }
 
 const STATUS_LEGEND = [
-  { key: "idea", label: "À faire", color: "hsl(217, 91%, 60%)" },
-  { key: "drafting", label: "En cours", color: "hsl(38, 92%, 50%)" },
-  { key: "ready", label: "Prêt", color: "hsl(142, 71%, 45%)" },
+  { key: "idea", label: "À faire", color: "hsl(var(--info))" },
+  { key: "drafting", label: "En cours", color: "hsl(var(--warning))" },
+  { key: "ready", label: "Prêt", color: "hsl(var(--success))" },
   { key: "published", label: "Publié", color: "hsl(var(--muted-foreground))" },
 ];
 
