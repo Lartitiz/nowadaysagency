@@ -69,6 +69,15 @@ serve(async (req) => {
       case "check_credits":
         result = await handleCheckCredits(supabase);
         break;
+      case "subscription_activated":
+        result = { event, user_id, ...(await enqueueSequence(supabase, user_id, "subscription_activated")) };
+        break;
+      case "payment_failed":
+        result = { event, user_id, ...(await enqueueSequence(supabase, user_id, "payment_failed")) };
+        break;
+      case "subscription_cancelled":
+        result = { event, user_id, ...(await enqueueSequence(supabase, user_id, "subscription_cancelled")) };
+        break;
       case "process_queue":
         result = await handleProcessQueue(supabase, supabaseUrl, serviceRoleKey);
         break;
@@ -171,19 +180,24 @@ async function handleSignup(supabase: any, userId: string): Promise<any> {
 }
 
 async function handleCheckInactive(supabase: any): Promise<any> {
-  // Get users inactive for 7+ days
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 3600000).toISOString();
+  // Escalade d'inactivité : 7j → 14j → 30j. Chaque palier déclenche SA séquence une seule fois
+  // (alreadyQueued garde l'unicité par séquence), donc une inactive progresse 7d → 14d → 30d.
+  const now = Date.now();
+  const days = (d: number) => now - d * 24 * 3600000;
 
   const { data: users } = await supabase.auth.admin.listUsers({ perPage: 1000 });
   if (!users?.users?.length) return { event: "check_inactive", checked: 0, triggered: 0 };
 
   const inactiveUsers = users.users.filter(
-    (u: any) => u.last_sign_in_at && new Date(u.last_sign_in_at) < new Date(sevenDaysAgo)
+    (u: any) => u.last_sign_in_at && new Date(u.last_sign_in_at).getTime() < days(7)
   );
 
   let triggered = 0;
   for (const user of inactiveUsers) {
-    const result = await enqueueSequence(supabase, user.id, "inactive_7d");
+    const last = new Date(user.last_sign_in_at).getTime();
+    // On choisit le palier le plus élevé atteint ; les paliers inférieurs ont déjà été envoyés les jours précédents.
+    const triggerEvent = last < days(30) ? "inactive_30d" : last < days(14) ? "inactive_14d" : "inactive_7d";
+    const result = await enqueueSequence(supabase, user.id, triggerEvent);
     if (result.queued > 0) triggered++;
   }
 
