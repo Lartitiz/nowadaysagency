@@ -160,20 +160,20 @@ export default function AdminUsersTab() {
         .eq("role", "manager");
 
       if (myMemberships && myMemberships.length > 0) {
-        for (const m of myMemberships) {
-          const { data: clientMember } = await supabase
-            .from("workspace_members")
-            .select("user_id")
-            .eq("workspace_id", m.workspace_id)
-            .eq("user_id", u.user_id)
-            .eq("role", "owner")
-            .maybeSingle();
+        // Une seule requête : parmi les espaces que l'admin gère, lesquels ont cette cliente comme owner ?
+        const managerWsIds = myMemberships.map(m => m.workspace_id);
+        const { data: sharedWs } = await supabase
+          .from("workspace_members")
+          .select("workspace_id")
+          .eq("user_id", u.user_id)
+          .eq("role", "owner")
+          .in("workspace_id", managerWsIds)
+          .limit(1);
 
-          if (clientMember) {
-            await switchWorkspace(m.workspace_id);
-            navigate("/dashboard");
-            return;
-          }
+        if (sharedWs && sharedWs.length > 0) {
+          await switchWorkspace(sharedWs[0].workspace_id);
+          navigate("/dashboard");
+          return;
         }
       }
 
