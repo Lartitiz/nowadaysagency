@@ -86,6 +86,8 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
   const [canals, setCanals] = useState<Canal[]>(["instagram"]);
   const [activeCanal, setActiveCanal] = useState<Canal>("instagram");
   const [mediaUrls, setMediaUrls] = useState<string[]>([]);
+  // PDF d'origine conservé (URL publique) → publié en CARROUSEL natif sur LinkedIn.
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadLabel, setUploadLabel] = useState("Ajouter des visuels ou un PDF");
   const [mode, setMode] = useState<Mode>("place");
@@ -105,6 +107,7 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
     setCanals([start]);
     setActiveCanal(start);
     setMediaUrls([]);
+    setPdfUrl(null);
     setUploading(false);
     setMode("place");
     setSchedules({ instagram: { date: baseDate, time: "09:00" }, linkedin: { date: baseDate, time: "09:00" } });
@@ -190,6 +193,17 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
             toast(`PDF de ${totalPages} pages`, { description: `Seules les ${MAX_IMAGES} premières ont été importées (limite carrousel Instagram).` });
           }
           imageFiles.push(...pages);
+          // Conserve le PDF d'origine (carrousel natif LinkedIn).
+          if (file.size <= 100 * 1024 * 1024) {
+            try {
+              const pdfPath = `${session.user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.pdf`;
+              const { error: pdfErr } = await supabase.storage.from("calendar-media").upload(pdfPath, file, { contentType: "application/pdf" });
+              if (!pdfErr) {
+                const { data: pdfData } = supabase.storage.from("calendar-media").getPublicUrl(pdfPath);
+                if (pdfData?.publicUrl) setPdfUrl(pdfData.publicUrl);
+              }
+            } catch { /* le PDF d'origine est optionnel (fallback = images) */ }
+          }
         } else if (file.type.startsWith("image/")) {
           if (file.size > 10 * 1024 * 1024) { toast.error("Image trop lourde (max 10 Mo)"); continue; }
           imageFiles.push(file);
@@ -246,7 +260,7 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
       if (igValidImages.length === 0) return "Ajoute au moins un visuel pour Instagram.";
       if (igValidImages.length > 10) return "Instagram limite les carrousels à 10 images.";
     }
-    if (canals.includes("linkedin") && !captionOf("linkedin")) return "Écris le texte du post LinkedIn.";
+    if (canals.includes("linkedin") && !captionOf("linkedin") && !pdfUrl && igValidImages.length === 0) return "Ajoute un texte, une image ou un PDF pour LinkedIn.";
     if (mode === "schedule") {
       for (const c of canals) {
         const { date, time } = schedOf(c);
@@ -272,6 +286,11 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
       const rows = canals.map((c) => {
         const cap = captionOf(c);
         const { date, time } = schedOf(c);
+        // LinkedIn : si un PDF a été importé, on l'attache (carrousel natif) ; sinon les images.
+        // Instagram : toujours les images (IG ne publie pas de PDF).
+        const mediaForCanal = c === "linkedin" && pdfUrl
+          ? [...mediaUrls, pdfUrl] // images d'abord (vignette calendrier) + PDF en fin (publié en carrousel document)
+          : (mediaUrls.length > 0 ? mediaUrls : null);
         const row: any = {
           user_id: user.id,
           workspace_id: workspaceId !== user.id ? workspaceId : undefined,
@@ -281,8 +300,8 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
           canal: c,
           content_draft: cap || null,
           accroche: cap ? cap.split("\n").map((l) => l.trim()).find(Boolean)?.slice(0, 120) || null : null,
-          media_urls: mediaUrls.length > 0 ? mediaUrls : null,
-          format: c === "instagram" ? (igValidImages.length > 1 ? "carousel" : "post") : null,
+          media_urls: mediaForCanal,
+          format: c === "instagram" ? (igValidImages.length > 1 ? "carousel" : "post") : (pdfUrl ? "carousel" : "post"),
         };
         if (mode === "schedule") {
           row.scheduled_publish_at = new Date(`${date}T${time}`).toISOString();
@@ -404,11 +423,11 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
             ? (igValidImages.length > 1
                 ? `Carrousel de ${igValidImages.length} images · glisse les vignettes pour les réordonner`
                 : "1 image = post simple · jusqu'à 10 pour un carrousel. Un PDF est découpé en slides.")
-            : "Tes images partent aussi sur LinkedIn (post photo). Un PDF reste attaché pour référence."}
+            : "Sur LinkedIn : un PDF part en carrousel natif (qui se swipe), des images en post photo."}
         </p>
         <div className="flex items-start gap-1.5 rounded-[8px] bg-primary/5 border border-primary/15 px-2.5 py-1.5 text-2xs text-foreground">
           <span aria-hidden>↩️</span>
-          <span>Tu reviens de <strong>Canva</strong> ? Exporte ton design en <strong>PDF</strong> (ou en images) et dépose-le ici — il devient ton post.</span>
+          <span>Tu reviens de <strong>Canva</strong> ? Exporte ton design en <strong>PDF</strong> et dépose-le ici — carrousel sur Instagram <em>et</em> carrousel natif sur LinkedIn.</span>
         </div>
       </div>
 

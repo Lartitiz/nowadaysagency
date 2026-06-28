@@ -116,6 +116,92 @@ export function linkedInPermalink(urn: string): string {
   return `https://www.linkedin.com/feed/update/${urn}/`;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Carrousel natif LinkedIn = un DOCUMENT PDF publié via l'API versionnée /rest.
+// (Les images restent sur /v2/ugcPosts ; seuls les documents passent par /rest.)
+const LINKEDIN_VERSION = "202401";
+const REST_DOCUMENTS_INIT_URL = "https://api.linkedin.com/rest/documents?action=initializeUpload";
+const REST_POSTS_URL = "https://api.linkedin.com/rest/posts";
+
+/** Vrai si l'URL pointe vers un PDF (→ carrousel document LinkedIn). */
+export function isLinkedInPdfUrl(url: unknown): url is string {
+  return typeof url === "string" && /^https?:\/\//.test(url) && /\.pdf(\?|$)/i.test(url);
+}
+
+/**
+ * Échappe le texte pour le champ `commentary` de l'API /rest/posts (format « Little Text ») :
+ * les caractères réservés doivent être préfixés d'un backslash, sinon l'API rejette/affiche mal.
+ */
+function escapeLinkedInCommentary(text: string): string {
+  return (text || "").replace(/[\\|{}@\[\]()<>#*_~]/g, (ch) => "\\" + ch);
+}
+
+/**
+ * Publie un DOCUMENT (PDF) sur LinkedIn → s'affiche en CARROUSEL natif (swipe) dans le fil.
+ * Flux : /rest/documents initializeUpload → upload du PDF → /rest/posts content.media.
+ * Renvoie l'URN du post créé.
+ */
+export async function publishDocumentToLinkedIn(conn: any, text: string, pdfUrl: string, title?: string): Promise<string> {
+  const memberId = conn?.platform_account_id;
+  if (!memberId) throw new Error("Identifiant du membre LinkedIn manquant. Reconnecte LinkedIn.");
+  if (!isLinkedInPdfUrl(pdfUrl)) throw new Error("Aucun PDF valide à publier en carrousel LinkedIn.");
+  const author = `urn:li:person:${memberId}`;
+  const restHeaders = {
+    Authorization: `Bearer ${conn.access_token}`,
+    "Content-Type": "application/json",
+    "X-Restli-Protocol-Version": "2.0.0",
+    "LinkedIn-Version": LINKEDIN_VERSION,
+  };
+
+  // 1) Récupère le PDF.
+  const pdfRes = await fetch(pdfUrl);
+  if (!pdfRes.ok) throw new Error("PDF inaccessible pour la publication LinkedIn.");
+  const pdfBytes = new Uint8Array(await pdfRes.arrayBuffer());
+
+  // 2) initializeUpload : LinkedIn renvoie une uploadUrl + l'URN du document.
+  const initRes = await fetch(REST_DOCUMENTS_INIT_URL, {
+    method: "POST",
+    headers: restHeaders,
+    body: JSON.stringify({ initializeUploadRequest: { owner: author } }),
+  });
+  const initJson = await initRes.json().catch(() => ({}));
+  if (!initRes.ok) {
+    if (initRes.status === 401) throw new Error("Jeton LinkedIn expiré ou invalide. Reconnecte LinkedIn dans Paramètres > Connexions.");
+    throw new Error(initJson?.message || `Échec de l'init du document LinkedIn (HTTP ${initRes.status}).`);
+  }
+  const uploadUrl = initJson?.value?.uploadUrl;
+  const documentUrn = initJson?.value?.document;
+  if (!uploadUrl || !documentUrn) throw new Error("LinkedIn n'a pas renvoyé d'URL d'upload pour le document.");
+
+  // 3) Upload du PDF vers l'uploadUrl signée.
+  const upRes = await fetch(uploadUrl, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${conn.access_token}`, "Content-Type": "application/octet-stream" },
+    body: pdfBytes,
+  });
+  if (!upRes.ok) throw new Error(`Échec de l'envoi du PDF vers LinkedIn (HTTP ${upRes.status}).`);
+
+  // 4) Crée le post document (carrousel).
+  const payload = {
+    author,
+    commentary: escapeLinkedInCommentary((text || "").trim()),
+    visibility: "PUBLIC",
+    distribution: { feedDistribution: "MAIN_FEED", targetEntities: [], thirdPartyDistributionChannels: [] },
+    content: { media: { id: documentUrn, title: (title || "Carrousel").slice(0, 100) } },
+    lifecycleState: "PUBLISHED",
+    isReshareDisabledByAuthor: false,
+  };
+  const postRes = await fetch(REST_POSTS_URL, { method: "POST", headers: restHeaders, body: JSON.stringify(payload) });
+  if (!postRes.ok) {
+    const j = await postRes.json().catch(() => ({}));
+    if (postRes.status === 401) throw new Error("Jeton LinkedIn expiré ou invalide. Reconnecte LinkedIn dans Paramètres > Connexions.");
+    throw new Error(String(j?.message || `Publication du carrousel LinkedIn échouée (HTTP ${postRes.status}).`));
+  }
+  const urn = postRes.headers.get("x-restli-id") || postRes.headers.get("x-linkedin-id");
+  if (!urn) throw new Error("LinkedIn n'a pas renvoyé d'identifiant de post.");
+  return String(urn);
+}
+
 /**
  * Publie un post texte sur le profil LinkedIn du membre connecté.
  * Renvoie l'URN du post créé. Lève une Error avec un message lisible sinon.
