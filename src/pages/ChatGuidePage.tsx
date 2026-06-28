@@ -86,7 +86,7 @@ function TypingIndicator() {
       aria-label="Le coach rédige une réponse"
       role="status"
     >
-      <div className="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center text-white text-xs font-semibold" style={{ backgroundColor: "#fb3d80", fontFamily: "'IBM Plex Sans', sans-serif" }}>
+      <div className="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center text-white text-xs font-semibold" style={{ backgroundColor: "hsl(var(--primary))", fontFamily: "'IBM Plex Sans', sans-serif" }}>
         AC
       </div>
       <div className="bg-white rounded-2xl rounded-tl-lg shadow-[0_1px_4px_rgba(0,0,0,0.06)] px-4 py-3">
@@ -95,7 +95,7 @@ function TypingIndicator() {
             <motion.span
               key={i}
               className="w-2 h-2 rounded-full"
-              style={{ backgroundColor: "#fb3d80" }}
+              style={{ backgroundColor: "hsl(var(--primary))" }}
               animate={{ opacity: [0.3, 1, 0.3] }}
               transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.25 }}
             />
@@ -907,7 +907,7 @@ export default function ChatGuidePage() {
                       className={cn(
                         "px-4 py-3 whitespace-pre-wrap",
                         msg.role === "user"
-                          ? "text-foreground rounded-2xl rounded-tr-lg bg-[#FFD6E8]"
+                          ? "text-foreground rounded-2xl rounded-tr-lg bg-secondary"
                           : "bg-background rounded-2xl rounded-tl-lg shadow-[0_1px_4px_rgba(0,0,0,0.06)]"
                       )}
                       style={{

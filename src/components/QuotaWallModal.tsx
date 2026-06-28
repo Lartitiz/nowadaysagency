@@ -57,10 +57,10 @@ export default function QuotaWallModal({ open, onClose, plan, usage }: QuotaWall
       <DialogContent className="max-w-lg p-0 overflow-hidden border-0 gap-0">
         {/* Header gradient */}
         <div className="bg-gradient-to-b from-[#FFF4F8] to-white px-6 pt-8 pb-6 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#FB3D80]/10">
-            <Sparkles className="h-7 w-7 text-[#FB3D80]" />
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+            <Sparkles className="h-7 w-7 text-primary" />
           </div>
-          <h2 className="text-lg font-display font-semibold text-[#91014b]">
+          <h2 className="text-lg font-display font-semibold text-bordeaux">
             Tes crédits du mois sont utilisés
           </h2>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -123,7 +123,7 @@ export default function QuotaWallModal({ open, onClose, plan, usage }: QuotaWall
           {plan === "free" && (
             <button
               onClick={handleCtaClick}
-              className="w-full flex items-center justify-center gap-2 rounded-full bg-[#FB3D80] px-6 py-3 text-sm font-medium text-white hover:bg-[#e0326f] transition-colors shadow-md hover:shadow-lg"
+              className="w-full flex items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-medium text-white hover:bg-primary transition-colors shadow-md hover:shadow-lg"
             >
               <Sparkles className="h-4 w-4" />
               Passer à L'Assistant Com' — 300 crédits IA/mois

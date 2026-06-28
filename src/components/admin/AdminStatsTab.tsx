@@ -24,10 +24,10 @@ const PLAN_LABELS: Record<string, string> = {
 };
 
 const PLAN_COLORS: Record<string, string> = {
-  free: "#9CA3AF", outil: "#8B5CF6", binome: "#fb3d80", pro: "#3B82F6",
+  free: "#9CA3AF", outil: "#8B5CF6", binome: "hsl(var(--primary))", pro: "#3B82F6",
 };
 
-const PIE_COLORS = ["#fb3d80", "#8B5CF6", "#F59E0B", "#3B82F6", "#10B981", "#6366F1", "#EC4899"];
+const PIE_COLORS = ["hsl(var(--primary))", "#8B5CF6", "#F59E0B", "#3B82F6", "#10B981", "#6366F1", "#EC4899"];
 
 const CANAL_LABELS: Record<string, string> = {
   instagram: "Instagram", linkedin: "LinkedIn", pinterest: "Pinterest",
@@ -276,7 +276,7 @@ function OverviewSection({ stats }: { stats: StatsData }) {
             <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
             <YAxis allowDecimals={false} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={24} />
             <Tooltip contentStyle={tooltipStyle} />
-            <Area type="monotone" dataKey="count" stroke="#fb3d80" strokeWidth={2} fill="url(#signupFill)" name="Inscriptions" />
+            <Area type="monotone" dataKey="count" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#signupFill)" name="Inscriptions" />
           </AreaChart>
         </ResponsiveContainer>
       </ChartCard>
@@ -362,7 +362,7 @@ function BusinessSection({ stats }: { stats: StatsData }) {
             <FunnelStep label="Inscrites totales" value={stats.total_users} max={stats.total_users} color="#9CA3AF" />
             <FunnelStep label="Onboarding terminé" value={stats.onboarding_completed} max={stats.total_users} color="#8B5CF6" />
             <FunnelStep label="Actives ce mois (IA)" value={stats.active_this_month} max={stats.total_users} color="#F59E0B" />
-            <FunnelStep label="Abonnées payantes" value={stats.paid_users} max={stats.total_users} color="#fb3d80" />
+            <FunnelStep label="Abonnées payantes" value={stats.paid_users} max={stats.total_users} color="hsl(var(--primary))" />
           </div>
           {(stats.promo_users || 0) > 0 && (
             <div className="text-xs text-muted-foreground mt-3 pt-3 border-t">
@@ -454,7 +454,7 @@ function EngagementProductSection({ stats }: { stats: StatsData }) {
                 <XAxis type="number" hide />
                 <YAxis dataKey="label" type="category" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} width={90} />
                 <Tooltip contentStyle={tooltipStyle} />
-                <Bar dataKey="count" radius={[0, 6, 6, 0]} fill="#fb3d80" name="Brouillons" label={{ position: "right", fontSize: 12, fill: "hsl(var(--foreground))" }} />
+                <Bar dataKey="count" radius={[0, 6, 6, 0]} fill="hsl(var(--primary))" name="Brouillons" label={{ position: "right", fontSize: 12, fill: "hsl(var(--foreground))" }} />
               </BarChart>
             </ResponsiveContainer>
           )}

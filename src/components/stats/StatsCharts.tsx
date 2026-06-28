@@ -62,7 +62,7 @@ export default function StatsCharts({
                 <Legend />
                 <ReferenceLine y={0} stroke="hsl(var(--border))" />
                 <Bar dataKey="gained" stackId="g" fill="#34D399" name="Gagnés" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="lost" stackId="g" fill="#fb3d80" name="Perdus" radius={[0, 0, 4, 4]} />
+                <Bar dataKey="lost" stackId="g" fill="hsl(var(--primary))" name="Perdus" radius={[0, 0, 4, 4]} />
                 <Line type="monotone" dataKey="net" stroke="#8B5CF6" name="Net" strokeWidth={2.5} dot={{ r: 3 }} />
               </ComposedChart>
             </ResponsiveContainer>
@@ -79,7 +79,7 @@ export default function StatsCharts({
                 <YAxis fontSize={11} stroke="hsl(var(--muted-foreground))" />
                 <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))" }} />
                 <Legend />
-                <Line type="monotone" dataKey="reach" stroke="#fb3d80" name="Portée" strokeWidth={2.5} dot={{ r: 3 }} />
+                <Line type="monotone" dataKey="reach" stroke="hsl(var(--primary))" name="Portée" strokeWidth={2.5} dot={{ r: 3 }} />
                 <Line type="monotone" dataKey="profile_visits" stroke="#8B5CF6" name="Visites profil" strokeWidth={2} dot={{ r: 3 }} />
                 <Line type="monotone" dataKey="website_clicks" stroke="#FFE561" name="Clics site" strokeWidth={2} dot={{ r: 3 }} />
               </ComposedChart>
@@ -102,7 +102,7 @@ export default function StatsCharts({
                 <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))" }} />
                 <Legend />
                 {(activeConfig.traffic_sources || []).map((src, i) => {
-                  const colors = ["#fb3d80", "#8B5CF6", "#FFE561", "#ffa7c6", "#34D399", "#60A5FA", "#F59E0B", "#A78BFA", "#FB923C"];
+                  const colors = ["hsl(var(--primary))", "#8B5CF6", "#FFE561", "#ffa7c6", "#34D399", "#60A5FA", "#F59E0B", "#A78BFA", "#FB923C"];
                   const label = ALL_TRAFFIC_SOURCES.find(s => s.id === src)?.label || src;
                   return (
                     <Bar key={src} dataKey={`traffic_${src}`} stackId="a" fill={colors[i % colors.length]} name={label}

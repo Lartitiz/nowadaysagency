@@ -220,12 +220,12 @@ export default function StructureReviewStep({
       <div className="space-y-4">
         <h2
           className="text-xl"
-          style={{ fontFamily: "'Libre Baskerville', serif", color: "#91014b" }}
+          style={{ fontFamily: "'Libre Baskerville', serif", color: "hsl(var(--bordeaux))" }}
         >
           La structure proposée pour ton carrousel
         </h2>
 
-        <div className="bg-[#FFF4F8] border-l-[3px] border-[#FB3D80] p-4 rounded-xl">
+        <div className="bg-rose-pale border-l-[3px] border-primary p-4 rounded-xl">
           <p className="text-sm italic text-gray-600" style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}>
             {sanitizeInternalLabels(structureProposal.strategic_rationale)}
           </p>
@@ -266,7 +266,7 @@ export default function StructureReviewStep({
                   }
                   className={`relative w-14 h-14 rounded-lg overflow-hidden border-2 transition-all cursor-pointer flex-shrink-0 ${
                     selected
-                      ? "border-[#FB3D80] ring-2 ring-[#FB3D80]/30 opacity-100"
+                      ? "border-primary ring-2 ring-primary/30 opacity-100"
                       : assigned
                         ? "border-success opacity-60"
                         : "border-warning/30 opacity-100"
@@ -310,7 +310,7 @@ export default function StructureReviewStep({
             </div>
           )}
 
-          <p className={`mt-2 text-xs ${selectedPhotoIndex ? "text-[#FB3D80] font-medium animate-pulse" : "text-gray-400"}`}>
+          <p className={`mt-2 text-xs ${selectedPhotoIndex ? "text-primary font-medium animate-pulse" : "text-gray-400"}`}>
             {selectedPhotoIndex
               ? "Clique sur une slide pour y assigner cette photo"
               : "Clique sur une photo puis sur une slide pour l'assigner"}
@@ -328,13 +328,13 @@ export default function StructureReviewStep({
             }}
             className={`bg-white rounded-2xl shadow-sm border border-gray-100 p-5 transition-all ${
               selectedPhotoIndex !== null
-                ? "hover:border-[#FB3D80]/40 hover:shadow-md cursor-pointer"
+                ? "hover:border-primary/40 hover:shadow-md cursor-pointer"
                 : ""
             }`}
           >
             {/* A) Ligne du haut */}
             <div className="flex items-center gap-2">
-              <span className="bg-[#FB3D80] text-white text-xs font-medium px-2.5 py-0.5 rounded-full">
+              <span className="bg-primary text-white text-xs font-medium px-2.5 py-0.5 rounded-full">
                 {slide.slide_number}
               </span>
               <span className="bg-gray-100 text-gray-500 text-xs px-2 py-0.5 rounded-full">
@@ -445,7 +445,7 @@ export default function StructureReviewStep({
             onClick={addSlidesForAllOrphans}
             disabled={editableSlides.length >= 15}
             className="text-white hover:opacity-90 flex-shrink-0"
-            style={{ backgroundColor: "#FB3D80" }}
+            style={{ backgroundColor: "hsl(var(--primary))" }}
           >
             <Plus size={14} className="mr-1" />
             {unusedPhotoIndices.length === 1
@@ -473,7 +473,7 @@ export default function StructureReviewStep({
           </Button>
           <Button
             className="text-white hover:opacity-90 px-6"
-            style={{ backgroundColor: "#FB3D80" }}
+            style={{ backgroundColor: "hsl(var(--primary))" }}
             onClick={() => onConfirm(renumberedSlides)}
             disabled={isLoading}
           >

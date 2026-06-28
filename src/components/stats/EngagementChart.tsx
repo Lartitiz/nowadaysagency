@@ -20,7 +20,7 @@ export default function EngagementChart({ data }: EngagementChartProps) {
         />
         <Legend />
         <Line type="monotone" dataKey="engagement" stroke="#8B5CF6" name="Engagement / portée" strokeWidth={2.5} dot={{ r: 3 }} />
-        <Line type="monotone" dataKey="engagement_followers" stroke="#fb3d80" name="Engagement / abonné·es" strokeWidth={2} dot={{ r: 3 }} strokeDasharray="4 4" />
+        <Line type="monotone" dataKey="engagement_followers" stroke="hsl(var(--primary))" name="Engagement / abonné·es" strokeWidth={2} dot={{ r: 3 }} strokeDasharray="4 4" />
       </LineChart>
     </ResponsiveContainer>
   );
