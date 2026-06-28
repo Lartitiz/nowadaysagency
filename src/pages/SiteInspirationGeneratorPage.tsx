@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceId, useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useBrandCharter } from "@/hooks/use-branding";
 import { useAuth } from "@/contexts/AuthContext";
 import { friendlyError } from "@/lib/error-messages";
 import { Zap, Copy, Smartphone, Monitor, Palette, RefreshCw, ArrowRight, Sparkles } from "lucide-react";
@@ -58,6 +59,15 @@ export default function SiteInspirationGeneratorPage() {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
   const { column, value } = useWorkspaceFilter();
+  const { data: charter, isFetched: charterFetched } = useBrandCharter();
+
+  // Picker defaults seeded from the client's real brand charter (fallback to neutrals).
+  const brandDefaults = useMemo(() => ({
+    primary: charter?.color_primary || DEFAULT_COLORS.primary,
+    secondary: charter?.color_secondary || charter?.color_accent || DEFAULT_COLORS.secondary,
+    text: DEFAULT_COLORS.text,
+    bg: charter?.color_background || DEFAULT_COLORS.bg,
+  }), [charter]);
 
   const section = sectionType ? SECTION_TYPES[sectionType] : null;
 
@@ -71,7 +81,8 @@ export default function SiteInspirationGeneratorPage() {
   // variants/loaded on each section change — otherwise a section with no saved inspiration
   // keeps showing the previous section's variants.
   useEffect(() => {
-    if (!user?.id || !sectionType) return;
+    // Wait for the brand charter so uncustomized variants default to the real brand colors.
+    if (!user?.id || !sectionType || !charterFetched) return;
     let cancelled = false;
     setVariants([]);
     setLoaded(false);
@@ -89,7 +100,7 @@ export default function SiteInspirationGeneratorPage() {
         if (data && data.length > 0) {
           setVariants(
             data.map((row) => {
-              const colors = (row.custom_colors as any) ?? DEFAULT_COLORS;
+              const colors = (row.custom_colors as any) ?? brandDefaults;
               return {
                 id: row.id,
                 name: `Variante ${row.variant}`,
@@ -115,7 +126,7 @@ export default function SiteInspirationGeneratorPage() {
       }
     })();
     return () => { cancelled = true; };
-  }, [user?.id, sectionType, column, value]);
+  }, [user?.id, sectionType, column, value, charterFetched, brandDefaults]);
 
   const generate = useCallback(async () => {
     if (!sectionType) return;
@@ -147,7 +158,7 @@ export default function SiteInspirationGeneratorPage() {
         ...v,
         viewMode: "desktop" as const,
         showColors: false,
-        colors: { ...DEFAULT_COLORS },
+        colors: { ...brandDefaults },
         customHtml: v.html,
       }));
 
@@ -190,7 +201,7 @@ export default function SiteInspirationGeneratorPage() {
     } finally {
       setLoading(false);
     }
-  }, [sectionType, workspaceId, user?.id]);
+  }, [sectionType, workspaceId, user?.id, column, value, brandDefaults]);
 
   const copyHtml = async (html: string) => {
     try {
