@@ -126,7 +126,7 @@ export default function QuotaWallModal({ open, onClose, plan, usage }: QuotaWall
               className="w-full flex items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-medium text-white hover:bg-primary transition-colors shadow-md hover:shadow-lg"
             >
               <Sparkles className="h-4 w-4" />
-              Passer à L'Assistant Com' — 300 crédits IA/mois
+              Passer à L'Assistant Com' — création illimitée
               <ArrowRight className="h-4 w-4" />
             </button>
           )}

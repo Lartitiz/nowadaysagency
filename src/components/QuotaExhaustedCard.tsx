@@ -64,7 +64,7 @@ export default function QuotaExhaustedCard({
             onClick={() => navigate("/mon-plan")}
             className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-white hover:bg-primary transition-colors"
           >
-            Passer au Premium — 300 crédits/mois ✨
+            Passer au Premium — création illimitée ✨
           </button>
           <p className="text-xs text-muted-foreground mt-2">
             À partir de 39€/mois, sans engagement
