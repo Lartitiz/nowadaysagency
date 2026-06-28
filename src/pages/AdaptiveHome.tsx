@@ -16,6 +16,7 @@ import {
   Palette,
   Search,
   Rocket,
+  Upload,
 } from "lucide-react";
 
 import { useGuideRecommendation } from "@/hooks/use-guide-recommendation";
@@ -623,6 +624,25 @@ export default function AdaptiveHome() {
               </div>
             </button>
           </div>
+
+          {/* Programmer un contenu déjà prêt → import sur une date */}
+          <button
+            onClick={() => navigate("/calendrier?import=1")}
+            className="group mt-4 w-full text-left rounded-xl border border-border/60 bg-card p-4 flex items-center gap-3 hover:border-primary/30 hover:shadow-[var(--shadow-bento)] transition-all duration-200"
+          >
+            <div className="w-10 h-10 rounded-xl bg-rose-pale flex items-center justify-center shrink-0">
+              <Upload className="h-5 w-5 text-bordeaux" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-display text-base text-foreground leading-tight">
+                Programmer un contenu déjà prêt
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                Un visuel fait sur Canva ou ailleurs&nbsp;? Pose-le directement sur une date.
+              </p>
+            </div>
+            <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-bordeaux group-hover:translate-x-0.5 transition-all shrink-0" />
+          </button>
         </section>
 
         {/* Zone Approfondir — secondaire, allégée */}

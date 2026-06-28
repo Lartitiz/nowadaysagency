@@ -241,6 +241,15 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     if (searchParams.get("coaching") === "1") {
       setCoachingOpen(true);
     }
+    // Ouverture directe de l'import depuis le dashboard (/calendrier?import=1)
+    if (searchParams.get("import") === "1") {
+      const d = searchParams.get("date");
+      if (d) setImportDate(d);
+      setImportOpen(true);
+      const next = new URLSearchParams(searchParams);
+      next.delete("import");
+      navigate({ search: next.toString() }, { replace: true });
+    }
   }, [searchParams]);
 
   // Fetch all series names (for badge display)
