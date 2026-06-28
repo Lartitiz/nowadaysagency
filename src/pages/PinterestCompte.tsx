@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { Sparkles, Copy, Check } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -115,19 +114,37 @@ export default function PinterestCompte() {
 
   const copyText = (text: string, key: string) => { navigator.clipboard.writeText(text); setCopied(key); setTimeout(() => setCopied(null), 2000); };
 
+  // Badge « Fait / À faire » par section — même langage que le cadre Instagram/LinkedIn
+  const sectionBadge = (done: boolean) => (
+    <span className={`text-2xs font-semibold px-2 py-0.5 rounded-pill shrink-0 ${done ? "bg-success-bg text-success" : "bg-warning-bg text-warning"}`}>
+      {done ? "Fait" : "À faire"}
+    </span>
+  );
+
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
-        <SubPageHeader parentTo="/pinterest" parentLabel="Pinterest" currentLabel="Optimiser mon compte" useFromParam />
+        <SubPageHeader parentTo="/pinterest" parentLabel="Pinterest" currentLabel="Mon profil" useFromParam />
 
-         <h1 className="font-display text-2xl font-bold text-foreground mb-1">Optimise ton compte Pinterest</h1>
-         <p className="mt-1 text-base text-muted-foreground mb-8">Configure ton compte pro, ta photo, ton nom et ta bio pour que Pinterest te mette en avant.</p>
+        <h1 className="font-display text-2xl font-bold text-foreground">📌 Mon profil Pinterest</h1>
+        <p className="mt-2 text-sm text-muted-foreground mb-6">Optimise chaque élément de ton profil pour que Pinterest te mette en avant et t'envoie du trafic.</p>
+
+        {/* Progression — indicateur unifié (même cadre qu'Instagram & LinkedIn) */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between text-sm text-muted-foreground mb-1.5">
+            <span>Progression du profil</span>
+            <span><strong className="text-foreground">{completedCount}</strong> / 5 optimisés</span>
+          </div>
+          <div className="h-2 rounded-pill bg-muted overflow-hidden">
+            <div className="h-full bg-success transition-all" style={{ width: `${(completedCount / 5) * 100}%` }} />
+          </div>
+        </div>
 
         <div className="space-y-6">
           {/* 1. Pro account */}
           <section className="rounded-xl border border-border bg-card p-5 space-y-3">
-            <h3 className="font-display text-base font-bold">1. Passe en compte professionnel</h3>
+            <div className="flex items-center justify-between gap-2"><h3 className="font-display text-base font-bold">1. Passe en compte professionnel</h3>{sectionBadge(proAccountDone)}</div>
             <p className="text-sm text-muted-foreground">Le compte pro te donne accès aux statistiques et aux formats enrichis.</p>
             <Collapsible>
               <CollapsibleTrigger className="flex items-center gap-1 text-xs text-primary hover:underline"><ChevronDown className="h-3 w-3" /> Comment faire</CollapsibleTrigger>
@@ -138,14 +155,14 @@ export default function PinterestCompte() {
 
           {/* 2. Photo */}
           <section className="rounded-xl border border-border bg-card p-5 space-y-3">
-            <h3 className="font-display text-base font-bold">2. Ta photo de profil</h3>
+            <div className="flex items-center justify-between gap-2"><h3 className="font-display text-base font-bold">2. Ta photo de profil</h3>{sectionBadge(photoDone)}</div>
             <p className="text-sm text-muted-foreground">Soit ton logo, soit une photo de toi. Claire et alignée avec ton univers.</p>
             <div className="flex items-center gap-2"><Checkbox checked={photoDone} onCheckedChange={v => setPhotoDone(!!v)} /><span className="text-sm">✅ Ma photo de profil est à jour</span></div>
           </section>
 
           {/* 3. Name */}
           <section className="rounded-xl border border-border bg-card p-5 space-y-3">
-            <h3 className="font-display text-base font-bold">3. Ton nom + mot-clé</h3>
+            <div className="flex items-center justify-between gap-2"><h3 className="font-display text-base font-bold">3. Ton nom + mot-clé</h3>{sectionBadge(nameDone)}</div>
             <p className="text-sm text-muted-foreground">Sur Pinterest, ton nom apparaît partout. Ajoute un mot-clé principal pour être trouvée.</p>
             <div className="rounded-xl bg-rose-pale p-4 text-sm space-y-1.5">
               <span className="inline-block font-mono-ui text-2xs font-semibold uppercase tracking-wider bg-jaune text-[#2D2235] px-2.5 py-0.5 rounded-pill mb-1">📖 Exemple</span>
@@ -167,7 +184,7 @@ export default function PinterestCompte() {
 
           {/* 4. Bio */}
           <section className="rounded-xl border border-border bg-card p-5 space-y-3">
-            <h3 className="font-display text-base font-bold">4. Ta bio</h3>
+            <div className="flex items-center justify-between gap-2"><h3 className="font-display text-base font-bold">4. Ta bio</h3>{sectionBadge(bioDone)}</div>
             <p className="text-sm text-muted-foreground">Une phrase : qui tu es, ce que tu proposes, à qui tu t'adresses.</p>
             <div className="rounded-xl bg-rose-pale p-4 text-sm space-y-1.5">
               <span className="inline-block font-mono-ui text-2xs font-semibold uppercase tracking-wider bg-jaune text-[#2D2235] px-2.5 py-0.5 rounded-pill mb-1">📖 Exemple</span>
@@ -189,14 +206,14 @@ export default function PinterestCompte() {
 
           {/* 5. URL */}
           <section className="rounded-xl border border-border bg-card p-5 space-y-3">
-            <h3 className="font-display text-base font-bold">5. Ton URL</h3>
+            <div className="flex items-center justify-between gap-2"><h3 className="font-display text-base font-bold">5. Ton URL</h3>{sectionBadge(urlDone)}</div>
             <p className="text-sm text-muted-foreground">Ajoute le lien vers ton site ou ta boutique. C'est le but de Pinterest : ramener du trafic.</p>
             <Input aria-label="Ton URL Pinterest (site ou boutique)" value={websiteUrl} onChange={e => setWebsiteUrl(e.target.value)} placeholder="https://ton-site.com" />
             <div className="flex items-center gap-2"><Checkbox checked={urlDone} onCheckedChange={v => setUrlDone(!!v)} /><span className="text-sm">✅ Mon URL est ajoutée</span></div>
           </section>
         </div>
 
-        <Button onClick={save} className="mt-8 rounded-pill gap-2">💾 Enregistrer mon compte</Button>
+        <Button onClick={save} className="mt-8 rounded-pill gap-2">💾 Enregistrer mon profil</Button>
       </main>
     </div>
   );

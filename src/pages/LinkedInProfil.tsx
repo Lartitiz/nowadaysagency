@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Progress } from "@/components/ui/progress";
 import { friendlyError } from "@/lib/error-messages";
 import { handleQuotaError } from "@/lib/quota-error-handler";
 import { Sparkles, Copy, Check } from "lucide-react";
@@ -121,26 +120,41 @@ export default function LinkedInProfil() {
   const titleCharCount = title.length;
   const titleOverLimit = titleCharCount > 220;
 
+  // Badge « Fait / À faire » par section — même langage que le cadre Instagram/Pinterest
+  const sectionBadge = (done: boolean) => (
+    <span className={`text-2xs font-semibold px-2 py-0.5 rounded-pill mr-2 shrink-0 ${done ? "bg-success-bg text-success" : "bg-warning-bg text-warning"}`}>
+      {done ? "Fait" : "À faire"}
+    </span>
+  );
+
   if (loading) return <div className="flex min-h-screen items-center justify-center bg-background"><div className="flex gap-1"><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.16s" }} /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.32s" }} /></div></div>;
 
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
-        <SubPageHeader parentTo="/linkedin" parentLabel="LinkedIn" currentLabel="Optimiser mon profil" useFromParam />
+        <SubPageHeader parentTo="/linkedin" parentLabel="LinkedIn" currentLabel="Mon profil" useFromParam />
 
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="font-display text-2xl font-bold text-foreground">Optimise ton profil LinkedIn</h1>
+        <h1 className="font-display text-2xl font-bold text-foreground">💼 Mon profil LinkedIn</h1>
+        <p className="mt-2 text-sm text-muted-foreground mb-6">
+          Optimise chaque élément de ton profil. Chaque case cochée, c'est un profil qui inspire confiance.
+        </p>
+
+        {/* Progression — indicateur unifié (même cadre qu'Instagram & Pinterest) */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between text-sm text-muted-foreground mb-1.5">
+            <span>Progression du profil</span>
+            <span><strong className="text-foreground">{completedCount}</strong> / {TOTAL_SECTIONS} optimisés</span>
           </div>
-          <span className="font-mono-ui text-xs font-semibold text-primary bg-rose-pale px-3 py-1 rounded-pill">{completedCount}/{TOTAL_SECTIONS}</span>
+          <div className="h-2 rounded-pill bg-muted overflow-hidden">
+            <div className="h-full bg-success transition-all" style={{ width: `${(completedCount / TOTAL_SECTIONS) * 100}%` }} />
+          </div>
         </div>
-        <Progress value={(completedCount / TOTAL_SECTIONS) * 100} className="h-2 mb-8" />
 
         <Accordion type="multiple" defaultValue={["title"]} className="space-y-4">
           {/* Section 1: Title */}
           <AccordionItem value="title" className="rounded-xl border border-border bg-card px-5">
-            <AccordionTrigger className="font-display text-base font-bold">1. Ton titre</AccordionTrigger>
+            <AccordionTrigger className="font-display text-base font-bold"><span className="flex-1 text-left">1. Ton titre</span>{sectionBadge(titleDone)}</AccordionTrigger>
             <AccordionContent className="space-y-4 pb-5">
               <p className="text-sm text-muted-foreground">C'est la petite phrase sous ta photo. C'est elle qui donne envie de cliquer. Max 220 caractères, avec des mots-clés SEO.</p>
               <div className="rounded-xl bg-rose-pale p-4 text-sm space-y-2">
@@ -194,7 +208,7 @@ export default function LinkedInProfil() {
 
           {/* Section 2: URL */}
           <AccordionItem value="url" className="rounded-xl border border-border bg-card px-5">
-            <AccordionTrigger className="font-display text-base font-bold">2. Ton URL personnalisée</AccordionTrigger>
+            <AccordionTrigger className="font-display text-base font-bold"><span className="flex-1 text-left">2. Ton URL personnalisée</span>{sectionBadge(urlDone)}</AccordionTrigger>
             <AccordionContent className="space-y-4 pb-5">
               <p className="text-sm text-muted-foreground">Par défaut, ton URL LinkedIn c'est ton nom + une suite de chiffres. C'est moche et pas mémorisable.</p>
               <p className="text-sm text-muted-foreground">Astuce : va dans Profil → Modifier le profil public et l'URL. Garde une forme courte : initiale du prénom + nom.</p>
@@ -208,7 +222,7 @@ export default function LinkedInProfil() {
 
           {/* Section 3: Photo */}
           <AccordionItem value="photo" className="rounded-xl border border-border bg-card px-5">
-            <AccordionTrigger className="font-display text-base font-bold">3. Ta photo de profil</AccordionTrigger>
+            <AccordionTrigger className="font-display text-base font-bold"><span className="flex-1 text-left">3. Ta photo de profil</span>{sectionBadge(photoDone)}</AccordionTrigger>
             <AccordionContent className="space-y-4 pb-5">
               <p className="text-sm text-muted-foreground">Premier élément visible avec ton titre. Elle doit être professionnelle sans gommer tes singularités. Une bonne photo = jusqu'à 14x plus de vues.</p>
               <div className="space-y-2 text-sm">
@@ -230,7 +244,7 @@ export default function LinkedInProfil() {
 
           {/* Section 4: Banner */}
           <AccordionItem value="banner" className="rounded-xl border border-border bg-card px-5">
-            <AccordionTrigger className="font-display text-base font-bold">4. Ta bannière</AccordionTrigger>
+            <AccordionTrigger className="font-display text-base font-bold"><span className="flex-1 text-left">4. Ta bannière</span>{sectionBadge(bannerDone)}</AccordionTrigger>
             <AccordionContent className="space-y-4 pb-5">
               <p className="text-sm text-muted-foreground">La bannière permet au visiteur de comprendre immédiatement ton univers. Dimensions : <strong>1584×396 px</strong>.</p>
               <div className="rounded-xl bg-rose-pale p-4 text-sm space-y-1.5">
@@ -248,7 +262,7 @@ export default function LinkedInProfil() {
 
           {/* Section 5: Featured */}
           <AccordionItem value="featured" className="rounded-xl border border-border bg-card px-5">
-            <AccordionTrigger className="font-display text-base font-bold">5. 📌 Ma sélection (Featured)</AccordionTrigger>
+            <AccordionTrigger className="font-display text-base font-bold"><span className="flex-1 text-left">5. 📌 Ma sélection (Featured)</span>{sectionBadge(featuredDone)}</AccordionTrigger>
             <AccordionContent className="space-y-4 pb-5">
               <p className="text-sm text-muted-foreground">Épingle jusqu'à 5 contenus en haut de ton profil. C'est un espace stratégique que presque personne n'utilise.</p>
               <div className="space-y-2 text-sm">
@@ -270,7 +284,7 @@ export default function LinkedInProfil() {
 
           {/* Section 6: Creator Mode */}
           <AccordionItem value="creator" className="rounded-xl border border-border bg-card px-5">
-            <AccordionTrigger className="font-display text-base font-bold">6. 🎨 Mode Créateur·ice</AccordionTrigger>
+            <AccordionTrigger className="font-display text-base font-bold"><span className="flex-1 text-left">6. 🎨 Mode Créateur·ice</span>{sectionBadge(creatorModeDone)}</AccordionTrigger>
             <AccordionContent className="space-y-4 pb-5">
               <p className="text-sm text-muted-foreground">Le Creator Mode te donne accès à des outils d'audience (newsletter LinkedIn, bouton Suivre, analytics avancés).</p>
               <div className="space-y-2 text-sm">
