@@ -24,6 +24,18 @@ export interface IgPostMetrics {
   engagementRate?: number; // (likes+comments+saves+shares) / reach
 }
 
+export interface IgAudienceBucket {
+  label: string; // ex: "25-34", "Femmes", "Paris, Île-de-France", "FR"
+  value: number; // nb d'abonnés dans ce segment (compte, pas %)
+}
+
+export interface IgAudience {
+  age?: IgAudienceBucket[]; // tranches d'âge, triées desc
+  gender?: IgAudienceBucket[]; // genre (libellés FR)
+  cities?: IgAudienceBucket[]; // top villes
+  countries?: IgAudienceBucket[]; // top pays (codes ISO)
+}
+
 export interface IgLiveMetrics {
   followers?: number;
   follows?: number;
@@ -35,8 +47,42 @@ export interface IgLiveMetrics {
   avgEngagementRate?: number; // moyenne sur les posts mesurés
   topPosts: IgPostMetrics[]; // 3 meilleurs par engagement
   flopPosts: IgPostMetrics[]; // 3 moins bons par engagement
+  audience?: IgAudience; // démographie des abonnés (follower_demographics)
   fetchedAt: string;
   partial: boolean; // true si une partie des appels a échoué
+}
+
+const GENDER_LABELS_FR: Record<string, string> = {
+  F: "Femmes",
+  M: "Hommes",
+  U: "Non précisé",
+};
+
+// Récupère un découpage démographique des abonnés (age / gender / city / country)
+// via la métrique follower_demographics. Réservé aux comptes ≥ 100 abonnés ; chaque
+// appel est isolé et renvoie undefined si la donnée n'est pas exploitable.
+async function fetchDemographicBreakdown(
+  igId: string,
+  token: string,
+  breakdown: "age" | "gender" | "city" | "country",
+): Promise<IgAudienceBucket[] | undefined> {
+  const u = new URL(`${GRAPH}/${igId}/insights`);
+  u.searchParams.set("metric", "follower_demographics");
+  u.searchParams.set("period", "lifetime");
+  u.searchParams.set("metric_type", "total_value");
+  u.searchParams.set("breakdown", breakdown);
+  u.searchParams.set("access_token", token);
+  const json = await getJson(u);
+  const results = json?.data?.[0]?.total_value?.breakdowns?.[0]?.results;
+  if (!Array.isArray(results) || results.length === 0) return undefined;
+  const buckets = results
+    .map((r: any) => ({
+      label: String(r?.dimension_values?.[0] ?? "").trim(),
+      value: Number(r?.value) || 0,
+    }))
+    .filter((b: IgAudienceBucket) => b.label && b.value > 0)
+    .sort((a: IgAudienceBucket, b: IgAudienceBucket) => b.value - a.value);
+  return buckets.length ? buckets : undefined;
 }
 
 async function getJson(url: URL): Promise<any | null> {
@@ -96,6 +142,29 @@ export async function fetchInstagramInsights(
     result.mediaCount = base.media_count;
   } else {
     partial = true;
+  }
+
+  // 1bis. Démographie de l'audience (follower_demographics). L'API exige ≥ 100
+  //       abonnés, sinon elle renvoie une erreur → on ne tente qu'au-dessus du seuil.
+  //       C'est un bonus : un échec ici ne dégrade pas le reste (pas de partial).
+  if (typeof result.followers === "number" && result.followers >= 100) {
+    const [age, gender, cities, countries] = await Promise.all([
+      fetchDemographicBreakdown(igId, token, "age"),
+      fetchDemographicBreakdown(igId, token, "gender"),
+      fetchDemographicBreakdown(igId, token, "city"),
+      fetchDemographicBreakdown(igId, token, "country"),
+    ]);
+    const audience: IgAudience = {};
+    if (age?.length) audience.age = age;
+    if (gender?.length) {
+      audience.gender = gender.map((g) => ({
+        ...g,
+        label: GENDER_LABELS_FR[g.label] || g.label,
+      }));
+    }
+    if (cities?.length) audience.cities = cities.slice(0, 6);
+    if (countries?.length) audience.countries = countries.slice(0, 6);
+    if (Object.keys(audience).length) result.audience = audience;
   }
 
   // 2. Reach du compte sur 28 jours. (profile_views écarté : peu fiable dans cette

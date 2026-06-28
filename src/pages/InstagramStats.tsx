@@ -60,6 +60,7 @@ export default function InstagramStats() {
   // Connexion Instagram + récupération auto des stats via l'API (instagram-insights-fetch).
   const [igConnected, setIgConnected] = useState(false);
   const [fetchingLive, setFetchingLive] = useState(false);
+  const [audience, setAudience] = useState<{ age?: any[]; gender?: any[]; cities?: any[]; countries?: any[] } | null>(null);
 
   const [periodPreset, setPeriodPreset] = useState<PeriodPreset>("3_months");
   const [customFrom, setCustomFrom] = useState(() => monthKey(new Date(now.getFullYear(), now.getMonth() - 5, 1)));
@@ -310,6 +311,7 @@ export default function InstagramStats() {
         return;
       }
       const m = (data as any).metrics;
+      setAudience(m.audience || null);
       const target = currentMonthDate;
       const existing = allStats.find(s => s.month_date === target) || {};
       const patch: any = {};
@@ -390,6 +392,31 @@ export default function InstagramStats() {
   const handleConfigClick = useCallback((step: number) => {
     setShowOnboarding(true); setOnboardingStep(step); setConfig(null);
   }, []);
+
+  // Affiche un découpage d'audience (âge / genre / villes / pays) en % avec barres.
+  const renderAudienceGroup = (title: string, arr: any[] | undefined, n: number) => {
+    if (!arr || !arr.length) return null;
+    const total = arr.reduce((s, x) => s + (Number(x?.value) || 0), 0) || 1;
+    return (
+      <div className="space-y-1.5">
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{title}</p>
+        <ul className="space-y-1">
+          {arr.slice(0, n).map((x, i) => {
+            const pct = Math.round((Number(x?.value) || 0) / total * 100);
+            return (
+              <li key={i} className="flex items-center gap-2 text-sm">
+                <span className="w-28 shrink-0 truncate text-foreground" title={String(x.label)}>{x.label}</span>
+                <span className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                  <span className="block h-full bg-primary" style={{ width: `${pct}%` }} />
+                </span>
+                <span className="w-9 text-right text-xs text-muted-foreground tabular-nums">{pct}%</span>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    );
+  };
 
   /* ── ONBOARDING ── */
   if (showOnboarding && !config) {
@@ -592,6 +619,24 @@ export default function InstagramStats() {
             </Button>
           </div>
         )}
+
+        {/* ─── Audience réelle (démographie des abonnés) ─── */}
+        {audience && (audience.age?.length || audience.gender?.length || audience.cities?.length || audience.countries?.length) ? (
+          <div className="rounded-xl border border-border bg-card p-4 sm:p-5 space-y-3">
+            <h3 className="font-display text-sm font-bold text-foreground">
+              👥 Ton audience <span className="font-normal text-muted-foreground text-xs">— qui te suit sur Instagram</span>
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
+              {renderAudienceGroup("Âge", audience.age, 4)}
+              {renderAudienceGroup("Genre", audience.gender, 3)}
+              {renderAudienceGroup("Villes", audience.cities, 5)}
+              {renderAudienceGroup("Pays", audience.countries, 5)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Sers-t'en pour choisir tes sujets et ton ton. Données Instagram, calculées sur les abonnés identifiés (peut être &lt; ton total), à ±48 h.
+            </p>
+          </div>
+        ) : null}
 
         {/* ─── Tabs ─── */}
         <Tabs defaultValue="overview" className="space-y-5">
