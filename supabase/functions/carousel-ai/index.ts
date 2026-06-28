@@ -1046,6 +1046,14 @@ TEST DE PROFONDEUR (applique-le à chaque slide avant de retourner le JSON) :
 - Si la slide pourrait être écrite par n'importe qui sans expertise sur le sujet → elle manque de perspective → RÉÉCRIS
 ${deepeningCtx ? "- UTILISE les mots et exemples de l'utilisatrice dans les slides (anecdotes, vécu, arguments)" : ""}
 
+═══ CONTINUITÉ — LE FIL ENTRE LES SLIDES ═══
+
+Un carrousel n'est PAS une liste de slides indépendantes : c'est UNE histoire qui se déroule. Chaque slide s'enchaîne avec la précédente et appelle la suivante.
+- Chaque slide PROLONGE la pensée de la précédente (progression, montée en tension, retournement) — pas un nouveau sous-sujet déconnecté à chaque slide.
+- Crée de vrais ponts de sens d'une slide à l'autre : une idée lancée en slide N se résout, bascule ou s'approfondit en slide N+1. SANS connecteur mécanique plaqué ("Et donc…" sur chaque slide) — la continuité vient du SENS, pas d'une formule.
+- Le hook (slide 1) ouvre une tension qui ne se referme qu'à la toute fin. Garde un fil rouge tendu du début à la fin.
+- TEST DE CONTINUITÉ (applique-le avant de retourner le JSON) : lues d'affilée, les slides doivent sonner comme un récit continu. Si on peut intervertir deux slides sans que rien ne change → elles sont juxtaposées, pas enchaînées → RÉÉCRIS pour créer la progression.
+
 ═══ SCHÉMAS VISUELS (À DOSER — le narratif prime) ═══
 
 La force d'un carrousel vient du NARRATIF : affirmations fortes, récit, prises de position portées par une grande typographie. PAS de l'accumulation de schémas. Un carrousel peut très bien n'avoir AUCUN schéma — et c'est souvent mieux.
@@ -1065,6 +1073,7 @@ Types disponibles et QUAND les utiliser :
 
 2. "comparison" — Deux colonnes opposées (bon/mauvais, mythe/réalité, toi/les autres)
    { "type": "comparison", "left": { "label": "❌ Ce qu'on te dit", "items": ["Poste tous les jours", "Utilise 30 hashtags"] }, "right": { "label": "✅ Ce qui marche", "items": ["Poste quand t'as un truc à dire", "3-5 hashtags ciblés"] } }
+   ⚠️ ATTENTION "before_after" et "comparison" = les DEUX CADRES CÔTE À CÔTE qu'on voit sur TOUS les carrousels LinkedIn → effet "template générique". À ÉVITER par défaut. Pour une opposition (mythe/réalité, ce-qu'on-dit/ma-position, eux/toi), préfère QUASI TOUJOURS "objection_response" (version narrative VERTICALE, n°14 ci-dessous), beaucoup plus singulière. Ne garde "comparison"/"before_after" que pour une comparaison FACTUELLE serrée (chiffres, items concrets) où les deux colonnes apportent vraiment de la clarté.
 
 3. "timeline" — Progression chronologique ou étapes
    { "type": "timeline", "steps": [ { "label": "2019", "desc": "L'ère du bio-partout" }, { "label": "2022", "desc": "La crise du greenwashing" }, { "label": "2026", "desc": "L'éthique silencieuse" } ] }
@@ -1111,7 +1120,8 @@ Types disponibles et QUAND les utiliser :
 RÈGLE DE VALIDITÉ (tous schémas) : si tu ne peux pas remplir toutes les clés requises avec du contenu utile, N'UTILISE PAS ce schéma — préfère un autre type ou du texte pur. Pas de schéma à moitié rempli.
 
 QUAND utiliser un schéma :
-- Slide de comparaison (avant/après, bon/mauvais) → before_after ou comparison
+- Slide d'opposition / mythe vs réalité / ce-qu'on-dit vs ma-position → objection_response (vertical narratif) — PAS les deux cadres côte à côte
+- Slide de comparaison FACTUELLE serrée uniquement (chiffres/items concrets où 2 colonnes clarifient vraiment) → before_after ou comparison, à utiliser avec PARCIMONIE
 - Slide avec des chiffres → stats
 - Slide qui explique un process ou une évolution → timeline, flowchart, pyramid
 - Slide récap ou synthèse → checklist, icon_grid, matrix_2x2
