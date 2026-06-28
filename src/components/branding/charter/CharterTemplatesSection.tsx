@@ -103,7 +103,7 @@ export default function CharterTemplatesSection({
                 {isPdf ? (
                   <div className="w-full aspect-square rounded-xl border border-border bg-muted/40 flex flex-col items-center justify-center gap-1">
                     <svg className="h-8 w-8 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                    <span className="text-[9px] text-muted-foreground font-medium">PDF</span>
+                    <span className="text-2xs text-muted-foreground font-medium">PDF</span>
                   </div>
                 ) : (
                   <img
@@ -118,7 +118,7 @@ export default function CharterTemplatesSection({
                 >
                   <X className="h-3 w-3" />
                 </button>
-                <p className="text-[10px] text-muted-foreground mt-1 truncate">{t.name}</p>
+                <p className="text-2xs text-muted-foreground mt-1 truncate">{t.name}</p>
               </div>
             );
           })}

@@ -74,7 +74,7 @@ function DashboardCard({ icon, label, value, change, sub, help }: {
             {change.dir === "flat" ? "stable" : `${change.val > 0 ? "+" : ""}${change.val.toFixed(0)}%`}
           </span>
         )}
-        {sub && <p className="text-[11px] text-muted-foreground mt-0.5">{sub}</p>}
+        {sub && <p className="text-2xs text-muted-foreground mt-0.5">{sub}</p>}
       </CardContent>
     </Card>
   );

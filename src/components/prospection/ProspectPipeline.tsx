@@ -48,16 +48,16 @@ export default function ProspectPipeline({ prospects, stages, onSelect, onStageC
                           @{cleanPseudo(p.instagram_username)}
                         </span>
                         {p.activity && (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                          <span className="text-2xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
                             {p.activity}
                           </span>
                         )}
-                        {stale && <span className="text-[10px]">⚠️</span>}
+                        {stale && <span className="text-2xs">⚠️</span>}
                       </div>
                       {p.display_name && (
-                        <p className="text-[11px] text-muted-foreground">{p.display_name}</p>
+                        <p className="text-2xs text-muted-foreground">{p.display_name}</p>
                       )}
-                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                      <p className="text-2xs text-muted-foreground mt-0.5">
                         {p.last_interaction_at
                           ? `Dernier contact : il y a ${daysSince(p.last_interaction_at)} jour${daysSince(p.last_interaction_at) > 1 ? "s" : ""}`
                           : "Dernier contact : jamais"}
@@ -66,20 +66,20 @@ export default function ProspectPipeline({ prospects, stages, onSelect, onStageC
                     <div className="flex gap-1 shrink-0" onClick={e => e.stopPropagation()}>
                       <button
                         onClick={() => onWriteDm ? onWriteDm(p) : onSelect(p)}
-                        className="h-7 px-2 text-[11px] rounded-md hover:bg-accent text-foreground inline-flex items-center gap-1"
+                        className="h-7 px-2 text-2xs rounded-md hover:bg-accent text-foreground inline-flex items-center gap-1"
                       >
                         <MessageCircle className="h-3 w-3" />
                         <span className="hidden sm:inline">DM</span>
                       </button>
                       <button
                         onClick={() => onSelect(p)}
-                        className="h-7 px-2 text-[11px] rounded-md hover:bg-accent text-foreground inline-flex items-center gap-1"
+                        className="h-7 px-2 text-2xs rounded-md hover:bg-accent text-foreground inline-flex items-center gap-1"
                       >
                         📋
                       </button>
                       <InstagramLink
                         username={p.instagram_username}
-                        className="h-7 px-2 text-[11px] rounded-md hover:bg-accent text-foreground inline-flex items-center gap-1"
+                        className="h-7 px-2 text-2xs rounded-md hover:bg-accent text-foreground inline-flex items-center gap-1"
                         showCopy
                       >
                         <ExternalLink className="h-3 w-3" />

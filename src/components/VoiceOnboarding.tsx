@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Sparkles, Loader2, Check, Plus, X } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
 
 interface VoiceAnalysis {
@@ -26,7 +26,6 @@ interface VoiceOnboardingProps {
 export default function VoiceOnboarding({ onComplete, existingProfile }: VoiceOnboardingProps) {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
-  const { toast } = useToast();
   const [step, setStep] = useState<"input" | "review" | "done">(existingProfile ? "done" : "input");
   const [texts, setTexts] = useState<string[]>([""]);
   const [loading, setLoading] = useState(false);
@@ -51,7 +50,7 @@ export default function VoiceOnboarding({ onComplete, existingProfile }: VoiceOn
   const handleAnalyze = async () => {
     const validTexts = texts.filter(t => t.trim().length > 20);
     if (validTexts.length === 0) {
-      toast({ title: "Colle au moins un texte (min 20 caractères)", variant: "destructive" });
+      toast.error("Colle au moins un texte (min 20 caractères)");
       return;
     }
     setLoading(true);
@@ -65,7 +64,7 @@ export default function VoiceOnboarding({ onComplete, existingProfile }: VoiceOn
       setStep("review");
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(e) });
     }
     setLoading(false);
   };
@@ -101,12 +100,12 @@ export default function VoiceOnboarding({ onComplete, existingProfile }: VoiceOn
         });
       }
 
-      toast({ title: "✅ Profil de voix sauvegardé !" });
+      toast.success("✅ Profil de voix sauvegardé !");
       setStep("done");
       onComplete?.();
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(e) });
     }
     setLoading(false);
   };
@@ -136,7 +135,7 @@ export default function VoiceOnboarding({ onComplete, existingProfile }: VoiceOn
           ))}
         </div>
 
-        <p className="text-[11px] text-muted-foreground italic">
+        <p className="text-2xs text-muted-foreground italic">
           Ce profil est injecté dans toutes les générations IA pour reproduire ton style.
         </p>
       </div>

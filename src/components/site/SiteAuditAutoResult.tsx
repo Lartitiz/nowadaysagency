@@ -286,14 +286,14 @@ export default function SiteAuditAutoResult({
       {/* ── Header : Score global ── */}
       <div className="rounded-2xl border border-border bg-card p-8 flex flex-col items-center text-center">
         <ScoreCircle score={displayResult.score_global || 0} />
-        <p className="text-[11px] italic text-muted-foreground mt-2">Score de site : bonnes pratiques et conversion</p>
+        <p className="text-2xs italic text-muted-foreground mt-2">Score de site : bonnes pratiques et conversion</p>
         <p className="mt-4 text-sm text-muted-foreground max-w-lg">{displayResult.synthese}</p>
         <div className="mt-3 flex flex-wrap gap-2 justify-center">
-          <span className="inline-flex items-center text-[11px] font-semibold px-2.5 py-1 rounded-pill bg-muted text-muted-foreground">
+          <span className="inline-flex items-center text-2xs font-semibold px-2.5 py-1 rounded-pill bg-muted text-muted-foreground">
             📄 {displayResult.pages_analysees?.length || 1} page{(displayResult.pages_analysees?.length || 1) > 1 ? "s" : ""} analysée{(displayResult.pages_analysees?.length || 1) > 1 ? "s" : ""}
           </span>
           {displayResult.pages_en_erreur?.length > 0 && (
-            <span className="inline-flex items-center text-[11px] font-semibold px-2.5 py-1 rounded-pill bg-warning-bg text-warning">
+            <span className="inline-flex items-center text-2xs font-semibold px-2.5 py-1 rounded-pill bg-warning-bg text-warning">
               ⚠️ {displayResult.pages_en_erreur.length} page{displayResult.pages_en_erreur.length > 1 ? "s" : ""} en erreur
             </span>
           )}
@@ -380,7 +380,7 @@ export default function SiteAuditAutoResult({
                 <div className="flex-1 space-y-2">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h4 className="text-sm font-bold text-foreground">{prio.titre}</h4>
-                    <span className={`inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-pill ${
+                    <span className={`inline-flex items-center text-2xs font-semibold px-2 py-0.5 rounded-pill ${
                       prio.impact === "fort"
                         ? "bg-primary/10 text-primary"
                         : "bg-warning-bg text-warning"
@@ -424,7 +424,7 @@ export default function SiteAuditAutoResult({
                       {!viewingOld && prevPilier && (
                         <ScoreDiff current={pilier.score} previous={prevPilier.score} />
                       )}
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-pill ${badge.className}`}>
+                      <span className={`text-2xs font-semibold px-2 py-0.5 rounded-pill ${badge.className}`}>
                         {badge.label}
                       </span>
                       {isOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />}
@@ -580,12 +580,12 @@ export default function SiteAuditAutoResult({
                   </p>
                   <div className="flex flex-wrap gap-2 mt-1.5">
                     {action.module && (
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-muted text-muted-foreground">
+                      <span className="text-2xs font-semibold px-2 py-0.5 rounded-pill bg-muted text-muted-foreground">
                         {action.module}
                       </span>
                     )}
                     {action.temps_estime && (
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-muted text-muted-foreground">
+                      <span className="text-2xs font-semibold px-2 py-0.5 rounded-pill bg-muted text-muted-foreground">
                         ⏱️ {action.temps_estime}
                       </span>
                     )}

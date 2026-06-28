@@ -274,7 +274,7 @@ export default function BrandingImportBlock({ onResult, prefillLinks }: Props) {
               </label>
             ))}
           </div>
-          <p className="text-[11px] text-muted-foreground">Les profils publics seront analysés pour enrichir le branding.</p>
+          <p className="text-2xs text-muted-foreground">Les profils publics seront analysés pour enrichir le branding.</p>
         </div>
       )}
 

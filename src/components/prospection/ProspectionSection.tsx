@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
 import { Button } from "@/components/ui/button";
 import { Plus, MessageCircle, SkipForward } from "lucide-react";
@@ -61,7 +61,6 @@ export { STAGES };
 export default function ProspectionSection() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
-  const { toast } = useToast();
   const [prospects, setProspects] = useState<Prospect[]>([]);
   const [adding, setAdding] = useState(false);
   const [selectedProspect, setSelectedProspect] = useState<Prospect | null>(null);
@@ -96,13 +95,13 @@ export default function ProspectionSection() {
       .single();
     if (error) {
       console.error("Erreur technique:", error);
-      toast({ title: "Erreur", description: friendlyError(error), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(error) });
       return;
     }
     if (data) {
       setProspects(prev => [data as Prospect, ...prev]);
       setAdding(false);
-      toast({ title: "🎯 Prospect ajouté·e !" });
+      toast.success("🎯 Prospect ajouté·e !");
 
       const reminderDate = new Date();
       reminderDate.setDate(reminderDate.getDate() + 2);
@@ -120,7 +119,7 @@ export default function ProspectionSection() {
 
     if (updates.stage === "converted" && prevStage !== "converted") {
       setShowConfetti(true);
-      toast({ title: "🎉 Bravo ! Nouveau·elle client·e !" });
+      toast("🎉 Bravo ! Nouveau·elle client·e !");
       setTimeout(() => setShowConfetti(false), 4000);
     }
   };
@@ -177,7 +176,7 @@ export default function ProspectionSection() {
       next_reminder_text: `Vérifier si @${dmProspect.instagram_username} a répondu`,
     });
     setDmProspect(null);
-    toast({ title: "✅ Message noté dans l'historique !" });
+    toast.success("✅ Message noté dans l'historique !");
   };
 
   return (
@@ -196,7 +195,7 @@ export default function ProspectionSection() {
           {stageCounts.map(s => (
             <div key={s.key} className={`rounded-lg p-2.5 text-center ${s.color}`}>
               <div className="text-lg font-bold">{s.count}</div>
-              <div className="text-[10px] leading-tight">{s.label.split(" ").slice(1).join(" ")}</div>
+              <div className="text-2xs leading-tight">{s.label.split(" ").slice(1).join(" ")}</div>
             </div>
           ))}
         </div>
@@ -227,10 +226,10 @@ export default function ProspectionSection() {
                       <span className="text-muted-foreground text-xs"> · {p.next_reminder_text}</span>
                     )}
                   </span>
-                  <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px]" onClick={() => openDmForProspect(p)}>
+                  <Button size="sm" variant="ghost" className="h-7 px-2 text-2xs" onClick={() => openDmForProspect(p)}>
                     <MessageCircle className="h-3 w-3 mr-1" /> Générer un DM
                   </Button>
-                  <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px]" onClick={async () => {
+                  <Button size="sm" variant="ghost" className="h-7 px-2 text-2xs" onClick={async () => {
                     const tomorrow = new Date();
                     tomorrow.setDate(tomorrow.getDate() + 1);
                     await updateProspect(p.id, { next_reminder_at: tomorrow.toISOString() });
@@ -246,7 +245,7 @@ export default function ProspectionSection() {
 
           {/* Free DM button */}
           <div className="border-t border-primary/10 pt-2">
-            <p className="text-[11px] text-muted-foreground mb-2">Ou choisis un prospect dans le pipeline ci-dessous pour lui écrire un DM personnalisé.</p>
+            <p className="text-2xs text-muted-foreground mb-2">Ou choisis un prospect dans le pipeline ci-dessous pour lui écrire un DM personnalisé.</p>
           </div>
         </div>
       )}

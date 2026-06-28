@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Copy, Check, Pencil } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import type { BioLine, ElementStatus } from "./AuditVisualResult";
 
 const STATUS_DOT: Record<ElementStatus, string> = { ok: "🟢", improve: "🟡", critical: "🔴" };
@@ -28,7 +28,6 @@ interface Props {
 }
 
 export default function AuditBioBeforeAfter({ currentBio, lignes, proposedBio, recommendations, onAdoptBio }: Props) {
-  const { toast } = useToast();
   const [editableBio, setEditableBio] = useState(proposedBio);
   const [appliedRecs, setAppliedRecs] = useState<Set<number>>(new Set());
   const [copied, setCopied] = useState(false);
@@ -36,7 +35,7 @@ export default function AuditBioBeforeAfter({ currentBio, lignes, proposedBio, r
   const handleCopy = async () => {
     await navigator.clipboard.writeText(editableBio);
     setCopied(true);
-    toast({ title: "Bio copiée !" });
+    toast.success("Bio copiée !");
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -78,13 +77,13 @@ export default function AuditBioBeforeAfter({ currentBio, lignes, proposedBio, r
         <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">Avant / Après :</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="rounded-xl border border-border bg-muted/30 p-4">
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">AVANT</p>
+            <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">AVANT</p>
             <p className="text-sm text-foreground whitespace-pre-line">{currentBio}</p>
           </div>
           <div className="rounded-xl border-2 border-success/30 bg-success-bg/40 p-4">
-            <p className="text-[10px] font-semibold text-success uppercase tracking-wider mb-2">APRÈS (proposition)</p>
+            <p className="text-2xs font-semibold text-success uppercase tracking-wider mb-2">APRÈS (proposition)</p>
             <p className="text-sm text-foreground whitespace-pre-line">{editableBio}</p>
-            <p className="text-[10px] text-muted-foreground mt-2">{editableBio.length}/150 caractères</p>
+            <p className="text-2xs text-muted-foreground mt-2">{editableBio.length}/150 caractères</p>
           </div>
         </div>
       </div>

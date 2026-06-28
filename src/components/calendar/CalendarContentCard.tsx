@@ -111,7 +111,7 @@ export function CalendarContentCard({
 
   // Series badge — detailed variant: name + #ep, truncated
   const seriesBadgeDetailed = hasSeries ? (
-    <div className="inline-flex items-center gap-1 max-w-full bg-primary/10 text-primary text-[10px] font-semibold px-1.5 py-0.5 rounded-md mb-1">
+    <div className="inline-flex items-center gap-1 max-w-full bg-primary/10 text-primary text-2xs font-semibold px-1.5 py-0.5 rounded-md mb-1">
       <Tv className="h-2.5 w-2.5 shrink-0" />
       <span className="truncate" style={{ maxWidth: 110 }}>
         {seriesName || "Série"}
@@ -122,7 +122,7 @@ export function CalendarContentCard({
 
   // Series badge — compact variant: just episode number to save space
   const seriesBadgeCompact = hasSeries ? (
-    <span className="inline-flex items-center gap-0.5 bg-primary/10 text-primary text-[9px] font-semibold px-1 py-0 rounded leading-tight shrink-0">
+    <span className="inline-flex items-center gap-0.5 bg-primary/10 text-primary text-2xs font-semibold px-1 py-0 rounded leading-tight shrink-0">
       <Tv className="h-2 w-2" />
       {episodeNumber ? `#${episodeNumber}` : ""}
     </span>
@@ -235,7 +235,7 @@ export function CalendarContentCard({
               </div>
 
               {(commentCount || 0) > 0 && (
-                <span className="absolute bottom-1.5 right-1.5 text-[10px] bg-primary/10 text-primary font-semibold px-1.5 py-0.5 rounded-full">
+                <span className="absolute bottom-1.5 right-1.5 text-2xs bg-primary/10 text-primary font-semibold px-1.5 py-0.5 rounded-full">
                   💬 {commentCount}
                 </span>
               )}
@@ -280,7 +280,8 @@ export function CalendarContentCard({
               {seriesBadgeCompact}
             </div>
             {(commentCount || 0) > 0 && (
-              <span className="absolute bottom-0.5 right-0.5 text-[10px] bg-primary/10 text-primary font-semibold px-1 py-0 rounded-full leading-tight">
+              <span className="absolute bottom-0.5 right-0.5 text-2xs bg-primary/10 text-primary font-semibold px-1 py-0 rounded-full leading-tight">
+
                 💬{commentCount}
               </span>
             )}

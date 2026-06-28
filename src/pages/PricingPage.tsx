@@ -3,7 +3,7 @@ import { usePageSEO } from "@/hooks/use-page-seo";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, Navigate } from "react-router-dom";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
 import { useUserPlan } from "@/hooks/use-user-plan";
 import { STRIPE_PLANS } from "@/lib/stripe-config";
@@ -115,7 +115,6 @@ function CellValue({ value }: { value: boolean | string }) {
 export default function PricingPage() {
   const { user } = useAuth();
   const { plan, loading: planLoading } = useUserPlan();
-  const { toast } = useToast();
   const [checkoutLoading, setCheckoutLoading] = useState(false);
 
   usePageSEO({
@@ -142,7 +141,7 @@ export default function PricingPage() {
       if (data?.url) window.location.href = data.url;
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(e) });
     } finally {
       setCheckoutLoading(false);
     }
@@ -177,7 +176,7 @@ export default function PricingPage() {
       <main className="mx-auto max-w-6xl px-4 py-12 sm:py-16">
         {/* ── Header ── */}
         <div className="text-center mb-12">
-          <h1 className="font-display text-[28px] sm:text-[40px] font-bold text-foreground leading-tight">
+          <h1 className="font-display text-3xl sm:text-5xl font-bold text-foreground leading-tight">
             Un plan pour chaque étape
             <br />
             de ton projet

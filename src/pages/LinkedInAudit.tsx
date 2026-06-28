@@ -8,7 +8,7 @@ import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { Progress } from "@/components/ui/progress";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { Sparkles, Upload, X, Loader2, ArrowRight, ArrowLeft, ChevronRight, Download, RotateCcw } from "lucide-react";
 import AiLoadingIndicator from "@/components/AiLoadingIndicator";
@@ -109,7 +109,6 @@ function impactEmoji(impact: string) {
 
 export default function LinkedInAudit() {
   const { user } = useAuth();
-  const { toast } = useToast();
   const navigate = useNavigate();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
@@ -292,13 +291,13 @@ export default function LinkedInAudit() {
       } as any);
 
       setStep(5); // results
-      toast({ title: "Audit terminé ! 🎉" });
+      toast.success("Audit terminé ! 🎉");
     } catch (e: any) {
       const errStr = e?.message || String(e);
       if (/quota|crédit|limit_reached|limit/i.test(errStr)) {
         setQuotaExhausted({ message: "" });
       } else {
-        toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
+        toast.error("Erreur", { description: friendlyError(e) });
       }
     } finally {
       setAnalyzing(false);
@@ -337,7 +336,7 @@ export default function LinkedInAudit() {
                 >
                   <Upload className="h-5 w-5 text-muted-foreground mb-1" />
                   <p className="text-xs font-medium text-foreground">{zone.label}</p>
-                  <p className="text-[10px] text-muted-foreground">{zone.hint}</p>
+                  <p className="text-2xs text-muted-foreground">{zone.hint}</p>
                 </div>
                 <input
                   ref={(el) => { fileInputRefs.current[zone.type] = el; }}
@@ -515,7 +514,7 @@ export default function LinkedInAudit() {
             </div>
           </div>
           <Progress value={result.score_global} className="h-2.5 mb-1" />
-          <p className="text-[11px] italic text-muted-foreground text-center mb-3">Score LinkedIn : présence et stratégie</p>
+          <p className="text-2xs italic text-muted-foreground text-center mb-3">Score LinkedIn : présence et stratégie</p>
           {previousScore !== null && previousScore !== result.score_global && (
             <p className="text-sm text-muted-foreground">
               Audit précédent : {previousScore}/100 → {result.score_global > previousScore ? `+${result.score_global - previousScore} points 🎉` : `${result.score_global - previousScore} points`}
@@ -554,7 +553,7 @@ export default function LinkedInAudit() {
                 </span>
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <h4 className="text-[15px] font-semibold text-foreground leading-tight">{p.title}</h4>
+                    <h4 className="text-base font-semibold text-foreground leading-tight">{p.title}</h4>
                     <span className="text-xs">{impactEmoji(p.impact)}</span>
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">{p.why}</p>
@@ -640,7 +639,7 @@ export default function LinkedInAudit() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-medium text-foreground">{item.emoji} {item.label}</p>
-                      {i === 0 && <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-pill font-semibold">Priorité #1</span>}
+                      {i === 0 && <span className="text-2xs bg-primary/10 text-primary px-2 py-0.5 rounded-pill font-semibold">Priorité #1</span>}
                     </div>
                     <p className="text-xs text-muted-foreground">{item.score}/100</p>
                   </div>
@@ -684,7 +683,7 @@ export default function LinkedInAudit() {
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
         <SubPageHeader parentLabel="Mon LinkedIn" parentTo="/linkedin" currentLabel="Audit" useFromParam />
 
-        <h1 className="font-display text-[22px] sm:text-[26px] font-bold text-foreground mb-2">🔍 Audit de ton profil LinkedIn</h1>
+        <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-2">🔍 Audit de ton profil LinkedIn</h1>
         <p className="text-sm text-muted-foreground mb-6">
           L'IA analyse ton profil, ton contenu, ta stratégie et ton réseau pour te donner un score et des priorités d'action.
         </p>
@@ -705,7 +704,7 @@ export default function LinkedInAudit() {
                 }`}>
                   {i < step ? "✓" : i + 1}
                 </div>
-                <span className="text-[10px] font-medium text-muted-foreground hidden sm:inline">{s}</span>
+                <span className="text-2xs font-medium text-muted-foreground hidden sm:inline">{s}</span>
                 {i < STEPS.length - 1 && <div className={`flex-1 h-0.5 ${i < step ? "bg-primary" : "bg-border"}`} />}
               </div>
             ))}

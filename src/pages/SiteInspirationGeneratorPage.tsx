@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceId, useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { useAuth } from "@/contexts/AuthContext";
@@ -145,9 +145,9 @@ export default function SiteInspirationGeneratorPage() {
         setVariants([...newVariants]);
       }
 
-      toast({ title: "Templates générés ! 🎨", description: "Tes 2 variantes sont prêtes." });
+      toast.success("Templates générés ! 🎨", { description: "Tes 2 variantes sont prêtes." });
     } catch (err) {
-      toast({ title: "Erreur", description: friendlyError(err), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(err) });
     } finally {
       setLoading(false);
     }
@@ -155,7 +155,7 @@ export default function SiteInspirationGeneratorPage() {
 
   const copyHtml = (html: string) => {
     navigator.clipboard.writeText(html);
-    toast({ title: "📋 HTML copié !", description: "Colle-le dans ton éditeur de site." });
+    toast.success("📋 HTML copié !", { description: "Colle-le dans ton éditeur de site." });
   };
 
   const updateColor = (index: number, key: keyof SavedVariant["colors"], value: string) => {

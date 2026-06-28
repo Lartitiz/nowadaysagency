@@ -70,7 +70,7 @@ function FileUploadGrid({ files, onAdd, onRemove, maxFiles = 5, label }: {
             >
               <X className="h-3 w-3" />
             </button>
-            <span className="absolute bottom-1 left-1 text-[9px] bg-background/80 rounded px-1 py-0.5">✅</span>
+            <span className="absolute bottom-1 left-1 text-2xs bg-background/80 rounded px-1 py-0.5">✅</span>
           </div>
         ))}
         {files.length < maxFiles && (
@@ -79,7 +79,7 @@ function FileUploadGrid({ files, onAdd, onRemove, maxFiles = 5, label }: {
             className="w-24 h-24 rounded-xl border-2 border-dashed border-border bg-muted/20 flex flex-col items-center justify-center gap-1 hover:border-primary/50 transition-colors"
           >
             <ImagePlus className="h-5 w-5 text-muted-foreground" />
-            <span className="text-[10px] text-muted-foreground">Ajouter</span>
+            <span className="text-2xs text-muted-foreground">Ajouter</span>
           </button>
         )}
       </div>

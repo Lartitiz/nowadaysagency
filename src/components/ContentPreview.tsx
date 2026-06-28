@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Copy, Check, RotateCcw } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import EditableTextStandalone from "@/components/EditableText";
 import { formatSlideRole } from "@/lib/slide-roles";
@@ -116,7 +116,6 @@ function EditableText({ value, onSave, className = "", placeholder = "" }: { val
 
 /* ─── Reel Preview ─── */
 function ReelPreview({ data, compact, editable, onContentChange }: { data: any; compact: boolean; editable?: boolean; onContentChange?: (d: any) => void }) {
-  const { toast } = useToast();
   const [localData, setLocalData] = useState(data);
 
   useEffect(() => { setLocalData(data); }, [data]);
@@ -135,13 +134,13 @@ function ReelPreview({ data, compact, editable, onContentChange }: { data: any; 
       `[${s.timing}] ${s.section?.toUpperCase()}\n"${s.texte_parle}"${s.texte_overlay ? `\n📝 ${s.texte_overlay}` : ""}`
     ).join("\n\n───\n\n") || "";
     navigator.clipboard.writeText(text);
-    toast({ title: "Script copié !" });
+    toast.success("Script copié !");
   };
 
   const handleCopyCaption = () => {
     if (localData.caption) {
       navigator.clipboard.writeText(`${localData.caption.text}\n\n${localData.caption.cta}\n\n${localData.hashtags?.join(" ") || ""}`);
-      toast({ title: "Caption copiée !" });
+      toast.success("Caption copiée !");
     }
   };
 
@@ -285,7 +284,6 @@ function ReelPreview({ data, compact, editable, onContentChange }: { data: any; 
 
 /* ─── Stories Preview ─── */
 function StoriesPreview({ data, compact, editable, onContentChange }: { data: any; compact: boolean; editable?: boolean; onContentChange?: (d: any) => void }) {
-  const { toast } = useToast();
   const [localData, setLocalData] = useState(data);
   const storiesKey = localData.stories ? "stories" : "sequence";
   const stories = localData[storiesKey] || [];
@@ -328,7 +326,7 @@ function StoriesPreview({ data, compact, editable, onContentChange }: { data: an
       `${s.timing_emoji || ""} STORY ${s.number} · ${s.role || s.format || ""}\n${s.format_label || s.format || ""}\n\n${s.text}${s.sticker ? `\n🎯 ${s.sticker.label}${s.sticker.options ? ` → ${s.sticker.options.join(" / ")}` : ""}` : ""}`
     ).join("\n\n───\n\n");
     navigator.clipboard.writeText(text);
-    toast({ title: "Séquence copiée !" });
+    toast.success("Séquence copiée !");
   };
 
   return (
@@ -399,7 +397,6 @@ function StoriesPreview({ data, compact, editable, onContentChange }: { data: an
 
 /* ─── Carousel Preview ─── */
 function CarouselPreview({ data, compact, editable, onContentChange }: { data: any; compact: boolean; editable?: boolean; onContentChange?: (d: any) => void }) {
-  const { toast } = useToast();
   const [localData, setLocalData] = useState(data);
   const slides = localData.slides || [];
   const caption = localData.caption;
@@ -446,7 +443,7 @@ function CarouselPreview({ data, compact, editable, onContentChange }: { data: a
     }).join("\n\n───\n\n");
     const captionText = caption ? `\n\n📝 LÉGENDE\n${[caption.hook, caption.body, caption.cta].filter(Boolean).join("\n")}` : "";
     navigator.clipboard.writeText(text + captionText);
-    toast({ title: "Slides copiées !" });
+    toast.success("Slides copiées !");
   };
 
   return (
@@ -506,7 +503,7 @@ function CarouselPreview({ data, compact, editable, onContentChange }: { data: a
               ) : (
                 <p className="text-xs text-muted-foreground italic">(Photo seule)</p>
               )}
-              {slide.overlay_position && <span className="text-[10px] text-muted-foreground">{slide.overlay_position.replace(/_/g, " ")}</span>}
+              {slide.overlay_position && <span className="text-2xs text-muted-foreground">{slide.overlay_position.replace(/_/g, " ")}</span>}
             </>
           ) : (
             <>
@@ -634,7 +631,7 @@ function FallbackPreview({ data, editable, onContentChange }: { data: any; edita
           {chipEntries.map(([key, val]) => (
             <span
               key={key}
-              className="inline-flex items-center gap-1 rounded-pill bg-muted px-2 py-0.5 text-[10px] font-mono-ui text-foreground/80"
+              className="inline-flex items-center gap-1 rounded-pill bg-muted px-2 py-0.5 text-2xs font-mono-ui text-foreground/80"
             >
               <span className="uppercase tracking-wide text-muted-foreground">{formatLabel(key)}</span>
               <span className="text-foreground">{val}</span>
@@ -650,7 +647,7 @@ function FallbackPreview({ data, editable, onContentChange }: { data: any; edita
               key={key}
               className={idx > 0 ? "border-t border-border/40 pt-3" : ""}
             >
-              <p className="text-[11px] font-mono-ui uppercase tracking-wide text-muted-foreground mb-1">
+              <p className="text-2xs font-mono-ui uppercase tracking-wide text-muted-foreground mb-1">
                 {formatLabel(key)}
               </p>
               {renderValue(key, val)}

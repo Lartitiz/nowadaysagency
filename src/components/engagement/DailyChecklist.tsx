@@ -50,7 +50,7 @@ export default function DailyChecklist({ date, isLaunching, items, checked, onTo
           ✅ Ma routine engagement
         </h2>
         {isLaunching && (
-          <span className="text-[10px] font-mono bg-primary/10 text-primary px-2 py-0.5 rounded-full">🚀 Lancement</span>
+          <span className="text-2xs font-mono bg-primary/10 text-primary px-2 py-0.5 rounded-full">🚀 Lancement</span>
         )}
         <span className="ml-auto text-xs text-muted-foreground">{date}</span>
       </div>
@@ -75,7 +75,7 @@ export default function DailyChecklist({ date, isLaunching, items, checked, onTo
                   </button>
                 )}
               </p>
-              <p className="text-[11px] text-muted-foreground italic mt-0.5">💡 {item.tip}</p>
+              <p className="text-2xs text-muted-foreground italic mt-0.5">💡 {item.tip}</p>
             </div>
           </label>
         ))}

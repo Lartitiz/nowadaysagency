@@ -1,7 +1,7 @@
 import { useRef, useState, useCallback } from "react";
 import { Upload, FileText, X, Plus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 export interface UploadedFile {
@@ -24,7 +24,6 @@ interface CrosspostFileUploaderProps {
 const ACCEPTED_TYPES = ["image/png", "image/jpeg", "image/webp", "application/pdf"];
 
 export default function CrosspostFileUploader({ files, onFilesChange, maxFiles = 10, disabled }: CrosspostFileUploaderProps) {
-  const { toast } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
 
@@ -32,14 +31,14 @@ export default function CrosspostFileUploader({ files, onFilesChange, maxFiles =
     const arr = Array.from(incoming);
     const remaining = maxFiles - files.length;
     if (remaining <= 0) {
-      toast({ title: "Limite atteinte", description: `Maximum ${maxFiles} fichiers.`, variant: "destructive" });
+      toast.error("Limite atteinte", { description: `Maximum ${maxFiles} fichiers.` });
       return;
     }
 
     const valid: UploadedFile[] = [];
     for (const f of arr.slice(0, remaining)) {
       if (!ACCEPTED_TYPES.includes(f.type)) {
-        toast({ title: "Type non supporté", description: `${f.name} n'est pas un PNG, JPG, WEBP ou PDF.`, variant: "destructive" });
+        toast.error("Type non supporté", { description: `${f.name} n'est pas un PNG, JPG, WEBP ou PDF.` });
         continue;
       }
       const isImage = f.type.startsWith("image/");
@@ -53,7 +52,7 @@ export default function CrosspostFileUploader({ files, onFilesChange, maxFiles =
       });
     }
     if (valid.length) onFilesChange([...files, ...valid]);
-  }, [files, maxFiles, onFilesChange, toast]);
+  }, [files, maxFiles, onFilesChange]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -110,7 +109,7 @@ export default function CrosspostFileUploader({ files, onFilesChange, maxFiles =
                     <FileText className="h-8 w-8 text-muted-foreground" />
                   </div>
                 )}
-                <p className="text-[10px] text-muted-foreground truncate px-1.5 py-1">{f.name}</p>
+                <p className="text-2xs text-muted-foreground truncate px-1.5 py-1">{f.name}</p>
                 {f.uploading && (
                   <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
                     <Loader2 className="h-5 w-5 animate-spin text-primary" />

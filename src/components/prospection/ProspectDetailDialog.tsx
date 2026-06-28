@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
@@ -32,7 +32,6 @@ function getUsername(p: Prospect) { return p.instagram_username || p.username ||
 
 export default function ProspectDetailDialog({ prospect, open, onOpenChange, onUpdate, onDelete }: Props) {
   const { user } = useAuth();
-  const { toast } = useToast();
   const [interactions, setInteractions] = useState<ProspectInteraction[]>([]);
   const [showDmGen, setShowDmGen] = useState(false);
   const [addingInteraction, setAddingInteraction] = useState(false);
@@ -102,7 +101,7 @@ export default function ProspectDetailDialog({ prospect, open, onOpenChange, onU
 
   const EditableField = ({ field, label, value }: { field: string; label: string; value: string | null }) => (
     <div className="space-y-1">
-      <label htmlFor={`prospect-edit-${field}`} className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</label>
+      <label htmlFor={`prospect-edit-${field}`} className="text-2xs font-semibold text-muted-foreground uppercase tracking-wide">{label}</label>
       {editField === field ? (
         <div className="flex gap-1">
           <Input
@@ -177,7 +176,7 @@ export default function ProspectDetailDialog({ prospect, open, onOpenChange, onU
                 next_reminder_text: reminderText,
               });
               setShowDmGen(false);
-              toast({ title: "✅ Message noté dans l'historique !" });
+              toast.success("✅ Message noté dans l'historique !");
             }}
           />
         </DialogContent>
@@ -211,7 +210,7 @@ export default function ProspectDetailDialog({ prospect, open, onOpenChange, onU
           <EditableField field="strengths" label="Ce qu'elle fait bien" value={prospect.strengths} />
           <EditableField field="probable_problem" label="Son problème probable" value={prospect.probable_problem} />
           <EditableField field="relevant_offer" label="Offre pertinente" value={prospect.relevant_offer} />
-          <p className="text-[10px] text-muted-foreground italic">💡 Plus tu remplis ces infos, plus l'IA personnalisera les messages.</p>
+          <p className="text-2xs text-muted-foreground italic">💡 Plus tu remplis ces infos, plus l'IA personnalisera les messages.</p>
         </div>
 
         {/* Decision phase */}
@@ -222,7 +221,7 @@ export default function ProspectDetailDialog({ prospect, open, onOpenChange, onU
               <button
                 key={ph.key}
                 onClick={() => onUpdate({ decision_phase: ph.key })}
-                className={`text-[11px] px-3 py-1 rounded-full border transition-all ${
+                className={`text-2xs px-3 py-1 rounded-full border transition-all ${
                   prospect.decision_phase === ph.key
                     ? "bg-primary text-primary-foreground border-primary"
                     : "bg-card border-border text-muted-foreground hover:border-primary/40"
@@ -243,7 +242,7 @@ export default function ProspectDetailDialog({ prospect, open, onOpenChange, onU
               <button
                 key={s.key}
                 onClick={() => onUpdate({ stage: s.key })}
-                className={`text-[11px] px-3 py-1 rounded-full border transition-all ${
+                className={`text-2xs px-3 py-1 rounded-full border transition-all ${
                   prospect.stage === s.key
                     ? "bg-primary text-primary-foreground border-primary"
                     : "bg-card border-border text-muted-foreground hover:border-primary/40"
@@ -256,7 +255,7 @@ export default function ProspectDetailDialog({ prospect, open, onOpenChange, onU
 
           {prospect.stage === "converted" && (
             <div className="mt-2">
-              <label htmlFor="prospect-conversion-amount" className="text-[11px] text-muted-foreground">Montant de la conversion (€)</label>
+              <label htmlFor="prospect-conversion-amount" className="text-2xs text-muted-foreground">Montant de la conversion (€)</label>
               {editField === "conversion_amount" ? (
                 <div className="flex gap-1 mt-1">
                   <Input
@@ -291,7 +290,7 @@ export default function ProspectDetailDialog({ prospect, open, onOpenChange, onU
             <p className="text-xs text-muted-foreground italic">Pas encore d'interaction. La première viendra vite 🌱</p>
           )}
           {interactions.map(i => (
-            <div key={i.id} className="text-[11px] flex gap-2">
+            <div key={i.id} className="text-2xs flex gap-2">
               <span className="text-muted-foreground shrink-0">
                 📅 {new Date(i.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
               </span>

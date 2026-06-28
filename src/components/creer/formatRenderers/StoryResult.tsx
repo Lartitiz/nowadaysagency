@@ -81,19 +81,19 @@ export default function StoryResult({ result, onStoriesUpdate }: Props) {
           <Card key={i} className="border-border">
             <CardContent className="p-3 space-y-1.5">
               <div className="flex items-center gap-2 flex-wrap">
-                <Badge variant="secondary" className="font-mono text-[10px]">
+                <Badge variant="secondary" className="font-mono text-2xs">
                   Story {i + 1}
                 </Badge>
                 {story.timing && (
-                  <Badge variant="outline" className="font-mono text-[10px]">{story.timing}</Badge>
+                  <Badge variant="outline" className="font-mono text-2xs">{story.timing}</Badge>
                 )}
                 {story.role && (
-                  <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] font-mono">
+                  <Badge className="bg-primary/10 text-primary border-primary/20 text-2xs font-mono">
                     {formatSlideRole(story.role)}
                   </Badge>
                 )}
                 {story.format && (
-                  <Badge variant="outline" className="text-[10px]">{story.format}</Badge>
+                  <Badge variant="outline" className="text-2xs">{story.format}</Badge>
                 )}
               </div>
               {(story.text || story.texte || story.content) && (
@@ -114,7 +114,7 @@ export default function StoryResult({ result, onStoriesUpdate }: Props) {
               )}
               {story.sticker && (
                 <div className="flex items-center gap-1.5">
-                  <Badge variant="secondary" className="text-[10px]">
+                  <Badge variant="secondary" className="text-2xs">
                     {story.sticker.type || "Sticker"}
                   </Badge>
                   {story.sticker.label && (

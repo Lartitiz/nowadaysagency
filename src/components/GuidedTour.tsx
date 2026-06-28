@@ -198,7 +198,7 @@ export default function GuidedTour({ steps, onComplete, storageKey }: GuidedTour
             <h3 className="font-display text-sm text-foreground mb-1.5">{step.title}</h3>
             <p className="text-xs text-muted-foreground leading-relaxed">{step.text}</p>
             <div className="flex items-center justify-between mt-4">
-              <span className="text-[10px] text-muted-foreground">
+              <span className="text-2xs text-muted-foreground">
                 {currentStep + 1}/{steps.length}
               </span>
               <div className="flex items-center gap-2">

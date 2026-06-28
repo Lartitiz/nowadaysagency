@@ -31,7 +31,7 @@ export default function SaveButton({ hasChanges, saving, onSave, className }: Sa
       onClick={onSave}
       disabled={isInactive || saving}
       className={cn(
-        "rounded-pill h-12 w-full text-[15px] font-semibold transition-all duration-300",
+        "rounded-pill h-12 w-full text-base font-semibold transition-all duration-300",
         saving && "opacity-70",
         isInactive && "bg-muted text-muted-foreground cursor-not-allowed hover:bg-muted",
         hasChanges && !saving && !showSuccess && "animate-pulse-subtle",

@@ -221,14 +221,14 @@ export default function SessionFocusWidget({
         {focus.type === "branding" && focus.extra?.brandingTotal != null && (
           <div className="flex items-center gap-2 mb-3">
             <Progress value={focus.extra.brandingTotal} className="h-1.5 flex-1" />
-            <span className="text-[10px] text-muted-foreground font-medium">{focus.extra.brandingTotal}%</span>
+            <span className="text-2xs text-muted-foreground font-medium">{focus.extra.brandingTotal}%</span>
           </div>
         )}
 
         {/* Audit score */}
         {focus.type === "audit" && focus.extra?.auditScore != null && (
           <div className="flex items-center gap-1.5 mb-3">
-            <span className="text-[10px] font-medium text-muted-foreground">Score actuel :</span>
+            <span className="text-2xs font-medium text-muted-foreground">Score actuel :</span>
             <span className="text-xs font-bold text-primary">{focus.extra.auditScore}/100</span>
           </div>
         )}
@@ -238,7 +238,7 @@ export default function SessionFocusWidget({
         <Button size="sm" onClick={() => navigate(focus.route)} className="rounded-full text-xs gap-1.5 flex-1">
           {focus.cta}
         </Button>
-        <span className="text-[10px] text-muted-foreground whitespace-nowrap">⏱ {focus.duration}</span>
+        <span className="text-2xs text-muted-foreground whitespace-nowrap">⏱ {focus.duration}</span>
       </div>
     </div>
   );

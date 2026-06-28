@@ -6,7 +6,7 @@ import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query"
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { Save, Loader2, BookOpen, Sparkles, Check, X, Lightbulb } from "lucide-react";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
@@ -158,7 +158,6 @@ interface HighlightStatus {
 
 export default function InstagramHighlights() {
   const { user } = useAuth();
-  const { toast } = useToast();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const navigate = useNavigate();
@@ -236,10 +235,10 @@ export default function InstagramHighlights() {
         if (backup?.length) await supabase.from("instagram_highlights").insert(backup);
         throw insErr;
       }
-      toast({ title: "Sauvegardé !", description: "Ta progression highlights est enregistrée." });
+      toast.success("Sauvegardé !", { description: "Ta progression highlights est enregistrée." });
     } catch (e) {
       console.error("Erreur sauvegarde highlights:", e);
-      toast({ title: "Erreur", description: "Impossible de sauvegarder. Tes highlights précédents ont été conservés.", variant: "destructive" });
+      toast.error("Erreur", { description: "Impossible de sauvegarder. Tes highlights précédents ont été conservés." });
     } finally {
       setSaving(false);
     }
@@ -295,8 +294,8 @@ export default function InstagramHighlights() {
       <main className="mx-auto max-w-4xl px-6 py-8 max-md:px-4">
         <SubPageHeader parentLabel="Mon profil" parentTo="/instagram/profil" currentLabel="Stories à la une" />
 
-        <h1 className="font-display text-[22px] sm:text-[26px] font-bold text-foreground">⭐ Tes stories à la une</h1>
-        <p className="mt-2 text-[15px] text-muted-foreground italic mb-6">
+        <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground">⭐ Tes stories à la une</h1>
+        <p className="mt-2 text-base text-muted-foreground italic mb-6">
           Les highlights sont ta vitrine permanente. C'est la 2ème chose qu'un·e visiteur·se regarde après ta bio. L'ordre compte.
         </p>
 

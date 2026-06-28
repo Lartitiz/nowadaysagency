@@ -74,8 +74,8 @@ export default function SiteHub() {
           <ArrowLeft className="h-4 w-4" /> Retour au hub
         </Link>
         <div className="mb-8">
-          <h1 className="font-display text-[26px] sm:text-3xl font-bold text-foreground">🌐 Mon Site Web</h1>
-          <p className="mt-1 text-[15px] text-muted-foreground">Analyse ton site, améliore ton SEO, retravaille tes pages : l'objectif c'est que Google te trouve avant tes concurrentes.</p>
+          <h1 className="font-display text-3xl sm:text-3xl font-bold text-foreground">🌐 Mon Site Web</h1>
+          <p className="mt-1 text-base text-muted-foreground">Analyse ton site, améliore ton SEO, retravaille tes pages : l'objectif c'est que Google te trouve avant tes concurrentes.</p>
         </div>
 
         {/* CMS selector */}
@@ -84,7 +84,7 @@ export default function SiteHub() {
             <p className="font-display text-base font-bold text-foreground mb-4">Quel outil utilises-tu pour ton site ?</p>
             <div className="flex flex-wrap gap-2">
               {CMS_OPTIONS.map((opt) => (
-                <button key={opt.value} onClick={() => saveCms(opt.value)} className="font-mono-ui text-[12px] font-semibold px-4 py-2 rounded-pill border-2 border-border bg-card hover:border-primary hover:bg-rose-pale transition-colors">
+                <button key={opt.value} onClick={() => saveCms(opt.value)} className="font-mono-ui text-xs font-semibold px-4 py-2 rounded-pill border-2 border-border bg-card hover:border-primary hover:bg-rose-pale transition-colors">
                   {opt.label}
                 </button>
               ))}
@@ -117,11 +117,11 @@ export default function SiteHub() {
             const label: string | null = null;
             const inner = (
               <div className={`group relative rounded-2xl border bg-card p-6 transition-all ${card.disabled ? "opacity-45 cursor-default" : "hover:border-primary hover:shadow-md cursor-pointer"}`}>
-                {label && <span className="absolute top-4 right-4 font-mono-ui text-[10px] font-semibold text-muted-foreground bg-rose-pale px-2 py-0.5 rounded-pill">{label}</span>}
+                {label && <span className="absolute top-4 right-4 font-mono-ui text-2xs font-semibold text-muted-foreground bg-rose-pale px-2 py-0.5 rounded-pill">{label}</span>}
                 <span className="text-2xl mb-3 block">{card.emoji}</span>
                 <h3 className="font-display text-lg font-bold text-foreground group-hover:text-primary transition-colors">{card.title}</h3>
                 <p className="mt-1 text-sm text-muted-foreground">{card.desc}</p>
-                <span className={`mt-3 inline-block font-mono-ui text-[10px] font-semibold px-2.5 py-0.5 rounded-pill ${card.disabled ? "bg-secondary text-muted-foreground" : "text-primary bg-rose-pale"}`}>{card.tag}</span>
+                <span className={`mt-3 inline-block font-mono-ui text-2xs font-semibold px-2.5 py-0.5 rounded-pill ${card.disabled ? "bg-secondary text-muted-foreground" : "text-primary bg-rose-pale"}`}>{card.tag}</span>
               </div>
             );
             if (card.disabled) return <div key={card.to}>{inner}</div>;

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Gift, Loader2, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useUserPlan } from "@/hooks/use-user-plan";
 import { friendlyError } from "@/lib/error-messages";
@@ -11,7 +11,6 @@ export default function PromoCodeInput() {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ plan: string; expires_at: string | null; code: string } | null>(null);
-  const { toast } = useToast();
   const { refresh } = useUserPlan();
 
   const handleRedeem = async () => {
@@ -23,14 +22,14 @@ export default function PromoCodeInput() {
       }, 30000);
       if (error) throw new Error(error.message);
       if (data?.error) {
-        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+        toast.error("Erreur", { description: data.error });
       } else if (data?.success) {
         setResult(data);
-        toast({ title: "🎉 Code activé !" });
+        toast.success("🎉 Code activé !");
         await refresh();
       }
     } catch (e: any) {
-      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(e) });
     } finally {
       setLoading(false);
     }

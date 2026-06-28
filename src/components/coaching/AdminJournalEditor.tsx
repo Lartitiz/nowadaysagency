@@ -233,17 +233,17 @@ function JournalEntryEditor({ entry, sessions, deliverables, onUpdate, onDelete,
 
       <div className="grid grid-cols-3 gap-2">
         <div>
-          <Label className="text-xs text-muted-foreground">Date</Label>
-          <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="mt-1 h-8 text-xs" />
+          <Label htmlFor={`journal-date-${entry.id}`} className="text-xs text-muted-foreground">Date</Label>
+          <Input id={`journal-date-${entry.id}`} type="date" value={date} onChange={e => setDate(e.target.value)} className="mt-1 h-8 text-xs" />
         </div>
         <div>
-          <Label className="text-xs text-muted-foreground">Mois</Label>
-          <Input type="number" min={1} max={12} value={monthNum} onChange={e => setMonthNum(e.target.value)} className="mt-1 h-8 text-xs" placeholder="1" />
+          <Label htmlFor={`journal-month-${entry.id}`} className="text-xs text-muted-foreground">Mois</Label>
+          <Input id={`journal-month-${entry.id}`} type="number" min={1} max={12} value={monthNum} onChange={e => setMonthNum(e.target.value)} className="mt-1 h-8 text-xs" placeholder="1" />
         </div>
         <div>
-          <Label className="text-xs text-muted-foreground">Session liée</Label>
+          <Label htmlFor={`journal-session-${entry.id}`} className="text-xs text-muted-foreground">Session liée</Label>
           <Select value={sessionId} onValueChange={v => setSessionId(v)}>
-            <SelectTrigger className="mt-1 h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectTrigger id={`journal-session-${entry.id}`} className="mt-1 h-8 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="none">Aucune</SelectItem>
               {sessions.map(s => (
@@ -255,18 +255,18 @@ function JournalEntryEditor({ entry, sessions, deliverables, onUpdate, onDelete,
       </div>
 
       <div>
-        <Label className="text-xs text-muted-foreground">Titre</Label>
-        <Input value={title} onChange={e => setTitle(e.target.value)} className="mt-1 h-8 text-sm" />
+        <Label htmlFor={`journal-title-${entry.id}`} className="text-xs text-muted-foreground">Titre</Label>
+        <Input id={`journal-title-${entry.id}`} value={title} onChange={e => setTitle(e.target.value)} className="mt-1 h-8 text-sm" />
       </div>
 
       <div>
         <Label className="text-xs text-muted-foreground">Texte (visible par la cliente)</Label>
-        <VoiceTextarea value={body} onChange={setBody} placeholder="On a posé les fondations de ta com'..." />
+        <VoiceTextarea value={body} onChange={setBody} placeholder="On a posé les fondations de ta com'..." ariaLabel="Texte (visible par la cliente)" />
       </div>
 
       <div>
         <Label className="text-xs text-muted-foreground">Mot perso pour la cliente</Label>
-        <VoiceTextarea value={note} onChange={setNote} placeholder="Un mot d'encouragement personnel..." />
+        <VoiceTextarea value={note} onChange={setNote} placeholder="Un mot d'encouragement personnel..." ariaLabel="Mot perso pour la cliente" />
       </div>
 
       <div>
@@ -320,7 +320,7 @@ function DeliverableRow({ deliverable, onUpload, onDeleteFile, onUnlock }: {
         <span>{isDelivered ? "✅" : "🔒"}</span>
         <span className="text-sm font-medium text-foreground flex-1">{deliverable.title}</span>
         {deliverable.unlocked_at && (
-          <span className="text-[10px] text-muted-foreground">
+          <span className="text-2xs text-muted-foreground">
             {format(new Date(deliverable.unlocked_at), "d MMM", { locale: fr })}
           </span>
         )}
@@ -336,20 +336,20 @@ function DeliverableRow({ deliverable, onUpload, onDeleteFile, onUnlock }: {
         ) : (
           <>
             <input ref={fileInputRef} type="file" className="hidden" onChange={e => { if (e.target.files?.[0]) onUpload(deliverable.id, e.target.files[0]); }} />
-            <Button size="sm" variant="outline" className="rounded-full text-[11px] gap-1 h-7" onClick={() => fileInputRef.current?.click()}>
+            <Button size="sm" variant="outline" className="rounded-full text-2xs gap-1 h-7" onClick={() => fileInputRef.current?.click()}>
               <Upload className="h-3 w-3" /> Uploader un fichier
             </Button>
           </>
         )}
 
         {deliverable.route && (
-          <span className="text-[10px] text-muted-foreground ml-auto">→ {deliverable.route}</span>
+          <span className="text-2xs text-muted-foreground ml-auto">→ {deliverable.route}</span>
         )}
       </div>
 
       {!isDelivered && (
         <div className="ml-6">
-          <Button size="sm" variant="ghost" className="rounded-full text-[11px] gap-1 h-7 text-primary hover:bg-primary/10" onClick={() => onUnlock(deliverable.id)}>
+          <Button size="sm" variant="ghost" className="rounded-full text-2xs gap-1 h-7 text-primary hover:bg-primary/10" onClick={() => onUnlock(deliverable.id)}>
             <Unlock className="h-3 w-3" /> Débloquer maintenant
           </Button>
         </div>
@@ -359,7 +359,7 @@ function DeliverableRow({ deliverable, onUpload, onDeleteFile, onUnlock }: {
 }
 
 /* ── Textarea with voice ── */
-function VoiceTextarea({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+function VoiceTextarea({ value, onChange, placeholder, ariaLabel }: { value: string; onChange: (v: string) => void; placeholder?: string; ariaLabel?: string }) {
   const { isListening, toggle } = useSpeechRecognition(
     (transcript) => onChange(value ? value + " " + transcript : transcript),
   );
@@ -370,6 +370,7 @@ function VoiceTextarea({ value, onChange, placeholder }: { value: string; onChan
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
+        aria-label={ariaLabel}
         className="min-h-[80px] text-sm pr-10"
       />
       <button

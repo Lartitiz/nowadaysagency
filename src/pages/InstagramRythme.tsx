@@ -6,7 +6,7 @@ import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Save, CalendarDays, ChevronDown } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Link } from "react-router-dom";
@@ -26,7 +26,6 @@ export default function InstagramRythme() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
-  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [existingId, setExistingId] = useState<string | null>(null);
@@ -45,7 +44,7 @@ export default function InstagramRythme() {
     (supabase.from("user_rhythm") as any).select("*").eq(column, value).maybeSingle().then(({ data, error }) => {
       if (error) {
         console.error("Erreur chargement rythme:", error);
-        toast({ title: "Impossible de charger ton rythme", description: "Réessaie dans un instant.", variant: "destructive" });
+        toast.error("Impossible de charger ton rythme", { description: "Réessaie dans un instant." });
         setLoading(false);
         return;
       }
@@ -64,7 +63,7 @@ export default function InstagramRythme() {
       setLoading(false);
     }, (err: any) => {
       console.error("Erreur chargement rythme:", err);
-      toast({ title: "Impossible de charger ton rythme", description: "Réessaie dans un instant.", variant: "destructive" });
+      toast.error("Impossible de charger ton rythme", { description: "Réessaie dans un instant." });
       setLoading(false);
     });
   }, [user?.id]);
@@ -114,8 +113,8 @@ export default function InstagramRythme() {
       ? await supabase.from("user_rhythm").update(payload).eq("id", existingId)
       : await supabase.from("user_rhythm").insert(payload);
     setSaving(false);
-    if (error) { toast({ title: "Erreur", description: friendlyError(error), variant: "destructive" }); return; }
-    toast({ title: "💾 Rythme enregistré !" });
+    if (error) { toast.error("Erreur", { description: friendlyError(error) }); return; }
+    toast.success("💾 Rythme enregistré !");
   };
 
   const formatMin = (m: number) => m >= 60 ? `${Math.floor(m / 60)}h${m % 60 ? String(m % 60).padStart(2, "0") : ""}` : `${m} min`;
@@ -146,7 +145,7 @@ export default function InstagramRythme() {
               </div>
               <p className="text-xs text-muted-foreground">{help}</p>
               <Slider value={[value]} onValueChange={([v]) => set(v)} min={min} max={max} step={step} className="[&_[role=slider]]:bg-primary" />
-              <div className="flex justify-between text-[10px] text-muted-foreground">
+              <div className="flex justify-between text-2xs text-muted-foreground">
                 <span>{formatMin(min)}</span>
                 <span>{unit}</span>
                 <span>{formatMin(max)}</span>
@@ -170,7 +169,7 @@ export default function InstagramRythme() {
               <span className="text-sm font-mono text-primary font-bold">{formatMin(timeWeekly)}</span>
             </div>
             <Slider value={[timeWeekly]} onValueChange={([v]) => setTimeWeekly(v)} min={30} max={600} step={30} className="[&_[role=slider]]:bg-primary" />
-            <div className="flex justify-between text-[10px] text-muted-foreground">
+            <div className="flex justify-between text-2xs text-muted-foreground">
               <span>30 min</span>
               <span>10h</span>
             </div>

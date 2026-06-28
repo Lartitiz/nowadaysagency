@@ -91,7 +91,7 @@ export default function PersonaList({
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold text-foreground truncate">{label}</span>
                     {p.is_primary && (
-                      <span className="inline-flex items-center gap-0.5 text-[10px] font-medium bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
+                      <span className="inline-flex items-center gap-0.5 text-2xs font-medium bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
                         <Crown className="h-2.5 w-2.5" /> Principal
                       </span>
                     )}
@@ -102,13 +102,13 @@ export default function PersonaList({
                       p.channels.map((ch) => {
                         const chan = AVAILABLE_CHANNELS.find((c) => c.id === ch);
                         return (
-                          <span key={ch} className="text-[10px] px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground">
+                          <span key={ch} className="text-2xs px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground">
                             {chan?.emoji} {chan?.label || ch}
                           </span>
                         );
                       })
                     ) : (
-                      <span className="text-[10px] text-muted-foreground italic">Tous les canaux</span>
+                      <span className="text-2xs text-muted-foreground italic">Tous les canaux</span>
                     )}
                   </div>
                 </div>

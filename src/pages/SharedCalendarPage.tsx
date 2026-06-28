@@ -472,7 +472,7 @@ export default function SharedCalendarPage() {
             <p className="text-sm font-semibold text-gray-900 truncate" style={{ fontFamily: "'Libre Baskerville', serif" }}>
               {selectedPost.theme}
             </p>
-            <p className="text-[11px] text-gray-500 mt-0.5">
+            <p className="text-2xs text-gray-500 mt-0.5">
               {format(parseISO(selectedPost.date), "d MMMM yyyy", { locale: fr })} · {CANAL_COLORS[selectedPost.canal]?.label || selectedPost.canal}
             </p>
           </div>
@@ -503,15 +503,15 @@ export default function SharedCalendarPage() {
 
           {/* Wording complet */}
           <div className="bg-white rounded-xl border border-gray-200 p-3">
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5 font-body">
+            <p className="text-2xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5 font-body">
               Wording complet
             </p>
-            <p className="text-[13px] text-gray-800 leading-relaxed whitespace-pre-line">{wording}</p>
+            <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-line">{wording}</p>
           </div>
 
           {/* Comments */}
           <div className="space-y-2">
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider font-body">
+            <p className="text-2xs font-semibold text-gray-400 uppercase tracking-wider font-body">
               Commentaires ({postComments.length})
             </p>
             {postComments.length === 0 && (
@@ -520,13 +520,13 @@ export default function SharedCalendarPage() {
             {postComments.map(c => (
               <div key={c.id} className={`bg-white rounded-lg border border-gray-200 p-2.5 ${c.is_resolved ? "opacity-50" : ""}`}>
                 <div className="flex items-center gap-1.5 mb-1">
-                  <span className="text-[11px] font-semibold text-gray-800">{c.author_name}</span>
-                  <span className="text-[10px] text-gray-400">
+                  <span className="text-2xs font-semibold text-gray-800">{c.author_name}</span>
+                  <span className="text-2xs text-gray-400">
                     {format(parseISO(c.created_at), "d MMM · HH:mm", { locale: fr })}
                   </span>
                   {c.is_resolved && <Check className="h-3 w-3 text-success" />}
                 </div>
-                <p className="text-[12px] text-gray-700 leading-relaxed">{c.content}</p>
+                <p className="text-xs text-gray-700 leading-relaxed">{c.content}</p>
               </div>
             ))}
           </div>
@@ -569,7 +569,7 @@ export default function SharedCalendarPage() {
         {/* Name prompt */}
         {!hasName && (
           <div className="border-t border-gray-200 px-4 py-3 bg-white shrink-0">
-            <p className="text-[11px] text-gray-500 mb-2">Pour commenter, dis-nous comment tu t'appelles :</p>
+            <p className="text-2xs text-gray-500 mb-2">Pour commenter, dis-nous comment tu t'appelles :</p>
             <div className="flex gap-2">
               <Input aria-label="Ton prénom" placeholder="Ton prénom" value={nameInput} onChange={e => setNameInput(e.target.value)} onKeyDown={e => e.key === "Enter" && confirmName()} className="text-xs h-8 rounded-lg border-gray-300" />
               <Button size="sm" onClick={confirmName} disabled={!nameInput.trim()} className="h-8 text-xs rounded-lg bg-gray-900 text-white hover:bg-gray-800">OK</Button>
@@ -597,7 +597,7 @@ export default function SharedCalendarPage() {
             {profile.activite && <p className="text-sm text-gray-500 mt-0.5">{profile.activite}</p>}
             {share?.label && <p className="text-xs text-gray-400 mt-1">{share.label}</p>}
             {lastUpdated && (
-              <p className="text-[10px] text-gray-400 mt-1 font-body">
+              <p className="text-2xs text-gray-400 mt-1 font-body">
                 Dernière mise à jour : {format(parseISO(lastUpdated), "d MMM yyyy · HH:mm", { locale: fr })}
               </p>
             )}
@@ -653,7 +653,7 @@ export default function SharedCalendarPage() {
           {/* Canal filter */}
           {uniqueCanals.length > 1 && (
             <div className="flex items-center gap-1">
-              <span className="text-[10px] text-gray-400 uppercase font-semibold mr-1 font-body">Canal</span>
+              <span className="text-2xs text-gray-400 uppercase font-semibold mr-1 font-body">Canal</span>
               <FilterChip label="Tout" active={filterCanal === "all"} onClick={() => setFilterCanal("all")} />
               {uniqueCanals.map(c => (
                 <FilterChip key={c} label={CANAL_COLORS[c]?.label || c} active={filterCanal === c} onClick={() => setFilterCanal(c)} />
@@ -663,7 +663,7 @@ export default function SharedCalendarPage() {
           {/* Status filter */}
           {uniqueStatuses.length > 1 && (
             <div className="flex items-center gap-1">
-              <span className="text-[10px] text-gray-400 uppercase font-semibold mr-1 font-body">Statut</span>
+              <span className="text-2xs text-gray-400 uppercase font-semibold mr-1 font-body">Statut</span>
               <FilterChip label="Tous" active={filterStatus === "all"} onClick={() => setFilterStatus("all")} />
               {uniqueStatuses.map(s => (
                 <FilterChip key={s} label={getStatusInfo(s).label} active={filterStatus === s} onClick={() => setFilterStatus(s)} />
@@ -673,7 +673,7 @@ export default function SharedCalendarPage() {
           {/* Phase filter */}
           {uniquePhases.length > 1 && (
             <div className="flex items-center gap-1">
-              <span className="text-[10px] text-gray-400 uppercase font-semibold mr-1 font-body">Phase</span>
+              <span className="text-2xs text-gray-400 uppercase font-semibold mr-1 font-body">Phase</span>
               <FilterChip label="Toutes" active={filterPhase === "all"} onClick={() => setFilterPhase("all")} />
               {uniquePhases.map(p => (
                 <FilterChip key={p!} label={p!} active={filterPhase === p} onClick={() => setFilterPhase(p!)} />
@@ -726,18 +726,18 @@ export default function SharedCalendarPage() {
                 <TableHeader label="Statut" sortKey="status" currentKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
               )}
               {showColumns.includes("wording") && (
-                <div className="px-3 py-2.5 text-[10px] uppercase font-semibold text-gray-400 tracking-wider">Wording</div>
+                <div className="px-3 py-2.5 text-2xs uppercase font-semibold text-gray-400 tracking-wider">Wording</div>
               )}
               {showColumns.includes("canal") && (
                 <TableHeader label="Canal" sortKey="canal" currentKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
               )}
               {showColumns.includes("format") && (
-                <div className="px-3 py-2.5 text-[10px] uppercase font-semibold text-gray-400 tracking-wider">Format</div>
+                <div className="px-3 py-2.5 text-2xs uppercase font-semibold text-gray-400 tracking-wider">Format</div>
               )}
               {showColumns.includes("phase") && (
-                <div className="px-3 py-2.5 text-[10px] uppercase font-semibold text-gray-400 tracking-wider">Phase</div>
+                <div className="px-3 py-2.5 text-2xs uppercase font-semibold text-gray-400 tracking-wider">Phase</div>
               )}
-              <div className="px-3 py-2.5 text-[10px] uppercase font-semibold text-gray-400 tracking-wider">Actions</div>
+              <div className="px-3 py-2.5 text-2xs uppercase font-semibold text-gray-400 tracking-wider">Actions</div>
             </div>
 
             {/* Table rows */}
@@ -760,13 +760,13 @@ export default function SharedCalendarPage() {
                   style={{ gridTemplateColumns: buildGridCols(showColumns, !!share?.guest_can_edit_status) }}
                 >
                   {showColumns.includes("date") && (
-                    <div className="px-3 py-2.5 text-[12px] text-gray-600 font-body">
+                    <div className="px-3 py-2.5 text-xs text-gray-600 font-body">
                       {format(parseISO(post.date), "d MMM yyyy", { locale: fr })}
                     </div>
                   )}
                   {showColumns.includes("theme") && (
                     <div className="px-3 py-2.5">
-                      <p className="text-[13px] text-gray-900 leading-snug" style={{ fontFamily: "'Libre Baskerville', serif" }}>
+                      <p className="text-sm text-gray-900 leading-snug" style={{ fontFamily: "'Libre Baskerville', serif" }}>
                         {post.theme}
                       </p>
                     </div>
@@ -776,7 +776,7 @@ export default function SharedCalendarPage() {
                       {share?.guest_can_edit_status ? (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <button className={`text-[11px] font-medium px-2 py-1 rounded-full ${statusInfo.color} cursor-pointer hover:opacity-80 transition-opacity inline-flex items-center gap-1`}>
+                            <button className={`text-2xs font-medium px-2 py-1 rounded-full ${statusInfo.color} cursor-pointer hover:opacity-80 transition-opacity inline-flex items-center gap-1`}>
                               {statusInfo.label}
                               <ChevronDown className="h-3 w-3" />
                             </button>
@@ -784,13 +784,13 @@ export default function SharedCalendarPage() {
                           <DropdownMenuContent align="start" className="min-w-[140px]">
                             {STATUS_OPTIONS.map(opt => (
                               <DropdownMenuItem key={opt.value} onClick={() => editStatus(post, opt.value)} className="text-xs">
-                                <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${opt.color} mr-2`}>{opt.label}</span>
+                                <span className={`text-2xs font-medium px-1.5 py-0.5 rounded-full ${opt.color} mr-2`}>{opt.label}</span>
                               </DropdownMenuItem>
                             ))}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       ) : (
-                        <span className={`text-[11px] font-medium px-2 py-1 rounded-full ${statusInfo.color}`}>
+                        <span className={`text-2xs font-medium px-2 py-1 rounded-full ${statusInfo.color}`}>
                           {statusInfo.label}
                         </span>
                       )}
@@ -806,7 +806,7 @@ export default function SharedCalendarPage() {
                           onChange={e => setEditWordingValue(e.target.value)}
                           onBlur={() => saveWording(post, editWordingValue)}
                           onKeyDown={e => { if (e.key === "Escape") setEditingWording(null); }}
-                          className="text-[12px] min-h-[60px] rounded border-gray-300 resize-none"
+                          className="text-xs min-h-[60px] rounded border-gray-300 resize-none"
                         />
                       ) : (
                         <div
@@ -822,7 +822,7 @@ export default function SharedCalendarPage() {
                               });
                             }
                           }}
-                          className={`text-[12px] text-gray-600 leading-relaxed cursor-pointer ${!isExpanded ? "line-clamp-2" : ""} ${share?.guest_can_edit_wording ? "hover:bg-gray-100 rounded px-1 -mx-1 py-0.5" : ""}`}
+                          className={`text-xs text-gray-600 leading-relaxed cursor-pointer ${!isExpanded ? "line-clamp-2" : ""} ${share?.guest_can_edit_wording ? "hover:bg-gray-100 rounded px-1 -mx-1 py-0.5" : ""}`}
                         >
                           {wording || <span className="text-gray-300 italic">—</span>}
                         </div>
@@ -832,19 +832,19 @@ export default function SharedCalendarPage() {
                   {showColumns.includes("canal") && (
                     <div className="px-3 py-2.5">
                       {canalInfo && (
-                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${canalInfo.color}`}>
+                        <span className={`text-2xs font-medium px-1.5 py-0.5 rounded-full ${canalInfo.color}`}>
                           {canalInfo.label}
                         </span>
                       )}
                     </div>
                   )}
                   {showColumns.includes("format") && (
-                    <div className="px-3 py-2.5 text-[12px] text-gray-500">
+                    <div className="px-3 py-2.5 text-xs text-gray-500">
                       {FORMAT_LABELS[post.format || ""] || post.format || "—"}
                     </div>
                   )}
                   {showColumns.includes("phase") && (
-                    <div className="px-3 py-2.5 text-[11px] text-gray-500">
+                    <div className="px-3 py-2.5 text-2xs text-gray-500">
                       {post.phase || "—"}
                     </div>
                   )}
@@ -856,7 +856,7 @@ export default function SharedCalendarPage() {
                     >
                       <MessageCircle className="h-4 w-4" />
                       {unresolvedCount > 0 && (
-                        <span className="absolute -top-1 -right-1 bg-warning text-white text-[8px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center">
+                        <span className="absolute -top-1 -right-1 bg-warning text-white text-2xs font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center">
                           {unresolvedCount}
                         </span>
                       )}
@@ -941,7 +941,7 @@ function FilterChip({ label, active, onClick }: { label: string; active: boolean
   return (
     <button
       onClick={onClick}
-      className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors ${
+      className={`px-2.5 py-1 rounded-full text-2xs font-medium transition-colors ${
         active ? "bg-gray-900 text-white" : "bg-white border border-gray-200 text-gray-600 hover:border-gray-400"
       }`}
     >
@@ -961,7 +961,7 @@ function TableHeader({ label, sortKey, currentKey, sortDir, onSort }: {
   return (
     <button
       onClick={() => sortKey && onSort?.(sortKey)}
-      className={`px-3 py-2.5 text-left flex items-center gap-1 text-[10px] uppercase font-semibold tracking-wider ${
+      className={`px-3 py-2.5 text-left flex items-center gap-1 text-2xs uppercase font-semibold tracking-wider ${
         isActive ? "text-gray-800" : "text-gray-400"
       } ${sortKey ? "cursor-pointer hover:text-gray-700" : "cursor-default"}`}
     >
@@ -1020,53 +1020,53 @@ function MobilePostCard({ post, share, comments, unresolvedCount, onOpenComments
     >
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex-1 min-w-0">
-          <p className="text-[13px] text-gray-900 leading-snug" style={{ fontFamily: "'Libre Baskerville', serif" }}>
+          <p className="text-sm text-gray-900 leading-snug" style={{ fontFamily: "'Libre Baskerville', serif" }}>
             {post.theme}
           </p>
-          <p className="text-[11px] text-gray-400 mt-1 font-body">
+          <p className="text-2xs text-gray-400 mt-1 font-body">
             {format(parseISO(post.date), "d MMM yyyy", { locale: fr })}
           </p>
         </div>
         {onEditStatus ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className={`text-[10px] font-medium px-2 py-1 rounded-full ${statusInfo.color} shrink-0 inline-flex items-center gap-0.5`}>
+              <button className={`text-2xs font-medium px-2 py-1 rounded-full ${statusInfo.color} shrink-0 inline-flex items-center gap-0.5`}>
                 {statusInfo.label} <ChevronDown className="h-3 w-3" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-[130px]">
               {STATUS_OPTIONS.map(opt => (
                 <DropdownMenuItem key={opt.value} onClick={() => onEditStatus(opt.value)} className="text-xs">
-                  <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${opt.color} mr-2`}>{opt.label}</span>
+                  <span className={`text-2xs font-medium px-1.5 py-0.5 rounded-full ${opt.color} mr-2`}>{opt.label}</span>
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
-          <span className={`text-[10px] font-medium px-2 py-1 rounded-full ${statusInfo.color} shrink-0`}>
+          <span className={`text-2xs font-medium px-2 py-1 rounded-full ${statusInfo.color} shrink-0`}>
             {statusInfo.label}
           </span>
         )}
       </div>
 
       <div className="flex flex-wrap gap-1.5 mb-2">
-        {canalInfo && <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full ${canalInfo.color}`}>{canalInfo.label}</span>}
-        {post.format && <span className="text-[9px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full">{FORMAT_LABELS[post.format] || post.format}</span>}
-        {post.phase && <span className="text-[9px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full">{post.phase}</span>}
+        {canalInfo && <span className={`text-2xs font-medium px-1.5 py-0.5 rounded-full ${canalInfo.color}`}>{canalInfo.label}</span>}
+        {post.format && <span className="text-2xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full">{FORMAT_LABELS[post.format] || post.format}</span>}
+        {post.phase && <span className="text-2xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full">{post.phase}</span>}
       </div>
 
       {wording && (
-        <div onClick={() => setExpanded(!expanded)} className={`text-[12px] text-gray-600 leading-relaxed cursor-pointer ${!expanded ? "line-clamp-2" : ""}`}>
+        <div onClick={() => setExpanded(!expanded)} className={`text-xs text-gray-600 leading-relaxed cursor-pointer ${!expanded ? "line-clamp-2" : ""}`}>
           {wording}
         </div>
       )}
 
       <div className="flex items-center justify-end gap-2 mt-2 pt-2 border-t border-gray-100">
-        <button onClick={onOpenComments} className="text-[11px] text-gray-500 hover:text-gray-800 flex items-center gap-1 transition-colors">
+        <button onClick={onOpenComments} className="text-2xs text-gray-500 hover:text-gray-800 flex items-center gap-1 transition-colors">
           <MessageCircle className="h-3.5 w-3.5" />
           {unresolvedCount > 0 ? <span className="text-warning font-semibold">{unresolvedCount}</span> : "Commenter"}
         </button>
-        <button onClick={onOpenComments} className="text-[11px] text-gray-500 hover:text-gray-800 flex items-center gap-1 transition-colors">
+        <button onClick={onOpenComments} className="text-2xs text-gray-500 hover:text-gray-800 flex items-center gap-1 transition-colors">
           <Eye className="h-3.5 w-3.5" /> Voir
         </button>
       </div>

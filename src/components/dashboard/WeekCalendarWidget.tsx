@@ -213,7 +213,7 @@ export default function WeekCalendarWidget({ animationDelay = 0 }: Props) {
                   navigate(`/calendrier?date=${d.dateStr}`);
                 }}
               >
-                <span className="text-[10px] font-mono-ui text-muted-foreground">{d.label}</span>
+                <span className="text-2xs font-mono-ui text-muted-foreground">{d.label}</span>
                 <span className={`text-xs font-medium ${d.isToday ? "text-primary font-bold" : "text-foreground"}`}>
                   {d.dateNum}
                 </span>
@@ -225,7 +225,7 @@ export default function WeekCalendarWidget({ animationDelay = 0 }: Props) {
                     return (
                       <div key={post.id} className="flex items-center gap-0.5">
                         <span className={`text-xs leading-none ${status.colorClass}`}>{icon}</span>
-                        <span className="text-[9px] leading-none">{status.icon}</span>
+                        <span className="text-2xs leading-none">{status.icon}</span>
                       </div>
                     );
                   })}
@@ -253,11 +253,11 @@ export default function WeekCalendarWidget({ animationDelay = 0 }: Props) {
               className="mt-3 flex items-center justify-between gap-2 bg-muted/30 rounded-xl px-3 py-2 w-full text-left hover:bg-muted/50 transition-colors"
             >
               <div className="min-w-0">
-                <p className="text-[10px] text-muted-foreground">Prochain :</p>
+                <p className="text-2xs text-muted-foreground">Prochain :</p>
                 <p className="text-xs text-foreground font-medium truncate">
                   {getPostIcon(nextPost)} {nextPost.theme}
                 </p>
-                <p className="text-[10px] text-muted-foreground capitalize">
+                <p className="text-2xs text-muted-foreground capitalize">
                   {format(new Date(nextPost.date + "T00:00:00"), "EEEE", { locale: fr })}
                 </p>
               </div>
@@ -268,7 +268,7 @@ export default function WeekCalendarWidget({ animationDelay = 0 }: Props) {
                   e.stopPropagation();
                   markAsPublished(nextPost.id);
                 }}
-                className="text-[10px] shrink-0 h-7 px-2"
+                className="text-2xs shrink-0 h-7 px-2"
               >
                 Marquer publié
               </Button>

@@ -269,7 +269,7 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
                   <div>
                     <h3 className="font-display font-bold text-foreground flex items-center gap-2">
                       {p.client_name || "Cliente"}
-                      {p.status === "paused" && <Badge variant="secondary" className="text-[10px]">⏸️ En pause</Badge>}
+                      {p.status === "paused" && <Badge variant="secondary" className="text-2xs">⏸️ En pause</Badge>}
                     </h3>
                     {p.client_activity && <p className="text-xs text-muted-foreground">{p.client_activity}</p>}
                   </div>
@@ -333,7 +333,7 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
           <div className="rounded-xl border border-border bg-card p-3 mb-4 space-y-2">
             <Input value={newWsName} onChange={e => setNewWsName(e.target.value)} placeholder="Nom de l'espace…" onKeyDown={e => e.key === "Enter" && handleCreateStandaloneWs()} />
             <Input value={newWsEmail} onChange={e => setNewWsEmail(e.target.value)} placeholder="Email de la cliente (optionnel — évite les doublons)" type="email" onKeyDown={e => e.key === "Enter" && handleCreateStandaloneWs()} />
-            <p className="text-[11px] text-muted-foreground">Si tu renseignes un email déjà inscrit, on te proposera de t'attacher à son espace existant au lieu d'en créer un en doublon.</p>
+            <p className="text-2xs text-muted-foreground">Si tu renseignes un email déjà inscrit, on te proposera de t'attacher à son espace existant au lieu d'en créer un en doublon.</p>
             <div className="flex gap-2">
               <Button size="sm" onClick={handleCreateStandaloneWs} disabled={creatingStandalone || !newWsName.trim()} className="rounded-full">
                 {creatingStandalone ? <Loader2 className="h-4 w-4 animate-spin" /> : "Créer"}

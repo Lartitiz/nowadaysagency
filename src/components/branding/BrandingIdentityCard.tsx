@@ -53,7 +53,7 @@ interface Props {
 
 function TagChip({ label }: { label: string }) {
   return (
-    <span className="inline-block rounded-full px-2.5 py-0.5 text-[12px] font-medium bg-[hsl(338_96%_61%/0.12)] text-[hsl(330_100%_28%)]">
+    <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-medium bg-[hsl(338_96%_61%/0.12)] text-[hsl(330_100%_28%)]">
       {label}
     </span>
   );
@@ -106,7 +106,7 @@ function SuggestionBanner({ sectionKey, suggestion, onApply, onDismiss }: { sect
   const [applying, setApplying] = useState(false);
   return (
     <div className="mt-3 rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-2" onClick={(e) => e.stopPropagation()}>
-      <p className="text-[11px] font-semibold text-primary uppercase tracking-wider">💡 Suggestion de l'audit</p>
+      <p className="text-2xs font-semibold text-primary uppercase tracking-wider">💡 Suggestion de l'audit</p>
       <p className="text-sm text-foreground leading-relaxed italic">"{suggestion}"</p>
       <div className="flex gap-2 pt-1">
         {onApply && (
@@ -170,7 +170,7 @@ function QuickActions({ onImport, onShowSynthesis, onRunMirror, lastAuditScore, 
           <div className="min-w-0">
             <p className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors leading-tight">{a.label}</p>
             {a.badge && (
-              <span className="text-[10px] font-medium text-primary">{a.badge}</span>
+              <span className="text-2xs font-medium text-primary">{a.badge}</span>
             )}
           </div>
         </button>
@@ -192,17 +192,17 @@ function SynthesisView({ completion, summaries, onReanalyze, profileName, profil
       {/* Hero */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="font-display text-[26px] text-foreground">
+          <h1 className="font-display text-3xl text-foreground">
             {profileName || "Ta fiche d'identité com'"}
           </h1>
           {profileActivity && (
-            <p className="font-mono-ui text-[13px] text-muted-foreground mt-0.5">{profileActivity}</p>
+            <p className="font-mono-ui text-sm text-muted-foreground mt-0.5">{profileActivity}</p>
           )}
         </div>
         {onReanalyze && (
           <button
             onClick={onReanalyze}
-            className="font-mono-ui text-[12px] text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 shrink-0 mt-1"
+            className="font-mono-ui text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 shrink-0 mt-1"
           >
             <RefreshCw className="h-3.5 w-3.5" /> Réanalyser
           </button>
@@ -214,13 +214,13 @@ function SynthesisView({ completion, summaries, onReanalyze, profileName, profil
       {/* Proposition de valeur — vedette */}
       {hasProposition ? (
         <div className="rounded-2xl border border-primary/10 bg-[hsl(var(--rose-pale))] p-5 sm:p-6">
-          <p className="font-mono-ui text-[11px] uppercase tracking-wider text-muted-foreground mb-2">Ma proposition de valeur</p>
-          <p className="font-display text-[16px] sm:text-[18px] text-foreground leading-relaxed">
+          <p className="font-mono-ui text-2xs uppercase tracking-wider text-muted-foreground mb-2">Ma proposition de valeur</p>
+          <p className="font-display text-base sm:text-lg text-foreground leading-relaxed">
             {proposition}
           </p>
           <button
             onClick={() => navigate("/branding/proposition/recap")}
-            className="font-mono-ui text-[12px] text-primary hover:underline mt-3 inline-flex items-center gap-1"
+            className="font-mono-ui text-xs text-primary hover:underline mt-3 inline-flex items-center gap-1"
           >
             Modifier <ArrowRight className="h-3 w-3" />
           </button>
@@ -229,7 +229,7 @@ function SynthesisView({ completion, summaries, onReanalyze, profileName, profil
         <div className="rounded-2xl border-2 border-dashed border-primary/20 p-5 flex items-center justify-between gap-4">
           <div>
             <p className="text-sm font-medium text-foreground">❤️ Pas encore de proposition de valeur</p>
-            <p className="text-[13px] text-muted-foreground mt-0.5">Dis ce que tu fais, pour qui, et pourquoi.</p>
+            <p className="text-sm text-muted-foreground mt-0.5">Dis ce que tu fais, pour qui, et pourquoi.</p>
           </div>
           <Button size="sm" className="text-xs gap-1.5 shrink-0" onClick={() => navigate("/branding/proposition/recap")}>
             Définir ma proposition <ArrowRight className="h-3.5 w-3.5" />
@@ -270,7 +270,7 @@ function SynthesisView({ completion, summaries, onReanalyze, profileName, profil
               >
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-lg">{section.icon}</span>
-                  <p className="font-display text-[14px] text-foreground flex-1">{section.title}</p>
+                  <p className="font-display text-sm text-foreground flex-1">{section.title}</p>
                   <StatusDot score={score} />
                   <Pencil className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
@@ -279,7 +279,7 @@ function SynthesisView({ completion, summaries, onReanalyze, profileName, profil
                     {tags.slice(0, 4).map((t, i) => <TagChip key={i} label={t} />)}
                   </div>
                 ) : (
-                  <p className="font-mono-ui text-[12px] text-muted-foreground line-clamp-2">
+                  <p className="font-mono-ui text-xs text-muted-foreground line-clamp-2">
                     {getSummaryLine(section.key, summaries)}
                   </p>
                 )}
@@ -304,7 +304,7 @@ function SynthesisView({ completion, summaries, onReanalyze, profileName, profil
             <p className="text-sm font-medium text-foreground">
               Il te reste {incompleteSections.length} section{incompleteSections.length > 1 ? "s" : ""} à compléter.
             </p>
-            <p className="text-[13px] text-muted-foreground mt-0.5">On continue ?</p>
+            <p className="text-sm text-muted-foreground mt-0.5">On continue ?</p>
           </div>
           {firstIncomplete && (
             <Button size="sm" className="gap-1.5 text-xs" onClick={() => navigate(firstIncomplete.editRoute)}>
@@ -324,20 +324,20 @@ function SynthesisView({ completion, summaries, onReanalyze, profileName, profil
 function CompletionBadge({ score }: { score: number }) {
   if (score === 100) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-[hsl(var(--success-bg))] px-2 py-0.5 text-[11px] font-medium text-[hsl(var(--success))]">
+      <span className="inline-flex items-center gap-1 rounded-full bg-[hsl(var(--success-bg))] px-2 py-0.5 text-2xs font-medium text-[hsl(var(--success))]">
         Complet
       </span>
     );
   }
   if (score > 0) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-[hsl(var(--warning-bg))] px-2 py-0.5 text-[11px] font-medium text-[hsl(var(--warning))]">
+      <span className="inline-flex items-center gap-1 rounded-full bg-[hsl(var(--warning-bg))] px-2 py-0.5 text-2xs font-medium text-[hsl(var(--warning))]">
         En cours
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+    <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-2xs font-medium text-muted-foreground">
       À faire
     </span>
   );
@@ -396,15 +396,15 @@ function ConstructionView({ completion, summaries, onReanalyze, onImport, onShow
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="font-display text-[26px] text-foreground">Construis ton identité</h1>
-          <p className="font-mono-ui text-[13px] text-muted-foreground mt-1">
+          <h1 className="font-display text-3xl text-foreground">Construis ton identité</h1>
+          <p className="font-mono-ui text-sm text-muted-foreground mt-1">
             Remplis chaque section pour que l'IA te connaisse vraiment.
           </p>
         </div>
         {onReanalyze && (
           <button
             onClick={onReanalyze}
-            className="font-mono-ui text-[12px] text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 shrink-0 mt-1"
+            className="font-mono-ui text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 shrink-0 mt-1"
           >
             <RefreshCw className="h-3.5 w-3.5" /> Réanalyser
           </button>
@@ -417,7 +417,7 @@ function ConstructionView({ completion, summaries, onReanalyze, onImport, onShow
       <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 flex items-center justify-between gap-4 flex-wrap">
         <div>
           <p className="text-sm font-medium text-foreground">{filledCount}/7 sections complétées</p>
-          <p className="text-[13px] text-muted-foreground mt-0.5">
+          <p className="text-sm text-muted-foreground mt-0.5">
             {filledCount === 7 ? "🎉 Ton branding est prêt !" : "On continue ?"}
           </p>
         </div>
@@ -444,15 +444,15 @@ function ConstructionView({ completion, summaries, onReanalyze, onImport, onShow
               >
                 <span className="text-xl shrink-0">{section.icon}</span>
                 <div className="flex-1 min-w-0">
-                  <p className="font-display text-[15px] text-foreground">{section.title}</p>
+                  <p className="font-display text-base text-foreground">{section.title}</p>
                   {score === 0 && section.why ? (
-                    <p className="text-[12px] text-muted-foreground italic mt-1">{section.why}</p>
+                    <p className="text-xs text-muted-foreground italic mt-1">{section.why}</p>
                   ) : hasTags && tags && tags.length > 0 && score > 0 ? (
                     <div className="flex flex-wrap gap-1.5 mt-1">
                       {tags.slice(0, 4).map((t, i) => <TagChip key={i} label={t} />)}
                     </div>
                   ) : (
-                    <p className="font-mono-ui text-[12px] text-muted-foreground truncate mt-0.5">
+                    <p className="font-mono-ui text-xs text-muted-foreground truncate mt-0.5">
                       {getSummaryLine(section.key, summaries)}
                     </p>
                   )}

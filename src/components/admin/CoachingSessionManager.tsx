@@ -179,9 +179,9 @@ export default function CoachingSessionManager({ program, sessions: initialSessi
             <InlineField label="Prix" type="number" value={String(program.price_monthly || 250)} suffix="€/mois" onSave={v => updateProgram("price_monthly", parseInt(v))} saved={savedField === "price_monthly"} />
             <InlineField label="Mois actuel" type="number" value={String(program.current_month || 1)} suffix="/ 6" onSave={v => updateProgram("current_month", parseInt(v))} saved={savedField === "current_month"} />
             <div className="col-span-2 flex items-center gap-2">
-              <span className="text-muted-foreground text-sm w-20">Statut</span>
+              <Label htmlFor="program-status" className="text-muted-foreground text-sm w-20">Statut</Label>
               <Select value={program.status} onValueChange={v => updateProgram("status", v)}>
-                <SelectTrigger className="h-8 text-xs w-40"><SelectValue /></SelectTrigger>
+                <SelectTrigger id="program-status" className="h-8 text-xs w-40"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="active">✅ Actif</SelectItem>
                   <SelectItem value="paused">⏸️ En pause</SelectItem>
@@ -238,7 +238,7 @@ export default function CoachingSessionManager({ program, sessions: initialSessi
               <div key={a.id} className="flex items-center gap-2 text-sm">
                 <Checkbox checked={a.completed} onCheckedChange={c => toggleAction(a.id, !!c)} />
                 <span className={`flex-1 ${a.completed ? "line-through text-muted-foreground" : "text-foreground"}`}>{a.title}</span>
-                {a.session_id && <span className="text-[10px] text-muted-foreground">S{sessions.find(s => s.id === a.session_id)?.session_number}</span>}
+                {a.session_id && <span className="text-2xs text-muted-foreground">S{sessions.find(s => s.id === a.session_id)?.session_number}</span>}
                 {a.due_date && <span className="text-xs text-muted-foreground">{format(new Date(a.due_date), "d MMM", { locale: fr })}</span>}
                 <button onClick={() => deleteAction(a.id)} className="text-muted-foreground hover:text-destructive transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
               </div>
@@ -315,7 +315,7 @@ function SortableSessionRow({ session, onEdit, savedField }: { session: SessionD
       <span className="text-xs text-muted-foreground">{formatDuration(session.duration_minutes)}</span>
       {session.scheduled_date && <span className="text-xs text-muted-foreground">{format(new Date(session.scheduled_date), "d MMM", { locale: fr })}</span>}
       <span className="text-sm">{statusIcon}</span>
-      {savedField === "session-" + session.id && <span className="text-[11px] text-primary animate-fade-in">💾</span>}
+      {savedField === "session-" + session.id && <span className="text-2xs text-primary animate-fade-in">💾</span>}
       <button onClick={onEdit} className="text-xs text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity" title="Modifier">✏️</button>
     </div>
   );
@@ -376,9 +376,9 @@ function SessionEditDialog({ session, sessions, deliverables, actions, onUpdate,
           </div>
           {sessionType === "focus" && (
             <div>
-              <Label className="text-xs text-muted-foreground">Focus</Label>
+              <Label htmlFor="session-focus" className="text-xs text-muted-foreground">Focus</Label>
               <Select value={focusTopic || "none"} onValueChange={v => { const topic = v === "none" ? "" : v; setFocusTopic(topic); if (topic && topic !== "custom") setTitle(getFocusLabel(topic)); }}>
-                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                <SelectTrigger id="session-focus" className="mt-1"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">💬 À définir</SelectItem>
                   {FOCUS_TOPICS.map(t => (<SelectItem key={t.value} value={t.value}>{t.icon} {t.label}</SelectItem>))}
@@ -386,10 +386,10 @@ function SessionEditDialog({ session, sessions, deliverables, actions, onUpdate,
               </Select>
             </div>
           )}
-          <div><Label className="text-xs text-muted-foreground">Titre</Label><Input value={title} onChange={e => setTitle(e.target.value)} className="mt-1" /></div>
+          <div><Label htmlFor="session-title" className="text-xs text-muted-foreground">Titre</Label><Input id="session-title" value={title} onChange={e => setTitle(e.target.value)} className="mt-1" /></div>
           <div className="grid grid-cols-2 gap-3">
-            <div><Label className="text-xs text-muted-foreground">Date</Label><Input type="date" value={date} onChange={e => setDate(e.target.value)} className="mt-1" /></div>
-            <div><Label className="text-xs text-muted-foreground">Heure</Label><Input type="time" value={time} onChange={e => setTime(e.target.value)} className="mt-1" /></div>
+            <div><Label htmlFor="session-date" className="text-xs text-muted-foreground">Date</Label><Input id="session-date" type="date" value={date} onChange={e => setDate(e.target.value)} className="mt-1" /></div>
+            <div><Label htmlFor="session-time" className="text-xs text-muted-foreground">Heure</Label><Input id="session-time" type="time" value={time} onChange={e => setTime(e.target.value)} className="mt-1" /></div>
           </div>
           <div>
             <Label className="text-xs text-muted-foreground">Durée</Label>
@@ -397,7 +397,7 @@ function SessionEditDialog({ session, sessions, deliverables, actions, onUpdate,
               {DURATION_OPTIONS.map(d => (<Button key={d.value} type="button" size="sm" variant={duration === d.value ? "default" : "outline"} className="rounded-full text-xs" onClick={() => setDuration(d.value)}>{d.label}</Button>))}
             </div>
           </div>
-          <div><Label className="text-xs text-muted-foreground">Lien visio</Label><Input value={meetingLink} onChange={e => setMeetingLink(e.target.value)} placeholder="https://meet.google.com/xxx" className="mt-1" /></div>
+          <div><Label htmlFor="session-meeting-link" className="text-xs text-muted-foreground">Lien visio</Label><Input id="session-meeting-link" value={meetingLink} onChange={e => setMeetingLink(e.target.value)} placeholder="https://meet.google.com/xxx" className="mt-1" /></div>
           <div>
             <Label className="text-xs text-muted-foreground">Statut</Label>
             <div className="flex gap-2 mt-1">
@@ -412,10 +412,10 @@ function SessionEditDialog({ session, sessions, deliverables, actions, onUpdate,
           <VoiceTextarea value={laetitiaNote} onChange={setLaetitiaNote} placeholder="Un mot d'encouragement personnel..." />
 
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Prépa cliente (visible avant la session)</p>
-          <Textarea value={prepNotes} onChange={e => setPrepNotes(e.target.value)} className="min-h-[60px] text-sm" placeholder="Regarde tes 10 derniers posts..." />
+          <Textarea aria-label="Prépa cliente (visible avant la session)" value={prepNotes} onChange={e => setPrepNotes(e.target.value)} className="min-h-[60px] text-sm" placeholder="Regarde tes 10 derniers posts..." />
 
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Notes privées (PAS visible par la cliente)</p>
-          <Textarea value={privateNotes} onChange={e => setPrivateNotes(e.target.value)} className="min-h-[60px] text-sm" placeholder="Penser à revoir sa bio..." />
+          <Textarea aria-label="Notes privées (PAS visible par la cliente)" value={privateNotes} onChange={e => setPrivateNotes(e.target.value)} className="min-h-[60px] text-sm" placeholder="Penser à revoir sa bio..." />
 
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide pt-2">Livrables liés</p>
           {sessionDeliverables.length > 0 ? (
@@ -424,14 +424,14 @@ function SessionEditDialog({ session, sessions, deliverables, actions, onUpdate,
                 <div key={d.id} className="flex items-center gap-2 text-sm">
                   <span>{d.status === "delivered" ? "✅" : "🔒"}</span>
                   <span className="text-foreground">{d.title}</span>
-                  {d.file_name && <span className="text-[10px] text-muted-foreground">📎 {d.file_name}</span>}
+                  {d.file_name && <span className="text-2xs text-muted-foreground">📎 {d.file_name}</span>}
                 </div>
               ))}
             </div>
           ) : (
             <p className="text-xs text-muted-foreground italic">Aucun livrable assigné à cette session.</p>
           )}
-          <p className="text-[11px] text-muted-foreground mt-1">
+          <p className="text-2xs text-muted-foreground mt-1">
             Pour ajouter ou modifier des livrables, utilise la section Livrables sur la page principale.
           </p>
 
@@ -474,21 +474,21 @@ function AdminDeliverableRow({ deliverable, sessions, onUpdate, onDelete, onUplo
     <div className={`rounded-lg border p-2.5 flex items-center gap-2 ${isDelivered ? "border-success/50" : "border-border"}`}>
       <span className="text-sm">{isDelivered ? "✅" : "🔒"}</span>
       <input aria-label="Titre du livrable" className="text-sm font-medium text-foreground flex-1 bg-transparent border-none focus:outline-none focus-visible:ring-2 focus-visible:ring-ring min-w-0" value={editTitle} onChange={e => setEditTitle(e.target.value)} onBlur={() => { if (editTitle !== deliverable.title) onUpdate(deliverable.id, { title: editTitle }); }} />
-      {assignedSession && <span className="text-[10px] text-muted-foreground shrink-0">S{assignedSession.session_number}</span>}
+      {assignedSession && <span className="text-2xs text-muted-foreground shrink-0">S{assignedSession.session_number}</span>}
       <Select value={deliverable.assigned_session_id || "none"} onValueChange={v => onUpdate(deliverable.id, { assigned_session_id: v === "none" ? null : v })}>
-        <SelectTrigger className="h-6 text-[10px] w-20 shrink-0"><SelectValue placeholder="Session" /></SelectTrigger>
+        <SelectTrigger aria-label="Session assignée au livrable" className="h-6 text-2xs w-20 shrink-0"><SelectValue placeholder="Session" /></SelectTrigger>
         <SelectContent>
           <SelectItem value="none">—</SelectItem>
           {sessions.map(s => (<SelectItem key={s.id} value={s.id}>S{s.session_number}</SelectItem>))}
         </SelectContent>
       </Select>
       {!isDelivered && (
-        <Button size="sm" variant="ghost" className="h-6 px-1.5 text-[10px] text-primary shrink-0" onClick={() => onUpdate(deliverable.id, { status: "delivered", delivered_at: new Date().toISOString(), seen_by_client: false })}>
+        <Button size="sm" variant="ghost" className="h-6 px-1.5 text-2xs text-primary shrink-0" onClick={() => onUpdate(deliverable.id, { status: "delivered", delivered_at: new Date().toISOString(), seen_by_client: false })}>
           <Unlock className="h-3 w-3" />
         </Button>
       )}
       {deliverable.file_url ? (
-        <span className="text-[10px] text-muted-foreground shrink-0">📎</span>
+        <span className="text-2xs text-muted-foreground shrink-0">📎</span>
       ) : (
         <>
           <input ref={fileRef} type="file" className="hidden" onChange={e => { if (e.target.files?.[0]) onUpload(deliverable.id, e.target.files[0]); }} />
@@ -521,7 +521,7 @@ function AddSessionInline({ onAdd, onCancel }: { onAdd: (data: Partial<SessionDa
       </div>
       {sessionType === "focus" && (
         <Select value={focusTopic || "none"} onValueChange={v => { const topic = v === "none" ? "" : v; setFocusTopic(topic); if (topic && topic !== "custom") setTitle(getFocusLabel(topic)); if (!topic) setTitle("À définir ensemble"); }}>
-          <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Focus…" /></SelectTrigger>
+          <SelectTrigger aria-label="Focus de la session" className="h-8 text-xs"><SelectValue placeholder="Focus…" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="none">💬 À définir</SelectItem>
             {FOCUS_TOPICS.map(t => (<SelectItem key={t.value} value={t.value}>{t.icon} {t.label}</SelectItem>))}
@@ -531,7 +531,7 @@ function AddSessionInline({ onAdd, onCancel }: { onAdd: (data: Partial<SessionDa
       <div className="flex gap-2">
         {DURATION_OPTIONS.filter(d => d.value >= 60).map(d => (<Button key={d.value} type="button" size="sm" variant={duration === d.value ? "default" : "outline"} className="rounded-full text-xs" onClick={() => setDuration(d.value)}>{d.label}</Button>))}
       </div>
-      <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="h-8 text-xs" />
+      <Input aria-label="Date de la session" type="date" value={date} onChange={e => setDate(e.target.value)} className="h-8 text-xs" />
       <div className="flex gap-2">
         <Button size="sm" className="rounded-full" onClick={() => onAdd({ session_type: sessionType, focus_topic: focusTopic || undefined, title, duration_minutes: duration, scheduled_date: date || undefined })}>Ajouter</Button>
         <Button size="sm" variant="outline" className="rounded-full" onClick={onCancel}>Annuler</Button>

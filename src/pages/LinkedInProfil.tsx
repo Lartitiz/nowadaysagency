@@ -131,7 +131,7 @@ export default function LinkedInProfil() {
 
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="font-display text-[22px] font-bold text-foreground">Optimise ton profil LinkedIn</h1>
+            <h1 className="font-display text-2xl font-bold text-foreground">Optimise ton profil LinkedIn</h1>
           </div>
           <span className="font-mono-ui text-xs font-semibold text-primary bg-rose-pale px-3 py-1 rounded-pill">{completedCount}/{TOTAL_SECTIONS}</span>
         </div>
@@ -144,13 +144,13 @@ export default function LinkedInProfil() {
             <AccordionContent className="space-y-4 pb-5">
               <p className="text-sm text-muted-foreground">C'est la petite phrase sous ta photo. C'est elle qui donne envie de cliquer. Max 220 caractères, avec des mots-clés SEO.</p>
               <div className="rounded-xl bg-rose-pale p-4 text-sm space-y-2">
-                <span className="inline-block font-mono-ui text-[10px] font-semibold uppercase tracking-wider bg-jaune text-[#2D2235] px-2.5 py-0.5 rounded-pill mb-1">📖 Exemple</span>
+                <span className="inline-block font-mono-ui text-2xs font-semibold uppercase tracking-wider bg-jaune text-[#2D2235] px-2.5 py-0.5 rounded-pill mb-1">📖 Exemple</span>
                 <p className="font-semibold">2 façons simples de le rédiger :</p>
-                <p className="italic text-[#6B5E7B] border-l-[3px] border-l-primary pl-3"><span className="not-italic font-mono-ui text-[10px] uppercase text-muted-foreground mr-1">Ex :</span><strong className="not-italic">Option A :</strong> Ta proposition de valeur — "J'aide [type de personnes] à [résultat] grâce à [ta méthode]."</p>
-                <p className="italic text-[#6B5E7B] border-l-[3px] border-l-primary pl-3"><span className="not-italic font-mono-ui text-[10px] uppercase text-muted-foreground mr-1">Ex :</span><strong className="not-italic">Option B :</strong> Qui es-tu — "[Poste] + [Mots-clés] pour apparaître dans les recherches."</p>
+                <p className="italic text-[#6B5E7B] border-l-[3px] border-l-primary pl-3"><span className="not-italic font-mono-ui text-2xs uppercase text-muted-foreground mr-1">Ex :</span><strong className="not-italic">Option A :</strong> Ta proposition de valeur — "J'aide [type de personnes] à [résultat] grâce à [ta méthode]."</p>
+                <p className="italic text-[#6B5E7B] border-l-[3px] border-l-primary pl-3"><span className="not-italic font-mono-ui text-2xs uppercase text-muted-foreground mr-1">Ex :</span><strong className="not-italic">Option B :</strong> Qui es-tu — "[Poste] + [Mots-clés] pour apparaître dans les recherches."</p>
               </div>
               <div className="rounded-xl bg-rose-pale p-4 text-sm space-y-1.5">
-                <span className="inline-block font-mono-ui text-[10px] font-semibold uppercase tracking-wider bg-jaune text-[#2D2235] px-2.5 py-0.5 rounded-pill mb-1">📖 Exemples concrets</span>
+                <span className="inline-block font-mono-ui text-2xs font-semibold uppercase tracking-wider bg-jaune text-[#2D2235] px-2.5 py-0.5 rounded-pill mb-1">📖 Exemples concrets</span>
                 <p className="italic text-[#6B5E7B] border-l-[3px] border-l-primary pl-3">🌿 J'aide les femmes à oser la couleur avec une mode éthique artisanale</p>
                 <p className="italic text-[#6B5E7B] border-l-[3px] border-l-primary pl-3">☀️ J'accompagne les marques éthiques à construire une communication sincère</p>
               </div>

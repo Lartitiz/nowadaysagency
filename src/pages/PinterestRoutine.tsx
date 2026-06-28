@@ -7,13 +7,12 @@ import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
 
 export default function PinterestRoutine() {
   const { user } = useAuth();
-  const { toast } = useToast();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const [routineId, setRoutineId] = useState<string | null>(null);
@@ -74,7 +73,7 @@ export default function PinterestRoutine() {
       <AppHeader />
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
         <SubPageHeader parentTo="/pinterest" parentLabel="Pinterest" currentLabel="Ma routine Pinterest" useFromParam />
-        <h1 className="font-display text-[22px] font-bold text-foreground mb-1">Ta routine Pinterest</h1>
+        <h1 className="font-display text-2xl font-bold text-foreground mb-1">Ta routine Pinterest</h1>
         <p className="text-sm text-muted-foreground italic mb-6">Pinterest ne demande pas d'être là tous les jours. Un bon rythme : 2h par mois. C'est tout.</p>
 
         {/* Rhythm selection */}

@@ -498,7 +498,7 @@ function SessionCard({ session, expanded, onToggle, actions, deliverables, onTog
   return (
     <div className={`relative pl-8`}>
       {/* Timeline dot */}
-      <div className={`absolute left-0 top-4 w-[22px] h-[22px] rounded-full ring-2 ring-background flex items-center justify-center text-[11px] ${
+      <div className={`absolute left-0 top-4 w-[22px] h-[22px] rounded-full ring-2 ring-background flex items-center justify-center text-2xs ${
         isCompleted ? "bg-[#2E7D32] text-white" : isNext ? "bg-primary text-white" : "bg-border text-muted-foreground"
       }`}>
         {isCompleted ? "✓" : session.session_number}

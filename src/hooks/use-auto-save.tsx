@@ -112,10 +112,10 @@ export function useAutoSave(
  */
 export function SaveIndicator({ saved, saving }: { saved: boolean; saving: boolean }) {
   if (saving) {
-    return <span className="text-[11px] text-muted-foreground animate-pulse">Sauvegarde...</span>;
+    return <span className="text-2xs text-muted-foreground animate-pulse">Sauvegarde...</span>;
   }
   if (saved) {
-    return <span className="text-[11px] text-muted-foreground">✓ Sauvegardé</span>;
+    return <span className="text-2xs text-muted-foreground">✓ Sauvegardé</span>;
   }
   return null;
 }

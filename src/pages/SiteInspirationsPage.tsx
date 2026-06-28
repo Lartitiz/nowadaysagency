@@ -69,7 +69,7 @@ export default function SiteInspirationsPage() {
               <div className="flex items-center gap-2">
                 <span className="text-2xl">{section.emoji}</span>
                 {section.popular && (
-                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                  <Badge variant="secondary" className="text-2xs px-1.5 py-0">
                     Populaire
                   </Badge>
                 )}

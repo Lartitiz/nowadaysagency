@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Loader2, Target, Search, Home, ArrowRight, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -29,12 +29,11 @@ const services = [
 
 export default function ServicesPage() {
   const { user } = useAuth();
-  const { toast } = useToast();
   const [loadingKey, setLoadingKey] = useState<string | null>(null);
 
   const handleCheckout = async (priceId: string, key: string) => {
     if (!user) {
-      toast({ title: "Connecte-toi pour réserver", variant: "destructive" });
+      toast.error("Connecte-toi pour réserver");
       return;
     }
     setLoadingKey(key);
@@ -50,7 +49,7 @@ export default function ServicesPage() {
       if (error) throw new Error(error.message);
       if (data?.url) window.location.href = data.url;
     } catch {
-      toast({ title: "Erreur", description: "Impossible de lancer le paiement.", variant: "destructive" });
+      toast.error("Erreur", { description: "Impossible de lancer le paiement." });
     }
     setLoadingKey(null);
   };

@@ -169,17 +169,17 @@ function CommentBubble({ comment, onToggleResolved, getInitial, resolved }: {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 mb-0.5">
           <span className="text-xs font-medium text-foreground">{comment.author_name}</span>
-          <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${isOwner ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+          <span className={`text-2xs px-1.5 py-0.5 rounded-full ${isOwner ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
             {isOwner ? "Moi" : "Client·e"}
           </span>
-          <span className="text-[10px] text-muted-foreground ml-auto">
+          <span className="text-2xs text-muted-foreground ml-auto">
             {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true, locale: fr })}
           </span>
         </div>
         <p className={`text-sm text-foreground ${resolved ? "line-through" : ""}`}>{comment.content}</p>
         <button
           onClick={() => onToggleResolved(comment.id, comment.is_resolved)}
-          className={`mt-1 text-[11px] flex items-center gap-1 transition-colors ${comment.is_resolved ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
+          className={`mt-1 text-2xs flex items-center gap-1 transition-colors ${comment.is_resolved ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
         >
           <Check className="h-3 w-3" />
           {comment.is_resolved ? "Résolu" : "Marquer résolu"}

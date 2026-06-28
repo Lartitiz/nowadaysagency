@@ -131,7 +131,7 @@ function FeatureVisual({ type }: { type: string }) {
   if (type === "branding") {
     return (
       <div className={baseClass}>
-        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 font-mono">🎨 Mon identité</p>
+        <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 font-mono">🎨 Mon identité</p>
         <div className="space-y-2.5">
           {[
             { label: "Mon histoire", value: "De l'ingénierie à la céramique : comment j'ai tout plaqué", pct: 100 },
@@ -142,12 +142,12 @@ function FeatureVisual({ type }: { type: string }) {
             <div key={item.label} className="space-y-1">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium text-foreground">{item.label}</span>
-                <span className="text-[10px] text-muted-foreground">{item.pct}%</span>
+                <span className="text-2xs text-muted-foreground">{item.pct}%</span>
               </div>
               <div className="h-1.5 rounded-sm bg-border overflow-hidden">
                 <div className="h-full rounded-sm bg-primary transition-all" style={{ width: `${item.pct}%` }} />
               </div>
-              <p className="text-[11px] text-muted-foreground truncate">{item.value}</p>
+              <p className="text-2xs text-muted-foreground truncate">{item.value}</p>
             </div>
           ))}
         </div>
@@ -158,23 +158,23 @@ function FeatureVisual({ type }: { type: string }) {
   if (type === "content") {
     return (
       <div className={baseClass}>
-        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 font-mono">✍️ Générer un contenu</p>
+        <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 font-mono">✍️ Générer un contenu</p>
         <div className="flex flex-wrap gap-1.5 mb-3">
           {["Carrousel", "Reel", "Post photo", "Story", "Newsletter"].map((format) => (
-            <span key={format} className="rounded-pill bg-secondary px-2.5 py-1 text-[10px] font-medium text-secondary-foreground">{format}</span>
+            <span key={format} className="rounded-pill bg-secondary px-2.5 py-1 text-2xs font-medium text-secondary-foreground">{format}</span>
           ))}
         </div>
         <div className="rounded-xl bg-rose-pale/60 border border-border p-3 mb-3">
-          <p className="text-[11px] text-foreground leading-relaxed">
+          <p className="text-2xs text-foreground leading-relaxed">
             <span className="font-semibold">Hook :</span> "Je fais du yoga depuis 5 ans et je ne savais toujours pas respirer."
           </p>
-          <p className="text-[11px] text-muted-foreground leading-relaxed mt-1">
+          <p className="text-2xs text-muted-foreground leading-relaxed mt-1">
             L'histoire du jour où j'ai compris que tout commençait par le souffle…
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <div className="h-7 rounded-pill bg-primary/90 px-3 flex items-center text-[10px] font-medium text-primary-foreground">✨ Régénérer</div>
-          <div className="h-7 rounded-pill border border-border px-3 flex items-center text-[10px] font-medium text-foreground">📋 Copier</div>
+          <div className="h-7 rounded-pill bg-primary/90 px-3 flex items-center text-2xs font-medium text-primary-foreground">✨ Régénérer</div>
+          <div className="h-7 rounded-pill border border-border px-3 flex items-center text-2xs font-medium text-foreground">📋 Copier</div>
         </div>
       </div>
     );
@@ -183,17 +183,17 @@ function FeatureVisual({ type }: { type: string }) {
   if (type === "calendar") {
     return (
       <div className={baseClass}>
-        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 font-mono">📅 Mars 2026</p>
+        <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 font-mono">📅 Mars 2026</p>
         <div className="grid grid-cols-7 gap-1">
           {["L", "M", "M", "J", "V", "S", "D"].map((j, idx) => (
-            <span key={idx} className="text-[9px] text-muted-foreground text-center font-medium py-1">{j}</span>
+            <span key={idx} className="text-2xs text-muted-foreground text-center font-medium py-1">{j}</span>
           ))}
           {Array.from({ length: 28 }).map((_, idx) => {
             const hasPost = [2, 5, 9, 12, 16, 19, 23, 26].includes(idx);
             const isPublished = [2, 5, 9].includes(idx);
             const isDraft = [12].includes(idx);
             return (
-              <div key={idx} className={`h-7 rounded-lg border text-center flex items-center justify-center text-[10px] ${
+              <div key={idx} className={`h-7 rounded-lg border text-center flex items-center justify-center text-2xs ${
                 hasPost
                   ? isPublished
                     ? "bg-success-bg border-success/30 text-success"
@@ -207,7 +207,7 @@ function FeatureVisual({ type }: { type: string }) {
             );
           })}
         </div>
-        <div className="flex items-center gap-3 mt-3 text-[10px] text-muted-foreground">
+        <div className="flex items-center gap-3 mt-3 text-2xs text-muted-foreground">
           <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-success" /> Publié</span>
           <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-warning" /> Brouillon</span>
           <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-pink-200" /> Planifié</span>
@@ -219,7 +219,7 @@ function FeatureVisual({ type }: { type: string }) {
   if (type === "audit") {
     return (
       <div className={baseClass}>
-        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 font-mono">🔍 Audit Instagram</p>
+        <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 font-mono">🔍 Audit Instagram</p>
         <div className="flex items-center gap-4 mb-4">
           <div className="relative w-16 h-16 shrink-0">
             <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
@@ -230,7 +230,7 @@ function FeatureVisual({ type }: { type: string }) {
           </div>
           <div>
             <p className="text-sm font-bold text-foreground">Score : 68/100</p>
-            <p className="text-[11px] text-muted-foreground">4 forces · 3 axes d'amélioration</p>
+            <p className="text-2xs text-muted-foreground">4 forces · 3 axes d'amélioration</p>
           </div>
         </div>
         <div className="space-y-2">
@@ -240,7 +240,7 @@ function FeatureVisual({ type }: { type: string }) {
             { label: "⚠️ Bio sans appel à l'action clair", good: false },
             { label: "⚠️ Pas de lien vers la boutique dans les posts", good: false },
           ].map((item) => (
-            <div key={item.label} className={`text-[11px] px-3 py-1.5 rounded-lg ${item.good ? "bg-success-bg text-success" : "bg-warning-bg text-warning"}`}>
+            <div key={item.label} className={`text-2xs px-3 py-1.5 rounded-lg ${item.good ? "bg-success-bg text-success" : "bg-warning-bg text-warning"}`}>
               {item.label}
             </div>
           ))}
@@ -252,7 +252,7 @@ function FeatureVisual({ type }: { type: string }) {
   if (type === "channels") {
     return (
       <div className={baseClass}>
-        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 font-mono">📱 Tes canaux</p>
+        <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 font-mono">📱 Tes canaux</p>
         <div className="grid grid-cols-2 gap-2">
           {[
             { emoji: "📸", name: "Instagram", status: "Score : 72/100", active: true },
@@ -265,7 +265,7 @@ function FeatureVisual({ type }: { type: string }) {
             <div key={canal.name} className={`rounded-xl border p-3 ${canal.active ? "border-primary/30 bg-primary/[0.03]" : "border-border"}`}>
               <span className="text-lg block mb-1">{canal.emoji}</span>
               <p className="text-xs font-medium text-foreground">{canal.name}</p>
-              <p className={`text-[10px] ${canal.active ? "text-primary" : "text-muted-foreground"}`}>{canal.status}</p>
+              <p className={`text-2xs ${canal.active ? "text-primary" : "text-muted-foreground"}`}>{canal.status}</p>
             </div>
           ))}
         </div>
@@ -357,7 +357,7 @@ export default function LandingPage() {
             <span className="inline-flex items-center gap-1.5 rounded-pill bg-primary/10 text-primary text-xs font-semibold px-4 py-1.5 mb-6">
               🚀 Gratuit · Sans carte bancaire · En 30 secondes
             </span>
-            <h1 className="font-display text-[28px] sm:text-[40px] lg:text-[52px] font-bold leading-[1.12] text-foreground">
+            <h1 className="font-display text-3xl sm:text-5xl lg:text-6xl font-bold leading-[1.12] text-foreground">
               Tous tes contenus social media du mois.
               <br />
               <span className="text-primary">En une heure.</span>
@@ -379,10 +379,10 @@ export default function LandingPage() {
 
                 {/* Mini calendrier semaine */}
                 <div>
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 font-mono">📅 Calendrier éditorial</p>
+                  <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 font-mono">📅 Calendrier éditorial</p>
                   <div className="grid grid-cols-7 gap-1.5">
                     {["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"].map((jour) => (
-                      <span key={jour} className="text-[9px] text-muted-foreground text-center font-medium">{jour}</span>
+                      <span key={jour} className="text-2xs text-muted-foreground text-center font-medium">{jour}</span>
                     ))}
                     <div className="h-8 rounded-lg bg-success-bg border border-success/30 flex items-center justify-center text-xs">📸</div>
                     <div className="h-8 rounded-lg border border-border" />
@@ -398,13 +398,13 @@ export default function LandingPage() {
 
                 {/* Générateur de contenu */}
                 <div>
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 font-mono">✍️ Création de contenu</p>
+                  <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 font-mono">✍️ Création de contenu</p>
                   <div className="flex flex-wrap gap-1.5 mb-3">
                     {["Storytelling", "Conseil", "Coulisses"].map((pilier) => (
-                      <span key={pilier} className="rounded-pill bg-secondary px-2.5 py-1 text-[10px] font-medium text-secondary-foreground">{pilier}</span>
+                      <span key={pilier} className="rounded-pill bg-secondary px-2.5 py-1 text-2xs font-medium text-secondary-foreground">{pilier}</span>
                     ))}
                   </div>
-                  <div className="h-8 w-36 rounded-pill bg-primary/90 flex items-center justify-center gap-1.5 text-[11px] font-medium text-primary-foreground animate-pulse-subtle">
+                  <div className="h-8 w-36 rounded-pill bg-primary/90 flex items-center justify-center gap-1.5 text-2xs font-medium text-primary-foreground animate-pulse-subtle">
                     ✨ Générer un post
                   </div>
                 </div>
@@ -421,8 +421,8 @@ export default function LandingPage() {
                     <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-foreground">72</span>
                   </div>
                   <div>
-                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider font-mono">🔍 Score com'</p>
-                    <p className="text-[11px] text-foreground mt-0.5">3 priorités identifiées</p>
+                    <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider font-mono">🔍 Score com'</p>
+                    <p className="text-2xs text-foreground mt-0.5">3 priorités identifiées</p>
                   </div>
                 </div>
 
@@ -446,7 +446,7 @@ export default function LandingPage() {
       <section aria-label="Problèmes courants en communication" className="bg-rose-pale py-16 sm:py-24 px-4">
         <div className="mx-auto max-w-5xl">
           <Reveal>
-            <h2 className="font-display text-2xl sm:text-[32px] font-bold text-center mb-12">Si tu te reconnais là-dedans…</h2>
+            <h2 className="font-display text-2xl sm:text-4xl font-bold text-center mb-12">Si tu te reconnais là-dedans…</h2>
           </Reveal>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-12">
             {PAIN_POINTS.map((p, i) => (
@@ -496,7 +496,7 @@ export default function LandingPage() {
         <div className="mx-auto max-w-5xl">
           <Reveal>
             <div className="text-center mb-16">
-              <h2 className="font-display text-2xl sm:text-[32px] font-bold mb-4">Tout ce dont tu as besoin, au même endroit</h2>
+              <h2 className="font-display text-2xl sm:text-4xl font-bold mb-4">Tout ce dont tu as besoin, au même endroit</h2>
               <p className="text-muted-foreground max-w-xl mx-auto">Pas 10 outils différents. Un seul espace qui te guide de la stratégie au contenu publié.</p>
             </div>
           </Reveal>
@@ -527,7 +527,7 @@ export default function LandingPage() {
         <div className="mx-auto max-w-4xl">
           <Reveal>
             <div className="text-center mb-14">
-              <h2 className="font-display text-2xl sm:text-[32px] font-bold mb-4">Pourquoi pas juste ChatGPT, Canva ou une formation en ligne ?</h2>
+              <h2 className="font-display text-2xl sm:text-4xl font-bold mb-4">Pourquoi pas juste ChatGPT, Canva ou une formation en ligne ?</h2>
               <p className="text-muted-foreground max-w-2xl mx-auto">Tu as sûrement déjà essayé. Voilà pourquoi ça ne suffisait pas.</p>
             </div>
           </Reveal>
@@ -597,8 +597,8 @@ export default function LandingPage() {
             </Reveal>
             <Reveal delay={0.15}>
               <div>
-                <h2 className="font-display text-2xl sm:text-[28px] font-bold mb-6">Moi c'est Laetitia.</h2>
-                <div className="space-y-4 text-muted-foreground leading-relaxed text-[15px]">
+                <h2 className="font-display text-2xl sm:text-3xl font-bold mb-6">Moi c'est Laetitia.</h2>
+                <div className="space-y-4 text-muted-foreground leading-relaxed text-base">
                   <p>Depuis 10 ans, j'accompagne les solopreneuses engagées à se rendre visibles sans trahir leurs valeurs.</p>
                   <p>J'ai enseigné la communication à l'<strong className="text-foreground">École des Arts Décoratifs (ENSAD-PSL)</strong>, <strong className="text-foreground">Sup de Pub</strong>, <strong className="text-foreground">Bureau du Design, de la Mode et des Métiers d'Art</strong>, et j'ai accompagné +150 solopreneuses : créatrices, artisanes, coachs, freelances en communication, consultantes…</p>
                   <p>J'ai créé cet outil parce que je voyais toujours le même problème : <strong className="text-foreground">des projets magnifiques, invisibles.</strong> Et des femmes qui croyaient que c'était de leur faute.</p>
@@ -622,7 +622,7 @@ export default function LandingPage() {
       <section aria-label="Témoignages et références" className="bg-rose-pale py-16 sm:py-20 px-4">
         <div className="mx-auto max-w-5xl text-center">
           <Reveal>
-            <h2 className="font-display text-2xl sm:text-[32px] font-bold mb-10">Elles ont fait confiance à Nowadays</h2>
+            <h2 className="font-display text-2xl sm:text-4xl font-bold mb-10">Elles ont fait confiance à Nowadays</h2>
           </Reveal>
           <BrandMarquee />
           <Reveal delay={0.2}>
@@ -640,7 +640,7 @@ export default function LandingPage() {
       <section aria-label="À qui s'adresse l'outil" className="py-16 sm:py-24 px-4">
         <div className="mx-auto max-w-3xl">
           <Reveal>
-            <h2 className="font-display text-2xl sm:text-[32px] font-bold text-center mb-10">C'est pour toi si…</h2>
+            <h2 className="font-display text-2xl sm:text-4xl font-bold text-center mb-10">C'est pour toi si…</h2>
           </Reveal>
           <div className="space-y-4">
             {TARGET_LIST.map((item, i) => (
@@ -659,7 +659,7 @@ export default function LandingPage() {
       <section aria-label="Tarifs" className="py-16 sm:py-24 px-4">
         <div className="mx-auto max-w-4xl text-center">
           <Reveal>
-            <h2 className="font-display text-2xl sm:text-[32px] font-bold mb-4">Commence gratuitement. Sans limite de temps.</h2>
+            <h2 className="font-display text-2xl sm:text-4xl font-bold mb-4">Commence gratuitement. Sans limite de temps.</h2>
             <p className="text-muted-foreground max-w-lg mx-auto">L'essentiel est gratuit. Le premium débloque tout, quand tu es prête.</p>
           </Reveal>
 
@@ -747,7 +747,7 @@ export default function LandingPage() {
       <section aria-label="Questions fréquentes" className="bg-rose-pale py-16 sm:py-24 px-4">
         <div className="mx-auto max-w-2xl">
           <Reveal>
-            <h2 className="font-display text-2xl sm:text-[32px] font-bold mb-10 text-center">Questions fréquentes</h2>
+            <h2 className="font-display text-2xl sm:text-4xl font-bold mb-10 text-center">Questions fréquentes</h2>
           </Reveal>
           <Accordion type="single" collapsible className="space-y-3">
             {FAQ_DATA.map((faq, i) => (
@@ -766,7 +766,7 @@ export default function LandingPage() {
       <section id="signup-section" aria-label="Inscription gratuite" className="relative py-16 sm:py-24 px-4 overflow-hidden" style={{ background: "linear-gradient(180deg, hsl(340 100% 97%) 0%, hsl(var(--background)) 100%)" }}>
         <Reveal>
           <div className="mx-auto max-w-2xl text-center relative">
-            <h2 className="font-display text-2xl sm:text-[36px] font-bold mb-4">
+            <h2 className="font-display text-2xl sm:text-4xl font-bold mb-4">
               Ta com' mérite mieux que du bricolage.
               <br />
               <span className="text-primary">Essaie gratuitement, tu verras.</span>

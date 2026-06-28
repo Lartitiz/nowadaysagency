@@ -123,7 +123,7 @@ function DroppableWeekDay({
       {/* Today badge */}
       {isToday && (
         <span
-          className="absolute top-[-1px] left-1/2 -translate-x-1/2 text-[9px] font-bold bg-primary text-primary-foreground px-2 py-0.5 rounded-b-full z-10"
+          className="absolute top-[-1px] left-1/2 -translate-x-1/2 text-2xs font-bold bg-primary text-primary-foreground px-2 py-0.5 rounded-b-full z-10"
         >
           Aujourd'hui
         </span>
@@ -161,17 +161,17 @@ function DroppableWeekDay({
             const toDraft = posts.filter(p => p.status === "idea" || p.status === "a_rediger");
             const pubCount = posts.filter(p => p.status === "published").length;
             if (pubCount === posts.length) {
-              return <p className="text-[10px] text-success font-medium">✅ Tout est publié !</p>;
+              return <p className="text-2xs text-success font-medium">✅ Tout est publié !</p>;
             }
             return (
               <div className="space-y-0.5">
                 {toPublish.length > 0 && (
-                  <p className="text-[10px] text-primary font-medium">
+                  <p className="text-2xs text-primary font-medium">
                     🚀 {toPublish.length} post{toPublish.length > 1 ? "s" : ""} prêt{toPublish.length > 1 ? "s" : ""} à publier
                   </p>
                 )}
                 {toDraft.length > 0 && (
-                  <p className="text-[10px] text-muted-foreground">
+                  <p className="text-2xs text-muted-foreground">
                     ✏️ {toDraft.length} à rédiger
                   </p>
                 )}
@@ -270,7 +270,7 @@ function MobileWeekDay({ date, dateStr, isToday, posts, onCreatePost, onEditPost
             {dayLabel}
           </span>
           {isToday && (
-            <span className="text-[9px] font-semibold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">
+            <span className="text-2xs font-semibold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">
               Aujourd'hui
             </span>
           )}
@@ -286,17 +286,17 @@ function MobileWeekDay({ date, dateStr, isToday, posts, onCreatePost, onEditPost
             const toDraft = posts.filter(p => p.status === "idea" || p.status === "a_rediger");
             const pubCount = posts.filter(p => p.status === "published").length;
             if (pubCount === posts.length) {
-              return <p className="text-[10px] text-success font-medium">✅ Tout est publié !</p>;
+              return <p className="text-2xs text-success font-medium">✅ Tout est publié !</p>;
             }
             return (
               <div className="space-y-0.5">
                 {toPublish.length > 0 && (
-                  <p className="text-[10px] text-primary font-medium">
+                  <p className="text-2xs text-primary font-medium">
                     🚀 {toPublish.length} post{toPublish.length > 1 ? "s" : ""} prêt{toPublish.length > 1 ? "s" : ""} à publier
                   </p>
                 )}
                 {toDraft.length > 0 && (
-                  <p className="text-[10px] text-muted-foreground">
+                  <p className="text-2xs text-muted-foreground">
                     ✏️ {toDraft.length} à rédiger
                   </p>
                 )}

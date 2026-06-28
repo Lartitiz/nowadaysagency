@@ -345,7 +345,7 @@ export default function InstagramLaunchPlan() {
       <AppHeader />
       <main className="mx-auto max-w-4xl px-6 py-8 max-md:px-4">
         <SubPageHeader parentLabel="Lancement" parentTo="/instagram/lancement" currentLabel="Planifier mon lancement" />
-        <h1 className="font-display text-[26px] font-bold text-foreground">🚀 Planifier mon lancement</h1>
+        <h1 className="font-display text-3xl font-bold text-foreground">🚀 Planifier mon lancement</h1>
         <p className="mt-1 text-sm text-muted-foreground italic">
           Crée ton plan stratégique, contenu par contenu, puis envoie-le dans ton calendrier.
         </p>
@@ -623,8 +623,8 @@ export default function InstagramLaunchPlan() {
                           <p className="text-xs font-medium text-foreground truncate">
                             {CONTENT_TYPES.find((c) => c.id === slot.content_type)?.label || slot.content_type}
                           </p>
-                          <p className="text-[10px] text-muted-foreground">{formatDate(slot.date)}</p>
-                          <Badge variant="secondary" className="text-[10px]">
+                          <p className="text-2xs text-muted-foreground">{formatDate(slot.date)}</p>
+                          <Badge variant="secondary" className="text-2xs">
                             {FORMAT_OPTIONS.find((f) => f.id === slot.format)?.label || slot.format}
                           </Badge>
                         </div>
@@ -714,7 +714,7 @@ function SlotCard({ slot, onDelete, onDateChange }: { slot: LaunchSlot; onDelete
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs text-muted-foreground">📅 {formatDate(slot.date)}</span>
           <Badge variant="secondary" className="text-xs">{formatLabel}</Badge>
-          {cat && <Badge className={cn("text-[10px]", cat.bg, cat.text)}>{cat.label}</Badge>}
+          {cat && <Badge className={cn("text-2xs", cat.bg, cat.text)}>{cat.label}</Badge>}
         </div>
         <Button variant="ghost" size="icon" onClick={onDelete} className="h-7 w-7 text-destructive shrink-0" aria-label="Supprimer cette phase">
           <Trash2 className="h-3.5 w-3.5" />
@@ -778,11 +778,11 @@ function CalendarPreview({ slots }: { slots: LaunchSlot[] }) {
             const daySlots = slotsByDate[dateStr] || [];
             return (
               <div key={dateStr} className="rounded-lg border border-border bg-card p-1.5 min-h-[60px]">
-                <div className="text-[10px] text-muted-foreground mb-1">{day.getDate()}</div>
+                <div className="text-2xs text-muted-foreground mb-1">{day.getDate()}</div>
                 {daySlots.map((s) => {
                   const cat = CATEGORY_COLORS[s.category];
                   return (
-                    <div key={s.id} className={cn("rounded-md px-1 py-0.5 mb-0.5 text-[10px] font-medium truncate", cat?.bg || "bg-muted")}>
+                    <div key={s.id} className={cn("rounded-md px-1 py-0.5 mb-0.5 text-2xs font-medium truncate", cat?.bg || "bg-muted")}>
                       {s.content_type_emoji} {FORMAT_OPTIONS.find((f) => f.id === s.format)?.label || s.format}
                     </div>
                   );

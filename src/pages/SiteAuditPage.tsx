@@ -658,7 +658,7 @@ const SiteAuditPage = () => {
                               <div className="flex items-start gap-2">
                                 <span className="shrink-0">{catEmojis[prob.categorie] || "📌"}</span>
                                 <p className="text-sm text-foreground flex-1">{prob.description}</p>
-                                <span className={`shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-pill ${impactColors[prob.impact] || impactColors.moyen}`}>{prob.impact}</span>
+                                <span className={`shrink-0 text-2xs font-semibold px-2 py-0.5 rounded-pill ${impactColors[prob.impact] || impactColors.moyen}`}>{prob.impact}</span>
                               </div>
                               {expandedProblem === i && (
                                 <div className="ml-6 mt-2 p-3 rounded-lg bg-muted/50 border border-border">

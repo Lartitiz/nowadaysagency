@@ -431,16 +431,16 @@ export default function SuggestedContents() {
                 )}
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
                   <span className={cn(
-                    "text-[10px] font-medium px-1.5 py-0.5 rounded-full",
+                    "text-2xs font-medium px-1.5 py-0.5 rounded-full",
                     OBJECTIVE_COLORS[idea.objective] || "bg-muted text-muted-foreground"
                   )}>
                     {OBJECTIVE_LABELS[idea.objective] || idea.objective}
                   </span>
-                  <span className="text-[10px] text-muted-foreground">
+                  <span className="text-2xs text-muted-foreground">
                     {FORMAT_LABEL[idea.format] || idea.format}
                   </span>
                   {idea.angle && ANGLE_LABELS[idea.angle] && (
-                    <span className="text-[10px] text-muted-foreground/70">
+                    <span className="text-2xs text-muted-foreground/70">
                       · {ANGLE_LABELS[idea.angle]}
                     </span>
                   )}
@@ -467,7 +467,7 @@ export default function SuggestedContents() {
                     <Zap className="h-4 w-4 text-warning shrink-0" />
                     <div>
                       <p className="text-sm font-medium text-foreground">⚡ Générer express</p>
-                      <p className="text-[11px] text-muted-foreground">L'IA rédige tout, tu reçois le texte prêt à poster</p>
+                      <p className="text-2xs text-muted-foreground">L'IA rédige tout, tu reçois le texte prêt à poster</p>
                     </div>
                   </button>
                   <button
@@ -477,7 +477,7 @@ export default function SuggestedContents() {
                     <Pencil className="h-4 w-4 text-primary shrink-0" />
                     <div>
                       <p className="text-sm font-medium text-foreground">✏️ Rédiger pas à pas</p>
-                      <p className="text-[11px] text-muted-foreground">Tu choisis l'angle, la structure, l'accroche…</p>
+                      <p className="text-2xs text-muted-foreground">Tu choisis l'angle, la structure, l'accroche…</p>
                     </div>
                   </button>
                 </motion.div>
@@ -487,7 +487,7 @@ export default function SuggestedContents() {
         ))}
       </div>
 
-      <p className="text-[11px] text-muted-foreground mt-3 italic">
+      <p className="text-2xs text-muted-foreground mt-3 italic">
         💡 Basées sur tes piliers de contenu. Clique pour choisir ton mode.
       </p>
     </motion.div>

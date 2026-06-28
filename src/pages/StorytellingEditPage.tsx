@@ -9,14 +9,13 @@ import { PageLoader } from "@/components/ui/spinner";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
 export default function StorytellingEditPage() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const { id } = useParams();
-  const { toast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [title, setTitle] = useState("");
@@ -41,7 +40,7 @@ export default function StorytellingEditPage() {
     await supabase.from("storytelling").update({ title, imported_text: text } as any).eq("id", id);
     queryClient.invalidateQueries({ queryKey: ["storytelling-primary"] });
     queryClient.invalidateQueries({ queryKey: ["storytelling-list"] });
-    toast({ title: "Modifications enregistrées !" });
+    toast.success("Modifications enregistrées !");
     setSaving(false);
     navigate("/branding/section?section=story");
   };
@@ -59,7 +58,7 @@ export default function StorytellingEditPage() {
       <main className="mx-auto max-w-[640px] px-6 py-8 max-md:px-4">
         <SubPageHeader breadcrumbs={[{ label: "Mon identité", to: "/branding" }, { label: "Mon histoire", to: "/branding/section?section=story" }]} currentLabel="Modifier" />
 
-        <h1 className="font-display text-[26px] font-bold text-foreground mb-6">Modifier le storytelling</h1>
+        <h1 className="font-display text-3xl font-bold text-foreground mb-6">Modifier le storytelling</h1>
 
         <div className="space-y-4">
           <div>
@@ -71,7 +70,7 @@ export default function StorytellingEditPage() {
             <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
-              className="w-full min-h-[400px] rounded-xl border-2 border-input bg-card px-4 py-3 text-[15px] leading-relaxed focus:outline-none focus:border-primary transition-colors resize-none"
+              className="w-full min-h-[400px] rounded-xl border-2 border-input bg-card px-4 py-3 text-base leading-relaxed focus:outline-none focus:border-primary transition-colors resize-none"
             />
           </div>
           <Button onClick={handleSave} disabled={saving} className="rounded-pill w-full">

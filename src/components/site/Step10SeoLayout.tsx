@@ -63,12 +63,12 @@ export default function Step10SeoLayout({ data, save, callAI, aiLoading, aiResul
           <div>
             <label htmlFor="seo-title" className="text-sm font-semibold block mb-1">Title tag (ce qui apparaît dans Google)</label>
             <Input id="seo-title" value={data.seo_title} onChange={(e) => save({ seo_title: e.target.value })} placeholder="Mon titre SEO..." />
-            <p className="font-mono-ui text-[10px] text-muted-foreground mt-1">📊 {data.seo_title.length} / 60 caractères</p>
+            <p className="font-mono-ui text-2xs text-muted-foreground mt-1">📊 {data.seo_title.length} / 60 caractères</p>
           </div>
           <div>
             <label htmlFor="seo-meta" className="text-sm font-semibold block mb-1">Meta description</label>
             <Textarea id="seo-meta" className="min-h-[60px]" value={data.seo_meta} onChange={(e) => save({ seo_meta: e.target.value })} placeholder="Ma meta description..." />
-            <p className="font-mono-ui text-[10px] text-muted-foreground mt-1">📊 {data.seo_meta.length} / 160 caractères</p>
+            <p className="font-mono-ui text-2xs text-muted-foreground mt-1">📊 {data.seo_meta.length} / 160 caractères</p>
           </div>
           <div>
             <label htmlFor="seo-h1" className="text-sm font-semibold block mb-1">H1 suggéré</label>
@@ -85,12 +85,12 @@ export default function Step10SeoLayout({ data, save, callAI, aiLoading, aiResul
       {/* Checklist */}
       <div className="rounded-2xl border border-border bg-card p-5">
         <h3 className="font-display text-base font-bold mb-3">✅ Checklist qualité de ta page</h3>
-        <p className="font-mono-ui text-[11px] text-muted-foreground mb-4">Score : {checkedItems}/{totalItems} éléments ✅</p>
+        <p className="font-mono-ui text-2xs text-muted-foreground mb-4">Score : {checkedItems}/{totalItems} éléments ✅</p>
 
         <div className="space-y-4">
           {CHECKLIST.map((cat) => (
             <div key={cat.cat}>
-              <p className="font-mono-ui text-[11px] font-semibold text-primary mb-2">{cat.cat}</p>
+              <p className="font-mono-ui text-2xs font-semibold text-primary mb-2">{cat.cat}</p>
               <div className="space-y-1.5">
                 {cat.items.map((item) => (
                   <label key={item.key} className="flex items-center gap-2 text-sm cursor-pointer">

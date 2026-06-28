@@ -4,7 +4,7 @@ import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query"
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useBrandProfile } from "@/hooks/use-profile";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
@@ -43,7 +43,6 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
-  const { toast } = useToast();
   const { data: hookBrandProfile } = useBrandProfile();
   const [caption, setCaption] = useState("");
   const [intent, setIntent] = useState("");
@@ -62,11 +61,11 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
 
   const handleFile = (file: File) => {
     if (!ACCEPTED_TYPES.includes(file.type)) {
-      toast({ title: "Format non supporté", description: "Utilise PNG ou JPG.", variant: "destructive" });
+      toast.error("Format non supporté", { description: "Utilise PNG ou JPG." });
       return;
     }
     if (file.size > MAX_FILE_SIZE) {
-      toast({ title: "Fichier trop lourd", description: "5 Mo maximum.", variant: "destructive" });
+      toast.error("Fichier trop lourd", { description: "5 Mo maximum." });
       return;
     }
     setScreenshotMediaType(file.type);
@@ -94,7 +93,7 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
 
   const generate = async () => {
     if (!user || !caption.trim()) {
-      toast({ title: "Ajoute la légende du post", variant: "destructive" });
+      toast.error("Ajoute la légende du post");
       return;
     }
     setLoading(true);
@@ -124,7 +123,7 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
       if (data?.comments) setComments(data.comments);
       else throw new Error("Réponse inattendue");
     } catch (err: any) {
-      toast({ title: "Erreur", description: friendlyError(err), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(err) });
     } finally {
       setLoading(false);
     }
@@ -132,7 +131,7 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
 
   const copyText = (text: string) => {
     navigator.clipboard.writeText(text).then(() => {
-      toast({ title: "📋 Commentaire copié !" });
+      toast.success("📋 Commentaire copié !");
     });
   };
 
@@ -161,7 +160,7 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
       });
     }
     onCommentPosted(contact.id);
-    toast({ title: "✅ Commentaire noté !" });
+    toast.success("✅ Commentaire noté !");
     onOpenChange(false);
     setComments([]);
     setCaption("");
@@ -212,7 +211,7 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
                   <p className="text-xs text-muted-foreground text-center">
                     Glisse le screenshot du post ici<br />ou clique pour uploader
                   </p>
-                  <p className="text-[10px] text-muted-foreground/60">PNG, JPG · 5 Mo max</p>
+                  <p className="text-2xs text-muted-foreground/60">PNG, JPG · 5 Mo max</p>
                 </div>
               )}
               <input
@@ -226,7 +225,7 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
                   if (file) handleFile(file);
                 }}
               />
-              <p className="text-[10px] text-muted-foreground italic">
+              <p className="text-2xs text-muted-foreground italic">
                 📷 L'IA analyse le visuel pour générer un commentaire plus pertinent
               </p>
             </div>
@@ -255,7 +254,7 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
               />
             </div>
 
-            <p className="text-[10px] text-muted-foreground italic">💡 Plus tu donnes de contexte, plus le commentaire sera pertinent.</p>
+            <p className="text-2xs text-muted-foreground italic">💡 Plus tu donnes de contexte, plus le commentaire sera pertinent.</p>
 
             {/* Angle selection */}
             <div className="space-y-1.5">
@@ -265,7 +264,7 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
                   <button
                     key={a.value}
                     onClick={() => setAngle(a.value)}
-                    className={`text-[11px] px-3 py-1 rounded-full border transition-all ${
+                    className={`text-2xs px-3 py-1 rounded-full border transition-all ${
                       angle === a.value ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border text-muted-foreground hover:border-primary/40"
                     }`}
                   >
@@ -286,7 +285,7 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
 
             {comments.map((c, idx) => (
               <div key={idx} className="space-y-2">
-                <p className="text-[11px] font-semibold text-muted-foreground">{c.emoji} {c.label}</p>
+                <p className="text-2xs font-semibold text-muted-foreground">{c.emoji} {c.label}</p>
                 {editingIdx === idx ? (
                   <div className="space-y-2">
                     <Textarea
@@ -311,7 +310,7 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
                       {c.text}
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-muted-foreground">{c.word_count} mots</span>
+                      <span className="text-2xs text-muted-foreground">{c.word_count} mots</span>
                       <Button size="sm" variant="ghost" className="text-xs h-7" onClick={() => copyText(c.text)}>
                         <Copy className="h-3 w-3 mr-1" /> Copier
                       </Button>

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Copy, Check, Save, CalendarPlus, RefreshCw } from "lucide-react";
 import { AddToCalendarDialog } from "@/components/calendar/AddToCalendarDialog";
@@ -51,7 +51,6 @@ export default function ContentActions({
   const navigate = useNavigate();
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
-  const { toast } = useToast();
   const [copied, setCopied] = useState(false);
   const [showCalendarDialog, setShowCalendarDialog] = useState(false);
   const [showIdeasDialog, setShowIdeasDialog] = useState(false);
@@ -102,17 +101,17 @@ export default function ContentActions({
         .eq("id", calendarPostId);
 
       if (error) {
-        toast({ title: "Erreur", variant: "destructive" });
+        toast.error("Erreur");
       } else {
-        toast({ title: "Contenu mis à jour dans ton calendrier !" });
+        toast.success("Contenu mis à jour dans ton calendrier !");
         navigate("/calendrier?canal=" + canal);
       }
     } else {
       const { error } = await supabase.from("calendar_posts").insert(insertData);
       if (error) {
-        toast({ title: "Erreur", variant: "destructive" });
+        toast.error("Erreur");
       } else {
-        toast({ title: "📅 Planifié dans ton calendrier !" });
+        toast.success("📅 Planifié dans ton calendrier !");
       }
     }
     setShowCalendarDialog(false);

@@ -37,10 +37,10 @@ export default function ReelResult({ result }: Props) {
         <div className="rounded-lg bg-accent/30 border border-accent p-4 space-y-2">
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold text-foreground uppercase tracking-wide">📖 Lecture face cam</span>
-            <Badge variant="secondary" className="text-[10px]">monologue continu</Badge>
+            <Badge variant="secondary" className="text-2xs">monologue continu</Badge>
           </div>
           <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{lectureTest}</p>
-          <p className="text-[10px] text-muted-foreground italic">Lis ce texte d'une traite à voix haute. S'il sonne fluide → tu peux tourner. S'il sonne robotique → relance la génération.</p>
+          <p className="text-2xs text-muted-foreground italic">Lis ce texte d'une traite à voix haute. S'il sonne fluide → tu peux tourner. S'il sonne robotique → relance la génération.</p>
         </div>
       )}
 
@@ -50,7 +50,7 @@ export default function ReelResult({ result }: Props) {
             <CardContent className="p-3 space-y-1.5">
               <div className="flex items-center gap-2 flex-wrap">
                 {section.timing && (
-                  <Badge variant="secondary" className="font-mono text-[10px]">
+                  <Badge variant="secondary" className="font-mono text-2xs">
                     {section.timing}
                   </Badge>
                 )}
@@ -65,12 +65,12 @@ export default function ReelResult({ result }: Props) {
                 <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{section.texte_parle}</p>
               )}
               {section.texte_overlay && (
-                <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] font-normal">
+                <Badge className="bg-primary/10 text-primary border-primary/20 text-2xs font-normal">
                   📝 {section.texte_overlay}
                 </Badge>
               )}
               {section.cut && (
-                <p className="text-[10px] text-muted-foreground font-mono">Cut : {section.cut}</p>
+                <p className="text-2xs text-muted-foreground font-mono">Cut : {section.cut}</p>
               )}
               {section.tip && (
                 <p className="text-xs text-muted-foreground">💡 {section.tip}</p>

@@ -107,7 +107,7 @@ export default function NotificationBell() {
         <Button variant="ghost" size="icon" className="relative h-9 w-9" aria-label="Notifications">
           <Bell className="h-4.5 w-4.5" />
           {unreadCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 h-4.5 min-w-[18px] rounded-full bg-primary text-[10px] font-bold text-primary-foreground flex items-center justify-center px-1 animate-reveal-scale">
+            <span className="absolute -top-0.5 -right-0.5 h-4.5 min-w-[18px] rounded-full bg-primary text-2xs font-bold text-primary-foreground flex items-center justify-center px-1 animate-reveal-scale">
               {unreadCount > 9 ? "9+" : unreadCount}
             </span>
           )}
@@ -137,7 +137,7 @@ export default function NotificationBell() {
                   <p className={`text-sm leading-tight ${!n.read ? "font-semibold" : ""}`}>{n.title}</p>
                   <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.message}</p>
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[10px] text-muted-foreground">{timeAgo(n.created_at)}</span>
+                    <span className="text-2xs text-muted-foreground">{timeAgo(n.created_at)}</span>
                     {n.link && <ExternalLink className="h-2.5 w-2.5 text-muted-foreground" />}
                   </div>
                 </div>

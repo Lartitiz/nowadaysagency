@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
 import { getActivityExamples } from "@/lib/activity-examples";
 import { TOTAL_STEPS } from "@/lib/onboarding-constants";
@@ -98,7 +98,6 @@ export function useOnboarding() {
   const workspaceId = useWorkspaceId();
   const profileUserId = useProfileUserId();
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   const demoDefaults = demoData?.onboarding;
 
@@ -193,7 +192,7 @@ export function useOnboarding() {
   // Toast when restored
   useEffect(() => {
     if (restoredFromSave && step > 0) {
-      toast({ title: "On reprend où tu en étais 🌸" });
+      toast("On reprend où tu en étais 🌸");
       setRestoredFromSave(false);
     }
   }, [restoredFromSave]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -340,7 +339,7 @@ export function useOnboarding() {
         const ext = file.name.split(".").pop()?.toLowerCase();
         const allowed = ["png", "jpg", "jpeg", "webp"];
         if (!ext || !allowed.includes(ext)) {
-          toast({ title: "Format non supporté", description: `${file.name} ignoré`, variant: "destructive" });
+          toast.error("Format non supporté", { description: `${file.name} ignoré` });
           continue;
         }
 
@@ -356,7 +355,7 @@ export function useOnboarding() {
 
         if (uploadError) {
           console.error("Upload error:", uploadError);
-          toast({ title: "Erreur", description: `Upload de ${file.name} échoué`, variant: "destructive" });
+          toast.error("Erreur", { description: `Upload de ${file.name} échoué` });
           continue;
         }
 
@@ -382,7 +381,7 @@ export function useOnboarding() {
       }
     } catch (e: unknown) {
       console.error("Erreur technique:", e);
-      toast({ title: "Erreur", description: friendlyError(e as Error), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(e as Error) });
     } finally {
       setUploading(false);
     }
@@ -442,13 +441,13 @@ export function useOnboarding() {
         const { error: updateErr } = await supabase.from("profiles").update(profileData).eq("user_id", profileUserId);
         if (updateErr) {
           console.error("Failed to update profile:", updateErr);
-          toast({ title: "Erreur de sauvegarde", description: "Ton profil n'a pas pu être enregistré. Vérifie ta connexion et réessaie.", variant: "destructive" });
+          toast.error("Erreur de sauvegarde", { description: "Ton profil n'a pas pu être enregistré. Vérifie ta connexion et réessaie." });
         }
       } else {
         const { error: insertErr } = await supabase.from("profiles").insert({ user_id: profileUserId, ...profileData });
         if (insertErr) {
           console.error("Failed to insert profile:", insertErr);
-          toast({ title: "Erreur de sauvegarde", description: "Ton profil n'a pas pu être enregistré. Vérifie ta connexion et réessaie.", variant: "destructive" });
+          toast.error("Erreur de sauvegarde", { description: "Ton profil n'a pas pu être enregistré. Vérifie ta connexion et réessaie." });
         }
       }
 
@@ -479,13 +478,13 @@ export function useOnboarding() {
         const { error: updErr } = await supabase.from("user_plan_config").update(configData).eq("user_id", user.id);
         if (updErr) {
           console.error("Failed to update plan_config:", updErr);
-          toast({ title: "Erreur de sauvegarde", description: "Ton profil n'a pas pu être enregistré. Vérifie ta connexion et réessaie.", variant: "destructive" });
+          toast.error("Erreur de sauvegarde", { description: "Ton profil n'a pas pu être enregistré. Vérifie ta connexion et réessaie." });
         }
       } else {
         const { error: insErr } = await supabase.from("user_plan_config").insert({ user_id: user.id, ...configData });
         if (insErr) {
           console.error("Failed to insert plan_config:", insErr);
-          toast({ title: "Erreur de sauvegarde", description: "Ton profil n'a pas pu être enregistré. Vérifie ta connexion et réessaie.", variant: "destructive" });
+          toast.error("Erreur de sauvegarde", { description: "Ton profil n'a pas pu être enregistré. Vérifie ta connexion et réessaie." });
         }
       }
 
@@ -552,7 +551,7 @@ export function useOnboarding() {
       localStorage.removeItem("lac_onboarding_ts");
     } catch (error: unknown) {
       console.error("Erreur technique:", error);
-      toast({ title: "Erreur", description: friendlyError(error as Error), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(error as Error) });
     } finally {
       setSaving(false);
     }

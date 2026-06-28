@@ -7,7 +7,7 @@ import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
 import { Sparkles, Check, Save } from "lucide-react";
 import AuditInsight from "@/components/AuditInsight";
@@ -68,7 +68,6 @@ const SLOTS = [
 
 export default function InstagramProfileEpingles() {
   const { user } = useAuth();
-  const { toast } = useToast();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const navigate = useNavigate();
@@ -137,10 +136,10 @@ export default function InstagramProfileEpingles() {
           await supabase.from("instagram_pinned_posts").insert(row);
         }
       }
-      toast({ title: "Sauvegardé !" });
+      toast.success("Sauvegardé !");
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(e) });
     } finally {
       setSaving(false);
     }
@@ -172,7 +171,7 @@ export default function InstagramProfileEpingles() {
           currentLabel="Posts épinglés"
         />
 
-        <h1 className="font-display text-[26px] font-bold text-foreground">
+        <h1 className="font-display text-3xl font-bold text-foreground">
           📌 Tes 3 posts épinglés
         </h1>
         <p className="mt-2 text-sm text-muted-foreground mb-6">

@@ -283,10 +283,10 @@ export default function CreerStepFormat({ idea, objective, initialFormat, initia
             )}
             {isRecommended && structure && (
               <>
-                <Badge variant="secondary" className="mt-1.5 text-[10px]">
+                <Badge variant="secondary" className="mt-1.5 text-2xs">
                   Structure auto : {structure.label}
                 </Badge>
-                <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">
+                <p className="text-2xs text-muted-foreground mt-1 leading-relaxed">
                   {structure.steps.slice(0, 4).map((s) => s.label).join(" → ")}
                   {structure.steps.length > 4 ? " …" : ""}
                 </p>
@@ -392,7 +392,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, initia
               >
                 <span className="text-2xl block mb-1">{ch.emoji}</span>
                 <span className="text-xs font-semibold text-foreground">{ch.label}</span>
-                <p className="text-[10px] text-muted-foreground mt-0.5">{ch.desc}</p>
+                <p className="text-2xs text-muted-foreground mt-0.5">{ch.desc}</p>
               </button>
             ))}
           </div>
@@ -462,7 +462,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, initia
             >
               <span className="text-2xl block mb-1">📝</span>
               <span className="text-xs font-semibold text-foreground">Post</span>
-              <p className="text-[10px] text-muted-foreground mt-0.5">1300-2000 caractères, photo en option</p>
+              <p className="text-2xs text-muted-foreground mt-0.5">1300-2000 caractères, photo en option</p>
             </button>
             {!hasPreloadedPhotos && (
               <button
@@ -471,7 +471,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, initia
               >
                 <span className="text-2xl block mb-1">🎠</span>
                 <span className="text-xs font-semibold text-foreground">Texte design</span>
-                <p className="text-[10px] text-muted-foreground mt-0.5">8-10 slides, design auto, .pptx téléchargeable</p>
+                <p className="text-2xs text-muted-foreground mt-0.5">8-10 slides, design auto, .pptx téléchargeable</p>
               </button>
             )}
             <button
@@ -480,7 +480,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, initia
             >
               <span className="text-2xl block mb-1">✨</span>
               <span className="text-xs font-semibold text-foreground">Photos + slides design</span>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Alternance photos / slides texte (6-8 slides)</p>
+              <p className="text-2xs text-muted-foreground mt-0.5">Alternance photos / slides texte (6-8 slides)</p>
             </button>
             <button
               onClick={() => { setLinkedinSubMode("carousel"); handleFormatSelect("carousel", { keepCarouselSubMode: "photo" }); }}
@@ -488,7 +488,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, initia
             >
               <span className="text-2xl block mb-1">📸</span>
               <span className="text-xs font-semibold text-foreground">Tes photos en fond</span>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Photos plein écran + texte court par-dessus</p>
+              <p className="text-2xs text-muted-foreground mt-0.5">Photos plein écran + texte court par-dessus</p>
             </button>
             <button
               onClick={() => { setLinkedinSubMode("carousel"); handleFormatSelect("carousel", { keepCarouselSubMode: "pure_photo" }); }}
@@ -496,7 +496,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, initia
             >
               <span className="text-2xl block mb-1">🖼️</span>
               <span className="text-xs font-semibold text-foreground">Photos brutes</span>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Tes photos au bon format, l'IA écrit juste le post</p>
+              <p className="text-2xs text-muted-foreground mt-0.5">Tes photos au bon format, l'IA écrit juste le post</p>
             </button>
           </div>
         </div>
@@ -514,7 +514,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, initia
               >
                 <span className="text-2xl block mb-1">📝</span>
                 <span className="text-xs font-semibold text-foreground">Texte SEO</span>
-                <p className="text-[10px] text-muted-foreground mt-0.5">Titre + description SEO</p>
+                <p className="text-2xs text-muted-foreground mt-0.5">Titre + description SEO</p>
               </button>
             )}
             <button
@@ -523,7 +523,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, initia
             >
               <span className="text-2xl block mb-1">🎨</span>
               <span className="text-xs font-semibold text-foreground">Visuel</span>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Infographie, checklist, schéma</p>
+              <p className="text-2xs text-muted-foreground mt-0.5">Infographie, checklist, schéma</p>
             </button>
             <button
               onClick={() => { setPinterestSubMode("inspiration" as any); handleFormatSelect("pinterest_inspiration"); }}
@@ -531,7 +531,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, initia
             >
               <span className="text-2xl block mb-1">🔍</span>
               <span className="text-xs font-semibold text-foreground">Inspiration</span>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Partir d'une épingle existante</p>
+              <p className="text-2xs text-muted-foreground mt-0.5">Partir d'une épingle existante</p>
             </button>
           </div>
         </div>
@@ -560,10 +560,10 @@ export default function CreerStepFormat({ idea, objective, initialFormat, initia
                     <span className="text-2xl block mb-1">{spec.emoji}</span>
                     <span className="text-xs font-semibold text-foreground">{spec.label}</span>
                     {spec.comingSoon && (
-                      <Badge variant="secondary" className="absolute top-1 right-1 text-[9px]">Bientôt</Badge>
+                      <Badge variant="secondary" className="absolute top-1 right-1 text-2xs">Bientôt</Badge>
                     )}
                     {isRecommended && !spec.comingSoon && (
-                      <p className="text-[10px] text-primary mt-0.5">Recommandé 🎯</p>
+                      <p className="text-2xs text-primary mt-0.5">Recommandé 🎯</p>
                     )}
                   </button>
                 );
@@ -718,7 +718,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, initia
                     <span className="text-xl">📝</span>
                     <span className="text-sm font-semibold text-foreground">Texte design</span>
                   </div>
-                  <p className="text-[11px] leading-snug text-muted-foreground">L'IA écrit et designe 8-10 slides. .pptx téléchargeable.</p>
+                  <p className="text-2xs leading-snug text-muted-foreground">L'IA écrit et designe 8-10 slides. .pptx téléchargeable.</p>
                 </button>
               )}
               <button
@@ -740,7 +740,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, initia
                   <span className="text-xl">📸</span>
                   <span className="text-sm font-semibold text-foreground">Tes photos en fond</span>
                 </div>
-                <p className="text-[11px] leading-snug text-muted-foreground">Photos plein écran, un texte court posé par-dessus chaque slide.</p>
+                <p className="text-2xs leading-snug text-muted-foreground">Photos plein écran, un texte court posé par-dessus chaque slide.</p>
               </button>
               <button
                 onClick={() => setCarouselSubMode("mix")}
@@ -762,7 +762,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, initia
                   <span className="text-xl">✨</span>
                   <span className="text-sm font-semibold text-foreground">Photos + slides design</span>
                 </div>
-                <p className="text-[11px] leading-snug text-muted-foreground">Alternance de tes photos et de slides texte designées.</p>
+                <p className="text-2xs leading-snug text-muted-foreground">Alternance de tes photos et de slides texte designées.</p>
               </button>
               <button
                 onClick={() => setCarouselSubMode("pure_photo")}
@@ -777,7 +777,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, initia
                   <span className="text-xl">🖼️</span>
                   <span className="text-sm font-semibold text-foreground">Photos brutes</span>
                 </div>
-                <p className="text-[11px] leading-snug text-muted-foreground">Tes photos cadrées au bon format, zéro texte dessus. L'IA écrit juste la légende.</p>
+                <p className="text-2xs leading-snug text-muted-foreground">Tes photos cadrées au bon format, zéro texte dessus. L'IA écrit juste la légende.</p>
               </button>
             </div>
           </div>
@@ -893,7 +893,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, initia
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPinterestLink(e.target.value)}
               placeholder="https://ton-site.com/produit-ou-article"
             />
-            <p className="text-[10px] text-muted-foreground">L'URL vers laquelle l'épingle renverra (page produit, article de blog…)</p>
+            <p className="text-2xs text-muted-foreground">L'URL vers laquelle l'épingle renverra (page produit, article de blog…)</p>
           </div>
 
           {pinterestBoards.length > 0 && (
@@ -912,7 +912,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, initia
             </div>
           )}
           {pinterestBoards.length === 0 && (
-            <p className="text-[10px] text-muted-foreground">Pas de tableaux configurés. Tu peux en créer dans l'espace Pinterest.</p>
+            <p className="text-2xs text-muted-foreground">Pas de tableaux configurés. Tu peux en créer dans l'espace Pinterest.</p>
           )}
         </div>
       )}
@@ -940,7 +940,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, initia
           </p>
           <ul className="space-y-0.5">
             {selectedStructure.steps.map((s, i) => (
-              <li key={i} className="text-[10px] text-muted-foreground flex items-start gap-1">
+              <li key={i} className="text-2xs text-muted-foreground flex items-start gap-1">
                 <span className="font-mono text-primary/60">{i + 1}.</span> {s.label} — {s.desc}
               </li>
             ))}
@@ -959,7 +959,7 @@ export default function CreerStepFormat({ idea, objective, initialFormat, initia
         >
           Suivant <ArrowRight className="h-4 w-4" />
         </Button>
-        <p className="text-[11px] text-muted-foreground text-center">
+        <p className="text-2xs text-muted-foreground text-center">
           On affinera ensuite ton brief avec quelques questions rapides.
         </p>
         <div className="flex justify-center">

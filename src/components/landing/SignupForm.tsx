@@ -3,7 +3,7 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import PasswordStrengthIndicator from "@/components/ui/PasswordStrengthIndicator";
@@ -18,7 +18,6 @@ const signupSchema = z.object({
 type SignupValues = z.infer<typeof signupSchema>;
 
 export default function SignupForm({ compact = false }: { compact?: boolean }) {
-  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [submittedEmail, setSubmittedEmail] = useState("");
@@ -36,9 +35,9 @@ export default function SignupForm({ compact = false }: { compact?: boolean }) {
       });
       if (error) throw error;
       setResent(true);
-      toast({ title: "Email renvoyé !", description: "Regarde ta boîte de réception (et tes spams)." });
+      toast.success("Email renvoyé !", { description: "Regarde ta boîte de réception (et tes spams)." });
     } catch (error: any) {
-      toast({ title: "Oups !", description: error?.message || "Impossible de renvoyer l'email.", variant: "destructive" });
+      toast.error("Oups !", { description: error?.message || "Impossible de renvoyer l'email." });
     } finally {
       setResending(false);
     }
@@ -69,17 +68,15 @@ export default function SignupForm({ compact = false }: { compact?: boolean }) {
       }
       setSubmittedEmail(values.email);
       setSuccess(true);
-      toast({ title: "Compte créé !", description: "Vérifie tes emails pour confirmer ton inscription." });
+      toast.success("Compte créé !", { description: "Vérifie tes emails pour confirmer ton inscription." });
     } catch (error: any) {
       const msg = error.message;
       if (msg === "User already registered") {
-        toast({
-          title: "Tu as déjà un compte !",
+        toast.error("Tu as déjà un compte !", {
           description: (<span>Connecte-toi ici : <a href="/login" className="underline font-medium text-primary">page de connexion</a></span>) as any,
-          variant: "destructive",
         });
       } else {
-        toast({ title: "Oups !", description: msg, variant: "destructive" });
+        toast.error("Oups !", { description: msg });
       }
     } finally {
       setLoading(false);

@@ -99,7 +99,7 @@ export default function ContactsSection({ contacts, filter, onFilterChange, onIn
           <button
             key={f.value}
             onClick={() => onFilterChange(f.value)}
-            className={`text-[11px] px-3 py-1 rounded-full border transition-all ${
+            className={`text-2xs px-3 py-1 rounded-full border transition-all ${
               filter === f.value ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border text-muted-foreground hover:border-primary/40"
             }`}
           >
@@ -127,32 +127,32 @@ export default function ContactsSection({ contacts, filter, onFilterChange, onIn
                     >
                       @{displayPseudo}
                     </InstagramLink>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full ${TAG_COLORS[c.tag] || "bg-muted text-foreground"}`}>
+                    <span className={`text-2xs px-2 py-0.5 rounded-full ${TAG_COLORS[c.tag] || "bg-muted text-foreground"}`}>
                       {TAG_LABELS[c.tag] || c.tag}
                     </span>
                     {hasProspect && (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent/30 text-accent-foreground">🎯 Prospect</span>
+                      <span className="text-2xs px-2 py-0.5 rounded-full bg-accent/30 text-accent-foreground">🎯 Prospect</span>
                     )}
-                    {stale && <span className="text-[10px]">⚠️</span>}
+                    {stale && <span className="text-2xs">⚠️</span>}
                   </div>
-                  {c.description && <p className="text-[11px] text-muted-foreground mt-0.5">{c.description}</p>}
+                  {c.description && <p className="text-2xs text-muted-foreground mt-0.5">{c.description}</p>}
                   {c.last_interaction && (
-                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                    <p className="text-2xs text-muted-foreground mt-0.5">
                       💬 Dernière interaction : il y a {daysSince(c.last_interaction)} jour{daysSince(c.last_interaction) > 1 ? "s" : ""}
                     </p>
                   )}
                   {c.notes && !isEditingThis && (
-                    <p className="text-[11px] text-muted-foreground italic mt-1">📝 {c.notes}</p>
+                    <p className="text-2xs text-muted-foreground italic mt-1">📝 {c.notes}</p>
                   )}
                 </div>
                 <div className="flex gap-1 shrink-0">
-                  <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px]" onClick={() => setCommentContact(c)} title="Commenter un post">
+                  <Button size="sm" variant="ghost" className="h-7 px-2 text-2xs" onClick={() => setCommentContact(c)} title="Commenter un post">
                     <MessageSquare className="h-3 w-3" />
                     <span className="hidden sm:inline ml-1">Commenter</span>
                   </Button>
                   <InstagramLink
                     username={c.pseudo}
-                    className="inline-flex items-center gap-1 h-7 px-2 text-[11px] rounded-md hover:bg-accent text-foreground"
+                    className="inline-flex items-center gap-1 h-7 px-2 text-2xs rounded-md hover:bg-accent text-foreground"
                     onClick={() => handleGoComment(c)}
                     showCopy
                   >
@@ -196,7 +196,7 @@ export default function ContactsSection({ contacts, filter, onFilterChange, onIn
                 onChange={e => setNewPseudo(e.target.value)}
                 className="h-8 text-sm"
               />
-              <p className="text-[10px] text-muted-foreground mt-1">💡 Juste le pseudo, sans le https://</p>
+              <p className="text-2xs text-muted-foreground mt-1">💡 Juste le pseudo, sans le https://</p>
             </div>
             <select
               value={newTag}
@@ -218,7 +218,7 @@ export default function ContactsSection({ contacts, filter, onFilterChange, onIn
       )}
 
       {contacts.length >= 20 && (
-        <p className="text-[10px] text-muted-foreground italic">💡 15-25 contacts, c'est l'idéal. Au-delà, tu risques de ne plus suivre.</p>
+        <p className="text-2xs text-muted-foreground italic">💡 15-25 contacts, c'est l'idéal. Au-delà, tu risques de ne plus suivre.</p>
       )}
 
       {/* Comment Generator Dialog */}

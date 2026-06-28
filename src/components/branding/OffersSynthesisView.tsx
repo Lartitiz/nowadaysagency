@@ -17,7 +17,7 @@ function SynthCard({ children, className = "" }: { children: React.ReactNode; cl
 
 function SectionLabel({ emoji, title }: { emoji: string; title: string }) {
   return (
-    <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wider mb-3 text-muted-foreground flex items-center gap-1.5">
+    <p className="font-mono-ui text-2xs font-semibold uppercase tracking-wider mb-3 text-muted-foreground flex items-center gap-1.5">
       <span>{emoji}</span> {title}
     </p>
   );
@@ -143,14 +143,14 @@ export default function OffersSynthesisView({ offers, onNavigateToOffer, onNavig
               const badge = TYPE_BADGE[o.offer_type] || TYPE_BADGE.paid;
               return (
                 <div key={o.id} className="flex items-center gap-2 text-sm">
-                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${badge.className}`}>{badge.label}</span>
+                  <span className={`text-2xs font-semibold px-2 py-0.5 rounded-full ${badge.className}`}>{badge.label}</span>
                   <span className="text-foreground font-medium">{o.name}</span>
                   {o.price_text && <span className="text-muted-foreground">— {o.price_text}</span>}
                   {!o.completed && (o.completion_pct ?? 0) < 100 && (
-                    <span className="text-[10px] text-muted-foreground ml-auto">{o.completion_pct ?? 0}%</span>
+                    <span className="text-2xs text-muted-foreground ml-auto">{o.completion_pct ?? 0}%</span>
                   )}
                   {(o.completed || o.completion_pct === 100) && (
-                    <span className="text-[10px] text-success ml-auto">✓</span>
+                    <span className="text-2xs text-success ml-auto">✓</span>
                   )}
                 </div>
               );
@@ -184,7 +184,7 @@ export default function OffersSynthesisView({ offers, onNavigateToOffer, onNavig
         )}
 
         {/* Footer */}
-        <p className="font-mono-ui text-[10px] text-muted-foreground text-center">L'Assistant Com' × Nowadays Agency</p>
+        <p className="font-mono-ui text-2xs text-muted-foreground text-center">L'Assistant Com' × Nowadays Agency</p>
       </div>
     </div>
   );

@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
 import {
   searchStockPhotos,
@@ -52,7 +52,6 @@ export default function PhotoSwapDialog({
   defaultQuery = "",
   onSelect,
 }: PhotoSwapDialogProps) {
-  const { toast } = useToast();
   const hasLibrary = currentPhotos.length > 0;
   const [tab, setTab] = useState<Tab>(hasLibrary ? "library" : "search");
   const [query, setQuery] = useState(defaultQuery);
@@ -84,16 +83,13 @@ export default function PhotoSwapDialog({
       });
       setResults(photos);
       if (photos.length === 0) {
-        toast({
-          title: "Aucune photo trouvée",
+        toast("Aucune photo trouvée", {
           description: "Essaie d'autres mots-clés (en anglais, ça marche souvent mieux).",
         });
       }
     } catch (e) {
-      toast({
-        title: "Recherche indisponible",
+      toast.error("Recherche indisponible", {
         description: e instanceof Error ? e.message : "Réessaie dans un instant.",
-        variant: "destructive",
       });
     } finally {
       setSearching(false);
@@ -107,10 +103,8 @@ export default function PhotoSwapDialog({
       onSelect(item);
       onOpenChange(false);
     } catch (e) {
-      toast({
-        title: "Import impossible",
+      toast.error("Import impossible", {
         description: e instanceof Error ? e.message : "Cette photo n'a pas pu être importée.",
-        variant: "destructive",
       });
     } finally {
       setImportingId(null);
@@ -122,18 +116,14 @@ export default function PhotoSwapDialog({
     if (fileInputRef.current) fileInputRef.current.value = "";
     if (!file) return;
     if (!file.type.startsWith("image/")) {
-      toast({
-        title: "Format non supporté",
+      toast.error("Format non supporté", {
         description: "Choisis un fichier image (JPG, PNG, WEBP).",
-        variant: "destructive",
       });
       return;
     }
     if (file.size > MAX_UPLOAD_BYTES) {
-      toast({
-        title: "Image trop lourde",
+      toast.error("Image trop lourde", {
         description: "Maximum 10 Mo. Réduis la taille puis réessaie.",
-        variant: "destructive",
       });
       return;
     }
@@ -150,10 +140,8 @@ export default function PhotoSwapDialog({
       onSelect(item);
       onOpenChange(false);
     } catch {
-      toast({
-        title: "Lecture impossible",
+      toast.error("Lecture impossible", {
         description: "Cette image n'a pas pu être lue.",
-        variant: "destructive",
       });
     }
   };
@@ -213,7 +201,7 @@ export default function PhotoSwapDialog({
                 >
                   <img src={p.preview} alt={p.name || `Photo ${i + 1}`} className="w-full h-full object-cover" />
                   {isCurrent && (
-                    <span className="absolute bottom-1 left-1 rounded bg-primary/90 px-1.5 py-0.5 text-[9px] font-medium text-primary-foreground">
+                    <span className="absolute bottom-1 left-1 rounded bg-primary/90 px-1.5 py-0.5 text-2xs font-medium text-primary-foreground">
                       Actuelle
                     </span>
                   )}

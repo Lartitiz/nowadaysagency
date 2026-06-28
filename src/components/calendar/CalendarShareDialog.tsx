@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -103,7 +103,6 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
   const profileUserId = useProfileUserId();
-  const { toast } = useToast();
   const [tab, setTab] = useState<"list" | "create">("list");
   const [shares, setShares] = useState<Share[]>([]);
   const [loading, setLoading] = useState(false);
@@ -205,7 +204,7 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
 
   const copyLink = (token: string) => {
     navigator.clipboard.writeText(getShareUrl(token));
-    toast({ title: "Lien copié !" });
+    toast.success("Lien copié !");
   };
 
   const toggleActive = async (share: Share) => {
@@ -219,7 +218,7 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
     await (supabase.from("calendar_shares") as any).delete().eq("id", id);
     setShares(prev => prev.filter(s => s.id !== id));
     setConfirmDeleteId(null);
-    toast({ title: "Lien supprimé" });
+    toast.success("Lien supprimé");
   };
 
   const handleCreate = async () => {
@@ -248,11 +247,11 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
 
     if (error) {
       console.error("calendar_shares insert error:", error);
-      toast({ title: "Erreur lors de la création", description: friendlyError(error), variant: "destructive" });
+      toast.error("Erreur lors de la création", { description: friendlyError(error) });
     } else {
       setCreatedToken(data.share_token);
       setShares(prev => [{ ...data, unresolved_count: 0, edit_count: 0, to_validate_count: 0, edit_logs: [] }, ...prev]);
-      toast({ title: "Lien créé !" });
+      toast.success("Lien créé !");
     }
     setCreating(false);
   };
@@ -272,7 +271,7 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
 
       const { data: posts } = await postsQuery;
       if (!posts || posts.length === 0) {
-        toast({ title: "Aucun post à exporter" });
+        toast("Aucun post à exporter");
         setExporting(false);
         return;
       }
@@ -329,9 +328,9 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
       }
 
       XLSX.writeFile(wb, fileName);
-      toast({ title: "Export téléchargé !" });
+      toast.success("Export téléchargé !");
     } catch {
-      toast({ title: "Erreur lors de l'export", variant: "destructive" });
+      toast.error("Erreur lors de l'export");
     }
     setExporting(false);
   };
@@ -395,7 +394,7 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
                         <p className="text-sm font-medium text-foreground truncate">
                           {share.label || "Sans nom"}
                         </p>
-                        <p className="text-[11px] text-muted-foreground">
+                        <p className="text-2xs text-muted-foreground">
                           Créé {formatDistanceToNow(new Date(share.created_at), { addSuffix: true, locale: fr })}
                           {share.canal_filter !== "all" && ` · ${share.canal_filter}`}
                           {share.guest_name && ` · ${share.guest_name}`}
@@ -403,17 +402,17 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
                         {(share.edit_count || 0) > 0 && (
-                          <span className="text-[10px] font-semibold bg-info-bg text-info px-1.5 py-0.5 rounded-full">
+                          <span className="text-2xs font-semibold bg-info-bg text-info px-1.5 py-0.5 rounded-full">
                             ✏️ {share.edit_count}
                           </span>
                         )}
                         {(share.to_validate_count || 0) > 0 && (
-                          <span className="text-[10px] font-semibold bg-warning-bg text-warning px-1.5 py-0.5 rounded-full">
+                          <span className="text-2xs font-semibold bg-warning-bg text-warning px-1.5 py-0.5 rounded-full">
                             ⏳ {share.to_validate_count}
                           </span>
                         )}
                         {(share.unresolved_count || 0) > 0 && (
-                          <span className="text-[10px] font-semibold bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
+                          <span className="text-2xs font-semibold bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
                             💬 {share.unresolved_count}
                           </span>
                         )}
@@ -454,7 +453,7 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
                     {isExpanded && (share.edit_logs || []).length > 0 && (
                       <div className="mt-2 pt-2 border-t border-border space-y-1.5">
                         {share.edit_logs!.map((log, i) => (
-                          <p key={i} className="text-[11px] text-muted-foreground leading-snug">
+                          <p key={i} className="text-2xs text-muted-foreground leading-snug">
                             <span className="font-medium text-foreground">{log.author_name}</span>{" "}
                             {log.content.replace("[EDIT] ", "").toLowerCase()}{" "}
                             <span className="text-muted-foreground/60">
@@ -498,7 +497,7 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
               <div className="flex items-center justify-between">
                 <div>
                   <label className="text-sm font-medium block">Montrer les brouillons</label>
-                  <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                  <p className="text-2xs text-muted-foreground flex items-center gap-1 mt-0.5">
                     <AlertTriangle className="h-3 w-3 text-warning" />
                     Le/la client·e verra le texte de tes posts
                   </p>
@@ -509,7 +508,7 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
               <div className="flex items-center justify-between">
                 <div>
                   <label className="text-sm font-medium block">Peut changer les statuts</label>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">Valider, mettre en révision, etc.</p>
+                  <p className="text-2xs text-muted-foreground mt-0.5">Valider, mettre en révision, etc.</p>
                 </div>
                 <Switch checked={guestCanEditStatus} onCheckedChange={setGuestCanEditStatus} />
               </div>
@@ -517,7 +516,7 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
               <div className="flex items-center justify-between">
                 <div>
                   <label className="text-sm font-medium block">Peut modifier les textes</label>
-                  <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                  <p className="text-2xs text-muted-foreground flex items-center gap-1 mt-0.5">
                     <AlertTriangle className="h-3 w-3 text-warning" />
                     Le/la client·e pourra éditer le wording
                   </p>

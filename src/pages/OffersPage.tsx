@@ -106,13 +106,13 @@ export default function OffersPage() {
         </Link>
 
         <div className="flex items-center justify-between mb-2 flex-wrap gap-3">
-          <h1 className="font-display text-[26px] font-bold text-foreground">🎁 Mes offres</h1>
+          <h1 className="font-display text-3xl font-bold text-foreground">🎁 Mes offres</h1>
           <Button onClick={() => setCoachingOpen(true)} variant="outline" className="gap-2 rounded-full text-sm">
             <Sparkles className="h-4 w-4" />
             Coaching offres
           </Button>
         </div>
-        <p className="text-[15px] text-muted-foreground mb-8">
+        <p className="text-base text-muted-foreground mb-8">
           Formule tes offres de manière désirable. L'IA te coache à chaque étape pour que tes offres parlent à ta cliente idéale.
         </p>
 
@@ -168,7 +168,7 @@ export default function OffersPage() {
                             <div>
                               <div className="flex items-center gap-2 mb-2">
                                 <Progress value={pct} className="h-1.5 flex-1" />
-                                <span className={`font-mono-ui text-[10px] font-semibold ${isComplete ? "text-success" : "text-muted-foreground"}`}>
+                                <span className={`font-mono-ui text-2xs font-semibold ${isComplete ? "text-success" : "text-muted-foreground"}`}>
                                   {isComplete ? "100%" : `${pct}%`}
                                 </span>
                               </div>

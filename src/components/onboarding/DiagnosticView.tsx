@@ -170,7 +170,7 @@ function AccrocheSection({ prenom, hasWebsite, sourcesUsed = [], sourcesFailed =
 
   return (
     <div className="text-center space-y-5">
-      <h1 className="text-[28px] md:text-[32px] font-display font-bold text-foreground leading-tight">
+      <h1 className="text-3xl md:text-4xl font-display font-bold text-foreground leading-tight">
         {prenom}, voilà ce que je vois.
       </h1>
       {allSources.size > 0 && (
@@ -283,7 +283,7 @@ function StrengthsSection({ strengths }: { strengths: (string | DiagnosticStreng
               <div className="flex items-center gap-2">
                 <p className="font-medium text-foreground text-base">{norm.title}</p>
                 {badge && (
-                  <span className="text-[11px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md shrink-0">
+                  <span className="text-2xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md shrink-0">
                     {badge.emoji} {badge.label}
                   </span>
                 )}
@@ -319,7 +319,7 @@ function WeaknessesSection({ weaknesses }: { weaknesses: DiagnosticWeakness[] })
               <div className="flex items-center gap-2">
                 <p className="font-medium text-foreground">{w.title}</p>
                 {badge && (
-                  <span className="text-[11px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md shrink-0">
+                  <span className="text-2xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md shrink-0">
                     {badge.emoji} {badge.label}
                   </span>
                 )}
@@ -436,7 +436,7 @@ function FinalSection({ onComplete }: { onComplete: () => void }) {
   return (
     <div className="text-center space-y-6 py-8">
       {showConfetti && <Confetti />}
-      <h2 className="text-[28px] md:text-[32px] font-display font-bold text-foreground leading-tight">
+      <h2 className="text-3xl md:text-4xl font-display font-bold text-foreground leading-tight">
         Maintenant, tu sais d'où tu pars.
       </h2>
       <div className="space-y-1 text-base text-muted-foreground">

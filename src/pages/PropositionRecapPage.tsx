@@ -11,7 +11,7 @@ import AppHeader from "@/components/AppHeader";
 import { PageLoader } from "@/components/ui/spinner";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
 import { Copy, FileText, Loader2, RefreshCw, Pencil } from "lucide-react";
 import EditableText from "@/components/EditableText";
@@ -28,7 +28,6 @@ interface RecapSummary {
 export default function PropositionRecapPage() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
-  const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: profileData } = useProfile();
   const { data: brandProfileData } = useBrandProfile();
@@ -97,17 +96,17 @@ export default function PropositionRecapPage() {
       await supabase.from("brand_proposition").update({ recap_summary: parsed } as any).eq("id", data.id);
       setData({ ...data, recap_summary: parsed });
       queryClient.invalidateQueries({ queryKey: ["brand-proposition"] });
-      toast({ title: "Synthèse générée !" });
+      toast.success("Synthèse générée !");
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(e) });
     }
     setGenerating(false);
   };
 
   const copyText = async (text: string) => {
     await navigator.clipboard.writeText(text);
-    toast({ title: "Copié !" });
+    toast.success("Copié !");
   };
 
   const exportPDF = async () => {
@@ -126,7 +125,7 @@ export default function PropositionRecapPage() {
       pdf.save("ma-proposition-de-valeur.pdf");
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast({ title: "Erreur export", description: friendlyError(e), variant: "destructive" });
+      toast.error("Erreur export", { description: friendlyError(e) });
     }
     setExporting(false);
   };
@@ -144,7 +143,7 @@ export default function PropositionRecapPage() {
       <main className="mx-auto max-w-[700px] px-6 py-8 max-md:px-4">
         <SubPageHeader parentLabel="Mon identité" parentTo="/branding" currentLabel="Ma proposition de valeur" />
         <div className="rounded-2xl bg-[hsl(var(--rose-pale))] border border-border p-6 text-center">
-          <p className="text-foreground text-[15px] mb-4">💎 Complète d'abord ta proposition de valeur pour voir ta fiche récap.</p>
+          <p className="text-foreground text-base mb-4">💎 Complète d'abord ta proposition de valeur pour voir ta fiche récap.</p>
           <Link to="/branding/proposition/recap"><Button className="rounded-pill">Commencer →</Button></Link>
         </div>
       </main>
@@ -187,7 +186,7 @@ export default function PropositionRecapPage() {
 
         {!summary && (
           <div className="rounded-2xl bg-[hsl(var(--rose-pale))] border border-border p-8 text-center mb-6">
-            <p className="text-foreground text-[15px] mb-4">✨ Clique sur "Générer la synthèse" pour créer ta fiche récap visuelle.</p>
+            <p className="text-foreground text-base mb-4">✨ Clique sur "Générer la synthèse" pour créer ta fiche récap visuelle.</p>
             <Button onClick={generateRecap} disabled={generating} className="rounded-pill">
               {generating ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Génération...</> : "✨ Générer ma fiche"}
             </Button>
@@ -197,16 +196,16 @@ export default function PropositionRecapPage() {
         {summary && (
           <div ref={recapRef} id="proposition-recap" className="bg-white rounded-2xl border border-[hsl(var(--border))] shadow-[var(--shadow-card)] overflow-hidden">
             <div className="px-6 pt-6 pb-4 sm:px-8 sm:pt-8">
-              <h1 className="font-display text-[22px] sm:text-[26px] font-bold" style={{ color: "#1a1a2e" }}>💎 Ma proposition de valeur</h1>
+              <h1 className="font-display text-2xl sm:text-3xl font-bold" style={{ color: "#1a1a2e" }}>💎 Ma proposition de valeur</h1>
             </div>
 
             {data.version_bio && (
               <div className="mx-6 sm:mx-8 mb-6 rounded-xl p-5 border-l-4" style={{ backgroundColor: "#FFF4F8", borderLeftColor: "#fb3d80" }}>
-                <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: "#6B5E7B" }}>En une phrase</p>
+                <p className="font-mono-ui text-2xs font-semibold uppercase tracking-wider mb-3" style={{ color: "#6B5E7B" }}>En une phrase</p>
                 <EditableText
                   value={data.version_bio}
                   onSave={(v) => saveVersionField("version_bio", v)}
-                  className="font-body text-[18px] italic leading-relaxed"
+                  className="font-body text-lg italic leading-relaxed"
                   type="input"
                 />
                 <div className="flex justify-end mt-3">
@@ -222,25 +221,25 @@ export default function PropositionRecapPage() {
 
             <div className="px-6 sm:px-8 mb-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="rounded-xl p-4" style={{ backgroundColor: "#F8F4FF" }}>
-                <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: "#6B5E7B" }}>🎯 Pour qui</p>
+                <p className="font-mono-ui text-2xs font-semibold uppercase tracking-wider mb-3" style={{ color: "#6B5E7B" }}>🎯 Pour qui</p>
                 <EditableText
                   value={summary.for_whom}
                   onSave={(v) => saveRecapField(["for_whom"], v)}
-                  className="font-body text-[13px] leading-relaxed mb-3"
+                  className="font-body text-sm leading-relaxed mb-3"
                 />
                 <div className="flex flex-wrap gap-1.5">
                   {summary.for_whom_tags.map((tag, i) => (
-                    <span key={i} className="px-2.5 py-0.5 rounded-pill text-[11px] font-semibold" style={{ backgroundColor: "#EDE8F5", color: "#6B5E7B" }}>{tag}</span>
+                    <span key={i} className="px-2.5 py-0.5 rounded-pill text-2xs font-semibold" style={{ backgroundColor: "#EDE8F5", color: "#6B5E7B" }}>{tag}</span>
                   ))}
                 </div>
               </div>
               <div className="rounded-xl p-4" style={{ backgroundColor: "#F8F4FF" }}>
-                <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: "#6B5E7B" }}>🛠️ Comment</p>
+                <p className="font-mono-ui text-2xs font-semibold uppercase tracking-wider mb-3" style={{ color: "#6B5E7B" }}>🛠️ Comment</p>
                 <ul className="space-y-1.5">
                   {summary.how.map((item, i) => (
-                    <li key={i} className="font-body text-[13px] leading-relaxed flex items-start gap-2" style={{ color: "#1a1a2e" }}>
+                    <li key={i} className="font-body text-sm leading-relaxed flex items-start gap-2" style={{ color: "#1a1a2e" }}>
                       <span style={{ color: "#8b5cf6" }} className="mt-0.5 shrink-0">•</span>
-                      <EditableText value={item} onSave={(v) => saveRecapArrayItem("how", i, v)} type="input" className="font-body text-[13px]" />
+                      <EditableText value={item} onSave={(v) => saveRecapArrayItem("how", i, v)} type="input" className="font-body text-sm" />
                     </li>
                   ))}
                 </ul>
@@ -248,29 +247,29 @@ export default function PropositionRecapPage() {
             </div>
 
             <div className="mx-6 sm:mx-8 mb-6 rounded-xl p-5 text-center" style={{ backgroundColor: "#FFF4F8" }}>
-              <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: "#6B5E7B" }}>🔥 Ce qui me rend différente</p>
+              <p className="font-mono-ui text-2xs font-semibold uppercase tracking-wider mb-3" style={{ color: "#6B5E7B" }}>🔥 Ce qui me rend différente</p>
               <EditableText
                 value={summary.differentiator}
                 onSave={(v) => saveRecapField(["differentiator"], v)}
-                className="font-body text-[16px] italic leading-relaxed"
+                className="font-body text-base italic leading-relaxed"
                 type="input"
               />
             </div>
 
             {versions.length > 0 && (
               <div className="mx-6 sm:mx-8 mb-6 rounded-xl p-5" style={{ backgroundColor: "#F8F4FF" }}>
-                <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wider mb-4" style={{ color: "#6B5E7B" }}>Mes versions prêtes à l'emploi</p>
+                <p className="font-mono-ui text-2xs font-semibold uppercase tracking-wider mb-4" style={{ color: "#6B5E7B" }}>Mes versions prêtes à l'emploi</p>
                 <div className="space-y-0">
                   {versions.map((v, i) => (
                     <div key={i}>
                       {i > 0 && <div className="border-t border-dashed my-4" style={{ borderColor: "#D8D0E5" }} />}
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
-                          <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wide mb-1" style={{ color: "#6B5E7B" }}>{v.emoji} {v.label}</p>
+                          <p className="font-mono-ui text-2xs font-semibold uppercase tracking-wide mb-1" style={{ color: "#6B5E7B" }}>{v.emoji} {v.label}</p>
                           <EditableText
                             value={data[v.field]}
                             onSave={(val) => saveVersionField(v.field, val)}
-                            className="font-body text-[14px] italic leading-relaxed"
+                            className="font-body text-sm italic leading-relaxed"
                           />
                         </div>
                         <CopyBtn onClick={() => copyText(data[v.field]!)} />
@@ -282,7 +281,7 @@ export default function PropositionRecapPage() {
             )}
 
             <div className="px-6 sm:px-8 py-4 border-t border-[hsl(var(--border))]">
-              <p className="text-center font-mono-ui text-[10px] uppercase tracking-wider" style={{ color: "#6B5E7B" }}>L'Assistant Com' × Nowadays Agency</p>
+              <p className="text-center font-mono-ui text-2xs uppercase tracking-wider" style={{ color: "#6B5E7B" }}>L'Assistant Com' × Nowadays Agency</p>
             </div>
           </div>
         )}
@@ -298,12 +297,12 @@ export default function PropositionRecapPage() {
 function EditableListCard({ emoji, title, items, dotColor, onSaveItem }: { emoji: string; title: string; items: string[]; dotColor: string; onSaveItem: (i: number, v: string) => Promise<void> }) {
   return (
     <div className="rounded-xl border p-4" style={{ borderColor: "#E5E0EB", backgroundColor: "#ffffff" }}>
-      <p className="font-mono-ui text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: "#6B5E7B" }}>{emoji} {title}</p>
+      <p className="font-mono-ui text-2xs font-semibold uppercase tracking-wider mb-3" style={{ color: "#6B5E7B" }}>{emoji} {title}</p>
       <ul className="space-y-1.5">
         {items.map((item, i) => (
-          <li key={i} className="font-body text-[13px] leading-relaxed flex items-start gap-2" style={{ color: "#1a1a2e" }}>
+          <li key={i} className="font-body text-sm leading-relaxed flex items-start gap-2" style={{ color: "#1a1a2e" }}>
             <span style={{ color: dotColor }} className="mt-0.5 shrink-0">•</span>
-            <EditableText value={item} onSave={(v) => onSaveItem(i, v)} type="input" className="font-body text-[13px]" />
+            <EditableText value={item} onSave={(v) => onSaveItem(i, v)} type="input" className="font-body text-sm" />
           </li>
         ))}
       </ul>
@@ -313,7 +312,7 @@ function EditableListCard({ emoji, title, items, dotColor, onSaveItem }: { emoji
 
 function CopyBtn({ onClick }: { onClick: () => void }) {
   return (
-    <button onClick={onClick} className="shrink-0 inline-flex items-center gap-1 text-[11px] font-semibold hover:opacity-70 transition-opacity" style={{ color: "#fb3d80" }}>
+    <button onClick={onClick} className="shrink-0 inline-flex items-center gap-1 text-2xs font-semibold hover:opacity-70 transition-opacity" style={{ color: "#fb3d80" }}>
       <Copy className="h-3 w-3" /> Copier
     </button>
   );

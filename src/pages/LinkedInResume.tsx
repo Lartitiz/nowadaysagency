@@ -12,7 +12,7 @@ import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voi
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
 import { handleQuotaError } from "@/lib/quota-error-handler";
 import { Sparkles, Copy, Check, Loader2, RotateCcw, Search, Lightbulb } from "lucide-react";
@@ -68,7 +68,6 @@ function ScoreBadge({ score }: { score: number }) {
 /* ─── Main ─── */
 export default function LinkedInResume() {
   const { user } = useAuth();
-  const { toast } = useToast();
   const navigate = useNavigate();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
@@ -172,7 +171,7 @@ export default function LinkedInResume() {
       }
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(e) });
     } finally {
       setAnalyzing(false);
     }
@@ -211,7 +210,7 @@ export default function LinkedInResume() {
       }
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(e) });
     } finally {
       setGenerating(false);
     }
@@ -246,14 +245,14 @@ export default function LinkedInResume() {
     setSavedResume(text);
     setSavedDate(new Date().toISOString());
     setMode("saved");
-    toast({ title: "✅ Résumé enregistré !" });
+    toast.success("✅ Résumé enregistré !");
   };
 
   const copyText = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
     setCopied(key);
     setTimeout(() => setCopied(null), 2000);
-    toast({ title: "📋 Copié !" });
+    toast.success("📋 Copié !");
   };
 
   if (loadingInit) {
@@ -273,7 +272,7 @@ export default function LinkedInResume() {
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
         <SubPageHeader parentTo="/linkedin" parentLabel="LinkedIn" currentLabel="Mon résumé (À propos)" />
 
-        <h1 className="font-display text-[22px] font-bold text-foreground mb-1">Ton résumé LinkedIn (À propos)</h1>
+        <h1 className="font-display text-2xl font-bold text-foreground mb-1">Ton résumé LinkedIn (À propos)</h1>
         <p className="text-sm text-muted-foreground italic mb-6">Ton titre attire. Ton résumé donne envie de te contacter. Pas besoin de lister ton CV : raconte.</p>
 
         {/* ─── STATE: Saved resume exists ─── */}
@@ -589,7 +588,7 @@ function AnalysisCards({ analysis, onSaveVersion, copyText, copied, onBack }: {
               <span className="flex-shrink-0 w-7 h-7 rounded-full bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center">
                 {reco.number}
               </span>
-              <h4 className="text-[15px] font-semibold text-foreground leading-tight">
+              <h4 className="text-base font-semibold text-foreground leading-tight">
                 {statusIcon(reco.status)} {reco.title}
               </h4>
             </div>

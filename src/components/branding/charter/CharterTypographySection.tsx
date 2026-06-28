@@ -225,7 +225,7 @@ export default function CharterTypographySection({ data, onDataChange, toneKeywo
                 >
                   <div className="flex items-baseline justify-between gap-3 mb-1">
                     <span className="text-xs font-medium text-foreground">{combo.name}</span>
-                    {active && <span className="text-[10px] text-primary font-medium">Sélectionné</span>}
+                    {active && <span className="text-2xs text-primary font-medium">Sélectionné</span>}
                   </div>
                   <div className="flex items-baseline gap-3 mb-1.5">
                     <span
@@ -242,7 +242,7 @@ export default function CharterTypographySection({ data, onDataChange, toneKeywo
                       {combo.body}
                     </span>
                   </div>
-                  <p className="text-[11px] text-muted-foreground/80 leading-snug">{combo.description}</p>
+                  <p className="text-2xs text-muted-foreground/80 leading-snug">{combo.description}</p>
                 </button>
               );
             })}

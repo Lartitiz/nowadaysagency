@@ -77,7 +77,7 @@ function InstagramMockup({
       <div className="flex items-center gap-2.5 px-3 py-2.5">
         <AvatarCircle url={avatarUrl} name={username} size={36} gradient="instagram" />
         <div className="flex-1 min-w-0">
-          <span className="text-[13px] font-semibold text-gray-900">{username}</span>
+          <span className="text-sm font-semibold text-gray-900">{username}</span>
         </div>
         {!hideFollowButton && <span className="text-xs font-semibold text-info">Suivre</span>}
       </div>
@@ -123,11 +123,11 @@ function InstagramMockup({
           </div>
 
           {/* Likes */}
-          <p className="px-3 text-[13px] font-semibold text-gray-900">{likeCount} J'aime</p>
+          <p className="px-3 text-sm font-semibold text-gray-900">{likeCount} J'aime</p>
 
           {/* Caption */}
           <div className="px-3 py-1.5">
-            <p className="text-[13px] text-gray-900 leading-snug whitespace-pre-line">
+            <p className="text-sm text-gray-900 leading-snug whitespace-pre-line">
               <span className="font-semibold">{username}</span>{" "}
               {displayCaption}
               {isTruncated && !expanded && (
@@ -135,7 +135,7 @@ function InstagramMockup({
               )}
             </p>
             {hashtags && hashtags.length > 0 && (
-              <p className="text-[13px] text-info/60 mt-1">
+              <p className="text-sm text-info/60 mt-1">
                 {hashtags.map(h => (h.startsWith("#") ? h : `#${h}`)).join(" ")}
               </p>
             )}
@@ -143,7 +143,7 @@ function InstagramMockup({
 
           {/* Comment count link */}
           {allComments.length > 0 && !showComments && (
-            <p className="px-3 text-[13px] text-gray-400 pb-1.5">
+            <p className="px-3 text-sm text-gray-400 pb-1.5">
               Voir les {allComments.length} commentaire{allComments.length > 1 ? "s" : ""}
             </p>
           )}
@@ -153,7 +153,7 @@ function InstagramMockup({
             <div className="border-t border-gray-100">
               <div className="px-3 py-2 space-y-2 max-h-48 overflow-y-auto">
                 {allComments.map(c => (
-                  <div key={c.id} className={`flex gap-1.5 text-[13px] ${c.isResolved ? "opacity-50" : ""}`}>
+                  <div key={c.id} className={`flex gap-1.5 text-sm ${c.isResolved ? "opacity-50" : ""}`}>
                     <span className="font-semibold text-gray-900 shrink-0">{c.authorName}</span>
                     <span className="text-gray-800 flex-1">{c.content}</span>
                     {c.isResolved && <Check className="h-3 w-3 text-success shrink-0 mt-0.5" />}
@@ -169,10 +169,10 @@ function InstagramMockup({
                     onChange={e => setCommentText(e.target.value)}
                     onKeyDown={e => e.key === "Enter" && handleAddComment()}
                     placeholder="Ajouter un commentaire..."
-                    className="flex-1 text-[13px] bg-transparent outline-none placeholder:text-gray-400"
+                    className="flex-1 text-sm bg-transparent outline-none placeholder:text-gray-400"
                   />
                   {commentText.trim() && (
-                    <button onClick={handleAddComment} className="text-[13px] font-semibold text-info">
+                    <button onClick={handleAddComment} className="text-sm font-semibold text-info">
                       Publier
                     </button>
                   )}
@@ -218,9 +218,9 @@ function LinkedInMockup({
       <div className="flex items-start gap-2.5 px-4 py-3">
         <AvatarCircle url={avatarUrl} name={displayName} size={48} />
         <div className="flex-1 min-w-0">
-          <p className="text-[14px] font-semibold text-gray-900 leading-tight">{displayName}</p>
-          <p className="text-[12px] text-gray-500 leading-tight mt-0.5 truncate">{username}</p>
-          <p className="text-[11px] text-gray-400 mt-0.5 flex items-center gap-1">
+          <p className="text-sm font-semibold text-gray-900 leading-tight">{displayName}</p>
+          <p className="text-xs text-gray-500 leading-tight mt-0.5 truncate">{username}</p>
+          <p className="text-2xs text-gray-400 mt-0.5 flex items-center gap-1">
             1j • <Globe className="h-3 w-3" />
           </p>
         </div>
@@ -235,7 +235,7 @@ function LinkedInMockup({
         <>
           {/* Caption */}
           <div className="px-4 pb-3">
-            <p className="text-[14px] text-gray-900 leading-relaxed whitespace-pre-line">
+            <p className="text-sm text-gray-900 leading-relaxed whitespace-pre-line">
               {displayCaption}
               {isTruncated && !expanded && (
                 <button onClick={() => setExpanded(true)} className="text-gray-500 ml-1">... voir plus</button>
@@ -248,12 +248,12 @@ function LinkedInMockup({
 
           {/* Reactions bar */}
           <div className="px-4 flex items-center justify-between pb-2">
-            <div className="flex items-center gap-0.5 text-[12px] text-gray-500">
+            <div className="flex items-center gap-0.5 text-xs text-gray-500">
               <span>👍❤️😄</span>
               <span className="ml-1">{reactionCount}</span>
             </div>
             {allComments.length > 0 && (
-              <span className="text-[12px] text-gray-500">{allComments.length} commentaire{allComments.length > 1 ? "s" : ""}</span>
+              <span className="text-xs text-gray-500">{allComments.length} commentaire{allComments.length > 1 ? "s" : ""}</span>
             )}
           </div>
 
@@ -267,7 +267,7 @@ function LinkedInMockup({
             ].map(({ icon: Icon, label }) => (
               <button key={label} className="flex flex-col items-center gap-0.5 py-2 text-gray-600 hover:bg-gray-50 transition-colors">
                 <Icon className="h-4 w-4" />
-                <span className="text-[11px] font-medium">{label}</span>
+                <span className="text-2xs font-medium">{label}</span>
               </button>
             ))}
           </div>
@@ -281,13 +281,13 @@ function LinkedInMockup({
                     <AvatarCircle name={c.authorName} size={32} />
                     <div className="flex-1 min-w-0">
                       <div className="bg-gray-100 rounded-xl px-3 py-2">
-                        <p className="text-[12px] font-semibold text-gray-900 flex items-center gap-1">
+                        <p className="text-xs font-semibold text-gray-900 flex items-center gap-1">
                           {c.authorName}
                           {c.isResolved && <Check className="h-3 w-3 text-success" />}
                         </p>
-                        <p className="text-[13px] text-gray-700">{c.content}</p>
+                        <p className="text-sm text-gray-700">{c.content}</p>
                       </div>
-                      <p className="text-[10px] text-gray-400 mt-0.5 ml-3">
+                      <p className="text-2xs text-gray-400 mt-0.5 ml-3">
                         {formatDistanceToNow(new Date(c.createdAt), { addSuffix: true, locale: fr })}
                       </p>
                     </div>
@@ -303,10 +303,10 @@ function LinkedInMockup({
                     onChange={e => setCommentText(e.target.value)}
                     onKeyDown={e => e.key === "Enter" && handleAddComment()}
                     placeholder="Ajouter un commentaire..."
-                    className="flex-1 text-[13px] bg-gray-100 rounded-full px-3 py-1.5 outline-none placeholder:text-gray-400"
+                    className="flex-1 text-sm bg-gray-100 rounded-full px-3 py-1.5 outline-none placeholder:text-gray-400"
                   />
                   {commentText.trim() && (
-                    <button onClick={handleAddComment} className="text-[13px] font-semibold text-info">
+                    <button onClick={handleAddComment} className="text-sm font-semibold text-info">
                       Publier
                     </button>
                   )}

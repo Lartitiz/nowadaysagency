@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Copy, Check, ExternalLink } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Link } from "react-router-dom";
 
 // ── Types ──
@@ -97,12 +97,11 @@ const LINE_STATUS_STYLE: Record<ElementStatus, string> = {
 };
 
 function CopyButton({ text }: { text: string }) {
-  const { toast } = useToast();
   const [copied, setCopied] = useState(false);
   const handleCopy = async () => {
     await navigator.clipboard.writeText(text);
     setCopied(true);
-    toast({ title: "Copié !" });
+    toast.success("Copié !");
     setTimeout(() => setCopied(false), 2000);
   };
   return (
@@ -156,7 +155,7 @@ function ElementCard({ el, refCallback }: { el: AuditElement; refCallback: (node
         <h3 className="font-display text-base font-bold text-foreground">
           {STATUS_DOT[el.status]} {el.label}
         </h3>
-        <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-pill ${cfg.badgeBg} ${cfg.badgeText}`}>
+        <span className={`text-2xs font-semibold px-2.5 py-1 rounded-pill ${cfg.badgeBg} ${cfg.badgeText}`}>
           {cfg.badge}
         </span>
       </div>
@@ -290,7 +289,7 @@ export default function AuditVisualResult({ data, evolution, onRegenerate }: Aud
         <p className={`text-4xl font-display font-bold ${scoreColor}`}>
           {data.score_global}<span className="text-xl text-muted-foreground">/100</span>
         </p>
-        <p className="text-[11px] italic text-muted-foreground mt-1">Score de profil : complétude et optimisation</p>
+        <p className="text-2xs italic text-muted-foreground mt-1">Score de profil : complétude et optimisation</p>
         <Progress value={data.score_global} className="h-3 mt-4 mb-3 max-w-md mx-auto" />
         <div className="flex items-center justify-center gap-4 text-sm">
           <span className="text-success font-medium">🟢 {data.resume.ok_count} OK</span>

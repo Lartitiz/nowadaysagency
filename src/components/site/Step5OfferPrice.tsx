@@ -11,7 +11,7 @@ export default function Step5OfferPrice({ data, save, callAI, aiLoading, aiResul
       <p className="text-sm text-muted-foreground">Présente honnêtement ce que tu vends. Transparence = confiance.</p>
 
       <HelpBlock title="📏 Quelle longueur pour ta page ?">
-        <table className="w-full text-[12px]">
+        <table className="w-full text-xs">
           <thead><tr className="border-b"><th className="text-left py-1">Prix offre</th><th className="text-left py-1">Longueur</th><th className="text-left py-1">Pourquoi</th></tr></thead>
           <tbody>
             <tr><td className="py-1">Gratuit</td><td>200-400 mots</td><td>Friction faible</td></tr>
@@ -58,7 +58,7 @@ export default function Step5OfferPrice({ data, save, callAI, aiLoading, aiResul
       </Button>
 
       {data.offer_block && (
-        <div className="rounded-xl bg-rose-pale p-4 text-[13px] text-foreground whitespace-pre-line">
+        <div className="rounded-xl bg-rose-pale p-4 text-sm text-foreground whitespace-pre-line">
           {data.offer_block}
           <Button variant="ghost" size="sm" className="mt-2" onClick={() => copyText(data.offer_block)}>
             <Copy className="h-4 w-4 mr-1" /> Copier

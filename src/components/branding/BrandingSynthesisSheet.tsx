@@ -20,7 +20,7 @@ function CollapsibleText({ text, label, maxChars = 150, isQuote }: { text: strin
   if (isQuote) {
     return (
       <blockquote className="border-l-[3px] border-primary/30 pl-5 py-1">
-        <p className="text-[15px] text-foreground/80 leading-relaxed italic break-words whitespace-pre-line">{display}</p>
+        <p className="text-base text-foreground/80 leading-relaxed italic break-words whitespace-pre-line">{display}</p>
         {isLong && (
           <button onClick={() => setExpanded(!expanded)} className="text-xs text-primary font-medium mt-2 hover:underline">
             {expanded ? "Réduire" : "Lire la suite"}
@@ -33,7 +33,7 @@ function CollapsibleText({ text, label, maxChars = 150, isQuote }: { text: strin
   return (
     <div>
       {label && <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">{label}</p>}
-      <p className="text-[15px] text-foreground/80 leading-relaxed break-words whitespace-pre-line">{display}</p>
+      <p className="text-base text-foreground/80 leading-relaxed break-words whitespace-pre-line">{display}</p>
       {isLong && (
         <button onClick={() => setExpanded(!expanded)} className="text-xs text-primary font-medium mt-1.5 hover:underline">
           {expanded ? "Réduire" : "Lire la suite"}
@@ -95,7 +95,7 @@ function SummaryHookAndPoints({ hook, points }: { hook?: string | null; points?:
   if (!hook && (!points || points.length === 0)) return null;
   return (
     <div className="space-y-3">
-      {hook && <p className="text-[15px] text-foreground font-medium leading-relaxed">{hook}</p>}
+      {hook && <p className="text-base text-foreground font-medium leading-relaxed">{hook}</p>}
       {points && points.length > 0 && (
         <ul className="space-y-2">
           {points.map((p, i) => (
@@ -327,7 +327,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
                     {summaries.combats_alternative && (
                       <div className="pt-4 border-t border-primary/10">
                         <p className="text-xs text-muted-foreground mb-1">Mon alternative</p>
-                        <p className="text-[15px] text-foreground/80 leading-relaxed">{summaries.combats_alternative}</p>
+                        <p className="text-base text-foreground/80 leading-relaxed">{summaries.combats_alternative}</p>
                       </div>
                     )}
                   </>

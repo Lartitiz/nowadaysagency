@@ -24,7 +24,7 @@ import { useOnboardingMissions, OnboardingMission } from "@/hooks/use-onboarding
 import WelcomeOverlay from "@/components/dashboard/WelcomeOverlay";
 import GuidedTour from "@/components/GuidedTour";
 import AppHeader from "@/components/AppHeader";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -181,7 +181,7 @@ function MissionRow({ mission, isNext, onClick }: { mission: OnboardingMission; 
 /* ── Section label ── */
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="font-mono-ui text-[11px] uppercase tracking-[0.18em] text-foreground/60 font-semibold mb-3">
+    <p className="font-mono-ui text-2xs uppercase tracking-[0.18em] text-foreground/60 font-semibold mb-3">
       {children}
     </p>
   );
@@ -207,7 +207,6 @@ const CHANNEL_PILLS = [
 /* ── Main ── */
 export default function AdaptiveHome() {
   const navigate = useNavigate();
-  const { toast } = useToast();
   const { user } = useAuth();
   const { activeWorkspace } = useWorkspace();
   const { recommendation, profileSummary, isLoading } = useGuideRecommendation();
@@ -381,7 +380,7 @@ export default function AdaptiveHome() {
       return;
     }
     if (route === "/creer" && profileSummary.brandingTotal < 50) {
-      toast({ title: "Tes contenus seront plus personnalisés une fois que tu auras posé tes bases 💡" });
+      toast("Tes contenus seront plus personnalisés une fois que tu auras posé tes bases 💡");
     }
     navigate(route);
   };
@@ -440,10 +439,10 @@ export default function AdaptiveHome() {
         {/* Greeting + pastille coach */}
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="font-display text-[28px] text-foreground leading-tight">
+            <h1 className="font-display text-3xl text-foreground leading-tight">
               Salut {profileSummary.firstName} ! 👋
             </h1>
-            <p className="text-muted-foreground mt-1 text-[15px]">
+            <p className="text-muted-foreground mt-1 text-base">
               Prête à faire rayonner tes projets ?
             </p>
           </div>
@@ -465,15 +464,15 @@ export default function AdaptiveHome() {
           className="group rounded-2xl bg-gradient-to-br from-rose-pale/40 to-card border border-border/60 p-6 sm:p-8 shadow-[var(--shadow-bento)] hover:shadow-[var(--shadow-bento-hover)] hover:-translate-y-[3px] hover:border-border transition-all duration-[300ms] ease-out cursor-pointer"
           onClick={() => handleNavigate(hero.route)}
         >
-          <p className="font-mono-ui text-[10.5px] text-foreground/60 uppercase tracking-[0.12em] font-semibold mb-3">
+          <p className="font-mono-ui text-2xs text-foreground/60 uppercase tracking-[0.12em] font-semibold mb-3">
             {hero.eyebrow}
           </p>
 
-          <h2 className="font-display text-[26px] sm:text-3xl leading-[1.15] text-foreground">
+          <h2 className="font-display text-3xl sm:text-3xl leading-[1.15] text-foreground">
             {hero.title}
           </h2>
 
-          <p className="text-[15px] text-foreground/70 mt-2 leading-relaxed line-clamp-2">
+          <p className="text-base text-foreground/70 mt-2 leading-relaxed line-clamp-2">
             {cleanText(recommendation.explanation)}
           </p>
 
@@ -496,7 +495,7 @@ export default function AdaptiveHome() {
           )}
 
           <Button
-            className="mt-6 w-full sm:w-auto h-12 px-6 rounded-xl bg-bordeaux hover:bg-primary text-white text-[15px] font-semibold shadow-sm hover:shadow-md transition-all"
+            className="mt-6 w-full sm:w-auto h-12 px-6 rounded-xl bg-bordeaux hover:bg-primary text-white text-base font-semibold shadow-sm hover:shadow-md transition-all"
             onClick={(e) => { e.stopPropagation(); handleNavigate(hero.route); }}
           >
             {hero.ctaLabel}
@@ -531,7 +530,7 @@ export default function AdaptiveHome() {
                   <CalendarIcon className="h-5 w-5 text-bordeaux" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-display text-[17px] text-foreground leading-tight">
+                  <h3 className="font-display text-lg text-foreground leading-tight">
                     Voir mon calendrier
                   </h3>
                   <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
@@ -548,7 +547,7 @@ export default function AdaptiveHome() {
                         const pill = formatPill(p.format, p.canal);
                         return (
                           <div key={i} className="flex items-center gap-2 text-xs min-w-0">
-                            <span className={`shrink-0 px-2 py-0.5 rounded-full ${pill.cls} text-[10px] font-semibold uppercase tracking-wide`}>
+                            <span className={`shrink-0 px-2 py-0.5 rounded-full ${pill.cls} text-2xs font-semibold uppercase tracking-wide`}>
                               {pill.label}
                             </span>
                             <span className="shrink-0 text-foreground/70">{formatShortDate(p.date)}</span>
@@ -574,7 +573,7 @@ export default function AdaptiveHome() {
               className="group text-left rounded-2xl bg-card border border-border/60 p-5 shadow-[var(--shadow-bento)] hover:shadow-[var(--shadow-bento-hover)] hover:-translate-y-[2px] hover:border-primary/30 transition-all duration-[250ms] ease-out"
             >
               <div className="flex items-center justify-between mb-3">
-                <span className="font-mono-ui text-[10px] text-foreground/60 uppercase tracking-[0.18em] font-semibold">
+                <span className="font-mono-ui text-2xs text-foreground/60 uppercase tracking-[0.18em] font-semibold">
                   Inspiration
                 </span>
                 <span className="font-display italic text-bordeaux text-2xl leading-none">
@@ -586,7 +585,7 @@ export default function AdaptiveHome() {
                   <Lightbulb className="h-5 w-5 text-bordeaux" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-display text-[17px] text-foreground leading-tight">
+                  <h3 className="font-display text-lg text-foreground leading-tight">
                     Piocher dans mes idées
                   </h3>
                   <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
@@ -596,7 +595,7 @@ export default function AdaptiveHome() {
                   </p>
                   {ideaCount > 0 && latestIdea && (
                     <div className="mt-3 rounded-lg bg-rose-pale/60 px-3 py-2">
-                      <p className="font-mono-ui text-[9px] uppercase tracking-[0.18em] text-foreground/60 font-semibold">
+                      <p className="font-mono-ui text-2xs uppercase tracking-[0.18em] text-foreground/60 font-semibold">
                         Dernière pépite
                       </p>
                       <p className="text-xs italic text-foreground/80 truncate mt-0.5">
@@ -625,7 +624,7 @@ export default function AdaptiveHome() {
                   <Palette className="h-5 w-5 text-bordeaux" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-display text-[17px] text-foreground leading-tight">
+                  <h3 className="font-display text-lg text-foreground leading-tight">
                     Affiner mon identité de marque
                   </h3>
                   {brandingPercent === 100 ? (
@@ -639,7 +638,7 @@ export default function AdaptiveHome() {
                   )}
                   <div className="mt-3 flex items-center gap-2">
                     <Progress value={brandingPercent} className="h-1.5 flex-1" />
-                    <span className="font-mono-ui text-[11px] text-foreground/60 font-semibold shrink-0">
+                    <span className="font-mono-ui text-2xs text-foreground/60 font-semibold shrink-0">
                       {brandingPercent}%
                     </span>
                   </div>
@@ -658,7 +657,7 @@ export default function AdaptiveHome() {
                   <Search className="h-5 w-5 text-bordeaux" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-display text-[17px] text-foreground leading-tight">
+                  <h3 className="font-display text-lg text-foreground leading-tight">
                     Lancer un audit
                   </h3>
                   {latestAudit ? (

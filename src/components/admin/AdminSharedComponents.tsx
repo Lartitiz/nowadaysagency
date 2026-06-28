@@ -22,7 +22,7 @@ export function InlineField({ label, value, type = "text", suffix, onSave, saved
       <span className="text-muted-foreground text-sm w-20 shrink-0">{label}</span>
       <input type={type} aria-label={label} className="flex-1 bg-transparent text-foreground text-sm border-none focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:bg-muted/30 rounded px-1 py-0.5 transition-colors min-w-0" value={draft} onChange={e => setDraft(e.target.value)} onBlur={() => { if (draft !== value) onSave(draft); }} />
       {suffix && <span className="text-xs text-muted-foreground shrink-0">{suffix}</span>}
-      {saved && <span className="text-[11px] text-primary animate-fade-in shrink-0">💾</span>}
+      {saved && <span className="text-2xs text-primary animate-fade-in shrink-0">💾</span>}
     </div>
   );
 }
@@ -71,7 +71,7 @@ export function DashboardMessageEditor({ value, onSave }: { value: string; onSav
           {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
           💾 Sauvegarder
         </Button>
-        <span className="text-[10px] text-muted-foreground">Ce message s'affiche sur le dashboard de ta cliente.</span>
+        <span className="text-2xs text-muted-foreground">Ce message s'affiche sur le dashboard de ta cliente.</span>
       </div>
     </div>
   );

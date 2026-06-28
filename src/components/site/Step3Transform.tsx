@@ -9,7 +9,7 @@ export default function Step3Transform({ data, save, callAI, aiLoading, aiResult
     <div className="space-y-6">
       <h2 className="font-display text-xl font-bold">✨ Montre où tu l'emmènes</h2>
       {data.framework === "storybrand" && (
-        <div className="rounded-xl bg-rose-pale p-4 text-[13px] text-foreground mb-3">
+        <div className="rounded-xl bg-rose-pale p-4 text-sm text-foreground mb-3">
           📖 <strong>StoryBrand — Le succès :</strong> la vie après. Bénéfices émotionnels + concrets.
         </div>
       )}
@@ -20,7 +20,7 @@ export default function Step3Transform({ data, save, callAI, aiLoading, aiResult
           <Sparkles className="h-4 w-4 mr-1" /> {aiLoading === "benefits" ? "Génération..." : "Générer le bloc bénéfices"}
         </Button>
         {typeof aiResults.benefits === "string" && (
-          <div className="rounded-xl bg-rose-pale p-3 text-[13px] mt-3 cursor-pointer hover:ring-2 ring-primary transition-all" onClick={() => save({ benefits_block: aiResults.benefits })}>{aiResults.benefits}</div>
+          <div className="rounded-xl bg-rose-pale p-3 text-sm mt-3 cursor-pointer hover:ring-2 ring-primary transition-all" onClick={() => save({ benefits_block: aiResults.benefits })}>{aiResults.benefits}</div>
         )}
         <Textarea className="mt-3 min-h-[120px]" placeholder="Mon bloc bénéfices..." value={data.benefits_block} onChange={(e) => save({ benefits_block: e.target.value })} />
         <RedFlagsChecker content={data.benefits_block} onFix={(v) => save({ benefits_block: v })} />
@@ -29,7 +29,7 @@ export default function Step3Transform({ data, save, callAI, aiLoading, aiResult
       {data.framework === "storybrand" && (
         <div>
           <h3 className="font-display text-base font-bold mb-2">B. Ce qui se passe si elle ne fait rien (optionnel)</h3>
-          <div className="rounded-xl bg-warning-bg border border-warning/30 p-4 text-[13px] text-foreground mb-3">
+          <div className="rounded-xl bg-warning-bg border border-warning/30 p-4 text-sm text-foreground mb-3">
             ⚠️ <strong>Attention :</strong> cette section est puissante MAIS dangereuse. Utilise-la comme du sel : une pincée suffit.
           </div>
           <Textarea className="min-h-[80px] mb-3" placeholder="Qu'est-ce qui se passe si ta cliente ne fait rien ?" value={data.failure_block} onChange={(e) => save({ failure_block: e.target.value })} />

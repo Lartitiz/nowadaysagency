@@ -217,12 +217,12 @@ export default function InstagramProfileCoaching({ open, onOpenChange, initialMo
                   <span>{m.emoji}</span>
                   <span>{m.label}</span>
                   {score != null && (
-                    <span className={`text-[10px] font-mono ${isActive ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                    <span className={`text-2xs font-mono ${isActive ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
                       {score}/20
                     </span>
                   )}
                   {isWeakest && !isActive && (
-                    <span className="absolute -top-1.5 -right-1 text-[9px] bg-primary text-primary-foreground px-1 rounded-full">
+                    <span className="absolute -top-1.5 -right-1 text-2xs bg-primary text-primary-foreground px-1 rounded-full">
                       ✨
                     </span>
                   )}

@@ -74,7 +74,7 @@ export function CalendarPostMetadata({
           <div className="flex flex-wrap gap-1.5">
             {STATUSES.map((s) => (
               <button key={s.id} onClick={() => setStatus(s.id)}
-                className={`rounded-pill px-2.5 py-1 text-[11px] font-medium border transition-all ${status === s.id ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
+                className={`rounded-pill px-2.5 py-1 text-2xs font-medium border transition-all ${status === s.id ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
                 {s.label}
               </button>
             ))}
@@ -150,7 +150,7 @@ export function CalendarPostMetadata({
           </select>
           {selectedSerie && setEpisodeNumber && (
             <div>
-              <label className="text-[11px] font-medium mb-1 block text-muted-foreground">N° épisode</label>
+              <label className="text-2xs font-medium mb-1 block text-muted-foreground">N° épisode</label>
               <Input
                 type="number"
                 min={1}
@@ -199,7 +199,7 @@ export function CalendarPostMetadata({
         <CollapsibleContent className="space-y-3 pt-2">
           {/* Canal */}
           <div>
-            <label className="text-[11px] font-medium mb-1 block text-muted-foreground">Canal</label>
+            <label className="text-2xs font-medium mb-1 block text-muted-foreground">Canal</label>
             <div className="flex flex-wrap gap-1.5">
               {[
                 { id: "instagram", emoji: "📸", label: "Instagram" },
@@ -207,7 +207,7 @@ export function CalendarPostMetadata({
                 { id: "pinterest", emoji: "📌", label: "Pinterest" },
               ].map((c) => (
                 <button key={c.id} onClick={() => setPostCanal(c.id)}
-                  className={`rounded-pill px-2.5 py-1 text-[11px] font-medium border transition-all ${postCanal === c.id ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
+                  className={`rounded-pill px-2.5 py-1 text-2xs font-medium border transition-all ${postCanal === c.id ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
                   {c.emoji} {c.label}
                 </button>
               ))}
@@ -216,11 +216,11 @@ export function CalendarPostMetadata({
 
           {/* Format */}
           <div>
-            <label className="text-[11px] font-medium mb-1 block text-muted-foreground">Format</label>
+            <label className="text-2xs font-medium mb-1 block text-muted-foreground">Format</label>
             <div className="flex flex-wrap gap-1.5">
               {(FORMAT_OPTIONS_BY_CANAL[postCanal] || FORMAT_OPTIONS_BY_CANAL.instagram).map((f) => (
                 <button key={f.id} onClick={() => setFormat(format === f.id ? null : f.id)}
-                  className={`rounded-pill px-2.5 py-1 text-[11px] font-medium border transition-all ${format === f.id ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
+                  className={`rounded-pill px-2.5 py-1 text-2xs font-medium border transition-all ${format === f.id ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
                   {f.emoji} {f.label}
                 </button>
               ))}
@@ -229,11 +229,11 @@ export function CalendarPostMetadata({
 
           {/* Objectif */}
           <div>
-            <label className="text-[11px] font-medium mb-1 block text-muted-foreground">Objectif</label>
+            <label className="text-2xs font-medium mb-1 block text-muted-foreground">Objectif</label>
             <div className="flex flex-wrap gap-1">
               {OBJECTIFS.map((o) => (
                 <button key={o.id} onClick={() => setObjectif(objectif === o.id ? null : o.id)}
-                  className="rounded-pill px-2 py-1 text-[11px] font-medium border transition-all"
+                  className="rounded-pill px-2 py-1 text-2xs font-medium border transition-all"
                   style={objectif === o.id ? {
                     backgroundColor: `hsl(var(--${o.cssVar}-bg))`,
                     color: `hsl(var(--${o.cssVar}))`,
@@ -247,11 +247,11 @@ export function CalendarPostMetadata({
 
           {/* Angle */}
           <div>
-            <label className="text-[11px] font-medium mb-1 block text-muted-foreground">Angle</label>
+            <label className="text-2xs font-medium mb-1 block text-muted-foreground">Angle</label>
             <div className="flex flex-wrap gap-1">
               {ANGLES.map((a) => (
                 <button key={a} onClick={() => setAngle(angle === a ? null : a)}
-                  className={`rounded-pill px-2 py-0.5 text-[10px] font-medium border transition-all ${angle === a ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
+                  className={`rounded-pill px-2 py-0.5 text-2xs font-medium border transition-all ${angle === a ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
                   {a}
                 </button>
               ))}

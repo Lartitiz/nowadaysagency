@@ -68,8 +68,8 @@ export default function PinterestHub() {
           <ArrowLeft className="h-4 w-4" /> Retour au hub
         </Link>
         <div className="mb-8">
-          <h1 className="font-display text-[26px] sm:text-3xl font-bold text-foreground">📌 Mon Pinterest</h1>
-          <p className="mt-1 text-[15px] text-muted-foreground">Crée des épingles, planifie tes tableaux, génère du trafic : Pinterest c'est le moteur de recherche visuel que tout le monde oublie.</p>
+          <h1 className="font-display text-3xl sm:text-3xl font-bold text-foreground">📌 Mon Pinterest</h1>
+          <p className="mt-1 text-base text-muted-foreground">Crée des épingles, planifie tes tableaux, génère du trafic : Pinterest c'est le moteur de recherche visuel que tout le monde oublie.</p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {CARDS.map((card, idx) => {
@@ -80,7 +80,7 @@ export default function PinterestHub() {
                 <span className="text-2xl mb-3 block">{card.emoji}</span>
                 <h3 className="font-display text-lg font-bold text-foreground group-hover:text-primary transition-colors">{card.title}</h3>
                 <p className="mt-1 text-sm text-muted-foreground">{card.desc}</p>
-                <span className="mt-3 inline-block font-mono-ui text-[10px] font-semibold text-primary bg-rose-pale px-2.5 py-0.5 rounded-pill">{card.tag}</span>
+                <span className="mt-3 inline-block font-mono-ui text-2xs font-semibold text-primary bg-rose-pale px-2.5 py-0.5 rounded-pill">{card.tag}</span>
               </Link>
             );
           })}

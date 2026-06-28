@@ -43,7 +43,7 @@ export default function SpaceBentoCard({
       }}
     >
       {badge && (
-        <span className="absolute top-3 right-3 text-[10px] font-mono-ui font-semibold text-muted-foreground bg-card/80 backdrop-blur-sm px-2 py-0.5 rounded-md">
+        <span className="absolute top-3 right-3 text-2xs font-mono-ui font-semibold text-muted-foreground bg-card/80 backdrop-blur-sm px-2 py-0.5 rounded-md">
           {badge}
         </span>
       )}

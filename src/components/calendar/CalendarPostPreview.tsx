@@ -7,7 +7,7 @@ import { SocialMockup } from "@/components/social-mockup/SocialMockup";
 import { ContentPreview } from "@/components/ContentPreview";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DownloadMenuItems } from "@/components/exports/DownloadMenuItems";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useBrandCharter } from "@/hooks/use-branding";
 import { getIncludeLogoPref, setIncludeLogoPref } from "@/lib/export-logo";
 import { useOpenInCanva } from "@/hooks/use-open-in-canva";
@@ -41,7 +41,6 @@ export function CalendarPostPreview({
   const effectiveMediaUrls = (mediaUrls && mediaUrls.length > 0)
     ? mediaUrls
     : (photoUrls && photoUrls.length > 0 ? photoUrls : undefined);
-  const { toast } = useToast();
   const { data: charterData } = useBrandCharter();
   const { openInCanva, openingCanva } = useOpenInCanva();
   const [downloadingPng, setDownloadingPng] = useState(false);
@@ -64,11 +63,11 @@ export function CalendarPostPreview({
       await exportCarouselPng(visualHtml, theme || "carrousel", includeLogo ? logoUrl : null);
     } catch (err) {
       console.error("Download error:", err);
-      toast({ title: "Erreur lors du téléchargement", variant: "destructive" });
+      toast.error("Erreur lors du téléchargement");
     } finally {
       setDownloadingPng(false);
     }
-  }, [visualHtml, downloadingPng, theme, toast, includeLogo, logoUrl]);
+  }, [visualHtml, downloadingPng, theme, includeLogo, logoUrl]);
 
   // ── PNG depuis Storage URLs (déjà rendus côté serveur) ──
   const handleDownloadFromUrls = useCallback(async () => {
@@ -114,11 +113,11 @@ export function CalendarPostPreview({
       }
     } catch (err) {
       console.error("Download error:", err);
-      toast({ title: "Erreur lors du téléchargement", variant: "destructive" });
+      toast.error("Erreur lors du téléchargement");
     } finally {
       setDownloadingPng(false);
     }
-  }, [visualUrls, downloadingPng, theme, toast]);
+  }, [visualUrls, downloadingPng, theme]);
 
   // ── Hybride : fond capturé fidèlement + texte natif éditable PPT ──
   const handleDownloadHybridPptx = useCallback(async () => {
@@ -127,14 +126,14 @@ export function CalendarPostPreview({
     try {
       const fileName = sanitize(`editable-${theme || "carrousel"}`);
       await exportCarouselHybridPptx(visualHtml, slidesData || null, charterData || null, fileName, undefined, includeLogo ? logoUrl : null);
-      toast({ title: "PowerPoint éditable téléchargé" });
+      toast.success("PowerPoint éditable téléchargé");
     } catch (err) {
       console.error("Hybrid PPTX error:", err);
-      toast({ title: "Erreur lors de l'export", variant: "destructive" });
+      toast.error("Erreur lors de l'export");
     } finally {
       setDownloadingHybrid(false);
     }
-  }, [visualHtml, slidesData, charterData, downloadingHybrid, theme, toast, includeLogo, logoUrl]);
+  }, [visualHtml, slidesData, charterData, downloadingHybrid, theme, includeLogo, logoUrl]);
 
   // ── Pont Canva : même PPTX hybride que le téléchargement, importé dans Canva ──
   const handleOpenInCanva = useCallback(() => {
@@ -156,8 +155,8 @@ export function CalendarPostPreview({
   const handleCopyCaption = useCallback(() => {
     if (!caption) return;
     navigator.clipboard.writeText(caption);
-    toast({ title: "Légende copiée !" });
-  }, [caption, toast]);
+    toast.success("Légende copiée !");
+  }, [caption]);
 
   // ── Mini toolbar (toujours rendue si on a du contenu) ──
   const Toolbar = () => {
@@ -166,7 +165,7 @@ export function CalendarPostPreview({
       <div className="flex items-center justify-between gap-2 mb-2">
         <div className="flex items-center gap-1.5">
           {syncStatus && (
-            <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full ${syncStatus === "synced" ? "bg-success/10 text-success" : "bg-warning/10 text-warning"}`}>
+            <span className={`inline-flex items-center gap-1 text-2xs font-medium px-2 py-0.5 rounded-full ${syncStatus === "synced" ? "bg-success/10 text-success" : "bg-warning/10 text-warning"}`}>
               <span className={`w-1.5 h-1.5 rounded-full ${syncStatus === "synced" ? "bg-success" : "bg-warning"}`} />
               {syncStatus === "synced" ? "Synchronisé" : "Modifs en cours"}
             </span>
@@ -275,7 +274,7 @@ export function CalendarPostPreview({
         <div className="space-y-2">
           <Toolbar />
           <div className="relative rounded-xl border border-border overflow-hidden bg-card">
-            <span className="absolute top-2 right-2 z-10 text-[10px] font-semibold bg-black/60 text-white px-2 py-0.5 rounded-full">
+            <span className="absolute top-2 right-2 z-10 text-2xs font-semibold bg-black/60 text-white px-2 py-0.5 rounded-full">
               {idx + 1}/{visualUrls.length}
             </span>
             {idx > 0 && (
@@ -297,7 +296,7 @@ export function CalendarPostPreview({
           </div>
           {caption && (
             <div className="mt-3 pt-3 border-t border-border">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Légende</p>
+              <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Légende</p>
               <div className="text-xs text-foreground whitespace-pre-wrap line-clamp-6 leading-relaxed">{caption}</div>
             </div>
           )}
@@ -328,7 +327,7 @@ export function CalendarPostPreview({
         <div className="space-y-2">
           <Toolbar />
           <div className="relative rounded-xl border border-border overflow-hidden bg-card">
-            <span className="absolute top-2 right-2 z-10 text-[10px] font-semibold bg-black/60 text-white px-2 py-0.5 rounded-full">
+            <span className="absolute top-2 right-2 z-10 text-2xs font-semibold bg-black/60 text-white px-2 py-0.5 rounded-full">
               {idx + 1}/{visualHtml.length}
             </span>
             {idx > 0 && (
@@ -354,7 +353,7 @@ export function CalendarPostPreview({
           </div>
           {caption && (
             <div className="mt-3 pt-3 border-t border-border">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Légende</p>
+              <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Légende</p>
               <div className="text-xs text-foreground whitespace-pre-wrap line-clamp-6 leading-relaxed">{caption}</div>
             </div>
           )}

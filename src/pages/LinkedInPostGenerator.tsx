@@ -10,7 +10,7 @@ import SubPageHeader from "@/components/SubPageHeader";
 import BrandingStatusBanner from "@/components/content/BrandingStatusBanner";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
 import { handleQuotaError } from "@/lib/quota-error-handler";
 import { Sparkles, Copy, Check, RefreshCw, CalendarDays, Loader2, Search, Lightbulb } from "lucide-react";
@@ -31,7 +31,6 @@ interface ImproveResult {
 
 export default function LinkedInPostGenerator() {
   const { user } = useAuth();
-  const { toast } = useToast();
   const workspaceId = useWorkspaceId();
   const profileUserId = useProfileUserId();
   const navigate = useNavigate();
@@ -78,7 +77,7 @@ export default function LinkedInPostGenerator() {
       setImproveResult(safe);
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(e) });
     } finally {
       setImproving(false);
     }
@@ -88,9 +87,9 @@ export default function LinkedInPostGenerator() {
     navigator.clipboard.writeText(text).then(() => {
       setCopiedImprove(key);
       setTimeout(() => setCopiedImprove(null), 2000);
-      toast({ title: "📋 Copié !" });
+      toast.success("📋 Copié !");
     }).catch(() => {
-      toast({ title: "Copie impossible", description: "Sélectionne et copie le texte manuellement.", variant: "destructive" });
+      toast.error("Copie impossible", { description: "Sélectionne et copie le texte manuellement." });
     });
   };
 
@@ -139,10 +138,10 @@ export default function LinkedInPostGenerator() {
         }).eq("id", calendarState.calendarPostId);
         if (error) {
           console.error("calendar_posts update error:", error);
-          toast({ title: "Erreur", description: friendlyError(error), variant: "destructive" });
+          toast.error("Erreur", { description: friendlyError(error) });
           return;
         }
-        toast({ title: "✅ Post LinkedIn mis à jour dans ton calendrier !" });
+        toast.success("✅ Post LinkedIn mis à jour dans ton calendrier !");
         navigate("/calendrier");
         return;
       }
@@ -163,9 +162,9 @@ export default function LinkedInPostGenerator() {
       });
       if (error) {
         console.error("calendar_posts insert error:", error);
-        toast({ title: "Erreur", description: friendlyError(error), variant: "destructive" });
+        toast.error("Erreur", { description: friendlyError(error) });
       } else {
-        toast({ title: `📅 Post enregistré dans ton calendrier au ${formattedDate}` });
+        toast.success(`📅 Post enregistré dans ton calendrier au ${formattedDate}`);
       }
     } finally {
       setAddingToCalendar(false);
@@ -181,7 +180,7 @@ export default function LinkedInPostGenerator() {
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
         <SubPageHeader parentTo="/linkedin" parentLabel="LinkedIn" currentLabel="Analyser un post" useFromParam />
 
-        <h1 className="font-display text-[22px] font-bold text-foreground mb-1">🔍 Analyser un post LinkedIn</h1>
+        <h1 className="font-display text-2xl font-bold text-foreground mb-1">🔍 Analyser un post LinkedIn</h1>
         <p className="text-sm text-muted-foreground italic mb-6">Colle un post existant pour l'analyser et obtenir une version améliorée.</p>
 
         <BrandingStatusBanner />

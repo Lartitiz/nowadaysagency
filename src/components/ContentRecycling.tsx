@@ -13,7 +13,7 @@ import BaseReminder from "@/components/BaseReminder";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import AiLoadingIndicator from "@/components/AiLoadingIndicator";
 import { Mic, MicOff, Sparkles, Loader2, Copy, RefreshCw, Upload, X, Plus, CalendarDays, Lightbulb } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { AddToCalendarDialog } from "@/components/calendar/AddToCalendarDialog";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 
@@ -41,7 +41,6 @@ function fileEmoji(mimeType: string) {
 
 export default function ContentRecycling() {
   const { user } = useAuth();
-  const { toast } = useToast();
   const workspaceId = useWorkspaceId();
   const [source, setSource] = useState("");
   const [selectedFormats, setSelectedFormats] = useState<Record<string, boolean>>(
@@ -76,22 +75,22 @@ export default function ContentRecycling() {
     const arr = Array.from(selectedFiles);
     const remaining = MAX_FILES - files.length;
     if (remaining <= 0) {
-      toast({ title: "Maximum 10 fichiers", variant: "destructive" });
+      toast.error("Maximum 10 fichiers");
       return;
     }
     const toAdd = arr.slice(0, remaining);
     if (arr.length > remaining) {
-      toast({ title: `Seulement ${remaining} fichier(s) ajouté(s)`, description: "Maximum 10 fichiers au total.", variant: "destructive" });
+      toast.error(`Seulement ${remaining} fichier(s) ajouté(s)`, { description: "Maximum 10 fichiers au total." });
     }
 
     const newFiles: UploadedFile[] = [];
     for (const f of toAdd) {
       if (!ACCEPTED_TYPES.includes(f.type)) {
-        toast({ title: `${f.name} : format non supporté`, description: "Formats acceptés : PDF, PNG, JPG, WEBP", variant: "destructive" });
+        toast.error(`${f.name} : format non supporté`, { description: "Formats acceptés : PDF, PNG, JPG, WEBP" });
         continue;
       }
       if (f.size > MAX_FILE_SIZE) {
-        toast({ title: `${f.name} : trop lourd`, description: "Maximum 10 Mo par fichier.", variant: "destructive" });
+        toast.error(`${f.name} : trop lourd`, { description: "Maximum 10 Mo par fichier." });
         continue;
       }
       const base64 = await new Promise<string>((resolve) => {
@@ -104,7 +103,7 @@ export default function ContentRecycling() {
     if (newFiles.length > 0) {
       setFiles(prev => [...prev, ...newFiles]);
     }
-  }, [files.length, toast]);
+  }, [files.length]);
 
   const handleFilesSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) await processFiles(e.target.files);
@@ -166,10 +165,8 @@ export default function ContentRecycling() {
       if (error) throw new Error(error.message);
       const r = data?.results || {};
       if (Object.keys(r).length === 0) {
-        toast({
-          title: "Génération incomplète",
+        toast.error("Génération incomplète", {
           description: "La génération a échoué en cours de route. Réessaie, ou coche moins de formats à la fois.",
-          variant: "destructive",
         });
         return;
       }
@@ -209,7 +206,7 @@ export default function ContentRecycling() {
       }
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(e) });
     } finally {
       setLoading(false);
     }
@@ -217,7 +214,7 @@ export default function ContentRecycling() {
 
   const copyContent = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast({ title: "Copié !" });
+    toast.success("Copié !");
   };
 
   const formatLabel = (id: string) => FORMATS.find(f => f.id === id)?.label || id;
@@ -286,9 +283,9 @@ export default function ContentRecycling() {
     const { error } = await supabase.from("calendar_posts").insert(insertData);
     setShowCalendarDialog(false);
     if (error) {
-      toast({ title: "Erreur lors de la planification", variant: "destructive" });
+      toast.error("Erreur lors de la planification");
     } else {
-      toast({ title: "📅 Planifié dans ton calendrier !" });
+      toast.success("📅 Planifié dans ton calendrier !");
     }
   };
 

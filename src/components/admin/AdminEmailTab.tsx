@@ -259,7 +259,7 @@ function InscritesView() {
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
         <div className="relative flex-1 w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder="Rechercher par nom ou email..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+          <Input aria-label="Rechercher une inscrite par nom ou email" placeholder="Rechercher par nom ou email..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
         </div>
         <div className="flex gap-1.5 flex-wrap">
           {PLAN_FILTERS.map(f => (
@@ -340,9 +340,9 @@ function InscritesView() {
 
           <div className="space-y-4">
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Template</label>
+              <label htmlFor="email-template" className="text-xs font-medium text-muted-foreground mb-1 block">Template</label>
               <Select value={selectedTemplateId} onValueChange={onTemplateChange}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger id="email-template"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="libre">✏️ Email libre</SelectItem>
                   {templates.map(t => <SelectItem key={t.id} value={t.id}>📄 {t.name}</SelectItem>)}
@@ -351,13 +351,13 @@ function InscritesView() {
             </div>
 
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Sujet</label>
-              <Input value={emailSubject} onChange={e => setEmailSubject(e.target.value)} placeholder="Sujet de l'email" />
+              <label htmlFor="email-subject" className="text-xs font-medium text-muted-foreground mb-1 block">Sujet</label>
+              <Input id="email-subject" value={emailSubject} onChange={e => setEmailSubject(e.target.value)} placeholder="Sujet de l'email" />
             </div>
 
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Corps (HTML)</label>
-              <Textarea value={emailBody} onChange={e => setEmailBody(e.target.value)} placeholder="<p>Contenu de l'email...</p>" className="min-h-[120px] font-mono text-xs" />
+              <label htmlFor="email-body" className="text-xs font-medium text-muted-foreground mb-1 block">Corps (HTML)</label>
+              <Textarea id="email-body" value={emailBody} onChange={e => setEmailBody(e.target.value)} placeholder="<p>Contenu de l'email...</p>" className="min-h-[120px] font-mono text-xs" />
             </div>
 
             {(emailBody || emailSubject.trim()) && (

@@ -22,7 +22,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { publishToInstagram, isPublicImageUrl, isNotConnectedError } from "@/lib/instagram-publish";
 import { publishTextToLinkedIn, isLinkedInNotConnectedError } from "@/lib/linkedin-publish";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { ContentPreview, RevertToOriginalButton } from "@/components/ContentPreview";
 
@@ -53,7 +53,6 @@ function isoToLocalInput(iso: string): string {
 export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDate, defaultCanal, onSave, onDelete, onUnplan, onDateChange, prefillData }: Props) {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
   const isMobile = useIsMobile();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
@@ -176,7 +175,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     try {
       const newUrls: string[] = [];
       for (const file of Array.from(files)) {
-        if (file.size > 10 * 1024 * 1024) { toast({ title: "Fichier trop lourd (max 10 Mo)", variant: "destructive" }); continue; }
+        if (file.size > 10 * 1024 * 1024) { toast.error("Fichier trop lourd (max 10 Mo)"); continue; }
         const ext = file.name.split(".").pop()?.toLowerCase() || "png";
         const path = `${session.user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
         const { error } = await supabase.storage.from("calendar-media").upload(path, file, { contentType: file.type });
@@ -186,7 +185,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       }
       setMediaUrls(prev => [...prev, ...newUrls]);
     } catch (err: any) {
-      toast({ title: "Erreur upload", description: friendlyError(err), variant: "destructive" });
+      toast.error("Erreur upload", { description: friendlyError(err) });
     } finally {
       setUploading(false);
     }
@@ -199,7 +198,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   };
 
   const handleCopy = () => {
-    if (contentDraft) { navigator.clipboard.writeText(contentDraft); toast({ title: "Texte copié !" }); }
+    if (contentDraft) { navigator.clipboard.writeText(contentDraft); toast.success("Texte copié !"); }
   };
 
   // ── Publication directe Instagram (image simple OU carrousel : media_urls déjà publiques) ──
@@ -212,9 +211,9 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   })();
 
   const handlePublishInstagram = async () => {
-    if (!user) { toast({ title: "Tu dois être connectée.", variant: "destructive" }); return; }
+    if (!user) { toast.error("Tu dois être connectée."); return; }
     if (instagramPublishDisabledReason || igValidImages.length === 0) {
-      toast({ title: instagramPublishDisabledReason || "Image non disponible", variant: "destructive" });
+      toast.error(instagramPublishDisabledReason || "Image non disponible");
       return;
     }
     setPublishingInstagram(true);
@@ -225,16 +224,13 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
         workspaceId,
         userId: user.id,
       });
-      toast({
-        title: igValidImages.length > 1 ? "Carrousel publié sur Instagram ! 🎉" : "Publié sur Instagram ! 🎉",
+      toast.success(igValidImages.length > 1 ? "Carrousel publié sur Instagram ! 🎉" : "Publié sur Instagram ! 🎉", {
         description: permalink ? "Ouvre ton profil Instagram pour le voir." : undefined,
       });
     } catch (e: any) {
       const msg = e?.message as string | undefined;
-      toast({
-        title: isNotConnectedError(msg) ? "Compte Instagram non connecté" : "Échec de la publication",
+      toast.error(isNotConnectedError(msg) ? "Compte Instagram non connecté" : "Échec de la publication", {
         description: isNotConnectedError(msg) ? "Connecte-le dans Paramètres › Connexions." : friendlyError(e),
-        variant: "destructive",
       });
     } finally {
       setPublishingInstagram(false);
@@ -250,9 +246,9 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   })();
 
   const handlePublishLinkedIn = async () => {
-    if (!user) { toast({ title: "Tu dois être connectée.", variant: "destructive" }); return; }
+    if (!user) { toast.error("Tu dois être connectée."); return; }
     if (linkedInPublishDisabledReason) {
-      toast({ title: linkedInPublishDisabledReason, variant: "destructive" });
+      toast.error(linkedInPublishDisabledReason);
       return;
     }
     setPublishingLinkedIn(true);
@@ -262,16 +258,13 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
         workspaceId,
         userId: user.id,
       });
-      toast({
-        title: "Publié sur LinkedIn ! 🎉",
+      toast.success("Publié sur LinkedIn ! 🎉", {
         description: permalink ? "Ouvre ton profil LinkedIn pour le voir." : undefined,
       });
     } catch (e: any) {
       const msg = e?.message as string | undefined;
-      toast({
-        title: isLinkedInNotConnectedError(msg) ? "Compte LinkedIn non connecté" : "Échec de la publication",
+      toast.error(isLinkedInNotConnectedError(msg) ? "Compte LinkedIn non connecté" : "Échec de la publication", {
         description: isLinkedInNotConnectedError(msg) ? "Connecte-le dans Paramètres › Connexions." : friendlyError(e),
-        variant: "destructive",
       });
     } finally {
       setPublishingLinkedIn(false);
@@ -282,18 +275,18 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   // Canaux publiables : Instagram (image/carrousel) et LinkedIn (texte).
   const canSchedule = postCanal === "instagram" || postCanal === "linkedin";
   const handleSchedulePublish = async () => {
-    if (!editingPost?.id) { toast({ title: "Enregistre d'abord le post pour le programmer.", variant: "destructive" }); return; }
-    if (!canSchedule) { toast({ title: "Programmation disponible pour Instagram et LinkedIn.", variant: "destructive" }); return; }
+    if (!editingPost?.id) { toast.error("Enregistre d'abord le post pour le programmer."); return; }
+    if (!canSchedule) { toast.error("Programmation disponible pour Instagram et LinkedIn."); return; }
     if (postCanal === "instagram") {
-      if (igValidImages.length === 0) { toast({ title: "Ajoute au moins un visuel (image) avant de programmer.", variant: "destructive" }); return; }
-      if (igValidImages.length > 10) { toast({ title: "Instagram limite les carrousels à 10 images.", variant: "destructive" }); return; }
+      if (igValidImages.length === 0) { toast.error("Ajoute au moins un visuel (image) avant de programmer."); return; }
+      if (igValidImages.length > 10) { toast.error("Instagram limite les carrousels à 10 images."); return; }
     } else if (postCanal === "linkedin") {
-      if (!linkedInText) { toast({ title: "Rédige le texte du post avant de programmer.", variant: "destructive" }); return; }
+      if (!linkedInText) { toast.error("Rédige le texte du post avant de programmer."); return; }
     }
-    if (!scheduleInput) { toast({ title: "Choisis une date et une heure.", variant: "destructive" }); return; }
+    if (!scheduleInput) { toast.error("Choisis une date et une heure."); return; }
     const when = new Date(scheduleInput);
-    if (isNaN(when.getTime())) { toast({ title: "Date invalide.", variant: "destructive" }); return; }
-    if (when.getTime() < Date.now() + 60000) { toast({ title: "Choisis une date/heure dans le futur.", variant: "destructive" }); return; }
+    if (isNaN(when.getTime())) { toast.error("Date invalide."); return; }
+    if (when.getTime() < Date.now() + 60000) { toast.error("Choisis une date/heure dans le futur."); return; }
     setSavingSchedule(true);
     try {
       const iso = when.toISOString();
@@ -303,9 +296,9 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       } as any).eq("id", editingPost.id);
       if (error) throw error;
       setScheduledAt(iso); setPublishStatus("scheduled"); setPublishError(null);
-      toast({ title: "Publication programmée ! 🗓️", description: `${postCanal === "linkedin" ? "LinkedIn" : "Instagram"} publiera ce post automatiquement à l'heure prévue.` });
+      toast.success("Publication programmée ! 🗓️", { description: `${postCanal === "linkedin" ? "LinkedIn" : "Instagram"} publiera ce post automatiquement à l'heure prévue.` });
     } catch (e: any) {
-      toast({ title: "Échec de la programmation", description: friendlyError(e), variant: "destructive" });
+      toast.error("Échec de la programmation", { description: friendlyError(e) });
     } finally { setSavingSchedule(false); }
   };
 
@@ -318,9 +311,9 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       } as any).eq("id", editingPost.id);
       if (error) throw error;
       setPublishStatus(null); setScheduledAt(null);
-      toast({ title: "Programmation annulée." });
+      toast.success("Programmation annulée.");
     } catch (e: any) {
-      toast({ title: "Échec", description: friendlyError(e), variant: "destructive" });
+      toast.error("Échec", { description: friendlyError(e) });
     } finally { setSavingSchedule(false); }
   };
 
@@ -333,7 +326,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   };
 
   const handleQuickGenerate = async () => {
-    if (!theme.trim()) { toast({ title: "Il me faut un sujet !", description: "Remplis le thème au-dessus.", variant: "destructive" }); return; }
+    if (!theme.trim()) { toast.error("Il me faut un sujet !", { description: "Remplis le thème au-dessus." }); return; }
     setIsGenerating(true);
     try {
       const validObjectifs = ["visibilite", "confiance", "vente", "credibilite"];
@@ -343,7 +336,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       }, 120000);
       // Handle quota limit
       if (res.data?.error === "limit_reached") {
-        toast({ title: "Plus de crédits ce mois-ci 🌸", description: res.data.message || "Tes crédits se renouvellent le 1er du mois.", variant: "default" });
+        toast("Plus de crédits ce mois-ci 🌸", { description: res.data.message || "Tes crédits se renouvellent le 1er du mois." });
         setIsGenerating(false);
         return;
       }
@@ -352,14 +345,14 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       setContentDraft(generated);
       setAccroche(generated.split(/[.\n]/)[0]?.trim() || null);
       if (status === "idea" || status === "a_rediger") setStatus("drafting");
-      toast({ title: "Contenu généré !" });
+      toast.success("Contenu généré !");
     } catch (e: any) {
-      toast({ title: e?.isTimeout ? "Ça prend plus longtemps que prévu" : "Erreur de génération", description: friendlyError(e), variant: "destructive" });
+      toast.error(e?.isTimeout ? "Ça prend plus longtemps que prévu" : "Erreur de génération", { description: friendlyError(e) });
     } finally { setIsGenerating(false); }
   };
 
   const handleSmartGenerate = () => {
-    if (!theme.trim()) { toast({ title: "Il me faut un sujet !", variant: "destructive" }); return; }
+    if (!theme.trim()) { toast.error("Il me faut un sujet !"); return; }
     const fmt = format || "post_carrousel";
     if (fmt === "post_carrousel" || fmt === "carousel" || fmt === "reel" || fmt === "story_serie" || postCanal === "linkedin") {
       handleNavigateToGenerator("generate"); return;
@@ -548,7 +541,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
                   </Button>
                 </div>
                 {!isReady && (
-                  <p className="text-[11px] text-muted-foreground">{notReadyHintCompose}</p>
+                  <p className="text-2xs text-muted-foreground">{notReadyHintCompose}</p>
                 )}
               </div>
             )}
@@ -563,7 +556,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
             <ChevronDown className="h-4 w-4 transition-transform data-[state=open]:rotate-180" />
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-3">
-            <ol className="space-y-3 text-[13px] leading-relaxed text-foreground">
+            <ol className="space-y-3 text-sm leading-relaxed text-foreground">
               {guide.map((step, i) => (
                 <li key={i}>
                   <span className="font-semibold text-primary">{step.label}</span>
@@ -634,12 +627,12 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
             <span className="text-xs text-muted-foreground">{dateLabel}</span>
           </>
         )}
-        <span className={cn("ml-auto rounded-pill border px-2.5 py-0.5 text-[11px] font-medium", statusStyles[status] || "bg-card border-border text-foreground")}>
+        <span className={cn("ml-auto rounded-pill border px-2.5 py-0.5 text-2xs font-medium", statusStyles[status] || "bg-card border-border text-foreground")}>
           {STATUS_LABELS[status] || status}
         </span>
       </div>
       {(objectifMeta || angle) && (
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           {objectifMeta && <span>{objectifMeta.emoji} {objectifMeta.label}</span>}
           {objectifMeta && angle && <span className="mx-1.5 text-border">·</span>}
           {angle && <span>{angle}</span>}
@@ -748,7 +741,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
                 {/* Aperçu live (sticky) */}
                 <aside className="space-y-2">
                   <div className="sticky top-0">
-                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Aperçu live</p>
+                    <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Aperçu live</p>
                     {previewBlock(true)}
                   </div>
                 </aside>
@@ -794,7 +787,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
             <RevertToOriginalButton onRevert={async () => {
               const original = (editingPost as any).original_content_data;
               await supabase.from("calendar_posts").update({ story_sequence_detail: original, updated_at: new Date().toISOString() } as any).eq("id", editingPost.id);
-              toast({ title: "Version originale restaurée" });
+              toast.success("Version originale restaurée");
               setShowContentViewer(false);
             }} />
           )}

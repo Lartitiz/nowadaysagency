@@ -9,7 +9,7 @@ export default function BentoGrid({ children, sectionLabel }: BentoGridProps) {
   return (
     <div className="mb-6">
       {sectionLabel && (
-        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.15em] mb-4 font-mono-ui">
+        <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-[0.15em] mb-4 font-mono-ui">
           {sectionLabel}
         </p>
       )}

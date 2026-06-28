@@ -107,7 +107,7 @@ function VisualSlidesGrid({ slides }: { slides: { slide_number: number; html: st
       <div ref={gridRef} className="grid grid-cols-2 gap-3">
         {slides.map((vs) => (
           <div key={vs.slide_number} className="space-y-1">
-            <p className="text-[10px] font-mono text-muted-foreground text-center">
+            <p className="text-2xs font-mono text-muted-foreground text-center">
               Slide {vs.slide_number}
             </p>
             <div
@@ -216,7 +216,7 @@ export default function CarouselResult({ result, visualSlides, onSlidesUpdate }:
       )}
 
       {/* Editable hint */}
-      <p className="text-[11px] text-muted-foreground italic text-center">
+      <p className="text-2xs text-muted-foreground italic text-center">
         ✏️ Clique sur un texte pour le modifier directement
       </p>
 
@@ -226,11 +226,11 @@ export default function CarouselResult({ result, visualSlides, onSlidesUpdate }:
           <Card key={i} className="border-border">
             <CardContent className="p-3 space-y-1.5">
               <div className="flex items-center gap-2 flex-wrap">
-                <Badge variant="secondary" className="font-mono text-[10px]">
+                <Badge variant="secondary" className="font-mono text-2xs">
                   Slide {slide.slide_number || i + 1}
                 </Badge>
                 {slide.role && (
-                  <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] font-mono">
+                  <Badge className="bg-primary/10 text-primary border-primary/20 text-2xs font-mono">
                     {formatSlideRole(slide.role)}
                   </Badge>
                 )}
@@ -253,7 +253,7 @@ export default function CarouselResult({ result, visualSlides, onSlidesUpdate }:
               )}
               {slide.visual_schema && (
                 <div className="flex items-center gap-1.5 mt-1">
-                  <Badge className="bg-violet-100 text-violet-700 border-violet-200 text-[10px]">
+                  <Badge className="bg-violet-100 text-violet-700 border-violet-200 text-2xs">
                     📊 Schéma : {(slide.visual_schema as any).type}
                   </Badge>
                 </div>

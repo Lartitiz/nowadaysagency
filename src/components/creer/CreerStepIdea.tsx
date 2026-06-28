@@ -8,7 +8,7 @@ import ContentCoachingDialog from "@/components/dashboard/ContentCoachingDialog"
 import NewsjackingPanel from "./NewsjackingPanel";
 import CreerTransformTab from "./CreerTransformTab";
 import { PhotoUploadZone, type PhotoItem } from "./PhotoUploadZone";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 interface Props {
   onNext: (idea: string) => void;
@@ -34,7 +34,6 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
   const [localPhotos, setLocalPhotos] = useState<PhotoItem[]>(initialPhotos || []);
   const [localDescription, setLocalDescription] = useState(initialPhotoDescription || "");
   const [localPhotoSubject, setLocalPhotoSubject] = useState(initialPhotoSubject || "");
-  const { toast } = useToast();
   const navigate = useNavigate();
 
   // Si on arrive via un legacy redirect (?mode=transform), nettoyer le param
@@ -113,7 +112,7 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
                     <Camera className="h-4 w-4 text-primary" />
                     <span className="text-sm font-semibold text-foreground">Partir de photos</span>
                   </div>
-                  <p className="text-[11px] text-muted-foreground">J'ai des photos, on construit autour.</p>
+                  <p className="text-2xs text-muted-foreground">J'ai des photos, on construit autour.</p>
                 </button>
               )}
               <button
@@ -125,7 +124,7 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
                   <Newspaper className="h-4 w-4 text-primary" />
                   <span className="text-sm font-semibold text-foreground">Surfer sur l'actu</span>
                 </div>
-                <p className="text-[11px] text-muted-foreground">Réagir à une news fraîche.</p>
+                <p className="text-2xs text-muted-foreground">Réagir à une news fraîche.</p>
               </button>
               <button
                 type="button"
@@ -136,7 +135,7 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
                   <Repeat className="h-4 w-4 text-primary" />
                   <span className="text-sm font-semibold text-foreground">Transformer un contenu</span>
                 </div>
-                <p className="text-[11px] text-muted-foreground">Recycler un post existant.</p>
+                <p className="text-2xs text-muted-foreground">Recycler un post existant.</p>
               </button>
               <button
                 type="button"
@@ -147,7 +146,7 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
                   <HelpCircle className="h-4 w-4 text-primary" />
                   <span className="text-sm font-semibold text-foreground">Pas d'idée ?</span>
                 </div>
-                <p className="text-[11px] text-muted-foreground">Laisse-toi guider par la coach.</p>
+                <p className="text-2xs text-muted-foreground">Laisse-toi guider par la coach.</p>
               </button>
 
             </div>
@@ -211,7 +210,7 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
               rows={3}
               className="resize-none"
             />
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-2xs text-muted-foreground">
               Pas d'idée précise ? Laisse vide : on te posera 2-3 questions à partir de tes photos pour faire émerger ton angle.
             </p>
           </div>
@@ -231,8 +230,7 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
         <NewsjackingPanel
           onSelect={(data) => {
             setShowNewsjacking(false);
-            toast({
-              title: "📡 Actu chargée",
+            toast("📡 Actu chargée", {
               description: "Choisis maintenant ton format et ton angle.",
             });
             if (onNewsjackingSelect) {

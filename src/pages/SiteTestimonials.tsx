@@ -65,13 +65,13 @@ export default function SiteTestimonials() {
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
         <SubPageHeader parentLabel="Mon Site Web" parentTo="/site" currentLabel="Témoignages" />
 
-        <h1 className="font-display text-[22px] sm:text-[26px] font-bold text-foreground mb-2">💬 Récolter des témoignages qui convertissent</h1>
+        <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-2">💬 Récolter des témoignages qui convertissent</h1>
         <p className="text-sm text-muted-foreground mb-8">Un bon témoignage = prénom + contexte + résultat concret. Le problème c'est que les gens ne savent pas quoi écrire. Envoie-leur ces questions.</p>
 
         {/* Message template */}
         <div className="rounded-2xl border border-border bg-card p-6 mb-8">
           <h2 className="font-display text-lg font-bold text-foreground mb-3">📋 Message à envoyer à tes client·es</h2>
-          <div className="rounded-xl bg-rose-pale p-4 text-[13px] text-foreground leading-relaxed whitespace-pre-line mb-4">
+          <div className="rounded-xl bg-rose-pale p-4 text-sm text-foreground leading-relaxed whitespace-pre-line mb-4">
             {TESTIMONIAL_MESSAGE}
           </div>
           <Button variant="outline" size="sm" onClick={() => copyText(TESTIMONIAL_MESSAGE)}>
@@ -113,7 +113,7 @@ export default function SiteTestimonials() {
             <div className="mt-6 space-y-4">
               {result.highlight && (
                 <div className="rounded-xl bg-primary/10 p-4">
-                  <p className="font-mono-ui text-[11px] font-semibold text-primary-text mb-1">💎 Phrase forte</p>
+                  <p className="font-mono-ui text-2xs font-semibold text-primary-text mb-1">💎 Phrase forte</p>
                   <p className="text-base font-bold text-foreground italic">"{result.highlight}"</p>
                   <Button variant="ghost" size="sm" className="mt-2" onClick={() => copyText(result.highlight)}>
                     <Copy className="h-3 w-3 mr-1" /> Copier
@@ -122,8 +122,8 @@ export default function SiteTestimonials() {
               )}
 
               <div className="rounded-xl bg-rose-pale p-4">
-                <p className="font-mono-ui text-[11px] font-semibold text-primary-text mb-1">📝 Citation structurée</p>
-                <p className="text-[14px] text-foreground italic leading-relaxed">"{result.quote}"</p>
+                <p className="font-mono-ui text-2xs font-semibold text-primary-text mb-1">📝 Citation structurée</p>
+                <p className="text-sm text-foreground italic leading-relaxed">"{result.quote}"</p>
                 {result.name && <p className="text-sm text-muted-foreground mt-2">— {result.name}{result.context ? `, ${result.context}` : ""}</p>}
                 {result.result && <p className="text-sm text-primary-text font-semibold mt-1">📊 {result.result}</p>}
                 <Button variant="ghost" size="sm" className="mt-2" onClick={() => copyText(`"${result.quote}"\n— ${result.name || ""}${result.context ? `, ${result.context}` : ""}`)}>
@@ -133,8 +133,8 @@ export default function SiteTestimonials() {
 
               {result.full_version && (
                 <div className="rounded-xl border border-border p-4">
-                  <p className="font-mono-ui text-[11px] font-semibold text-muted-foreground mb-1">Version complète</p>
-                  <p className="text-[13px] text-foreground leading-relaxed">{result.full_version}</p>
+                  <p className="font-mono-ui text-2xs font-semibold text-muted-foreground mb-1">Version complète</p>
+                  <p className="text-sm text-foreground leading-relaxed">{result.full_version}</p>
                   <Button variant="ghost" size="sm" className="mt-2" onClick={() => copyText(result.full_version)}>
                     <Copy className="h-3 w-3 mr-1" /> Copier
                   </Button>

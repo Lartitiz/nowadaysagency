@@ -220,10 +220,10 @@ export default function RoutinesPanel() {
       {weeklyTasks.length > 0 && (
         <div className="mb-5">
           <div className="flex items-center justify-between mb-2">
-            <span className="font-mono-ui text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+            <span className="font-mono-ui text-2xs font-semibold text-muted-foreground uppercase tracking-wider">
               Cette semaine
             </span>
-            <span className="font-mono-ui text-[11px] text-muted-foreground">
+            <span className="font-mono-ui text-2xs text-muted-foreground">
               {weeklyCompleted}/{weeklyTasks.length} · {weeklyPercent}%
             </span>
           </div>
@@ -246,10 +246,10 @@ export default function RoutinesPanel() {
       {monthlyTasks.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-2">
-            <span className="font-mono-ui text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+            <span className="font-mono-ui text-2xs font-semibold text-muted-foreground uppercase tracking-wider">
               Ce mois-ci
             </span>
-            <span className="font-mono-ui text-[11px] text-muted-foreground">
+            <span className="font-mono-ui text-2xs text-muted-foreground">
               {monthlyCompleted}/{monthlyTasks.length} · {monthlyPercent}%
             </span>
           </div>
@@ -303,7 +303,7 @@ function RoutineRow({
           {task.label}
         </span>
       </div>
-      <span className="text-[11px] text-muted-foreground shrink-0">{task.duration_minutes} min</span>
+      <span className="text-2xs text-muted-foreground shrink-0">{task.duration_minutes} min</span>
       {showDelete && (
         <button
           onClick={onDelete}

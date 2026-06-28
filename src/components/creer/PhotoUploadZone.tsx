@@ -448,7 +448,7 @@ export function PhotoUploadZone({
               </>
             )}
           </button>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-2xs text-muted-foreground">
             L'IA va chercher des photos libres de droit adaptées à ton contenu.
           </p>
         </div>
@@ -630,7 +630,7 @@ export function PhotoUploadZone({
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); revertPhoto(idx); }}
-                      className="absolute bottom-1 right-1 h-5 px-1.5 rounded-full bg-foreground/80 text-background flex items-center gap-0.5 text-[9px] font-medium opacity-90 hover:opacity-100 transition-opacity"
+                      className="absolute bottom-1 right-1 h-5 px-1.5 rounded-full bg-foreground/80 text-background flex items-center gap-0.5 text-2xs font-medium opacity-90 hover:opacity-100 transition-opacity"
                       title="Revenir à l'original"
                     >
                       <Undo2 className="h-2.5 w-2.5" />

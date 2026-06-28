@@ -11,7 +11,7 @@ import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voi
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -62,7 +62,6 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile, onC
   const { isDemoMode, demoData } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
-  const { toast } = useToast();
   const [ideas, setIdeas] = useState<SavedIdea[]>([]);
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -127,11 +126,11 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile, onC
   const handleDeleteIdea = async (id: string) => {
     const { error } = await supabase.from("saved_ideas").delete().eq("id", id);
     if (error) {
-      toast({ title: "Suppression impossible", description: "Réessaie dans un instant.", variant: "destructive" });
+      toast.error("Suppression impossible", { description: "Réessaie dans un instant." });
       return;
     }
     setIdeas(prev => prev.filter(i => i.id !== id));
-    toast({ title: "Idée supprimée" });
+    toast.success("Idée supprimée");
   };
 
   const handleMobilePlan = async () => {
@@ -158,7 +157,7 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile, onC
     setPlanDialogIdea(null);
     fetchIdeas();
     onIdeaPlanned();
-    toast({ title: `Idée planifiée le ${format(planDate, "d MMMM", { locale: fr })}` });
+    toast.success(`Idée planifiée le ${format(planDate, "d MMMM", { locale: fr })}`);
   };
 
   const handleIdeaClick = (idea: SavedIdea) => {
@@ -214,7 +213,7 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile, onC
         <div className="flex gap-1 flex-wrap">
           {FORMAT_FILTERS.map(f => (
             <button key={f.id} onClick={() => setFilter(f.id)}
-              className={cn("text-[11px] px-2 py-1 rounded-full border transition-colors",
+              className={cn("text-2xs px-2 py-1 rounded-full border transition-colors",
                 filter === f.id ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:border-primary/40")}>
               {f.label}
             </button>
@@ -222,7 +221,7 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile, onC
         </div>
         <button
           onClick={() => setSortBy(prev => prev === "recent" ? "objective" : "recent")}
-          className="text-[10px] text-muted-foreground hover:text-primary shrink-0 ml-1"
+          className="text-2xs text-muted-foreground hover:text-primary shrink-0 ml-1"
           title={sortBy === "recent" ? "Trier par objectif" : "Trier par date"}
         >
           {sortBy === "recent" ? "🕐" : "🎯"}
@@ -305,14 +304,14 @@ function DraggableIdeaCard({ idea, onDelete, onClick }: { idea: SavedIdea; onDel
     >
       <div className="min-w-0">
         <p className="text-xs font-medium text-foreground truncate">{icon} {idea.titre}</p>
-        <p className={cn("text-[10px] truncate", objColor)}>
+        <p className={cn("text-2xs truncate", objColor)}>
           {idea.format || "Post"} {idea.objectif ? `· ${idea.objectif}` : ""}
         </p>
         {isPlanned && (
-          <p className="text-[10px] text-success">📅 Planifiée</p>
+          <p className="text-2xs text-success">📅 Planifiée</p>
         )}
         {!isPlanned && idea.status && idea.status !== "idea" && (
-          <p className="text-[10px] text-muted-foreground capitalize">{idea.status}</p>
+          <p className="text-2xs text-muted-foreground capitalize">{idea.status}</p>
         )}
       </div>
     </div>
@@ -333,15 +332,15 @@ function MobileIdeaCard({ idea, onDelete, onPlan, onClick }: { idea: SavedIdea; 
     >
       <div className="flex-1 min-w-0">
         <p className="text-xs font-medium text-foreground truncate">{icon} {idea.titre}</p>
-        <p className={cn("text-[10px] truncate", objColor)}>
+        <p className={cn("text-2xs truncate", objColor)}>
           {idea.format || "Post"} {idea.objectif ? `· ${idea.objectif}` : ""}
         </p>
         {isPlanned && (
-          <p className="text-[10px] text-success">📅 Planifiée</p>
+          <p className="text-2xs text-success">📅 Planifiée</p>
         )}
       </div>
       <div className="flex gap-1 shrink-0">
-        <button onClick={(e) => { e.stopPropagation(); onPlan(); }} className="text-[10px] text-primary font-medium px-2 py-1 rounded border border-primary/30 hover:bg-primary/5">
+        <button onClick={(e) => { e.stopPropagation(); onPlan(); }} className="text-2xs text-primary font-medium px-2 py-1 rounded border border-primary/30 hover:bg-primary/5">
           📅
         </button>
         <button onClick={(e) => { e.stopPropagation(); onDelete(idea.id); }} className="text-muted-foreground hover:text-destructive p-1">
@@ -356,7 +355,6 @@ function MobileIdeaCard({ idea, onDelete, onPlan, onClick }: { idea: SavedIdea; 
 function AddIdeaDialog({ open, onOpenChange, onAdded }: { open: boolean; onOpenChange: (o: boolean) => void; onAdded: () => void }) {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
-  const { toast } = useToast();
   const [title, setTitle] = useState("");
   const [ideaFormat, setIdeaFormat] = useState("post");
   const [objective, setObjective] = useState("visibilite");
@@ -375,7 +373,7 @@ function AddIdeaDialog({ open, onOpenChange, onAdded }: { open: boolean; onOpenC
       status: "to_explore",
       canal: ideaFormat === "linkedin" ? "linkedin" : "instagram",
     });
-    toast({ title: "Idée ajoutée !" });
+    toast.success("Idée ajoutée !");
     setTitle(""); setNotes("");
     onOpenChange(false);
     onAdded();

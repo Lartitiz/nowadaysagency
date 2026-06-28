@@ -283,7 +283,7 @@ export default function OfferWorkshopPage() {
             <button
               key={s.num}
               onClick={() => { if (s.num <= (offer?.current_step || step)) { setStep(s.num); setAiResponse(null); } }}
-              className={`text-[11px] font-mono-ui font-semibold px-2 py-1 rounded-full transition-colors ${
+              className={`text-2xs font-mono-ui font-semibold px-2 py-1 rounded-full transition-colors ${
                 s.num === step ? "bg-primary text-primary-foreground" :
                 s.num < step ? "bg-primary/20 text-primary cursor-pointer" :
                 "bg-muted text-muted-foreground"
@@ -294,7 +294,7 @@ export default function OfferWorkshopPage() {
           ))}
         </div>
         <Progress value={pct} className="h-2" />
-        <p className="text-[11px] text-muted-foreground mt-1">Étape {step}/7</p>
+        <p className="text-2xs text-muted-foreground mt-1">Étape {step}/7</p>
       </div>
 
       {/* Step content */}

@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
@@ -90,7 +90,6 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
-  const { toast } = useToast();
 
   // Step state
   const [step, setStep] = useState<Step>(1);
@@ -195,7 +194,7 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
       setVariants(data);
     } catch (err: any) {
       console.error("Erreur technique:", err);
-      toast({ title: "Erreur", description: friendlyError(err), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(err) });
       setStep(3);
     } finally {
       setLoading(false);
@@ -203,7 +202,7 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
   };
 
   const copyText = (text: string) => {
-    navigator.clipboard.writeText(text).then(() => toast({ title: "📋 Copié !" }));
+    navigator.clipboard.writeText(text).then(() => toast.success("📋 Copié !"));
   };
 
   const handleSent = async (text: string) => {
@@ -267,11 +266,11 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
           placeholder={"Moi : Hey ! J'ai adoré ta dernière story...\nElle : Merci ! J'hésite toujours à montrer ce genre de trucs..."}
           className="text-sm min-h-[120px]"
         />
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           💡 Copie juste les derniers échanges pertinents. L'IA les analysera pour écrire un message qui fait suite naturellement.
         </p>
         {(prospect as any).last_conversation && conversationHistory === (prospect as any).last_conversation && (
-          <p className="text-[11px] text-primary">
+          <p className="text-2xs text-primary">
             📩 Conversation précédente chargée. Mets à jour si tu as de nouveaux échanges.
           </p>
         )}
@@ -400,7 +399,7 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
         {!skippedHistory && !conversationHistory.trim() && (
           <div className="flex items-start gap-2 rounded-lg bg-warning-bg border border-warning/30 p-2.5">
             <AlertTriangle className="h-3.5 w-3.5 text-warning mt-0.5 shrink-0" />
-            <p className="text-[11px] text-warning">
+            <p className="text-2xs text-warning">
               Pas d'historique de conversation fourni. Le message sera moins pertinent.
             </p>
           </div>
@@ -421,9 +420,9 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
                 <span className="text-base">{a.emoji}</span>
                 <span className="font-semibold text-xs text-foreground">{a.label}</span>
               </div>
-              <p className="text-[10px] text-muted-foreground">{a.desc}</p>
+              <p className="text-2xs text-muted-foreground">{a.desc}</p>
               {suggestedApproach === a.key && (
-                <span className="inline-block mt-1 text-[9px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                <span className="inline-block mt-1 text-2xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
                   💡 suggéré
                 </span>
               )}
@@ -449,7 +448,7 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
       <div className="flex flex-col items-center justify-center py-12 gap-3">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
         <p className="text-sm text-muted-foreground">L'IA rédige ton message...</p>
-        <p className="text-[10px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           Analyse de {conversationHistory.trim() ? "la conversation + " : ""}ton contexte en cours
         </p>
       </div>
@@ -502,9 +501,9 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
 
         {/* Context summary */}
         <div className="rounded-xl bg-muted/40 p-3 space-y-1">
-          <p className="text-[10px] font-semibold text-muted-foreground">📩 Contexte pris en compte :</p>
+          <p className="text-2xs font-semibold text-muted-foreground">📩 Contexte pris en compte :</p>
           {contextSummary.map((s, i) => (
-            <p key={i} className="text-[10px] text-muted-foreground">· {s}</p>
+            <p key={i} className="text-2xs text-muted-foreground">· {s}</p>
           ))}
         </div>
 
@@ -550,7 +549,7 @@ function StepHeader({ step, label, prospect, onBack }: { step: number; label: st
             <div className={`h-1.5 rounded-full transition-all ${s <= step ? "bg-primary w-8" : "bg-border w-4"}`} />
           </div>
         ))}
-        <span className="text-[10px] text-muted-foreground ml-2">
+        <span className="text-2xs text-muted-foreground ml-2">
           ÉTAPE {step}/4 : {label}
         </span>
       </div>

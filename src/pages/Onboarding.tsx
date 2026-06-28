@@ -8,7 +8,7 @@ import DiagnosticView from "@/components/onboarding/DiagnosticView";
 import { TOTAL_STEPS } from "@/lib/onboarding-constants";
 import { useOnboarding } from "@/hooks/use-onboarding";
 import type { Answers, BrandingAnswers } from "@/hooks/use-onboarding";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 import OnboardingProgress from "@/components/onboarding/OnboardingProgress";
 import WelcomeStep from "@/components/onboarding/steps/WelcomeStep";
@@ -74,7 +74,6 @@ export default function Onboarding() {
     handleDiagnosticComplete, getPlaceholder, getTimeRemaining, triggerPreScrape,
   } = useOnboarding();
 
-  const { toast } = useToast();
   const [pendingAutoNext, setPendingAutoNext] = useState(false);
 
   const validatedNext = useCallback(() => {
@@ -83,12 +82,12 @@ export default function Onboarding() {
       const data = validator.getData(answers, brandingAnswers);
       const result = validator.schema.safeParse(data);
       if (!result.success) {
-        toast({ title: "Un instant ✋", description: validator.message, variant: "destructive" });
+        toast.error("Un instant ✋", { description: validator.message });
         return;
       }
     }
     next();
-  }, [step, answers, brandingAnswers, next, toast]);
+  }, [step, answers, brandingAnswers, next]);
 
   useEffect(() => {
     if (!pendingAutoNext) return;

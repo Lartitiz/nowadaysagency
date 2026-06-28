@@ -7,13 +7,12 @@ import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Sparkles, Copy, Check, Loader2 } from "lucide-react";
 import AuditInsight from "@/components/AuditInsight";
 import { friendlyError } from "@/lib/error-messages";
 export default function InstagramProfileNom() {
   const { user } = useAuth();
-  const { toast } = useToast();
   const workspaceId = useWorkspaceId();
   const [currentName, setCurrentName] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -38,7 +37,7 @@ export default function InstagramProfileNom() {
       }
       setSuggestions(parsed.slice(0, 3));
     } catch (e: any) {
-      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(e) });
     } finally {
       setGenerating(false);
     }
@@ -56,7 +55,7 @@ export default function InstagramProfileNom() {
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
         <SubPageHeader parentLabel="Mon profil" parentTo="/instagram/profil" currentLabel="Mon nom" />
 
-        <h1 className="font-display text-[22px] sm:text-[26px] font-bold text-foreground">📝 Mon nom Instagram</h1>
+        <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground">📝 Mon nom Instagram</h1>
         <p className="mt-2 text-sm text-muted-foreground mb-6">
           Ton nom de profil est ta première chance d'être trouvée en recherche. Ajoute un mot-clé lié à ton activité.
         </p>

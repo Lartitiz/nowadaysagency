@@ -25,10 +25,10 @@ export default function ProspectionReminders({ reminders, onSelect, onPostpone }
               <span className="text-muted-foreground"> · {p.next_reminder_text}</span>
             )}
           </span>
-          <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px]" onClick={() => onSelect(p)}>
+          <Button size="sm" variant="ghost" className="h-7 px-2 text-2xs" onClick={() => onSelect(p)}>
             <MessageCircle className="h-3 w-3 mr-1" /> Écrire
           </Button>
-          <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px]" onClick={() => onPostpone(p.id)}>
+          <Button size="sm" variant="ghost" className="h-7 px-2 text-2xs" onClick={() => onPostpone(p.id)}>
             <SkipForward className="h-3 w-3 mr-1" /> Demain
           </Button>
         </div>

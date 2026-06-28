@@ -4,7 +4,7 @@ import { useUserPhase } from "@/hooks/use-user-phase";
 import { X, ArrowLeft, Lightbulb } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useSession } from "@/contexts/SessionContext";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
@@ -117,7 +117,7 @@ function GuideBanner() {
 
   return (
     <div className="flex items-center gap-3 bg-muted/40 border border-border/40 rounded-xl px-4 py-3 mb-4">
-      <p className="flex-1 text-[13px] text-muted-foreground" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
+      <p className="flex-1 text-sm text-muted-foreground" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
         C'est ici que tu retrouves tous les modules. Ton assistant reste disponible depuis le menu.
       </p>
       <button
@@ -150,7 +150,7 @@ function PhaseBadge() {
       <Tooltip>
         <TooltipTrigger asChild>
           <span
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium cursor-default ${cfg.className}`}
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-2xs font-medium cursor-default ${cfg.className}`}
             style={{ fontFamily: "'IBM Plex Mono', monospace" }}
           >
             {cfg.emoji} {cfg.label}
@@ -408,14 +408,14 @@ export default function Dashboard() {
 
         {/* ─── Greeting ─── */}
         <div className="mb-6 sm:mb-8">
-          <h1 className="font-heading text-lg sm:text-[22px] md:text-[28px] font-bold text-foreground leading-tight">
+          <h1 className="font-heading text-lg sm:text-2xl md:text-3xl font-bold text-foreground leading-tight">
             Hey <span className="text-primary">{profile.prenom}</span>,{" "}
             {isBinome && coachingMonth
               ? <>accompagnement Binôme · Mois {coachingMonth}/6 🤝</>
               : <>{welcomeMessage}</>
             }
           </h1>
-          <p className="mt-1 text-[13px] sm:text-[14px] text-muted-foreground font-body">
+          <p className="mt-1 text-sm sm:text-sm text-muted-foreground font-body">
             Ton espace coaching + outils de com'.
           </p>
         </div>
@@ -511,7 +511,7 @@ export default function Dashboard() {
                   <Lightbulb className="h-5 w-5 text-primary" />
                 </div>
                 {dashData.ideaCount > 0 && (
-                  <span className="bg-black/5 px-2 py-0.5 rounded-md text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                  <span className="bg-black/5 px-2 py-0.5 rounded-md text-2xs font-bold text-muted-foreground uppercase tracking-wider">
                     {dashData.ideaCount} idée{dashData.ideaCount > 1 ? "s" : ""}
                   </span>
                 )}
@@ -597,7 +597,7 @@ export default function Dashboard() {
               <p className="text-sm text-muted-foreground mb-4">Référencement & mots-clés.</p>
               <div className="flex flex-wrap gap-1.5 mt-auto">
                 {["visibilité", "mots-clés", "ranking"].map(kw => (
-                  <span key={kw} className="text-[10px] font-mono-ui font-medium px-2 py-1 rounded-lg bg-rose-pale text-primary">
+                  <span key={kw} className="text-2xs font-mono-ui font-medium px-2 py-1 rounded-lg bg-rose-pale text-primary">
                     {kw}
                   </span>
                 ))}

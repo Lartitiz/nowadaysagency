@@ -36,8 +36,8 @@ export default function LogoPaletteDialog({ open, palette, onClose, onApply }: P
                   className="h-14 w-full rounded-lg border border-border shadow-sm"
                   style={{ backgroundColor: palette[key] }}
                 />
-                <span className="text-[10px] text-muted-foreground">{label}</span>
-                <span className="font-mono text-[10px] uppercase text-foreground">
+                <span className="text-2xs text-muted-foreground">{label}</span>
+                <span className="font-mono text-2xs uppercase text-foreground">
                   {palette[key]}
                 </span>
               </div>

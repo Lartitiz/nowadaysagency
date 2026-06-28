@@ -67,7 +67,7 @@ export default function AddProspectForm({ onAdd, onCancel }: AddProspectFormProp
             <button
               key={s.value}
               onClick={() => setSource(s.value)}
-              className={`text-[11px] px-3 py-1 rounded-full border transition-all ${
+              className={`text-2xs px-3 py-1 rounded-full border transition-all ${
                 source === s.value ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border text-muted-foreground"
               }`}
             >

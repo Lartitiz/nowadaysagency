@@ -59,11 +59,11 @@ export default function FeedPreview({ variant, text, photos, hashtags }: Props) 
         <div className="flex items-center gap-2.5 px-3 py-2.5">
           <Avatar className="h-8 w-8">
             {avatarUrl && <AvatarImage src={avatarUrl} alt={brandName} />}
-            <AvatarFallback className="bg-gradient-to-br from-pink-500 to-amber-400 text-[11px] font-semibold text-white">
+            <AvatarFallback className="bg-gradient-to-br from-pink-500 to-amber-400 text-2xs font-semibold text-white">
               {initials(brandName)}
             </AvatarFallback>
           </Avatar>
-          <span className="text-[13px] font-semibold">{handle}</span>
+          <span className="text-sm font-semibold">{handle}</span>
           <MoreHorizontal className="ml-auto h-4 w-4 text-neutral-700" />
         </div>
 
@@ -83,7 +83,7 @@ export default function FeedPreview({ variant, text, photos, hashtags }: Props) 
         </div>
 
         {/* Légende */}
-        <div className="px-3 pb-3 pt-2 text-[13px] leading-snug">
+        <div className="px-3 pb-3 pt-2 text-sm leading-snug">
           <span className="whitespace-pre-wrap">
             <span className="font-semibold">{handle}</span>{" "}
             {shown}
@@ -120,9 +120,9 @@ export default function FeedPreview({ variant, text, photos, hashtags }: Props) 
           </AvatarFallback>
         </Avatar>
         <div className="min-w-0 flex-1 leading-tight">
-          <p className="truncate text-[14px] font-semibold">{brandName}</p>
-          <p className="truncate text-[12px] text-neutral-500">Vous · Auteur·e</p>
-          <p className="flex items-center gap-1 text-[12px] text-neutral-500">
+          <p className="truncate text-sm font-semibold">{brandName}</p>
+          <p className="truncate text-xs text-neutral-500">Vous · Auteur·e</p>
+          <p className="flex items-center gap-1 text-xs text-neutral-500">
             1 h · <Globe2 className="h-3 w-3" />
           </p>
         </div>
@@ -130,7 +130,7 @@ export default function FeedPreview({ variant, text, photos, hashtags }: Props) 
       </div>
 
       {/* Corps */}
-      <div className="px-4 pb-2 pt-2 text-[14px] leading-relaxed">
+      <div className="px-4 pb-2 pt-2 text-sm leading-relaxed">
         <span className="whitespace-pre-wrap">{shown}</span>
         {!expanded && needsTruncation && (
           <>
@@ -156,10 +156,10 @@ export default function FeedPreview({ variant, text, photos, hashtags }: Props) 
       )}
 
       {/* Barre de réactions */}
-      <div className="flex items-center gap-1 px-4 py-1.5 text-[12px] text-neutral-500">
+      <div className="flex items-center gap-1 px-4 py-1.5 text-xs text-neutral-500">
         <span className="flex -space-x-1">
-          <span className="grid h-4 w-4 place-items-center rounded-full bg-info text-[8px] text-white">👍</span>
-          <span className="grid h-4 w-4 place-items-center rounded-full bg-rose-500 text-[8px] text-white">❤️</span>
+          <span className="grid h-4 w-4 place-items-center rounded-full bg-info text-2xs text-white">👍</span>
+          <span className="grid h-4 w-4 place-items-center rounded-full bg-rose-500 text-2xs text-white">❤️</span>
         </span>
         <span className="ml-1">Vous et votre réseau</span>
       </div>
@@ -167,7 +167,7 @@ export default function FeedPreview({ variant, text, photos, hashtags }: Props) 
       <div className="mx-4 border-t border-neutral-200" />
 
       {/* Actions */}
-      <div className="grid grid-cols-4 px-2 py-1 text-[13px] font-medium text-neutral-600">
+      <div className="grid grid-cols-4 px-2 py-1 text-sm font-medium text-neutral-600">
         <span className="flex items-center justify-center gap-1.5 rounded py-2">
           <ThumbsUp className="h-4 w-4" /> J'aime
         </span>

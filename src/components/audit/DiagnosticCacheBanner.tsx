@@ -55,7 +55,7 @@ export default function DiagnosticCacheBanner({ diagnosticData, domain, onRelaun
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
           {strengths.length > 0 && (
             <div className="rounded-xl border border-border bg-card p-3">
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">✅ Points forts</p>
+              <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">✅ Points forts</p>
               <ul className="space-y-1">
                 {strengths.map((s: any, i: number) => (
                   <li key={i} className="text-xs text-foreground">{s.titre || s.title || s}</li>
@@ -65,7 +65,7 @@ export default function DiagnosticCacheBanner({ diagnosticData, domain, onRelaun
           )}
           {weaknesses.length > 0 && (
             <div className="rounded-xl border border-border bg-card p-3">
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">⚠️ À améliorer</p>
+              <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">⚠️ À améliorer</p>
               <ul className="space-y-1">
                 {weaknesses.map((w: any, i: number) => (
                   <li key={i} className="text-xs text-foreground">{w.titre || w.title || w}</li>

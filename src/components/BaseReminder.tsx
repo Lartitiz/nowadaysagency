@@ -54,10 +54,10 @@ export default function BaseReminder({ variant = "atelier" }: BaseReminderProps)
 
   return (
     <div className="rounded-xl border-l-[3px] border-l-accent bg-accent/5 px-4 py-3 mt-4">
-      <p className="text-[13px] font-medium text-muted-foreground mb-2">
+      <p className="text-sm font-medium text-muted-foreground mb-2">
         🚲 {config.title}
       </p>
-      <p className="text-[12px] text-muted-foreground mb-2">Avant de publier, pense à ajouter :</p>
+      <p className="text-xs text-muted-foreground mb-2">Avant de publier, pense à ajouter :</p>
       <div className="space-y-1.5">
         {config.items.map((item, i) => (
           <label key={i} className="flex items-center gap-2 cursor-pointer">
@@ -66,11 +66,11 @@ export default function BaseReminder({ variant = "atelier" }: BaseReminderProps)
               onCheckedChange={(v) => setChecked(prev => ({ ...prev, [i]: !!v }))}
               className="h-3.5 w-3.5"
             />
-            <span className="text-[12px] text-muted-foreground">{item}</span>
+            <span className="text-xs text-muted-foreground">{item}</span>
           </label>
         ))}
       </div>
-      <p className="text-[11px] text-muted-foreground/60 italic mt-2">L'IA structure. Toi, tu incarnes.</p>
+      <p className="text-2xs text-muted-foreground/60 italic mt-2">L'IA structure. Toi, tu incarnes.</p>
     </div>
   );
 }

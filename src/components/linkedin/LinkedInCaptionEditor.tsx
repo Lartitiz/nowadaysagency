@@ -84,7 +84,7 @@ export default function LinkedInCaptionEditor({
             placeholder="Phrase choc qui s'affiche avant le « voir plus »"
           />
           {hookTruncated && (
-            <p className="text-[10px] text-warning">
+            <p className="text-2xs text-warning">
               ⚠️ LinkedIn tronque à ~210 car. dans le feed — la fin sera coupée.
             </p>
           )}
@@ -157,7 +157,7 @@ export default function LinkedInCaptionEditor({
           </div>
           <div className="flex flex-wrap gap-1 mb-1">
             {hashtags.map((tag, i) => (
-              <Badge key={i} variant="secondary" className="text-[10px]">
+              <Badge key={i} variant="secondary" className="text-2xs">
                 {tag.startsWith("#") ? tag : `#${tag}`}
               </Badge>
             ))}
@@ -169,7 +169,7 @@ export default function LinkedInCaptionEditor({
             placeholder="#hashtag1 #hashtag2 #hashtag3"
             className="text-xs"
           />
-          <p className="text-[10px] text-muted-foreground">
+          <p className="text-2xs text-muted-foreground">
             💡 3-5 hashtags max sur LinkedIn (au-delà = effet spammy).
             {tagsTooMany && <span className="text-warning"> Tu en as {hashtagsCount}, pense à réduire.</span>}
           </p>

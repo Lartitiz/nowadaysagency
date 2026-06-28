@@ -95,7 +95,7 @@ function DroppableDay({
         {posts.length > maxVisible && (
           <button
             onClick={() => setExpanded((v) => !v)}
-            className="text-[10px] text-muted-foreground hover:text-primary cursor-pointer px-1"
+            className="text-2xs text-muted-foreground hover:text-primary cursor-pointer px-1"
           >
             {expanded ? "Réduire" : `+${posts.length - maxVisible} autre${posts.length - maxVisible > 1 ? "s" : ""}`}
           </button>
@@ -176,7 +176,7 @@ export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, on
                   {dayPosts.length > 1 && !expandedDays.has(dateStr) && (
                     <button
                       onClick={() => setExpandedDays(prev => new Set(prev).add(dateStr))}
-                      className="text-[11px] text-muted-foreground hover:text-primary mt-0.5"
+                      className="text-2xs text-muted-foreground hover:text-primary mt-0.5"
                     >
                       +{dayPosts.length - 1} autre{dayPosts.length - 1 > 1 ? "s" : ""}
                     </button>

@@ -27,7 +27,7 @@ export default function StreakSection({ currentStreak, bestStreak, weekChecks, t
 
           return (
             <div key={day} className="flex flex-col items-center gap-1 flex-1">
-              <span className="text-[10px] text-muted-foreground font-mono">{day}</span>
+              <span className="text-2xs text-muted-foreground font-mono">{day}</span>
               <div
                 className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold transition-all
                   ${done ? "bg-primary text-primary-foreground" : ""}

@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
@@ -103,7 +103,6 @@ export default function ContactsPage() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
-  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [tab, setTab] = useState("network");
@@ -135,7 +134,7 @@ export default function ContactsPage() {
 
     if (updates.prospect_stage === "converted" && prev?.prospect_stage !== "converted") {
       setShowConfetti(true);
-      toast({ title: "🎉 Bravo ! Nouvelle cliente !" });
+      toast("🎉 Bravo ! Nouvelle cliente !");
       setTimeout(() => setShowConfetti(false), 4000);
     }
   };
@@ -204,17 +203,17 @@ export default function ContactsPage() {
                 } as any).select("*").single();
                 if (data) {
                   setContacts(prev => [data as unknown as Contact, ...prev]);
-                  toast({ title: "👥 Contact ajouté !" });
+                  toast.success("👥 Contact ajouté !");
                 }
               }}
               onInteract={async (id) => {
                 await updateContact(id, { last_interaction_at: new Date().toISOString() });
-                toast({ title: "✅ Fait !" });
+                toast.success("✅ Fait !");
               }}
               onDelete={deleteContact}
               onPromoteToProspect={async (id) => {
                 await updateContact(id, { contact_type: "prospect" as any, prospect_stage: "to_contact" });
-                toast({ title: "🎯 Passé en prospect !" });
+                toast("🎯 Passé en prospect !");
               }}
             />
           </TabsContent>
@@ -238,7 +237,7 @@ export default function ContactsPage() {
                   } as any).select("*").single();
                   if (data) {
                     setContacts(prev => [data as unknown as Contact, ...prev]);
-                    toast({ title: "🎯 Prospect ajouté !" });
+                    toast.success("🎯 Prospect ajouté !");
                   }
                 }}
                 onSelect={setSelectedProspect}
@@ -295,7 +294,7 @@ export default function ContactsPage() {
                   next_followup_text: `Vérifier si @${dmContact.username} a répondu`,
                 });
                 setDmContact(null);
-                toast({ title: "✅ Message noté !" });
+                toast.success("✅ Message noté !");
               }}
             />
           </DialogContent>
@@ -355,7 +354,7 @@ function NetworkTab({ contacts, onAdd, onInteract, onDelete, onPromoteToProspect
             <button
               key={f.value}
               onClick={() => setFilter(f.value)}
-              className={`text-[11px] px-3 py-1 rounded-full border transition-all ${
+              className={`text-2xs px-3 py-1 rounded-full border transition-all ${
                 filter === f.value ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border text-muted-foreground hover:border-primary/40"
               }`}
             >
@@ -373,7 +372,7 @@ function NetworkTab({ contacts, onAdd, onInteract, onDelete, onPromoteToProspect
         <div className="rounded-xl border-2 border-primary/20 bg-secondary/30 p-4 space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-sm font-bold">🗓️ Routine du jour</span>
-            <span className="text-[10px] text-muted-foreground">⏰ ~10 min</span>
+            <span className="text-2xs text-muted-foreground">⏰ ~10 min</span>
           </div>
           <p className="text-xs text-muted-foreground">Commente 3 comptes aujourd'hui :</p>
           {routineContacts.map(c => {
@@ -383,20 +382,20 @@ function NetworkTab({ contacts, onAdd, onInteract, onDelete, onPromoteToProspect
                 <span className="flex-1 min-w-0">
                   <span className="font-mono font-semibold text-primary">@{cleanPseudo(c.username)}</span>
                   {c.network_category && (
-                    <span className="text-[10px] text-muted-foreground ml-2">
+                    <span className="text-2xs text-muted-foreground ml-2">
                       {NETWORK_CATEGORIES.find(nc => nc.key === c.network_category)?.label}
                     </span>
                   )}
                   {c.display_name && <span className="text-xs text-muted-foreground ml-1">· {c.display_name}</span>}
                   <br />
-                  <span className="text-[10px] text-muted-foreground">
+                  <span className="text-2xs text-muted-foreground">
                     Dernière interaction : {days === Infinity ? "jamais" : `il y a ${days} jour${days > 1 ? "s" : ""}`}
                   </span>
                 </span>
-                <InstagramLink username={c.username} className="inline-flex items-center gap-1 h-7 px-2 text-[11px] rounded-md hover:bg-accent text-foreground" showCopy>
+                <InstagramLink username={c.username} className="inline-flex items-center gap-1 h-7 px-2 text-2xs rounded-md hover:bg-accent text-foreground" showCopy>
                   <ExternalLink className="h-3 w-3" /> IG
                 </InstagramLink>
-                <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px]" onClick={() => onInteract(c.id)}>
+                <Button size="sm" variant="ghost" className="h-7 px-2 text-2xs" onClick={() => onInteract(c.id)}>
                   ✅ Fait
                 </Button>
               </div>
@@ -416,18 +415,18 @@ function NetworkTab({ contacts, onAdd, onInteract, onDelete, onPromoteToProspect
             <div key={c.id} className="flex items-center gap-2 rounded-lg border border-border p-2.5 hover:border-primary/30 transition-colors text-sm group">
               <span className="text-xs">{dot}</span>
               <span className="font-mono font-semibold text-primary">@{cleanPseudo(c.username)}</span>
-              <span className="text-[10px] text-muted-foreground">{catLabel}</span>
-              <span className="text-[10px] text-muted-foreground flex-1 truncate">
+              <span className="text-2xs text-muted-foreground">{catLabel}</span>
+              <span className="text-2xs text-muted-foreground flex-1 truncate">
                 {days === Infinity ? "" : `Interagi il y a ${days}j`}
               </span>
               <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Button size="sm" variant="ghost" className="h-6 px-1.5 text-[10px]" onClick={() => onInteract(c.id)} title="Marquer interagi">
+                <Button size="sm" variant="ghost" className="h-6 px-1.5 text-2xs" onClick={() => onInteract(c.id)} title="Marquer interagi">
                   ✅
                 </Button>
-                <Button size="sm" variant="ghost" className="h-6 px-1.5 text-[10px]" onClick={() => onPromoteToProspect(c.id)} title="Passer en prospect">
+                <Button size="sm" variant="ghost" className="h-6 px-1.5 text-2xs" onClick={() => onPromoteToProspect(c.id)} title="Passer en prospect">
                   🎯
                 </Button>
-                <Button size="sm" variant="ghost" className="h-6 px-1.5 text-[10px] text-destructive" onClick={() => onDelete(c.id)} title="Supprimer">
+                <Button size="sm" variant="ghost" className="h-6 px-1.5 text-2xs text-destructive" onClick={() => onDelete(c.id)} title="Supprimer">
                   <Trash2 className="h-3 w-3" />
                 </Button>
               </div>
@@ -441,7 +440,7 @@ function NetworkTab({ contacts, onAdd, onInteract, onDelete, onPromoteToProspect
 
       {/* Legend */}
       {contacts.length > 0 && (
-        <p className="text-[10px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           🟢 &lt; 3 jours · 🟡 3-7 jours · 🔴 &gt; 7 jours
         </p>
       )}
@@ -457,7 +456,7 @@ function NetworkTab({ contacts, onAdd, onInteract, onDelete, onPromoteToProspect
               <button
                 key={cat.key}
                 onClick={() => setNewCategory(cat.key)}
-                className={`text-[11px] px-3 py-1 rounded-full border transition-all ${
+                className={`text-2xs px-3 py-1 rounded-full border transition-all ${
                   newCategory === cat.key ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border text-muted-foreground"
                 }`}
               >
@@ -519,7 +518,7 @@ function ProspectsTab({ contacts, onAdd, onSelect, onUpdateStage, onWriteDm, pip
                 <span className="font-mono font-semibold text-primary">@{cleanPseudo(c.username)}</span>
                 {c.next_followup_text && <span className="text-xs text-muted-foreground"> · {c.next_followup_text}</span>}
               </span>
-              <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px]" onClick={() => onWriteDm(c)}>
+              <Button size="sm" variant="ghost" className="h-7 px-2 text-2xs" onClick={() => onWriteDm(c)}>
                 <MessageCircle className="h-3 w-3 mr-1" /> DM
               </Button>
             </div>
@@ -555,7 +554,7 @@ function ProspectsTab({ contacts, onAdd, onSelect, onUpdateStage, onWriteDm, pip
             <div key={stage.key} className="space-y-2">
               <div className="flex items-center gap-2">
                 <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${stage.color}`}>{stage.label}</span>
-                <span className="text-[10px] text-muted-foreground">({stageContacts.length})</span>
+                <span className="text-2xs text-muted-foreground">({stageContacts.length})</span>
               </div>
               {stageContacts.map(c => {
                 const days = daysSince(c.last_interaction_at);
@@ -573,25 +572,25 @@ function ProspectsTab({ contacts, onAdd, onSelect, onUpdateStage, onWriteDm, pip
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-mono text-sm font-bold text-primary">@{cleanPseudo(c.username)}</span>
                           {c.activity && (
-                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{c.activity}</span>
+                            <span className="text-2xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{c.activity}</span>
                           )}
-                          {stale && <span className="text-[10px]">⚠️</span>}
+                          {stale && <span className="text-2xs">⚠️</span>}
                         </div>
-                        {c.display_name && <p className="text-[11px] text-muted-foreground">{c.display_name}</p>}
-                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                        {c.display_name && <p className="text-2xs text-muted-foreground">{c.display_name}</p>}
+                        <p className="text-2xs text-muted-foreground mt-0.5">
                           {c.last_interaction_at
                             ? `Dernier contact : il y a ${days} jour${days > 1 ? "s" : ""}`
                             : "Dernier contact : jamais"}
                         </p>
                         {c.next_followup_at && new Date(c.next_followup_at) <= new Date() && (
-                          <p className="text-[10px] text-primary font-semibold mt-0.5">🔔 Relance prévue</p>
+                          <p className="text-2xs text-primary font-semibold mt-0.5">🔔 Relance prévue</p>
                         )}
                       </div>
                       <div className="flex gap-1 shrink-0" onClick={e => e.stopPropagation()}>
-                        <button onClick={() => onWriteDm(c)} className="h-7 px-2 text-[11px] rounded-md hover:bg-accent text-foreground inline-flex items-center gap-1">
+                        <button onClick={() => onWriteDm(c)} className="h-7 px-2 text-2xs rounded-md hover:bg-accent text-foreground inline-flex items-center gap-1">
                           <MessageCircle className="h-3 w-3" /> <span className="hidden sm:inline">DM</span>
                         </button>
-                        <InstagramLink username={c.username} className="h-7 px-2 text-[11px] rounded-md hover:bg-accent text-foreground inline-flex items-center gap-1" showCopy>
+                        <InstagramLink username={c.username} className="h-7 px-2 text-2xs rounded-md hover:bg-accent text-foreground inline-flex items-center gap-1" showCopy>
                           <ExternalLink className="h-3 w-3" />
                         </InstagramLink>
                       </div>

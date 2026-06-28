@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, KeyboardEvent } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
@@ -50,7 +50,6 @@ function makeRow(defaultCanal: string): BatchRow {
 export function QuickBatchAdd({ open, onOpenChange, weekStartDate, defaultCanal, onPostsAdded }: QuickBatchAddProps) {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
-  const { toast } = useToast();
   const [rows, setRows] = useState<BatchRow[]>([]);
   const [saving, setSaving] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -112,9 +111,9 @@ export function QuickBatchAdd({ open, onOpenChange, weekStartDate, defaultCanal,
     const { error } = await (supabase.from("calendar_posts") as any).insert(inserts);
 
     if (error) {
-      toast({ title: "Erreur", description: "Impossible d'ajouter les posts.", variant: "destructive" });
+      toast.error("Erreur", { description: "Impossible d'ajouter les posts." });
     } else {
-      toast({ title: `${filledRows.length} post${filledRows.length > 1 ? "s" : ""} ajouté${filledRows.length > 1 ? "s" : ""} !` });
+      toast.success(`${filledRows.length} post${filledRows.length > 1 ? "s" : ""} ajouté${filledRows.length > 1 ? "s" : ""} !`);
       onPostsAdded();
       onOpenChange(false);
     }
@@ -153,7 +152,7 @@ export function QuickBatchAdd({ open, onOpenChange, weekStartDate, defaultCanal,
                       type="button"
                       onClick={() => updateRow(index, "dayIndex", row.dayIndex === di ? null : di)}
                       className={cn(
-                        "text-[11px] font-medium px-1.5 py-0.5 rounded-md transition-colors",
+                        "text-2xs font-medium px-1.5 py-0.5 rounded-md transition-colors",
                         row.dayIndex === di
                           ? "bg-primary text-primary-foreground"
                           : "bg-muted/50 text-muted-foreground hover:bg-muted"

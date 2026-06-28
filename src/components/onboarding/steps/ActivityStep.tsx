@@ -25,7 +25,7 @@ export default function ActivityStep({ value, detailValue, onChange, onDetailCha
       <div className="space-y-5 max-h-[60vh] overflow-y-auto pr-1" onPointerDown={e => e.stopPropagation()}>
         {activitySections.map(section => (
           <div key={section.label}>
-            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">{section.label}</p>
+            <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">{section.label}</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {section.items.map(t => (
                 <button key={t.key} type="button" onClick={() => onChange(t.key)}
@@ -61,7 +61,7 @@ export default function ActivityStep({ value, detailValue, onChange, onDetailCha
               <input type="text" value={detailValue} onChange={e => onDetailChange(e.target.value)}
                 placeholder="Décris ton activité en quelques mots" autoFocus
                 className="w-full text-base p-3 border-b-2 border-border focus:border-primary outline-none bg-transparent transition-colors text-foreground placeholder:text-muted-foreground/50" />
-              <p className="text-[11px] text-muted-foreground mt-1.5 italic">(au moins 5 caractères pour que je puisse comprendre ton activité)</p>
+              <p className="text-2xs text-muted-foreground mt-1.5 italic">(au moins 5 caractères pour que je puisse comprendre ton activité)</p>
             </div>
           )}
         </div>

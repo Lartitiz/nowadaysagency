@@ -481,7 +481,7 @@ export default function BrandingSectionPage() {
 
         <div className="flex items-center gap-3 mb-2">
           <span className="text-2xl">{config.emoji}</span>
-          <h1 className="font-display text-[26px] font-bold text-foreground">
+          <h1 className="font-display text-3xl font-bold text-foreground">
             {isPersonaSection && personas.length > 1 ? "Mes personas" : config.title}
           </h1>
         </div>

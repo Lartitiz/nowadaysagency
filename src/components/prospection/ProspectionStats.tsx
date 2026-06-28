@@ -34,7 +34,7 @@ export default function ProspectionStats({ prospects }: Props) {
         </div>
       </div>
       {prospects.length > 0 && (
-        <p className="text-[11px] text-muted-foreground italic">
+        <p className="text-2xs text-muted-foreground italic">
           💡 Envoie 2-3 DM personnalisés par semaine. La régularité bat le volume.
         </p>
       )}

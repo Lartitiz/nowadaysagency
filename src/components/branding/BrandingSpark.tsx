@@ -58,7 +58,7 @@ export default function BrandingSpark({ section, onDismiss }: BrandingSparkProps
         <span className="text-2xl mt-0.5">✨</span>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-foreground mb-2">Pour t'aider à démarrer...</p>
-          <p className="text-[15px] italic text-foreground/80 leading-relaxed">{sparks[index]}</p>
+          <p className="text-base italic text-foreground/80 leading-relaxed">{sparks[index]}</p>
           <div className="flex items-center gap-3 mt-4">
             <Button size="sm" onClick={handleDismiss} className="gap-1.5">
               <Sparkles className="h-3.5 w-3.5" />

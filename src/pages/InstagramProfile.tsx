@@ -149,7 +149,7 @@ export default function InstagramProfile() {
       <main className="mx-auto max-w-5xl px-6 py-8 max-md:px-4">
         <SubPageHeader parentLabel="Instagram" parentTo="/instagram" currentLabel="Mon profil" />
 
-        <h1 className="font-display text-[26px] font-bold text-foreground">👤 Mon profil Instagram</h1>
+        <h1 className="font-display text-3xl font-bold text-foreground">👤 Mon profil Instagram</h1>
         <p className="mt-2 text-sm text-muted-foreground italic mb-8">
           Audite ton compte, optimise chaque élément. L'IA compare ton profil avec ton branding et te dit exactement quoi améliorer.
         </p>
@@ -242,10 +242,10 @@ export default function InstagramProfile() {
                   <span className="text-2xl">{s.emoji}</span>
                   <div className="flex items-center gap-1.5">
                     {vs === "validated" && (
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-success-bg text-success">✅</span>
+                      <span className="text-2xs font-semibold px-2 py-0.5 rounded-pill bg-success-bg text-success">✅</span>
                     )}
                     {sc !== null && (
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-pill ${badge.color}`}>
+                      <span className={`text-2xs font-semibold px-2 py-0.5 rounded-pill ${badge.color}`}>
                         {sc}/100
                       </span>
                     )}

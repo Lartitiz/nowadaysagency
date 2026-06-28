@@ -189,12 +189,12 @@ export default function KickoffPreparation({ open, onOpenChange, coachUserId, on
         <div className="space-y-5 pt-2">
           <section>
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">La cliente</p>
-            <Input value={email} onChange={e => setEmail(e.target.value)} placeholder="lea@photo.com" />
+            <Input aria-label="Email de la cliente" value={email} onChange={e => setEmail(e.target.value)} placeholder="lea@photo.com" />
           </section>
           <section>
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Le programme</p>
             <div className="rounded-xl bg-rose-pale/50 p-3 text-sm text-foreground"><p className="font-semibold">Engagement : 6 mois · 290€/mois · 1 740€ total</p></div>
-            <div className="mt-3"><label className="text-sm font-medium text-foreground">Date de début</label><Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="mt-1" /></div>
+            <div className="mt-3"><Label htmlFor="kickoff-start-date" className="text-sm font-medium text-foreground">Date de début</Label><Input id="kickoff-start-date" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="mt-1" /></div>
           </section>
           <section>
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Les 3 sessions fixes</p>
@@ -202,21 +202,21 @@ export default function KickoffPreparation({ open, onOpenChange, coachUserId, on
               {FIXED_SESSIONS.map((s, i) => (
                 <div key={s.n} className="flex items-center justify-between rounded-xl border border-border p-3">
                   <div className="flex items-center gap-2"><span>{getSessionTypeIcon(s.type)}</span><p className="text-sm font-semibold text-foreground">Session {s.n} · {s.title} · {s.duration >= 60 ? `${s.duration / 60}h${s.duration % 60 ? "30" : ""}` : `${s.duration}min`}</p></div>
-                  <Input type="date" value={[session1Date, session2Date, session3Date][i]} onChange={e => [setSession1Date, setSession2Date, setSession3Date][i](e.target.value)} className="w-40" />
+                  <Input aria-label={`Date de la session ${s.n} · ${s.title}`} type="date" value={[session1Date, session2Date, session3Date][i]} onChange={e => [setSession1Date, setSession2Date, setSession3Date][i](e.target.value)} className="w-40" />
                 </div>
               ))}
             </div>
           </section>
           <section>
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Les {focusSessions.length} sessions focus</p>
-            <p className="text-[11px] text-muted-foreground mb-3">💡 Les focus seront décidés lors de l'Atelier Stratégique.</p>
+            <p className="text-2xs text-muted-foreground mb-3">💡 Les focus seront décidés lors de l'Atelier Stratégique.</p>
             <div className="space-y-3">
               {focusSessions.map((fs, i) => (
                 <div key={i} className="rounded-xl border border-border p-3 space-y-2">
                   <p className="text-xs font-semibold text-muted-foreground">Session {4 + i}</p>
                   <div className="flex gap-2">
                     <Select value={fs.focus_topic || "none"} onValueChange={v => updateFocus(i, "focus_topic", v === "none" ? "" : v)}>
-                      <SelectTrigger className="flex-1"><SelectValue placeholder="Focus…" /></SelectTrigger>
+                      <SelectTrigger aria-label={`Focus de la session ${4 + i}`} className="flex-1"><SelectValue placeholder="Focus…" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">💬 À définir</SelectItem>
                         {FOCUS_TOPICS.map(t => (<SelectItem key={t.value} value={t.value}>{t.icon} {t.label}</SelectItem>))}
@@ -227,8 +227,8 @@ export default function KickoffPreparation({ open, onOpenChange, coachUserId, on
                       <Button type="button" size="sm" variant={fs.duration === 120 ? "default" : "outline"} className="rounded-full text-xs" onClick={() => updateFocus(i, "duration", 120)}>2h</Button>
                     </div>
                   </div>
-                  {fs.focus_topic === "custom" && <Input value={fs.focus_label} onChange={e => updateFocus(i, "focus_label", e.target.value)} placeholder="Sujet personnalisé…" />}
-                  <Input type="date" value={fs.date} onChange={e => updateFocus(i, "date", e.target.value)} />
+                  {fs.focus_topic === "custom" && <Input aria-label={`Sujet personnalisé de la session ${4 + i}`} value={fs.focus_label} onChange={e => updateFocus(i, "focus_label", e.target.value)} placeholder="Sujet personnalisé…" />}
+                  <Input aria-label={`Date de la session ${4 + i}`} type="date" value={fs.date} onChange={e => updateFocus(i, "date", e.target.value)} />
                 </div>
               ))}
             </div>
@@ -239,7 +239,7 @@ export default function KickoffPreparation({ open, onOpenChange, coachUserId, on
           </section>
           <section>
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">WhatsApp</p>
-            <Input value={whatsapp} onChange={e => setWhatsapp(e.target.value)} placeholder="https://wa.me/33612345678" />
+            <Input aria-label="Lien WhatsApp" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} placeholder="https://wa.me/33612345678" />
           </section>
           <section>
             <div className="flex items-center gap-2">

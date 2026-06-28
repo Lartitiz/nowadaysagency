@@ -94,7 +94,7 @@ export function PhotoCard({ photo, onOpen, onDelete, onRetry, retrying }: PhotoC
           <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-transparent via-white/20 to-transparent" />
           <Loader2 className="h-6 w-6 animate-spin text-primary relative" />
           <p className="text-xs font-medium text-foreground relative">Retouche en cours…</p>
-          <p className="text-[11px] text-muted-foreground relative">{formatElapsed(elapsedMs)}</p>
+          <p className="text-2xs text-muted-foreground relative">{formatElapsed(elapsedMs)}</p>
         </div>
       )}
 
@@ -104,7 +104,7 @@ export function PhotoCard({ photo, onOpen, onDelete, onRetry, retrying }: PhotoC
           <AlertTriangle className="h-6 w-6 text-destructive" />
           <p className="text-xs font-medium text-foreground">Échec de la retouche</p>
           {photo.error_message && (
-            <p className="text-[10px] text-muted-foreground line-clamp-2">{photo.error_message}</p>
+            <p className="text-2xs text-muted-foreground line-clamp-2">{photo.error_message}</p>
           )}
           <div className="flex gap-1.5">
             <Button
@@ -157,7 +157,7 @@ export function PhotoCard({ photo, onOpen, onDelete, onRetry, retrying }: PhotoC
           </button>
           {photo.name && (
             <div className="absolute bottom-0 left-0 right-0 px-3 py-2 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-              <p className="text-[11px] text-white font-medium truncate">{photo.name}</p>
+              <p className="text-2xs text-white font-medium truncate">{photo.name}</p>
             </div>
           )}
         </>

@@ -10,7 +10,7 @@ import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -54,7 +54,6 @@ interface Props {
 export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned }: Props) {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
-  const { toast } = useToast();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
 
@@ -92,7 +91,7 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
       content_draft: contentDraft || null,
       canal: ideaFormat === "linkedin" ? "linkedin" : "instagram",
     }).eq("id", idea.id);
-    toast({ title: "Idée enregistrée !" });
+    toast.success("Idée enregistrée !");
     onUpdated();
   };
 
@@ -116,7 +115,7 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
     if (newPost) {
       await supabase.from("saved_ideas").update({ calendar_post_id: newPost.id, planned_date: dateStr }).eq("id", idea.id);
     }
-    toast({ title: `Planifié le ${format(planDate, "d MMMM", { locale: fr })}` });
+    toast.success(`Planifié le ${format(planDate, "d MMMM", { locale: fr })}`);
     onOpenChange(false);
     onPlanned();
   };
@@ -128,7 +127,7 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
       return;
     }
     await supabase.from("saved_ideas").delete().eq("id", idea.id);
-    toast({ title: "Idée supprimée" });
+    toast.success("Idée supprimée");
     onOpenChange(false);
     onUpdated();
   };

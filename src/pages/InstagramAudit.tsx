@@ -9,7 +9,7 @@ import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query"
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
 import { Loader2, Sparkles, BarChart3, RotateCcw } from "lucide-react";
 import AiLoadingIndicator from "@/components/AiLoadingIndicator";
@@ -38,7 +38,6 @@ type ViewMode = "hub" | "form" | "results";
 
 export default function InstagramAudit() {
   const { user } = useAuth();
-  const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { column, value } = useWorkspaceFilter();
@@ -91,16 +90,16 @@ export default function InstagramAudit() {
       const ctxBody = (error as any)?.context?.body;
       const msg = ctxBody?.error || (data as any)?.error || "";
       if (msg.includes("Reconnecte")) {
-        toast({ title: "Reconnexion requise", description: "Reconnecte ton compte Instagram pour autoriser la lecture de tes statistiques.", variant: "destructive" });
+        toast.error("Reconnexion requise", { description: "Reconnecte ton compte Instagram pour autoriser la lecture de tes statistiques." });
       } else {
-        toast({ title: "Stats indisponibles", description: msg || "Impossible de récupérer tes statistiques Instagram pour le moment.", variant: "destructive" });
+        toast.error("Stats indisponibles", { description: msg || "Impossible de récupérer tes statistiques Instagram pour le moment." });
       }
       return null;
     }
     const m = (data as any).metrics;
     setLiveMetrics(m);
     if (m.partial) {
-      toast({ title: "Stats partiellement récupérées", description: "Certaines métriques manquaient, mais l'essentiel est là." });
+      toast("Stats partiellement récupérées", { description: "Certaines métriques manquaient, mais l'essentiel est là." });
     }
     return {
       followers: typeof m.followers === "number" ? String(m.followers) : undefined,
@@ -466,7 +465,7 @@ export default function InstagramAudit() {
       setAuditResult(parsed);
       setHasExistingAudit(true);
       setView("results");
-      toast({ title: "Audit terminé !" });
+      toast.success("Audit terminé !");
     } catch (e: any) {
       console.error("Erreur technique:", e);
       const errStr = e?.message || String(e);
@@ -499,7 +498,7 @@ export default function InstagramAudit() {
         msg = friendlyError(e);
       }
       setLastError(msg);
-      toast({ title: "Erreur", description: msg, variant: "destructive" });
+      toast.error("Erreur", { description: msg });
     } finally {
       setAnalyzing(false);
       // L'audit est retombé (succès, erreur ou quota) : on retire le marqueur. S'il
@@ -526,10 +525,10 @@ export default function InstagramAudit() {
         validated_content: { bio },
       }, { onConflict: "user_id,section" });
 
-      toast({ title: "✅ Bio adoptée et sauvegardée !" });
+      toast.success("✅ Bio adoptée et sauvegardée !");
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(e) });
     }
   };
 
@@ -552,10 +551,10 @@ export default function InstagramAudit() {
         await supabase.from("instagram_editorial_line").insert({ user_id: user.id, content_insights: insights, workspace_id: workspaceId !== user.id ? workspaceId : undefined } as any);
       }
       queryClient.invalidateQueries({ queryKey: ["editorial-line"] });
-      toast({ title: "Insights sauvegardés dans ta ligne éditoriale !" });
+      toast.success("Insights sauvegardés dans ta ligne éditoriale !");
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast({ title: "Erreur", description: friendlyError(e), variant: "destructive" });
+      toast.error("Erreur", { description: friendlyError(e) });
     }
   };
 
@@ -621,7 +620,7 @@ export default function InstagramAudit() {
         <AppHeader />
         <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
           <SubPageHeader parentLabel="Mon profil" parentTo="/instagram/profil" currentLabel="Audit" useFromParam />
-          <h1 className="font-display text-[22px] sm:text-[26px] font-bold text-foreground mb-2">🔍 Audit de ton profil Instagram</h1>
+          <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-2">🔍 Audit de ton profil Instagram</h1>
 
           <div className="rounded-2xl border border-border bg-card p-6 mt-6">
             {score !== null && (
@@ -673,7 +672,7 @@ export default function InstagramAudit() {
         <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
           <SubPageHeader parentLabel="Mon profil" parentTo="/instagram/profil" currentLabel="Résultats audit" useFromParam />
           <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
-            <h1 className="font-display text-[26px] font-bold text-foreground">🔍 Résultat de ton audit</h1>
+            <h1 className="font-display text-3xl font-bold text-foreground">🔍 Résultat de ton audit</h1>
             {auditDate && (
               <span className="text-xs text-muted-foreground">
                 {new Date(auditDate).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
@@ -787,7 +786,7 @@ export default function InstagramAudit() {
       <AppHeader />
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
         <SubPageHeader parentLabel="Mon profil" parentTo="/instagram/profil" currentLabel={hasExistingAudit ? "Refaire l'audit" : "Audit"} useFromParam />
-        <h1 className="font-display text-[26px] font-bold text-foreground">
+        <h1 className="font-display text-3xl font-bold text-foreground">
           {hasExistingAudit ? "🔄 Refaire l'audit" : "🔍 Audit de ton profil Instagram"}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground italic mb-8">

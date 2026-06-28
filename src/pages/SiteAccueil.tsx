@@ -199,7 +199,7 @@ export default function SiteAccueil() {
         </Link>
 
         <div className="mb-6">
-          <h1 className="font-display text-[26px] font-bold text-foreground">🌐 Ta page web</h1>
+          <h1 className="font-display text-3xl font-bold text-foreground">🌐 Ta page web</h1>
           <p className="mt-1 text-sm text-muted-foreground italic">Chaque section a un rôle précis. On les construit une par une.</p>
         </div>
 
@@ -256,7 +256,7 @@ export default function SiteAccueil() {
                   <Link key={pt.value} to={pt.to!} className="text-left rounded-xl border-2 border-border hover:border-primary/50 bg-card p-3 transition-all">
                     <span className="text-lg">{pt.emoji}</span>
                     <p className="font-display text-sm font-bold text-foreground mt-1">{pt.label}</p>
-                    <p className="text-[11px] text-muted-foreground">{pt.desc}</p>
+                    <p className="text-2xs text-muted-foreground">{pt.desc}</p>
                   </Link>
                 );
               }
@@ -268,7 +268,7 @@ export default function SiteAccueil() {
                 >
                   <span className="text-lg">{pt.emoji}</span>
                   <p className="font-display text-sm font-bold text-foreground mt-1">{pt.label}</p>
-                  <p className="text-[11px] text-muted-foreground">{pt.desc}</p>
+                  <p className="text-2xs text-muted-foreground">{pt.desc}</p>
                 </button>
               );
             })}
@@ -288,9 +288,9 @@ export default function SiteAccueil() {
                 <div className="flex items-center gap-2">
                   <span className="text-lg">{fw.emoji}</span>
                   <span className="font-display text-sm font-bold text-foreground">{fw.label}</span>
-                  {fw.recommended && <span className="font-mono-ui text-[10px] font-semibold px-2 py-0.5 rounded-pill bg-primary text-primary-foreground">recommandé</span>}
+                  {fw.recommended && <span className="font-mono-ui text-2xs font-semibold px-2 py-0.5 rounded-pill bg-primary text-primary-foreground">recommandé</span>}
                 </div>
-                <p className="text-[12px] text-muted-foreground mt-1 ml-7">{fw.desc}</p>
+                <p className="text-xs text-muted-foreground mt-1 ml-7">{fw.desc}</p>
               </button>
             ))}
           </div>
@@ -305,13 +305,13 @@ export default function SiteAccueil() {
         {/* Progress */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-2">
-            <span className="font-mono-ui text-[11px] text-muted-foreground">{completedSteps} / {totalSteps} sections complétées</span>
+            <span className="font-mono-ui text-2xs text-muted-foreground">{completedSteps} / {totalSteps} sections complétées</span>
           </div>
           <div className="flex gap-1">
             {STEPS.map((s, i) => (
               <button key={i} onClick={() => goStep(i + 1)} className={`flex-1 flex flex-col items-center gap-1 p-1.5 rounded-lg transition-all text-xs ${step === i + 1 ? "bg-primary text-primary-foreground" : i < completedSteps ? "bg-rose-pale text-foreground" : "bg-secondary text-muted-foreground"}`}>
                 <span className="text-sm">{s.icon}</span>
-                <span className="font-mono-ui text-[8px] font-semibold hidden sm:block leading-tight">{s.label}</span>
+                <span className="font-mono-ui text-2xs font-semibold hidden sm:block leading-tight">{s.label}</span>
               </button>
             ))}
           </div>

@@ -73,7 +73,7 @@ export default function TipsSection({ isLaunching }: TipsSectionProps) {
             {storyTip.text}
           </p>
           {storyTip.source && (
-            <p className="text-[10px] text-muted-foreground">Source : {storyTip.source}</p>
+            <p className="text-2xs text-muted-foreground">Source : {storyTip.source}</p>
           )}
         </div>
       )}

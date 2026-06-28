@@ -76,7 +76,7 @@ function ConfidenceBadge({ level }: { level: string }) {
   };
   const s = map[level] || map.low;
   return (
-    <span className={`inline-flex items-center gap-1.5 text-[12px] font-medium px-2.5 py-0.5 rounded-full ${s.bg} ${s.text}`}>
+    <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-0.5 rounded-full ${s.bg} ${s.text}`}>
       <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: level === "high" ? "#22c55e" : level === "medium" ? "#f59e0b" : "hsl(var(--primary))" }} />
       {s.label}
     </span>
@@ -84,13 +84,13 @@ function ConfidenceBadge({ level }: { level: string }) {
 }
 
 function Chip({ children }: { children: React.ReactNode }) {
-  return <span className="inline-block px-3 py-1 text-[13px] rounded-[8px] bg-[#ffa7c6]/20 text-bordeaux font-medium">{children}</span>;
+  return <span className="inline-block px-3 py-1 text-sm rounded-[8px] bg-[#ffa7c6]/20 text-bordeaux font-medium">{children}</span>;
 }
 
 function SourceTag({ name, ok }: { name: string; ok: boolean }) {
   const labels: Record<string, string> = { website: "Site", instagram: "Instagram", linkedin: "LinkedIn", documents: "Documents" };
   return (
-    <span className={`inline-flex items-center gap-1 text-[12px] px-2 py-0.5 rounded-full font-medium ${ok ? "bg-success-bg text-success" : "bg-muted text-muted-foreground line-through"}`}>
+    <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${ok ? "bg-success-bg text-success" : "bg-muted text-muted-foreground line-through"}`}>
       {labels[name] || name} {ok ? "✓" : "✗"}
     </span>
   );
@@ -101,9 +101,9 @@ function StorySection({ data }: { data: AnalysisResult["story"] }) {
   if (!data) return null;
   return (
     <div className="space-y-3">
-      {data.full_story && <p className="text-[14px] leading-relaxed text-foreground whitespace-pre-line">{data.full_story}</p>}
+      {data.full_story && <p className="text-sm leading-relaxed text-foreground whitespace-pre-line">{data.full_story}</p>}
       {!data.full_story && (
-        <div className="space-y-2 text-[14px] text-foreground">
+        <div className="space-y-2 text-sm text-foreground">
           {data.origin && <p><span className="font-semibold text-bordeaux">Origine :</span> {data.origin}</p>}
           {data.trigger && <p><span className="font-semibold text-bordeaux">Déclic :</span> {data.trigger}</p>}
           {data.struggles && <p><span className="font-semibold text-bordeaux">Épreuves :</span> {data.struggles}</p>}
@@ -119,15 +119,15 @@ function PersonaSection({ data }: { data: AnalysisResult["persona"] }) {
   if (!data) return null;
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-3 text-[14px]">
-        {data.name && <span className="font-display text-[16px]">{data.name}</span>}
+      <div className="flex flex-wrap items-center gap-3 text-sm">
+        {data.name && <span className="font-display text-base">{data.name}</span>}
         {data.age_range && <Chip>{data.age_range} ans</Chip>}
         {data.job && <Chip>{data.job}</Chip>}
       </div>
-      {data.goals?.length ? <div><p className="text-[12px] font-semibold text-bordeaux mb-1">Objectifs</p><div className="flex flex-wrap gap-1.5">{data.goals.map((g, i) => <Chip key={i}>{g}</Chip>)}</div></div> : null}
-      {data.frustrations?.length ? <div><p className="text-[12px] font-semibold text-bordeaux mb-1">Frustrations</p><div className="flex flex-wrap gap-1.5">{data.frustrations.map((f, i) => <Chip key={i}>{f}</Chip>)}</div></div> : null}
-      {data.desires?.length ? <div><p className="text-[12px] font-semibold text-bordeaux mb-1">Désirs</p><div className="flex flex-wrap gap-1.5">{data.desires.map((d, i) => <Chip key={i}>{d}</Chip>)}</div></div> : null}
-      {data.channels?.length ? <div><p className="text-[12px] font-semibold text-bordeaux mb-1">Canaux</p><div className="flex flex-wrap gap-1.5">{data.channels.map((c, i) => <Chip key={i}>{c}</Chip>)}</div></div> : null}
+      {data.goals?.length ? <div><p className="text-xs font-semibold text-bordeaux mb-1">Objectifs</p><div className="flex flex-wrap gap-1.5">{data.goals.map((g, i) => <Chip key={i}>{g}</Chip>)}</div></div> : null}
+      {data.frustrations?.length ? <div><p className="text-xs font-semibold text-bordeaux mb-1">Frustrations</p><div className="flex flex-wrap gap-1.5">{data.frustrations.map((f, i) => <Chip key={i}>{f}</Chip>)}</div></div> : null}
+      {data.desires?.length ? <div><p className="text-xs font-semibold text-bordeaux mb-1">Désirs</p><div className="flex flex-wrap gap-1.5">{data.desires.map((d, i) => <Chip key={i}>{d}</Chip>)}</div></div> : null}
+      {data.channels?.length ? <div><p className="text-xs font-semibold text-bordeaux mb-1">Canaux</p><div className="flex flex-wrap gap-1.5">{data.channels.map((c, i) => <Chip key={i}>{c}</Chip>)}</div></div> : null}
     </div>
   );
 }
@@ -136,8 +136,8 @@ function ValuePropSection({ data }: { data: AnalysisResult["value_proposition"] 
   if (!data) return null;
   return (
     <div className="space-y-3">
-      {data.key_phrase && <p className="font-display text-[18px] text-foreground leading-snug">{data.key_phrase}</p>}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-[13px]">
+      {data.key_phrase && <p className="font-display text-lg text-foreground leading-snug">{data.key_phrase}</p>}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
         {data.problem && <div className="p-3 rounded-[12px] bg-rose-pale"><p className="font-semibold text-bordeaux mb-1">Problème</p><p className="text-foreground">{data.problem}</p></div>}
         {data.solution && <div className="p-3 rounded-[12px] bg-success-bg"><p className="font-semibold text-success mb-1">Solution</p><p className="text-foreground">{data.solution}</p></div>}
         {data.differentiator && <div className="p-3 rounded-[12px] bg-warning-bg"><p className="font-semibold text-warning mb-1">Différenciateur</p><p className="text-foreground">{data.differentiator}</p></div>}
@@ -151,7 +151,7 @@ function ToneSection({ data }: { data: AnalysisResult["tone_style"] }) {
   if (!data) return null;
   return (
     <div className="space-y-3">
-      {data.voice_description && <p className="text-[14px] leading-relaxed text-foreground italic bg-muted/30 rounded-[12px] p-3">{data.voice_description}</p>}
+      {data.voice_description && <p className="text-sm leading-relaxed text-foreground italic bg-muted/30 rounded-[12px] p-3">{data.voice_description}</p>}
       {data.tone_keywords?.length ? <div className="flex flex-wrap gap-1.5">{data.tone_keywords.map((k, i) => <Chip key={i}>{k}</Chip>)}</div> : null}
       {(data.tone_register || data.tone_level || data.tone_style_chip || data.tone_humor || data.tone_engagement) && (
         <div className="flex flex-wrap gap-1.5">
@@ -162,14 +162,14 @@ function ToneSection({ data }: { data: AnalysisResult["tone_style"] }) {
           {data.tone_engagement && <Chip>{data.tone_engagement}</Chip>}
         </div>
       )}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[13px]">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
         {data.i_do?.length ? <div className="p-3 rounded-[12px] bg-success-bg"><p className="font-semibold text-success mb-2">✅ Je fais</p><ul className="space-y-1">{data.i_do.map((d, i) => <li key={i}>• {d}</li>)}</ul></div> : null}
         {data.i_never_do?.length ? <div className="p-3 rounded-[12px] bg-rose-pale"><p className="font-semibold text-bordeaux mb-2">🚫 Je ne fais jamais</p><ul className="space-y-1">{data.i_never_do.map((d, i) => <li key={i}>• {d}</li>)}</ul></div> : null}
       </div>
-      {data.fights?.length ? <div><p className="text-[12px] font-semibold text-bordeaux mb-1">Combats</p><div className="flex flex-wrap gap-1.5">{data.fights.map((f, i) => <Chip key={i}>{f}</Chip>)}</div></div> : null}
-      {data.key_expressions && <p className="text-[13px]"><span className="font-semibold text-bordeaux">Expressions clés :</span> {data.key_expressions}</p>}
-      {data.channels?.length ? <div><p className="text-[12px] font-semibold text-bordeaux mb-1">Canaux</p><div className="flex flex-wrap gap-1.5">{data.channels.map((c, i) => <Chip key={i}>{c}</Chip>)}</div></div> : null}
-      {data.visual_style && <p className="text-[13px] text-muted-foreground italic">{data.visual_style}</p>}
+      {data.fights?.length ? <div><p className="text-xs font-semibold text-bordeaux mb-1">Combats</p><div className="flex flex-wrap gap-1.5">{data.fights.map((f, i) => <Chip key={i}>{f}</Chip>)}</div></div> : null}
+      {data.key_expressions && <p className="text-sm"><span className="font-semibold text-bordeaux">Expressions clés :</span> {data.key_expressions}</p>}
+      {data.channels?.length ? <div><p className="text-xs font-semibold text-bordeaux mb-1">Canaux</p><div className="flex flex-wrap gap-1.5">{data.channels.map((c, i) => <Chip key={i}>{c}</Chip>)}</div></div> : null}
+      {data.visual_style && <p className="text-sm text-muted-foreground italic">{data.visual_style}</p>}
     </div>
   );
 }
@@ -178,11 +178,11 @@ function StrategySection({ data }: { data: AnalysisResult["content_strategy"] })
   if (!data) return null;
   return (
     <div className="space-y-3">
-      {data.pillars?.length ? <div><p className="text-[12px] font-semibold text-bordeaux mb-1">Piliers</p><div className="flex flex-wrap gap-1.5">{data.pillars.map((p, i) => <Chip key={i}>{p}</Chip>)}</div></div> : null}
-      {data.creative_twist && <p className="text-[14px]"><span className="font-semibold text-bordeaux">Angle créatif :</span> {data.creative_twist}</p>}
-      {data.formats?.length ? <div><p className="text-[12px] font-semibold text-bordeaux mb-1">Formats</p><div className="flex flex-wrap gap-1.5">{data.formats.map((f, i) => <Chip key={i}>{f}</Chip>)}</div></div> : null}
-      {data.rhythm && <p className="text-[13px] text-muted-foreground">{data.rhythm}</p>}
-      {data.editorial_line && <p className="text-[14px]"><span className="font-semibold text-bordeaux">Ligne éditoriale :</span> {data.editorial_line}</p>}
+      {data.pillars?.length ? <div><p className="text-xs font-semibold text-bordeaux mb-1">Piliers</p><div className="flex flex-wrap gap-1.5">{data.pillars.map((p, i) => <Chip key={i}>{p}</Chip>)}</div></div> : null}
+      {data.creative_twist && <p className="text-sm"><span className="font-semibold text-bordeaux">Angle créatif :</span> {data.creative_twist}</p>}
+      {data.formats?.length ? <div><p className="text-xs font-semibold text-bordeaux mb-1">Formats</p><div className="flex flex-wrap gap-1.5">{data.formats.map((f, i) => <Chip key={i}>{f}</Chip>)}</div></div> : null}
+      {data.rhythm && <p className="text-sm text-muted-foreground">{data.rhythm}</p>}
+      {data.editorial_line && <p className="text-sm"><span className="font-semibold text-bordeaux">Ligne éditoriale :</span> {data.editorial_line}</p>}
     </div>
   );
 }
@@ -214,14 +214,14 @@ function OffersSection({ data, onUpdate, onDelete }: { data: AnalysisResult["off
         <div key={i} className="p-4 rounded-[12px] border border-border bg-background relative group">
           {editingIndex === i ? (
             <div className="space-y-2">
-              <input value={editDraft.name || ""} onChange={e => setEditDraft(d => ({ ...d, name: e.target.value }))} placeholder="Nom de l'offre" className="w-full text-[14px] font-display border border-border rounded-lg px-3 py-1.5 bg-background focus:outline-none focus:ring-1 focus:ring-primary" />
-              <input value={editDraft.price || ""} onChange={e => setEditDraft(d => ({ ...d, price: e.target.value }))} placeholder="Prix" className="w-full text-[13px] border border-border rounded-lg px-3 py-1.5 bg-background focus:outline-none focus:ring-1 focus:ring-primary" />
-              <input value={editDraft.description || ""} onChange={e => setEditDraft(d => ({ ...d, description: e.target.value }))} placeholder="Description" className="w-full text-[13px] border border-border rounded-lg px-3 py-1.5 bg-background focus:outline-none focus:ring-1 focus:ring-primary" />
-              <input value={editDraft.target || ""} onChange={e => setEditDraft(d => ({ ...d, target: e.target.value }))} placeholder="Pour qui ?" className="w-full text-[13px] border border-border rounded-lg px-3 py-1.5 bg-background focus:outline-none focus:ring-1 focus:ring-primary" />
-              <input value={editDraft.promise || ""} onChange={e => setEditDraft(d => ({ ...d, promise: e.target.value }))} placeholder="Promesse" className="w-full text-[13px] border border-border rounded-lg px-3 py-1.5 bg-background focus:outline-none focus:ring-1 focus:ring-primary" />
+              <input value={editDraft.name || ""} onChange={e => setEditDraft(d => ({ ...d, name: e.target.value }))} placeholder="Nom de l'offre" className="w-full text-sm font-display border border-border rounded-lg px-3 py-1.5 bg-background focus:outline-none focus:ring-1 focus:ring-primary" />
+              <input value={editDraft.price || ""} onChange={e => setEditDraft(d => ({ ...d, price: e.target.value }))} placeholder="Prix" className="w-full text-sm border border-border rounded-lg px-3 py-1.5 bg-background focus:outline-none focus:ring-1 focus:ring-primary" />
+              <input value={editDraft.description || ""} onChange={e => setEditDraft(d => ({ ...d, description: e.target.value }))} placeholder="Description" className="w-full text-sm border border-border rounded-lg px-3 py-1.5 bg-background focus:outline-none focus:ring-1 focus:ring-primary" />
+              <input value={editDraft.target || ""} onChange={e => setEditDraft(d => ({ ...d, target: e.target.value }))} placeholder="Pour qui ?" className="w-full text-sm border border-border rounded-lg px-3 py-1.5 bg-background focus:outline-none focus:ring-1 focus:ring-primary" />
+              <input value={editDraft.promise || ""} onChange={e => setEditDraft(d => ({ ...d, promise: e.target.value }))} placeholder="Promesse" className="w-full text-sm border border-border rounded-lg px-3 py-1.5 bg-background focus:outline-none focus:ring-1 focus:ring-primary" />
               <div className="flex gap-2 pt-1">
-                <button onClick={confirmEdit} className="inline-flex items-center gap-1 text-[12px] font-medium text-success hover:text-success"><Check className="h-3.5 w-3.5" /> OK</button>
-                <button onClick={cancelEdit} className="inline-flex items-center gap-1 text-[12px] font-medium text-muted-foreground hover:text-foreground"><X className="h-3.5 w-3.5" /> Annuler</button>
+                <button onClick={confirmEdit} className="inline-flex items-center gap-1 text-xs font-medium text-success hover:text-success"><Check className="h-3.5 w-3.5" /> OK</button>
+                <button onClick={cancelEdit} className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"><X className="h-3.5 w-3.5" /> Annuler</button>
               </div>
             </div>
           ) : (
@@ -233,12 +233,12 @@ function OffersSection({ data, onUpdate, onDelete }: { data: AnalysisResult["off
                 </div>
               )}
               <div className="flex items-baseline justify-between mb-2 pr-14">
-                <p className="font-display text-[15px]">{o.name || "Offre"}</p>
-                {o.price && <span className="text-[13px] font-semibold text-primary">{o.price}</span>}
+                <p className="font-display text-base">{o.name || "Offre"}</p>
+                {o.price && <span className="text-sm font-semibold text-primary">{o.price}</span>}
               </div>
-              {o.description && <p className="text-[13px] text-muted-foreground mb-1">{o.description}</p>}
-              {o.target && <p className="text-[12px]"><span className="font-semibold text-bordeaux">Pour :</span> {o.target}</p>}
-              {o.promise && <p className="text-[12px]"><span className="font-semibold text-bordeaux">Promesse :</span> {o.promise}</p>}
+              {o.description && <p className="text-sm text-muted-foreground mb-1">{o.description}</p>}
+              {o.target && <p className="text-xs"><span className="font-semibold text-bordeaux">Pour :</span> {o.target}</p>}
+              {o.promise && <p className="text-xs"><span className="font-semibold text-bordeaux">Promesse :</span> {o.promise}</p>}
             </>
           )}
         </div>
@@ -260,14 +260,14 @@ function CharterSection({ data }: { data: AnalysisResult["charter"] }) {
     <div className="space-y-3">
       {colors.length > 0 && (
         <div>
-          <p className="text-[12px] font-semibold text-bordeaux mb-2">Couleurs détectées</p>
+          <p className="text-xs font-semibold text-bordeaux mb-2">Couleurs détectées</p>
           <div className="flex flex-wrap gap-3">
             {colors.map((c, i) => (
               <div key={i} className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-[8px] border border-border shadow-sm" style={{ backgroundColor: c.hex }} />
                 <div>
-                  <p className="text-[12px] font-medium text-foreground">{c.label}</p>
-                  <p className="text-[11px] text-muted-foreground font-mono">{c.hex}</p>
+                  <p className="text-xs font-medium text-foreground">{c.label}</p>
+                  <p className="text-2xs text-muted-foreground font-mono">{c.hex}</p>
                 </div>
               </div>
             ))}
@@ -276,7 +276,7 @@ function CharterSection({ data }: { data: AnalysisResult["charter"] }) {
       )}
       {(data.font_title || data.font_body) && (
         <div>
-          <p className="text-[12px] font-semibold text-bordeaux mb-1">Typographies</p>
+          <p className="text-xs font-semibold text-bordeaux mb-1">Typographies</p>
           <div className="flex flex-wrap gap-1.5">
             {data.font_title && <Chip>Titres : {data.font_title}</Chip>}
             {data.font_body && <Chip>Corps : {data.font_body}</Chip>}
@@ -285,11 +285,11 @@ function CharterSection({ data }: { data: AnalysisResult["charter"] }) {
       )}
       {data.mood_keywords?.length ? (
         <div>
-          <p className="text-[12px] font-semibold text-bordeaux mb-1">Ambiance</p>
+          <p className="text-xs font-semibold text-bordeaux mb-1">Ambiance</p>
           <div className="flex flex-wrap gap-1.5">{data.mood_keywords.map((k, i) => <Chip key={i}>{k}</Chip>)}</div>
         </div>
       ) : null}
-      {data.visual_style_description && <p className="text-[13px] text-muted-foreground italic">{data.visual_style_description}</p>}
+      {data.visual_style_description && <p className="text-sm text-muted-foreground italic">{data.visual_style_description}</p>}
     </div>
   );
 }
@@ -656,20 +656,20 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
 
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="mb-8">
-        <h1 className="font-display text-[26px] sm:text-[32px] text-foreground mb-2" style={{ fontWeight: 400 }}>
+        <h1 className="font-display text-3xl sm:text-4xl text-foreground mb-2" style={{ fontWeight: 400 }}>
           Voici ce que j'ai compris de ton projet
         </h1>
-        <p className="font-mono-ui text-[14px] text-muted-foreground mb-4 leading-relaxed">
+        <p className="font-mono-ui text-sm text-muted-foreground mb-4 leading-relaxed">
           J'ai analysé {subtitleSources}. Vérifie, ajuste, et valide section par section.
         </p>
 
         {hasPreFilled && (
-          <p className="font-mono-ui text-[13px] text-success bg-success-bg border border-success/30 rounded-[12px] px-3 py-2 mb-3">
+          <p className="font-mono-ui text-sm text-success bg-success-bg border border-success/30 rounded-[12px] px-3 py-2 mb-3">
             ✅ J'ai gardé ce que tu avais déjà rempli et j'ai complété le reste.
           </p>
         )}
 
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-card border border-border text-[13px] mb-3">
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-card border border-border text-sm mb-3">
           <span>{confMsg.emoji}</span>
           <span className="text-foreground">{confMsg.text}</span>
         </div>
@@ -687,12 +687,12 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
           <div className="mt-4 bg-warning-bg border border-warning/30 rounded-[16px] p-4">
             <div className="flex items-start gap-2 mb-2">
               <Instagram className="h-5 w-5 text-warning shrink-0 mt-0.5" />
-              <p className="text-[13px] text-warning">
+              <p className="text-sm text-warning">
                 Je n'ai pas réussi à accéder à ton Instagram (c'est fréquent, Instagram bloque les analyses automatiques). Tu peux m'aider en copiant-collant ta bio ici.
               </p>
             </div>
             {!showIgBioInput ? (
-              <button onClick={() => setShowIgBioInput(true)} className="text-[13px] font-semibold text-primary hover:underline">
+              <button onClick={() => setShowIgBioInput(true)} className="text-sm font-semibold text-primary hover:underline">
                 Coller ma bio Instagram →
               </button>
             ) : (
@@ -701,13 +701,13 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
                   value={igBio}
                   onChange={(e) => setIgBio(e.target.value)}
                   placeholder="Colle ta bio Instagram ici..."
-                  className="text-[13px] min-h-[80px]"
+                  className="text-sm min-h-[80px]"
                 />
                 <Button
                   size="sm"
                   disabled={!igBio.trim()}
                   onClick={() => onReanalyzeWithBio?.(igBio.trim())}
-                  className="bg-primary hover:bg-bordeaux text-white text-[13px]"
+                  className="bg-primary hover:bg-bordeaux text-white text-sm"
                 >
                   Réanalyser avec ma bio
                 </Button>
@@ -721,7 +721,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
       <AnimatePresence>
         {coachingSection && (
           <motion.div key="coaching" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} transition={{ duration: 0.3 }} className="mb-6">
-            <button onClick={() => setCoachingSection(null)} className="inline-flex items-center gap-1.5 text-[13px] font-medium text-muted-foreground hover:text-foreground mb-4 transition-colors">
+            <button onClick={() => setCoachingSection(null)} className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground mb-4 transition-colors">
               <ArrowLeft className="h-4 w-4" /> Revenir à la vue d'ensemble
             </button>
             <BrandingCoachingFlow
@@ -766,12 +766,12 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
                     className="w-full flex items-center justify-between p-5 sm:p-6 text-left"
                   >
                     <div className="flex items-center gap-3">
-                      <span className="text-[20px]">{sec.emoji}</span>
-                      <h2 className="font-display text-[18px] text-foreground" style={{ fontWeight: 400 }}>{sec.title}</h2>
+                      <span className="text-xl">{sec.emoji}</span>
+                      <h2 className="font-display text-lg text-foreground" style={{ fontWeight: 400 }}>{sec.title}</h2>
                       {isValidated && <CheckCircle2 className="h-5 w-5 text-success" />}
-                      {isRefined && <span className="text-[11px] text-success font-medium">Affiné</span>}
+                      {isRefined && <span className="text-2xs text-success font-medium">Affiné</span>}
                       {isPreFilled && !isRefined && (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-info-bg text-info">
+                        <span className="inline-flex items-center gap-1 text-2xs font-medium px-2 py-0.5 rounded-full bg-info-bg text-info">
                           <Lock className="h-3 w-3" /> Déjà complété
                         </span>
                       )}
@@ -786,20 +786,20 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
                         <div className="px-5 sm:px-6 pb-5 sm:pb-6">
                           {isPreFilled && !isRefined ? (
                             <div className="text-center py-4">
-                              <p className="text-[14px] text-muted-foreground mb-2">
+                              <p className="text-sm text-muted-foreground mb-2">
                                 Cette section était déjà remplie. Elle n'a pas été modifiée par l'analyse.
                               </p>
                               <button
                                 onClick={() => { setValidated(prev => new Set(prev).add(sec.key)); setCollapsed(prev => new Set(prev).add(sec.key)); }}
-                                className="inline-flex items-center gap-2 border-[1.5px] border-success text-success rounded-[12px] px-5 py-2 text-[14px] font-semibold hover:bg-success-bg transition-all"
+                                className="inline-flex items-center gap-2 border-[1.5px] border-success text-success rounded-[12px] px-5 py-2 text-sm font-semibold hover:bg-success-bg transition-all"
                               >
                                 <CheckCircle2 className="h-4 w-4" /> Garder tel quel ✓
                               </button>
                             </div>
                           ) : isLow ? (
                             <div className="text-center py-6">
-                              <p className="text-[14px] text-muted-foreground mb-4">Je n'ai pas assez d'éléments pour cette section. On la remplit ensemble ?</p>
-                              <button onClick={() => setCoachingSection(sec.key)} className="inline-flex items-center gap-2 bg-primary text-white rounded-[12px] px-6 py-2.5 text-[14px] font-semibold transition-all hover:scale-[1.02] hover:shadow-lg">
+                              <p className="text-sm text-muted-foreground mb-4">Je n'ai pas assez d'éléments pour cette section. On la remplit ensemble ?</p>
+                              <button onClick={() => setCoachingSection(sec.key)} className="inline-flex items-center gap-2 bg-primary text-white rounded-[12px] px-6 py-2.5 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-lg">
                                 <Sparkles className="h-4 w-4" /> On la remplit ensemble →
                               </button>
                             </div>
@@ -812,17 +812,17 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
                               </div>
                               {!isValidated && (
                                 <div className="flex flex-col sm:flex-row gap-2">
-                                  <button onClick={() => handleValidate(sec.key)} disabled={isSaving} className="inline-flex items-center justify-center gap-2 border-[1.5px] border-success text-success rounded-[12px] px-5 py-2 text-[14px] font-semibold hover:bg-success-bg transition-all disabled:opacity-50">
+                                  <button onClick={() => handleValidate(sec.key)} disabled={isSaving} className="inline-flex items-center justify-center gap-2 border-[1.5px] border-success text-success rounded-[12px] px-5 py-2 text-sm font-semibold hover:bg-success-bg transition-all disabled:opacity-50">
                                     {isSaving ? <Spinner className="h-4 w-4 text-success" /> : <CheckCircle2 className="h-4 w-4" />}
                                     C'est bon ✓
                                   </button>
-                                  <button onClick={() => setCoachingSection(sec.key)} className={`inline-flex items-center justify-center gap-2 rounded-[12px] px-5 py-2 text-[14px] font-semibold transition-all ${conf === "low" ? "bg-primary text-white hover:scale-[1.02] hover:shadow-lg" : "border-[1.5px] border-primary text-primary hover:bg-rose-pale"}`}>
+                                  <button onClick={() => setCoachingSection(sec.key)} className={`inline-flex items-center justify-center gap-2 rounded-[12px] px-5 py-2 text-sm font-semibold transition-all ${conf === "low" ? "bg-primary text-white hover:scale-[1.02] hover:shadow-lg" : "border-[1.5px] border-primary text-primary hover:bg-rose-pale"}`}>
                                     <Sparkles className="h-4 w-4" /> On affine ensemble →
                                   </button>
                                 </div>
                               )}
                               {conf === "low" && !isValidated && (
-                                <p className="text-[12px] text-muted-foreground mt-2">Je n'ai pas trouvé assez d'infos pour cette partie. Quelques questions vont m'aider à compléter.</p>
+                                <p className="text-xs text-muted-foreground mt-2">Je n'ai pas trouvé assez d'infos pour cette partie. Quelques questions vont m'aider à compléter.</p>
                               )}
                             </>
                           )}
@@ -846,7 +846,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
                 {allDone ? "Branding complété ! 🎉" : `${validatedCount}/7 sections validées`}
               </span>
               {allDone && (
-                <motion.button initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} onClick={onDone} className="text-[13px] font-semibold text-primary hover:underline">
+                <motion.button initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} onClick={onDone} className="text-sm font-semibold text-primary hover:underline">
                   Voir mon branding complet →
                 </motion.button>
               )}

@@ -793,7 +793,7 @@ export default function BrandCharterPage() {
 
         <div className="flex items-center gap-3 mb-2">
           <span className="text-2xl">🎨</span>
-          <h1 className="font-display text-[26px] font-bold text-foreground">Ma charte graphique</h1>
+          <h1 className="font-display text-3xl font-bold text-foreground">Ma charte graphique</h1>
           <div className="ml-auto"><SaveIndicator saved={saved} saving={saving} /></div>
         </div>
 
@@ -880,7 +880,7 @@ export default function BrandCharterPage() {
                   <img src={data.logo_url} alt="Logo" className="max-h-32 max-w-full object-contain block" />
                 </div>
                 {isLogoCutout && (
-                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                  <span className="inline-flex items-center gap-1 text-2xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">
                     <CheckCircle2 className="h-3 w-3" /> Logo détouré
                   </span>
                 )}
@@ -1062,7 +1062,7 @@ export default function BrandCharterPage() {
                         {auditResult.detected_colors.map((c: string, i: number) => (
                           <div key={i} className="flex items-center gap-1.5">
                             <div className="w-8 h-8 rounded-full border-2 border-background shadow-sm" style={{ backgroundColor: c }} />
-                            <span className="font-mono text-[10px] text-muted-foreground uppercase">{c}</span>
+                            <span className="font-mono text-2xs text-muted-foreground uppercase">{c}</span>
                           </div>
                         ))}
                       </div>
@@ -1162,7 +1162,7 @@ export default function BrandCharterPage() {
 
           <div className="grid grid-cols-2 gap-3 my-2">
             <div className="space-y-1">
-              <p className="text-[11px] uppercase tracking-wide text-muted-foreground text-center">Avant</p>
+              <p className="text-2xs uppercase tracking-wide text-muted-foreground text-center">Avant</p>
               <div className="rounded-lg border border-border bg-white aspect-square flex items-center justify-center p-3">
                 {cutoutSourcePreview ? (
                   <img src={cutoutSourcePreview} alt="Logo original" className="max-h-full max-w-full object-contain" />
@@ -1172,7 +1172,7 @@ export default function BrandCharterPage() {
               </div>
             </div>
             <div className="space-y-1">
-              <p className="text-[11px] uppercase tracking-wide text-muted-foreground text-center">Après</p>
+              <p className="text-2xs uppercase tracking-wide text-muted-foreground text-center">Après</p>
               <div
                 className="rounded-lg border border-border aspect-square flex items-center justify-center p-3"
                 style={{
