@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { ChevronLeft, ChevronRight, Sparkles, Download, Link2, PenLine } from "lucide-react";
+import { ChevronLeft, ChevronRight, Sparkles, Download, Link2, PenLine, FileInput } from "lucide-react";
 import { CalendarShareDialog } from "@/components/calendar/CalendarShareDialog";
 
 import CalendarCoachingDialog from "@/components/calendar/CalendarCoachingDialog";
@@ -35,6 +35,7 @@ import { CalendarIdeasSidebar, type SavedIdea } from "@/components/calendar/Cale
 import { IdeaDetailSheet } from "@/components/calendar/IdeaDetailSheet";
 import { WeekDashboard } from "@/components/calendar/WeekDashboard";
 import { QuickBatchAdd } from "@/components/calendar/QuickBatchAdd";
+import { ImportContentDialog } from "@/components/calendar/ImportContentDialog";
 import { lazy, Suspense } from "react";
 import type { DragStartEvent, DragEndEvent } from "@dnd-kit/core";
 const CalendarDndWrapper = lazy(() => import("@/components/calendar/CalendarDndWrapper"));
@@ -95,12 +96,13 @@ function ShareButton() {
   );
 }
 
-function ExportSection({ filteredPosts, canalFilter, toast, onCoachingOpen, onQuickBatchOpen, seriesNameById }: {
+function ExportSection({ filteredPosts, canalFilter, toast, onCoachingOpen, onQuickBatchOpen, onImportOpen, seriesNameById }: {
   filteredPosts: CalendarPost[];
   canalFilter: string;
   toast: ReturnType<typeof useToast>["toast"];
   onCoachingOpen: () => void;
   onQuickBatchOpen: () => void;
+  onImportOpen: () => void;
   seriesNameById: Record<string, string>;
 }) {
   const postToRow = makePostToRow(seriesNameById);
@@ -173,6 +175,9 @@ function ExportSection({ filteredPosts, canalFilter, toast, onCoachingOpen, onQu
             </div>
           )}
         </div>
+        <Button variant="outline" size="sm" className="rounded-full gap-1.5" onClick={onImportOpen}>
+          <FileInput className="h-3.5 w-3.5" /> Importer
+        </Button>
         <Button variant="outline" size="sm" className="rounded-full gap-1.5" onClick={onQuickBatchOpen}>
           <PenLine className="h-3.5 w-3.5" /> Ajout rapide
         </Button>
@@ -223,6 +228,8 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   const [coachingOpen, setCoachingOpen] = useState(false);
   const [ideasCollapsed, setIdeasCollapsed] = useState(true);
   const [quickBatchOpen, setQuickBatchOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importDate, setImportDate] = useState<string | null>(null);
 
   const { data: profileData } = useProfile();
   const ownerName = (profileData as any)?.prenom || "";
@@ -435,6 +442,12 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   const weekPosts = useMemo(() => {
     return weekDays.flatMap(d => postsByDate[toLocalDateStr(d)] || []);
   }, [weekDays, postsByDate]);
+
+  /** Open the import dialog (contenu déjà prêt). Optional date from a day's "+" menu. */
+  const openImportDialog = (dateStr?: string) => {
+    setImportDate(dateStr || null);
+    setImportOpen(true);
+  };
 
   /** Open dialog for creating a new post via the "Juste une idée" flow */
   const openCreateDialog = (dateStr: string) => {
@@ -949,6 +962,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
           calendarDays={calendarDays} postsByDate={postsByDate} todayStr={todayStr} isMobile={isMobile}
           onCreatePost={openCreateDialog} onEditPost={handlePostClick} onMovePost={handleMovePost}
           onAddIdea={openCreateDialog}
+          onImport={openImportDialog}
           seriesNameById={seriesNameById}
         />
       ) : (
@@ -957,7 +971,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
           <CalendarWeekGrid
             weekDays={weekDays} postsByDate={postsByDate} todayStr={todayStr} isMobile={isMobile}
             onCreatePost={openCreateDialog} onEditPost={handlePostClick} onMovePost={handleMovePost}
-            onAddIdea={openCreateDialog} onQuickCreate={handleQuickCreate}
+            onAddIdea={openCreateDialog} onImport={openImportDialog} onQuickCreate={handleQuickCreate}
             onQuickStatusChange={handleQuickStatusChange}
             onQuickDuplicate={handleQuickDuplicate}
             onQuickDelete={handleQuickDelete}
@@ -976,7 +990,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   const body = (
     <>
       <AuditRecommendationBanner />
-      <ExportSection filteredPosts={filteredPosts} canalFilter={canalFilter} toast={toast} onCoachingOpen={() => setCoachingOpen(true)} onQuickBatchOpen={() => setQuickBatchOpen(true)} seriesNameById={seriesNameById} />
+      <ExportSection filteredPosts={filteredPosts} canalFilter={canalFilter} toast={toast} onCoachingOpen={() => setCoachingOpen(true)} onQuickBatchOpen={() => setQuickBatchOpen(true)} onImportOpen={() => openImportDialog()} seriesNameById={seriesNameById} />
 
       {/* Mobile tabs */}
       {isMobile && (
@@ -1081,6 +1095,14 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
         weekStartDate={toLocalDateStr(weekStart)}
         defaultCanal={canalFilter !== "all" ? canalFilter : "instagram"}
         onPostsAdded={fetchPosts}
+      />
+
+      <ImportContentDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        selectedDate={importDate}
+        defaultCanal={canalFilter !== "all" ? canalFilter : "instagram"}
+        onSaved={fetchPosts}
       />
     </>
   );

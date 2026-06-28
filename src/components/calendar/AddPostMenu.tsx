@@ -6,6 +6,7 @@ import { useState } from "react";
 interface Props {
   dateStr: string;
   onAddIdea: (dateStr: string) => void;
+  onImport?: (dateStr: string) => void;
   children?: React.ReactNode;
 }
 
@@ -17,7 +18,7 @@ const FORMATS = [
   { id: "linkedin", emoji: "💼", label: "LinkedIn", route: "/creer?canal=linkedin" },
 ];
 
-export function AddPostMenu({ dateStr, onAddIdea, children }: Props) {
+export function AddPostMenu({ dateStr, onAddIdea, onImport, children }: Props) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
 
@@ -50,6 +51,12 @@ export function AddPostMenu({ dateStr, onAddIdea, children }: Props) {
           className="w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted/50 transition-colors text-muted-foreground">
           💡 Juste une idée
         </button>
+        {onImport && (
+          <button onClick={() => { setOpen(false); onImport(dateStr); }}
+            className="w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted/50 transition-colors text-muted-foreground">
+            📥 Importer un contenu
+          </button>
+        )}
       </PopoverContent>
     </Popover>
   );
