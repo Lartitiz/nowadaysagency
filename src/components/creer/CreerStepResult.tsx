@@ -698,189 +698,209 @@ export default function CreerStepResult({
         </TooltipProvider>
       )}
 
-      {/* 4. Actions secondaires */}
-      <div className="flex items-center justify-center gap-2 sm:gap-3 flex-wrap">
+      {/* 4. Actions secondaires — regroupées en blocs lisibles */}
+      <div className="space-y-3">
+
+      {/* ── Récupérer le visuel ── */}
+      <div className="space-y-1.5">
+        {isCarousel && hasVisuals && (
+          <p className="text-[11px] text-muted-foreground text-center">Récupérer le visuel</p>
+        )}
+        <div className="flex items-center justify-center gap-2 sm:gap-3 flex-wrap">
+          {isCarousel && hasVisuals && (onExportVisualPng || onExportHybridPptx) && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground">
+                  <Download className="h-3.5 w-3.5" /> Télécharger <ChevronDown className="h-3 w-3 ml-0.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64">
+                <DownloadMenuItems
+                  onPng={onExportVisualPng}
+                  onPptxEditable={onExportHybridPptx}
+                  count={visualSlides?.length ?? 1}
+                />
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          {isCarousel && !hasVisuals && onExportPptx && (
+            <Button variant="ghost" size="sm" onClick={onExportPptx} className="gap-1.5 text-xs text-muted-foreground">
+              <Download className="h-3.5 w-3.5" /> Télécharger PPTX
+            </Button>
+          )}
+          {format === "pinterest_visual" && (result?.pin_html || result?.title) && (onExportPinterestPng || onExportPinterestEditablePptx) && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground">
+                  <Download className="h-3.5 w-3.5" /> Télécharger <ChevronDown className="h-3 w-3 ml-0.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64">
+                <DownloadMenuItems
+                  onPng={onExportPinterestPng}
+                  onPptxEditable={onExportPinterestEditablePptx}
+                  count={1}
+                />
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          {format === "pinterest_photo" && result?.overlay_html && onExportPinterestPng && (
+            <Button variant="ghost" size="sm" onClick={onExportPinterestPng} className="gap-1.5 text-xs text-muted-foreground">
+              <Download className="h-3.5 w-3.5" /> Télécharger PNG
+            </Button>
+          )}
+          <Button variant="ghost" size="sm" onClick={() => {
+            if (format === "pinterest_photo" && result?.title) {
+              const b = result.photo_brief;
+              const briefText = b ? `\n\n📷 BRIEF PHOTO :\n• Sujet : ${b.what}\n• Cadrage : ${b.framing}\n• Lumière : ${b.lighting}\n• Accessoires : ${(b.props || []).join(", ")}\n• Ambiance : ${b.mood}` : "";
+              onCopy(`📌 ${result.title}\n\n${result.description || ""}${briefText}`);
+              return;
+            }
+            if (format === "reel" && (result?.sections || result?.script)) {
+              const reelSections = result.sections || result.script || [];
+              const scriptText = reelSections.map((s: any) => `[${s.timing || ""}] ${(s.label || "").toUpperCase()}\n${s.texte_parle || ""}${s.texte_overlay ? `\n📝 ${s.texte_overlay}` : ""}`).join("\n\n");
+              const tip = result.personal_tip ? `\n\n🎯 ${result.personal_tip}` : "";
+              onCopy(`🎬 Script Reel (${result.duree_cible || ""})\n\n${scriptText}${tip}`);
+              return;
+            }
+            if (format === "pinterest_visual" && result?.title) {
+              onCopy(`${result.title}\n\n${result.description || ""}`);
+              return;
+            }
+            const cleanText =
+              result?.full_text ||
+              result?.content ||
+              [result?.hook, result?.body, result?.cta].filter(Boolean).join("\n\n").trim();
+            onCopy(cleanText || JSON.stringify(result, null, 2));
+          }} className="gap-1.5 text-xs text-muted-foreground">
+            <Copy className="h-3.5 w-3.5" /> Copier
+          </Button>
+        </div>
+      </div>
+
+      {/* ── Affiner ── */}
+      <div className="space-y-1.5">
+        {isCarousel && (
+          <p className="text-[11px] text-muted-foreground text-center">Affiner</p>
+        )}
+        <div className="flex items-center justify-center gap-2 sm:gap-3 flex-wrap">
+          {isCarousel && hasVisuals && onGenerateVisuals && (
+            <Button variant="ghost" size="sm" onClick={onGenerateVisuals} disabled={visualLoading} className="gap-1.5 text-xs text-muted-foreground">
+              {visualLoading ? (
+                <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Génération…</>
+              ) : (
+                <><RefreshCw className="h-3.5 w-3.5" /> Regénérer visuels</>
+              )}
+            </Button>
+          )}
+          {isCarousel && !generating && result && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onRegenerate}
+              title="Régénère le carrousel sur le même sujet (consomme 1 crédit)."
+              className="gap-1.5 text-xs text-muted-foreground"
+            >
+              <RefreshCw className="h-3.5 w-3.5" /> Nouvelle proposition
+            </Button>
+          )}
+          {onChangeAngle && !generating && result && (() => {
+            const angleList: EditorialAngle[] =
+              currentChannel === "linkedin" ? LINKEDIN_EDITORIAL_ANGLES :
+              currentChannel === "pinterest" ? PINTEREST_EDITORIAL_ANGLES :
+              EDITORIAL_ANGLES;
+            const currentLabel = currentAngle ? angleList.find(a => a.id === currentAngle)?.label : null;
+            return (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground">
+                    <Palette className="h-3.5 w-3.5" /> Changer d'angle <ChevronDown className="h-3 w-3 ml-0.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-72 max-h-96 overflow-y-auto">
+                  {currentLabel && (
+                    <DropdownMenuLabel className="text-[10px] text-muted-foreground font-normal">
+                      Actuel : {currentLabel}
+                    </DropdownMenuLabel>
+                  )}
+                  <DropdownMenuItem onClick={() => onChangeAngle(null)} className="gap-2">
+                    <Sparkles className="h-4 w-4 text-primary shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold">Laisser l'IA choisir</p>
+                      <p className="text-[10px] text-muted-foreground">Selon ton idée et ta voix</p>
+                    </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  {angleList.map((a) => (
+                    <DropdownMenuItem
+                      key={a.id}
+                      onClick={() => onChangeAngle(a.id)}
+                      disabled={a.id === currentAngle}
+                      className="gap-2"
+                    >
+                      <span className="text-base shrink-0">{a.emoji}</span>
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold">{a.label}</p>
+                        <p className="text-[10px] text-muted-foreground line-clamp-2">{a.principle}</p>
+                      </div>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            );
+          })()}
+          {sourceIdea && sourceIdea.trim().length > 0 && (() => {
+            const targets = TRANSFORM_TARGETS.filter((t) => t.id !== format);
+            return (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground">
+                    <ArrowUpRight className="h-3.5 w-3.5" /> Transformer en <ChevronDown className="h-3 w-3 ml-0.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-64">
+                  <DropdownMenuLabel className="text-[11px] font-normal text-muted-foreground">
+                    Ouvre un nouvel onglet pré-rempli
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {targets.map((t) => (
+                    <DropdownMenuItem
+                      key={t.id}
+                      onClick={() => {
+                        const params = new URLSearchParams({
+                          sujet: sourceIdea,
+                          ...(sourceObjective ? { objectif: sourceObjective } : {}),
+                          format: t.id,
+                          ...(sourceAngle ? { angle: sourceAngle } : {}),
+                          from: "transform",
+                        });
+                        window.open(`/creer?${params.toString()}`, "_blank", "noopener,noreferrer");
+                      }}
+                      className="gap-2 cursor-pointer"
+                    >
+                      <span className="text-base">{t.emoji}</span>
+                      <span className="text-sm">{t.label}</span>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            );
+          })()}
+        </div>
+      </div>
+
+      {/* ── Ranger ── */}
+      <div className="flex items-center justify-center gap-2 sm:gap-3 flex-wrap border-t border-border pt-3">
         {onSave && (
           <Button variant="ghost" size="sm" onClick={onSave} className="gap-1.5 text-xs text-muted-foreground">
             <Lightbulb className="h-3.5 w-3.5" /> Sauvegarder en idée
           </Button>
         )}
-        <Button variant="ghost" size="sm" onClick={() => {
-          if (format === "pinterest_photo" && result?.title) {
-            const b = result.photo_brief;
-            const briefText = b ? `\n\n📷 BRIEF PHOTO :\n• Sujet : ${b.what}\n• Cadrage : ${b.framing}\n• Lumière : ${b.lighting}\n• Accessoires : ${(b.props || []).join(", ")}\n• Ambiance : ${b.mood}` : "";
-            onCopy(`📌 ${result.title}\n\n${result.description || ""}${briefText}`);
-            return;
-          }
-          if (format === "reel" && (result?.sections || result?.script)) {
-            const reelSections = result.sections || result.script || [];
-            const scriptText = reelSections.map((s: any) => `[${s.timing || ""}] ${(s.label || "").toUpperCase()}\n${s.texte_parle || ""}${s.texte_overlay ? `\n📝 ${s.texte_overlay}` : ""}`).join("\n\n");
-            const tip = result.personal_tip ? `\n\n🎯 ${result.personal_tip}` : "";
-            onCopy(`🎬 Script Reel (${result.duree_cible || ""})\n\n${scriptText}${tip}`);
-            return;
-          }
-          if (format === "pinterest_visual" && result?.title) {
-            onCopy(`${result.title}\n\n${result.description || ""}`);
-            return;
-          }
-          // Post texte (LinkedIn, Instagram, carrousel…) : copier le texte du post,
-          // pas l'objet JSON brut. Fallback JSON seulement si vraiment aucun texte.
-          const cleanText =
-            result?.full_text ||
-            result?.content ||
-            [result?.hook, result?.body, result?.cta].filter(Boolean).join("\n\n").trim();
-          onCopy(cleanText || JSON.stringify(result, null, 2));
-        }} className="gap-1.5 text-xs text-muted-foreground">
-          <Copy className="h-3.5 w-3.5" /> Copier
-        </Button>
-        {sourceIdea && sourceIdea.trim().length > 0 && (() => {
-          const targets = TRANSFORM_TARGETS.filter((t) => t.id !== format);
-          return (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground">
-                  <ArrowUpRight className="h-3.5 w-3.5" /> Transformer en <ChevronDown className="h-3 w-3 ml-0.5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-64">
-                <DropdownMenuLabel className="text-[11px] font-normal text-muted-foreground">
-                  Ouvre un nouvel onglet pré-rempli
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {targets.map((t) => (
-                  <DropdownMenuItem
-                    key={t.id}
-                    onClick={() => {
-                      const params = new URLSearchParams({
-                        sujet: sourceIdea,
-                        ...(sourceObjective ? { objectif: sourceObjective } : {}),
-                        format: t.id,
-                        ...(sourceAngle ? { angle: sourceAngle } : {}),
-                        from: "transform",
-                      });
-                      window.open(`/creer?${params.toString()}`, "_blank", "noopener,noreferrer");
-                    }}
-                    className="gap-2 cursor-pointer"
-                  >
-                    <span className="text-base">{t.emoji}</span>
-                    <span className="text-sm">{t.label}</span>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          );
-        })()}
-        {isCarousel && hasVisuals && (onExportVisualPng || onExportHybridPptx) && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground">
-                <Download className="h-3.5 w-3.5" /> Télécharger <ChevronDown className="h-3 w-3 ml-0.5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-64">
-              <DownloadMenuItems
-                onPng={onExportVisualPng}
-                onPptxEditable={onExportHybridPptx}
-                count={visualSlides?.length ?? 1}
-              />
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-        {isCarousel && !hasVisuals && onExportPptx && (
-          <Button variant="ghost" size="sm" onClick={onExportPptx} className="gap-1.5 text-xs text-muted-foreground">
-            <Download className="h-3.5 w-3.5" /> Télécharger PPTX
-          </Button>
-        )}
-        {/* « Ouvrir dans Canva » est désormais le bouton HÉROS en haut — retiré d'ici pour éviter le doublon. */}
-        {isCarousel && hasVisuals && onGenerateVisuals && (
-          <Button variant="ghost" size="sm" onClick={onGenerateVisuals} disabled={visualLoading} className="gap-1.5 text-xs text-muted-foreground">
-            {visualLoading ? (
-              <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Génération…</>
-            ) : (
-              <><RefreshCw className="h-3.5 w-3.5" /> Regénérer visuels</>
-            )}
-          </Button>
-        )}
-        {isCarousel && !generating && result && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onRegenerate}
-            title="Régénère le carrousel sur le même sujet (consomme 1 crédit)."
-            className="gap-1.5 text-xs text-muted-foreground"
-          >
-            <RefreshCw className="h-3.5 w-3.5" /> Nouvelle proposition
-          </Button>
-        )}
-        {format === "pinterest_visual" && (result?.pin_html || result?.title) && (onExportPinterestPng || onExportPinterestEditablePptx) && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground">
-                <Download className="h-3.5 w-3.5" /> Télécharger <ChevronDown className="h-3 w-3 ml-0.5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-64">
-              <DownloadMenuItems
-                onPng={onExportPinterestPng}
-                onPptxEditable={onExportPinterestEditablePptx}
-                count={1}
-              />
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-        {format === "pinterest_photo" && result?.overlay_html && onExportPinterestPng && (
-          <Button variant="ghost" size="sm" onClick={onExportPinterestPng} className="gap-1.5 text-xs text-muted-foreground">
-            <Download className="h-3.5 w-3.5" /> Télécharger PNG
-          </Button>
-        )}
-        {onChangeAngle && !generating && result && (() => {
-          const angleList: EditorialAngle[] =
-            currentChannel === "linkedin" ? LINKEDIN_EDITORIAL_ANGLES :
-            currentChannel === "pinterest" ? PINTEREST_EDITORIAL_ANGLES :
-            EDITORIAL_ANGLES;
-          const currentLabel = currentAngle ? angleList.find(a => a.id === currentAngle)?.label : null;
-          return (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground">
-                  <Palette className="h-3.5 w-3.5" /> Changer d'angle <ChevronDown className="h-3 w-3 ml-0.5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-72 max-h-96 overflow-y-auto">
-                {currentLabel && (
-                  <DropdownMenuLabel className="text-[10px] text-muted-foreground font-normal">
-                    Actuel : {currentLabel}
-                  </DropdownMenuLabel>
-                )}
-                <DropdownMenuItem onClick={() => onChangeAngle(null)} className="gap-2">
-                  <Sparkles className="h-4 w-4 text-primary shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold">Laisser l'IA choisir</p>
-                    <p className="text-[10px] text-muted-foreground">Selon ton idée et ta voix</p>
-                  </div>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                {angleList.map((a) => (
-                  <DropdownMenuItem
-                    key={a.id}
-                    onClick={() => onChangeAngle(a.id)}
-                    disabled={a.id === currentAngle}
-                    className="gap-2"
-                  >
-                    <span className="text-base shrink-0">{a.emoji}</span>
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold">{a.label}</p>
-                      <p className="text-[10px] text-muted-foreground line-clamp-2">{a.principle}</p>
-                    </div>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          );
-        })()}
         <Button variant="ghost" size="sm" onClick={onReset} className="gap-1.5 text-xs text-muted-foreground">
           <RotateCcw className="h-3.5 w-3.5" /> Nouveau contenu
         </Button>
+      </div>
+
       </div>
     </div>
   );
