@@ -70,6 +70,10 @@ export default {
           DEFAULT: "hsl(var(--error))",
           bg: "hsl(var(--error-bg))",
         },
+        info: {
+          DEFAULT: "hsl(var(--info))",
+          bg: "hsl(var(--info-bg))",
+        },
         raspberry: "hsl(var(--raspberry))",
         bordeaux: "hsl(var(--bordeaux))",
         yellow: "hsl(var(--yellow))",
@@ -102,11 +106,16 @@ export default {
         sm: "calc(var(--radius) - 4px)",
         pill: "50px",
       },
+      fontSize: {
+        "2xs": ["0.6875rem", { lineHeight: "1rem" }],
+      },
       boxShadow: {
         card: "var(--shadow-card)",
         "card-hover": "var(--shadow-card-hover)",
         strong: "var(--shadow-strong)",
         cta: "var(--shadow-cta)",
+        bento: "var(--shadow-bento)",
+        "bento-hover": "var(--shadow-bento-hover)",
       },
       keyframes: {
         "accordion-down": {

@@ -260,7 +260,7 @@ export default function AppSidebar() {
             <div className="w-8 h-8 rounded-[9px] bg-bordeaux flex items-center justify-center shrink-0 shadow-none">
               <span className="text-white font-bold text-sm leading-none">N</span>
             </div>
-            <span className="font-display text-[15px] text-bordeaux">Nowadays</span>
+            <span className="font-display text-base text-bordeaux">Nowadays</span>
           </div>
           {/* Close button — visible on mobile */}
           <button
@@ -278,7 +278,7 @@ export default function AppSidebar() {
           <Link
             to="/dashboard"
             onClick={() => setOpen(false)}
-            className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body transition-colors ${
+            className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-body transition-colors ${
               isActive("/dashboard") ? "bg-rose-pale text-primary font-semibold" : "text-foreground hover:bg-rose-pale"
             }`}
           >
@@ -288,7 +288,7 @@ export default function AppSidebar() {
 
           {NAV_SECTIONS.map((section) => (
             <div key={section.label} className="pt-3">
-              <div className="font-mono-ui text-[9.5px] text-muted-foreground uppercase tracking-wider px-3 pb-1.5">
+              <div className="font-mono-ui text-2xs text-muted-foreground uppercase tracking-wider px-3 pb-1.5">
                 {section.label}
               </div>
               {section.items.map((item) => (
@@ -297,7 +297,7 @@ export default function AppSidebar() {
                     <>
                       <button
                         onClick={() => toggleSub(item.path)}
-                        className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body transition-colors ${
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-body transition-colors ${
                           isActive(item.path) ? "bg-rose-pale text-primary font-semibold" : "text-foreground hover:bg-rose-pale"
                         }`}
                       >
@@ -316,7 +316,7 @@ export default function AppSidebar() {
                               key={child.path}
                               to={child.path}
                               onClick={() => setOpen(false)}
-                              className={`block px-2.5 py-1.5 rounded-md text-[12.5px] transition-colors ${
+                              className={`block px-2.5 py-1.5 rounded-md text-sm transition-colors ${
                                 isActive(child.path) ? "text-primary font-semibold" : "text-muted-foreground hover:text-foreground"
                               }`}
                             >
@@ -334,7 +334,7 @@ export default function AppSidebar() {
                           ? handleFreshStartNav(e, item.path + "?new=1")
                           : setOpen(false)
                       }
-                      className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body transition-colors ${
+                      className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-body transition-colors ${
                         isActive(item.path) ? "bg-rose-pale text-primary font-semibold" : "text-foreground hover:bg-rose-pale"
                       }`}
                     >
@@ -349,25 +349,25 @@ export default function AppSidebar() {
 
           {isAdmin && (
             <div className="pt-3">
-              <div className="font-mono-ui text-[9.5px] text-muted-foreground uppercase tracking-wider px-3 pb-1.5">
+              <div className="font-mono-ui text-2xs text-muted-foreground uppercase tracking-wider px-3 pb-1.5">
                 ADMIN
               </div>
               <button
                 onClick={() => { activateDemo(); navigate("/dashboard"); setOpen(false); }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body text-foreground hover:bg-rose-pale transition-colors text-left"
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-body text-foreground hover:bg-rose-pale transition-colors text-left"
               >
                 <Film size={16} />
                 🎬 Mode démo
               </button>
-              <Link to="/admin/coaching" onClick={() => setOpen(false)} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body text-foreground hover:bg-rose-pale transition-colors">
+              <Link to="/admin/coaching" onClick={() => setOpen(false)} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-body text-foreground hover:bg-rose-pale transition-colors">
                 <GraduationCap size={16} />
                 🎓 Mes client·es
               </Link>
-              <Link to="/admin/audit" onClick={() => setOpen(false)} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body text-foreground hover:bg-rose-pale transition-colors">
+              <Link to="/admin/audit" onClick={() => setOpen(false)} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-body text-foreground hover:bg-rose-pale transition-colors">
                 <Wrench size={16} />
                 🔧 Audit app
               </Link>
-              <Link to="/admin/coaching" onClick={() => setOpen(false)} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body text-foreground hover:bg-rose-pale transition-colors">
+              <Link to="/admin/coaching" onClick={() => setOpen(false)} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-body text-foreground hover:bg-rose-pale transition-colors">
                 <Wrench size={16} />
                 Admin
               </Link>
@@ -380,7 +380,7 @@ export default function AppSidebar() {
           <Link
             to="/parametres"
             onClick={() => setOpen(false)}
-            className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body transition-colors ${
+            className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-body transition-colors ${
               isActive("/parametres") ? "bg-rose-pale text-primary font-semibold" : "text-foreground hover:bg-rose-pale"
             }`}
           >
@@ -388,12 +388,12 @@ export default function AppSidebar() {
             Paramètres
           </Link>
           {isBinome && (
-            <Link to="/accompagnement" onClick={() => setOpen(false)} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body text-foreground hover:bg-rose-pale transition-colors">
+            <Link to="/accompagnement" onClick={() => setOpen(false)} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-body text-foreground hover:bg-rose-pale transition-colors">
               <HeartHandshake size={16} />
               Mon accompagnement
             </Link>
           )}
-          <Link to="/abonnement" onClick={() => setOpen(false)} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-body text-foreground hover:bg-rose-pale transition-colors">
+          <Link to="/abonnement" onClick={() => setOpen(false)} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-body text-foreground hover:bg-rose-pale transition-colors">
             <CreditCard size={16} />
             Mon abonnement
           </Link>
@@ -406,22 +406,22 @@ export default function AppSidebar() {
                 {initial}
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-[13px] font-semibold text-foreground truncate">{firstName}</div>
-                <div className="text-[11px] text-muted-foreground truncate">{user?.email}</div>
+                <div className="text-sm font-semibold text-foreground truncate">{firstName}</div>
+                <div className="text-2xs text-muted-foreground truncate">{user?.email}</div>
               </div>
               <ChevronDown size={14} className="text-muted-foreground shrink-0" />
             </button>
           </PopoverTrigger>
           <PopoverContent side="top" align="start" className="w-72 p-1.5 z-[400]">
             {/* Current account */}
-            <div className="text-[11px] font-medium text-muted-foreground px-2 py-1.5 uppercase tracking-wider">Compte actif</div>
+            <div className="text-2xs font-medium text-muted-foreground px-2 py-1.5 uppercase tracking-wider">Compte actif</div>
             <div className="flex items-center gap-2.5 px-2 py-2 rounded-md bg-muted">
               <div className="w-7 h-7 rounded-md bg-bordeaux flex items-center justify-center text-white font-semibold text-xs shrink-0">
                 {initial}
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-[13px] font-medium text-foreground truncate">{firstName}</div>
-                <div className="text-[11px] text-muted-foreground truncate">{user?.email}</div>
+                <div className="text-sm font-medium text-foreground truncate">{firstName}</div>
+                <div className="text-2xs text-muted-foreground truncate">{user?.email}</div>
               </div>
               <Check size={14} className="text-primary shrink-0" />
             </div>
@@ -429,7 +429,7 @@ export default function AppSidebar() {
             {/* Other saved accounts */}
             {savedAccounts.filter(a => a.userId !== user?.id).length > 0 && (
               <>
-                <div className="text-[11px] font-medium text-muted-foreground px-2 py-1.5 mt-1 uppercase tracking-wider">Autres comptes</div>
+                <div className="text-2xs font-medium text-muted-foreground px-2 py-1.5 mt-1 uppercase tracking-wider">Autres comptes</div>
                 {savedAccounts.filter(a => a.userId !== user?.id).map((account) => (
                   <div key={account.userId} className="flex items-center gap-1">
                     <button
@@ -449,8 +449,8 @@ export default function AppSidebar() {
                         {account.firstName.charAt(0).toUpperCase()}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="text-[13px] font-medium text-foreground truncate">{account.firstName}</div>
-                        <div className="text-[11px] text-muted-foreground truncate">{account.email}</div>
+                        <div className="text-sm font-medium text-foreground truncate">{account.firstName}</div>
+                        <div className="text-2xs text-muted-foreground truncate">{account.email}</div>
                       </div>
                     </button>
                     <button
@@ -469,7 +469,7 @@ export default function AppSidebar() {
             {isMultiWorkspace && (
               <>
                 <div className="border-t border-border mt-1.5 pt-1.5">
-                  <div className="text-[11px] font-medium text-muted-foreground px-2 py-1.5 uppercase tracking-wider">Mes espaces</div>
+                  <div className="text-2xs font-medium text-muted-foreground px-2 py-1.5 uppercase tracking-wider">Mes espaces</div>
                   {workspaces.map((ws) => (
                     <button
                       key={ws.id}
@@ -482,7 +482,7 @@ export default function AppSidebar() {
                         {ws.name.charAt(0).toUpperCase()}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="text-[13px] font-medium text-foreground truncate">{ws.name}</div>
+                        <div className="text-sm font-medium text-foreground truncate">{ws.name}</div>
                       </div>
                       {ws.id === activeWorkspace?.id && <Check size={14} className="text-primary shrink-0" />}
                     </button>
@@ -499,14 +499,14 @@ export default function AppSidebar() {
                   setOpen(false);
                   navigate("/login?add_account=true");
                 }}
-                className="w-full flex items-center gap-2.5 px-2 py-2 rounded-md text-left text-[13px] font-medium text-foreground hover:bg-muted/50 transition-colors"
+                className="w-full flex items-center gap-2.5 px-2 py-2 rounded-md text-left text-sm font-medium text-foreground hover:bg-muted/50 transition-colors"
               >
                 <Plus size={14} className="shrink-0" />
                 Ajouter un compte
               </button>
               <button
                 onClick={() => signOut()}
-                className="w-full flex items-center gap-2.5 px-2 py-2 rounded-md text-left text-[13px] font-medium text-destructive hover:bg-destructive/10 transition-colors"
+                className="w-full flex items-center gap-2.5 px-2 py-2 rounded-md text-left text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
               >
                 <LogOut size={14} className="shrink-0" />
                 Déconnexion
