@@ -44,6 +44,8 @@ export default function InstagramStats() {
 
   const now = useMemo(() => new Date(), []);
   const currentMonthDate = useMemo(() => monthKey(now), [now]);
+  // Convertit les codes pays ISO (FR) en noms lisibles (France) pour l'encart audience.
+  const countryNames = useMemo(() => new Intl.DisplayNames(["fr"], { type: "region" }), []);
 
   /* ── State ── */
   const [allStats, setAllStats] = useState<StatsRow[]>([]);
@@ -61,6 +63,7 @@ export default function InstagramStats() {
   const [igConnected, setIgConnected] = useState(false);
   const [fetchingLive, setFetchingLive] = useState(false);
   const [audience, setAudience] = useState<{ age?: any[]; gender?: any[]; cities?: any[]; countries?: any[] } | null>(null);
+  const [livePosts, setLivePosts] = useState<{ top: any[]; flop: any[] } | null>(null);
 
   const [periodPreset, setPeriodPreset] = useState<PeriodPreset>("3_months");
   const [customFrom, setCustomFrom] = useState(() => monthKey(new Date(now.getFullYear(), now.getMonth() - 5, 1)));
@@ -312,12 +315,21 @@ export default function InstagramStats() {
       }
       const m = (data as any).metrics;
       setAudience(m.audience || null);
+      setLivePosts(
+        (m.topPosts?.length || m.flopPosts?.length)
+          ? { top: m.topPosts || [], flop: m.flopPosts || [] }
+          : null,
+      );
       const target = currentMonthDate;
       const existing = allStats.find(s => s.month_date === target) || {};
       const patch: any = {};
       const filled: string[] = [];
       if (typeof m.followers === "number") { patch.followers = m.followers; filled.push("abonnés"); }
       if (typeof m.reach30d === "number") { patch.reach = m.reach30d; filled.push("reach (28 j)"); }
+      if (typeof m.views30d === "number") { patch.views = m.views30d; filled.push("vues"); }
+      if (typeof m.totalInteractions30d === "number") { patch.interactions = m.totalInteractions30d; filled.push("interactions"); }
+      if (typeof m.accountsEngaged30d === "number") { patch.accounts_engaged = m.accountsEngaged30d; filled.push("comptes engagés"); }
+      if (typeof m.profileViews30d === "number") { patch.profile_visits = m.profileViews30d; filled.push("visites du profil"); }
       if (typeof m.followerGrowth30d === "number" && m.followerGrowth30d >= 0) {
         patch.followers_gained = m.followerGrowth30d; filled.push("abonnés gagnés");
       }
@@ -394,9 +406,15 @@ export default function InstagramStats() {
   }, []);
 
   // Affiche un découpage d'audience (âge / genre / villes / pays) en % avec barres.
+  // Pour les pays, on convertit le code ISO (FR) en nom lisible (France).
   const renderAudienceGroup = (title: string, arr: any[] | undefined, n: number) => {
     if (!arr || !arr.length) return null;
     const total = arr.reduce((s, x) => s + (Number(x?.value) || 0), 0) || 1;
+    const isCountry = title === "Pays";
+    const labelOf = (raw: string) => {
+      if (!isCountry) return raw;
+      try { return countryNames.of(raw) || raw; } catch { return raw; }
+    };
     return (
       <div className="space-y-1.5">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{title}</p>
@@ -405,11 +423,47 @@ export default function InstagramStats() {
             const pct = Math.round((Number(x?.value) || 0) / total * 100);
             return (
               <li key={i} className="flex items-center gap-2 text-sm">
-                <span className="w-28 shrink-0 truncate text-foreground" title={String(x.label)}>{x.label}</span>
+                <span className="w-28 shrink-0 truncate text-foreground" title={labelOf(String(x.label))}>{labelOf(String(x.label))}</span>
                 <span className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
                   <span className="block h-full bg-primary" style={{ width: `${pct}%` }} />
                 </span>
                 <span className="w-9 text-right text-xs text-muted-foreground tabular-nums">{pct}%</span>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    );
+  };
+
+  // Affiche une liste compacte de posts (top ou flop) avec format, engagement et lien.
+  const renderPostGroup = (title: string, posts: any[] | undefined) => {
+    if (!posts || !posts.length) return null;
+    const fmtEmoji = (f: string) => {
+      const u = String(f || "").toUpperCase();
+      if (u.includes("REEL") || u.includes("VIDEO")) return "🎬";
+      if (u.includes("CAROUSEL")) return "🖼️";
+      return "📷";
+    };
+    return (
+      <div className="space-y-1.5">
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{title}</p>
+        <ul className="space-y-1.5">
+          {posts.slice(0, 3).map((p, i) => {
+            const er = typeof p?.engagementRate === "number" ? Math.round(p.engagementRate * 100) : null;
+            const subject = (p?.subject || "").trim() || "(sans légende)";
+            const inner = (
+              <>
+                <span className="shrink-0">{fmtEmoji(p?.format)}</span>
+                <span className="flex-1 truncate text-foreground" title={subject}>{subject}</span>
+                {er !== null && <span className="shrink-0 text-xs font-semibold text-primary tabular-nums">{er}%</span>}
+              </>
+            );
+            return (
+              <li key={i} className="flex items-center gap-2 text-sm">
+                {p?.permalink
+                  ? <a href={p.permalink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 w-full hover:underline">{inner}</a>
+                  : inner}
               </li>
             );
           })}
@@ -603,7 +657,7 @@ export default function InstagramStats() {
           <div className="rounded-xl border border-border bg-card px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-start gap-2 text-sm text-muted-foreground">
               <span>📸</span>
-              <span>Récupère automatiquement tes <strong className="text-foreground">abonnés, ton reach et tes abonnés gagnés</strong> du mois en cours depuis ton compte Instagram connecté.</span>
+              <span>Récupère automatiquement tes <strong className="text-foreground">abonnés, reach, vues, interactions, comptes engagés, visites de profil et abonnés gagnés</strong> du mois en cours depuis ton compte Instagram connecté.</span>
             </div>
             <Button onClick={fetchFromInstagram} disabled={fetchingLive} size="sm" className="gap-1.5 shrink-0">
               {fetchingLive
@@ -634,6 +688,26 @@ export default function InstagramStats() {
             </div>
             <p className="text-xs text-muted-foreground">
               Sers-t'en pour choisir tes sujets et ton ton. Données Instagram, calculées sur les abonnés identifiés (peut être &lt; ton total), à ±48 h.
+            </p>
+          </div>
+        ) : null}
+
+        {/* ─── Top / flop posts (30 derniers jours, depuis l'API) ─── */}
+        {livePosts && (livePosts.top.length || livePosts.flop.length) ? (
+          <div className="rounded-xl border border-border bg-card p-4 sm:p-5 space-y-4">
+            <h3 className="font-display text-sm font-bold text-foreground">
+              🏆 Tes posts récents <span className="font-normal text-muted-foreground text-xs">— par taux d'engagement, 30 derniers jours</span>
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
+              {renderPostGroup("Ce qui a le mieux marché", livePosts.top)}
+              {/* On masque le « flop » s'il recoupe le « top » (cas < 4 posts mesurés). */}
+              {renderPostGroup(
+                "Ce qui a le moins marché",
+                livePosts.flop.filter(f => !livePosts.top.some(t => t.id === f.id)),
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Le taux d'engagement = interactions ÷ portée (ou vues pour les Reels). Inspire-toi de ce qui marche pour tes prochains contenus.
             </p>
           </div>
         ) : null}

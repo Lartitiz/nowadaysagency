@@ -65,18 +65,22 @@ export default function StatsForm({
               <TextInput label="Contenu partagé" value={formData.content_published} onChange={v => onFieldChange("content_published", v, true)} />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <NumInput label="Comptes touchés (portée)" value={formData.reach} onChange={v => onFieldChange("reach", v)} />
+              <NumInput label="Comptes touchés (portée)" value={formData.reach} onChange={v => onFieldChange("reach", v)} auto />
               <NumInput label="Couverture stories" value={formData.stories_coverage} onChange={v => onFieldChange("stories_coverage", v)} />
-              <NumInput label="Nb de vues" value={formData.views} onChange={v => onFieldChange("views", v)} />
-              <NumInput label="Visites du profil" value={formData.profile_visits} onChange={v => onFieldChange("profile_visits", v)} />
+              <NumInput label="Nb de vues" value={formData.views} onChange={v => onFieldChange("views", v)} auto />
+              <NumInput label="Visites du profil" value={formData.profile_visits} onChange={v => onFieldChange("profile_visits", v)} auto />
               <NumInput label="Clics site web" value={formData.website_clicks} onChange={v => onFieldChange("website_clicks", v)} />
-              <NumInput label="Interactions" value={formData.interactions} onChange={v => onFieldChange("interactions", v)} />
-              <NumInput label="Comptes qui ont interagi" value={formData.accounts_engaged} onChange={v => onFieldChange("accounts_engaged", v)} />
+              <NumInput label="Interactions" value={formData.interactions} onChange={v => onFieldChange("interactions", v)} auto />
+              <NumInput label="Comptes qui ont interagi" value={formData.accounts_engaged} onChange={v => onFieldChange("accounts_engaged", v)} auto />
               <NumInput label="Followers qui ont interagi" value={formData.followers_engaged} onChange={v => onFieldChange("followers_engaged", v)} />
-              <NumInput label="Nb de followers" value={formData.followers} onChange={v => onFieldChange("followers", v)} />
-              <NumInput label="Followers en +" value={formData.followers_gained} onChange={v => onFieldChange("followers_gained", v)} />
+              <NumInput label="Nb de followers" value={formData.followers} onChange={v => onFieldChange("followers", v)} auto />
+              <NumInput label="Followers en +" value={formData.followers_gained} onChange={v => onFieldChange("followers_gained", v)} auto />
               <NumInput label="Followers en -" value={formData.followers_lost} onChange={v => onFieldChange("followers_lost", v)} />
             </div>
+            <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <span className="inline-flex items-center rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">Insta</span>
+              = rempli par « Remplir depuis Instagram ». Les autres champs sont à compléter à la main.
+            </p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <ComputedField label="Engagement / portée" value={fmtPct(engagementRate)} />
               <ComputedField label="Engagement / abonné·es" value={fmtPct(engagementByFollowers)} />
@@ -256,11 +260,21 @@ export default function StatsForm({
 
 /* ── Atomic inputs ── */
 
-function NumInput({ label, value, onChange }: { label: string; value: any; onChange: (v: string) => void }) {
+function NumInput({ label, value, onChange, auto }: { label: string; value: any; onChange: (v: string) => void; auto?: boolean }) {
   const id = useId();
   return (
     <div className="flex items-center gap-2">
-      <label htmlFor={id} className="text-sm text-muted-foreground shrink-0 w-48 sm:w-56">{label}</label>
+      <label htmlFor={id} className="text-sm text-muted-foreground shrink-0 w-48 sm:w-56 flex items-center gap-1.5">
+        <span className="truncate">{label}</span>
+        {auto && (
+          <span
+            className="inline-flex items-center rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary shrink-0"
+            title="Rempli automatiquement par « Remplir depuis Instagram »"
+          >
+            Insta
+          </span>
+        )}
+      </label>
       <Input id={id} type="number" value={value ?? ""} onChange={e => onChange(e.target.value)} className="max-w-[120px]" placeholder="–" />
     </div>
   );
