@@ -56,6 +56,14 @@ const MISSIONS_META = [
     route: "/calendrier",
     description: "Place 2-3 contenus dans ton calendrier. Tu sauras quoi poster cette semaine.",
   },
+  {
+    id: "connect",
+    title: "Connecte ton réseau",
+    emoji: "🔗",
+    time: "2 min",
+    route: "/parametres/connexions",
+    description: "Branche Instagram ou LinkedIn pour publier en 1 clic, sans copier-coller.",
+  },
 ] as const;
 
 const DISMISS_KEY = "missions_dismissed_at";
@@ -90,7 +98,7 @@ export function useOnboardingMissions() {
     queryFn: async () => {
       const eq = (q: any) => q.eq(filter.column, filter.value);
 
-      const [storytelling, persona, audit, posts, carousels, calendar] = await Promise.all([
+      const [storytelling, persona, audit, posts, carousels, calendar, connections] = await Promise.all([
         eq(supabase.from("storytelling").select("id", { count: "exact", head: true })
           .or("step_7_polished.not.is.null,imported_text.not.is.null")),
         eq(supabase.from("persona").select("id", { count: "exact", head: true })
@@ -102,6 +110,7 @@ export function useOnboardingMissions() {
         eq(supabase.from("generated_carousels").select("id", { count: "exact", head: true })),
         eq(supabase.from("calendar_posts").select("id", { count: "exact", head: true })
           .not("date", "is", null)),
+        eq(supabase.from("social_connections").select("id", { count: "exact", head: true })),
       ]);
 
       return {
@@ -110,6 +119,7 @@ export function useOnboardingMissions() {
         audit: (audit.count ?? 0) > 0,
         create: ((posts.count ?? 0) + (carousels.count ?? 0)) > 0,
         calendar: (calendar.count ?? 0) >= 2,
+        connect: (connections.count ?? 0) > 0,
       } as Record<string, boolean>;
     },
   });
@@ -122,7 +132,7 @@ export function useOnboardingMissions() {
   }, [completionMap, isDemoMode]);
 
   const completedCount = missions.filter((m) => m.completed).length;
-  const allDone = completedCount === 5;
+  const allDone = completedCount === MISSIONS_META.length;
   const nextMission = missions.find((m) => !m.completed) ?? null;
 
   // Once all done and dismissed, stay dismissed permanently
