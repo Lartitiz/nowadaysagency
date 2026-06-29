@@ -1093,7 +1093,28 @@ Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de con
     // douteuses, UNE passe ciblée de régénération impose un bandeau opaque. Tout est
     // gardé : au moindre échec on conserve les slides d'origine (jamais de régression).
     if (isPhotoCarousel && Array.isArray(result?.slides_html)) {
-      const flagged = result.slides_html.filter((s: any) => s?.contrast_ok === false);
+      // Filet DÉTERMINISTE : `contrast_ok` est auto-déclaré par l'IA, qui sur-estime
+      // souvent la lisibilité. On ne s'y fie donc pas seul. Heuristique sur le HTML
+      // rendu : une slide à texte CLAIR (blanc/quasi-blanc) posé sur la photo SANS
+      // aucun voile/bandeau/ombre sombre derrière est presque toujours illisible
+      // (illisibilité n°1). On la route vers la passe de correction même si l'IA a
+      // déclaré contrast_ok=true. Conservateur : on ne flague que l'absence TOTALE de
+      // voile sombre — au moindre signal de scrim on laisse passer (zéro régression).
+      const overlayLikelyUnreadable = (s: any): boolean => {
+        const html: string = s?.html || "";
+        if (!html) return false;
+        // Texte clair utilisé quelque part (couleur de l'overlay).
+        const hasLightText = /color\s*:\s*(#fff(?:fff)?\b|white\b|rgba?\(\s*2[45]\d\s*,\s*2[45]\d\s*,\s*2[45]\d)/i.test(html);
+        if (!hasLightText) return false;
+        // Signaux de scrim sombre qui rendent le texte clair lisible :
+        const darkVeil = /rgba\(\s*0\s*,\s*0\s*,\s*0\s*,\s*(?:0?\.(?:3[5-9]|[4-9]\d?)|1(?:\.0+)?)\s*\)/i.test(html); // voile/bandeau rgba(0,0,0,≥0.35)
+        const darkShadow = /text-shadow\s*:[^;"']*rgba\(\s*0\s*,\s*0\s*,\s*0\s*,\s*(?:0?\.[5-9]\d?|1)/i.test(html);   // ombre forte
+        const darkSolid = /background[^;"']*:\s*(?:#0{3}\b|#0{6}\b|rgb\(\s*(?:[0-2]?\d|3[0-2])\s*,)/i.test(html);       // bandeau quasi-noir opaque
+        return !(darkVeil || darkShadow || darkSolid);
+      };
+      const flagged = result.slides_html.filter(
+        (s: any) => s?.contrast_ok === false || overlayLikelyUnreadable(s),
+      );
       if (flagged.length > 0) {
         console.warn(
           `carousel-visual: ${flagged.length} slide(s) au contraste douteux → passe de correction`,
