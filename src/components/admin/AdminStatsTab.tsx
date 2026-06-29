@@ -20,8 +20,8 @@ import {
   AlertTriangle, Zap, UserX,
 } from "lucide-react";
 import {
-  AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
-  ResponsiveContainer, Cell,
+  AreaChart, Area, XAxis, YAxis, Tooltip,
+  ResponsiveContainer,
 } from "recharts";
 
 /* ── Constants ── */
@@ -281,7 +281,7 @@ function OverviewSection({ stats }: { stats: StatsData }) {
           subColor="text-success"
         />
         <KpiCard
-          title="Actives (ont créé)"
+          title="Actives"
           value={stats.active_this_month}
           trend={stats.active_this_month - (stats.active_prev_month || 0)}
           sub={`${activeRate}% ont généré ce mois`}
@@ -345,14 +345,14 @@ function OverviewSection({ stats }: { stats: StatsData }) {
           <AreaChart data={signupsData}>
             <defs>
               <linearGradient id="signupFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#fb3d80" stopOpacity={0.15} />
-                <stop offset="100%" stopColor="#fb3d80" stopOpacity={0} />
+                <stop offset="0%" stopColor="#fb3d80" stopOpacity={0.35} />
+                <stop offset="100%" stopColor="#fb3d80" stopOpacity={0.02} />
               </linearGradient>
             </defs>
             <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
             <YAxis allowDecimals={false} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={24} />
             <Tooltip contentStyle={tooltipStyle} />
-            <Area type="monotone" dataKey="count" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#signupFill)" name="Inscriptions" />
+            <Area type="monotone" dataKey="count" stroke="hsl(var(--primary))" strokeWidth={2.5} fill="url(#signupFill)" name="Inscriptions" dot={{ r: 3, fill: "hsl(var(--primary))", strokeWidth: 0 }} activeDot={{ r: 5 }} />
           </AreaChart>
         </ResponsiveContainer>
       </ChartCard>
@@ -478,7 +478,7 @@ function EngagementProductSection({ stats }: { stats: StatsData }) {
         <KpiCard title="Rétention" value={stats.retention_rate} suffix="%" sub={`${stats.retained_users} revenues du mois dernier`} subColor={stats.retention_rate >= 50 ? "text-success" : "text-warning"} status={stats.retention_rate >= 50 ? "good" : stats.retention_rate >= 30 ? "warning" : "danger"} />
         <KpiCard title="Contenus générés" value={totalContent} sub={`${stats.drafts_this_month} brouillons · ${stats.calendar_posts_this_month} planifiés`} />
         <KpiCard title="Publiés ce mois" value={stats.published_this_month ?? 0} sub={stats.published_total !== undefined ? `${stats.published_total} au total` : "publications réelles"} subColor={(stats.published_this_month ?? 0) > 0 ? "text-success" : undefined} />
-        <KpiCard title="Planifiés / générés" value={stats.content_usage_rate || 0} suffix="%" sub={`${stats.calendar_posts_this_month} planifiés · ${stats.drafts_this_month} générés (indicatif)`} subColor={(stats.content_usage_rate || 0) >= 50 ? "text-success" : (stats.content_usage_rate || 0) >= 25 ? "text-warning" : "text-error"} />
+        <KpiCard title="Taux planifié" value={stats.content_usage_rate || 0} suffix="%" sub={`${stats.calendar_posts_this_month} planifiés · ${stats.drafts_this_month} générés`} subColor={(stats.content_usage_rate || 0) >= 50 ? "text-success" : (stats.content_usage_rate || 0) >= 25 ? "text-warning" : "text-error"} />
         <KpiCard title="Générations IA" value={stats.ai_total_this_month} trend={stats.ai_total_this_month - (stats.ai_total_prev_month || 0)} sub="ce mois" />
       </div>
 
@@ -488,14 +488,14 @@ function EngagementProductSection({ stats }: { stats: StatsData }) {
           <AreaChart data={aiDayData}>
             <defs>
               <linearGradient id="aiDayFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#8B5CF6" stopOpacity={0.15} />
-                <stop offset="100%" stopColor="#8B5CF6" stopOpacity={0} />
+                <stop offset="0%" stopColor="#8B5CF6" stopOpacity={0.35} />
+                <stop offset="100%" stopColor="#8B5CF6" stopOpacity={0.02} />
               </linearGradient>
             </defs>
             <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} interval={4} />
             <YAxis allowDecimals={false} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={24} />
             <Tooltip contentStyle={tooltipStyle} />
-            <Area type="monotone" dataKey="count" stroke="#8B5CF6" strokeWidth={2} fill="url(#aiDayFill)" name="Générations IA" />
+            <Area type="monotone" dataKey="count" stroke="#8B5CF6" strokeWidth={2.5} fill="url(#aiDayFill)" name="Générations IA" dot={{ r: 2, fill: "#8B5CF6", strokeWidth: 0 }} activeDot={{ r: 5 }} />
           </AreaChart>
         </ResponsiveContainer>
       </ChartCard>
@@ -524,33 +524,17 @@ function EngagementProductSection({ stats }: { stats: StatsData }) {
       {/* Brouillons par canal + Distribution scores branding */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ChartCard title="Brouillons par canal">
-          {draftsData.length === 0 ? (
-            <EmptyChart message="Aucun brouillon ce mois" />
-          ) : (
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={draftsData} layout="vertical" barCategoryGap={8}>
-                <XAxis type="number" hide />
-                <YAxis dataKey="label" type="category" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} width={90} />
-                <Tooltip contentStyle={tooltipStyle} />
-                <Bar dataKey="count" radius={[0, 6, 6, 0]} fill="hsl(var(--primary))" name="Brouillons" label={{ position: "right", fontSize: 12, fill: "hsl(var(--foreground))" }} />
-              </BarChart>
-            </ResponsiveContainer>
-          )}
+          <StatBars
+            items={draftsData.map(d => ({ label: d.label, value: d.count }))}
+            emptyMessage="Aucun brouillon ce mois"
+          />
         </ChartCard>
 
         <ChartCard title="Distribution scores branding">
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={scoreDistData} barCategoryGap={12}>
-              <XAxis dataKey="range" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-              <YAxis allowDecimals={false} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={24} />
-              <Tooltip contentStyle={tooltipStyle} />
-              <Bar dataKey="count" radius={[6, 6, 0, 0]} name="Utilisatrices">
-                {scoreDistData.map((entry) => (
-                  <Cell key={entry.range} fill={entry.fill} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          <StatBars
+            items={scoreDistData.map(d => ({ label: `${d.range} %`, value: d.count, suffix: " inscrites", color: d.fill }))}
+            emptyMessage="Aucune donnée"
+          />
         </ChartCard>
       </div>
 
@@ -759,18 +743,40 @@ function KpiCard({ title, value, suffix, sub, subColor, trend, status }: {
 }) {
   const statusBorder = status === "good" ? "border-l-4 border-l-success" : status === "warning" ? "border-l-4 border-l-warning" : status === "danger" ? "border-l-4 border-l-error" : "";
   return (
-    <div className={`rounded-xl border bg-card p-5 flex flex-col gap-1 ${statusBorder}`}>
-      <p className="text-xs text-muted-foreground">{title}</p>
-      <div className="flex items-baseline gap-1.5">
-        <p className="text-2xl font-bold font-display">{(value ?? 0).toLocaleString("fr")}{suffix && <span className="text-sm font-normal text-muted-foreground">{suffix}</span>}</p>
+    <div className={`rounded-xl border bg-card p-4 flex flex-col gap-1.5 ${statusBorder}`}>
+      {/* min-h réserve une hauteur constante pour aligner toutes les cartes même quand le titre tient sur 2 lignes */}
+      <p className="text-xs font-medium text-muted-foreground leading-tight min-h-[2rem]">{title}</p>
+      <div className="flex items-baseline gap-2 flex-wrap">
+        <p className="text-3xl font-bold font-display leading-none">{(value ?? 0).toLocaleString("fr")}{suffix && <span className="text-base font-normal text-muted-foreground ml-0.5">{suffix}</span>}</p>
         {trend !== undefined && trend !== 0 && (
-          <span className={`inline-flex items-center gap-0.5 text-xs font-medium ${trend > 0 ? "text-success" : "text-error"}`}>
-            {trend > 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+          <span className={`inline-flex items-center gap-0.5 text-2xs font-semibold px-1.5 py-0.5 rounded-full ${trend > 0 ? "text-success bg-success/10" : "text-error bg-error/10"}`}>
+            {trend > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
             {trend > 0 ? "+" : ""}{trend}
           </span>
         )}
       </div>
-      {sub && <p className={`text-xs ${subColor || "text-muted-foreground"}`}>{sub}</p>}
+      {sub && <p className={`text-2xs leading-snug ${subColor || "text-muted-foreground"}`}>{sub}</p>}
+    </div>
+  );
+}
+
+/* Barres horizontales unifiées (même langage que le tunnel d'activation) — remplace les graphes recharts épars. */
+function StatBars({ items, emptyMessage }: { items: { label: string; value: number; suffix?: string; color?: string }[]; emptyMessage: string }) {
+  if (!items.length) return <EmptyChart message={emptyMessage} />;
+  const max = Math.max(...items.map(i => i.value), 1);
+  return (
+    <div className="space-y-3">
+      {items.map((it) => (
+        <div key={it.label} className="space-y-1">
+          <div className="flex justify-between text-sm">
+            <span className="text-foreground">{it.label}</span>
+            <span className="text-muted-foreground font-medium tabular-nums">{it.value}{it.suffix || ""}</span>
+          </div>
+          <div className="h-2 rounded-full bg-muted overflow-hidden">
+            <div className="h-full rounded-full transition-all" style={{ width: `${(it.value / max) * 100}%`, backgroundColor: it.color || "hsl(var(--primary))" }} />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -786,7 +792,8 @@ function ChartCard({ title, children }: { title: string; children: React.ReactNo
 
 function EmptyChart({ message }: { message: string }) {
   return (
-    <div className="h-[200px] flex items-center justify-center">
+    <div className="py-8 flex flex-col items-center justify-center gap-1 text-center">
+      <span className="text-xl opacity-40" aria-hidden>📭</span>
       <p className="text-sm text-muted-foreground">{message}</p>
     </div>
   );
