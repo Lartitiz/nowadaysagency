@@ -105,32 +105,56 @@ async function getJson(url: URL): Promise<any | null> {
   }
 }
 
-// Récupère une métrique compte agrégée (metric_type=total_value) sur 28 jours.
-// Couvre les nouvelles métriques Meta : views, total_interactions, accounts_engaged,
-// profile_views. Appel ISOLÉ par métrique : si l'une n'est pas servie pour ce type de
-// compte / cette version d'API, elle renvoie undefined sans casser les autres.
-async function fetchAccountTotalValue(
-  igId: string,
-  token: string,
-  metric: string,
-  period = "days_28",
-): Promise<number | undefined> {
-  const u = new URL(`${GRAPH}/${igId}/insights`);
-  u.searchParams.set("metric", metric);
-  u.searchParams.set("period", period);
-  u.searchParams.set("metric_type", "total_value");
-  u.searchParams.set("access_token", token);
-  const json = await getJson(u);
+// Lit la valeur agrégée d'une réponse insights (total_value, ou somme de la série).
+function readTotalValue(json: any): number | undefined {
   const d = json?.data?.[0];
   if (!d) return undefined;
   const total = d?.total_value?.value;
   if (typeof total === "number") return total;
-  // À défaut d'agrégat, on somme la série journalière.
   if (Array.isArray(d?.values)) {
     const s = d.values.reduce((a: number, v: any) => a + (Number(v?.value) || 0), 0);
-    return s || undefined;
+    return Number.isFinite(s) ? s : undefined;
   }
   return undefined;
+}
+
+// Récupère une métrique compte agrégée (metric_type=total_value) sur les 28 derniers
+// jours. Couvre les nouvelles métriques Meta : views, total_interactions,
+// accounts_engaged, profile_views.
+//
+// IMPORTANT : on interroge en period=day avec une fenêtre since/until EXPLICITE.
+// C'est le mode documenté par Meta pour les métriques d'interaction
+// (total_interactions, accounts_engaged) qui, SANS fenêtre, renvoient la valeur d'UNE
+// seule journée au lieu de l'agrégat 28 j (bug observé : ~5 interactions au lieu de
+// plusieurs centaines). metric_type=total_value → Meta renvoie l'agrégat sur la
+// fenêtre ; à défaut on somme la série. Repli en days_28 si la fenêtre échoue (suffit
+// pour views/profile_views). Appel ISOLÉ : une métrique absente renvoie undefined
+// sans casser les autres.
+async function fetchAccountTotalValue(
+  igId: string,
+  token: string,
+  metric: string,
+): Promise<number | undefined> {
+  const until = Math.floor(Date.now() / 1000);
+  const since = until - 28 * 24 * 3600;
+
+  const windowed = new URL(`${GRAPH}/${igId}/insights`);
+  windowed.searchParams.set("metric", metric);
+  windowed.searchParams.set("period", "day");
+  windowed.searchParams.set("metric_type", "total_value");
+  windowed.searchParams.set("since", String(since));
+  windowed.searchParams.set("until", String(until));
+  windowed.searchParams.set("access_token", token);
+  const v1 = readTotalValue(await getJson(windowed));
+  if (typeof v1 === "number") return v1;
+
+  // Repli : agrégat days_28 sans fenêtre.
+  const fallback = new URL(`${GRAPH}/${igId}/insights`);
+  fallback.searchParams.set("metric", metric);
+  fallback.searchParams.set("period", "days_28");
+  fallback.searchParams.set("metric_type", "total_value");
+  fallback.searchParams.set("access_token", token);
+  return readTotalValue(await getJson(fallback));
 }
 
 function deriveFrequency(postsLast30d: number): string {
