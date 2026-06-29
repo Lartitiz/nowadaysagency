@@ -71,6 +71,26 @@ const STATUT_COLORS: Record<string, string> = {
 const SCORE_BAR_COLOR = (score: number) =>
   score >= 75 ? "bg-success" : score >= 50 ? "bg-warning" : "bg-error";
 
+/* ─── Render-safety ───
+   Les audits sont produits par l'IA et certains anciens audits ont un schéma
+   différent : un champ attendu comme texte peut être un objet (ex. { title, detail }).
+   Rendre cet objet tel quel dans le JSX fait planter toute la page (React error #31).
+   asText() coerce n'importe quelle valeur en chaîne sûre et ne rend jamais un objet brut. */
+function asText(value: unknown): string {
+  if (value == null) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (Array.isArray(value)) return value.map(asText).filter(Boolean).join(", ");
+  if (typeof value === "object") {
+    const o = value as Record<string, unknown>;
+    const heading = o.titre ?? o.title ?? o.label;
+    const body = o.detail ?? o.description ?? o.text;
+    const parts = [heading, body].filter((p) => typeof p === "string" && p) as string[];
+    return parts.join(" — ");
+  }
+  return "";
+}
+
 export default function BrandingAuditPage() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
@@ -560,7 +580,7 @@ function AuditResults({ result, previousAudit, expandedPillar, setExpandedPillar
             <div className={`h-full rounded-full transition-all ${SCORE_BAR_COLOR(result.score_global)}`} style={{ width: `${result.score_global}%` }} />
           </div>
         </div>
-        <p className="text-sm text-muted-foreground mt-4 leading-relaxed">{result.synthese}</p>
+        <p className="text-sm text-muted-foreground mt-4 leading-relaxed">{asText(result.synthese)}</p>
       </div>
 
       {/* Points forts */}
@@ -570,9 +590,9 @@ function AuditResults({ result, previousAudit, expandedPillar, setExpandedPillar
           <div className="space-y-2">
             {result.points_forts.map((p, i) => (
               <div key={i} className="rounded-xl border border-success/30 bg-success-bg p-4">
-                <p className="text-sm font-medium text-foreground">✅ {p.titre}</p>
-                <p className="text-xs text-muted-foreground mt-1">{p.detail}</p>
-                <p className="text-2xs text-muted-foreground/70 mt-1">Source : {p.source}</p>
+                <p className="text-sm font-medium text-foreground">✅ {asText(p.titre)}</p>
+                <p className="text-xs text-muted-foreground mt-1">{asText(p.detail)}</p>
+                <p className="text-2xs text-muted-foreground/70 mt-1">Source : {asText(p.source)}</p>
               </div>
             ))}
           </div>
@@ -586,18 +606,18 @@ function AuditResults({ result, previousAudit, expandedPillar, setExpandedPillar
           <div className="space-y-2">
             {result.points_faibles.map((p, i) => (
               <div key={i} className={`rounded-xl border p-4 ${p.priorite === "haute" ? "border-error/30 bg-error-bg" : "border-warning/30 bg-warning-bg"}`}>
-                <p className="text-sm font-medium text-foreground">{p.priorite === "haute" ? "🔴" : "🟡"} {p.titre}</p>
-                <p className="text-xs text-muted-foreground mt-1">{p.detail}</p>
-                <p className="text-2xs text-muted-foreground/70 mt-1">Priorité : {p.priorite}</p>
+                <p className="text-sm font-medium text-foreground">{p.priorite === "haute" ? "🔴" : "🟡"} {asText(p.titre)}</p>
+                <p className="text-xs text-muted-foreground mt-1">{asText(p.detail)}</p>
+                <p className="text-2xs text-muted-foreground/70 mt-1">Priorité : {asText(p.priorite)}</p>
                 {p.action && (
                   <div className="mt-3 pt-3 border-t border-border/50">
-                    <p className="text-xs text-muted-foreground mb-2">💡 {p.action.conseil}</p>
+                    <p className="text-xs text-muted-foreground mb-2">💡 {asText(p.action.conseil)}</p>
                     <Button
                       size="sm"
                       className="gap-1.5 text-xs"
                       onClick={() => navigateWithContext(p.action!.route, p.action!.conseil, p.action!.module)}
                     >
-                      {p.action.label} <ArrowRight className="h-3 w-3" />
+                      {asText(p.action.label)} <ArrowRight className="h-3 w-3" />
                     </Button>
                   </div>
                 )}
@@ -620,7 +640,7 @@ function AuditResults({ result, previousAudit, expandedPillar, setExpandedPillar
                   <span className="text-base">{meta.emoji}</span>
                   <span className="text-sm font-medium flex-1">{meta.label}</span>
                   <span className={`text-xs font-mono ${STATUT_COLORS[pillar.statut] || "text-muted-foreground"}`}>
-                    {pillar.score}/100 · {pillar.statut}
+                    {pillar.score}/100 · {asText(pillar.statut)}
                   </span>
                   <div className="w-20 h-2 rounded-full bg-muted overflow-hidden">
                     <div className={`h-full rounded-full ${SCORE_BAR_COLOR(pillar.score)}`} style={{ width: `${pillar.score}%` }} />
@@ -630,13 +650,13 @@ function AuditResults({ result, previousAudit, expandedPillar, setExpandedPillar
                 {isExpanded && (
                   <div className="px-4 pb-4 space-y-2 border-t border-border pt-3">
                     {pillar.ce_qui_existe && (
-                      <div><p className="text-2xs font-semibold text-success uppercase">Ce qui existe</p><p className="text-xs text-muted-foreground">{pillar.ce_qui_existe}</p></div>
+                      <div><p className="text-2xs font-semibold text-success uppercase">Ce qui existe</p><p className="text-xs text-muted-foreground">{asText(pillar.ce_qui_existe)}</p></div>
                     )}
                     {pillar.ce_qui_manque && (
-                      <div><p className="text-2xs font-semibold text-warning uppercase">Ce qui manque</p><p className="text-xs text-muted-foreground">{pillar.ce_qui_manque}</p></div>
+                      <div><p className="text-2xs font-semibold text-warning uppercase">Ce qui manque</p><p className="text-xs text-muted-foreground">{asText(pillar.ce_qui_manque)}</p></div>
                     )}
                     {pillar.recommandation && (
-                      <div><p className="text-2xs font-semibold text-primary uppercase">Recommandation</p><p className="text-xs text-muted-foreground">{pillar.recommandation}</p></div>
+                      <div><p className="text-2xs font-semibold text-primary uppercase">Recommandation</p><p className="text-xs text-muted-foreground">{asText(pillar.recommandation)}</p></div>
                     )}
                   </div>
                 )}
@@ -656,8 +676,8 @@ function AuditResults({ result, previousAudit, expandedPillar, setExpandedPillar
               <button key={i} onClick={() => navigateWithContext(a.lien, a.conseil, a.module)} className="w-full rounded-xl border border-border bg-card hover:bg-muted/50 transition-colors p-4 text-left flex items-center gap-3">
                 <span className="w-6 h-6 rounded-lg bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0">{a.priorite}</span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{a.action}</p>
-                  <p className="text-2xs text-muted-foreground">{a.temps_estime}</p>
+                  <p className="text-sm font-medium truncate">{asText(a.action)}</p>
+                  <p className="text-2xs text-muted-foreground">{asText(a.temps_estime)}</p>
                 </div>
                 <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
               </button>
