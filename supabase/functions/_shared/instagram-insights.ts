@@ -224,31 +224,38 @@ export async function fetchInstagramInsights(
     if (Object.keys(audience).length) result.audience = audience;
   }
 
-  // 2. Reach du compte sur 28 jours. (profile_views écarté : peu fiable dans cette
-  //    version de l'API — renvoyait des valeurs aberrantes type "4 vues / 28 j".)
-  //    On privilégie total_value (agrégat) ; à défaut on SOMME la série journalière
-  //    plutôt que de lire la 1re journée (cause des reach sous-évalués observés).
-  const acct = await getJson(
-    (() => {
-      const u = new URL(`${GRAPH}/${igId}/insights`);
-      u.searchParams.set("metric", "reach");
-      u.searchParams.set("period", "days_28");
-      u.searchParams.set("metric_type", "total_value");
-      u.searchParams.set("access_token", token);
-      return u;
-    })(),
-  );
-  if (acct?.data) {
-    for (const m of acct.data) {
-      if (m.name !== "reach") continue;
-      const total = m?.total_value?.value;
-      const summed = Array.isArray(m?.values)
-        ? m.values.reduce((s: number, v: any) => s + (Number(v?.value) || 0), 0)
-        : undefined;
-      result.reach30d = typeof total === "number" ? total : summed;
+  // 2. Reach UNIQUE du compte sur les 28 derniers jours. Comme les autres métriques
+  //    compte, on interroge sur une fenêtre since/until EXPLICITE (period=day +
+  //    total_value) : sans fenêtre, days_28 renvoyait le reach d'UNE seule journée
+  //    (cause des reach aberrants/sous-évalués qui se faisaient écarter par la garde).
+  //    ⚠️ Le reach compte des utilisateurs UNIQUES → on lit l'agrégat total_value, on
+  //    ne SOMME JAMAIS la série journalière (ça doublonnerait les mêmes personnes).
+  {
+    const until = Math.floor(Date.now() / 1000);
+    const since = until - 28 * 24 * 3600;
+    const windowed = new URL(`${GRAPH}/${igId}/insights`);
+    windowed.searchParams.set("metric", "reach");
+    windowed.searchParams.set("period", "day");
+    windowed.searchParams.set("metric_type", "total_value");
+    windowed.searchParams.set("since", String(since));
+    windowed.searchParams.set("until", String(until));
+    windowed.searchParams.set("access_token", token);
+    const total = (await getJson(windowed))?.data?.find((m: any) => m.name === "reach")
+      ?.total_value?.value;
+    if (typeof total === "number") {
+      result.reach30d = total;
+    } else {
+      // Repli : agrégat days_28 sans fenêtre (lit total_value uniquement, jamais la somme).
+      const fb = new URL(`${GRAPH}/${igId}/insights`);
+      fb.searchParams.set("metric", "reach");
+      fb.searchParams.set("period", "days_28");
+      fb.searchParams.set("metric_type", "total_value");
+      fb.searchParams.set("access_token", token);
+      const fbTotal = (await getJson(fb))?.data?.find((m: any) => m.name === "reach")
+        ?.total_value?.value;
+      if (typeof fbTotal === "number") result.reach30d = fbTotal;
+      else partial = true;
     }
-  } else {
-    partial = true;
   }
 
   // 2bis. Métriques compte agrégées sur 28 j (views = remplace impressions ;
@@ -382,12 +389,19 @@ export async function fetchInstagramInsights(
       ranked.reduce((s, p) => s + (p.engagementRate || 0), 0) / ranked.length;
   }
 
-  // Garde-fou de cohérence : l'API renvoie parfois un reach compte aberrant (sous le
-  // reach d'un seul post). Un compte ne peut pas avoir un reach inférieur à celui d'un
-  // de ses posts → si c'est le cas, la valeur n'est pas fiable, on ne l'expose pas à
-  // l'audit (mieux vaut une métrique absente qu'un chiffre impossible).
-  const maxPostReach = Math.max(0, ...measured.map((p) => p.reach || 0));
-  if (typeof result.reach30d === "number" && result.reach30d < maxPostReach) {
+  // Garde-fou de cohérence : le reach 28 j du compte ne peut pas être inférieur au
+  // reach d'un post PUBLIÉ DANS CES 28 JOURS (le reach compte dédoublonne au moins ce
+  // post). On compare donc UNIQUEMENT aux posts récents (≤ 28 j) — un vieux post viral
+  // (jusqu'à 90 j dans la liste) peut légitimement dépasser le reach 28 j et ne doit
+  // pas faire écarter une valeur correcte. Si l'invariant casse, le reach est aberrant
+  // → on ne l'expose pas (mieux vaut vide qu'impossible).
+  const maxRecentPostReach = Math.max(
+    0,
+    ...measured
+      .filter((p) => p.timestamp && new Date(p.timestamp).getTime() >= cutoff)
+      .map((p) => p.reach || 0),
+  );
+  if (typeof result.reach30d === "number" && result.reach30d < maxRecentPostReach) {
     result.reach30d = undefined;
   }
   // De même, une croissance à 0 sur 30 j pour un compte qui publie est presque
