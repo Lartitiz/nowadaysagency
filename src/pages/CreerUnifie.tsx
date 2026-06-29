@@ -2614,7 +2614,14 @@ export default function CreerUnifie() {
       if (!slidesAreValid) {
         throw new Error("Les visuels n'ont pas été générés correctement (slides manquantes ou vides). Réessaie.");
       }
-      setVisualSlides(producedSlides);
+      // Normalise vers la forme attendue par l'état { slide_number, html } : on garde le
+      // numéro fourni par l'IA s'il est présent (JSON généré, pas garanti), sinon on
+      // retombe sur l'index (1-based). Fiabilise + corrige l'inférence du helper générique.
+      const normalizedSlides = producedSlides.map((s: any, i: number) => ({
+        slide_number: typeof s?.slide_number === "number" ? s.slide_number : i + 1,
+        html: String(s?.html ?? ""),
+      }));
+      setVisualSlides(normalizedSlides);
       if (!opts?.background) {
         if (downgradeReason === "user_chose_text") {
           toast.success("Carrousel généré en mode texte (aucune photo disponible).");
