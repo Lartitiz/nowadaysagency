@@ -144,7 +144,7 @@ export default function AbonnementPage() {
               {subInfo?.plan === "binome" && (
                 <div className="mt-2 space-y-1">
                   <p className="text-xs text-muted-foreground">🎯 Accompagnement 6 mois · 7 sessions avec Laetitia</p>
-                  <p className="text-xs text-muted-foreground">✨ Création IA en grand volume incluse</p>
+                  <p className="text-xs text-muted-foreground">✨ Création de contenu illimitée incluse</p>
                   <Link to="/accompagnement">
                     <Button size="sm" variant="outline" className="rounded-full mt-1 text-xs">
                       🤝 Voir mon accompagnement →

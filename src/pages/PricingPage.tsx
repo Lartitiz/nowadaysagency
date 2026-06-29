@@ -35,7 +35,7 @@ const SECTIONS = [
     title: "Création de contenu",
     rows: [
       { label: "Posts, reels, stories, bio", free: true, premium: true },
-      { label: "Volume de création IA", free: "Pour démarrer", premium: "En grand volume" },
+      { label: "Volume de création IA", free: "Pour démarrer", premium: "Illimité" },
       { label: "Carrousels qualité max", free: false, premium: true },
       { label: "Commentaires stratégiques", free: false, premium: true },
       { label: "DM personnalisés", free: false, premium: true },
@@ -65,7 +65,7 @@ const FAQ = [
   },
   {
     q: "C'est quoi la différence entre le gratuit et le Premium ?",
-    a: "Le gratuit te fait publier ton premier contenu. Le Premium te fait publier régulièrement sans y penser : création IA en grand volume, carrousels qualité max, publication directe et programmation automatique sur tous tes réseaux, audits illimités.",
+    a: "Le gratuit te fait publier ton premier contenu. Le Premium te fait publier régulièrement sans y penser : création de contenu illimitée, carrousels qualité max, publication directe et programmation automatique sur tous tes réseaux, audits illimités.",
   },
   {
     q: "Je peux annuler quand je veux ?",
@@ -217,7 +217,7 @@ export default function PricingPage() {
               Tout le plan gratuit, plus :
             </p>
             <ul className="space-y-2 text-sm text-foreground mb-6 flex-1">
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Création IA en grand volume, sans compter</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Création de contenu illimitée, sans compter</li>
               <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Carrousels qualité max</li>
               <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Publication directe + programmation automatique</li>
               <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Multi-réseaux en 1 clic + ouverture dans Canva</li>
