@@ -36,7 +36,7 @@ const FEATURES = [
   {
     emoji: "📅",
     title: "Ton calendrier éditorial",
-    desc: "Tu as essayé Notion, Excel, Google Sheets… et tu as passé plus de temps à organiser qu'à créer. Ici, ton calendrier est déjà structuré : vue mensuelle, drag & drop, tes contenus organisés par canal et par objectif. Tu ouvres l'outil, tu sais quoi poster cette semaine. C'est le truc que ChatGPT ne fera jamais.",
+    desc: "Ton calendrier est déjà structuré : vue mensuelle, drag & drop, contenus classés par canal et par objectif. Tu ouvres l'outil, tu sais quoi poster cette semaine. C'est ce que ChatGPT ne fera jamais.",
     visual: "calendar",
   },
   {
@@ -62,20 +62,20 @@ const FEATURES = [
 const PAIN_POINTS = [
   {
     emoji: "📱",
-    pain: "Tu ouvres Instagram, tu fixes l'écran, et tu refermes. T'as essayé de tenir un planning sur Notion, sur Excel, dans un carnet. Mais à chaque fois, tu passes plus de temps à organiser qu'à créer.",
-    flip: "L'outil structure ton calendrier pour toi. Vue mensuelle, contenus par canal, drag & drop. Tu ouvres, tu sais quoi poster cette semaine. Sans prise de tête.",
+    pain: "Tu ouvres Instagram, tu fixes l'écran, tu refermes. Notion, Excel, un carnet… tu passes plus de temps à organiser qu'à créer.",
+    flip: "Ton calendrier est déjà structuré. Tu ouvres, tu sais quoi poster cette semaine.",
     flipEmoji: "📅",
   },
   {
     emoji: "🎯",
-    pain: "Tu postes un peu au feeling, un carrousel par-ci, une story par-là. Mais t'as aucune idée de si ça marche ou pas.",
-    flip: "L'outil diagnostique ta com', identifie tes forces et tes failles, et te donne un plan d'action clair. Plus de bricolage.",
+    pain: "Tu postes au feeling : un carrousel par-ci, une story par-là. Sans jamais savoir si ça marche.",
+    flip: "L'outil diagnostique ta com' et te donne un plan d'action clair. Fini le bricolage.",
     flipEmoji: "🔍",
   },
   {
     emoji: "😶",
-    pain: "Tu t'es formée, t'as regardé des tutos, lu des posts. Mais quand tu te retrouves seule devant ton écran, rien ne sort.",
-    flip: "Chaque étape est guidée. Tu réponds à des questions, l'outil structure pour toi. Tu n'es plus seule face à ta page blanche.",
+    pain: "Tu t'es formée, tu as vu les tutos. Mais seule devant ton écran, rien ne sort.",
+    flip: "Chaque étape est guidée. Tu réponds, l'outil structure. Fini la page blanche.",
     flipEmoji: "✨",
   },
 ];
@@ -436,7 +436,7 @@ export default function LandingPage() {
         <div className="mx-auto max-w-4xl mt-12 sm:mt-16">
           <Reveal>
             <p className="text-center text-sm text-muted-foreground leading-relaxed">
-              Construit sur <strong className="text-foreground">10 ans d'expérience</strong> · <strong className="text-foreground">+150 projets accompagnés</strong> · Enseigné à l'<strong className="text-foreground">École des Arts Déco</strong>, <strong className="text-foreground">Sup de Pub</strong>, <strong className="text-foreground">Bureau du Design, de la Mode et des Métiers d'Art</strong>
+              <strong className="text-foreground">10 ans d'expérience</strong> · <strong className="text-foreground">+150 projets accompagnés</strong> · Enseigné aux <strong className="text-foreground">Arts Déco</strong>, à <strong className="text-foreground">Sup de Pub</strong> et au <strong className="text-foreground">Bureau du Design</strong>
             </p>
           </Reveal>
         </div>
