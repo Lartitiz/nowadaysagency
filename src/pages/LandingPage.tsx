@@ -363,7 +363,7 @@ export default function LandingPage() {
               <span className="text-primary">En une heure.</span>
             </h1>
             <p className="mt-6 text-base sm:text-lg text-muted-foreground max-w-xl leading-relaxed">
-              Trouve tes idées, organise ta stratégie social media, génère posts, stories et reels, sans page blanche ni copier les autres.
+              <strong className="text-foreground">L'Assistant Com'</strong> réunit ta stratégie, ton calendrier et ta création de contenu (posts, stories, reels) au même endroit.
               <br className="hidden sm:block" />
               <strong className="text-foreground">Une IA qui connaît ta marque et écrit avec ta voix.</strong>
             </p>
@@ -698,13 +698,13 @@ export default function LandingPage() {
                 <span className="text-2xl mb-2">💎</span>
                 <h3 className="font-display text-lg font-bold">Premium</h3>
                 <p className="text-primary font-bold text-xl mt-1">39€<span className="text-sm font-normal text-muted-foreground">/mois</span></p>
-                <p className="text-sm text-muted-foreground mt-1 mb-4">Crée régulièrement, en grand volume.</p>
+                <p className="text-sm text-muted-foreground mt-1 mb-4">Crée sans compter, autant que tu veux.</p>
                 <p className="text-xs text-muted-foreground mb-2 pb-2 border-b border-border">
                   Tout le plan gratuit, plus :
                 </p>
                 <ul className="space-y-2 mb-6 flex-1">
                   {[
-                    "Création IA en grand volume + audits illimités",
+                    "Création de contenu illimitée + audits illimités",
                     "Communauté active + lives mensuels",
                   ].map((item, idx) => (
                     <li key={idx} className="text-sm text-foreground flex items-start gap-2">
