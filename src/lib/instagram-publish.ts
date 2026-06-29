@@ -92,10 +92,14 @@ async function uploadSlideBlobs(
   const urls: string[] = [];
   const paths: string[] = [];
   for (const { slide_number, blob } of blobs) {
-    const path = `${userId}/ig-${Date.now()}-${slide_number}-${Math.random().toString(36).slice(2)}.png`;
+    // Les slides sont rasterisées en JPEG pour Instagram (cf. renderCarouselSlidesToBlobs) ;
+    // on déduit l'extension et le content-type du blob réel plutôt que de forcer du PNG.
+    const isJpeg = blob.type === "image/jpeg";
+    const ext = isJpeg ? "jpg" : "png";
+    const path = `${userId}/ig-${Date.now()}-${slide_number}-${Math.random().toString(36).slice(2)}.${ext}`;
     const { error } = await supabase.storage
       .from(PUBLISH_BUCKET)
-      .upload(path, blob, { contentType: "image/png", upsert: true });
+      .upload(path, blob, { contentType: blob.type || "image/png", upsert: true });
     if (error) throw new Error(`Upload d'une slide échoué : ${error.message}`);
     const { data } = supabase.storage.from(PUBLISH_BUCKET).getPublicUrl(path);
     if (!data?.publicUrl) throw new Error("URL publique introuvable pour une slide.");

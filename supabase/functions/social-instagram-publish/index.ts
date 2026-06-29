@@ -137,7 +137,9 @@ Deno.serve(async (req) => {
           childIds.push(await createContainer(igUserId, token, { image_url: url, is_carousel_item: "true" }));
         }
         for (const childId of childIds) {
-          const st = await pollStatus(childId, token, 20000);
+          // 30 s par enfant (comme l'image simple et le container CAROUSEL) : 20 s était trop
+          // court et faisait échouer une slide encore « IN_PROGRESS » côté Instagram.
+          const st = await pollStatus(childId, token, 30000);
           if (st !== "FINISHED") {
             throw new Error(`Instagram n'a pas pu traiter une image du carrousel (status: ${st}).`);
           }
