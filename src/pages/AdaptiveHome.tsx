@@ -116,8 +116,9 @@ function OnboardingBanner({ onNavigate }: { onNavigate: (route: string) => void 
   if (dismissed || isLoading) return null;
   if (allDone) return null;
 
-  const remaining = 5 - completedCount;
-  const counterLabel = remaining === 1 ? `4/5 — plus qu'une !` : `${completedCount}/5`;
+  const total = missions.length;
+  const remaining = total - completedCount;
+  const counterLabel = remaining === 1 ? `${completedCount}/${total} — plus qu'une !` : `${completedCount}/${total}`;
 
   return (
     <div
@@ -129,7 +130,7 @@ function OnboardingBanner({ onNavigate }: { onNavigate: (route: string) => void 
         <span className="font-heading text-sm font-bold text-foreground shrink-0">
           Tes premiers pas
         </span>
-        <Progress value={(completedCount / 5) * 100} className="h-1.5 flex-1" />
+        <Progress value={(completedCount / total) * 100} className="h-1.5 flex-1" />
         <span className="text-xs font-medium text-foreground/80 shrink-0">
           {counterLabel}
         </span>
@@ -207,7 +208,7 @@ const TOUR_STEPS = [
   { target: "card-next-step", title: "Ta prochaine étape", text: "Chaque jour, l'outil te recommande l'action qui aura le plus d'impact. Pas besoin de réfléchir par où commencer : c'est ici.", position: "bottom" as const },
   { target: "card-ideas", title: "Tes idées sauvegardées", text: "Toutes les idées que tu mets de côté atterrissent ici. Tu peux les transformer en contenu en un clic.", position: "top" as const },
   { target: "card-mini-actions", title: "Approfondir", text: "Affine ton identité de marque et lance des audits pour aller plus loin quand tu en as l'envie.", position: "top" as const },
-  { target: "card-missions", title: "Tes premiers pas", text: "5 petites étapes pour bien démarrer. Avance à ton rythme, coche au fur et à mesure. Rien d'obligatoire, tout est utile.", position: "bottom" as const },
+  { target: "card-missions", title: "Tes premiers pas", text: "Quelques petites étapes pour bien démarrer. Avance à ton rythme, coche au fur et à mesure. Rien d'obligatoire, tout est utile.", position: "bottom" as const },
   { target: "card-assistant", title: "Ta coach de com'", text: "Un doute, une question, besoin d'un coup de pouce ? Elle connaît ton projet et te répond de façon personnalisée.", position: "bottom" as const },
 ];
 

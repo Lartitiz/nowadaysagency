@@ -42,7 +42,7 @@ export default function OnboardingMissions({ prenom }: OnboardingMissionsProps) 
           🚀 Tes premières missions
         </h2>
         <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">{completedCount}/5</span>
+          <span className="text-sm text-muted-foreground">{completedCount}/{missions.length}</span>
           <button
             onClick={dismiss}
             className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md"
@@ -54,7 +54,7 @@ export default function OnboardingMissions({ prenom }: OnboardingMissionsProps) 
       </div>
 
       {/* Progress */}
-      <Progress value={(completedCount / 5) * 100} className="h-2 mb-4" />
+      <Progress value={(completedCount / missions.length) * 100} className="h-2 mb-4" />
 
       {/* Mission cards */}
       <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory">
