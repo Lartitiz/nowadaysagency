@@ -3,6 +3,48 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
 const APP_URL = "https://nowadays-assistant.fr";
+const ADMIN_EMAIL = "laetitia@nowadaysagency.com";
+
+// Pool d'idées évergreen (rendez-vous hebdo). On en pioche 5 par semaine (rotation selon le n° de semaine).
+const WEEKLY_IDEA_POOL = [
+  "Une erreur que tu vois souvent dans ton domaine (et quoi faire à la place)",
+  "Les coulisses de ton dernier projet ou de ta semaine",
+  "Un avis à contre-courant sur ton métier",
+  "Une question qu'on te pose tout le temps — réponds-y publiquement",
+  "Ce que tu aurais aimé savoir en débutant",
+  "Présente une de tes offres autrement (par le résultat, pas la prestation)",
+  "Un retour client ou un moment de fierté récent",
+  "Un mythe à déconstruire dans ton secteur",
+  "Ta routine ou ton outil préféré pour t'organiser",
+  "Pourquoi tu fais ce métier — ton « pourquoi » en une histoire",
+  "3 conseils rapides que tu donnerais à ta cliente idéale",
+  "Avant / après : une transformation que tu as permise",
+  "Une décision difficile que tu as prise dans ton activité",
+  "Ce qui te différencie vraiment de la concurrence",
+  "Un coup de cœur (livre, compte, ressource) à partager",
+  "Une journée type dans ton activité",
+  "Un échec dont tu as tiré une leçon",
+  "Réagis à une actu ou une tendance de ton secteur",
+  "Réponds à l'objection n°1 de tes prospects",
+  "Montre ton process étape par étape",
+];
+
+function isoWeekNumber(d: Date): number {
+  const date = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  const dayNum = (date.getUTCDay() + 6) % 7;
+  date.setUTCDate(date.getUTCDate() - dayNum + 3);
+  const firstThursday = new Date(Date.UTC(date.getUTCFullYear(), 0, 4));
+  const firstDayNum = (firstThursday.getUTCDay() + 6) % 7;
+  firstThursday.setUTCDate(firstThursday.getUTCDate() - firstDayNum + 3);
+  return 1 + Math.round((date.getTime() - firstThursday.getTime()) / (7 * 86400000));
+}
+
+// 5 idées de la semaine (fenêtre glissante dans le pool selon le n° de semaine).
+function weeklyIdeas(now: Date): string[] {
+  const week = isoWeekNumber(now);
+  const start = (week * 5) % WEEKLY_IDEA_POOL.length;
+  return Array.from({ length: 5 }, (_, i) => WEEKLY_IDEA_POOL[(start + i) % WEEKLY_IDEA_POOL.length]);
+}
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -77,6 +119,9 @@ serve(async (req) => {
         break;
       case "subscription_cancelled":
         result = { event, user_id, ...(await enqueueSequence(supabase, user_id, "subscription_cancelled")) };
+        break;
+      case "weekly_digest":
+        result = await handleWeeklyDigest(supabase, supabaseUrl, serviceRoleKey);
         break;
       case "process_queue":
         result = await handleProcessQueue(supabase, supabaseUrl, serviceRoleKey);
@@ -272,6 +317,66 @@ async function handleCheckCredits(supabase: any): Promise<any> {
   }
 
   return { event: "check_credits", checked: exhaustedUserIds.length, triggered };
+}
+
+// Rendez-vous hebdo : email récurrent « tes idées de la semaine ».
+// Envoi DIRECT (pas la file one-shot) pour pouvoir repartir chaque semaine ;
+// garde anti-doublon = pas déjà envoyé ce template dans les 6 derniers jours.
+// Les désabonnées sont filtrées par send-email lui-même.
+async function handleWeeklyDigest(supabase: any, supabaseUrl: string, serviceRoleKey: string): Promise<any> {
+  // 1. Séquence active "weekly_digest" → étape → template (respecte le toggle admin)
+  const { data: sequences } = await supabase
+    .from("email_sequences").select("id").eq("trigger_event", "weekly_digest").eq("is_active", true).limit(1);
+  if (!sequences?.length) return { event: "weekly_digest", reason: "no active sequence", sent: 0 };
+
+  const { data: steps } = await supabase
+    .from("email_sequence_steps").select("template_id").eq("sequence_id", sequences[0].id)
+    .order("step_number", { ascending: true }).limit(1);
+  const templateId = steps?.[0]?.template_id;
+  if (!templateId) return { event: "weekly_digest", reason: "no step", sent: 0 };
+
+  const { data: template } = await supabase
+    .from("email_templates").select("subject, html_body, is_active").eq("id", templateId).single();
+  if (!template?.is_active) return { event: "weekly_digest", reason: "template inactive", sent: 0 };
+
+  // 2. Cibles : inscrites ayant fini l'onboarding (l'admin et les désabonnées sont exclues)
+  const { data: profiles } = await supabase
+    .from("profiles").select("user_id, prenom, email, activite").eq("onboarding_completed", true).not("email", "is", null);
+  if (!profiles?.length) return { event: "weekly_digest", eligible: 0, sent: 0 };
+
+  // 3. Anti-doublon : qui a déjà reçu ce template dans les 6 derniers jours
+  const sixDaysAgo = new Date(Date.now() - 6 * 86400000).toISOString();
+  const { data: recent } = await supabase
+    .from("email_sends").select("user_id").eq("template_id", templateId).gte("sent_at", sixDaysAgo);
+  const alreadyThisWeek = new Set((recent || []).map((r: any) => r.user_id));
+
+  // 4. Idées de la semaine → liste HTML injectée dans {{ideas}}
+  const ideas = weeklyIdeas(new Date());
+  const ideasHtml = `<ul style="font-size:15px;color:#1A1A1A;line-height:1.9;padding-left:20px;margin:0;">${ideas.map((i) => `<li>${i}</li>`).join("")}</ul>`;
+
+  let sent = 0, skipped = 0, errors = 0;
+  for (const p of profiles) {
+    if (!p.email || p.email === ADMIN_EMAIL || alreadyThisWeek.has(p.user_id)) { skipped++; continue; }
+    const resolved = resolveTemplate(template.html_body, template.subject, {
+      prenom: p.prenom || "", activite: p.activite || "", email: p.email, app_url: APP_URL, ideas: ideasHtml,
+    });
+    try {
+      const res = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${serviceRoleKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: p.email, subject: resolved.subject, html: resolved.html,
+          template_id: templateId, sequence_id: sequences[0].id, user_id: p.user_id,
+        }),
+      });
+      const d = await res.json();
+      if (d.success) sent++; else skipped++; // send-email renvoie skipped pour les désabonnées
+    } catch (e) {
+      errors++;
+      console.error("weekly_digest send error", p.user_id, e);
+    }
+  }
+  return { event: "weekly_digest", eligible: profiles.length, sent, skipped, errors };
 }
 
 async function handleProcessQueue(supabase: any, supabaseUrl: string, serviceRoleKey: string): Promise<any> {
