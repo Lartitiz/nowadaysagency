@@ -163,11 +163,28 @@ async function waitForIframeReady(
   await new Promise((r) => setTimeout(r, 200));
 }
 
+/** Format de sortie d'une slide rasterisée. */
+interface SlideOutput {
+  /** Échelle html2canvas (2 = retina pour téléchargement, 1 = natif 1080px pour Instagram). */
+  scale: number;
+  /** Type MIME de l'image produite. */
+  mime: "image/png" | "image/jpeg";
+  /** Qualité (0–1) pour le JPEG ; ignoré en PNG. */
+  quality?: number;
+}
+
+// Sortie par défaut : PNG retina (scale 2) pour téléchargement / Canva.
+const PNG_RETINA: SlideOutput = { scale: 2, mime: "image/png" };
+// Sortie Instagram : JPEG 1080×1350 (taille portrait exacte recommandée, sous les
+// plafonds Meta de 1440px de large et 8 Mo) — un PNG retina photo plein cadre dépasse 8 Mo
+// et Instagram rejette alors cette slide (« n'a pas pu traiter une image du carrousel »).
+const JPEG_INSTAGRAM: SlideOutput = { scale: 1, mime: "image/jpeg", quality: 0.9 };
+
 async function captureSlide(
   html: string,
-  scale: number,
   useCORS: boolean,
   logoOverlayHtml: string,
+  output: SlideOutput,
 ): Promise<Blob> {
   const iframe = await mountSlideIframe(html, logoOverlayHtml);
   try {
@@ -179,38 +196,43 @@ async function captureSlide(
       height: SLIDE_H,
       windowWidth: SLIDE_W,
       windowHeight: SLIDE_H,
-      scale,
+      scale: output.scale,
       useCORS,
       allowTaint: !useCORS,
-      backgroundColor: null,
+      // Un JPEG n'a pas d'alpha : fond blanc pour éviter le noir sur les zones transparentes.
+      backgroundColor: output.mime === "image/jpeg" ? "#ffffff" : null,
       logging: false,
       imageTimeout: 8000,
     });
 
     return await new Promise<Blob>((resolve) => {
-      canvas.toBlob((b) => resolve(b!), "image/png");
+      canvas.toBlob((b) => resolve(b!), output.mime, output.quality);
     });
   } finally {
     iframe.remove();
   }
 }
 
-async function captureSlideWithRetry(html: string, logoOverlayHtml: string): Promise<Blob | null> {
-  // 1er essai : qualité retina (scale 2) + CORS strict
+async function captureSlideWithRetry(
+  html: string,
+  logoOverlayHtml: string,
+  output: SlideOutput = PNG_RETINA,
+): Promise<Blob | null> {
+  // 1er essai : sortie demandée + CORS strict
   try {
-    return await captureSlide(html, 2, true, logoOverlayHtml);
+    return await captureSlide(html, true, logoOverlayHtml, output);
   } catch (e) {
-    console.warn("[exportCarouselPng] capture failed (scale 2, CORS), retry", e);
+    console.warn("[exportCarouselPng] capture failed (CORS), retry", e);
   }
-  // 2e essai : scale 2 mais on tolère le taint (images sans CORS)
+  // 2e essai : même sortie mais on tolère le taint (images sans CORS)
   try {
-    return await captureSlide(html, 2, false, logoOverlayHtml);
+    return await captureSlide(html, false, logoOverlayHtml, output);
   } catch (e) {
-    console.warn("[exportCarouselPng] capture failed (scale 2, taint), retry scale 1", e);
+    console.warn("[exportCarouselPng] capture failed (taint), retry scale 1", e);
   }
   // 3e essai : scale 1 + taint, dernière chance
   try {
-    return await captureSlide(html, 1, false, logoOverlayHtml);
+    return await captureSlide(html, false, logoOverlayHtml, { ...output, scale: 1 });
   } catch (e) {
     console.error("[exportCarouselPng] capture failed all retries", e);
     return null;
@@ -231,7 +253,9 @@ export async function renderCarouselSlidesToBlobs(
   const logoOverlayHtml = logoBase64 ? buildLogoOverlayHtml(logoBase64, SLIDE_W) : "";
   const out: { slide_number: number; blob: Blob }[] = [];
   for (const vs of visualSlides) {
-    const blob = await captureSlideWithRetry(vs.html, logoOverlayHtml);
+    // JPEG 1080×1350 : reste sous les plafonds Instagram (1440px / 8 Mo). Un PNG retina
+    // (2160px) d'une slide photo dépasse 8 Mo et Instagram rejette alors cette slide.
+    const blob = await captureSlideWithRetry(vs.html, logoOverlayHtml, JPEG_INSTAGRAM);
     if (blob) out.push({ slide_number: vs.slide_number, blob });
   }
   return out;
