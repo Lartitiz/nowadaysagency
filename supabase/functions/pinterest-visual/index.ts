@@ -310,7 +310,7 @@ CHARTE GRAPHIQUE :
 
 Retourne UNIQUEMENT le JSON, pas de texte avant ou après.`;
 
-    const model = "claude-opus-4-6" as any;
+    const model = "claude-opus-4-8" as any;
     const hasReference = !!reqBody.reference_image_base64;
 
     let messages: any[];

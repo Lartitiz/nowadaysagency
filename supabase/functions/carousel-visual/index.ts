@@ -943,7 +943,7 @@ Retourne UNIQUEMENT le JSON.`;
     // Modèle des visuels branché sur « Mode qualité Max » : Sonnet par défaut (rapide,
     // ~2x plus court à générer), Opus seulement si l'utilisatrice a coché le toggle
     // (rendu le plus soigné, plus lent). Le pass de correction réutilise ce `model`.
-    const model: AnthropicModel = reqBody.quality_max ? "claude-opus-4-6" : "claude-sonnet-4-6";
+    const model: AnthropicModel = reqBody.quality_max ? "claude-opus-4-8" : "claude-sonnet-4-6";
 
     // ═══ Append PPTX-editable annotation rules + invariants to ALL modes ═══
     // Discipline issue de l'étude "Le design via Claude" :

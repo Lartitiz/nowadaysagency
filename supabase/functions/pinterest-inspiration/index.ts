@@ -149,7 +149,7 @@ FORMAT DE RÉPONSE (JSON strict, rien d'autre) :
       ],
     }];
 
-    const model = "claude-opus-4-6" as any;
+    const model = "claude-opus-4-8" as any;
 
     const usage: UsageSink = {};
     const rawResponse = await callAnthropic({

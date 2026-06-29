@@ -13,10 +13,41 @@ export function sanitizeDashes(text: string): string {
     .replace(/,\s*,/g, ",");    // évite ",," si deux tirets se suivaient
 }
 
-export type AnthropicModel = "claude-opus-4-6" | "claude-sonnet-4-6" | "claude-haiku-4-5";
+export type AnthropicModel = "claude-opus-4-8" | "claude-sonnet-4-6" | "claude-haiku-4-5";
 
 export function getDefaultModel(): AnthropicModel {
   return (Deno.env.get("AI_MODEL_DEFAULT") as AnthropicModel) || "claude-sonnet-4-6";
+}
+
+/**
+ * Opus 4.8 (et 4.7) REJETTENT les paramètres d'échantillonnage (temperature,
+ * top_p, top_k) → erreur 400. Sonnet 4.6 et Haiku 4.5 les acceptent encore.
+ * On retire donc `temperature` du corps de requête pour ces modèles ; ils
+ * utilisent leur échantillonnage par défaut (comportement attendu et seul valide).
+ */
+const MODELS_REJECTING_SAMPLING = new Set<string>([
+  "claude-opus-4-8",
+  "claude-opus-4-7",
+]);
+
+function supportsTemperature(model: string): boolean {
+  return !MODELS_REJECTING_SAMPLING.has(model);
+}
+
+/**
+ * Ces mêmes modèles (Opus 4.8/4.7) REFUSENT aussi un « prefill » : un tableau de
+ * messages se terminant par un tour `assistant` → erreur 400. En chat normal le
+ * dernier message est `user`, mais un renvoi/état particulier peut laisser un tour
+ * assistant final. On le retire de façon déterministe pour ces modèles.
+ */
+function stripTrailingAssistant(messages: AnthropicMessage[]): AnthropicMessage[] {
+  let end = messages.length;
+  while (end > 0 && messages[end - 1].role === "assistant") end--;
+  return end === messages.length ? messages : messages.slice(0, end);
+}
+
+function prepareMessages(model: string, messages: AnthropicMessage[]): AnthropicMessage[] {
+  return supportsTemperature(model) ? messages : stripTrailingAssistant(messages);
 }
 
 export interface AnthropicMessage {
@@ -36,11 +67,11 @@ export interface AnthropicOptions {
 const MODEL_MAP: Record<string, AnthropicModel> = {
   // Opus : tâches complexes qui nécessitent un raisonnement profond
   "audit": "claude-sonnet-4-6",
-  "coaching": "claude-opus-4-6",
+  "coaching": "claude-opus-4-8",
   "coaching_light": "claude-sonnet-4-6",
-  "strategy": "claude-opus-4-6",
-  "branding_audit": "claude-opus-4-6",
-  "assistant_chat": "claude-opus-4-6",
+  "strategy": "claude-opus-4-8",
+  "branding_audit": "claude-opus-4-8",
+  "assistant_chat": "claude-opus-4-8",
 
   // Sonnet : contenu courant, génération rapide
   "content": "claude-sonnet-4-6",
@@ -86,7 +117,7 @@ export function getModelForRichContent(
   hasRichPersonalContent: boolean
 ): AnthropicModel {
   if (hasRichPersonalContent) {
-    return "claude-opus-4-6";
+    return "claude-opus-4-8";
   }
   return getModelForAction(action);
 }
@@ -132,7 +163,7 @@ export async function callAnthropicWithMeta(options: AnthropicOptions): Promise<
 
   const body: any = {
     model: options.model,
-    messages: options.messages,
+    messages: prepareMessages(options.model, options.messages),
     max_tokens: options.max_tokens || 4096,
   };
 
@@ -146,7 +177,8 @@ export async function callAnthropicWithMeta(options: AnthropicOptions): Promise<
     ];
   }
 
-  if (options.temperature !== undefined) {
+  // Opus 4.8/4.7 rejettent `temperature` (400) — on ne l'envoie que si le modèle l'accepte.
+  if (options.temperature !== undefined && supportsTemperature(options.model)) {
     body.temperature = options.temperature;
   }
 
@@ -210,7 +242,7 @@ export async function callAnthropicWithMeta(options: AnthropicOptions): Promise<
     }
 
     // Fallback Opus → Sonnet
-    if ((response.status === 529 || response.status === 500) && options.model === "claude-opus-4-6") {
+    if ((response.status === 529 || response.status === 500) && options.model === "claude-opus-4-8") {
       console.log("Opus overloaded after retries (meta) — falling back to Sonnet...");
       const fallbackBody = { ...body, model: "claude-sonnet-4-6" };
       const fallbackRes = await fetch("https://api.anthropic.com/v1/messages", {
@@ -286,7 +318,7 @@ export async function callAnthropic(options: AnthropicOptions, usageOut?: UsageS
 
   const body: any = {
     model: options.model,
-    messages: options.messages,
+    messages: prepareMessages(options.model, options.messages),
     max_tokens: options.max_tokens || 4096,
   };
 
@@ -300,7 +332,8 @@ export async function callAnthropic(options: AnthropicOptions, usageOut?: UsageS
     ];
   }
 
-  if (options.temperature !== undefined) {
+  // Opus 4.8/4.7 rejettent `temperature` (400) — on ne l'envoie que si le modèle l'accepte.
+  if (options.temperature !== undefined && supportsTemperature(options.model)) {
     body.temperature = options.temperature;
   }
 
@@ -363,7 +396,7 @@ export async function callAnthropic(options: AnthropicOptions, usageOut?: UsageS
     }
 
     // Fallback: if Opus is overloaded (500/529) after all retries, try Sonnet
-    if ((response.status === 529 || response.status === 500) && options.model === "claude-opus-4-6") {
+    if ((response.status === 529 || response.status === 500) && options.model === "claude-opus-4-8") {
       console.log("Opus overloaded after retries — falling back to Sonnet...");
       const fallbackBody = { ...body, model: "claude-sonnet-4-6" };
       const fallbackRes = await fetch("https://api.anthropic.com/v1/messages", {

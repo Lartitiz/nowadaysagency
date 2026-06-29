@@ -19,7 +19,7 @@ import { extractImagePayload } from "../_shared/image-utils.ts";
 // explicitement "Mode qualité Max" (quality_max) — plus soigné mais ~2-3x plus
 // lent. Fini l'escalade silencieuse vers Opus basée sur la longueur des réponses.
 function pickCarouselModel(body: any) {
-  return body?.quality_max ? "claude-opus-4-6" : getModelForAction("carousel");
+  return body?.quality_max ? "claude-opus-4-8" : getModelForAction("carousel");
 }
 
 // ── Helpers contexte par photo ──
