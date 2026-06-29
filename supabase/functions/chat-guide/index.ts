@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
-import { getModelForAction } from "../_shared/anthropic.ts";
+import { getModelForAction, supportsTemperature, stripTrailingAssistant } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
@@ -275,6 +275,9 @@ async function streamAnthropicSSE(
   temperature: number,
   maxTokens: number,
 ): Promise<ReadableStream> {
+  // Opus 4.8/4.7 rejettent temperature ET un prefill (dernier tour assistant) → 400.
+  // On retire les deux pour ces modèles (assistant_chat = Opus 4.8 depuis le Lot 2).
+  const sampled = supportsTemperature(model);
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -286,8 +289,8 @@ async function streamAnthropicSSE(
     body: JSON.stringify({
       model,
       system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
-      messages,
-      temperature,
+      messages: sampled ? messages : stripTrailingAssistant(messages as any),
+      ...(sampled ? { temperature } : {}),
       max_tokens: maxTokens,
       stream: true,
     }),

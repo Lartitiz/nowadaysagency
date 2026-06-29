@@ -30,7 +30,7 @@ const MODELS_REJECTING_SAMPLING = new Set<string>([
   "claude-opus-4-7",
 ]);
 
-function supportsTemperature(model: string): boolean {
+export function supportsTemperature(model: string): boolean {
   return !MODELS_REJECTING_SAMPLING.has(model);
 }
 
@@ -40,7 +40,7 @@ function supportsTemperature(model: string): boolean {
  * dernier message est `user`, mais un renvoi/état particulier peut laisser un tour
  * assistant final. On le retire de façon déterministe pour ces modèles.
  */
-function stripTrailingAssistant(messages: AnthropicMessage[]): AnthropicMessage[] {
+export function stripTrailingAssistant(messages: AnthropicMessage[]): AnthropicMessage[] {
   let end = messages.length;
   while (end > 0 && messages[end - 1].role === "assistant") end--;
   return end === messages.length ? messages : messages.slice(0, end);

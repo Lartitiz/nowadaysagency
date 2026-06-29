@@ -4,7 +4,7 @@
  * Pattern copié depuis chat-guide/index.ts (déjà en production).
  */
 
-import { sanitizeDashes, type AnthropicUsage } from "./anthropic.ts";
+import { sanitizeDashes, supportsTemperature, stripTrailingAssistant, type AnthropicUsage } from "./anthropic.ts";
 
 export async function streamAnthropicSSE(
   apiKey: string,
@@ -14,6 +14,11 @@ export async function streamAnthropicSSE(
   temperature: number,
   maxTokens: number,
 ): Promise<ReadableStream> {
+  // Opus 4.8/4.7 rejettent temperature (paramètre d'échantillonnage) ET un prefill
+  // (dernier tour assistant) → erreur 400. On retire les deux pour ces modèles, comme
+  // le fait le helper non-streaming. Sonnet/Haiku gardent leur comportement habituel.
+  const sampled = supportsTemperature(model);
+  const finalMessages = sampled ? messages : stripTrailingAssistant(messages as any);
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -25,8 +30,8 @@ export async function streamAnthropicSSE(
     body: JSON.stringify({
       model,
       system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
-      messages,
-      temperature,
+      messages: finalMessages,
+      ...(sampled ? { temperature } : {}),
       max_tokens: maxTokens,
       stream: true,
     }),
