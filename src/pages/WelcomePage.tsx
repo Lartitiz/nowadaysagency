@@ -730,14 +730,15 @@ export default function WelcomePage() {
           </div>
         </div>
 
-        {/* F) CTAs — on pousse vers la 1ère création (le « waouh »), dashboard en secondaire */}
+        {/* F) CTAs — 1ère génération guidée (L5) : sujet + format pré-remplis, on saute
+            direct aux questions (auto=1). Le « waouh » dès l'onboarding, sans page blanche. */}
         <div className="flex flex-col gap-3">
           <Button
-            onClick={() => markSeen("/creer")}
+            onClick={() => markSeen(`/creer?sujet=${encodeURIComponent("3 erreurs fréquentes dans mon domaine (et comment les éviter)")}&format=post&auto=1`)}
             className="w-full rounded-pill gap-2"
             size="lg"
           >
-            ✍️ Créer mon premier contenu
+            ✨ Générer mon premier contenu
           </Button>
           <Button
             onClick={() => markSeen("/dashboard")}
