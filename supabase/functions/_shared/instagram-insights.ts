@@ -8,7 +8,7 @@
 // on continue sans elle — on ne casse jamais l'audit.
 import { refreshTokenIfNeeded } from "./instagram-graph.ts";
 
-const GRAPH = "https://graph.instagram.com/v21.0";
+const GRAPH = "https://graph.instagram.com/v23.0";
 
 export interface IgPostMetrics {
   id: string;
@@ -17,11 +17,12 @@ export interface IgPostMetrics {
   timestamp: string;
   permalink?: string;
   reach?: number;
+  views?: number; // nouvelle métrique Meta (remplace impressions) — clé pour les Reels
   likes?: number;
   comments?: number;
   saves?: number;
   shares?: number;
-  engagementRate?: number; // (likes+comments+saves+shares) / reach
+  engagementRate?: number; // (likes+comments+saves+shares) / (reach ou, à défaut, views)
 }
 
 export interface IgAudienceBucket {
@@ -41,6 +42,10 @@ export interface IgLiveMetrics {
   follows?: number;
   mediaCount?: number;
   reach30d?: number;
+  views30d?: number; // vues du compte sur 28 j (remplace impressions, dépréciées par Meta)
+  totalInteractions30d?: number; // likes + commentaires + partages + enregistrements du compte
+  accountsEngaged30d?: number; // nb de comptes uniques ayant interagi
+  profileViews30d?: number; // visites du profil (réintroduit par Meta en 2025)
   followerGrowth30d?: number;
   postsLast30d?: number;
   frequencyLabel?: string;
@@ -98,6 +103,34 @@ async function getJson(url: URL): Promise<any | null> {
     console.warn("IG insights fetch error:", url.pathname, e);
     return null;
   }
+}
+
+// Récupère une métrique compte agrégée (metric_type=total_value) sur 28 jours.
+// Couvre les nouvelles métriques Meta : views, total_interactions, accounts_engaged,
+// profile_views. Appel ISOLÉ par métrique : si l'une n'est pas servie pour ce type de
+// compte / cette version d'API, elle renvoie undefined sans casser les autres.
+async function fetchAccountTotalValue(
+  igId: string,
+  token: string,
+  metric: string,
+  period = "days_28",
+): Promise<number | undefined> {
+  const u = new URL(`${GRAPH}/${igId}/insights`);
+  u.searchParams.set("metric", metric);
+  u.searchParams.set("period", period);
+  u.searchParams.set("metric_type", "total_value");
+  u.searchParams.set("access_token", token);
+  const json = await getJson(u);
+  const d = json?.data?.[0];
+  if (!d) return undefined;
+  const total = d?.total_value?.value;
+  if (typeof total === "number") return total;
+  // À défaut d'agrégat, on somme la série journalière.
+  if (Array.isArray(d?.values)) {
+    const s = d.values.reduce((a: number, v: any) => a + (Number(v?.value) || 0), 0);
+    return s || undefined;
+  }
+  return undefined;
 }
 
 function deriveFrequency(postsLast30d: number): string {
@@ -194,6 +227,22 @@ export async function fetchInstagramInsights(
     partial = true;
   }
 
+  // 2bis. Métriques compte agrégées sur 28 j (views = remplace impressions ;
+  //       total_interactions, accounts_engaged, profile_views). Appels isolés et
+  //       optionnels : une métrique absente reste simplement vide (pas de partial),
+  //       on enrichit le remplissage auto sans jamais dégrader le reste.
+  const [views30d, totalInteractions30d, accountsEngaged30d, profileViews30d] =
+    await Promise.all([
+      fetchAccountTotalValue(igId, token, "views"),
+      fetchAccountTotalValue(igId, token, "total_interactions"),
+      fetchAccountTotalValue(igId, token, "accounts_engaged"),
+      fetchAccountTotalValue(igId, token, "profile_views"),
+    ]);
+  if (typeof views30d === "number") result.views30d = views30d;
+  if (typeof totalInteractions30d === "number") result.totalInteractions30d = totalInteractions30d;
+  if (typeof accountsEngaged30d === "number") result.accountsEngaged30d = accountsEngaged30d;
+  if (typeof profileViews30d === "number") result.profileViews30d = profileViews30d;
+
   // 3. Croissance d'abonnés sur 30 jours. follower_count (period=day) renvoie le nb
   //    de nouveaux abonnés par jour → on somme. On ne garde la valeur QUE si la série
   //    existe vraiment (sinon reduce([]) = 0 ferait passer "pas de données" pour "+0").
@@ -260,12 +309,35 @@ export async function fetchInstagramInsights(
           if (m.name === "saved") pm.saves = val;
           if (m.name === "shares") pm.shares = val;
         }
-        const interactions =
-          (pm.likes || 0) + (pm.comments || 0) + (pm.saves || 0) + (pm.shares || 0);
-        if (pm.reach && pm.reach > 0) pm.engagementRate = interactions / pm.reach;
       } else {
         partial = true;
       }
+
+      // Reels / vidéos : Meta sert souvent "views" plutôt que "reach". On le récupère
+      // dans un appel isolé (pour ne pas casser l'appel éprouvé ci-dessus) afin que
+      // ces formats ne soient pas exclus du classement faute de dénominateur.
+      const isVideo = ["VIDEO", "REEL"].includes(pm.format.toUpperCase());
+      if (isVideo) {
+        const vj = await getJson(
+          (() => {
+            const u = new URL(`${GRAPH}/${post.id}/insights`);
+            u.searchParams.set("metric", "views");
+            u.searchParams.set("access_token", token);
+            return u;
+          })(),
+        );
+        const v = vj?.data?.find((m: any) => m.name === "views");
+        const vVal = v?.values?.[0]?.value ?? v?.total_value?.value;
+        if (typeof vVal === "number") pm.views = vVal;
+      }
+
+      const interactions =
+        (pm.likes || 0) + (pm.comments || 0) + (pm.saves || 0) + (pm.shares || 0);
+      // Dénominateur : reach en priorité, sinon views (Reels), sinon on ne calcule pas.
+      const denom = (pm.reach && pm.reach > 0) ? pm.reach
+        : (pm.views && pm.views > 0) ? pm.views
+        : 0;
+      if (denom > 0) pm.engagementRate = interactions / denom;
       measured.push(pm);
     }
   } else {
