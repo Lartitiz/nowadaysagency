@@ -114,6 +114,9 @@ export default function CreerUnifie() {
   const paramMode = searchParams.get("mode");
   const paramFrom = searchParams.get("from");
   const paramAngle = searchParams.get("angle");
+  // "auto=1" (welcome → 1ère génération guidée) : saute l'étape format et enchaîne
+  // direct sur les questions (l'IA choisit l'angle). Évite la page blanche du 1er contenu.
+  const paramAuto = searchParams.get("auto") === "1";
   const paramIdeaId = searchParams.get("idea_id");
   const paramCalendarDate = searchParams.get("calendar_date") || "";
 
@@ -517,9 +520,10 @@ export default function CreerUnifie() {
       // on saute l'étape "format" et on enchaîne directement sur les questions.
       // Sinon, pour carousel/post on passe par l'étape format pour permettre
       // le sous-choix (carrousel texte/photo, toggle photo).
-      if ((fmt === "carousel" || fmt === "post") && !locState?.fromCalendar && !paramAngle) {
+      if ((fmt === "carousel" || fmt === "post") && !locState?.fromCalendar && !paramAngle && !paramAuto) {
         setStep("format");
       } else {
+        // auto=1 : on saute l'étape format → questions directement (l'IA choisit l'angle)
         handleFormatNext(fmt, calendarAngle, { overrideSubject: enrichedSubject });
       }
     } else if (locState?.fromCalendar && subject) {
