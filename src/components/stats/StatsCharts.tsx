@@ -7,6 +7,7 @@ import { MESSAGES } from "@/lib/messages";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import FollowersChart from "./FollowersChart";
 import EngagementChart from "./EngagementChart";
+import AudienceTrendChart from "./AudienceTrendChart";
 import { fmt, pctChange, monthLabel } from "@/lib/stats-helpers";
 import { type StatsRow, type StatsConfig, ALL_TRAFFIC_SOURCES } from "./stats-types";
 
@@ -91,6 +92,13 @@ export default function StatsCharts({
             subtitle="Taux d'engagement (par portée) et engagement par abonné·es."
           >
             <EngagementChart data={chartData as any} />
+          </ChartCard>
+
+          <ChartCard
+            title="Évolution de ton audience"
+            subtitle="Part de tes segments dominants (genre, âge, pays) au fil des mois — alimentée par « Remplir depuis Instagram »."
+          >
+            <AudienceTrendChart rows={periodStats} />
           </ChartCard>
 
           <ChartCard title="Sources de trafic site web">
