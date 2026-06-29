@@ -2,6 +2,9 @@ import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { supabase } from "@/integrations/supabase/client";
 
 const PUBLISH_BUCKET = "instagram-publish";
+// Durée de vie de l'URL signée servie à Instagram. Instagram récupère (cURL) chaque
+// image en quelques secondes au moment de la création des containers ; 1h est large.
+const SIGNED_URL_TTL_SECONDS = 3600;
 
 export interface InstagramPublishResult {
   success: boolean;
@@ -84,7 +87,12 @@ interface VisualSlideInput {
   html: string;
 }
 
-/** Upload des PNG de slides dans le bucket public, renvoie les URLs publiques + chemins. */
+/**
+ * Upload les slides dans le bucket (privé) et renvoie une URL SIGNÉE par slide + les
+ * chemins. Le bucket est privé (la politique workspace interdit les buckets publics) :
+ * on sert donc des URLs signées temporaires plutôt que getPublicUrl — Instagram les
+ * récupère sans authentification le temps de la publication.
+ */
 async function uploadSlideBlobs(
   blobs: { slide_number: number; blob: Blob }[],
   userId: string,
@@ -101,9 +109,13 @@ async function uploadSlideBlobs(
       .from(PUBLISH_BUCKET)
       .upload(path, blob, { contentType: blob.type || "image/png", upsert: true });
     if (error) throw new Error(`Upload d'une slide échoué : ${error.message}`);
-    const { data } = supabase.storage.from(PUBLISH_BUCKET).getPublicUrl(path);
-    if (!data?.publicUrl) throw new Error("URL publique introuvable pour une slide.");
-    urls.push(data.publicUrl);
+    const { data, error: signErr } = await supabase.storage
+      .from(PUBLISH_BUCKET)
+      .createSignedUrl(path, SIGNED_URL_TTL_SECONDS);
+    if (signErr || !data?.signedUrl) {
+      throw new Error(`URL signée introuvable pour une slide : ${signErr?.message ?? "inconnue"}`);
+    }
+    urls.push(data.signedUrl);
     paths.push(path);
   }
   return { urls, paths };
