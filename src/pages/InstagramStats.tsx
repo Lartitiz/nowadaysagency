@@ -333,6 +333,15 @@ export default function InstagramStats() {
       if (typeof m.followerGrowth30d === "number" && m.followerGrowth30d >= 0) {
         patch.followers_gained = m.followerGrowth30d; filled.push("abonnés gagnés");
       }
+      // Persiste un snapshot de l'audience du mois (custom_data, JSONB inutilisé sinon)
+      // pour pouvoir tracer son évolution dans le temps. Non bloquant : pas dans `filled`.
+      const aud = m.audience;
+      if (aud && (aud.age?.length || aud.gender?.length || aud.cities?.length || aud.countries?.length)) {
+        patch.custom_data = {
+          ...((existing as any).custom_data || {}),
+          ig_audience: { ...aud, fetchedAt: m.fetchedAt || new Date().toISOString() },
+        };
+      }
       if (!filled.length) {
         toast("Aucune métrique exploitable", { description: "L'API n'a renvoyé aucun chiffre fiable cette fois. Réessaie un peu plus tard." });
         return;
