@@ -213,7 +213,7 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
   const [
     profilesRes, subsRes, aiRes, brandRes, personaRes, storyRes, propRes, stratRes,
     aiPrevRes, draftsRes, calendarRes, scoresRes, authUsers,
-    aiLifetimeRes, calLifetimeRes,
+    aiLifetimeRes, calLifetimeRes, socialRes,
   ] = await Promise.all([
     supabase.from("profiles").select("user_id, prenom, email, created_at, onboarding_completed, type_activite, canaux, level"),
     supabase.from("subscriptions").select("user_id, plan, status, created_at, canceled_at, current_period_start, current_period_end, source"),
@@ -228,9 +228,10 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
     supabase.from("calendar_posts").select("user_id, created_at, canal, status").gte("created_at", monthStart),
     supabase.from("content_scores").select("user_id, global_score, created_at").gte("created_at", monthStart),
     listAllAuthUsers(supabase),
-    // Lifetime (tunnel d'activation + adoption par fonctionnalité)
-    supabase.from("ai_usage").select("user_id, category"),
+    // Lifetime (tunnel d'activation + adoption + vitesse d'activation + rétention)
+    supabase.from("ai_usage").select("user_id, category, created_at"),
     supabase.from("calendar_posts").select("user_id, status, publish_status, published_at"),
+    supabase.from("social_connections").select("user_id, platform"),
   ]);
 
   // Auth map
@@ -508,6 +509,81 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
   // Ce mois = publiées dont published_at tombe dans le mois courant (posé par le cron + la publication directe)
   const publishedThisMonth = calLifetime.filter((c: any) => isPublished(c) && c.published_at && c.published_at >= monthStart).length;
 
+  // ── Connexions réseaux (% d'inscrites ayant branché un réseau) ──
+  const conns = (socialRes.data || []).filter((c: any) => clientIds.has(c.user_id));
+  const connByPlatform: Record<string, Set<string>> = {};
+  for (const c of conns) (connByPlatform[c.platform || "autre"] ||= new Set()).add(c.user_id);
+  const anyConnected = new Set(conns.map((c: any) => c.user_id)).size;
+  const networkConnections = {
+    any: anyConnected,
+    any_rate: totalUsers > 0 ? Math.round((anyConnected / totalUsers) * 100) : 0,
+    by_platform: Object.entries(connByPlatform)
+      .map(([platform, set]) => ({ platform, users: set.size, rate: totalUsers > 0 ? Math.round((set.size / totalUsers) * 100) : 0 }))
+      .sort((a, b) => b.users - a.users),
+  };
+
+  // ── Vitesse d'activation (médiane jours inscription → 1ère génération / 1ère publication) ──
+  const DAY = 86400000;
+  const signupMap = new Map<string, number>();
+  for (const p of clientProfiles) if (p.created_at) signupMap.set(p.user_id, new Date(p.created_at).getTime());
+  const firstByUser = (rows: any[], field: string, keep: (r: any) => boolean) => {
+    const m = new Map<string, number>();
+    for (const r of rows) {
+      if (!keep(r) || !r[field]) continue;
+      const t = new Date(r[field]).getTime();
+      const cur = m.get(r.user_id);
+      if (cur === undefined || t < cur) m.set(r.user_id, t);
+    }
+    return m;
+  };
+  const firstGenMap = firstByUser(aiLifetime, "created_at", () => true);
+  const firstPubMap = firstByUser(calLifetime, "published_at", isPublished);
+  const median = (arr: number[]): number | null => {
+    if (!arr.length) return null;
+    const s = [...arr].sort((a, b) => a - b);
+    const mid = Math.floor(s.length / 2);
+    return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+  };
+  const delaysFrom = (m: Map<string, number>) => {
+    const out: number[] = [];
+    for (const [uid, t] of m) { const s = signupMap.get(uid); if (s !== undefined && t >= s) out.push((t - s) / DAY); }
+    return out;
+  };
+  const genDelays = delaysFrom(firstGenMap);
+  const pubDelays = delaysFrom(firstPubMap);
+  const round1 = (n: number | null) => n === null ? null : Math.round(n * 10) / 10;
+  const activationSpeed = {
+    median_days_to_first_gen: round1(median(genDelays)),
+    median_days_to_first_publish: round1(median(pubDelays)),
+    n_gen: genDelays.length,
+    n_pub: pubDelays.length,
+  };
+
+  // ── Rétention par semaine après inscription (courbe agrégée — robuste au petit volume) ──
+  const genTimesByUser: Record<string, number[]> = {};
+  for (const a of aiLifetime) if (a.created_at) (genTimesByUser[a.user_id] ||= []).push(new Date(a.created_at).getTime());
+  const WEEK = 7 * DAY;
+  const nowMs = now.getTime();
+  const retentionCurve = [1, 2, 3, 4].map((k) => {
+    let eligible = 0, active = 0;
+    for (const p of clientProfiles) {
+      const s = signupMap.get(p.user_id);
+      if (s === undefined) continue;
+      const weekStart = s + (k - 1) * WEEK;
+      const weekEnd = s + k * WEEK;
+      if (nowMs < weekEnd) continue; // semaine k pas encore écoulée pour cette inscrite
+      eligible++;
+      if ((genTimesByUser[p.user_id] || []).some((t) => t >= weekStart && t < weekEnd)) active++;
+    }
+    return { week: k, eligible, active, rate: eligible > 0 ? Math.round((active / eligible) * 100) : 0 };
+  });
+
+  // ── Santé : publications échouées (les échecs de génération ne sont pas tracés dans ai_usage) ──
+  const publishHealth = {
+    failed: calLifetime.filter((c: any) => c.publish_status === "failed").length,
+    attempts: calLifetime.filter((c: any) => c.publish_status === "published" || c.publish_status === "failed").length,
+  };
+
   return {
     // Existing
     total_users: totalUsers,
@@ -564,6 +640,10 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
     // Activation & adoption
     activation_funnel: activationFunnel,
     feature_adoption: featureAdoption,
+    network_connections: networkConnections,
+    activation_speed: activationSpeed,
+    retention_curve: retentionCurve,
+    publish_health: publishHealth,
     published_this_month: publishedThisMonth,
     published_total: publishedTotal,
   };
