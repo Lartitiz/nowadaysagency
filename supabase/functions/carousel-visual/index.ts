@@ -1382,6 +1382,7 @@ Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": ".
         return ratio(text6, bg6) >= ratio(secondary6, bg6) ? text6 : secondary6;
       };
       let titlesFixed = 0;
+      let bodyFixed = 0;
       result.slides_html = result.slides_html.map((slide: any) => {
         let html: string = slide.html || "";
         // Fond réel de la slide = 1ère couleur de fond UNIE rencontrée (le regex n'attrape
@@ -1411,10 +1412,43 @@ Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": ".
               return `style="${newStyle}"`;
             }),
         );
+
+        // Étendre la MÊME garde déterministe au CORPS et au SOUS-TITRE (texte descriptif
+        // qui DOIT rester lisible). Sinon un body/subtitle colorisé en accent clair sur
+        // fond clair (ex. #C9BFB2 / #FFE561) passe illisible, dans l'aperçu ET l'export.
+        // On NE touche PAS `caption` (labels colorés ❌/✅ et numéros décoratifs voulus)
+        // ni `overlay` (texte sur photo, géré par la passe de contraste photo dédiée).
+        // Repli : le texte de charte (color_text) en priorité, sinon la meilleure option
+        // foncée disponible ; blanc sur fond sombre.
+        const bodyDark = (b: string): string =>
+          ratio(text6, b) >= LIGHT_BG_FLOOR ? text6 : bestDark(b);
+        html = html.replace(
+          /<([a-z0-9]+)([^>]*\bdata-pptx-editable\s*=\s*["'](?:body|subtitle)["'][^>]*)>/gi,
+          (full: string) =>
+            full.replace(/style\s*=\s*"([^"]*)"/i, (sm: string, style: string) => {
+              const cm = style.match(/(?:^|;)\s*color\s*:\s*([^;]+)/i);
+              if (!cm) return sm;
+              const eff = hexOnBg(cm[1], bg6);
+              if (!eff) return sm;
+              let repl: string | null = null;
+              if (bgIsLight) {
+                if (ratio(eff, bg6) < LIGHT_BG_FLOOR) repl = bodyDark(bg6);
+              } else {
+                if (ratio(eff, bg6) < DARK_BG_FLOOR) repl = "FFFFFF";
+              }
+              if (!repl || repl === eff) return sm;
+              bodyFixed++;
+              const newStyle = style.replace(/((?:^|;)\s*)color\s*:\s*[^;]+/i, `$1color:#${repl}`);
+              return `style="${newStyle}"`;
+            }),
+        );
         return { ...slide, html };
       });
       if (titlesFixed > 0) {
         console.log(`carousel-visual: ${titlesFixed} titre(s) à faible contraste corrigé(s) (garde déterministe)`);
+      }
+      if (bodyFixed > 0) {
+        console.log(`carousel-visual: ${bodyFixed} corps/sous-titre(s) à faible contraste corrigé(s) (garde déterministe)`);
       }
     }
 
