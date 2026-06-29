@@ -141,6 +141,10 @@ interface StatsData {
   feature_adoption?: { category: string; users: number; rate: number }[];
   published_this_month?: number;
   published_total?: number;
+  network_connections?: { any: number; any_rate: number; by_platform: { platform: string; users: number; rate: number }[] };
+  activation_speed?: { median_days_to_first_gen: number | null; median_days_to_first_publish: number | null; n_gen: number; n_pub: number };
+  retention_curve?: { week: number; eligible: number; active: number; rate: number }[];
+  publish_health?: { failed: number; attempts: number };
 }
 
 type Section = "dashboard" | "business" | "engagement_product" | "users";
@@ -336,6 +340,20 @@ function OverviewSection({ stats }: { stats: StatsData }) {
               );
             })}
           </div>
+        </ChartCard>
+      )}
+
+      {/* Connexions réseaux : explique la dernière marche du tunnel (pas de compte branché = pas de publication) */}
+      {stats.network_connections && (
+        <ChartCard title={`Connexions réseaux — ${stats.network_connections.any_rate}% ont branché au moins un réseau`}>
+          <StatBars
+            items={(stats.network_connections.by_platform || []).map(p => ({
+              label: CANAL_LABELS[p.platform] || p.platform,
+              value: p.users,
+              suffix: ` (${p.rate}%)`,
+            }))}
+            emptyMessage="Aucune connexion réseau"
+          />
         </ChartCard>
       )}
 
@@ -555,6 +573,52 @@ function EngagementProductSection({ stats }: { stats: StatsData }) {
         </ChartCard>
       )}
 
+      {/* Vitesse d'activation + Santé publication */}
+      {(stats.activation_speed || stats.publish_health) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {stats.activation_speed && (
+            <ChartCard title="Vitesse d'activation (médiane)">
+              <div className="space-y-3">
+                <div className="flex items-baseline justify-between">
+                  <span className="text-sm text-foreground">Inscription → 1ʳᵉ génération</span>
+                  <span className="text-lg font-bold font-display tabular-nums">{stats.activation_speed.median_days_to_first_gen ?? "—"}{stats.activation_speed.median_days_to_first_gen !== null && <span className="text-xs font-normal text-muted-foreground"> j</span>}</span>
+                </div>
+                <div className="flex items-baseline justify-between">
+                  <span className="text-sm text-foreground">Inscription → 1ʳᵉ publication</span>
+                  <span className="text-lg font-bold font-display tabular-nums">{stats.activation_speed.median_days_to_first_publish ?? "—"}{stats.activation_speed.median_days_to_first_publish !== null && <span className="text-xs font-normal text-muted-foreground"> j</span>}</span>
+                </div>
+                <p className="text-2xs text-muted-foreground">Sur {stats.activation_speed.n_gen} génératrices · {stats.activation_speed.n_pub} publieuses</p>
+              </div>
+            </ChartCard>
+          )}
+          {stats.publish_health && (
+            <ChartCard title="Santé publication">
+              {stats.publish_health.attempts > 0 ? (
+                <div className="flex items-baseline justify-between">
+                  <span className="text-sm text-foreground">Publications échouées</span>
+                  <span className={`text-lg font-bold font-display tabular-nums ${stats.publish_health.failed > 0 ? "text-error" : "text-success"}`}>{stats.publish_health.failed}<span className="text-xs font-normal text-muted-foreground"> / {stats.publish_health.attempts}</span></span>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Aucune tentative de publication directe pour l'instant.</p>
+              )}
+              <p className="text-2xs text-muted-foreground mt-3">Les échecs de génération IA ne sont pas tracés (seuls les succès sont enregistrés).</p>
+            </ChartCard>
+          )}
+        </div>
+      )}
+
+      {/* Rétention par semaine après inscription */}
+      {stats.retention_curve && stats.retention_curve.length > 0 && (
+        <ChartCard title="Rétention par semaine après inscription">
+          <StatBars
+            max={100}
+            items={stats.retention_curve.map(r => ({ label: `Semaine +${r.week}`, value: r.rate, suffix: `% (${r.active}/${r.eligible})` }))}
+            emptyMessage="Pas encore assez de recul"
+          />
+          <p className="text-2xs text-muted-foreground mt-3">% des inscrites assez anciennes qui ont généré au moins une fois pendant cette semaine-là. Indicatif au volume actuel.</p>
+        </ChartCard>
+      )}
+
       {/* Détail fonctionnalités IA (toutes) — volume de générations */}
       <ChartCard title="Détail fonctionnalités IA (volume de générations)">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
@@ -761,9 +825,9 @@ function KpiCard({ title, value, suffix, sub, subColor, trend, status }: {
 }
 
 /* Barres horizontales unifiées (même langage que le tunnel d'activation) — remplace les graphes recharts épars. */
-function StatBars({ items, emptyMessage }: { items: { label: string; value: number; suffix?: string; color?: string }[]; emptyMessage: string }) {
+function StatBars({ items, emptyMessage, max: fixedMax }: { items: { label: string; value: number; suffix?: string; color?: string }[]; emptyMessage: string; max?: number }) {
   if (!items.length) return <EmptyChart message={emptyMessage} />;
-  const max = Math.max(...items.map(i => i.value), 1);
+  const max = fixedMax ?? Math.max(...items.map(i => i.value), 1);
   return (
     <div className="space-y-3">
       {items.map((it) => (
