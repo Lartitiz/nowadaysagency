@@ -296,6 +296,35 @@ function CharterSection({ data }: { data: AnalysisResult["charter"] }) {
 }
 
 // ─── Save helpers ────────────────────────────────────────────
+
+/**
+ * Upsert ciblé de quelques colonnes de `brand_profile` (la table de synthèse lue
+ * par la génération via _shared/user-context.ts), en complétant uniquement les
+ * champs vides (fillOnlyEmpty n'écrase jamais une saisie existante).
+ * Sert à alimenter target_description / target_problem / mission depuis l'autofill,
+ * qui étaient lus par l'IA mais jamais remplis. Les save* tournent par section
+ * (au clic « valider »), donc séquentiellement → pas de race sur la ligne.
+ */
+async function fillBrandProfileSynthesis(
+  fields: Record<string, any>,
+  userId: string,
+  workspaceId: string,
+) {
+  if (Object.keys(fields).length === 0) return;
+  const filterCol = workspaceId && workspaceId !== userId ? "workspace_id" : "user_id";
+  const filterVal = workspaceId && workspaceId !== userId ? workspaceId : userId;
+  const selectCols = `id, ${Object.keys(fields).join(", ")}`;
+  const { data: existing } = await (supabase.from("brand_profile") as any)
+    .select(selectCols).eq(filterCol, filterVal).maybeSingle();
+  if (existing?.id) {
+    const toWrite = fillOnlyEmpty(fields, existing);
+    if (Object.keys(toWrite).length === 0) return;
+    await (supabase.from("brand_profile") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existing.id);
+  } else {
+    await (supabase.from("brand_profile") as any).insert({ user_id: userId, workspace_id: workspaceId || null, updated_at: new Date().toISOString(), ...fields });
+  }
+}
+
 async function saveStory(data: AnalysisResult["story"], userId: string, workspaceId: string) {
   if (!data) return;
 
@@ -333,6 +362,10 @@ async function saveStory(data: AnalysisResult["story"], userId: string, workspac
       ...fields,
     });
   }
+
+  // La vision tient lieu de mission tant que celle-ci est vide : brand_profile.mission
+  // est injectée dans le prompt de génération (section IDENTITÉ) et restait vide.
+  if (data.vision) await fillBrandProfileSynthesis({ mission: data.vision }, userId, workspaceId);
 }
 async function savePersona(data: AnalysisResult["persona"], userId: string, workspaceId: string) {
   if (!data) return;
@@ -371,8 +404,11 @@ async function savePersona(data: AnalysisResult["persona"], userId: string, work
       basePortrait.qui_elle_est = { ...(basePortrait.qui_elle_est || {}), metier: data.job };
       toWrite.portrait = basePortrait;
     }
-    if (Object.keys(toWrite).length === 0) return; // rien à compléter
-    await (supabase.from("persona") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existing.id);
+    if (Object.keys(toWrite).length === 0) {
+      // rien à compléter sur persona — mais on tente quand même la synthèse brand_profile
+    } else {
+      await (supabase.from("persona") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existing.id);
+    }
   } else {
     if (data.job) fields.portrait = { qui_elle_est: { metier: data.job } };
     await (supabase.from("persona") as any).insert({
@@ -383,6 +419,10 @@ async function savePersona(data: AnalysisResult["persona"], userId: string, work
       ...fields,
     });
   }
+
+  // La description de la cible est lue par la génération (brand_profile.target_description)
+  // et restait vide après l'autofill — on la complète depuis le persona.
+  if (data.description) await fillBrandProfileSynthesis({ target_description: data.description }, userId, workspaceId);
 }
 async function saveValueProp(data: AnalysisResult["value_proposition"], userId: string, workspaceId: string) {
   if (!data) return;
@@ -401,11 +441,16 @@ async function saveValueProp(data: AnalysisResult["value_proposition"], userId: 
     .select("id, step_1_what, version_one_liner, version_final, step_2a_process, step_2d_refuse, step_3_for_whom").eq(filterCol, filterVal).maybeSingle();
   if (existing?.id) {
     const toWrite = fillOnlyEmpty(fields, existing);
-    if (Object.keys(toWrite).length === 0) return;
-    await (supabase.from("brand_proposition") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existing.id);
+    if (Object.keys(toWrite).length > 0) {
+      await (supabase.from("brand_proposition") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existing.id);
+    }
   } else {
     await (supabase.from("brand_proposition") as any).insert({ user_id: userId, workspace_id: workspaceId || null, updated_at: new Date().toISOString(), ...fields });
   }
+
+  // Le problème principal de la cible est lu par la génération (brand_profile.target_problem)
+  // et restait vide — on le complète depuis le problème de la proposition de valeur.
+  if (data.problem) await fillBrandProfileSynthesis({ target_problem: data.problem }, userId, workspaceId);
 }
 async function saveTone(data: AnalysisResult["tone_style"], userId: string, workspaceId: string) {
   if (!data) return;
@@ -531,7 +576,7 @@ const SAVE_FNS: Record<SectionKey, (data: any, uid: string, wsId: string) => Pro
 };
 
 const QUERY_KEYS: Record<SectionKey, string[]> = {
-  story: ["storytelling-primary", "storytelling-list"], persona: ["persona", "brand-profile"], value_proposition: ["brand-proposition"], tone_style: ["brand-profile"], content_strategy: ["brand-strategy", "brand-profile"], offers: ["brand-profile"], charter: ["brand-charter"],
+  story: ["storytelling-primary", "storytelling-list", "brand-profile"], persona: ["persona", "brand-profile"], value_proposition: ["brand-proposition", "brand-profile"], tone_style: ["brand-profile"], content_strategy: ["brand-strategy", "brand-profile"], offers: ["brand-profile"], charter: ["brand-charter"],
 };
 
 const RENDERERS: Record<SectionKey, (analysis: AnalysisResult) => React.ReactNode> = {
