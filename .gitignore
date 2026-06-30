@@ -28,3 +28,8 @@ dist-ssr
 .env.local
 .env.production
 .env.*.local
+
+# Visite guidée Playwright (artefacts locaux : session + captures)
+e2e-visite/.auth/
+e2e-visite/shots/
+e2e-visite/results/
