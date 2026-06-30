@@ -1,9 +1,83 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, ArrowRight, Sparkles, SkipForward, Loader2 } from "lucide-react";
 import type { Question } from "@/hooks/use-content-generator";
+
+// ─── Loader honnête pour la préparation des questions ───
+// La latence de l'edge qui génère les questions varie fortement (cold-start
+// d'isolate + backoff de retry IA) : de ~4s à parfois plus d'une minute. Un
+// loader qui promet « quelques secondes » devient mensonger et casse la confiance
+// sur le chemin critique d'activation. On affiche donc une progression honnête
+// avec messages qui tournent + barre + réassurance progressive (modèle calqué
+// sur DiagnosticLoading), sans jamais mentir sur la durée.
+const QUESTIONS_LOADING_MESSAGES = [
+  "Je prépare des questions sur-mesure pour ton sujet…",
+  "Je m'imprègne de ton univers de marque…",
+  "Je cherche les angles qui rendront ton contenu unique…",
+  "J'affine pour ne te poser que l'essentiel…",
+];
+
+function QuestionsLoading() {
+  const [elapsed, setElapsed] = useState(0);
+  const [msgIdx, setMsgIdx] = useState(0);
+  const [progress, setProgress] = useState(8);
+
+  // Compteur de secondes écoulées (pour la réassurance à 15s / 30s).
+  useEffect(() => {
+    const t = setInterval(() => setElapsed((s) => s + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  // Rotation des messages de patience.
+  useEffect(() => {
+    const t = setInterval(
+      () => setMsgIdx((i) => (i + 1) % QUESTIONS_LOADING_MESSAGES.length),
+      3500
+    );
+    return () => clearInterval(t);
+  }, []);
+
+  // Barre de progression « honnête » : elle avance mais ralentit et plafonne
+  // vers 90% pour ne jamais prétendre que c'est fini tant que les questions
+  // ne sont pas là (le parent retire ce loader dès qu'elles arrivent).
+  useEffect(() => {
+    const t = setInterval(() => {
+      setProgress((p) => {
+        if (p >= 90) return 90;
+        const step = p < 40 ? 3 : p < 70 ? 1.5 : 0.6;
+        return Math.min(90, p + step);
+      });
+    }, 600);
+    return () => clearInterval(t);
+  }, []);
+
+  return (
+    <div className="py-10 text-center animate-fade-in space-y-5">
+      <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+
+      <div className="max-w-xs mx-auto space-y-2">
+        <Progress value={progress} className="h-1.5" />
+      </div>
+
+      <p
+        key={msgIdx}
+        className="text-sm font-medium text-foreground animate-fade-in min-h-[20px]"
+      >
+        {QUESTIONS_LOADING_MESSAGES[msgIdx]}
+      </p>
+
+      {elapsed >= 15 && (
+        <p className="text-xs text-muted-foreground animate-fade-in">
+          {elapsed >= 30
+            ? "C'est un peu plus long que d'habitude — ça arrive. Encore un instant…"
+            : "Je creuse pour des questions vraiment pertinentes, ça arrive…"}
+        </p>
+      )}
+    </div>
+  );
+}
 
 interface Props {
   format: string;
@@ -45,19 +119,15 @@ export default function CreerStepQuestions({
   };
 
   if (loadingQuestions) {
-    return (
-      <div className="py-12 text-center animate-fade-in space-y-3">
-        <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
-        <p className="text-sm font-medium text-foreground">Préparation des questions…</p>
-        <p className="text-xs text-muted-foreground">Quelques secondes.</p>
-      </div>
-    );
+    return <QuestionsLoading />;
   }
 
   if (questions.length === 0) {
     return (
       <div className="py-8 text-center animate-fade-in space-y-4">
-        <p className="text-sm text-muted-foreground">Pas de questions pour ce format.</p>
+        <p className="text-sm text-muted-foreground">
+          Pas de questions cette fois — on peut générer directement, ton contenu sera très bien quand même.
+        </p>
         <Button onClick={handleSkip} disabled={isSubmitting} className="gap-2">
           {isSubmitting ? (
             <><Loader2 className="h-4 w-4 animate-spin" /> Lancement…</>

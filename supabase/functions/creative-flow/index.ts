@@ -1446,6 +1446,9 @@ ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}
         messages: [{ role: "user", content: questionsContent }],
         temperature: 0.8,
         max_tokens: 1500,
+        // Questions ancrées sur photos : plus lourd (upload images) mais reste
+        // borné — 60s/tentative évite le blocage indéfini d'un fetch qui traîne.
+        abortTimeoutMs: 60000,
       }, finalUsage);
     } else if (step === "generate" && body.photo_mode && body.photos?.[0]?.base64) {
       // Photo mode with vision: send 1 to 10 images to Claude — format-aware prompt.
@@ -1544,7 +1547,11 @@ ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}
       const modelForCall = (step === "questions" || step === "follow-up")
         ? getModelForAction("questions")
         : getModelForAction("content");
-      rawContent = await callAnthropicSimple(modelForCall, systemPrompt, userPrompt!, tempText, maxTokens, finalUsage);
+      // Questions/follow-up = appels Haiku courts et bornés : on plafonne chaque
+      // tentative à 30s pour qu'un fetch qui traîne bascule vite en retry plutôt
+      // que de faire patienter l'utilisatrice >1 min sur le chemin d'activation.
+      const abortMs = (step === "questions" || step === "follow-up") ? 30000 : undefined;
+      rawContent = await callAnthropicSimple(modelForCall, systemPrompt, userPrompt!, tempText, maxTokens, finalUsage, abortMs);
     }
 
     // Plus de fallback { raw } muet : une réponse illisible = erreur claire (502),
