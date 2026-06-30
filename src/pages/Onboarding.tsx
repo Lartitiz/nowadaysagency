@@ -143,7 +143,13 @@ export default function Onboarding() {
                   {step === 7 && <BlocageScreen value={answers.blocage} onChange={v => { set("blocage", v); setPendingAutoNext(true); }} />}
                   {step === 8 && <TempsScreen value={answers.temps} onChange={v => { set("temps", v); setPendingAutoNext(true); }} />}
                   {step === 9 && <ChangeScreen value={answers.change_priority} onChange={v => set("change_priority", v)} onNext={validatedNext} />}
-                  {step === 10 && <UniquenessScreen value={answers.uniqueness} onChange={v => set("uniqueness", v)} onNext={async () => { await handleFinish(); next(); }} />}
+                  {/* On affiche le loader de diagnostic IMMÉDIATEMENT (next) et on
+                      sauvegarde en arrière-plan (handleFinish) : sinon l'écran 10
+                      restait figé pendant les ~8 écritures Supabase, donnant un
+                      « écran blanc » avant le diagnostic. deep-diagnostic lit les
+                      réponses du body (pas la BDD) et handleDiagnosticComplete
+                      re-sauve onboarding_completed → sûr de ne pas attendre ici. */}
+                  {step === 10 && <UniquenessScreen value={answers.uniqueness} onChange={v => set("uniqueness", v)} onNext={() => { next(); void handleFinish(); }} />}
                   {step === 11 && <DiagnosticLoading hasInstagram={hasInstagram} hasWebsite={hasWebsite} hasDocuments={isDemoMode ? true : uploadedFiles.length > 0} isDemoMode={isDemoMode} answers={answers} brandingAnswers={brandingAnswers} uploadedFileIds={uploadedFiles.map(f => f.id)} activityType={answers.activity_type} onReady={(data) => { setDiagnosticData(data); setStep(12); }} />}
                 </motion.div>
               </AnimatePresence>
