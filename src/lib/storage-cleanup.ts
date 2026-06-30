@@ -25,6 +25,26 @@ const LOCAL_KEYS = [
   // workspace du compte précédent → l'app affiche le profil/branding du
   // propriétaire de CET espace (modèle agence) au lieu du nouveau compte.
   "active_workspace_id",
+
+  // Brouillon d'onboarding + prénom de l'inscription. NON scopés par compte :
+  // sans purge, le prénom d'un compte/espace (ex. « Camille » du compte test)
+  // reste dans lac_prenom et est réécrit comme prénom par défaut au prochain
+  // onboarding → contamine le profil d'un autre compte/espace ("Salut Camille"
+  // partout). Cf use-onboarding.ts (seed depuis lac_prenom) + SignupForm.tsx.
+  "lac_prenom",
+  "lac_onboarding_step",
+  "lac_onboarding_answers",
+  "lac_onboarding_branding",
+  "lac_onboarding_ts",
+  "lac_onboarding_reset",
+  "lac_branding_cache_refreshed",
+
+  // État d'affichage du bandeau « Tes premiers pas » (replié / masqué / vu).
+  // Globaux → l'état bave entre espaces (un dismiss sur un espace masque le
+  // bandeau partout, et inversement). Purgés au switch pour repartir propre.
+  "lac_missions_collapsed",
+  "lac_missions_first_seen",
+  "missions_dismissed_at",
 ];
 
 // Préfixes localStorage scopés par user (à balayer)
