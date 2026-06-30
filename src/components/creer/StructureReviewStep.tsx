@@ -272,7 +272,7 @@ export default function StructureReviewStep({
                         : "border-warning/30 opacity-100"
                   }`}
                 >
-                  <img
+                  <img loading="lazy"
                     src={photo.preview}
                     alt={`Photo ${photoIdx}`}
                     className="w-full h-full object-cover"
@@ -343,7 +343,7 @@ export default function StructureReviewStep({
 
               {slide.photo_index && photos && photos[slide.photo_index - 1] && (
                 <div className="flex items-center gap-1">
-                  <img
+                  <img loading="lazy"
                     src={photos[slide.photo_index - 1].preview}
                     alt={`Photo ${slide.photo_index}`}
                     className="w-8 h-8 rounded-md object-cover"

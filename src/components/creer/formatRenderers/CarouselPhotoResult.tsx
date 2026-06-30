@@ -665,7 +665,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                 return (
                   <div className="flex items-end gap-2">
                     {photo?.preview ? (
-                      <img
+                      <img loading="lazy"
                         src={photo.preview}
                         alt={`Photo ${photoNum}`}
                         className="h-32 w-auto rounded-md object-cover border border-border"

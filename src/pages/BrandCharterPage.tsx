@@ -280,7 +280,7 @@ function MoodboardSection({ images, description, onImagesChange, onDescriptionCh
                 dragOverIdx === idx ? "border-primary ring-2 ring-primary/20" : "border-border"
               }`}
             >
-              <img src={img.url} alt={img.name} className="w-full h-full object-cover" />
+              <img loading="lazy" src={img.url} alt={img.name} className="w-full h-full object-cover" />
               <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/10 transition-colors" />
               <button
                 onClick={() => removeImage(idx)}
@@ -883,7 +883,7 @@ export default function BrandCharterPage() {
                     backgroundPosition: "0 0, 0 6px, 6px -6px, -6px 0",
                   } : undefined}
                 >
-                  <img src={data.logo_url} alt="Logo" className="max-h-32 max-w-full object-contain block" />
+                  <img loading="lazy" src={data.logo_url} alt="Logo" className="max-h-32 max-w-full object-contain block" />
                 </div>
                 {isLogoCutout && (
                   <span className="inline-flex items-center gap-1 text-2xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">
@@ -1171,7 +1171,7 @@ export default function BrandCharterPage() {
               <p className="text-2xs uppercase tracking-wide text-muted-foreground text-center">Avant</p>
               <div className="rounded-lg border border-border bg-white aspect-square flex items-center justify-center p-3">
                 {cutoutSourcePreview ? (
-                  <img src={cutoutSourcePreview} alt="Logo original" className="max-h-full max-w-full object-contain" />
+                  <img loading="lazy" src={cutoutSourcePreview} alt="Logo original" className="max-h-full max-w-full object-contain" />
                 ) : (
                   <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                 )}
@@ -1192,7 +1192,7 @@ export default function BrandCharterPage() {
                 {cutoutLoading ? (
                   <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                 ) : cutoutResultUrl ? (
-                  <img src={cutoutResultUrl} alt="Logo détouré" className="max-h-full max-w-full object-contain" />
+                  <img loading="lazy" src={cutoutResultUrl} alt="Logo détouré" className="max-h-full max-w-full object-contain" />
                 ) : (
                   <span className="text-xs text-muted-foreground text-center px-2">Clique "Détourer le fond" pour voir l'aperçu</span>
                 )}

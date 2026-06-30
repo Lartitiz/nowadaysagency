@@ -183,7 +183,7 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
               <label className="text-xs font-semibold text-muted-foreground">Screenshot du post</label>
               {screenshotPreview ? (
                 <div className="relative rounded-lg border border-border overflow-hidden bg-muted/30">
-                  <img
+                  <img loading="lazy"
                     src={screenshotPreview}
                     alt="Screenshot du post"
                     className="w-full max-h-[200px] object-contain"

@@ -317,7 +317,7 @@ export default function InspireFlow() {
                   {files.map((f, i) => (
                     <div key={i} className="relative group">
                       {f.type.startsWith("image/") ? (
-                        <img src={URL.createObjectURL(f)} alt={f.name} className="h-20 w-20 rounded-lg object-cover border border-border" />
+                        <img loading="lazy" src={URL.createObjectURL(f)} alt={f.name} className="h-20 w-20 rounded-lg object-cover border border-border" />
                       ) : (
                         <div className="h-20 w-20 rounded-lg border border-border bg-muted flex items-center justify-center text-xs text-muted-foreground">PDF</div>
                       )}

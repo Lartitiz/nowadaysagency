@@ -226,7 +226,7 @@ export default function AdminFeedbackTab() {
                     className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
                   >
                     <ImageIcon className="h-3.5 w-3.5" />
-                    <img
+                    <img loading="lazy"
                       src={fb.screenshot_url}
                       alt="Screenshot"
                       className="h-16 rounded-lg border border-border object-cover cursor-pointer hover:opacity-80 transition-opacity"
@@ -278,7 +278,7 @@ export default function AdminFeedbackTab() {
           >
             <X className="h-6 w-6" />
           </button>
-          <img
+          <img loading="lazy"
             src={lightboxUrl}
             alt="Screenshot agrandie"
             className="max-w-full max-h-[90vh] rounded-xl object-contain"

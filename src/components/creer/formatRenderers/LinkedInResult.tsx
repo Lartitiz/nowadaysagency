@@ -65,7 +65,7 @@ export default function LinkedInResult({ result, photos }: Props) {
             </p>
             <div className="grid grid-cols-3 gap-1.5">
               {photos.map((p, i) => (
-                <img
+                <img loading="lazy"
                   key={i}
                   src={p.preview || (p.base64?.startsWith("data:") ? p.base64 : `data:image/jpeg;base64,${p.base64}`)}
                   alt={p.name || `Photo ${i + 1}`}

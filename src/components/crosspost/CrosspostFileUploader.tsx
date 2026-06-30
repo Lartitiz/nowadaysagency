@@ -103,7 +103,7 @@ export default function CrosspostFileUploader({ files, onFilesChange, maxFiles =
             {files.map((f) => (
               <div key={f.id} className="relative group rounded-lg border border-border bg-card overflow-hidden">
                 {f.type === "image" && f.preview ? (
-                  <img src={f.preview} alt={f.name} className="w-full h-24 object-cover" />
+                  <img loading="lazy" src={f.preview} alt={f.name} className="w-full h-24 object-cover" />
                 ) : (
                   <div className="w-full h-24 flex flex-col items-center justify-center bg-muted/40">
                     <FileText className="h-8 w-8 text-muted-foreground" />

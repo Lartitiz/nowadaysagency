@@ -70,7 +70,7 @@ export default function FeedPreview({ variant, text, photos, hashtags }: Props) 
         {/* Média (si photo) */}
         {firstPhoto && (
           <div className="aspect-square w-full bg-neutral-100">
-            <img src={firstPhoto} alt="" className="h-full w-full object-cover" />
+            <img loading="lazy" src={firstPhoto} alt="" className="h-full w-full object-cover" />
           </div>
         )}
 
@@ -150,7 +150,7 @@ export default function FeedPreview({ variant, text, photos, hashtags }: Props) 
       {photos && photos.length > 0 && (
         <div className={photos.length === 1 ? "" : "grid grid-cols-2 gap-0.5"}>
           {photos.slice(0, 4).map((p, i) => (
-            <img key={i} src={photoSrc(p)} alt="" className="w-full object-cover" style={{ maxHeight: 320 }} />
+            <img loading="lazy" key={i} src={photoSrc(p)} alt="" className="w-full object-cover" style={{ maxHeight: 320 }} />
           ))}
         </div>
       )}

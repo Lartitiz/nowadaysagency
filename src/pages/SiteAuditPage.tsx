@@ -569,7 +569,7 @@ const SiteAuditPage = () => {
                   className="border-2 border-dashed border-border rounded-xl p-8 text-center cursor-pointer hover:border-primary/50 transition-colors space-y-3"
                 >
                   {screenshotPreview ? (
-                    <img src={screenshotPreview} alt="Preview" className="max-h-64 mx-auto rounded-lg object-contain" />
+                    <img loading="lazy" src={screenshotPreview} alt="Preview" className="max-h-64 mx-auto rounded-lg object-contain" />
                   ) : (
                     <>
                       <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
@@ -621,7 +621,7 @@ const SiteAuditPage = () => {
                 <div className="lg:col-span-2">
                   {screenshotPreview && (
                     <div className="rounded-2xl border border-border overflow-hidden sticky top-4">
-                      <img src={screenshotPreview} alt="Screenshot analysé" className="w-full object-contain" />
+                      <img loading="lazy" src={screenshotPreview} alt="Screenshot analysé" className="w-full object-contain" />
                     </div>
                   )}
                 </div>

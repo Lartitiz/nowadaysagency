@@ -218,7 +218,7 @@ export function PhotoEditDialog({
           <div className="space-y-1.5">
             <p className="text-xs font-medium text-muted-foreground">Avant</p>
             <div className="aspect-square rounded-lg overflow-hidden border border-border bg-muted">
-              <img
+              <img loading="lazy"
                 src={originalBase64}
                 alt={name ? `Original – ${name}` : "Original"}
                 className="w-full h-full object-cover"
@@ -240,7 +240,7 @@ export function PhotoEditDialog({
                 </div>
               )}
               {previewBase64 ? (
-                <img
+                <img loading="lazy"
                   src={previewBase64}
                   alt="Aperçu"
                   className="w-full h-full object-cover"
@@ -292,7 +292,7 @@ export function PhotoEditDialog({
           />
           {bgImageBase64 ? (
             <div className="flex items-center gap-3 p-2 rounded-lg border border-border bg-muted/30">
-              <img
+              <img loading="lazy"
                 src={bgImageBase64}
                 alt="Image de fond choisie"
                 className="h-14 w-14 rounded-md object-cover border border-border"

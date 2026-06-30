@@ -156,7 +156,7 @@ export function PhotoUploadDialog({ open, onOpenChange }: PhotoUploadDialogProps
           ) : (
             <div className="relative rounded-xl overflow-hidden border border-border">
               {previewUrl && (
-                <img src={previewUrl} alt="Aperçu" className="w-full max-h-[260px] object-cover" />
+                <img loading="lazy" src={previewUrl} alt="Aperçu" className="w-full max-h-[260px] object-cover" />
               )}
               <button
                 type="button"

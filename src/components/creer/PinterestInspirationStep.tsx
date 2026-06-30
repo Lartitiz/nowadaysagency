@@ -37,7 +37,7 @@ export default function PinterestInspirationStep({
       {/* 1) Source analysis */}
       <div className="flex flex-col sm:flex-row gap-4 items-center sm:items-start">
         {preview ? (
-          <img
+          <img loading="lazy"
             src={preview}
             alt="Épingle source"
             className="w-[100px] sm:w-[120px] rounded-xl shadow-md object-cover flex-shrink-0"
