@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Sparkles, Copy, Check, Loader2 } from "lucide-react";
 import AuditInsight from "@/components/AuditInsight";
+import ProfileSectionValidation from "@/components/ProfileSectionValidation";
 import { friendlyError } from "@/lib/error-messages";
 export default function InstagramProfileNom() {
   const { user } = useAuth();
@@ -108,6 +109,8 @@ export default function InstagramProfileNom() {
               </label>
             ))}
           </div>
+
+          <ProfileSectionValidation section="nom" />
         </div>
       </main>
     </div>

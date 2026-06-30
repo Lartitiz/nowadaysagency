@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
 import { Sparkles, Check, Save } from "lucide-react";
 import AuditInsight from "@/components/AuditInsight";
+import ProfileSectionValidation from "@/components/ProfileSectionValidation";
 
 interface PinnedSlot {
   type: "histoire" | "offre" | "preuve";
@@ -181,6 +182,7 @@ export default function InstagramProfileEpingles() {
         </p>
 
         <AuditInsight section="epingles" />
+        <ProfileSectionValidation section="epingles" />
 
         {/* Règle des 3 */}
         <div className="rounded-2xl border-l-[3px] border-primary bg-rose-pale p-5 mb-8">
