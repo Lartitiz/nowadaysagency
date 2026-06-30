@@ -304,6 +304,17 @@ function CharterSection({ data }: { data: AnalysisResult["charter"] }) {
 }
 
 // ─── Save helpers ────────────────────────────────────────────
+// supabase-js ne LÈVE PAS d'exception sur erreur DB : il renvoie { error }.
+// Sans ce garde, une écriture échouée (RLS, colonne inexistante…) passait
+// inaperçue et la section affichait « sauvegardée ✓ » alors que rien n'était
+// persisté (cf. bug portrait_age). On force la remontée vers handleValidate.
+async function writeOrThrow(query: any, ctx: string) {
+  const { error } = await query;
+  if (error) {
+    console.error(`[branding save] ${ctx}:`, error);
+    throw error;
+  }
+}
 
 /**
  * Upsert ciblé de quelques colonnes de `brand_profile` (la table de synthèse lue
@@ -327,9 +338,9 @@ async function fillBrandProfileSynthesis(
   if (existing?.id) {
     const toWrite = fillOnlyEmpty(fields, existing);
     if (Object.keys(toWrite).length === 0) return;
-    await (supabase.from("brand_profile") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existing.id);
+    await writeOrThrow((supabase.from("brand_profile") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existing.id), "brand_profile.synthesis.update");
   } else {
-    await (supabase.from("brand_profile") as any).insert({ user_id: userId, workspace_id: workspaceId || null, updated_at: new Date().toISOString(), ...fields });
+    await writeOrThrow((supabase.from("brand_profile") as any).insert({ user_id: userId, workspace_id: workspaceId || null, updated_at: new Date().toISOString(), ...fields }), "brand_profile.synthesis.insert");
   }
 }
 
@@ -357,9 +368,9 @@ async function saveStory(data: AnalysisResult["story"], userId: string, workspac
   if (existing?.id) {
     const toWrite = fillOnlyEmpty(fields, existing);
     if (Object.keys(toWrite).length === 0) return; // rien à compléter
-    await (supabase.from("storytelling") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existing.id);
+    await writeOrThrow((supabase.from("storytelling") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existing.id), "storytelling.update");
   } else {
-    await (supabase.from("storytelling") as any).insert({
+    await writeOrThrow((supabase.from("storytelling") as any).insert({
       user_id: userId,
       workspace_id: workspaceId || null,
       is_primary: true,
@@ -368,7 +379,7 @@ async function saveStory(data: AnalysisResult["story"], userId: string, workspac
       source: "autofill",
       updated_at: new Date().toISOString(),
       ...fields,
-    });
+    }), "storytelling.insert");
   }
 
   // La vision tient lieu de mission tant que celle-ci est vide : brand_profile.mission
@@ -380,9 +391,10 @@ async function savePersona(data: AnalysisResult["persona"], userId: string, work
 
   const fields: Record<string, any> = {};
   if (data.name) fields.portrait_prenom = data.name;
-  if (data.age_range) fields.portrait_age = data.age_range;
-  // Le métier va dans portrait.qui_elle_est.metier (sa vraie place, affichée
-  // dans la synthèse), pas dans description — sinon il écrasait la description.
+  // L'âge ET le métier vivent dans le JSON portrait.qui_elle_est (leur vraie
+  // place, lue par la synthèse). Il n'existe PAS de colonne plate portrait_age :
+  // écrire dessus faisait rejeter tout l'INSERT/SELECT en silence (« column
+  // does not exist ») → la cliente idéale n'était jamais enregistrée.
   if (data.description) fields.description = data.description;
   if (data.frustrations?.length) fields.step_1_frustrations = data.frustrations.join("\n");
   if (data.desires?.length) fields.step_2_transformation = data.desires.join("\n");
@@ -396,7 +408,7 @@ async function savePersona(data: AnalysisResult["persona"], userId: string, work
   const filterVal = workspaceId && workspaceId !== userId ? workspaceId : userId;
 
   const { data: existing } = await (supabase.from("persona") as any)
-    .select("id, portrait, portrait_prenom, portrait_age, description, step_1_frustrations, step_2_transformation, step_3a_objections, step_4_beautiful, step_5_actions, channels, step_4_inspiring")
+    .select("id, portrait, portrait_prenom, description, step_1_frustrations, step_2_transformation, step_3a_objections, step_4_beautiful, step_5_actions, channels, step_4_inspiring")
     .eq(filterCol, filterVal)
     .eq("is_primary", true)
     .limit(1)
@@ -404,28 +416,36 @@ async function savePersona(data: AnalysisResult["persona"], userId: string, work
 
   if (existing?.id) {
     const toWrite = fillOnlyEmpty(fields, existing);
-    // Merge le métier dans portrait.qui_elle_est UNIQUEMENT s'il manque encore.
-    if (data.job && isEmptyVal(existing?.portrait?.qui_elle_est?.metier)) {
+    // Merge l'âge + le métier dans portrait.qui_elle_est, uniquement s'ils manquent.
+    const baseQui = (existing?.portrait?.qui_elle_est && typeof existing.portrait.qui_elle_est === "object")
+      ? existing.portrait.qui_elle_est
+      : {};
+    const quiPatch: Record<string, any> = {};
+    if (data.age_range && isEmptyVal(baseQui.age)) quiPatch.age = data.age_range;
+    if (data.job && isEmptyVal(baseQui.metier)) quiPatch.metier = data.job;
+    if (Object.keys(quiPatch).length > 0) {
       const basePortrait = (existing?.portrait && typeof existing.portrait === "object" && !Array.isArray(existing.portrait))
         ? { ...existing.portrait }
         : {};
-      basePortrait.qui_elle_est = { ...(basePortrait.qui_elle_est || {}), metier: data.job };
+      basePortrait.qui_elle_est = { ...(basePortrait.qui_elle_est || {}), ...quiPatch };
       toWrite.portrait = basePortrait;
     }
-    if (Object.keys(toWrite).length === 0) {
-      // rien à compléter sur persona — mais on tente quand même la synthèse brand_profile
-    } else {
-      await (supabase.from("persona") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existing.id);
+    // rien à compléter sur persona si toWrite vide — mais on tente quand même la synthèse brand_profile plus bas
+    if (Object.keys(toWrite).length > 0) {
+      await writeOrThrow((supabase.from("persona") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existing.id), "persona.update");
     }
   } else {
-    if (data.job) fields.portrait = { qui_elle_est: { metier: data.job } };
-    await (supabase.from("persona") as any).insert({
+    const qui: Record<string, any> = {};
+    if (data.age_range) qui.age = data.age_range;
+    if (data.job) qui.metier = data.job;
+    if (Object.keys(qui).length > 0) fields.portrait = { qui_elle_est: qui };
+    await writeOrThrow((supabase.from("persona") as any).insert({
       user_id: userId,
       workspace_id: workspaceId || null,
       is_primary: true,
       updated_at: new Date().toISOString(),
       ...fields,
-    });
+    }), "persona.insert");
   }
 
   // La description de la cible est lue par la génération (brand_profile.target_description)
@@ -450,10 +470,10 @@ async function saveValueProp(data: AnalysisResult["value_proposition"], userId: 
   if (existing?.id) {
     const toWrite = fillOnlyEmpty(fields, existing);
     if (Object.keys(toWrite).length > 0) {
-      await (supabase.from("brand_proposition") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existing.id);
+      await writeOrThrow((supabase.from("brand_proposition") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existing.id), "brand_proposition.update");
     }
   } else {
-    await (supabase.from("brand_proposition") as any).insert({ user_id: userId, workspace_id: workspaceId || null, updated_at: new Date().toISOString(), ...fields });
+    await writeOrThrow((supabase.from("brand_proposition") as any).insert({ user_id: userId, workspace_id: workspaceId || null, updated_at: new Date().toISOString(), ...fields }), "brand_proposition.insert");
   }
 
   // Le problème principal de la cible est lu par la génération (brand_profile.target_problem)
@@ -485,9 +505,9 @@ async function saveTone(data: AnalysisResult["tone_style"], userId: string, work
   if (existing?.id) {
     const toWrite = fillOnlyEmpty(fields, existing);
     if (Object.keys(toWrite).length === 0) return;
-    await (supabase.from("brand_profile") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existing.id);
+    await writeOrThrow((supabase.from("brand_profile") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existing.id), "brand_profile.update");
   } else {
-    await (supabase.from("brand_profile") as any).insert({ user_id: userId, workspace_id: workspaceId || null, updated_at: new Date().toISOString(), ...fields });
+    await writeOrThrow((supabase.from("brand_profile") as any).insert({ user_id: userId, workspace_id: workspaceId || null, updated_at: new Date().toISOString(), ...fields }), "brand_profile.insert");
   }
 }
 async function saveStrategy(data: AnalysisResult["content_strategy"], userId: string, workspaceId: string) {
@@ -505,10 +525,10 @@ async function saveStrategy(data: AnalysisResult["content_strategy"], userId: st
   if (existingStrat?.id) {
     const toWrite = fillOnlyEmpty(stratFields, existingStrat);
     if (Object.keys(toWrite).length > 0) {
-      await (supabase.from("brand_strategy") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existingStrat.id);
+      await writeOrThrow((supabase.from("brand_strategy") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existingStrat.id), "brand_strategy.update");
     }
   } else {
-    await (supabase.from("brand_strategy") as any).insert({ user_id: userId, workspace_id: workspaceId || null, updated_at: new Date().toISOString(), ...stratFields });
+    await writeOrThrow((supabase.from("brand_strategy") as any).insert({ user_id: userId, workspace_id: workspaceId || null, updated_at: new Date().toISOString(), ...stratFields }), "brand_strategy.insert");
   }
   if (data.editorial_line || data.formats?.length) {
     const profileFields: Record<string, any> = {};
@@ -521,10 +541,10 @@ async function saveStrategy(data: AnalysisResult["content_strategy"], userId: st
     if (existingProfile?.id) {
       const toWrite = fillOnlyEmpty(profileFields, existingProfile);
       if (Object.keys(toWrite).length > 0) {
-        await (supabase.from("brand_profile") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existingProfile.id);
+        await writeOrThrow((supabase.from("brand_profile") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existingProfile.id), "brand_profile.content.update");
       }
     } else {
-      await (supabase.from("brand_profile") as any).insert({ user_id: userId, workspace_id: workspaceId || null, updated_at: new Date().toISOString(), ...profileFields });
+      await writeOrThrow((supabase.from("brand_profile") as any).insert({ user_id: userId, workspace_id: workspaceId || null, updated_at: new Date().toISOString(), ...profileFields }), "brand_profile.content.insert");
     }
   }
 }
@@ -573,9 +593,9 @@ async function saveCharter(data: AnalysisResult["charter"], userId: string, work
   const { data: existing } = await (supabase.from("brand_charter") as any)
     .select("id").eq(filterCol, filterVal).maybeSingle();
   if (existing?.id) {
-    await (supabase.from("brand_charter") as any).update(payload).eq("id", existing.id);
+    await writeOrThrow((supabase.from("brand_charter") as any).update(payload).eq("id", existing.id), "brand_charter.update");
   } else {
-    await (supabase.from("brand_charter") as any).insert({ user_id: userId, workspace_id: workspaceId || null, ...payload });
+    await writeOrThrow((supabase.from("brand_charter") as any).insert({ user_id: userId, workspace_id: workspaceId || null, ...payload }), "brand_charter.insert");
   }
 }
 
