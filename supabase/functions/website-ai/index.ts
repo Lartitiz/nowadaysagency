@@ -10,6 +10,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
 // Branding data now fetched via getUserContext
 
@@ -200,6 +201,13 @@ serve(async (req) => {
         Deno.env.get("SUPABASE_URL") ?? "",
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
       );
+
+      // SÉCURITÉ : on s'apprête à écrire avec le service_role (bypass RLS) en
+      // filtrant par le workspace_id reçu dans le body. Sans garde, un·e
+      // utilisateur·ice authentifié·e pourrait passer le workspace_id d'autrui
+      // et écraser son website_audit. On vérifie donc l'appartenance d'abord.
+      const wsGuard = await assertWorkspaceMembership(serviceClient, user.id, workspace_id);
+      if (!wsGuard.ok) return workspaceDeniedResponse(corsHeaders);
 
       // Try to find the user's latest audit
       const diagFilterCol = workspace_id ? "workspace_id" : "user_id";
