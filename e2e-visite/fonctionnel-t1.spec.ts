@@ -152,18 +152,16 @@ test("T1a — Post Instagram : génération streaming + ajout calendrier", async
 
   await calBtn.click();
 
-  // Sélectionner une date si le picker s'ouvre (cliquer sur "aujourd'hui" ou premier jour)
-  const pickerDay = page.getByRole("gridcell").first();
-  if (await pickerDay.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await pickerDay.click();
-    const confirmer = page.getByRole("button", { name: /confirmer|valider|ok/i });
-    if (await confirmer.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await confirmer.click();
-    }
-  }
+  // La modal "Planifier la publication" s'ouvre avec un <input type="date"> natif
+  const dateInput = page.locator('input[type="date"]');
+  await expect(dateInput).toBeVisible({ timeout: 5000 });
+  await dateInput.fill("2026-07-15");
+  // Bouton "Ajouter au calendrier" dans la modal (le dernier sur la page)
+  const modalConfirm = page.getByRole("button", { name: /ajouter au calendrier/i }).last();
+  await modalConfirm.click();
 
-  // Toast de succès attendu
-  const toast = page.getByText(/ajouté au calendrier/i);
+  // Toast de succès (texte variable selon la version)
+  const toast = page.getByText(/ajouté|planifié|calendrier/i).first();
   await expect(toast).toBeVisible({ timeout: 8000 });
 
   await page.screenshot({ path: path.join(SHOTS, "t1a-instagram-calendrier.png") });
