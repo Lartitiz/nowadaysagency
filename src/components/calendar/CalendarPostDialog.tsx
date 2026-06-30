@@ -5,6 +5,7 @@ import { PostCommentsSection } from "@/components/calendar/PostCommentsSection";
 import { friendlyError } from "@/lib/error-messages";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useProfile } from "@/hooks/use-profile";
+import { useSocialConnections } from "@/hooks/use-social-connections";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
@@ -61,6 +62,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const { data: profileData } = useProfile();
+  const { isConnected: isSocialConnected } = useSocialConnections();
   const [ownerName, setOwnerName] = useState("Moi");
   const [igUsername, setIgUsername] = useState("");
   const [mediaUrls, setMediaUrls] = useState<string[]>([]);
@@ -358,9 +360,19 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   // ── Publication PROGRAMMÉE (auto-publication à une date/heure) ──
   // Canaux publiables : Instagram (image/carrousel) et LinkedIn (texte).
   const canSchedule = postCanal === "instagram" || postCanal === "linkedin";
+  const scheduleNeedsConnection = canSchedule && !isSocialConnected(postCanal as "instagram" | "linkedin");
   const handleSchedulePublish = async () => {
     if (!effectiveId) { toast.error("Ajoute un sujet : le post s'enregistre tout seul, puis tu pourras le programmer."); return; }
     if (!canSchedule) { toast.error("Programmation disponible pour Instagram et LinkedIn."); return; }
+    // Garde-fou : sans compte connecté, la publication programmée échouerait en silence à l'heure dite.
+    if (!isSocialConnected(postCanal as "instagram" | "linkedin")) {
+      const reseau = postCanal === "linkedin" ? "LinkedIn" : "Instagram";
+      toast.error(`Compte ${reseau} non connecté`, {
+        description: `Connecte-le pour que ce post parte tout seul à l'heure prévue.`,
+        action: { label: "Connecter", onClick: () => window.location.assign("/parametres/connexions") },
+      });
+      return;
+    }
     if (postCanal === "instagram") {
       if (igValidImages.length === 0) { toast.error("Ajoute au moins un visuel (image) avant de programmer."); return; }
       if (igValidImages.length > 10) { toast.error("Instagram limite les carrousels à 10 images."); return; }
@@ -737,6 +749,12 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
         <div className="rounded-[10px] border border-border bg-card/40 p-3 space-y-2">
           <p className="text-xs font-semibold text-foreground">🗓️ Programmer la publication {postCanal === "linkedin" ? "LinkedIn" : "Instagram"}</p>
           <p className="text-2xs text-muted-foreground">{postCanal === "linkedin" ? "Choisis quand publier ce post texte — il partira automatiquement." : `Choisis quand publier ce post (${igValidImages.length > 1 ? `carrousel de ${igValidImages.length} images` : "1 image"}) — il partira automatiquement.`}</p>
+          {scheduleNeedsConnection && (
+            <div className="rounded-[8px] border border-amber-300/60 bg-amber-50/60 px-2.5 py-2 text-2xs text-amber-900 flex items-center justify-between gap-2 flex-wrap dark:border-amber-400/30 dark:bg-amber-950/30 dark:text-amber-200">
+              <span>⚠️ Connecte ton compte {postCanal === "linkedin" ? "LinkedIn" : "Instagram"} pour que la publication parte automatiquement.</span>
+              <button type="button" onClick={() => window.location.assign("/parametres/connexions")} className="font-medium underline shrink-0">Connecter</button>
+            </div>
+          )}
           <div className="flex flex-wrap items-center gap-2">
             <input type="datetime-local" value={scheduleInput} onChange={(e) => setScheduleInput(e.target.value)} className="rounded-[8px] border border-border bg-background px-2 py-1.5 text-xs text-foreground" />
             <Button type="button" size="sm" onClick={handleSchedulePublish} disabled={savingSchedule} className="rounded-pill text-xs bg-primary text-primary-foreground hover:bg-primary/90">{savingSchedule ? "…" : "Programmer"}</Button>
