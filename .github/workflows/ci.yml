@@ -3,6 +3,10 @@ name: CI
 # Filet de sécurité minimal : lint + tests unitaires + build sur chaque PR et push main.
 # Crucial vu le churn Lovable (déploie main d'un bloc) — empêche une régression d'atteindre
 # la prod sans qu'aucun test ne s'exécute. Audit technique transverse 30/06 (LOT C).
+#
+# IMPORTANT : l'install se fait avec BUN (bun.lock), pas npm. Lovable gère les dépendances
+# via bun et ne met PAS à jour package-lock.json -> `npm ci` échouait (lock désync).
+# On installe donc avec bun, puis on exécute vite/vitest avec Node (compat maximale).
 
 on:
   push:
@@ -10,7 +14,6 @@ on:
   pull_request:
     branches: [main]
 
-# Annule les runs obsolètes si on repousse vite sur la même branche.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -22,13 +25,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install dependencies (bun — aligné avec Lovable)
+        run: bun install
 
       # Lint informatif au départ (dette legacy : ~1054 `as any`). À rendre bloquant
       # une fois la dette de typage résorbée (retirer `continue-on-error`).
