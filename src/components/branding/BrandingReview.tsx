@@ -387,14 +387,18 @@ async function savePersona(data: AnalysisResult["persona"], userId: string, work
 async function saveValueProp(data: AnalysisResult["value_proposition"], userId: string, workspaceId: string) {
   if (!data) return;
   const fields: Record<string, any> = {};
-  if (data.key_phrase) { fields.step_1_what = data.key_phrase; fields.version_one_liner = data.key_phrase; }
+  // version_final = source de vérité lue par la génération/synthèse/Coach. On la
+  // remplit avec la phrase-clé (si vide) pour que la proposition analysée soit
+  // considérée comme « complétée » et non « à faire ». fillOnlyEmpty protège
+  // toute version_final déjà rédigée par l'utilisatrice.
+  if (data.key_phrase) { fields.step_1_what = data.key_phrase; fields.version_one_liner = data.key_phrase; fields.version_final = data.key_phrase; }
   if (data.solution) fields.step_2a_process = data.solution;
   if (data.differentiator) fields.step_2d_refuse = data.differentiator;
   if (data.problem) fields.step_3_for_whom = data.problem;
   const filterCol = workspaceId && workspaceId !== userId ? "workspace_id" : "user_id";
   const filterVal = workspaceId && workspaceId !== userId ? workspaceId : userId;
   const { data: existing } = await (supabase.from("brand_proposition") as any)
-    .select("id, step_1_what, version_one_liner, step_2a_process, step_2d_refuse, step_3_for_whom").eq(filterCol, filterVal).maybeSingle();
+    .select("id, step_1_what, version_one_liner, version_final, step_2a_process, step_2d_refuse, step_3_for_whom").eq(filterCol, filterVal).maybeSingle();
   if (existing?.id) {
     const toWrite = fillOnlyEmpty(fields, existing);
     if (Object.keys(toWrite).length === 0) return;
@@ -441,9 +445,10 @@ async function saveStrategy(data: AnalysisResult["content_strategy"], userId: st
   if (data.pillars?.[0]) stratFields.pillar_major = data.pillars[0];
   if (data.pillars?.[1]) stratFields.pillar_minor_1 = data.pillars[1];
   if (data.pillars?.[2]) stratFields.pillar_minor_2 = data.pillars[2];
+  if (data.pillars?.[3]) stratFields.pillar_minor_3 = data.pillars[3]; // 4e pilier (était jeté)
   if (data.creative_twist) stratFields.creative_concept = data.creative_twist;
   const { data: existingStrat } = await (supabase.from("brand_strategy") as any)
-    .select("id, pillar_major, pillar_minor_1, pillar_minor_2, creative_concept").eq(filterCol, filterVal).order("updated_at", { ascending: false }).limit(1).maybeSingle();
+    .select("id, pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3, creative_concept").eq(filterCol, filterVal).order("updated_at", { ascending: false }).limit(1).maybeSingle();
   if (existingStrat?.id) {
     const toWrite = fillOnlyEmpty(stratFields, existingStrat);
     if (Object.keys(toWrite).length > 0) {
