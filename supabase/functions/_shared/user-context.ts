@@ -100,10 +100,15 @@ export async function getUserContext(supabase: any, userId: string, workspaceId?
     stRes, persona, toneRes, propRes, stratRes, editoRes,
     profileRes, offersRes, auditRes, voiceRes, charterRes, mirrorRes,
   ] = await Promise.all([
-    supabase.from("storytelling").select("step_7_polished, step_6_full_story, imported_text").eq(col, val).eq("is_primary", true).maybeSingle(),
+    // Plusieurs lignes storytelling possibles (contrainte unique retirée volontairement) :
+    // on prend la primaire, sinon la plus récente — MÊME critère que chat-guide pour que
+    // Coach et génération lisent la même histoire.
+    supabase.from("storytelling").select("step_7_polished, step_6_full_story, imported_text").eq(col, val).order("is_primary", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     fetchPersona(),
     supabase.from("brand_profile").select("voice_description, combat_cause, combat_fights, combat_alternative, combat_refusals, tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims, target_description, target_problem, target_beliefs, channels, mission, offer").eq(col, val).maybeSingle(),
-    supabase.from("brand_proposition").select("version_final, version_complete, version_bio, version_one_liner").eq(col, val).maybeSingle(),
+    // brand_proposition n'a pas de contrainte unique → tri + limit(1) pour éviter un crash
+    // maybeSingle (PGRST116) si plusieurs lignes, et rester déterministe.
+    supabase.from("brand_proposition").select("version_final, version_complete, version_bio, version_one_liner").eq(col, val).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("brand_strategy").select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3, creative_concept, facet_1, facet_2, facet_3").eq(col, val).maybeSingle(),
     supabase.from("instagram_editorial_line").select("main_objective, objective_details, posts_frequency, stories_frequency, time_available, pillars, preferred_formats, do_more, stop_doing, free_notes").eq(col, val).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("profiles").select("prenom, activite, type_activite, cible, probleme_principal, piliers, tons, mission, offre, croyances_limitantes, verbatims, expressions_cles, ce_quon_evite, style_communication, validated_bio, instagram_display_name, instagram_username, instagram_bio, instagram_followers, instagram_frequency, differentiation_text, bio_cta_type, bio_cta_text").eq("user_id", profileUserId).maybeSingle(),
