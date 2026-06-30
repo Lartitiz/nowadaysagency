@@ -332,13 +332,13 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
   const mainContent = (
     <>
       {/* Header */}
-      <div className="flex items-start justify-between mb-2">
+      <div className="flex flex-col gap-3 mb-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground">Ma boîte à idées</h1>
           <p className="text-base text-muted-foreground mt-1">Tout ce que tu as généré, sauvegardé, commencé. Rien ne se perd.</p>
         </div>
-        <Link to="/creer?new=1">
-          <Button className="rounded-pill bg-primary text-primary-foreground hover:bg-bordeaux shrink-0">
+        <Link to="/creer?new=1" className="self-start shrink-0">
+          <Button className="rounded-pill bg-primary text-primary-foreground hover:bg-bordeaux">
             💡 Nouvelle idée
           </Button>
         </Link>
