@@ -6,6 +6,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { validateInput, ValidationError, AuditBrandingSchema } from "../_shared/input-validators.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildIdentityBlock } from "../_shared/user-context.ts";
+import { isSafePublicUrl } from "../_shared/scraping.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
 function htmlToText(html: string): string {
@@ -25,6 +26,7 @@ function htmlToText(html: string): string {
 
 async function fetchPageText(url: string): Promise<string> {
   try {
+    if (!isSafePublicUrl(url)) return ""; // anti-SSRF : bloque IP privées / métadata
     const resp = await fetch(url, {
       headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandingAuditor/1.0)" },
       redirect: "follow",
@@ -59,6 +61,7 @@ function findKeyPageLinks(html: string, baseUrl: string): string[] {
 }
 
 async function fetchSiteContent(url: string): Promise<string> {
+  if (!isSafePublicUrl(url)) return ""; // anti-SSRF : bloque IP privées / métadata
   const homepageResp = await fetch(url, {
     headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandingAuditor/1.0)" },
     redirect: "follow",

@@ -7,6 +7,7 @@ import { callAnthropic, type AnthropicModel, type UsageSink } from "../_shared/a
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { buildPptxInvariants, formatInvariantsForPrompt } from "../_shared/pptx-invariants.ts";
+import { isSafePublicUrl } from "../_shared/scraping.ts";
 import { extractImagePayload } from "../_shared/image-utils.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
@@ -901,6 +902,10 @@ Retourne UNIQUEMENT le JSON.`;
       const validImageUrls: string[] = [];
       for (const url of imageUrls) {
         try {
+          if (!isSafePublicUrl(url)) { // anti-SSRF : bloque IP privées / métadata (les URLs signées Supabase passent)
+            console.warn(`carousel-visual: URL template non sûre, ignorée: ${url}`);
+            continue;
+          }
           const headRes = await fetch(url, { method: "HEAD" });
           if (headRes.ok) {
             const contentLength = parseInt(headRes.headers.get("content-length") || "0", 10);
