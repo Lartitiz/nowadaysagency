@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Sparkles, Loader2, X } from "lucide-react";
+import { useProfileUserId } from "@/hooks/use-workspace-query";
 import type { BrandingPrefillFromSite } from "./SiteAuditAutoResult";
 
 interface Props {
@@ -21,6 +22,10 @@ interface Suggestion {
 }
 
 export default function SiteAuditBrandingSuggestions({ prefill, workspaceFilter, userId }: Props) {
+  // user_id of the workspace OWNER (resolves the client's id in manager mode).
+  // voice_profile is keyed by owner user_id end-to-end (content generation reads it
+  // that way in user-context.ts), so writes here must use the same identity.
+  const profileUserId = useProfileUserId();
   const [showDetail, setShowDetail] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -142,13 +147,20 @@ export default function SiteAuditBrandingSuggestions({ prefill, workspaceFilter,
       }
 
       // voice_profile: detected_tone → voice_summary
+      // Keyed by the workspace owner's user_id (= what generation reads), and stamped
+      // with workspace_id so the row isn't workspace-orphaned. In solo mode
+      // profileUserId === userId, so this is identical to the previous behaviour.
       if (emptyFields.voice && editableValues.tone_style) {
         const { data: existingVoice } = await (supabase.from("voice_profile") as any)
-          .select("id, voice_summary").eq("user_id", userId).maybeSingle();
+          .select("id, voice_summary").eq("user_id", profileUserId).maybeSingle();
         if (existingVoice && !existingVoice.voice_summary) {
           await (supabase.from("voice_profile") as any).update({ voice_summary: editableValues.tone_style }).eq("id", existingVoice.id);
         } else if (!existingVoice) {
-          await (supabase.from("voice_profile") as any).insert({ user_id: userId, voice_summary: editableValues.tone_style });
+          await (supabase.from("voice_profile") as any).insert({
+            user_id: profileUserId,
+            workspace_id: filterCol === "workspace_id" ? filterVal : null,
+            voice_summary: editableValues.tone_style,
+          });
         }
       }
 
