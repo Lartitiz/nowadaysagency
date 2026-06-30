@@ -12,12 +12,29 @@ export default defineConfig(({ mode }) => ({
       overlay: false,
     },
   },
-  // ⚠️ manualChunks RETIRÉ (incident 03/07) : séparer React de ses consommateurs
-  // (radix/motion/tanstack) dans des chunks distincts provoquait au runtime
-  // `Cannot read properties of undefined (reading 'forwardRef')` — React n'était
-  // pas dispo quand le chunk Radix s'évaluait. On revient au découpage par défaut
-  // de Rollup (routes déjà lazy = sain). Re-tenter la perf #258 plus tard AVEC un
-  // vrai chargement du build de prod (pas seulement une mesure de taille).
+  // ⚠️ LEÇON #258 (incident 03/07) : NE JAMAIS séparer React de ses consommateurs
+  // (radix/motion/tanstack) dans des chunks distincts → au runtime
+  // `Cannot read properties of undefined (reading 'forwardRef')` (cycle d'init ESM,
+  // React pas dispo quand le chunk Radix s'évalue).
+  //
+  // Split SÛR (ce code) : on ne sort QUE des libs lourdes qui n'importent PAS React
+  // → aucun cycle possible avec React. supabase (eager, SessionContext/AuthContext)
+  // et date-fns sont des feuilles pures. Gain = chunks vendor cacheables (inchangés
+  // quand le code app change) + téléchargement parallèle. Tout le reste (React,
+  // radix, motion, router) RESTE ensemble dans le chunk par défaut.
+  // Vérifié en CHARGEANT le build de prod (`npm run check-build`, garde-fou #272).
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return;
+          if (id.includes("@supabase")) return "supabase";
+          if (id.includes("date-fns")) return "date-fns";
+          // tout le reste : découpage Rollup par défaut (React + consommateurs ensemble)
+        },
+      },
+    },
+  },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {
     alias: {
