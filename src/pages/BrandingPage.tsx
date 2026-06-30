@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { LocalErrorBoundary } from "@/components/LocalErrorBoundary";
 import { motion, AnimatePresence } from "framer-motion";
 import { useMergedProfile, useBrandProfile } from "@/hooks/use-profile";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import { Progress } from "@/components/ui/progress";
@@ -70,6 +71,7 @@ export default function BrandingPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { isDemoMode, demoData } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
+  const { loading: workspaceLoading } = useWorkspace();
   const workspaceId = useWorkspaceId();
   const { profile: hookProfile, brandProfile: hookBrandProfile } = useMergedProfile();
   const { data: personaHook } = usePersona();
@@ -78,6 +80,13 @@ export default function BrandingPage() {
   const queryClient = useQueryClient();
   const [completion, setCompletion] = useState<BrandingCompletion>({ storytelling: 0, persona: 0, proposition: 0, tone: 0, strategy: 0, offers: 0, charter: 0, total: 0 });
   const [loading, setLoading] = useState(true);
+  // Le squelette de chargement ne s'affiche QU'AU 1er chargement. `value`
+  // (filtre workspace) passe de user.id → workspace.id juste après le montage,
+  // ce qui re-déclenche `load()` ; sans ce garde-fou, on rebascule sur le
+  // squelette, ce qui INTERROMPT l'animation d'entrée framer-motion de la vue
+  // déjà montée → écran « blanc »/figé (finding QA T6). Les rechargements
+  // suivants se font silencieusement, sans flash de squelette.
+  const hasLoadedRef = useRef(false);
   const [loadError, setLoadError] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
   const [primaryStoryId, setPrimaryStoryId] = useState<string | null>(null);
@@ -183,8 +192,13 @@ export default function BrandingPage() {
       return;
     }
     if (!user) return;
+    // On attend que l'espace actif soit résolu avant de charger : `value` (filtre
+    // workspace) vaut d'abord `user.id` puis bascule sur l'id d'espace une fois
+    // résolu. Sans cette garde, on chargeait DEUX fois (mauvais filtre puis bon),
+    // le 2ᵉ chargement interrompant l'animation d'entrée → vue figée/blanche.
+    if (workspaceLoading) return;
     const load = async () => {
-      setLoading(true);
+      if (!hasLoadedRef.current) { setLoading(true); hasLoadedRef.current = true; }
       setLoadError(false);
       const { data, error: loadErr } = await fetchBrandingDataWithStatus({ column, value });
       if (loadErr) {
@@ -318,7 +332,7 @@ export default function BrandingPage() {
       setLoading(false);
     };
     load();
-  }, [user?.id, isDemoMode, column, value, retryKey]);
+  }, [user?.id, isDemoMode, column, value, retryKey, workspaceLoading]);
 
   const generateProposition = async () => {
     if (!user) return;
@@ -584,7 +598,13 @@ export default function BrandingPage() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-[900px] px-6 py-8 max-md:px-4">
-        <AnimatePresence mode="wait">
+        {/* ⚠️ PAS de `mode="wait"` : il suspend le montage de la vue suivante
+            derrière l'animation de SORTIE de la précédente. Quand le squelette de
+            chargement sortait (fade opacity→0), la vue "import"/"identity" ne se
+            montait jamais → écran « blanc » (squelette invisible figé). Même piège
+            que l'onboarding (#267). Sans `mode="wait"`, la nouvelle vue monte tout
+            de suite (léger crossfade au lieu d'un blocage). */}
+        <AnimatePresence>
           {/* === LOADING === */}
           {topView === "loading" && (
             <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
