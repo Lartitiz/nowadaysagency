@@ -9,7 +9,7 @@ export function ChoiceCard({ emoji, label, selected, onClick }: {
   onClick: () => void;
 }) {
   return (
-    <button type="button" onClick={onClick}
+    <button type="button" onClick={onClick} aria-pressed={selected}
       className={`w-full text-left rounded-xl border-2 px-5 py-4 transition-all duration-200 ${
         selected ? "border-primary bg-secondary shadow-sm" : "border-border bg-card hover:border-primary/40 hover:bg-secondary/30"
       }`}>
