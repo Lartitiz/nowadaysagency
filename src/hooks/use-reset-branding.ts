@@ -72,6 +72,18 @@ export function useResetBranding() {
   const resetBranding = useCallback(async (): Promise<{ ok: boolean; errors: string[] }> => {
     if (!value) return { ok: false, errors: ["Aucun espace de travail actif."] };
 
+    // SÉCURITÉ : ne JAMAIS supprimer par `user_id`. `useWorkspaceFilter` bascule
+    // sur `column: "user_id"` quand l'espace actif n'est pas encore chargé ; un
+    // DELETE par user_id effacerait le branding de TOUS les espaces sous ce
+    // user_id (dont ceux des clientes gérées par un compte agence — les policies
+    // RLS l'autorisent car ce sont ses lignes). On exige un espace actif scopé.
+    if (column !== "workspace_id") {
+      return {
+        ok: false,
+        errors: ["Espace actif introuvable — réinitialisation annulée par sécurité. Recharge la page puis réessaie."],
+      };
+    }
+
     setIsResetting(true);
     const errors: string[] = [];
     try {
