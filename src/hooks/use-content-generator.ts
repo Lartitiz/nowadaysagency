@@ -147,6 +147,28 @@ function parseAIJson(raw: string | object): any {
   return null;
 }
 
+/**
+ * Filet anti-JSON brut : certains edges renvoient leur erreur quota sous forme
+ * d'objet ({"error":"limit_reached","message":"…","quota":{…}}) qui finissait
+ * affiché TEL QUEL à l'utilisatrice. On extrait le `message` lisible (ou un
+ * fallback) au lieu de dumper le JSON. Idempotent sur un message déjà propre.
+ */
+function cleanErrorMessage(raw: unknown): string {
+  const s = typeof raw === "string" ? raw : "";
+  const t = s.trim();
+  if (t.startsWith("{") || t.startsWith("[")) {
+    try {
+      const o = JSON.parse(t);
+      const m = o?.message || o?.quota?.message || o?.error;
+      if (m && typeof m === "string") return m;
+      return "Une erreur est survenue. Réessaie 🌸";
+    } catch {
+      /* pas du JSON valide → on garde le texte */
+    }
+  }
+  return s || "Une erreur est survenue. Réessaie 🌸";
+}
+
 // ── Hook ──
 
 export function useContentGenerator() {
@@ -427,12 +449,13 @@ export function useContentGenerator() {
       setResult(normalized);
       return normalized;
     } catch (e: any) {
-      if (e?._isQuota && handleQuotaError(e)) {
+      // Erreurs quota/premium → toast convivial (jamais le JSON brut affiché).
+      const cleaned = cleanErrorMessage(e?.message);
+      if (handleQuotaError(e?._isQuota ? e : { message: cleaned, data: e?.data })) {
         setError(null);
         return null;
       }
-      const msg = e?.message || "Erreur lors de la génération";
-      setError(msg);
+      setError(cleaned || "Erreur lors de la génération");
       return null;
     } finally {
       setGenerating(false);
@@ -626,7 +649,7 @@ export function useContentGenerator() {
         setQuestions(parsedQuestions);
         return parsedQuestions;
       } catch (e: any) {
-        setError(e?.message || "Erreur lors de la génération des questions");
+        setError(cleanErrorMessage(e?.message) || "Erreur lors de la génération des questions");
         return [];
       } finally {
         setLoadingQuestions(false);
@@ -740,12 +763,12 @@ export function useContentGenerator() {
       try {
         fullText = await streamInvoke("creative-flow", streamBody);
       } catch (e: any) {
-        if (e?._isQuota && handleQuotaError(e)) {
+        const cleaned = cleanErrorMessage(e?.message);
+        if (handleQuotaError(e?._isQuota ? e : { message: cleaned, data: e?.data })) {
           setError(null);
           return null;
         }
-        const msg = e?.message || "Erreur lors de la génération";
-        setError(msg);
+        setError(cleaned || "Erreur lors de la génération");
         return null;
       }
 
