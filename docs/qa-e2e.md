@@ -254,8 +254,8 @@ Critères d'acceptation :
 | Parcours | Prio | Run 2026-06-30 | Run … | Dernière note |
 |---|---|---|---|---|
 | T1 Post texte IG/LinkedIn | 🔴 | 🟡 PASS partiel | | Variante IG OK ; LinkedIn + débit crédit à confirmer (voir journal) |
-| T2 Carrousel photo + Structure Review | 🔴 | | | |
-| T3 Carrousel texte → Canva | 🔴 | | | |
+| T2 Carrousel photo + Structure Review | 🔴 | ✅ PASS | | Structure + réassignation + visuels OK ; « 5 photos non utilisées » à clarifier |
+| T3 Carrousel texte → Canva | 🔴 | 🟡 PARTIEL | | Qualité Max verrouillé ✅, Canva sans freeze ✅, rendu Canva à confirmer à la main |
 | T4 Newsjacking | 🔴 | | | |
 | T5 Onboarding complet | 🔴 | | | |
 | T6 Import marque + Review | 🟡 | | | |
@@ -295,7 +295,26 @@ Critères d'acceptation :
 - ⚠️ **Débit crédit non concluant** : compteur « 11 restantes » identique avant/après (cache `useUserPlan` 60 s probable) → re-vérifier après expiration cache pour confirmer 1 seul débit.
 - 🐛 **Note (mineure, non bloquante)** : champ « Thème / sujet » dans l'éditeur calendrier = concaténation sans espace de la nouvelle idée avec une idée de test précédente restée en session (`...communicationTest gating qualité max`). Contenu généré propre. À investiguer côté hygiène `creer_flow_state`.
 
-**T2–T5 — non lancés** (voir note de cadrage : consommation de crédits du compte test + T5 nécessite un reset onboarding destructif sur Camille).
+**T2 — Carrousel photo + Structure Review — ✅ PASS** (sujet : coulisses d'atelier céramique, 5 photos Pexels)
+- ✅ Entrée « Partir de photos » → **Photos libres de droit (Pexels)** : recherche + sélection 5 photos distinctes + import (« 5 / 10 photos »).
+- ✅ Détection intelligente « plusieurs photos → carrousel » ; type « Tes photos en fond ».
+- ✅ Questions **vision-aware** (la question lisait le contenu des photos : « les mains dans la terre, l'émail qui se pose »).
+- ✅ **`StructureReviewStep` obligatoire** confirmé : structure narrative 6 slides (Accroche → tension → preuve → bascule → transmission → CTA), chaque slide avec photo + rationnel.
+- ✅ **Réassignation photo** fonctionnelle (clic photo → clic slide) ; déplacer la photo 5 vers la slide 1 a **libéré la slide 6** (suivi `photo_index` correct).
+- ✅ Visuels rendus (88/100) : photos plein cadre, texte en cartouche blanc **lisible, fort contraste** (PR #200/#62/#68), **aucune fuite `@import`** (zoom vérifié).
+- ✅ Légende complète on-brand + hashtags de niche (pas de spam).
+- ⚠️ Indicateur **« 5 photos non utilisées »** affiché alors que les slides montrent les photos → à clarifier (probable compteur photothèque), non bloquant.
+- ⏭️ Reload-réhydratation (IndexedDB `creer_photos`) + export PNG téléchargé : non testés cette passe.
+
+**T3 — Carrousel → Canva — 🟡 PARTIEL**
+- ✅ **Toggle « Qualité Max » verrouillé** sur compte gratuit (badge PREMIUM + « Passe en Premium pour l'activer → ») — fix PR #225 confirmé.
+- ✅ **« Ouvrir dans Canva »** : l'export a préparé (onglet « Préparation… · Canva ») et **n'a pas figé l'app** → fix anti-freeze PR #222 tient.
+- ⚠️ **Non confirmable via l'outil** : l'onglet Canva a quitté le groupe suivi par le navigateur → rendu final DANS Canva non vérifié visuellement. À confirmer à la main.
+- ⏭️ Carrousel **texte** dédié + export **PPTX** : non testés (pipeline visuel déjà exercé via T2).
+
+**T4 (newsjacking) et T5 (onboarding reset) — non lancés** dans cette passe.
+
+> ⚠️ **Note churn Lovable** : pendant ce run, Lovable a basculé la branche du repo (`docs/qa-e2e-checklist` → `fix/lecteurs-ia-lignes-positioning`). Les commits étaient saufs ; la suite du run a été consignée depuis un **worktree isolé** (`/tmp/nda-qa-worktree`). Pour conserver ce doc, le pousser/merger vers `main`.
 
 ---
 
