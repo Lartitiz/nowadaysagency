@@ -64,8 +64,11 @@ export default function CharterTemplatesSection({
         const { data: urlData } = supabase.storage.from("brand-assets").getPublicUrl(path);
         newTemplates.push({ url: urlData.publicUrl, name: file.name });
       }
-      onDataChange({ uploaded_templates: newTemplates });
-      toast.success("Templates uploadés !");
+      const added = newTemplates.length - data.uploaded_templates.length;
+      if (added > 0) {
+        onDataChange({ uploaded_templates: newTemplates });
+        toast.success(added > 1 ? `${added} templates uploadés !` : "Template uploadé !");
+      }
     } catch (err: any) {
       console.error("Upload failed:", err);
       toast.error(err?.message || "Erreur lors de l'upload");

@@ -227,8 +227,11 @@ function MoodboardSection({ images, description, onImagesChange, onDescriptionCh
         const { data: signedData } = await supabase.storage.from("moodboards").createSignedUrl(path, 60 * 60 * 24 * 365);
         newImages.push({ url: signedData?.signedUrl || "", path, name: file.name });
       }
-      onImagesChange(newImages);
-      toast.success("Images ajoutées !");
+      const added = newImages.length - images.length;
+      if (added > 0) {
+        onImagesChange(newImages);
+        toast.success(added > 1 ? "Images ajoutées !" : "Image ajoutée !");
+      }
     } catch (err: any) {
       console.error("Moodboard upload error:", err);
       toast.error(err?.message || "Erreur lors de l'upload. Vérifie le format de l'image.");
