@@ -117,7 +117,9 @@ function buildBrandingCards(
 ): BrandingCard[] {
   const cards: BrandingCard[] = [];
 
-  if (bp?.positioning) cards.push({ emoji: "🎯", title: "Positionnement", content: bp.positioning, route: "/branding/proposition/recap", dbTable: "brand_profile", dbField: "positioning" });
+  // Pas de carte « Positionnement » distincte : le positionnement vit désormais dans
+  // brand_proposition.version_final (source de vérité unique, PR #207) et s'affiche
+  // via la carte « Proposition de valeur » plus bas. brand_profile.positioning est mort.
   if (bp?.mission) cards.push({ emoji: "🚀", title: "Mission", content: bp.mission, route: "/branding", dbTable: "brand_profile", dbField: "mission" });
   if (bp?.tone_style || (bp?.tone_keywords && bp.tone_keywords.length > 0)) {
     const toneContent = bp!.tone_style || (bp!.tone_keywords || []).join(", ");
@@ -160,7 +162,9 @@ function buildBrandingCards(
   if (story?.imported_text) cards.push({ emoji: "📖", title: "Ton histoire", content: story.imported_text, route: "/branding/section?section=story", dbTable: "storytelling", dbField: "imported_text" });
 
   const prop = propositionData as any;
-  if (prop?.version_final) cards.push({ emoji: "💎", title: "Proposition de valeur", content: prop.version_final, route: "/branding/proposition/recap" });
+  // version_final (modifié via audits) > version_complete (onboarding) > legacy brand_profile.positioning.
+  const propContent = prop?.version_final || prop?.version_complete || bp?.positioning;
+  if (propContent) cards.push({ emoji: "💎", title: "Proposition de valeur", content: propContent, route: "/branding/proposition/recap" });
   else if (prop?.version_one_liner) cards.push({ emoji: "💎", title: "One-liner", content: prop.version_one_liner, route: "/branding/proposition/recap" });
 
   const strat = strategyData as any;
@@ -356,7 +360,7 @@ export default function WelcomePage() {
           .eq(column, value)
           .maybeSingle(),
         (supabase.from("brand_proposition") as any)
-          .select("version_final, version_one_liner")
+          .select("version_final, version_complete, version_one_liner")
           .eq(column, value)
           .maybeSingle(),
         (supabase.from("brand_strategy") as any)
@@ -426,7 +430,7 @@ export default function WelcomePage() {
           .select("color_primary, color_secondary, color_accent, color_background, color_text, font_title, font_body, mood_keywords, photo_style, moodboard_description")
           .eq(column, value).maybeSingle(),
         (supabase.from("brand_proposition") as any)
-          .select("version_final, version_one_liner")
+          .select("version_final, version_complete, version_one_liner")
           .eq(column, value).maybeSingle(),
         (supabase.from("brand_strategy") as any)
           .select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3, creative_concept")

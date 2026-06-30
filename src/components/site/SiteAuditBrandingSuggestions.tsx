@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Sparkles, Loader2, X } from "lucide-react";
 import { useProfileUserId } from "@/hooks/use-workspace-query";
+import { applyPositioningToProposition } from "@/lib/positioning-write";
 import type { BrandingPrefillFromSite } from "./SiteAuditAutoResult";
 
 interface Props {
@@ -72,16 +73,16 @@ export default function SiteAuditBrandingSuggestions({ prefill, workspaceFilter,
     };
 
     try {
-      // brand_profile: tone_style, combat_cause, combat_fights, positioning
+      // brand_profile: tone_style, combat_cause, combat_fights
+      // (le positionnement va dans brand_proposition.version_final, cf. plus bas)
       const brandUpdates: Record<string, unknown> = {};
       if (emptyFields.tone_style && editableValues.tone_style) brandUpdates.tone_style = editableValues.tone_style;
       if (emptyFields.combat_cause && editableValues.combat_cause) brandUpdates.combat_cause = editableValues.combat_cause;
       if (emptyFields.combat_fights && editableValues.combat_fights) brandUpdates.combat_fights = editableValues.combat_fights;
-      if (emptyFields.positioning && editableValues.positioning) brandUpdates.positioning = editableValues.positioning;
 
       if (Object.keys(brandUpdates).length > 0) {
         const { data: existing } = await (supabase.from("brand_profile") as any)
-          .select("id, tone_style, combat_cause, combat_fights, positioning").eq(filterCol, filterVal).maybeSingle();
+          .select("id, tone_style, combat_cause, combat_fights").eq(filterCol, filterVal).maybeSingle();
         if (existing) {
           const safe = onlyStillEmpty(brandUpdates, existing);
           if (Object.keys(safe).length > 0) await (supabase.from("brand_profile") as any).update(safe).eq("id", existing.id);
@@ -92,6 +93,12 @@ export default function SiteAuditBrandingSuggestions({ prefill, workspaceFilter,
             ...brandUpdates,
           });
         }
+      }
+
+      // Positionnement → brand_proposition.version_final (source de vérité unique
+      // lue par la génération + le Coach). Ne remplit que si version_final est vide.
+      if (emptyFields.positioning && editableValues.positioning) {
+        await applyPositioningToProposition(filterCol, filterVal, profileUserId, editableValues.positioning);
       }
 
       // brand_charter: colors, fonts, mood
