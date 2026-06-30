@@ -91,7 +91,7 @@ Deno.serve(async (req) => {
       refreshToken = tokJson.refresh_token || null;
       const expiresIn = Number(tokJson.expires_in || 4 * 3600);
       expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
-      scopes = String(tokJson.scope || "design:content:write design:meta:read asset:write profile:read");
+      scopes = String(tokJson.scope || "design:content:write design:meta:read profile:read");
 
       // 2. Lecture du compte (id + nom d'affichage). Best-effort sur le nom.
       const meRes = await fetch("https://api.canva.com/rest/v1/users/me", {

@@ -11,9 +11,14 @@ const IG_SCOPES =
 // OpenID Connect + partage sur le profil membre (les anciens r_liteprofile/r_emailaddress
 // sont supprimés depuis 2026). w_member_social = publier au nom du membre.
 const LI_SCOPES = "openid profile w_member_social";
-// Canva Connect : importer un design (PPTX) + lire son URL d'édition + le profil.
+// Canva Connect — scopes au strict minimum (exigence review Canva) :
+// - design:content:write : importer le carrousel PPTX (POST /url-imports)
+// - design:meta:read     : lire l'URL d'édition du design créé (GET /designs/{id})
+// - profile:read         : afficher le compte Canva connecté (GET /users/me)
+// (design:content:read, asset:read, asset:write retirés : jamais appelés — l'import
+//  passe par une URL publique, pas par l'API Assets.)
 const CANVA_SCOPES =
-  "design:content:read design:content:write design:meta:read asset:read asset:write profile:read";
+  "design:content:write design:meta:read profile:read";
 // Pinterest API v5 : lire le compte + les tableaux, et créer des épingles. Scopes séparés par des virgules.
 const PI_SCOPES = "user_accounts:read,boards:read,pins:read,pins:write";
 
