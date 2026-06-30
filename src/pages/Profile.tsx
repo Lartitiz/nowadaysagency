@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
 import { HelpCircle, ArrowRight, Info } from "lucide-react";
 import SaveButton from "@/components/SaveButton";
+import { Button } from "@/components/ui/button";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useActiveChannels, ALL_CHANNELS, type ChannelId } from "@/hooks/use-active-channels";
 
@@ -158,9 +159,15 @@ function FrequencySelector({ label, value, options, onChange }: {
 export default function Profile() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
-  const { data: hookProfileData } = useProfile();
+  const {
+    data: hookProfileData,
+    isLoading: profileQueryLoading,
+    isError: profileQueryError,
+    refetch: refetchProfile,
+  } = useProfile();
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [openHelp, setOpenHelp] = useState<HelpKey>(null);
 
@@ -179,9 +186,29 @@ export default function Profile() {
 
   useEffect(() => {
     if (!user) return;
+    // On attend que la requête profil react-query soit retombée (succès ou erreur).
+    if (profileQueryLoading) return;
+    // Échec de chargement : on affiche un état d'erreur explicite au lieu de
+    // retomber en silence sur un formulaire vide (qui ferait croire à une perte
+    // de données et écraserait le vrai profil au prochain « Sauvegarder »).
+    if (profileQueryError) {
+      console.error("Profile load error");
+      setLoadError(true);
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
     const load = async () => {
+      setLoadError(false);
       const data = hookProfileData as any;
-      const { data: config } = await (supabase.from("user_plan_config") as any).select("main_goal, level, weekly_time").eq(column, value).maybeSingle();
+      const { data: config, error: configError } = await (supabase.from("user_plan_config") as any).select("main_goal, level, weekly_time").eq(column, value).maybeSingle();
+      if (cancelled) return;
+      if (configError) {
+        console.error("Profile config load error:", configError);
+        setLoadError(true);
+        setLoading(false);
+        return;
+      }
       if (data) {
         const loaded: ProfileData = {
           prenom: data.prenom || "",
@@ -207,7 +234,14 @@ export default function Profile() {
       setLoading(false);
     };
     load();
-  }, [user?.id, hookProfileData]);
+    return () => { cancelled = true; };
+  }, [user?.id, hookProfileData, profileQueryLoading, profileQueryError, column, value]);
+
+  const handleRetry = async () => {
+    setLoading(true);
+    setLoadError(false);
+    await refetchProfile();
+  };
 
   const update = (field: keyof ProfileData, value: any) => {
     setCurrent((prev) => ({ ...prev, [field]: value }));
@@ -269,6 +303,23 @@ export default function Profile() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <PageLoader label="Chargement…" />
+    </div>
+  );
+
+  // Erreur de chargement : on N'AFFICHE PAS le formulaire (champs vides = fausse
+  // perte de données + risque d'écrasement du vrai profil au « Sauvegarder »).
+  if (loadError) return (
+    <div className="min-h-screen bg-background">
+      <AppHeader />
+      <main className="mx-auto max-w-2xl px-4 py-8">
+        <div className="rounded-2xl border border-border bg-card p-8 text-center space-y-4 mt-8">
+          <h2 className="text-xl font-semibold">Impossible de charger ton profil</h2>
+          <p className="text-sm text-muted-foreground max-w-md mx-auto">
+            Une erreur réseau est survenue. Tes données n'ont pas été perdues — elles sont bien enregistrées. Réessaie dans un instant.
+          </p>
+          <Button onClick={handleRetry}>Réessayer</Button>
+        </div>
+      </main>
     </div>
   );
 
