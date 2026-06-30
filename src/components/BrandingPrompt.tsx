@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "react-router-dom";
-import { getBrandingCompletion } from "@/lib/branding-completion";
+import { getBrandingCompletionWithStatus } from "@/lib/branding-completion";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { ArrowRight } from "lucide-react";
 
@@ -23,7 +23,10 @@ export default function BrandingPrompt({ section = "global", message, linkText, 
 
   useEffect(() => {
     if (!user) return;
-    getBrandingCompletion({ column, value }).then(({ percent, toneComplete }) => {
+    getBrandingCompletionWithStatus({ column, value }).then(({ percent, toneComplete, error }) => {
+      // Erreur de chargement transitoire : ne pas afficher un faux nudge
+      // « complète ton branding » (percent=0) à un utilisateur déjà complet.
+      if (error) return;
       if (section === "global" && percent < 50) setShow(true);
       else if (section === "tone" && !toneComplete) setShow(true);
       // proposition and strategie always show (not yet available)
