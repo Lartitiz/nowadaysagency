@@ -99,9 +99,11 @@ async function buildContext(sb: any, userId: string, workspaceId?: string): Prom
   ] = await Promise.all([
     sb.from("profiles").select("prenom, activite, type_activite, channels, cible, probleme_principal, piliers, tons").eq("user_id", profileUserId).maybeSingle(),
     sb.from("brand_profile").select("mission, positioning, tone_description, content_pillars, story_origin, combats, content_editorial_line").eq(col, val).maybeSingle(),
-    sb.from("storytelling").select("step_7_polished, step_6_full_story, imported_text, title").eq(col, val).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-    sb.from("persona").select("portrait_prenom, portrait, description, frustrations_detail, desires").eq(col, val).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-    sb.from("brand_proposition").select("version_one_liner, version_complete, version_final").eq(col, val).maybeSingle(),
+    // primaire d'abord puis la plus récente — MÊME critère que la génération (user-context)
+    // pour que le Coach et la génération lisent la même histoire / le même persona.
+    sb.from("storytelling").select("step_7_polished, step_6_full_story, imported_text, title").eq(col, val).order("is_primary", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    sb.from("persona").select("portrait_prenom, portrait, description, frustrations_detail, desires").eq(col, val).order("is_primary", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    sb.from("brand_proposition").select("version_one_liner, version_complete, version_final").eq(col, val).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     sb.from("brand_profile").select("tone_keywords, tone_style").eq(col, val).maybeSingle(),
     sb.from("brand_strategy").select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3, creative_concept").eq(col, val).maybeSingle(),
     sb.from("offers").select("name, target_ideal, offer_type, promise").eq(col, val).limit(5),
@@ -116,11 +118,11 @@ async function buildContext(sb: any, userId: string, workspaceId?: string): Prom
   let persona = personaRes.data;
   let story = storyRes.data;
   if (!persona && workspaceId) {
-    const fallback = await sb.from("persona").select("portrait_prenom, portrait, description, frustrations_detail, desires").eq("user_id", profileUserId).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    const fallback = await sb.from("persona").select("portrait_prenom, portrait, description, frustrations_detail, desires").eq("user_id", profileUserId).order("is_primary", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }).limit(1).maybeSingle();
     persona = fallback.data;
   }
   if (!story && workspaceId) {
-    const fallback = await sb.from("storytelling").select("step_7_polished, step_6_full_story, imported_text, title").eq("user_id", profileUserId).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    const fallback = await sb.from("storytelling").select("step_7_polished, step_6_full_story, imported_text, title").eq("user_id", profileUserId).order("is_primary", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }).limit(1).maybeSingle();
     story = fallback.data;
   }
 

@@ -53,13 +53,24 @@ Deno.serve(async (req) => {
       .eq(filterCol, filterVal)
       .maybeSingle();
 
-    if (bp) {
+    // Source de vérité du positionnement = brand_proposition.version_final (cf #207).
+    // brand_profile.positioning est gelé à l'onboarding → fallback seulement.
+    const { data: prop } = await supabase
+      .from("brand_proposition")
+      .select("version_final, version_complete")
+      .eq(filterCol, filterVal)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (bp || prop) {
       const parts: string[] = [];
-      if (bp.positioning) parts.push(`Positionnement : ${bp.positioning}`);
-      if (bp.tone_description) parts.push(`Ton : ${bp.tone_description}`);
-      if (bp.tone_keywords) parts.push(`Mots-clés de ton : ${JSON.stringify(bp.tone_keywords)}`);
-      if (bp.tone_do) parts.push(`À faire : ${bp.tone_do}`);
-      if (bp.tone_dont) parts.push(`À éviter : ${bp.tone_dont}`);
+      const positioning = prop?.version_final || prop?.version_complete || bp?.positioning;
+      if (positioning) parts.push(`Positionnement : ${positioning}`);
+      if (bp?.tone_description) parts.push(`Ton : ${bp.tone_description}`);
+      if (bp?.tone_keywords) parts.push(`Mots-clés de ton : ${JSON.stringify(bp.tone_keywords)}`);
+      if (bp?.tone_do) parts.push(`À faire : ${bp.tone_do}`);
+      if (bp?.tone_dont) parts.push(`À éviter : ${bp.tone_dont}`);
       if (parts.length > 0) brandContext = `\n\nCONTEXTE MARQUE :\n${parts.join("\n")}`;
     }
 
