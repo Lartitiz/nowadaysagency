@@ -251,9 +251,9 @@ Critères d'acceptation :
 > Une ligne par parcours, une colonne par passe de test. Remplir `✅ / ❌ / ⏭️ / 🚫`.
 > En cas de ❌, mettre le n° de PR/ticket dans « Dernière note ».
 
-| Parcours | Prio | Run AAAA-MM-JJ | Run … | Dernière note |
+| Parcours | Prio | Run 2026-06-30 | Run … | Dernière note |
 |---|---|---|---|---|
-| T1 Post texte IG/LinkedIn | 🔴 | | | |
+| T1 Post texte IG/LinkedIn | 🔴 | 🟡 PASS partiel | | Variante IG OK ; LinkedIn + débit crédit à confirmer (voir journal) |
 | T2 Carrousel photo + Structure Review | 🔴 | | | |
 | T3 Carrousel texte → Canva | 🔴 | | | |
 | T4 Newsjacking | 🔴 | | | |
@@ -279,6 +279,23 @@ Critères d'acceptation :
 | T24 Réseau dégradé / reload | 🟢 | | | |
 
 **Verdict global de la passe** : _____ PASS / _____ FAIL / _____ non testés — sur 24 parcours.
+
+---
+
+## Journal des runs
+
+### Run 2026-06-30 (Claude, live, compte Camille)
+
+**T1 — Post texte Instagram — 🟡 PASS partiel** (sujet : « 3 erreurs que je vois souvent chez les créatrices qui débutent »)
+- ✅ Flux `/creer` complet : idée → canal IG → format Post → 3 questions contextuelles (indexation Q1/2/3 correcte, réponses sauvegardées ✓ bleu) → génération.
+- ✅ Génération streaming avec loader honnête (skeleton + barre + tip), **aucun écran muet**.
+- ✅ Qualité + voix de marque : caption fidèle aux réponses, **positionnement « artisanat lent / trace de la main » intégré** (la question 3 elle-même citait le positionnement → propagation branding confirmée live), CTA d'engagement final, **aucun hashtag parasite**.
+- ✅ « Ajouter au calendrier » → **1 seul post** au 15 juil. (footer « 1 contenu »), **pas de doublon** ; ouvre l'éditeur 2 colonnes (auto-save, statut « En rédaction », « Publier ▾»).
+- ⏭️ Variante **LinkedIn non testée** (à faire).
+- ⚠️ **Débit crédit non concluant** : compteur « 11 restantes » identique avant/après (cache `useUserPlan` 60 s probable) → re-vérifier après expiration cache pour confirmer 1 seul débit.
+- 🐛 **Note (mineure, non bloquante)** : champ « Thème / sujet » dans l'éditeur calendrier = concaténation sans espace de la nouvelle idée avec une idée de test précédente restée en session (`...communicationTest gating qualité max`). Contenu généré propre. À investiguer côté hygiène `creer_flow_state`.
+
+**T2–T5 — non lancés** (voir note de cadrage : consommation de crédits du compte test + T5 nécessite un reset onboarding destructif sur Camille).
 
 ---
 
