@@ -24,15 +24,17 @@ function loadGoogleFont(font: string) {
 
 function FontAutocomplete({ label, value, onChange, allowEmpty }: {
   label: string;
-  value: string;
+  // La BDD renvoie `null` quand la police n'est pas renseignée (branding vide) :
+  // le type doit le refléter, sinon `query` devient null → crash `.toLowerCase()`.
+  value: string | null;
   onChange: (v: string) => void;
   allowEmpty?: boolean;
 }) {
-  const [query, setQuery] = useState(value);
+  const [query, setQuery] = useState(value ?? "");
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { setQuery(value); }, [value]);
+  useEffect(() => { setQuery(value ?? ""); }, [value]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -43,7 +45,7 @@ function FontAutocomplete({ label, value, onChange, allowEmpty }: {
   }, []);
 
   const filtered = GOOGLE_FONTS_LIST.filter(f =>
-    f.toLowerCase().includes(query.toLowerCase())
+    (f || "").toLowerCase().includes((query || "").toLowerCase())
   )
     // AI-recommended remontées en premier
     .sort((a, b) => Number(AI_RECOMMENDED_FONTS.has(b)) - Number(AI_RECOMMENDED_FONTS.has(a)))
