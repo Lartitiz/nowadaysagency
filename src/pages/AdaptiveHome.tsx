@@ -97,7 +97,9 @@ function OnboardingBanner({ onNavigate }: { onNavigate: (route: string) => void 
 
   const [collapsed, setCollapsed] = useState(() => {
     const stored = localStorage.getItem(COLLAPSED_KEY);
-    if (stored === null) return false;
+    // Replié par défaut : le bandeau ne doit jamais repousser « Créer un contenu »
+    // sous la ligne de flottaison. Replié, il reste guidant via la prochaine étape.
+    if (stored === null) return true;
     return stored === "true";
   });
 
@@ -139,8 +141,29 @@ function OnboardingBanner({ onNavigate }: { onNavigate: (route: string) => void 
         />
       </button>
 
+      {/* Replié : une seule action guidée (la prochaine étape) au lieu d'un mur de 6 cartes */}
+      {collapsed && nextMission && (
+        <button
+          onClick={() => onNavigate(nextMission.route)}
+          className="mt-3 w-full text-left rounded-xl border border-primary/40 bg-card p-3 flex items-center gap-3 hover:border-primary transition-colors"
+        >
+          <span className="text-lg shrink-0">{nextMission.emoji}</span>
+          <div className="flex-1 min-w-0">
+            <p className="font-mono-ui text-2xs uppercase tracking-[0.14em] text-foreground/50 font-semibold">
+              Prochaine étape
+            </p>
+            <p className="text-sm font-semibold text-foreground truncate">{nextMission.title}</p>
+          </div>
+          <span className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
+            <Clock className="h-3 w-3" />
+            {nextMission.time}
+          </span>
+          <span className="text-xs font-medium text-primary shrink-0 hidden sm:inline">Commencer →</span>
+        </button>
+      )}
+
       {!collapsed && (
-        <div className="mt-4 space-y-2">
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
           {missions.map((mission) => (
             <MissionRow
               key={mission.id}
