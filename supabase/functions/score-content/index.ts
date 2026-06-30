@@ -3,6 +3,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 import { buildIdentityBlock } from "../_shared/user-context.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
+import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -122,16 +123,13 @@ Réponds UNIQUEMENT en JSON :
     const tokensUsed = aiData.usage?.total_tokens ?? ((aiData.usage?.prompt_tokens ?? 0) + (aiData.usage?.completion_tokens ?? 0));
     const rawContent = aiData.choices?.[0]?.message?.content || "";
 
-    let parsed;
-    try {
-      parsed = JSON.parse(rawContent);
-    } catch {
-      const match = rawContent.match(/\{[\s\S]*\}/);
-      if (match) {
-        try { parsed = JSON.parse(match[0]); } catch { parsed = { raw: rawContent }; }
-      } else {
-        parsed = { raw: rawContent };
-      }
+    // Plus de fallback { raw } muet : réponse illisible = erreur claire, sans débiter le quota.
+    const parsed = tryParseAiJson<any>(rawContent, "score-content");
+    if (parsed === null) {
+      return new Response(
+        JSON.stringify({ error: "L'IA a renvoyé une réponse illisible. Réessaie." }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     if (action === "improve") {
