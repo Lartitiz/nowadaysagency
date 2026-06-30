@@ -1,5 +1,11 @@
 import { defineConfig, devices } from "@playwright/test";
 
+// Les tests authentifiés (mobile.authed.spec.ts) ne tournent que si un mot de passe
+// de compte test est fourni en variable d'env (jamais commité) :
+//   E2E_TEST_PASSWORD='...' npx playwright test --project="Mobile Chrome authed"
+const AUTH_STORAGE = "e2e/.auth/camille.json";
+const hasTestCreds = !!process.env.E2E_TEST_PASSWORD;
+
 export default defineConfig({
   testDir: "./e2e",
   timeout: 30_000,
@@ -16,18 +22,32 @@ export default defineConfig({
   },
 
   projects: [
+    // ── Projets PUBLICS (pas d'auth) — ignorent les specs authentifiées ──
     {
       name: "chromium",
       use: { browserName: "chromium" },
+      testIgnore: /\.authed\.spec\.ts/,
     },
     {
-      // Responsive mobile (jamais testé jusqu'ici) — viewport Pixel 5 (393×851),
-      // moteur chromium (pas d'install navigateur supplémentaire requise).
-      // Suivi possible : ajouter un projet iPhone/webkit (npx playwright install webkit)
-      // pour couvrir les quirks iOS Safari.
+      // Responsive mobile — viewport Pixel 5 (393×851), moteur chromium
+      // (pas d'install navigateur supplémentaire requise).
+      // Suivi possible : projet iPhone/webkit (npx playwright install webkit) pour iOS Safari.
       name: "Mobile Chrome",
       use: { ...devices["Pixel 5"] },
+      testIgnore: /\.authed\.spec\.ts/,
     },
+    // ── Projets AUTHENTIFIÉS (seulement si E2E_TEST_PASSWORD est posé) ──
+    ...(hasTestCreds
+      ? [
+          { name: "setup", testMatch: /auth\.setup\.ts/ },
+          {
+            name: "Mobile Chrome authed",
+            use: { ...devices["Pixel 5"], storageState: AUTH_STORAGE },
+            dependencies: ["setup"],
+            testMatch: /\.authed\.spec\.ts/,
+          },
+        ]
+      : []),
   ],
 
   webServer: {
