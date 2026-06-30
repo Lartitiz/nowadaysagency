@@ -18,6 +18,15 @@ const SESSION_PREFIXES = [
   "onboarding_checked", // matche aussi l'ancienne clé fixe + "onboarding_checked:{id}" + ":demo"
 ];
 
+// Clés localStorage à clé fixe NON scopées par compte → fuiteraient entre comptes
+// empilés dans le même navigateur si on ne les purge pas au switch/logout.
+const LOCAL_KEYS = [
+  // Workspace actif : sinon, au changement de compte, on reste pointé sur le
+  // workspace du compte précédent → l'app affiche le profil/branding du
+  // propriétaire de CET espace (modèle agence) au lieu du nouveau compte.
+  "active_workspace_id",
+];
+
 // Préfixes localStorage scopés par user (à balayer)
 const LOCAL_PREFIXES = [
   "creer_flow_state_backup", // matche "creer_flow_state_backup:{userId}"
@@ -44,6 +53,9 @@ export function clearAppStorage() {
     sweepByPrefix(sessionStorage, SESSION_PREFIXES);
   } catch { /* storage indisponible — ignore */ }
   try {
+    for (const k of LOCAL_KEYS) {
+      localStorage.removeItem(k);
+    }
     sweepByPrefix(localStorage, LOCAL_PREFIXES);
   } catch { /* storage indisponible — ignore */ }
   try {
