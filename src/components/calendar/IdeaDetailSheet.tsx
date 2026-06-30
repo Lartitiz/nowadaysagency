@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Calendar } from "@/components/ui/calendar";
@@ -54,6 +55,7 @@ interface Props {
 
 export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned }: Props) {
   const { user } = useAuth();
+  const confirm = useConfirm();
   const workspaceId = useWorkspaceId();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -152,7 +154,7 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
 
   const handleDelete = async () => {
     if (!idea) return;
-    if (!window.confirm("Supprimer cette idée ? Cette action est irréversible.")) return;
+    if (!(await confirm({ title: "Supprimer cette idée ?", description: "Cette action est irréversible.", confirmText: "Supprimer", destructive: true }))) return;
     await supabase.from("saved_ideas").delete().eq("id", idea.id);
     toast.success("Idée supprimée");
     onOpenChange(false);

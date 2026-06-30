@@ -5,6 +5,7 @@ import { PostCommentsSection } from "@/components/calendar/PostCommentsSection";
 import { friendlyError } from "@/lib/error-messages";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useProfile } from "@/hooks/use-profile";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
@@ -54,6 +55,7 @@ function isoToLocalInput(iso: string): string {
 
 export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDate, defaultCanal, onSave, onAutoSave, onDelete, onUnplan, onDateChange, prefillData }: Props) {
   const { user } = useAuth();
+  const confirm = useConfirm();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const { column, value } = useWorkspaceFilter();
@@ -777,12 +779,12 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
               )}
               {canPublishActions && (!!editingPost || !!effectiveId) && <DropdownMenuSeparator />}
               {editingPost && onUnplan && (
-                <DropdownMenuItem onClick={() => { if (window.confirm("Remettre ce post dans ta boîte à idées ? Il sera retiré du calendrier.")) onUnplan(); }}>
+                <DropdownMenuItem onClick={async () => { if (await confirm({ title: "Remettre ce post dans tes idées ?", description: "Il sera retiré du calendrier et rangé dans ta boîte à idées.", confirmText: "Remettre dans mes idées" })) onUnplan(); }}>
                   <Lightbulb className="h-4 w-4 mr-2" /> Remettre dans mes idées
                 </DropdownMenuItem>
               )}
               {effectiveId && (
-                <DropdownMenuItem onClick={() => { if (window.confirm("Supprimer ce post du calendrier ? Cette action est irréversible.")) onDelete(effectiveId); }} className="text-destructive focus:text-destructive">
+                <DropdownMenuItem onClick={async () => { if (await confirm({ title: "Supprimer ce post du calendrier ?", description: "Cette action est irréversible.", confirmText: "Supprimer", destructive: true })) onDelete(effectiveId); }} className="text-destructive focus:text-destructive">
                   <Trash2 className="h-4 w-4 mr-2" /> Supprimer
                 </DropdownMenuItem>
               )}

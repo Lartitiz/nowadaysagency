@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { cn, toLocalDateStr } from "@/lib/utils";
 import { ChevronDown, CalendarIcon } from "lucide-react";
 import { ANGLES, STATUSES, OBJECTIFS } from "@/lib/calendar-constants";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { useActiveSeries, getNextEpisodeNumber } from "@/hooks/use-active-series";
 
 export const FORMAT_OPTIONS_BY_CANAL: Record<string, { id: string; emoji: string; label: string }[]> = {
@@ -62,6 +63,7 @@ export function CalendarPostMetadata({
   editingPostId, selectedDate, onDateChange, onUnplan,
   seriesId, setSeriesId, episodeNumber, setEpisodeNumber,
 }: Props) {
+  const confirm = useConfirm();
   const { data: activeSeries = [] } = useActiveSeries();
   const selectedSerie = activeSeries.find((s) => s.id === seriesId) || null;
   return (
@@ -114,8 +116,8 @@ export function CalendarPostMetadata({
           <Button
             type="button"
             variant="outline"
-            onClick={() => {
-              if (window.confirm("Remettre ce post dans ta boîte à idées ? Il sera retiré du calendrier.")) {
+            onClick={async () => {
+              if (await confirm({ title: "Remettre ce post dans tes idées ?", description: "Il sera retiré du calendrier et rangé dans ta boîte à idées.", confirmText: "Remettre dans mes idées" })) {
                 onUnplan();
               }
             }}
