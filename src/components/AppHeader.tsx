@@ -241,7 +241,8 @@ function AppHeaderInner() {
 
       {/* ─── Tablet header (md–lg) : logo + icon-only nav + bell+avatar ─── */}
       <header className="sticky top-0 z-40 border-b border-border bg-card hidden md:block lg:hidden">
-        <div className="flex h-14 items-center justify-between px-4">
+        {/* pl-14 : dégage le hamburger fixe (AppSidebar, left-[14px] w-9, visible lg:hidden) qui sinon recouvre le début du nom */}
+        <div className="flex h-14 items-center justify-between pl-14 pr-4">
           <div className="flex items-center gap-2 shrink-0">
             <Link to="/dashboard" className="flex items-center gap-2 shrink-0">
               <span className="font-display text-sm font-bold text-foreground">L'Assistant Com'</span>
@@ -295,7 +296,8 @@ function AppHeaderInner() {
 
       {/* ─── Mobile top bar (<md) : logo + bell+avatar only ─── */}
       <header className="sticky top-0 z-40 border-b border-border bg-card md:hidden">
-        <div className="flex h-12 items-center justify-between px-4">
+        {/* pl-14 : dégage le hamburger fixe (AppSidebar, left-[14px] w-9, visible lg:hidden) qui sinon recouvre le début du nom */}
+        <div className="flex h-12 items-center justify-between pl-14 pr-4">
           <div className="flex items-center gap-2 shrink-0">
             <Link to="/dashboard" className="flex items-center gap-2 shrink-0">
               <span className="font-display text-sm font-bold text-foreground">L'Assistant Com'</span>
