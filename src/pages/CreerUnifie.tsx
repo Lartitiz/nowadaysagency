@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react"
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { handleQuotaError } from "@/lib/quota-error-handler";
 import { buildCalendarContent } from "@/features/creer/build-calendar-content";
+import { deriveCanalFromState, mapFormatToContentType } from "@/features/creer/format-mappers";
 import { useSearchParams, useLocation, useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
@@ -157,14 +158,6 @@ export default function CreerUnifie() {
   type ForcedChannel = (typeof FORCED_CANALS)[number];
   const forcedChannel: ForcedChannel | null =
     (FORCED_CANALS as readonly string[]).includes(paramCanal || "") ? (paramCanal as ForcedChannel) : null;
-  const deriveCanalFromState = (s: any): string | null => {
-    if (!s) return null;
-    if (s.selectedFormat === "linkedin" || s.isLinkedInCarousel) return "linkedin";
-    if ((s.selectedFormat || "").startsWith("pinterest")) return "pinterest";
-    if (s.selectedFormat === "newsletter") return "newsletter";
-    if (s.selectedFormat) return "instagram";
-    return null;
-  };
   const restoredCanal = deriveCanalFromState(ps);
   const canalConflict = !!forcedChannel && !!restoredCanal && restoredCanal !== forcedChannel;
   // Restore step — allow "result" and "edit" if their data is available
@@ -1819,14 +1812,6 @@ export default function CreerUnifie() {
   };
 
 
-  const mapFormatToContentType = (fmt: string | null): "story" | "reel" | "post_instagram" | "post_linkedin" | "newsletter" | "pinterest" => {
-    if (fmt === "newsletter") return "newsletter";
-    if (fmt === "story") return "story";
-    if (fmt === "reel") return "reel";
-    if (fmt === "linkedin") return "post_linkedin";
-    if (fmt === "pinterest" || fmt === "pinterest_visual" || fmt === "pinterest_photo") return "pinterest";
-    return "post_instagram";
-  };
 
   // Extract content draft from result for calendar save
   // Extraction pure (testée) : voir src/features/creer/build-calendar-content.ts
