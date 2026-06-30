@@ -1,7 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { scrapeWebsite, scrapeInstagram, scrapeLinkedin, processDocuments, extractVisualInfo, isSafePublicUrl } from "../_shared/scraping.ts";
+import { scrapeWebsite, scrapeInstagram, scrapeLinkedin, processDocuments, extractVisualInfo, isSafePublicUrl, safeFetchFollow, extractStylesheetUrls, extractBrandImageUrl } from "../_shared/scraping.ts";
+import { encodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { type UsageSink, extractUsage } from "../_shared/anthropic.ts";
@@ -51,6 +52,7 @@ serve(async (req) => {
     const sourcesUsed: string[] = [];
     const sourcesFailed: string[] = [];
     let styleHints = "";
+    let brandImageUrl: string | null = null;
 
     // --- 1. SCRAPE WEBSITE ---
     if (websiteUrl) {
@@ -67,18 +69,39 @@ serve(async (req) => {
         try {
           let formattedUrl = websiteUrl.trim();
           if (!formattedUrl.startsWith("http")) formattedUrl = `https://${formattedUrl}`;
-          // SSRF : ce fetch visuel ne passe pas par scrapeWebsite -> garde explicite
-          // (isSafePublicUrl bloque IP internes/métadonnées ; redirect manual = pas de
-          // rebond vers un hôte interne). Best-effort : on saute si l'URL n'est pas sûre.
-          if (!isSafePublicUrl(formattedUrl)) throw new Error("URL non publique");
-          const resp = await fetch(formattedUrl, {
-            signal: controller.signal,
-            headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandAnalyzer/1.0)" },
-            redirect: "manual",
-          });
-          if (resp.ok) {
-            const html = await resp.text();
-            styleHints = extractVisualInfo(html);
+          // safeFetchFollow suit les redirections (apex→www, http→https) tout en
+          // vérifiant l'anti-SSRF à chaque saut. Sans ça, le moindre 301 renvoyait
+          // resp.ok=false → aucune couleur captée alors que le texte passait.
+          const fetched = await safeFetchFollow(formattedUrl, controller.signal);
+          if (fetched && fetched.response.ok) {
+            const html = await fetched.response.text();
+            const baseUrl = fetched.finalUrl;
+
+            // Les sites modernes (React/Webflow/Tailwind…) mettent leurs couleurs
+            // dans des feuilles de style EXTERNES, pas en CSS inline. On en récupère
+            // quelques-unes pour parser couleurs/polices.
+            let externalCss = "";
+            const cssUrls = extractStylesheetUrls(html, baseUrl).slice(0, 3);
+            for (const cssUrl of cssUrls) {
+              if (!isSafePublicUrl(cssUrl)) continue;
+              try {
+                const cssResp = await fetch(cssUrl, {
+                  signal: controller.signal,
+                  headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandAnalyzer/1.0)" },
+                });
+                if (cssResp.ok) {
+                  externalCss += "\n" + (await cssResp.text()).slice(0, 120000);
+                } else {
+                  await cssResp.body?.cancel().catch(() => {});
+                }
+              } catch { /* feuille de style optionnelle */ }
+              if (externalCss.length > 300000) break;
+            }
+
+            styleHints = extractVisualInfo(html, externalCss);
+            // Image de marque (logo/og:image) pour estimation couleurs par vision
+            // quand le CSS n'a rien donné.
+            brandImageUrl = extractBrandImageUrl(html, baseUrl);
           }
         } catch {
           // Visual hints are nice-to-have
@@ -157,7 +180,7 @@ serve(async (req) => {
 
     // --- 5. CALL CLAUDE ---
     const usage: UsageSink = {};
-    const analysisResult = await callClaude(scrapedContent, sourcesUsed, styleHints, usage);
+    const analysisResult = await callClaude(scrapedContent, sourcesUsed, styleHints, usage, brandImageUrl, controller.signal);
 
     // --- 6. SAVE TO DB ---
     const { data: wsData } = await supabaseAdmin
@@ -223,7 +246,9 @@ async function callClaude(
   content: Record<string, string>,
   sourcesUsed: string[],
   styleHints: string = "",
-  usageOut?: UsageSink
+  usageOut?: UsageSink,
+  brandImageUrl?: string | null,
+  signal?: AbortSignal,
 ): Promise<Record<string, unknown>> {
   const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
   if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY non configurée");
@@ -269,11 +294,13 @@ Précisions sur persona :
 - first_actions : quelles seraient les premières actions concrètes que cette personne ferait en travaillant avec cette marque ?
 
 Précisions sur charter :
-- Remplis les couleurs UNIQUEMENT si tu détectes des codes HEX ou des couleurs spécifiques dans les informations visuelles. Ne pas inventer de couleurs.
+- Priorité ABSOLUE aux codes HEX présents dans les INFORMATIONS VISUELLES (CSS/variables). Reprends-les tels quels, ne les invente pas à partir du texte.
+- Si AUCUNE couleur n'est fournie dans le CSS MAIS qu'une image (logo ou aperçu de marque) t'est jointe, estime les couleurs dominantes de cette image en codes HEX approximatifs (color_primary, color_secondary, color_accent, color_background) et mets "confidence": "medium".
+- N'invente JAMAIS de couleurs à partir d'une simple description textuelle, sans CSS ni image.
 - font_title et font_body : les typographies détectées dans le CSS ou Google Fonts. font_title = la première typo détectée (souvent les titres), font_body = la deuxième (souvent le corps de texte).
 - mood_keywords : 3 à 5 mots décrivant l'ambiance visuelle (ex: ["minimaliste", "coloré", "chaleureux", "pop"])
 - visual_style_description : description courte du style visuel global
-- Si aucune information visuelle n'est présente dans les sources, mets confidence: "low" et laisse les champs vides.`;
+- Si vraiment aucune information visuelle (ni CSS, ni image) n'est présente, mets confidence: "low" et laisse les champs couleurs vides.`;
 
   let userPrompt = Object.entries(content)
     .map(([source, text]) => `=== SOURCE: ${source.toUpperCase()} ===\n${text}`)
@@ -282,6 +309,21 @@ Précisions sur charter :
   if (styleHints) {
     userPrompt += `\n\n=== INFORMATIONS VISUELLES DÉTECTÉES DANS LE CSS/HTML ===\n${styleHints}`;
   }
+
+  // Vision : si le CSS n'a remonté AUCUNE couleur mais qu'on a une image de marque,
+  // on la joint pour que Claude estime la palette directement depuis le logo/aperçu.
+  const cssGaveColors = /Couleurs détectées|theme color|Theme color/i.test(styleHints);
+  let imageBlock: Record<string, unknown> | null = null;
+  if (!cssGaveColors && brandImageUrl) {
+    imageBlock = await fetchImageBlock(brandImageUrl, signal);
+    if (imageBlock) {
+      userPrompt += `\n\nUne IMAGE de la marque (logo ou aperçu) est jointe : utilise-la pour estimer les couleurs dominantes (charter) en codes HEX approximatifs.`;
+    }
+  }
+
+  const userContent: unknown = imageBlock
+    ? [imageBlock, { type: "text", text: userPrompt }]
+    : userPrompt;
 
   const makeRequest = async (retry = false): Promise<Record<string, unknown>> => {
     const resp = await fetch("https://api.anthropic.com/v1/messages", {
@@ -295,7 +337,7 @@ Précisions sur charter :
         model: "claude-sonnet-4-6",
         max_tokens: 8192,
         system: systemPrompt,
-        messages: [{ role: "user", content: userPrompt }],
+        messages: [{ role: "user", content: userContent }],
       }),
     });
 
@@ -330,4 +372,37 @@ Précisions sur charter :
   const result = await makeRequest();
   result.sources_used = sourcesUsed;
   return result;
+}
+
+/**
+ * Télécharge une image de marque et la prépare en bloc image Anthropic (base64).
+ * Garde-fous : anti-SSRF, format supporté, taille max 5 Mo. Best-effort → null si KO.
+ */
+async function fetchImageBlock(
+  imageUrl: string,
+  signal?: AbortSignal,
+): Promise<Record<string, unknown> | null> {
+  try {
+    if (!isSafePublicUrl(imageUrl)) return null;
+    const resp = await fetch(imageUrl, {
+      signal,
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandAnalyzer/1.0)" },
+    });
+    if (!resp.ok) { await resp.body?.cancel().catch(() => {}); return null; }
+
+    const ct = (resp.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+    const allowed = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+    const mediaType = allowed.includes(ct) ? ct : null;
+    if (!mediaType) { await resp.body?.cancel().catch(() => {}); return null; }
+
+    const buf = new Uint8Array(await resp.arrayBuffer());
+    if (buf.byteLength === 0 || buf.byteLength > 5_000_000) return null;
+
+    return {
+      type: "image",
+      source: { type: "base64", media_type: mediaType, data: encodeBase64(buf) },
+    };
+  } catch {
+    return null;
+  }
 }
