@@ -133,6 +133,7 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
   const [ideas, setIdeas] = useState<SavedIdea[]>([]);
   const [briefs, setBriefs] = useState<SavedIdea[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   // Filters
   const [statusFilter, setStatusFilter] = useState("all");
@@ -154,13 +155,22 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
 
   const fetchIdeas = async () => {
     if (!user) return;
-    const { data, error } = await supabase
-      .from("saved_ideas" as any)
-      .select("*")
-      .eq(column, value)
-      .order("created_at", { ascending: false });
-    if (error) console.error("[IdeasPage] saved_ideas fetch failed:", error);
-    else if (data) setIdeas(data as unknown as SavedIdea[]);
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const { data, error } = await supabase
+        .from("saved_ideas" as any)
+        .select("*")
+        .eq(column, value)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      if (data) setIdeas(data as unknown as SavedIdea[]);
+    } catch (e) {
+      // Échec du chargement principal : on le signale pour distinguer « erreur »
+      // de « réellement vide » (sinon écran « boîte vide » trompeur).
+      console.error("[IdeasPage] saved_ideas fetch failed:", e);
+      setLoadError(true);
+    }
 
     // Charger les briefs créatifs.
     // En cas d'échec, on NE vide PAS la liste (sinon le total saute, ex. 34↔35) :
@@ -414,20 +424,29 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
             <SkeletonCard variant="small" />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
-            <Lightbulb className="h-12 w-12 text-muted-foreground/30 mb-4" />
-            <h2 className="font-display text-lg font-bold text-foreground mb-1">
-              {ideas.length === 0 ? "Ta boîte à idées est vide" : "Aucune idée ne correspond"}
-            </h2>
-            <p className="text-sm text-muted-foreground mb-4">
-              {ideas.length === 0 ? "Commence par générer des idées dans l'atelier. Elles atterriront ici automatiquement." : "Essaie de modifier tes filtres."}
-            </p>
-            {ideas.length === 0 && (
-              <Link to="/creer?new=1">
-                <Button className="rounded-pill">💡 Aller à l'atelier →</Button>
-              </Link>
-            )}
-          </div>
+          loadError && ideas.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
+              <Lightbulb className="h-12 w-12 text-muted-foreground/30 mb-4" />
+              <h2 className="font-display text-lg font-bold text-foreground mb-1">Impossible de charger tes idées</h2>
+              <p className="text-sm text-muted-foreground mb-4">Une erreur réseau est survenue. Tes idées n'ont pas été perdues — réessaie dans un instant.</p>
+              <Button className="rounded-pill" onClick={() => fetchIdeas()}>Réessayer</Button>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
+              <Lightbulb className="h-12 w-12 text-muted-foreground/30 mb-4" />
+              <h2 className="font-display text-lg font-bold text-foreground mb-1">
+                {ideas.length === 0 ? "Ta boîte à idées est vide" : "Aucune idée ne correspond"}
+              </h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                {ideas.length === 0 ? "Commence par générer des idées dans l'atelier. Elles atterriront ici automatiquement." : "Essaie de modifier tes filtres."}
+              </p>
+              {ideas.length === 0 && (
+                <Link to="/creer?new=1">
+                  <Button className="rounded-pill">💡 Aller à l'atelier →</Button>
+                </Link>
+              )}
+            </div>
+          )
         ) : (
           <div className="space-y-3">
             {filtered.map((idea, idx) => {
