@@ -125,8 +125,11 @@ Deno.serve(async (req) => {
     let uploadedPath: string | null = null;
     if (fileBase64) {
       const bytes = Uint8Array.from(atob(fileBase64), (c) => c.charCodeAt(0));
-      // Crée le bucket s'il n'existe pas (no-op s'il existe).
-      await supabase.storage.createBucket(BUCKET, { public: true }).catch(() => {});
+      // Crée le bucket s'il n'existe pas (no-op s'il existe). PRIVÉ : Canva
+      // télécharge via une URL signée (cf. plus bas), le bucket n'a pas besoin
+      // d'être public — et le créer en public ré-annulerait le durcissement
+      // storage (migration LOT A qui repasse canva-import en privé).
+      await supabase.storage.createBucket(BUCKET, { public: false }).catch(() => {});
       const path = `${userId}/canva-${Date.now()}-${Math.random().toString(36).slice(2)}.pptx`;
       const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, bytes, {
         contentType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
