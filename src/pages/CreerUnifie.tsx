@@ -3,6 +3,7 @@ import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { handleQuotaError } from "@/lib/quota-error-handler";
 import { buildCalendarContent } from "@/features/creer/build-calendar-content";
 import { deriveCanalFromState, mapFormatToContentType } from "@/features/creer/format-mappers";
+import { uploadPhotosToStorage as uploadPhotosImpl, uploadVisualsToStorage as uploadVisualsImpl, uploadPinterestVisualToStorage as uploadPinterestVisualImpl } from "@/features/creer/upload-helpers";
 import { useSearchParams, useLocation, useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
@@ -1940,139 +1941,13 @@ export default function CreerUnifie() {
     setCalendarDialogOpen(true);
   };
 
-  const uploadPhotosToStorage = async (postId: string): Promise<string[]> => {
-    if (!session?.user?.id || uploadedPhotos.length === 0) return [];
-    
-    const urls: string[] = [];
-    for (let i = 0; i < uploadedPhotos.length; i++) {
-      const photo = uploadedPhotos[i];
-      if (!photo.base64) continue;
-      
-      const raw = photo.base64.startsWith("data:") 
-        ? photo.base64 
-        : `data:image/jpeg;base64,${photo.base64}`;
-      const response = await fetch(raw);
-      const blob = await response.blob();
-      
-      const mime = blob.type || "image/jpeg";
-      const ext = mime === "image/png" ? "png" : "jpg";
-      
-      const path = `${session.user.id}/${postId}/photos/photo-${i + 1}.${ext}`;
-      const { error } = await supabase.storage
-        .from("calendar-visuals")
-        .upload(path, blob, { contentType: mime, upsert: true });
-      
-      if (error) {
-        console.error(`Failed to upload photo ${i + 1}:`, error);
-        continue;
-      }
-      
-      const { data: urlData } = supabase.storage
-        .from("calendar-visuals")
-        .getPublicUrl(path);
-      
-      urls.push(urlData.publicUrl);
-    }
-    return urls;
-  };
-
-  const uploadVisualsToStorage = async (postId: string): Promise<string[]> => {
-    if (!session?.user?.id || visualSlides.length === 0) return [];
-    
-    const container = document.createElement("div");
-    container.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:1080px;height:1350px;overflow:hidden;z-index:-1;";
-    document.body.appendChild(container);
-    
-    const urls: string[] = [];
-    try {
-      for (const vs of visualSlides) {
-        container.innerHTML = vs.html;
-        await document.fonts.ready;
-        await new Promise(r => setTimeout(r, 400));
-        
-        const canvas = await (await import("html2canvas")).default(container, {
-          width: 1080,
-          height: 1350,
-          scale: 1,
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: null,
-          logging: false,
-        });
-        
-        const blob = await new Promise<Blob>((resolve) => {
-          canvas.toBlob((b) => resolve(b!), "image/png");
-        });
-        
-        const path = `${session.user.id}/${postId}/slides/slide-${vs.slide_number}.png`;
-        const { error } = await supabase.storage
-          .from("calendar-visuals")
-          .upload(path, blob, { contentType: "image/png", upsert: true });
-        
-        if (error) {
-          console.error(`Failed to upload slide ${vs.slide_number}:`, error);
-          continue;
-        }
-        
-        const { data: urlData } = supabase.storage
-          .from("calendar-visuals")
-          .getPublicUrl(path);
-        
-        urls.push(urlData.publicUrl);
-      }
-    } finally {
-      document.body.removeChild(container);
-    }
-    return urls;
-  };
-
-  const uploadPinterestVisualToStorage = async (postId: string, pinHtml: string): Promise<string[]> => {
-    if (!session?.user?.id || !pinHtml) return [];
-
-    const container = document.createElement("div");
-    container.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:1000px;height:1500px;overflow:hidden;z-index:-1;";
-    document.body.appendChild(container);
-
-    const urls: string[] = [];
-    try {
-      container.innerHTML = pinHtml;
-      await document.fonts.ready;
-      await new Promise(r => setTimeout(r, 400));
-
-      const canvas = await (await import("html2canvas")).default(container, {
-        width: 1000,
-        height: 1500,
-        scale: 1,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: null,
-        logging: false,
-      });
-
-      const blob = await new Promise<Blob>((resolve) => {
-        canvas.toBlob((b) => resolve(b!), "image/png");
-      });
-
-      const path = `${session.user.id}/${postId}/pinterest/pin-visual.png`;
-      const { error } = await supabase.storage
-        .from("calendar-visuals")
-        .upload(path, blob, { contentType: "image/png", upsert: true });
-
-      if (error) {
-        console.error("Failed to upload pinterest visual:", error);
-        return [];
-      }
-
-      const { data: urlData } = supabase.storage
-        .from("calendar-visuals")
-        .getPublicUrl(path);
-
-      urls.push(urlData.publicUrl);
-    } finally {
-      document.body.removeChild(container);
-    }
-    return urls;
-  };
+  // Upload helpers extraits dans src/features/creer/upload-helpers.ts (wrappers fins).
+  const uploadPhotosToStorage = (postId: string): Promise<string[]> =>
+    uploadPhotosImpl(supabase, session?.user?.id, postId, uploadedPhotos);
+  const uploadVisualsToStorage = (postId: string): Promise<string[]> =>
+    uploadVisualsImpl(supabase, session?.user?.id, postId, visualSlides);
+  const uploadPinterestVisualToStorage = (postId: string, pinHtml: string): Promise<string[]> =>
+    uploadPinterestVisualImpl(supabase, session?.user?.id, postId, pinHtml);
 
   const handleConfirmCalendar = async () => {
     if (!session?.user?.id || !calendarDate || savingToCalendar) return;
