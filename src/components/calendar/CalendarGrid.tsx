@@ -153,9 +153,23 @@ export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, on
 
   /* ── Mobile view ── */
   if (isMobile) {
+    // Agenda mobile : on n'affiche que les jours AVEC contenu (+ aujourd'hui).
+    // Mois vide → ça se réduisait à la seule carte « aujourd'hui » sans aucune
+    // indication. On ajoute un état vide qui guide vers la création.
+    const monthHasPosts = calendarDays.some(
+      (d) => d.inMonth && (postsByDate[toLocalDateStr(d.date)] || []).length > 0,
+    );
     return (
       <>
         <div className="space-y-2">
+          {!monthHasPosts && (
+            <div className="rounded-xl border border-dashed border-border p-6 text-center">
+              <CalendarIcon className="mx-auto mb-2 h-7 w-7 text-muted-foreground/40" />
+              <p className="text-sm text-muted-foreground">
+                Rien de prévu ce mois-ci. Touche <span className="font-semibold text-foreground">＋</span> sur un jour pour planifier ton premier contenu 🌸
+              </p>
+            </div>
+          )}
           {calendarDays.filter((d) => d.inMonth).map((d) => {
              const dateStr = toLocalDateStr(d.date);
             const dayPosts = postsByDate[dateStr] || [];
