@@ -268,7 +268,9 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
       if (bp && hasBrandContext) {
         const lines: string[] = [];
         if (bp.mission) lines.push(`Mission : ${bp.mission}`);
-        if (bp.positioning) lines.push(`Positionnement : ${bp.positioning}`);
+        // Positionnement : source de vérité = brand_proposition.version_final (poussé plus bas).
+        // On ne garde brand_profile.positioning qu'en fallback si version_final est vide (cf #207).
+        if (bp.positioning && !prop?.version_final) lines.push(`Positionnement : ${bp.positioning}`);
         if (bp.voice_description) lines.push(`Voix de marque : ${bp.voice_description}`);
         if (bp.tone_register || bp.tone_level || bp.tone_style) {
           lines.push(`Ton : ${[bp.tone_register, bp.tone_level, bp.tone_style].filter(Boolean).join(" / ")}`);
@@ -473,7 +475,7 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
         };
 
         // Fetch all available context sources in parallel
-        const [sessionRes, brandProfileRes] = await Promise.all([
+        const [sessionRes, brandProfileRes, propRes2] = await Promise.all([
           (supabase.from("branding_coaching_sessions") as any)
             .select("messages")
             .eq(column, workspaceValue)
@@ -483,8 +485,15 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
             .select("mission, positioning, offer, target_description, target_problem, target_beliefs, target_verbatims, voice_description, tone_register, tone_level, tone_style, key_expressions, combat_cause, combat_fights, things_to_avoid")
             .eq(column, workspaceValue)
             .maybeSingle(),
+          (supabase.from("brand_proposition") as any)
+            .select("version_final")
+            .eq(column, workspaceValue)
+            .maybeSingle(),
         ]);
         const conversationMessages = (sessionRes?.data?.messages as any[]) || [];
+        // Positionnement : source de vérité = brand_proposition.version_final (cf #207),
+        // fallback sur l'ancien brand_profile.positioning.
+        const propVersionFinal = propRes2?.data?.version_final || null;
         const brandProfile = brandProfileRes?.data || null;
 
         // Already-filled persona fields (frustrations, transformation, etc.)
@@ -499,7 +508,8 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
         // Determine if we have ANY usable context
         const hasBrandContext = brandProfile && (
           brandProfile.target_description || brandProfile.target_verbatims ||
-          brandProfile.target_problem || brandProfile.mission || brandProfile.positioning
+          brandProfile.target_problem || brandProfile.mission || brandProfile.positioning ||
+          propVersionFinal
         );
         const hasContext = !!portrait || conversationMessages.length > 0 ||
           hasBrandContext || Object.keys(filledPersonaFields).length > 0;
@@ -511,7 +521,8 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
           if (brandProfile && hasBrandContext) {
             const bp: string[] = [];
             if (brandProfile.mission) bp.push(`Mission : ${brandProfile.mission}`);
-            if (brandProfile.positioning) bp.push(`Positionnement : ${brandProfile.positioning}`);
+            const positioningVal = propVersionFinal || brandProfile.positioning;
+            if (positioningVal) bp.push(`Positionnement : ${positioningVal}`);
             if (brandProfile.offer) bp.push(`Offre : ${brandProfile.offer}`);
             if (brandProfile.target_description) bp.push(`Description de la cible : ${brandProfile.target_description}`);
             if (brandProfile.target_problem) bp.push(`Problème principal de la cible : ${brandProfile.target_problem}`);
