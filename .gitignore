@@ -29,6 +29,9 @@ dist-ssr
 .env.production
 .env.*.local
 
+# Sessions Playwright sauvegardées (jamais commitées)
+e2e/.auth/
+
 # Visite guidée Playwright (artefacts locaux : session + captures)
 e2e-visite/.auth/
 e2e-visite/shots/
