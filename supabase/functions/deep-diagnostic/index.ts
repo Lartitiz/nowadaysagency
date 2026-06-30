@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { scrapeLinkedin, processScreenshots, scrapeWebsite, extractVisualInfo } from "../_shared/scraping.ts";
+import { scrapeLinkedin, processScreenshots, scrapeWebsite, extractVisualInfo, isSafePublicUrl } from "../_shared/scraping.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
@@ -167,9 +167,12 @@ serve(async (req) => {
                 try {
                   let formattedUrl = websiteUrl.trim();
                   if (!formattedUrl.startsWith("http")) formattedUrl = `https://${formattedUrl}`;
+                  // SSRF : fetch visuel hors scrapeWebsite -> garde explicite + redirect manual.
+                  if (!isSafePublicUrl(formattedUrl)) throw new Error("URL non publique");
                   const resp = await fetch(formattedUrl, {
                     signal: controller.signal,
                     headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandAnalyzer/1.0)" },
+                    redirect: "manual",
                   });
                   if (resp.ok) {
                     const html = await resp.text();
