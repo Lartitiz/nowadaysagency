@@ -8097,6 +8097,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      consume_bonus_credit: { Args: { p_user_id: string }; Returns: number }
       delete_workspace_with_cleanup: {
         Args: { _workspace_id: string }
         Returns: undefined
