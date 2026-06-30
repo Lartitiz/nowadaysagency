@@ -10,6 +10,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { format, startOfWeek } from "date-fns";
 import { cn } from "@/lib/utils";
+import { tryParseAiJson } from "@/lib/parse-ai-json";
 
 /* ── Types ── */
 interface IdeaSpark {
@@ -335,12 +336,10 @@ export default function SuggestedContents() {
 
       let result = data?.content || data;
       if (typeof result === "string") {
-        try {
-          const cleaned = result.replace(/```json?\n?/g, "").replace(/```/g, "").trim();
-          result = JSON.parse(cleaned);
-        } catch {
-          result = { content: result, accroche: "", hashtags: [] };
-        }
+        // Parse loggé (plus de catch muet) ; si l'IA n'a pas renvoyé de JSON, on
+        // garde le texte brut comme contenu éditable mais l'échec est tracé.
+        const parsed = tryParseAiJson<any>(result, "suggested-contents:generate");
+        result = parsed ?? { content: result, accroche: "", hashtags: [] };
       }
 
       const params = new URLSearchParams();
