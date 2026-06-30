@@ -5,12 +5,12 @@ const COPY: Record<string, { emoji: string; label: string; benefit: string }> = 
   instagram: {
     emoji: "📸",
     label: "Instagram",
-    benefit: "publie tes posts en 1 clic et récupère tes vraies stats automatiquement",
+    benefit: "publier tes posts en 1 clic et récupérer tes vraies stats automatiquement",
   },
   linkedin: {
     emoji: "💼",
     label: "LinkedIn",
-    benefit: "publie tes posts en 1 clic, sans copier-coller",
+    benefit: "publier tes posts en 1 clic, sans copier-coller",
   },
 };
 
