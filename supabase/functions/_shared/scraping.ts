@@ -116,7 +116,100 @@ export function extractTextFromHtml(html: string): string {
 
   return parts.join("\n\n");
 }
-export function extractVisualInfo(html: string): string {
+/**
+ * Fetch une URL en suivant les redirections MANUELLEMENT, avec une vérification
+ * anti-SSRF (isSafePublicUrl) à CHAQUE saut. `redirect: "follow"` ferait la
+ * requête vers la cible finale avant qu'on puisse la valider — d'où la boucle.
+ * Retourne la réponse finale + l'URL finale (pour résoudre les liens relatifs).
+ */
+export async function safeFetchFollow(
+  rawUrl: string,
+  signal: AbortSignal,
+  maxRedirects = 4,
+): Promise<{ response: Response; finalUrl: string } | null> {
+  let url = rawUrl;
+  for (let i = 0; i <= maxRedirects; i++) {
+    if (!isSafePublicUrl(url)) return null;
+    const response = await fetch(url, {
+      signal,
+      headers: { "User-Agent": USER_AGENT },
+      redirect: "manual",
+    });
+    if (response.status >= 300 && response.status < 400) {
+      const loc = response.headers.get("location");
+      if (!loc) return { response, finalUrl: url };
+      try {
+        url = new URL(loc, url).toString();
+      } catch {
+        return null;
+      }
+      await response.body?.cancel().catch(() => {}); // libère le corps de la redirection
+      continue;
+    }
+    return { response, finalUrl: url };
+  }
+  return null; // trop de redirections
+}
+
+/** Extrait les URLs absolues des feuilles de style externes (<link rel="stylesheet">). */
+export function extractStylesheetUrls(html: string, baseUrl: string): string[] {
+  const urls: string[] = [];
+  const linkRegex = /<link\b[^>]*>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = linkRegex.exec(html)) !== null) {
+    const tag = m[0];
+    if (!/rel=["'][^"']*stylesheet[^"']*["']/i.test(tag)) continue;
+    const hrefMatch = tag.match(/href=["']([^"']+)["']/i);
+    if (!hrefMatch) continue;
+    try {
+      urls.push(new URL(hrefMatch[1], baseUrl).toString());
+    } catch { /* href invalide, on ignore */ }
+  }
+  return urls;
+}
+
+/**
+ * Trouve une image de marque exploitable par la vision (logo ou og:image),
+ * en URL absolue et dans un format que Claude sait lire (png/jpg/webp/gif).
+ */
+export function extractBrandImageUrl(html: string, baseUrl: string): string | null {
+  const renderable = /\.(png|jpe?g|webp|gif)(\?|#|$)/i;
+  const resolve = (u: string): string | null => {
+    try { return new URL(u, baseUrl).toString(); } catch { return null; }
+  };
+
+  // 1. Logo explicite : <img> dont src/alt/class contient "logo"
+  const imgRegex = /<img\b[^>]*>/gi;
+  let im: RegExpExecArray | null;
+  while ((im = imgRegex.exec(html)) !== null) {
+    const tag = im[0];
+    const srcMatch = tag.match(/\bsrc=["']([^"']+)["']/i);
+    if (!srcMatch) continue;
+    if (/logo/i.test(tag) && renderable.test(srcMatch[1])) {
+      const abs = resolve(srcMatch[1]);
+      if (abs) return abs;
+    }
+  }
+
+  // 2. og:image (souvent l'aperçu de marque)
+  const ogMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i)
+    || html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
+  if (ogMatch && renderable.test(ogMatch[1])) {
+    const abs = resolve(ogMatch[1]);
+    if (abs) return abs;
+  }
+
+  // 3. apple-touch-icon (souvent un PNG du logo, contrairement au favicon .ico)
+  const appleMatch = html.match(/<link[^>]*rel=["']apple-touch-icon[^"']*["'][^>]*href=["']([^"']+)["']/i);
+  if (appleMatch && renderable.test(appleMatch[1])) {
+    const abs = resolve(appleMatch[1]);
+    if (abs) return abs;
+  }
+
+  return null;
+}
+
+export function extractVisualInfo(html: string, extraCss: string = ""): string {
   const parts: string[] = [];
 
   // Extract inline styles with color/font info
@@ -126,7 +219,9 @@ export function extractVisualInfo(html: string): string {
   while ((sm = styleRegex.exec(html)) !== null) {
     styleBlocks.push(sm[1]);
   }
-  const allCss = styleBlocks.join("\n");
+  // Le CSS externe (feuilles de style liées) est concaténé au CSS inline :
+  // c'est là que vivent les couleurs des sites modernes (React, Webflow, Tailwind…).
+  const allCss = styleBlocks.join("\n") + "\n" + extraCss;
 
   // Extract hex colors
   const hexColors = new Set<string>();
