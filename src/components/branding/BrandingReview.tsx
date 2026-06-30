@@ -463,10 +463,13 @@ async function saveValueProp(data: AnalysisResult["value_proposition"], userId: 
   if (data.solution) fields.step_2a_process = data.solution;
   if (data.differentiator) fields.step_2d_refuse = data.differentiator;
   if (data.problem) fields.step_3_for_whom = data.problem;
+  // Preuves/témoignages : extraits + affichés mais jamais sauvegardés jusqu'ici.
+  // On les range dans step_2c_feedback (« validation reçue » de la proposition).
+  if (data.proofs?.length) fields.step_2c_feedback = data.proofs.join("\n");
   const filterCol = workspaceId && workspaceId !== userId ? "workspace_id" : "user_id";
   const filterVal = workspaceId && workspaceId !== userId ? workspaceId : userId;
   const { data: existing } = await (supabase.from("brand_proposition") as any)
-    .select("id, step_1_what, version_one_liner, version_final, step_2a_process, step_2d_refuse, step_3_for_whom").eq(filterCol, filterVal).maybeSingle();
+    .select("id, step_1_what, version_one_liner, version_final, step_2a_process, step_2d_refuse, step_3_for_whom, step_2c_feedback").eq(filterCol, filterVal).maybeSingle();
   if (existing?.id) {
     const toWrite = fillOnlyEmpty(fields, existing);
     if (Object.keys(toWrite).length > 0) {
@@ -479,6 +482,9 @@ async function saveValueProp(data: AnalysisResult["value_proposition"], userId: 
   // Le problème principal de la cible est lu par la génération (brand_profile.target_problem)
   // et restait vide — on le complète depuis le problème de la proposition de valeur.
   if (data.problem) await fillBrandProfileSynthesis({ target_problem: data.problem }, userId, workspaceId);
+  // L'offre (brand_profile.offer) est injectée dans le prompt de génération (section
+  // IDENTITÉ) et restait vide — on la complète depuis la solution de la proposition.
+  if (data.solution) await fillBrandProfileSynthesis({ offer: data.solution }, userId, workspaceId);
 }
 async function saveTone(data: AnalysisResult["tone_style"], userId: string, workspaceId: string) {
   if (!data) return;
