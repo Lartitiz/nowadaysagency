@@ -12,13 +12,13 @@ test.describe("Pages principales", () => {
     await expect(loginLink).toBeVisible();
   });
 
-  test("navigation vers /auth fonctionne", async ({ page }) => {
-    await page.goto("/auth");
-    await expect(page).toHaveURL(/\/auth/);
+  test("navigation vers /login fonctionne", async ({ page }) => {
+    await page.goto("/login");
+    await expect(page).toHaveURL(/\/login/);
   });
 
   test("le formulaire de connexion s'affiche", async ({ page }) => {
-    await page.goto("/auth");
+    await page.goto("/login");
     const emailInput = page.getByPlaceholder(/email/i);
     const passwordInput = page.getByPlaceholder(/mot de passe|password/i);
     await expect(emailInput).toBeVisible();

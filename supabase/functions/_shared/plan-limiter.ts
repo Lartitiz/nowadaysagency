@@ -114,8 +114,7 @@ function getServiceClient() {
   );
 }
 
-async function getUserPlan(userId: string): Promise<string> {
-  const sb = getServiceClient();
+async function getUserPlan(sb: any, userId: string): Promise<string> {
   const { data } = await sb
     .from("subscriptions")
     .select("plan")
@@ -124,8 +123,7 @@ async function getUserPlan(userId: string): Promise<string> {
   return resolvePlan(data?.plan || "free");
 }
 
-async function getWorkspacePlan(workspaceId: string): Promise<string> {
-  const sb = getServiceClient();
+async function getWorkspacePlan(sb: any, workspaceId: string): Promise<string> {
   const { data } = await sb
     .from("workspaces")
     .select("plan")
@@ -138,8 +136,7 @@ async function getWorkspacePlan(workspaceId: string): Promise<string> {
 // même sans abonnement Stripe. Cohérent avec check-subscription (qui upgrade
 // free -> binome quand un coaching_program actif existe). Sans ça, le quota
 // traite en "free" une cliente binôme et la bloque à tort.
-async function getCoachingPlan(userId: string): Promise<string> {
-  const sb = getServiceClient();
+async function getCoachingPlan(sb: any, userId: string): Promise<string> {
   const { data } = await sb
     .from("coaching_programs")
     .select("id")
@@ -161,8 +158,7 @@ function getMonthStart(): string {
   return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 }
 
-async function getBonusCredits(userId: string): Promise<number> {
-  const sb = getServiceClient();
+async function getBonusCredits(sb: any, userId: string): Promise<number> {
   const { data } = await sb
     .from("profiles")
     .select("bonus_credits")
@@ -174,10 +170,12 @@ async function getBonusCredits(userId: string): Promise<number> {
 export async function checkQuota(
   userId: string,
   category: string,
-  workspaceId?: string
+  workspaceId?: string,
+  sbOverride?: any
 ): Promise<QuotaResult> {
   // Admin bypass — unlimited quota (check via has_role function)
-  const sb = getServiceClient();
+  // `sbOverride` permet d'injecter un faux client en test (cf. plan-limiter_test.ts).
+  const sb = sbOverride ?? getServiceClient();
   const { data: adminCheck } = await sb.rpc("has_role", { _user_id: userId, _role: "admin" });
   if (adminCheck) {
     return { allowed: true, plan: "admin", remaining: 9999, remaining_total: 9999 };
@@ -188,9 +186,9 @@ export async function checkQuota(
   // (coaching_program) — pour rester cohérent avec check-subscription qui
   // pilote l'affichage. Sans le coaching_program, une cliente Binôme sans
   // abonnement Stripe était traitée en "free" et bloquée à tort.
-  const userPlan = await getUserPlan(userId);
-  const workspacePlan = workspaceId ? await getWorkspacePlan(workspaceId) : "free";
-  const coachingPlan = await getCoachingPlan(userId);
+  const userPlan = await getUserPlan(sb, userId);
+  const workspacePlan = workspaceId ? await getWorkspacePlan(sb, workspaceId) : "free";
+  const coachingPlan = await getCoachingPlan(sb, userId);
   const plan = bestPlan(bestPlan(userPlan, workspacePlan), coachingPlan);
   const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
 
@@ -208,7 +206,7 @@ export async function checkQuota(
   const monthStart = getMonthStart();
 
   // Get bonus credits for the user
-  const bonusCredits = await getBonusCredits(userId);
+  const bonusCredits = await getBonusCredits(sb, userId);
   const effectiveTotalLimit = limits.total + bonusCredits;
 
   // Get all usage this month — filter by workspace or user
@@ -295,9 +293,10 @@ export async function logUsage(
   actionType: string,
   tokensUsed?: number,
   modelUsed?: string,
-  workspaceId?: string
+  workspaceId?: string,
+  sbOverride?: any
 ): Promise<void> {
-  const sb = getServiceClient();
+  const sb = sbOverride ?? getServiceClient();
   await sb.from("ai_usage").insert({
     user_id: userId,
     category,
@@ -308,7 +307,7 @@ export async function logUsage(
   });
 
   // After logging, check if user exceeded monthly base limit → decrement bonus
-  const plan = await getUserPlan(userId);
+  const plan = await getUserPlan(sb, userId);
   const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
   const monthStart = getMonthStart();
 
