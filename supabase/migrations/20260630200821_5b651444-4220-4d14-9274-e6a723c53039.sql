@@ -1,0 +1,1 @@
+GRANT UPDATE (weekly_ritual_enabled, weekly_ritual_day) ON public.profiles TO authenticated;
