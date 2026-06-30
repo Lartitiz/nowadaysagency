@@ -1,4 +1,4 @@
-import { defineConfig } from "@playwright/test";
+import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -19,6 +19,14 @@ export default defineConfig({
     {
       name: "chromium",
       use: { browserName: "chromium" },
+    },
+    {
+      // Responsive mobile (jamais testé jusqu'ici) — viewport Pixel 5 (393×851),
+      // moteur chromium (pas d'install navigateur supplémentaire requise).
+      // Suivi possible : ajouter un projet iPhone/webkit (npx playwright install webkit)
+      // pour couvrir les quirks iOS Safari.
+      name: "Mobile Chrome",
+      use: { ...devices["Pixel 5"] },
     },
   ],
 

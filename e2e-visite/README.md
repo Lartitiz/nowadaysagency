@@ -19,8 +19,10 @@ puis on relit les PNG pour juger design / responsive / états. Distinct des test
 - Liste des écrans visités : en haut de `visite.spec.ts`.
 - Cible un autre environnement : `VISITE_BASE_URL` dans `.env.visite.local`.
 
-## Piège connu
+## Reveals au scroll
 
-Une capture `fullPage` peut montrer des bandes vides quand les sections sont révélées
-au scroll (`whileInView` / IntersectionObserver) — elles restent invisibles sans scroll
-réel. Pour ces écrans, scroller section par section avant de capturer.
+Les sections en `opacity-0` révélées au scroll (IntersectionObserver, cf
+`src/components/landing/Reveal.tsx`) restent invisibles sur une capture `fullPage`
+brute. La visite scrolle donc de bout en bout (`revealAllByScrolling`) **avant** chaque
+capture pleine page : `*-fold.png` reste prise avant scroll (première impression),
+`*-full.png` est prise après. À conserver si tu modifies le spec.

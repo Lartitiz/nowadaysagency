@@ -5,7 +5,7 @@ import AppHeader from "@/components/AppHeader";
 import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import FirstTimeTooltip from "@/components/FirstTimeTooltip";
-import { ZoneSection, HubCard, FormatPill } from "@/components/hub";
+import { ZoneSection, HubCard, FormatPill, HubConnectBanner } from "@/components/hub";
 import { useDemoContext } from "@/contexts/DemoContext";
 
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
@@ -107,6 +107,8 @@ export default function InstagramHub() {
             Audite ton profil, génère des contenus, optimise ta bio : tout pour qu'Instagram bosse pour toi (et pas l'inverse).
           </p>
         </div>
+
+        {!isDemoMode && <HubConnectBanner platform="instagram" />}
 
         {/* ─── ZONE 1 : ANALYSER ─── */}
         <ZoneSection emoji="📊" title={<><span className="text-primary font-bold">1.</span> 📊 Analyser</>}>
