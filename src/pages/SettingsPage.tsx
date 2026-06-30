@@ -23,6 +23,7 @@ import { enablePostHog, disablePostHog } from "@/lib/posthog";
 import { enableSentryReplays, disableSentryReplays } from "@/lib/sentry";
 import { STRIPE_PLANS } from "@/lib/stripe-config";
 import { useUserPlan } from "@/hooks/use-user-plan";
+import { useProfileUserId } from "@/hooks/use-workspace-query";
 import { MODULE_FLAGS } from "@/config/feature-flags";
 import PurchaseHistory from "@/components/settings/PurchaseHistory";
 import PromoCodeInput from "@/components/PromoCodeInput";
@@ -41,6 +42,9 @@ import {
 export default function SettingsPage() {
   const { user, signOut, isAdmin } = useAuth();
   const { plan, isPaid, isBinome, refresh: refreshPlan } = useUserPlan();
+  // Clé canonique des lignes `profiles` (propriétaire de l'espace actif, ≠ user.id
+  // pour un binôme/manager). DOIT correspondre à ce que lit l'edge function.
+  const profileUserId = useProfileUserId();
 
   // Password change
   const [newPassword, setNewPassword] = useState("");
@@ -70,16 +74,22 @@ export default function SettingsPage() {
 
   useEffect(() => {
     loadSubscription();
-    loadRitual();
   }, []);
 
+  // Charge les préférences du rituel une fois que profileUserId est résolu
+  // (la résolution du propriétaire d'espace est asynchrone).
+  useEffect(() => {
+    if (profileUserId) loadRitual();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profileUserId]);
+
   const loadRitual = async () => {
-    if (!user) return;
+    if (!profileUserId) return;
     try {
       const { data } = await supabase
         .from("profiles")
         .select("weekly_ritual_enabled, weekly_ritual_day")
-        .eq("user_id", user.id)
+        .eq("user_id", profileUserId)
         .maybeSingle();
       if (data) {
         setRitualEnabled((data as any).weekly_ritual_enabled !== false);
@@ -94,7 +104,7 @@ export default function SettingsPage() {
   };
 
   const saveRitual = async (next: { enabled?: boolean; day?: number }) => {
-    if (!user) return;
+    if (!profileUserId) return;
     const enabled = next.enabled ?? ritualEnabled;
     const day = next.day ?? ritualDay;
     // Optimiste
@@ -104,7 +114,7 @@ export default function SettingsPage() {
     const { error } = await supabase
       .from("profiles")
       .update({ weekly_ritual_enabled: enabled, weekly_ritual_day: day } as any)
-      .eq("user_id", user.id);
+      .eq("user_id", profileUserId);
     setSavingRitual(false);
     if (error) {
       console.error("[ritual] save error:", error);
