@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { GripVertical, CalendarIcon } from "lucide-react";
 import { useDroppable, useDraggable } from "@dnd-kit/core";
 import { type CalendarPost } from "@/lib/calendar-constants";
@@ -25,8 +25,12 @@ interface Props {
 }
 
 /* ── Draggable content card (desktop) ── */
-function DraggableCard({ post, onClick, seriesNameById }: { post: CalendarPost; onClick: () => void; seriesNameById?: Record<string, string> }) {
+// onSelect (stable depuis le parent) + useCallback → onClick stable pour la feuille
+// mémoïsée CalendarContentCard. (Avant : closure inline `() => onEditPost(p)` dans
+// le map = nouvelle réf à chaque render → memo inopérant.)
+function DraggableCard({ post, onSelect, seriesNameById }: { post: CalendarPost; onSelect: (post: CalendarPost) => void; seriesNameById?: Record<string, string> }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: post.id });
+  const handleClick = useCallback(() => onSelect(post), [onSelect, post]);
   const style: React.CSSProperties = {
     transform: transform ? `translate(${transform.x}px, ${transform.y}px)` : undefined,
     opacity: isDragging ? 0.3 : 1,
@@ -37,7 +41,7 @@ function DraggableCard({ post, onClick, seriesNameById }: { post: CalendarPost; 
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <CalendarContentCard post={post} onClick={onClick} variant="compact" seriesNameById={seriesNameById} />
+      <CalendarContentCard post={post} onClick={handleClick} variant="compact" seriesNameById={seriesNameById} />
     </div>
   );
 }
@@ -90,7 +94,7 @@ function DroppableDay({
       </div>
       <div className="space-y-0">
         {posts.slice(0, expanded ? posts.length : maxVisible).map((p) => (
-          <DraggableCard key={p.id} post={p} onClick={() => onEditPost(p)} seriesNameById={seriesNameById} />
+          <DraggableCard key={p.id} post={p} onSelect={onEditPost} seriesNameById={seriesNameById} />
         ))}
         {posts.length > maxVisible && (
           <button
@@ -106,8 +110,9 @@ function DroppableDay({
 }
 
 /* ── Mobile post card with long-press move ── */
-function MobilePostCard({ post, onClick, onMove, seriesNameById }: { post: CalendarPost; onClick: () => void; onMove: (post: CalendarPost) => void; seriesNameById?: Record<string, string> }) {
+function MobilePostCard({ post, onSelect, onMove, seriesNameById }: { post: CalendarPost; onSelect: (post: CalendarPost) => void; onMove: (post: CalendarPost) => void; seriesNameById?: Record<string, string> }) {
   const [pressTimer, setPressTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const handleClick = useCallback(() => onSelect(post), [onSelect, post]);
 
   const handleTouchStart = () => {
     const timer = setTimeout(() => onMove(post), 500);
@@ -124,7 +129,7 @@ function MobilePostCard({ post, onClick, onMove, seriesNameById }: { post: Calen
       onTouchEnd={handleTouchEnd}
       onTouchCancel={handleTouchEnd}
     >
-      <CalendarContentCard post={post} onClick={onClick} variant="compact" seriesNameById={seriesNameById} />
+      <CalendarContentCard post={post} onClick={handleClick} variant="compact" seriesNameById={seriesNameById} />
     </div>
   );
 }
@@ -185,7 +190,7 @@ export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, on
                 </div>
                 <div>
                   {(expandedDays.has(dateStr) ? dayPosts : dayPosts.slice(0, 1)).map((p) => (
-                    <MobilePostCard key={p.id} post={p} onClick={() => onEditPost(p)} onMove={handleMobileMove} seriesNameById={seriesNameById} />
+                    <MobilePostCard key={p.id} post={p} onSelect={onEditPost} onMove={handleMobileMove} seriesNameById={seriesNameById} />
                   ))}
                   {dayPosts.length > 1 && !expandedDays.has(dateStr) && (
                     <button

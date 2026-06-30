@@ -66,6 +66,9 @@ function getGeneratorRoute(post: CalendarPost): string | null {
   return null; // fallback to dialog
 }
 
+// Réf stable pour le cas « aucune série » (évite de recréer {} à chaque render).
+const EMPTY_SERIES_MAP: Record<string, string> = {};
+
 function makePostToRow(seriesNameById: Record<string, string>) {
   return (p: CalendarPost) => {
     const sid = (p as any).series_id as string | null | undefined;
@@ -255,7 +258,10 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   }, [searchParams]);
 
   // Fetch all series names (for badge display)
-  const { data: seriesNameById = {} } = useAllSeriesMap();
+  // Réf stable quand vide (EMPTY_SERIES_MAP module-level) : sinon `= {}` recrée un
+  // objet à chaque render → casse le memo de CalendarContentCard. react-query garde
+  // déjà une réf stable pour `data` une fois chargé.
+  const { data: seriesNameById = EMPTY_SERIES_MAP } = useAllSeriesMap();
 
   // Sync seriesFilter to URL
   useEffect(() => {
@@ -418,11 +424,13 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   };
 
   /** Click on an existing post: always open the detail dialog first */
-  const handlePostClick = (post: CalendarPost) => {
+  // useCallback (deps vides : n'utilise que des setters d'état, stables) → réf stable
+  // passée en `onEditPost` aux grilles → permet au memo de CalendarContentCard d'agir.
+  const handlePostClick = useCallback((post: CalendarPost) => {
     setEditingPost(post);
     setSelectedDate(post.date);
     setDialogOpen(true);
-  };
+  }, []);
 
   type PostFormData = { theme: string; angle: string | null; status: string; notes: string; canal: string; objectif: string | null; format?: string | null; content_draft?: string | null; accroche?: string | null; media_urls?: string[] | null; series_id?: string | null; episode_number?: number | null };
 
