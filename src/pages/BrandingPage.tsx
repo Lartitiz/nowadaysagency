@@ -610,7 +610,7 @@ export default function BrandingPage() {
         <>
           {/* === LOADING === */}
           {topView === "loading" && (
-            <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
+            <motion.div key="loading" initial={false} animate={{ opacity: 1 }} transition={{ duration: 0.25 }}>
               <div className="space-y-4">
                 <div className="h-6 w-52 rounded-lg bg-muted animate-pulse" />
                 <div className="h-3 w-80 rounded bg-muted animate-pulse" />
@@ -636,7 +636,7 @@ export default function BrandingPage() {
 
           {/* === ERREUR DE CHARGEMENT === */}
           {topView === "error" && (
-            <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
+            <motion.div key="error" initial={false} animate={{ opacity: 1 }} transition={{ duration: 0.25 }}>
               <div className="rounded-2xl border border-border bg-card p-8 text-center space-y-4 mt-8">
                 <h2 className="text-xl font-semibold">Impossible de charger ton identité de marque</h2>
                 <p className="text-sm text-muted-foreground max-w-md mx-auto">
@@ -649,7 +649,7 @@ export default function BrandingPage() {
 
           {/* === IMPORT === */}
           {topView === "import" && importPhaseNew === "form" && (
-            <motion.div key="form" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.3 }}>
+            <motion.div key="form" initial={false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
               <BrandingImport
                 loading={importAnalyzing}
                 onAnalyze={handleStartAnalysis}
@@ -660,7 +660,7 @@ export default function BrandingPage() {
             </motion.div>
           )}
           {topView === "import" && (importPhaseNew === "analyzing" || importPhaseNew === "error") && (
-            <motion.div key="loader" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.3, delay: 0.1 }}>
+            <motion.div key="loader" initial={false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.1 }}>
               <BrandingAnalysisLoader
                 sources={analysisSources}
                 error={importPhaseNew === "error" ? analysisError : null}
@@ -680,7 +680,7 @@ export default function BrandingPage() {
 
           {/* === REVIEW === */}
           {topView === "review" && analysisResult && (
-            <motion.div key="review" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.4 }}>
+            <motion.div key="review" initial={false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
               <BrandingReview
                 analysis={analysisResult}
                 sourcesUsed={analysisResult.sources_used || []}
@@ -708,7 +708,7 @@ export default function BrandingPage() {
 
           {/* === IDENTITY === */}
           {topView === "identity" && (
-            <motion.div key="identity" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.35 }}>
+            <motion.div key="identity" initial={false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
               <Link to="/dashboard" className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground mb-6 transition-colors">
                 <ArrowLeft className="h-4 w-4" /> Retour au hub
               </Link>
