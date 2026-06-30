@@ -6,6 +6,7 @@ import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limit
 import { callAnthropic, callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { isDemoUser } from "../_shared/guard-demo.ts";
+import { isSafePublicUrl } from "../_shared/scraping.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
@@ -47,6 +48,7 @@ const AuditInstagramSchema = z.object({
 
 async function fetchImageAsBase64(url: string): Promise<{ data: string; media_type: string } | null> {
   try {
+    if (!isSafePublicUrl(url)) return null; // anti-SSRF : bloque IP privées / métadata
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
     const resp = await fetch(url, { signal: controller.signal });
