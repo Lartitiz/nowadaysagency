@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Upload, X, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { checkUploadSize } from "@/lib/upload-limits";
 import { toast } from "sonner";
 
 interface CharterData {
@@ -47,6 +48,8 @@ export default function CharterTemplatesSection({
     try {
       const newTemplates = [...data.uploaded_templates];
       for (const file of Array.from(files)) {
+        const tooBig = checkUploadSize(file, "brand-assets");
+        if (tooBig) { toast.error(tooBig); continue; }
         // Sanitize filename to avoid storage path issues
         const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
         const path = `${authUserId}/templates/${Date.now()}-${safeName}`;
