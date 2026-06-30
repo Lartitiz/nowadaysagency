@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useProfile } from "@/hooks/use-profile";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { useSearchParams, useLocation, useNavigate } from "react-router-dom";
 import BrandingPrompt from "@/components/BrandingPrompt";
 import { useDemoContext } from "@/contexts/DemoContext";
@@ -175,6 +176,7 @@ function ExportSection({ filteredPosts, canalFilter, onCoachingOpen, onQuickBatc
 
 export default function CalendarPage({ embedded = false }: { embedded?: boolean }) {
   const { user } = useAuth();
+  const confirm = useConfirm();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const { isDemoMode, demoData } = useDemoContext();
@@ -496,7 +498,13 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     const siblings = groupId ? posts.filter((p) => (p as any).group_id === groupId && p.id !== targetId) : [];
     let ids = [targetId];
     if (siblings.length > 0) {
-      const also = window.confirm(`Ce contenu est lié à ${siblings.length} autre(s) post(s) (${siblings.map((p) => p.canal).join(", ")}). Supprimer aussi les posts liés ?`);
+      const also = await confirm({
+        title: "Supprimer aussi les posts liés ?",
+        description: `Ce contenu est lié à ${siblings.length} autre(s) post(s) (${siblings.map((p) => p.canal).join(", ")}).`,
+        confirmText: "Tout supprimer",
+        cancelText: "Ce post seulement",
+        destructive: true,
+      });
       if (also) ids = [targetId, ...siblings.map((p) => p.id)];
     }
     const { error } = await supabase.from("calendar_posts").delete().in("id", ids);
@@ -565,7 +573,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   };
 
   const handleQuickDelete = async (postId: string) => {
-    if (!window.confirm("Supprimer ce post ?")) return;
+    if (!(await confirm({ title: "Supprimer ce post ?", confirmText: "Supprimer", destructive: true }))) return;
     const { error } = await supabase.from("calendar_posts").delete().eq("id", postId);
     if (error) {
       toast.error("Suppression impossible", { description: "Réessaie dans un instant." });

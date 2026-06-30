@@ -3,6 +3,7 @@ import * as Sentry from "@sentry/react";
 import { toast } from "sonner";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ConfirmDialogProvider } from "@/components/ui/confirm-dialog";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useSearchParams, Outlet } from "react-router-dom";
 
@@ -380,7 +381,9 @@ const App = () => {
             <WorkspaceProvider>
             <SessionProvider>
             <SelectionMenuProvider>
+            <ConfirmDialogProvider>
             <AnimatedRoutes />
+            </ConfirmDialogProvider>
             </SelectionMenuProvider>
             </SessionProvider>
             </WorkspaceProvider>
