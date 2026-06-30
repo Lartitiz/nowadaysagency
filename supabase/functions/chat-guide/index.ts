@@ -99,7 +99,7 @@ async function buildContext(sb: any, userId: string, workspaceId?: string): Prom
   ] = await Promise.all([
     sb.from("profiles").select("prenom, activite, type_activite, channels, cible, probleme_principal, piliers, tons").eq("user_id", profileUserId).maybeSingle(),
     sb.from("brand_profile").select("mission, positioning, tone_description, content_pillars, story_origin, combats, content_editorial_line").eq(col, val).maybeSingle(),
-    sb.from("storytelling").select("step_7_polished, step_6_full_story, title").eq(col, val).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    sb.from("storytelling").select("step_7_polished, step_6_full_story, imported_text, title").eq(col, val).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     sb.from("persona").select("portrait_prenom, portrait, description, frustrations_detail, desires").eq(col, val).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     sb.from("brand_proposition").select("version_one_liner, version_complete, version_final").eq(col, val).maybeSingle(),
     sb.from("brand_profile").select("tone_keywords, tone_style").eq(col, val).maybeSingle(),
@@ -120,7 +120,7 @@ async function buildContext(sb: any, userId: string, workspaceId?: string): Prom
     persona = fallback.data;
   }
   if (!story && workspaceId) {
-    const fallback = await sb.from("storytelling").select("step_7_polished, step_6_full_story, title").eq("user_id", profileUserId).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    const fallback = await sb.from("storytelling").select("step_7_polished, step_6_full_story, imported_text, title").eq("user_id", profileUserId).order("created_at", { ascending: false }).limit(1).maybeSingle();
     story = fallback.data;
   }
 
@@ -172,7 +172,8 @@ async function buildContext(sb: any, userId: string, workspaceId?: string): Prom
 
   lines.push("\nÉTAT DU BRANDING :");
   const sections: Record<string, string> = {};
-  const storyText = story?.step_7_polished || story?.step_6_full_story;
+  // L'histoire peut vivre dans 3 champs selon le mode de saisie (coaching poli/généré, ou import/édition).
+  const storyText = story?.step_7_polished || story?.step_6_full_story || story?.imported_text;
   sections["Histoire"] = storyText ? safeStr(storyText, 100) + "..." : "❌ Vide";
   const personaFilled = persona?.portrait_prenom || persona?.description || persona?.frustrations_detail || persona?.desires;
   sections["Persona"] = personaFilled

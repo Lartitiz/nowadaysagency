@@ -100,7 +100,7 @@ export async function getUserContext(supabase: any, userId: string, workspaceId?
     stRes, persona, toneRes, propRes, stratRes, editoRes,
     profileRes, offersRes, auditRes, voiceRes, charterRes, mirrorRes,
   ] = await Promise.all([
-    supabase.from("storytelling").select("step_7_polished").eq(col, val).eq("is_primary", true).maybeSingle(),
+    supabase.from("storytelling").select("step_7_polished, step_6_full_story, imported_text").eq(col, val).eq("is_primary", true).maybeSingle(),
     fetchPersona(),
     supabase.from("brand_profile").select("voice_description, combat_cause, combat_fights, combat_alternative, combat_refusals, tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims, channels, mission, offer").eq(col, val).maybeSingle(),
     supabase.from("brand_proposition").select("version_final, version_complete, version_bio, version_one_liner").eq(col, val).maybeSingle(),
@@ -218,8 +218,11 @@ export function formatContextForAI(ctx: any, opts: ContextOptions = {}): string 
   }
 
   // === STORYTELLING ===
-  if (options.includeStory && ctx.storytelling?.step_7_polished) {
-    sections.push(`HISTOIRE :\n${ctx.storytelling.step_7_polished}`);
+  // L'histoire peut vivre dans 3 champs selon le mode de saisie : step_7_polished (coaching poli),
+  // step_6_full_story (coaching généré) ou imported_text (import / édition manuelle / audit).
+  if (options.includeStory) {
+    const storyText = ctx.storytelling?.step_7_polished || ctx.storytelling?.step_6_full_story || ctx.storytelling?.imported_text;
+    if (storyText) sections.push(`HISTOIRE :\n${storyText}`);
   }
 
   // === PERSONA ===
