@@ -243,7 +243,9 @@ export function useSynthesisFetch() {
       const pitch = proposition?.version_pitch_naturel || proposition?.version_final || proposition?.version_one_liner;
       if (pitch) { addSubtitle("Pitch"); addBody(pitch); }
       if (brand?.mission) addBullet("Mission", brand.mission);
-      if (brand?.positioning) addBullet("Positionnement", brand.positioning);
+      // Positionnement : source de vérité = brand_proposition.version_final (déjà dans le Pitch ci-dessus, cf #207).
+      // On n'affiche le legacy brand_profile.positioning qu'à défaut, pour ne pas dupliquer/contredire le Pitch.
+      if (brand?.positioning && !proposition?.version_final) addBullet("Positionnement", brand.positioning);
       if (proposition?.version_one_liner && pitch !== proposition.version_one_liner) addBullet("One-liner", proposition.version_one_liner);
       y += 4;
 
