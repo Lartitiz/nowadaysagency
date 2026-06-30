@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { MessageSquarePlus, X, Bug, Lightbulb, Upload, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -40,6 +40,30 @@ export default function BetaFeedbackWidget() {
 
   const [sending, setSending] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Mobile : le FAB se masque au scroll vers le bas (lecture du contenu) et
+  // réapparaît au scroll vers le haut — évite qu'il recouvre le contenu tappable.
+  const [hiddenByScroll, setHiddenByScroll] = useState(false);
+  useEffect(() => {
+    let lastY = window.scrollY;
+    let ticking = false;
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        const y = window.scrollY;
+        const delta = y - lastY;
+        if (Math.abs(delta) > 6) {
+          // masque en descendant (au-delà du tout début de page), montre en remontant
+          setHiddenByScroll(delta > 0 && y > 80);
+          lastY = y;
+        }
+        ticking = false;
+      });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   const resetForm = () => {
     setStep("choose");
@@ -135,7 +159,10 @@ export default function BetaFeedbackWidget() {
       {!open && (
         <button
           onClick={handleOpen}
-          className="fixed bottom-6 right-6 max-md:bottom-[5.5rem] max-md:right-4 z-40 h-14 w-14 rounded-full bg-background border-2 border-primary shadow-lg flex items-center justify-center hover:scale-105 transition-transform"
+          className={cn(
+            "fixed bottom-6 right-6 max-md:bottom-[5.5rem] max-md:right-4 z-40 h-14 w-14 rounded-full bg-background border-2 border-primary shadow-lg flex items-center justify-center hover:scale-105 transition-all duration-300",
+            hiddenByScroll && "max-md:translate-y-4 max-md:opacity-0 max-md:pointer-events-none",
+          )}
           aria-label="Donner un feedback"
         >
           <MessageSquarePlus className="h-6 w-6 text-primary" />
