@@ -1,0 +1,1 @@
+REVOKE SELECT (access_token, refresh_token) ON public.social_connections FROM authenticated, anon;
