@@ -259,7 +259,7 @@ function CharterSection({ data }: { data: AnalysisResult["charter"] }) {
 
   return (
     <div className="space-y-3">
-      {colors.length > 0 && (
+      {colors.length > 0 ? (
         <div>
           <p className="text-xs font-semibold text-bordeaux mb-2">Couleurs détectées</p>
           <div className="flex flex-wrap gap-3">
@@ -273,6 +273,14 @@ function CharterSection({ data }: { data: AnalysisResult["charter"] }) {
               </div>
             ))}
           </div>
+        </div>
+      ) : (
+        <div className="rounded-[10px] bg-muted/50 border border-border px-3 py-2.5">
+          <p className="text-xs text-muted-foreground">
+            On n'a pas réussi à détecter automatiquement tes couleurs depuis ton site
+            (elles sont parfois dans des fichiers que l'analyse ne peut pas lire).
+            Tu pourras les ajouter en un clic — ou uploader ton logo — dans ta charte graphique.
+          </p>
         </div>
       )}
       {(data.font_title || data.font_body) && (
