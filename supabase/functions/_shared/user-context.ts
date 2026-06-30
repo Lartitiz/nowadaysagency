@@ -63,7 +63,7 @@ export async function getUserContext(supabase: any, userId: string, workspaceId?
   }
 
   // Build persona query: channel-specific → primary → any
-  const personaSelect = "step_1_frustrations, step_2_transformation, step_3a_objections, step_3b_cliches, portrait_prenom, portrait, label, is_primary, channels";
+  const personaSelect = "step_1_frustrations, step_2_transformation, step_3a_objections, step_3b_cliches, step_4_beautiful, step_4_inspiring, step_4_repulsive, step_4_feeling, step_5_actions, portrait_prenom, portrait, label, is_primary, channels";
   const fetchPersona = async () => {
     // 1. Try channel-specific persona
     if (channel) {
@@ -102,7 +102,7 @@ export async function getUserContext(supabase: any, userId: string, workspaceId?
   ] = await Promise.all([
     supabase.from("storytelling").select("step_7_polished, step_6_full_story, imported_text").eq(col, val).eq("is_primary", true).maybeSingle(),
     fetchPersona(),
-    supabase.from("brand_profile").select("voice_description, combat_cause, combat_fights, combat_alternative, combat_refusals, tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims, channels, mission, offer").eq(col, val).maybeSingle(),
+    supabase.from("brand_profile").select("voice_description, combat_cause, combat_fights, combat_alternative, combat_refusals, tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims, target_description, target_problem, target_beliefs, channels, mission, offer").eq(col, val).maybeSingle(),
     supabase.from("brand_proposition").select("version_final, version_complete, version_bio, version_one_liner").eq(col, val).maybeSingle(),
     supabase.from("brand_strategy").select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3, creative_concept, facet_1, facet_2, facet_3").eq(col, val).maybeSingle(),
     supabase.from("instagram_editorial_line").select("main_objective, objective_details, posts_frequency, stories_frequency, time_available, pillars, preferred_formats, do_more, stop_doing, free_notes").eq(col, val).order("created_at", { ascending: false }).limit(1).maybeSingle(),
@@ -236,6 +236,12 @@ export function formatContextForAI(ctx: any, opts: ContextOptions = {}): string 
     if (p.step_2_transformation) lines.push(`- Transformation rêvée : ${p.step_2_transformation}`);
     if (p.step_3a_objections) lines.push(`- Objections : ${p.step_3a_objections}`);
     if (p.step_3b_cliches) lines.push(`- Clichés : ${p.step_3b_cliches}`);
+    // step_4_* / step_5 sont remplis par le coaching persona mais étaient ignorés par la génération.
+    if (p.step_4_beautiful) lines.push(`- Ce qu'elle trouve beau (direction esthétique) : ${p.step_4_beautiful}`);
+    if (p.step_4_inspiring) lines.push(`- Ce qui l'inspire : ${p.step_4_inspiring}`);
+    if (p.step_4_repulsive) lines.push(`- Ce qui la rebute : ${p.step_4_repulsive}`);
+    if (p.step_4_feeling) lines.push(`- L'émotion qu'elle cherche : ${p.step_4_feeling}`);
+    if (p.step_5_actions) lines.push(`- Ses déclencheurs d'achat : ${p.step_5_actions}`);
     if (lines.length) sections.push(`CLIENTE IDÉALE :\n${lines.join("\n")}`);
   }
 
@@ -250,6 +256,11 @@ export function formatContextForAI(ctx: any, opts: ContextOptions = {}): string 
     if (t.tone_engagement) toneLines.push(`- Engagement : ${t.tone_engagement}`);
     if (t.key_expressions) toneLines.push(`- Expressions clés : ${t.key_expressions}`);
     if (t.things_to_avoid) toneLines.push(`- Ce qu'on évite : ${t.things_to_avoid}`);
+    // Cible détaillée : remplie par diagnostic / coaching bio / import, jamais lue par la génération
+    // jusqu'ici (seul target_verbatims l'était).
+    if (t.target_description) toneLines.push(`- Description de la cible : ${t.target_description}`);
+    if (t.target_problem) toneLines.push(`- Problème principal de la cible : ${t.target_problem}`);
+    if (t.target_beliefs) toneLines.push(`- Croyances limitantes de la cible : ${t.target_beliefs}`);
     if (t.target_verbatims) toneLines.push(`- Verbatims de la cible : ${t.target_verbatims}`);
     if (t.channels?.length) toneLines.push(`- Canaux : ${t.channels.join(", ")}`);
     if (toneLines.length) sections.push(`TON & STYLE :\n${toneLines.join("\n")}`);
