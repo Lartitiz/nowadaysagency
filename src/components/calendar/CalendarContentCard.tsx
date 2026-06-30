@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, memo} from "react";
 import { type CalendarPost } from "@/lib/calendar-constants";
 import {
   FORMAT_LABELS,
@@ -53,7 +53,7 @@ function getStatusStyle(status: string): { bg: string; borderColor: string; text
 }
 
 /** Compact card for calendar cells — simplified & readable */
-export function CalendarContentCard({
+function CalendarContentCardImpl({
   post,
   onClick,
   variant = "compact",
@@ -296,7 +296,10 @@ export function CalendarContentCard({
 }
 
 /** Mobile-only: ultra-compact emoji-only display */
-export function CalendarContentCardMini({ post, onClick }: { post: CalendarPost; onClick: () => void }) {
+function CalendarContentCardMiniImpl({ post, onClick }: { post: CalendarPost; onClick: () => void }) {
   const canalIcon = CANAL_ICONS[post.canal] || "📌";
   return <button onClick={onClick} className="text-xs py-0.5">{canalIcon}</button>;
 }
+
+export const CalendarContentCard = memo(CalendarContentCardImpl);
+export const CalendarContentCardMini = memo(CalendarContentCardMiniImpl);
