@@ -31,7 +31,15 @@ const ECRANS: Array<{ slug: string; url: string }> = [
   { slug: "dashboard-complet", url: "/dashboard/complet" },
   { slug: "creer", url: "/creer" },
   { slug: "calendrier", url: "/calendrier" },
+  { slug: "idees", url: "/idees" },
   { slug: "branding", url: "/branding" },
+  { slug: "instagram", url: "/instagram" },
+  { slug: "linkedin", url: "/linkedin" },
+  { slug: "abonnement", url: "/abonnement" },
+  { slug: "profil", url: "/profil" },
+  // NB : /site, /seo, /pinterest sont des modules masqués (feature-flags.ts
+  // enabled:false) → visibles admin only ; un compte test non-admin est
+  // redirigé vers /dashboard. Ne pas les ajouter ici.
 ];
 
 for (const e of ECRANS) {
