@@ -12,6 +12,7 @@ import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voi
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import { applyPositioningToProposition } from "@/lib/positioning-write";
 import { toast } from "sonner";
 import { extractTextFromFile, isAcceptedFile, ACCEPTED_MIME_TYPES } from "@/lib/file-extractors";
 import { Search, Loader2, Upload, FileText, X, ChevronDown, ChevronUp, ArrowRight } from "lucide-react";
@@ -259,9 +260,9 @@ export default function BrandingAuditPage() {
     try {
       const ext = result.extraction_branding;
 
-      // 1. brand_profile: positioning, mission, values, voice, offer, content_pillars
+      // 1. brand_profile: mission, values, voice, offer, content_pillars
+      // (le positionnement va dans brand_proposition.version_final, cf. plus bas)
       const brandUpdate: Record<string, any> = {};
-      if (ext.positioning?.value) brandUpdate.positioning = ext.positioning.value;
       if (ext.mission?.value) brandUpdate.mission = ext.mission.value;
       if (ext.voice_description?.value) brandUpdate.voice_description = ext.voice_description.value;
       if (ext.offers?.value) brandUpdate.offer = ext.offers.value;
@@ -279,7 +280,7 @@ export default function BrandingAuditPage() {
       if (Object.keys(brandUpdate).length > 0) {
         const { data: existing } = await (supabase
           .from("brand_profile")
-          .select("id, positioning, mission, voice_description, offer, values, content_pillars") as any)
+          .select("id, mission, voice_description, offer, values, content_pillars") as any)
           .eq(column, value)
           .maybeSingle();
 
@@ -302,6 +303,12 @@ export default function BrandingAuditPage() {
             ...brandUpdate,
           } as any);
         }
+      }
+
+      // 1b. Positionnement → brand_proposition.version_final (source de vérité unique
+      // lue par la génération + le Coach). Ne remplit que si version_final est vide.
+      if (ext.positioning?.value) {
+        await applyPositioningToProposition(column, value, profileUserId, ext.positioning.value);
       }
 
       // 2. persona: description
@@ -354,6 +361,7 @@ export default function BrandingAuditPage() {
       }
 
       queryClient.invalidateQueries({ queryKey: ["brand-profile"] });
+      queryClient.invalidateQueries({ queryKey: ["brand-proposition"] });
       queryClient.invalidateQueries({ queryKey: ["persona"] });
       queryClient.invalidateQueries({ queryKey: ["storytelling-primary"] });
       queryClient.invalidateQueries({ queryKey: ["branding-completion"] });
