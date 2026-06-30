@@ -3,6 +3,8 @@
 //  - les jetons expirent vite (~30 j) et se rafraîchissent avec un refresh_token (~1 an) ;
 //  - l'échange/rafraîchissement du jeton se fait en HTTP Basic auth (client_id:client_secret) ;
 //  - une épingle va TOUJOURS dans un tableau précis (board_id obligatoire).
+import { encryptToken } from "./token-crypto.ts";
+
 const PIN_API = "https://api.pinterest.com/v5";
 const TOKEN_URL = `${PIN_API}/oauth/token`;
 // On rafraîchit dès qu'il reste moins de ~3 jours sur le jeton d'accès (durée de vie ~30 j).
@@ -49,11 +51,11 @@ export async function refreshPinterestTokenIfNeeded(supabase: any, conn: any): P
 
   const newExpires = new Date(Date.now() + Number(json.expires_in || 30 * 24 * 3600) * 1000).toISOString();
   const update: Record<string, unknown> = {
-    access_token: json.access_token,
+    access_token: await encryptToken(json.access_token),
     token_expires_at: newExpires,
   };
   // Pinterest peut renvoyer un nouveau refresh_token (rotation) ; sinon on garde l'ancien.
-  if (json.refresh_token) update.refresh_token = json.refresh_token;
+  if (json.refresh_token) update.refresh_token = await encryptToken(json.refresh_token);
   await supabase.from("social_connections").update(update).eq("id", conn.id);
   return json.access_token as string;
 }

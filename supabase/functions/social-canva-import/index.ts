@@ -4,6 +4,7 @@
 // get design -> urls.edit_url.
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { authenticateRequest, AuthError, getServiceClient } from "../_shared/auth.ts";
+import { encryptToken, decryptConnTokens } from "../_shared/token-crypto.ts";
 
 const CANVA_API = "https://api.canva.com/rest/v1";
 // Le jeton d'accès Canva est court (~4 h). On rafraîchit s'il expire dans < 10 min.
@@ -45,8 +46,8 @@ async function refreshCanvaTokenIfNeeded(supabase: any, conn: any): Promise<stri
   await supabase
     .from("social_connections")
     .update({
-      access_token: j.access_token,
-      refresh_token: j.refresh_token || conn.refresh_token,
+      access_token: await encryptToken(j.access_token),
+      refresh_token: await encryptToken(j.refresh_token || conn.refresh_token),
       token_expires_at: newExpires,
     })
     .eq("id", conn.id);
@@ -115,6 +116,7 @@ Deno.serve(async (req) => {
     if (connErr || !conn) {
       return json({ error: "not_connected", message: "Aucun compte Canva connecté." }, 400, corsHeaders);
     }
+    await decryptConnTokens(conn);
 
     const token = await refreshCanvaTokenIfNeeded(supabase, conn);
 

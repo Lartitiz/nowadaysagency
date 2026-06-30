@@ -6,6 +6,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { publishImagesToInstagram } from "../_shared/instagram-graph.ts";
 import { publishTextToLinkedIn, publishImagesToLinkedIn, publishDocumentToLinkedIn, isLinkedInImageUrl, isLinkedInPdfUrl } from "../_shared/linkedin-graph.ts";
+import { decryptConnTokens } from "../_shared/token-crypto.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -84,6 +85,7 @@ Deno.serve(async (req) => {
               : "Aucun compte Instagram connecté pour ce workspace.",
           );
         }
+        await decryptConnTokens(conn);
 
         let postId: string;
         if (platform === "linkedin") {

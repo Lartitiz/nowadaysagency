@@ -3,6 +3,7 @@
 // supprimer la ligne, afin de ne laisser aucun accès actif après déconnexion.
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { authenticateRequest, AuthError, getServiceClient } from "../_shared/auth.ts";
+import { decryptConnTokens } from "../_shared/token-crypto.ts";
 
 // Révoque un token OAuth Canva (client confidentiel : auth Basic).
 // Révoquer le refresh_token invalide toute l'autorisation (access + refresh).
@@ -61,6 +62,7 @@ Deno.serve(async (req) => {
       ).maybeSingle();
       if (conn) {
         try {
+          await decryptConnTokens(conn);
           await revokeCanvaToken(conn.refresh_token || conn.access_token);
         } catch (revokeErr) {
           console.warn("Canva revoke error (ignored):", revokeErr);

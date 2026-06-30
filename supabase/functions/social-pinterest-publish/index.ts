@@ -3,6 +3,7 @@
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { authenticateRequest, AuthError, getServiceClient } from "../_shared/auth.ts";
 import { publishPinToPinterest, pinterestPermalink } from "../_shared/pinterest-graph.ts";
+import { decryptConnTokens } from "../_shared/token-crypto.ts";
 
 function jsonError(message: string, corsHeaders: Record<string, string>, status = 400) {
   return new Response(JSON.stringify({ error: message }), {
@@ -48,6 +49,7 @@ Deno.serve(async (req) => {
     if (connErr || !conn) {
       return jsonError("Aucun compte Pinterest connecté. Connecte-le dans Paramètres > Connexions.", corsHeaders);
     }
+    await decryptConnTokens(conn);
 
     let pinId: string;
     try {
