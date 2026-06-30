@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, memo} from "react";
 import { ArrowRight } from "lucide-react";
 
 interface BentoCardProps {
@@ -26,7 +26,7 @@ const variantStyles: Record<string, string> = {
     "bg-[hsl(var(--bento-yellow))] border border-accent/30 text-foreground",
 };
 
-export default function BentoCard({
+function BentoCard({
   title,
   subtitle,
   icon,
@@ -112,3 +112,5 @@ function getRowClass(span: number): string {
   };
   return map[span] || `row-span-${span}`;
 }
+
+export default memo(BentoCard);

@@ -1,6 +1,7 @@
+import { memo } from "react";
 import { Link } from "react-router-dom";
 
-export default function HubCard({
+function HubCard({
   to,
   emoji,
   title,
@@ -48,3 +49,5 @@ export default function HubCard({
 
   return <Link to={to}>{content}</Link>;
 }
+
+export default memo(HubCard);
