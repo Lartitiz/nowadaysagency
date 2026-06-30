@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -8,7 +9,7 @@ interface QuotaExhaustedCardProps {
   onRetry?: () => void;
 }
 
-export default function QuotaExhaustedCard({
+function QuotaExhaustedCard({
   category,
   renewalMessage,
   plan,
@@ -89,3 +90,5 @@ export default function QuotaExhaustedCard({
     </div>
   );
 }
+
+export default memo(QuotaExhaustedCard);

@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { ArrowRight } from "lucide-react";
 
 interface SpaceBentoCardProps {
@@ -10,7 +11,7 @@ interface SpaceBentoCardProps {
   animationDelay?: number;
 }
 
-export default function SpaceBentoCard({
+function SpaceBentoCard({
   title,
   subtitle,
   icon,
@@ -63,3 +64,5 @@ export default function SpaceBentoCard({
     </div>
   );
 }
+
+export default memo(SpaceBentoCard);

@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Copy, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -66,7 +67,7 @@ interface OfferSynthesisCardProps {
   onEdit?: () => void;
 }
 
-export default function OfferSynthesisCard({ offer, onEdit }: OfferSynthesisCardProps) {
+function OfferSynthesisCard({ offer, onEdit }: OfferSynthesisCardProps) {
   const badge = TYPE_BADGE[offer.offer_type] || TYPE_BADGE.paid;
   const copyText = (t: string) => { navigator.clipboard.writeText(t); toast.success("Copié !"); };
 
@@ -238,3 +239,5 @@ export default function OfferSynthesisCard({ offer, onEdit }: OfferSynthesisCard
     </div>
   );
 }
+
+export default memo(OfferSynthesisCard);
