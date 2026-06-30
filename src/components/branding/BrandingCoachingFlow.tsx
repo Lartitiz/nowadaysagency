@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { invokeWithTimeout, type InvokeError } from "@/lib/invoke-with-timeout";
+import { tryParseAiJson } from "@/lib/parse-ai-json";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
@@ -871,9 +872,7 @@ export default function BrandingCoachingFlow({ section, personaId, onComplete, o
               let fillInsights: Record<string, any> = {};
               if (fillResponse) {
                 if (typeof fillResponse === "string") {
-                  try {
-                    fillInsights = JSON.parse(fillResponse.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
-                  } catch { /* ignore */ }
+                  fillInsights = tryParseAiJson<Record<string, any>>(fillResponse, "branding-coaching:autofill") ?? {};
                 } else if (typeof fillResponse === "object") {
                   fillInsights = fillResponse.extracted_insights || fillResponse;
                 }
@@ -953,12 +952,9 @@ export default function BrandingCoachingFlow({ section, personaId, onComplete, o
               }, 60000);
 
               if (pitchData?.content) {
-                let pitchParsed: any;
-                try {
-                  pitchParsed = typeof pitchData.content === "string"
-                    ? JSON.parse(pitchData.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim())
-                    : pitchData.content;
-                } catch { /* ignore */ }
+                const pitchParsed: any = typeof pitchData.content === "string"
+                  ? tryParseAiJson<any>(pitchData.content, "branding-coaching:pitch")
+                  : pitchData.content;
 
                 if (pitchParsed) {
                   const pitchUpdate: Record<string, string> = {};
