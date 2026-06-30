@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { LocalErrorBoundary } from "@/components/LocalErrorBoundary";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useMergedProfile, useBrandProfile } from "@/hooks/use-profile";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
@@ -599,13 +599,15 @@ export default function BrandingPage() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-[900px] px-6 py-8 max-md:px-4">
-        {/* ⚠️ PAS de `mode="wait"` : il suspend le montage de la vue suivante
-            derrière l'animation de SORTIE de la précédente. Quand le squelette de
-            chargement sortait (fade opacity→0), la vue "import"/"identity" ne se
-            montait jamais → écran « blanc » (squelette invisible figé). Même piège
-            que l'onboarding (#267). Sans `mode="wait"`, la nouvelle vue monte tout
-            de suite (léger crossfade au lieu d'un blocage). */}
-        <AnimatePresence>
+        {/* ⚠️ PAS d'AnimatePresence ici. La sortie animée du squelette de
+            chargement ne se terminait jamais (onExitComplete jamais émis sous la
+            charge de re-renders du live) → AnimatePresence churnait et REMONTAIT
+            en boucle la vue active → son animation d'entrée restait figée à
+            opacity 0 = écran « blanc » (même famille que l'onboarding #267, et
+            #283 — retrait `mode="wait"` — était insuffisant). Sans AnimatePresence,
+            chaque vue est un simple rendu conditionnel : montée une seule fois,
+            son fade d'entrée se termine. */}
+        <>
           {/* === LOADING === */}
           {topView === "loading" && (
             <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
@@ -794,7 +796,7 @@ export default function BrandingPage() {
               )}
             </motion.div>
           )}
-        </AnimatePresence>
+        </>
       </main>
 
       <Sheet open={mirrorOpen} onOpenChange={setMirrorOpen}>
