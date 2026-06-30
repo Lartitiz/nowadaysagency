@@ -11,7 +11,7 @@ import DemoBanner from "@/components/demo/DemoBanner";
 const GATING_TIMEOUT_MS = 5000;
 
 export default function ProtectedRoute({ children }: { children: ReactNode }) {
-  const { user, session, loading, isAdmin } = useAuth();
+  const { user, session, loading, isAdmin, adminLoading } = useAuth();
   const { isDemoMode } = useDemoContext();
   const location = useLocation();
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
@@ -180,8 +180,22 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
 
   if (!user) return <Navigate to="/login" replace />;
 
-  // Feature flag: redirect non-admin from hidden module routes
+  // Feature flag: redirect non-admin from hidden module routes.
+  // Only applies to flag-gated routes. Wait for the admin-role query to resolve
+  // first — otherwise a cold load (deep link / refresh) evaluates isRouteVisible
+  // while isAdmin is still false and wrongly bounces admins to /dashboard.
   if (!isRouteVisible(location.pathname, isAdmin)) {
+    if (adminLoading) {
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-background">
+          <div className="flex gap-1">
+            <div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" />
+            <div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.16s" }} />
+            <div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.32s" }} />
+          </div>
+        </div>
+      );
+    }
     return <Navigate to="/dashboard" replace />;
   }
 
