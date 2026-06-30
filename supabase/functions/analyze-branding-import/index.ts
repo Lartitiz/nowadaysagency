@@ -4,6 +4,7 @@ import { logUsage, checkQuota } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { isSafePublicUrl } from "../_shared/scraping.ts";
 
 // ── HTML to text helper ──
 function htmlToText(html: string): string {
@@ -24,12 +25,14 @@ function htmlToText(html: string): string {
 
 // ── Fetch a URL and extract text ──
 async function fetchPageText(url: string): Promise<string> {
+  if (!isSafePublicUrl(url)) return ""; // anti-SSRF : pas d'IP interne / localhost
   try {
     const resp = await fetch(url, {
       headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandingImporter/1.0)" },
       redirect: "follow",
     });
-    if (!resp.ok) return "";
+    // Re-valide l'URL finale au cas où une redirection pointerait vers une cible interne
+    if (!resp.ok || !isSafePublicUrl(resp.url)) return "";
     const html = await resp.text();
     return htmlToText(html);
   } catch {
@@ -76,11 +79,13 @@ async function fetchSocialProfile(type: string, url: string): Promise<{ type: st
       fetchUrl = `https://${fetchUrl}`;
     }
 
+    if (!isSafePublicUrl(fetchUrl)) return { type, text: "" }; // anti-SSRF
+
     const resp = await fetch(fetchUrl, {
       headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandingImporter/1.0)" },
       redirect: "follow",
     });
-    if (!resp.ok) return { type, text: "" };
+    if (!resp.ok || !isSafePublicUrl(resp.url)) return { type, text: "" };
     const html = await resp.text();
     const text = htmlToText(html);
     return { type, text: text.length > 50 ? text : "" };
@@ -115,13 +120,24 @@ Deno.serve(async (req) => {
     const sourcesAnalyzed: string[] = [];
 
     if (url) {
+      // Normalise + valide l'URL (anti-SSRF) avant tout fetch
+      let homepageUrl = String(url).trim();
+      if (!homepageUrl.startsWith("http")) homepageUrl = `https://${homepageUrl}`;
+      if (!isSafePublicUrl(homepageUrl)) {
+        return new Response(
+          JSON.stringify({ error: "Cette URL n'est pas autorisée." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       // Fetch homepage
-      const homepageResp = await fetch(url, {
+      const homepageResp = await fetch(homepageUrl, {
         headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandingImporter/1.0)" },
         redirect: "follow",
       });
 
-      if (!homepageResp.ok) {
+      // Une redirection vers une cible interne est traitée comme un échec
+      if (!homepageResp.ok || !isSafePublicUrl(homepageResp.url)) {
         // Don't fail if we have other sources
         if (!text && (!social_links || social_links.length === 0)) {
           return new Response(
@@ -134,7 +150,7 @@ Deno.serve(async (req) => {
         documentText = htmlToText(homepageHtml);
 
         // Find and fetch key pages
-        const keyLinks = findKeyPageLinks(homepageHtml, url);
+        const keyLinks = findKeyPageLinks(homepageHtml, homepageUrl);
         console.log("Key pages found:", keyLinks);
 
         const subTexts = await Promise.all(keyLinks.map(fetchPageText));
