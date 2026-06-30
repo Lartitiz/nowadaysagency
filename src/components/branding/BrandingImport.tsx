@@ -60,7 +60,10 @@ export default function BrandingImport({ onAnalyze, onSkip, loading = false, ini
 
   return (
     <div className="min-h-[70vh] flex items-center justify-center px-4">
-      <motion.div className="w-full max-w-[560px]" variants={stagger} initial="hidden" animate="visible">
+      {/* initial={false} : pas d'anim d'entrée à opacity 0 — sous la charge de
+          re-renders du live, l'anim restait figée à opacity ~0 → formulaire
+          invisible (« écran blanc »). On rend directement à l'état visible. */}
+      <motion.div className="w-full max-w-[560px]" variants={stagger} initial={false} animate="visible">
         {/* Header */}
         <motion.div variants={fadeUp} className="text-center mb-10">
           <h1 className="font-display text-3xl sm:text-4xl text-foreground leading-tight mb-3">
