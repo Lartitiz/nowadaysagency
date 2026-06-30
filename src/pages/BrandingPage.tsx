@@ -20,6 +20,7 @@ import { usePersona, useBrandProposition, useStorytelling } from "@/hooks/use-br
 import { useQueryClient } from "@tanstack/react-query";
 import BrandingSynthesisSheet from "@/components/branding/BrandingSynthesisSheet";
 import BrandingIdentityCard from "@/components/branding/BrandingIdentityCard";
+import BrandingDangerZone from "@/components/branding/BrandingDangerZone";
 import AuditRecommendationBanner from "@/components/AuditRecommendationBanner";
 
 import BrandingImport from "@/components/branding/BrandingImport";
@@ -788,6 +789,7 @@ export default function BrandingPage() {
                       toast("Suggestion ignorée");
                     }}
                   />
+                  {!isDemoMode && completion.total > 0 && <BrandingDangerZone />}
                 </>
               )}
             </motion.div>
