@@ -132,14 +132,14 @@ function ExportSection({ filteredPosts, canalFilter, onCoachingOpen, onQuickBatc
   };
 
   return (
-    <div className="mb-6 flex items-start justify-between gap-4">
+    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
       <div>
         <h1 className="font-display text-2xl sm:text-3xl md:text-4xl font-bold text-foreground">
           📅 Mon calendrier éditorial
         </h1>
         <p className="mt-1 text-base text-muted-foreground">Planifie tes contenus, visualise ta semaine, ne te demande plus jamais « je poste quoi aujourd'hui ».</p>
       </div>
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm" className="rounded-full gap-1.5" aria-label="Plus d'actions">
