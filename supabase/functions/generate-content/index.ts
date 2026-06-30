@@ -7,6 +7,7 @@ import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { isDemoUser } from "../_shared/guard-demo.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
+import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 import { validateInput, ValidationError, GenerateContentSchema } from "../_shared/input-validators.ts";
 import { applyCorrectionPass } from "../_shared/correction-pass.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
@@ -663,12 +664,13 @@ FORMAT :
         weeklyUsage
       );
 
-      let suggestions;
-      try {
-        const cleaned = rawContent.replace(/```json?\n?/g, "").replace(/```/g, "").trim();
-        suggestions = JSON.parse(cleaned);
-      } catch {
-        suggestions = [];
+      // Plus de fallback muet : une réponse illisible = erreur claire, sans débiter le quota.
+      const suggestions = tryParseAiJson<any>(rawContent, "generate-content:weekly-suggestions");
+      if (suggestions === null) {
+        return new Response(
+          JSON.stringify({ error: "L'IA a renvoyé une réponse illisible. Réessaie." }),
+          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
       await logUsage(user.id, usageCategory, type, weeklyUsage.total_tokens, weeklyUsage.model, workspace_id);
       return new Response(

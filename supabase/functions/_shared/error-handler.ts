@@ -1,4 +1,5 @@
 import { AuthError } from "./auth.ts";
+import { AiParseError } from "./parse-ai-json.ts";
 import { getCorsHeaders } from "./cors.ts";
 
 /**
@@ -16,6 +17,15 @@ export function handleError(
 
   // Auth errors are already user-friendly
   if (error instanceof AuthError) {
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: error.status,
+      headers,
+    });
+  }
+
+  // Réponse IA illisible : message clair + 502 (pas un 500 générique)
+  if (error instanceof AiParseError) {
+    console.error(`${functionName} parse error:`, error.rawExcerpt);
     return new Response(JSON.stringify({ error: error.message }), {
       status: error.status,
       headers,

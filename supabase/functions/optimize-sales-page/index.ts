@@ -6,6 +6,7 @@ import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
+import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { isSafePublicUrl } from "../_shared/scraping.ts";
 
@@ -372,20 +373,16 @@ Réponds UNIQUEMENT en JSON (sans backticks) avec cette structure :
       usage
     );
 
-    // Parse JSON response
-    let parsed;
-    try {
-      parsed = JSON.parse(rawResponse);
-    } catch {
-      const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        try { parsed = JSON.parse(jsonMatch[0]); } catch { parsed = { raw: rawResponse }; }
-      } else {
-        parsed = { raw: rawResponse };
-      }
+    // Parse JSON response — plus de fallback { raw } muet : illisible = erreur claire.
+    const parsed = tryParseAiJson<any>(rawResponse, "optimize-sales-page");
+    if (parsed === null) {
+      return new Response(
+        JSON.stringify({ error: "L'IA a renvoyé une réponse illisible. Réessaie." }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    // Log usage
+    // Log usage (uniquement si on a un vrai résultat)
     await logUsage(userId, "content", "optimize_sales_page", usage.total_tokens, usage.model, workspace_id);
 
     return new Response(JSON.stringify(parsed), {
