@@ -51,4 +51,36 @@ describe("clearAppStorage — isolation entre comptes", () => {
     expect(localStorage.getItem("creer_flow_state_backup:user-123")).toBeNull();
     expect(deletedDbs).toContain("creer_photos");
   });
+
+  it("purge le prénom + le brouillon d'onboarding (sinon « Camille » se réécrit entre comptes/espaces)", async () => {
+    const { clearAppStorage } = await import("@/lib/storage-cleanup");
+    localStorage.setItem("lac_prenom", "Camille");
+    localStorage.setItem("lac_onboarding_step", "3");
+    localStorage.setItem("lac_onboarding_answers", '{"prenom":"Camille"}');
+    localStorage.setItem("lac_onboarding_branding", "{}");
+    localStorage.setItem("lac_onboarding_ts", "2026-06-30T00:00:00.000Z");
+    localStorage.setItem("lac_branding_cache_refreshed", "true");
+
+    clearAppStorage();
+
+    expect(localStorage.getItem("lac_prenom")).toBeNull();
+    expect(localStorage.getItem("lac_onboarding_step")).toBeNull();
+    expect(localStorage.getItem("lac_onboarding_answers")).toBeNull();
+    expect(localStorage.getItem("lac_onboarding_branding")).toBeNull();
+    expect(localStorage.getItem("lac_onboarding_ts")).toBeNull();
+    expect(localStorage.getItem("lac_branding_cache_refreshed")).toBeNull();
+  });
+
+  it("purge l'état du bandeau missions (replié/masqué/vu) — sinon il bave entre espaces", async () => {
+    const { clearAppStorage } = await import("@/lib/storage-cleanup");
+    localStorage.setItem("lac_missions_collapsed", "true");
+    localStorage.setItem("lac_missions_first_seen", "true");
+    localStorage.setItem("missions_dismissed_at", String(Date.now()));
+
+    clearAppStorage();
+
+    expect(localStorage.getItem("lac_missions_collapsed")).toBeNull();
+    expect(localStorage.getItem("lac_missions_first_seen")).toBeNull();
+    expect(localStorage.getItem("missions_dismissed_at")).toBeNull();
+  });
 });
