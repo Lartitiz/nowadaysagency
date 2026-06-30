@@ -126,7 +126,7 @@ export default function Onboarding() {
 
       <OnboardingProgress step={step} totalSteps={TOTAL_STEPS} progress={progress} onBack={prev} />
 
-      {step <= 11 ? (
+      {step <= 10 ? (
         <div className="flex-1 flex flex-col items-center justify-center p-6">
           <div className="max-w-lg w-full flex-1 flex items-center">
             <div className="w-full">
@@ -143,14 +143,12 @@ export default function Onboarding() {
                   {step === 7 && <BlocageScreen value={answers.blocage} onChange={v => { set("blocage", v); setPendingAutoNext(true); }} />}
                   {step === 8 && <TempsScreen value={answers.temps} onChange={v => { set("temps", v); setPendingAutoNext(true); }} />}
                   {step === 9 && <ChangeScreen value={answers.change_priority} onChange={v => set("change_priority", v)} onNext={validatedNext} />}
-                  {/* On affiche le loader de diagnostic IMMÉDIATEMENT (next) et on
-                      sauvegarde en arrière-plan (handleFinish) : sinon l'écran 10
-                      restait figé pendant les ~8 écritures Supabase, donnant un
-                      « écran blanc » avant le diagnostic. deep-diagnostic lit les
-                      réponses du body (pas la BDD) et handleDiagnosticComplete
-                      re-sauve onboarding_completed → sûr de ne pas attendre ici. */}
+                  {/* Étape 10 : on affiche le loader du diagnostic TOUT DE SUITE (next() d'abord),
+                      puis la sauvegarde profil (handleFinish) part en arrière-plan. Le loader
+                      lui-même (DiagnosticLoading, step 11) est rendu HORS de l'AnimatePresence
+                      ci-dessous : sinon l'animation de sortie de l'étape 10 suspendait son
+                      montage → écran « blanc » pendant le calcul deep-diagnostic (run QA T5). */}
                   {step === 10 && <UniquenessScreen value={answers.uniqueness} onChange={v => set("uniqueness", v)} onNext={() => { next(); void handleFinish(); }} />}
-                  {step === 11 && <DiagnosticLoading hasInstagram={hasInstagram} hasWebsite={hasWebsite} hasDocuments={isDemoMode ? true : uploadedFiles.length > 0} isDemoMode={isDemoMode} answers={answers} brandingAnswers={brandingAnswers} uploadedFileIds={uploadedFiles.map(f => f.id)} activityType={answers.activity_type} onReady={(data) => { setDiagnosticData(data); setStep(12); }} />}
                 </motion.div>
               </AnimatePresence>
             </div>
@@ -159,6 +157,15 @@ export default function Onboarding() {
           {step > 0 && step < 9 && (
             <p className="text-center text-xs text-muted-foreground/60 pb-4 mt-2">{getTimeRemaining(step)}</p>
           )}
+        </div>
+      ) : step === 11 ? (
+        // Le diagnostic (étape de chargement) est rendu HORS de l'AnimatePresence :
+        // monté immédiatement et de façon déterministe quand step passe à 11, il n'est
+        // plus suspendu par l'animation de sortie de l'étape précédente (cause du blanc).
+        <div className="flex-1 flex flex-col items-center justify-center p-6">
+          <div className="max-w-lg w-full">
+            <DiagnosticLoading hasInstagram={hasInstagram} hasWebsite={hasWebsite} hasDocuments={isDemoMode ? true : uploadedFiles.length > 0} isDemoMode={isDemoMode} answers={answers} brandingAnswers={brandingAnswers} uploadedFileIds={uploadedFiles.map(f => f.id)} activityType={answers.activity_type} onReady={(data) => { setDiagnosticData(data); setStep(12); }} />
+          </div>
         </div>
       ) : diagnosticData ? (
         <DiagnosticView data={diagnosticData} prenom={answers.prenom} onComplete={handleDiagnosticComplete} hasInstagram={hasInstagram} hasWebsite={hasWebsite} sourcesUsed={diagnosticData.sources_used} sourcesFailed={diagnosticData.sources_failed} />
