@@ -206,3 +206,18 @@ export async function getBrandingCompletion(filter: { column: string; value: str
   const completion = calculateBrandingCompletion(data);
   return { percent: completion.total, toneComplete: completion.tone > 50 };
 }
+
+/**
+ * Variante de getBrandingCompletion qui REMONTE l'erreur de chargement au lieu
+ * de la masquer en 0 %. À utiliser par les surfaces qui « nudgent » (carte du
+ * hub, bannières, prompts) : sur une simple erreur réseau transitoire, on ne
+ * doit PAS afficher « branding vide / 0 % / commence à remplir » à un
+ * utilisateur déjà complet (même piège erreur-vs-vide que sur /branding).
+ */
+export async function getBrandingCompletionWithStatus(
+  filter: { column: string; value: string }
+): Promise<{ percent: number; toneComplete: boolean; error: Error | null }> {
+  const { data, error } = await fetchBrandingDataWithStatus(filter);
+  const completion = calculateBrandingCompletion(data);
+  return { percent: completion.total, toneComplete: completion.tone > 50, error };
+}

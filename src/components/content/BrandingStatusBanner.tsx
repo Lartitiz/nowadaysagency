@@ -4,7 +4,7 @@ import { X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
-import { fetchBrandingData, calculateBrandingCompletion } from "@/lib/branding-completion";
+import { fetchBrandingDataWithStatus, calculateBrandingCompletion } from "@/lib/branding-completion";
 
 const SECTION_LABELS: Record<string, string> = {
   storytelling: "ton histoire",
@@ -27,12 +27,18 @@ export default function BrandingStatusBanner() {
   const { data: completion } = useQuery({
     queryKey: ["branding-completion-banner", filter.column, filter.value],
     queryFn: async () => {
-      const raw = await fetchBrandingData(filter);
-      return calculateBrandingCompletion(raw);
+      const { data, error } = await fetchBrandingDataWithStatus(filter);
+      // Sur une erreur de chargement, on laisse react-query basculer en erreur
+      // (data reste undefined) plutôt que d'afficher « remplis ton identité de
+      // marque » à un utilisateur déjà complet à cause d'un faux 0 %.
+      if (error) throw error;
+      return calculateBrandingCompletion(data);
     },
     staleTime: 5 * 60 * 1000,
+    retry: 1,
   });
 
+  // !completion couvre aussi le cas erreur (data undefined) → pas de bannière.
   if (dismissed || !completion) return null;
 
   const missing = (["storytelling", "persona", "proposition", "tone", "strategy", "offers"] as const)

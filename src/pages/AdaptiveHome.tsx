@@ -42,7 +42,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
-import { getBrandingCompletion } from "@/lib/branding-completion";
+import { getBrandingCompletionWithStatus } from "@/lib/branding-completion";
 import { toLocalDateStr } from "@/lib/utils";
 
 /* ── Helpers ── */
@@ -298,19 +298,19 @@ export default function AdaptiveHome() {
     staleTime: 2 * 60 * 1000,
   });
 
-  // Branding completion percent
-  const { data: brandingPercent = 0 } = useQuery<number>({
+  // Branding completion percent. On laisse l'erreur de chargement remonter
+  // (isError) plutôt que de la masquer en 0 % : un branding complet ne doit pas
+  // afficher une barre vide à 0 % sur une simple erreur réseau transitoire.
+  const { data: brandingPercent = 0, isError: brandingLoadError } = useQuery<number>({
     queryKey: ["adaptive-home-branding-completion", wsFilter.column, wsFilter.value],
     queryFn: async () => {
-      try {
-        const r = await getBrandingCompletion({ column: wsFilter.column, value: wsFilter.value });
-        return r?.percent ?? 0;
-      } catch {
-        return 0;
-      }
+      const r = await getBrandingCompletionWithStatus({ column: wsFilter.column, value: wsFilter.value });
+      if (r.error) throw r.error;
+      return r.percent;
     },
     enabled: !!wsFilter.value,
     staleTime: 2 * 60 * 1000,
+    retry: 1,
   });
 
   // Latest audit (most recent between instagram_audit and website_audit)
@@ -671,12 +671,14 @@ export default function AdaptiveHome() {
                       Ton histoire, ton persona, ta voix.
                     </p>
                   )}
-                  <div className="mt-3 flex items-center gap-2">
-                    <Progress value={brandingPercent} className="h-1.5 flex-1" />
-                    <span className="font-mono-ui text-2xs text-foreground/60 font-semibold shrink-0">
-                      {brandingPercent}%
-                    </span>
-                  </div>
+                  {!brandingLoadError && (
+                    <div className="mt-3 flex items-center gap-2">
+                      <Progress value={brandingPercent} className="h-1.5 flex-1" />
+                      <span className="font-mono-ui text-2xs text-foreground/60 font-semibold shrink-0">
+                        {brandingPercent}%
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-bordeaux group-hover:translate-x-0.5 transition-all shrink-0 mt-1" />
