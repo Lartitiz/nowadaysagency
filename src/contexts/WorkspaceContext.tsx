@@ -70,10 +70,11 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
       setWorkspaces(loaded.map(({ _role, ...ws }) => ws));
 
-      // Determine active workspace
+      // Determine active workspace — prefer owner workspace over managed ones as fallback
       const savedId = localStorage.getItem(LS_KEY);
       const saved = loaded.find((w) => w.id === savedId);
-      const selected = saved || loaded[0] || null;
+      const ownerWs = loaded.find((w) => w._role === "owner");
+      const selected = saved || ownerWs || loaded[0] || null;
 
       if (selected) {
         const { _role, ...ws } = loaded.find((w) => w.id === selected.id)!;
