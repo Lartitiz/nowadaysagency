@@ -51,7 +51,24 @@ export function useOpenInCanva() {
       setOpeningCanva(true);
       try {
         toast.info("Préparation du carrousel pour Canva…");
-        const blob = await buildBlob();
+        // Filet de sécurité : la construction du PPTX (html2canvas) peut se figer
+        // si l'onglet reste en arrière-plan trop longtemps. On borne l'attente
+        // pour surfacer une erreur claire au lieu de rester coincé sur
+        // « Préparation… » indéfiniment.
+        const blob = await Promise.race([
+          buildBlob(),
+          new Promise<never>((_, reject) =>
+            setTimeout(
+              () =>
+                reject(
+                  new Error(
+                    "La préparation du carrousel a échoué. Reste sur l'onglet de l'app pendant l'export, puis réessaie.",
+                  ),
+                ),
+              90000,
+            ),
+          ),
+        ]);
         const fileBase64 = await blobToBase64(blob);
 
         toast.info("Import dans Canva en cours…");
