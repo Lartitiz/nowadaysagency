@@ -114,7 +114,7 @@ export default function AppHeader() {
 }
 
 function AppHeaderInner() {
-  const { activeWorkspace, workspaces, isMultiWorkspace, switchWorkspace, activeRole } = useWorkspace();
+  const { activeWorkspace, ownWorkspace, workspaces, isMultiWorkspace, switchWorkspace, activeRole } = useWorkspace();
   const { user, signOut, isAdmin } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -362,7 +362,10 @@ function AppHeaderInner() {
             </span>
             <button
               onClick={() => {
-                const ownerWs = workspaces[0];
+                // ⚠️ PAS `workspaces[0]` (arbitraire) : on revient à l'espace dont
+                // on est owner. Sinon « revenir » pouvait basculer vers un AUTRE
+                // espace client et laisser bloqué·e hors de chez soi.
+                const ownerWs = ownWorkspace ?? workspaces[0];
                 if (ownerWs) {
                   switchWorkspace(ownerWs.id);
                   navigate("/dashboard");

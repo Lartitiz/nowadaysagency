@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { pickActiveWorkspace } from "@/lib/workspace-select";
 
 export interface Workspace {
   id: string;
@@ -14,6 +15,10 @@ export interface Workspace {
 
 export interface WorkspaceContextType {
   activeWorkspace: Workspace | null;
+  /** L'espace dont l'utilisateur·ice est `owner` (le sien propre), s'il existe.
+   *  À utiliser pour « revenir à mon espace » / défaut, JAMAIS `workspaces[0]`
+   *  qui est arbitraire (un·e admin est membre d'espaces clients). */
+  ownWorkspace: Workspace | null;
   workspaces: Workspace[];
   activeRole: "owner" | "manager" | "editor" | "viewer";
   switchWorkspace: (workspaceId: string) => void;
@@ -29,6 +34,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
+  const [ownWorkspace, setOwnWorkspace] = useState<Workspace | null>(null);
   const [activeRole, setActiveRole] = useState<"owner" | "manager" | "editor" | "viewer">("owner");
   const [loading, setLoading] = useState(true);
   const queryClient = useQueryClient();
@@ -38,6 +44,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     if (!user?.id) {
       setWorkspaces([]);
       setActiveWorkspace(null);
+      setOwnWorkspace(null);
       setLoading(false);
       return;
     }
@@ -70,14 +77,16 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
       setWorkspaces(loaded.map(({ _role, ...ws }) => ws));
 
-      // Determine active workspace — prefer owner workspace over managed ones as fallback
-      const savedId = localStorage.getItem(LS_KEY);
-      const saved = loaded.find((w) => w.id === savedId);
-      const ownerWs = loaded.find((w) => w._role === "owner");
-      const selected = saved || ownerWs || loaded[0] || null;
+      // L'espace « propre » = celui dont on est `owner`. Sert de défaut et de
+      // cible pour « revenir à mon espace ».
+      const ownEntry = loaded.find((w) => w._role === "owner");
+      setOwnWorkspace(ownEntry ? (({ _role, ...ws }) => ws)(ownEntry) : null);
+
+      // Espace actif : choix persisté > espace propre (owner) > premier. Cf bug QA.
+      const selected = pickActiveWorkspace(loaded, localStorage.getItem(LS_KEY));
 
       if (selected) {
-        const { _role, ...ws } = loaded.find((w) => w.id === selected.id)!;
+        const { _role, ...ws } = selected;
         setActiveWorkspace(ws);
         setActiveRole(_role as any);
         localStorage.setItem(LS_KEY, ws.id);
@@ -146,6 +155,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     <WorkspaceContext.Provider
       value={{
         activeWorkspace,
+        ownWorkspace,
         workspaces,
         activeRole,
         switchWorkspace,
