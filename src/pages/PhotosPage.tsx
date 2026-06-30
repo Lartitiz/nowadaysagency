@@ -60,14 +60,14 @@ export default function PhotosPage() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="container max-w-6xl mx-auto px-4 py-8">
-        <header className="flex items-start justify-between gap-4 mb-8">
+        <header className="flex flex-col gap-3 mb-8 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           <div>
             <h1 className="font-display text-3xl text-foreground mb-1">Mes photos</h1>
             <p className="text-sm text-muted-foreground max-w-xl">
               Importe une photo, décris l'ambiance que tu veux derrière, et l'IA remplace ton décor pour des visuels prêts à publier.
             </p>
           </div>
-          <Button onClick={() => setUploadOpen(true)} disabled={!wsReady}>
+          <Button onClick={() => setUploadOpen(true)} disabled={!wsReady} className="shrink-0 self-start">
             <Plus className="h-4 w-4 mr-2" /> Nouvelle photo
           </Button>
         </header>
