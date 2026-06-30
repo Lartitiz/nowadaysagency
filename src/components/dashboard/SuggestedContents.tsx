@@ -174,10 +174,19 @@ export default function SuggestedContents() {
   const { data: brandProfile } = useQuery({
     queryKey: ["brand-profile-suggested", column, value],
     queryFn: async () => {
-      const { data } = await (supabase.from("brand_profile") as any)
-        .select("mission, positioning, values, story_origin, content_pillars")
-        .eq(column, value)
-        .maybeSingle();
+      const [{ data }, { data: propData }] = await Promise.all([
+        (supabase.from("brand_profile") as any)
+          .select("mission, positioning, values, story_origin, content_pillars")
+          .eq(column, value)
+          .maybeSingle(),
+        (supabase.from("brand_proposition") as any)
+          .select("version_final")
+          .eq(column, value)
+          .maybeSingle(),
+      ]);
+      // Source de vérité unique du positionnement = brand_proposition.version_final (cf #207),
+      // fallback sur l'ancien brand_profile.positioning si pas encore de version_final.
+      if (data) data.positioning = propData?.version_final || data.positioning;
       return data;
     },
     enabled: !!user && !cachedContents,

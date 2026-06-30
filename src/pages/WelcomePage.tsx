@@ -117,7 +117,6 @@ function buildBrandingCards(
 ): BrandingCard[] {
   const cards: BrandingCard[] = [];
 
-  if (bp?.positioning) cards.push({ emoji: "🎯", title: "Positionnement", content: bp.positioning, route: "/branding/proposition/recap", dbTable: "brand_profile", dbField: "positioning" });
   if (bp?.mission) cards.push({ emoji: "🚀", title: "Mission", content: bp.mission, route: "/branding", dbTable: "brand_profile", dbField: "mission" });
   if (bp?.tone_style || (bp?.tone_keywords && bp.tone_keywords.length > 0)) {
     const toneContent = bp!.tone_style || (bp!.tone_keywords || []).join(", ");
@@ -160,7 +159,10 @@ function buildBrandingCards(
   if (story?.imported_text) cards.push({ emoji: "📖", title: "Ton histoire", content: story.imported_text, route: "/branding/section?section=story", dbTable: "storytelling", dbField: "imported_text" });
 
   const prop = propositionData as any;
-  if (prop?.version_final) cards.push({ emoji: "💎", title: "Proposition de valeur", content: prop.version_final, route: "/branding/proposition/recap" });
+  // Positionnement / proposition de valeur : source de vérité unique = brand_proposition.version_final (cf #207).
+  // Fallback sur l'ancien brand_profile.positioning pour les comptes encore sans version_final (onboarding seul).
+  const positioningVal = prop?.version_final || bp?.positioning;
+  if (positioningVal) cards.push({ emoji: "🎯", title: "Positionnement", content: positioningVal, route: "/branding/proposition/recap" });
   else if (prop?.version_one_liner) cards.push({ emoji: "💎", title: "One-liner", content: prop.version_one_liner, route: "/branding/proposition/recap" });
 
   const strat = strategyData as any;

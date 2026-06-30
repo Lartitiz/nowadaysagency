@@ -72,16 +72,15 @@ export default function SiteAuditBrandingSuggestions({ prefill, workspaceFilter,
     };
 
     try {
-      // brand_profile: tone_style, combat_cause, combat_fights, positioning
+      // brand_profile: tone_style, combat_cause, combat_fights
       const brandUpdates: Record<string, unknown> = {};
       if (emptyFields.tone_style && editableValues.tone_style) brandUpdates.tone_style = editableValues.tone_style;
       if (emptyFields.combat_cause && editableValues.combat_cause) brandUpdates.combat_cause = editableValues.combat_cause;
       if (emptyFields.combat_fights && editableValues.combat_fights) brandUpdates.combat_fights = editableValues.combat_fights;
-      if (emptyFields.positioning && editableValues.positioning) brandUpdates.positioning = editableValues.positioning;
 
       if (Object.keys(brandUpdates).length > 0) {
         const { data: existing } = await (supabase.from("brand_profile") as any)
-          .select("id, tone_style, combat_cause, combat_fights, positioning").eq(filterCol, filterVal).maybeSingle();
+          .select("id, tone_style, combat_cause, combat_fights").eq(filterCol, filterVal).maybeSingle();
         if (existing) {
           const safe = onlyStillEmpty(brandUpdates, existing);
           if (Object.keys(safe).length > 0) await (supabase.from("brand_profile") as any).update(safe).eq("id", existing.id);
@@ -90,6 +89,27 @@ export default function SiteAuditBrandingSuggestions({ prefill, workspaceFilter,
             user_id: userId,
             workspace_id: filterCol === "workspace_id" ? filterVal : null,
             ...brandUpdates,
+          });
+        }
+      }
+
+      // Positionnement → brand_proposition.version_final : source de vérité unique lue par
+      // la génération ET le Coach (cf #207). brand_profile.positioning n'est lu par aucune IA,
+      // donc on n'y écrit plus. Garde anti-écrasement : on ne remplit que si version_final est vide.
+      if (emptyFields.positioning && editableValues.positioning) {
+        const { data: existingProp } = await (supabase.from("brand_proposition") as any)
+          .select("id, version_final").eq(filterCol, filterVal).maybeSingle();
+        if (existingProp) {
+          const cur = existingProp.version_final;
+          if (cur === null || cur === undefined || (typeof cur === "string" && cur.trim() === "")) {
+            await (supabase.from("brand_proposition") as any)
+              .update({ version_final: editableValues.positioning }).eq("id", existingProp.id);
+          }
+        } else {
+          await (supabase.from("brand_proposition") as any).insert({
+            user_id: userId,
+            workspace_id: filterCol === "workspace_id" ? filterVal : null,
+            version_final: editableValues.positioning,
           });
         }
       }
