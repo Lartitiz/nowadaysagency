@@ -39,7 +39,7 @@ export async function fetchBrandingDataWithStatus(
 ): Promise<BrandingFetchResult> {
   const runQueries = async (f: { column: string; value: string }): Promise<BrandingFetchResult> => {
     const [stRes, perRes, propRes, toneRes, stratRes, offersRes, charterRes] = await Promise.all([
-      (supabase.from("storytelling") as any).select("id, is_primary, completed, step_7_polished, imported_text").eq(f.column, f.value),
+      (supabase.from("storytelling") as any).select("id, is_primary, completed, step_6_full_story, step_7_polished, imported_text").eq(f.column, f.value),
       (supabase.from("persona") as any).select("description, step_1_frustrations, step_2_transformation, step_3a_objections, step_4_beautiful, step_5_actions").eq(f.column, f.value).order("is_primary", { ascending: false }).order("created_at", { ascending: false }).limit(1).maybeSingle(),
       (supabase.from("brand_proposition") as any).select("step_1_what, step_2a_process, step_2b_values, step_3_for_whom, version_final, version_pitch_naturel").eq(f.column, f.value).maybeSingle(),
       (supabase.from("brand_profile") as any).select("voice_description, combat_cause, combat_fights, combat_alternative, combat_refusals, tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims, channels").eq(f.column, f.value).maybeSingle(),
@@ -108,10 +108,13 @@ function filled(val: unknown): boolean {
 }
 
 export function calculateBrandingCompletion(data: BrandingRawData): BrandingCompletion {
-  // STORYTELLING: complete if at least 1 exists with polished text or imported text.
-  // An auto-created empty draft row must NOT count as 100% (it gonflait le score).
+  // STORYTELLING: complete if at least 1 exists with un récit rédigé.
+  // step_6_full_story = récit complet (rempli par l'autofill du site ET le coaching) ;
+  // step_7_polished = version peaufinée ; imported_text = histoire importée.
+  // L'un des trois suffit. Une ligne brouillon auto-créée VIDE ne compte pas
+  // (les 3 champs vides → 0), donc le score ne gonfle pas.
   const hasStory = Array.isArray(data.storytellingList) &&
-    data.storytellingList.some((s: any) => filled(s?.step_7_polished) || filled(s?.imported_text));
+    data.storytellingList.some((s: any) => filled(s?.step_6_full_story) || filled(s?.step_7_polished) || filled(s?.imported_text));
   const storytelling = hasStory ? 100 : 0;
 
   // PERSONA: 5 steps
