@@ -239,7 +239,15 @@ async function waitReady(iframe: HTMLIFrameElement): Promise<void> {
       new Promise((r) => setTimeout(r, 5000)),
     ]);
   }
-  await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+  // 2 frames pour laisser le layout se stabiliser. ⚠️ requestAnimationFrame est
+  // MIS EN PAUSE par le navigateur quand l'onglet est en arrière-plan (ce qui
+  // arrive dès qu'on ouvre l'onglet Canva). Sans garde-fou, cette attente ne se
+  // résout JAMAIS → l'export (et donc « Ouvrir dans Canva ») se fige à l'infini.
+  // On la course contre un setTimeout qui, lui, se déclenche même en arrière-plan.
+  await Promise.race([
+    new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))),
+    new Promise<void>((r) => setTimeout(r, 300)),
+  ]);
   await new Promise((r) => setTimeout(r, 200));
 }
 
