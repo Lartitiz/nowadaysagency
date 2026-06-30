@@ -7,12 +7,13 @@ import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { isSafePublicUrl } from "../_shared/scraping.ts";
 
 /* ─── Constants ─── */
 const PAGE_TIMEOUT_MS = 15_000;
 const MAX_TEXT_CHARS = 14_000; // ~3500 tokens
 const USER_AGENT = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)";
-const BLOCKED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"];
+const MAX_REDIRECTS = 4;
 
 /* ─── HTML helpers ─── */
 
@@ -119,18 +120,30 @@ function validateUrl(raw: string): { valid: boolean; url?: string; error?: strin
   if (!url.startsWith("http://") && !url.startsWith("https://")) {
     url = "https://" + url;
   }
-  try {
-    const parsed = new URL(url);
-    if (BLOCKED_HOSTS.includes(parsed.hostname)) {
-      return { valid: false, error: "URLs internes non autorisées" };
-    }
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-      return { valid: false, error: "Protocole non supporté" };
-    }
-    return { valid: true, url };
-  } catch {
-    return { valid: false, error: "URL invalide" };
+  // SSRF : garde partagée (bloque localhost/.internal, IP décimale/octale/hex,
+  // plages privées IPv4/IPv6 dont 169.254.x métadonnées cloud).
+  if (!isSafePublicUrl(url)) {
+    return { valid: false, error: "URLs internes non autorisées" };
   }
+  return { valid: true, url };
+}
+
+// SSRF : fetch qui suit les redirections en MANUEL et re-valide chaque saut
+// avec isSafePublicUrl (une URL « sûre » peut rediriger en 302 vers une IP interne).
+async function safeFetch(startUrl: string, init: RequestInit): Promise<Response> {
+  let current = startUrl;
+  for (let i = 0; i <= MAX_REDIRECTS; i++) {
+    if (!isSafePublicUrl(current)) throw new Error("Redirection vers une URL interne bloquée");
+    const resp = await fetch(current, { ...init, redirect: "manual" });
+    if (resp.status >= 300 && resp.status < 400) {
+      const location = resp.headers.get("location");
+      if (!location) return resp;
+      current = new URL(location, current).toString();
+      continue;
+    }
+    return resp;
+  }
+  throw new Error("Trop de redirections");
 }
 
 /* ─── Main ─── */
@@ -198,10 +211,9 @@ serve(async (req) => {
 
     let html: string;
     try {
-      const resp = await fetch(finalUrl, {
+      const resp = await safeFetch(finalUrl, {
         headers: { "User-Agent": USER_AGENT },
         signal: controller.signal,
-        redirect: "follow",
       });
       clearTimeout(timeout);
       if (!resp.ok) {
