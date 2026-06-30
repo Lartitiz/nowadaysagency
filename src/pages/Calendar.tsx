@@ -907,8 +907,10 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       <AuditRecommendationBanner />
       <ExportSection filteredPosts={filteredPosts} canalFilter={canalFilter} onCoachingOpen={() => setCoachingOpen(true)} onQuickBatchOpen={() => setQuickBatchOpen(true)} onImportOpen={() => openImportDialog()} seriesNameById={seriesNameById} />
 
-      {/* Mobile tabs */}
-      {isMobile && (
+      {/* Mobile tabs — masqués quand le calendrier est embarqué dans OrganizationHub :
+          ses onglets « Calendrier / Mes idées / Ma stratégie » fournissent déjà cette nav
+          (et la page Idées gère la planification), donc ce 2e toggle faisait doublon. */}
+      {!embedded && isMobile && (
         <div className="flex rounded-full border border-border overflow-hidden mb-4">
           <button onClick={() => setMobileTab("calendar")}
             className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${mobileTab === "calendar" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
