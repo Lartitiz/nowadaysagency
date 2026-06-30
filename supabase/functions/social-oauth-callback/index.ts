@@ -3,6 +3,7 @@
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { getServiceClient } from "../_shared/auth.ts";
 import { verifyState } from "../_shared/oauth-state.ts";
+import { encryptToken } from "../_shared/token-crypto.ts";
 
 interface StatePayload {
   user_id: string;
@@ -251,8 +252,8 @@ Deno.serve(async (req) => {
       platform: payload.platform,
       platform_account_id: accountId,
       platform_account_name: accountName,
-      access_token: accessToken,
-      refresh_token: refreshToken,
+      access_token: await encryptToken(accessToken),
+      refresh_token: await encryptToken(refreshToken),
       token_expires_at: expiresAt,
       scopes,
       updated_at: new Date().toISOString(),

@@ -5,6 +5,7 @@
 // Toutes les images doivent être à une URL https publique (Instagram les cURL).
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { authenticateRequest, AuthError, getServiceClient } from "../_shared/auth.ts";
+import { encryptToken, decryptConnTokens } from "../_shared/token-crypto.ts";
 
 const GRAPH = "https://graph.instagram.com/v21.0";
 const REFRESH_THRESHOLD_MS = 7 * 24 * 3600 * 1000;
@@ -26,7 +27,7 @@ async function refreshTokenIfNeeded(supabase: any, conn: any): Promise<string> {
   const newExpires = new Date(Date.now() + Number(json.expires_in || 60 * 24 * 3600) * 1000).toISOString();
   await supabase
     .from("social_connections")
-    .update({ access_token: json.access_token, token_expires_at: newExpires })
+    .update({ access_token: await encryptToken(json.access_token), token_expires_at: newExpires })
     .eq("id", conn.id);
   return json.access_token as string;
 }
@@ -114,6 +115,7 @@ Deno.serve(async (req) => {
     if (connErr || !conn) {
       return jsonError("Aucun compte Instagram connecté. Connecte-le dans Paramètres > Connexions.", corsHeaders);
     }
+    await decryptConnTokens(conn);
 
     const token = await refreshTokenIfNeeded(supabase, conn);
     const igUserId = conn.platform_account_id;

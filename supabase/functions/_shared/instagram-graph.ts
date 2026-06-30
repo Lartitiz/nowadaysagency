@@ -1,6 +1,8 @@
 // Cœur de publication Instagram (Graph API v21, "Instagram Business Login").
 // Publie 1 image (post simple) ou 2-10 images (carrousel) à partir d'une connexion
 // social_connections. Réutilisé par la publication programmée (social-publish-scheduled).
+import { encryptToken } from "./token-crypto.ts";
+
 const GRAPH = "https://graph.instagram.com/v21.0";
 const REFRESH_THRESHOLD_MS = 7 * 24 * 3600 * 1000;
 
@@ -21,7 +23,7 @@ export async function refreshTokenIfNeeded(supabase: any, conn: any): Promise<st
   const newExpires = new Date(Date.now() + Number(json.expires_in || 60 * 24 * 3600) * 1000).toISOString();
   await supabase
     .from("social_connections")
-    .update({ access_token: json.access_token, token_expires_at: newExpires })
+    .update({ access_token: await encryptToken(json.access_token), token_expires_at: newExpires })
     .eq("id", conn.id);
   return json.access_token as string;
 }

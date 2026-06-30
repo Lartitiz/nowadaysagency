@@ -5,6 +5,7 @@
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { authenticateRequest, AuthError, getServiceClient } from "../_shared/auth.ts";
 import { fetchInstagramInsights } from "../_shared/instagram-insights.ts";
+import { decryptConnTokens } from "../_shared/token-crypto.ts";
 
 function jsonError(message: string, corsHeaders: Record<string, string>, status = 400) {
   return new Response(JSON.stringify({ error: message }), {
@@ -41,6 +42,7 @@ Deno.serve(async (req) => {
         404,
       );
     }
+    await decryptConnTokens(conn);
 
     // Garde-fou : la lecture des stats exige la permission insights. Si la connexion
     // a été établie avant la revue Meta, on demande une reconnexion plutôt qu'un 500.
