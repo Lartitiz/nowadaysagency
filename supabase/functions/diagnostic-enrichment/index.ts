@@ -172,6 +172,28 @@ Précisions importantes :
         .eq("id", savedDiagId);
     }
 
+    // ── Garde-fou anti-écrasement (étape 2) ───────────────────────────────
+    // Le diagnostic ne pré-remplit QUE des espaces vierges (premier onboarding
+    // ou juste après un reset scopé qui a vidé l'espace). Si l'espace a déjà un
+    // branding RÉEL (mission/positioning renseignés), on n'injecte RIEN — sinon
+    // un onboarding lancé par erreur sur le mauvais espace actif (cf incident
+    // 30/06 : démo « céramiste » écrite sur un espace Nowadays réel) pollue des
+    // données existantes. Pas de race avec `onboarding_completed` (posé en fin
+    // d'onboarding) car on teste la présence de contenu, pas le flag.
+    // NB : au 1er onboarding, `brand_profile.mission` est encore vide (c'est CE
+    // diagnostic qui le remplit), donc le cas légitime passe.
+    const { data: brandedCheck } = await supabaseAdmin
+      .from("brand_profile")
+      .select("mission, positioning")
+      .eq(filterCol, filterVal)
+      .maybeSingle();
+    if (brandedCheck && (brandedCheck.mission || brandedCheck.positioning)) {
+      console.warn(`[diagnostic-enrichment] Espace déjà brandé (mission/positioning présents) — enrichissement IGNORÉ pour ne pas écraser/injecter. workspace=${workspaceId} user=${userId}`);
+      return new Response(JSON.stringify({ success: true, skipped: "already_branded" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // brand_profile upsert — enriched with value proposition, target, tone details
     const { data: existingProfile } = await supabaseAdmin
       .from("brand_profile")
