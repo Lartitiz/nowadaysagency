@@ -24,6 +24,7 @@ import { enableSentryReplays, disableSentryReplays } from "@/lib/sentry";
 import { STRIPE_PLANS } from "@/lib/stripe-config";
 import { useUserPlan } from "@/hooks/use-user-plan";
 import { useProfileUserId } from "@/hooks/use-workspace-query";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { MODULE_FLAGS } from "@/config/feature-flags";
 import PurchaseHistory from "@/components/settings/PurchaseHistory";
 import PromoCodeInput from "@/components/PromoCodeInput";
@@ -45,6 +46,7 @@ export default function SettingsPage() {
   // Clé canonique des lignes `profiles` (propriétaire de l'espace actif, ≠ user.id
   // pour un binôme/manager). DOIT correspondre à ce que lit l'edge function.
   const profileUserId = useProfileUserId();
+  const { activeWorkspace } = useWorkspace();
 
   // Password change
   const [newPassword, setNewPassword] = useState("");
@@ -535,9 +537,12 @@ export default function SettingsPage() {
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Repartir de zéro ?</AlertDialogTitle>
+                <AlertDialogTitle>
+                  Repartir de zéro{activeWorkspace?.name ? ` sur l'espace « ${activeWorkspace.name} »` : ""} ?
+                </AlertDialogTitle>
                 <AlertDialogDescription>
-                  Ton branding (storytelling, persona, ton, stratégie, offres, charte) sera supprimé et tu repasseras par l'onboarding. Ton compte et tes contenus générés seront conservés.
+                  Le branding (storytelling, persona, ton, stratégie, offres, charte) de l'espace
+                  {activeWorkspace?.name ? ` « ${activeWorkspace.name} »` : " actif"} sera supprimé et tu repasseras par l'onboarding pour CET espace uniquement. Tes autres espaces, ton compte et tes contenus générés sont conservés.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -547,13 +552,21 @@ export default function SettingsPage() {
                   disabled={resettingOnboarding}
                   onClick={async () => {
                     if (!user) return;
+                    // Le reset DOIT être scopé à l'espace actif : supprimer par
+                    // user_id effacerait le branding de TOUS les espaces (dont
+                    // ceux des clientes pour un compte agence). Sans espace actif
+                    // identifié, on refuse plutôt que de risquer un effacement large.
+                    if (!activeWorkspace?.id) {
+                      toast.error("Espace introuvable", { description: "Recharge la page puis réessaie." });
+                      return;
+                    }
                     setResettingOnboarding(true);
                     try {
                       const sessionData = await supabase.auth.getSession();
                       const token = sessionData.data.session?.access_token;
                       const res = await invokeWithTimeout("reset-onboarding", {
                         headers: { Authorization: `Bearer ${token}` },
-                        body: {},
+                        body: { workspaceId: activeWorkspace.id },
                       }, 30000);
 
                       if (res.error) throw res.error;
