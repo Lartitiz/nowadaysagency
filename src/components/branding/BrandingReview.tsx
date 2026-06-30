@@ -380,9 +380,9 @@ async function savePersona(data: AnalysisResult["persona"], userId: string, work
 
   const fields: Record<string, any> = {};
   if (data.name) fields.portrait_prenom = data.name;
-  if (data.age_range) fields.portrait_age = data.age_range;
-  // Le métier va dans portrait.qui_elle_est.metier (sa vraie place, affichée
-  // dans la synthèse), pas dans description — sinon il écrasait la description.
+  // L'âge ET le métier vivent dans le JSONB portrait.qui_elle_est. Il n'y a PAS de
+  // colonne portrait_age en base : écrire dessus renvoyait un 400 (erreur avalée)
+  // → la cliente idéale n'était jamais enregistrée. La description reste à part.
   if (data.description) fields.description = data.description;
   if (data.frustrations?.length) fields.step_1_frustrations = data.frustrations.join("\n");
   if (data.desires?.length) fields.step_2_transformation = data.desires.join("\n");
@@ -396,7 +396,7 @@ async function savePersona(data: AnalysisResult["persona"], userId: string, work
   const filterVal = workspaceId && workspaceId !== userId ? workspaceId : userId;
 
   const { data: existing } = await (supabase.from("persona") as any)
-    .select("id, portrait, portrait_prenom, portrait_age, description, step_1_frustrations, step_2_transformation, step_3a_objections, step_4_beautiful, step_5_actions, channels, step_4_inspiring")
+    .select("id, portrait, portrait_prenom, description, step_1_frustrations, step_2_transformation, step_3a_objections, step_4_beautiful, step_5_actions, channels, step_4_inspiring")
     .eq(filterCol, filterVal)
     .eq("is_primary", true)
     .limit(1)
@@ -404,28 +404,34 @@ async function savePersona(data: AnalysisResult["persona"], userId: string, work
 
   if (existing?.id) {
     const toWrite = fillOnlyEmpty(fields, existing);
-    // Merge le métier dans portrait.qui_elle_est UNIQUEMENT s'il manque encore.
-    if (data.job && isEmptyVal(existing?.portrait?.qui_elle_est?.metier)) {
-      const basePortrait = (existing?.portrait && typeof existing.portrait === "object" && !Array.isArray(existing.portrait))
-        ? { ...existing.portrait }
-        : {};
-      basePortrait.qui_elle_est = { ...(basePortrait.qui_elle_est || {}), metier: data.job };
-      toWrite.portrait = basePortrait;
+    // Métier + âge vivent dans portrait.qui_elle_est — on ne complète que le vide.
+    const portraitObj = (existing?.portrait && typeof existing.portrait === "object" && !Array.isArray(existing.portrait))
+      ? existing.portrait
+      : {};
+    const existingQEE = (portraitObj as any).qui_elle_est || {};
+    const qeePatch: Record<string, any> = {};
+    if (data.job && isEmptyVal(existingQEE.metier)) qeePatch.metier = data.job;
+    if (data.age_range && isEmptyVal(existingQEE.age)) qeePatch.age = data.age_range;
+    if (Object.keys(qeePatch).length) {
+      toWrite.portrait = { ...portraitObj, qui_elle_est: { ...existingQEE, ...qeePatch } };
     }
-    if (Object.keys(toWrite).length === 0) {
-      // rien à compléter sur persona — mais on tente quand même la synthèse brand_profile
-    } else {
-      await (supabase.from("persona") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existing.id);
+    if (Object.keys(toWrite).length > 0) {
+      const { error } = await (supabase.from("persona") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existing.id);
+      if (error) throw error;
     }
   } else {
-    if (data.job) fields.portrait = { qui_elle_est: { metier: data.job } };
-    await (supabase.from("persona") as any).insert({
+    const qee: Record<string, any> = {};
+    if (data.job) qee.metier = data.job;
+    if (data.age_range) qee.age = data.age_range;
+    if (Object.keys(qee).length) fields.portrait = { qui_elle_est: qee };
+    const { error } = await (supabase.from("persona") as any).insert({
       user_id: userId,
       workspace_id: workspaceId || null,
       is_primary: true,
       updated_at: new Date().toISOString(),
       ...fields,
     });
+    if (error) throw error;
   }
 
   // La description de la cible est lue par la génération (brand_profile.target_description)
