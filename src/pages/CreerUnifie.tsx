@@ -251,6 +251,16 @@ export default function CreerUnifie() {
   // "Mode qualité Max" : rédaction du carrousel par Opus (plus soigné, ~2-3x plus lent).
   // Off par défaut → Sonnet (rapide), plus d'escalade silencieuse.
   const [qualityMax, setQualityMax] = useState(false);
+  // Qualité Max = fonctionnalité Premium. Sur un plan gratuit le toggle est verrouillé
+  // (badge + upsell) au lieu d'échouer à la génération. `plan` défaut "free" pendant le
+  // chargement → fail closed (verrouillé tant qu'on ne sait pas que l'utilisatrice est payante).
+  const qualityMaxLocked = plan === "free";
+  // Garde : si l'état avait été laissé ON (toggle mémorisé d'une session) alors que le plan
+  // est gratuit, on le remet à OFF pour ne JAMAIS envoyer `qualityMax` côté serveur (sinon
+  // échec quota). Couvre tous les sites d'envoi d'un seul endroit.
+  useEffect(() => {
+    if (qualityMaxLocked && qualityMax) setQualityMax(false);
+  }, [qualityMaxLocked, qualityMax]);
   const [structureLoading, setStructureLoading] = useState(false);
   const [lastConfirmedStructure, setLastConfirmedStructure] = useState<SlideProposal[] | null>(null);
   const [lastNarrativeThread, setLastNarrativeThread] = useState<string | null>(null);
@@ -3107,16 +3117,39 @@ export default function CreerUnifie() {
             )}
 
             {step === "questions" && selectedFormat === "carousel" && (
-              <label className="flex items-start gap-3 rounded-xl border border-border bg-card/60 p-3 mb-4 cursor-pointer animate-fade-in">
-                <Sparkles className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+              <label
+                className={`flex items-start gap-3 rounded-xl border border-border bg-card/60 p-3 mb-4 animate-fade-in ${qualityMaxLocked ? "cursor-default" : "cursor-pointer"}`}
+              >
+                <Sparkles className={`h-4 w-4 mt-0.5 shrink-0 ${qualityMaxLocked ? "text-muted-foreground" : "text-primary"}`} />
                 <div className="flex-1 min-w-0">
-                  <span className="text-sm font-medium text-foreground">Mode qualité Max</span>
+                  <span className="text-sm font-medium text-foreground inline-flex items-center gap-2">
+                    Mode qualité Max
+                    {qualityMaxLocked && (
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                        Premium
+                      </span>
+                    )}
+                  </span>
                   <p className="text-xs text-muted-foreground">
                     Texte <strong>et</strong> visuels dessinés par le modèle le plus puissant. À activer pour
                     les contenus importants — c'est nettement plus long. Désactivé = rapide (qualité déjà très bonne).
                   </p>
+                  {qualityMaxLocked && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.preventDefault(); navigate("/abonnement"); }}
+                      className="mt-1 text-xs font-medium text-primary underline-offset-2 hover:underline"
+                    >
+                      Passe en Premium pour l'activer →
+                    </button>
+                  )}
                 </div>
-                <Switch checked={qualityMax} onCheckedChange={setQualityMax} className="mt-0.5 shrink-0" />
+                <Switch
+                  checked={qualityMax && !qualityMaxLocked}
+                  onCheckedChange={setQualityMax}
+                  disabled={qualityMaxLocked}
+                  className="mt-0.5 shrink-0"
+                />
               </label>
             )}
 
