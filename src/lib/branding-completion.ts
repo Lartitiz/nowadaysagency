@@ -21,11 +21,23 @@ export interface BrandingRawData {
   charter: any | null;
 }
 
-export async function fetchBrandingData(
+export interface BrandingFetchResult {
+  data: BrandingRawData;
+  /** Non-null quand au moins une requête a échoué (réseau / 500). Permet de
+   *  distinguer « pas de données » d'« échec de chargement » côté UI. */
+  error: Error | null;
+}
+
+/**
+ * Variante de fetchBrandingData qui REMONTE l'erreur de chargement au lieu de la
+ * masquer en données vides. À utiliser quand l'UI doit afficher un état d'erreur
+ * (ex. BrandingPage) plutôt que de retomber sur l'écran d'onboarding vide.
+ */
+export async function fetchBrandingDataWithStatus(
   filter: { column: string; value: string },
   fallbackFilter?: { column: string; value: string }
-): Promise<BrandingRawData> {
-  const runQueries = async (f: { column: string; value: string }) => {
+): Promise<BrandingFetchResult> {
+  const runQueries = async (f: { column: string; value: string }): Promise<BrandingFetchResult> => {
     const [stRes, perRes, propRes, toneRes, stratRes, offersRes, charterRes] = await Promise.all([
       (supabase.from("storytelling") as any).select("id, is_primary, completed, step_7_polished, imported_text").eq(f.column, f.value),
       (supabase.from("persona") as any).select("description, step_1_frustrations, step_2_transformation, step_3a_objections, step_4_beautiful, step_5_actions").eq(f.column, f.value).order("is_primary", { ascending: false }).order("created_at", { ascending: false }).limit(1).maybeSingle(),
@@ -35,35 +47,57 @@ export async function fetchBrandingData(
       (supabase.from("offers") as any).select("id, name, promise, target_ideal, price_text, completed").eq(f.column, f.value),
       (supabase.from("brand_charter") as any).select("logo_url, color_primary, color_secondary, color_accent, color_background, color_text, font_title, font_body, mood_keywords, photo_style, uploaded_templates").eq(f.column, f.value).maybeSingle(),
     ]);
+    // On NE confond plus une requête en erreur avec « pas de données » : si l'une
+    // des requêtes a échoué, on remonte l'erreur.
+    const firstErr = stRes.error || perRes.error || propRes.error || toneRes.error || stratRes.error || offersRes.error || charterRes.error;
     return {
-      storytellingList: stRes.data,
-      persona: perRes.data,
-      proposition: propRes.data,
-      brandProfile: toneRes.data,
-      strategy: stratRes.data,
-      offersList: offersRes.data,
-      charter: charterRes.data,
+      data: {
+        storytellingList: stRes.data,
+        persona: perRes.data,
+        proposition: propRes.data,
+        brandProfile: toneRes.data,
+        strategy: stratRes.data,
+        offersList: offersRes.data,
+        charter: charterRes.data,
+      },
+      error: firstErr ? new Error(firstErr.message || "Erreur de chargement du branding") : null,
     };
   };
 
   const result = await runQueries(filter);
 
+  // En cas d'erreur, on remonte tel quel : surtout PAS de fallback (qui pourrait
+  // masquer l'échec en faux « vide »).
+  if (result.error) return result;
+
   // If all data is empty and a fallback filter exists, retry with fallback
   if (fallbackFilter && fallbackFilter.value !== filter.value) {
     const isEmpty =
-      (!result.storytellingList || result.storytellingList.length === 0) &&
-      !result.persona &&
-      !result.proposition &&
-      !result.brandProfile &&
-      !result.strategy &&
-      (!result.offersList || result.offersList.length === 0) &&
-      !result.charter;
+      (!result.data.storytellingList || result.data.storytellingList.length === 0) &&
+      !result.data.persona &&
+      !result.data.proposition &&
+      !result.data.brandProfile &&
+      !result.data.strategy &&
+      (!result.data.offersList || result.data.offersList.length === 0) &&
+      !result.data.charter;
     if (isEmpty) {
       return runQueries(fallbackFilter);
     }
   }
 
   return result;
+}
+
+/**
+ * Compat : renvoie uniquement les données (erreurs ignorées silencieusement,
+ * comportement historique). Conserve la signature attendue par les nombreux
+ * appelants existants (Dashboard, SessionContext, bannières…).
+ */
+export async function fetchBrandingData(
+  filter: { column: string; value: string },
+  fallbackFilter?: { column: string; value: string }
+): Promise<BrandingRawData> {
+  return (await fetchBrandingDataWithStatus(filter, fallbackFilter)).data;
 }
 
 function filled(val: unknown): boolean {

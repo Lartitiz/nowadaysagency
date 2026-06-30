@@ -12,7 +12,7 @@ import { ArrowLeft, Eye, Pencil, Sparkles, ClipboardList, RefreshCw, Loader2, La
 import { exportMirrorPDF } from "@/lib/mirror-pdf-export";
 import AiLoadingIndicator from "@/components/AiLoadingIndicator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { fetchBrandingData, calculateBrandingCompletion, type BrandingCompletion } from "@/lib/branding-completion";
+import { fetchBrandingData, fetchBrandingDataWithStatus, calculateBrandingCompletion, type BrandingCompletion } from "@/lib/branding-completion";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { usePersona, useBrandProposition, useStorytelling } from "@/hooks/use-branding";
@@ -78,6 +78,8 @@ export default function BrandingPage() {
   const queryClient = useQueryClient();
   const [completion, setCompletion] = useState<BrandingCompletion>({ storytelling: 0, persona: 0, proposition: 0, tone: 0, strategy: 0, offers: 0, charter: 0, total: 0 });
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
   const [primaryStoryId, setPrimaryStoryId] = useState<string | null>(null);
   const [showSynthesis, setShowSynthesis] = useState(false);
   const [importPhase, setImportPhase] = useState<'idle' | 'reviewing'>('idle');
@@ -182,7 +184,17 @@ export default function BrandingPage() {
     }
     if (!user) return;
     const load = async () => {
-      const data = await fetchBrandingData({ column, value });
+      setLoading(true);
+      setLoadError(false);
+      const { data, error: loadErr } = await fetchBrandingDataWithStatus({ column, value });
+      if (loadErr) {
+        // Échec de chargement : on affiche un état d'erreur explicite au lieu de
+        // retomber en silence sur l'écran d'onboarding vide « Dis-moi où te trouver ».
+        console.error("Branding load error:", loadErr);
+        setLoadError(true);
+        setLoading(false);
+        return;
+      }
       const comp = calculateBrandingCompletion(data);
       setCompletion(comp);
 
@@ -306,7 +318,7 @@ export default function BrandingPage() {
       setLoading(false);
     };
     load();
-  }, [user?.id, isDemoMode, column, value]);
+  }, [user?.id, isDemoMode, column, value, retryKey]);
 
   const generateProposition = async () => {
     if (!user) return;
@@ -557,14 +569,16 @@ export default function BrandingPage() {
   const showNewImport = (filledSections < 2 && !skipImport && !isDemoMode && !coachingActive) || reanalyzeMode;
   const showNewImportDemo = isDemoMode && filledSections < 2 && !skipImport && !coachingActive;
 
-  // Determine which top-level view to show: "loading" | "import" | "review" | "identity"
-  const topView: "loading" | "import" | "review" | "identity" = loading
+  // Determine which top-level view to show: "loading" | "error" | "import" | "review" | "identity"
+  const topView: "loading" | "error" | "import" | "review" | "identity" = loading
     ? "loading"
-    : (importPhaseNew === "reviewing" && analysisResult)
-      ? "review"
-      : (showNewImport || showNewImportDemo || forceImport)
-        ? "import"
-        : "identity";
+    : loadError
+      ? "error"
+      : (importPhaseNew === "reviewing" && analysisResult)
+        ? "review"
+        : (showNewImport || showNewImportDemo || forceImport)
+          ? "import"
+          : "identity";
 
   return (
     <div className="min-h-screen bg-background">
@@ -593,6 +607,19 @@ export default function BrandingPage() {
                     </div>
                   ))}
                 </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* === ERREUR DE CHARGEMENT === */}
+          {topView === "error" && (
+            <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
+              <div className="rounded-2xl border border-border bg-card p-8 text-center space-y-4 mt-8">
+                <h2 className="text-xl font-semibold">Impossible de charger ton identité de marque</h2>
+                <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                  Une erreur réseau est survenue. Tes données n'ont pas été perdues — elles sont bien enregistrées. Réessaie dans un instant.
+                </p>
+                <Button onClick={() => setRetryKey((k) => k + 1)}>Réessayer</Button>
               </div>
             </motion.div>
           )}
