@@ -319,19 +319,12 @@ export async function logUsage(
 
   const totalUsed = (usageRows || []).length;
 
-  // If usage exceeds monthly base limit, this credit came from bonus
+  // If usage exceeds monthly base limit, this credit came from bonus.
+  // Décrément ATOMIQUE (anti race condition) : la RPC fait un UPDATE conditionnel
+  // verrouillé (-1 seulement si > 0) en une requête, au lieu d'un read-modify-write.
+  // Best-effort : on log sans throw (ne casse pas la génération déjà effectuée).
   if (totalUsed > limits.total) {
-    const { data: profile } = await sb
-      .from("profiles")
-      .select("bonus_credits")
-      .eq("user_id", userId)
-      .single();
-    const currentBonus = profile?.bonus_credits || 0;
-    if (currentBonus > 0) {
-      await sb
-        .from("profiles")
-        .update({ bonus_credits: currentBonus - 1 })
-        .eq("user_id", userId);
-    }
+    const { error: decErr } = await sb.rpc("consume_bonus_credit", { p_user_id: userId });
+    if (decErr) console.error("consume_bonus_credit failed", decErr);
   }
 }

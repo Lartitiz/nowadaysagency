@@ -27,9 +27,10 @@ interface FakeConfig {
 
 interface FakeClient {
   from: (table: string) => unknown;
-  rpc: (name: string) => Promise<{ data: unknown; error: null }>;
+  rpc: (name: string, args?: unknown) => Promise<{ data: unknown; error: null }>;
   _inserted: Record<string, unknown>[];
   _profileUpdates: Record<string, unknown>[];
+  _rpcCalls: { name: string; args: unknown }[];
 }
 
 /**
@@ -41,6 +42,7 @@ interface FakeClient {
 function fakeClient(cfg: FakeConfig): FakeClient {
   const inserted: Record<string, unknown>[] = [];
   const profileUpdates: Record<string, unknown>[] = [];
+  const rpcCalls: { name: string; args: unknown }[] = [];
 
   function builderFor(table: string) {
     // deno-lint-ignore no-explicit-any
@@ -89,10 +91,13 @@ function fakeClient(cfg: FakeConfig): FakeClient {
 
   return {
     from: (t: string) => builderFor(t),
-    rpc: (name: string) =>
-      Promise.resolve({ data: name === "has_role" ? !!cfg.isAdmin : null, error: null }),
+    rpc: (name: string, args?: unknown) => {
+      rpcCalls.push({ name, args });
+      return Promise.resolve({ data: name === "has_role" ? !!cfg.isAdmin : null, error: null });
+    },
     _inserted: inserted,
     _profileUpdates: profileUpdates,
+    _rpcCalls: rpcCalls,
   };
 }
 
@@ -187,18 +192,19 @@ Deno.test("logUsage: insère bien une ligne ai_usage avec les bons champs", asyn
   assertEquals(row.workspace_id, "ws1");
 });
 
-Deno.test("logUsage: au-delà du plafond de base, décrémente les crédits bonus", async () => {
-  // 24 lignes ai_usage (> free.total=23) et bonus=5 → doit passer à 4
+Deno.test("logUsage: au-delà du plafond de base, décrémente les crédits bonus (RPC atomique)", async () => {
+  // 24 lignes ai_usage (> free.total=23) → appelle la RPC atomique consume_bonus_credit.
   const client = fakeClient({ userPlan: "free", usage: rows(24, "content"), bonusCredits: 5 });
   // deno-lint-ignore no-explicit-any
   await logUsage("u1", "content", "create", undefined, undefined, undefined, client as any);
-  assertEquals(client._profileUpdates.length, 1);
-  assertEquals(client._profileUpdates[0].bonus_credits, 4);
+  const consumeCalls = client._rpcCalls.filter((c) => c.name === "consume_bonus_credit");
+  assertEquals(consumeCalls.length, 1);
+  assertEquals(consumeCalls[0].args, { p_user_id: "u1" });
 });
 
 Deno.test("logUsage: sous le plafond de base, ne touche pas aux crédits bonus", async () => {
   const client = fakeClient({ userPlan: "free", usage: rows(10, "content"), bonusCredits: 5 });
   // deno-lint-ignore no-explicit-any
   await logUsage("u1", "content", "create", undefined, undefined, undefined, client as any);
-  assertEquals(client._profileUpdates.length, 0);
+  assertEquals(client._rpcCalls.filter((c) => c.name === "consume_bonus_credit").length, 0);
 });
