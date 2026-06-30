@@ -12,27 +12,12 @@ export default defineConfig(({ mode }) => ({
       overlay: false,
     },
   },
-  build: {
-    rollupOptions: {
-      output: {
-        // Split des gros vendors en chunks séparés : allège le chunk `index`
-        // (~1 Mo -> ~360 Ko) et donne un cache long-terme (le code app peut
-        // changer sans réinvalider react/supabase/etc.). Le reste garde le
-        // découpage par défaut de Rollup (routes déjà lazy).
-        manualChunks(id) {
-          if (!id.includes("node_modules")) return;
-          if (/[\\/](react|react-dom|react-router|react-router-dom|scheduler)[\\/]/.test(id)) return "react-vendor";
-          if (id.includes("@supabase")) return "supabase";
-          if (id.includes("@radix-ui")) return "radix";
-          if (id.includes("framer-motion") || id.includes("motion-dom") || id.includes("motion-utils")) return "motion";
-          if (id.includes("@tanstack")) return "tanstack";
-          if (id.includes("date-fns")) return "date-fns";
-          if (id.includes("lucide-react")) return "icons";
-          return undefined;
-        },
-      },
-    },
-  },
+  // ⚠️ manualChunks RETIRÉ (incident 03/07) : séparer React de ses consommateurs
+  // (radix/motion/tanstack) dans des chunks distincts provoquait au runtime
+  // `Cannot read properties of undefined (reading 'forwardRef')` — React n'était
+  // pas dispo quand le chunk Radix s'évaluait. On revient au découpage par défaut
+  // de Rollup (routes déjà lazy = sain). Re-tenter la perf #258 plus tard AVEC un
+  // vrai chargement du build de prod (pas seulement une mesure de taille).
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {
     alias: {
