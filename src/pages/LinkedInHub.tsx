@@ -7,7 +7,7 @@ import AppHeader from "@/components/AppHeader";
 import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import FirstTimeTooltip from "@/components/FirstTimeTooltip";
-import { ZoneSection, HubCard } from "@/components/hub";
+import { ZoneSection, HubCard, HubConnectBanner } from "@/components/hub";
 import { useDemoContext } from "@/contexts/DemoContext";
 import LinkedInCoaching from "@/components/linkedin/LinkedInCoaching";
 
@@ -121,6 +121,8 @@ export default function LinkedInHub() {
             Optimise ton profil, crée des posts pro, développe ton réseau : LinkedIn c'est pas ennuyeux, promis.
           </p>
         </div>
+
+        {!isDemoMode && <HubConnectBanner platform="linkedin" />}
 
         {/* ─── ZONE 1 : POSER LES BASES ─── */}
         <ZoneSection emoji="🏗️" title="Poser les bases">
