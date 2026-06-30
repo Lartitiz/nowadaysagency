@@ -19,6 +19,22 @@ export interface BrandingRawData {
   strategy: any | null;
   offersList: any[] | null;
   charter: any | null;
+  /**
+   * `true` si AU MOINS une requête a échoué (réseau / 500 …), ce qui rend les
+   * `null` ci-dessus ambigus : « pas de données » vs « chargement raté ».
+   * Permet aux lecteurs (ex. BrandingPage) de distinguer l'état ERREUR de
+   * l'état VIDE au lieu de retomber silencieusement sur l'onboarding.
+   * Les anciens appelants (et fixtures de test) l'ignorent → rétro-compatible.
+   * `fetchBrandingData` le renseigne toujours ; absent = jamais en erreur.
+   */
+  loadError?: boolean;
+}
+
+// Un "pas de ligne / plusieurs lignes" sur maybeSingle (PGRST116) n'est PAS une
+// panne de chargement : on a bien joint le serveur. Seules les vraies erreurs
+// (réseau, 5xx, RLS…) doivent marquer loadError.
+function isLoadFailure(err: any): boolean {
+  return !!err && err.code !== "PGRST116";
 }
 
 export async function fetchBrandingData(
@@ -43,10 +59,18 @@ export async function fetchBrandingData(
       strategy: stratRes.data,
       offersList: offersRes.data,
       charter: charterRes.data,
+      loadError: [stRes, perRes, propRes, toneRes, stratRes, offersRes, charterRes]
+        .some((r: any) => isLoadFailure(r?.error)),
     };
   };
 
   const result = await runQueries(filter);
+
+  // En cas de panne (réseau/500), tout est `null` : NE PAS confondre avec
+  // « vide » et déclencher le retry fallback — on remonte l'erreur telle quelle.
+  if (result.loadError) {
+    return result;
+  }
 
   // If all data is empty and a fallback filter exists, retry with fallback
   if (fallbackFilter && fallbackFilter.value !== filter.value) {

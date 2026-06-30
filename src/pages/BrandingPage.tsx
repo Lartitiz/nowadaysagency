@@ -78,6 +78,7 @@ export default function BrandingPage() {
   const queryClient = useQueryClient();
   const [completion, setCompletion] = useState<BrandingCompletion>({ storytelling: 0, persona: 0, proposition: 0, tone: 0, strategy: 0, offers: 0, charter: 0, total: 0 });
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [primaryStoryId, setPrimaryStoryId] = useState<string | null>(null);
   const [showSynthesis, setShowSynthesis] = useState(false);
   const [importPhase, setImportPhase] = useState<'idle' | 'reviewing'>('idle');
@@ -170,19 +171,19 @@ export default function BrandingPage() {
   const coachingRecId = searchParams.get("rec_id") || undefined;
   const [coachingActive, setCoachingActive] = useState(fromAudit && !!coachingModule);
 
-  useEffect(() => {
-    if (isDemoMode && demoData) {
-      setCompletion({ storytelling: 100, persona: 100, proposition: 100, tone: 80, strategy: 70, offers: 100, charter: 0, total: (demoData as any).branding.completion });
-      setPrimaryStoryId("demo-story");
-      setHasEnoughData(true);
-      setHasProposition(true);
-      setLastAudit({ id: "demo-audit", created_at: new Date().toISOString(), score_global: (demoData as any).audit.score, points_forts: (demoData as any).audit.points_forts, points_faibles: (demoData as any).audit.points_faibles });
-      setLoading(false);
-      return;
-    }
+  const loadBranding = useCallback(async () => {
     if (!user) return;
-    const load = async () => {
+    setLoading(true);
+    setLoadError(false);
+    try {
       const data = await fetchBrandingData({ column, value });
+      if (data.loadError) {
+        // Échec réseau / serveur : on REMONTE l'erreur au lieu de retomber
+        // silencieusement sur l'écran d'onboarding « Dis-moi où te trouver ».
+        // Un branding déjà rempli ne doit jamais sembler « perdu » sur une 500.
+        setLoadError(true);
+        return;
+      }
       const comp = calculateBrandingCompletion(data);
       setCompletion(comp);
 
@@ -303,10 +304,27 @@ export default function BrandingPage() {
         }
       }
 
+    } catch (e) {
+      console.error("[BrandingPage] Échec du chargement du branding:", e);
+      setLoadError(true);
+    } finally {
       setLoading(false);
-    };
-    load();
-  }, [user?.id, isDemoMode, column, value]);
+    }
+  }, [user?.id, column, value]);
+
+  useEffect(() => {
+    if (isDemoMode && demoData) {
+      setCompletion({ storytelling: 100, persona: 100, proposition: 100, tone: 80, strategy: 70, offers: 100, charter: 0, total: (demoData as any).branding.completion });
+      setPrimaryStoryId("demo-story");
+      setHasEnoughData(true);
+      setHasProposition(true);
+      setLastAudit({ id: "demo-audit", created_at: new Date().toISOString(), score_global: (demoData as any).audit.score, points_forts: (demoData as any).audit.points_forts, points_faibles: (demoData as any).audit.points_faibles });
+      setLoadError(false);
+      setLoading(false);
+      return;
+    }
+    loadBranding();
+  }, [isDemoMode, demoData, loadBranding]);
 
   const generateProposition = async () => {
     if (!user) return;
@@ -557,14 +575,17 @@ export default function BrandingPage() {
   const showNewImport = (filledSections < 2 && !skipImport && !isDemoMode && !coachingActive) || reanalyzeMode;
   const showNewImportDemo = isDemoMode && filledSections < 2 && !skipImport && !coachingActive;
 
-  // Determine which top-level view to show: "loading" | "import" | "review" | "identity"
-  const topView: "loading" | "import" | "review" | "identity" = loading
+  // Determine which top-level view to show. "error" prime sur "import" : un échec
+  // de chargement ne doit JAMAIS se déguiser en onboarding « premier remplissage ».
+  const topView: "loading" | "error" | "import" | "review" | "identity" = loading
     ? "loading"
-    : (importPhaseNew === "reviewing" && analysisResult)
-      ? "review"
-      : (showNewImport || showNewImportDemo || forceImport)
-        ? "import"
-        : "identity";
+    : loadError
+      ? "error"
+      : (importPhaseNew === "reviewing" && analysisResult)
+        ? "review"
+        : (showNewImport || showNewImportDemo || forceImport)
+          ? "import"
+          : "identity";
 
   return (
     <div className="min-h-screen bg-background">
@@ -593,6 +614,27 @@ export default function BrandingPage() {
                     </div>
                   ))}
                 </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* === ERREUR DE CHARGEMENT (distinct du « vide ») === */}
+          {topView === "error" && (
+            <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
+              <Link to="/dashboard" className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground mb-6 transition-colors">
+                <ArrowLeft className="h-4 w-4" /> Retour au hub
+              </Link>
+              <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-6 text-center">
+                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
+                  <AlertTriangle className="h-6 w-6 text-destructive" />
+                </div>
+                <h2 className="text-lg font-display font-semibold text-foreground">Impossible de charger ton identité de marque</h2>
+                <p className="mt-1.5 text-sm text-muted-foreground max-w-md mx-auto">
+                  Une erreur réseau est survenue pendant le chargement. Rien n'est perdu — réessaie dans un instant.
+                </p>
+                <Button onClick={loadBranding} className="mt-4 gap-2">
+                  <RefreshCw className="h-4 w-4" /> Réessayer
+                </Button>
               </div>
             </motion.div>
           )}
