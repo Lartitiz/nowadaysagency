@@ -130,7 +130,15 @@ export default function InstagramProfile() {
     return v?.status || null;
   };
 
-  const validatedCount = validations.filter(v => v.status === "validated").length;
+  // Un élément est "optimisé" s'il a été validé manuellement (ex. bio adoptée)
+  // OU si son score d'audit est bon (≥ 80). Sans ce 2e critère, seule la bio
+  // écrit jamais dans audit_validations → la barre plafonnait à 1/6.
+  const isOptimised = (key: string): boolean => {
+    if (getValidationStatus(key) === "validated") return true;
+    const sc = getScore(key);
+    return sc !== null && sc >= 80;
+  };
+  const optimisedCount = SECTIONS.filter(s => isOptimised(s.key)).length;
 
   if (loading) {
     return (
@@ -159,10 +167,10 @@ export default function InstagramProfile() {
         <div className="mb-8">
           <div className="flex items-center justify-between text-sm text-muted-foreground mb-1.5">
             <span>Progression du profil</span>
-            <span><strong className="text-foreground">{validatedCount}</strong> / {SECTIONS.length} optimisés</span>
+            <span><strong className="text-foreground">{optimisedCount}</strong> / {SECTIONS.length} optimisés</span>
           </div>
           <div className="h-2 rounded-pill bg-muted overflow-hidden">
-            <div className="h-full bg-success transition-all" style={{ width: `${(validatedCount / SECTIONS.length) * 100}%` }} />
+            <div className="h-full bg-success transition-all" style={{ width: `${(optimisedCount / SECTIONS.length) * 100}%` }} />
           </div>
         </div>
 
@@ -170,8 +178,7 @@ export default function InstagramProfile() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {SECTIONS.map(s => {
             const sc = getScore(s.key);
-            const vs = getValidationStatus(s.key);
-            const done = vs === "validated";
+            const done = isOptimised(s.key);
             const snippet = s.key === "bio" ? snippets.instagram_bio
               : s.key === "nom" ? snippets.instagram_display_name
               : s.key === "stories" ? (snippets.instagram_highlights as string[] || []).join(" · ") || null
