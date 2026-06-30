@@ -11,6 +11,7 @@ import BrandingCoachingFlow from "@/components/branding/BrandingCoachingFlow";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { isEmptyVal, fillOnlyEmpty } from "@/lib/fill-only-empty";
 
 // ─── Types ───────────────────────────────────────────────────
 export interface AnalysisResult {
@@ -298,160 +299,174 @@ function CharterSection({ data }: { data: AnalysisResult["charter"] }) {
 async function saveStory(data: AnalysisResult["story"], userId: string, workspaceId: string) {
   if (!data) return;
 
-  const payload: Record<string, any> = {
-    user_id: userId,
-    workspace_id: workspaceId || null,
-    is_primary: true,
-    title: "Mon histoire fondatrice",
-    story_type: "fondatrice",
-    source: "autofill",
-    updated_at: new Date().toISOString(),
-  };
-
-  if (data.origin) payload.step_1_raw = data.origin;
-  if (data.trigger) payload.step_2_location = data.trigger;
-  if (data.struggles) payload.step_3_action = data.struggles;
-  if (data.uniqueness) payload.step_4_thoughts = data.uniqueness;
-  if (data.vision) payload.step_5_emotions = data.vision;
-  if (data.full_story) payload.step_6_full_story = data.full_story;
+  const fields: Record<string, any> = {};
+  if (data.origin) fields.step_1_raw = data.origin;
+  if (data.trigger) fields.step_2_location = data.trigger;
+  if (data.struggles) fields.step_3_action = data.struggles;
+  if (data.uniqueness) fields.step_4_thoughts = data.uniqueness;
+  if (data.vision) fields.step_5_emotions = data.vision;
+  if (data.full_story) fields.step_6_full_story = data.full_story;
 
   const filterCol = workspaceId && workspaceId !== userId ? "workspace_id" : "user_id";
   const filterVal = workspaceId && workspaceId !== userId ? workspaceId : userId;
 
   const { data: existing } = await (supabase.from("storytelling") as any)
-    .select("id")
+    .select("id, step_1_raw, step_2_location, step_3_action, step_4_thoughts, step_5_emotions, step_6_full_story")
     .eq(filterCol, filterVal)
     .eq("is_primary", true)
     .limit(1)
     .maybeSingle();
 
   if (existing?.id) {
-    await (supabase.from("storytelling") as any).update(payload).eq("id", existing.id);
+    const toWrite = fillOnlyEmpty(fields, existing);
+    if (Object.keys(toWrite).length === 0) return; // rien à compléter
+    await (supabase.from("storytelling") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existing.id);
   } else {
-    await (supabase.from("storytelling") as any).insert(payload);
+    await (supabase.from("storytelling") as any).insert({
+      user_id: userId,
+      workspace_id: workspaceId || null,
+      is_primary: true,
+      title: "Mon histoire fondatrice",
+      story_type: "fondatrice",
+      source: "autofill",
+      updated_at: new Date().toISOString(),
+      ...fields,
+    });
   }
 }
 async function savePersona(data: AnalysisResult["persona"], userId: string, workspaceId: string) {
   if (!data) return;
 
-  const payload: Record<string, any> = {
-    user_id: userId,
-    workspace_id: workspaceId || null,
-    is_primary: true,
-    updated_at: new Date().toISOString(),
-  };
-
-  if (data.name) payload.portrait_prenom = data.name;
-  if (data.age_range) payload.portrait_age = data.age_range;
+  const fields: Record<string, any> = {};
+  if (data.name) fields.portrait_prenom = data.name;
+  if (data.age_range) fields.portrait_age = data.age_range;
   // Le métier va dans portrait.qui_elle_est.metier (sa vraie place, affichée
   // dans la synthèse), pas dans description — sinon il écrasait la description.
-  if (data.description) payload.description = data.description;
-  if (data.frustrations?.length) payload.step_1_frustrations = data.frustrations.join("\n");
-  if (data.desires?.length) payload.step_2_transformation = data.desires.join("\n");
-  if (data.goals?.length) payload.step_3a_objections = data.goals.join("\n");
-  if (data.beautiful_world) payload.step_4_beautiful = data.beautiful_world;
-  if (data.first_actions) payload.step_5_actions = data.first_actions;
-  if (data.channels) payload.channels = data.channels;
-  if (data.brands_they_follow?.length) payload.step_4_inspiring = data.brands_they_follow.join(", ");
+  if (data.description) fields.description = data.description;
+  if (data.frustrations?.length) fields.step_1_frustrations = data.frustrations.join("\n");
+  if (data.desires?.length) fields.step_2_transformation = data.desires.join("\n");
+  if (data.goals?.length) fields.step_3a_objections = data.goals.join("\n");
+  if (data.beautiful_world) fields.step_4_beautiful = data.beautiful_world;
+  if (data.first_actions) fields.step_5_actions = data.first_actions;
+  if (data.channels?.length) fields.channels = data.channels;
+  if (data.brands_they_follow?.length) fields.step_4_inspiring = data.brands_they_follow.join(", ");
 
   const filterCol = workspaceId && workspaceId !== userId ? "workspace_id" : "user_id";
   const filterVal = workspaceId && workspaceId !== userId ? workspaceId : userId;
 
   const { data: existing } = await (supabase.from("persona") as any)
-    .select("id, portrait")
+    .select("id, portrait, portrait_prenom, portrait_age, description, step_1_frustrations, step_2_transformation, step_3a_objections, step_4_beautiful, step_5_actions, channels, step_4_inspiring")
     .eq(filterCol, filterVal)
     .eq("is_primary", true)
     .limit(1)
     .maybeSingle();
 
-  // Merge le métier dans le JSON portrait.qui_elle_est sans écraser le reste.
-  if (data.job) {
-    const basePortrait = (existing?.portrait && typeof existing.portrait === "object" && !Array.isArray(existing.portrait))
-      ? { ...existing.portrait }
-      : {};
-    basePortrait.qui_elle_est = { ...(basePortrait.qui_elle_est || {}), metier: data.job };
-    payload.portrait = basePortrait;
-  }
-
   if (existing?.id) {
-    await (supabase.from("persona") as any).update(payload).eq("id", existing.id);
+    const toWrite = fillOnlyEmpty(fields, existing);
+    // Merge le métier dans portrait.qui_elle_est UNIQUEMENT s'il manque encore.
+    if (data.job && isEmptyVal(existing?.portrait?.qui_elle_est?.metier)) {
+      const basePortrait = (existing?.portrait && typeof existing.portrait === "object" && !Array.isArray(existing.portrait))
+        ? { ...existing.portrait }
+        : {};
+      basePortrait.qui_elle_est = { ...(basePortrait.qui_elle_est || {}), metier: data.job };
+      toWrite.portrait = basePortrait;
+    }
+    if (Object.keys(toWrite).length === 0) return; // rien à compléter
+    await (supabase.from("persona") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existing.id);
   } else {
-    await (supabase.from("persona") as any).insert(payload);
+    if (data.job) fields.portrait = { qui_elle_est: { metier: data.job } };
+    await (supabase.from("persona") as any).insert({
+      user_id: userId,
+      workspace_id: workspaceId || null,
+      is_primary: true,
+      updated_at: new Date().toISOString(),
+      ...fields,
+    });
   }
 }
 async function saveValueProp(data: AnalysisResult["value_proposition"], userId: string, workspaceId: string) {
   if (!data) return;
-  const payload: Record<string, any> = { updated_at: new Date().toISOString() };
-  if (data.key_phrase) { payload.step_1_what = data.key_phrase; payload.version_one_liner = data.key_phrase; }
-  if (data.solution) payload.step_2a_process = data.solution;
-  if (data.differentiator) payload.step_2d_refuse = data.differentiator;
-  if (data.problem) payload.step_3_for_whom = data.problem;
+  const fields: Record<string, any> = {};
+  if (data.key_phrase) { fields.step_1_what = data.key_phrase; fields.version_one_liner = data.key_phrase; }
+  if (data.solution) fields.step_2a_process = data.solution;
+  if (data.differentiator) fields.step_2d_refuse = data.differentiator;
+  if (data.problem) fields.step_3_for_whom = data.problem;
   const filterCol = workspaceId && workspaceId !== userId ? "workspace_id" : "user_id";
   const filterVal = workspaceId && workspaceId !== userId ? workspaceId : userId;
   const { data: existing } = await (supabase.from("brand_proposition") as any)
-    .select("id").eq(filterCol, filterVal).maybeSingle();
+    .select("id, step_1_what, version_one_liner, step_2a_process, step_2d_refuse, step_3_for_whom").eq(filterCol, filterVal).maybeSingle();
   if (existing?.id) {
-    await (supabase.from("brand_proposition") as any).update(payload).eq("id", existing.id);
+    const toWrite = fillOnlyEmpty(fields, existing);
+    if (Object.keys(toWrite).length === 0) return;
+    await (supabase.from("brand_proposition") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existing.id);
   } else {
-    await (supabase.from("brand_proposition") as any).insert({ user_id: userId, workspace_id: workspaceId || null, ...payload });
+    await (supabase.from("brand_proposition") as any).insert({ user_id: userId, workspace_id: workspaceId || null, updated_at: new Date().toISOString(), ...fields });
   }
 }
 async function saveTone(data: AnalysisResult["tone_style"], userId: string, workspaceId: string) {
   if (!data) return;
-  const payload: Record<string, any> = { updated_at: new Date().toISOString() };
-  if (data.tone_keywords) payload.tone_keywords = data.tone_keywords;
-  if (data.voice_description) payload.voice_description = data.voice_description;
-  if (data.tone_register) payload.tone_register = data.tone_register;
-  if (data.tone_level) payload.tone_level = data.tone_level;
-  if (data.tone_style_chip) payload.tone_style = data.tone_style_chip;
-  if (data.tone_humor) payload.tone_humor = data.tone_humor;
-  if (data.tone_engagement) payload.tone_engagement = data.tone_engagement;
-  if (data.i_do?.length) payload.tone_do = data.i_do.join("\n");
-  if (data.i_never_do?.length) payload.tone_dont = data.i_never_do.join("\n");
-  if (data.fights?.length) payload.combat_cause = data.fights.join("\n");
-  if (data.key_expressions) payload.key_expressions = data.key_expressions;
-  if (data.things_to_avoid) payload.things_to_avoid = data.things_to_avoid;
-  if (data.target_verbatims) payload.target_verbatims = data.target_verbatims;
-  if (data.channels?.length) payload.channels = data.channels;
-  if (data.visual_style) payload.visual_style = data.visual_style;
+  const fields: Record<string, any> = {};
+  if (data.tone_keywords?.length) fields.tone_keywords = data.tone_keywords;
+  if (data.voice_description) fields.voice_description = data.voice_description;
+  if (data.tone_register) fields.tone_register = data.tone_register;
+  if (data.tone_level) fields.tone_level = data.tone_level;
+  if (data.tone_style_chip) fields.tone_style = data.tone_style_chip;
+  if (data.tone_humor) fields.tone_humor = data.tone_humor;
+  if (data.tone_engagement) fields.tone_engagement = data.tone_engagement;
+  if (data.i_do?.length) fields.tone_do = data.i_do.join("\n");
+  if (data.i_never_do?.length) fields.tone_dont = data.i_never_do.join("\n");
+  if (data.fights?.length) fields.combat_cause = data.fights.join("\n");
+  if (data.key_expressions) fields.key_expressions = data.key_expressions;
+  if (data.things_to_avoid) fields.things_to_avoid = data.things_to_avoid;
+  if (data.target_verbatims) fields.target_verbatims = data.target_verbatims;
+  if (data.channels?.length) fields.channels = data.channels;
+  if (data.visual_style) fields.visual_style = data.visual_style;
   const filterCol = workspaceId && workspaceId !== userId ? "workspace_id" : "user_id";
   const filterVal = workspaceId && workspaceId !== userId ? workspaceId : userId;
   const { data: existing } = await (supabase.from("brand_profile") as any)
-    .select("id").eq(filterCol, filterVal).maybeSingle();
+    .select("id, tone_keywords, voice_description, tone_register, tone_level, tone_style, tone_humor, tone_engagement, tone_do, tone_dont, combat_cause, key_expressions, things_to_avoid, target_verbatims, channels, visual_style").eq(filterCol, filterVal).maybeSingle();
   if (existing?.id) {
-    await (supabase.from("brand_profile") as any).update(payload).eq("id", existing.id);
+    const toWrite = fillOnlyEmpty(fields, existing);
+    if (Object.keys(toWrite).length === 0) return;
+    await (supabase.from("brand_profile") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existing.id);
   } else {
-    await (supabase.from("brand_profile") as any).insert({ user_id: userId, workspace_id: workspaceId || null, ...payload });
+    await (supabase.from("brand_profile") as any).insert({ user_id: userId, workspace_id: workspaceId || null, updated_at: new Date().toISOString(), ...fields });
   }
 }
 async function saveStrategy(data: AnalysisResult["content_strategy"], userId: string, workspaceId: string) {
   if (!data) return;
   const filterCol = workspaceId && workspaceId !== userId ? "workspace_id" : "user_id";
   const filterVal = workspaceId && workspaceId !== userId ? workspaceId : userId;
-  const stratPayload: Record<string, any> = { updated_at: new Date().toISOString() };
-  if (data.pillars?.[0]) stratPayload.pillar_major = data.pillars[0];
-  if (data.pillars?.[1]) stratPayload.pillar_minor_1 = data.pillars[1];
-  if (data.pillars?.[2]) stratPayload.pillar_minor_2 = data.pillars[2];
-  if (data.creative_twist) stratPayload.creative_concept = data.creative_twist;
+  const stratFields: Record<string, any> = {};
+  if (data.pillars?.[0]) stratFields.pillar_major = data.pillars[0];
+  if (data.pillars?.[1]) stratFields.pillar_minor_1 = data.pillars[1];
+  if (data.pillars?.[2]) stratFields.pillar_minor_2 = data.pillars[2];
+  if (data.creative_twist) stratFields.creative_concept = data.creative_twist;
   const { data: existingStrat } = await (supabase.from("brand_strategy") as any)
-    .select("id").eq(filterCol, filterVal).order("updated_at", { ascending: false }).limit(1).maybeSingle();
+    .select("id, pillar_major, pillar_minor_1, pillar_minor_2, creative_concept").eq(filterCol, filterVal).order("updated_at", { ascending: false }).limit(1).maybeSingle();
   if (existingStrat?.id) {
-    await (supabase.from("brand_strategy") as any).update(stratPayload).eq("id", existingStrat.id);
+    const toWrite = fillOnlyEmpty(stratFields, existingStrat);
+    if (Object.keys(toWrite).length > 0) {
+      await (supabase.from("brand_strategy") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existingStrat.id);
+    }
   } else {
-    await (supabase.from("brand_strategy") as any).insert({ user_id: userId, workspace_id: workspaceId || null, ...stratPayload });
+    await (supabase.from("brand_strategy") as any).insert({ user_id: userId, workspace_id: workspaceId || null, updated_at: new Date().toISOString(), ...stratFields });
   }
   if (data.editorial_line || data.formats?.length) {
-    const profilePayload: Record<string, any> = { updated_at: new Date().toISOString() };
-    if (data.pillars) profilePayload.content_pillars = data.pillars;
-    if (data.editorial_line) profilePayload.content_editorial_line = data.editorial_line;
-    if (data.formats) profilePayload.content_formats = data.formats;
-    if (data.rhythm) profilePayload.content_frequency = data.rhythm;
+    const profileFields: Record<string, any> = {};
+    if (data.pillars?.length) profileFields.content_pillars = data.pillars;
+    if (data.editorial_line) profileFields.content_editorial_line = data.editorial_line;
+    if (data.formats?.length) profileFields.content_formats = data.formats;
+    if (data.rhythm) profileFields.content_frequency = data.rhythm;
     const { data: existingProfile } = await (supabase.from("brand_profile") as any)
-      .select("id").eq(filterCol, filterVal).maybeSingle();
+      .select("id, content_pillars, content_editorial_line, content_formats, content_frequency").eq(filterCol, filterVal).maybeSingle();
     if (existingProfile?.id) {
-      await (supabase.from("brand_profile") as any).update(profilePayload).eq("id", existingProfile.id);
+      const toWrite = fillOnlyEmpty(profileFields, existingProfile);
+      if (Object.keys(toWrite).length > 0) {
+        await (supabase.from("brand_profile") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existingProfile.id);
+      }
     } else {
-      await (supabase.from("brand_profile") as any).insert({ user_id: userId, workspace_id: workspaceId || null, ...profilePayload });
+      await (supabase.from("brand_profile") as any).insert({ user_id: userId, workspace_id: workspaceId || null, updated_at: new Date().toISOString(), ...profileFields });
     }
   }
 }
@@ -591,14 +606,14 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
     } catch { /* silent */ }
   }, [user?.id, workspaceId]);
 
+  // « Garder tel quel » : on valide sans rien réécrire (l'existant prime).
+  const handleKeepAsIs = useCallback((key: SectionKey) => {
+    setValidated((prev) => new Set(prev).add(key));
+    setCollapsed((prev) => new Set(prev).add(key));
+  }, []);
+
   const handleValidate = useCallback(async (key: SectionKey) => {
     if (!user?.id) return;
-    // Don't re-save pre-filled sections
-    if (preFilledSections?.has(key)) {
-      setValidated((prev) => new Set(prev).add(key));
-      setCollapsed((prev) => new Set(prev).add(key));
-      return;
-    }
     setSavingSection(key);
     try {
       const dataToSave = key === "offers" ? { ...analysis.offers, offers: editedOffers } : analysis[key];
@@ -785,17 +800,28 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
                       <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3 }} className="overflow-hidden">
                         <div className="px-5 sm:px-6 pb-5 sm:pb-6">
                           {isPreFilled && !isRefined ? (
-                            <div className="text-center py-4">
-                              <p className="text-sm text-muted-foreground mb-2">
-                                Cette section était déjà remplie. Elle n'a pas été modifiée par l'analyse.
+                            <>
+                              <p className="text-sm text-muted-foreground mb-3 bg-info-bg border border-info/20 rounded-[12px] px-3 py-2">
+                                Tu avais déjà commencé cette section. Voici ce que l'analyse a trouvé en plus — je <strong>complète seulement les champs vides</strong>, sans toucher à ce que tu as écrit.
                               </p>
-                              <button
-                                onClick={() => { setValidated(prev => new Set(prev).add(sec.key)); setCollapsed(prev => new Set(prev).add(sec.key)); }}
-                                className="inline-flex items-center gap-2 border-[1.5px] border-success text-success rounded-[12px] px-5 py-2 text-sm font-semibold hover:bg-success-bg transition-all"
-                              >
-                                <CheckCircle2 className="h-4 w-4" /> Garder tel quel ✓
-                              </button>
-                            </div>
+                              <div className="mb-5">
+                                {sec.key === "offers"
+                                  ? <OffersSection data={{ ...analysis.offers, offers: editedOffers }} onUpdate={handleOfferUpdate} onDelete={handleOfferDelete} />
+                                  : RENDERERS[sec.key](analysis)}
+                              </div>
+                              <div className="flex flex-col sm:flex-row gap-2">
+                                <button onClick={() => handleValidate(sec.key)} disabled={isSaving} className="inline-flex items-center justify-center gap-2 bg-primary text-white rounded-[12px] px-5 py-2 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-lg disabled:opacity-50">
+                                  {isSaving ? <Spinner className="h-4 w-4 text-white" /> : <CheckCircle2 className="h-4 w-4" />}
+                                  Compléter les champs vides ✓
+                                </button>
+                                <button onClick={() => handleKeepAsIs(sec.key)} disabled={isSaving} className="inline-flex items-center justify-center gap-2 border-[1.5px] border-success text-success rounded-[12px] px-5 py-2 text-sm font-semibold hover:bg-success-bg transition-all disabled:opacity-50">
+                                  <CheckCircle2 className="h-4 w-4" /> Garder tel quel
+                                </button>
+                                <button onClick={() => setCoachingSection(sec.key)} className="inline-flex items-center justify-center gap-2 border-[1.5px] border-primary text-primary rounded-[12px] px-5 py-2 text-sm font-semibold hover:bg-rose-pale transition-all">
+                                  <Sparkles className="h-4 w-4" /> On affine ensemble →
+                                </button>
+                              </div>
+                            </>
                           ) : isLow ? (
                             <div className="text-center py-6">
                               <p className="text-sm text-muted-foreground mb-4">Je n'ai pas assez d'éléments pour cette section. On la remplit ensemble ?</p>
