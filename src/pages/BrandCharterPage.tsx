@@ -26,6 +26,7 @@ import { fr } from "date-fns/locale";
 import BrandingCoachingFlow from "@/components/branding/BrandingCoachingFlow";
 import { ACTIVITY_TO_SECTOR, DEFAULT_SECTOR } from "@/lib/charter-palettes";
 import { extractLogoPalette, type LogoPalette } from "@/lib/extract-logo-palette";
+import { checkUploadSize } from "@/lib/upload-limits";
 import LogoPaletteDialog from "@/components/branding/charter/LogoPaletteDialog";
 
 const MOOD_OPTIONS = [
@@ -215,6 +216,8 @@ function MoodboardSection({ images, description, onImagesChange, onDescriptionCh
     try {
       const newImages = [...images];
       for (const file of toUpload) {
+        const tooBig = checkUploadSize(file, "moodboards");
+        if (tooBig) { toast.error(tooBig); continue; }
         const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
         const safeName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
         const path = `${userId}/${safeName}`;
