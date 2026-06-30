@@ -6,9 +6,16 @@ import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
-import { Settings, KeyRound, Trash2, Bell, Mail, Sparkles, Shield, Bot, CreditCard, Loader2, ShoppingBag, Gift, ArrowRight, Cookie, RotateCcw, Map, Share2 } from "lucide-react";
+import { Settings, KeyRound, Trash2, Bell, Mail, Sparkles, Shield, Bot, CreditCard, Loader2, ShoppingBag, Gift, ArrowRight, Cookie, RotateCcw, Map, Share2, CalendarHeart } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Link, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
@@ -40,10 +47,15 @@ export default function SettingsPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
 
-  // Notification preferences
-  const [notifEmail, setNotifEmail] = useState(() => localStorage.getItem("pref_notif_email") !== "false");
+  // Notification preferences (cosmétiques, locales)
   const [notifTips, setNotifTips] = useState(() => localStorage.getItem("pref_notif_tips") !== "false");
   const [notifReminders, setNotifReminders] = useState(() => localStorage.getItem("pref_notif_reminders") !== "false");
+
+  // Rendez-vous hebdo (persisté en base — lu par l'edge function email-trigger)
+  const [ritualEnabled, setRitualEnabled] = useState(true);
+  const [ritualDay, setRitualDay] = useState(1); // 1 = lundi … 7 = dimanche (ISO)
+  const [ritualLoaded, setRitualLoaded] = useState(false);
+  const [savingRitual, setSavingRitual] = useState(false);
 
   const [deleting, setDeleting] = useState(false);
   const [resettingOnboarding, setResettingOnboarding] = useState(false);
@@ -58,7 +70,55 @@ export default function SettingsPage() {
 
   useEffect(() => {
     loadSubscription();
+    loadRitual();
   }, []);
+
+  const loadRitual = async () => {
+    if (!user) return;
+    try {
+      const { data } = await supabase
+        .from("profiles")
+        .select("weekly_ritual_enabled, weekly_ritual_day")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (data) {
+        setRitualEnabled((data as any).weekly_ritual_enabled !== false);
+        setRitualDay((data as any).weekly_ritual_day ?? 1);
+      }
+    } catch (e) {
+      // colonnes pas encore en base : on garde les valeurs par défaut (activé, lundi)
+      console.warn("[ritual] load skipped:", e);
+    } finally {
+      setRitualLoaded(true);
+    }
+  };
+
+  const saveRitual = async (next: { enabled?: boolean; day?: number }) => {
+    if (!user) return;
+    const enabled = next.enabled ?? ritualEnabled;
+    const day = next.day ?? ritualDay;
+    // Optimiste
+    if (next.enabled !== undefined) setRitualEnabled(next.enabled);
+    if (next.day !== undefined) setRitualDay(next.day);
+    setSavingRitual(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ weekly_ritual_enabled: enabled, weekly_ritual_day: day } as any)
+      .eq("user_id", user.id);
+    setSavingRitual(false);
+    if (error) {
+      console.error("[ritual] save error:", error);
+      toast.error("Erreur", { description: "Impossible d'enregistrer ta préférence. Réessaie." });
+      // Rollback
+      loadRitual();
+    } else {
+      toast.success(
+        next.enabled === false
+          ? "Rendez-vous hebdo désactivé"
+          : "Rendez-vous hebdo enregistré ✓"
+      );
+    }
+  };
 
   const loadSubscription = async () => {
     setLoadingSub(true);
@@ -305,10 +365,47 @@ export default function SettingsPage() {
           </div>
         </Section>
 
+        {/* ─── Rendez-vous hebdo ─── */}
+        <Section icon={<CalendarHeart className="h-4 w-4" />} title="Mon rendez-vous hebdo">
+          <div className="space-y-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5"><Mail className="h-4 w-4 text-muted-foreground" /></div>
+                <div>
+                  <p className="text-sm font-medium text-foreground">Recevoir mes 5 idées de la semaine</p>
+                  <p className="text-xs text-muted-foreground">Un email doux, une fois par semaine : 5 idées de contenu à piocher pour rester visible en 10 min. Tu choisis le jour, tu peux couper quand tu veux.</p>
+                </div>
+              </div>
+              <Switch
+                checked={ritualEnabled}
+                disabled={!ritualLoaded || savingRitual}
+                onCheckedChange={(v) => saveRitual({ enabled: v })}
+                aria-label="Activer le rendez-vous hebdo"
+              />
+            </div>
+            {ritualEnabled && (
+              <div className="flex items-center justify-between gap-4 pl-7">
+                <label htmlFor="ritual-day" className="text-sm text-foreground">Le jour de mon rendez-vous</label>
+                <Select
+                  value={String(ritualDay)}
+                  onValueChange={(v) => saveRitual({ day: Number(v) })}
+                  disabled={!ritualLoaded || savingRitual}
+                >
+                  <SelectTrigger id="ritual-day" className="w-40 rounded-full"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {WEEKDAYS.map((d) => (
+                      <SelectItem key={d.value} value={String(d.value)}>{d.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+        </Section>
+
         {/* ─── Notification preferences ─── */}
         <Section icon={<Bell className="h-4 w-4" />} title="Préférences de notification">
           <div className="space-y-4">
-            <PrefRow icon={<Mail className="h-4 w-4 text-muted-foreground" />} label="Emails de suivi" description="Reçois un récap hebdomadaire de ta progression." checked={notifEmail} onCheckedChange={(v) => togglePref("pref_notif_email", v, setNotifEmail)} />
             <PrefRow icon={<Sparkles className="h-4 w-4 text-muted-foreground" />} label="Conseils & astuces" description="Reçois des conseils com' personnalisés par email." checked={notifTips} onCheckedChange={(v) => togglePref("pref_notif_tips", v, setNotifTips)} />
             <PrefRow icon={<Bell className="h-4 w-4 text-muted-foreground" />} label="Rappels de routines" description="Un petit rappel quand tu oublies tes routines." checked={notifReminders} onCheckedChange={(v) => togglePref("pref_notif_reminders", v, setNotifReminders)} />
           </div>
@@ -574,6 +671,17 @@ function PrefRow({ icon, label, description, checked, onCheckedChange }: { icon:
     </div>
   );
 }
+
+// Jours ISO 8601 : 1 = lundi … 7 = dimanche (aligné sur l'edge function email-trigger)
+const WEEKDAYS = [
+  { value: 1, label: "Lundi" },
+  { value: 2, label: "Mardi" },
+  { value: 3, label: "Mercredi" },
+  { value: 4, label: "Jeudi" },
+  { value: 5, label: "Vendredi" },
+  { value: 6, label: "Samedi" },
+  { value: 7, label: "Dimanche" },
+];
 
 const QUOTA_CATEGORIES = [
   { key: "content", emoji: "📝", label: "Contenus" },

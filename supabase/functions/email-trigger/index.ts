@@ -39,6 +39,11 @@ function isoWeekNumber(d: Date): number {
   return 1 + Math.round((date.getTime() - firstThursday.getTime()) / (7 * 86400000));
 }
 
+// Jour ISO 8601 : 1 = lundi … 7 = dimanche (aligné sur extract(isodow) côté Postgres).
+function isoDayOfWeek(d: Date): number {
+  return ((d.getUTCDay() + 6) % 7) + 1;
+}
+
 // 5 idées de la semaine (fenêtre glissante dans le pool selon le n° de semaine).
 function weeklyIdeas(now: Date): string[] {
   const week = isoWeekNumber(now);
@@ -339,10 +344,23 @@ async function handleWeeklyDigest(supabase: any, supabaseUrl: string, serviceRol
     .from("email_templates").select("subject, html_body, is_active").eq("id", templateId).single();
   if (!template?.is_active) return { event: "weekly_digest", reason: "template inactive", sent: 0 };
 
-  // 2. Cibles : inscrites ayant fini l'onboarding (l'admin et les désabonnées sont exclues)
-  const { data: profiles } = await supabase
-    .from("profiles").select("user_id, prenom, email, activite").eq("onboarding_completed", true).not("email", "is", null);
-  if (!profiles?.length) return { event: "weekly_digest", eligible: 0, sent: 0 };
+  // 2. Cibles : inscrites ayant fini l'onboarding, AYANT activé leur rendez-vous hebdo,
+  // et dont le jour choisi = aujourd'hui. Le cron tourne tous les jours ; chaque inscrite
+  // ne reçoit donc l'email QUE le jour qu'elle a choisi (l'admin et les désabonnées sont exclues).
+  // Valeurs par défaut tolérantes si la migration de préférences n'est pas encore appliquée :
+  // rituel actif + lundi.
+  const todayIso = isoDayOfWeek(new Date());
+  const { data: allProfiles } = await supabase
+    .from("profiles")
+    .select("user_id, prenom, email, activite, weekly_ritual_enabled, weekly_ritual_day")
+    .eq("onboarding_completed", true)
+    .not("email", "is", null);
+  const profiles = (allProfiles || []).filter((p: any) => {
+    const enabled = p.weekly_ritual_enabled !== false; // défaut = activé
+    const day = p.weekly_ritual_day ?? 1; // défaut = lundi
+    return enabled && day === todayIso;
+  });
+  if (!profiles.length) return { event: "weekly_digest", day: todayIso, eligible: 0, sent: 0 };
 
   // 3. Anti-doublon : qui a déjà reçu ce template dans les 6 derniers jours
   const sixDaysAgo = new Date(Date.now() - 6 * 86400000).toISOString();
