@@ -5,6 +5,7 @@ import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildProfileBlock,
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
+import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { streamAnthropicSSE, createClientSSEStream } from "../_shared/anthropic-stream.ts";
@@ -1546,16 +1547,15 @@ ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}
       rawContent = await callAnthropicSimple(modelForCall, systemPrompt, userPrompt!, tempText, maxTokens, finalUsage);
     }
 
-    let parsed;
-    try {
-      parsed = JSON.parse(rawContent);
-    } catch {
-      const match = rawContent.match(/\{[\s\S]*\}/);
-      if (match) {
-        try { parsed = JSON.parse(match[0]); } catch { parsed = { raw: rawContent }; }
-      } else {
-        parsed = { raw: rawContent };
-      }
+    // Plus de fallback { raw } muet : une réponse illisible = erreur claire (502),
+    // sans débiter le quota (logUsage est plus bas). Parsing robuste centralisé.
+    const parsed = tryParseAiJson<any>(rawContent, `creative-flow:${step}`);
+    if (parsed === null) {
+      console.warn("[creative-flow] parse échec, raw=", String(rawContent || "").slice(0, 500));
+      return new Response(
+        JSON.stringify({ error: "La génération a échoué (réponse IA illisible). Réessaie." }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     // Garde anti-échec silencieux : si la génération recycle renvoie un JSON
