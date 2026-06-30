@@ -149,7 +149,7 @@ export default function InstagramBio() {
       setView("validated");
       return;
     }
-    if (!user || brandingLoaded) return;
+    if (!user || (brandingLoaded && profile)) return;
     const load = async () => {
       const { data: val } = await (supabase.from("audit_validations") as any).select("*").eq(column, value).eq("section", "bio").maybeSingle();
 
@@ -195,7 +195,7 @@ export default function InstagramBio() {
       }
     };
     load();
-  }, [user?.id, isDemoMode, personaData, propositionData, strategyData, storytellingData]);
+  }, [user?.id, isDemoMode, personaData, propositionData, strategyData, storytellingData, profileHookData]);
 
   const brandingFilled = brandingCtx
     ? [brandingCtx.positioning, brandingCtx.valueProposition, brandingCtx.target, brandingCtx.tone].filter(Boolean).length
