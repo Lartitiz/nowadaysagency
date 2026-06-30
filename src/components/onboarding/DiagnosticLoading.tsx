@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useAuth } from "@/contexts/AuthContext";
-import { useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { type DiagnosticData, computeDiagnosticData, DEMO_DIAGNOSTIC } from "@/lib/diagnostic-data";
 import { Progress } from "@/components/ui/progress";
 
@@ -124,7 +124,12 @@ export default function DiagnosticLoading({
   answers, brandingAnswers, uploadedFileIds, activityType, onReady,
 }: Props) {
   const { user } = useAuth();
-  const workspaceId = useWorkspaceId();
+  // L'onboarding configure SON espace : on cible l'espace dont l'utilisateur·ice
+  // est OWNER, jamais l'espace actif/ambiant (qui peut être un espace client en
+  // mode agence → c'est ce qui a injecté la démo « céramiste » dans l'espace réel
+  // le 30/06). `undefined` → le serveur résout l'espace owner du caller.
+  const { ownWorkspace } = useWorkspace();
+  const onboardingWorkspaceId = ownWorkspace?.id;
   const [messages, setMessages] = useState<LiveMessage[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [checks, setChecks] = useState({ ig: false, web: false, docs: false });
@@ -278,7 +283,7 @@ export default function DiagnosticLoading({
         );
         const diagnosticTimeout = hasExternalSources ? 120000 : 60000;
 
-        const { data, error } = await invokeWithTimeout("deep-diagnostic", { body: { ...body, isOnboarding: true, workspace_id: workspaceId !== user?.id ? workspaceId : undefined } }, diagnosticTimeout);
+        const { data, error } = await invokeWithTimeout("deep-diagnostic", { body: { ...body, isOnboarding: true, workspace_id: onboardingWorkspaceId } }, diagnosticTimeout);
 
         if (error || !data) {
           console.warn("Edge function failed, using fallback:", error);

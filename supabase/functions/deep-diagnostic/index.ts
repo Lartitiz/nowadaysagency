@@ -99,7 +99,15 @@ serve(async (req) => {
       .limit(1)
       .single();
 
-    const workspaceId = bodyWorkspaceId || wsData?.workspace_id || null;
+    // Défense en profondeur (étape 3) : en mode ONBOARDING, on FORCE l'espace
+    // owner du caller et on ignore tout `workspace_id` ambiant envoyé par le
+    // front. L'onboarding configure SON espace ; il ne doit jamais écrire dans
+    // l'espace actif s'il s'agit d'un espace client (cause de la contamination
+    // du 30/06). Hors onboarding (audits), on respecte l'espace ciblé — un·e
+    // manager peut légitimement auditer l'espace d'une cliente.
+    const workspaceId = isOnboarding
+      ? (wsData?.workspace_id || null)
+      : (bodyWorkspaceId || wsData?.workspace_id || null);
 
     // Resolve workspace owner for user_id-scoped tables (scrape_cache)
     let profileUserId = userId;
