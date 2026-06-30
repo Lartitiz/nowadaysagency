@@ -126,7 +126,7 @@ export function PhotoDetailDialog({ photo, open, onOpenChange }: PhotoDetailDial
 
         <div className="rounded-xl overflow-hidden border border-border bg-muted/40 max-h-[60vh] flex items-center justify-center">
           {url ? (
-            <img
+            <img loading="lazy"
               src={url}
               alt={`${photo.name ?? "Photo"} (${view === "after" ? "retouchée" : "originale"})`}
               className="max-h-[60vh] w-full object-contain"

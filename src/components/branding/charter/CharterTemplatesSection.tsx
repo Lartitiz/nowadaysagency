@@ -112,7 +112,7 @@ export default function CharterTemplatesSection({
                     <span className="text-2xs text-muted-foreground font-medium">PDF</span>
                   </div>
                 ) : (
-                  <img
+                  <img loading="lazy"
                     src={t.url}
                     alt={t.name}
                     className="w-full aspect-square object-cover rounded-xl border border-border"

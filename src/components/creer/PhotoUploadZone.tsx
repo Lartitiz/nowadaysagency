@@ -321,7 +321,7 @@ export function PhotoUploadZone({
         return {
           ...p,
           base64: newBase64,
-          preview: newBase64, // data URL works directly as <img src>
+          preview: newBase64, // data URL works directly as <img loading="lazy" src>
           mimeType: mimeFromBase64(newBase64, p.mimeType ?? "image/jpeg"),
           originalBase64,
           originalMimeType,
@@ -602,7 +602,7 @@ export function PhotoUploadZone({
                     dragIdx === idx && "opacity-50 ring-2 ring-primary",
                   )}
                 >
-                  <img
+                  <img loading="lazy"
                     src={p.preview}
                     alt={p.name}
                     className="w-full h-full object-cover rounded-lg"

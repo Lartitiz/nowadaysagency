@@ -92,7 +92,7 @@ function InstagramMockup({
           <CarouselSlider slides={slides || []} mediaUrls={mediaUrls} />
         )
       ) : mediaUrls && mediaUrls.length > 0 ? (
-        <img src={mediaUrls[0]} alt="Visuel du post" className={`w-full object-cover ${format === "reel" ? "aspect-[4/5]" : "aspect-square"}`} />
+        <img loading="lazy" src={mediaUrls[0]} alt="Visuel du post" className={`w-full object-cover ${format === "reel" ? "aspect-[4/5]" : "aspect-square"}`} />
       ) : (
         <div
           className={`w-full flex items-center justify-center ${format === "reel" ? "aspect-[4/5]" : "aspect-square"}`}
@@ -333,7 +333,7 @@ function LinkedInMedia({ mediaUrls, compact }: { mediaUrls?: string[]; compact?:
   if (count === 1) {
     return (
       <div className={`w-full overflow-hidden bg-gray-100 ${heightCls}`}>
-        <img src={urls[0]} alt="Visuel du post" className="w-full h-full object-cover" />
+        <img loading="lazy" src={urls[0]} alt="Visuel du post" className="w-full h-full object-cover" />
       </div>
     );
   }
@@ -342,7 +342,7 @@ function LinkedInMedia({ mediaUrls, compact }: { mediaUrls?: string[]; compact?:
     return (
       <div className="grid grid-cols-2 gap-0.5 bg-white">
         {urls.slice(0, 2).map((u, i) => (
-          <img key={i} src={u} alt={`Visuel ${i + 1}`} className="w-full aspect-square object-cover" />
+          <img loading="lazy" key={i} src={u} alt={`Visuel ${i + 1}`} className="w-full aspect-square object-cover" />
         ))}
       </div>
     );
@@ -351,9 +351,9 @@ function LinkedInMedia({ mediaUrls, compact }: { mediaUrls?: string[]; compact?:
   if (count === 3) {
     return (
       <div className="grid grid-cols-2 gap-0.5 bg-white" style={{ aspectRatio: "1 / 1" }}>
-        <img src={urls[0]} alt="Visuel 1" className="w-full h-full object-cover row-span-2" />
-        <img src={urls[1]} alt="Visuel 2" className="w-full h-full object-cover" />
-        <img src={urls[2]} alt="Visuel 3" className="w-full h-full object-cover" />
+        <img loading="lazy" src={urls[0]} alt="Visuel 1" className="w-full h-full object-cover row-span-2" />
+        <img loading="lazy" src={urls[1]} alt="Visuel 2" className="w-full h-full object-cover" />
+        <img loading="lazy" src={urls[2]} alt="Visuel 3" className="w-full h-full object-cover" />
       </div>
     );
   }
@@ -367,7 +367,7 @@ function LinkedInMedia({ mediaUrls, compact }: { mediaUrls?: string[]; compact?:
         const isLastWithMore = i === 3 && remaining > 0;
         return (
           <div key={i} className="relative w-full aspect-square overflow-hidden">
-            <img src={u} alt={`Visuel ${i + 1}`} className="w-full h-full object-cover" />
+            <img loading="lazy" src={u} alt={`Visuel ${i + 1}`} className="w-full h-full object-cover" />
             {isLastWithMore && (
               <div className="absolute inset-0 bg-black/55 flex items-center justify-center">
                 <span className="text-white text-xl font-semibold">+{remaining}</span>
@@ -394,7 +394,7 @@ function AvatarCircle({ url, name, size = 36, gradient }: { url?: string; name: 
   if (url) {
     return (
       <div className="rounded-full shrink-0 overflow-hidden" style={{ width: size, height: size, ...borderStyle }}>
-        <img src={url} alt={name} className="w-full h-full rounded-full object-cover" style={gradient ? { border: "2px solid white" } : {}} />
+        <img loading="lazy" src={url} alt={name} className="w-full h-full rounded-full object-cover" style={gradient ? { border: "2px solid white" } : {}} />
       </div>
     );
   }

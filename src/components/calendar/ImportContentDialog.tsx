@@ -38,7 +38,7 @@ function SortableThumb({ url, index, onRemove }: { url: string; index: number; o
       {...attributes}
       {...listeners}
     >
-      <img src={url} alt={`Visuel ${index + 1}`} className="w-full h-full object-cover pointer-events-none" />
+      <img loading="lazy" src={url} alt={`Visuel ${index + 1}`} className="w-full h-full object-cover pointer-events-none" />
       <span className="absolute bottom-0.5 left-0.5 text-2xs font-semibold bg-black/60 text-white px-1 rounded">{index + 1}</span>
       <span className="absolute bottom-0.5 right-0.5 text-white/80 opacity-0 group-hover:opacity-100 transition-opacity"><GripVertical className="h-3 w-3" /></span>
       <button

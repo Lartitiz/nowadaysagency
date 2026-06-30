@@ -199,7 +199,7 @@ export default function PhotoSwapDialog({
                   )}
                   title={isCurrent ? "Photo actuelle" : `Utiliser la photo ${i + 1}`}
                 >
-                  <img src={p.preview} alt={p.name || `Photo ${i + 1}`} className="w-full h-full object-cover" />
+                  <img loading="lazy" src={p.preview} alt={p.name || `Photo ${i + 1}`} className="w-full h-full object-cover" />
                   {isCurrent && (
                     <span className="absolute bottom-1 left-1 rounded bg-primary/90 px-1.5 py-0.5 text-2xs font-medium text-primary-foreground">
                       Actuelle
@@ -249,7 +249,7 @@ export default function PhotoSwapDialog({
                     className="relative aspect-[3/4] rounded-lg overflow-hidden border border-border hover:border-primary/50 transition-all disabled:opacity-50"
                     title={p.alt || `Photo de ${p.photographer}`}
                   >
-                    <img src={p.thumbnail} alt={p.alt || "Photo Pexels"} className="w-full h-full object-cover" />
+                    <img loading="lazy" src={p.thumbnail} alt={p.alt || "Photo Pexels"} className="w-full h-full object-cover" />
                     {importingId === p.id && (
                       <div className="absolute inset-0 flex items-center justify-center bg-background/70">
                         <Loader2 className="h-5 w-5 animate-spin text-primary" />
