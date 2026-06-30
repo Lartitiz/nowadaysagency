@@ -256,8 +256,8 @@ Critères d'acceptation :
 | T1 Post texte IG/LinkedIn | 🔴 | 🟡 PASS partiel | | Variante IG OK ; LinkedIn + débit crédit à confirmer (voir journal) |
 | T2 Carrousel photo + Structure Review | 🔴 | ✅ PASS | | Structure + réassignation + visuels OK ; « 5 photos non utilisées » à clarifier |
 | T3 Carrousel texte → Canva | 🔴 | 🟡 PARTIEL | | Qualité Max verrouillé ✅, Canva sans freeze ✅, rendu Canva à confirmer à la main |
-| T4 Newsjacking | 🔴 | | | |
-| T5 Onboarding complet | 🔴 | | | |
+| T4 Newsjacking | 🔴 | ✅ PASS | | Labels honnêtes, actu intégrée fidèlement, 0 fuite source ; rate-limit non testé |
+| T5 Onboarding complet | 🔴 | 🟡 PASS partiel | | Reset+étapes+reload OK, diagnostic correct MAIS écran blanc pendant le calcul ; branding Camille à reconstruire |
 | T6 Import marque + Review | 🟡 | | | |
 | T7 Coaching branding | 🟡 | | | |
 | T8 Proposition/Voice/Charte/Offres | 🟡 | | | |
@@ -312,9 +312,29 @@ Critères d'acceptation :
 - ⚠️ **Non confirmable via l'outil** : l'onglet Canva a quitté le groupe suivi par le navigateur → rendu final DANS Canva non vérifié visuellement. À confirmer à la main.
 - ⏭️ Carrousel **texte** dédié + export **PPTX** : non testés (pipeline visuel déjà exercé via T2).
 
-**T4 (newsjacking) et T5 (onboarding reset) — non lancés** dans cette passe.
+**T4 (newsjacking) et T5 (onboarding reset) — non lancés** dans cette passe. → ✅ lancés le 2026-07-03 (ci-dessous).
 
 > ⚠️ **Note churn Lovable** : pendant ce run, Lovable a basculé la branche du repo (`docs/qa-e2e-checklist` → `fix/lecteurs-ia-lignes-positioning`). Les commits étaient saufs ; la suite du run a été consignée depuis un **worktree isolé** (`/tmp/nda-qa-worktree`). Pour conserver ce doc, le pousser/merger vers `main`.
+
+### Run 2026-07-03 (Claude, live, compte Camille) — suite P0
+
+**T4 — Newsjacking — ✅ PASS** (entrée « Surfer sur l'actu », intention « Combat / cause de société » + « surconsommation / retour au fait-main »)
+- ✅ Recherche d'actus avec **labels de progression honnêtes + chrono live** (« Je cherche les actus fraîches… », « Je prépare les premiers angles… 36s »), pas d'écran figé.
+- ✅ 5 actus trouvées (filtres Tout/Globale/Ma niche), brand-aware (rationnel de marque par actu). Angle primary + **« Voir 2 autres angles » (variants)** : 3 types distincts (Déclencheur/Constat/Récit), fidèles à l'article + voix de marque.
+- ✅ **Actu intégrée fidèlement** dans le post final : vraies données tissées (« #poterie 149 M de vues sur TikTok », « marchés de potiers doublés depuis le Covid », « +16 % CA céramique artisanale »).
+- ✅ **Aucune fuite de source / balise `<cite>` / URL** (texte relu en entier, du hook au CTA « Et toi, tu bois ton café dans quoi le matin ? ») — régression PR #63 absente.
+- ⏭️ Rate-limit 10/h : non testé (coûterait ~10 crédits).
+
+**T5 — Onboarding complet (reset Camille) — 🟡 PASS partiel**
+- ✅ **Reset** via /parametres → « Refaire l'onboarding » → modale de confirmation in-app claire (`useConfirm`) → branding effacé (confirmé : /branding revenu à l'état vide « Dis-moi où te trouver » + missions « histoire »/« persona » décochées).
+- ✅ **Validation par étape** : les étapes à choix gardent « Suivant » tant que rien n'est sélectionné.
+- ✅ **Reload-reprise** : F5 en plein onboarding → reprise à la **bonne étape** (pas de retour à zéro), état préservé (`lac_onboarding_*`). (Toast « on reprend » non capté dans la fenêtre, mais reprise OK.)
+- ✅ **Diagnostic = résultat correct et exploitable** : récap post-onboarding synthétise fidèlement (« Céramiste… pièces faites main + ateliers poterie », « Instagram, Newsletter », « 1 heure par semaine »).
+- 🐛 **FINDING : pendant le calcul du diagnostic, écran BLANC ~25s** (aucun loader, aucun « message live ») avant que le résultat n'apparaisse (après reload, sur /dashboard). Le critère « messages live » n'est pas satisfait → à reproduire/corriger (possible loader manquant sur l'étape diagnostic). Console : pas d'erreur app (seulement bruit d'extension).
+- ⚠️ **NOTE : l'accueil post-onboarding = carrousel 4 slides** sur /dashboard (« Ton espace est prêt » → valeur → super-pouvoirs → 5 missions avec « Crée ton premier contenu ») — ce n'est plus la page `/welcome` avec polling branding décrite dans le critère. Le CTA vers la 1ʳᵉ création existe (testé en T1). Critère à mettre à jour.
+- 🔴 **CONSÉQUENCE compte test** : après le reset, les **7 sections de branding de Camille restent vides** (l'enrichissement async n'a pas peuplé storytelling/persona/proposition/charte, même après attente). **Camille doit être reconfigurée** (import marque ou coaching) avant les tests dépendant d'un branding riche.
+
+**Findings cumulés de la passe (candidats tickets)** : (1) concaténation idée `creer_flow_state` [T1] · (2) « 5 photos non utilisées » trompeur [T2] · (3) rendu Canva à vérifier à la main [T3] · (4) **écran blanc pendant le diagnostic onboarding** [T5].
 
 ---
 
