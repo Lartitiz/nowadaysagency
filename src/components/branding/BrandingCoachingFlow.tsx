@@ -18,6 +18,7 @@ import { DEMO_COACHING_DATA, type DemoCoachingQuestion } from "@/lib/demo-coachi
 import { COACHING_CHECKLISTS, COACHING_LABELS } from "@/lib/coaching-checklists";
 import Confetti from "@/components/Confetti";
 import { toast } from "sonner";
+import { trackError } from "@/lib/error-tracker";
 import { MarkdownText } from "@/components/ui/markdown-text";
 
 type Section = "story" | "persona" | "tone_style" | "content_strategy" | "offers" | "charter" | "content_series";
@@ -873,7 +874,7 @@ export default function BrandingCoachingFlow({ section, personaId, onComplete, o
                 if (typeof fillResponse === "string") {
                   try {
                     fillInsights = JSON.parse(fillResponse.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
-                  } catch { /* ignore */ }
+                  } catch (e) { trackError(e, { where: "branding.coaching.fillInsights" }); toast.error("L'IA a renvoyé une réponse inattendue. Réessaie dans un instant."); }
                 } else if (typeof fillResponse === "object") {
                   fillInsights = fillResponse.extracted_insights || fillResponse;
                 }
@@ -958,7 +959,7 @@ export default function BrandingCoachingFlow({ section, personaId, onComplete, o
                   pitchParsed = typeof pitchData.content === "string"
                     ? JSON.parse(pitchData.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim())
                     : pitchData.content;
-                } catch { /* ignore */ }
+                } catch (e) { trackError(e, { where: "branding.coaching.pitch" }); }
 
                 if (pitchParsed) {
                   const pitchUpdate: Record<string, string> = {};

@@ -12,6 +12,7 @@ import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Button } from "@/components/ui/button";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { toast } from "sonner";
+import { trackError } from "@/lib/error-tracker";
 
 /* ── Field-level emoji map ── */
 const FIELD_EMOJI: Record<string, string> = {
@@ -336,7 +337,7 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
       let fillInsights: Record<string, any> = {};
       if (fillResponse) {
         if (typeof fillResponse === "string") {
-          try { fillInsights = JSON.parse(fillResponse.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim()); } catch { /* ignore */ }
+          try { fillInsights = JSON.parse(fillResponse.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim()); } catch (e) { trackError(e, { where: "branding.fiche.fillInsights" }); toast.error("L'IA a renvoyé une réponse inattendue. Réessaie dans un instant."); }
         } else if (typeof fillResponse === "object") {
           fillInsights = fillResponse.extracted_insights || fillResponse;
         }
@@ -571,7 +572,7 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
           let fillInsights: Record<string, any> = {};
           if (fillResponse) {
             if (typeof fillResponse === "string") {
-              try { fillInsights = JSON.parse(fillResponse.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim()); } catch { /* ignore */ }
+              try { fillInsights = JSON.parse(fillResponse.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim()); } catch (e) { trackError(e, { where: "branding.fiche.fillInsights" }); toast.error("L'IA a renvoyé une réponse inattendue. Réessaie dans un instant."); }
             } else if (typeof fillResponse === "object") {
               fillInsights = fillResponse.extracted_insights || fillResponse;
             }
@@ -643,7 +644,7 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
           pitchParsed = typeof pitchData.content === "string"
             ? JSON.parse(pitchData.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim())
             : pitchData.content;
-        } catch { /* ignore */ }
+        } catch (e) { trackError(e, { where: "branding.fiche.pitch" }); }
         if (pitchParsed) {
           const pitchUpdate: Record<string, string> = {};
           if (pitchParsed.short) pitchUpdate.pitch_short = pitchParsed.short;
