@@ -18,6 +18,7 @@ import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { Save, Loader2, Sparkles, Mic, MicOff, Plus, X, Lightbulb } from "lucide-react";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import AuditInsight from "@/components/AuditInsight";
+import ProfileSectionValidation from "@/components/ProfileSectionValidation";
 import { PillarsSyncBanner } from "@/components/edito/PillarsSyncBanner";
 
 /* ─── Types ─── */
@@ -509,6 +510,7 @@ export default function InstagramProfileEdito() {
         </p>
 
         <AuditInsight section="edito" />
+        <ProfileSectionValidation section="edito" />
 
         <div className="space-y-8">
           {/* ── Section A: Objectif ── */}

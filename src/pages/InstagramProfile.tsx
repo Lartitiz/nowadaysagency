@@ -97,7 +97,7 @@ export default function InstagramProfile() {
         (supabase
           .from("audit_validations" as any) as any)
           .select("section, status")
-          .eq(column, value),
+          .eq("user_id", user.id),
         (supabase
           .from("profiles") as any)
           .select("instagram_display_name, instagram_bio, instagram_highlights, instagram_highlights_count, instagram_pinned_posts, instagram_feed_description, instagram_pillars")
@@ -130,14 +130,11 @@ export default function InstagramProfile() {
     return v?.status || null;
   };
 
-  // Un élément est "optimisé" s'il a été validé manuellement (ex. bio adoptée)
-  // OU si son score d'audit est bon (≥ 80). Sans ce 2e critère, seule la bio
-  // écrit jamais dans audit_validations → la barre plafonnait à 1/6.
-  const isOptimised = (key: string): boolean => {
-    if (getValidationStatus(key) === "validated") return true;
-    const sc = getScore(key);
-    return sc !== null && sc >= 80;
-  };
+  // Un élément est "optimisé" quand il a été validé manuellement via son outil
+  // dédié (bouton "Marquer comme optimisé", écrit dans audit_validations). Les 6
+  // sections savent désormais s'auto-valider — cf. ProfileSectionValidation.
+  // Le score d'audit reste un indicateur séparé (affiché par carte + en bas).
+  const isOptimised = (key: string): boolean => getValidationStatus(key) === "validated";
   const optimisedCount = SECTIONS.filter(s => isOptimised(s.key)).length;
 
   if (loading) {

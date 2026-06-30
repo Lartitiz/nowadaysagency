@@ -11,6 +11,7 @@ import { useNavigate } from "react-router-dom";
 import { Save, Loader2, BookOpen, Sparkles, Check, X, Lightbulb } from "lucide-react";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import AuditInsight from "@/components/AuditInsight";
+import ProfileSectionValidation from "@/components/ProfileSectionValidation";
 import {
   Dialog,
   DialogContent,
@@ -300,6 +301,7 @@ export default function InstagramHighlights() {
         </p>
 
         <AuditInsight section="stories" />
+        <ProfileSectionValidation section="stories" />
 
         {/* ── Highlight checklist cards ── */}
         <div className="space-y-4 mb-8">

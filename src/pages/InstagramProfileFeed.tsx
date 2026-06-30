@@ -4,6 +4,7 @@ import SubPageHeader from "@/components/SubPageHeader";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Link } from "react-router-dom";
 import AuditInsight from "@/components/AuditInsight";
+import ProfileSectionValidation from "@/components/ProfileSectionValidation";
 
 export default function InstagramProfileFeed() {
   const [checklist, setChecklist] = useState({
@@ -55,6 +56,8 @@ export default function InstagramProfileFeed() {
             </Link>
           </p>
         </div>
+
+        <ProfileSectionValidation section="feed" />
       </main>
     </div>
   );
