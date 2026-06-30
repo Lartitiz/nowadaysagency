@@ -698,6 +698,9 @@ Réponds UNIQUEMENT en JSON valide :
           system: systemPrompt,
           messages: [{ role: "user", content: messageContent }],
           max_tokens: 4096,
+          // Questions ancrées sur photos : borne chaque tentative à 60s pour
+          // éviter le blocage indéfini d'un fetch qui traîne.
+          abortTimeoutMs: 60000,
         }, deepeningUsage);
 
         await logUsage(userId, category, `carousel_deepening_${body.carousel_type}`, deepeningUsage.total_tokens, deepeningUsage.model, workspace_id);
@@ -735,6 +738,9 @@ Réponds UNIQUEMENT en JSON valide :
       // canaux (0.8) → on cadre la créativité du format vitrine. Les questions
       // (Haiku, tâche bornée) gardent le comportement par défaut.
       ...(type === "deepening_questions" ? {} : { temperature: 0.85 }),
+      // Questions = appel Haiku court et borné : 30s/tentative pour qu'un fetch
+      // qui traîne bascule en retry plutôt que de bloquer le chemin d'activation.
+      ...(type === "deepening_questions" ? { abortTimeoutMs: 30000 } : {}),
     }, usage);
 
     // JSON-aware correction pass for carousels

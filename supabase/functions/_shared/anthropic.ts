@@ -61,6 +61,15 @@ export interface AnthropicOptions {
   messages: AnthropicMessage[];
   temperature?: number;
   max_tokens?: number;
+  /**
+   * Plafond (ms) PAR TENTATIVE pour l'appel HTTP à Anthropic. Sans ça, un `fetch`
+   * qui traîne (API surchargée, socket bloquée) peut pendre indéfiniment et,
+   * cumulé au backoff de retry, produire des latences de plus d'une minute.
+   * undefined = pas d'abort (comportement historique conservé pour tous les
+   * appelants). À ne renseigner QUE sur des appels courts et bornés (ex. la
+   * génération de questions en Haiku) pour transformer un blocage en retry rapide.
+   */
+  abortTimeoutMs?: number;
 }
 
 // Modèle par type d'action — Sonnet pour le contenu courant, Opus pour les tâches complexes
@@ -355,16 +364,50 @@ export async function callAnthropic(options: AnthropicOptions, usageOut?: UsageS
       await new Promise((r) => setTimeout(r, delay));
     }
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "anthropic-beta": "prompt-caching-2024-07-31",
-      },
-      body: JSON.stringify(body),
-    });
+    // Abort optionnel par tentative : borne le temps d'attente d'un fetch qui
+    // traîne et le convertit en retry (plutôt qu'un blocage de >1 min).
+    const ac = options.abortTimeoutMs ? new AbortController() : null;
+    const abortTimer = ac
+      ? setTimeout(() => ac.abort(), options.abortTimeoutMs)
+      : null;
+
+    let response: Response;
+    try {
+      response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+          "anthropic-beta": "prompt-caching-2024-07-31",
+        },
+        body: JSON.stringify(body),
+        signal: ac?.signal,
+      });
+    } catch (err) {
+      if (abortTimer) clearTimeout(abortTimer);
+      // Timeout (abort) ou erreur réseau : retryable tant qu'il reste des tentatives.
+      const isAbort = (err as any)?.name === "AbortError";
+      console.error(JSON.stringify({
+        type: "ai_error",
+        model: options.model,
+        error: isAbort ? `Anthropic fetch timeout après ${options.abortTimeoutMs}ms` : `Anthropic fetch error: ${(err as any)?.message}`,
+        attempt: attempt + 1,
+        timestamp: new Date().toISOString(),
+      }));
+      if (attempt < MAX_RETRIES) {
+        lastError = new AnthropicError(
+          isAbort ? "L'IA met trop de temps, réessai en cours..." : "Connexion à l'IA interrompue, réessai en cours...",
+          isAbort ? 504 : 503
+        );
+        continue;
+      }
+      throw new AnthropicError(
+        isAbort ? "L'IA met trop de temps à répondre. Réessaie dans un instant." : "Connexion à l'IA perdue. Réessaie dans un instant.",
+        isAbort ? 504 : 503
+      );
+    }
+    if (abortTimer) clearTimeout(abortTimer);
 
     if (response.ok) {
       const data = await response.json();
@@ -450,7 +493,8 @@ export async function callAnthropicSimple(
   userPrompt: string,
   temperature = 0.8,
   max_tokens = 4096,
-  usageOut?: UsageSink
+  usageOut?: UsageSink,
+  abortTimeoutMs?: number
 ): Promise<string> {
   return callAnthropic({
     model,
@@ -458,5 +502,6 @@ export async function callAnthropicSimple(
     messages: [{ role: "user", content: userPrompt }],
     temperature,
     max_tokens,
+    abortTimeoutMs,
   }, usageOut);
 }
