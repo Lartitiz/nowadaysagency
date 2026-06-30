@@ -710,7 +710,9 @@ export default function BrandingPage() {
                       if (!fVal) return;
                       try {
                         if (sectionKey === "proposition") {
-                          await (supabase.from("brand_profile") as any).update({ positioning: suggestion }).eq(fCol, fVal);
+                          // Source de vérité unique = brand_proposition.version_final (lu par la génération ET le Coach).
+                          // brand_profile.positioning n'est lu par aucune génération → on n'y écrit plus.
+                          await (supabase.from("brand_proposition") as any).update({ version_final: suggestion }).eq(fCol, fVal);
                         } else if (sectionKey === "persona") {
                           const { data: p } = await (supabase.from("persona") as any).select("id").eq(fCol, fVal).limit(1).maybeSingle();
                           if (p) await (supabase.from("persona") as any).update({ step_2_transformation: suggestion }).eq("id", p.id);
@@ -727,6 +729,7 @@ export default function BrandingPage() {
                         setAuditSuggestions(prev => { const next = { ...prev }; delete next[sectionKey]; return next; });
                         toast.success("✅ Suggestion appliquée !");
                         queryClient.invalidateQueries({ queryKey: ["brand-profile"] });
+                        queryClient.invalidateQueries({ queryKey: ["brand-proposition"] });
                         queryClient.invalidateQueries({ queryKey: ["persona"] });
                         queryClient.invalidateQueries({ queryKey: ["storytelling"] });
                       } catch {

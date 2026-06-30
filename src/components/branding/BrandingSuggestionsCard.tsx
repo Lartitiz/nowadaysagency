@@ -59,7 +59,9 @@ export default function BrandingSuggestionsCard({
     value_proposition_short: { table: "brand_proposition", field: "version_one_liner", filterBy: "workspace" },
     content_pillars: { table: "brand_strategy", field: "pillar_major", filterBy: "workspace" },
     voice_description: { table: "brand_profile", field: "voice_description", filterBy: "workspace" },
-    positioning: { table: "brand_profile", field: "positioning", filterBy: "workspace" },
+    // Source de vérité unique = brand_proposition.version_final (lu par la génération ET le Coach).
+    // « positioning » converge donc vers le même champ que « value_proposition ».
+    positioning: { table: "brand_proposition", field: "version_final", filterBy: "workspace" },
     mission: { table: "brand_profile", field: "mission", filterBy: "workspace" },
     tone_style: { table: "brand_profile", field: "tone_description", filterBy: "workspace" },
     storytelling: { table: "storytelling", field: "step_7_polished", filterBy: "workspace" },
@@ -72,12 +74,23 @@ export default function BrandingSuggestionsCard({
     let hasError = false;
 
     // 1. Apply each suggestion to its real table
+    // Plusieurs sections peuvent désormais cibler le même champ (ex. positioning + value_proposition
+    // → brand_proposition.version_final). On n'écrit chaque cible qu'une fois pour éviter qu'une
+    // suggestion en écrase une autre silencieusement (premier arrivé gagne).
+    const appliedTargets = new Set<string>();
     for (const s of editableSuggestions) {
       const mapping = SECTION_MAP[s.section];
       if (!mapping) {
         console.warn(`No SECTION_MAP entry for section "${s.section}" — suggestion skipped`);
         continue;
       }
+
+      const targetKey = `${mapping.table}.${mapping.field}`;
+      if (appliedTargets.has(targetKey)) {
+        console.warn(`Cible "${targetKey}" déjà écrite dans ce lot — suggestion "${s.section}" ignorée pour éviter un écrasement.`);
+        continue;
+      }
+      appliedTargets.add(targetKey);
 
       const filterCol = mapping.filterBy === "profile" ? "user_id" : wsColumn;
       const filterVal = mapping.filterBy === "profile" ? profileUserId : wsValue;
