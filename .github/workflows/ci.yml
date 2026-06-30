@@ -1,0 +1,43 @@
+name: CI
+
+# Filet de sécurité minimal : lint + tests unitaires + build sur chaque PR et push main.
+# Crucial vu le churn Lovable (déploie main d'un bloc) — empêche une régression d'atteindre
+# la prod sans qu'aucun test ne s'exécute. Audit technique transverse 30/06 (LOT C).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Annule les runs obsolètes si on repousse vite sur la même branche.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Lint informatif au départ (dette legacy : ~1054 `as any`). À rendre bloquant
+      # une fois la dette de typage résorbée (retirer `continue-on-error`).
+      - name: Lint
+        run: npm run lint
+        continue-on-error: true
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
