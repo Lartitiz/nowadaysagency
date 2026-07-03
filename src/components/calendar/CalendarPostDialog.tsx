@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { PostCommentsSection } from "@/components/calendar/PostCommentsSection";
 import { friendlyError } from "@/lib/error-messages";
+import { trackError } from "@/lib/error-tracker";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useProfile } from "@/hooks/use-profile";
 import { useSocialConnections } from "@/hooks/use-social-connections";
@@ -102,7 +103,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   const [seriesId, setSeriesId] = useState<string | null>(null);
   const [episodeNumber, setEpisodeNumber] = useState<number | null>(null);
   // Auto-save silencieux
-  const [autoSaveState, setAutoSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const [autoSaveState, setAutoSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [schedulerOpen, setSchedulerOpen] = useState(false);
   const createdIdRef = useRef<string | null>(null);   // id du post inséré via auto-save (post neuf)
   const lastSavedRef = useRef<string>("");            // payload sérialisé du dernier enregistrement
@@ -192,24 +193,29 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   }, [open, editingPost, prefillData]);
 
   // ── Auto-save silencieux (debounce) ──
+  // Utilisé par l'effet debouncé ET par le bouton « Réessayer » de l'indicateur :
+  // un échec ne doit pas rester un simple toast éphémère — sans nouvelle frappe,
+  // l'effet ne se redéclenche pas et le texte resterait non sauvé en silence.
+  const runAutoSave = async () => {
+    if (savingRef.current || !onAutoSave) return;
+    savingRef.current = true;
+    setAutoSaveState("saving");
+    const serialized = JSON.stringify(buildSaveData());
+    const res = await onAutoSave(buildSaveData(), editingPost?.id ?? createdIdRef.current);
+    savingRef.current = false;
+    if (res?.error) { setAutoSaveState("error"); toast.error("Sauvegarde impossible", { description: "Réessaie dans un instant." }); return; }
+    if (res?.post && !editingPost) createdIdRef.current = res.post.id;
+    lastSavedRef.current = serialized;
+    setSavedDraft(contentDraft);
+    setAutoSaveState("saved");
+  };
   useEffect(() => {
     if (!open || !onAutoSave) return;
     if (skipAutoSaveRef.current) return;             // pas encore armé (juste après ouverture)
     if (!theme.trim()) return;                       // pas d'auto-save d'un post sans sujet
     const serialized = JSON.stringify(buildSaveData());
     if (serialized === lastSavedRef.current) return; // rien de neuf depuis le dernier enregistrement
-    const timer = setTimeout(async () => {
-      if (savingRef.current) return;
-      savingRef.current = true;
-      setAutoSaveState("saving");
-      const res = await onAutoSave(buildSaveData(), editingPost?.id ?? createdIdRef.current);
-      savingRef.current = false;
-      if (res?.error) { setAutoSaveState("idle"); toast.error("Sauvegarde impossible", { description: "Réessaie dans un instant." }); return; }
-      if (res?.post && !editingPost) createdIdRef.current = res.post.id;
-      lastSavedRef.current = serialized;
-      setSavedDraft(contentDraft);
-      setAutoSaveState("saved");
-    }, 1200);
+    const timer = setTimeout(() => { void runAutoSave(); }, 1200);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, theme, angle, status, notes, postCanal, objectif, format, contentDraft, accroche, mediaUrls, seriesId, episodeNumber]);
@@ -278,19 +284,32 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   // Enregistre la publication réussie sur le post (sinon : invisible dans les stats + risque de re-publier en double)
   const markPostPublished = async (permalink: string | null) => {
     if (!effectiveId) return;
-    try {
-      const nowIso = new Date().toISOString();
-      await supabase.from("calendar_posts").update({
-        publish_status: "published",
-        published_at: nowIso,
-        published_post_id: permalink,
-        publish_error: null,
-        updated_at: nowIso,
-      } as any).eq("id", effectiveId);
-      setPublishStatus("published");
-      setPublishedPostId(permalink);
-    } catch (e) {
-      console.error("Maj statut publication échouée:", e);
+    const nowIso = new Date().toISOString();
+    const patch = {
+      publish_status: "published",
+      published_at: nowIso,
+      published_post_id: permalink,
+      publish_error: null,
+      updated_at: nowIso,
+    };
+    // supabase-js ne lève PAS sur {error} : sans vérification explicite, un échec
+    // d'écriture (réseau, RLS) passe inaperçu → au prochain chargement l'app croit
+    // le post non publié → re-publication = doublon PUBLIC chez la cliente.
+    // Un retry, puis un avertissement franc plutôt qu'un silence.
+    let { error } = await supabase.from("calendar_posts").update(patch as any).eq("id", effectiveId);
+    if (error) {
+      ({ error } = await supabase.from("calendar_posts").update(patch as any).eq("id", effectiveId));
+    }
+    // État local quoi qu'il arrive : le dialog masque « Publier » immédiatement
+    // (protège au moins la session en cours contre un double-clic).
+    setPublishStatus("published");
+    setPublishedPostId(permalink);
+    if (error) {
+      trackError(error, { where: "markPostPublished", postId: effectiveId });
+      toast.warning("Publié — mais pas enregistré ici", {
+        duration: 15000,
+        description: "Ton post est bien parti sur le réseau, mais je n'ai pas réussi à le noter comme publié dans le calendrier. Ne le republie pas : recharge la page dans un instant pour vérifier.",
+      });
     }
   };
 
@@ -791,9 +810,17 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
 
       <div className="flex items-center gap-3">
         {/* Indicateur d'auto-save (remplace le bouton Enregistrer) */}
-        <span className="text-2xs text-muted-foreground flex items-center gap-1 min-w-0">
+        <span className={cn("text-2xs flex items-center gap-1 min-w-0", autoSaveState === "error" ? "text-destructive" : "text-muted-foreground")}>
           {autoSaveState === "saving" ? (<><Loader2 className="h-3 w-3 animate-spin shrink-0" /> Enregistrement…</>)
             : autoSaveState === "saved" ? (<><Check className="h-3 w-3 text-success shrink-0" /> Enregistré</>)
+            : autoSaveState === "error" ? (
+              <>
+                ⚠️ Non enregistré
+                <button type="button" onClick={() => { void runAutoSave(); }} className="underline font-medium ml-1">
+                  Réessayer
+                </button>
+              </>
+            )
             : theme.trim() ? "Enregistrement automatique" : "Ajoute un sujet pour commencer"}
         </span>
 

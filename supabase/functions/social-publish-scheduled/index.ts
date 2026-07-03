@@ -8,6 +8,54 @@ import { publishImagesToInstagram } from "../_shared/instagram-graph.ts";
 import { publishTextToLinkedIn, publishImagesToLinkedIn, publishDocumentToLinkedIn, isLinkedInImageUrl, isLinkedInPdfUrl } from "../_shared/linkedin-graph.ts";
 import { decryptConnTokens } from "../_shared/token-crypto.ts";
 
+// E-mail best-effort quand une publication programmée échoue : sans lui, la
+// cliente ne l'apprend qu'en rouvrant son calendrier — elle croit avoir publié.
+// Ne lève jamais (la notification ne doit pas casser le traitement du cron).
+async function notifyPublishFailure(
+  supabase: any,
+  post: { id: string; user_id: string; canal: string; theme?: string | null },
+  errMsg: string,
+  interrupted = false,
+) {
+  try {
+    const { data: userData } = await supabase.auth.admin.getUserById(post.user_id);
+    const email = userData?.user?.email;
+    if (!email) return;
+    const reseau = post.canal === "linkedin" ? "LinkedIn" : "Instagram";
+    const titre = (post.theme || "").trim().slice(0, 90);
+    const consigne = interrupted
+      ? "La publication a été interrompue par un incident technique. <strong>Vérifie d'abord sur ton compte si le post est parti</strong>, puis reprogramme-le si besoin."
+      : "Tu peux réessayer depuis ton calendrier — et si le message parle de connexion expirée, reconnecte ton compte dans Paramètres &gt; Connexions.";
+    const html = `
+      <div style="font-family:Georgia,serif;max-width:540px;margin:0 auto;color:#2a2a2a;line-height:1.6;">
+        <p>Hello,</p>
+        <p>Ta publication automatique ${reseau}${titre ? ` « ${titre} »` : ""} n'est pas partie comme prévu.</p>
+        ${errMsg ? `<p style="background:#fdf2f5;border-left:3px solid #fb3d80;padding:10px 14px;border-radius:4px;">${errMsg}</p>` : ""}
+        <p>${consigne}</p>
+        <p style="margin:24px 0;">
+          <a href="https://nowadays-assistant.fr/calendrier" style="background:#fb3d80;color:#fff;padding:11px 22px;border-radius:999px;text-decoration:none;font-weight:bold;">Ouvrir mon calendrier</a>
+        </p>
+        <p>— L'Assistant Com'</p>
+      </div>`;
+    await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-email`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        to: email,
+        subject: `⚠️ Ta publication ${reseau} n'est pas partie`,
+        html,
+        from_name: "L'Assistant Com'",
+        user_id: post.user_id,
+      }),
+    });
+  } catch (e) {
+    console.error("notifyPublishFailure failed:", e);
+  }
+}
+
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -52,7 +100,7 @@ Deno.serve(async (req) => {
     // message clair. On ne le republie PAS automatiquement : la publication a pu aboutir
     // côté réseau juste avant le crash, et un retry aveugle créerait un doublon public.
     const staleCutoff = new Date(Date.now() - 15 * 60 * 1000).toISOString();
-    const { error: staleErr } = await supabase
+    const { data: staleRecovered, error: staleErr } = await supabase
       .from("calendar_posts")
       .update({
         publish_status: "failed",
@@ -62,8 +110,12 @@ Deno.serve(async (req) => {
       })
       .eq("auto_publish", true)
       .eq("publish_status", "publishing")
-      .lt("updated_at", staleCutoff);
+      .lt("updated_at", staleCutoff)
+      .select("id, user_id, canal, theme");
     if (staleErr) console.error("stale publishing recovery failed:", staleErr);
+    for (const p of staleRecovered || []) {
+      await notifyPublishFailure(supabase, p, "", true);
+    }
 
     // Posts dus : auto-publication échue, en attente, sur un canal publiable (Instagram ou LinkedIn).
     const { data: due, error: dueErr } = await supabase
@@ -142,15 +194,17 @@ Deno.serve(async (req) => {
           .eq("id", post.id);
         results.push({ id: post.id, ok: true, postId });
       } catch (e: any) {
+        const errMsg = String(e?.message || e).slice(0, 500);
         await supabase
           .from("calendar_posts")
           .update({
             publish_status: "failed",
-            publish_error: String(e?.message || e).slice(0, 500),
+            publish_error: errMsg,
             updated_at: new Date().toISOString(),
           })
           .eq("id", post.id);
-        results.push({ id: post.id, ok: false, error: String(e?.message || e) });
+        await notifyPublishFailure(supabase, post, errMsg);
+        results.push({ id: post.id, ok: false, error: errMsg });
       }
     }
 

@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
+import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { callAnthropic, type AnthropicModel, type UsageSink } from "../_shared/anthropic.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
@@ -227,10 +227,7 @@ serve(async (req) => {
     // `quality_max` (gratuit = 0, Premium = 20/mois).
     const quota = await checkQuota(user.id, reqBody?.quality_max ? "quality_max" : "content", ownerWorkspaceId);
     if (!quota.allowed) {
-      return new Response(
-        JSON.stringify({ error: "limit_reached", message: quota.message, quota }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      return quotaDeniedResponse(quota, corsHeaders);
     }
 
     validateInput(reqBody, z.object({

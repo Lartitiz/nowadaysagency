@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallback, buildIdentityBlock } from "../_shared/user-context.ts";
-import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
+import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { callAnthropic, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { ANTI_SLOP, EDITORIAL_ANGLES_REFERENCE, CHAIN_OF_THOUGHT, DEPTH_LAYER, PREGEN_INJECTION_RULES, EMBEDDED_EDUCATION, SLIDE_TITLE_RULES, ANTI_FABRICATED_STORYTELLING, DEPTH_LAYER_DUAL } from "../_shared/copywriting-prompts.ts";
@@ -182,10 +182,7 @@ serve(async (req) => {
     if (category === "content" && body?.quality_max) category = "quality_max";
     const quotaCheck = await checkQuota(userId, category, workspace_id);
     if (!quotaCheck.allowed) {
-      return new Response(
-        JSON.stringify({ error: "limit_reached", message: quotaCheck.message, quota: quotaCheck }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return quotaDeniedResponse(quotaCheck, corsHeaders);
     }
 
     const ctx = await getUserContext(supabase, userId, workspace_id, "instagram");
