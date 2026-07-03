@@ -306,16 +306,28 @@ export async function logUsage(
     workspace_id: workspaceId || null,
   });
 
-  // After logging, check if user exceeded monthly base limit → decrement bonus
-  const plan = await getUserPlan(sb, userId);
+  // After logging, check if user exceeded monthly base limit → decrement bonus.
+  // Le plan et le périmètre de comptage doivent être LES MÊMES que dans checkQuota
+  // (meilleur de perso/workspace/coaching, usage compté par workspace si fourni) :
+  // sinon une cliente Premium/Binôme voit ses bonus_credits fondre à tort dès que
+  // son compteur perso dépasse le plafond du plan gratuit.
+  const { data: adminCheck } = await sb.rpc("has_role", { _user_id: userId, _role: "admin" });
+  if (adminCheck) return;
+
+  const userPlan = await getUserPlan(sb, userId);
+  const workspacePlan = workspaceId ? await getWorkspacePlan(sb, workspaceId) : "free";
+  const coachingPlan = await getCoachingPlan(sb, userId);
+  const plan = bestPlan(bestPlan(userPlan, workspacePlan), coachingPlan);
   const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
   const monthStart = getMonthStart();
 
-  const { data: usageRows } = await sb
+  let usageQuery = sb
     .from("ai_usage")
     .select("id")
-    .eq("user_id", userId)
     .gte("created_at", monthStart);
+  if (workspaceId) usageQuery = usageQuery.eq("workspace_id", workspaceId);
+  else usageQuery = usageQuery.eq("user_id", userId);
+  const { data: usageRows } = await usageQuery;
 
   const totalUsed = (usageRows || []).length;
 

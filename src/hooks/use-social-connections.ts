@@ -15,6 +15,7 @@ export function useSocialConnections() {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
   const [connected, setConnected] = useState<Record<string, boolean>>({});
+  const [expiresAt, setExpiresAt] = useState<Record<string, string | null>>({});
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(() => {
@@ -27,8 +28,14 @@ export function useSocialConnections() {
       .then(({ data }) => {
         const conns = (data as any)?.connections || [];
         const map: Record<string, boolean> = {};
-        for (const c of conns) if (c?.platform) map[c.platform] = !!c.connected;
+        const expMap: Record<string, string | null> = {};
+        for (const c of conns) {
+          if (!c?.platform) continue;
+          map[c.platform] = !!c.connected;
+          expMap[c.platform] = c.expiresAt || null;
+        }
         setConnected(map);
+        setExpiresAt(expMap);
       })
       .catch(() => { /* non bloquant : on n'empêche jamais l'usage de l'app */ })
       .finally(() => setLoading(false));
@@ -41,5 +48,11 @@ export function useSocialConnections() {
     [connected],
   );
 
-  return { connected, loading, isConnected, refresh: load };
+  /** Date d'expiration du jeton OAuth (ISO) si connue — pour avertir avant qu'une publication programmée échoue. */
+  const getTokenExpiry = useCallback(
+    (platform: SocialPlatform) => expiresAt[platform] || null,
+    [expiresAt],
+  );
+
+  return { connected, loading, isConnected, getTokenExpiry, refresh: load };
 }

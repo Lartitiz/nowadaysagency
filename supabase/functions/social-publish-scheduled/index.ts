@@ -46,10 +46,29 @@ Deno.serve(async (req) => {
   try {
     const nowIso = new Date().toISOString();
 
+    // Filet de sécurité : un post resté en 'publishing' (edge interrompue en plein vol :
+    // timeout, crash, redéploiement) ne serait JAMAIS retenté ni marqué en échec — il
+    // resterait coincé là, invisible. Au bout de 15 min on le bascule en 'failed' avec un
+    // message clair. On ne le republie PAS automatiquement : la publication a pu aboutir
+    // côté réseau juste avant le crash, et un retry aveugle créerait un doublon public.
+    const staleCutoff = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+    const { error: staleErr } = await supabase
+      .from("calendar_posts")
+      .update({
+        publish_status: "failed",
+        publish_error:
+          "Publication interrompue par un incident technique. Vérifie sur ton réseau si le post est parti, puis reprogramme-le si besoin.",
+        updated_at: nowIso,
+      })
+      .eq("auto_publish", true)
+      .eq("publish_status", "publishing")
+      .lt("updated_at", staleCutoff);
+    if (staleErr) console.error("stale publishing recovery failed:", staleErr);
+
     // Posts dus : auto-publication échue, en attente, sur un canal publiable (Instagram ou LinkedIn).
     const { data: due, error: dueErr } = await supabase
       .from("calendar_posts")
-      .select("id, workspace_id, user_id, canal, content_draft, media_urls, scheduled_publish_at")
+      .select("id, workspace_id, user_id, canal, theme, content_draft, media_urls, scheduled_publish_at")
       .eq("auto_publish", true)
       .eq("publish_status", "scheduled")
       .in("canal", ["instagram", "linkedin"])

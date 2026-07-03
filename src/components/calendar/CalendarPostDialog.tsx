@@ -62,7 +62,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const { data: profileData } = useProfile();
-  const { isConnected: isSocialConnected } = useSocialConnections();
+  const { isConnected: isSocialConnected, getTokenExpiry } = useSocialConnections();
   const [ownerName, setOwnerName] = useState("Moi");
   const [igUsername, setIgUsername] = useState("");
   const [mediaUrls, setMediaUrls] = useState<string[]>([]);
@@ -361,6 +361,14 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   // Canaux publiables : Instagram (image/carrousel) et LinkedIn (texte).
   const canSchedule = postCanal === "instagram" || postCanal === "linkedin";
   const scheduleNeedsConnection = canSchedule && !isSocialConnected(postCanal as "instagram" | "linkedin");
+  // Le jeton OAuth expirera-t-il AVANT la date de publication choisie ? (LinkedIn ne se
+  // rafraîchit pas tout seul : sans reconnexion d'ici là, la publication échouera.)
+  const scheduleTokenExpiry = canSchedule ? getTokenExpiry(postCanal as "instagram" | "linkedin") : null;
+  const scheduleAfterTokenExpiry = !!(
+    scheduleTokenExpiry && scheduleInput &&
+    !isNaN(new Date(scheduleInput).getTime()) &&
+    new Date(scheduleInput).getTime() > new Date(scheduleTokenExpiry).getTime()
+  );
   const handleSchedulePublish = async () => {
     if (!effectiveId) { toast.error("Ajoute un sujet : le post s'enregistre tout seul, puis tu pourras le programmer."); return; }
     if (!canSchedule) { toast.error("Programmation disponible pour Instagram et LinkedIn."); return; }
@@ -393,7 +401,17 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       if (error) throw error;
       setScheduledAt(iso); setPublishStatus("scheduled"); setPublishError(null);
       setSchedulerOpen(false);
-      toast.success("Publication programmée ! 🗓️", { description: `${postCanal === "linkedin" ? "LinkedIn" : "Instagram"} publiera ce post automatiquement à l'heure prévue.` });
+      if (scheduleAfterTokenExpiry) {
+        // Programmé, mais le jeton sera expiré à l'heure dite → prévenir MAINTENANT plutôt
+        // que laisser la publication échouer en silence à la date prévue.
+        toast.warning("Programmé — mais reconnecte ton compte d'ici là ⚠️", {
+          duration: 12000,
+          description: `Ta connexion ${postCanal === "linkedin" ? "LinkedIn" : "Instagram"} expire le ${new Date(scheduleTokenExpiry!).toLocaleDateString("fr-FR")}, avant la date choisie. Sans reconnexion, la publication échouera.`,
+          action: { label: "Reconnecter", onClick: () => window.location.assign("/parametres/connexions") },
+        });
+      } else {
+        toast.success("Publication programmée ! 🗓️", { description: `${postCanal === "linkedin" ? "LinkedIn" : "Instagram"} publiera ce post automatiquement à l'heure prévue.` });
+      }
     } catch (e: any) {
       toast.error("Échec de la programmation", { description: friendlyError(e) });
     } finally { setSavingSchedule(false); }
@@ -760,6 +778,11 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
             <Button type="button" size="sm" onClick={handleSchedulePublish} disabled={savingSchedule} className="rounded-pill text-xs bg-primary text-primary-foreground hover:bg-primary/90">{savingSchedule ? "…" : "Programmer"}</Button>
             <Button type="button" variant="ghost" size="sm" onClick={() => setSchedulerOpen(false)} className="rounded-pill text-xs">Fermer</Button>
           </div>
+          {scheduleAfterTokenExpiry && (
+            <p className="text-2xs text-amber-900 dark:text-amber-200">
+              ⚠️ Ta connexion {postCanal === "linkedin" ? "LinkedIn" : "Instagram"} expire le {new Date(scheduleTokenExpiry!).toLocaleDateString("fr-FR")}, avant cette date. Reconnecte ton compte d'ici là, sinon la publication échouera.
+            </p>
+          )}
           {(postCanal === "instagram" ? igValidImages.length === 0 : !linkedInText) && (
             <p className="text-2xs text-muted-foreground">{postCanal === "linkedin" ? "Rédige le texte du post pour pouvoir programmer." : "Ajoute au moins un visuel (image) pour pouvoir programmer."}</p>
           )}
