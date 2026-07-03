@@ -82,4 +82,10 @@ export interface CalendarPost {
   media_urls?: string[] | null;
   /** Lien entre posts créés ensemble (import multi-réseaux) → édition/suppression groupée. */
   group_id?: string | null;
+  // Publication automatique (programmée) — pour afficher l'état dans la grille,
+  // pas seulement dans le dialog (un échec doit se voir sans ouvrir le post).
+  auto_publish?: boolean | null;
+  publish_status?: "scheduled" | "publishing" | "published" | "failed" | string | null;
+  scheduled_publish_at?: string | null;
+  publish_error?: string | null;
 }

@@ -208,3 +208,29 @@ Deno.test("logUsage: sous le plafond de base, ne touche pas aux crédits bonus",
   await logUsage("u1", "content", "create", undefined, undefined, undefined, client as any);
   assertEquals(client._rpcCalls.filter((c) => c.name === "consume_bonus_credit").length, 0);
 });
+
+Deno.test("logUsage: plan workspace binome → ne consomme JAMAIS de bonus (même > 23 usages)", async () => {
+  // Le bug corrigé : logUsage lisait le plan PERSO (free, total=23) au lieu du plan
+  // effectif (workspace binome, total=9999) → les bonus d'une cliente Binôme fondaient à tort.
+  const client = fakeClient({ userPlan: "free", workspacePlan: "binome", usage: rows(50, "content"), bonusCredits: 5 });
+  // deno-lint-ignore no-explicit-any
+  await logUsage("u1", "content", "create", undefined, undefined, "ws1", client as any);
+  assertEquals(client._rpcCalls.filter((c) => c.name === "consume_bonus_credit").length, 0);
+});
+
+Deno.test("logUsage: programme d'accompagnement actif → ne consomme pas de bonus", async () => {
+  const client = fakeClient({ userPlan: "free", coaching: true, usage: rows(50, "content"), bonusCredits: 5 });
+  // deno-lint-ignore no-explicit-any
+  await logUsage("u1", "content", "create", undefined, undefined, undefined, client as any);
+  assertEquals(client._rpcCalls.filter((c) => c.name === "consume_bonus_credit").length, 0);
+});
+
+Deno.test("logUsage: admin → journalise l'usage mais ne consomme pas de bonus", async () => {
+  // checkQuota bypass les admins ; logUsage doit faire pareil pour le décompte bonus
+  // (sinon les bonus du compte admin fondent alors qu'aucun quota ne s'applique à lui).
+  const client = fakeClient({ isAdmin: true, userPlan: "free", usage: rows(50, "content"), bonusCredits: 5 });
+  // deno-lint-ignore no-explicit-any
+  await logUsage("u1", "content", "create", undefined, undefined, undefined, client as any);
+  assertEquals(client._inserted.length, 1);
+  assertEquals(client._rpcCalls.filter((c) => c.name === "consume_bonus_credit").length, 0);
+});

@@ -77,6 +77,15 @@ function CalendarContentCardImpl({
   const seriesName = seriesId ? seriesNameById?.[seriesId] : undefined;
   const hasSeries = !!seriesId;
 
+  // État de publication AUTOMATIQUE (programmée) — un échec doit se voir dans la
+  // grille sans ouvrir le post, sinon la cliente croit que son post est parti.
+  const publishStatus = post.publish_status;
+  const publishBadge =
+    publishStatus === "failed" ? { icon: "❌", className: "text-destructive", label: "Échec de la publication automatique" }
+    : publishStatus === "scheduled" ? { icon: "🗓️", className: "text-muted-foreground", label: "Publication programmée" }
+    : publishStatus === "publishing" ? { icon: "⏳", className: "text-muted-foreground", label: "Publication en cours" }
+    : null;
+
   const cardStyle: React.CSSProperties = {
     backgroundColor: statusStyle.bg,
     borderLeftWidth: "3px",
@@ -96,6 +105,16 @@ function CalendarContentCardImpl({
       {hasSeries && (
         <p className="text-xs text-primary font-medium">
           📺 Série : {seriesName || "—"}{episodeNumber ? ` · épisode #${episodeNumber}` : ""}
+        </p>
+      )}
+      {publishStatus === "scheduled" && post.scheduled_publish_at && (
+        <p className="text-xs text-muted-foreground">
+          🗓️ Publication programmée le {new Date(post.scheduled_publish_at).toLocaleString("fr-FR", { dateStyle: "medium", timeStyle: "short" })}
+        </p>
+      )}
+      {publishStatus === "failed" && (
+        <p className="text-xs text-destructive">
+          ❌ Échec de la publication automatique{post.publish_error ? ` : ${String(post.publish_error).slice(0, 120)}` : ""} — ouvre le post pour réessayer.
         </p>
       )}
       {post.content_draft && (
@@ -219,6 +238,11 @@ function CalendarContentCardImpl({
               {/* Canal icon + title (2 lines max) */}
               <div className="flex items-start gap-1.5">
                 <span className="text-sm shrink-0 mt-0.5" style={{ fontSize: 14 }}>{canalIcon}</span>
+                {publishBadge && (
+                  <span className={cn("text-xs shrink-0 mt-0.5", publishBadge.className)} title={publishBadge.label}>
+                    {publishBadge.icon}
+                  </span>
+                )}
                 <p className={cn(
                   "font-medium text-xs leading-snug",
                   post.status === "published" && "line-through",
@@ -264,6 +288,11 @@ function CalendarContentCardImpl({
           >
             <div className="flex items-start gap-1">
               <span className="text-xs shrink-0">{canalIcon}</span>
+              {publishBadge && (
+                <span className={cn("text-xs shrink-0", publishBadge.className)} title={publishBadge.label}>
+                  {publishBadge.icon}
+                </span>
+              )}
               <p className={cn(
                 "font-medium text-xs leading-snug flex-1 min-w-0",
                 post.status === "published" && "line-through",

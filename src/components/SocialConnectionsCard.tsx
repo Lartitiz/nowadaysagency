@@ -32,6 +32,12 @@ type PlatformMeta = {
   atHandle?: boolean;
   /** Texte « non connecté » spécifique (Canva). */
   notConnectedHint?: string;
+  /**
+   * Alerter quand le jeton expire (Instagram/LinkedIn : sans reconnexion, les
+   * publications automatiques échouent). Canva et Pinterest se rafraîchissent
+   * seuls via refresh_token → leur date d'expiration en base est trompeuse.
+   */
+  warnOnExpiry?: boolean;
 };
 
 const PLATFORMS: PlatformMeta[] = [
@@ -41,12 +47,14 @@ const PLATFORMS: PlatformMeta[] = [
     icon: <Instagram className="h-4 w-4" />,
     iconWrapClass: "bg-gradient-to-br from-fuchsia-500 to-orange-400",
     atHandle: true,
+    warnOnExpiry: true,
   },
   {
     key: "linkedin",
     label: "LinkedIn",
     icon: <Linkedin className="h-4 w-4" />,
     iconWrapClass: "bg-[#0a66c2]",
+    warnOnExpiry: true,
   },
   {
     key: "canva",
@@ -185,6 +193,11 @@ export default function SocialConnectionsCard() {
         {PLATFORMS.map((p) => {
           const conn = connections[p.key];
           const isConnected = !statusUnknown && conn?.connected;
+          // Jeton expiré ou en fin de vie (< 7 jours) → la connexion existe encore en
+          // base mais les publications automatiques vont échouer : inciter à reconnecter.
+          const expMs = p.warnOnExpiry && conn?.expiresAt ? new Date(conn.expiresAt).getTime() : null;
+          const tokenExpired = !!(isConnected && expMs && expMs < Date.now());
+          const tokenExpiresSoon = !!(isConnected && !tokenExpired && expMs && expMs - Date.now() < 7 * 24 * 3600 * 1000);
           return (
             <div key={p.key} className="flex items-center justify-between gap-3 px-4 py-3">
               <div className="flex items-center gap-3 min-w-0">
@@ -201,13 +214,19 @@ export default function SocialConnectionsCard() {
                     <p className="text-xs text-muted-foreground flex items-center gap-1">
                       <AlertCircle className="h-3 w-3 text-warning" /> Statut indisponible
                     </p>
+                  ) : tokenExpired ? (
+                    <p className="text-xs text-destructive flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      Connexion expirée — reconnecte-toi pour relancer les publications automatiques.
+                    </p>
                   ) : isConnected ? (
                     <p className="text-xs text-muted-foreground flex items-center gap-1">
                       <CheckCircle2 className="h-3 w-3 text-success" />
                       Connecté{conn?.accountName ? ` : ${p.atHandle ? "@" : ""}${conn.accountName}` : ""}
                       {conn?.expiresAt && (
-                        <span className="ml-1">
+                        <span className={tokenExpiresSoon ? "ml-1 text-warning font-medium" : "ml-1"}>
                           · expire le {new Date(conn.expiresAt).toLocaleDateString("fr-FR")}
+                          {tokenExpiresSoon ? " — reconnecte-toi d'ici là" : ""}
                         </span>
                       )}
                     </p>
@@ -220,7 +239,17 @@ export default function SocialConnectionsCard() {
               </div>
 
               {/* Pas de bouton tant que le statut est inconnu (évite le faux « Connecter »). */}
-              {statusUnknown ? null : isConnected ? (
+              {statusUnknown ? null : tokenExpired ? (
+                <Button
+                  size="sm"
+                  onClick={() => handleConnect(p.key)}
+                  disabled={connecting === p.key}
+                  className="gap-1.5"
+                >
+                  {connecting === p.key ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                  Reconnecter
+                </Button>
+              ) : isConnected ? (
                 <Button
                   variant="outline"
                   size="sm"
